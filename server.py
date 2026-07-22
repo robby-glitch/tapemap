@@ -128,25 +128,53 @@ def main():
         from live import REFRESH_S, build_payload
         port = int(argv[1]) if len(argv) > 1 else 8765
         today = _t.strftime("%Y-%m-%d")
-        tok = (ROOT / ".dhan_token").read_text().strip()
-        cfgs = {x: instruments.resolve_dynamic(instruments.get(x), tok, today)
-                for x in instruments.ENABLED}
-        payloads = {x: {"payload": build_payload(c)} for x, c in cfgs.items()}
+
+        def _waiting(sym, why):
+            return json.dumps({"index": sym, "strike": None, "days": [],
+                               "live_error": why}).encode()
+
+        # Crash-proof deferred startup: bind the server immediately with
+        # "starting up" payloads, then resolve instruments + build the tape in
+        # the background loop. A stale or missing .dhan_token can no longer stop
+        # the server from coming up — start it, open the UI, click the TOKEN
+        # button, and the next refresh (<= REFRESH_S) brings the tape live. The
+        # chain poller only needs the static under_id/seg, so it starts on its
+        # own. (resolve_dynamic uses the public scrip master, no token needed.)
+        cfgs = {x: instruments.get(x) for x in instruments.ENABLED}
+        payloads = {x: {"payload": _waiting(x, "starting up — resolving…")}
+                    for x in instruments.ENABLED}
+        have = {x: False for x in instruments.ENABLED}
         poller = _start_chain(mock_chain, list(cfgs.values()))
         chains = poller.boxes
-        kb = sum(len(b["payload"] or b"") for b in payloads.values()) // 1024
-        print(f"LIVE payloads ready for {list(cfgs)} ({kb} KB), "
-              f"refreshing every {REFRESH_S}s on http://127.0.0.1:{port}")
+        print(f"LIVE server up on http://127.0.0.1:{port} for {list(cfgs)} "
+              f"(refresh {REFRESH_S}s). Need a token? Click TOKEN in the UI.")
 
         def refresh():
+            first = True
             while True:
-                _t.sleep(REFRESH_S)
+                if not first:
+                    _t.sleep(REFRESH_S)
+                first = False
+                # resolve any unresolved indices from ONE scrip-master download
+                todo = [c for c in cfgs.values() if "fut_id" not in c]
+                if todo:
+                    try:
+                        rows = instruments._load_scrip()
+                        for c in todo:
+                            instruments.resolve_dynamic(c, "", today, rows=rows)
+                    except Exception as e:
+                        print("instrument resolve failed", e)
                 for x, c in cfgs.items():
+                    if "fut_id" not in c:                # still unresolved -> retry next cycle
+                        continue
                     try:
                         payloads[x]["payload"] = build_payload(c)
-                    except Exception as e:  # keep last good payload for x
-                        print("live refresh failed", x, e)
-                print("live refresh", _t.strftime("%H:%M:%S"))
+                        have[x] = True
+                    except Exception as e:  # keep last good data; else ask for a token
+                        if not have[x]:
+                            payloads[x]["payload"] = _waiting(x,
+                                "waiting for a valid Dhan token — click ⟳ TOKEN")
+                        print("live build failed", x, e)
 
         threading.Thread(target=refresh, daemon=True).start()
         ThreadingHTTPServer(("127.0.0.1", port),

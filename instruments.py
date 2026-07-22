@@ -75,12 +75,15 @@ def _prev_trading_day(today):
     return d.strftime("%Y-%m-%d")
 
 
-def resolve_dynamic(cfg, tok, today):
+def resolve_dynamic(cfg, tok, today, rows=None):
     """Augment `cfg` in place with fut_id, expiry, prev_day and return it.
 
     `tok` is accepted for signature parity / future auth needs; the scrip
-    master is a public CSV so it is not currently used."""
-    rows = _load_scrip()
+    master is a public CSV so it is not currently used. Pass pre-loaded `rows`
+    to resolve several indices from ONE scrip-master download instead of one
+    per index."""
+    if rows is None:
+        rows = _load_scrip()
     cfg["fut_id"], cfg["expiry"] = resolve_futures_id(rows, cfg["under_sym"], today)
     cfg["prev_day"] = _prev_trading_day(today)
     return cfg

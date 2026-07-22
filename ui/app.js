@@ -64,9 +64,28 @@ async function postToken(tok){
     const r = await fetch("/api/token", {method:"POST",
       headers:{"Content-Type":"application/json"}, body: JSON.stringify({token: tok})});
     const j = await r.json();
-    if(j.ok){ S.bannerMuted = null; showBanner("token captured — " + j.msg, true); }
+    if(j.ok){
+      S.bannerMuted = null;
+      showBanner("token captured — " + j.msg + "; live data resuming…", true);
+      pollUntilLive();                       // pull the tape in as soon as the server rebuilds
+    }
     else showBanner("token rejected — " + j.msg);
   }catch(e){ showBanner("token save failed — is the server running?"); }
+}
+// after a fresh token, poll /api/data a few times until the server has bars
+function pollUntilLive(tries = 8){
+  if(tries <= 0) return;
+  setTimeout(async () => {
+    try{
+      const nd = await (await fetch(IDXQ("/api/data"))).json();
+      if(nd.days && nd.days.length){
+        S.data = nd; setDay(nd.days.length - 1); seek(S.day.bars.length - 1);
+        hideBanner();
+        return;
+      }
+    }catch(e){ /* keep trying */ }
+    pollUntilLive(tries - 1);
+  }, 4000);
 }
 function tokenPastePrompt(){
   const b = $("liveBanner");
