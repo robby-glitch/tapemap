@@ -20,7 +20,7 @@ hardcoded hex values in rules.
 | Raised surface        | `--pan2`     | `#111726`              |
 | Border                | `--edge`     | `#1e2739`              |
 | Primary text          | `--ink`      | `#dbe6f5`              |
-| Muted text            | `--dim`      | `#66748c`              |
+| Muted text            | `--dim`      | `#8090a8` (raised from #66748c for contrast) |
 | Armed / strike        | `--vio`      | `#8b5cf6`              |
 | Coiling / trap risk   | `--amber`    | `#ffbf00`              |
 | Direction up          | `--up`       | `#2ec27e`              |
@@ -111,4 +111,31 @@ New event kinds: `CHOP` (#c9a24a; chop-suppressed pivot re-cross); TRAP/
 DIVERGENCE lines carry `×N` when merged.
 
 CACHE-BUST DISCIPLINE: bump `style.css?v=` and `app.js?v=` in index.html on
-EVERY ui edit (browser serves stale files otherwise). Currently v=6 / v=7.
+EVERY ui edit (browser serves stale files otherwise). Currently style v=14 / app v=18.
+
+## TAPE-view additions (post-review, 2026-07-23)
+
+- **Price ribbon** (`#ribbon`, between #volStrip and <main>): FUT close +
+  VWAP + ±2σ envelope + colored LOUD-event dots (tooltips) + a future-mask &
+  amber cursor. `renderRibbon(i)` builds the SVG once per day (cached on
+  `S._ribbonSig = day + ":" + bars.length`), moves only cursor/mask per frame.
+  Drag anywhere on it to scrub. Hidden in DATA mode.
+- **rAF render throttle**: `render()` is a requestAnimationFrame-coalescing
+  wrapper around `_render()` — 25× playback (20ms timer) collapses to one
+  paint/frame.
+- **Keyboard**: Space play/pause, ←/→ step, Shift+←/→ jump to nearest LOUD
+  event (`seekEvent`), Home/End. Guarded so typing in inputs/selects is not
+  hijacked (`e.target.matches?.(...)`).
+- **Feed click-to-seek**: each `.ev` row carries `data-t`; clicking scrubs to
+  that minute. ×N-merged rows show the collapsed timestamps as a tooltip
+  (`ev.data.times`).
+- **Status banner** (`#liveBanner`, amber; green `.ok`): `showBanner(msg, ok)`
+  / `hideBanner()` surface live_error, live-refresh failure, chain/token errors,
+  server-unreachable; dismiss + 5-min mute. Token messages embed a capture
+  button.
+- **⟳ TOKEN button** (`#tokBtn` in #controls): `captureToken()` reads the
+  clipboard, sanity-checks the JWT, POSTs `/api/token`; a `type=password` paste
+  field is the fallback. `postToken` → `pollUntilLive()` pulls the tape in
+  within seconds. Token never stored in localStorage/console/DOM text.
+- **Persistence** (localStorage `tapemap.*`, `lsGet`/`lsSet`): index, view,
+  speed, chain sub-tab restored on boot.

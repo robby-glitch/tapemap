@@ -603,3 +603,36 @@ unchanged. Each item verified on the 54-day cache and live on port 8767.
   SPRING" → CLIMAX 14:15–17 → carry BULLISH; Thu ARMED bearish 10:49, carry
   NEUTRAL; Wed PRESS 11:47/12:43 → IGNITION DOWN + PE CLIMAX 12:56, carry
   BEARISH.
+
+## 2026-07-23 — post-review remediation (pushed: robby-glitch/tapemap)
+
+Repo initialized + pushed to private GitHub as a rollback point (ba3c152), then
+six phase commits. `.dhan_token` / `.dhan_client` / `data/chain/` gitignored.
+Replay console output stayed byte-identical except the intended CARRY lines
+(ground truth Jul 15 BEARISH / 16 NEUTRAL / 17 BULLISH preserved). Both test
+files green throughout.
+
+- **A Hygiene**: 18 replay_*.txt + 7 orphan UI prototypes → archive/; dead no-op
+  loop removed; client id → lazy `_client_id()` (env/.dhan_client).
+- **B Engine**: month/year-safe expiry — `load()` returns `(days, years)`,
+  `days_to_expiry()`, CLI `engine.py data 24200 2026-07-21` (analyze.py fixed
+  too); CARRY writer-aware (retention signed by holder, clamped at 0); true GEX
+  flip (spot-revaluation; gex_total/walls unchanged to 1e-9).
+- **C Backtest honesty**: causal expanding-median R, stop-first scoring,
+  `COST_PTS`/`--cost` net-R, Wilson CI + `!` n<30 flags. Headline: naked fade
+  59% WR [CI 50–67], net +0.14R; neg-gamma veto n≈9. IN-SAMPLE hypotheses.
+- **D UI**: rAF throttle, keyboard shortcuts, feed+ribbon click-to-seek, status
+  banner, localStorage persistence, price ribbon, contrast (--dim #8090a8), ×N
+  tooltip. (style v14 / app v18.)
+- **D9 Token capture**: POST /api/token (validate→save→hot-reload poller;
+  ChainPoller.reload flag), ⟳ TOKEN clipboard button + password paste fallback,
+  token never logged/rendered.
+- **E Docs**: README honest stats framing + run/secrets; architecture.md.
+- **Post**: crash-proof live startup (binds instantly, resolves+builds in the
+  background so a stale token can't stop boot; scrip downloaded once for all
+  indices); `pollUntilLive` after token capture; start.bat/stop.bat + Desktop
+  shortcuts (TapeMap / Stop TapeMap) with ui/tapemap.ico + ui/stop.ico.
+
+Corrections to notes above: replay baselines now live in archive/ (not the
+root); REFRESH_S is 15 (not 60); client id is no longer hardcoded (was
+1111966509 in source — now env/.dhan_client).

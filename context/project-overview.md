@@ -26,15 +26,19 @@ the way an expert tape-reader would, continuously, without fatigue.
 
 ## Core User Flow
 
-1. Trader starts the local server (`python server.py`) and opens
-   `localhost:8765`.
+1. Trader double-clicks the **TapeMap** desktop shortcut (or runs
+   `python server.py live`), the dashboard opens at `localhost:8765`, and — if
+   the daily Dhan token has expired — pastes a fresh one via the **⟳ TOKEN**
+   button (clipboard capture; the server never needs a hand-edited file or a
+   restart). **Stop TapeMap** shortcut stops it.
 2. Picks a session day (or, later, LIVE mode) — the state header, trap radar,
    momentum windows, level ladder and narrative log populate instantly.
 3. During the session (or replay), glances 2 seconds for state + active
    calls; leans in 10 seconds to read the OI/volume/level evidence.
 4. Uses the MM/gamma strip to judge whether dealer hedging dampens
    (pin — fade extremes) or amplifies (squeeze — ride) the next move.
-5. At close, reads the CARRY verdict (residual OI) for next-day bias.
+5. At close, reads the CARRY verdict (writer-aware residual OI) for next-day
+   bias.
 
 ## Features
 

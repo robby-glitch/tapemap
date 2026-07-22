@@ -20,7 +20,10 @@
 - Column access for TradingView CSVs by index (headers contain mojibake).
 - Timestamps: IST (UTC+5:30); Dhan epochs converted explicitly.
 - Rate limits: ≥0.22s sleep between Dhan data calls (5/s cap).
-- Credentials only via `.dhan_token` file read at runtime — never hardcoded.
+- Credentials only at runtime, never hardcoded: token via env `DHAN_TOKEN` or
+  `.dhan_token`; client id via env `DHAN_CLIENT_ID` or `.dhan_client`
+  (`dhan_fetch._client_id()`). All gitignored. Token refreshable in-app via
+  POST `/api/token` (⟳ TOKEN button) — validated, never logged.
 
 ## JavaScript (ui/app.js)
 

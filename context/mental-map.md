@@ -9,24 +9,27 @@ It never places orders (permanent rule).
 
 | File | Owns |
 |---|---|
-| engine.py | ALL intelligence. `Book` (per-instrument features/ranks), `Session` (event grammar, states, trap+setup lifecycles, episode brain, ctx banner, structure map), `GammaLayer` (MM regimes, writer scores, squeeze events, live IV). Pure stdlib + gamma.py. |
-| gamma.py | Black-76 math: price/vega/gamma, IV solver, dealer-signed GEX profile. Pure math, no state. |
+| engine.py | ALL intelligence. `Book` (per-instrument features/ranks), `Session` (event grammar, states, trap+setup lifecycles, episode brain, ctx banner, structure map), `GammaLayer` (MM regimes, writer scores, squeeze events, live IV). Pure stdlib + gamma.py. `load()` returns `(days, years)` and `days_to_expiry(day, year, expiry)` makes t_days month/year-safe (CLI: `python engine.py data 24200 2026-07-21`). CARRY is writer-aware: retention counts in the direction of who holds the book (writer-built = defended; buyer-built = inverted; clamped at 0 so a hard unwind can't fake conviction). |
+| gamma.py | Black-76 math: price/vega/gamma, IV solver, dealer-signed GEX profile. Pure math, no state. `gex_profile` flip_px is the TRUE flip — revalues the whole book at hypothetical spots and finds where total GEX changes sign nearest spot (not the old cumulative-across-strikes proxy); gex_total/walls unchanged. |
 | analyze.py | Replay: 3-day CSVs → list of finished Sessions → JSON. |
-| live.py | Live: Dhan REST (FUT + sticky 100-grid ATM CE/PE), self-computed VWAP/σ/pivots, SAME Session class, CARRY suppressed mid-session. `REFRESH_S=60`. |
-| server.py | Serves ui/ + `/api/data` (+`/api/gex` for Jul 17). `python server.py` = replay; `python server.py live` = live with 60s refresh thread. Port 8765. |
-| dhan_fetch.py | Instrument resolution (scrip master), validated REST intraday with `oi:true`, `chain` command for multi-strike days. |
+| live.py | Live: Dhan REST (FUT + sticky 100-grid ATM CE/PE), self-computed VWAP/σ/pivots, SAME Session class, CARRY suppressed mid-session. `REFRESH_S=15`. |
+| server.py | Serves ui/ + `/api/data` + `/api/chain` + `/api/gex`. `python server.py` = replay; `python server.py live` = live. Port 8765. **POST `/api/token`**: validates a pasted token via `chain_live.token_status`, writes `.dhan_token`, sets `poller.reload` (hot-reload) — token never logged. **Crash-proof live startup**: binds immediately with "starting up" payloads, resolves instruments + builds the tape in the background refresh loop, so a stale/missing token can't stop the server — start it, click ⟳ TOKEN, next refresh goes live. Scrip master downloaded ONCE for all indices. |
+| dhan_fetch.py | Instrument resolution (scrip master), validated REST intraday with `oi:true`, `chain` command for multi-strike days. Client id via `_client_id()` (env `DHAN_CLIENT_ID` or `.dhan_client` file) — never hardcoded. |
+| instruments.py | Per-index registry (NIFTY/BANKNIFTY/SENSEX) + `resolve_dynamic(cfg, tok, today, rows=None)` (pass `rows` to resolve all indices from one scrip download). |
+| start.bat / stop.bat | Double-click launchers. start.bat runs `python server.py live` + opens the dashboard; stop.bat kills only the process on port 8765. Desktop shortcuts (TapeMap / Stop TapeMap) use ui/tapemap.ico + ui/stop.ico. |
 | gex_run.py | Stage-2 GEX for a chain day → data/gex_*.json (causal IV forward-hold). |
 | ui/index.html + style.css + app.js | Render-only. TAPE view (READ panel, trap radar, momentum, ladder, log, ctx banner, TODAY SO FAR) + DATA view (widget grid + IV/gamma/MM top bar). No logic that isn't display composition; consumes structured JSON fields, no prose parsing in the hero cards. |
 | data/ | IMMUTABLE ground truth: FUT/CE/PE_3day.csv (Jul 15–17), chain/gex JSON. Parse CSVs by column INDEX (headers are mojibake). FUT exports order pivots BEFORE vwap; options the reverse. |
 | context/ | This constitution. progress-tracker.md = full history; logic-plain-english.md = every rule in words. |
-| replay_*.txt | Regression baselines (latest = replay_band2.txt). |
+| archive/ | Old replay_*.txt regression baselines + superseded UI prototypes (moved here; not part of the live tool). |
 | backtest.py | Offline: runs the UNCHANGED engine over data/backtest/ caches, scores ARMED/SPRING/TRAP/episode/CARRY forward outcomes in R units. `load_day(day,prev)` reused by the others. |
 | band_backtest.py | Offline: prototypes the BAND-REVERSAL fade in tiers (naked / 3D-confluence / confidence-vote / gamma-sign split). |
 | expression_backtest.py | Offline: at each ±2σ tag prices FUT-fade vs BUY-option vs SELL-option with real option closes + IV; splits by gamma sign / IV-rank / dte. |
 | cross_instrument.py | Fetches BankNifty (61088,NSE_FNO) + Sensex (1144507,BSE_FNO), runs the engine + band scoring to validate self-calibration across instruments. In-memory (not cached). |
 | cross_confluence.py / cross_breakout.py | Cross-index research: at Nifty band tags / coil-breakouts, does BankNifty+Sensex alignment+volume change the outcome. Fetch BNF+Sensex FUT live. |
 | data/backtest/ | Cached Dhan history: fut_YYYY-MM-DD.json (Dhan arrays) + opt_YYYY-MM-DD.json (fixed-strike CE/PE + per-minute IV), ~55 Nifty days (Apr–Jul). Token-independent. |
-| .dhan_token | Operator-refreshed daily (web.dhan.co). Never hardcode. Read at runtime. |
+| .dhan_token | Operator-refreshed daily (web.dhan.co). Gitignored, read at runtime. Refresh without restart via the ⟳ TOKEN button (POST /api/token). Also env `DHAN_TOKEN`. |
+| band_backtest.py honesty | Causal expanding-median R (no full-day lookahead), stop-first scoring, `COST_PTS`/`--cost` net-R, Wilson 95% CI + `!` flag on n<30 cells. Numbers are IN-SAMPLE hypotheses, not proof. |
 
 ## Data flow
 

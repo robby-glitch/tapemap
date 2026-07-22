@@ -47,8 +47,12 @@ fire on extreme ranks agreeing across books — never on fixed numbers.
 - BREAK / FLIP-TEST: pivot crossed on a close; retested from the other
   side within 3–45m and holding = level flipped.
 - CARRY (close only; suppressed live until 15:25): which book KEPT its
-  intraday build overnight → next-day bias. Both books evacuating = no
-  conviction carried.
+  intraday build overnight → next-day bias, now WRITER-AWARE — retention only
+  counts in the direction of who holds the book (writer-built = that side
+  defended; buyer-built = protection demand, inverted; mixed = half weight),
+  and retention is clamped at 0 so a book that gave its whole build back can't
+  masquerade as conviction. Uses `gamma.w` scores; message appends them. Both
+  books evacuating = no conviction carried.
 
 ## Trap lifecycle (all session)
 
@@ -76,11 +80,14 @@ When FUT tags its ±2σ band (re-arms only after closing back inside ±1σ):
   seller expression ("sell PE/CE", its IV percentile) and expiry context.
 - Negative gamma (net writer < −0.3): **BAND-BREAK** — do NOT fade; dealer
   hedging chases, continuation favored.
-Why (54 days / 219 tags): naked fade 55–58% WR; buyer expression of the same
-fade is a coin flip (theta+IV bleed in chop, 32% WR / −8% premium in
-timeouts); SELLING the inflated opposite side wins 58–65%, collects measured
-IV crush, and is paid in chop. Edge concentrates near expiry (0–1 dte: seller
-65% WR) and vanishes 4–6 dte; in negative gamma everything dies (fade 25%).
+Why (54 IN-SAMPLE days / 219 tags, causal R + stop-first scoring): naked fade
+~59% WR but 95% CI 50–67% (floor at a coin flip); net ≈ +0.14R/trade after a
+1.5-pt cost. The negative-gamma veto (fade dies, continuation wins) points the
+right way but rests on n≈9 decided trades [CI 12–65]; the deep-3σ / seller /
+near-expiry tiers are all n<30 cells (flagged `!` in band_backtest output).
+These are HYPOTHESES, not proof — the tiers were tuned on the same 54 days they
+report on. Re-validate on 30–50 FRESH live days (chain_live records them to
+data/chain/) before trusting any tier.
 CONFIDENCE TIER (advisory, no suppression — every tag still fires): a
 HIGH/MED/LOW grade from the three edge-concentrators the expression backtest
 found, scored: +2 if ≤1.5 days to expiry (dominant factor — edge vanishes
