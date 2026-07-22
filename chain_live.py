@@ -65,7 +65,8 @@ def _client(tok):
     from dhanhq import DhanContext, dhanhq
     cid = os.environ.get("DHAN_CLIENT_ID", "").strip()
     if not cid:
-        from dhan_fetch import CLIENT_ID as cid      # existing fallback
+        from dhan_fetch import _client_id
+        cid = _client_id()                           # env or .dhan_client file
     return dhanhq(DhanContext(cid, tok))
 
 

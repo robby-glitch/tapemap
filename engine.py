@@ -1088,8 +1088,6 @@ def session_json(sess):
         "events": [dict(t=t, kind=k, msg=m, **({"data": d} if d else {}))
                    for t, k, m, d in sess.events],
     }
-    for name in ("FUT", "CE", "PE"):
-        pass
     fut_by_t = {b["T"]: b for b in sess.books["FUT"].bars}
     ce_by_t = {b["T"]: b for b in sess.books["CE"].bars}
     pe_by_t = {b["T"]: b for b in sess.books["PE"].bars}

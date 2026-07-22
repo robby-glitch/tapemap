@@ -13,3 +13,6 @@ __pycache__/
 
 # server logs
 *.log
+
+# local Dhan client id (numeric account id)
+.dhan_client

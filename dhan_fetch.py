@@ -8,15 +8,29 @@ Usage:
 
 import csv
 import json
+import os
 import sys
 import time
 import urllib.request
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from dhanhq import DhanContext, dhanhq
 
 IST = timezone(timedelta(hours=5, minutes=30))
-CLIENT_ID = "1111966509"
+
+
+def _client_id():
+    """Dhan client id from env or a gitignored .dhan_client file (never in source)."""
+    cid = os.environ.get("DHAN_CLIENT_ID", "").strip()
+    if cid:
+        return cid
+    p = Path(__file__).parent / ".dhan_client"
+    if p.exists():
+        return p.read_text().strip()
+    raise RuntimeError("set DHAN_CLIENT_ID env var or create .dhan_client file")
+
+
 FUT_ID = "61093"                 # NIFTY Jul-2026 future (from `resolve`)
 CHAIN_EXPIRY = "2026-07-21"      # weekly expiry the GEX chain prices against
 CHAIN_STRIKES = [24000, 24100, 24200, 24300, 24400]
@@ -25,7 +39,7 @@ INTRADAY_URL = "https://api.dhan.co/v2/charts/intraday"
 
 def client():
     token = open(".dhan_token").read().strip()
-    return dhanhq(DhanContext(CLIENT_ID, token))
+    return dhanhq(DhanContext(_client_id(), token))
 
 
 def resolve():
