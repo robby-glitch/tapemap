@@ -1,6 +1,6 @@
 :root{
   --bg:#0a0d14; --pan:#0e121b; --pan2:#111726; --edge:#1e2739;
-  --ink:#dbe6f5; --dim:#66748c; --mono:"Cascadia Code",Consolas,monospace;
+  --ink:#dbe6f5; --dim:#8090a8; --mono:"Cascadia Code",Consolas,monospace;
   --vio:#8b5cf6; --amber:#ffbf00; --up:#2ec27e; --dn:#ff5f6b; --slate:#5d6b84;
   --gamma:#3fc1c9;
 }
@@ -108,12 +108,29 @@ main{flex:1;display:grid;grid-template-columns:300px 1fr 252px;grid-template-row
 #feed{flex:1;min-height:0;overflow-y:auto;padding:6px 10px}
 #feed::-webkit-scrollbar{width:8px}
 #feed::-webkit-scrollbar-thumb{background:var(--edge)}
-.ev{margin:5px 0;padding:5px 8px;border-left:2px solid var(--slate);background:var(--bg)}
+.ev{margin:5px 0;padding:5px 8px;border-left:2px solid var(--slate);background:var(--bg);cursor:pointer}
+.ev:hover{background:var(--pan2)}
 .ev .t{font-family:var(--mono);font-size:10px;color:var(--dim);margin-right:6px}
 .ev .k{font-weight:700;font-size:10.5px;letter-spacing:1px}
 .ev .m{display:block;color:#9fb0c8;font-size:11.5px;margin-top:2px}
 .ev.loud{background:var(--pan2);border-left-width:3px}
 .ev.loud .m{color:#c6d4e8}
+
+/* status banner (amber default, green on ok) */
+#liveBanner{background:#2a2410;color:var(--amber);border-bottom:1px solid #4a3f14;
+  padding:4px 12px;font-size:12px;display:flex;gap:12px;align-items:center}
+#liveBanner.ok{background:#10261a;color:var(--up);border-bottom-color:#1d4230}
+#liveBanner.hidden{display:none}
+#liveBanner .bmsg{flex:1}
+#liveBanner button{background:var(--pan2);color:var(--ink);border:1px solid var(--edge);
+  border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer}
+#liveBanner .bx{cursor:pointer;opacity:.7;font-size:13px}
+#liveBanner .bx:hover{opacity:1}
+
+/* price ribbon (TAPE view) */
+#ribbon{height:64px;border-bottom:1px solid var(--edge);position:relative}
+#ribbon svg{display:block;width:100%;height:100%}
+body.dataMode #ribbon{display:none}
 
 #center{display:flex;flex-direction:column;min-height:0;overflow-y:auto}
 #readBody{padding:10px 16px}

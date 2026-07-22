@@ -359,17 +359,18 @@ class Session:
         instead of spamming near-duplicate rows — killing the morning
         'two-sided writing, fade risk' TRAP/DIVERGENCE clusters."""
         if not hasattr(self, "_ev_rep"):
-            self._ev_rep = {}                 # (kind, template) -> [idx, i, n]
+            self._ev_rep = {}                 # (kind, template) -> [idx, i, n, times]
         merge = kind in ("TRAP", "DIVERGENCE")
         tmpl = None
         if merge:
             tmpl = (kind, "".join("#" if c.isdigit() else c for c in msg))
             prev = self._ev_rep.get(tmpl)
             if prev and i - prev[1] < 20:     # same signal recurring -> bump ×N
-                idx, _, n = prev[0], prev[1], prev[2] + 1
+                idx, n, times = prev[0], prev[2] + 1, prev[3] + [self.fut_bars[i]["T"]]
                 t0, k0, m0, d0 = self.events[idx]
-                self.events[idx] = (t0, k0, m0.split("  ×")[0] + f"  ×{n}", d0)
-                self._ev_rep[tmpl] = [idx, i, n]
+                nd = {**(d0 or {}), "times": times}   # keep the collapsed stamps
+                self.events[idx] = (t0, k0, m0.split("  ×")[0] + f"  ×{n}", nd)
+                self._ev_rep[tmpl] = [idx, i, n, times]
                 self.cooldown[kind] = i
                 return
         last = self.cooldown.get(kind, -999)
@@ -379,7 +380,7 @@ class Session:
         t = self.fut_bars[i]["T"]
         self.events.append((t, kind, msg, data))
         if merge:
-            self._ev_rep[tmpl] = [len(self.events) - 1, i, 1]
+            self._ev_rep[tmpl] = [len(self.events) - 1, i, 1, [t]]
         if not self.quiet:
             print(f"  {t} [{kind}] {msg}")
 

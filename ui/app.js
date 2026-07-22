@@ -6,7 +6,7 @@ const LOUD = new Set(["ARMED","SPRING","IGNITION","CLIMAX","TRAP","CARRY","SQUEE
                       "TRAP-SPRUNG","SPRING-FAIL","OI-PEAK-LAG",
                       "BAND-REVERSAL","BAND-BREAK"]);
 const GAMMA_COL = { PINNED:"#5d6b84", FLOOR:"#2ec27e", CEILING:"#ff5f6b",
-                    "AMPLIFIED-UP":"#2ec27e", "AMPLIFIED-DOWN":"#ff5f6b", NEUTRAL:"#66748c" };
+                    "AMPLIFIED-UP":"#2ec27e", "AMPLIFIED-DOWN":"#ff5f6b", NEUTRAL:"#8090a8" };
 const GAMMA_TXT = {
   PINNED:"two-sided walls — dealers dampen both ways, fade extremes toward strike",
   FLOOR:"put wall below — dips absorbed, upside NOT capped",
@@ -16,7 +16,7 @@ const GAMMA_TXT = {
   NEUTRAL:"no dominant dealer positioning near strike" };
 const EVC = { IGNITION:"#ffbf00", CLIMAX:"#ffbf00", ARMED:"#8b5cf6", SPRING:"#8b5cf6",
               TRAP:"#ff5f6b", DIVERGENCE:"#ff5f6b", PRESS:"#4aa8ff", CAMPAIGN:"#4aa8ff",
-              "BUYER-BUILD":"#4aa8ff", ABSORPTION:"#4aa8ff", BREAK:"#66748c",
+              "BUYER-BUILD":"#4aa8ff", ABSORPTION:"#4aa8ff", BREAK:"#8090a8",
               "FLIP-TEST":"#2ec27e", CARRY:"#2ec27e", STATE:"#3a465c",
               "GAMMA-PIN":"#3fc1c9", "SQUEEZE-RISK":"#3fc1c9",
               "SQUEEZE-RELEASE":"#3fc1c9", "TRAP-SETTING":"#ffbf00",
@@ -31,6 +31,26 @@ const $ = id => document.getElementById(id);
 // multi-index: append the active index to any data/chain URL
 function IDXQ(url){ return url + (url.includes("?") ? "&" : "?") + "idx=" + S.index; }
 
+// --- localStorage persistence (private-mode safe) ---
+function lsGet(k){ try{ return localStorage.getItem("tapemap." + k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem("tapemap." + k, v); }catch(e){} }
+
+// --- status banner (amber; green when ok=true) with 5-min mute-after-dismiss ---
+function showBanner(msg, ok=false){
+  const b = $("liveBanner");
+  if(!b) return;
+  const m = S.bannerMuted;
+  if(!ok && m && m.msg === msg && Date.now() < m.until) return;
+  const tokBtn = /token/i.test(msg) ? `<button id="tokBannerBtn">⟳ capture token</button>` : "";
+  b.innerHTML = `<span class="bmsg">${msg}</span>${tokBtn}<span class="bx" title="dismiss">✕</span>`;
+  b.classList.remove("hidden");
+  b.classList.toggle("ok", ok);
+  b.querySelector(".bx").onclick = () => { S.bannerMuted = {msg, until: Date.now() + 300000}; hideBanner(); };
+  const tb = $("tokBannerBtn");
+  if(tb) tb.onclick = () => { if(typeof captureToken === "function") captureToken(); };
+}
+function hideBanner(){ const b = $("liveBanner"); if(b) b.classList.add("hidden"); }
+
 async function boot(){
   try{                                   // Stage-2 GEX overlay (optional file)
     const r = await fetch("/api/gex");
@@ -41,7 +61,25 @@ async function boot(){
   }catch(e){ /* no GEX data — ladder simply omits FLIP/WALL rungs */ }
   $("playBtn").onclick = togglePlay;
   $("scrub").oninput = e => { seek(+e.target.value); };
-  await bootData();                       // load the active index's payload
+  // restore persisted prefs BEFORE loading data
+  const savedIdx = lsGet("index");
+  if(savedIdx && [...$("idxTabs").children].some(c => c.dataset.idx === savedIdx)){
+    S.index = savedIdx;
+    [...$("idxTabs").children].forEach(c => c.classList.toggle("active", c.dataset.idx === savedIdx));
+  }
+  const savedSpeed = lsGet("speed");
+  if(savedSpeed && [...$("speed").options].some(o => o.value === savedSpeed)) $("speed").value = savedSpeed;
+  $("speed").addEventListener("change", () => lsSet("speed", $("speed").value));
+  try{
+    await bootData();                     // load the active index's payload
+  }catch(e){
+    showBanner("server unreachable — is the TapeMap server running?");
+    return;
+  }
+  // restore view/sub-tab AFTER data is loaded
+  if(lsGet("view") === "data") $("vData").click();
+  const savedSub = lsGet("chsub");
+  if(savedSub && document.body.classList.contains("dataMode")) setChainSub(savedSub);
   if(S.data.live || S.data.index){        // live mode (bars may be pending pre-market)
     document.getElementById("brand").innerHTML = "TAPE<span>MAP</span> ●LIVE";
     setInterval(async () => {
@@ -54,7 +92,8 @@ async function boot(){
         setDay(nd.days.length - 1);
         seek(atEnd ? S.day.bars.length - 1
                    : Math.min(keep, S.day.bars.length - 1));
-      }catch(e){ /* transient refresh failure: keep last view */ }
+        hideBanner();
+      }catch(e){ showBanner("live refresh failing — showing last good data"); }
     }, 60000);
   }
 }
@@ -73,9 +112,11 @@ async function bootData(){
   });
   if(!S.data.days || !S.data.days.length){   // market closed / live_error: notice, no bars
     S.day = null;
-    $("stkLbl").textContent = S.data.live_error || "no data for this index yet";
+    $("stkLbl").textContent = "";
+    showBanner(S.data.live_error || "no data for this index yet");
     return;
   }
+  hideBanner();
   setDay(S.data.days.length - 1);
   seek(S.day.bars.length - 1);           // open on the newest bar
 }
@@ -140,7 +181,13 @@ function splitMsg(msg){
 
 /* ---------- render ---------- */
 
-function render(){
+let _rafPending = false;
+function render(){                       // coalesce bursts into one paint/frame
+  if(_rafPending) return;
+  _rafPending = true;
+  requestAnimationFrame(() => { _rafPending = false; _render(); });
+}
+function _render(){
   const i = S.i, bar = S.day.bars[i], st = S.states[i];
   $("clock").textContent = bar.t;
   const sn = $("stName");
@@ -159,7 +206,7 @@ function render(){
   const c = bar.ctx;
   if(c){
     const VC = { GO:"#2ec27e", READY:"#8b5cf6", WAIT:"#ffbf00",
-                 "STAND ASIDE":"#5d6b84", CAUTION:"#66748c", SPENT:"#ff8c5a" };
+                 "STAND ASIDE":"#5d6b84", CAUTION:"#8090a8", SPENT:"#ff8c5a" };
     const BC = c.breadth.includes("BULL") ? "#2ec27e" :
                c.breadth.includes("BEAR") ? "#ff5f6b" : "#5d6b84";
     const v = $("verdict");
@@ -185,7 +232,7 @@ function render(){
 
   const g = bar.gamma;
   if(g){
-    const col = GAMMA_COL[g.regime] || "#66748c";
+    const col = GAMMA_COL[g.regime] || "#8090a8";
     const rg = $("mmRegime");
     rg.textContent = g.regime; rg.style.color = col;
     $("mmWhat").textContent = GAMMA_TXT[g.regime] || "";
@@ -201,6 +248,7 @@ function render(){
 
   renderVol(bar.ctx, bar.gamma);
   renderExpiry(bar.ctx);
+  renderRibbon(i);
   renderStory(i, bar);
   renderRead(i, bar);
   renderTrap(i, bar, st);
@@ -433,7 +481,7 @@ function mapBannerTxt(bar, stk){
   const z = bar.fut.z;
   parts.push(`price ${z > 0.5 ? "above" : z < -0.5 ? "below" : "near"} fair price ` +
              `on ${VOLW(bar.fut.vol_r).toLowerCase()} volume`);
-  return { head, sub: parts.join(" · "), col: GAMMA_COL[g.regime] || "#66748c" };
+  return { head, sub: parts.join(" · "), col: GAMMA_COL[g.regime] || "#8090a8" };
 }
 
 function renderMap(i, bar){
@@ -1141,17 +1189,47 @@ $("openVal").onclick = openValModal;
 $("valClose").onclick = closeValModal;
 $("valModalBack").onclick = closeValModal;
 document.addEventListener("keydown", e => {
-  if(e.key === "Escape" && !$("valModal").classList.contains("hidden")) closeValModal();
+  if(e.target.matches?.("input, select, textarea")) return;   // don't hijack typing
+  if(e.key === "Escape"){
+    if(!$("valModal").classList.contains("hidden")) closeValModal();
+    return;
+  }
+  if(!$("valModal").classList.contains("hidden")) return;    // modal owns the keys
+  if(!S.day) return;
+  const last = S.day.bars.length - 1;
+  if(e.key === " "){ e.preventDefault(); togglePlay(); }
+  else if(e.key === "ArrowLeft" && !e.shiftKey){ seek(Math.max(0, S.i - 1)); }
+  else if(e.key === "ArrowRight" && !e.shiftKey){ seek(Math.min(last, S.i + 1)); }
+  else if(e.key === "ArrowLeft" && e.shiftKey){ seekEvent(-1); }
+  else if(e.key === "ArrowRight" && e.shiftKey){ seekEvent(+1); }
+  else if(e.key === "Home"){ seek(0); }
+  else if(e.key === "End"){ seek(last); }
 });
+
+// jump to the nearest LOUD event before (dir<0) or after (dir>0) the cursor
+function seekEvent(dir){
+  const here = S.i;
+  let best = null;
+  for(const ev of S.day.events){
+    if(!LOUD.has(ev.kind)) continue;
+    const j = S.tIdx[ev.t];
+    if(j === undefined) continue;
+    if(dir < 0 && j < here && (best === null || j > best)) best = j;
+    if(dir > 0 && j > here && (best === null || j < best)) best = j;
+  }
+  if(best !== null) seek(best);
+}
 
 $("vTape").onclick = () => {
   document.body.classList.remove("dataMode");
   $("vTape").classList.add("active"); $("vData").classList.remove("active");
+  lsSet("view", "tape");
   chainStop();
 };
 $("vData").onclick = () => {
   document.body.classList.add("dataMode");
   $("vData").classList.add("active"); $("vTape").classList.remove("active");
+  lsSet("view", "data");
   chainStart();
 };
 
@@ -1160,6 +1238,7 @@ $("idxTabs").onclick = e => {
   const b = e.target.closest("button[data-idx]"); if(!b) return;
   const idx = b.dataset.idx; if(idx === S.index) return;
   S.index = idx;
+  lsSet("index", idx);
   [...$("idxTabs").children].forEach(c => c.classList.toggle("active", c === b));
   // drop every piece of per-index state before reloading
   S.mapChain = null; S.mapChainT = 0;
@@ -1176,6 +1255,12 @@ $("dvGrid").onclick = e => {
   const id = w.dataset.id;
   S.openWg.has(id) ? S.openWg.delete(id) : S.openWg.add(id);
   w.classList.toggle("open");
+};
+// click a narrative-log row to scrub to that minute
+$("feed").onclick = e => {
+  const row = e.target.closest(".ev");
+  if(row && row.dataset.t && S.tIdx[row.dataset.t] !== undefined)
+    seek(S.tIdx[row.dataset.t]);
 };
 
 /* ---------- today-so-far briefing (render-only digest of the payload) ---------- */
@@ -1214,7 +1299,7 @@ function renderStory(i, bar){
         const head = splitMsg(e.msg).head;
         return `<div class="beat" title="${e.msg.replace(/"/g,"&quot;")}">` +
                `<span class="t">${e.t}</span>` +
-               `<span class="k" style="color:${EVC[e.kind]||"#66748c"}">${e.kind}</span>` +
+               `<span class="k" style="color:${EVC[e.kind]||"#8090a8"}">${e.kind}</span>` +
                `${head}</div>`;
       }).join("");
 
@@ -1505,6 +1590,9 @@ function renderFeed(i){
     const div = document.createElement("div");
     div.className = "ev" + (LOUD.has(ev.kind) ? " loud" : "");
     div.style.borderLeftColor = EVC[ev.kind] || "#5d6b84";
+    div.dataset.t = ev.t;                       // click-to-seek target
+    if(ev.data?.times?.length > 1)              // ×N collapsed events: list them
+      div.title = "repeats: " + ev.data.times.join(", ");
     div.innerHTML = `<span class="t">${ev.t}</span>` +
       `<span class="k" style="color:${EVC[ev.kind]||"#dbe6f5"}">${ev.kind}</span>` +
       `<span class="m">${ev.msg}</span>`;
@@ -1525,6 +1613,66 @@ function renderCarry(i){
   }
 }
 
+/* ---------- price ribbon (TAPE view): FUT close + VWAP + ±2σ + event dots ---------- */
+
+function renderRibbon(i){
+  const rib = $("ribbon");
+  if(!rib || !S.day) return;
+  const bars = S.day.bars, W = bars.length, H = 64;
+  const sig = S.day.day + ":" + W;
+  if(S._ribbonSig !== sig){                    // (re)build the static SVG once per day
+    S._ribbonSig = sig;
+    let lo = Infinity, hi = -Infinity;
+    for(const b of bars){ if(b.fut.l < lo) lo = b.fut.l; if(b.fut.h > hi) hi = b.fut.h; }
+    const pad = (hi - lo) * 0.02 || 1; lo -= pad; hi += pad;
+    const y = v => (H - (v - lo) / (hi - lo) * H).toFixed(1);
+    const cls = [], vwap = [], up = [], dn = [];
+    bars.forEach((b,x) => {
+      cls.push(x + "," + y(b.fut.c)); vwap.push(x + "," + y(b.fut.vwap));
+      up.push(x + "," + y(b.fut.u2)); dn.push(x + "," + y(b.fut.d2));
+    });
+    const env = up.concat(dn.reverse()).join(" ");
+    const dots = S.day.events
+      .filter(e => LOUD.has(e.kind) && S.tIdx[e.t] !== undefined)
+      .map(e => { const x = S.tIdx[e.t];
+        return `<circle cx="${x}" cy="${y(bars[x].fut.c)}" r="2.5" ` +
+               `fill="${EVC[e.kind]||"#8090a8"}"><title>${e.t} ${e.kind}</title></circle>`; })
+      .join("");
+    rib.innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
+      `<polygon points="${env}" fill="#1a2336"></polygon>` +
+      `<polyline points="${vwap.join(" ")}" fill="none" stroke="var(--slate)" ` +
+        `stroke-width="1" vector-effect="non-scaling-stroke"></polyline>` +
+      `<polyline points="${cls.join(" ")}" fill="none" stroke="var(--ink)" ` +
+        `stroke-width="1" vector-effect="non-scaling-stroke"></polyline>` +
+      dots +
+      `<rect id="ribMask" x="${i+1}" y="0" width="${Math.max(0,W-i-1)}" height="${H}" ` +
+        `fill="rgba(10,13,20,.7)"></rect>` +
+      `<line id="ribCursor" x1="${i}" y1="0" x2="${i}" y2="${H}" stroke="var(--amber)" ` +
+        `stroke-width="1" vector-effect="non-scaling-stroke"></line>` +
+      `</svg>`;
+  } else {                                     // cheap per-frame: move cursor + mask
+    const mask = $("ribMask"), cur = $("ribCursor");
+    if(mask){ mask.setAttribute("x", i+1); mask.setAttribute("width", Math.max(0, W-i-1)); }
+    if(cur){ cur.setAttribute("x1", i); cur.setAttribute("x2", i); }
+  }
+}
+
+(function(){                                   // drag anywhere on the ribbon to scrub
+  const rib = $("ribbon");
+  if(!rib) return;
+  let dragging = false;
+  const toSeek = e => {
+    if(!S.day) return;
+    const W = S.day.bars.length, rect = rib.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left) / rect.width * (W - 1));
+    seek(Math.max(0, Math.min(W - 1, x)));
+  };
+  rib.addEventListener("mousedown", e => { dragging = true; toSeek(e); });
+  window.addEventListener("mousemove", e => { if(dragging) toSeek(e); });
+  window.addEventListener("mouseup", () => { dragging = false; });
+})();
+
 /* ---------- DATA view: option chain analyser (/api/chain, 5s poll) ---------- */
 
 S.ch = { timer:null, el:{}, sig:"", dead:false, sub:"chain" };
@@ -1536,6 +1684,7 @@ $("chsScan").onclick = () => setChainSub("scan");
 
 function setChainSub(sub){
   S.ch.sub = sub;
+  lsSet("chsub", sub);
   $("chsChain").classList.toggle("active", sub==="chain");
   $("chsWidgets").classList.toggle("active", sub==="widgets");
   $("chsScan").classList.toggle("active", sub==="scan");
@@ -1672,8 +1821,10 @@ async function fetchChain(){
   if(!j.ok){
     $("chTop").innerHTML = `<div class="cell" style="grid-column:1/-1">` +
       `<label>CHAIN</label><b>WAITING</b><span>${j.error||""}</span></div>`;
+    if(j.error) showBanner("chain: " + j.error);   // surfaces token-expired etc.
     return;                                 // recoverable: token/warmup — keep polling
   }
+  hideBanner();
   renderChain(j);
 }
 
