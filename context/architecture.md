@@ -49,8 +49,11 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
 
 ## Auth and Access Model
 
-- Dhan: access token from `.dhan_token`, client id 1111966509; Data APIs
-  rate-limited 5 req/s (sleep ≥0.22s between calls).
+- Dhan: access token from env `DHAN_TOKEN` or `.dhan_token` (both gitignored);
+  client id from env `DHAN_CLIENT_ID` or a `.dhan_client` file (never in source).
+  Token can be refreshed at runtime via POST `/api/token` (the ⟳ TOKEN button),
+  which validates and hot-reloads the poller. Data APIs rate-limited 5 req/s
+  (sleep ≥0.22s between calls).
 - Server binds 127.0.0.1 only — never exposed to network.
 - No user auth (single-operator local tool).
 
