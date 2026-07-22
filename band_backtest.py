@@ -16,11 +16,25 @@ operator's own management: target VWAP, stop just past the band.
 import glob
 import os
 import statistics
+import sys
 
 from backtest import load_day
 from engine import Session, session_json
 
 WIN = 45
+COST_PTS = 1.5   # round-trip NIFTY FUT scalp cost, index points
+                 # (spread + slippage + charges); override with --cost
+
+
+def wilson(w, n, z=1.96):
+    """Wilson score 95% CI for a win rate (w wins of n decided)."""
+    if n == 0:
+        return (0.0, 0.0)
+    p = w / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / d
+    return (c - h, c + h)
 
 
 def _forward(fut, k, d, R):
@@ -30,10 +44,13 @@ def _forward(fut, k, d, R):
         fav = d * (fut[j]["C"] - entry)
         mfe = max(mfe, fav)
         mae = min(mae, fav)
-        if mfe >= R:
-            return "win", mfe / R, mae / R
+        # stop-first: a bar that crosses both the stop and the target in the
+        # same minute is scored a loss (conservative — we can't know intrabar
+        # order, so assume the worst).
         if mae <= -R:
             return "loss", mfe / R, mae / R
+        if mfe >= R:
+            return "win", mfe / R, mae / R
     return "open", mfe / R, mae / R
 
 
@@ -105,14 +122,17 @@ def scan_day(day, prev):
     events = js["events"]
     cekey = {b["T"]: b for b in ce}
     pekey = {b["T"]: b for b in pe}
-    R = statistics.median(
-        max(x["H"] for x in fut[max(0, j - 14):j + 1])
-        - min(x["L"] for x in fut[max(0, j - 14):j + 1]) for j in range(len(fut))) or 1.0
+    # trailing-15-bar range at every bar; R is the CAUSAL expanding median of
+    # this series up to the signal bar (no full-day lookahead).
+    rng15 = [max(x["H"] for x in fut[max(0, j - 14):j + 1])
+             - min(x["L"] for x in fut[max(0, j - 14):j + 1])
+             for j in range(len(fut))]
 
     sigs = []
     armed_lo = armed_hi = True
     for k in range(20, len(fut)):
         b = fut[k]
+        R = max(statistics.median(rng15[:k + 1]) or 1.0, 1.0)
         z = (b["C"] - b["VWAP"]) / (b["U1"] - b["VWAP"]) if b["U1"] > b["VWAP"] else 0
         if abs(z) < 1:
             armed_lo = armed_hi = True
@@ -129,7 +149,7 @@ def scan_day(day, prev):
             g = gmap.get(t, {})
             sigs.append({"t": t, "side": "LONG", "deep3": b["L"] <= b["D3"],
                          "conf3d": conf3d, "vote": cv, "out": out, "cont": cont,
-                         "mfe": mfe, "mae": mae, "vout": vout,
+                         "mfe": mfe, "mae": mae, "vout": vout, "R": R,
                          "reg": g.get("regime"), "netw": g.get("w_ce", 0) + g.get("w_pe", 0)})
         if armed_hi and b["H"] >= b["U2"]:
             armed_hi = False
@@ -144,7 +164,7 @@ def scan_day(day, prev):
             g = gmap.get(t, {})
             sigs.append({"t": t, "side": "SHORT", "deep3": b["H"] >= b["U3"],
                          "conf3d": conf3d, "vote": cv, "out": out, "cont": cont,
-                         "mfe": mfe, "mae": mae, "vout": vout,
+                         "mfe": mfe, "mae": mae, "vout": vout, "R": R,
                          "reg": g.get("regime"), "netw": g.get("w_ce", 0) + g.get("w_pe", 0)})
     return sigs
 
@@ -160,13 +180,32 @@ def tally(rows, label):
     vw = sum(r["vout"] == "win" for r in rows)
     vl = sum(r["vout"] == "loss" for r in rows)
     vdec = vw + vl
-    print(f"  {label:22} n={len(rows):3}  +1R/-1R WR {(w/dec if dec else 0):.0%} "
-          f"(w{w} l{l} o{o}) | VWAP-tgt WR {(vw/vdec if vdec else 0):.0%} (n{vdec}) | "
+    wr = w / dec if dec else 0
+    lo, hi = wilson(w, dec)
+    # net expectancy per trade in R: win-rate edge minus round-trip cost in R
+    r_mean = statistics.mean(r["R"] for r in rows)
+    cost_r = COST_PTS / r_mean if r_mean else 0.0
+    exp_net = (w - l) / dec - cost_r if dec else 0.0
+    flag = "!" if dec < 30 else " "   # thin-sample warning (decided n < 30)
+    print(f" {flag}{label:22} n={len(rows):3}  +1R/-1R WR {wr:.0%} "
+          f"[CI {lo*100:.0f}-{hi*100:.0f}] (w{w} l{l} o{o}) | "
+          f"VWAP-tgt WR {(vw/vdec if vdec else 0):.0%} (n{vdec}) | "
           f"MFE {statistics.mean(r['mfe'] for r in rows):+.2f} "
-          f"MAE {statistics.mean(r['mae'] for r in rows):+.2f}")
+          f"MAE {statistics.mean(r['mae'] for r in rows):+.2f} | "
+          f"net {exp_net:+.2f}R/trade")
 
 
 def main():
+    global COST_PTS
+    argv = sys.argv[1:]
+    if "--cost" in argv:
+        i = argv.index("--cost")
+        try:
+            COST_PTS = float(argv[i + 1])
+        except (IndexError, ValueError):
+            print("usage: python band_backtest.py [--cost <points>]")
+            return
+    print(f"(round-trip cost assumption: {COST_PTS} index points)")
     days = sorted(os.path.basename(p)[4:14] for p in glob.glob("data/backtest/fut_*.json"))
     opt = {os.path.basename(p)[4:14] for p in glob.glob("data/backtest/opt_*.json")}
     days = [d for d in days if d in opt]
@@ -202,7 +241,10 @@ def main():
     def split(rows, label):
         fw, fn = wr(rows, "out")       # fade / mean-reversion
         cw, cn = wr(rows, "cont")      # continuation
-        print(f"  {label:26} n={len(rows):3}  FADE WR {fw:.0%} (n{fn})  |  "
+        flo, fhi = wilson(round(fw * fn), fn)
+        flag = "!" if fn < 30 else " "
+        print(f" {flag}{label:26} n={len(rows):3}  FADE WR {fw:.0%} "
+              f"[CI {flo*100:.0f}-{fhi*100:.0f}] (n{fn})  |  "
               f"CONTINUATION WR {cw:.0%} (n{cn})")
 
     print("\nGAMMA SIGN — does fade win in +gamma and continuation in -gamma?")

@@ -750,11 +750,15 @@ class Session:
         # open (events remain gated on maturity inside the layer).
         self.gamma.update(i, fb, cb, pb, ff, cf, pf, mature)
 
-        # --- BAND-REVERSAL / BAND-BREAK: the operator's core setup, validated
-        #     on 54 unseen days / 219 tags: naked ±2σ fade 55-58% WR as a ~1R
-        #     scalp; edge concentrates near expiry + pumped sold-side IV;
-        #     DIES in negative gamma (fade 25%, continuation 75%) → veto.
-        #     Re-arms only after price closes back inside ±1σ.
+        # --- BAND-REVERSAL / BAND-BREAK: the operator's core setup. Backtest
+        #     (54 in-sample days, 219 tags, causal R + stop-first scoring):
+        #     naked ±2σ fade ~59% WR but 95% CI 50-67% — real-ish yet the CI
+        #     floor sits at a coin flip; net ≈ +0.14R/trade after a 1.5-pt cost
+        #     assumption. The negative-gamma veto (fade ~33% vs continuation
+        #     ~67%) points the right way but rests on n≈9 decided trades
+        #     [CI 12-65]; tier/veto cells are HYPOTHESES, not proof — re-validate
+        #     out-of-sample on live days. Re-arms only after price closes back
+        #     inside ±1σ.
         if mature:
             if abs(ff["z"]) < 1:
                 self.band_armed["lo"] = self.band_armed["hi"] = True
