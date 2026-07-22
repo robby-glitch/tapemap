@@ -1,0 +1,218 @@
+
+=== Jul 15 | pivots P 24064 R1 24118 R2 24215 S1 23967 S2 23913 ===
+  09:30 [CAMPAIGN] PE writers pressing: OI +3224k/10m (rank 1.00) into falling premium → BULLISH
+  09:30 [BUYER-BUILD] CE buyers building: OI +1487k/10m while premium firms → BULLISH
+  09:35 >> STATE TREND-UP — 100% of last hour above VWAP, riding upper bands
+  09:36 [DIVERGENCE] FUT new session high 24204 but CE 159.2 is 2.2 under its own peak — upside not being paid for
+  09:36 [TRAP-SETTING] BULL TRAP SETTING near 24204 — 2 independent tells (divergence, writers) — the extreme is not being confirmed by the books
+  09:38 [TRAP-SPRUNG] BULL TRAP SPRUNG — FUT closes back below 24198 (the bar that made the extreme); late longs trapped
+  09:50 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  09:54 [DIVERGENCE] FUT new session high 24208 but CE 156.6 is 4.9 under its own peak — upside not being paid for
+  09:58 [GAMMA-PIN] FLOOR at 24200: writer scores CE -0.98 / PE +1.00, books 8.3M/9.0M, FUT 10 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  10:09 >> STATE COILING — bandwidth rank 0.30 — energy storing
+  10:14 [DIVERGENCE] FUT new session high 24209 but CE 154.5 is 6.9 under its own peak — upside not being paid for
+  10:15 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  10:17 [BREAK] FUT closes above R2 24215
+  10:19 [OI-PEAK-LAG] CE book peaked 9.1M 13m AFTER the 24180 low and is now unwinding (-190k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  10:20 [FLIP-TEST] R2 24215 retested from above and holding — level flipped
+  10:23 >> STATE TREND-UP — 100% of last hour above VWAP, riding upper bands
+  10:27 [BREAK] FUT closes below R2 24215
+  10:38 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  10:40 [OI-PEAK-LAG] PE book peaked 10.7M 14m AFTER the 24225 high and is now unwinding (-185k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → DOWNWARD
+  10:57 [GAMMA-PIN] FLOOR at 24200: writer scores CE -1.00 / PE +0.99, books 9.7M/10.6M, FUT 7 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  10:59 [SQUEEZE-RISK] PE writer book (10.5M, score +0.97) pressed on its pain side, unwind accelerating 2 min (-159k/10m) → downside squeeze risk building
+  11:01 [TRAP-SETTING] BULL TRAP SETTING near 24225 — 2 independent tells (peak-lag, writers) — the extreme is not being confirmed by the books
+  11:01 [TRAP-SPRUNG] BULL TRAP SPRUNG — FUT closes back below 24208 (the bar that made the extreme); late longs trapped
+  11:04 >> STATE COILING — bandwidth rank 0.28 — energy storing
+  11:13 [DIVERGENCE] FUT new session low 24175 but PE 168.8 is 53.4 under its own peak — downside not being paid for
+  11:17 [SQUEEZE-RISK] PE writer book (10.1M, score +0.93) pressed on its pain side, unwind accelerating 2 min (-116k/10m) → downside squeeze risk building
+  11:27 [GAMMA-PIN] FLOOR at 24200: writer scores CE -1.00 / PE +0.94, books 10.3M/10.1M, FUT 11 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  11:28 [OI-PEAK-LAG] CE book peaked 10.4M 4m AFTER the 24170 low and is now unwinding (-39k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  11:33 [BREAK] FUT closes above R2 24215
+  11:46 [SQUEEZE-RISK] PE writer book (10.3M, score +0.94) pressed on its pain side, unwind accelerating 2 min (-394k/10m) → downside squeeze risk building
+  11:47 [PRESS] BEARISH rotation: CE writers add (+581k) while PE shorts evacuate (-478k) — books lean down before price
+  11:58 [SQUEEZE-RISK] PE writer book (10.0M, score +0.91) pressed on its pain side, unwind accelerating 8 min (-232k/10m) → downside squeeze risk building
+  12:30 [DIVERGENCE] FUT new session low 24168 but PE 170.5 is 51.7 under its own peak — downside not being paid for
+  12:35 [SQUEEZE-RISK] PE writer book (10.4M, score +0.95) pressed on its pain side, unwind accelerating 2 min (-75k/10m) → downside squeeze risk building
+  12:43 [PRESS] BEARISH rotation: CE writers add (+323k) while PE shorts evacuate (-1036k) — books lean down before price
+  12:47 [SQUEEZE-RISK] PE writer book (9.4M, score +0.84) pressed on its pain side, unwind accelerating 9 min (-813k/10m) → downside squeeze risk building
+  12:53 [DIVERGENCE] FUT new session low 24130 but PE 192.7 is 29.5 under its own peak — downside not being paid for
+  12:55 [BREAK] FUT closes below R1 24118
+  12:55 [BAND-REVERSAL] -2σ tag at 24091 — fade armed (standard), net writer +0.21 dampens; sell-side IV p93 → scalp ~1R up; seller expression: sell PE · far from expiry — edge historically flat, size down
+  12:55 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  12:56 [IGNITION] DOWN: all three books detonate (vol ranks FUT 1.00 CE 1.00 PE 1.00), FUT range rank 1.00
+  12:56 [CLIMAX] PE beyond 3σ with OI cliff (-1306k/10m, rank 0.90) on extreme volume — covering climax, likely LOW marker
+  12:56 [SQUEEZE-RELEASE] DOWNWARD: PE OI -1306k/10m (rank 0.90) with premium velocity rank 1.00 — dealer short-gamma hedge chase, hedging amplifies the move
+  12:59 [FLIP-TEST] P 24064 retested from below and holding — level flipped
+  13:02 [BREAK] FUT closes above P 24064
+  13:18 >> STATE TREND-DOWN — 82% of last hour below VWAP, riding lower bands
+  13:19 [FLIP-TEST] P 24064 retested from above and holding — level flipped
+  13:24 [OI-PEAK-LAG] CE book peaked 12.4M 21m AFTER the 24012 low and is now unwinding (-251k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  13:25 [BREAK] FUT closes below P 24064
+  13:31 [BREAK] FUT closes above P 24064
+  13:36 [FLIP-TEST] P 24064 retested from above and holding — level flipped
+  13:37 [BREAK] FUT closes below P 24064
+  13:48 [BREAK] FUT closes above P 24064
+  13:59 [FLIP-TEST] P 24064 retested from above and holding — level flipped
+  14:08 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  14:26 [BREAK] FUT closes below P 24064
+  14:39 [GAMMA-PIN] CEILING at 24200: writer scores CE +0.90 / PE +0.28, books 11.7M/4.3M, FUT 100 pts away — call wall above — rallies into the strike get sold; downside is NOT supported
+  14:59 [FLIP-TEST] P 24064 retested from below and holding — level flipped
+  15:00 [BREAK] FUT closes above P 24064
+  15:09 [BREAK] FUT closes below P 24064
+  15:09 >> STATE TREND-DOWN — 100% of last hour below VWAP, riding lower bands
+  15:12 [FLIP-TEST] P 24064 retested from below and holding — level flipped
+  15:13 [BREAK] FUT closes above P 24064
+  15:15 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  15:16 >> STATE TREND-DOWN — 100% of last hour below VWAP, riding lower bands
+  15:19 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  15:29 [CARRY] CE kept 61% of its intraday build (4.3M→peak 12.5M→close 9.3M) | PE kept 13% (1.8M→10.8M→3.0M) → BEARISH carry into next session
+
+=== Jul 16 | pivots P 24098 R1 24202 R2 24333 S1 23967 S2 23863 ===
+  09:27 [TRAP] CE stretched beyond 2σ in immature bands while BOTH books add OI (CE +564k, PE +1286k/10m) — two-sided writing, fade risk
+  09:35 [BAND-REVERSAL] -2σ tag at 24132 — fade armed (standard), net writer +1.94 dampens; sell-side IV p100 → scalp ~1R up; seller expression: sell PE · far from expiry — edge historically flat, size down
+  09:35 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  09:36 [GAMMA-PIN] CEILING at 24200: writer scores CE +1.00 / PE -0.88, books 10.2M/4.6M, FUT 77 pts away — call wall above — rallies into the strike get sold; downside is NOT supported
+  09:40 [SQUEEZE-RISK] PE writer book (4.5M, score +0.83) pressed on its pain side, unwind accelerating 3 min (-181k/10m) → downside squeeze risk building
+  09:42 [CAMPAIGN] CE writers pressing: OI +698k/10m (rank 0.96) into falling premium → BEARISH
+  09:42 [DIVERGENCE] FUT new session high 24145 but CE 103.5 is 14.8 under its own peak — upside not being paid for
+  09:43 [BUYER-BUILD] CE buyers building: OI +774k/10m while premium firms → BULLISH
+  09:54 [OI-PEAK-LAG] CE book peaked 10.8M 15m AFTER the 24123 low and is now unwinding (-119k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  09:55 [TRAP-SETTING] BEAR TRAP SETTING near 24123 — 2 independent tells (peak-lag, writers) — the extreme is not being confirmed by the books
+  09:55 [TRAP-SPRUNG] BEAR TRAP SPRUNG — FUT closes back above 24140 (the bar that made the extreme); late shorts trapped
+  09:56 [GAMMA-PIN] FLOOR at 24200: writer scores CE +0.00 / PE +0.89, books 10.7M/4.6M, FUT 48 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  09:57 [DIVERGENCE] FUT new session high 24164 but CE 104.1 is 14.2 under its own peak — upside not being paid for
+  10:03 >> STATE COILING — bandwidth rank 0.29 — energy storing
+  10:11 [OI-PEAK-LAG] PE book peaked 4.9M 8m AFTER the 24165 high and is now unwinding (-9k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → DOWNWARD
+  10:12 [TRAP-SETTING] BULL TRAP SETTING near 24165 — 2 independent tells (divergence, peak-lag) — the extreme is not being confirmed by the books
+  10:12 [TRAP-SPRUNG] BULL TRAP SPRUNG — FUT closes back below 24154 (the bar that made the extreme); late longs trapped
+  10:16 [SQUEEZE-RISK] PE writer book (4.8M, score +0.96) pressed on its pain side, unwind accelerating 2 min (-71k/10m) → downside squeeze risk building
+  10:27 [BAND-REVERSAL] -2σ tag at 24125 — fade armed (standard), net writer +1.99 dampens; sell-side IV p23 → scalp ~1R up; seller expression: sell PE · far from expiry — edge historically flat, size down
+  10:28 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  10:29 >> STATE COILING — bandwidth rank 0.18 — energy storing
+  10:35 [ABSORPTION] FUT vol rank 0.99 but range rank 0.35 — sellers hitting a wall near 24135
+  10:40 [TRAP-SETTING] BEAR TRAP SETTING near 24123 — 2 independent tells (absorption, writers) — the extreme is not being confirmed by the books
+  10:41 [TRAP-SPRUNG] BEAR TRAP SPRUNG — FUT closes back above 24140 (the bar that made the extreme); late shorts trapped
+  10:43 [SQUEEZE-RISK] PE writer book (4.9M, score +0.93) pressed on its pain side, unwind accelerating 2 min (-115k/10m) → downside squeeze risk building
+  10:46 [DIVERGENCE] FUT new session high 24167 but CE 105.7 is 12.6 under its own peak — upside not being paid for
+  10:46 [GAMMA-PIN] FLOOR at 24200: writer scores CE +0.00 / PE +0.95, books 10.9M/4.9M, FUT 33 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  10:48 [BAND-REVERSAL] +2σ tag at 24176 — fade armed (standard), net writer +0.19 dampens; sell-side IV p13 → scalp ~1R down; seller expression: sell CE · far from expiry — edge historically flat, size down
+  10:49 [ARMED] BEARISH SPRING at R1 24202 — rally disbelieved: CE OI -545k/10m (rank 0.90) while FUT z=2.0; PE writers adding +35k at the high; bands compressing
+  10:49 [SQUEEZE-RELEASE] UPWARD: CE OI -545k/10m (rank 0.90) with premium velocity rank 0.98 — dealer short-gamma hedge chase, hedging amplifies the move
+  10:49 >> STATE ARMED — spring live (bearish)
+  10:50 [TRAP-SETTING] BULL TRAP SETTING near 24185 — 3 independent tells (absorption, divergence, spring) — the extreme is not being confirmed by the books
+  10:50 [PRESS] BULLISH rotation: PE writers add (+185k) while CE shorts evacuate (-848k) — books lean up before price
+  10:52 [CAMPAIGN] PE writers pressing: OI +543k/10m (rank 0.91) into falling premium → BULLISH
+  10:59 [SQUEEZE-RELEASE] UPWARD: CE OI -876k/10m (rank 0.92) with premium velocity rank 0.99 — dealer short-gamma hedge chase, hedging amplifies the move
+  11:00 [TRAP-SETTING] BULL TRAP SETTING near 24220 — 3 independent tells (absorption, divergence, spring) — the extreme is not being confirmed by the books
+  11:00 [IGNITION] UP: all three books detonate (vol ranks FUT 0.98 CE 1.00 PE 1.00), FUT range rank 0.97
+  11:00 [BREAK] FUT closes above R1 24202
+  11:02 [PRESS] BULLISH rotation: PE writers add (+1127k) while CE shorts evacuate (-838k) — books lean up before price
+  11:03 [FLIP-TEST] R1 24202 retested from above and holding — level flipped
+  11:04 [ARMED] BEARISH SPRING at R1 24202 — rally disbelieved: CE OI -848k/10m (rank 0.89) while FUT z=1.8; PE writers adding +1345k at the high
+  11:04 [BREAK] FUT closes below R1 24202
+  11:06 [TRAP-SPRUNG] BULL TRAP SPRUNG — FUT closes back below 24198 (the bar that made the extreme); late longs trapped
+  11:21 [OI-PEAK-LAG] PE book peaked 7.3M 13m AFTER the 24220 high and is now unwinding (-162k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → DOWNWARD
+  11:22 [TRAP-SETTING] BULL TRAP SETTING near 24220 — 3 independent tells (peak-lag, spring, writers) — the extreme is not being confirmed by the books
+  11:22 [TRAP-SPRUNG] BULL TRAP SPRUNG — FUT closes back below 24198 (the bar that made the extreme); late longs trapped
+  11:23 [SQUEEZE-RISK] PE writer book (7.2M, score +0.96) pressed on its pain side, unwind accelerating 2 min (-175k/10m) → downside squeeze risk building
+  11:35 [SQUEEZE-RISK] PE writer book (7.0M, score +0.93) pressed on its pain side, unwind accelerating 3 min (-154k/10m) → downside squeeze risk building
+  11:53 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  11:59 [SQUEEZE-RISK] PE writer book (7.1M, score +0.96) pressed on its pain side, unwind accelerating 2 min (-54k/10m) → downside squeeze risk building
+  12:01 [GAMMA-PIN] PINNED at 24200: writer scores CE +0.43 / PE +0.95, books 9.9M/7.1M, FUT 30 pts away — two-sided walls — hedging dampens both ways, expect mean reversion to strike
+  12:11 [SQUEEZE-RISK] PE writer book (7.0M, score +0.92) pressed on its pain side, unwind accelerating 7 min (-143k/10m) → downside squeeze risk building
+  12:23 [SQUEEZE-RISK] PE writer book (7.0M, score +0.92) pressed on its pain side, unwind accelerating 4 min (-3k/10m) → downside squeeze risk building
+  12:25 [GAMMA-PIN] FLOOR at 24200: writer scores CE +0.00 / PE +0.87, books 9.9M/6.8M, FUT 26 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  12:41 [SQUEEZE-RISK] PE writer book (6.9M, score +0.90) pressed on its pain side, unwind accelerating 2 min (-70k/10m) → downside squeeze risk building
+  12:58 [SQUEEZE-RISK] PE writer book (6.8M, score +0.88) pressed on its pain side, unwind accelerating 2 min (-85k/10m) → downside squeeze risk building
+  12:59 [PRESS] BEARISH rotation: CE writers add (+339k) while PE shorts evacuate (-141k) — books lean down before price
+  13:10 [SQUEEZE-RISK] PE writer book (6.4M, score +0.79) pressed on its pain side, unwind accelerating 10 min (-305k/10m) → downside squeeze risk building
+  13:11 [PRESS] BEARISH rotation: CE writers add (+320k) while PE shorts evacuate (-161k) — books lean down before price
+  13:22 [SQUEEZE-RISK] PE writer book (6.1M, score +0.73) pressed on its pain side, unwind accelerating 17 min (-225k/10m) → downside squeeze risk building
+  13:25 [DIVERGENCE] FUT new session low 24121 but PE 182.4 is 5.8 under its own peak — downside not being paid for
+  13:25 [PRESS] BEARISH rotation: CE writers add (+210k) while PE shorts evacuate (-398k) — books lean down before price
+  13:25 [GAMMA-PIN] CEILING at 24200: writer scores CE +1.00 / PE +0.00, books 11.1M/5.9M, FUT 79 pts away — call wall above — rallies into the strike get sold; downside is NOT supported
+  13:25 >> STATE TREND-DOWN — 82% of last hour below VWAP, riding lower bands
+  13:30 [BAND-REVERSAL] -2σ tag at 24085 — fade armed (standard), net writer +0.37 dampens; sell-side IV p100 → scalp ~1R up; seller expression: sell PE · far from expiry — edge historically flat, size down
+  13:31 [CLIMAX] PE beyond 3σ with OI cliff (-808k/10m, rank 0.92) on extreme volume — covering climax, likely LOW marker
+  13:31 [BREAK] FUT closes below P 24098
+  13:31 [SQUEEZE-RELEASE] DOWNWARD: PE OI -808k/10m (rank 0.92) with premium velocity rank 1.00 — dealer short-gamma hedge chase, hedging amplifies the move
+  13:34 [FLIP-TEST] P 24098 retested from below and holding — level flipped
+  13:36 [BREAK] FUT closes above P 24098
+  13:37 [PRESS] BEARISH rotation: CE writers add (+322k) while PE shorts evacuate (-841k) — books lean down before price
+  13:46 [CAMPAIGN] CE writers pressing: OI +549k/10m (rank 0.90) into falling premium → BEARISH
+  13:49 [PRESS] BEARISH rotation: CE writers add (+708k) while PE shorts evacuate (-550k) — books lean down before price
+  13:59 [FLIP-TEST] P 24098 retested from above and holding — level flipped
+  13:59 [GAMMA-PIN] CEILING at 24200: writer scores CE +0.98 / PE -0.26, books 12.1M/4.1M, FUT 101 pts away — call wall above — rallies into the strike get sold; downside is NOT supported
+  14:00 [BREAK] FUT closes below P 24098
+  14:02 [OI-PEAK-LAG] CE book peaked 12.1M 10m AFTER the 24060 low and is now unwinding (-6k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  14:04 [BREAK] FUT closes above P 24098
+  14:10 [BREAK] FUT closes below P 24098
+  14:22 [FLIP-TEST] P 24098 retested from below and holding — level flipped
+  14:23 [BREAK] FUT closes above P 24098
+  14:23 [GAMMA-PIN] CEILING at 24200: writer scores CE +0.87 / PE -0.28, books 11.7M/4.2M, FUT 96 pts away — call wall above — rallies into the strike get sold; downside is NOT supported
+  14:57 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  15:03 [BREAK] FUT closes below P 24098
+  15:05 [GAMMA-PIN] CEILING at 24200: writer scores CE +0.63 / PE -0.13, books 11.0M/3.5M, FUT 100 pts away — call wall above — rallies into the strike get sold; downside is NOT supported
+  15:06 [FLIP-TEST] P 24098 retested from below and holding — level flipped
+  15:07 [BREAK] FUT closes above P 24098
+  15:07 >> STATE TREND-DOWN — 100% of last hour below VWAP, riding lower bands
+  15:18 [FLIP-TEST] P 24098 retested from above and holding — level flipped
+  15:20 [BREAK] FUT closes below P 24098
+  15:21 [ABSORPTION] FUT vol rank 0.95 but range rank 0.23 — sellers hitting a wall near 24091
+  15:24 [BREAK] FUT closes above P 24098
+  15:29 [CARRY] CE kept 11% of its intraday build (9.0M→peak 12.1M→close 9.3M) | PE kept 2% (3.0M→7.3M→3.0M) → NEUTRAL into next session
+
+=== Jul 17 | pivots P 24125 R1 24195 R2 24290 S1 24030 S2 23960 ===
+  09:35 >> STATE TREND-UP — 100% of last hour above VWAP, riding upper bands
+  09:36 [DIVERGENCE] FUT new session low 24194 but PE 134.4 is 32.6 under its own peak — downside not being paid for
+  09:36 [BREAK] FUT closes below R1 24195
+  09:39 [TRAP-SETTING] BULL TRAP SETTING near 24205 — 2 independent tells (divergence, writers) — the extreme is not being confirmed by the books
+  09:48 [OI-PEAK-LAG] CE book peaked 13.6M 7m AFTER the 24194 low and is now unwinding (-274k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  09:49 [TRAP-SETTING] BULL TRAP SETTING near 24222 — 2 independent tells (divergence, writers) — the extreme is not being confirmed by the books
+  09:49 [TRAP-SPRUNG] BEAR TRAP SPRUNG — FUT closes back above 24200 (the bar that made the extreme); late shorts trapped
+  10:01 [DIVERGENCE] FUT new session low 24191 but PE 136.2 is 30.8 under its own peak — downside not being paid for
+  10:02 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  10:04 [FLIP-TEST] R1 24195 retested from below and holding — level flipped
+  10:05 [BREAK] FUT closes above R1 24195
+  10:07 [OI-PEAK-LAG] PE book peaked 18.9M 11m AFTER the 24227 high and is now unwinding (-60k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → DOWNWARD
+  10:08 [GAMMA-PIN] FLOOR at 24200: writer scores CE -1.00 / PE +0.99, books 13.7M/18.7M, FUT 0 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  10:09 [TRAP-SETTING] BULL TRAP SETTING near 24227 — 2 independent tells (peak-lag, writers) — the extreme is not being confirmed by the books
+  10:09 [TRAP-SPRUNG] BULL TRAP SPRUNG — FUT closes back below 24221 (the bar that made the extreme); late longs trapped
+  10:17 [OI-PEAK-LAG] CE book peaked 13.8M 11m AFTER the 24191 low and is now unwinding (-178k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → UPWARD
+  10:18 [IGNITION] UP: all three books detonate (vol ranks FUT 1.00 CE 1.00 PE 1.00), FUT range rank 0.98
+  10:18 [BAND-REVERSAL] +2σ tag at 24273 — fade armed (standard), net writer +0.21 dampens; sell-side IV p76 → scalp ~1R down; seller expression: sell CE · far from expiry — edge historically flat, size down
+  10:19 [SQUEEZE-RELEASE] UPWARD: CE OI -1881k/10m (rank 0.95) with premium velocity rank 0.98 — dealer short-gamma hedge chase, hedging amplifies the move
+  10:22 >> STATE TREND-UP — 100% of last hour above VWAP, riding upper bands
+  10:32 [DIVERGENCE] FUT new session high 24275 but CE 167.0 is 6.7 under its own peak — upside not being paid for
+  10:49 [OI-PEAK-LAG] PE book peaked 22.2M 11m AFTER the 24275 high and is now unwinding (-208k/10m) — maximum conviction arrived after the move stopped; this book is reversal fuel → DOWNWARD
+  10:52 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  11:59 >> STATE TREND-UP — 82% of last hour above VWAP, riding upper bands
+  12:16 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  12:26 >> STATE TREND-UP — 100% of last hour above VWAP, riding upper bands
+  12:55 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  13:42 >> STATE COILING — bandwidth rank 0.30 — energy storing
+  13:48 [PRESS] BEARISH rotation: CE writers add (+271k) while PE shorts evacuate (-1374k) — books lean down before price
+  13:50 [ARMED] BULLISH SPRING at R1 24195 — dip disbelieved: PE OI -1608k/10m (rank 0.88) while FUT z=-0.7; CE writers adding +406k at the low; bands compressing
+  13:50 >> STATE ARMED — spring live (bullish)
+  13:51 [DIVERGENCE] FUT new session low 24190 but PE 135.0 is 32.0 under its own peak — downside not being paid for
+  13:51 [TRAP-SETTING] BEAR TRAP SETTING near 24190 — 2 independent tells (divergence, spring) — the extreme is not being confirmed by the books
+  13:51 [BREAK] FUT closes below R1 24195
+  13:51 [SQUEEZE-RISK] PE writer book (21.6M, score +0.87) pressed on its pain side, unwind accelerating 12 min (-1829k/10m) → downside squeeze risk building
+  13:54 [TRAP-SPRUNG] BEAR TRAP SPRUNG — FUT closes back above 24196 (the bar that made the extreme); late shorts trapped
+  14:15 [IGNITION] UP: all three books detonate (vol ranks FUT 1.00 CE 1.00 PE 1.00), FUT range rank 1.00 — FIRES A LIVE SPRING
+  14:15 [CLIMAX] CE beyond 3σ with OI cliff (-1078k/10m, rank 0.90) on extreme volume — covering climax, likely TOP marker
+  14:15 [BREAK] FUT closes above R2 24290
+  14:15 [SQUEEZE-RELEASE] UPWARD: CE OI -1078k/10m (rank 0.90) with premium velocity rank 1.00 — positioning capitulation, hedging amplifies the move
+  14:15 [BAND-REVERSAL] +2σ tag at 24336 — fade armed (DEEP 3σ, high conviction), net writer +0.79 dampens; sell-side IV p95 → scalp ~1R down; seller expression: sell CE · far from expiry — edge historically flat, size down
+  14:19 [FLIP-TEST] R2 24290 retested from above and holding — level flipped
+  14:19 [GAMMA-PIN] FLOOR at 24200: writer scores CE -0.00 / PE +0.77, books 6.9M/19.5M, FUT 99 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  14:21 [BREAK] FUT closes below R2 24290
+  14:26 [BREAK] FUT closes above R2 24290
+  14:41 [FLIP-TEST] R2 24290 retested from above and holding — level flipped
+  14:43 >> STATE BALANCE — two-sided around VWAP — scalp edges only
+  14:50 [GAMMA-PIN] FLOOR at 24200: writer scores CE -0.00 / PE +0.76, books 6.7M/19.3M, FUT 98 pts away — put wall below — dips into the strike get absorbed; upside is NOT capped
+  14:58 >> STATE TREND-UP — 82% of last hour above VWAP, riding upper bands
+  15:22 [ABSORPTION] FUT vol rank 0.96 but range rank 0.34 — sellers hitting a wall near 24321
+  15:29 [BAND-REVERSAL] +2σ tag at 24349 — fade armed (standard), net writer +0.48 dampens; sell-side IV p26 → scalp ~1R down; seller expression: sell CE · far from expiry — edge historically flat, size down
+  15:29 [CARRY] CE kept -90% of its intraday build (9.3M→peak 13.8M→close 5.3M) | PE kept 48% (3.1M→24.4M→13.3M) → BULLISH carry into next session

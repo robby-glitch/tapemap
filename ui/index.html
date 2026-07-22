@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TapeMap</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css?v=12">
+</head>
+<body>
+<header>
+  <div id="brand">TAPE<span>MAP</span></div>
+  <nav id="idxTabs">
+    <button data-idx="NIFTY" class="active">NIFTY</button>
+    <button data-idx="BANKNIFTY">BANKNIFTY</button>
+    <button data-idx="SENSEX">SENSEX</button>
+  </nav>
+  <nav id="dayTabs"></nav>
+  <nav id="viewTabs">
+    <button id="vTape" class="active">TAPE</button>
+    <button id="vData">DATA</button>
+  </nav>
+  <div id="stateChip"><b id="stName">—</b><i id="stWhy"></i></div>
+  <div id="controls">
+    <div id="clock">--:--</div>
+    <button id="playBtn">▶</button>
+    <select id="speed">
+      <option value="2">1×</option>
+      <option value="6">3×</option>
+      <option value="15" selected>8×</option>
+      <option value="50">25×</option>
+    </select>
+  </div>
+</header>
+
+<div id="expiryBar"></div>
+
+<div id="ctxBar">
+  <span id="verdict">—</span>
+  <span id="breadth">—</span>
+  <span id="pinChip"></span>
+  <span id="ctxLine"></span>
+  <span id="flips"></span>
+</div>
+
+<div id="bookStrip">
+  <div class="book" id="bFUT"><label>FUTURES</label><b>—</b><span></span></div>
+  <div class="book" id="bCE"><label>CE BOOK</label><b>—</b><span></span></div>
+  <div class="book" id="bPE"><label>PE BOOK</label><b>—</b><span></span></div>
+</div>
+
+<div id="mmStrip">
+  <span class="lbl">MM PERSPECTIVE</span>
+  <span id="mmRegime">—</span>
+  <span id="mmWhat"></span>
+  <span class="wmeter">CE<span class="wbar"><span class="mid"></span><i id="wCE"></i></span></span>
+  <span class="wmeter">PE<span class="wbar"><span class="mid"></span><i id="wPE"></i></span></span>
+</div>
+
+<div id="volStrip">
+  <span class="lbl">VOLATILITY</span>
+  <span class="vcell"><i>REALIZED σ</i><b id="volZ">—</b></span>
+  <span class="vcell"><i>30m RANGE</i><b id="volRng">—</b></span>
+  <span class="vcell"><i>BANDS</i><b id="volBw">—</b></span>
+  <span class="vcell"><i>INSIDE ±1σ</i><b id="volIn">—</b></span>
+  <span class="vcell"><i>ATM IV</i><b id="volIV">—</b></span>
+  <span id="volReg"></span>
+</div>
+
+<main>
+  <section id="railLog">
+    <div class="ph">TODAY SO FAR <em id="storyPos"></em></div>
+    <div id="storyBody"></div>
+    <div class="ph">NARRATIVE LOG</div>
+    <div id="feed"></div>
+  </section>
+
+  <section id="center">
+    <div class="panel" id="readPanel">
+      <div class="ph">● THE READ</div>
+      <div id="readBody"></div>
+    </div>
+    <div class="panel" id="trapPanel">
+      <div class="ph">▲ TRAP RADAR</div>
+      <div id="trapBody"></div>
+    </div>
+    <div class="panel" id="moPanel">
+      <div class="ph">◆ MOMENTUM WINDOWS</div>
+      <div id="moBody"></div>
+    </div>
+  </section>
+
+  <section id="railLadder">
+    <div class="ph">LEVEL LADDER <em id="stkLbl"></em></div>
+    <div id="ladder"></div>
+  </section>
+</main>
+
+<div id="dataView" class="chain">
+  <div id="chSub">
+    <button id="chsChain" class="active">◧ CHAIN ANALYSER</button>
+    <button id="chsWidgets">▦ MAP</button>
+    <button id="chsScan">⌕ SCAN</button>
+    <button id="openVal">✓ VALIDATE A TRADE</button>
+  </div>
+  <div id="chainView">
+    <div id="chTop"></div>
+    <div id="chOI"></div>
+    <div id="chWrap">
+      <div id="chLadderWrap">
+        <div id="chHead"></div>
+        <div id="chLadder"></div>
+      </div>
+      <div id="chSide">
+        <div class="ph">PAIN MAP — CHAIN SQUEEZE</div>
+        <div id="chPain"></div>
+        <div class="ph">SESSION</div>
+        <div id="chSpark"></div>
+      </div>
+    </div>
+  </div>
+  <div id="legacyView">
+    <button id="rawBtn">⿲ RAW DATA</button>
+    <div id="mapWrap">
+      <div id="mapBanner"></div>
+      <div id="flowStrip"></div>
+      <div id="mapMain">
+        <div id="mapSvg"></div>
+        <div id="mapRail"></div>
+      </div>
+    </div>
+    <div id="lgNote"></div>
+    <div id="dvTop"></div>
+    <div id="dvGrid"></div>
+  </div>
+
+  <div id="scanView">
+    <div id="scanHead"></div>
+    <div id="scanList"></div>
+  </div>
+
+  <div id="valModal" class="hidden">
+    <div id="valModalBack"></div>
+    <div id="valModalBox">
+      <div id="valModalHead">
+        <span class="vhlbl">✓ VALIDATE A TRADE</span>
+        <span class="vmsub">pick a strike, then hit VALIDATE</span>
+        <button id="valClose">✕</button>
+      </div>
+      <div id="validatorCard">
+        <div id="valHead">
+          <label class="vsel"><i>EXP</i><select id="valExpSel"></select></label>
+          <label class="vsel ce"><i>CE (call · long)</i><select id="valCeSel"><option value="">—</option></select></label>
+          <label class="vsel pe"><i>PE (put · short)</i><select id="valPeSel"><option value="">—</option></select></label>
+          <button id="valAtm">ATM AUTO</button>
+          <button id="valGo">✓ VALIDATE</button>
+        </div>
+        <div id="valBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <input type="range" id="scrub" min="0" max="374" value="0">
+  <div id="carry"></div>
+</footer>
+
+<script src="app.js?v=15"></script>
+</body>
+</html>

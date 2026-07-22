@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tapemap",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py", "8765"],
+      "port": 8765
+    },
+    {
+      "name": "tapemap-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py", "8766", "data", "24200", "--mock-chain"],
+      "port": 8766
+    },
+    {
+      "name": "tapemap-live",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py", "live", "8767"],
+      "port": 8767
+    }
+  ]
+}

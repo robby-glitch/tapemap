@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TapeMap — Jul 17 Session</title>
+<style>
+  :root{
+    --bg:#0a0b0d;
+    --bg-panel:#111318;
+    --bg-panel-2:#15181d;
+    --line:#232830;
+    --line-soft:#1a1d23;
+    --text-1:#eef0ec;
+    --text-2:#98a0ac;
+    --text-3:#5c6470;
+    --balance:#7186a0;
+    --coiling:#d9a441;
+    --armed:#a273e0;
+    --trend-up:#3fbd82;
+    --trend-down:#e0565f;
+    --neutral:#5c6470;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", "Consolas", "SFMono-Regular", ui-monospace, Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text-1);font-family:var(--sans);}
+  body{overflow:hidden;}
+  ::selection{background:#3a4150;color:#fff;}
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#2a2f38;border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:#3a4150;}
+
+  #app-shell{display:flex;flex-direction:column;height:100vh;min-height:560px;position:relative;}
+
+  /* ===== boot / error overlays ===== */
+  .overlay{
+    position:absolute;inset:0;z-index:50;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;background:var(--bg);
+  }
+  .overlay.show{display:flex;}
+  .boot-mark{font-family:var(--mono);font-size:13px;letter-spacing:.18em;color:var(--text-3);
+    animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+  .boot-bar{width:180px;height:2px;background:var(--line);position:relative;overflow:hidden;border-radius:2px;}
+  .boot-bar::after{content:"";position:absolute;left:-40%;top:0;bottom:0;width:40%;
+    background:var(--armed);animation:sweep 1.1s ease-in-out infinite;}
+  @keyframes sweep{0%{left:-40%;}100%{left:100%;}}
+  .error-title{font-family:var(--mono);font-size:14px;color:var(--trend-down);letter-spacing:.08em;}
+  .error-msg{font-size:13px;color:var(--text-2);max-width:420px;text-align:center;line-height:1.5;}
+  .retry-btn{font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--text-1);
+    background:var(--bg-panel-2);border:1px solid var(--line);padding:8px 18px;border-radius:3px;
+    cursor:pointer;transition:border-color .15s, color .15s;}
+  .retry-btn:hover{border-color:var(--armed);color:var(--armed);}
+
+  /* ===== hero header ===== */
+  header.hero{
+    flex:0 0 auto;display:grid;
+    grid-template-columns: minmax(126px,auto) minmax(168px,208px) minmax(178px,auto) minmax(210px,1fr);
+    column-gap:16px;align-items:center;
+    padding:12px 16px;border-bottom:1px solid var(--line);background:var(--bg-panel);
+    min-height:92px;overflow:hidden;
+  }
+  .hero-id{display:flex;flex-direction:column;gap:5px;min-width:0;padding-right:14px;
+    border-right:1px solid var(--line-soft);}
+  .wordmark{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;color:var(--text-2);font-weight:600;}
+  .session-sub{font-family:var(--mono);font-size:10px;letter-spacing:.03em;color:var(--text-3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hero-time{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums;color:var(--text-1);}
+
+  .hero-state{display:flex;flex-direction:column;gap:5px;min-width:0;padding-right:14px;
+    border-right:1px solid var(--line-soft);}
+  .state-badge{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:.05em;
+    display:inline-block;border:1px solid currentColor;padding:2px 8px;border-radius:3px;width:fit-content;
+    transition:color .2s, border-color .2s;}
+  .state-reason{font-size:11.5px;color:var(--text-2);line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+  .hero-price{display:flex;flex-direction:column;gap:2px;min-width:0;padding-right:16px;
+    border-right:1px solid var(--line-soft);}
+  .hp-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--text-3);}
+  .hp-value-row{display:flex;align-items:baseline;gap:8px;}
+  .hp-value{font-family:var(--mono);font-size:34px;font-weight:600;line-height:1;
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;}
+  .hp-z{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+  .hp-delta{font-family:var(--mono);font-size:10.5px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+  .hero-books{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;}
+  .book-row{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .br-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px;}
+  .br-name{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--text-3);}
+  .book-price{font-family:var(--mono);font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .book-z{font-family:var(--mono);font-size:10.5px;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+  .book-bars{display:flex;flex-direction:column;gap:3px;margin-top:1px;}
+  .bb-row{display:flex;align-items:center;gap:5px;}
+  .bb-tag{font-family:var(--mono);font-size:8.5px;color:var(--text-3);width:18px;flex:0 0 auto;letter-spacing:.03em;}
+  .bb-track{flex:1 1 auto;min-width:0;height:3px;background:var(--line-soft);border-radius:2px;overflow:hidden;}
+  .bb-fill{height:100%;background:var(--text-3);border-radius:2px;transition:width .15s;}
+  .book-vol-fill{background:var(--coiling);}
+  .book-oi-fill{background:var(--balance);}
+  .bb-arrow{font-size:9px;font-weight:700;flex:0 0 auto;width:10px;text-align:center;line-height:1;}
+
+  /* ===== stage ===== */
+  main.stage{flex:1 1 auto;display:flex;min-height:0;}
+
+  .ladder{flex:0 0 122px;border-right:1px solid var(--line);position:relative;background:var(--bg-panel);}
+  .ladder-track{position:absolute;inset:18px 0 18px 0;}
+  .ladder-tick{position:absolute;left:0;right:0;transform:translateY(-50%);
+    display:flex;align-items:center;gap:6px;padding-left:10px;white-space:nowrap;}
+  .lt-line{width:10px;height:1px;background:var(--text-3);flex:0 0 auto;}
+  .lt-label{font-family:var(--mono);font-size:10.5px;color:var(--text-3);letter-spacing:.03em;}
+  .ladder-strike .lt-line{width:16px;height:2px;background:var(--text-1);}
+  .ladder-strike .lt-label{color:var(--text-1);font-weight:700;}
+  .ladder-merged .lt-label{font-size:9.5px;letter-spacing:.01em;cursor:help;}
+  .ladder-merged .lt-line{width:13px;height:2px;}
+  .ladder-marker{position:absolute;left:0;right:0;transform:translateY(-50%);
+    display:flex;align-items:center;gap:6px;padding-left:2px;pointer-events:none;}
+  .lm-dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.06);
+    transition:top .1s;}
+  .lm-price{font-family:var(--mono);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;
+    background:var(--bg-panel-2);padding:1px 5px;border-radius:2px;}
+
+  .chart-wrap{flex:1 1 auto;position:relative;min-width:0;}
+  #chart{display:block;}
+  .baseline{stroke:var(--text-3);stroke-width:1;stroke-dasharray:2 4;opacity:.5;}
+  .axis-micro{font-family:var(--mono);font-size:9.5px;fill:var(--text-3);letter-spacing:.08em;}
+  .aura{opacity:.20;stroke:none;}
+  .aura-ce{fill:var(--coiling);}
+  .aura-pe{fill:var(--balance);}
+  .spine-fut{stroke:var(--text-1);stroke-width:2;filter:drop-shadow(0 0 3px rgba(238,240,236,.25));}
+  .minor-dot{fill:var(--bg);stroke:var(--text-3);stroke-width:1.3;cursor:pointer;transition:r .1s;}
+  .minor-dot:hover{stroke:var(--text-1);}
+  .leader{stroke:var(--line);stroke-width:1;}
+  .flag{cursor:pointer;}
+  .flag-box{fill:var(--bg-panel);stroke-width:1.2;}
+  .flag-text{font-family:var(--mono);font-size:10.5px;font-weight:700;text-anchor:middle;
+    dominant-baseline:middle;letter-spacing:.05em;}
+  .flag:hover .flag-box{fill:var(--bg-panel-2);}
+  .ribbon-seg{cursor:default;}
+  .ribbon-label{font-family:var(--mono);font-size:9px;fill:#05060a;text-anchor:middle;font-weight:700;
+    letter-spacing:.03em;pointer-events:none;}
+  .tick{stroke:var(--line);stroke-width:1;}
+  .axis-label{font-family:var(--mono);font-size:10px;fill:var(--text-3);text-anchor:middle;
+    font-variant-numeric:tabular-nums;}
+  .playhead{stroke:#f2c14e;stroke-width:1.4;pointer-events:none;}
+  .playhead-handle{fill:#f2c14e;pointer-events:none;}
+  #chart-overlay{cursor:crosshair;}
+
+  .tooltip{position:absolute;display:none;max-width:260px;background:var(--bg-panel-2);
+    border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:11.5px;
+    line-height:1.45;color:var(--text-1);z-index:40;pointer-events:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.45);}
+  .tooltip b{letter-spacing:.04em;}
+
+  /* ===== footer transport ===== */
+  footer.transport{flex:0 0 auto;border-top:1px solid var(--line);background:var(--bg-panel);}
+  .scrubber-row{display:flex;align-items:center;gap:14px;padding:10px 20px;}
+  .play-btn{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);
+    background:var(--bg-panel-2);color:var(--text-1);font-size:11px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:border-color .15s;}
+  .play-btn:hover{border-color:var(--armed);}
+  .scrubber-track{position:relative;flex:1 1 auto;height:20px;cursor:pointer;}
+  .scrubber-line{position:absolute;top:50%;left:0;right:0;height:3px;transform:translateY(-50%);
+    background:var(--line-soft);border-radius:2px;}
+  .scrubber-fill{position:absolute;top:50%;left:0;height:3px;transform:translateY(-50%);
+    background:var(--armed);border-radius:2px;width:0%;pointer-events:none;}
+  .scrubber-thumb{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;
+    background:#f2c14e;transform:translate(-50%,-50%);left:0%;box-shadow:0 0 0 3px rgba(242,193,78,.18);
+    pointer-events:none;}
+  .scrubber-chapters{position:absolute;inset:0;pointer-events:none;}
+  .chapter-mark{position:absolute;top:50%;width:2px;height:12px;transform:translate(-50%,-50%);
+    border-radius:1px;cursor:pointer;pointer-events:auto;opacity:.85;}
+  .scrubber-time-label{flex:0 0 auto;font-family:var(--mono);font-size:12px;color:var(--text-2);
+    font-variant-numeric:tabular-nums;width:44px;text-align:right;}
+
+  .tape-log{display:flex;align-items:stretch;gap:8px;padding:8px 16px 12px;overflow-x:auto;
+    overflow-y:hidden;border-top:1px solid var(--line-soft);}
+  .log-card{flex:0 0 auto;min-width:190px;max-width:280px;background:var(--bg-panel-2);
+    border:1px solid var(--line);border-left:3px solid var(--neutral);border-radius:3px;
+    padding:7px 10px;cursor:pointer;transition:border-color .15s, background .15s;}
+  .log-card:hover{background:#191d24;}
+  .log-card-money{min-width:230px;max-width:320px;padding:9px 12px;}
+  .log-card-active{border-color:#3a4150;box-shadow:0 0 0 1px rgba(255,255,255,.05) inset;}
+  .log-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:3px;}
+  .log-time{font-family:var(--mono);font-size:10.5px;color:var(--text-3);font-variant-numeric:tabular-nums;}
+  .log-kind{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;}
+  .log-msg{font-size:11.5px;line-height:1.42;color:var(--text-2);white-space:normal;}
+  .log-card-money .log-msg{color:var(--text-1);}
+
+  @media (max-width:900px){
+    .hero-books{display:none;}
+    .ladder{flex-basis:70px;}
+  }
+</style>
+</head>
+<body>
+<div id="app-shell">
+
+  <div class="overlay" id="boot-overlay">
+    <div class="boot-mark">TAPEMAP &middot; LOADING SESSION TAPE</div>
+    <div class="boot-bar"></div>
+  </div>
+
+  <div class="overlay" id="error-panel">
+    <div class="error-title">TAPE UNAVAILABLE</div>
+    <div class="error-msg" id="error-msg">Could not reach the data feed.</div>
+    <button class="retry-btn" id="retry-btn">RETRY CONNECTION</button>
+  </div>
+
+  <header class="hero">
+    <div class="hero-id">
+      <div class="wordmark">TAPEMAP</div>
+      <div class="session-sub">NIFTY &middot; 24200 STRIKE &middot; JUL 17</div>
+      <div class="hero-time" id="hero-time">--:--</div>
+    </div>
+
+    <div class="hero-state">
+      <span class="state-badge" id="hero-state-badge">—</span>
+      <span class="state-reason" id="hero-state-label">Waiting for tape…</span>
+    </div>
+
+    <div class="hero-price">
+      <span class="hp-label">FUT</span>
+      <div class="hp-value-row">
+        <span class="hp-value" id="hero-fut-price">--,---.--</span>
+        <span class="hp-z" id="hero-fut-z">+0.00σ</span>
+      </div>
+      <span class="hp-delta" id="hero-fut-delta">+0.00 vs VWAP</span>
+    </div>
+
+    <div class="hero-books">
+      <div class="book-row" id="book-row-ce">
+        <div class="br-head"><span class="br-name">CE</span><span class="book-price">---.--</span></div>
+        <span class="book-z">+0.00σ</span>
+        <div class="book-bars">
+          <div class="bb-row"><span class="bb-tag">VOL</span><div class="bb-track"><div class="bb-fill book-vol-fill"></div></div></div>
+          <div class="bb-row"><span class="bb-tag">OI</span><div class="bb-track"><div class="bb-fill book-oi-fill"></div></div><span class="bb-arrow">–</span></div>
+        </div>
+      </div>
+      <div class="book-row" id="book-row-pe">
+        <div class="br-head"><span class="br-name">PE</span><span class="book-price">---.--</span></div>
+        <span class="book-z">+0.00σ</span>
+        <div class="book-bars">
+          <div class="bb-row"><span class="bb-tag">VOL</span><div class="bb-track"><div class="bb-fill book-vol-fill"></div></div></div>
+          <div class="bb-row"><span class="bb-tag">OI</span><div class="bb-track"><div class="bb-fill book-oi-fill"></div></div><span class="bb-arrow">–</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="ladder" id="ladder"></div>
+    <div class="chart-wrap" id="chart-wrap">
+      <svg id="chart"></svg>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+  </main>
+
+  <footer class="transport">
+    <div class="scrubber-row">
+      <button class="play-btn" id="play-btn" aria-label="Play replay">&#9654;</button>
+      <div class="scrubber-track" id="scrubber-track">
+        <div class="scrubber-line"></div>
+        <div class="scrubber-fill" id="scrubber-fill"></div>
+        <div class="scrubber-chapters" id="scrubber-chapters"></div>
+        <div class="scrubber-thumb" id="scrubber-thumb"></div>
+      </div>
+      <span class="scrubber-time-label" id="scrubber-time-label">--:--</span>
+    </div>
+    <div class="tape-log" id="tape-log"></div>
+  </footer>
+
+</div>
+
+<script>
+'use strict';
+(function(){
+
+  var COLORS = {
+    balance:'#7186a0', coiling:'#d9a441', armed:'#a273e0',
+    trendUp:'#3fbd82', trendDown:'#e0565f', neutral:'#5c6470'
+  };
+  var MONEY_KINDS = ['ARMED','IGNITION','CLIMAX','CARRY'];
+
+  var state = {
+    day:null, bars:[], events:[], pivots:null, strike:0,
+    currentIndex:0, isPlaying:false, playTimer:null,
+    geom:{}, moneyFlags:[], minorEvents:[], stateSegments:[]
+  };
+
+  var el = {};
+
+  function qs(id){ return document.getElementById(id); }
+
+  function cacheEls(){
+    el.boot = qs('boot-overlay');
+    el.error = qs('error-panel');
+    el.retryBtn = qs('retry-btn');
+    el.heroStateBadge = qs('hero-state-badge');
+    el.heroStateLabel = qs('hero-state-label');
+    el.heroTime = qs('hero-time');
+    el.heroFutPrice = qs('hero-fut-price');
+    el.heroFutZ = qs('hero-fut-z');
+    el.heroFutDelta = qs('hero-fut-delta');
+    el.bookRows = {
+      ce: qs('book-row-ce'),
+      pe: qs('book-row-pe')
+    };
+    el.ladder = qs('ladder');
+    el.chartWrap = qs('chart-wrap');
+    el.svg = qs('chart');
+    el.tooltip = qs('tooltip');
+    el.tapeLog = qs('tape-log');
+    el.scrubTrack = qs('scrubber-track');
+    el.scrubFill = qs('scrubber-fill');
+    el.scrubThumb = qs('scrubber-thumb');
+    el.scrubChapters = qs('scrubber-chapters');
+    el.scrubTimeLabel = qs('scrubber-time-label');
+    el.playBtn = qs('play-btn');
+  }
+
+  function parseTimeToMinutes(t){
+    var p = t.split(':');
+    return parseInt(p[0],10)*60+parseInt(p[1],10);
+  }
+
+  function fmt(v, d){
+    if(v===undefined || v===null || isNaN(v)) return '--';
+    d = d===undefined?2:d;
+    return v.toLocaleString('en-IN', {minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+
+  function svgEl(tag, attrs){
+    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    if(attrs){ for(var k in attrs){ e.setAttribute(k, attrs[k]); } }
+    return e;
+  }
+
+  function init(){
+    cacheEls();
+    el.retryBtn.addEventListener('click', load);
+    load();
+  }
+
+  function load(){
+    el.error.classList.remove('show');
+    el.boot.classList.add('show');
+    fetch('/api/data').then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(data){
+      if(!data || !data.days || !data.days[2]) throw new Error('malformed payload');
+      onData(data.days[2]);
+    }).catch(function(err){
+      el.boot.classList.remove('show');
+      el.error.classList.add('show');
+      qs('error-msg').textContent = 'Could not load the tape: ' + err.message;
+    });
+  }
+
+  function onData(day){
+    state.day = day;
+    state.bars = day.bars || [];
+    state.events = day.events || [];
+    state.pivots = day.pivots;
+    state.strike = day.strike;
+    state.currentIndex = state.bars.length - 1;
+
+    computeStateSegments();
+    classifyEvents();
+    buildLadderStatic();
+    buildTapeLog();
+    setupScrubberChapters();
+    setupInteractions();
+
+    el.boot.classList.remove('show');
+
+    computeGeometry();
+    renderStatic();
+    setIndex(state.currentIndex);
+
+    window.addEventListener('resize', debounce(onResize, 120));
+    if(typeof ResizeObserver !== 'undefined'){
+      new ResizeObserver(debounce(onResize, 120)).observe(el.chartWrap);
+    }
+  }
+
+  function onResize(){
+    computeGeometry();
+    renderStatic();
+    renderDynamic();
+  }
+
+  function debounce(fn, ms){
+    var t;
+    return function(){
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function(){ fn.apply(null, args); }, ms);
+    };
+  }
+
+  // ---------- state segments (background narrative regimes) ----------
+  function stateColorFor(raw){
+    if(raw.indexOf('TREND-UP') === 0) return COLORS.trendUp;
+    if(raw.indexOf('TREND-DOWN') === 0) return COLORS.trendDown;
+    if(raw.indexOf('BALANCE') === 0) return COLORS.balance;
+    if(raw.indexOf('COILING') === 0) return COLORS.coiling;
+    if(raw.indexOf('ARMED') === 0) return COLORS.armed;
+    return COLORS.neutral;
+  }
+
+  function computeStateSegments(){
+    var stateEvents = state.events.filter(function(e){ return e.kind === 'STATE'; });
+    var segs = [];
+    var lastBarT = state.bars.length ? state.bars[state.bars.length-1].t : '15:30';
+    if(stateEvents.length === 0 || stateEvents[0].t !== state.bars[0].t){
+      segs.push({
+        startT: state.bars.length ? state.bars[0].t : '09:15',
+        endT: stateEvents.length ? stateEvents[0].t : lastBarT,
+        raw: 'OPEN', label: 'OPENING RANGE', color: COLORS.neutral, msg: 'Pre-signal — session opening'
+      });
+    }
+    for(var i=0;i<stateEvents.length;i++){
+      var ev = stateEvents[i];
+      var raw = ev.msg.split(' — ')[0];
+      var next = stateEvents[i+1];
+      segs.push({
+        startT: ev.t,
+        endT: next ? next.t : lastBarT,
+        raw: raw, label: raw, color: stateColorFor(raw), msg: ev.msg
+      });
+    }
+    state.stateSegments = segs;
+  }
+
+  function activeSegmentForMinutes(mins){
+    var segs = state.stateSegments;
+    for(var i=segs.length-1;i>=0;i--){
+      if(parseTimeToMinutes(segs[i].startT) <= mins) return segs[i];
+    }
+    return segs[0];
+  }
+
+  // ---------- events classification ----------
+  function flagColorFor(ev){
+    if(ev.kind === 'ARMED') return COLORS.armed;
+    if(ev.kind === 'IGNITION') return /DOWN/.test(ev.msg) ? COLORS.trendDown : COLORS.trendUp;
+    if(ev.kind === 'CLIMAX') return COLORS.trendDown;
+    if(ev.kind === 'CARRY') return /BEARISH/.test(ev.msg) ? COLORS.trendDown : COLORS.trendUp;
+    return COLORS.neutral;
+  }
+
+  function classifyEvents(){
+    var money = [], minor = [];
+    state.events.forEach(function(ev, idx){
+      if(ev.kind === 'STATE') return;
+      var item = { t: ev.t, kind: ev.kind, msg: ev.msg, idx: idx, color: flagColorFor(ev) };
+      if(MONEY_KINDS.indexOf(ev.kind) !== -1) money.push(item);
+      else minor.push(item);
+    });
+    state.moneyFlags = money;
+    state.minorEvents = minor;
+  }
+
+  // ---------- geometry ----------
+  function computeGeometry(){
+    var w = el.chartWrap.clientWidth;
+    var h = el.chartWrap.clientHeight;
+    if(w < 10 || h < 10) return;
+
+    var marginL = 14, marginR = 18;
+    var plotW = w - marginL - marginR;
+    var t0 = parseTimeToMinutes(state.bars[0].t);
+    var t1 = parseTimeToMinutes(state.bars[state.bars.length-1].t);
+    var span = Math.max(1, t1 - t0);
+
+    function xForTime(t){
+      return marginL + (parseTimeToMinutes(t) - t0) / span * plotW;
+    }
+    function xForMinutes(m){
+      return marginL + (m - t0) / span * plotW;
+    }
+
+    // lane assignment for money flags (collision avoidance)
+    var laneOcc = [];
+    var laidMoney = state.moneyFlags.map(function(f){ return { f:f, x: xForTime(f.t) }; })
+      .sort(function(a,b){ return a.x - b.x; })
+      .map(function(item){
+        var textW = 20 + item.f.kind.length * 7.5;
+        var x1 = item.x - textW/2, x2 = item.x + textW/2;
+        var lane = 0;
+        while(true){
+          var occ = laneOcc[lane] || (laneOcc[lane] = []);
+          var hit = occ.some(function(seg){ return !(x2 < seg.x1 - 6 || x1 > seg.x2 + 6); });
+          if(!hit){ occ.push({x1:x1,x2:x2}); break; }
+          lane++;
+        }
+        return { ev: item.f, x: item.x, lane: lane, w: textW };
+      });
+    var maxLane = laidMoney.reduce(function(m,i){ return Math.max(m, i.lane); }, 0);
+
+    var flagZoneH = 30 + (maxLane+1) * 25;
+    // bands, top to bottom: headroom for minor-event dots (which sit ON the
+    // ribbon's top edge, not floating separately), the ribbon itself, a
+    // deliberate gap before the hour axis (so hour labels never crowd the
+    // ribbon's inline state labels), the axis text, and a bottom pad.
+    var padAboveRibbon = 9, ribbonHeight = 12, gapRibbonAxis = 9, axisLabelH = 16, bottomPad = 4;
+    var bottomBandsH = padAboveRibbon + ribbonHeight + gapRibbonAxis + axisLabelH + bottomPad;
+    var zPlotTop = flagZoneH;
+    var zPlotBottom = h - bottomBandsH;
+    var zPlotH = Math.max(80, zPlotBottom - zPlotTop);
+    zPlotBottom = zPlotTop + zPlotH;
+
+    var allZ = [];
+    state.bars.forEach(function(b){
+      allZ.push(b.fut.z, b.ce.z, b.pe.z);
+    });
+    var rawMin = Math.min.apply(null, allZ);
+    var rawMax = Math.max.apply(null, allZ);
+    var domMin = Math.min(-3, rawMin - 0.25);
+    var domMax = Math.max(3, rawMax + 0.25);
+
+    function zToY(z){
+      var zz = Math.max(domMin, Math.min(domMax, z));
+      return zPlotTop + (1 - (zz - domMin)/(domMax - domMin)) * zPlotH;
+    }
+
+    var ribbonTop = zPlotBottom + padAboveRibbon;
+    var ribbonH = ribbonHeight;
+    // minor-event dots sit centered exactly on the ribbon's top edge, so
+    // they read as notches anchored to the ribbon rather than a floating
+    // rail of their own.
+    var minorRailY = ribbonTop;
+    var axisY = ribbonTop + ribbonH + gapRibbonAxis + 5;
+
+    state.geom = {
+      w:w, h:h, marginL:marginL, marginR:marginR, plotW:plotW,
+      t0:t0, t1:t1, span:span,
+      xForTime:xForTime, xForMinutes:xForMinutes,
+      zToY:zToY, domMin:domMin, domMax:domMax,
+      zPlotTop:zPlotTop, zPlotBottom:zPlotBottom, zPlotH:zPlotH,
+      flagZoneH:flagZoneH, laidMoney:laidMoney,
+      minorRailY:minorRailY, ribbonTop:ribbonTop, ribbonH:ribbonH, axisY:axisY
+    };
+  }
+
+  // ---------- static render (chart skeleton, drawn once per geometry) ----------
+  function renderStatic(){
+    var g = state.geom;
+    if(!g.w) return;
+    el.svg.setAttribute('width', g.w);
+    el.svg.setAttribute('height', g.h);
+    el.svg.setAttribute('viewBox', '0 0 ' + g.w + ' ' + g.h);
+    while(el.svg.firstChild) el.svg.removeChild(el.svg.firstChild);
+
+    // zero / VWAP baseline
+    var baseY = g.zToY(0);
+    el.svg.appendChild(svgEl('line', {
+      x1:g.marginL, x2:g.marginL+g.plotW, y1:baseY, y2:baseY,
+      class:'baseline'
+    }));
+    var vwapLabel = svgEl('text', {x:g.marginL+4, y:baseY-6, class:'axis-micro'});
+    vwapLabel.textContent = 'VWAP';
+    el.svg.appendChild(vwapLabel);
+
+    // CE / PE auras (area from curve to baseline)
+    el.svg.appendChild(buildAreaPath(function(b){return b.ce.z;}, 'aura aura-ce'));
+    el.svg.appendChild(buildAreaPath(function(b){return b.pe.z;}, 'aura aura-pe'));
+
+    // FUT spine
+    el.svg.appendChild(buildLinePath(function(b){return b.fut.z;}, 'spine-fut'));
+
+    // minor event ticks — centered on the ribbon's top edge so they read as
+    // notches anchored to it (not a separate floating rail); a small
+    // alternating offset keeps close-together dots from overlapping.
+    var lastX = null, jitterUp = true;
+    state.minorEvents.forEach(function(ev){
+      var x = g.xForTime(ev.t);
+      var dy = 0;
+      if(lastX !== null && Math.abs(x - lastX) < 10){
+        dy = jitterUp ? -4 : 4; jitterUp = !jitterUp;
+      } else { jitterUp = true; }
+      lastX = x;
+      var c = svgEl('circle', {cx:x, cy:g.minorRailY+dy, r:2.6, class:'minor-dot', 'data-idx':ev.idx});
+      c.addEventListener('mouseenter', function(e){ onHoverEvent(e, ev); });
+      c.addEventListener('mouseleave', hideTooltip);
+      c.addEventListener('click', function(){ jumpToTime(ev.t); });
+      el.svg.appendChild(c);
+    });
+
+    // money flags with leader lines
+    var rightEdge = g.marginL + g.plotW;
+    var leftEdge = g.marginL;
+    g.laidMoney.forEach(function(item){
+      var ev = item.ev;
+      var y = g.flagZoneH - 12 - item.lane * 25;
+      var leader = svgEl('line', {
+        x1:item.x, x2:item.x, y1:y+9, y2:g.zPlotTop-2, class:'leader'
+      });
+      el.svg.appendChild(leader);
+
+      // keep the label box fully inside the plot bounds; right-align near the
+      // right edge and left-align near the left edge instead of centering,
+      // which would otherwise push the box past the boundary.
+      var nearRight = item.x > leftEdge + g.plotW * 0.9;
+      var nearLeft = item.x < leftEdge + g.plotW * 0.1;
+      var boxX, textX, anchor;
+      if(nearRight){
+        boxX = Math.min(item.x + 5, rightEdge - 2) - item.w;
+        textX = boxX + item.w - 7;
+        anchor = 'end';
+      } else if(nearLeft){
+        boxX = Math.max(item.x - 5, leftEdge + 2);
+        textX = boxX + 7;
+        anchor = 'start';
+      } else {
+        boxX = item.x - item.w/2;
+        textX = item.x;
+        anchor = 'middle';
+      }
+      boxX = Math.max(leftEdge + 2, Math.min(boxX, rightEdge - item.w - 2));
+
+      var group = svgEl('g', {class:'flag', 'data-idx':ev.idx});
+      var rect = svgEl('rect', {
+        x:boxX, y:y-13, width:item.w, height:20, rx:3,
+        class:'flag-box', stroke:ev.color
+      });
+      var text = svgEl('text', {x:textX, y:y+1, class:'flag-text', fill:ev.color});
+      text.style.textAnchor = anchor;
+      text.textContent = ev.kind;
+      group.appendChild(rect);
+      group.appendChild(text);
+      group.addEventListener('mouseenter', function(e){ onHoverEvent(e, ev); });
+      group.addEventListener('mouseleave', hideTooltip);
+      group.addEventListener('click', function(){ jumpToTime(ev.t); });
+      el.svg.appendChild(group);
+    });
+
+    // state ribbon
+    state.stateSegments.forEach(function(seg){
+      var x1 = g.xForTime(seg.startT), x2 = g.xForTime(seg.endT);
+      var r = svgEl('rect', {
+        x:x1, y:g.ribbonTop, width:Math.max(1,x2-x1), height:g.ribbonH,
+        fill:seg.color, class:'ribbon-seg', 'fill-opacity':'0.85'
+      });
+      r.addEventListener('mouseenter', function(e){ showTooltip(e.clientX, e.clientY, '<b>'+seg.label+'</b><br>'+seg.msg); });
+      r.addEventListener('mouseleave', hideTooltip);
+      el.svg.appendChild(r);
+      if(x2 - x1 > 46){
+        var lbl = svgEl('text', {x:(x1+x2)/2, y:g.ribbonTop+g.ribbonH/2+3, class:'ribbon-label'});
+        lbl.textContent = seg.raw;
+        el.svg.appendChild(lbl);
+      }
+    });
+
+    // axis hour ticks
+    var startH = Math.ceil(g.t0/60);
+    for(var m = startH*60; m <= g.t1; m += 60){
+      if(m < g.t0) continue;
+      var x = g.xForMinutes(m);
+      el.svg.appendChild(svgEl('line', {x1:x,x2:x,y1:g.ribbonTop+g.ribbonH, y2:g.ribbonTop+g.ribbonH+4, class:'tick'}));
+      var hh = Math.floor(m/60), mm = m%60;
+      var lab = svgEl('text', {x:x, y:g.axisY, class:'axis-label'});
+      lab.textContent = (hh<10?'0'+hh:hh) + ':' + (mm<10?'0'+mm:mm);
+      el.svg.appendChild(lab);
+    }
+
+    // playhead (created last so it's on top)
+    var ph = svgEl('line', {x1:0,x2:0,y1:g.zPlotTop-4,y2:g.zPlotBottom+4, id:'playhead', class:'playhead'});
+    el.svg.appendChild(ph);
+    var phHandle = svgEl('circle', {cx:0, cy:g.zPlotTop-4, r:4, id:'playhead-handle', class:'playhead-handle'});
+    el.svg.appendChild(phHandle);
+
+    // interaction overlay rect for click/drag on chart
+    var overlay = svgEl('rect', {
+      x:g.marginL, y:0, width:g.plotW, height:g.h, fill:'transparent', id:'chart-overlay'
+    });
+    el.svg.appendChild(overlay);
+    overlay.addEventListener('mousedown', onChartScrub);
+  }
+
+  function buildLinePath(accessor, cls){
+    var g = state.geom, d = '';
+    state.bars.forEach(function(b, i){
+      var x = g.xForTime(b.t), y = g.zToY(accessor(b));
+      d += (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    });
+    return svgEl('path', {d:d, class:cls, fill:'none'});
+  }
+
+  function buildAreaPath(accessor, cls){
+    var g = state.geom, baseY = g.zToY(0);
+    var pts = state.bars.map(function(b){ return [g.xForTime(b.t), g.zToY(accessor(b))]; });
+    var d = 'M' + pts[0][0].toFixed(1) + ',' + baseY.toFixed(1) + ' ';
+    pts.forEach(function(p){ d += 'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1) + ' '; });
+    d += 'L' + pts[pts.length-1][0].toFixed(1) + ',' + baseY.toFixed(1) + ' Z';
+    return svgEl('path', {d:d, class:cls});
+  }
+
+  // ---------- ladder (vertical price/levels gauge) ----------
+  function buildLadderStatic(){
+    el.ladder.innerHTML = '';
+    var piv = state.pivots;
+    var items = [
+      {key:'R3', val:piv.R3, strike:false}, {key:'R2', val:piv.R2, strike:false},
+      {key:'R1', val:piv.R1, strike:false}, {key:'P', val:piv.P, strike:false},
+      {key:'S1', val:piv.S1, strike:false}, {key:'S2', val:piv.S2, strike:false},
+      {key:'S3', val:piv.S3, strike:false},
+      {key:'K', val:state.strike, strike:true}
+    ];
+    var domMin = piv.S3 - (piv.R3-piv.S3)*0.06;
+    var domMax = piv.R3 + (piv.R3-piv.S3)*0.06;
+    state.ladderDom = {min:domMin, max:domMax};
+
+    var track = document.createElement('div');
+    track.className = 'ladder-track';
+    el.ladder.appendChild(track);
+
+    function yFor(v, h){
+      return (1 - (v - domMin)/(domMax - domMin)) * h;
+    }
+    state.ladderYFor = yFor;
+
+    // Merge / offset labels that would otherwise collide: sort by pixel
+    // position, cluster any items whose rows fall within one label's
+    // height of each other, and render each cluster as a single row
+    // (combined key, e.g. "K/R1") instead of letting them overlap.
+    var ROW_H = 15;
+    function place(){
+      var h = el.ladder.clientHeight;
+      var withY = items.map(function(it){ return {it:it, y:yFor(it.val, h)}; })
+        .sort(function(a,b){ return a.y - b.y; });
+
+      var clusters = [];
+      withY.forEach(function(entry){
+        var last = clusters[clusters.length-1];
+        if(last && (entry.y - last.entries[last.entries.length-1].y) < ROW_H){
+          last.entries.push(entry);
+        } else {
+          clusters.push({entries:[entry]});
+        }
+      });
+
+      clusters.forEach(function(cluster){
+        var entries = cluster.entries;
+        var avgY = entries.reduce(function(s,e){ return s+e.y; }, 0) / entries.length;
+        var row = document.createElement('div');
+        var hasStrike = entries.some(function(e){ return e.it.strike; });
+        row.className = 'ladder-tick' + (hasStrike ? ' ladder-strike' : '') +
+          (entries.length > 1 ? ' ladder-merged' : '');
+        row.style.top = avgY + 'px';
+        var keyLabel = entries.map(function(e){ return e.it.key; }).join('/');
+        if(entries.length > 1){
+          // collided rows: merge into one combined label with a single
+          // representative value, e.g. "K/R1 24,200"
+          var primary = entries.filter(function(e){ return e.it.strike; })[0] || entries[0];
+          var valLabel = fmt(primary.it.val, primary.it.strike ? 0 : 2);
+          row.innerHTML = '<span class="lt-line"></span><span class="lt-label">' +
+            keyLabel + ' ' + valLabel + '</span>';
+          row.title = entries.map(function(e){ return e.it.key + ' ' + fmt(e.it.val,2); }).join(' · ');
+        } else {
+          // single, uncrowded row: key only, as before (value is legible
+          // from horizontal position on the gauge)
+          var only = entries[0].it;
+          var label = only.strike ? ('K ' + fmt(only.val,0)) : only.key;
+          row.innerHTML = '<span class="lt-line"></span><span class="lt-label">' + label + '</span>';
+        }
+        track.appendChild(row);
+      });
+
+      var marker = document.createElement('div');
+      marker.className = 'ladder-marker';
+      marker.id = 'ladder-marker';
+      marker.innerHTML = '<span class="lm-dot"></span><span class="lm-price"></span>';
+      track.appendChild(marker);
+    }
+    place();
+  }
+
+  function updateLadderMarker(price, color){
+    var h = el.ladder.clientHeight;
+    var y = state.ladderYFor(price, h);
+    var marker = qs('ladder-marker');
+    if(!marker) return;
+    marker.style.top = y + 'px';
+    marker.querySelector('.lm-dot').style.background = color;
+    marker.querySelector('.lm-price').textContent = fmt(price,2);
+    marker.querySelector('.lm-price').style.color = color;
+  }
+
+  // ---------- tape log (bottom narrative strip) ----------
+  function buildTapeLog(){
+    el.tapeLog.innerHTML = '';
+    state.events.filter(function(e){return e.kind !== 'STATE';}).forEach(function(ev){
+      var card = document.createElement('div');
+      var isMoney = MONEY_KINDS.indexOf(ev.kind) !== -1;
+      card.className = 'log-card' + (isMoney ? ' log-card-money' : '');
+      card.dataset.idx = ev.idx !== undefined ? ev.idx : '';
+      var color = flagColorFor(ev);
+      card.style.borderLeftColor = color;
+      card.innerHTML =
+        '<div class="log-head"><span class="log-time">' + ev.t + '</span>' +
+        '<span class="log-kind" style="color:' + color + '">' + ev.kind + '</span></div>' +
+        '<div class="log-msg">' + escapeHtml(ev.msg) + '</div>';
+      card.addEventListener('click', function(){ jumpToTime(ev.t); });
+      el.tapeLog.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s){
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ---------- scrubber ----------
+  function setupScrubberChapters(){
+    el.scrubChapters.innerHTML = '';
+    state.stateSegments.forEach(function(seg){
+      if(seg.raw === 'OPEN') return;
+      var m = document.createElement('div');
+      m.className = 'chapter-mark';
+      var ratio = (parseTimeToMinutes(seg.startT) - state.geomT0()) / state.geomSpan();
+      m.style.left = (ratio*100) + '%';
+      m.style.background = seg.color;
+      m.title = seg.raw + ' @ ' + seg.startT;
+      m.addEventListener('click', function(){ jumpToTime(seg.startT); });
+      el.scrubChapters.appendChild(m);
+    });
+  }
+
+  state.geomT0 = function(){ return parseTimeToMinutes(state.bars[0].t); };
+  state.geomSpan = function(){
+    return parseTimeToMinutes(state.bars[state.bars.length-1].t) - state.geomT0();
+  };
+
+  function setupInteractions(){
+    el.scrubTrack.addEventListener('mousedown', onScrubStart);
+    el.playBtn.addEventListener('click', togglePlay);
+    document.addEventListener('keydown', function(e){
+      if(e.target.tagName === 'INPUT') return;
+      if(e.key === 'ArrowRight'){ setIndex(state.currentIndex+1); }
+      if(e.key === 'ArrowLeft'){ setIndex(state.currentIndex-1); }
+      if(e.key === ' '){ e.preventDefault(); togglePlay(); }
+    });
+  }
+
+  function onScrubStart(e){
+    updateFromScrubX(e.clientX);
+    function onMove(ev){ updateFromScrubX(ev.clientX); }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function updateFromScrubX(clientX){
+    var rect = el.scrubTrack.getBoundingClientRect();
+    var ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    var idx = Math.round(ratio * (state.bars.length-1));
+    setIndex(idx);
+  }
+
+  function onChartScrub(e){
+    var g = state.geom;
+    var rect = el.svg.getBoundingClientRect();
+    var x = e.clientX - rect.left;
+    var ratio = Math.max(0, Math.min(1, (x - g.marginL)/g.plotW));
+    var idx = Math.round(ratio*(state.bars.length-1));
+    setIndex(idx);
+    function onMove(ev){
+      var x2 = ev.clientX - rect.left;
+      var r2 = Math.max(0, Math.min(1, (x2-g.marginL)/g.plotW));
+      setIndex(Math.round(r2*(state.bars.length-1)));
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function jumpToTime(t){
+    var target = parseTimeToMinutes(t);
+    var idx = 0, best = Infinity;
+    state.bars.forEach(function(b,i){
+      var diff = Math.abs(parseTimeToMinutes(b.t)-target);
+      if(diff < best){ best = diff; idx = i; }
+    });
+    setIndex(idx);
+    if(state.isPlaying) togglePlay();
+  }
+
+  function togglePlay(){
+    state.isPlaying = !state.isPlaying;
+    el.playBtn.innerHTML = state.isPlaying ? '&#10074;&#10074;' : '&#9654;';
+    el.playBtn.setAttribute('aria-label', state.isPlaying ? 'Pause replay' : 'Play replay');
+    if(state.isPlaying){
+      if(state.currentIndex >= state.bars.length-1) state.currentIndex = 0;
+      state.playTimer = setInterval(function(){
+        if(state.currentIndex >= state.bars.length-1){ togglePlay(); return; }
+        setIndex(state.currentIndex+1);
+      }, 45);
+    } else {
+      clearInterval(state.playTimer);
+    }
+  }
+
+  // ---------- dynamic render (per-frame, currentIndex dependent) ----------
+  function setIndex(i){
+    state.currentIndex = Math.max(0, Math.min(state.bars.length-1, i));
+    renderDynamic();
+  }
+
+  function renderDynamic(){
+    var g = state.geom;
+    if(!g.w) return;
+    var bar = state.bars[state.currentIndex];
+    var mins = parseTimeToMinutes(bar.t);
+    var seg = activeSegmentForMinutes(mins);
+
+    // playhead
+    var x = g.xForTime(bar.t);
+    var ph = qs('playhead'), phh = qs('playhead-handle');
+    if(ph){ ph.setAttribute('x1',x); ph.setAttribute('x2',x); }
+    if(phh){ phh.setAttribute('cx',x); }
+
+    // hero
+    el.heroStateBadge.textContent = seg.raw.replace('OPEN','OPENING');
+    el.heroStateBadge.style.color = seg.color;
+    el.heroStateBadge.style.borderColor = seg.color;
+    el.heroStateLabel.textContent = seg.msg;
+    el.heroTime.textContent = bar.t;
+
+    el.heroFutPrice.textContent = fmt(bar.fut.c, 2);
+    el.heroFutZ.textContent = (bar.fut.z>=0?'+':'') + bar.fut.z.toFixed(2) + 'σ';
+    el.heroFutZ.style.color = bar.fut.z >= 0 ? COLORS.trendUp : COLORS.trendDown;
+    var deltaVwap = bar.fut.c - bar.fut.vwap;
+    el.heroFutDelta.textContent = (deltaVwap>=0?'+':'') + fmt(deltaVwap,2) + ' vs VWAP';
+
+    fillBookRow('ce', bar.ce);
+    fillBookRow('pe', bar.pe);
+
+    updateLadderMarker(bar.fut.c, seg.color);
+
+    // scrubber
+    var ratio = (mins - state.geomT0()) / state.geomSpan();
+    el.scrubFill.style.width = (ratio*100) + '%';
+    el.scrubThumb.style.left = (ratio*100) + '%';
+    el.scrubTimeLabel.textContent = bar.t;
+
+    // log active highlight
+    var activeIdx = -1;
+    state.events.forEach(function(ev, i){
+      if(ev.kind === 'STATE') return;
+      if(parseTimeToMinutes(ev.t) <= mins) activeIdx = i;
+    });
+    var cards = el.tapeLog.querySelectorAll('.log-card');
+    cards.forEach(function(c){
+      c.classList.toggle('log-card-active', Number(c.dataset.idx) === activeIdx);
+    });
+  }
+
+  function fillBookRow(key, b){
+    var row = el.bookRows[key];
+    row.querySelector('.book-price').textContent = fmt(b.c, 2);
+    var zEl = row.querySelector('.book-z');
+    zEl.textContent = (b.z>=0?'+':'') + b.z.toFixed(2) + 'σ';
+    zEl.style.color = b.z >= 0 ? COLORS.trendUp : COLORS.trendDown;
+    row.querySelector('.book-vol-fill').style.width = Math.round(b.vol_r*100) + '%';
+    row.querySelector('.book-oi-fill').style.width = Math.round(b.oi_r*100) + '%';
+    var arrowEl = row.querySelector('.bb-arrow');
+    if(arrowEl){
+      var slope = b.oi_slope || 0;
+      if(slope > 1000){ arrowEl.textContent = '▲'; arrowEl.style.color = COLORS.trendUp; }
+      else if(slope < -1000){ arrowEl.textContent = '▼'; arrowEl.style.color = COLORS.trendDown; }
+      else { arrowEl.textContent = '–'; arrowEl.style.color = COLORS.neutral; }
+    }
+  }
+
+  // ---------- tooltip ----------
+  function onHoverEvent(e, ev){
+    showTooltip(e.clientX, e.clientY, '<b style="color:'+flagColorFor(ev)+'">'+ev.kind+'</b> &middot; '+ev.t+'<br>'+escapeHtml(ev.msg));
+  }
+
+  function showTooltip(clientX, clientY, html){
+    var rect = el.chartWrap.getBoundingClientRect();
+    el.tooltip.innerHTML = html;
+    el.tooltip.style.display = 'block';
+    var left = clientX - rect.left + 14;
+    var top = clientY - rect.top + 14;
+    var maxLeft = rect.width - 260;
+    if(left > maxLeft) left = clientX - rect.left - 274;
+    el.tooltip.style.left = left + 'px';
+    el.tooltip.style.top = top + 'px';
+  }
+  function hideTooltip(){ el.tooltip.style.display = 'none'; }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

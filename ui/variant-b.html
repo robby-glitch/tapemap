@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Variant B — Story</title>
+<style>
+:root{--paper:#f4f0e6;--card:#fbf8f1;--ink:#211f1a;--faint:#8a8474;--rule:#dcd5c4;
+      --up:#1e7d54;--dn:#c0392b;--armed:#6d3fc0;--coil:#b07d10;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);height:100vh;overflow:hidden;
+     font:13px/1.5 "Georgia",serif;display:flex;flex-direction:column}
+header{display:flex;align-items:baseline;gap:14px;padding:16px 28px 8px}
+h1{font-size:21px;font-weight:600;letter-spacing:.3px}
+h1 em{font-style:normal;color:var(--armed)}
+.date{color:var(--faint);font-size:13px}
+.verdict{margin-left:auto;font-size:13px;color:var(--up);border:1px solid var(--up);
+         border-radius:20px;padding:2px 14px}
+#chartWrap{padding:2px 28px 0}
+svg{display:block}
+#chapters{display:flex;gap:10px;padding:10px 28px 6px}
+.chap{flex:1;background:var(--card);border:1px solid var(--rule);border-radius:8px;
+      padding:9px 12px;min-width:0}
+.chap .tt{font-size:11px;color:var(--faint);letter-spacing:1px;font-family:"Segoe UI",sans-serif}
+.chap .nm{font-weight:700;font-size:14px;margin:1px 0 2px}
+.chap .ds{font-size:11.5px;color:#5a5546;font-family:"Segoe UI",sans-serif}
+#cards{flex:1;display:flex;gap:12px;padding:8px 28px 18px;overflow-x:auto;min-height:0}
+.card{min-width:230px;max-width:230px;background:var(--card);border:1px solid var(--rule);
+      border-radius:10px;padding:12px 14px;display:flex;flex-direction:column}
+.card .k{font-family:"Segoe UI",sans-serif;font-weight:700;font-size:13px;letter-spacing:.5px}
+.card .t{color:var(--faint);font-size:11px;font-family:"Segoe UI",sans-serif;margin-bottom:5px}
+.card .m{font-size:12px;color:#46412f;flex:1;font-family:"Segoe UI",sans-serif;line-height:1.45}
+.card.big{border-width:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>The day 24200 <em>held the line</em></h1>
+  <span class="date">NIFTY · Friday, July 17</span>
+  <span class="verdict">Carry: bullish into Monday</span>
+</header>
+<div id="chartWrap"><svg id="svg" width="100%" height="290"></svg></div>
+<div id="chapters"></div>
+<div id="cards"></div>
+<script>
+const NS="http://www.w3.org/2000/svg";
+const el=(p,t,a={},tx)=>{const n=document.createElementNS(NS,t);
+  for(const[k,v]of Object.entries(a))n.setAttribute(k,v);
+  if(tx!==undefined)n.textContent=tx;p.appendChild(n);return n};
+(async()=>{
+const D=(await(await fetch("/api/data")).json()).days[2];
+const bars=D.bars,n=bars.length;
+const svg=document.getElementById("svg");
+const W=svg.clientWidth||1100,H=290;
+const x0=10,x1=W-46,x=i=>x0+(x1-x0)*i/(n-1);
+const lo=Math.min(...bars.map(b=>b.fut.l)),hi=Math.max(...bars.map(b=>b.fut.h));
+const pd=(hi-lo)*.07,py=p=>16+(H-46)*(1-(p-(lo-pd))/((hi+pd)-(lo-pd)));
+for(const[nm,p]of[["R2",D.pivots.R2],["R1",D.pivots.R1],["P",D.pivots.P]]){
+  el(svg,"line",{x1:x0,y1:py(p),x2:x1,y2:py(p),stroke:"#dcd5c4"});
+  el(svg,"text",{x:x1+4,y:py(p)+4,"font-size":11,fill:"#8a8474","font-family":"Georgia"},nm);}
+el(svg,"line",{x1:x0,y1:py(D.strike),x2:x1,y2:py(D.strike),stroke:"#6d3fc0",opacity:.4,"stroke-width":1.4});
+el(svg,"text",{x:x1+4,y:py(D.strike)+4,"font-size":11,fill:"#6d3fc0"},"24200");
+let d="";bars.forEach((b,i)=>d+=(i?"L":"M")+x(i)+" "+py(b.fut.c)+" ");
+el(svg,"path",{d,fill:"none",stroke:"#211f1a","stroke-width":2.2,"stroke-linejoin":"round"});
+const tI=Object.fromEntries(bars.map((b,i)=>[b.t,i]));
+const majors=D.events.filter(e=>["TRAP","ARMED","IGNITION","CLIMAX","CARRY"].includes(e.kind));
+majors.forEach((e,k)=>{
+  const i=tI[e.t];if(i===undefined)return;
+  const cy=py(bars[i].fut.c);
+  const col={ARMED:"#6d3fc0",IGNITION:"#b07d10",CLIMAX:"#b07d10",TRAP:"#c0392b",CARRY:"#1e7d54"}[e.kind];
+  el(svg,"circle",{cx:x(i),cy,r:11,fill:col});
+  el(svg,"text",{x:x(i),y:cy+4,"text-anchor":"middle","font-size":12,fill:"#fff",
+                 "font-family":"Georgia","font-weight":700},k+1);
+});
+bars.forEach((b,i)=>{if(b.t.endsWith(":00"))
+  el(svg,"text",{x:x(i),y:H-8,"text-anchor":"middle","font-size":11,fill:"#8a8474",
+                 "font-family":"Georgia"},b.t);});
+const stEv=D.events.filter(e=>e.kind==="STATE");
+const chapters=[];let cur={nm:"OPENING",t0:"09:15"};
+for(const e of stEv){const nm=e.msg.split(" — ")[0];
+  if(nm!==cur.nm){cur.t1=e.t;if(tI[cur.t1]-tI[cur.t0]>25||chapters.length===0)chapters.push(cur);
+    else chapters[chapters.length-1].t1=e.t; cur={nm,t0:e.t,why:e.msg.split(" — ")[1]||""};}}
+cur.t1="15:29";chapters.push(cur);
+const DESC={OPENING:"writers pick sides",BALANCE:"two-sided, scalp only",
+  COILING:"bands pinch — energy storing",ARMED:"spring loaded at the strike",
+  "TREND-UP":"one-sided tape, ride it","TREND-DOWN":"one-sided tape, down"};
+const chDiv=document.getElementById("chapters");
+chapters.slice(0,6).forEach((c,k)=>{
+  const col={ARMED:"#6d3fc0",COILING:"#b07d10","TREND-UP":"#1e7d54","TREND-DOWN":"#c0392b"}[c.nm]||"#8a8474";
+  chDiv.insertAdjacentHTML("beforeend",
+   `<div class="chap" style="border-top:3px solid ${col}"><div class="tt">${c.t0} – ${c.t1}</div>`+
+   `<div class="nm" style="color:${col}">${c.nm}</div><div class="ds">${DESC[c.nm]||""}</div></div>`);});
+const cards=document.getElementById("cards");
+majors.forEach((e,k)=>{
+  const col={ARMED:"#6d3fc0",IGNITION:"#b07d10",CLIMAX:"#b07d10",TRAP:"#c0392b",CARRY:"#1e7d54"}[e.kind];
+  cards.insertAdjacentHTML("beforeend",
+   `<div class="card ${e.kind==="ARMED"?"big":""}" style="border-color:${col}55">`+
+   `<div class="k" style="color:${col}">${k+1} · ${e.kind}</div><div class="t">${e.t}</div>`+
+   `<div class="m">${e.msg}</div></div>`);});
+})();
+</script>
+</body>
+</html>

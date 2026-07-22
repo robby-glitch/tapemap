@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Variant C — Cockpit</title>
+<style>
+:root{--bg:#0a0f1c;--glass:#121a2cbb;--edge:#1f2c47;--ink:#e6edf7;--dim:#5d6b84;
+      --blue:#4aa8ff;--up:#2fd587;--dn:#ff5d6c;--armed:#b184ff;--amber:#ffc24d;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{height:100vh;overflow:hidden;color:var(--ink);
+  font:12.5px/1.45 "Segoe UI",system-ui,sans-serif;
+  background:radial-gradient(1200px 700px at 30% -10%, #14203a 0%, #0a0f1c 55%);}
+#grid{display:grid;grid-template-columns:1fr 290px;grid-template-rows:auto 1fr auto;
+      gap:14px;height:100%;padding:14px}
+.glass{background:var(--glass);border:1px solid var(--edge);border-radius:14px;
+       backdrop-filter:blur(6px)}
+#status{grid-column:1/3;display:flex;align-items:center;gap:22px;padding:12px 22px}
+#lamp{width:14px;height:14px;border-radius:50%;background:var(--armed);
+      box-shadow:0 0 18px 4px #b184ff88}
+#stName{font-size:22px;font-weight:700;letter-spacing:3px;color:var(--armed)}
+#stWhy{color:var(--dim)}
+#carry{margin-left:auto;color:var(--up);font-weight:600}
+#chartBox{padding:14px 10px 6px;min-height:0}
+svg{width:100%;height:100%;display:block}
+#gauges{display:flex;flex-direction:column;gap:14px;min-height:0}
+.g{flex:1;display:flex;align-items:center;gap:14px;padding:10px 18px}
+.g .nm{width:36px;font-weight:700;letter-spacing:1px}
+.g .val{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;width:74px}
+.therm{flex:1;height:10px;border-radius:5px;background:#0d1526;position:relative;overflow:visible}
+.therm .mid{position:absolute;left:50%;top:-3px;width:1px;height:16px;background:var(--edge)}
+.therm .dot{position:absolute;top:-3px;width:16px;height:16px;border-radius:50%;
+            transform:translateX(-8px)}
+.g .oi{width:66px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+#strip{grid-column:1/3;height:96px;padding:10px 16px 8px}
+.lbl{font-size:9.5px;letter-spacing:2px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="grid">
+  <div id="status" class="glass">
+    <div id="lamp"></div><div id="stName">ARMED</div>
+    <div id="stWhy">spring live (bullish) · at R1 / strike</div>
+    <div id="carry">CARRY → BULLISH</div>
+  </div>
+  <div id="chartBox" class="glass"><svg id="price"></svg></div>
+  <div id="gauges">
+    <div class="g glass" id="gFUT"></div>
+    <div class="g glass" id="gCE"></div>
+    <div class="g glass" id="gPE"></div>
+  </div>
+  <div id="strip" class="glass"><div class="lbl">HEARTBEAT — state · energy · time</div>
+    <svg id="hb"></svg></div>
+</div>
+<script>
+const NS="http://www.w3.org/2000/svg";
+const el=(p,t,a={},tx)=>{const n=document.createElementNS(NS,t);
+  for(const[k,v]of Object.entries(a))n.setAttribute(k,v);
+  if(tx!==undefined)n.textContent=tx;p.appendChild(n);return n};
+const SC={OPENING:"#5d6b84",BALANCE:"#5d6b84",COILING:"#ffc24d",ARMED:"#b184ff",
+          "TREND-UP":"#2fd587","TREND-DOWN":"#ff5d6c"};
+(async()=>{
+const D=(await(await fetch("/api/data")).json()).days[2];
+const bars=D.bars,n=bars.length;
+const tI=Object.fromEntries(bars.map((b,i)=>[b.t,i]));
+const i15=tI["14:15"];
+for(const[k,id,col]of[["fut","gFUT","#4aa8ff"],["ce","gCE","#2fd587"],["pe","gPE","#ff5d6c"]]){
+  const b=bars[i15][k],g=document.getElementById(id);
+  const z=Math.max(-3,Math.min(3,b.z)),pct=50+z/3*50;
+  g.innerHTML=`<div class="nm" style="color:${col}">${k.toUpperCase()}</div>`+
+   `<div class="val">${b.c.toFixed(k==="fut"?0:1)}</div>`+
+   `<div class="therm"><div class="mid"></div>`+
+   `<div class="dot" style="left:${pct}%;background:${col};box-shadow:0 0 12px 2px ${col}66"></div></div>`+
+   `<div class="oi" style="color:${b.oi_slope>0?"#2fd587":"#ff5d6c"}">${b.oi_slope>0?"▲":"▼"} ${Math.abs(Math.round(b.oi_slope/1000))}k</div>`;
+}
+const svg=document.getElementById("price");
+const W=svg.clientWidth||860,H=svg.clientHeight||420;
+const x0=8,x1=W-52,x=i=>x0+(x1-x0)*i/(n-1);
+const lo=Math.min(...bars.map(b=>b.fut.l)),hi=Math.max(...bars.map(b=>b.fut.h));
+const pd=(hi-lo)*.08,py=p=>14+(H-40)*(1-(p-(lo-pd))/((hi+pd)-(lo-pd)));
+const defs=el(svg,"defs");
+const gr=el(defs,"linearGradient",{id:"fillG",x1:0,y1:0,x2:0,y2:1});
+el(gr,"stop",{offset:"0%","stop-color":"#4aa8ff","stop-opacity":.30});
+el(gr,"stop",{offset:"100%","stop-color":"#4aa8ff","stop-opacity":0});
+let d="";bars.forEach((b,i)=>d+=(i?"L":"M")+x(i)+" "+py(b.fut.c)+" ");
+el(svg,"path",{d:d+`L${x1} ${H-26} L${x0} ${H-26} Z`,fill:"url(#fillG)"});
+for(const[nm,p]of[["R2",D.pivots.R2],["R1",D.pivots.R1],["P",D.pivots.P],["STK",D.strike]]){
+  if(p<lo-pd||p>hi+pd)continue;const stk=nm==="STK";
+  el(svg,"line",{x1:x0,y1:py(p),x2:x1,y2:py(p),stroke:stk?"#b184ff":"#223052",
+                 "stroke-dasharray":stk?"none":"5 5",opacity:stk?.7:1});
+  el(svg,"text",{x:x1+5,y:py(p)+4,"font-size":10,fill:stk?"#b184ff":"#5d6b84"},nm);}
+el(svg,"path",{d,fill:"none",stroke:"#4aa8ff","stroke-width":2.4,
+               style:"filter:drop-shadow(0 0 6px #4aa8ff88)"});
+for(const e of D.events){
+  if(!["ARMED","IGNITION","CLIMAX","CARRY","TRAP"].includes(e.kind))continue;
+  const i=tI[e.t];if(i===undefined)continue;
+  const col={ARMED:"#b184ff",IGNITION:"#ffc24d",CLIMAX:"#ffc24d",TRAP:"#ff5d6c",CARRY:"#2fd587"}[e.kind];
+  const cy=py(bars[i].fut.c);
+  el(svg,"circle",{cx:x(i),cy,r:5,fill:"none",stroke:col,"stroke-width":2,
+                   style:`filter:drop-shadow(0 0 6px ${col})`});
+  el(svg,"text",{x:x(i),y:cy-12,"text-anchor":"middle","font-size":9.5,fill:col,
+                 "font-weight":600},e.kind);}
+bars.forEach((b,i)=>{if(b.t.endsWith(":00"))
+  el(svg,"text",{x:x(i),y:H-8,"text-anchor":"middle","font-size":9.5,fill:"#5d6b84"},b.t);});
+const hb=document.getElementById("hb");
+const hW=hb.clientWidth||1100,hH=(hb.clientHeight||60)-4;
+const hx=i=>hW*i/(n-1);
+const stEv=D.events.filter(e=>e.kind==="STATE");let st="OPENING",p2=0;
+const states=[];for(let i=0;i<n;i++){
+  while(p2<stEv.length&&tI[stEv[p2].t]<=i){st=stEv[p2].msg.split(" — ")[0];p2++;}
+  states.push(st);}
+for(let i=0;i<n;i++){
+  const b=bars[i];
+  const e2=Math.max(b.fut.vol_r,b.ce.vol_r,b.pe.vol_r)*.6+Math.max(b.ce.oi_r,b.pe.oi_r)*.4;
+  const h=Math.max(3,e2*e2*hH);
+  el(hb,"rect",{x:hx(i)-hW/n/2,y:hH-h+2,width:hW/n+.5,height:h,fill:SC[states[i]],
+                opacity:.95});}
+})();
+</script>
+</body>
+</html>
