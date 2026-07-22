@@ -168,6 +168,7 @@ class ChainPoller(threading.Thread):
         self.boxes = {c["under_sym"]: {"payload": None} for c in configs}
         self.states = {c["under_sym"]: ChainState() for c in configs}
         self.prevs = {c["under_sym"]: None for c in configs}
+        self.reload = False                          # set by /api/token to re-read the token
 
     def _publish(self, idx, snap, metrics, expiry, mode, error=None):
         by_k = {r["k"]: r for r in metrics.pop("per_strike", [])}
@@ -286,6 +287,10 @@ class ChainPoller(threading.Thread):
                 idx = c["under_sym"]
                 self._warm_start(idx, day_files[idx], expiries[idx])
             while True:                    # inner: round-robin poll loop
+                if self.reload:            # /api/token dropped a fresh token
+                    self.reload = False
+                    print("chain poller: reloading token / re-resolving expiries")
+                    break                  # -> outer loop re-reads token + warm-starts
                 for c in self.configs:
                     idx = c["under_sym"]
                     t0 = time.time()
@@ -302,4 +307,6 @@ class ChainPoller(threading.Thread):
                             f.write(json.dumps(snap) + "\n")
                     except Exception as e:  # isolate: tag this index, go on
                         self._tag_error(idx, "live", f"poll failed: {e}")
+                        if "token" in str(e).lower() or "401" in str(e):
+                            self.reload = True   # force outer retry -> proper EXPIRED
                     time.sleep(max(0.5, RR_GAP_S - (time.time() - t0)))

@@ -51,6 +51,38 @@ function showBanner(msg, ok=false){
 }
 function hideBanner(){ const b = $("liveBanner"); if(b) b.classList.add("hidden"); }
 
+// --- one-click Dhan token capture (clipboard first, paste fallback) ---
+const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;   // fast client sanity; server re-validates
+async function captureToken(){
+  let raw = "";
+  try{ raw = (await navigator.clipboard.readText()).trim(); }catch(e){ raw = ""; }
+  if(JWT_RE.test(raw)){ await postToken(raw); raw = ""; return; }
+  tokenPastePrompt();                            // empty/denied/not-a-JWT -> manual paste
+}
+async function postToken(tok){
+  try{
+    const r = await fetch("/api/token", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body: JSON.stringify({token: tok})});
+    const j = await r.json();
+    if(j.ok){ S.bannerMuted = null; showBanner("token captured — " + j.msg, true); }
+    else showBanner("token rejected — " + j.msg);
+  }catch(e){ showBanner("token save failed — is the server running?"); }
+}
+function tokenPastePrompt(){
+  const b = $("liveBanner");
+  if(!b) return;
+  b.classList.remove("hidden", "ok");
+  b.innerHTML = `<span class="bmsg">clipboard unavailable — paste the Dhan token:</span>` +
+    `<input type="password" id="tokPaste" placeholder="paste token" autocomplete="off">` +
+    `<button id="tokGo">GO</button><span class="bx" title="dismiss">✕</span>`;
+  b.querySelector(".bx").onclick = hideBanner;
+  const inp = $("tokPaste"), go = $("tokGo");
+  inp.focus();
+  const submit = async () => { const v = inp.value.trim(); inp.value = ""; if(v) await postToken(v); };
+  go.onclick = submit;
+  inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); submit(); } });
+}
+
 async function boot(){
   try{                                   // Stage-2 GEX overlay (optional file)
     const r = await fetch("/api/gex");
@@ -61,6 +93,7 @@ async function boot(){
   }catch(e){ /* no GEX data — ladder simply omits FLIP/WALL rungs */ }
   $("playBtn").onclick = togglePlay;
   $("scrub").oninput = e => { seek(+e.target.value); };
+  $("tokBtn").onclick = captureToken;
   // restore persisted prefs BEFORE loading data
   const savedIdx = lsGet("index");
   if(savedIdx && [...$("idxTabs").children].some(c => c.dataset.idx === savedIdx)){

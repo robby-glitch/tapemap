@@ -127,6 +127,13 @@ main{flex:1;display:grid;grid-template-columns:300px 1fr 252px;grid-template-row
 #liveBanner .bx{cursor:pointer;opacity:.7;font-size:13px}
 #liveBanner .bx:hover{opacity:1}
 
+/* one-click token capture button */
+#tokBtn{background:var(--pan2);color:var(--dim);border:1px solid var(--edge);border-radius:3px;
+  padding:2px 8px;font-size:11px;letter-spacing:.5px;cursor:pointer}
+#tokBtn:hover{color:var(--ink);border-color:var(--gamma)}
+#liveBanner input{background:var(--bg);color:var(--ink);border:1px solid var(--edge);
+  border-radius:3px;padding:2px 8px;font-size:12px;font-family:var(--mono);min-width:200px}
+
 /* price ribbon (TAPE view) */
 #ribbon{height:64px;border-bottom:1px solid var(--edge);position:relative}
 #ribbon svg{display:block;width:100%;height:100%}

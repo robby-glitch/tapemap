@@ -27,9 +27,10 @@ ROOT = Path(__file__).parent
 
 
 class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *a, payloads=None, chains=None, **kw):
+    def __init__(self, *a, payloads=None, chains=None, poller=None, **kw):
         self.payloads = payloads or {}     # idx -> {"payload": bytes} (or bytes)
         self.chains = chains               # idx -> ChainPoller box, or None
+        self.poller = poller               # ChainPoller object (for hot-reload), or None
         super().__init__(*a, directory=str(ROOT / "ui"), **kw)
 
     def _idx(self):
@@ -44,6 +45,35 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_POST(self):
+        # One-click token capture: validate a pasted/clipboard Dhan token, save
+        # it to .dhan_token, and kick the poller. The token is never logged or
+        # echoed — only the validity message from token_status goes back.
+        if not self.path.startswith("/api/token"):
+            self.send_error(404)
+            return
+        from chain_live import token_status
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        if not 0 < n < 8192:
+            self._json(b'{"ok":false,"msg":"bad request"}', 400)
+            return
+        try:
+            tok = json.loads(self.rfile.read(n)).get("token", "").strip()
+        except (ValueError, AttributeError):
+            self._json(b'{"ok":false,"msg":"malformed request body"}', 400)
+            return
+        st = token_status(tok)
+        if not st["ok"]:
+            self._json(json.dumps({"ok": False, "msg": st["msg"]}).encode())
+            return
+        (ROOT / ".dhan_token").write_text(tok, encoding="utf-8")
+        if self.poller is not None:
+            self.poller.reload = True          # hot-reload the chain poller
+        self._json(json.dumps({"ok": True, "msg": st["msg"]}).encode())
 
     def do_GET(self):
         if self.path.startswith("/api/data"):
@@ -86,7 +116,7 @@ def _start_chain(mock, configs):
     poller.start()
     print("chain poller started" + (" (MOCK fixture)" if mock else "")
           + " for " + ", ".join(c["under_sym"] for c in configs))
-    return poller.boxes
+    return poller
 
 
 def main():
@@ -102,7 +132,8 @@ def main():
         cfgs = {x: instruments.resolve_dynamic(instruments.get(x), tok, today)
                 for x in instruments.ENABLED}
         payloads = {x: {"payload": build_payload(c)} for x, c in cfgs.items()}
-        chains = _start_chain(mock_chain, list(cfgs.values()))
+        poller = _start_chain(mock_chain, list(cfgs.values()))
+        chains = poller.boxes
         kb = sum(len(b["payload"] or b"") for b in payloads.values()) // 1024
         print(f"LIVE payloads ready for {list(cfgs)} ({kb} KB), "
               f"refreshing every {REFRESH_S}s on http://127.0.0.1:{port}")
@@ -120,19 +151,20 @@ def main():
         threading.Thread(target=refresh, daemon=True).start()
         ThreadingHTTPServer(("127.0.0.1", port),
                             partial(Handler, payloads=payloads,
-                                    chains=chains)).serve_forever()
+                                    chains=chains, poller=poller)).serve_forever()
         return
     port = int(argv[0]) if argv else 8765
     base = argv[1] if len(argv) > 1 else "data"
     strike = float(argv[2]) if len(argv) > 2 else 24200.0
-    chains = (_start_chain(True, [instruments.get(x) for x in instruments.ENABLED])
+    poller = (_start_chain(True, [instruments.get(x) for x in instruments.ENABLED])
               if mock_chain else None)
+    chains = poller.boxes if poller else None
     payload = json.dumps(analyze(base, strike)).encode()
     payloads = {instruments.DEFAULT: {"payload": payload}}
     print(f"analysis ready ({len(payload)//1024} KB), serving on http://127.0.0.1:{port}")
     ThreadingHTTPServer(("127.0.0.1", port),
                         partial(Handler, payloads=payloads,
-                                chains=chains)).serve_forever()
+                                chains=chains, poller=poller)).serve_forever()
 
 
 if __name__ == "__main__":
