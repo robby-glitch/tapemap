@@ -30,6 +30,7 @@ import re
 import sys
 from bisect import bisect_right, insort
 from collections import defaultdict
+from datetime import datetime
 
 from gamma import implied_vol
 
@@ -40,21 +41,37 @@ COLS = ["O", "H", "L", "C", "VWAP", "U1", "D1", "U2", "D2", "U3", "D3",
 
 
 def load(path):
-    """Parse a Zerodha CSV export -> {day: [bar dicts]} keeping full sessions only."""
+    """Parse a Zerodha CSV export -> (days, years) keeping full sessions only.
+
+    days:  {day_label: [bar dicts]}   e.g. "Jul 15" -> bars
+    years: {day_label: int}           the calendar year that day fell in,
+                                       so expiry math is month/year-safe.
+    """
     days = defaultdict(list)
+    years = {}
     with open(path, newline="", encoding="utf-8-sig") as f:
         rdr = csv.reader(f)
         next(rdr)
         for row in rdr:
-            m = re.match(r"\w+ (\w+ \d+) \d+ (\d\d:\d\d):", row[0])
+            m = re.match(r"\w+ (\w+ \d+) (\d+) (\d\d:\d\d):", row[0])
             if not m:
                 continue
-            day, t = m.group(1), m.group(2)
+            day, year, t = m.group(1), int(m.group(2)), m.group(3)
             bar = {"T": t}
             for i, c in enumerate(COLS):
                 bar[c] = float(row[i + 1])
             days[day].append(bar)
-    return {d: bars for d, bars in days.items() if len(bars) > 100}
+            years[day] = year
+    kept = {d: bars for d, bars in days.items() if len(bars) > 100}
+    return kept, {d: years[d] for d in kept}
+
+
+def days_to_expiry(day, year, expiry):
+    """Calendar days from a session day to `expiry` (YYYY-MM-DD), floored above
+    zero, plus 0.25 for the intraday theta stub. Month/year-boundary safe."""
+    day_dt = datetime.strptime(f"{day} {year}", "%b %d %Y")
+    exp_dt = datetime.strptime(expiry, "%Y-%m-%d")
+    return max((exp_dt - day_dt).days, 0) + 0.25
 
 
 # ------------------------------------------------------------- expanding ranks
@@ -1060,7 +1077,24 @@ class Session:
             if not self.quiet:
                 print(f"  15:29 [CARRY] {msg}")
             return
-        diff = pe[4] - ce[4]      # which book kept its build overnight
+        # Retention only counts toward carry in the direction of WHO holds it:
+        # a writer-built book (w > +0.15) retained overnight = that side is
+        # defended; a buyer-built book (w < -0.15) retained = protection/direction
+        # demand, so it reads the opposite way; mixed books (|w| <= 0.15) count
+        # at half weight in the writer direction. A book that gave its whole
+        # build back retained nothing (clamp at 0), so a hard unwind cannot
+        # masquerade as conviction via a sign flip.
+        def signed(ratio, w):
+            r = max(0.0, ratio)
+            if w > 0.15:
+                return r
+            if w < -0.15:
+                return -r
+            return 0.5 * r
+        wce, wpe = self.gamma.w["CE"], self.gamma.w["PE"]
+        ce_sig = signed(ce[4], wce)
+        pe_sig = signed(pe[4], wpe)
+        diff = pe_sig - ce_sig    # PE retention bullish, CE retention bearish
         bias = "NEUTRAL"
         if diff > 0.35:
             bias = "BULLISH carry"
@@ -1069,7 +1103,7 @@ class Session:
         msg = (f"CE kept {ce[4]:.0%} of its intraday build "
                f"({ce[1]/1e6:.1f}M→peak {ce[2]/1e6:.1f}M→close {ce[3]/1e6:.1f}M) | "
                f"PE kept {pe[4]:.0%} ({pe[1]/1e6:.1f}M→{pe[2]/1e6:.1f}M→{pe[3]/1e6:.1f}M) "
-               f"→ {bias} into next session")
+               f"→ {bias} into next session (writer scores CE {wce:+.2f} / PE {wpe:+.2f})")
         self.events.append(("15:29", "CARRY", msg, None))
         if not self.quiet:
             print(f"  15:29 [CARRY] {msg}")
@@ -1130,13 +1164,13 @@ def session_json(sess):
 def main():
     base = sys.argv[1] if len(sys.argv) > 1 else "data"
     strike = float(sys.argv[2]) if len(sys.argv) > 2 else None
-    fut = load(f"{base}/FUT_3day.csv")
-    ce = load(f"{base}/CE_3day.csv")
-    pe = load(f"{base}/PE_3day.csv")
-    expiry_dom = 21   # instrument metadata: weekly expiry day-of-month (Jul 21)
+    expiry = sys.argv[3] if len(sys.argv) > 3 else "2026-07-21"  # weekly expiry
+    fut, years = load(f"{base}/FUT_3day.csv")
+    ce, _ = load(f"{base}/CE_3day.csv")
+    pe, _ = load(f"{base}/PE_3day.csv")
     for day in sorted(fut, key=lambda d: (d.split()[0], int(d.split()[1]))):
         if day in ce and day in pe:
-            t_days = max(expiry_dom - int(day.split()[1]), 0) + 0.25
+            t_days = days_to_expiry(day, years[day], expiry)
             Session(day, fut[day], ce[day], pe[day], strike=strike,
                     t_days=t_days).run()
 

@@ -6,17 +6,17 @@ Used by server.py (import) or standalone: python analyze.py [data_dir] [strike]
 import json
 import sys
 
-from engine import Session, load, session_json
+from engine import Session, days_to_expiry, load, session_json
 
 
-def analyze(base="data", strike=24200.0, expiry_dom=21):
-    fut = load(f"{base}/FUT_3day.csv")
-    ce = load(f"{base}/CE_3day.csv")
-    pe = load(f"{base}/PE_3day.csv")
+def analyze(base="data", strike=24200.0, expiry="2026-07-21"):
+    fut, years = load(f"{base}/FUT_3day.csv")
+    ce, _ = load(f"{base}/CE_3day.csv")
+    pe, _ = load(f"{base}/PE_3day.csv")
     days = []
     for day in sorted(fut, key=lambda d: (d.split()[0], int(d.split()[1]))):
         if day in ce and day in pe:
-            t_days = max(expiry_dom - int(day.split()[1]), 0) + 0.25
+            t_days = days_to_expiry(day, years[day], expiry)
             s = Session(day, fut[day], ce[day], pe[day], quiet=True,
                         strike=strike, t_days=t_days)
             s.run()

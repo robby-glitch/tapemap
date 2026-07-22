@@ -108,37 +108,54 @@ def gex_profile(strikes_data, F, T):
     [-1, 1]; iv may be None when never solved -> strike skipped).
 
     Returns {"gex_total", "flip_px", "wall_up", "wall_dn"}:
-      flip_px  linear-interpolated zero crossing of cumulative signed GEX
-               scanning strikes upward (None if cumulative never crosses 0)
-      wall_up  strike above F with max |gex_k| (None if none / all zero)
+      flip_px  the spot level where TOTAL dealer-signed GEX changes sign,
+               found by revaluing the whole book at hypothetical spots across
+               the strike range and interpolating the zero crossing nearest the
+               current spot F (None if total GEX never changes sign). This is
+               the true gamma flip, not the cumulative-across-strikes proxy.
+      wall_up  strike above F with max |gex_k| at the current spot (None if
+               none / all zero)
       wall_dn  same below F
     """
-    rows = []
+    # (strike, mean solved IV, dealer-signed OI weight) per usable strike
+    cache = []
     for s in strikes_data:
         ivs = [v for v in (s.get("ce_iv"), s.get("pe_iv")) if v]
         if not ivs:
             continue
-        # one gamma per strike from the mean of the solved side IVs
-        g = gamma(F, s["k"], sum(ivs) / len(ivs), T)
-        gex = g * (s["ce_oi"] * s["ce_w"] + s["pe_oi"] * s["pe_w"])
-        rows.append((s["k"], gex))
-    rows.sort()
-    if not rows:
+        mean_iv = sum(ivs) / len(ivs)
+        w_oi = s["ce_oi"] * s["ce_w"] + s["pe_oi"] * s["pe_w"]
+        cache.append((s["k"], mean_iv, w_oi))
+    if not cache:
         return {"gex_total": None, "flip_px": None,
                 "wall_up": None, "wall_dn": None}
+    cache.sort()
 
-    gex_total = sum(g for _, g in rows)
+    def total_at(Fh):
+        """Total dealer-signed GEX with the book revalued at spot Fh."""
+        return sum(gamma(Fh, k, iv, T) * w_oi for k, iv, w_oi in cache)
 
+    gex_total = total_at(F)
+
+    # per-strike GEX at the current spot (drives the walls)
+    rows = [(k, gamma(F, k, iv, T) * w_oi) for k, iv, w_oi in cache]
+
+    # true flip: scan hypothetical spots over [min_k, max_k], interpolate every
+    # sign change of total GEX, keep the crossing nearest the current spot F
+    lo, hi = cache[0][0], cache[-1][0]
     flip_px = None
-    cum_prev, k_prev = None, None
-    cum = 0.0
-    for k, g in rows:
-        cum += g
-        if cum_prev is not None and cum != cum_prev and (
-                (cum_prev < 0.0 <= cum) or (cum_prev > 0.0 >= cum)):
-            flip_px = k_prev + (k - k_prev) * (0.0 - cum_prev) / (cum - cum_prev)
-            break
-        cum_prev, k_prev = cum, k
+    if hi > lo:
+        step = (hi - lo) / 200.0
+        prev_F, prev_v = lo, total_at(lo)
+        for n in range(1, 201):
+            cur_F = lo + n * step
+            cur_v = total_at(cur_F)
+            if prev_v != cur_v and (
+                    (prev_v < 0.0 <= cur_v) or (prev_v > 0.0 >= cur_v)):
+                cross = prev_F + (cur_F - prev_F) * (0.0 - prev_v) / (cur_v - prev_v)
+                if flip_px is None or abs(cross - F) < abs(flip_px - F):
+                    flip_px = cross
+            prev_F, prev_v = cur_F, cur_v
 
     def _wall(cands):
         if not cands:
