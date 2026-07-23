@@ -5,7 +5,7 @@ import {
   ReferenceArea,
 } from 'recharts'
 import { useLiveData, HEAT_COLS } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind } from './data'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 const T = {
@@ -252,6 +252,27 @@ function mockPressure(points: ReturnType<typeof makeIntraday>): PressCell[] {
   })
 }
 
+// Mock Levels Map (plausible static levels; replaced by live action-zone map when data arrives).
+function mockMap(now: number, vwap: number, callW: number, putW: number): MapData {
+  const u1 = Math.round(now * 1.0015)
+  const d1 = Math.round(now * 0.9985)
+  const levels = [
+    { label: 'NOW', value: now, kind: 'now' as const, note: 'last price' },
+    { label: 'CALL', value: callW, kind: 'wall' as const, note: 'call wall — resistance' },
+    { label: 'PUT', value: putW, kind: 'wall' as const, note: 'put wall — support' },
+    { label: 'VWAP', value: vwap, kind: 'vwap' as const, note: 'fair value' },
+    { label: '+1σ', value: u1, kind: 'band' as const, note: 'volatility band' },
+    { label: '−1σ', value: d1, kind: 'band' as const, note: 'volatility band' },
+    { label: 'PIN', value: Math.round(now / 50) * 50, kind: 'pin' as const, note: 'dealer magnet (mock)' },
+    { label: 'HI', value: Math.round(now * 1.002), kind: 'session' as const, note: 'session high' },
+    { label: 'LO', value: Math.round(now * 0.997), kind: 'session' as const, note: 'session low' },
+  ].sort((a, b) => b.value - a.value)
+  const vals = levels.map(l => l.value)
+  const lo = Math.min(...vals), hi = Math.max(...vals)
+  const pad = (hi - lo) * 0.12 || now * 0.001
+  return { now, zoneLo: lo - pad, zoneHi: hi + pad, levels }
+}
+
 // ── Assembled mock dataset + live-data context ─────────────────────────────────
 const MOCK: Dataset = {
   INDICES: MOCK_INDICES,
@@ -263,6 +284,11 @@ const MOCK: Dataset = {
   CHART_DATA: MOCK_CHART_DATA,
   HEAT: MOCK_HEAT,
   PRESSURE: { NIFTY: mockPressure(MOCK_CHART_DATA.NIFTY), BANKNIFTY: mockPressure(MOCK_CHART_DATA.BANKNIFTY), SENSEX: mockPressure(MOCK_CHART_DATA.SENSEX) },
+  MAP: {
+    NIFTY: mockMap(23860, 23909, 23900, 23750),
+    BANKNIFTY: mockMap(56624, 56700, 56800, 56500),
+    SENSEX: mockMap(76360, 76420, 76500, 76100),
+  },
 }
 
 const DataCtx = createContext<Dataset>(MOCK)
@@ -278,6 +304,20 @@ const formatOI = (n: number) => n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : `${(n / 
 const HEAT_RGB: Record<HeatTone, string> = { bull: '46,194,126', bear: '255,95,107', neutral: '93,107,132' }
 const HEAT_ALPHA = [0.10, 0.25, 0.45, 0.70]
 const heatColor = (tone: HeatTone, intensity: number) => `rgba(${HEAT_RGB[tone]}, ${HEAT_ALPHA[intensity] ?? 0.1})`
+// Levels-map per-kind styling (wall color resolves to CALL=bear / PUT=bull at render).
+const KIND_STYLE: Record<MapLevelKind, { color: string; dot: number; marker?: string }> = {
+  now:     { color: T.accent, dot: 9 },
+  wall:    { color: T.textSecondary, dot: 8 },
+  pin:     { color: T.accent, dot: 8, marker: '◎' },
+  pivot:   { color: T.textMuted, dot: 5 },
+  vwap:    { color: T.caution, dot: 6 },
+  band:    { color: 'rgba(139,92,246,0.6)', dot: 4 },
+  floor:   { color: T.bull, dot: 6 },
+  cap:     { color: T.bear, dot: 6 },
+  strike:  { color: '#E8C15A', dot: 6 },
+  session: { color: T.textMuted, dot: 4 },
+  trap:    { color: T.caution, dot: 6, marker: '⚑' },
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -1065,90 +1105,83 @@ function ValidateTab({ index }: { index: IndexKey }) {
 }
 
 function MapTab({ index }: { index: IndexKey }) {
-  const { KEY_LEVELS, INDICES } = useData()
-  const levels = KEY_LEVELS[index]
-  const allLevels = [
-    ...levels,
-    { label: 'PDH',  value: INDICES[index].price * 1.009, note: 'Prior day high', dist: Math.round(INDICES[index].price * 0.009), dir: 'up' as const },
-    { label: 'PDL',  value: INDICES[index].price * 0.994, note: 'Prior day low',  dist: -Math.round(INDICES[index].price * 0.006), dir: 'down' as const },
-    { label: 'WPP',  value: INDICES[index].price * 1.003, note: 'Weekly pivot',   dist: Math.round(INDICES[index].price * 0.003), dir: 'up' as const },
-  ].sort((a, b) => b.value - a.value)
+  const { MAP } = useData()
+  const m = MAP[index]
+  const H = 520
+  const span = Math.max(1, m.zoneHi - m.zoneLo)
+  const yOf = (v: number) => Math.max(0, Math.min(H, ((m.zoneHi - v) / span) * H))
 
-  const priceNow = INDICES[index].price
-  const hi = Math.max(...allLevels.map(l => l.value)) * 1.001
-  const lo = Math.min(...allLevels.map(l => l.value)) * 0.999
-  const range = hi - lo
+  const bandHi = m.levels.find(l => l.label === '+1σ')?.value
+  const bandLo = m.levels.find(l => l.label === '−1σ')?.value
+  const nowY = yOf(m.now)
+
+  const legendItem = (color: string, label: string) => (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ width: 9, height: 9, borderRadius: '50%', background: color }} />{label}
+    </span>
+  )
 
   return (
-    <div style={{ padding: 24, maxWidth: 560 }}>
-      <div className="micro-label" style={{ marginBottom: 16 }}>Levels Map — {index}</div>
-      <div style={{
-        backgroundColor: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 14,
-        padding: '20px 24px',
-        position: 'relative',
-      }}>
-        {/* Price axis */}
-        <div style={{ position: 'relative', height: allLevels.length * 52 }}>
-          {/* Current price line */}
-          <div style={{
-            position: 'absolute',
-            left: 0, right: 0,
-            top: `${((hi - priceNow) / range) * 100}%`,
-            height: 1,
-            backgroundColor: T.accent,
-            opacity: 0.5,
-            zIndex: 1,
-          }}>
-            <span className="mono" style={{
-              position: 'absolute',
-              right: 0,
-              top: -9,
-              fontSize: 10,
-              color: T.accent,
-              fontWeight: 700,
-            }}>NOW {fmt(Math.round(priceNow))}</span>
+    <div style={{ padding: 24, maxWidth: 720 }}>
+      <div className="micro-label" style={{ marginBottom: 4 }}>Levels Map — {index} · action zone</div>
+      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
+        Real levels around price — pivots, OI walls, VWAP, ±1σ, dealer pin, floor/cap, traps. Zoomed to where the fight is now.
+      </div>
+      <div style={{ backgroundColor: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: '20px 24px' }}>
+        <div style={{ position: 'relative', height: H }}>
+          {/* ±1σ band shade */}
+          {bandHi != null && bandLo != null && (
+            <div style={{
+              position: 'absolute', left: 0, right: 0,
+              top: yOf(bandHi), height: Math.max(1, yOf(bandLo) - yOf(bandHi)),
+              background: 'rgba(139,92,246,0.06)', borderRadius: 4,
+            }} />
+          )}
+          {/* NOW line */}
+          <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 0, borderTop: `1px solid ${T.accent}`, zIndex: 4 }}>
+            <span className="mono" style={{ position: 'absolute', right: 0, top: -9, fontSize: 10, color: T.accent, fontWeight: 700 }}>
+              NOW {fmt(Math.round(m.now))}
+            </span>
           </div>
-
-          {allLevels.map((lvl, i) => {
-            const pct = ((hi - lvl.value) / range) * 100
-            const isHere = lvl.dir === 'here'
-            const isAbove = lvl.value > priceNow
-            const dotColor = isHere ? T.accent : isAbove ? T.bear : T.bull
+          {/* Levels */}
+          {m.levels.map((lvl, i) => {
+            if (lvl.kind === 'now') return null
+            const st = KIND_STYLE[lvl.kind]
+            const color = lvl.kind === 'wall' ? (lvl.label === 'CALL' ? T.bear : T.bull) : st.color
+            const off = lvl.value > m.zoneHi ? 'up' : lvl.value < m.zoneLo ? 'down' : null
+            const y = yOf(lvl.value)
+            const above = lvl.value >= m.now
+            const note = lvl.note + (off === 'up' ? ' ↑ off-scale' : off === 'down' ? ' ↓ off-scale' : '')
             return (
               <div key={i} style={{
-                position: 'absolute',
-                left: 0, right: 0,
-                top: `${pct}%`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                transform: 'translateY(-50%)',
+                position: 'absolute', left: 0, right: 0, top: y,
+                display: 'flex', alignItems: 'center', gap: 10, transform: 'translateY(-50%)',
               }}>
                 <div style={{
-                  width: 8, height: 8,
-                  borderRadius: '50%',
-                  backgroundColor: dotColor,
-                  flexShrink: 0,
-                  boxShadow: isHere ? `0 0 8px ${T.accent}` : undefined,
+                  width: st.dot, height: st.dot, borderRadius: '50%', backgroundColor: color, flexShrink: 0,
+                  boxShadow: lvl.kind === 'pin' ? `0 0 8px ${T.accent}` : undefined,
                 }} />
-                <div style={{
-                  height: 1,
-                  flex: 1,
-                  backgroundColor: isHere ? T.accent : 'rgba(255,255,255,0.06)',
-                  borderStyle: isHere ? 'solid' : 'dashed',
-                }} />
+                <div style={{ flex: 1, height: 0, borderTop: `1px dashed rgba(${above ? '255,95,107' : '46,194,126'},0.14)` }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 280 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, width: 36 }}>{lvl.label}</span>
-                  <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: isHere ? T.accent : T.textPrimary, width: 72 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, width: 46, textAlign: 'right' }}>
+                    {st.marker ? `${st.marker} ` : ''}{lvl.label}
+                  </span>
+                  <span className="mono" style={{ fontSize: 13, fontWeight: 700, color, width: 66 }}>
                     {fmt(Math.round(lvl.value))}
                   </span>
-                  <span style={{ fontSize: 11, color: T.textMuted }}>{lvl.note}</span>
+                  <span style={{ fontSize: 11, color: T.textMuted }}>{note}</span>
                 </div>
               </div>
             )
           })}
+        </div>
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap', fontSize: 10, color: T.textMuted, alignItems: 'center' }}>
+          {legendItem(T.bear, 'call wall')}
+          {legendItem(T.bull, 'put wall')}
+          {legendItem(T.accent, 'dealer pin')}
+          {legendItem(T.textMuted, 'pivot / session')}
+          {legendItem(T.caution, 'vwap · trap')}
         </div>
       </div>
     </div>

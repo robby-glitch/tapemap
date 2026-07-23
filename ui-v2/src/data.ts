@@ -84,6 +84,22 @@ export interface PressCell {
   note: string
 }
 
+// Levels Map — real action-zone price levels.
+export type MapLevelKind =
+  | 'now' | 'pivot' | 'wall' | 'vwap' | 'band' | 'pin' | 'floor' | 'cap' | 'strike' | 'trap' | 'session'
+export interface MapLevel {
+  label: string
+  value: number
+  kind: MapLevelKind
+  note: string
+}
+export interface MapData {
+  now: number
+  zoneLo: number
+  zoneHi: number
+  levels: MapLevel[]
+}
+
 export interface Dataset {
   INDICES: Record<IndexKey, IndexInfo>
   READS: Record<IndexKey, Read>
@@ -94,6 +110,7 @@ export interface Dataset {
   CHART_DATA: Record<IndexKey, ChartPoint[]>
   HEAT: Record<IndexKey, HeatCell[]>
   PRESSURE: Record<IndexKey, PressCell[]>
+  MAP: Record<IndexKey, MapData>
 }
 
 const KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -110,6 +127,7 @@ interface PerIndex {
   chart: ChartPoint[]
   heat: HeatCell[]
   pressure: PressCell[]
+  map: MapData
 }
 
 // ── Mapping helpers ─────────────────────────────────────────────────────────────
@@ -370,7 +388,70 @@ function mapIndex(D: any, C: any): PerIndex {
     }
   })
 
-  return { index, score, read, levels, flow, chain, events, chart, heat, pressure }
+  // MAP — real action-zone level map (parity with production ui/app.js renderMap).
+  const now = f.c
+  const eps = now * 0.0003
+  const trapEps = now * 0.0004
+  const rec = bars.slice(-120)
+  const sesHi = Math.max(...rec.map((x: any) => x.fut.h))
+  const sesLo = Math.min(...rec.map((x: any) => x.fut.l))
+
+  const mapRaw: Array<{ level: MapLevel; prio: number }> = []
+  const addLvl = (value: any, label: string, kind: MapLevelKind, note: string, prio: number) => {
+    if (value == null || !isFinite(value)) return
+    mapRaw.push({ level: { label, value: +value, kind, note }, prio })
+  }
+  addLvl(now, 'NOW', 'now', 'last price', 0)
+  addLvl(wallUp, 'CALL', 'wall', 'call wall — resistance', 1)
+  addLvl(wallDn, 'PUT', 'wall', 'put wall — support', 1)
+  if (ctx.pin?.k != null) addLvl(ctx.pin.k, 'PIN', 'pin', `dealer magnet (${ctx.pin.regime})`, 2)
+  const piv = day.pivots || {}
+  for (const key of ['R3', 'R2', 'R1', 'P', 'S1', 'S2', 'S3']) addLvl(piv[key], key, 'pivot', 'pivot', 3)
+  addLvl(f.vwap, 'VWAP', 'vwap', 'fair value', 4)
+  if (ctx.floor) addLvl(ctx.floor[1], 'FLR', 'floor', String(ctx.floor[0]), 5)
+  if (ctx.cap) addLvl(ctx.cap[1], 'CAP', 'cap', String(ctx.cap[0]), 5)
+  addLvl(f.u1, '+1σ', 'band', 'volatility band', 6)
+  addLvl(f.d1, '−1σ', 'band', 'volatility band', 6)
+  addLvl(day.strike, 'STK', 'strike', 'ATM strike', 7)
+  addLvl(sesHi, 'HI', 'session', 'session high', 8)
+  addLvl(sesLo, 'LO', 'session', 'session low', 8)
+  // Traps: resolve each trap event's price by its bar's close, dedupe by price, keep latest, max 3.
+  const tClose: Record<string, number> = {}
+  for (const bar of bars) tClose[bar.t] = bar.fut.c
+  const trapKinds = new Set(['TRAP-SPRUNG', 'TRAP-SETTING', 'SPRING-FAIL'])
+  const trapEvs = (day.events ?? []).filter((e: any) => trapKinds.has(e.kind)).slice(-6)
+  const traps: Array<{ p: number; t: string; kind: string }> = []
+  for (const e of [...trapEvs].reverse()) {
+    const p = tClose[e.t]
+    if (p == null) continue
+    if (traps.length < 3 && !traps.some((x) => Math.abs(x.p - p) < trapEps)) traps.push({ p, t: e.t, kind: e.kind })
+  }
+  for (const tr of traps) addLvl(tr.p, 'TRAP', 'trap', `${tr.kind} ${tr.t}`, 9)
+
+  // De-dupe near-equal values, keeping the higher-priority (lower prio number) one.
+  mapRaw.sort((a, b) => a.prio - b.prio)
+  const kept: MapLevel[] = []
+  for (const { level } of mapRaw) {
+    if (kept.some((k) => Math.abs(k.value - level.value) <= eps)) continue
+    kept.push(level)
+  }
+
+  // Action zone: the near-price cluster (never let a far spike crush the scale).
+  const zonePts = [now, f.vwap, f.u1, f.d1, sesLo, sesHi]
+  if (ctx.floor) zonePts.push(ctx.floor[1])
+  if (ctx.cap) zonePts.push(ctx.cap[1])
+  if (wallUp != null && Math.abs(wallUp - now) < now * 0.02) zonePts.push(wallUp)
+  if (wallDn != null && Math.abs(wallDn - now) < now * 0.02) zonePts.push(wallDn)
+  const valid = zonePts.filter((v) => v != null && isFinite(v))
+  let zLo = Math.min(...valid)
+  let zHi = Math.max(...valid)
+  const zpad = (zHi - zLo) * 0.12 || now * 0.001
+  zLo -= zpad
+  zHi += zpad
+
+  const map: MapData = { now, zoneLo: zLo, zoneHi: zHi, levels: kept.sort((a, b) => b.value - a.value) }
+
+  return { index, score, read, levels, flow, chain, events, chart, heat, pressure, map }
 }
 
 // Reverse a fallback Dataset into per-index bundles (score 0) for last-good seeding.
@@ -390,6 +471,7 @@ function perFromFallback(fb: Dataset): Record<IndexKey, PerIndex> {
       chart: fb.CHART_DATA[k],
       heat: fb.HEAT[k],
       pressure: fb.PRESSURE[k],
+      map: fb.MAP[k],
     }
   }
   return out
@@ -410,6 +492,7 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
     CHART_DATA: {} as Record<IndexKey, ChartPoint[]>,
     HEAT: {} as Record<IndexKey, HeatCell[]>,
     PRESSURE: {} as Record<IndexKey, PressCell[]>,
+    MAP: {} as Record<IndexKey, MapData>,
   }
   for (const k of KEYS) {
     const p = per[k]
@@ -422,6 +505,7 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
     ds.CHART_DATA[k] = p.chart
     ds.HEAT[k] = p.heat
     ds.PRESSURE[k] = p.pressure
+    ds.MAP[k] = p.map
   }
   return ds
 }
