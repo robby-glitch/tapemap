@@ -4,8 +4,8 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceArea,
 } from 'recharts'
-import { useLiveData } from './data'
-import type { IndexKey, IndexInfo, Dataset } from './data'
+import { useLiveData, HEAT_COLS } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain } from './data'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 const T = {
@@ -24,7 +24,7 @@ const T = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
-type Tab = 'Tape' | 'Chain' | 'Events' | 'Validate' | 'Map'
+type Tab = 'Heat' | 'Tape' | 'Chain' | 'Events' | 'Validate' | 'Map'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -198,15 +198,71 @@ const MOCK_CHART_DATA: Record<IndexKey, ReturnType<typeof makeIntraday>> = {
   SENSEX:    makeIntraday(76360, 76420),
 }
 
+// Augment the mock strike ladder with the heatmap fields the live shape now carries.
+function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
+  return {
+    ...c,
+    strikes: c.strikes.map((s) => {
+      const tot = s.ceOI + s.peOI || 1
+      return { ...s, gex: s.ceOI - s.peOI, ceW: +(s.ceOI / tot).toFixed(2), peW: +(s.peOI / tot).toFixed(2) }
+    }),
+  }
+}
+
+// Mock Market Heat Grid (6 cells per index, in HEAT_COLS order).
+const MOCK_HEAT: Record<IndexKey, HeatCell[]> = {
+  NIFTY: [
+    { label: 'z -0.3', tone: 'neutral', intensity: 0 },
+    { label: 'WAIT', tone: 'neutral', intensity: 1 },
+    { label: 'LEAN BEAR', tone: 'bear', intensity: 2 },
+    { label: 'CEILING', tone: 'bear', intensity: 1 },
+    { label: 'DOWN 0.08', tone: 'bear', intensity: 1 },
+    { label: 'covering', tone: 'neutral', intensity: 1 },
+  ],
+  BANKNIFTY: [
+    { label: 'z +1.2', tone: 'bull', intensity: 3 },
+    { label: 'READY', tone: 'bull', intensity: 2 },
+    { label: 'STRONG BULL', tone: 'bull', intensity: 3 },
+    { label: 'AMPLIFIED-UP', tone: 'bull', intensity: 3 },
+    { label: 'UP 0.42', tone: 'bull', intensity: 3 },
+    { label: 'longs', tone: 'bull', intensity: 2 },
+  ],
+  SENSEX: [
+    { label: 'z +0.1', tone: 'neutral', intensity: 0 },
+    { label: 'WAIT', tone: 'neutral', intensity: 1 },
+    { label: 'MIXED', tone: 'neutral', intensity: 0 },
+    { label: 'BALANCE', tone: 'neutral', intensity: 0 },
+    { label: 'DOWN 0.03', tone: 'bear', intensity: 0 },
+    { label: 'flat', tone: 'neutral', intensity: 2 },
+  ],
+}
+
+// Mock Pressure Tape derived from the mock chart (val from 3-bar price direction).
+function mockPressure(points: ReturnType<typeof makeIntraday>): PressCell[] {
+  return points.slice(3).map((p, j) => {
+    const i = j + 3
+    const dir = Math.sign(p.price - points[i - 3].price)
+    const val = Math.max(-1, Math.min(1, dir * 0.5))
+    return {
+      t: p.time,
+      val,
+      price: p.price,
+      note: `${p.time} · ${Math.round(p.price)} · ${val > 0.05 ? 'buying' : val < -0.05 ? 'selling' : 'flat'} (oiR 0.30)`,
+    }
+  })
+}
+
 // ── Assembled mock dataset + live-data context ─────────────────────────────────
 const MOCK: Dataset = {
   INDICES: MOCK_INDICES,
   READS: MOCK_READS,
   KEY_LEVELS: MOCK_KEY_LEVELS,
   ORDER_FLOW: MOCK_ORDER_FLOW,
-  CHAIN_DATA: MOCK_CHAIN_DATA,
+  CHAIN_DATA: { NIFTY: mockChain(MOCK_CHAIN_DATA.NIFTY), BANKNIFTY: mockChain(MOCK_CHAIN_DATA.BANKNIFTY), SENSEX: mockChain(MOCK_CHAIN_DATA.SENSEX) },
   EVENTS_BY_IDX: { NIFTY: MOCK_EVENTS, BANKNIFTY: MOCK_EVENTS, SENSEX: MOCK_EVENTS },
   CHART_DATA: MOCK_CHART_DATA,
+  HEAT: MOCK_HEAT,
+  PRESSURE: { NIFTY: mockPressure(MOCK_CHART_DATA.NIFTY), BANKNIFTY: mockPressure(MOCK_CHART_DATA.BANKNIFTY), SENSEX: mockPressure(MOCK_CHART_DATA.SENSEX) },
 }
 
 const DataCtx = createContext<Dataset>(MOCK)
@@ -218,6 +274,10 @@ function useData(): Dataset {
 const fmt = (n: number) => n.toLocaleString('en-IN')
 // Real OI is large (millions of units). Show in lakhs (L), or thousands (K) below 1L.
 const formatOI = (n: number) => n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : `${(n / 1e3).toFixed(1)}K`
+// Heat-tile color: hue from tone, alpha ramp from intensity (0–3).
+const HEAT_RGB: Record<HeatTone, string> = { bull: '46,194,126', bear: '255,95,107', neutral: '93,107,132' }
+const HEAT_ALPHA = [0.10, 0.25, 0.45, 0.70]
+const heatColor = (tone: HeatTone, intensity: number) => `rgba(${HEAT_RGB[tone]}, ${HEAT_ALPHA[intensity] ?? 0.1})`
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -424,10 +484,11 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 }
 
 function TapeTab({ index }: { index: IndexKey }) {
-  const { KEY_LEVELS, ORDER_FLOW, CHART_DATA } = useData()
+  const { KEY_LEVELS, ORDER_FLOW, CHART_DATA, PRESSURE } = useData()
   const levels = KEY_LEVELS[index]
   const flow = ORDER_FLOW[index]
   const data = CHART_DATA[index]
+  const pressure = PRESSURE[index]
   const lastPoint = data[data.length - 3]
   const priceMin = Math.min(...data.map(d => d.lower)) * 0.9995
   const priceMax = Math.max(...data.map(d => d.upper)) * 1.0005
@@ -552,6 +613,42 @@ function TapeTab({ index }: { index: IndexKey }) {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Pressure Tape */}
+        <div style={{ padding: '10px 12px 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div className="micro-label">Pressure Tape — session order-flow</div>
+            <div style={{ display: 'flex', gap: 12, fontSize: 10, color: T.textMuted }}>
+              <span style={{ color: T.bull }}>■ buy</span>
+              <span style={{ color: T.bear }}>■ sell</span>
+              <span style={{ color: T.textMuted }}>■ flat</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 1, height: 30, alignItems: 'stretch' }}>
+            {pressure.map((c, i) => {
+              const bg = c.val > 0.05
+                ? `rgba(46,194,126, ${(0.15 + 0.6 * c.val).toFixed(3)})`
+                : c.val < -0.05
+                ? `rgba(255,95,107, ${(0.15 + 0.6 * Math.abs(c.val)).toFixed(3)})`
+                : 'rgba(93,107,132,0.12)'
+              return (
+                <div
+                  key={i}
+                  title={c.note}
+                  style={{
+                    flex: 1,
+                    minWidth: 2,
+                    backgroundColor: bg,
+                    borderTopLeftRadius: i === 0 ? 4 : 0,
+                    borderBottomLeftRadius: i === 0 ? 4 : 0,
+                    borderTopRightRadius: i === pressure.length - 1 ? 4 : 0,
+                    borderBottomRightRadius: i === pressure.length - 1 ? 4 : 0,
+                  }}
+                />
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Right: Order Flow */}
@@ -623,7 +720,9 @@ function TapeTab({ index }: { index: IndexKey }) {
 function ChainTab({ index }: { index: IndexKey }) {
   const { CHAIN_DATA } = useData()
   const chain = CHAIN_DATA[index]
-  const maxOI = Math.max(...chain.strikes.flatMap(s => [s.ceOI, s.peOI]))
+  const maxCeOI = Math.max(1, ...chain.strikes.map(s => s.ceOI))
+  const maxPeOI = Math.max(1, ...chain.strikes.map(s => s.peOI))
+  const maxAbsGex = Math.max(1, ...chain.strikes.map(s => Math.abs(s.gex)))
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -648,79 +747,84 @@ function ChainTab({ index }: { index: IndexKey }) {
         ))}
       </div>
 
-      {/* Strike ladder */}
+      {/* Strike heatmap */}
       <div style={{
         backgroundColor: T.card,
         border: `1px solid ${T.border}`,
         borderRadius: 14,
         overflow: 'hidden',
       }}>
-        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}` }}>
-          <div className="micro-label">Strike Ladder — OI Heatmap</div>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="micro-label">Strike Heatmap — CE OI · GEX · PE OI</div>
+          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: T.textMuted }}>
+            <span style={{ color: T.bear }}>■ CE writers</span>
+            <span style={{ color: T.bull }}>■ PE writers</span>
+            <span style={{ color: T.accent }}>■ +GEX</span>
+            <span style={{ color: T.caution }}>■ −GEX</span>
+          </div>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              <th style={{ padding: '8px 20px', textAlign: 'left', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>CE OI (lots)</th>
-              <th style={{ padding: '8px 20px', textAlign: 'center', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>STRIKE</th>
-              <th style={{ padding: '8px 20px', textAlign: 'right', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>PE OI (lots)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {chain.strikes.map(s => {
-              const isWall = s.type === 'callwall' || s.type === 'putwall'
-              const isATM = s.type === 'atm'
-              return (
-                <tr key={s.strike} style={{
-                  borderBottom: `1px solid ${T.border}`,
-                  backgroundColor: isATM ? 'rgba(139,92,246,0.06)' : 'transparent',
-                }}>
-                  <td style={{ padding: '10px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        height: 6,
-                        width: `${(s.ceOI / maxOI) * 140}px`,
-                        backgroundColor: `rgba(255,95,107,${s.type === 'callwall' ? 0.8 : 0.35})`,
-                        borderRadius: 3,
-                        marginLeft: 'auto',
-                        transition: 'width 300ms',
-                      }} />
-                      <span className="mono" style={{ fontSize: 12, color: T.textSecondary, minWidth: 40, textAlign: 'right' }}>
-                        {formatOI(s.ceOI)}
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '10px 20px', textAlign: 'center' }}>
-                    <span className="mono" style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: isATM ? T.accent : isWall ? T.textPrimary : T.textSecondary,
-                    }}>
-                      {fmt(s.strike)}
-                    </span>
-                    {s.type === 'callwall' && <span style={{ fontSize: 9, color: T.bear, marginLeft: 6, fontWeight: 600 }}>▲ CALL WALL</span>}
-                    {s.type === 'putwall' && <span style={{ fontSize: 9, color: T.bull, marginLeft: 6, fontWeight: 600 }}>▼ PUT WALL</span>}
-                    {isATM && <span style={{ fontSize: 9, color: T.accent, marginLeft: 6, fontWeight: 600 }}>◉ ATM</span>}
-                  </td>
-                  <td style={{ padding: '10px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="mono" style={{ fontSize: 12, color: T.textSecondary, minWidth: 40 }}>
-                        {formatOI(s.peOI)}
-                      </span>
-                      <div style={{
-                        height: 6,
-                        width: `${(s.peOI / maxOI) * 140}px`,
-                        backgroundColor: `rgba(46,194,126,${s.type === 'putwall' ? 0.8 : 0.35})`,
-                        borderRadius: 3,
-                        transition: 'width 300ms',
-                      }} />
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        {/* Column header */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ flex: 1, fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>CE OI</div>
+          <div style={{ width: 48, textAlign: 'center', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>GEX</div>
+          <div style={{ width: 160, textAlign: 'center', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>STRIKE</div>
+          <div style={{ flex: 1, textAlign: 'right', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>PE OI</div>
+        </div>
+        {/* Rows */}
+        {chain.strikes.map(s => {
+          const isWall = s.type === 'callwall' || s.type === 'putwall'
+          const isATM = s.type === 'atm'
+          const ceA = Math.min(1, s.ceOI / maxCeOI)
+          const peA = Math.min(1, s.peOI / maxPeOI)
+          const gexA = Math.min(1, Math.abs(s.gex) / maxAbsGex)
+          const gexRGB = s.gex > 0 ? '139,92,246' : '255,191,0'
+          return (
+            <div key={s.strike} style={{
+              display: 'flex',
+              alignItems: 'stretch',
+              borderBottom: `1px solid ${T.border}`,
+              backgroundColor: isATM ? 'rgba(139,92,246,0.06)' : 'transparent',
+            }}>
+              {/* CE OI heat cell */}
+              <div style={{
+                flex: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
+                padding: '10px 14px',
+                backgroundColor: `rgba(255,95,107,${(0.06 + 0.64 * ceA).toFixed(3)})`,
+              }}>
+                <span className="mono" style={{ fontSize: 12, color: T.textPrimary, fontWeight: 600 }}>{formatOI(s.ceOI)}</span>
+              </div>
+              {/* GEX strip */}
+              <div title={`GEX ${Math.round(s.gex).toLocaleString('en-IN')}`} style={{
+                width: 48,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: `rgba(${gexRGB},${(0.10 + 0.80 * gexA).toFixed(3)})`,
+                borderLeft: `1px solid ${T.border}`,
+                borderRight: `1px solid ${T.border}`,
+              }}>
+                <span className="mono" style={{ fontSize: 9, color: T.textPrimary, opacity: 0.85 }}>{s.gex > 0 ? '+' : '−'}</span>
+              </div>
+              {/* Strike */}
+              <div style={{ width: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 4px' }}>
+                <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: isATM ? T.accent : isWall ? T.textPrimary : T.textSecondary }}>
+                  {fmt(s.strike)}
+                </span>
+                {s.type === 'callwall' && <span style={{ fontSize: 9, color: T.bear, marginLeft: 6, fontWeight: 600 }}>▲</span>}
+                {s.type === 'putwall' && <span style={{ fontSize: 9, color: T.bull, marginLeft: 6, fontWeight: 600 }}>▼</span>}
+                {isATM && <span style={{ fontSize: 9, color: T.accent, marginLeft: 6, fontWeight: 600 }}>◉</span>}
+              </div>
+              {/* PE OI heat cell */}
+              <div style={{
+                flex: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8,
+                padding: '10px 14px',
+                backgroundColor: `rgba(46,194,126,${(0.06 + 0.64 * peA).toFixed(3)})`,
+              }}>
+                <span className="mono" style={{ fontSize: 12, color: T.textPrimary, fontWeight: 600 }}>{formatOI(s.peOI)}</span>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -745,7 +849,9 @@ function EventsTab({ index }: { index: IndexKey }) {
               gap: 16,
               padding: '14px 18px',
               backgroundColor: hovered === i ? T.inset : T.card,
-              border: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
+              borderTop: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
+              borderRight: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
+              borderBottom: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
               borderLeft: `3px solid ${accent}`,
               borderRadius: 10,
               cursor: 'pointer',
@@ -1049,11 +1155,104 @@ function MapTab({ index }: { index: IndexKey }) {
   )
 }
 
+function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: IndexKey) => void }) {
+  const { HEAT, INDICES } = useData()
+  const keys: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
+
+  const legend = (tone: HeatTone, label: string) => (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ width: 10, height: 10, borderRadius: 3, background: heatColor(tone, 2) }} />
+      {label}
+    </span>
+  )
+
+  return (
+    <div style={{ padding: 24 }}>
+      <div className="micro-label" style={{ marginBottom: 4 }}>Market Heat Grid</div>
+      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
+        Every index × every signal — brighter = stronger. Click a row to load it.
+      </div>
+      <div style={{ backgroundColor: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 16 }}>
+        {/* Header row */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <div style={{ width: 132 }} />
+          {HEAT_COLS.map(c => (
+            <div key={c} className="micro-label" style={{ flex: 1, textAlign: 'center' }}>{c}</div>
+          ))}
+        </div>
+        {/* Index rows */}
+        {keys.map(k => {
+          const cells = HEAT[k]
+          const hot = INDICES[k].highlight
+          const isActive = active === k
+          return (
+            <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'stretch', marginBottom: 6 }}>
+              <button
+                onClick={() => setActive(k)}
+                className={hot ? 'trending-glow' : ''}
+                style={{
+                  width: 132,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  background: isActive ? T.inset : 'transparent',
+                  borderTop: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : T.border}`,
+                  borderRight: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : T.border}`,
+                  borderBottom: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : T.border}`,
+                  borderLeft: hot ? `3px solid ${T.accent}` : '3px solid transparent',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  color: T.textPrimary,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: 2,
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{k}</span>
+                <span className="mono" style={{ fontSize: 11, color: T.textMuted }}>{fmt(INDICES[k].price)}</span>
+              </button>
+              {cells.map((cell, i) => (
+                <div
+                  key={i}
+                  title={`${HEAT_COLS[i]}: ${cell.label}`}
+                  style={{
+                    flex: 1,
+                    height: 46,
+                    borderRadius: 8,
+                    backgroundColor: heatColor(cell.tone, cell.intensity),
+                    border: `1px solid ${T.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '0 4px',
+                  }}
+                >
+                  <span style={{ fontSize: 10, fontWeight: 600, color: cell.intensity >= 2 ? T.textPrimary : T.textSecondary }}>
+                    {cell.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 10, color: T.textMuted, alignItems: 'center', flexWrap: 'wrap' }}>
+          {legend('bull', 'bullish')}
+          {legend('bear', 'bearish')}
+          {legend('neutral', 'neutral')}
+          <span style={{ marginLeft: 4 }}>darker = stronger</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
-  const [activeTab, setActiveTab] = useState<Tab>('Tape')
-  const tabs: Tab[] = ['Tape', 'Chain', 'Events', 'Validate', 'Map']
+  const [activeTab, setActiveTab] = useState<Tab>('Heat')
+  const tabs: Tab[] = ['Heat', 'Tape', 'Chain', 'Events', 'Validate', 'Map']
   const { data, error, lastUpdated } = useLiveData(MOCK)
 
   return (
@@ -1099,6 +1298,7 @@ export default function App() {
 
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}

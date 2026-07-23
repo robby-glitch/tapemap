@@ -38,6 +38,9 @@ export interface StrikeRow {
   strike: number
   ceOI: number
   peOI: number
+  gex: number
+  ceW: number
+  peW: number
   type?: 'callwall' | 'putwall' | 'atm'
 }
 export interface Chain {
@@ -63,6 +66,24 @@ export interface ChartPoint {
   isFuture: boolean
 }
 
+// Market Heat Grid — one row per index, one cell per signal column.
+export const HEAT_COLS = ['MOM', 'TIME', 'BIAS', 'GAMMA', 'SQZ', 'FLOW'] as const
+export type HeatCol = (typeof HEAT_COLS)[number]
+export type HeatTone = 'bull' | 'bear' | 'neutral'
+export interface HeatCell {
+  label: string
+  tone: HeatTone
+  intensity: 0 | 1 | 2 | 3
+}
+
+// Intraday Pressure Tape — one cell per bar, val in [-1, 1] (buy pressure +, sell −).
+export interface PressCell {
+  t: string
+  val: number
+  price: number
+  note: string
+}
+
 export interface Dataset {
   INDICES: Record<IndexKey, IndexInfo>
   READS: Record<IndexKey, Read>
@@ -71,6 +92,8 @@ export interface Dataset {
   CHAIN_DATA: Record<IndexKey, Chain>
   EVENTS_BY_IDX: Record<IndexKey, EventItem[]>
   CHART_DATA: Record<IndexKey, ChartPoint[]>
+  HEAT: Record<IndexKey, HeatCell[]>
+  PRESSURE: Record<IndexKey, PressCell[]>
 }
 
 const KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -85,12 +108,35 @@ interface PerIndex {
   chain: Chain
   events: EventItem[]
   chart: ChartPoint[]
+  heat: HeatCell[]
+  pressure: PressCell[]
 }
 
 // ── Mapping helpers ─────────────────────────────────────────────────────────────
 const VERDICT_SCORE: Record<string, number> = {
   GO: 3, READY: 2, WAIT: 0, CAUTION: 0, 'STAND ASIDE': -1, SPENT: -1,
 }
+
+// Heat-grid lookups for the TIME (verdict) and GAMMA (regime) columns.
+const TIME_HEAT: Record<string, { tone: HeatTone; intensity: 0 | 1 | 2 | 3 }> = {
+  GO: { tone: 'bull', intensity: 3 },
+  READY: { tone: 'bull', intensity: 2 },
+  WAIT: { tone: 'neutral', intensity: 1 },
+  CAUTION: { tone: 'bear', intensity: 0 },
+  'STAND ASIDE': { tone: 'neutral', intensity: 0 },
+  SPENT: { tone: 'bear', intensity: 0 },
+}
+const GAMMA_HEAT: Record<string, { tone: HeatTone; intensity: 0 | 1 | 2 | 3 }> = {
+  'AMPLIFIED-UP': { tone: 'bull', intensity: 3 },
+  'AMPLIFIED-DOWN': { tone: 'bear', intensity: 3 },
+  FLOOR: { tone: 'bull', intensity: 1 },
+  CEILING: { tone: 'bear', intensity: 1 },
+  PINNED: { tone: 'neutral', intensity: 2 },
+  BALANCE: { tone: 'neutral', intensity: 0 },
+  NEUTRAL: { tone: 'neutral', intensity: 0 },
+}
+const clampI = (n: number): 0 | 1 | 2 | 3 => Math.max(0, Math.min(3, Math.round(n))) as 0 | 1 | 2 | 3
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 
 const MM_TEXT: Record<string, string> = {
   FLOOR: 'Dealers defend dips — put wall below.',
@@ -238,12 +284,15 @@ function mapIndex(D: any, C: any): PerIndex {
   const cstrikes: any[] = C?.strikes ?? []
   let ai = cstrikes.findIndex((s) => s.k === atm)
   if (ai < 0) ai = Math.floor(cstrikes.length / 2)
-  const slice = cstrikes.slice(Math.max(0, ai - 4), ai + 5)
+  const slice = cstrikes.slice(Math.max(0, ai - 6), ai + 7)
   const strikes: StrikeRow[] = slice
     .map((s) => ({
       strike: s.k,
       ceOI: s.ce?.oi ?? 0,
       peOI: s.pe?.oi ?? 0,
+      gex: s.gex ?? 0,
+      ceW: s.ce_w ?? 0,
+      peW: s.pe_w ?? 0,
       type: (s.k === atm ? 'atm' : s.k === wallUp ? 'callwall' : s.k === wallDn ? 'putwall' : undefined) as StrikeRow['type'],
     }))
     .reverse() // highest strike on top, matching the design ladder
@@ -278,7 +327,50 @@ function mapIndex(D: any, C: any): PerIndex {
     isFuture: false,
   }))
 
-  return { index, score, read, levels, flow, chain, events, chart }
+  // HEAT — one cell per signal column (HEAT_COLS order).
+  const z = f.z ?? 0
+  const momInt: 0 | 1 | 2 | 3 = episode.includes('MOVE RUNNING') ? 3 : clampI(Math.abs(z))
+  const timeH = TIME_HEAT[verdict] ?? { tone: 'neutral' as HeatTone, intensity: 0 as const }
+  const gammaH = GAMMA_HEAT[regime] ?? { tone: 'neutral' as HeatTone, intensity: 0 as const }
+  const sq = m.squeeze ?? { side: 'DOWN', score: 0 }
+  const sqInt: 0 | 1 | 2 | 3 = sq.score > 0.3 ? 3 : sq.score > 0.15 ? 2 : sq.score > 0.05 ? 1 : 0
+  const flowTone: HeatTone = phrase1 === 'Fresh shorts building'
+    ? 'bear'
+    : phrase1 === 'Longs adding into the move'
+    ? 'bull'
+    : 'neutral'
+  const flowLabel = phrase1 === 'Fresh shorts building'
+    ? 'shorts'
+    : phrase1 === 'Longs adding into the move'
+    ? 'longs'
+    : phrase1 === 'Positions covering'
+    ? 'covering'
+    : 'flat'
+  const heat: HeatCell[] = [
+    { label: `z ${z >= 0 ? '+' : ''}${z.toFixed(1)}`, tone: z > 0.5 ? 'bull' : z < -0.5 ? 'bear' : 'neutral', intensity: momInt },
+    { label: verdict || 'WAIT', tone: timeH.tone, intensity: timeH.intensity },
+    { label: breadth || 'MIXED', tone: breadth.includes('BULL') ? 'bull' : breadth.includes('BEAR') ? 'bear' : 'neutral', intensity: breadth.includes('STRONG') ? 3 : breadth.includes('LEAN') ? 2 : 0 },
+    { label: regime || 'BALANCE', tone: gammaH.tone, intensity: gammaH.intensity },
+    { label: `${sq.side} ${(sq.score ?? 0).toFixed(2)}`, tone: sq.side === 'UP' ? 'bull' : 'bear', intensity: sqInt },
+    { label: flowLabel, tone: flowTone, intensity: flow.main.includes('decelerating') ? 1 : 2 },
+  ]
+
+  // PRESSURE — one cell per bar (skip the first 3, which have no 3-bar lookback).
+  const pressure: PressCell[] = bars.slice(3).map((bar: any, j: number) => {
+    const i = j + 3
+    const oiUp = bar.fut.oi_slope > 0
+    const pDir = Math.sign(bar.fut.c - bars[i - 3].fut.c)
+    const mag = bar.fut.oi_r ?? 0.3
+    const val = clamp((oiUp ? 1 : -0.3) * pDir * mag, -1, 1)
+    return {
+      t: bar.t,
+      val,
+      price: bar.fut.c,
+      note: `${bar.t} · ${Math.round(bar.fut.c)} · ${val > 0.05 ? 'buying' : val < -0.05 ? 'selling' : 'flat'} (oiR ${(bar.fut.oi_r ?? 0).toFixed(2)})`,
+    }
+  })
+
+  return { index, score, read, levels, flow, chain, events, chart, heat, pressure }
 }
 
 // Reverse a fallback Dataset into per-index bundles (score 0) for last-good seeding.
@@ -296,6 +388,8 @@ function perFromFallback(fb: Dataset): Record<IndexKey, PerIndex> {
       chain: fb.CHAIN_DATA[k],
       events: fb.EVENTS_BY_IDX[k],
       chart: fb.CHART_DATA[k],
+      heat: fb.HEAT[k],
+      pressure: fb.PRESSURE[k],
     }
   }
   return out
@@ -314,6 +408,8 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
     CHAIN_DATA: {} as Record<IndexKey, Chain>,
     EVENTS_BY_IDX: {} as Record<IndexKey, EventItem[]>,
     CHART_DATA: {} as Record<IndexKey, ChartPoint[]>,
+    HEAT: {} as Record<IndexKey, HeatCell[]>,
+    PRESSURE: {} as Record<IndexKey, PressCell[]>,
   }
   for (const k of KEYS) {
     const p = per[k]
@@ -324,6 +420,8 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
     ds.CHAIN_DATA[k] = p.chain
     ds.EVENTS_BY_IDX[k] = p.events
     ds.CHART_DATA[k] = p.chart
+    ds.HEAT[k] = p.heat
+    ds.PRESSURE[k] = p.pressure
   }
   return ds
 }
