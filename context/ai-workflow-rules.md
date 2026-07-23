@@ -21,6 +21,17 @@ coding on top of an assumption.
 - Never combine engine-logic changes and UI changes in one step — the engine
   regression gate must pass before the UI touches new fields.
 
+## Two separate frontends — do not mix
+
+- **v1** = production `ui/` (vanilla, no build) on `main`. **v2** = experimental
+  `ui-v2/` (React/Vite) on branch `feature/dashboard-v2` only. They are separate
+  apps sharing only the read-only `/api` backend contract.
+- Do **not** mix changes across them in one unit: a v2 task edits files under
+  `ui-v2/` on `feature/dashboard-v2` and nothing else.
+- v2 must **not** modify the Python engine/backend or v1's `ui/`. If v2 needs a
+  new backend field, that is a separate v1/engine unit on `main`.
+- See `context/ui-v2-dashboard.md`.
+
 ## When to Split Work
 
 Split an implementation step if it combines:

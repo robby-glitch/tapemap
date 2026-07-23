@@ -67,6 +67,13 @@ the way an expert tape-reader would, continuously, without fatigue.
   annotated level ladder with loud LIVE row, narrative log with event
   hierarchy, replay scrubber (1×–25×), CARRY strip, MM/gamma strip.
 
+### Experimental parallel UI (ui-v2/ — React, branch `feature/dashboard-v2`)
+
+- A separate React 19 + Vite + Tailwind + Recharts dashboard living only on
+  branch `feature/dashboard-v2` in folder `ui-v2/`. It consumes the same
+  read-only `/api` backend and makes no engine/backend changes, so it does not
+  affect the production v1 `ui/`. See `context/ui-v2-dashboard.md`.
+
 ## Scope
 
 ### In Scope

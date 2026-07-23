@@ -18,7 +18,8 @@ It never places orders (permanent rule).
 | instruments.py | Per-index registry (NIFTY/BANKNIFTY/SENSEX) + `resolve_dynamic(cfg, tok, today, rows=None)` (pass `rows` to resolve all indices from one scrip download). |
 | start.bat / stop.bat | Double-click launchers. start.bat runs `python server.py live` + opens the dashboard; stop.bat kills only the process on port 8765. Desktop shortcuts (TapeMap / Stop TapeMap) use ui/tapemap.ico + ui/stop.ico. |
 | gex_run.py | Stage-2 GEX for a chain day → data/gex_*.json (causal IV forward-hold). |
-| ui/index.html + style.css + app.js | Render-only. TAPE view (READ panel, trap radar, momentum, ladder, log, ctx banner, TODAY SO FAR) + DATA view (widget grid + IV/gamma/MM top bar). No logic that isn't display composition; consumes structured JSON fields, no prose parsing in the hero cards. |
+| ui/index.html + style.css + app.js | Render-only. TAPE view (READ panel, trap radar, momentum, ladder, log, ctx banner, TODAY SO FAR) + DATA view (widget grid + IV/gamma/MM top bar). No logic that isn't display composition; consumes structured JSON fields, no prose parsing in the hero cards. This is the **v1** frontend. |
+| ui-v2/ (React) | **Second, separate frontend** (branch `feature/dashboard-v2` only): React 19 + Vite + Tailwind + Recharts, `src/data.ts` (`useLiveData` polling `/api` ×3 indices every 5s) + `src/App.tsx`. Consumes the same backend read-only; does not touch v1 `ui/` or the engine. See `context/ui-v2-dashboard.md`. |
 | data/ | IMMUTABLE ground truth: FUT/CE/PE_3day.csv (Jul 15–17), chain/gex JSON. Parse CSVs by column INDEX (headers are mojibake). FUT exports order pivots BEFORE vwap; options the reverse. |
 | context/ | This constitution. progress-tracker.md = full history; logic-plain-english.md = every rule in words. |
 | archive/ | Old replay_*.txt regression baselines + superseded UI prototypes (moved here; not part of the live tool). |

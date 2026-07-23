@@ -15,6 +15,22 @@ Update this file after every meaningful implementation change.
 
 ## Completed
 
+- **v2 dashboard — parallel React frontend (2026-07-24).** Built a separate,
+  experimental React 19 + Vite + Tailwind 4 + Recharts dashboard in `ui-v2/` on
+  branch `feature/dashboard-v2` (not merged, not pushed). Started as a Figma Make
+  export, then **live-wired** to the real backend via `src/data.ts`
+  (`useLiveData` hook polling `/api/data` + `/api/chain` for all 3 indices every
+  5s, mapping engine output → UI shapes, with a MOCK fallback shown pre-open and
+  clearly labelled `reconnecting…`). Six feature commits: `b6b8798` live-wire ·
+  `7139ec7` heatmaps · `817adf3` real action-zone Map (removed fabricated
+  PDH/PDL/WPP) · `bef8cb7` real intraday chart with levels overlaid + readable
+  time axis · `bda7e36` pressure tape → diverging net-flow histogram · `93c63dd`
+  heat grid → live spike radar. **Separation is the point:** own branch + folder,
+  read-only `/api` consumer, ZERO engine/backend/`ui/` changes — v1 on `main`
+  untouched. Built and verified pre-open on MOCK (`corepack pnpm build` +
+  `tsc --noEmit` clean, 0 console errors); **awaits live verification at the
+  09:15 open** (mock→live auto-switches when the backend produces bars). Full
+  doc: `context/ui-v2-dashboard.md`.
 - Tape engine (engine.py): self-calibrating features, states, 13 event
   types; validated against 3 labeled days (Jul 15–17, 2026) — see README
   scorecard.

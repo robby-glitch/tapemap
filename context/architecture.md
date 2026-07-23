@@ -6,7 +6,8 @@
 | --------- | ----------------------------------- | --------------------------------------- |
 | Engine    | Python 3.13, stdlib only            | Feature computation, states, events, gamma layer |
 | Server    | Python `http.server` (stdlib)       | Static UI + `/api/data` · `/api/chain` · `/api/gex` · POST `/api/token` |
-| UI        | Vanilla HTML/CSS/JS, no build step  | V2 "Replay Dashboard", SVG where needed |
+| UI (v1)   | Vanilla HTML/CSS/JS, no build step  | Production "Replay Dashboard" (`ui/`), SVG where needed |
+| UI (v2)   | React 19 + Vite + Tailwind 4 + Recharts + TS | **Separate, parallel** frontend `ui-v2/` (branch `feature/dashboard-v2` only) — see `context/ui-v2-dashboard.md` |
 | Data      | Dhan REST v2 (`dhanhq` SDK + direct `urllib` for `oi:true`) | Historical 1-min OHLCV+OI, chain, live feed later |
 | Ground truth | TradingView CSV exports in `data/` | 3 labeled days for regression        |
 
@@ -32,7 +33,12 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
 - `chain_live.py` — ChainPoller daemon: Dhan option_chain every 5s, expiry
   auto-resolve, snapshot normalization + jsonl persistence, --mock fixture
   replay. Feeds server.py's `/api/chain`; zero engine coupling.
-- `ui/` — rendering only. Parses engine output; computes NO analytics.
+- `ui/` — rendering only. Parses engine output; computes NO analytics. This is
+  the **v1 production UI** on `main`, unchanged by any v2 work.
+- `ui-v2/` — a **separate, parallel React/Vite frontend** (branch
+  `feature/dashboard-v2` only; not merged/pushed). Consumes the same `/api/data`
+  · `/api/chain` backend **read-only** — makes ZERO engine/backend/`ui/` changes.
+  Fully documented in `context/ui-v2-dashboard.md`.
 - `data/` — ground-truth CSVs (protected) + fetched day/chain JSON.
 - `context/` — these spec files; the source of truth for behavior.
 - `archive/` — old replay_*.txt regression baselines + superseded UI

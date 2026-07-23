@@ -44,6 +44,16 @@
   shadows/glassmorphism.
 - Dark only. `min-width: 1180px` guard; horizontal scroll below that.
 
+## v2 frontend (ui-v2/ — separate stack)
+
+- `ui-v2/` uses a **different stack** — React 19 + TypeScript + Tailwind 4 +
+  Vite + Recharts, **with a build step** (`corepack pnpm build`; `pnpm` isn't on
+  PATH, use `corepack pnpm`). This is intentionally distinct from v1's no-build,
+  no-dependency, offline vanilla standard above.
+- These v1 standards are **unchanged** and continue to govern `ui/`. v2 lives
+  only on branch `feature/dashboard-v2` and consumes the `/api` backend
+  read-only. See `context/ui-v2-dashboard.md`.
+
 ## API / Data
 
 - `/api/data` response shape is a contract; additive changes only (new keys

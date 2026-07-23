@@ -1,5 +1,11 @@
 # UI Context
 
+> **Scope:** this document describes **v1**, the production vanilla-JS UI in
+> `ui/` (no build step, served by `server.py`, on `main`). A separate,
+> experimental **v2** React dashboard exists in `ui-v2/` (branch
+> `feature/dashboard-v2` only) and is documented in
+> `context/ui-v2-dashboard.md` — it does not affect anything below.
+
 ## Theme
 
 Dark only. No light mode. The design language is a purpose-built trading
