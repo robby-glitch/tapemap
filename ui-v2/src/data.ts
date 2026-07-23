@@ -66,14 +66,15 @@ export interface ChartPoint {
   isFuture: boolean
 }
 
-// Market Heat Grid — one row per index, one cell per signal column.
-export const HEAT_COLS = ['MOM', 'TIME', 'BIAS', 'GAMMA', 'SQZ', 'FLOW'] as const
+// Live Spike Radar — one row per index, one cell per activity/spike column.
+export const HEAT_COLS = ['FUT VOL', 'FUT OI', 'CE VOL', 'CE OI', 'PE VOL', 'PE OI', 'GAMMA', 'SQZ'] as const
 export type HeatCol = (typeof HEAT_COLS)[number]
 export type HeatTone = 'bull' | 'bear' | 'neutral'
 export interface HeatCell {
   label: string
-  tone: HeatTone
-  intensity: 0 | 1 | 2 | 3
+  intensity: number // 0..1
+  dir: HeatTone
+  spike: boolean
 }
 
 // Intraday Pressure Tape — bucketed net order-flow, val in [-1, 1] (buy +, sell −).
@@ -136,26 +137,12 @@ const VERDICT_SCORE: Record<string, number> = {
   GO: 3, READY: 2, WAIT: 0, CAUTION: 0, 'STAND ASIDE': -1, SPENT: -1,
 }
 
-// Heat-grid lookups for the TIME (verdict) and GAMMA (regime) columns.
-const TIME_HEAT: Record<string, { tone: HeatTone; intensity: 0 | 1 | 2 | 3 }> = {
-  GO: { tone: 'bull', intensity: 3 },
-  READY: { tone: 'bull', intensity: 2 },
-  WAIT: { tone: 'neutral', intensity: 1 },
-  CAUTION: { tone: 'bear', intensity: 0 },
-  'STAND ASIDE': { tone: 'neutral', intensity: 0 },
-  SPENT: { tone: 'bear', intensity: 0 },
+// Spike-radar gamma intensity by dealer regime.
+const GAMMA_INT: Record<string, number> = {
+  'AMPLIFIED-UP': 1, 'AMPLIFIED-DOWN': 1, PINNED: 0.6, CEILING: 0.5, FLOOR: 0.5, BALANCE: 0.2,
 }
-const GAMMA_HEAT: Record<string, { tone: HeatTone; intensity: 0 | 1 | 2 | 3 }> = {
-  'AMPLIFIED-UP': { tone: 'bull', intensity: 3 },
-  'AMPLIFIED-DOWN': { tone: 'bear', intensity: 3 },
-  FLOOR: { tone: 'bull', intensity: 1 },
-  CEILING: { tone: 'bear', intensity: 1 },
-  PINNED: { tone: 'neutral', intensity: 2 },
-  BALANCE: { tone: 'neutral', intensity: 0 },
-  NEUTRAL: { tone: 'neutral', intensity: 0 },
-}
-const clampI = (n: number): 0 | 1 | 2 | 3 => Math.max(0, Math.min(3, Math.round(n))) as 0 | 1 | 2 | 3
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
+const clamp01 = (n: number) => clamp(n ?? 0, 0, 1)
 
 const MM_TEXT: Record<string, string> = {
   FLOOR: 'Dealers defend dips — put wall below.',
@@ -346,32 +333,28 @@ function mapIndex(D: any, C: any): PerIndex {
     isFuture: false,
   }))
 
-  // HEAT — one cell per signal column (HEAT_COLS order).
-  const z = f.z ?? 0
-  const momInt: 0 | 1 | 2 | 3 = episode.includes('MOVE RUNNING') ? 3 : clampI(Math.abs(z))
-  const timeH = TIME_HEAT[verdict] ?? { tone: 'neutral' as HeatTone, intensity: 0 as const }
-  const gammaH = GAMMA_HEAT[regime] ?? { tone: 'neutral' as HeatTone, intensity: 0 as const }
-  const sq = m.squeeze ?? { side: 'DOWN', score: 0 }
-  const sqInt: 0 | 1 | 2 | 3 = sq.score > 0.3 ? 3 : sq.score > 0.15 ? 2 : sq.score > 0.05 ? 1 : 0
-  const flowTone: HeatTone = phrase1 === 'Fresh shorts building'
-    ? 'bear'
-    : phrase1 === 'Longs adding into the move'
-    ? 'bull'
-    : 'neutral'
-  const flowLabel = phrase1 === 'Fresh shorts building'
-    ? 'shorts'
-    : phrase1 === 'Longs adding into the move'
-    ? 'longs'
-    : phrase1 === 'Positions covering'
-    ? 'covering'
-    : 'flat'
+  // HEAT — live spike radar: volume/OI ranks across futures + both option legs,
+  // plus gamma regime (flip = spike) and squeeze. 8 cells in HEAT_COLS order.
+  const ce = b.ce ?? {}
+  const pe = b.pe ?? {}
+  const prev4 = bars[Math.max(0, bars.length - 4)].fut
+  const pDir4 = Math.sign(f.c - prev4.c)
+  const pctLbl = (r: number) => `${Math.round((r ?? 0) * 100)}%`
+  const gRegime: string = g?.regime || 'BALANCE'
+  const gInt = GAMMA_INT[gRegime] ?? 0.3
+  const gDir: HeatTone = /UP|FLOOR/.test(gRegime) ? 'bull' : /DOWN|CEILING/.test(gRegime) ? 'bear' : 'neutral'
+  const prevRegime: string | undefined = bars[Math.max(0, bars.length - 15)]?.gamma?.regime
+  const gammaFlip = prevRegime != null && prevRegime !== gRegime
+  const sqz = m.squeeze ?? { side: 'DOWN', score: 0 }
   const heat: HeatCell[] = [
-    { label: `z ${z >= 0 ? '+' : ''}${z.toFixed(1)}`, tone: z > 0.5 ? 'bull' : z < -0.5 ? 'bear' : 'neutral', intensity: momInt },
-    { label: verdict || 'WAIT', tone: timeH.tone, intensity: timeH.intensity },
-    { label: breadth || 'MIXED', tone: breadth.includes('BULL') ? 'bull' : breadth.includes('BEAR') ? 'bear' : 'neutral', intensity: breadth.includes('STRONG') ? 3 : breadth.includes('LEAN') ? 2 : 0 },
-    { label: regime || 'BALANCE', tone: gammaH.tone, intensity: gammaH.intensity },
-    { label: `${sq.side} ${(sq.score ?? 0).toFixed(2)}`, tone: sq.side === 'UP' ? 'bull' : 'bear', intensity: sqInt },
-    { label: flowLabel, tone: flowTone, intensity: flow.main.includes('decelerating') ? 1 : 2 },
+    { label: pctLbl(f.vol_r), intensity: clamp01(f.vol_r), dir: pDir4 > 0 ? 'bull' : pDir4 < 0 ? 'bear' : 'neutral', spike: (f.vol_r ?? 0) >= 0.8 },
+    { label: pctLbl(f.oi_r), intensity: clamp01(f.oi_r), dir: f.oi_slope > 0 ? (pDir4 > 0 ? 'bull' : 'bear') : 'neutral', spike: (f.oi_r ?? 0) >= 0.8 },
+    { label: pctLbl(ce.vol_r), intensity: clamp01(ce.vol_r), dir: ce.prem_d > 0 ? 'bull' : ce.prem_d < 0 ? 'bear' : 'neutral', spike: (ce.vol_r ?? 0) >= 0.8 },
+    { label: pctLbl(ce.oi_r), intensity: clamp01(ce.oi_r), dir: ce.oi_slope > 0 ? (ce.prem_d < 0 ? 'bear' : 'bull') : 'neutral', spike: (ce.oi_r ?? 0) >= 0.8 },
+    { label: pctLbl(pe.vol_r), intensity: clamp01(pe.vol_r), dir: pe.prem_d > 0 ? 'bear' : pe.prem_d < 0 ? 'bull' : 'neutral', spike: (pe.vol_r ?? 0) >= 0.8 },
+    { label: pctLbl(pe.oi_r), intensity: clamp01(pe.oi_r), dir: pe.oi_slope > 0 ? (pe.prem_d < 0 ? 'bull' : 'bear') : 'neutral', spike: (pe.oi_r ?? 0) >= 0.8 },
+    { label: gRegime, intensity: gInt, dir: gDir, spike: gammaFlip || gInt >= 0.9 },
+    { label: `${sqz.side} ${sqScore.toFixed(2)}`, intensity: Math.min(1, sqScore / 0.4), dir: sqz.side === 'UP' ? 'bull' : 'bear', spike: sqScore >= 0.3 },
   ]
 
   // PRESSURE — bucketed net order-flow (≤ ~60 buckets) so it reads as a histogram,

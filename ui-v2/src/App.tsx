@@ -212,31 +212,41 @@ function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
   }
 }
 
-// Mock Market Heat Grid (6 cells per index, in HEAT_COLS order).
+// Mock Live Spike Radar — 8 cells per index in HEAT_COLS order
+// (FUT VOL, FUT OI, CE VOL, CE OI, PE VOL, PE OI, GAMMA, SQZ), with a few real spikes.
 const MOCK_HEAT: Record<IndexKey, HeatCell[]> = {
+  // NIFTY — heavy, capped: futures shorts building + puts being written (bearish spikes).
   NIFTY: [
-    { label: 'z -0.3', tone: 'neutral', intensity: 0 },
-    { label: 'WAIT', tone: 'neutral', intensity: 1 },
-    { label: 'LEAN BEAR', tone: 'bear', intensity: 2 },
-    { label: 'CEILING', tone: 'bear', intensity: 1 },
-    { label: 'DOWN 0.08', tone: 'bear', intensity: 1 },
-    { label: 'covering', tone: 'neutral', intensity: 1 },
+    { label: '42%', intensity: 0.42, dir: 'bear', spike: false },
+    { label: '86%', intensity: 0.86, dir: 'bear', spike: true },
+    { label: '50%', intensity: 0.50, dir: 'bear', spike: false },
+    { label: '64%', intensity: 0.64, dir: 'bear', spike: false },
+    { label: '38%', intensity: 0.38, dir: 'neutral', spike: false },
+    { label: '85%', intensity: 0.85, dir: 'bear', spike: true },
+    { label: 'AMPLIFIED-DOWN', intensity: 1, dir: 'bear', spike: true },
+    { label: 'DOWN 0.04', intensity: 0.10, dir: 'bear', spike: false },
   ],
+  // BANKNIFTY — the mover: futures volume + PE writing surge, gamma flipped up, squeeze on.
   BANKNIFTY: [
-    { label: 'z +1.2', tone: 'bull', intensity: 3 },
-    { label: 'READY', tone: 'bull', intensity: 2 },
-    { label: 'STRONG BULL', tone: 'bull', intensity: 3 },
-    { label: 'AMPLIFIED-UP', tone: 'bull', intensity: 3 },
-    { label: 'UP 0.42', tone: 'bull', intensity: 3 },
-    { label: 'longs', tone: 'bull', intensity: 2 },
+    { label: '90%', intensity: 0.90, dir: 'bull', spike: true },
+    { label: '72%', intensity: 0.72, dir: 'bull', spike: false },
+    { label: '55%', intensity: 0.55, dir: 'bear', spike: false },
+    { label: '60%', intensity: 0.60, dir: 'bear', spike: false },
+    { label: '68%', intensity: 0.68, dir: 'bull', spike: false },
+    { label: '84%', intensity: 0.84, dir: 'bull', spike: true },
+    { label: 'AMPLIFIED-UP', intensity: 1, dir: 'bull', spike: true },
+    { label: 'UP 0.36', intensity: 0.90, dir: 'bull', spike: true },
   ],
+  // SENSEX — quiet drift: nothing lit.
   SENSEX: [
-    { label: 'z +0.1', tone: 'neutral', intensity: 0 },
-    { label: 'WAIT', tone: 'neutral', intensity: 1 },
-    { label: 'MIXED', tone: 'neutral', intensity: 0 },
-    { label: 'BALANCE', tone: 'neutral', intensity: 0 },
-    { label: 'DOWN 0.03', tone: 'bear', intensity: 0 },
-    { label: 'flat', tone: 'neutral', intensity: 2 },
+    { label: '22%', intensity: 0.22, dir: 'neutral', spike: false },
+    { label: '30%', intensity: 0.30, dir: 'neutral', spike: false },
+    { label: '28%', intensity: 0.28, dir: 'neutral', spike: false },
+    { label: '35%', intensity: 0.35, dir: 'neutral', spike: false },
+    { label: '40%', intensity: 0.40, dir: 'bull', spike: false },
+    { label: '33%', intensity: 0.33, dir: 'neutral', spike: false },
+    { label: 'BALANCE', intensity: 0.20, dir: 'neutral', spike: false },
+    { label: 'DOWN 0.10', intensity: 0.25, dir: 'bear', spike: false },
   ],
 }
 
@@ -317,8 +327,8 @@ const fmt = (n: number) => n.toLocaleString('en-IN')
 const formatOI = (n: number) => n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : `${(n / 1e3).toFixed(1)}K`
 // Heat-tile color: hue from tone, alpha ramp from intensity (0–3).
 const HEAT_RGB: Record<HeatTone, string> = { bull: '46,194,126', bear: '255,95,107', neutral: '93,107,132' }
-const HEAT_ALPHA = [0.10, 0.25, 0.45, 0.70]
-const heatColor = (tone: HeatTone, intensity: number) => `rgba(${HEAT_RGB[tone]}, ${HEAT_ALPHA[intensity] ?? 0.1})`
+// Spike-radar cell background: hue by direction, alpha ramps with intensity (0..1).
+const heatColor = (dir: HeatTone, intensity: number) => `rgba(${HEAT_RGB[dir]}, ${(0.08 + 0.55 * Math.max(0, Math.min(1, intensity))).toFixed(3)})`
 // Levels-map per-kind styling (wall color resolves to CALL=bear / PUT=bull at render).
 const KIND_STYLE: Record<MapLevelKind, { color: string; dot: number; marker?: string }> = {
   now:     { color: T.accent, dot: 9 },
@@ -1245,19 +1255,30 @@ function MapTab({ index }: { index: IndexKey }) {
 function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: IndexKey) => void }) {
   const { HEAT, INDICES } = useData()
   const keys: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
+  const spikeCount = keys.reduce((n, k) => n + HEAT[k].filter(c => c.spike).length, 0)
 
-  const legend = (tone: HeatTone, label: string) => (
+  const legend = (dir: HeatTone, glyph: string, label: string) => (
     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 10, height: 10, borderRadius: 3, background: heatColor(tone, 2) }} />
-      {label}
+      <span style={{ color: `rgb(${HEAT_RGB[dir]})`, fontSize: 11 }}>{glyph}</span>{label}
     </span>
   )
 
   return (
     <div style={{ padding: 24 }}>
-      <div className="micro-label" style={{ marginBottom: 4 }}>Market Heat Grid</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <div className="micro-label">Live Spike Radar</div>
+        {spikeCount > 0 && (
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: T.caution,
+            background: 'rgba(255,191,0,0.12)', border: '1px solid rgba(255,191,0,0.25)',
+            borderRadius: 4, padding: '1px 7px',
+          }}>
+            ⚡ {spikeCount} spikes live
+          </span>
+        )}
+      </div>
       <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
-        Every index × every signal — brighter = stronger. Click a row to load it.
+        Live spike radar — volume, OI, gamma &amp; squeeze across futures + both option legs. Brighter = bigger; glowing ⚡ = spiking.
       </div>
       <div style={{ backgroundColor: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 16 }}>
         {/* Header row */}
@@ -1273,7 +1294,7 @@ function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: Index
           const hot = INDICES[k].highlight
           const isActive = active === k
           return (
-            <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'stretch', marginBottom: 6 }}>
+            <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'stretch', marginBottom: 8 }}>
               <button
                 onClick={() => setActive(k)}
                 className={hot ? 'trending-glow' : ''}
@@ -1298,37 +1319,46 @@ function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: Index
                 <span style={{ fontSize: 12, fontWeight: 700 }}>{k}</span>
                 <span className="mono" style={{ fontSize: 11, color: T.textMuted }}>{fmt(INDICES[k].price)}</span>
               </button>
-              {cells.map((cell, i) => (
-                <div
-                  key={i}
-                  title={`${HEAT_COLS[i]}: ${cell.label}`}
-                  style={{
-                    flex: 1,
-                    height: 46,
-                    borderRadius: 8,
-                    backgroundColor: heatColor(cell.tone, cell.intensity),
-                    border: `1px solid ${T.border}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    padding: '0 4px',
-                  }}
-                >
-                  <span style={{ fontSize: 10, fontWeight: 600, color: cell.intensity >= 2 ? T.textPrimary : T.textSecondary }}>
-                    {cell.label}
-                  </span>
-                </div>
-              ))}
+              {cells.map((cell, i) => {
+                const hue = HEAT_RGB[cell.dir]
+                const arrow = cell.dir === 'bull' ? '▲' : cell.dir === 'bear' ? '▼' : '·'
+                return (
+                  <div
+                    key={i}
+                    title={`${HEAT_COLS[i]}: ${cell.label}${cell.spike ? ' — SPIKE' : ''}`}
+                    style={{
+                      flex: 1,
+                      height: 46,
+                      borderRadius: 8,
+                      backgroundColor: heatColor(cell.dir, cell.intensity),
+                      border: cell.spike ? `1px solid rgba(${hue},0.9)` : `1px solid ${T.border}`,
+                      boxShadow: cell.spike ? `0 0 10px 1px rgba(${hue},0.55)` : undefined,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1,
+                      textAlign: 'center',
+                      padding: '0 4px',
+                    }}
+                  >
+                    <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.1, color: cell.intensity > 0.5 ? T.textPrimary : T.textSecondary }}>
+                      {cell.spike ? '⚡ ' : ''}{cell.label}
+                    </span>
+                    <span style={{ fontSize: 9, color: `rgb(${hue})`, opacity: 0.9 }}>{arrow}</span>
+                  </div>
+                )
+              })}
             </div>
           )
         })}
         {/* Legend */}
         <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 10, color: T.textMuted, alignItems: 'center', flexWrap: 'wrap' }}>
-          {legend('bull', 'bullish')}
-          {legend('bear', 'bearish')}
-          {legend('neutral', 'neutral')}
-          <span style={{ marginLeft: 4 }}>darker = stronger</span>
+          {legend('bull', '▲', 'bullish')}
+          {legend('bear', '▼', 'bearish')}
+          {legend('neutral', '·', 'neutral')}
+          <span style={{ color: T.caution }}>⚡ spike</span>
+          <span>brighter = stronger</span>
         </div>
       </div>
     </div>
