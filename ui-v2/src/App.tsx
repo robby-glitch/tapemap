@@ -2,7 +2,7 @@ import { useState, createContext, useContext } from 'react'
 import {
   ComposedChart, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
-  ReferenceArea,
+  ReferenceLine,
 } from 'recharts'
 import { useLiveData, HEAT_COLS } from './data'
 import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind } from './data'
@@ -162,31 +162,34 @@ const MOCK_EVENTS = [
 ]
 
 // ── Chart data gen ────────────────────────────────────────────────────────────
-function makeIntraday(basePrice: number, vwap: number) {
+// Realistic intraday mock: a mean-reverting price walk 09:15→15:29 with a VWAP
+// that tracks price and a tight ±1σ band — so the MOCK chart reads like a real one.
+function makeIntraday(basePrice: number, vwapBase: number) {
   const data = []
-  const times = []
-  for (let h = 9; h <= 14; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      if (h === 9 && m < 15) continue
-      times.push(`${h}:${m.toString().padStart(2, '0')}`)
-    }
-  }
-  times.push('14:30')
-  let price = basePrice * 1.005
-  for (let i = 0; i < times.length; i++) {
-    const progress = i / times.length
-    const trend = (basePrice - price) * 0.15
-    const noise = (Math.random() - 0.5) * basePrice * 0.003
-    price += trend + noise
-    const band = basePrice * 0.0018
+  const sigma = basePrice * 0.0009
+  const bound = basePrice * 0.0032
+  let price = basePrice + basePrice * 0.0016
+  let vwap = vwapBase
+  const start = 9 * 60 + 15
+  const end = 15 * 60 + 29
+  const total = (end - start) / 3
+  let i = 0
+  for (let mins = start; mins <= end; mins += 3, i++) {
+    const h = Math.floor(mins / 60), mm = mins % 60
+    const time = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+    const revert = (basePrice - price) * 0.06
+    const noise = (Math.random() - 0.5) * basePrice * 0.001
+    price = Math.max(basePrice - bound, Math.min(basePrice + bound, price + revert + noise))
+    vwap += (price - vwap) * 0.03 + (Math.random() - 0.5) * 1.5
+    const s = sigma * (0.85 + Math.random() * 0.3)
     data.push({
-      time: times[i],
+      time,
       price: +price.toFixed(2),
-      vwap: +(vwap + (Math.random() - 0.5) * 20).toFixed(2),
-      upper: +(price + band * basePrice * 0.001).toFixed(2),
-      lower: +(price - band * basePrice * 0.001).toFixed(2),
+      vwap: +vwap.toFixed(2),
+      upper: +(price + s).toFixed(2),
+      lower: +(price - s).toFixed(2),
       vol: Math.floor(Math.random() * 800000 + 200000),
-      isFuture: progress > 0.85,
+      isFuture: i / total > 0.9,
     })
   }
   return data
@@ -264,8 +267,8 @@ function mockMap(now: number, vwap: number, callW: number, putW: number): MapDat
     { label: '+1σ', value: u1, kind: 'band' as const, note: 'volatility band' },
     { label: '−1σ', value: d1, kind: 'band' as const, note: 'volatility band' },
     { label: 'PIN', value: Math.round(now / 50) * 50, kind: 'pin' as const, note: 'dealer magnet (mock)' },
-    { label: 'HI', value: Math.round(now * 1.002), kind: 'session' as const, note: 'session high' },
-    { label: 'LO', value: Math.round(now * 0.997), kind: 'session' as const, note: 'session low' },
+    { label: 'HI', value: Math.round(now * 1.0027), kind: 'session' as const, note: 'session high' },
+    { label: 'LO', value: Math.round(now * 0.9961), kind: 'session' as const, note: 'session low' },
   ].sort((a, b) => b.value - a.value)
   const vals = levels.map(l => l.value)
   const lo = Math.min(...vals), hi = Math.max(...vals)
@@ -524,14 +527,43 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 }
 
 function TapeTab({ index }: { index: IndexKey }) {
-  const { KEY_LEVELS, ORDER_FLOW, CHART_DATA, PRESSURE } = useData()
+  const { KEY_LEVELS, ORDER_FLOW, CHART_DATA, PRESSURE, MAP } = useData()
   const levels = KEY_LEVELS[index]
   const flow = ORDER_FLOW[index]
   const data = CHART_DATA[index]
   const pressure = PRESSURE[index]
-  const lastPoint = data[data.length - 3]
-  const priceMin = Math.min(...data.map(d => d.lower)) * 0.9995
-  const priceMax = Math.max(...data.map(d => d.upper)) * 1.0005
+  const map = MAP[index]
+
+  // Y domain = action zone (near price) so a far spike can't crush the chart.
+  const zLo = map.zoneLo
+  const zHi = map.zoneHi
+
+  // Readable X-axis: only hour-boundary times that exist in the data, plus ends.
+  const hourTicks = data.filter(d => d.time.endsWith(':00')).map(d => d.time)
+  const xTicks = Array.from(
+    new Set([data[0]?.time, ...hourTicks, data[data.length - 1]?.time].filter(Boolean)),
+  ) as string[]
+
+  // Key levels drawn ON the chart: in-zone, deduped, skip now (price line) + vwap (its own line).
+  const dedupeEps = map.now * 0.0004
+  const refLevels = map.levels
+    .filter(l => l.kind !== 'now' && l.kind !== 'vwap' && l.value >= zLo && l.value <= zHi)
+    .sort((a, b) => b.value - a.value)
+    .reduce<typeof map.levels>((acc, l) => {
+      if (!acc.some(k => Math.abs(k.value - l.value) <= dedupeEps)) acc.push(l)
+      return acc
+    }, [])
+  const refColor = (l: typeof map.levels[number]) =>
+    l.kind === 'wall' ? (l.label === 'CALL' ? T.bear : T.bull)
+    : l.kind === 'pin' ? T.accent
+    : l.kind === 'floor' ? T.bull
+    : l.kind === 'cap' ? T.bear
+    : l.kind === 'strike' ? '#E8C15A'
+    : l.kind === 'trap' ? T.caution
+    : l.kind === 'band' ? 'rgba(255,255,255,0.14)'
+    : T.textMuted
+  const strongKind = (k: string) =>
+    k === 'wall' || k === 'pin' || k === 'floor' || k === 'cap' || k === 'strike' || k === 'trap'
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px', gap: 16, padding: 24, flex: 1 }}>
@@ -589,67 +621,74 @@ function TapeTab({ index }: { index: IndexKey }) {
         flexDirection: 'column',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', marginBottom: 12 }}>
-          <div className="micro-label">Price · VWAP · ±2σ Band</div>
+          <div className="micro-label">Price · VWAP · ±1σ · Key Levels</div>
           <div style={{ display: 'flex', gap: 14, fontSize: 10, color: T.textMuted }}>
-            <span style={{ color: '#FFBF00' }}>— VWAP</span>
-            <span style={{ color: 'rgba(139,92,246,0.6)' }}>░ Band</span>
+            <span style={{ color: T.textPrimary }}>— Price</span>
+            <span style={{ color: T.caution }}>-- VWAP</span>
+            <span style={{ color: 'rgba(139,92,246,0.6)' }}>▨ ±1σ</span>
           </div>
         </div>
-        <div style={{ height: 320 }}>
+        <div style={{ height: 380 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+            <ComposedChart data={data} margin={{ top: 6, right: 78, bottom: 0, left: 0 }}>
               <defs>
+                <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={T.accent} stopOpacity={0.10} />
+                  <stop offset="100%" stopColor={T.accent} stopOpacity={0} />
+                </linearGradient>
                 <linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={T.accent} stopOpacity={0.08} />
-                  <stop offset="100%" stopColor={T.accent} stopOpacity={0.02} />
+                  <stop offset="0%" stopColor={T.accent} stopOpacity={0.09} />
+                  <stop offset="100%" stopColor={T.accent} stopOpacity={0.04} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.04)" vertical={false} />
               <XAxis
                 dataKey="time"
+                ticks={xTicks}
+                interval={0}
+                minTickGap={40}
                 tick={{ fill: T.textMuted, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                interval={3}
               />
               <YAxis
-                domain={[priceMin, priceMax]}
+                domain={[zLo, zHi]}
+                allowDataOverflow
                 tick={{ fill: T.textMuted, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={v => fmt(Math.round(v))}
-                width={70}
+                width={62}
               />
               <Tooltip content={<ChartTooltip />} />
-              {/* Band */}
-              <Area type="monotone" dataKey="upper" stroke="none" fill="url(#bandFill)" />
-              <Area type="monotone" dataKey="lower" stroke="none" fill={T.card} />
+              {/* ±1σ band: accent between per-bar upper and lower (card mask hides below lower) */}
+              <Area type="monotone" dataKey="upper" stroke="none" fill="url(#bandFill)" isAnimationActive={false} />
+              <Area type="monotone" dataKey="lower" stroke="none" fill={T.card} isAnimationActive={false} />
+              {/* Key levels ON the chart as horizontal reference lines */}
+              {refLevels.map((l, i) => {
+                const c = refColor(l)
+                const strong = strongKind(l.kind)
+                return (
+                  <ReferenceLine
+                    key={`ref-${l.kind}-${Math.round(l.value)}-${i}`}
+                    y={l.value}
+                    stroke={c}
+                    strokeDasharray={strong ? '5 4' : '2 5'}
+                    strokeOpacity={strong ? 0.85 : 0.5}
+                    ifOverflow="hidden"
+                    label={{
+                      value: `${l.kind === 'trap' ? '⚑ ' : ''}${l.label} ${fmt(Math.round(l.value))}`,
+                      position: 'right',
+                      fill: c,
+                      fontSize: 9,
+                    }}
+                  />
+                )
+              })}
               {/* VWAP */}
-              <Line
-                type="monotone"
-                dataKey="vwap"
-                stroke="#FFBF00"
-                strokeWidth={1}
-                strokeDasharray="4 4"
-                dot={false}
-                activeDot={false}
-              />
-              {/* Price */}
-              <Line
-                type="monotone"
-                dataKey="price"
-                stroke={T.textPrimary}
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 3, fill: T.accent, strokeWidth: 0 }}
-              />
-              {/* Future dim area */}
-              {lastPoint && (
-                <ReferenceArea
-                  x1={lastPoint.time}
-                  fill="rgba(11,14,20,0.5)"
-                />
-              )}
+              <Line type="monotone" dataKey="vwap" stroke={T.caution} strokeWidth={1} strokeDasharray="4 4" dot={false} activeDot={false} isAnimationActive={false} />
+              {/* Price — the hero (bold line + depth fill in one series) */}
+              <Area type="monotone" dataKey="price" stroke={T.textPrimary} strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 3, fill: T.accent, strokeWidth: 0 }} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
