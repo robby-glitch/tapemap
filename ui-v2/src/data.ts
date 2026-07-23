@@ -76,9 +76,10 @@ export interface HeatCell {
   intensity: 0 | 1 | 2 | 3
 }
 
-// Intraday Pressure Tape — one cell per bar, val in [-1, 1] (buy pressure +, sell −).
+// Intraday Pressure Tape — bucketed net order-flow, val in [-1, 1] (buy +, sell −).
 export interface PressCell {
   t: string
+  tEnd: string
   val: number
   price: number
   note: string
@@ -373,20 +374,32 @@ function mapIndex(D: any, C: any): PerIndex {
     { label: flowLabel, tone: flowTone, intensity: flow.main.includes('decelerating') ? 1 : 2 },
   ]
 
-  // PRESSURE — one cell per bar (skip the first 3, which have no 3-bar lookback).
-  const pressure: PressCell[] = bars.slice(3).map((bar: any, j: number) => {
-    const i = j + 3
+  // PRESSURE — bucketed net order-flow (≤ ~60 buckets) so it reads as a histogram,
+  // not a per-minute barcode. Per-bar signed pressure, then averaged per bucket.
+  const perBar = bars.map((bar: any, i: number) => {
     const oiUp = bar.fut.oi_slope > 0
-    const pDir = Math.sign(bar.fut.c - bars[i - 3].fut.c)
+    const pDir = i >= 3 ? Math.sign(bar.fut.c - bars[i - 3].fut.c) : 0
     const mag = bar.fut.oi_r ?? 0.3
-    const val = clamp((oiUp ? 1 : -0.3) * pDir * mag, -1, 1)
-    return {
-      t: bar.t,
-      val,
-      price: bar.fut.c,
-      note: `${bar.t} · ${Math.round(bar.fut.c)} · ${val > 0.05 ? 'buying' : val < -0.05 ? 'selling' : 'flat'} (oiR ${(bar.fut.oi_r ?? 0).toFixed(2)})`,
-    }
+    return clamp((oiUp ? 1 : -0.3) * pDir * mag, -1, 1)
   })
+  const pStep = Math.max(3, Math.ceil(bars.length / 60))
+  const pressure: PressCell[] = []
+  for (let s = 0; s < bars.length; s += pStep) {
+    const members = bars.slice(s, s + pStep)
+    if (!members.length) continue
+    const vals = perBar.slice(s, s + pStep)
+    const val = vals.reduce((a: number, v: number) => a + v, 0) / vals.length
+    const first = members[0]
+    const last = members[members.length - 1]
+    const dir = val > 0.03 ? 'buying' : val < -0.03 ? 'selling' : 'balanced'
+    pressure.push({
+      t: first.t,
+      tEnd: last.t,
+      val,
+      price: last.fut.c,
+      note: `${first.t}–${last.t} · net ${dir} ${Math.round(Math.abs(val) * 100)}%`,
+    })
+  }
 
   // MAP — real action-zone level map (parity with production ui/app.js renderMap).
   const now = f.c

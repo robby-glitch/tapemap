@@ -240,19 +240,31 @@ const MOCK_HEAT: Record<IndexKey, HeatCell[]> = {
   ],
 }
 
-// Mock Pressure Tape derived from the mock chart (val from 3-bar price direction).
+// Mock Pressure Tape — ~30 buckets with a believable session arc: morning selling,
+// midday balance, afternoon buying push, with varied magnitude + occasional spikes.
 function mockPressure(points: ReturnType<typeof makeIntraday>): PressCell[] {
-  return points.slice(3).map((p, j) => {
-    const i = j + 3
-    const dir = Math.sign(p.price - points[i - 3].price)
-    const val = Math.max(-1, Math.min(1, dir * 0.5))
-    return {
-      t: p.time,
-      val,
-      price: p.price,
-      note: `${p.time} · ${Math.round(p.price)} · ${val > 0.05 ? 'buying' : val < -0.05 ? 'selling' : 'flat'} (oiR 0.30)`,
-    }
-  })
+  const N = 30
+  const per = Math.max(1, Math.floor(points.length / N))
+  const out: PressCell[] = []
+  for (let b = 0; b < N; b++) {
+    const phase = b / (N - 1) // 0 → 1 across the session
+    // arc: strong selling early (−), cross to buying by the close (+)
+    const arc = Math.sin((phase - 0.15) * Math.PI * 1.15) * 0.65
+    const wobble = Math.sin(b * 1.7) * 0.18
+    const spike = b % 7 === 3 ? -Math.sign(arc || 1) * 0.3 : 0 // occasional opposite spike
+    const val = Math.max(-0.95, Math.min(0.95, arc + wobble + spike))
+    const p = points[Math.min(points.length - 1, b * per)]
+    const pEnd = points[Math.min(points.length - 1, (b + 1) * per - 1)]
+    const dir = val > 0.03 ? 'buying' : val < -0.03 ? 'selling' : 'balanced'
+    out.push({
+      t: p?.time ?? '',
+      tEnd: pEnd?.time ?? p?.time ?? '',
+      val: +val.toFixed(2),
+      price: pEnd?.price ?? p?.price ?? 0,
+      note: `${p?.time ?? ''}–${pEnd?.time ?? ''} · net ${dir} ${Math.round(Math.abs(val) * 100)}%`,
+    })
+  }
+  return out
 }
 
 // Mock Levels Map (plausible static levels; replaced by live action-zone map when data arrives).
@@ -693,39 +705,42 @@ function TapeTab({ index }: { index: IndexKey }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Pressure Tape */}
+        {/* Pressure Tape — diverging net-flow histogram (bars grow up=buying / down=selling) */}
         <div style={{ padding: '10px 12px 4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <div className="micro-label">Pressure Tape — session order-flow</div>
+            <div className="micro-label">Pressure Tape — net order-flow (bucketed)</div>
             <div style={{ display: 'flex', gap: 12, fontSize: 10, color: T.textMuted }}>
-              <span style={{ color: T.bull }}>■ buy</span>
-              <span style={{ color: T.bear }}>■ sell</span>
-              <span style={{ color: T.textMuted }}>■ flat</span>
+              <span style={{ color: T.bull }}>▲ buying</span>
+              <span style={{ color: T.bear }}>▼ selling</span>
+              <span style={{ color: T.textMuted }}>· balanced</span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 1, height: 30, alignItems: 'stretch' }}>
-            {pressure.map((c, i) => {
-              const bg = c.val > 0.05
-                ? `rgba(46,194,126, ${(0.15 + 0.6 * c.val).toFixed(3)})`
-                : c.val < -0.05
-                ? `rgba(255,95,107, ${(0.15 + 0.6 * Math.abs(c.val)).toFixed(3)})`
-                : 'rgba(93,107,132,0.12)'
-              return (
-                <div
-                  key={i}
-                  title={c.note}
-                  style={{
-                    flex: 1,
-                    minWidth: 2,
-                    backgroundColor: bg,
-                    borderTopLeftRadius: i === 0 ? 4 : 0,
-                    borderBottomLeftRadius: i === 0 ? 4 : 0,
-                    borderTopRightRadius: i === pressure.length - 1 ? 4 : 0,
-                    borderBottomRightRadius: i === pressure.length - 1 ? 4 : 0,
-                  }}
-                />
-              )
-            })}
+          <div style={{ position: 'relative', height: 64, paddingLeft: 62, paddingRight: 78 }}>
+            {/* zero centerline */}
+            <div style={{ position: 'absolute', left: 62, right: 78, top: '50%', height: 1, background: 'rgba(255,255,255,0.06)' }} />
+            <div style={{ position: 'relative', display: 'flex', gap: 2, height: '100%', alignItems: 'stretch' }}>
+              {pressure.map((c, i) => {
+                const up = c.val > 0.03
+                const dn = c.val < -0.03
+                const h = Math.min(46, Math.abs(c.val) * 46)
+                const alpha = (0.35 + 0.5 * Math.abs(c.val)).toFixed(3)
+                const green = `rgba(46,194,126, ${alpha})`
+                const red = `rgba(255,95,107, ${alpha})`
+                return (
+                  <div key={i} title={c.note} style={{ flex: 1, minWidth: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    {/* top half — buying grows up from the centerline */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                      {up && <div style={{ width: '100%', height: h, background: green, borderRadius: '3px 3px 0 0' }} />}
+                      {!up && !dn && <div style={{ width: '100%', height: 3, background: 'rgba(93,107,132,0.35)' }} />}
+                    </div>
+                    {/* bottom half — selling grows down from the centerline */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+                      {dn && <div style={{ width: '100%', height: h, background: red, borderRadius: '0 0 3px 3px' }} />}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
