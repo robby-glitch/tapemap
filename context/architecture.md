@@ -5,7 +5,7 @@
 | Layer     | Technology                          | Role                                    |
 | --------- | ----------------------------------- | --------------------------------------- |
 | Engine    | Python 3.13, stdlib only            | Feature computation, states, events, gamma layer |
-| Server    | Python `http.server` (stdlib)       | Static UI + `/api/data` JSON            |
+| Server    | Python `http.server` (stdlib)       | Static UI + `/api/data` · `/api/chain` · `/api/gex` · POST `/api/token` |
 | UI        | Vanilla HTML/CSS/JS, no build step  | V2 "Replay Dashboard", SVG where needed |
 | Data      | Dhan REST v2 (`dhanhq` SDK + direct `urllib` for `oi:true`) | Historical 1-min OHLCV+OI, chain, live feed later |
 | Ground truth | TradingView CSV exports in `data/` | 3 labeled days for regression        |
@@ -17,7 +17,11 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
 - `engine.py` — ALL analytics: features, ranks, states, events, gamma layer,
   JSON export. The only place trading logic lives.
 - `analyze.py` — thin adapter: CSVs → engine → UI JSON.
-- `server.py` — serving only; zero analytics.
+- `server.py` — serving only; zero analytics. Also POST `/api/token`
+  (validate via chain_live.token_status → write .dhan_token → hot-reload the
+  poller; token never logged). Crash-proof live startup: binds immediately with
+  "starting up" payloads and resolves instruments + builds the tape in the
+  background, so a stale/missing token can't stop boot.
 - `dhan_fetch.py` — all Dhan API access: instrument resolution, day fetch,
   chain fetch, conversion to engine format (incl. self-computed VWAP/σ/pivots).
 - `gamma.py` (Stage 2) — Black-Scholes IV inversion, gamma, GEX profile.
@@ -31,8 +35,9 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
 - `ui/` — rendering only. Parses engine output; computes NO analytics.
 - `data/` — ground-truth CSVs (protected) + fetched day/chain JSON.
 - `context/` — these spec files; the source of truth for behavior.
-- `gan-harness/`, `ui/variant-*.html`, `ui/redesign.html` — design-history
-  archives; never imported by production code.
+- `archive/` — old replay_*.txt regression baselines + superseded UI
+  prototypes (meridian/redesign/tapemap/tapescroll/variant-*); design history,
+  never imported by production code. `gan-harness/` likewise.
 
 ## Storage Model
 
@@ -42,10 +47,11 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
 - `data/chain/chain_<date>.jsonl` — live chain snapshots (one per 5s poll,
   auto-persisted); `data/chain_sample.jsonl` — synthetic mock fixture
   (regenerate via `python make_chain_fixture.py`).
-- `.dhan_token` — single-line JWT, expires ~24h, local only, never committed
-  or embedded in code.
-- `C:\Users\kaam\.claude\plans\before-you-run-any-hashed-bubble.md` — approved
-  gamma-layer plan.
+- `.dhan_token` — single-line JWT, expires ~24h, local only, gitignored,
+  never embedded in code. `.dhan_client` — numeric client id, gitignored.
+- Plans live in `C:\Users\kaam\.claude\plans\` (latest: the post-review
+  remediation plan). Gamma-layer + multi-index specs are under
+  `docs/superpowers/`.
 
 ## Auth and Access Model
 
@@ -97,5 +103,9 @@ Behavioral changes (all regression-clean vs replay_band2.txt / 219 band tags):
   CHOP (intentional BREAK-stream change; BAND events unaffected).
 - **carry_verdict():** on expiry (`self.gamma.t<=0.5`) emits EXPIRY SETTLEMENT
   (weekly options settle 15:30 — no overnight option carry) instead of the
-  OI-retention → next-day-bias read.
-See progress-tracker.md "TAPE-view critique refinements" for full detail/gates.
+  OI-retention → next-day-bias read. On non-expiry days it is now WRITER-AWARE
+  (2026-07-23): retention counts in the direction of who holds the book
+  (writer-built = defended; buyer-built = inverted; clamped at 0), using
+  gamma.w scores which are appended to the message.
+See progress-tracker.md "TAPE-view critique refinements" + the 2026-07-23
+post-review entry for full detail/gates.

@@ -36,7 +36,7 @@ split it.
 ## Handling Missing Requirements
 
 - Do not invent trading logic not defined in context files or the approved
-  plan (`before-you-run-any-hashed-bubble.md`).
+  plan (latest plans live in `~/.claude/plans/`; specs under `docs/superpowers/`).
 - If a requirement is ambiguous, resolve it in the relevant context file
   first (ask the operator if it's a product decision).
 - If a requirement is missing, add it to Open Questions in
@@ -48,7 +48,8 @@ Do not modify unless explicitly instructed:
 
 - `data/*_3day.csv` — ground-truth TradingView exports (immutable).
 - `.dhan_token` — operator-supplied credential.
-- `gan-harness/*`, `ui/variant-*.html`, `ui/redesign.html` — design history.
+- `gan-harness/*`, `archive/*` (old replay_*.txt baselines + variant/redesign/
+  meridian/tapescroll UI prototypes) — design history.
 - `context/ai-workflow-rules.md` — this file (operator's process contract).
 
 ## Keeping Docs in Sync
