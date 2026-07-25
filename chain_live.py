@@ -33,6 +33,22 @@ MOCK_S = 1                             # mock replays 1 snapshot/s (demo pace)
 RR_GAP_S = 3.5                         # gap BETWEEN chain requests (limit: 1/3s)
 WINDOW_PTS = 1500                      # default strike window (cfg overrides)
 
+SESS_OPEN = 9 * 3600 + 15 * 60         # 09:15 IST — NSE/BSE session open
+SESS_CLOSE = 15 * 3600 + 30 * 60       # 15:30 IST — session close
+
+
+def _sec_of_day(now):
+    return now.hour * 3600 + now.minute * 60 + now.second
+
+
+def in_session(now):
+    """True only inside a weekday market session (09:15–15:30 IST). The chain
+    polls/records ONLY inside this window, so overnight/closed-market snapshots
+    never pollute the per-day history — each trading day starts fresh at 09:15."""
+    if now.weekday() >= 5:             # Sat / Sun
+        return False
+    return SESS_OPEN <= _sec_of_day(now) <= SESS_CLOSE
+
 
 def read_token():
     tok = os.environ.get("DHAN_TOKEN", "").strip()
@@ -233,8 +249,13 @@ class ChainPoller(threading.Thread):
     # ---- live: round-robin poll Dhan per index, persist, publish ----
 
     def _warm_start(self, idx, day_file, expiry):
-        """Rebuild today's series for `idx` from its persisted snapshots so a
-        restart never loses history."""
+        """Rebuild today's MARKET-HOURS series for `idx` from its persisted
+        snapshots so a restart never loses history — while skipping any
+        overnight / closed-market snapshots (09:15–15:30 IST only). A full
+        fresh rebuild (state reset first), so it's safe to call on every
+        (re)start and can't double-count."""
+        self.states[idx] = ChainState()          # fresh: warm-start = full rebuild
+        self.prevs[idx] = None
         if not day_file.exists():
             return
         try:
@@ -243,14 +264,18 @@ class ChainPoller(threading.Thread):
             prior = [json.loads(x) for x in
                      day_file.read_text(encoding="utf-8").splitlines()
                      if x.strip()]
+            kept = 0
             for s in prior:
                 hh, mm, ss = (int(x) for x in s["ts"].split(":"))
+                if not (SESS_OPEN <= hh * 3600 + mm * 60 + ss <= SESS_CLOSE):
+                    continue                          # skip closed-market snapshots
                 snap_now = base.replace(hour=hh, minute=mm, second=ss)
                 self.states[idx].update(s, t_years(expiry, snap_now),
                                         self.prevs[idx])
                 self.prevs[idx] = s
-            print(f"chain warm-start {idx}: replayed {len(prior)} snapshots "
-                  f"from {day_file.name}")
+                kept += 1
+            print(f"chain warm-start {idx}: replayed {kept}/{len(prior)} "
+                  f"market-hours snapshots from {day_file.name}")
         except Exception as e:
             print(f"chain warm-start {idx} skipped:", e)
 
@@ -286,11 +311,22 @@ class ChainPoller(threading.Thread):
             for c in self.configs:
                 idx = c["under_sym"]
                 self._warm_start(idx, day_files[idx], expiries[idx])
+            sess_date = today
             while True:                    # inner: round-robin poll loop
                 if self.reload:            # /api/token dropped a fresh token
                     self.reload = False
                     print("chain poller: reloading token / re-resolving expiries")
                     break                  # -> outer loop re-reads token + warm-starts
+                now = datetime.now(IST)
+                if now.strftime("%Y-%m-%d") != sess_date:
+                    print("chain poller: new trading day -> fresh session")
+                    break                  # -> outer: new day_file + clean warm-start
+                if not in_session(now):    # closed: don't poll or record
+                    for c in self.configs:
+                        self._tag_error(c["under_sym"], "live",
+                                        "market closed - polling resumes 09:15 IST")
+                    time.sleep(30)
+                    continue
                 for c in self.configs:
                     idx = c["under_sym"]
                     t0 = time.time()
