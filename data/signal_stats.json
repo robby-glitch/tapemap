@@ -1,0 +1,498 @@
+{
+ "params": {
+  "stop_R": 0.7,
+  "target_R": 1.3,
+  "window": 45,
+  "cost_pts": 1.5,
+  "warmup": 45,
+  "eod": "15:25"
+ },
+ "days": {
+  "backtest_baseline": {
+   "PRESS": {
+    "n": 256,
+    "collapsed": 49,
+    "win": 69,
+    "loss": 121,
+    "other": 66,
+    "hit": 0.363,
+    "ci": [
+     0.298,
+     0.434
+    ],
+    "exp_R": 0.026,
+    "exp_pts": 0.68,
+    "flag": "?"
+   },
+   "DIVERGENCE": {
+    "n": 233,
+    "collapsed": 29,
+    "win": 50,
+    "loss": 114,
+    "other": 69,
+    "hit": 0.305,
+    "ci": [
+     0.24,
+     0.379
+    ],
+    "exp_R": 0.017,
+    "exp_pts": 0.3,
+    "flag": "?"
+   },
+   "SQUEEZE-RISK": {
+    "n": 141,
+    "collapsed": 85,
+    "win": 31,
+    "loss": 65,
+    "other": 45,
+    "hit": 0.323,
+    "ci": [
+     0.238,
+     0.422
+    ],
+    "exp_R": -0.008,
+    "exp_pts": -1.65,
+    "flag": "?"
+   },
+   "TRAP-SETTING": {
+    "n": 168,
+    "collapsed": 29,
+    "win": 33,
+    "loss": 77,
+    "other": 58,
+    "hit": 0.3,
+    "ci": [
+     0.222,
+     0.391
+    ],
+    "exp_R": -0.02,
+    "exp_pts": -0.99,
+    "flag": "?"
+   },
+   "BAND-REVERSAL": {
+    "n": 168,
+    "collapsed": 25,
+    "win": 36,
+    "loss": 93,
+    "other": 39,
+    "hit": 0.279,
+    "ci": [
+     0.209,
+     0.362
+    ],
+    "exp_R": -0.07,
+    "exp_pts": -2.22,
+    "flag": "?"
+   },
+   "OI-PEAK-LAG": {
+    "n": 172,
+    "collapsed": 4,
+    "win": 33,
+    "loss": 74,
+    "other": 65,
+    "hit": 0.308,
+    "ci": [
+     0.229,
+     0.401
+    ],
+    "exp_R": -0.033,
+    "exp_pts": -2.22,
+    "flag": "?"
+   },
+   "TRAP-SPRUNG": {
+    "n": 157,
+    "collapsed": 10,
+    "win": 28,
+    "loss": 78,
+    "other": 51,
+    "hit": 0.264,
+    "ci": [
+     0.19,
+     0.355
+    ],
+    "exp_R": -0.074,
+    "exp_pts": -3.35,
+    "flag": "?"
+   },
+   "CAMPAIGN": {
+    "n": 118,
+    "collapsed": 16,
+    "win": 30,
+    "loss": 65,
+    "other": 23,
+    "hit": 0.316,
+    "ci": [
+     0.231,
+     0.415
+    ],
+    "exp_R": -0.057,
+    "exp_pts": -2.49,
+    "flag": "?"
+   },
+   "SPRING": {
+    "n": 54,
+    "collapsed": 3,
+    "win": 10,
+    "loss": 25,
+    "other": 19,
+    "hit": 0.286,
+    "ci": [
+     0.163,
+     0.451
+    ],
+    "exp_R": 0.005,
+    "exp_pts": 1.55,
+    "flag": "?"
+   },
+   "BUYER-BUILD": {
+    "n": 43,
+    "collapsed": 0,
+    "win": 5,
+    "loss": 26,
+    "other": 12,
+    "hit": 0.161,
+    "ci": [
+     0.071,
+     0.326
+    ],
+    "exp_R": -0.229,
+    "exp_pts": -7.97,
+    "flag": "-"
+   },
+   "ARMED": {
+    "n": 39,
+    "collapsed": 1,
+    "win": 9,
+    "loss": 13,
+    "other": 17,
+    "hit": 0.409,
+    "ci": [
+     0.233,
+     0.613
+    ],
+    "exp_R": 0.109,
+    "exp_pts": 6.33,
+    "flag": "?"
+   },
+   "IGNITION": {
+    "n": 34,
+    "collapsed": 0,
+    "win": 13,
+    "loss": 18,
+    "other": 3,
+    "hit": 0.419,
+    "ci": [
+     0.264,
+     0.592
+    ],
+    "exp_R": 0.166,
+    "exp_pts": 4.89,
+    "flag": "?"
+   }
+  },
+  "2026-07-27": {
+   "TRAP-SETTING": {
+    "n": 7,
+    "collapsed": 2,
+    "win": 1,
+    "loss": 4,
+    "other": 2,
+    "hit": 0.2,
+    "ci": [
+     0.036,
+     0.624
+    ],
+    "exp_R": -0.242,
+    "exp_pts": -6.62,
+    "flag": "?"
+   },
+   "SQUEEZE-RISK": {
+    "n": 4,
+    "collapsed": 6,
+    "win": 0,
+    "loss": 2,
+    "other": 2,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.658
+    ],
+    "exp_R": -0.112,
+    "exp_pts": -2.46,
+    "flag": "?"
+   },
+   "BAND-REVERSAL": {
+    "n": 4,
+    "collapsed": 1,
+    "win": 0,
+    "loss": 2,
+    "other": 2,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.658
+    ],
+    "exp_R": -0.42,
+    "exp_pts": -12.02,
+    "flag": "?"
+   },
+   "DIVERGENCE": {
+    "n": 5,
+    "collapsed": 1,
+    "win": 1,
+    "loss": 3,
+    "other": 1,
+    "hit": 0.25,
+    "ci": [
+     0.046,
+     0.699
+    ],
+    "exp_R": -0.246,
+    "exp_pts": -8.21,
+    "flag": "?"
+   },
+   "PRESS": {
+    "n": 5,
+    "collapsed": 2,
+    "win": 1,
+    "loss": 3,
+    "other": 1,
+    "hit": 0.25,
+    "ci": [
+     0.046,
+     0.699
+    ],
+    "exp_R": -0.274,
+    "exp_pts": -7.62,
+    "flag": "?"
+   },
+   "OI-PEAK-LAG": {
+    "n": 4,
+    "collapsed": 0,
+    "win": 1,
+    "loss": 2,
+    "other": 1,
+    "hit": 0.333,
+    "ci": [
+     0.061,
+     0.792
+    ],
+    "exp_R": 0.146,
+    "exp_pts": 5.98,
+    "flag": "?"
+   },
+   "TRAP-SPRUNG": {
+    "n": 4,
+    "collapsed": 1,
+    "win": 0,
+    "loss": 3,
+    "other": 1,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.562
+    ],
+    "exp_R": -0.518,
+    "exp_pts": -14.04,
+    "flag": "?"
+   },
+   "CAMPAIGN": {
+    "n": 3,
+    "collapsed": 1,
+    "win": 1,
+    "loss": 2,
+    "other": 0,
+    "hit": 0.333,
+    "ci": [
+     0.061,
+     0.792
+    ],
+    "exp_R": -0.085,
+    "exp_pts": -3.26,
+    "flag": "?"
+   },
+   "ARMED": {
+    "n": 4,
+    "collapsed": 0,
+    "win": 1,
+    "loss": 2,
+    "other": 1,
+    "hit": 0.333,
+    "ci": [
+     0.061,
+     0.792
+    ],
+    "exp_R": 0.017,
+    "exp_pts": 0.35,
+    "flag": "?"
+   },
+   "IGNITION": {
+    "n": 2,
+    "collapsed": 1,
+    "win": 0,
+    "loss": 1,
+    "other": 1,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.793
+    ],
+    "exp_R": -0.29,
+    "exp_pts": -7.54,
+    "flag": "?"
+   },
+   "BUYER-BUILD": {
+    "n": 2,
+    "collapsed": 0,
+    "win": 0,
+    "loss": 1,
+    "other": 1,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.793
+    ],
+    "exp_R": -0.255,
+    "exp_pts": -6.65,
+    "flag": "?"
+   },
+   "SPRING": {
+    "n": 2,
+    "collapsed": 0,
+    "win": 0,
+    "loss": 1,
+    "other": 1,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.793
+    ],
+    "exp_R": -0.536,
+    "exp_pts": -15.0,
+    "flag": "?"
+   }
+  }
+ },
+ "rolling": {
+  "PRESS": {
+   "win": 70,
+   "loss": 124,
+   "n": 261,
+   "hit": 0.361,
+   "ci": [
+    0.297,
+    0.431
+   ]
+  },
+  "DIVERGENCE": {
+   "win": 51,
+   "loss": 117,
+   "n": 238,
+   "hit": 0.304,
+   "ci": [
+    0.239,
+    0.377
+   ]
+  },
+  "SQUEEZE-RISK": {
+   "win": 31,
+   "loss": 67,
+   "n": 145,
+   "hit": 0.316,
+   "ci": [
+    0.233,
+    0.414
+   ]
+  },
+  "TRAP-SETTING": {
+   "win": 34,
+   "loss": 81,
+   "n": 175,
+   "hit": 0.296,
+   "ci": [
+    0.22,
+    0.385
+   ]
+  },
+  "BAND-REVERSAL": {
+   "win": 36,
+   "loss": 95,
+   "n": 172,
+   "hit": 0.275,
+   "ci": [
+    0.206,
+    0.357
+   ]
+  },
+  "OI-PEAK-LAG": {
+   "win": 34,
+   "loss": 76,
+   "n": 176,
+   "hit": 0.309,
+   "ci": [
+    0.23,
+    0.401
+   ]
+  },
+  "TRAP-SPRUNG": {
+   "win": 28,
+   "loss": 81,
+   "n": 161,
+   "hit": 0.257,
+   "ci": [
+    0.184,
+    0.346
+   ]
+  },
+  "CAMPAIGN": {
+   "win": 31,
+   "loss": 67,
+   "n": 121,
+   "hit": 0.316,
+   "ci": [
+    0.233,
+    0.414
+   ]
+  },
+  "SPRING": {
+   "win": 10,
+   "loss": 26,
+   "n": 56,
+   "hit": 0.278,
+   "ci": [
+    0.158,
+    0.44
+   ]
+  },
+  "BUYER-BUILD": {
+   "win": 5,
+   "loss": 27,
+   "n": 45,
+   "hit": 0.156,
+   "ci": [
+    0.069,
+    0.318
+   ]
+  },
+  "ARMED": {
+   "win": 10,
+   "loss": 15,
+   "n": 43,
+   "hit": 0.4,
+   "ci": [
+    0.234,
+    0.593
+   ]
+  },
+  "IGNITION": {
+   "win": 13,
+   "loss": 19,
+   "n": 36,
+   "hit": 0.406,
+   "ci": [
+    0.255,
+    0.577
+   ]
+  }
+ }
+}
