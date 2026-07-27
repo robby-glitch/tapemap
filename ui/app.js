@@ -21,6 +21,7 @@ const EVC = { IGNITION:"#ffbf00", CLIMAX:"#ffbf00", ARMED:"#8b5cf6", SPRING:"#8b
               "GAMMA-PIN":"#3fc1c9", "SQUEEZE-RISK":"#3fc1c9",
               "SQUEEZE-RELEASE":"#3fc1c9", "TRAP-SETTING":"#ffbf00",
               "TRAP-SPRUNG":"#ff5f6b", "SPRING-FAIL":"#ff5f6b",
+              CONFLICT:"#e8c15a",
               "OI-PEAK-LAG":"#ffbf00", "BAND-REVERSAL":"#8b5cf6",
               "BAND-BREAK":"#ff5f6b", CHOP:"#c9a24a" };
 
@@ -163,7 +164,8 @@ async function boot(){
   const savedSub = lsGet("chsub");
   if(savedSub && document.body.classList.contains("dataMode")) setChainSub(savedSub);
   if(S.data.live || S.data.index){        // live mode (bars may be pending pre-market)
-    document.getElementById("brand").innerHTML = "TAPE<span>MAP</span> ●LIVE";
+    document.getElementById("brand").innerHTML =
+      "TAPE<span>MAP</span> <em class='livedot'>● LIVE</em>";
     setInterval(async () => {
       try{
         const nd = await (await fetch(IDXQ("/api/data"))).json();
@@ -1747,7 +1749,8 @@ function renderFeed(i){
     const ev = evs[S.feedPtr++];
     if(ev.kind === "STATE"){ continue; }
     const div = document.createElement("div");
-    div.className = "ev" + (LOUD.has(ev.kind) ? " loud" : "");
+    div.className = "ev" + (LOUD.has(ev.kind) ? " loud" : "")
+                         + (ev.kind === "CONFLICT" ? " conflict" : "");
     div.style.borderLeftColor = EVC[ev.kind] || "#5d6b84";
     div.dataset.t = ev.t;                       // click-to-seek target
     if(ev.data?.times?.length > 1)              // ×N collapsed events: list them
