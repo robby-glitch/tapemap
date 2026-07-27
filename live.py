@@ -11,22 +11,48 @@ Standalone check:  python live.py         (resolves NIFTY, prints bars/state)
 Serving:           python server.py live  (refreshes every REFRESH_S)
 """
 
-import csv
-import io
 import json
 import math
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
+import instruments
 from engine import Session, session_json
-from instruments import SCRIP_URL
 
 IST = timezone(timedelta(hours=5, minutes=30))
 REFRESH_S = 15
 INTRADAY_URL = "https://api.dhan.co/v2/charts/intraday"
+STICK_F = Path(__file__).parent / "data" / "stick_state.json"
 
-_stick = {}                             # per-index sticky-ATM state: sym -> {...}
+_ids_cache = {}                         # (sym, expiry, strike) -> {"CE": id, "PE": id}
+_piv_cache = {}                         # (sym, prev_day) -> pivots dict
+
+
+def _load_stick():
+    """Sticky-ATM state survives a mid-day restart (same day only — a strike
+    carried over from Friday would poison Monday's hysteresis)."""
+    try:
+        d = json.loads(STICK_F.read_text(encoding="utf-8"))
+        if d.get("day") == datetime.now(IST).strftime("%Y-%m-%d"):
+            return d.get("sticks", {})
+    except Exception:
+        pass
+    return {}
+
+
+def _save_stick():
+    try:
+        STICK_F.parent.mkdir(parents=True, exist_ok=True)
+        STICK_F.write_text(json.dumps(
+            {"day": datetime.now(IST).strftime("%Y-%m-%d"), "sticks": _stick}),
+            encoding="utf-8")
+    except OSError:
+        pass                            # persistence is best-effort
+
+
+_stick = _load_stick()                  # per-index sticky-ATM state: sym -> {...}
 
 
 def _token():
@@ -43,6 +69,7 @@ def _pick_strike(F, cfg):
     cand = round(F / step) * step
     if st["strike"] is None:
         st["strike"], st["drift"] = cand, 0
+        _save_stick()
         return cand
     if cand != st["strike"] and abs(F - st["strike"]) > 0.6 * step:
         st["drift"] += 1
@@ -50,6 +77,7 @@ def _pick_strike(F, cfg):
         st["drift"] = 0
     if st["drift"] >= 5:
         st["strike"], st["drift"] = cand, 0
+    _save_stick()
     return st["strike"]
 
 
@@ -60,22 +88,30 @@ def _intraday(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO"):
     req = urllib.request.Request(INTRADAY_URL, data=body, method="POST",
                                  headers={"Content-Type": "application/json",
                                           "access-token": tok})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode())
+    return json.loads(
+        instruments.fetch_bytes(req, 20, f"intraday {sec_id}").decode())
 
 
-def _atm_ids(tok, strike, cfg):
+def _atm_ids(strike, cfg):
     """CE/PE security ids for the strike nearest `strike` at cfg['expiry'].
 
-    Resolved from the detailed scrip master, matched on
-    UNDERLYING_SYMBOL / INSTRUMENT / OPTION_TYPE / STRIKE_PRICE — uniform across
-    NSE and BSE (SENSEX option trading symbols are the generic 'BSXOPT', so a
-    trading-symbol prefix match would fail). Picks the nearest listed strike so
-    a step mismatch never leaves a leg unresolved."""
-    raw = urllib.request.urlopen(SCRIP_URL, timeout=60).read().decode("utf-8", "replace")
+    Matched on UNDERLYING_SYMBOL / INSTRUMENT / OPTION_TYPE / STRIKE_PRICE —
+    uniform across NSE and BSE (SENSEX option trading symbols are the generic
+    'BSXOPT', so a trading-symbol prefix match would fail).
+
+    Resolved ONCE per (index, expiry, strike) from the daily scrip-master
+    cache and remembered — the ids only change when the sticky strike migrates
+    or expiry rolls. Re-downloading the 37 MB master per refresh cycle is what
+    froze the tape on 2026-07-27. Both legs must resolve within one strike
+    step; anything farther means a stale/truncated master and must fail loudly
+    rather than chart the wrong contract."""
+    key = (cfg["under_sym"], cfg["expiry"], strike)
+    ids = _ids_cache.get(key)
+    if ids:
+        return ids
     sym, exp = cfg["under_sym"], cfg["expiry"]
     best = {}                                    # option_type -> (dist, sec_id)
-    for r in csv.DictReader(io.StringIO(raw)):
+    for r in instruments._load_scrip():
         if (r.get("UNDERLYING_SYMBOL") == sym
                 and r.get("INSTRUMENT") == "OPTIDX"
                 and (r.get("SM_EXPIRY_DATE") or "")[:10] == exp
@@ -87,18 +123,30 @@ def _atm_ids(tok, strike, cfg):
             ot = r["OPTION_TYPE"]
             if ot not in best or dist < best[ot][0]:
                 best[ot] = (dist, r["SECURITY_ID"])
-    return {ot: sid for ot, (_d, sid) in best.items()}
+    if set(best) != {"CE", "PE"} or max(d for d, _s in best.values()) > cfg["step"]:
+        got = {ot: round(d) for ot, (d, _s) in best.items()}
+        raise RuntimeError(f"{sym} {exp}: ATM legs unresolved near {strike:.0f} "
+                           f"(nearest {got}) — scrip master stale or truncated?")
+    ids = {ot: sid for ot, (_d, sid) in best.items()}
+    _ids_cache[key] = ids
+    return ids
 
 
 def _pivots(tok, cfg):
-    """Standard pivots off the prior session's FUT H/L/C."""
+    """Standard pivots off the prior session's FUT H/L/C — fetched once per
+    (index, prior day); yesterday's bars cannot change intraday."""
+    key = (cfg["under_sym"], cfg["prev_day"])
+    if key in _piv_cache:
+        return _piv_cache[key]
     d = _intraday(tok, cfg["fut_id"], "FUTIDX", cfg["prev_day"], oi=False,
                   seg=cfg["fut_seg"])
     H, L, C = max(d["high"]), min(d["low"]), d["close"][-1]
     P = (H + L + C) / 3.0
-    return {"P": P, "R1": 2 * P - L, "S1": 2 * P - H,
-            "R2": P + (H - L), "S2": P - (H - L),
-            "R3": H + 2 * (P - L), "S3": L - 2 * (H - P)}
+    piv = {"P": P, "R1": 2 * P - L, "S1": 2 * P - H,
+           "R2": P + (H - L), "S2": P - (H - L),
+           "R3": H + 2 * (P - L), "S3": L - 2 * (H - P)}
+    _piv_cache[key] = piv
+    return piv
 
 
 def _bars(d, piv):
@@ -137,9 +185,10 @@ def build_payload(cfg):
     fut_raw = _intraday(tok, cfg["fut_id"], "FUTIDX", today, seg=seg)
     if not fut_raw.get("close"):
         return json.dumps({"index": cfg["under_sym"], "strike": None, "days": [],
+                           "built_at": time.time(),
                            "live_error": "no bars yet for " + today}).encode()
     strike = float(_pick_strike(fut_raw["close"][-1], cfg))
-    ids = _atm_ids(tok, strike, cfg)
+    ids = _atm_ids(strike, cfg)
     time.sleep(0.22)
     ce_raw = _intraday(tok, ids["CE"], "OPTIDX", today, seg=seg)
     time.sleep(0.22)
@@ -165,7 +214,8 @@ def build_payload(cfg):
     if js["bars"] and js["bars"][-1]["t"] < "15:25":
         js["events"] = [e for e in js["events"] if e["kind"] != "CARRY"]
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
-                       "expiry": cfg["expiry"], "days": [js]}).encode()
+                       "expiry": cfg["expiry"], "built_at": time.time(),
+                       "days": [js]}).encode()
 
 
 if __name__ == "__main__":

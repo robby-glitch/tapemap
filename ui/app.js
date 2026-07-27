@@ -51,6 +51,20 @@ function showBanner(msg, ok=false){
 }
 function hideBanner(){ const b = $("liveBanner"); if(b) b.classList.add("hidden"); }
 
+// --- bar-builder heartbeat: a stale tape must never look live ---
+// (2026-07-27: the bar builder hung for an hour while the UI kept rendering
+// the last payload as if it were current). Server stamps built_at (epoch s);
+// same machine, so client-clock skew is negligible.
+function staleCheck(nd){
+  if(!nd || !nd.built_at) return false;          // old server: no heartbeat
+  const age = Date.now()/1000 - nd.built_at;
+  if(age <= 90) return false;                    // healthy: builds every ~15-40s
+  const t = new Date(nd.built_at*1000).toLocaleTimeString("en-GB");
+  showBanner(`TAPE STALE — bars last built ${t} (${Math.round(age/60)} min ago); ` +
+             `chain view may still be live — check the server window / tapemap.log`);
+  return true;
+}
+
 // --- one-click Dhan token capture (clipboard first, paste fallback) ---
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;   // fast client sanity; server re-validates
 async function captureToken(){
@@ -137,14 +151,14 @@ async function boot(){
     setInterval(async () => {
       try{
         const nd = await (await fetch(IDXQ("/api/data"))).json();
-        if(!nd.days || !nd.days.length) return;
+        if(!nd.days || !nd.days.length){ staleCheck(nd); return; }
         const atEnd = S.i >= (S.day ? S.day.bars.length - 1 : 0);
         const keep = S.i;
         S.data = nd;
         setDay(nd.days.length - 1);
         seek(atEnd ? S.day.bars.length - 1
                    : Math.min(keep, S.day.bars.length - 1));
-        hideBanner();
+        if(!staleCheck(nd)) hideBanner();
       }catch(e){ showBanner("live refresh failing — showing last good data"); }
     }, 60000);
   }
@@ -168,7 +182,7 @@ async function bootData(){
     showBanner(S.data.live_error || "no data for this index yet");
     return;
   }
-  hideBanner();
+  if(!staleCheck(S.data)) hideBanner();
   setDay(S.data.days.length - 1);
   seek(S.day.bars.length - 1);           // open on the newest bar
 }
