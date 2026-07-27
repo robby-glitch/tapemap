@@ -127,6 +127,22 @@ async function boot(){
   $("playBtn").onclick = togglePlay;
   $("scrub").oninput = e => { seek(+e.target.value); };
   $("tokBtn").onclick = captureToken;
+  // FOCUS/ALL narrative-log toggle (persisted; default FOCUS)
+  S.focus = lsGet("focus") !== "0";
+  const fb = $("focusBtn");
+  if(fb){
+    const paint = () => { fb.textContent = S.focus ? "FOCUS" : "ALL"; };
+    paint();
+    fb.onclick = () => {
+      S.focus = !S.focus;
+      lsSet("focus", S.focus ? "1" : "0");
+      S._focusSig = null;
+      $("feed").innerHTML = "";
+      S.feedPtr = 0;
+      paint();
+      if(S.day) renderFeed(S.i);
+    };
+  }
   // restore persisted prefs BEFORE loading data
   const savedIdx = lsGet("index");
   if(savedIdx && [...$("idxTabs").children].some(c => c.dataset.idx === savedIdx)){
@@ -231,6 +247,82 @@ function seek(i){
 /* ---------- helpers over engine events ---------- */
 
 function eventsUpTo(i){ return S.day.events.filter(e => S.tIdx[e.t] !== undefined && S.tIdx[e.t] <= i); }
+
+/* ---------- FOCUS feed: thin the narrative log, never the panels ----------
+   The engine's events are evidence lines; on a busy day the log printed ~90+
+   of them (2026-07-27: one every ~90s, with same-minute contradictions).
+   FOCUS shows a readable subset: no TRAP-SETTING (TRAP RADAR carries arming),
+   no [LOW] band tags, one line per kind+direction per 10 min, and opposing
+   same-minute signals collapsed into a single CONFLICT line. */
+function evDir(e){
+  const k = e.kind, m = (e.msg || "").toUpperCase(), s = e.data && e.data.side;
+  if(k === "BAND-REVERSAL") return m.includes("+2") ? -1 : (m.includes("-2") ? 1 : 0);
+  if(k === "TRAP-SPRUNG" || k === "TRAP-SETTING")
+    return m.includes("BULL") ? -1 : (m.includes("BEAR") ? 1 : 0);
+  if(k === "PRESS" || k === "CAMPAIGN" || k === "BUYER-BUILD")
+    return m.includes("BULLISH") ? 1 : (m.includes("BEARISH") ? -1 : 0);
+  if(k === "OI-PEAK-LAG") return m.includes("UPWARD") ? 1 : (m.includes("DOWNWARD") ? -1 : 0);
+  if(k === "SQUEEZE-RISK") return m.includes("UPSIDE") ? 1 : (m.includes("DOWNSIDE") ? -1 : 0);
+  if(k === "DIVERGENCE") return m.includes("HIGH") ? -1 : (m.includes("LOW") ? 1 : 0);
+  if(k === "IGNITION") return (m.startsWith("UP") || m.includes("UP:")) ? 1 : -1;
+  if(k === "ARMED" || k === "SPRING") return s === "UP" ? 1 : (s === "DN" ? -1 : 0);
+  return 0;
+}
+function buildFocusFeed(events){
+  const tmin = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+  const lastShown = {};                     // kind|dir -> minute last emitted
+  const lastDir = {};                       // dir -> minute a directional line showed
+  const out = [];
+  const byT = new Map();
+  for(const e of events){
+    if(e.kind === "STATE" || e.kind === "TRAP-SETTING") continue;
+    if(e.kind === "BAND-REVERSAL" && e.msg.includes("[LOW]")) continue;
+    if(!byT.has(e.t)) byT.set(e.t, []);
+    byT.get(e.t).push(e);
+  }
+  for(const [t, group] of byT){
+    const bulls = group.filter(e => evDir(e) > 0), bears = group.filter(e => evDir(e) < 0);
+    const rest  = group.filter(e => evDir(e) === 0);
+    const emit = e => {
+      const d = evDir(e), key = e.kind + "|" + d;
+      if(lastShown[key] !== undefined && tmin(t) - lastShown[key] <= 10) return;
+      // cross-kind: a quiet kind repeating the direction the log just told
+      // (within 8 min) is the same story, not new evidence — stay silent
+      if(d && !LOUD.has(e.kind)
+           && lastDir[d] !== undefined && tmin(t) - lastDir[d] <= 8) return;
+      lastShown[key] = tmin(t);
+      if(d) lastDir[d] = tmin(t);
+      out.push(e);
+    };
+    if(bulls.length && bears.length){       // contradictory minute: one line
+      rest.forEach(emit);
+      emit({t, kind: "CONFLICT",
+            msg: `mixed evidence this minute — bull: ${bulls.map(e=>e.kind).join("+")} `
+               + `vs bear: ${bears.map(e=>e.kind).join("+")} — no clean read, stand aside`});
+    } else {
+      rest.forEach(emit);
+      for(const side of [bulls, bears]){    // same-direction chorus: one line
+        if(!side.length) continue;
+        if(side.length === 1){ emit(side[0]); continue; }
+        const lead = side[0];
+        side.slice(1).forEach(e => { lastShown[e.kind + "|" + evDir(e)] = tmin(t); });
+        emit({t, kind: lead.kind, data: lead.data,
+              msg: lead.msg + ` · +${side.length - 1} agreeing: `
+                 + side.slice(1).map(e => e.kind).join(", ")});
+      }
+    }
+  }
+  return out;
+}
+function feedEvents(){
+  if(!S.focus) return S.day.events;
+  const sig = S.day.day + ":" + S.day.events.length;
+  if(S._focusSig !== sig){
+    S._focusSig = sig;
+    S._focusList = buildFocusFeed(S.day.events);
+  }
+  return S._focusList;
+}
 function minutesAgo(i, t){ return i - S.tIdx[t]; }
 function parseLevel(msg){
   const m = msg.match(/at (R\d|S\d|P) (\d+)/);
@@ -1648,10 +1740,11 @@ function renderVol(c, g){
 
 function renderFeed(i){
   const feed = $("feed");
+  const evs = feedEvents();
   let added = false;
-  while(S.feedPtr < S.day.events.length &&
-        (S.tIdx[S.day.events[S.feedPtr].t] ?? 1e9) <= i){
-    const ev = S.day.events[S.feedPtr++];
+  while(S.feedPtr < evs.length &&
+        (S.tIdx[evs[S.feedPtr].t] ?? 1e9) <= i){
+    const ev = evs[S.feedPtr++];
     if(ev.kind === "STATE"){ continue; }
     const div = document.createElement("div");
     div.className = "ev" + (LOUD.has(ev.kind) ? " loud" : "");
