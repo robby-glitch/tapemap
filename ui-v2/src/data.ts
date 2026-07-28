@@ -41,6 +41,9 @@ export interface StrikeRow {
   gex: number
   ceW: number
   peW: number
+  /** Session-high OI per book; drives the "% off peak" defenders read. */
+  cePk: number
+  pePk: number
   type?: 'callwall' | 'putwall' | 'atm'
 }
 export interface Chain {
@@ -49,6 +52,20 @@ export interface Chain {
   gex: string
   squeeze: string
   strikes: StrikeRow[]
+  /** Signed distance from spot to max pain (+ = pin sits above). */
+  mpDist: number
+  /** Gamma concentrated at the strikes either side of spot, not chain-wide. */
+  gexSpot: number
+  /** [lo, hi] of the strikes carrying the heavy books, or null. */
+  bookZone: [number, number] | null
+  /**
+   * False when price has walked outside the heavy books. Critical nuance:
+   * gex_total collapses BOTH when dampening genuinely dies and when price
+   * simply leaves the gamma — opposite meanings. On 2026-07-28 it read 120k
+   * at the 15:01 low (outside the zone) and 1.56M twenty minutes later back
+   * at 24,000; reading the first as "dampening over" cost a bad call.
+   */
+  inBookZone: boolean
 }
 export interface EventItem {
   time: string
@@ -299,6 +316,8 @@ function mapIndex(D: any, C: any): PerIndex {
       gex: s.gex ?? 0,
       ceW: s.ce_w ?? 0,
       peW: s.pe_w ?? 0,
+      cePk: s.ce_pk ?? s.ce?.oi ?? 0,
+      pePk: s.pe_pk ?? s.pe?.oi ?? 0,
       type: (s.k === atm ? 'atm' : s.k === wallUp ? 'callwall' : s.k === wallDn ? 'putwall' : undefined) as StrikeRow['type'],
     }))
     .reverse() // highest strike on top, matching the design ladder
@@ -308,19 +327,43 @@ function mapIndex(D: any, C: any): PerIndex {
     gex: gexR === 'POSITIVE' ? 'Positive' : gexR === 'NEGATIVE' ? 'Negative' : 'Neutral',
     squeeze: sqScore > 0.3 ? 'High' : sqScore > 0.1 ? 'Medium' : 'Low',
     strikes,
+    mpDist: m.mp_dist ?? ((m.max_pain ?? 0) - (C?.spot ?? 0)),
+    gexSpot: m.gex_spot ?? 0,
+    bookZone: Array.isArray(m.book_zone) && m.book_zone.length === 2
+      ? [m.book_zone[0], m.book_zone[1]] : null,
+    // default TRUE: an older backend that omits the field should not make the
+    // UI cry "outside the books" on every tick
+    inBookZone: m.in_book_zone !== false,
   }
 
-  // EVENTS
+  // EVENTS — engine narrative PLUS the chain's structural events. The engine
+  // only watches books at one ATM strike, so a wall changing hands is
+  // invisible to it: on 2026-07-28 the 24,000 strike flipped ceiling->floor in
+  // the morning and back in the afternoon, each the decisive move of its half
+  // of the session, and neither produced a single line of narrative.
+  const wallLog: any[] = C?.metrics?.wall_log ?? []
+  const wallEvents: EventItem[] = wallLog.map((e) => ({
+    time: String(e.ts ?? '').slice(0, 5),
+    text: trimMsg(e.msg ?? ''),
+    tag: e.kind ?? 'WALL',
+    dir: e.side === 'UP' ? 'bull' : e.side === 'DN' ? 'bear' : 'neutral',
+  }))
   const evs: any[] = day.events ?? []
-  const events: EventItem[] = evs
-    .slice(-10)
-    .reverse()
-    .map((e) => ({
-      time: e.t,
-      text: (EVENT_PREFIX[e.kind] || '') + trimMsg(e.msg),
-      tag: e.kind,
-      dir: eventDir(e),
-    }))
+  const engineEvents: EventItem[] = evs.map((e) => ({
+    time: e.t,
+    text: (EVENT_PREFIX[e.kind] || '') + trimMsg(e.msg),
+    tag: e.kind,
+    dir: eventDir(e),
+  }))
+  const byTime = (a: EventItem, b2: EventItem) =>
+    a.time < b2.time ? -1 : a.time > b2.time ? 1 : 0
+  // A wall changing hands is the headline of a session, so it must not be
+  // croppable by however many ordinary events happened to fire after it.
+  // Keep the last 10 overall PLUS the last 3 structural ones regardless.
+  const tail = [...engineEvents, ...wallEvents].sort(byTime).slice(-10)
+  const events: EventItem[] = Array.from(
+    new Set([...tail, ...wallEvents.slice(-3)]),
+  ).sort(byTime).reverse()
 
   // CHART_DATA
   const chart: ChartPoint[] = bars.map((bar: any) => ({
@@ -345,7 +388,10 @@ function mapIndex(D: any, C: any): PerIndex {
   const gDir: HeatTone = /UP|FLOOR/.test(gRegime) ? 'bull' : /DOWN|CEILING/.test(gRegime) ? 'bear' : 'neutral'
   const prevRegime: string | undefined = bars[Math.max(0, bars.length - 15)]?.gamma?.regime
   const gammaFlip = prevRegime != null && prevRegime !== gRegime
-  const sqz = m.squeeze ?? { side: 'DOWN', score: 0 }
+  // squeeze.side is deliberately null when no book qualifies — and always null
+  // inside the expiry squaring window, where chain-wide OI decay carries no
+  // direction. Rendering that as "null 0.00" is worse than saying nothing.
+  const sqz = { side: (m.squeeze?.side as string | null) ?? null, score: m.squeeze?.score ?? 0 }
   const heat: HeatCell[] = [
     { label: pctLbl(f.vol_r), intensity: clamp01(f.vol_r), dir: pDir4 > 0 ? 'bull' : pDir4 < 0 ? 'bear' : 'neutral', spike: (f.vol_r ?? 0) >= 0.8 },
     { label: pctLbl(f.oi_r), intensity: clamp01(f.oi_r), dir: f.oi_slope > 0 ? (pDir4 > 0 ? 'bull' : 'bear') : 'neutral', spike: (f.oi_r ?? 0) >= 0.8 },
@@ -354,7 +400,10 @@ function mapIndex(D: any, C: any): PerIndex {
     { label: pctLbl(pe.vol_r), intensity: clamp01(pe.vol_r), dir: pe.prem_d > 0 ? 'bear' : pe.prem_d < 0 ? 'bull' : 'neutral', spike: (pe.vol_r ?? 0) >= 0.8 },
     { label: pctLbl(pe.oi_r), intensity: clamp01(pe.oi_r), dir: pe.oi_slope > 0 ? (pe.prem_d < 0 ? 'bull' : 'bear') : 'neutral', spike: (pe.oi_r ?? 0) >= 0.8 },
     { label: gRegime, intensity: gInt, dir: gDir, spike: gammaFlip || gInt >= 0.9 },
-    { label: `${sqz.side} ${sqScore.toFixed(2)}`, intensity: Math.min(1, sqScore / 0.4), dir: sqz.side === 'UP' ? 'bull' : 'bear', spike: sqScore >= 0.3 },
+    { label: sqz.side ? `${sqz.side} ${sqScore.toFixed(2)}` : 'NONE',
+      intensity: sqz.side ? Math.min(1, sqScore / 0.4) : 0,
+      dir: sqz.side === 'UP' ? 'bull' : sqz.side === 'DOWN' ? 'bear' : 'neutral',
+      spike: !!sqz.side && sqScore >= 0.3 },
   ]
 
   // PRESSURE — bucketed net order-flow (≤ ~60 buckets) so it reads as a histogram,

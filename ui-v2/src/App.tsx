@@ -207,12 +207,21 @@ const MOCK_CHART_DATA: Record<IndexKey, ReturnType<typeof makeIntraday>> = {
 
 // Augment the mock strike ladder with the heatmap fields the live shape now carries.
 function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
+  const ks = c.strikes.map(s => s.strike)
   return {
     ...c,
     strikes: c.strikes.map((s) => {
       const tot = s.ceOI + s.peOI || 1
-      return { ...s, gex: s.ceOI - s.peOI, ceW: +(s.ceOI / tot).toFixed(2), peW: +(s.peOI / tot).toFixed(2) }
+      return {
+        ...s, gex: s.ceOI - s.peOI,
+        ceW: +(s.ceOI / tot).toFixed(2), peW: +(s.peOI / tot).toFixed(2),
+        cePk: s.ceOI, pePk: s.peOI,     // placeholder: "at peak", so 0% off
+      }
     }),
+    mpDist: 0,
+    gexSpot: 0,
+    bookZone: ks.length ? [Math.min(...ks), Math.max(...ks)] : null,
+    inBookZone: true,
   }
 }
 
@@ -802,6 +811,25 @@ function TapeTab({ index }: { index: IndexKey }) {
   )
 }
 
+/* How far a book has fallen from its own session high. A wall at full strength
+   and a wall that has quietly lost a third of its defenders look identical if
+   you only print current OI — and that difference is the whole game. Shown
+   only once it is worth reacting to. */
+function OffPeak({ oi, pk }: { oi: number; pk: number }) {
+  if (!pk || pk <= 0) return null
+  const off = 1 - oi / pk
+  if (off < 0.08) return null
+  return (
+    <span className="mono" title={`session peak ${Math.round(pk).toLocaleString('en-IN')}`}
+      style={{
+        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.02em',
+        color: off >= 0.30 ? T.caution : T.textSecondary, opacity: 0.95,
+      }}>
+      −{Math.round(off * 100)}%
+    </span>
+  )
+}
+
 function ChainTab({ index }: { index: IndexKey }) {
   const { CHAIN_DATA } = useData()
   const chain = CHAIN_DATA[index]
@@ -877,6 +905,7 @@ function ChainTab({ index }: { index: IndexKey }) {
                 padding: '10px 14px',
                 backgroundColor: `rgba(255,95,107,${(0.06 + 0.64 * ceA).toFixed(3)})`,
               }}>
+                <OffPeak oi={s.ceOI} pk={s.cePk} />
                 <span className="mono" style={{ fontSize: 12, color: T.textPrimary, fontWeight: 600 }}>{formatOI(s.ceOI)}</span>
               </div>
               {/* GEX strip */}
@@ -906,6 +935,7 @@ function ChainTab({ index }: { index: IndexKey }) {
                 backgroundColor: `rgba(46,194,126,${(0.06 + 0.64 * peA).toFixed(3)})`,
               }}>
                 <span className="mono" style={{ fontSize: 12, color: T.textPrimary, fontWeight: 600 }}>{formatOI(s.peOI)}</span>
+                <OffPeak oi={s.peOI} pk={s.pePk} />
               </div>
             </div>
           )
@@ -1418,7 +1448,11 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
           {chip(`MAX PAIN ${chain.maxPain} · ${mpDist >= 0 ? '+' : ''}${mpDist}`, 'structure')}
-          {chip(`GEX ${chain.gex}`)}
+          {/* A GEX reading without "where is price relative to the books" is
+              the single most misleading number on the screen. */}
+          {chain.inBookZone
+            ? chip(`GEX ${chain.gex} · in book zone`)
+            : chip(`GEX ${chain.gex} · OUTSIDE BOOKS — SNAP-BACK RISK`, 'structure')}
           {chip(`PCR ${chain.pcr} · SQUEEZE ${chain.squeeze}`)}
         </div>
       </div>

@@ -20,6 +20,18 @@
       "port": 8767
     },
     {
+      "name": "tapemap-mock-8765",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py", "8765", "data", "24200", "--mock-chain"],
+      "port": 8765
+    },
+    {
+      "name": "tapemap-live-8765",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py", "live", "8765"],
+      "port": 8765
+    },
+    {
       "name": "tapemap-v2",
       "runtimeExecutable": "corepack",
       "runtimeArgs": ["pnpm", "--dir", "ui-v2", "dev"],
