@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, createContext, useContext } from 'react'
+import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react'
 import {
   ComposedChart, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -459,6 +459,94 @@ function IndexCell({ idx, data, active, onClick }: {
   )
 }
 
+/* ── Dhan token capture ────────────────────────────────────────────────────
+   Without this, an expired token means the tape stops and the only recovery
+   is a terminal. Clipboard first, password field as fallback.
+
+   The token is never logged, never echoed back, and never put in the DOM as
+   text: the input is type=password, its value is cleared immediately after
+   posting, and the only thing displayed is the server's own validity message.
+   server.py validates it, writes .dhan_token and hot-reloads the poller.   */
+const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/    // client sanity; server re-validates
+
+function TokenCapture({ tone = 'quiet' }: { tone?: 'quiet' | 'loud' }) {
+  const [mode, setMode] = useState<'idle' | 'busy' | 'paste'>('idle')
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const post = async (tok: string) => {
+    setMode('busy')
+    try {
+      const r = await fetch('/api/token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tok }),
+      })
+      const j = await r.json()
+      setMsg({ ok: !!j.ok, text: j.ok ? `accepted — ${j.msg}` : `rejected — ${j.msg}` })
+    } catch {
+      setMsg({ ok: false, text: 'could not reach the server — is it running on 8765?' })
+    }
+    setMode('idle')
+  }
+
+  const capture = async () => {
+    let raw = ''
+    try { raw = (await navigator.clipboard.readText()).trim() } catch { raw = '' }
+    if (JWT_RE.test(raw)) { await post(raw); raw = ''; return }
+    setMsg(null)
+    setMode('paste')
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  const submitPaste = async () => {
+    const el = inputRef.current
+    if (!el) return
+    const v = el.value.trim()
+    el.value = ''                    // clear before any await
+    if (!v) return
+    setMode('idle')
+    await post(v)
+  }
+
+  const btnStyle = {
+    fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', padding: '4px 10px',
+    borderRadius: 3, cursor: 'pointer', background: 'transparent',
+    border: `1px solid ${tone === 'loud' ? T.caution : T.border}`,
+    color: tone === 'loud' ? T.caution : T.textMuted,
+  } as const
+
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {mode === 'paste' ? (
+        <>
+          <input
+            ref={inputRef} type="password" autoComplete="off" spellCheck={false}
+            placeholder="paste Dhan token"
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitPaste() } }}
+            style={{
+              background: T.inset, border: `1px solid ${T.border}`, borderRadius: 3,
+              padding: '4px 8px', color: T.textPrimary, fontSize: 11.5, width: 190,
+              outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <button onClick={submitPaste} style={{ ...btnStyle, borderColor: T.accent, color: T.accent }}>SAVE</button>
+          <button onClick={() => setMode('idle')} style={btnStyle}>CANCEL</button>
+        </>
+      ) : (
+        <button onClick={capture} disabled={mode === 'busy'} style={btnStyle}
+          title="Copy the token to your clipboard and click. If the browser blocks clipboard access you get a paste field instead.">
+          {mode === 'busy' ? '⟳ SAVING…' : '⟳ TOKEN'}
+        </button>
+      )}
+      {msg && (
+        <span style={{ fontSize: 11, color: msg.ok ? T.bull : T.bear, maxWidth: 340 }}>
+          {msg.text}
+        </span>
+      )}
+    </span>
+  )
+}
+
 function GlanceBar({ active, setActive, lastUpdated, error }: {
   active: IndexKey
   setActive: (k: IndexKey) => void
@@ -515,6 +603,10 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
         {(Object.entries(INDICES) as [IndexKey, typeof INDICES[IndexKey]][]).map(([k, d]) => (
           <IndexCell key={k} idx={k} data={d} active={active === k} onClick={() => setActive(k)} />
         ))}
+      </div>
+
+      <div style={{ marginLeft: 'auto' }}>
+        <TokenCapture />
       </div>
 
       {/* THE READ used to be repeated here. It now lives once, in the ANSWER
@@ -1576,9 +1668,13 @@ export default function App() {
           padding: '9px 24px', backgroundColor: 'rgba(255,95,107,0.12)',
           borderBottom: `1px solid ${T.bear}`, color: T.bear,
           fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
+          display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap',
         }}>
-          NOT LIVE — the backend is unreachable, so every figure below is placeholder data.
-          Check that <span className="mono">server.py</span> is up on 8765 and the Dhan token is valid.
+          <span style={{ marginRight: 12 }}>
+            NOT LIVE — the backend is unreachable, so every figure below is placeholder data.
+            An expired Dhan token is the usual cause:
+          </span>
+          <TokenCapture tone="loud" />
         </div>
       )}
 
