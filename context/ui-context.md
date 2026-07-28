@@ -2,9 +2,11 @@
 
 > **Scope:** this document describes **v1**, the production vanilla-JS UI in
 > `ui/` (no build step, served by `server.py`, on `main`). A separate,
-> experimental **v2** React dashboard exists in `ui-v2/` (branch
-> `feature/dashboard-v2` only) and is documented in
-> `context/ui-v2-dashboard.md` — it does not affect anything below.
+> **v2** React dashboard lives in `ui-v2/` (branch `feature/dashboard-v2`) and
+> is documented in `context/ui-v2-dashboard.md`. Since 2026-07-29 v2 is the
+> frontend becoming the product; v1 below stays live and takes correctness
+> fixes only until parity. The two share no code — only the JSON contract —
+> so nothing in `context/ui-v2-dashboard.md` changes anything below.
 
 ## Theme
 

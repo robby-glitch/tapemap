@@ -51,8 +51,12 @@
   PATH, use `corepack pnpm`). This is intentionally distinct from v1's no-build,
   no-dependency, offline vanilla standard above.
 - These v1 standards are **unchanged** and continue to govern `ui/`. v2 lives
-  only on branch `feature/dashboard-v2` and consumes the `/api` backend
-  read-only. See `context/ui-v2-dashboard.md`.
+  on branch `feature/dashboard-v2`. Since 2026-07-29 it is the frontend
+  becoming the product, and it is **no longer strictly read-only** against the
+  backend — a backend change is still a separate unit of work belonging on
+  `main`, because the engine serves both. See `context/ui-v2-dashboard.md`.
+- Whichever frontend you are in, **never render a fallback as fact** — see
+  THE HONESTY RULES in `context/ui-v2-dashboard.md`.
 
 ## API / Data
 

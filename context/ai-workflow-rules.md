@@ -23,14 +23,19 @@ coding on top of an assumption.
 
 ## Two separate frontends — do not mix
 
-- **v1** = production `ui/` (vanilla, no build) on `main`. **v2** = experimental
-  `ui-v2/` (React/Vite) on branch `feature/dashboard-v2` only. They are separate
-  apps sharing only the read-only `/api` backend contract.
+- **v1** = `ui/` (vanilla, no build) on `main`. **v2** = `ui-v2/` (React/Vite)
+  on branch `feature/dashboard-v2`. Separate apps sharing only the `/api`
+  contract — neither imports the other, so either can be worked on alone.
+- **Since 2026-07-29, v2 is the frontend becoming the product.** New UI work
+  goes to v2; v1 gets correctness fixes only and stays live until parity.
 - Do **not** mix changes across them in one unit: a v2 task edits files under
-  `ui-v2/` on `feature/dashboard-v2` and nothing else.
-- v2 must **not** modify the Python engine/backend or v1's `ui/`. If v2 needs a
-  new backend field, that is a separate v1/engine unit on `main`.
-- See `context/ui-v2-dashboard.md`.
+  `ui-v2/` on `feature/dashboard-v2` and nothing else, and `ui-v2/` never
+  lands on `main` until the branch merges.
+- A **backend change is its own unit** and belongs on `main`, because the
+  engine serves both frontends. (Two such fixes currently sit on the v2 branch
+  and are owed back to `main` — see `context/ui-v2-dashboard.md`.)
+- See `context/ui-v2-dashboard.md`, including **THE HONESTY RULES**: a fallback
+  must never be indistinguishable from live data.
 
 ## When to Split Work
 

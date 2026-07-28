@@ -12,8 +12,20 @@
 > dropped). **The running server must be restarted to load the engine and
 > chain_metrics changes — app.js is live already (v=20).**
 > Still open from Tier 1's neighbours: item 24 (deep-ITM candidates) is Tier 3
-> and still visible — with the read at STAND ASIDE the SCAN lists 24,100/
-> 24,150/24,250 PE at 113-263 pts ITM, conf 13/100.
+> and still visible in **v1** — with the read at STAND ASIDE the SCAN lists
+> 24,100/24,150/24,250 PE at 113-263 pts ITM, conf 13/100. v2's Validate tab
+> no longer has this class of problem (strikes come from the live ladder).
+>
+> **TIER 2 SHIPPED** in the same commit (items 1, 4, 15, 16, 27, 33, 34):
+> wall-migration events, per-strike OI peaks, `gex_spot`/`book_zone`, the
+> hollow-squeeze floor, the premium floor, expiry-squaring suppression,
+> traded-through levels dropped, breadth capped under PINNED.
+>
+> **2026-07-29 — v2 became the product.** Remaining Tier 3 items are being
+> addressed in `ui-v2/` rather than `ui/`; see `context/ui-v2-dashboard.md`.
+> Item 26 (causal replay) is **done in v2** and remains open in v1. Items 5
+> (alerts panel), 7 (rolling stat badges) and 25 (premium-terms R:R) are open
+> in both.
 
 Running list from watching TapeMap work a real expiry day. Ordered by impact.
 

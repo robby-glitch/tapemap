@@ -67,12 +67,16 @@ the way an expert tape-reader would, continuously, without fatigue.
   annotated level ladder with loud LIVE row, narrative log with event
   hierarchy, replay scrubber (1×–25×), CARRY strip, MM/gamma strip.
 
-### Experimental parallel UI (ui-v2/ — React, branch `feature/dashboard-v2`)
+### v2 UI (ui-v2/ — React, branch `feature/dashboard-v2`)
 
-- A separate React 19 + Vite + Tailwind + Recharts dashboard living only on
-  branch `feature/dashboard-v2` in folder `ui-v2/`. It consumes the same
-  read-only `/api` backend and makes no engine/backend changes, so it does not
-  affect the production v1 `ui/`. See `context/ui-v2-dashboard.md`.
+- A React 19 + Vite + Tailwind + Recharts dashboard in `ui-v2/` on branch
+  `feature/dashboard-v2`, consuming the same `/api` backend. **Since
+  2026-07-29 this is the frontend becoming the product**; v1 `ui/` stays live
+  and gets correctness fixes only until v2 reaches parity.
+- The two are **file-level separate** — neither imports the other, they meet
+  only at the JSON contract — so either can be worked on independently at any
+  time. See `context/ui-v2-dashboard.md` for how to run each alone, what is
+  shared, and the backend fixes currently owed back to `main`.
 
 ## Scope
 

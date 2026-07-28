@@ -7,7 +7,7 @@
 | Engine    | Python 3.13, stdlib only            | Feature computation, states, events, gamma layer |
 | Server    | Python `http.server` (stdlib)       | Static UI + `/api/data` · `/api/chain` · `/api/gex` · POST `/api/token` |
 | UI (v1)   | Vanilla HTML/CSS/JS, no build step  | Production "Replay Dashboard" (`ui/`), SVG where needed |
-| UI (v2)   | React 19 + Vite + Tailwind 4 + Recharts + TS | **Separate, parallel** frontend `ui-v2/` (branch `feature/dashboard-v2` only) — see `context/ui-v2-dashboard.md` |
+| UI (v2)   | React 19 + Vite + Tailwind 4 + Recharts + TS | `ui-v2/` on `feature/dashboard-v2`. **Since 2026-07-29 this is the frontend becoming the product**; v1 stays live until parity — see `context/ui-v2-dashboard.md` |
 | Data      | Dhan REST v2 (`dhanhq` SDK + direct `urllib` for `oi:true`) | Historical 1-min OHLCV+OI, chain, live feed later |
 | Ground truth | TradingView CSV exports in `data/` | 3 labeled days for regression        |
 
@@ -35,10 +35,13 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
   replay. Feeds server.py's `/api/chain`; zero engine coupling.
 - `ui/` — rendering only. Parses engine output; computes NO analytics. This is
   the **v1 production UI** on `main`, unchanged by any v2 work.
-- `ui-v2/` — a **separate, parallel React/Vite frontend** (branch
-  `feature/dashboard-v2` only; not merged/pushed). Consumes the same `/api/data`
-  · `/api/chain` backend **read-only** — makes ZERO engine/backend/`ui/` changes.
-  Fully documented in `context/ui-v2-dashboard.md`.
+- `ui-v2/` — the **React/Vite frontend** on branch `feature/dashboard-v2` (not
+  yet merged). Consumes the same `/api/data` · `/api/chain` backend. It is
+  file-level separate from `ui/` — neither imports the other, they meet only at
+  the JSON contract — so either can be worked on alone. **It is no longer
+  read-only against the backend:** two fixes on that branch (`chain_live.py`
+  per-strike OI peaks, `server.py` index-substitution) affect v1 too and are
+  owed to `main`. Fully documented in `context/ui-v2-dashboard.md`.
 - `data/` — ground-truth CSVs (protected) + fetched day/chain JSON.
 - `context/` — these spec files; the source of truth for behavior.
 - `archive/` — old replay_*.txt regression baselines + superseded UI
