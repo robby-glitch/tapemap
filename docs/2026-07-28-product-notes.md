@@ -17,15 +17,21 @@
 > no longer has this class of problem (strikes come from the live ladder).
 >
 > **TIER 2 SHIPPED** in the same commit (items 1, 4, 15, 16, 27, 33, 34):
-> wall-migration events, per-strike OI peaks, `gex_spot`/`book_zone`, the
-> hollow-squeeze floor, the premium floor, expiry-squaring suppression,
-> traded-through levels dropped, breadth capped under PINNED.
+> WALL-MIGRATION / ROLE-FLIP events, per-strike session OI peaks,
+> `gex_spot` + `book_zone`/`in_book_zone` + `mp_dist`, the hollow-squeeze
+> floor (trapped OI must be >=3% of the chain's heaviest book), the sub-Rs 5
+> premium floor, expiry-squaring suppression after 15:05, traded-through
+> levels dropped as floor/cap, and breadth capped at LEAN under PINNED.
 >
-> **2026-07-29 — v2 became the product.** Remaining Tier 3 items are being
-> addressed in `ui-v2/` rather than `ui/`; see `context/ui-v2-dashboard.md`.
-> Item 26 (causal replay) is **done in v2** and remains open in v1. Items 5
-> (alerts panel), 7 (rolling stat badges) and 25 (premium-terms R:R) are open
-> in both.
+> **Plumbing follow-up (`c2fc677`)**: `chain_live._publish` now forwards
+> `ce_pk`/`pe_pk` into each strike row — the peaks were computed and then
+> dropped, so no frontend could see them. Same commit stops `/api/data`
+> substituting the DEFAULT index's tape for one it cannot serve.
+>
+> **2026-07-29 — v2 became the product.** Remaining Tier 3 items (3, 5, 6, 7,
+> 8, 9, 10, 11, 12, 17, 24, 25, 26) are being addressed in `ui-v2/` rather
+> than `ui/`; see `context/ui-v2-dashboard.md`. Item 26 (causal replay) is
+> **done in v2** and remains open in v1.
 
 Running list from watching TapeMap work a real expiry day. Ordered by impact.
 

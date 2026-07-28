@@ -662,52 +662,62 @@ root); REFRESH_S is 15 (not 60); client id is no longer hardcoded (was
 
 ---
 
-## 2026-07-28 → 29 — live expiry session, Tier 1+2 engine fixes, v2 becomes the product
+## 2026-07-28 → 29 — live expiry session: Tier 1 + Tier 2, and v2 becomes the product
 
-Watched a full expiry day on the live tape while cross-checking every read
-against Kite. Findings logged live in `docs/2026-07-28-product-notes.md`
-(34 numbered items, each tied to the moment it was observed).
+Watched a full expiry day on the live tape, cross-checking every read against
+Kite. Findings logged live in `docs/2026-07-28-product-notes.md` (34 numbered
+items, each tied to the moment it was observed). Commits `b344617`, `df08607`,
+`c2fc677`.
 
-### Engine / chain (on `main`, commits `b344617`, `df08607`)
+### Engine / chain (on `main`)
 
-The theme was **signals that were confidently wrong, not merely noisy**.
+The theme was **signals that were confidently wrong, not merely noisy.**
 
 - **Contested springs no longer arm.** PRESS and SPRING read the SAME two OI
-  slopes, but PRESS also requires the premiums to confirm. At 14:51 both fired
-  in one minute off the same numbers ("BEARISH rotation" / "BULLISH SPRING")
-  and price fell. Such a setup stays a SPRING flagged `conflict`, and nothing
-  downstream may treat its `dir` as a vote.
+  slopes, but PRESS additionally requires the premiums to confirm. At 14:51
+  both fired in one minute off the same numbers ("BEARISH rotation" /
+  "BULLISH SPRING") and price fell. Such a setup stays a SPRING flagged
+  `conflict`; nothing downstream may treat its `dir` as a directional vote.
 - **Squeeze nets unwind against neighbouring builds** — a roll scores ~0, a
   rout still scores high. The morning CE "squeeze" was a roll (24,000 drained
-  while 24,050 built to its day high) and had been called backwards.
-- Squeeze also gained: side-of-spot gating (ITM books are losers closing, not
-  a wall failing), a ≥3%-of-heaviest-book floor (10:15 scored 0.65–0.88 on
-  "0.0M trapped"), a sub-₹5 premium filter, and full suppression after 15:05
-  where chain-wide decay carries no direction.
-- **NEW WALL-MIGRATION / ROLE-FLIP events.** 24,000 flipped ceiling→floor and
+  while 24,050 built to its day high) and had been called backwards. Also
+  added: side-of-spot gating (an ITM book is losers closing, not a wall
+  failing), a >=3%-of-heaviest-book floor (10:15 scored 0.65-0.88 on "0.0M
+  trapped"), a sub-Rs 5 premium floor, and full suppression after 15:05 where
+  chain-wide OI decay carries no direction.
+- **NEW WALL-MIGRATION / ROLE-FLIP events.** 24,000 flipped ceiling->floor and
   back that day — the headline of each half of the session — and produced no
   narrative at all, because the engine watches one ATM strike.
 - **NEW per-strike session OI peaks, `gex_spot`, `book_zone`/`in_book_zone`,
   `mp_dist`.** `gex_total` alone is a trap: it collapses both when dampening
-  dies AND when price steps away from the books. It read 120k at the 15:01 low
-  and 1.56M twenty minutes later. **I misread it live and called a breakdown
-  that reversed 52 points.**
+  genuinely dies AND when price simply steps away from the books. It read 120k
+  at the 15:01 low and 1.56M twenty minutes later. **I misread it live and
+  called a breakdown that reversed 52 points** — that miss is what produced
+  the field.
 - SQUEEZE-RELEASE only claims "hedging amplifies" under negative gamma;
   breadth capped at LEAN while PINNED; traded-through levels dropped as
-  floor/cap; IV dropped when fitted on under ₹2 of time value (atm_pe printed
-  133% off ~₹0.5 and fed the UI's direction vote).
-- UI direction: causal 5-bar mean through a ±1.0 deadband, breadth halved.
-  Measured on the same 375 bars: **60 → 32 flips, 41 → 16 sided runs, median
-  run 5 → 10 bars, no-edge bars 51 → 183.** (style v15 / app v21.)
-- 39 tests (7 new). 54-day backtest: only SPRING/ARMED move as conflicted
-  springs reclassify; every other kind byte-identical.
+  floor/cap; IV dropped when fitted on under Rs 2 of time value (atm_pe
+  printed 133% off ~Rs 0.5 and was feeding the UI's direction vote).
+- **v1 UI direction** is now a causal 5-bar mean through a +/-1.0 deadband with
+  breadth halved. Measured on the same 375 bars: **60 -> 32 flips, 41 -> 16
+  sided runs, median run 5 -> 10 bars, no-edge bars 51 -> 183.** The browser
+  reproduces the offline audit exactly. (style v15 / app v21.)
+- **Plumbing (`c2fc677`)**: `chain_live._publish` forwards `ce_pk`/`pe_pk` —
+  the peaks were computed then dropped before any frontend saw them. Same
+  commit stops `/api/data` answering `?idx=BANKNIFTY` with NIFTY's tape (it
+  fell back to DEFAULT), which showed one session under three names.
 
-### Direction change: v2 becomes the product
+Gates: 39 tests (7 new). 54-day backtest — only SPRING and ARMED move, as
+conflicted springs reclassify; every other kind byte-identical; aggregate
+-0.995 -> -1.020 pts/signal. Honest reading: the backtest **cannot** validate
+the spring change (ARMED n=24, CI 19-68%). It is a correctness fix — a
+contested direction should not vote — not a demonstrated edge improvement.
 
-Decided 2026-07-29. `context/ui-v2-dashboard.md` rewritten — the old
-"parallel experiment / ZERO backend changes" model no longer holds. v1 and v2
-stay **file-level separate** so either can be worked on alone; only the JSON
-contract is shared.
+### Direction change: v2 becomes the product (2026-07-29)
+
+`context/ui-v2-dashboard.md` rewritten — the old "parallel experiment / ZERO
+backend changes" model no longer holds. v1 and v2 stay **file-level separate**
+so either can be worked on alone; only the JSON contract is shared.
 
 Ported to v2: the new chain fields, the FOCUS feed (35% reduction, matching
 v1), a replay scrub, and Dhan token capture. Replay was made **causal**, which
@@ -719,19 +729,13 @@ past bars, so a scrubbed read contained future information.
 An audit of v2 found **five instances of one fault: a fallback rendered as
 fact** — placeholder prices behind a small "reconnecting" chip, a validator
 whose confidence score included `Math.random()`, `null 0.00` in the radar,
-NIFTY's tape served under BANKNIFTY's label (`server.py` fell back to DEFAULT),
-and fabricated spike signals for dead indices. Each is fixed at the level it
-occurred: globally, per-index, per-row. The rules are written up under
-"THE HONESTY RULES" in `context/ui-v2-dashboard.md`.
-
-### Owed to main
-
-`chain_live.py` (forwards `ce_pk`/`pe_pk`) and `server.py` (no index
-substitution) are on the branch and affect v1 too.
+NIFTY's tape served under BANKNIFTY's label, and fabricated spike signals for
+dead indices. Each is fixed at the level it occurred: globally, per-index,
+per-row. Written up as **THE HONESTY RULES** in `context/ui-v2-dashboard.md`.
 
 ### Caveat on all of it
 
-Everything after 2026-07-28 close was verified against the mock-chain fixture —
-Dhan was unreachable (`getaddrinfo failed` for `api.dhan.co`). Two things are
-coded and typechecked but have never rendered: the OffPeak badge and the FOCUS
-"+N agreeing" merge. Re-verify at the next live open.
+Everything after the 2026-07-28 close was verified against the mock-chain
+fixture — Dhan was unreachable (`getaddrinfo failed` for `api.dhan.co`). Two
+things are coded and typechecked but have never rendered: the OffPeak badge
+and the FOCUS "+N agreeing" merge. Re-verify at the next live open.
