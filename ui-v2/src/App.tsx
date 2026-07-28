@@ -1520,7 +1520,8 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
   const tabs: Tab[] = ['Heat', 'Tape', 'Chain', 'Events', 'Validate', 'Map']
-  const { data: liveData, error, lastUpdated, barCount, at } = useLiveData(MOCK)
+  const { data: liveData, error, lastUpdated, barCount, at, dead } = useLiveData(MOCK)
+  const idxDead = dead.includes(activeIndex)
 
   // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
   const [scrub, setScrub] = useState<number | null>(null)
@@ -1562,7 +1563,19 @@ export default function App() {
         </div>
       )}
 
-      <AnswerBand index={activeIndex} stale={!!error} />
+      {/* One index can be down while the others are fine — say which. */}
+      {!error && idxDead && (
+        <div style={{
+          padding: '9px 24px', backgroundColor: 'rgba(255,191,0,0.12)',
+          borderBottom: `1px solid ${T.caution}`, color: T.caution,
+          fontSize: 12.5, fontWeight: 600,
+        }}>
+          NO {activeIndex} TAPE — the backend has no session for this index, so the
+          figures below are placeholder. {dead.length < 3 && 'The other indices are live.'}
+        </div>
+      )}
+
+      <AnswerBand index={activeIndex} stale={!!error || idxDead} />
 
       {/* Tab bar */}
       <div style={{

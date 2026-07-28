@@ -890,6 +890,8 @@ export function useLiveData(fallback: Dataset) {
   const lastGood = useRef<Record<IndexKey, PerIndex>>(perFromFallback(fallback))
   // Raw payloads are kept so replay can re-map any bar without re-fetching.
   const [raw, setRaw] = useState<Partial<Record<IndexKey, { D: any; C: any }>>>({})
+  /** Indices with no usable tape right now — shown as unavailable, not faked. */
+  const [dead, setDead] = useState<IndexKey[]>([])
 
   useEffect(() => {
     let alive = true
@@ -904,6 +906,11 @@ export function useLiveData(fallback: Dataset) {
         ])
         if (!dr.ok || !cr.ok) throw new Error('http ' + dr.status + '/' + cr.status)
         const [D, C] = await Promise.all([dr.json(), cr.json()])
+        // An index can fail on its own — no tape in this server mode, a bad
+        // instrument, a build error — while the others are perfectly live.
+        // Treat that as a failure for THIS index rather than rendering
+        // whatever happens to be in the fallback under its name.
+        if (D?.live_error || !D?.days?.length) throw new Error(D?.live_error || 'no tape')
         rawSeen[k] = { D, C }
         return mapIndex(D, C)
       } catch {
@@ -915,15 +922,18 @@ export function useLiveData(fallback: Dataset) {
       const results = await Promise.all(KEYS.map(fetchIdx))
       if (!alive) return
       const per = {} as Record<IndexKey, PerIndex>
+      const down: IndexKey[] = []
       let failures = 0
       KEYS.forEach((k, i) => {
         const r = results[i]
         if (r) per[k] = r
         else {
           per[k] = lastGood.current[k]
+          down.push(k)
           failures++
         }
       })
+      setDead(down)
       lastGood.current = per
       setData(assemble(per))
       if (Object.keys(rawSeen).length) setRaw((r) => ({ ...r, ...rawSeen }))
@@ -958,5 +968,5 @@ export function useLiveData(fallback: Dataset) {
     return assemble(per)
   }
 
-  return { data, loading, error, lastUpdated, barCount, at }
+  return { data, loading, error, lastUpdated, barCount, at, dead }
 }

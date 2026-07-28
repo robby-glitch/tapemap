@@ -91,9 +91,19 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/data"):
             idx = self._idx()
-            box = (self.payloads.get(idx) or self.payloads.get(instruments.DEFAULT)
-                   or (next(iter(self.payloads.values())) if self.payloads else None))
-            pl = (box["payload"] if isinstance(box, dict) else box) if box else b"{}"
+            box = self.payloads.get(idx)
+            if box is None:
+                # Never serve one index's tape under another's name. Replay
+                # mode only builds DEFAULT, and the old fallback chain quietly
+                # answered /api/data?idx=BANKNIFTY with NIFTY's session — three
+                # identical panels that looked live and were mislabelled.
+                self._json(json.dumps({
+                    "index": idx, "strike": None, "days": [],
+                    "built_at": time.time(),
+                    "live_error": f"no {idx} tape in this server mode — "
+                                  f"start with: python server.py live"}).encode())
+                return
+            pl = box["payload"] if isinstance(box, dict) else box
             self._json(pl if pl is not None else b"{}")
         elif self.path.startswith("/api/chain"):
             idx = self._idx()
