@@ -8,6 +8,10 @@ import { useLiveData, HEAT_COLS } from './data'
 import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind } from './data'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
+// Colour carries exactly one meaning each. Before this, hue did two jobs at
+// once — purple meant "spring", cyan meant "gamma", while green and red ALSO
+// meant up and down — so it resolved to neither. Now brass is structure
+// (levels, walls, pins, dealer regime) and green/red are direction only.
 const T = {
   bg: '#0B0E14',
   card: '#141926',
@@ -16,10 +20,10 @@ const T = {
   textPrimary: '#E8EDF5',
   textSecondary: '#9AA7BD',
   textMuted: '#5D6B84',
-  bull: '#2EC27E',
-  bear: '#FF5F6B',
+  bull: '#2EC27E',          // direction only
+  bear: '#FF5F6B',          // direction only
   caution: '#FFBF00',
-  accent: '#8B5CF6',
+  accent: '#E0A852',        // structure: levels, walls, pins, regime
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -336,7 +340,7 @@ const KIND_STYLE: Record<MapLevelKind, { color: string; dot: number; marker?: st
   pin:     { color: T.accent, dot: 8, marker: '◎' },
   pivot:   { color: T.textMuted, dot: 5 },
   vwap:    { color: T.caution, dot: 6 },
-  band:    { color: 'rgba(139,92,246,0.6)', dot: 4 },
+  band:    { color: 'rgba(224,168,82,0.6)', dot: 4 },
   floor:   { color: T.bull, dot: 6 },
   cap:     { color: T.bear, dot: 6 },
   strike:  { color: '#E8C15A', dot: 6 },
@@ -349,7 +353,7 @@ const KIND_STYLE: Record<MapLevelKind, { color: string; dot: number; marker?: st
 function TimingChip({ value }: { value: string }) {
   const colors: Record<string, [string, string]> = {
     WAIT:  ['rgba(255,191,0,0.12)', '#FFBF00'],
-    READY: ['rgba(139,92,246,0.15)', '#8B5CF6'],
+    READY: ['rgba(224,168,82,0.15)', '#E0A852'],
     GO:    ['rgba(46,194,126,0.15)', '#2EC27E'],
     CAUTION: ['rgba(255,95,107,0.12)', '#FF5F6B'],
   }
@@ -444,8 +448,7 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
   lastUpdated: Date | null
   error: string | null
 }) {
-  const { INDICES, READS } = useData()
-  const read = READS[active]
+  const { INDICES } = useData()
   return (
     <div style={{
       position: 'sticky',
@@ -497,31 +500,9 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
         ))}
       </div>
 
-      {/* THE READ */}
-      <div style={{
-        marginLeft: 'auto',
-        maxWidth: 340,
-        paddingLeft: 20,
-        borderLeft: `1px solid ${T.border}`,
-      }}>
-        <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textMuted, marginBottom: 6 }}>
-          THE READ — {active}
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, lineHeight: 1.4, marginBottom: 7 }}>
-          {read.headline}
-        </div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-          <div>
-            <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 3, letterSpacing: '0.08em' }}>TIMING</div>
-            <TimingChip value={read.timing} />
-          </div>
-          <div>
-            <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 3, letterSpacing: '0.08em' }}>DIRECTION</div>
-            <DirectionChip value={read.direction} />
-          </div>
-        </div>
-        <div style={{ fontSize: 11, color: T.textMuted }}>{read.sub}</div>
-      </div>
+      {/* THE READ used to be repeated here. It now lives once, in the ANSWER
+          band directly below, at a scale that actually ranks it. Saying the
+          same thing in four places is what made the old screen unreadable. */}
     </div>
   )
 }
@@ -609,7 +590,7 @@ function TapeTab({ index }: { index: IndexKey }) {
               style={{
                 padding: '10px 16px',
                 borderLeft: isHere ? `3px solid ${T.accent}` : '3px solid transparent',
-                backgroundColor: isHere ? 'rgba(139,92,246,0.06)' : 'transparent',
+                backgroundColor: isHere ? 'rgba(224,168,82,0.06)' : 'transparent',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
@@ -647,7 +628,7 @@ function TapeTab({ index }: { index: IndexKey }) {
           <div style={{ display: 'flex', gap: 14, fontSize: 10, color: T.textMuted }}>
             <span style={{ color: T.textPrimary }}>— Price</span>
             <span style={{ color: T.caution }}>-- VWAP</span>
-            <span style={{ color: 'rgba(139,92,246,0.6)' }}>▨ ±1σ</span>
+            <span style={{ color: 'rgba(224,168,82,0.6)' }}>▨ ±1σ</span>
           </div>
         </div>
         <div style={{ height: 380 }}>
@@ -881,13 +862,13 @@ function ChainTab({ index }: { index: IndexKey }) {
           const ceA = Math.min(1, s.ceOI / maxCeOI)
           const peA = Math.min(1, s.peOI / maxPeOI)
           const gexA = Math.min(1, Math.abs(s.gex) / maxAbsGex)
-          const gexRGB = s.gex > 0 ? '139,92,246' : '255,191,0'
+          const gexRGB = s.gex > 0 ? '224,168,82' : '255,191,0'
           return (
             <div key={s.strike} style={{
               display: 'flex',
               alignItems: 'stretch',
               borderBottom: `1px solid ${T.border}`,
-              backgroundColor: isATM ? 'rgba(139,92,246,0.06)' : 'transparent',
+              backgroundColor: isATM ? 'rgba(224,168,82,0.06)' : 'transparent',
             }}>
               {/* CE OI heat cell */}
               <div style={{
@@ -1085,7 +1066,7 @@ function ValidateTab({ index }: { index: IndexKey }) {
                     padding: '8px',
                     borderRadius: 8,
                     border: `1px solid ${position === p ? T.accent : T.border}`,
-                    backgroundColor: position === p ? 'rgba(139,92,246,0.1)' : 'transparent',
+                    backgroundColor: position === p ? 'rgba(224,168,82,0.1)' : 'transparent',
                     color: position === p ? T.accent : T.textMuted,
                     fontSize: 13,
                     fontWeight: 600,
@@ -1198,7 +1179,7 @@ function MapTab({ index }: { index: IndexKey }) {
             <div style={{
               position: 'absolute', left: 0, right: 0,
               top: yOf(bandHi), height: Math.max(1, yOf(bandLo) - yOf(bandHi)),
-              background: 'rgba(139,92,246,0.06)', borderRadius: 4,
+              background: 'rgba(224,168,82,0.06)', borderRadius: 4,
             }} />
           )}
           {/* NOW line */}
@@ -1366,6 +1347,102 @@ function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: Index
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
+/* ── ANSWER band ───────────────────────────────────────────────────────────
+   Always visible, above the tabs. v2 inherited v1's worst structural habit:
+   the read lived behind a tab, so the one thing worth seeing on a live tape
+   took a click to reach. Price, the verdict, the sentence and — crucially —
+   what would invalidate it now own the top of the screen at a scale nothing
+   else competes with. Everything below is evidence for this band.          */
+function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
+  const { INDICES, READS, CHAIN_DATA, KEY_LEVELS } = useData()
+  const info = INDICES[index]
+  const read = READS[index]
+  const chain = CHAIN_DATA[index]
+  const levels = KEY_LEVELS[index] ?? []
+
+  const dirCol = info.change > 0 ? T.bull : info.change < 0 ? T.bear : T.textSecondary
+  const above = levels.filter(l => l.value > info.price).sort((a, b) => a.value - b.value)[0]
+  const below = levels.filter(l => l.value < info.price).sort((a, b) => b.value - a.value)[0]
+  const mpDist = Math.round(chain.maxPain - info.price)
+
+  const chip = (label: string, tone: 'structure' | 'quiet' = 'quiet') => (
+    <span key={label} className="mono" style={{
+      fontSize: 10.5, letterSpacing: '0.05em', padding: '3px 8px', borderRadius: 3,
+      whiteSpace: 'nowrap',
+      border: `1px solid ${tone === 'structure' ? 'rgba(224,168,82,0.45)' : T.border}`,
+      color: tone === 'structure' ? T.accent : T.textMuted,
+    }}>{label}</span>
+  )
+
+  return (
+    <div style={{ backgroundColor: T.bg, borderBottom: `1px solid ${T.border}` }}>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 26,
+        alignItems: 'center', padding: '14px 24px',
+      }}>
+        <div>
+          <div className="mono" style={{
+            fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em',
+            // a price you cannot trust must not look like one you can
+            color: stale ? T.textMuted : T.textPrimary,
+            textDecoration: stale ? 'line-through' : 'none',
+          }}>
+            {info.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="mono" style={{ fontSize: 12, color: stale ? T.textMuted : dirCol, marginTop: 5 }}>
+            {stale ? 'placeholder' : `${info.change > 0 ? '+' : ''}${info.change.toFixed(2)} · ${info.pct > 0 ? '+' : ''}${info.pct.toFixed(2)}%`}
+          </div>
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          {stale ? (
+            <div style={{
+              fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase',
+              color: T.bear, fontWeight: 700, marginBottom: 4,
+            }}>
+              No live data — do not trade from this screen
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+              <DirectionChip value={read.direction} />
+              <TimingChip value={read.timing} />
+            </div>
+          )}
+          <div style={{ fontSize: 14.5, lineHeight: 1.45, maxWidth: '62ch' }}>
+            {read.headline}
+          </div>
+          {read.sub && (
+            <div style={{ fontSize: 12.5, color: T.textSecondary, marginTop: 3 }}>{read.sub}</div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+          {chip(`MAX PAIN ${chain.maxPain} · ${mpDist >= 0 ? '+' : ''}${mpDist}`, 'structure')}
+          {chip(`GEX ${chain.gex}`)}
+          {chip(`PCR ${chain.pcr} · SQUEEZE ${chain.squeeze}`)}
+        </div>
+      </div>
+
+      <div style={{
+        display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap',
+        padding: '8px 24px', backgroundColor: T.card,
+        borderTop: `1px solid ${T.border}`, fontSize: 12.5,
+      }}>
+        <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Changes if</span>
+        {above
+          ? <span>breaks <span className="mono" style={{ color: T.accent }}>{above.value}</span>
+              <span style={{ color: T.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
+          : <span style={{ color: T.textMuted }}>no level mapped above</span>}
+        <span style={{ color: T.textMuted }}>·</span>
+        {below
+          ? <span>or loses <span className="mono" style={{ color: T.accent }}>{below.value}</span>
+              <span style={{ color: T.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
+          : <span style={{ color: T.textMuted }}>no level mapped below</span>}
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
@@ -1376,6 +1453,23 @@ export default function App() {
     <DataCtx.Provider value={data}>
     <div style={{ minHeight: '100vh', backgroundColor: T.bg, display: 'flex', flexDirection: 'column' }}>
       <GlanceBar active={activeIndex} setActive={setActiveIndex} lastUpdated={lastUpdated} error={error} />
+
+      {/* A trading screen must never present placeholder numbers as real. The
+          fallback dataset exists so the first paint isn't empty — the moment
+          every index fails, say so at full width instead of showing a small
+          "reconnecting" chip beside believable-looking prices. */}
+      {error && (
+        <div style={{
+          padding: '9px 24px', backgroundColor: 'rgba(255,95,107,0.12)',
+          borderBottom: `1px solid ${T.bear}`, color: T.bear,
+          fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
+        }}>
+          NOT LIVE — the backend is unreachable, so every figure below is placeholder data.
+          Check that <span className="mono">server.py</span> is up on 8765 and the Dhan token is valid.
+        </div>
+      )}
+
+      <AnswerBand index={activeIndex} stale={!!error} />
 
       {/* Tab bar */}
       <div style={{

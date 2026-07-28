@@ -19,4 +19,12 @@ export default defineConfig({
       '/api': 'http://127.0.0.1:8765',
     },
   },
+  // `vite preview` does NOT inherit server.proxy. Without this a built preview
+  // silently serves index.html for /api and the app falls back to placeholder
+  // data — which on a trading screen is worse than an outright error.
+  preview: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8765',
+    },
+  },
 })

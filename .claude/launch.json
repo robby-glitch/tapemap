@@ -18,6 +18,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["server.py", "live", "8767"],
       "port": 8767
+    },
+    {
+      "name": "tapemap-v2",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "--dir", "ui-v2", "dev"],
+      "port": 5173
     }
   ]
 }
