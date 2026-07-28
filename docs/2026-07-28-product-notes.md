@@ -14,6 +14,20 @@
 > Still open from Tier 1's neighbours: item 24 (deep-ITM candidates) is Tier 3
 > and still visible — with the read at STAND ASIDE the SCAN lists 24,100/
 > 24,150/24,250 PE at 113-263 pts ITM, conf 13/100.
+>
+> **TIER 2 SHIPPED** in the same commit (items 1, 4, 15, 16, 27, 33, 34):
+> WALL-MIGRATION / ROLE-FLIP events, per-strike session OI peaks,
+> `gex_spot` + `book_zone`/`in_book_zone` + `mp_dist`, the hollow-squeeze
+> floor (trapped OI must be >=3% of the chain's heaviest book), the sub-Rs 5
+> premium floor, expiry-squaring suppression after 15:05, traded-through
+> levels dropped as floor/cap, and breadth capped at LEAN under PINNED.
+>
+> **Plumbing follow-up (`c2fc677`)**: `chain_live._publish` now forwards
+> `ce_pk`/`pe_pk` into each strike row — the peaks were computed and then
+> dropped, so no frontend could see them. Same commit stops `/api/data`
+> substituting the DEFAULT index's tape for one it cannot serve.
+>
+> Tier 3 remains open (items 3, 5, 6, 7, 8, 9, 10, 11, 12, 17, 24, 25, 26).
 
 Running list from watching TapeMap work a real expiry day. Ordered by impact.
 

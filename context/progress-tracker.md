@@ -636,3 +636,59 @@ files green throughout.
 Corrections to notes above: replay baselines now live in archive/ (not the
 root); REFRESH_S is 15 (not 60); client id is no longer hardcoded (was
 1111966509 in source — now env/.dhan_client).
+
+---
+
+## 2026-07-28 → 29 — live expiry session: Tier 1 + Tier 2 engine fixes
+
+Watched a full expiry day on the live tape, cross-checking every read against
+Kite. Findings logged live in `docs/2026-07-28-product-notes.md` (34 numbered
+items, each tied to the moment it was observed). Commits `b344617`, `df08607`,
+`c2fc677`.
+
+The theme was **signals that were confidently wrong, not merely noisy.**
+
+- **Contested springs no longer arm.** PRESS and SPRING read the SAME two OI
+  slopes, but PRESS additionally requires the premiums to confirm. At 14:51
+  both fired in one minute off the same numbers ("BEARISH rotation" /
+  "BULLISH SPRING") and price fell. Such a setup stays a SPRING flagged
+  `conflict`; nothing downstream may treat its `dir` as a directional vote.
+- **Squeeze nets unwind against neighbouring builds** — a roll scores ~0, a
+  rout still scores high. The morning CE "squeeze" was a roll (24,000 drained
+  while 24,050 built to its day high) and had been called backwards.
+  Also added: side-of-spot gating (an ITM book is losers closing, not a wall
+  failing), a >=3%-of-heaviest-book floor (10:15 scored 0.65-0.88 on "0.0M
+  trapped"), a sub-Rs 5 premium floor, and full suppression after 15:05 where
+  chain-wide OI decay carries no direction.
+- **NEW WALL-MIGRATION / ROLE-FLIP events.** 24,000 flipped ceiling->floor and
+  back that day — the headline of each half of the session — and produced no
+  narrative at all, because the engine watches one ATM strike.
+- **NEW per-strike session OI peaks, `gex_spot`, `book_zone`/`in_book_zone`,
+  `mp_dist`.** `gex_total` alone is a trap: it collapses both when dampening
+  genuinely dies AND when price simply steps away from the books. It read 120k
+  at the 15:01 low and 1.56M twenty minutes later. **I misread it live and
+  called a breakdown that reversed 52 points** — that miss is what produced
+  the field.
+- SQUEEZE-RELEASE only claims "hedging amplifies" under negative gamma;
+  breadth capped at LEAN while PINNED; traded-through levels dropped as
+  floor/cap; IV dropped when fitted on under Rs 2 of time value (atm_pe
+  printed 133% off ~Rs 0.5 and was feeding the UI's direction vote).
+- **UI direction** is now a causal 5-bar mean through a +/-1.0 deadband with
+  breadth halved. Measured on the same 375 bars: **60 -> 32 flips, 41 -> 16
+  sided runs, median run 5 -> 10 bars, no-edge bars 51 -> 183.** The browser
+  reproduces the offline audit exactly. (style v15 / app v21.)
+- **Plumbing (`c2fc677`)**: `chain_live._publish` forwards `ce_pk`/`pe_pk` —
+  the peaks were computed then dropped before any frontend saw them. Same
+  commit stops `/api/data` answering `?idx=BANKNIFTY` with NIFTY's tape (it
+  fell back to DEFAULT), which showed one session under three names.
+
+Gates: 39 tests (7 new). 54-day backtest — only SPRING and ARMED move, as
+conflicted springs reclassify; every other kind byte-identical; aggregate
+-0.995 -> -1.020 pts/signal. Honest reading: the backtest **cannot** validate
+the spring change (ARMED n=24, CI 19-68%). It is a correctness fix — a
+contested direction should not vote — not a demonstrated edge improvement.
+
+Tier 3 remains open. Note that the v2 React frontend (branch
+`feature/dashboard-v2`) has since become the frontend being developed; its
+documentation, including the honesty rules that came out of auditing it, lives
+on that branch in `context/ui-v2-dashboard.md`.
