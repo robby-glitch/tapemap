@@ -619,7 +619,11 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
   const tClose: Record<string, number> = {}
   for (const bar of bars) tClose[bar.t] = bar.fut.c
   const trapKinds = new Set(['TRAP-SPRUNG', 'TRAP-SETTING', 'SPRING-FAIL'])
-  const trapEvs = (day.events ?? []).filter((e: any) => trapKinds.has(e.kind)).slice(-6)
+  // `evs`, not day.events — the latter ignores the replay cutoff, and since
+  // slice(-6) would then be filled by traps that have not happened yet (whose
+  // bars resolve to null and get dropped), the map quietly lost its REAL
+  // traps while scrubbed.
+  const trapEvs = evs.filter((e: any) => trapKinds.has(e.kind)).slice(-6)
   const traps: Array<{ p: number; t: string; kind: string }> = []
   for (const e of [...trapEvs].reverse()) {
     const p = tClose[e.t]

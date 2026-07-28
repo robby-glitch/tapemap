@@ -1302,10 +1302,18 @@ function MapTab({ index }: { index: IndexKey }) {
   )
 }
 
-function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: IndexKey) => void }) {
+function HeatTab({ active, setActive, dead }: {
+  active: IndexKey; setActive: (k: IndexKey) => void; dead: IndexKey[]
+}) {
   const { HEAT, INDICES } = useData()
   const keys: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
-  const spikeCount = keys.reduce((n, k) => n + HEAT[k].filter(c => c.spike).length, 0)
+  // This is the one view read across all three indices at once, so a dead one
+  // must not sit here looking identical to a live one. Its fallback row would
+  // otherwise show invented signals — "AMPLIFIED-UP", "UP 0.36" — and get
+  // counted in the spike badge as though it were happening.
+  const isDead = (k: IndexKey) => dead.includes(k)
+  const spikeCount = keys.reduce(
+    (n, k) => n + (isDead(k) ? 0 : HEAT[k].filter(c => c.spike).length), 0)
 
   const legend = (dir: HeatTone, glyph: string, label: string) => (
     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1366,10 +1374,21 @@ function HeatTab({ active, setActive }: { active: IndexKey; setActive: (k: Index
                   gap: 2,
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{k}</span>
-                <span className="mono" style={{ fontSize: 11, color: T.textMuted }}>{fmt(INDICES[k].price)}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: isDead(k) ? T.textMuted : T.textPrimary }}>{k}</span>
+                <span className="mono" style={{
+                  fontSize: 11, color: T.textMuted,
+                  textDecoration: isDead(k) ? 'line-through' : 'none',
+                }}>{fmt(INDICES[k].price)}</span>
               </button>
-              {cells.map((cell, i) => {
+              {isDead(k) ? (
+                <div style={{
+                  flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+                  border: `1px dashed ${T.border}`, borderRadius: 8, padding: '8px 14px',
+                  fontSize: 11.5, color: T.caution,
+                }}>
+                  no {k} tape — nothing to read here
+                </div>
+              ) : cells.map((cell, i) => {
                 const hue = HEAT_RGB[cell.dir]
                 const arrow = cell.dir === 'bull' ? '▲' : cell.dir === 'bear' ? '▼' : '·'
                 return (
@@ -1673,7 +1692,7 @@ export default function App() {
 
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} />}
+        {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
