@@ -231,6 +231,51 @@ def test_out_of_book_zone_flagged():
           f"mp_dist={m['mp_dist']}")
 
 
+def test_oi_flow_samples_at_the_mark():
+    """Each row is the chain AS AT its clock mark, not an average over the
+    interval that follows. Labelling it the other way shifts every row by one
+    bucket — exactly how the first attempt disagreed with the reference tool
+    on real 2026-07-28 data."""
+    st = ChainState()
+    for i in range(30):                    # 09:15..09:44
+        st.minutes["09:%02d" % (15 + i)] = {
+            "spot": 100.0 + i, "k": {24000: (100.0, 10.0 * (i + 1))}}
+    rows = st.oi_flow(interval=15, strikes=[24000])
+    at = {r["time"]: r for r in rows}
+    # data runs to 09:44, so 09:45 has no mark and must not be invented
+    assert list(at) == ["09:15", "09:30"], list(at)
+    # 09:30 must read the 09:30 snapshot (put = 10*16 = 160), not 09:44's
+    assert at["09:30"]["put"] == 160, at["09:30"]
+    assert at["09:30"]["call"] == 100
+    assert at["09:30"]["diff"] == 60
+    assert at["09:30"]["pcr"] == 1.6
+    assert abs(at["09:30"]["strength"] - 60 / 160) < 1e-9, at["09:30"]
+    assert at["09:30"]["sentiment"] == "BULLISH"
+    assert at["09:30"]["chg_dir"] == at["09:30"]["diff"] - at["09:15"]["diff"]
+    assert rows[0]["chg_dir"] is None, rows[0]
+    print(f"PASS oi_flow samples at the mark: 09:30 put={at['09:30']['put']} "
+          f"pcr={at['09:30']['pcr']} str={at['09:30']['strength']:.2f}")
+
+
+def test_oi_flow_breaks_and_selection():
+    """Day high/low breaks fire only on a NEW extreme, and strike selection
+    actually restricts the sum."""
+    st = ChainState()
+    for i, sp in enumerate([100, 101, 99, 104, 98]):
+        for j in range(15):
+            tot = i * 15 + j
+            st.minutes["%02d:%02d" % (9 + tot // 60, tot % 60)] = {
+                "spot": float(sp), "k": {24000: (10.0, 20.0), 24100: (5.0, 5.0)}}
+    rows = st.oi_flow(interval=15, strikes=[24000])
+    assert all(r["call"] == 10 and r["put"] == 20 for r in rows), rows[0]
+    both = st.oi_flow(interval=15, strikes=[24000, 24100])
+    assert both[0]["call"] == 15 and both[0]["put"] == 25, both[0]
+    brks = [r["brk"] for r in rows if r["brk"]]
+    assert "DHB" in brks and "DLB" in brks, brks
+    assert rows[0]["brk"] is None, "the first mark cannot break anything"
+    print(f"PASS oi_flow breaks + selection: {brks}")
+
+
 if __name__ == "__main__":
     test_max_pain_symmetric()
     test_writer_score_signs()
@@ -243,4 +288,6 @@ if __name__ == "__main__":
     test_squaring_window_suppresses_direction()
     test_role_flip_and_book_zone()
     test_out_of_book_zone_flagged()
+    test_oi_flow_samples_at_the_mark()
+    test_oi_flow_breaks_and_selection()
     print("ALL PASS")

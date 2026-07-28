@@ -210,6 +210,12 @@ class ChainState:
     def __init__(self):
         self.flow = {}          # (k, "ce"/"pe") -> _SideFlow
         self.series = []        # one point per update
+        # Trending-OI: the LAST snapshot of each minute, per strike. oi_chg is
+        # Dhan's cumulative day change, so a bucket's value is simply its
+        # closing value — which means one minute-grid serves any interval
+        # (5/15/30/60) without re-reading anything.
+        # 375 minutes x ~50 strikes x 2 legs is a few hundred KB per index.
+        self.minutes = {}       # "HH:MM" -> {"spot": float, "k": {strike: (ce_chg, pe_chg)}}
         self.role = {}          # k -> "CEILING"/"FLOOR"/"CONTESTED"
         self.walls = {}         # "up"/"dn" -> last wall strike
         self.wall_log = []      # structural changes, newest last
@@ -275,6 +281,12 @@ class ChainState:
         iv = iv_surface(strikes, atm, spot)
         sq = self._squeeze(strikes, w_by_k, spot, snap.get("ts") or "00:00:00")
 
+        self.minutes[(snap.get("ts") or "00:00:00")[:5]] = {
+            "spot": spot,
+            "k": {s["k"]: ((s["ce"].get("oi_chg") or 0.0),
+                           (s["pe"].get("oi_chg") or 0.0)) for s in strikes},
+        }
+
         wall_ev = self._wall_events(strikes, prof, spot, snap.get("ts") or "")
 
         # gex_total alone is a trap: it falls both when dampening genuinely
@@ -323,6 +335,91 @@ class ChainState:
             "iv_ce": iv.get("atm_ce"), "iv_pe": iv.get("atm_pe"),
             "greg": metrics["gex_regime"]})
         return metrics
+
+    def oi_flow(self, interval=15, strikes=None):
+        """Trending-OI table — one row per `interval`-minute bucket.
+
+        Column semantics were reverse-engineered from a reference tool and
+        checked against our own 2026-07-28 capture (six buckets matched within
+        1-2%, the residual being sampling instant). The key thing the labels
+        get right and the eye gets wrong: "Chng. in Call OI" really is Dhan's
+        cumulative day CHANGE per strike, not the outstanding OI. Summing
+        outstanding OI instead gives ~1.8x the numbers and the wrong PCR.
+
+            call/put  = sum of per-strike oi_chg over the selected strikes
+            diff      = put - call
+            pcr       = put / call
+            strength  = diff / max(call, put)      (signed)
+            chg_dir   = diff(t) - diff(t-1)
+            chg_dir_pct = chg_dir / |diff(t-1)|
+            sentiment = BULLISH when diff > 0
+
+        `strikes` is an iterable of strike prices; None means every strike in
+        the snapshot.
+        """
+        if not self.minutes or interval <= 0:
+            return []
+        ks = set(strikes) if strikes else None
+
+        # Each row is the chain AS AT that clock mark — a sampled series, not
+        # an average over the interval that follows. Getting this wrong shifts
+        # every row by one bucket, which is exactly how the first attempt
+        # disagreed with the reference tool.
+        mins = sorted(self.minutes)
+        tmin = lambda t: int(t[:2]) * 60 + int(t[3:5])
+        first, last_m = tmin(mins[0]), tmin(mins[-1])
+        marks = [m for m in range(((first + interval - 1) // interval) * interval,
+                                  last_m + 1, interval)]
+
+        rows, prev_diff, day_hi, day_lo, prev_mark = [], None, None, None, first - 1
+        for mk_min in marks:
+            bk = "%02d:%02d" % (mk_min // 60, mk_min % 60)
+            window = [m for m in mins if prev_mark < tmin(m) <= mk_min]
+            if not window:
+                continue
+            rec = self.minutes[window[-1]]       # the state as at this mark
+            spots = [self.minutes[m]["spot"] for m in window
+                     if self.minutes[m]["spot"] is not None]
+            call = put = 0.0
+            for k, (c, p) in rec["k"].items():
+                if ks is None or k in ks:
+                    call += c
+                    put += p
+            diff = put - call
+            scale = max(abs(call), abs(put)) or 1.0
+            chg = None if prev_diff is None else diff - prev_diff
+            chg_pct = (chg / abs(prev_diff)) if (chg is not None and prev_diff) else None
+
+            brk, brk_px = None, None
+            if spots:
+                hi, lo = max(spots), min(spots)
+                # a break is a NEW extreme made inside this bucket, so compare
+                # against the extremes of everything before it
+                if day_hi is None or hi > day_hi:
+                    if day_hi is not None:
+                        brk, brk_px = "DHB", round(hi, 2)
+                    day_hi = hi
+                if day_lo is None or lo < day_lo:
+                    if day_lo is not None:
+                        brk, brk_px = "DLB", round(lo, 2)
+                    day_lo = lo
+
+            rows.append({
+                "time": bk,
+                "ltp": round(rec["spot"], 2) if rec["spot"] is not None else None,
+                "call": round(call),
+                "put": round(put),
+                "diff": round(diff),
+                "strength": round(diff / scale, 4),
+                "pcr": round(put / call, 2) if call else None,
+                "chg_dir": None if chg is None else round(chg),
+                "chg_dir_pct": None if chg_pct is None else round(chg_pct, 4),
+                "sentiment": "BULLISH" if diff > 0 else "BEARISH" if diff < 0 else "NEUTRAL",
+                "brk": brk,
+                "brk_px": brk_px,
+            })
+            prev_diff, prev_mark = diff, mk_min
+        return rows
 
     def _wall_events(self, strikes, prof, spot, ts):
         """Structural changes in the book — the day's real headlines.

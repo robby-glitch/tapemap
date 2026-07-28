@@ -115,6 +115,36 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(b'{"ok":false,"error":"chain poller warming up"}')
             else:
                 self._json(box["payload"])
+        elif self.path.startswith("/api/oiflow"):
+            # Trending-OI table. Aggregated server-side on purpose: the minute
+            # grid it reads is a few hundred KB while the raw chain is ~180 MB
+            # a day, so the browser must never see the latter.
+            idx = self._idx()
+            if not self.poller:
+                self._json(b'{"ok":false,"error":"no chain poller"}')
+                return
+            st = self.poller.states.get(idx)
+            if st is None:
+                self._json(json.dumps({"ok": False,
+                                       "error": f"no chain state for {idx}"}).encode())
+                return
+            q = parse_qs(urlsplit(self.path).query)
+            try:
+                interval = max(1, min(60, int((q.get("interval") or ["15"])[0])))
+            except ValueError:
+                interval = 15
+            raw = (q.get("strikes") or [""])[0]
+            strikes = None
+            if raw:
+                try:
+                    strikes = [float(x) for x in raw.split(",") if x.strip()]
+                except ValueError:
+                    strikes = None
+            rows = st.oi_flow(interval=interval, strikes=strikes)
+            avail = sorted({k for m in st.minutes.values() for k in m["k"]})
+            self._json(json.dumps({"ok": True, "index": idx,
+                                   "interval": interval, "strikes": avail,
+                                   "selected": strikes, "rows": rows}).encode())
         elif self.path.startswith("/api/gex"):
             # newest gex_YYYY-MM-DD.json (filenames sort chronologically)
             files = sorted((ROOT / "data").glob("gex_*.json"))

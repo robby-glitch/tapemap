@@ -28,7 +28,7 @@ const T = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
-type Tab = 'Heat' | 'Tape' | 'Chain' | 'Events' | 'Validate' | 'Map'
+type Tab = 'Heat' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -1527,6 +1527,193 @@ function HeatTab({ active, setActive, dead }: {
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
+/* ── Trending OI ───────────────────────────────────────────────────────────
+   One row per clock mark: how much call and put OI has been ADDED across the
+   selected strikes since the day opened, and which way that is tilting.
+   Aggregated server-side (/api/oiflow) — the minute grid behind it is a few
+   hundred KB while the raw chain is ~180 MB a day.                        */
+interface FlowRow {
+  time: string; ltp: number | null; call: number; put: number; diff: number
+  strength: number; pcr: number | null; chg_dir: number | null
+  chg_dir_pct: number | null; sentiment: string
+  brk: string | null; brk_px: number | null
+}
+
+const inr = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+
+function OiFlowTab({ index }: { index: IndexKey }) {
+  const [mins, setMins] = useState(15)
+  const [rows, setRows] = useState<FlowRow[]>([])
+  const [avail, setAvail] = useState<number[]>([])
+  const [sel, setSel] = useState<number[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  useEffect(() => { setSel(null) }, [index])   // strike sets differ per index
+
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const q = `idx=${index}&interval=${mins}`
+          + (sel?.length ? `&strikes=${sel.join(',')}` : '')
+        const r = await fetch('/api/oiflow?' + q)
+        const j = await r.json()
+        if (!alive) return
+        if (!j.ok) { setErr(j.error || 'unavailable'); setRows([]); return }
+        setErr(null)
+        setAvail(j.strikes || [])
+        setRows(j.rows || [])
+      } catch { if (alive) setErr('backend unreachable') }
+    }
+    load()
+    const id = setInterval(load, 15000)
+    return () => { alive = false; clearInterval(id) }
+  }, [index, mins, sel])
+
+  const toggle = (k: number) => {
+    const base = sel ?? avail
+    const next = base.includes(k) ? base.filter(x => x !== k) : [...base, k].sort((a, b) => a - b)
+    setSel(next.length ? next : null)
+  }
+
+  const th: React.CSSProperties = {
+    textAlign: 'right', padding: '7px 10px', fontSize: 9.5, fontWeight: 600,
+    letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted,
+    borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+  }
+  const td: React.CSSProperties = {
+    textAlign: 'right', padding: '6px 10px', fontSize: 12,
+    borderBottom: '1px solid rgba(255,255,255,0.035)', whiteSpace: 'nowrap',
+  }
+
+  return (
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span className="micro-label">Trending OI — {index}</span>
+        <select value={mins} onChange={e => setMins(+e.target.value)} style={{
+          background: T.inset, color: T.textSecondary, fontSize: 11,
+          border: `1px solid ${T.border}`, borderRadius: 3, padding: '4px 7px',
+        }}>
+          {[5, 15, 30, 60].map(m => <option key={m} value={m}>{m} min</option>)}
+        </select>
+        <span style={{ fontSize: 11, color: T.textMuted }}>
+          {rows.length} mark{rows.length === 1 ? '' : 's'} · OI added since the open,
+          summed over {(sel ?? avail).length || '—'} strikes
+        </span>
+        {sel && (
+          <button onClick={() => setSel(null)} style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '3px 9px',
+            borderRadius: 3, cursor: 'pointer', background: 'transparent',
+            border: `1px solid ${T.border}`, color: T.textMuted,
+          }}>ALL STRIKES</button>
+        )}
+      </div>
+
+      {avail.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {avail.map(k => {
+            const on = (sel ?? avail).includes(k)
+            return (
+              <button key={k} onClick={() => toggle(k)} className="mono" style={{
+                fontSize: 10.5, padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
+                background: on ? 'rgba(224,168,82,0.12)' : 'transparent',
+                border: `1px solid ${on ? 'rgba(224,168,82,0.45)' : T.border}`,
+                color: on ? T.accent : T.textMuted,
+              }}>{k}</button>
+            )
+          })}
+        </div>
+      )}
+
+      {err ? (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
+          padding: 20, fontSize: 13, color: T.caution,
+        }}>Trending OI unavailable — {err}. It needs the chain poller running.</div>
+      ) : !rows.length ? (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
+          padding: 20, fontSize: 13, color: T.textMuted,
+        }}>No marks yet — the first row appears at the next {mins}-minute boundary.</div>
+      ) : (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
+          overflowX: 'auto',
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ ...th, textAlign: 'left' }}>Time</th>
+                <th style={th}>LTP</th>
+                <th style={{ ...th, textAlign: 'center' }}>Break</th>
+                <th style={th}>Call OI added</th>
+                <th style={th}>Put OI added</th>
+                <th style={th}>Diff</th>
+                <th style={{ ...th, textAlign: 'center' }}>Strength</th>
+                <th style={th}>Chg in dir</th>
+                <th style={th}>Dir %</th>
+                <th style={th}>PCR</th>
+                <th style={{ ...th, textAlign: 'center' }}>Sentiment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...rows].reverse().map(r => {
+                const bull = r.sentiment === 'BULLISH'
+                const sCol = r.diff > 0 ? T.bull : r.diff < 0 ? T.bear : T.textMuted
+                const dCol = (r.chg_dir ?? 0) > 0 ? T.bull : (r.chg_dir ?? 0) < 0 ? T.bear : T.textMuted
+                return (
+                  <tr key={r.time}>
+                    <td className="mono" style={{ ...td, textAlign: 'left', color: T.textSecondary }}>{r.time}</td>
+                    <td className="mono" style={td}>{r.ltp?.toFixed(2) ?? '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {r.brk ? (
+                        <span className="mono" style={{
+                          fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                          color: r.brk === 'DHB' ? T.bull : T.bear,
+                          background: r.brk === 'DHB' ? 'rgba(46,194,126,0.12)' : 'rgba(255,95,107,0.12)',
+                        }}>{r.brk} {r.brk_px}</span>
+                      ) : <span style={{ color: T.textMuted }}>·</span>}
+                    </td>
+                    <td className="mono" style={td}>{inr(r.call)}</td>
+                    <td className="mono" style={td}>{inr(r.put)}</td>
+                    <td className="mono" style={{ ...td, color: sCol, fontWeight: 600 }}>{inr(r.diff)}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <span className="mono" style={{
+                        fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
+                        color: sCol, border: `1px solid ${sCol}55`,
+                      }}>{r.strength > 0 ? '+' : ''}{Math.round(r.strength * 100)}%</span>
+                    </td>
+                    <td className="mono" style={{ ...td, color: dCol }}>
+                      {r.chg_dir == null ? '—' : (r.chg_dir > 0 ? '▲ ' : '▼ ') + inr(Math.abs(r.chg_dir))}
+                    </td>
+                    <td className="mono" style={{ ...td, color: dCol }}>
+                      {r.chg_dir_pct == null ? '—' : `${(r.chg_dir_pct * 100).toFixed(1)}%`}
+                    </td>
+                    <td className="mono" style={td}>{r.pcr?.toFixed(2) ?? '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                        padding: '2px 8px', borderRadius: 3,
+                        color: bull ? T.bull : T.bear,
+                        background: bull ? 'rgba(46,194,126,0.12)' : 'rgba(255,95,107,0.12)',
+                      }}>{r.sentiment}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ fontSize: 11, color: T.textMuted, maxWidth: '78ch' }}>
+        Each row is the chain <b>as at</b> that mark, not an average of the
+        interval after it. Diff = put minus call; strength divides it by the
+        larger leg; "chg in dir" is how far Diff moved since the previous mark.
+      </div>
+    </div>
+  )
+}
+
 /* ── ANSWER band ───────────────────────────────────────────────────────────
    Always visible, above the tabs. v2 inherited v1's worst structural habit:
    the read lived behind a tab, so the one thing worth seeing on a live tape
@@ -1630,7 +1817,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
 export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
-  const tabs: Tab[] = ['Heat', 'Tape', 'Chain', 'Events', 'Validate', 'Map']
+  const tabs: Tab[] = ['Heat', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
   const { data: liveData, error, lastUpdated, barCount, at, dead } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
 
@@ -1791,6 +1978,7 @@ export default function App() {
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
+        {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
         {activeTab === 'Validate' && <ValidateTab index={activeIndex} />}
         {activeTab === 'Map'      && <MapTab index={activeIndex} />}
