@@ -66,6 +66,12 @@ export interface Chain {
    * at 24,000; reading the first as "dampening over" cost a bad call.
    */
   inBookZone: boolean
+  /**
+   * True when the strike ladder belongs to the bar being shown. False while
+   * scrubbing: the chain arrives as a live snapshot with no per-strike
+   * history, so the ladder cannot be replayed and must say so.
+   */
+  aligned: boolean
 }
 export interface EventItem {
   time: string
@@ -292,10 +298,24 @@ function dedupLevels(levels: Level[], tol = 2): Level[] {
   return out
 }
 
-function mapIndex(D: any, C: any): PerIndex {
+/**
+ * Map one index's payloads into display shapes.
+ *
+ * `at` is a bar index for replay. Everything bar-derived is truncated to that
+ * bar so the screen shows what was knowable THEN — no reading ahead. The
+ * option chain is the exception and is handled separately: it arrives as a
+ * live snapshot with no per-strike history, so scrubbing borrows the closest
+ * `series` sample at or before the bar and flags the ladder as live-only.
+ */
+function mapIndex(D: any, C: any, at?: number): PerIndex {
   const day = D.days[D.days.length - 1]
-  const bars = day.bars
+  const allBars: any[] = day.bars ?? []
+  const at_ = at == null ? allBars.length - 1
+    : Math.max(0, Math.min(at, allBars.length - 1))
+  const bars = at == null ? allBars : allBars.slice(0, at_ + 1)
   const b = bars[bars.length - 1]
+  /** Nothing timestamped after this bar may appear anywhere on the screen. */
+  const cutoff: string = b?.t ?? '23:59'
   const f = b.fut
   const ctx = b.ctx
   const g = b.gamma
@@ -386,9 +406,19 @@ function mapIndex(D: any, C: any): PerIndex {
     ],
   }
 
-  // CHAIN_DATA
-  const gexR = m.gex_regime
-  const sqScore = m.squeeze?.score ?? 0
+  // CHAIN_DATA. In replay, borrow the nearest `series` sample at or before
+  // this bar instead of showing the live chain against a past bar — that
+  // lookahead is exactly what made v1's scrubbed reads non-causal.
+  const ser: any[] = C?.series ?? []
+  let hist: any = null
+  if (at != null) {
+    for (const p of ser) {
+      if (String(p.ts ?? '').slice(0, 5) <= cutoff) hist = p
+      else break
+    }
+  }
+  const gexR = hist?.greg ?? m.gex_regime
+  const sqScore = hist?.sq ?? m.squeeze?.score ?? 0
   const atm = C?.atm
   const cstrikes: any[] = C?.strikes ?? []
   let ai = cstrikes.findIndex((s) => s.k === atm)
@@ -408,8 +438,11 @@ function mapIndex(D: any, C: any): PerIndex {
     }))
     .reverse() // highest strike on top, matching the design ladder
   const chain: Chain = {
-    pcr: (m.pcr_oi ?? 0).toFixed(2),
-    maxPain: m.max_pain ?? 0,
+    pcr: (hist?.pcr ?? m.pcr_oi ?? 0).toFixed(2),
+    maxPain: hist?.mp ?? m.max_pain ?? 0,
+    // false = the strike ladder below is the LIVE snapshot, not this bar's.
+    // There is no per-strike history in the payload, so it cannot be replayed.
+    aligned: at == null,
     gex: gexR === 'POSITIVE' ? 'Positive' : gexR === 'NEGATIVE' ? 'Negative' : 'Neutral',
     squeeze: sqScore > 0.3 ? 'High' : sqScore > 0.1 ? 'Medium' : 'Low',
     strikes,
@@ -427,14 +460,15 @@ function mapIndex(D: any, C: any): PerIndex {
   // invisible to it: on 2026-07-28 the 24,000 strike flipped ceiling->floor in
   // the morning and back in the afternoon, each the decisive move of its half
   // of the session, and neither produced a single line of narrative.
-  const wallLog: any[] = C?.metrics?.wall_log ?? []
+  const wallLog: any[] = (C?.metrics?.wall_log ?? [])
+    .filter((e: any) => String(e.ts ?? '').slice(0, 5) <= cutoff)
   const wallEvents: EventItem[] = wallLog.map((e) => ({
     time: String(e.ts ?? '').slice(0, 5),
     text: trimMsg(e.msg ?? ''),
     tag: e.kind ?? 'WALL',
     dir: e.side === 'UP' ? 'bull' : e.side === 'DN' ? 'bear' : 'neutral',
   }))
-  const evs: any[] = day.events ?? []
+  const evs: any[] = (day.events ?? []).filter((e: any) => (e.t ?? '') <= cutoff)
   const toItem = (e: any): EventItem => ({
     time: e.t,
     // the "+N agreeing" tail is appended AFTER trimming so a merged chorus
@@ -660,9 +694,13 @@ export function useLiveData(fallback: Dataset) {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const lastGood = useRef<Record<IndexKey, PerIndex>>(perFromFallback(fallback))
+  // Raw payloads are kept so replay can re-map any bar without re-fetching.
+  const [raw, setRaw] = useState<Partial<Record<IndexKey, { D: any; C: any }>>>({})
 
   useEffect(() => {
     let alive = true
+
+    const rawSeen: Partial<Record<IndexKey, { D: any; C: any }>> = {}
 
     async function fetchIdx(k: IndexKey): Promise<PerIndex | null> {
       try {
@@ -672,6 +710,7 @@ export function useLiveData(fallback: Dataset) {
         ])
         if (!dr.ok || !cr.ok) throw new Error('http ' + dr.status + '/' + cr.status)
         const [D, C] = await Promise.all([dr.json(), cr.json()])
+        rawSeen[k] = { D, C }
         return mapIndex(D, C)
       } catch {
         return null
@@ -693,6 +732,7 @@ export function useLiveData(fallback: Dataset) {
       })
       lastGood.current = per
       setData(assemble(per))
+      if (Object.keys(rawSeen).length) setRaw((r) => ({ ...r, ...rawSeen }))
       setLoading(false)
       setLastUpdated(new Date())
       setError(failures === KEYS.length ? 'reconnecting' : null)
@@ -706,5 +746,23 @@ export function useLiveData(fallback: Dataset) {
     }
   }, [])
 
-  return { data, loading, error, lastUpdated }
+  /** Bars available for replay on the active index (0 when not yet loaded). */
+  const barCount = (k: IndexKey) => {
+    const D = raw[k]?.D
+    const days = D?.days
+    return days?.length ? (days[days.length - 1].bars?.length ?? 0) : 0
+  }
+
+  /** Re-map every index at bar `at`, or null for live. Never re-fetches. */
+  const at = (idx: number | null): Dataset => {
+    if (idx == null) return data
+    const per = {} as Record<IndexKey, PerIndex>
+    for (const k of KEYS) {
+      const r = raw[k]
+      per[k] = r ? mapIndex(r.D, r.C, idx) : lastGood.current[k]
+    }
+    return assemble(per)
+  }
+
+  return { data, loading, error, lastUpdated, barCount, at }
 }

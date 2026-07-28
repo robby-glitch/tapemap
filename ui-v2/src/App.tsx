@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from 'react'
+import { useState, useEffect, useMemo, createContext, useContext } from 'react'
 import {
   ComposedChart, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -222,6 +222,7 @@ function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
     gexSpot: 0,
     bookZone: ks.length ? [Math.min(...ks), Math.max(...ks)] : null,
     inBookZone: true,
+    aligned: true,
   }
 }
 
@@ -869,7 +870,14 @@ function ChainTab({ index }: { index: IndexKey }) {
         overflow: 'hidden',
       }}>
         <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="micro-label">Strike Heatmap — CE OI · GEX · PE OI</div>
+          <div className="micro-label">
+            Strike Heatmap — CE OI · GEX · PE OI
+            {!chain.aligned && (
+              <span style={{ color: T.caution, marginLeft: 10, letterSpacing: 0, textTransform: 'none' }}>
+                live snapshot — the ladder has no per-strike history, so it is not replayed
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 14, fontSize: 10, color: T.textMuted }}>
             <span style={{ color: T.bear }}>■ CE writers</span>
             <span style={{ color: T.bull }}>■ PE writers</span>
@@ -1502,7 +1510,27 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
   const tabs: Tab[] = ['Heat', 'Tape', 'Chain', 'Events', 'Validate', 'Map']
-  const { data, error, lastUpdated } = useLiveData(MOCK)
+  const { data: liveData, error, lastUpdated, barCount, at } = useLiveData(MOCK)
+
+  // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
+  const [scrub, setScrub] = useState<number | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [speed, setSpeed] = useState(8)
+  const nBars = barCount(activeIndex)
+  const data = useMemo(() => at(scrub), [scrub, liveData])
+  const barTime = data.CHART_DATA[activeIndex]?.slice(-1)[0]?.time ?? '--:--'
+
+  useEffect(() => {
+    if (!playing || scrub == null) return
+    const id = setInterval(() => {
+      setScrub((s) => {
+        if (s == null) return s
+        if (s >= nBars - 1) { setPlaying(false); return s }
+        return s + 1
+      })
+    }, Math.max(40, 1000 / speed))
+    return () => clearInterval(id)
+  }, [playing, speed, scrub == null, nBars])
 
   return (
     <DataCtx.Provider value={data}>
@@ -1561,6 +1589,64 @@ export default function App() {
           <span className="mono">{lastUpdated ? lastUpdated.toLocaleTimeString('en-GB') : '—'}</span> IST
         </div>
       </div>
+
+      {/* Replay transport. Hidden until there are bars to scrub. */}
+      {nBars > 1 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px',
+          borderBottom: `1px solid ${T.border}`,
+          backgroundColor: scrub == null ? T.bg : 'rgba(224,168,82,0.07)',
+        }}>
+          <button
+            onClick={() => {
+              if (scrub == null) { setScrub(Math.max(0, nBars - 60)); setPlaying(true) }
+              else setPlaying(!playing)
+            }}
+            title={scrub == null ? 'Replay the last hour' : playing ? 'Pause' : 'Play'}
+            style={{
+              width: 30, height: 26, borderRadius: 3, cursor: 'pointer',
+              background: 'transparent', border: `1px solid ${T.border}`,
+              color: T.textPrimary, fontSize: 12,
+            }}
+          >{playing ? '❚❚' : '▶'}</button>
+
+          <select value={speed} onChange={(e) => setSpeed(+e.target.value)}
+            style={{
+              background: T.inset, color: T.textSecondary, fontSize: 11,
+              border: `1px solid ${T.border}`, borderRadius: 3, padding: '4px 6px',
+            }}>
+            {[1, 3, 8, 25].map(s => <option key={s} value={s}>{s}×</option>)}
+          </select>
+
+          <span className="mono" style={{
+            fontSize: 12, color: scrub == null ? T.textMuted : T.accent,
+            minWidth: 46, fontWeight: 600,
+          }}>{barTime}</span>
+
+          <input
+            type="range" min={0} max={Math.max(0, nBars - 1)}
+            value={scrub == null ? nBars - 1 : scrub}
+            onChange={(e) => { setScrub(+e.target.value); setPlaying(false) }}
+            aria-label="Replay position"
+            style={{ flex: 1, accentColor: T.accent, cursor: 'pointer' }}
+          />
+
+          {scrub == null ? (
+            <span className="mono" style={{ fontSize: 10.5, color: T.textMuted, letterSpacing: '0.06em' }}>
+              LIVE
+            </span>
+          ) : (
+            <button
+              onClick={() => { setScrub(null); setPlaying(false) }}
+              style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                padding: '4px 10px', borderRadius: 3, cursor: 'pointer',
+                background: 'transparent', border: `1px solid ${T.accent}`, color: T.accent,
+              }}
+            >RETURN TO LIVE</button>
+          )}
+        </div>
+      )}
 
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
