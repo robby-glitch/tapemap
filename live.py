@@ -13,6 +13,7 @@ Serving:           python server.py live  (refreshes every REFRESH_S)
 
 import json
 import math
+import threading
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -81,7 +82,23 @@ def _pick_strike(F, cfg):
     return st["strike"]
 
 
+# one gate for ALL Dhan intraday calls: the per-index builder threads
+# (server.refresh_one) otherwise burst simultaneously every cycle and trip
+# Dhan's rate limit (2026-07-28 open: 107x HTTP 429, tape stale ~4 min)
+_gate_lock = threading.Lock()
+_gate_t = [0.0]
+
+
+def _throttle(min_gap=0.35):
+    with _gate_lock:
+        wait = _gate_t[0] + min_gap - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _gate_t[0] = time.monotonic()
+
+
 def _intraday(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO"):
+    _throttle()
     body = json.dumps({"securityId": str(sec_id), "exchangeSegment": seg,
                        "instrument": instrument, "interval": "1", "oi": oi,
                        "fromDate": day, "toDate": day}).encode()

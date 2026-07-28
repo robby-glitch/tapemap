@@ -170,7 +170,8 @@ def main():
         # serial loop froze all three tapes at once). The scrip master behind
         # resolve_dynamic is lock-guarded and day-cached in instruments, so
         # three threads still cost one download.
-        def refresh_one(x, c):
+        def refresh_one(x, c, stagger):
+            _t.sleep(stagger)       # de-phase the per-index cycles
             first = True
             while True:
                 if not first:
@@ -182,14 +183,17 @@ def main():
                             c, "", _t.strftime("%Y-%m-%d"))
                     payloads[x]["payload"] = build_payload(c)
                     have[x] = True
-                except Exception:   # keep last good data; else ask for a token
+                except Exception as e:  # keep last good data; else ask for a token
                     log.exception("live build failed %s", x)
                     if not have[x]:
                         payloads[x]["payload"] = _waiting(x,
                             "waiting for a valid Dhan token — click ⟳ TOKEN")
+                    if "429" in str(e):     # rate-limited: back off, don't hammer
+                        log.warning("%s rate-limited, backing off 20s", x)
+                        _t.sleep(20)
 
-        for x, c in cfgs.items():
-            threading.Thread(target=refresh_one, args=(x, c),
+        for n, (x, c) in enumerate(cfgs.items()):
+            threading.Thread(target=refresh_one, args=(x, c, n * 5),
                              daemon=True, name=f"refresh-{x}").start()
         ThreadingHTTPServer(("127.0.0.1", port),
                             partial(Handler, payloads=payloads,
