@@ -110,9 +110,137 @@ def test_squeeze_on_fixture():
           f"rally max={fire_max:.2f} side={fire_side}")
 
 
+def _ce_walls(rout, strikes_at=(24050, 24100), spot=24000.0, sec0=34000,
+              oi0=900_000, extra=()):
+    """Two writer-built CE walls go underwater in a rally, then either the near
+    one ROLLS its OI up to the far one, or BOTH are routed. Per-strike unwind
+    is identical either way — only the side total differs.
+
+    Timing matters: the build must finish before the 300s velocity window
+    opens, or `oi_then` still sits mid-build and the unwind measures ~0.
+    """
+    st = ChainState()
+    prev, m = None, None
+    ka, kb = strikes_at
+    oi_a = oi_b = oi0
+    for i in range(70):
+        sec = sec0 + i * 10
+        if i < 40:                        # 400s build: OI up, premium bleeding
+            oi_a += 50_000
+            oi_b += 50_000
+            ltp = 60.0 - i * 0.5
+        else:                             # rally: premium rips past 1.3x build
+            ltp = 40.0 + (i - 40) * 1.0
+            if i >= 50:                   # ... and the walls come off
+                oi_a -= 60_000
+                oi_b += -60_000 if rout else 60_000
+        s = snap(sec, spot, [_row(ka, oi_a, 200_000, ce_ltp=ltp),
+                             _row(kb, oi_b, 200_000, ce_ltp=ltp)]
+                 + [_row(*e) for e in extra])
+        m = st.update(s, 0.004, prev)
+        prev = s
+    return m["squeeze"]
+
+
+def test_roll_is_not_a_squeeze():
+    """The 2026-07-28 lesson: identical strike-local unwind means opposite
+    things depending on what the neighbouring strike did."""
+    rout = _ce_walls(rout=True)
+    roll = _ce_walls(rout=False)
+    assert rout["score"] >= 0.35, rout
+    assert rout["side"] == "UP", rout
+    assert roll["score"] < 0.15, roll
+    print(f"PASS roll vs rout: rout={rout['score']:.2f} "
+          f"roll={roll['score']:.2f}")
+
+
+def test_squeeze_ignores_itm_books():
+    """A CE book far BELOW spot is losers closing out, not a ceiling failing —
+    it must not be able to score (2026-07-28 13:53 and 15:20)."""
+    # identical rout, but both walls sit 250-300 pts BELOW spot (deep ITM)
+    itm = _ce_walls(rout=True, strikes_at=(23700, 23750), spot=24000.0)
+    assert itm["score"] == 0.0, itm
+    print(f"PASS ITM CE books ignored: score={itm['score']:.2f}")
+
+
+def test_iv_dropped_when_no_time_value():
+    """Near expiry an option trades at intrinsic and the IV solver diverges;
+    that must not reach `skew`, which votes on direction downstream."""
+    st = ChainState()
+    # ATM put worth 19.55 against 19.0 of intrinsic -> 0.55 of time value, and
+    # an upper skew leg trading at 5 paise -> both solves are meaningless.
+    strikes = [_row(23700, 400_000, 400_000, iv=0.10),
+               _row(24000, 400_000, 400_000, ce_ltp=8.0, pe_ltp=19.55, iv=1.33),
+               _row(24300, 400_000, 400_000, ce_ltp=0.05, iv=1.90)]
+    m = st.update(snap(34000, 23981.0, strikes), 0.004, None)
+    assert m["iv"]["atm_pe"] is None, m["iv"]        # no time value left
+    assert m["iv"]["atm_ce"] == 1.33, m["iv"]        # 8.0 of tv: still a fit
+    assert m["iv"]["skew"] is None, m["iv"]          # dead leg kills the skew
+    print(f"PASS blown-up IV dropped: {m['iv']}")
+
+
+def test_hollow_squeeze_killed():
+    """A tiny trapped book beside a huge one must not score: the raw ratio
+    flatters it (2026-07-28 10:15 read 0.65-0.88 on 0.0M trapped)."""
+    # same rout, but an 80M book elsewhere dwarfs the ~1.3M actually trapped
+    hollow = _ce_walls(rout=True, oi0=20_000,
+                       extra=[(23900, 1_000, 80_000_000)])
+    assert hollow["score"] == 0.0, hollow
+    print(f"PASS hollow squeeze killed: score={hollow['score']:.2f}")
+
+
+def test_squaring_window_suppresses_direction():
+    """After 15:05 the whole chain decays; no unwind carries direction."""
+    late = _ce_walls(rout=True, sec0=54_000)     # 15:00 -> runs past 15:05
+    assert late["score"] == 0.0 and late["side"] is None, late
+    assert "squaring" in late["verdict"], late
+    print(f"PASS squaring window: {late['verdict'][:56]}...")
+
+
+def test_role_flip_and_book_zone():
+    """24,000 going ceiling->floor was the headline of 2026-07-28 morning and
+    produced no narrative at all. It must now emit an event."""
+    st = ChainState()
+    prev, ev = None, []
+    for i in range(6):
+        ce, pe = (40_000_000, 10_000_000) if i < 3 else (10_000_000, 40_000_000)
+        s = snap(34000 + i * 60, 24000.0,
+                 [_row(24000, ce, pe, ce_ltp=40.0, pe_ltp=40.0)])
+        m = st.update(s, 0.004, prev)
+        prev = s
+        ev += m["wall_events"]
+    flips = [e for e in ev if e["kind"] == "ROLE-FLIP"]
+    assert len(flips) == 1, ev
+    assert flips[0]["k"] == 24000 and flips[0]["side"] == "UP", flips
+    assert "ceiling→floor" in flips[0]["msg"], flips[0]["msg"]
+    assert m["in_book_zone"] is True, m["in_book_zone"]
+    print(f"PASS role flip: {flips[0]['msg'][:70]}...")
+
+
+def test_out_of_book_zone_flagged():
+    """gex_total falls when price leaves the books — that is snap-back setup,
+    not the end of dampening (the 15:01 misread)."""
+    st = ChainState()
+    strikes = [_row(24000, 40_000_000, 40_000_000),
+               _row(24050, 30_000_000, 30_000_000)]
+    m = st.update(snap(34000, 23400.0, strikes), 0.004, None)
+    assert m["in_book_zone"] is False, m
+    assert m["book_zone"] == [24000, 24050], m["book_zone"]
+    assert m["mp_dist"] is not None
+    print(f"PASS out-of-zone flagged: zone={m['book_zone']} "
+          f"mp_dist={m['mp_dist']}")
+
+
 if __name__ == "__main__":
     test_max_pain_symmetric()
     test_writer_score_signs()
     test_gex_flip_and_walls()
     test_squeeze_on_fixture()
+    test_roll_is_not_a_squeeze()
+    test_squeeze_ignores_itm_books()
+    test_iv_dropped_when_no_time_value()
+    test_hollow_squeeze_killed()
+    test_squaring_window_suppresses_direction()
+    test_role_flip_and_book_zone()
+    test_out_of_book_zone_flagged()
     print("ALL PASS")

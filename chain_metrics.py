@@ -39,7 +39,39 @@ SQ_PREMV_SAT = 0.10     # +10% premium in 5m saturates
 SQ_BAND = 300           # squeeze only scans strikes within +/-300 pts of spot
                         # (near-the-money writers are the actionable fuel; deep
                         # ITM writers far from price are noise on the pain map)
+SQ_MIN_SH = 0.03        # a squeeze needs real writers trapped, measured against
+                        # the chain's heaviest book so it scales across indices.
+                        # The score is a ratio, so a near-empty book over a
+                        # near-empty total still reads high: 2026-07-28 10:15
+                        # printed 0.65-0.88 on "0.0M writer OI trapped" (share
+                        # ~0, now killed) while the genuine 12:18 call was 2.0M
+                        # against a 44M book (share 0.045, still passes).
+SQ_MIN_PREM = 5.0       # ... and they must be defending something worth
+                        # holding. A 20% unwind of a Rs 2 option near expiry is
+                        # margin housekeeping, not fear (13:53: 24,100 CE -20%
+                        # at Rs 2.10; 15:20: 12.7M "covered" at Rs 1.75).
+SQ_SQUARE_AT = "15:05"  # after this, OI decay is mechanical across the whole
+                        # chain and no unwind supports a directional claim
+SQ_NET_MIN = 0.35       # at least this share of the unwind must have left the
+                        # SIDE, not just moved strike, before it counts as
+                        # capitulation — below it the writers merely rolled
+SQ_SIDE_TOL = 60        # a CE book only caps price at/above spot and a PE book
+                        # only supports it at/below; this much slack keeps a
+                        # wall price has JUST crossed in scope. Deeper ITM books
+                        # are losers closing out, not a wall failing.
+WALL_ROLE_M = 1.15      # one side must lead the other by this much to own a
+                        # strike; going through CONTESTED is the hysteresis
+WALL_MIN_SH = 0.25      # ... and the strike must carry this share of the
+                        # chain's heaviest book before its role is news
+HEAVY_SH = 0.50         # strikes at/above this share define the "book zone":
+                        # price outside it is where gex_total lies to you
 SKEW_OFF = 300          # skew measured ATM-300 PE vs ATM+300 CE
+IV_MAX = 2.0            # >200% vol is a solver blow-up, not a reading
+IV_MIN_TV = 2.0         # ... and so is any fit on less time value than this.
+                        # Near expiry an option trades at intrinsic and the
+                        # solver has nothing left to fit: 2026-07-28 14:52
+                        # printed atm_pe 1.3313 (133% vol) off ~Rs 0.5 of time
+                        # value, and that fed the UI's skew direction vote.
 
 
 def _clamp1(x):
@@ -74,18 +106,30 @@ def pcr(strikes):
             pe_v / ce_v if ce_v else None)
 
 
-def _iv_at(strikes, k, side):
+def _iv_at(strikes, k, side, spot):
+    """IV only where it was fitted on real time value.
+
+    An option trading at (or through) intrinsic leaves the solver nothing to
+    fit, so it returns garbage — and that garbage propagates: the UI's
+    direction bias reads `skew`, so a diverged solve becomes a vote on which
+    side to trade. Returning None makes downstream drop the term instead."""
     for s in strikes:
-        if s["k"] == k:
-            return s[side]["iv"]
+        if s["k"] != k:
+            continue
+        iv, ltp = s[side]["iv"], s[side]["ltp"]
+        if iv is None or ltp is None or not 0 < iv <= IV_MAX:
+            return None
+        intrinsic = (max(0.0, spot - k) if side == "ce"
+                     else max(0.0, k - spot))
+        return iv if ltp - intrinsic >= IV_MIN_TV else None
     return None
 
 
-def iv_surface(strikes, atm):
+def iv_surface(strikes, atm, spot):
     """ATM IVs + fixed-offset skew (PE fear below vs CE fear above)."""
-    ce, pe = _iv_at(strikes, atm, "ce"), _iv_at(strikes, atm, "pe")
-    otm_pe = _iv_at(strikes, atm - SKEW_OFF, "pe")
-    otm_ce = _iv_at(strikes, atm + SKEW_OFF, "ce")
+    ce, pe = _iv_at(strikes, atm, "ce", spot), _iv_at(strikes, atm, "pe", spot)
+    otm_pe = _iv_at(strikes, atm - SKEW_OFF, "pe", spot)
+    otm_ce = _iv_at(strikes, atm + SKEW_OFF, "ce", spot)
     skew = (otm_pe - otm_ce) if (otm_pe is not None and otm_ce is not None) \
         else None
     return {"atm_ce": ce, "atm_pe": pe, "skew": skew}
@@ -166,6 +210,13 @@ class ChainState:
     def __init__(self):
         self.flow = {}          # (k, "ce"/"pe") -> _SideFlow
         self.series = []        # one point per update
+        self.role = {}          # k -> "CEILING"/"FLOOR"/"CONTESTED"
+        self.walls = {}         # "up"/"dn" -> last wall strike
+        self.wall_log = []      # structural changes, newest last
+        self.peak = {}          # (k, "ce"/"pe") -> session-high OI. "% off
+                                # peak" is the cheapest read of a wall losing
+                                # its defenders, and it is what made the
+                                # 2026-07-28 roll-vs-rout calls possible.
 
     def _flow(self, k, side):
         fl = self.flow.get((k, side))
@@ -196,6 +247,10 @@ class ChainState:
                 else:
                     fl.hist.append((sec, s[side]["oi"], s[side]["ltp"]))
                 row[side + "_w"] = round(fl.w(s[side]["oi"]), 2)
+                key = (s["k"], side)
+                self.peak[key] = pk = max(self.peak.get(key, 0.0),
+                                          s[side]["oi"])
+                row[side + "_pk"] = pk
             rows.append(row)
         w_by_k = {r["k"]: r for r in rows}
 
@@ -217,11 +272,32 @@ class ChainState:
 
         pcr_oi, pcr_vol = pcr(strikes)
         mp = max_pain(strikes)
-        iv = iv_surface(strikes, atm)
-        sq = self._squeeze(strikes, w_by_k, spot)
+        iv = iv_surface(strikes, atm, spot)
+        sq = self._squeeze(strikes, w_by_k, spot, snap.get("ts") or "00:00:00")
 
+        wall_ev = self._wall_events(strikes, prof, spot, snap.get("ts") or "")
+
+        # gex_total alone is a trap: it falls both when dampening genuinely
+        # dies AND when price has simply walked away from the strikes holding
+        # the gamma — and those mean opposite things. On 2026-07-28 it read
+        # 120k at the 15:01 low (outside the zone, snap-back coming) and
+        # 1.56M twenty minutes later back at 24,000. Ship the context with it.
+        ks = sorted(s["k"] for s in strikes)
+        step = min((b - a) for a, b in zip(ks, ks[1:])) if len(ks) > 1 else 50.0
+        tot_oi = {s["k"]: (s["ce"]["oi"] or 0) + (s["pe"]["oi"] or 0)
+                  for s in strikes}
+        heaviest = max(tot_oi.values()) if tot_oi else 0.0
+        heavy = [k for k, v in tot_oi.items() if heaviest and v >= HEAVY_SH * heaviest]
         gt = prof["gex_total"]
         metrics = {
+            "gex_spot": sum(v for k, v in per_gex.items()
+                            if v is not None and abs(k - spot) <= step),
+            "book_zone": [min(heavy), max(heavy)] if heavy else None,
+            "in_book_zone": bool(heavy) and
+                            min(heavy) - step <= spot <= max(heavy) + step,
+            "mp_dist": round(mp - spot, 1) if mp is not None else None,
+            "wall_events": wall_ev,
+            "wall_log": self.wall_log[-12:],
             "pcr_oi": round(pcr_oi, 2) if pcr_oi is not None else None,
             "pcr_vol": round(pcr_vol, 2) if pcr_vol is not None else None,
             "max_pain": mp,
@@ -235,6 +311,7 @@ class ChainState:
             "squeeze": sq,
             "per_strike": [
                 {"k": r["k"], "ce_w": r["ce_w"], "pe_w": r["pe_w"],
+                 "ce_pk": r["ce_pk"], "pe_pk": r["pe_pk"],
                  "gex": per_gex.get(r["k"])} for r in rows],
         }
         self.series.append({
@@ -247,30 +324,94 @@ class ChainState:
             "greg": metrics["gex_regime"]})
         return metrics
 
-    def _squeeze(self, strikes, w_by_k, spot):
+    def _wall_events(self, strikes, prof, spot, ts):
+        """Structural changes in the book — the day's real headlines.
+
+        On 2026-07-28 the 24,000 strike flipped ceiling->floor in the morning
+        and floor->ceiling in the afternoon. Both were the decisive move of
+        their half of the session, both were plainly visible in the chain, and
+        neither produced a single line of narrative because the engine watches
+        books at one ATM strike while the analyser only ever showed numbers.
+        """
+        out = []
+        tot = {s["k"]: (s["ce"]["oi"] or 0) + (s["pe"]["oi"] or 0)
+               for s in strikes}
+        heaviest = max(tot.values()) if tot else 0.0
+        for s in strikes:
+            k = s["k"]
+            if not heaviest or tot[k] < WALL_MIN_SH * heaviest:
+                continue
+            ce, pe = s["ce"]["oi"] or 0, s["pe"]["oi"] or 0
+            role = ("CEILING" if ce > pe * WALL_ROLE_M else
+                    "FLOOR" if pe > ce * WALL_ROLE_M else "CONTESTED")
+            was = self.role.get(k)
+            self.role[k] = role
+            if was and was != role and "CONTESTED" not in (was, role):
+                out.append({
+                    "ts": ts, "kind": "ROLE-FLIP", "k": k,
+                    "side": "UP" if role == "FLOOR" else "DN",
+                    "msg": (f"{k:.0f} flipped {was.lower()}→{role.lower()}: "
+                            f"CE {ce/1e6:.1f}M vs PE {pe/1e6:.1f}M — the level "
+                            f"that {'capped' if was == 'CEILING' else 'held'} "
+                            f"price now {'holds' if role == 'FLOOR' else 'caps'} it")})
+        for tag, key, word in (("up", "wall_up", "ceiling"),
+                               ("dn", "wall_dn", "floor")):
+            now, was = prof.get(key), self.walls.get(tag)
+            self.walls[tag] = now
+            if was and now and now != was:
+                moved = "up" if now > was else "down"
+                out.append({
+                    "ts": ts, "kind": "WALL-MIGRATION", "k": now,
+                    "side": "UP" if moved == "up" else "DN",
+                    "msg": (f"{word} moved {was:.0f} → {now:.0f} ({moved}) — "
+                            f"writers relocated their defence, spot {spot:.0f}")})
+        self.wall_log = (self.wall_log + out)[-40:]
+        return out
+
+    def _squeeze(self, strikes, w_by_k, spot, ts="00:00:00"):
         """Chain-wide squeeze: writer-dominant books now underwater, and how
         fast they are unwinding. UP squeeze = CE writers trapped (fuel above),
         DOWN = PE writers trapped."""
         best = {"score": 0.0, "side": None, "rows": [],
+                "unwound_net": 0, "rebuilt": 0,
                 "verdict": "no writer book under pressure"}
+        heaviest = max((max(s["ce"]["oi"] or 0, s["pe"]["oi"] or 0)
+                        for s in strikes), default=0.0)
         for side, dirn in (("ce", "UP"), ("pe", "DOWN")):
             total_w_oi, uw_rows = 0.0, []
+            net_flow = 0.0        # + = OI genuinely left this side of the band
             for s in strikes:
                 if abs(s["k"] - spot) > SQ_BAND:      # near-the-money only
                     continue
+                # Only books that can actually act as a wall (see SQ_SIDE_TOL)
+                if side == "ce" and s["k"] < spot - SQ_SIDE_TOL:
+                    continue
+                if side == "pe" and s["k"] > spot + SQ_SIDE_TOL:
+                    continue
+                # Net EVERY in-scope book, underwater or not: writers rolling
+                # to the next strike show up here as an offsetting build, which
+                # is what separates a roll from a rout. On 2026-07-28 the
+                # morning CE "squeeze" was a roll (24,000 drained while 24,050
+                # built to its day high) and the afternoon PE one was real
+                # (every put strike shed at once) — same shape, opposite truth.
+                fl = self.flow[(s["k"], side)]
+                oi_then, _lt = fl.window()
+                if oi_then is not None:
+                    net_flow += oi_then - s[side]["oi"]
                 w = w_by_k[s["k"]][side + "_w"]
                 if w < W_SAT:
                     continue
-                fl = self.flow[(s["k"], side)]
                 uw_oi = min(s[side]["oi"], max(0.0, fl.w_flow - fl.b_flow))
                 total_w_oi += uw_oi
                 bpx = fl.build_px()
                 ltp = s[side]["ltp"]
+                if ltp is not None and ltp < SQ_MIN_PREM:
+                    continue          # near-worthless: decay, not defence
                 itm = spot > s["k"] if side == "ce" else spot < s["k"]
                 under = itm or (bpx is not None and ltp > UW_PREM * bpx)
                 if not under or uw_oi <= 0:
                     continue
-                oi_then, ltp_then = fl.window()
+                _ot, ltp_then = fl.window()
                 unwound = max(0.0, (oi_then - s[side]["oi"])) \
                     if oi_then is not None else 0.0
                 pv = (ltp / ltp_then - 1.0) \
@@ -282,22 +423,39 @@ class ChainState:
             if not uw_rows or total_w_oi <= 0:
                 continue
             uw_oi_sum = sum(r["uw_oi"] for r in uw_rows)
+            if uw_oi_sum < SQ_MIN_SH * heaviest:
+                continue              # hollow: the ratio would flatter nothing
+            gross = sum(r["unwind_5m"] for r in uw_rows)
+            # A roll is not a squeeze: credit only the OI that left the whole
+            # side, so writers stepping to the next strike score ~0.
+            net = max(0.0, min(gross, net_flow))
+            rebuilt = gross - net
+            if gross > 0 and net < SQ_NET_MIN * gross:
+                continue          # rolled to the next strike, not capitulating
             frac = _clamp01(uw_oi_sum / total_w_oi)
-            u5 = _clamp01(sum(r["unwind_5m"] for r in uw_rows)
-                          / max(uw_oi_sum, 1.0) / SQ_UNWIND_SAT)
+            u5 = _clamp01(net / max(uw_oi_sum, 1.0) / SQ_UNWIND_SAT)
             pv = _clamp01(max(r["prem_vel"] for r in uw_rows) / SQ_PREMV_SAT)
             score = round(frac * (0.35 + 0.65 * u5) * (0.35 + 0.65 * pv), 2)
             if score > best["score"]:
                 uw_rows.sort(key=lambda r: -r["uw_oi"])
                 ks = [r["k"] for r in uw_rows]
-                tot_m = uw_oi_sum / 1e6
-                un_m = sum(r["unwind_5m"] for r in uw_rows) / 1e3
+                span = (f"{min(ks):.0f}" if min(ks) == max(ks)
+                        else f"{min(ks):.0f}–{max(ks):.0f}")
                 best = {
                     "score": score, "side": dirn, "rows": uw_rows[:6],
-                    "verdict": (f"{side.upper()} writers {min(ks)}–{max(ks)} "
-                                f"underwater: {tot_m:.1f}M writer OI trapped, "
-                                f"{un_m:.0f}k unwound in 5m — squeeze fuel "
+                    "unwound_net": round(net), "rebuilt": round(rebuilt),
+                    "verdict": (f"{side.upper()} writers {span} underwater: "
+                                f"{uw_oi_sum/1e6:.1f}M writer OI trapped, "
+                                f"{net/1e3:.0f}k NET unwound in 5m"
+                                + (f" ({rebuilt/1e3:.0f}k rolled to nearby "
+                                   f"strikes)" if rebuilt >= 1e3 else "")
+                                + " — squeeze fuel "
                                 f"{'ABOVE' if dirn == 'UP' else 'BELOW'}")}
+        if best["side"] and ts >= SQ_SQUARE_AT:
+            # everyone is closing, everywhere: the unwind stops meaning anything
+            best = dict(best, score=0.0, side=None,
+                        verdict="expiry squaring window — chain-wide OI decay, "
+                                "no directional read from unwind")
         return best
 
 

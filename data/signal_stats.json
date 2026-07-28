@@ -130,18 +130,18 @@
     "flag": "?"
    },
    "SPRING": {
-    "n": 54,
-    "collapsed": 3,
-    "win": 10,
-    "loss": 25,
-    "other": 19,
-    "hit": 0.286,
+    "n": 71,
+    "collapsed": 5,
+    "win": 18,
+    "loss": 32,
+    "other": 21,
+    "hit": 0.36,
     "ci": [
-     0.163,
-     0.451
+     0.241,
+     0.499
     ],
-    "exp_R": 0.005,
-    "exp_pts": 1.55,
+    "exp_R": 0.04,
+    "exp_pts": 2.75,
     "flag": "?"
    },
    "BUYER-BUILD": {
@@ -159,21 +159,6 @@
     "exp_pts": -7.97,
     "flag": "-"
    },
-   "ARMED": {
-    "n": 39,
-    "collapsed": 1,
-    "win": 9,
-    "loss": 13,
-    "other": 17,
-    "hit": 0.409,
-    "ci": [
-     0.233,
-     0.613
-    ],
-    "exp_R": 0.109,
-    "exp_pts": 6.33,
-    "flag": "?"
-   },
    "IGNITION": {
     "n": 34,
     "collapsed": 0,
@@ -187,6 +172,21 @@
     ],
     "exp_R": 0.166,
     "exp_pts": 4.89,
+    "flag": "?"
+   },
+   "ARMED": {
+    "n": 24,
+    "collapsed": 0,
+    "win": 5,
+    "loss": 7,
+    "other": 12,
+    "hit": 0.417,
+    "ci": [
+     0.193,
+     0.68
+    ],
+    "exp_R": 0.081,
+    "exp_pts": 3.9,
     "flag": "?"
    }
   },
@@ -371,117 +371,274 @@
     "exp_pts": -15.0,
     "flag": "?"
    }
+  },
+  "2026-07-28_NIFTY": {
+   "SQUEEZE-RISK": {
+    "n": 6,
+    "collapsed": 4,
+    "win": 2,
+    "loss": 1,
+    "other": 3,
+    "hit": 0.667,
+    "ci": [
+     0.208,
+     0.939
+    ],
+    "exp_R": 0.315,
+    "exp_pts": 8.34,
+    "flag": "?"
+   },
+   "PRESS": {
+    "n": 7,
+    "collapsed": 1,
+    "win": 0,
+    "loss": 4,
+    "other": 3,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.49
+    ],
+    "exp_R": -0.628,
+    "exp_pts": -18.76,
+    "flag": "?"
+   },
+   "TRAP-SETTING": {
+    "n": 5,
+    "collapsed": 3,
+    "win": 2,
+    "loss": 1,
+    "other": 2,
+    "hit": 0.667,
+    "ci": [
+     0.208,
+     0.939
+    ],
+    "exp_R": 0.478,
+    "exp_pts": 17.06,
+    "flag": "?"
+   },
+   "TRAP-SPRUNG": {
+    "n": 5,
+    "collapsed": 2,
+    "win": 1,
+    "loss": 1,
+    "other": 3,
+    "hit": 0.5,
+    "ci": [
+     0.095,
+     0.905
+    ],
+    "exp_R": 0.445,
+    "exp_pts": 15.96,
+    "flag": "?"
+   },
+   "DIVERGENCE": {
+    "n": 4,
+    "collapsed": 0,
+    "win": 1,
+    "loss": 1,
+    "other": 2,
+    "hit": 0.5,
+    "ci": [
+     0.095,
+     0.905
+    ],
+    "exp_R": 0.287,
+    "exp_pts": 6.45,
+    "flag": "?"
+   },
+   "BAND-REVERSAL": {
+    "n": 3,
+    "collapsed": 1,
+    "win": 1,
+    "loss": 1,
+    "other": 1,
+    "hit": 0.5,
+    "ci": [
+     0.095,
+     0.905
+    ],
+    "exp_R": -0.049,
+    "exp_pts": -4.92,
+    "flag": "?"
+   },
+   "CAMPAIGN": {
+    "n": 3,
+    "collapsed": 0,
+    "win": 0,
+    "loss": 2,
+    "other": 1,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.658
+    ],
+    "exp_R": -0.719,
+    "exp_pts": -25.04,
+    "flag": "?"
+   },
+   "OI-PEAK-LAG": {
+    "n": 3,
+    "collapsed": 0,
+    "win": 0,
+    "loss": 1,
+    "other": 2,
+    "hit": 0.0,
+    "ci": [
+     0.0,
+     0.793
+    ],
+    "exp_R": -0.036,
+    "exp_pts": -0.61,
+    "flag": "?"
+   },
+   "ARMED": {
+    "n": 3,
+    "collapsed": 1,
+    "win": 1,
+    "loss": 2,
+    "other": 0,
+    "hit": 0.333,
+    "ci": [
+     0.061,
+     0.792
+    ],
+    "exp_R": -0.085,
+    "exp_pts": 3.56,
+    "flag": "?"
+   },
+   "BUYER-BUILD": {
+    "n": 1,
+    "collapsed": 0,
+    "win": 0,
+    "loss": 0,
+    "other": 1,
+    "hit": null,
+    "ci": [
+     0.0,
+     1.0
+    ],
+    "exp_R": 0.19,
+    "exp_pts": 5.1,
+    "flag": "?"
+   },
+   "SPRING": {
+    "n": 1,
+    "collapsed": 0,
+    "win": 0,
+    "loss": 0,
+    "other": 1,
+    "hit": null,
+    "ci": [
+     0.0,
+     1.0
+    ],
+    "exp_R": 0.587,
+    "exp_pts": 23.0,
+    "flag": "?"
+   }
   }
  },
  "rolling": {
   "PRESS": {
    "win": 70,
-   "loss": 124,
-   "n": 261,
-   "hit": 0.361,
+   "loss": 128,
+   "n": 268,
+   "hit": 0.354,
    "ci": [
-    0.297,
-    0.431
+    0.29,
+    0.422
    ]
   },
   "DIVERGENCE": {
-   "win": 51,
-   "loss": 117,
-   "n": 238,
-   "hit": 0.304,
+   "win": 52,
+   "loss": 118,
+   "n": 242,
+   "hit": 0.306,
    "ci": [
-    0.239,
-    0.377
+    0.242,
+    0.379
    ]
   },
   "SQUEEZE-RISK": {
-   "win": 31,
-   "loss": 67,
-   "n": 145,
-   "hit": 0.316,
+   "win": 33,
+   "loss": 68,
+   "n": 151,
+   "hit": 0.327,
    "ci": [
-    0.233,
-    0.414
+    0.243,
+    0.423
    ]
   },
   "TRAP-SETTING": {
-   "win": 34,
-   "loss": 81,
-   "n": 175,
-   "hit": 0.296,
+   "win": 36,
+   "loss": 82,
+   "n": 180,
+   "hit": 0.305,
    "ci": [
-    0.22,
-    0.385
+    0.229,
+    0.393
    ]
   },
   "BAND-REVERSAL": {
-   "win": 36,
-   "loss": 95,
-   "n": 172,
-   "hit": 0.275,
+   "win": 37,
+   "loss": 96,
+   "n": 175,
+   "hit": 0.278,
    "ci": [
-    0.206,
-    0.357
+    0.209,
+    0.36
    ]
   },
   "OI-PEAK-LAG": {
    "win": 34,
-   "loss": 76,
-   "n": 176,
-   "hit": 0.309,
+   "loss": 77,
+   "n": 179,
+   "hit": 0.306,
    "ci": [
-    0.23,
-    0.401
+    0.228,
+    0.397
    ]
   },
   "TRAP-SPRUNG": {
-   "win": 28,
-   "loss": 81,
-   "n": 161,
-   "hit": 0.257,
+   "win": 29,
+   "loss": 82,
+   "n": 166,
+   "hit": 0.261,
    "ci": [
-    0.184,
-    0.346
+    0.189,
+    0.35
    ]
   },
   "CAMPAIGN": {
    "win": 31,
-   "loss": 67,
-   "n": 121,
-   "hit": 0.316,
+   "loss": 69,
+   "n": 124,
+   "hit": 0.31,
    "ci": [
-    0.233,
-    0.414
+    0.228,
+    0.406
    ]
   },
   "SPRING": {
-   "win": 10,
-   "loss": 26,
-   "n": 56,
-   "hit": 0.278,
+   "win": 18,
+   "loss": 33,
+   "n": 74,
+   "hit": 0.353,
    "ci": [
-    0.158,
-    0.44
+    0.236,
+    0.49
    ]
   },
   "BUYER-BUILD": {
    "win": 5,
    "loss": 27,
-   "n": 45,
+   "n": 46,
    "hit": 0.156,
    "ci": [
     0.069,
     0.318
-   ]
-  },
-  "ARMED": {
-   "win": 10,
-   "loss": 15,
-   "n": 43,
-   "hit": 0.4,
-   "ci": [
-    0.234,
-    0.593
    ]
   },
   "IGNITION": {
@@ -492,6 +649,16 @@
    "ci": [
     0.255,
     0.577
+   ]
+  },
+  "ARMED": {
+   "win": 7,
+   "loss": 11,
+   "n": 31,
+   "hit": 0.389,
+   "ci": [
+    0.203,
+    0.614
    ]
   }
  }

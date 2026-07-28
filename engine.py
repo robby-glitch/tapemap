@@ -298,11 +298,19 @@ class GammaLayer:
                 mech = ("trapped writers force-covering" if self.w[nm] > 0.15
                         else "dealer short-gamma hedge chase"
                         if self.w[nm] < -0.15 else "positioning capitulation")
+                # Only short-gamma dealers chase. Under PINNED the same flow
+                # gets absorbed, so claiming amplification there reads the tape
+                # backwards (2026-07-28 13:15 and 15:01 both printed "hedging
+                # amplifies" while the regime was PINNED, and both mean-reverted).
+                hedge = ("hedging amplifies the move"
+                         if regime.startswith("AMPLIFIED") else
+                         "but dealers are long gamma here — expect the move to "
+                         "be absorbed, not extended" if regime == "PINNED"
+                         else "hedging is neutral on this")
                 self.s.emit(i, "SQUEEZE-RELEASE",
                             f"{dirn}: {nm} OI {of['oi_slope']/1000:.0f}k/{SLOPE_W}m "
                             f"(rank {of['oi_slope_r']:.2f}) with premium velocity "
-                            f"rank {feats[nm][1]:.2f} — {mech}, hedging amplifies "
-                            f"the move", every=10)
+                            f"rank {feats[nm][1]:.2f} — {mech}, {hedge}", every=10)
 
         self.regime = regime
 
@@ -344,7 +352,11 @@ class Session:
         self.oi_peak = {"CE": (0.0, -1), "PE": (0.0, -1)}  # (oi, minute) session peak
         self.peaklag_done = {"DN": -999, "UP": -999}  # extreme idx already fired
         self.ep = None                 # current detonation leg {i,dir,start,ext}
-        self.marks = []                # event-born levels (kind, px, t, note)
+        self.marks = []                # event-born levels
+                                       # (kind, px, t, note, (hi0, lo0)) —
+                                       # the session extremes when the mark was
+                                       # born, so we can tell later whether
+                                       # price has since traded through it
         self.flipped = {}              # pivot -> (lvl, dir, t) after FLIP-TEST
         self.level_hits = defaultdict(list)   # pivot -> touch minutes (fights)
         self.trap_last = None          # (i, side, px) of last TRAP-SPRUNG
@@ -419,16 +431,22 @@ class Session:
                  else min(b["C"] for b in look))
         self.ep = {"i": i, "dir": sgn, "start": start, "ext": px}
 
-    def _set_setup(self, i, fb, dirn, kind, lvl_name, lvl_px, ref, intensity):
+    def _set_setup(self, i, fb, dirn, kind, lvl_name, lvl_px, ref, intensity,
+                   conflict=False):
         """(Re)arm the momentum-card lifecycle; the newest spring supersedes.
         `ref` is the hard invalidation boundary (session extreme at spring
-        time; for ARMED the pivot level tightens it)."""
+        time; for ARMED the pivot level tightens it).
+
+        `conflict` marks a spring whose direction the premium-confirmed book
+        rotation contradicts. Such a setup still carries its tell, but nothing
+        downstream may treat its `dir` as a directional vote."""
         if kind == "ARMED":
             ref = min(ref, lvl_px) if dirn > 0 else max(ref, lvl_px)
         self.setup = {"i": i, "t": fb["T"], "dir": dirn, "kind": kind,
                       "status": "ARMED" if kind == "ARMED" else "LOADING",
                       "level_name": lvl_name, "level_px": round(lvl_px, 1),
-                      "ref": round(ref, 1), "intensity": round(intensity, 2)}
+                      "ref": round(ref, 1), "intensity": round(intensity, 2),
+                      "conflict": bool(conflict)}
 
     def nearest_level(self, price):
         b = self.fut_bars[0]
@@ -552,7 +570,8 @@ class Session:
                 if i - self.trap_live[side] <= 25 and i > ref["i"] and crossed:
                     self.trap_last = (i, word, ref["px"])
                     self.marks.append(("TRAP", ref["px"], fb["T"],
-                                       f"{word} trap sprung {fb['T']}"))
+                                       f"{word} trap sprung {fb['T']}",
+                                       (self.fut_hi, self.fut_lo)))
                     self.emit(i, "TRAP-SPRUNG",
                               f"{word} TRAP SPRUNG — FUT closes back "
                               f"{'below' if side == 'UP' else 'above'} {ref['px']:.0f} "
@@ -599,17 +618,26 @@ class Session:
                                     "lag": pj - ref["i"],
                                     "ref_px": round(ref["ext"], 1)})
 
-        # --- PRESS: both books rotating one direction ahead of price
+        # --- PRESS: both books rotating one direction ahead of price.
+        #     `rot` is kept for the SPRING block below. The two read the SAME
+        #     OI slopes, but PRESS additionally requires the premiums to
+        #     confirm, so when PRESS fires against a spring the spring's
+        #     direction is not supported by the books. On 2026-07-28 both
+        #     printed in the same minute off the same two numbers (14:51
+        #     "BEARISH rotation" and "BULLISH SPRING"), and price fell.
+        rot = 0
         if ranks_ok:
             ce_r, pe_r = cf["oi_slope_r"], pf["oi_slope_r"]
             if (ce_r > 0.6 and cf["oi_slope"] > 0 and cf["prem_d"] < 0
                     and pe_r > 0.6 and pf["oi_slope"] < 0 and pf["prem_d"] > 0):
+                rot = -1
                 self.emit(i, "PRESS",
                           f"BEARISH rotation: CE writers add (+{cf['oi_slope']/1000:.0f}k) while "
                           f"PE shorts evacuate ({pf['oi_slope']/1000:.0f}k) — books lean down "
                           f"before price", every=12)
             if (pe_r > 0.6 and pf["oi_slope"] > 0 and pf["prem_d"] < 0
                     and ce_r > 0.6 and cf["oi_slope"] < 0 and cf["prem_d"] > 0):
+                rot = +1
                 self.emit(i, "PRESS",
                           f"BULLISH rotation: PE writers add (+{pf['oi_slope']/1000:.0f}k) while "
                           f"CE shorts evacuate ({cf['oi_slope']/1000:.0f}k) — books lean up "
@@ -639,7 +667,9 @@ class Session:
                        f"(rank {pf['oi_slope_r']:.2f}) while FUT z={ff['z']:.1f}; CE writers "
                        f"adding +{cf['oi_slope']/1000:.0f}k at the low")
                 ref_lo = min(self.fut_lo, fb["L"])
-                if near_lvl:
+                # the books' premium-confirmed rotation vetoes the direction
+                clash = rot < 0
+                if near_lvl and not clash:
                     self.armed_until, self.armed_dir = i + 45, +1
                     self._set_setup(i, fb, +1, "ARMED", lvl_name, lvl, ref_lo,
                                     pf["oi_slope_r"])
@@ -649,10 +679,13 @@ class Session:
                                     "level_px": round(lvl, 1)})
                 else:
                     self._set_setup(i, fb, +1, "SPRING", "dip low", ref_lo, ref_lo,
-                                    pf["oi_slope_r"])
-                    self.emit(i, "SPRING", "bullish — " + msg, every=15,
+                                    pf["oi_slope_r"], clash)
+                    self.emit(i, "SPRING", "bullish — " + msg
+                              + (" — but the books rotate BEARISH on premium; "
+                                 "direction unresolved" if clash else ""), every=15,
                               data={"side": "UP", "level_name": "dip low",
-                                    "level_px": round(ref_lo, 1)})
+                                    "level_px": round(ref_lo, 1),
+                                    "conflict": clash})
             # bearish mirror
             if (bear_loc and ff["z"] > 0.6 and cf["oi_slope"] < 0
                     and cf["oi_slope_r"] > 0.75 and pf["oi_slope"] > 0):
@@ -661,7 +694,8 @@ class Session:
                        f"(rank {cf['oi_slope_r']:.2f}) while FUT z={ff['z']:.1f}; PE writers "
                        f"adding +{pf['oi_slope']/1000:.0f}k at the high")
                 ref_hi = max(self.fut_hi, fb["H"])
-                if near_lvl:
+                clash = rot > 0
+                if near_lvl and not clash:
                     self.armed_until, self.armed_dir = i + 45, -1
                     self._set_setup(i, fb, -1, "ARMED", lvl_name, lvl, ref_hi,
                                     cf["oi_slope_r"])
@@ -671,10 +705,13 @@ class Session:
                                     "level_px": round(lvl, 1)})
                 else:
                     self._set_setup(i, fb, -1, "SPRING", "swing high", ref_hi, ref_hi,
-                                    cf["oi_slope_r"])
-                    self.emit(i, "SPRING", "bearish — " + msg, every=15,
+                                    cf["oi_slope_r"], clash)
+                    self.emit(i, "SPRING", "bearish — " + msg
+                              + (" — but the books rotate BULLISH on premium; "
+                                 "direction unresolved" if clash else ""), every=15,
                               data={"side": "DN", "level_name": "swing high",
-                                    "level_px": round(ref_hi, 1)})
+                                    "level_px": round(ref_hi, 1),
+                                    "conflict": clash})
 
         # --- IGNITION: synchronized detonation across the three books
         if ranks_ok:
@@ -715,7 +752,8 @@ class Session:
             if not any(k == "ABS" and abs(p - fb["C"]) <= tolm
                        for k, p, *_ in self.marks[-4:]):
                 self.marks.append(("ABS", fb["C"], fb["T"],
-                                   f"{side} absorbed {fb['T']}"))
+                                   f"{side} absorbed {fb['T']}",
+                                   (self.fut_hi, self.fut_lo)))
             self.emit(i, "ABSORPTION",
                       f"FUT vol rank {ff['vol_r']:.2f} but range rank {ff['rng_r']:.2f} — "
                       f"{side} hitting a wall near {fb['C']:.0f}", every=15)
@@ -855,6 +893,7 @@ class Session:
                 "t0": su["t"], "kind": su["kind"],
                 "level_name": su["level_name"], "level_px": su["level_px"],
                 "ref": su["ref"], "intensity": su["intensity"],
+                "conflict": su.get("conflict", False),
                 "comp": round(1 - ff["bw_r"], 2),
                 **({"died": su["died"]} if "died" in su else {}),
                 **({"fired": su["fired"]} if "fired" in su else {}),
@@ -895,6 +934,12 @@ class Session:
         breadth = ("STRONG BULL" if votes >= 3 else "LEAN BULL" if votes >= 1
                    else "STRONG BEAR" if votes <= -3
                    else "LEAN BEAR" if votes <= -1 else "MIXED")
+        # Under a pin these are one-bar premium wiggles inside a range dealers
+        # are actively damping, and they read absurd next to the rest of the
+        # panel: 2026-07-28 12:54 printed STRONG BEAR while price sat above
+        # VWAP on a 53M put wall. Never louder than a lean while PINNED.
+        if regime == "PINNED":
+            breadth = breadth.replace("STRONG", "LEAN")
 
         # --- episode brain: the story of the current leg, not just this bar
         med = median(self.med_rng[-60:]) or 1.0
@@ -940,7 +985,16 @@ class Session:
 
         # --- event-born structure: today's map, not yesterday's math
         cands = [("session low", self.fut_lo), ("session high", self.fut_hi)]
-        for _k, px, _t, note in self.marks[-6:]:
+        for _k, px, _t, note, (hi0, lo0) in self.marks[-6:]:
+            # A level price has already traded through is not a level any more.
+            # fut_hi/lo only ever widen, so a session extreme beyond BOTH the
+            # mark and the extreme at its birth can only have happened after
+            # it: 2026-07-28 kept the 10:52 trap ref at 24,026 as the displayed
+            # ceiling long after price printed 24,040.
+            if px > C and self.fut_hi > max(px, hi0):
+                continue
+            if px < C and self.fut_lo < min(px, lo0):
+                continue
             cands.append((note, px))
         for nm, (lvl, dd, _t) in self.flipped.items():
             cands.append((f"{nm} flipped {'support' if dd > 0 else 'resistance'}", lvl))

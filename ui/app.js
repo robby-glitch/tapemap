@@ -4,7 +4,8 @@ const COL = { OPENING:"#5d6b84", BALANCE:"#5d6b84", COILING:"#ffbf00",
               ARMED:"#8b5cf6", "TREND-UP":"#2ec27e", "TREND-DOWN":"#ff5f6b" };
 const LOUD = new Set(["ARMED","SPRING","IGNITION","CLIMAX","TRAP","CARRY","SQUEEZE-RELEASE",
                       "TRAP-SPRUNG","SPRING-FAIL","OI-PEAK-LAG",
-                      "BAND-REVERSAL","BAND-BREAK"]);
+                      "BAND-REVERSAL","BAND-BREAK",
+                      "WALL-MIGRATION","ROLE-FLIP"]);
 const GAMMA_COL = { PINNED:"#5d6b84", FLOOR:"#2ec27e", CEILING:"#ff5f6b",
                     "AMPLIFIED-UP":"#2ec27e", "AMPLIFIED-DOWN":"#ff5f6b", NEUTRAL:"#8090a8" };
 const GAMMA_TXT = {
@@ -22,6 +23,7 @@ const EVC = { IGNITION:"#ffbf00", CLIMAX:"#ffbf00", ARMED:"#8b5cf6", SPRING:"#8b
               "SQUEEZE-RELEASE":"#3fc1c9", "TRAP-SETTING":"#ffbf00",
               "TRAP-SPRUNG":"#ff5f6b", "SPRING-FAIL":"#ff5f6b",
               CONFLICT:"#e8c15a",
+              "WALL-MIGRATION":"#e8c15a", "ROLE-FLIP":"#e8c15a",
               "OI-PEAK-LAG":"#ffbf00", "BAND-REVERSAL":"#8b5cf6",
               "BAND-BREAK":"#ff5f6b", CHOP:"#c9a24a" };
 
@@ -316,12 +318,28 @@ function buildFocusFeed(events){
   }
   return out;
 }
+/* Structural changes come from the CHAIN, not the engine — the engine only
+   watches books at one ATM strike, so on 2026-07-28 the 24,000 strike flipped
+   ceiling->floor and back (the headline of each half of the session) without
+   producing one line of narrative. Merge them into the same feed. */
+function chainWallFeed(){
+  const m = S.mapChain && S.mapChain.metrics;
+  const log = (m && m.wall_log) || [];
+  return log.map(e => ({t: String(e.ts || "").slice(0, 5), kind: e.kind,
+                        msg: e.msg, data: {side: e.side, k: e.k}}))
+            .filter(e => S.tIdx[e.t] != null);
+}
 function feedEvents(){
-  if(!S.focus) return S.day.events;
-  const sig = S.day.day + ":" + S.day.events.length;
+  const wall = chainWallFeed();
+  const sig = S.day.day + ":" + S.day.events.length + ":" + wall.length
+            + ":" + (S.focus ? 1 : 0);
   if(S._focusSig !== sig){
     S._focusSig = sig;
-    S._focusList = buildFocusFeed(S.day.events);
+    const base = S.focus ? buildFocusFeed(S.day.events) : S.day.events;
+    S._focusList = wall.length
+      ? base.concat(wall).sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+      : base;
+    S._feedDirty = true;      // list changed underneath the append pointer
   }
   return S._focusList;
 }
@@ -889,6 +907,50 @@ function _sessFracLeft(t){                 // NSE 09:15–15:30 = 375 min
   return clamp01((930 - mins) / 375);
 }
 
+/* ---- directional bias -------------------------------------------------
+   One bar's worth of directional evidence. Kept separate from
+   computeValidator so the read can be smoothed across bars: on 2026-07-28
+   this sum changed sign 42 times in one session — four times in four
+   minutes at 13:32-13:35, where every term was identical except `breadth`
+   toggling LEAN/STRONG BEAR. A read that flips that often is unusable, so
+   breadth now shades rather than decides, and the result is averaged over
+   a causal 5-bar window and passed through a deadband.                   */
+function _barBias(i, bar){
+  const c = bar.ctx || {}, g = bar.gamma || {}, su = bar.setup || null;
+  const st = S.states[i] || "", br = c.breadth || "";
+  const regime = g.regime || "NEUTRAL";
+  const wce = g.w_ce ?? 0, wpe = g.w_pe ?? 0;
+  let B = 0;
+  if(st === "TREND-UP") B += 2; else if(st === "TREND-DOWN") B -= 2;
+  // a spring the books contradict on premium carries no direction at all
+  if(su && !su.conflict && ["ARMED","FIRED","LOADING"].includes(su.status))
+    B += (su.dir === "UP" ? 1 : -1) * (1 + (su.intensity || 0));
+  if(regime === "FLOOR" || regime === "AMPLIFIED-UP") B += 1;
+  else if(regime === "CEILING" || regime === "AMPLIFIED-DOWN") B -= 1;
+  if(wpe > 0.25) B += 1;
+  if(wce > 0.25) B -= 1;
+  if(br.includes("STRONG BULL")) B += 1; else if(br.includes("LEAN BULL")) B += 0.5;
+  else if(br.includes("STRONG BEAR")) B -= 1; else if(br.includes("LEAN BEAR")) B -= 0.5;
+  return B;
+}
+const BIAS_WIN = 5;          // bars averaged (causal — never reads ahead)
+const BIAS_DEAD = 1.0;       // |B| must clear this to name a side
+const _biasMemo = {};
+function smoothBias(i){
+  const live = !S.day || i >= S.day.bars.length - 2;   // last bars still move
+  const key = (S.day && S.day.day) + ":" + i;
+  if(!live && key in _biasMemo) return _biasMemo[key];
+  let sum = 0, n = 0;
+  for(let j = Math.max(0, i - BIAS_WIN + 1); j <= i; j++){
+    const b = S.day && S.day.bars[j];
+    if(!b) continue;
+    sum += _barBias(j, b); n++;
+  }
+  const v = n ? sum / n : 0;
+  if(!live) _biasMemo[key] = v;
+  return v;
+}
+
 function computeValidator(i, bar, opts){
   opts = opts || {};
   const vStrike = opts.strike !== undefined ? opts.strike : S.valStrike;
@@ -900,25 +962,17 @@ function computeValidator(i, bar, opts){
   const br = c.breadth || "";
   const ch = (S.mapChain && S.mapChain.metrics) ? S.mapChain.metrics : null;
 
-  // ---- directional bias (auto candidate) ----
-  let B = 0;
-  if(st === "TREND-UP") B += 2; else if(st === "TREND-DOWN") B -= 2;
-  if(su && ["ARMED","FIRED","LOADING"].includes(su.status))
-    B += (su.dir === "UP" ? 1 : -1) * (1 + (su.intensity || 0));
-  if(regime === "FLOOR" || regime === "AMPLIFIED-UP") B += 1;
-  else if(regime === "CEILING" || regime === "AMPLIFIED-DOWN") B -= 1;
-  if(wpe > 0.25) B += 1;
-  if(wce > 0.25) B -= 1;
-  if(br.includes("STRONG BULL")) B += 2; else if(br.includes("LEAN BULL")) B += 1;
-  else if(br.includes("STRONG BEAR")) B -= 2; else if(br.includes("LEAN BEAR")) B -= 1;
+  // ---- directional bias (auto candidate); see _barBias / smoothBias ----
+  let B = smoothBias(i);
   if(ch){
     if(ch.pcr_oi != null){ if(ch.pcr_oi > 1.1) B += 0.5; else if(ch.pcr_oi < 0.9) B -= 0.5; }
     const sq = ch.squeeze || {};
     if(sq.side === "UP") B += 0.5; else if(sq.side === "DOWN") B -= 0.5;
+    // skew is null when the solver had no time value to fit (chain_metrics)
     const sk = ch.iv && ch.iv.skew != null ? ch.iv.skew : null;
     if(sk != null){ if(sk > 0.005) B -= 0.5; else if(sk < -0.005) B += 0.5; }
   }
-  const autoDir = B > 0.5 ? "LONG" : B < -0.5 ? "SHORT" : "NONE";
+  const autoDir = B > BIAS_DEAD ? "LONG" : B < -BIAS_DEAD ? "SHORT" : "NONE";
   const forced = vSide && vSide !== "AUTO" ? vSide : null;
   const dir = forced || autoDir;
   const bull = dir === "LONG", sgn = bull ? 1 : -1;
@@ -1743,6 +1797,10 @@ function renderVol(c, g){
 function renderFeed(i){
   const feed = $("feed");
   const evs = feedEvents();
+  if(S._feedDirty){          // merged list reordered — rebuild from the top
+    S._feedDirty = false;
+    feed.innerHTML = ""; S.feedPtr = 0;
+  }
   let added = false;
   while(S.feedPtr < evs.length &&
         (S.tIdx[evs[S.feedPtr].t] ?? 1e9) <= i){
