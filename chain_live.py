@@ -191,8 +191,12 @@ class ChainPoller(threading.Thread):
         strikes = []
         for s in snap["strikes"]:
             r = by_k.get(s["k"], {})
+            # ce_pk/pe_pk are the session-high OI per book: "% off peak" is the
+            # cheapest read of a wall losing its defenders, and without it here
+            # the field never reaches either frontend.
             strikes.append({**s, "ce_w": r.get("ce_w"), "pe_w": r.get("pe_w"),
-                            "gex": r.get("gex")})
+                            "gex": r.get("gex"),
+                            "ce_pk": r.get("ce_pk"), "pe_pk": r.get("pe_pk")})
         self.boxes[idx]["payload"] = json.dumps({
             "ok": True, "mode": mode, "error": error, "index": idx,
             "ts": snap["ts"], "expiry": expiry,
