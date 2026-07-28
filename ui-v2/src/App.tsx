@@ -4,8 +4,8 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { useLiveData, HEAT_COLS } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind } from './data'
+import { useLiveData, HEAT_COLS, validateTrade } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate } from './data'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 // Colour carries exactly one meaning each. Before this, hue did two jobs at
@@ -216,12 +216,18 @@ function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
         ...s, gex: s.ceOI - s.peOI,
         ceW: +(s.ceOI / tot).toFixed(2), peW: +(s.peOI / tot).toFixed(2),
         cePk: s.ceOI, pePk: s.peOI,     // placeholder: "at peak", so 0% off
+        // no quotes in the fallback: the validator returns null rather than
+        // checking a trade against invented premiums
+        ceLtp: 0, peLtp: 0, ceIv: 0, peIv: 0, ceSpread: 0, peSpread: 0,
       }
     }),
     mpDist: 0,
     gexSpot: 0,
     bookZone: ks.length ? [Math.min(...ks), Math.max(...ks)] : null,
     inBookZone: true,
+    spot: 0,
+    expiry: '',
+    atmStraddle: 0,
     aligned: true,
   }
 }
@@ -1028,182 +1034,186 @@ function EventsTab({ index }: { index: IndexKey }) {
 }
 
 function ValidateTab({ index }: { index: IndexKey }) {
-  const [strike, setStrike] = useState('')
+  const { READS, CHAIN_DATA, CHART_DATA } = useData()
+  const read = READS[index]
+  const chain = CHAIN_DATA[index]
+  const nowHHMM = CHART_DATA[index]?.slice(-1)[0]?.time ?? '12:00'
+
+  // Strikes come from the live ladder, so you cannot check a contract that
+  // does not exist — the old free-text box happily accepted anything.
+  const ladder = [...chain.strikes].sort((a, b) => a.strike - b.strike)
+  const nearest = ladder.reduce((best, s) =>
+    Math.abs(s.strike - chain.spot) < Math.abs(best.strike - chain.spot) ? s : best,
+    ladder[0])
+  const [strike, setStrike] = useState<number>(nearest?.strike ?? 0)
   const [side, setSide] = useState<'CE' | 'PE'>('CE')
   const [position, setPosition] = useState<'Long' | 'Short'>('Long')
-  const [score, setScore] = useState<number | null>(null)
 
-  const { READS, INDICES } = useData()
-  const read = READS[index]
+  const check = validateTrade(chain, read, strike, side, position, nowHHMM)
+  const vCol = check?.verdict === 'TAKE' ? T.bull
+    : check?.verdict === 'SMALL' ? T.caution : T.bear
+  const gCol = (v: Gate['verdict']) => v === 'pass' ? T.bull : v === 'warn' ? T.caution : T.bear
+  const gMark = (v: Gate['verdict']) => v === 'pass' ? '✓' : v === 'warn' ? '!' : '✕'
 
-  const handleValidate = () => {
-    let s = 50
-    if (read.timing === 'GO') s += 20
-    else if (read.timing === 'READY') s += 10
-    else if (read.timing === 'WAIT') s -= 15
-    if (read.direction === 'BULLISH' && position === 'Long' && side === 'CE') s += 15
-    else if (read.direction === 'BEARISH' && position === 'Long' && side === 'PE') s += 15
-    else s -= 10
-    s += Math.floor(Math.random() * 10 - 5)
-    setScore(Math.max(0, Math.min(100, s)))
-  }
-
-  const gates = [
-    { text: `Method verdict is ${read.timing} — ${read.timing === 'WAIT' ? 'size down or skip' : 'edge confirmed'}`, pass: read.timing !== 'WAIT' },
-    { text: `Direction ${read.direction} — ${side === 'CE' && read.direction === 'BEARISH' ? 'misaligned with bias' : side === 'PE' && read.direction === 'BULLISH' ? 'misaligned with bias' : 'aligned with bias'}`, pass: !(side === 'CE' && read.direction === 'BEARISH') && !(side === 'PE' && read.direction === 'BULLISH') },
-    { text: 'Within market hours and pre-expiry window', pass: true },
-    { text: 'IV not spiked above 20% (no earnings/event risk)', pass: true },
-  ]
+  const seg = <K extends string>(
+    opts: readonly K[], value: K, onPick: (k: K) => void, tone: (k: K) => string,
+  ) => (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {opts.map(o => (
+        <button key={o} onClick={() => onPick(o)} style={{
+          flex: 1, padding: '7px 8px', borderRadius: 6, fontSize: 12.5, fontWeight: 600,
+          cursor: 'pointer', transition: 'all 150ms',
+          border: `1px solid ${value === o ? tone(o) : T.border}`,
+          backgroundColor: value === o ? `${tone(o)}1A` : 'transparent',
+          color: value === o ? tone(o) : T.textMuted,
+        }}>{o}</button>
+      ))}
+    </div>
+  )
 
   return (
-    <div style={{ padding: 24, display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+    <div style={{ padding: 24, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      {/* ── the contract ── */}
       <div style={{
-        backgroundColor: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 14,
-        padding: 24,
-        width: 340,
+        backgroundColor: T.card, border: `1px solid ${T.border}`,
+        borderRadius: 12, padding: 20, width: 300,
       }}>
-        <div className="micro-label" style={{ marginBottom: 16 }}>Trade Checker — {index}</div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="micro-label" style={{ marginBottom: 14 }}>Contract — {index}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 11, color: T.textMuted }}>Strike</span>
-            <input
-              type="number"
-              placeholder={`e.g. ${INDICES[index].price % 100 < 50 ? Math.floor(INDICES[index].price / 100) * 100 : Math.ceil(INDICES[index].price / 100) * 100}`}
-              value={strike}
-              onChange={e => { setStrike(e.target.value); setScore(null) }}
-              style={{
-                backgroundColor: T.inset,
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: '9px 12px',
-                color: T.textPrimary,
-                fontSize: 13,
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
-            />
+            <select value={strike} onChange={e => setStrike(+e.target.value)} style={{
+              backgroundColor: T.inset, border: `1px solid ${T.border}`, borderRadius: 6,
+              padding: '8px 10px', color: T.textPrimary, fontSize: 13,
+              fontFamily: 'inherit', outline: 'none',
+            }}>
+              {ladder.map(s => (
+                <option key={s.strike} value={s.strike}>
+                  {s.strike}{s.strike === nearest?.strike ? '  · nearest spot' : ''}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: T.textMuted }}>Option Type</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['CE', 'PE'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => { setSide(s); setScore(null) }}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    borderRadius: 8,
-                    border: `1px solid ${side === s ? (s === 'CE' ? T.bear : T.bull) : T.border}`,
-                    backgroundColor: side === s ? (s === 'CE' ? 'rgba(255,95,107,0.1)' : 'rgba(46,194,126,0.1)') : 'transparent',
-                    color: side === s ? (s === 'CE' ? T.bear : T.bull) : T.textMuted,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 150ms',
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <span style={{ fontSize: 11, color: T.textMuted }}>Option type</span>
+            {seg(['CE', 'PE'] as const, side, setSide, k => k === 'CE' ? T.bear : T.bull)}
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 11, color: T.textMuted }}>Position</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['Long', 'Short'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => { setPosition(p); setScore(null) }}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    borderRadius: 8,
-                    border: `1px solid ${position === p ? T.accent : T.border}`,
-                    backgroundColor: position === p ? 'rgba(224,168,82,0.1)' : 'transparent',
-                    color: position === p ? T.accent : T.textMuted,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 150ms',
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+            {seg(['Long', 'Short'] as const, position, setPosition, () => T.accent)}
           </label>
 
-          <button
-            onClick={handleValidate}
-            style={{
-              marginTop: 8,
-              padding: '11px',
-              borderRadius: 10,
-              borderStyle: 'none',
-              backgroundColor: T.accent,
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              letterSpacing: '0.04em',
-              transition: 'opacity 150ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            Validate Trade
-          </button>
+          {/* live premium, so the choice is never blind */}
+          <div style={{
+            borderTop: `1px solid ${T.border}`, paddingTop: 12, display: 'grid',
+            gridTemplateColumns: '1fr auto', rowGap: 7, fontSize: 12,
+          }}>
+            <span style={{ color: T.textMuted }}>Premium</span>
+            <span className="mono">{check ? `${check.premium.toFixed(2)}` : '—'}</span>
+            <span style={{ color: T.textMuted }}>Intrinsic / time</span>
+            <span className="mono">{check ? `${check.intrinsic.toFixed(0)} / ${check.timeValue.toFixed(1)}` : '—'}</span>
+            <span style={{ color: T.textMuted }}>Breakeven</span>
+            <span className="mono" style={{ color: T.accent }}>{check ? check.breakeven.toFixed(0) : '—'}</span>
+            <span style={{ color: T.textMuted }}>Spot now</span>
+            <span className="mono">{chain.spot.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
-      {score !== null && (
-        <div style={{
-          backgroundColor: T.card,
-          border: `1px solid ${T.border}`,
-          borderRadius: 14,
-          padding: 24,
-          flex: 1,
-          minWidth: 280,
-        }}>
-          <div className="micro-label" style={{ marginBottom: 16 }}>Confidence Score</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 16 }}>
-            <span className="mono" style={{
-              fontSize: 52,
-              fontWeight: 700,
-              color: score >= 60 ? T.bull : score >= 40 ? T.caution : T.bear,
-              lineHeight: 1,
-            }}>{score}</span>
-            <span style={{ fontSize: 18, color: T.textMuted }}>/100</span>
+      {/* ── the answer ── */}
+      <div style={{ flex: 1, minWidth: 340, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {!check ? (
+          <div style={{
+            backgroundColor: T.card, border: `1px solid ${T.border}`,
+            borderRadius: 12, padding: 20, fontSize: 13, color: T.textMuted,
+          }}>
+            No premium quoted for that contract right now — nothing to check against.
           </div>
-
-          {/* Score bar */}
-          <div style={{ height: 6, backgroundColor: T.inset, borderRadius: 3, marginBottom: 20, overflow: 'hidden' }}>
+        ) : (
+          <>
             <div style={{
-              height: '100%',
-              width: `${score}%`,
-              backgroundColor: score >= 60 ? T.bull : score >= 40 ? T.caution : T.bear,
-              borderRadius: 3,
-              transition: 'width 400ms ease',
-            }} />
-          </div>
-
-          <div className="micro-label" style={{ marginBottom: 10 }}>Gate Checks</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {gates.map((g, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 13, color: g.pass ? T.bull : T.bear, marginTop: 1 }}>{g.pass ? '✓' : '✗'}</span>
-                <span style={{ fontSize: 12, color: g.pass ? T.textSecondary : T.textPrimary, lineHeight: 1.5 }}>{g.text}</span>
+              backgroundColor: T.card, border: `1px solid ${T.border}`,
+              borderRadius: 12, padding: '18px 20px',
+              borderLeft: `3px solid ${vCol}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: 22, fontWeight: 800, letterSpacing: '0.04em', color: vCol,
+                }}>{check.verdict}</span>
+                <span className="mono" style={{ fontSize: 12, color: T.textMuted }}>
+                  {check.score}/100
+                </span>
+                <span style={{ fontSize: 13.5, color: T.textSecondary, flex: 1, minWidth: 220 }}>
+                  {check.headline}
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <div style={{ height: 4, backgroundColor: T.inset, borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${check.score}%`, backgroundColor: vCol,
+                  borderRadius: 2, transition: 'width 350ms ease',
+                }} />
+              </div>
+            </div>
+
+            {/* the one comparison that decides most option buys */}
+            <div style={{
+              backgroundColor: T.card, border: `1px solid ${T.border}`,
+              borderRadius: 12, padding: '16px 20px',
+            }}>
+              <div className="micro-label" style={{ marginBottom: 12 }}>
+                Move required vs move priced
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                <span className="mono" style={{ fontSize: 26, fontWeight: 700, color: check.emRatio > 1 ? T.bear : T.textPrimary }}>
+                  {check.moveNeeded.toFixed(0)}
+                </span>
+                <span style={{ fontSize: 12, color: T.textMuted }}>pts needed</span>
+                <span style={{ fontSize: 12, color: T.textMuted }}>vs</span>
+                <span className="mono" style={{ fontSize: 18, color: T.accent }}>
+                  {check.expectedMove.toFixed(0)}
+                </span>
+                <span style={{ fontSize: 12, color: T.textMuted }}>priced for the rest of the session</span>
+              </div>
+              <div style={{ position: 'relative', height: 8, backgroundColor: T.inset, borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  position: 'absolute', top: 0, bottom: 0, left: 0,
+                  width: `${Math.min(100, 100 / Math.max(check.emRatio, 0.01))}%`,
+                  backgroundColor: 'rgba(224,168,82,0.35)',
+                }} />
+                <div style={{
+                  position: 'absolute', top: 0, bottom: 0, left: 0,
+                  width: `${Math.min(100, (check.emRatio / Math.max(check.emRatio, 1)) * 100)}%`,
+                  backgroundColor: check.emRatio > 1 ? T.bear : T.bull, opacity: 0.75,
+                }} />
+              </div>
+              <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 9 }}>
+                Delta {Number.isFinite(check.delta) ? check.delta.toFixed(2) : 'n/a'} · bid-ask {(check.spreadPct * 100).toFixed(1)}% of premium
+                {check.wall && ` · ${(check.wall.oi / 1e6).toFixed(1)}M at ${check.wall.strike} in the way`}
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: T.card, border: `1px solid ${T.border}`,
+              borderRadius: 12, padding: '16px 20px',
+            }}>
+              <div className="micro-label" style={{ marginBottom: 12 }}>What it clears, what it does not</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {check.gates.map((g, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 118px 1fr', gap: 10, alignItems: 'baseline' }}>
+                    <span style={{ color: gCol(g.verdict), fontSize: 12, fontWeight: 700 }}>{gMark(g.verdict)}</span>
+                    <span style={{ fontSize: 11.5, color: T.textMuted, letterSpacing: '0.02em' }}>{g.label}</span>
+                    <span style={{ fontSize: 12.5, color: g.verdict === 'pass' ? T.textSecondary : T.textPrimary, lineHeight: 1.5 }}>
+                      {g.detail}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
