@@ -739,3 +739,44 @@ Everything after the 2026-07-28 close was verified against the mock-chain
 fixture — Dhan was unreachable (`getaddrinfo failed` for `api.dhan.co`). Two
 things are coded and typechecked but have never rendered: the OffPeak badge
 and the FOCUS "+N agreeing" merge. Re-verify at the next live open.
+
+### Trending OI table (2026-07-29, `e6a134e`)
+
+Live-only, per request — no historical mode.
+
+Formulas were reverse-engineered from a reference tool and then **checked
+against our own 2026-07-28 capture** rather than assumed. Two traps, both now
+locked by tests:
+
+1. "Chng. in Call OI" really is Dhan's cumulative day CHANGE per strike
+   (`oi_chg`), not outstanding OI. Summing outstanding OI gives ~1.8x the
+   numbers and PCR 1.04 where the reference read 1.18.
+2. Each row is the chain **as at** its clock mark — a sampled series, not an
+   average of the interval after it. Bucketing the other way shifted every row
+   by one mark, which is how the first attempt disagreed.
+
+Result: call/put within 0.2-2.7% of the reference on six rows, PCR within
+0.04, sentiment identical on all six; residual is sampling instant. Day-break
+detection independently found DHB 24041.0 at 11:00 where the reference showed
+D.H.B. (24040.9).
+
+- `chain_metrics`: `ChainState.minutes` keeps the last snapshot of each minute
+  per strike (a few hundred KB), so one grid serves 5/15/30/60 min. New
+  `oi_flow()`.
+- `server.py`: `GET /api/oiflow?idx=&interval=&strikes=`. Aggregated
+  server-side — the raw chain is ~180 MB/day and must never reach the browser.
+- `ui-v2`: **OI Flow** tab — interval selector, per-strike toggles, Indian
+  digit grouping, break badges, sentiment pills.
+
+41 tests (2 new). Note these three live only on `feature/dashboard-v2`, since
+the tab that uses them is there.
+
+### State at the end of this session
+
+- On branch `feature/dashboard-v2`; backend byte-identical to `main`.
+- `main` head `48aee7c`; branch head `e6a134e`.
+- Everything after the 2026-07-28 close was verified against the **mock-chain
+  fixture** (Dhan was unreachable that night; it was reachable again by
+  01:35 on 07-29 but the market was closed and the token was a day old).
+  Unrendered-but-shipped: OffPeak badge, FOCUS "+N agreeing" merge, OI Flow at
+  full-day depth. **Re-verify all three at the next live open.**

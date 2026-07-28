@@ -5,7 +5,7 @@
 | Layer     | Technology                          | Role                                    |
 | --------- | ----------------------------------- | --------------------------------------- |
 | Engine    | Python 3.13, stdlib only            | Feature computation, states, events, gamma layer |
-| Server    | Python `http.server` (stdlib)       | Static UI + `/api/data` · `/api/chain` · `/api/gex` · POST `/api/token` |
+| Server    | Python `http.server` (stdlib)       | Static UI + `/api/data` · `/api/chain` · `/api/oiflow` · `/api/gex` · POST `/api/token` |
 | UI (v1)   | Vanilla HTML/CSS/JS, no build step  | Production "Replay Dashboard" (`ui/`), SVG where needed |
 | UI (v2)   | React 19 + Vite + Tailwind 4 + Recharts + TS | `ui-v2/` on `feature/dashboard-v2`. **Since 2026-07-29 this is the frontend becoming the product**; v1 stays live until parity — see `context/ui-v2-dashboard.md` |
 | Data      | Dhan REST v2 (`dhanhq` SDK + direct `urllib` for `oi:true`) | Historical 1-min OHLCV+OI, chain, live feed later |

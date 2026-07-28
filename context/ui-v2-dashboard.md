@@ -1,5 +1,27 @@
 # UI v2 Dashboard (`ui-v2/`) — the frontend that is becoming the product
 
+## Picking this up fresh — do these four things first
+
+1. **Be on the right branch.** `git checkout feature/dashboard-v2`. All v2 code
+   and this document live there; `ui-v2/` does not exist on `main`.
+2. **Start a backend on 8765**, then the Vite server. Configs are in
+   `.claude/launch.json`:
+   - `tapemap-live-8765` → real market data (needs a valid Dhan token).
+   - `tapemap-mock-8765` → replay + mock chain. **Works offline.** Serves only
+     NIFTY; BANKNIFTY/SENSEX correctly report "no tape" — that is the fix
+     working, not a bug.
+   - `tapemap-v2` → `corepack pnpm --dir ui-v2 dev`, opens on 5173.
+3. **Expect a token prompt.** Dhan tokens are daily. If the tape is dead, click
+   **⟳ TOKEN** in the UI (clipboard, or a password field if the browser blocks
+   clipboard access). Never log, echo or render the token.
+4. **Read THE HONESTY RULES below before changing any display.** Five separate
+   bugs in this app came from one habit: showing a fallback as if it were real.
+
+Gates before you commit: `corepack pnpm exec tsc --noEmit`, `corepack pnpm
+build`, and `python -m pytest -q` from the repo root (41 tests). Verify in the
+browser in a **fresh tab** — React hook-order warnings after an edit are HMR
+artifacts and do not reproduce on a clean load.
+
 ## Status — read this first
 
 **2026-07-29: the direction changed.** v2 is no longer a parallel experiment.
@@ -58,15 +80,22 @@ for `corepack pnpm build` and `corepack pnpm exec tsc --noEmit`. Vite proxies
 Launch configs live in `.claude/launch.json`: `tapemap-live-8765` (live),
 `tapemap-mock-8765` (replay + mock chain, works offline), `tapemap-v2` (Vite).
 
-## Backend changes owed to main
+## Backend changes and where they live
 
-These are on the branch and affect **both** frontends. Merge them back:
+The engine serves both frontends, so a backend change is its own unit of work
+and belongs on `main`.
 
-- `chain_live.py` — `_publish` forwards `ce_pk`/`pe_pk` (session-high OI per
-  book) into each strike row. Without it the field is computed and dropped.
-- `server.py` — `/api/data` no longer falls back to the DEFAULT index when the
-  requested one has no payload. It used to answer `?idx=BANKNIFTY` with
-  NIFTY's tape, so three panels showed one session under three names.
+**Already merged to `main` (`c2fc677`)** — nothing owed:
+- `chain_live.py` `_publish` forwards `ce_pk`/`pe_pk` (session-high OI per
+  book) into each strike row; without it the field was computed and dropped.
+- `server.py` `/api/data` no longer falls back to the DEFAULT index. It used to
+  answer `?idx=BANKNIFTY` with NIFTY's tape, so three panels showed one session
+  under three names.
+
+**Still only on this branch** (`e6a134e`), because the tab that uses it is here:
+- `chain_metrics.ChainState.minutes` + `oi_flow()`, and `server.py`'s
+  `/api/oiflow` route. Take these to `main` if v1 ever needs the table, or let
+  them ride along when the branch merges.
 
 ## THE HONESTY RULES (hard-won — do not regress these)
 
@@ -149,6 +178,12 @@ data is worse than one that shows an error. The rules that came out of it:
 - **Chain** — CE-OI | GEX | STRIKE | PE-OI heat table around ATM, with an
   **OffPeak badge** (from 8%, amber at 30%) showing how far each book has
   fallen from its own session high. Four stat cards above.
+- **OI Flow** — Trending OI. One row per clock mark: call and put OI **added
+  since the open** across the selected strikes, their difference, strength,
+  change-in-direction, PCR, day high/low breaks and a bullish/bearish call.
+  Interval selector (5/15/30/60) and per-strike toggles. Served by
+  `/api/oiflow`; see "Trending OI" below for the exact semantics, which were
+  validated against a reference tool on real 2026-07-28 data.
 - **Events** — the narrative feed with a **FOCUS** toggle (default on,
   persisted). Chain `wall_log` events (WALL-MIGRATION / ROLE-FLIP) are merged
   in and **protected from cropping**: the feed keeps the last 10 overall plus
@@ -162,6 +197,38 @@ data is worse than one that shows an error. The rules that came out of it:
 - **Map** — action-zone level map: pivots, OI walls, PIN, floor/cap, VWAP,
   ±1σ, session hi/lo, trap flags. No fabricated levels.
 
+## Trending OI (`/api/oiflow`) — semantics, verified not assumed
+
+Two things the column labels make easy to get wrong. Both cost a wrong first
+attempt, both are now locked by tests:
+
+1. **"Call OI added" is Dhan's cumulative day CHANGE per strike (`oi_chg`),
+   not the outstanding OI.** Summing outstanding OI gives ~1.8x the numbers
+   and the wrong PCR (1.04 where the reference read 1.18).
+2. **Each row is the chain AS AT its clock mark** — a sampled series, not an
+   average over the interval that follows. Bucketing it the other way shifts
+   every row by one mark.
+
+```
+call/put    = sum of per-strike oi_chg over the selected strikes
+diff        = put - call                pcr = put / call
+strength    = diff / max(call, put)     (signed)
+chg_dir     = diff(t) - diff(t-1)
+chg_dir_pct = chg_dir / |diff(t-1)|
+sentiment   = BULLISH when diff > 0
+brk         = a NEW day high/low made inside that mark (DHB / DLB)
+```
+
+Checked against six reference rows on our own 2026-07-28 capture: call/put
+within 0.2-2.7%, PCR within 0.04, sentiment identical on all six; the residual
+is sampling instant. Break detection independently found DHB 24041.0 at 11:00
+where the reference showed D.H.B. (24040.9).
+
+`ChainState` retains the **last snapshot of each minute per strike**
+(`self.minutes`, a few hundred KB), so one grid serves every interval with no
+re-reading. Aggregation is server-side on purpose: the raw chain is ~180 MB a
+day and must never reach the browser.
+
 ## Build history (`feature/dashboard-v2`)
 
 - `b6b8798` live-wire the Figma app · `7139ec7` heatmaps · `817adf3` level map
@@ -174,15 +241,20 @@ data is worse than one that shows an error. The rules that came out of it:
 - `3b5e9c6` stop serving one index's tape under another's name
 - `92a7bf7` heat radar dead-index rows; map trap causality
 - `a27780e` Dhan token capture
+- `0e390b6` context files brought in line with reality
+- `93b3f9d` merge main (backend fixes landed there as `c2fc677`)
+- `e6a134e` Trending OI — `/api/oiflow` + OI Flow tab
 
 ## Open items
 
-- **Verify against a live session.** Everything since 2026-07-28 was verified
-  against the mock-chain fixture because Dhan was unreachable
-  (`getaddrinfo failed` for `api.dhan.co`). Two things are coded and
-  typechecked but have never rendered: the **OffPeak badge** (nothing in the
-  fixture is 8% off peak) and the FOCUS **"+N agreeing"** merge.
-- **Merge the two backend fixes to `main`** (see above).
+- **Verify against a live session — this is the top item.** Everything after
+  the 2026-07-28 close was verified against the mock-chain fixture, which
+  serves only NIFTY and restarts at 09:15. Three things are coded, typechecked
+  and never actually rendered:
+  - the **OffPeak badge** (nothing in the fixture is 8% off its peak),
+  - the FOCUS **"+N agreeing"** merge (no qualifying minute in that data),
+  - **OI Flow at depth** — the fixture only ever accumulates a few marks with
+    its own strikes (23900-24700), not a real ladder across a full day.
 - **Performance**: `useLiveData` re-maps three indices every 5s, and replay
   re-maps on every scrub tick. Fine at 375 bars; the first thing to feel slow
   if multiple days are ever loaded.
