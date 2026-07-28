@@ -319,6 +319,7 @@ const MOCK: Dataset = {
   ORDER_FLOW: MOCK_ORDER_FLOW,
   CHAIN_DATA: { NIFTY: mockChain(MOCK_CHAIN_DATA.NIFTY), BANKNIFTY: mockChain(MOCK_CHAIN_DATA.BANKNIFTY), SENSEX: mockChain(MOCK_CHAIN_DATA.SENSEX) },
   EVENTS_BY_IDX: { NIFTY: MOCK_EVENTS, BANKNIFTY: MOCK_EVENTS, SENSEX: MOCK_EVENTS },
+  FOCUS_BY_IDX: { NIFTY: MOCK_EVENTS, BANKNIFTY: MOCK_EVENTS, SENSEX: MOCK_EVENTS },
   CHART_DATA: MOCK_CHART_DATA,
   HEAT: MOCK_HEAT,
   PRESSURE: { NIFTY: mockPressure(MOCK_CHART_DATA.NIFTY), BANKNIFTY: mockPressure(MOCK_CHART_DATA.BANKNIFTY), SENSEX: mockPressure(MOCK_CHART_DATA.SENSEX) },
@@ -946,12 +947,32 @@ function ChainTab({ index }: { index: IndexKey }) {
 }
 
 function EventsTab({ index }: { index: IndexKey }) {
-  const { EVENTS_BY_IDX } = useData()
-  const events = EVENTS_BY_IDX[index]
+  const { EVENTS_BY_IDX, FOCUS_BY_IDX } = useData()
+  // FOCUS is the default: on a live expiry day the raw log repeats itself so
+  // often that the signal is buried. Preference persists, as it does in v1.
+  const [focus, setFocus] = useState(() => localStorage.getItem('focus') !== '0')
+  const events = focus ? FOCUS_BY_IDX[index] : EVENTS_BY_IDX[index]
+  const full = EVENTS_BY_IDX[index]
+  const hidden = Math.max(0, full.length - events.length)
   const [hovered, setHovered] = useState<number | null>(null)
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 760 }}>
-      <div className="micro-label" style={{ marginBottom: 4 }}>Event Feed — {index} — newest first</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+        <span className="micro-label">Event Feed — {index} — newest first</span>
+        <button
+          onClick={() => { const n = !focus; setFocus(n); localStorage.setItem('focus', n ? '1' : '0') }}
+          title="FOCUS drops state churn and low-grade band tags, silences a kind repeating itself inside 10 minutes or echoing the log's direction inside 8, and collapses a contradictory minute into one CONFLICT line. Panels always show everything."
+          style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 9px',
+            borderRadius: 3, cursor: 'pointer', background: 'transparent',
+            border: `1px solid ${focus ? T.accent : T.border}`,
+            color: focus ? T.accent : T.textMuted,
+          }}
+        >FOCUS</button>
+        {focus && hidden > 0 && (
+          <span style={{ fontSize: 11, color: T.textMuted }}>{hidden} repeat{hidden === 1 ? '' : 's'} hidden</span>
+        )}
+      </div>
       {events.map((ev, i) => {
         const accent = ev.dir === 'bull' ? T.bull : ev.dir === 'bear' ? T.bear : T.textMuted
         return (

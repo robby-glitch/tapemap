@@ -126,6 +126,8 @@ export interface Dataset {
   ORDER_FLOW: Record<IndexKey, OrderFlow>
   CHAIN_DATA: Record<IndexKey, Chain>
   EVENTS_BY_IDX: Record<IndexKey, EventItem[]>
+  /** Same narrative with the repetition removed; see buildFocusFeed. */
+  FOCUS_BY_IDX: Record<IndexKey, EventItem[]>
   CHART_DATA: Record<IndexKey, ChartPoint[]>
   HEAT: Record<IndexKey, HeatCell[]>
   PRESSURE: Record<IndexKey, PressCell[]>
@@ -143,6 +145,7 @@ interface PerIndex {
   flow: OrderFlow
   chain: Chain
   events: EventItem[]
+  focus: EventItem[]
   chart: ChartPoint[]
   heat: HeatCell[]
   pressure: PressCell[]
@@ -187,13 +190,96 @@ function trimMsg(s: string, n = 150): string {
   return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s
 }
 
+/**
+ * Direction of an event, per kind. A keyword scan cannot do this: "BULL TRAP
+ * SPRUNG" contains BULL but is bearish, and "PE writers add" is bullish while
+ * naming the put side. Ported from ui/app.js evDir, which is the authority.
+ */
+function evDir(e: any): -1 | 0 | 1 {
+  const k = e?.kind
+  const m = String(e?.msg ?? '').toUpperCase()
+  const s = e?.data?.side
+  if (k === 'BAND-REVERSAL') return m.includes('+2') ? -1 : m.includes('-2') ? 1 : 0
+  if (k === 'TRAP-SPRUNG' || k === 'TRAP-SETTING')
+    return m.includes('BULL') ? -1 : m.includes('BEAR') ? 1 : 0
+  if (k === 'PRESS' || k === 'CAMPAIGN' || k === 'BUYER-BUILD')
+    return m.includes('BULLISH') ? 1 : m.includes('BEARISH') ? -1 : 0
+  if (k === 'OI-PEAK-LAG') return m.includes('UPWARD') ? 1 : m.includes('DOWNWARD') ? -1 : 0
+  if (k === 'SQUEEZE-RISK') return m.includes('UPSIDE') ? 1 : m.includes('DOWNSIDE') ? -1 : 0
+  if (k === 'DIVERGENCE') return m.includes('HIGH') ? -1 : m.includes('LOW') ? 1 : 0
+  if (k === 'IGNITION') return m.startsWith('UP') || m.includes('UP:') ? 1 : -1
+  if (k === 'ARMED' || k === 'SPRING') return s === 'UP' ? 1 : s === 'DN' ? -1 : 0
+  if (k === 'WALL-MIGRATION' || k === 'ROLE-FLIP') return s === 'UP' ? 1 : s === 'DN' ? -1 : 0
+  return 0
+}
+
 function eventDir(e: any): 'bull' | 'bear' | 'neutral' {
-  const side = e?.data?.side
-  const msg = String(e?.msg ?? '').toUpperCase()
-  const hasBear = /BEAR|\bDOWN\b/.test(msg)
-  if (side === 'BULL' || (/BULL|\bUP\b/.test(msg) && !hasBear)) return 'bull'
-  if (side === 'BEAR' || hasBear) return 'bear'
-  return 'neutral'
+  const d = evDir(e)
+  return d > 0 ? 'bull' : d < 0 ? 'bear' : 'neutral'
+}
+
+/** Kinds loud enough to speak even when the log just said the same thing. */
+const LOUD = new Set([
+  'ARMED', 'SPRING', 'IGNITION', 'CLIMAX', 'TRAP', 'CARRY', 'SQUEEZE-RELEASE',
+  'TRAP-SPRUNG', 'SPRING-FAIL', 'OI-PEAK-LAG', 'BAND-REVERSAL', 'BAND-BREAK',
+  'WALL-MIGRATION', 'ROLE-FLIP',
+])
+
+/**
+ * FOCUS: the same narrative with the repetition taken out. Ported from
+ * ui/app.js buildFocusFeed, where it cut a live expiry day's log by ~40%.
+ *
+ * Four rules, in order: drop pure state churn and low-grade band tags; a
+ * kind+direction may not repeat inside 10 minutes; a QUIET kind repeating the
+ * direction the log just gave (within 8 min) is the same story, not new
+ * evidence; and a single minute holding both bull and bear evidence collapses
+ * to one CONFLICT line rather than printing a contradiction as two facts.
+ */
+function buildFocusFeed(events: any[]): any[] {
+  const tmin = (t: string) => +t.slice(0, 2) * 60 + +t.slice(3, 5)
+  const lastShown: Record<string, number> = {}   // kind|dir -> minute emitted
+  const lastDir: Record<string, number> = {}     // dir -> minute a line showed
+  const out: any[] = []
+  const byT = new Map<string, any[]>()
+  for (const e of events) {
+    if (e.kind === 'STATE' || e.kind === 'TRAP-SETTING') continue
+    if (e.kind === 'BAND-REVERSAL' && String(e.msg ?? '').includes('[LOW]')) continue
+    if (!byT.has(e.t)) byT.set(e.t, [])
+    byT.get(e.t)!.push(e)
+  }
+  for (const [t, group] of byT) {
+    const bulls = group.filter((e) => evDir(e) > 0)
+    const bears = group.filter((e) => evDir(e) < 0)
+    const rest = group.filter((e) => evDir(e) === 0)
+    const emit = (e: any) => {
+      const d = evDir(e)
+      const key = e.kind + '|' + d
+      if (lastShown[key] !== undefined && tmin(t) - lastShown[key] <= 10) return
+      if (d && !LOUD.has(e.kind)
+          && lastDir[d] !== undefined && tmin(t) - lastDir[d] <= 8) return
+      lastShown[key] = tmin(t)
+      if (d) lastDir[d] = tmin(t)
+      out.push(e)
+    }
+    if (bulls.length && bears.length) {
+      rest.forEach(emit)
+      emit({
+        t, kind: 'CONFLICT',
+        msg: `mixed evidence this minute — bull: ${bulls.map((e) => e.kind).join('+')} `
+          + `vs bear: ${bears.map((e) => e.kind).join('+')} — no clean read, stand aside`,
+      })
+    } else {
+      rest.forEach(emit)
+      for (const side of [bulls, bears]) {
+        if (!side.length) continue
+        if (side.length === 1) { emit(side[0]); continue }
+        const lead = side[0]
+        side.slice(1).forEach((e) => { lastShown[e.kind + '|' + evDir(e)] = tmin(t) })
+        emit({ ...lead, agree: side.slice(1).map((e) => e.kind) })
+      }
+    }
+  }
+  return out
 }
 
 // De-dup near-equal level values (within `tol` pts), keeping the first seen.
@@ -349,21 +435,30 @@ function mapIndex(D: any, C: any): PerIndex {
     dir: e.side === 'UP' ? 'bull' : e.side === 'DN' ? 'bear' : 'neutral',
   }))
   const evs: any[] = day.events ?? []
-  const engineEvents: EventItem[] = evs.map((e) => ({
+  const toItem = (e: any): EventItem => ({
     time: e.t,
-    text: (EVENT_PREFIX[e.kind] || '') + trimMsg(e.msg),
+    // the "+N agreeing" tail is appended AFTER trimming so a merged chorus
+    // never loses the very thing that makes it a chorus
+    text: (EVENT_PREFIX[e.kind] || '') + trimMsg(e.msg)
+      + (e.agree?.length ? ` · +${e.agree.length} agreeing: ${e.agree.join(', ')}` : ''),
     tag: e.kind,
     dir: eventDir(e),
-  }))
+  })
   const byTime = (a: EventItem, b2: EventItem) =>
     a.time < b2.time ? -1 : a.time > b2.time ? 1 : 0
   // A wall changing hands is the headline of a session, so it must not be
   // croppable by however many ordinary events happened to fire after it.
   // Keep the last 10 overall PLUS the last 3 structural ones regardless.
-  const tail = [...engineEvents, ...wallEvents].sort(byTime).slice(-10)
-  const events: EventItem[] = Array.from(
-    new Set([...tail, ...wallEvents.slice(-3)]),
-  ).sort(byTime).reverse()
+  // A narrative log is only useful if you can read back through the session,
+  // and FOCUS only demonstrates anything against a list long enough to have
+  // repetition in it. The Events tab scrolls, so keep the day, not a window.
+  const compose = (list: EventItem[]): EventItem[] => {
+    const tail = [...list, ...wallEvents].sort(byTime).slice(-200)
+    return Array.from(new Set([...tail, ...wallEvents.slice(-3)]))
+      .sort(byTime).reverse()
+  }
+  const events = compose(evs.map(toItem))
+  const focus = compose(buildFocusFeed(evs).map(toItem))
 
   // CHART_DATA
   const chart: ChartPoint[] = bars.map((bar: any) => ({
@@ -496,7 +591,7 @@ function mapIndex(D: any, C: any): PerIndex {
 
   const map: MapData = { now, zoneLo: zLo, zoneHi: zHi, levels: kept.sort((a, b) => b.value - a.value) }
 
-  return { index, score, read, levels, flow, chain, events, chart, heat, pressure, map }
+  return { index, score, read, levels, flow, chain, events, focus, chart, heat, pressure, map }
 }
 
 // Reverse a fallback Dataset into per-index bundles (score 0) for last-good seeding.
@@ -513,6 +608,7 @@ function perFromFallback(fb: Dataset): Record<IndexKey, PerIndex> {
       flow: fb.ORDER_FLOW[k],
       chain: fb.CHAIN_DATA[k],
       events: fb.EVENTS_BY_IDX[k],
+      focus: fb.FOCUS_BY_IDX[k],
       chart: fb.CHART_DATA[k],
       heat: fb.HEAT[k],
       pressure: fb.PRESSURE[k],
@@ -534,6 +630,7 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
     ORDER_FLOW: {} as Record<IndexKey, OrderFlow>,
     CHAIN_DATA: {} as Record<IndexKey, Chain>,
     EVENTS_BY_IDX: {} as Record<IndexKey, EventItem[]>,
+    FOCUS_BY_IDX: {} as Record<IndexKey, EventItem[]>,
     CHART_DATA: {} as Record<IndexKey, ChartPoint[]>,
     HEAT: {} as Record<IndexKey, HeatCell[]>,
     PRESSURE: {} as Record<IndexKey, PressCell[]>,
@@ -547,6 +644,7 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
     ds.ORDER_FLOW[k] = p.flow
     ds.CHAIN_DATA[k] = p.chain
     ds.EVENTS_BY_IDX[k] = p.events
+    ds.FOCUS_BY_IDX[k] = p.focus
     ds.CHART_DATA[k] = p.chart
     ds.HEAT[k] = p.heat
     ds.PRESSURE[k] = p.pressure
