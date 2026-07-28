@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>TapeMap</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <header>
@@ -75,7 +75,10 @@
   <section id="railLog">
     <div class="ph">TODAY SO FAR <em id="storyPos"></em></div>
     <div id="storyBody"></div>
-    <div class="ph">NARRATIVE LOG</div>
+    <div class="ph">NARRATIVE LOG
+      <button id="focusBtn"
+              title="FOCUS hides trap-arming lines, low-grade band tags and 10-min repeats, and collapses same-minute contradictions into one CONFLICT line. Panels always show everything.">FOCUS</button>
+    </div>
     <div id="feed"></div>
   </section>
 
@@ -170,6 +173,6 @@
   <div id="carry"></div>
 </footer>
 
-<script src="app.js?v=18"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

@@ -517,3 +517,54 @@ footer{border-top:1px solid var(--edge);padding:8px 16px 10px;background:var(--p
 #carry{margin-top:5px;font-family:var(--mono);font-size:11px;color:var(--dim);
        text-align:right;min-height:15px}
 #carry b{color:var(--up)}
+
+/* ---------- polish pass (2026-07-28): affordances, consistency, quiet motion.
+   No layout changes — a dense terminal for daily repeated use stays dense. */
+html{color-scheme:dark}
+button{font-family:inherit}
+::selection{background:rgba(139,92,246,.35)}
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:#232e44;border-radius:5px;border:2px solid var(--bg)}
+*::-webkit-scrollbar-thumb:hover{background:#31405e}
+button:focus-visible,select:focus-visible,input:focus-visible{
+  outline:1px solid var(--gamma);outline-offset:1px}
+#idxTabs button,#dayTabs button,#viewTabs button,#chSub button,#playBtn,#tokBtn{
+  transition:color .12s,background-color .12s,border-color .12s;border-radius:3px}
+#playBtn:hover,#speed:hover{border-color:#3a475f}
+#speed{border-radius:3px}
+
+/* live dot in the brand */
+.livedot{font-style:normal;font-size:10px;font-weight:700;letter-spacing:1px;
+  color:var(--up);vertical-align:2px;animation:livepulse 2.4s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* narrative log: FOCUS toggle + event affordances */
+#focusBtn{float:right;background:var(--pan2);border:1px solid var(--edge);
+  color:var(--dim);font-size:9px;font-weight:700;letter-spacing:1.5px;
+  padding:2px 9px;border-radius:3px;cursor:pointer;
+  transition:color .12s,border-color .12s;margin-top:-2px}
+#focusBtn:hover{color:var(--ink);border-color:#3a475f}
+.ev{transition:background-color .12s;border-radius:0 3px 3px 0}
+.ev.conflict{border-left-width:4px;border-left-style:double;
+  background:rgba(232,193,90,.05)}
+.ev.conflict .m{font-style:italic;color:#c9b47a}
+#feed:empty::before{content:"quiet tape — no story beats yet";display:block;
+  color:var(--slate);font-family:var(--mono);font-size:10.5px;padding:14px 6px}
+
+/* replay scrub bar: visible track + grabbable thumb */
+#scrub{-webkit-appearance:none;appearance:none;height:16px;background:transparent}
+#scrub::-webkit-slider-runnable-track{height:4px;background:var(--pan2);
+  border-radius:2px}
+#scrub::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:var(--vio);margin-top:-4px;
+  border:2px solid var(--bg);box-shadow:0 0 0 1px var(--vio)}
+#scrub:hover::-webkit-slider-thumb{box-shadow:0 0 0 2px var(--vio)}
+
+/* level ladder: header stays put while scanning; live row lifts */
+#railLadder .ph{position:sticky;top:0;background:var(--pan);z-index:2}
+.lrow.live{border-radius:4px;box-shadow:0 2px 12px rgba(139,92,246,.35)}
+
+/* status banner: stronger scent without shouting */
+#liveBanner{border-left:3px solid var(--amber)}
+#liveBanner.ok{border-left-color:var(--up)}

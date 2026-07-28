@@ -4,7 +4,8 @@ const COL = { OPENING:"#5d6b84", BALANCE:"#5d6b84", COILING:"#ffbf00",
               ARMED:"#8b5cf6", "TREND-UP":"#2ec27e", "TREND-DOWN":"#ff5f6b" };
 const LOUD = new Set(["ARMED","SPRING","IGNITION","CLIMAX","TRAP","CARRY","SQUEEZE-RELEASE",
                       "TRAP-SPRUNG","SPRING-FAIL","OI-PEAK-LAG",
-                      "BAND-REVERSAL","BAND-BREAK"]);
+                      "BAND-REVERSAL","BAND-BREAK",
+                      "WALL-MIGRATION","ROLE-FLIP"]);
 const GAMMA_COL = { PINNED:"#5d6b84", FLOOR:"#2ec27e", CEILING:"#ff5f6b",
                     "AMPLIFIED-UP":"#2ec27e", "AMPLIFIED-DOWN":"#ff5f6b", NEUTRAL:"#8090a8" };
 const GAMMA_TXT = {
@@ -21,6 +22,8 @@ const EVC = { IGNITION:"#ffbf00", CLIMAX:"#ffbf00", ARMED:"#8b5cf6", SPRING:"#8b
               "GAMMA-PIN":"#3fc1c9", "SQUEEZE-RISK":"#3fc1c9",
               "SQUEEZE-RELEASE":"#3fc1c9", "TRAP-SETTING":"#ffbf00",
               "TRAP-SPRUNG":"#ff5f6b", "SPRING-FAIL":"#ff5f6b",
+              CONFLICT:"#e8c15a",
+              "WALL-MIGRATION":"#e8c15a", "ROLE-FLIP":"#e8c15a",
               "OI-PEAK-LAG":"#ffbf00", "BAND-REVERSAL":"#8b5cf6",
               "BAND-BREAK":"#ff5f6b", CHOP:"#c9a24a" };
 
@@ -50,6 +53,20 @@ function showBanner(msg, ok=false){
   if(tb) tb.onclick = () => { if(typeof captureToken === "function") captureToken(); };
 }
 function hideBanner(){ const b = $("liveBanner"); if(b) b.classList.add("hidden"); }
+
+// --- bar-builder heartbeat: a stale tape must never look live ---
+// (2026-07-27: the bar builder hung for an hour while the UI kept rendering
+// the last payload as if it were current). Server stamps built_at (epoch s);
+// same machine, so client-clock skew is negligible.
+function staleCheck(nd){
+  if(!nd || !nd.built_at) return false;          // old server: no heartbeat
+  const age = Date.now()/1000 - nd.built_at;
+  if(age <= 90) return false;                    // healthy: builds every ~15-40s
+  const t = new Date(nd.built_at*1000).toLocaleTimeString("en-GB");
+  showBanner(`TAPE STALE — bars last built ${t} (${Math.round(age/60)} min ago); ` +
+             `chain view may still be live — check the server window / tapemap.log`);
+  return true;
+}
 
 // --- one-click Dhan token capture (clipboard first, paste fallback) ---
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;   // fast client sanity; server re-validates
@@ -113,6 +130,22 @@ async function boot(){
   $("playBtn").onclick = togglePlay;
   $("scrub").oninput = e => { seek(+e.target.value); };
   $("tokBtn").onclick = captureToken;
+  // FOCUS/ALL narrative-log toggle (persisted; default FOCUS)
+  S.focus = lsGet("focus") !== "0";
+  const fb = $("focusBtn");
+  if(fb){
+    const paint = () => { fb.textContent = S.focus ? "FOCUS" : "ALL"; };
+    paint();
+    fb.onclick = () => {
+      S.focus = !S.focus;
+      lsSet("focus", S.focus ? "1" : "0");
+      S._focusSig = null;
+      $("feed").innerHTML = "";
+      S.feedPtr = 0;
+      paint();
+      if(S.day) renderFeed(S.i);
+    };
+  }
   // restore persisted prefs BEFORE loading data
   const savedIdx = lsGet("index");
   if(savedIdx && [...$("idxTabs").children].some(c => c.dataset.idx === savedIdx)){
@@ -133,18 +166,19 @@ async function boot(){
   const savedSub = lsGet("chsub");
   if(savedSub && document.body.classList.contains("dataMode")) setChainSub(savedSub);
   if(S.data.live || S.data.index){        // live mode (bars may be pending pre-market)
-    document.getElementById("brand").innerHTML = "TAPE<span>MAP</span> ●LIVE";
+    document.getElementById("brand").innerHTML =
+      "TAPE<span>MAP</span> <em class='livedot'>● LIVE</em>";
     setInterval(async () => {
       try{
         const nd = await (await fetch(IDXQ("/api/data"))).json();
-        if(!nd.days || !nd.days.length) return;
+        if(!nd.days || !nd.days.length){ staleCheck(nd); return; }
         const atEnd = S.i >= (S.day ? S.day.bars.length - 1 : 0);
         const keep = S.i;
         S.data = nd;
         setDay(nd.days.length - 1);
         seek(atEnd ? S.day.bars.length - 1
                    : Math.min(keep, S.day.bars.length - 1));
-        hideBanner();
+        if(!staleCheck(nd)) hideBanner();
       }catch(e){ showBanner("live refresh failing — showing last good data"); }
     }, 60000);
   }
@@ -168,7 +202,7 @@ async function bootData(){
     showBanner(S.data.live_error || "no data for this index yet");
     return;
   }
-  hideBanner();
+  if(!staleCheck(S.data)) hideBanner();
   setDay(S.data.days.length - 1);
   seek(S.day.bars.length - 1);           // open on the newest bar
 }
@@ -217,6 +251,98 @@ function seek(i){
 /* ---------- helpers over engine events ---------- */
 
 function eventsUpTo(i){ return S.day.events.filter(e => S.tIdx[e.t] !== undefined && S.tIdx[e.t] <= i); }
+
+/* ---------- FOCUS feed: thin the narrative log, never the panels ----------
+   The engine's events are evidence lines; on a busy day the log printed ~90+
+   of them (2026-07-27: one every ~90s, with same-minute contradictions).
+   FOCUS shows a readable subset: no TRAP-SETTING (TRAP RADAR carries arming),
+   no [LOW] band tags, one line per kind+direction per 10 min, and opposing
+   same-minute signals collapsed into a single CONFLICT line. */
+function evDir(e){
+  const k = e.kind, m = (e.msg || "").toUpperCase(), s = e.data && e.data.side;
+  if(k === "BAND-REVERSAL") return m.includes("+2") ? -1 : (m.includes("-2") ? 1 : 0);
+  if(k === "TRAP-SPRUNG" || k === "TRAP-SETTING")
+    return m.includes("BULL") ? -1 : (m.includes("BEAR") ? 1 : 0);
+  if(k === "PRESS" || k === "CAMPAIGN" || k === "BUYER-BUILD")
+    return m.includes("BULLISH") ? 1 : (m.includes("BEARISH") ? -1 : 0);
+  if(k === "OI-PEAK-LAG") return m.includes("UPWARD") ? 1 : (m.includes("DOWNWARD") ? -1 : 0);
+  if(k === "SQUEEZE-RISK") return m.includes("UPSIDE") ? 1 : (m.includes("DOWNSIDE") ? -1 : 0);
+  if(k === "DIVERGENCE") return m.includes("HIGH") ? -1 : (m.includes("LOW") ? 1 : 0);
+  if(k === "IGNITION") return (m.startsWith("UP") || m.includes("UP:")) ? 1 : -1;
+  if(k === "ARMED" || k === "SPRING") return s === "UP" ? 1 : (s === "DN" ? -1 : 0);
+  return 0;
+}
+function buildFocusFeed(events){
+  const tmin = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+  const lastShown = {};                     // kind|dir -> minute last emitted
+  const lastDir = {};                       // dir -> minute a directional line showed
+  const out = [];
+  const byT = new Map();
+  for(const e of events){
+    if(e.kind === "STATE" || e.kind === "TRAP-SETTING") continue;
+    if(e.kind === "BAND-REVERSAL" && e.msg.includes("[LOW]")) continue;
+    if(!byT.has(e.t)) byT.set(e.t, []);
+    byT.get(e.t).push(e);
+  }
+  for(const [t, group] of byT){
+    const bulls = group.filter(e => evDir(e) > 0), bears = group.filter(e => evDir(e) < 0);
+    const rest  = group.filter(e => evDir(e) === 0);
+    const emit = e => {
+      const d = evDir(e), key = e.kind + "|" + d;
+      if(lastShown[key] !== undefined && tmin(t) - lastShown[key] <= 10) return;
+      // cross-kind: a quiet kind repeating the direction the log just told
+      // (within 8 min) is the same story, not new evidence — stay silent
+      if(d && !LOUD.has(e.kind)
+           && lastDir[d] !== undefined && tmin(t) - lastDir[d] <= 8) return;
+      lastShown[key] = tmin(t);
+      if(d) lastDir[d] = tmin(t);
+      out.push(e);
+    };
+    if(bulls.length && bears.length){       // contradictory minute: one line
+      rest.forEach(emit);
+      emit({t, kind: "CONFLICT",
+            msg: `mixed evidence this minute — bull: ${bulls.map(e=>e.kind).join("+")} `
+               + `vs bear: ${bears.map(e=>e.kind).join("+")} — no clean read, stand aside`});
+    } else {
+      rest.forEach(emit);
+      for(const side of [bulls, bears]){    // same-direction chorus: one line
+        if(!side.length) continue;
+        if(side.length === 1){ emit(side[0]); continue; }
+        const lead = side[0];
+        side.slice(1).forEach(e => { lastShown[e.kind + "|" + evDir(e)] = tmin(t); });
+        emit({t, kind: lead.kind, data: lead.data,
+              msg: lead.msg + ` · +${side.length - 1} agreeing: `
+                 + side.slice(1).map(e => e.kind).join(", ")});
+      }
+    }
+  }
+  return out;
+}
+/* Structural changes come from the CHAIN, not the engine — the engine only
+   watches books at one ATM strike, so on 2026-07-28 the 24,000 strike flipped
+   ceiling->floor and back (the headline of each half of the session) without
+   producing one line of narrative. Merge them into the same feed. */
+function chainWallFeed(){
+  const m = S.mapChain && S.mapChain.metrics;
+  const log = (m && m.wall_log) || [];
+  return log.map(e => ({t: String(e.ts || "").slice(0, 5), kind: e.kind,
+                        msg: e.msg, data: {side: e.side, k: e.k}}))
+            .filter(e => S.tIdx[e.t] != null);
+}
+function feedEvents(){
+  const wall = chainWallFeed();
+  const sig = S.day.day + ":" + S.day.events.length + ":" + wall.length
+            + ":" + (S.focus ? 1 : 0);
+  if(S._focusSig !== sig){
+    S._focusSig = sig;
+    const base = S.focus ? buildFocusFeed(S.day.events) : S.day.events;
+    S._focusList = wall.length
+      ? base.concat(wall).sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+      : base;
+    S._feedDirty = true;      // list changed underneath the append pointer
+  }
+  return S._focusList;
+}
 function minutesAgo(i, t){ return i - S.tIdx[t]; }
 function parseLevel(msg){
   const m = msg.match(/at (R\d|S\d|P) (\d+)/);
@@ -781,6 +907,50 @@ function _sessFracLeft(t){                 // NSE 09:15–15:30 = 375 min
   return clamp01((930 - mins) / 375);
 }
 
+/* ---- directional bias -------------------------------------------------
+   One bar's worth of directional evidence. Kept separate from
+   computeValidator so the read can be smoothed across bars: on 2026-07-28
+   this sum changed sign 42 times in one session — four times in four
+   minutes at 13:32-13:35, where every term was identical except `breadth`
+   toggling LEAN/STRONG BEAR. A read that flips that often is unusable, so
+   breadth now shades rather than decides, and the result is averaged over
+   a causal 5-bar window and passed through a deadband.                   */
+function _barBias(i, bar){
+  const c = bar.ctx || {}, g = bar.gamma || {}, su = bar.setup || null;
+  const st = S.states[i] || "", br = c.breadth || "";
+  const regime = g.regime || "NEUTRAL";
+  const wce = g.w_ce ?? 0, wpe = g.w_pe ?? 0;
+  let B = 0;
+  if(st === "TREND-UP") B += 2; else if(st === "TREND-DOWN") B -= 2;
+  // a spring the books contradict on premium carries no direction at all
+  if(su && !su.conflict && ["ARMED","FIRED","LOADING"].includes(su.status))
+    B += (su.dir === "UP" ? 1 : -1) * (1 + (su.intensity || 0));
+  if(regime === "FLOOR" || regime === "AMPLIFIED-UP") B += 1;
+  else if(regime === "CEILING" || regime === "AMPLIFIED-DOWN") B -= 1;
+  if(wpe > 0.25) B += 1;
+  if(wce > 0.25) B -= 1;
+  if(br.includes("STRONG BULL")) B += 1; else if(br.includes("LEAN BULL")) B += 0.5;
+  else if(br.includes("STRONG BEAR")) B -= 1; else if(br.includes("LEAN BEAR")) B -= 0.5;
+  return B;
+}
+const BIAS_WIN = 5;          // bars averaged (causal — never reads ahead)
+const BIAS_DEAD = 1.0;       // |B| must clear this to name a side
+const _biasMemo = {};
+function smoothBias(i){
+  const live = !S.day || i >= S.day.bars.length - 2;   // last bars still move
+  const key = (S.day && S.day.day) + ":" + i;
+  if(!live && key in _biasMemo) return _biasMemo[key];
+  let sum = 0, n = 0;
+  for(let j = Math.max(0, i - BIAS_WIN + 1); j <= i; j++){
+    const b = S.day && S.day.bars[j];
+    if(!b) continue;
+    sum += _barBias(j, b); n++;
+  }
+  const v = n ? sum / n : 0;
+  if(!live) _biasMemo[key] = v;
+  return v;
+}
+
 function computeValidator(i, bar, opts){
   opts = opts || {};
   const vStrike = opts.strike !== undefined ? opts.strike : S.valStrike;
@@ -792,25 +962,17 @@ function computeValidator(i, bar, opts){
   const br = c.breadth || "";
   const ch = (S.mapChain && S.mapChain.metrics) ? S.mapChain.metrics : null;
 
-  // ---- directional bias (auto candidate) ----
-  let B = 0;
-  if(st === "TREND-UP") B += 2; else if(st === "TREND-DOWN") B -= 2;
-  if(su && ["ARMED","FIRED","LOADING"].includes(su.status))
-    B += (su.dir === "UP" ? 1 : -1) * (1 + (su.intensity || 0));
-  if(regime === "FLOOR" || regime === "AMPLIFIED-UP") B += 1;
-  else if(regime === "CEILING" || regime === "AMPLIFIED-DOWN") B -= 1;
-  if(wpe > 0.25) B += 1;
-  if(wce > 0.25) B -= 1;
-  if(br.includes("STRONG BULL")) B += 2; else if(br.includes("LEAN BULL")) B += 1;
-  else if(br.includes("STRONG BEAR")) B -= 2; else if(br.includes("LEAN BEAR")) B -= 1;
+  // ---- directional bias (auto candidate); see _barBias / smoothBias ----
+  let B = smoothBias(i);
   if(ch){
     if(ch.pcr_oi != null){ if(ch.pcr_oi > 1.1) B += 0.5; else if(ch.pcr_oi < 0.9) B -= 0.5; }
     const sq = ch.squeeze || {};
     if(sq.side === "UP") B += 0.5; else if(sq.side === "DOWN") B -= 0.5;
+    // skew is null when the solver had no time value to fit (chain_metrics)
     const sk = ch.iv && ch.iv.skew != null ? ch.iv.skew : null;
     if(sk != null){ if(sk > 0.005) B -= 0.5; else if(sk < -0.005) B += 0.5; }
   }
-  const autoDir = B > 0.5 ? "LONG" : B < -0.5 ? "SHORT" : "NONE";
+  const autoDir = B > BIAS_DEAD ? "LONG" : B < -BIAS_DEAD ? "SHORT" : "NONE";
   const forced = vSide && vSide !== "AUTO" ? vSide : null;
   const dir = forced || autoDir;
   const bull = dir === "LONG", sgn = bull ? 1 : -1;
@@ -1634,13 +1796,19 @@ function renderVol(c, g){
 
 function renderFeed(i){
   const feed = $("feed");
+  const evs = feedEvents();
+  if(S._feedDirty){          // merged list reordered — rebuild from the top
+    S._feedDirty = false;
+    feed.innerHTML = ""; S.feedPtr = 0;
+  }
   let added = false;
-  while(S.feedPtr < S.day.events.length &&
-        (S.tIdx[S.day.events[S.feedPtr].t] ?? 1e9) <= i){
-    const ev = S.day.events[S.feedPtr++];
+  while(S.feedPtr < evs.length &&
+        (S.tIdx[evs[S.feedPtr].t] ?? 1e9) <= i){
+    const ev = evs[S.feedPtr++];
     if(ev.kind === "STATE"){ continue; }
     const div = document.createElement("div");
-    div.className = "ev" + (LOUD.has(ev.kind) ? " loud" : "");
+    div.className = "ev" + (LOUD.has(ev.kind) ? " loud" : "")
+                         + (ev.kind === "CONFLICT" ? " conflict" : "");
     div.style.borderLeftColor = EVC[ev.kind] || "#5d6b84";
     div.dataset.t = ev.t;                       // click-to-seek target
     if(ev.data?.times?.length > 1)              // ×N collapsed events: list them

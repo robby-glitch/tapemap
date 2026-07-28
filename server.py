@@ -14,7 +14,9 @@ tab works with an expired token and outside market hours.
 """
 
 import json
+import logging
 import sys
+import time
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -24,6 +26,17 @@ import instruments
 from analyze import analyze
 
 ROOT = Path(__file__).parent
+log = logging.getLogger("tapemap")
+
+
+def _setup_logging():
+    """Console AND tapemap.log — the 2026-07-27 freeze left its only evidence
+    in a closed console window; the log file survives."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=[logging.FileHandler(ROOT / "tapemap.log", encoding="utf-8"),
+                  logging.StreamHandler()])
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -93,16 +106,17 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 self._json(box["payload"])
         elif self.path.startswith("/api/gex"):
-            gex = ROOT / "data" / "gex_2026-07-17.json"
-            if gex.exists():
-                body = gex.read_bytes()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            else:
+            # newest gex_YYYY-MM-DD.json (filenames sort chronologically)
+            files = sorted((ROOT / "data").glob("gex_*.json"))
+            if not files:
                 self.send_error(404)
+                return
+            try:
+                pl = json.loads(files[-1].read_text(encoding="utf-8"))
+                pl["as_of"] = files[-1].stem[len("gex_"):]
+                self._json(json.dumps(pl).encode())
+            except (OSError, ValueError):
+                self._json(files[-1].read_bytes())
         else:
             super().do_GET()
 
@@ -114,12 +128,14 @@ def _start_chain(mock, configs):
     from chain_live import ChainPoller
     poller = ChainPoller(configs, mock=mock)
     poller.start()
-    print("chain poller started" + (" (MOCK fixture)" if mock else "")
-          + " for " + ", ".join(c["under_sym"] for c in configs))
+    log.info("chain poller started%s for %s",
+             " (MOCK fixture)" if mock else "",
+             ", ".join(c["under_sym"] for c in configs))
     return poller
 
 
 def main():
+    _setup_logging()
     argv = [a for a in sys.argv[1:] if a != "--mock-chain"]
     mock_chain = "--mock-chain" in sys.argv[1:]
     if argv and argv[0] == "live":
@@ -127,10 +143,10 @@ def main():
         import time as _t
         from live import REFRESH_S, build_payload
         port = int(argv[1]) if len(argv) > 1 else 8765
-        today = _t.strftime("%Y-%m-%d")
 
         def _waiting(sym, why):
             return json.dumps({"index": sym, "strike": None, "days": [],
+                               "built_at": time.time(),
                                "live_error": why}).encode()
 
         # Crash-proof deferred startup: bind the server immediately with
@@ -146,37 +162,39 @@ def main():
         have = {x: False for x in instruments.ENABLED}
         poller = _start_chain(mock_chain, list(cfgs.values()))
         chains = poller.boxes
-        print(f"LIVE server up on http://127.0.0.1:{port} for {list(cfgs)} "
-              f"(refresh {REFRESH_S}s). Need a token? Click TOKEN in the UI.")
+        log.info("LIVE server up on http://127.0.0.1:%s for %s (refresh %ss). "
+                 "Need a token? Click TOKEN in the UI.", port, list(cfgs), REFRESH_S)
 
-        def refresh():
+        # One refresh thread PER INDEX: a slow download or bad instrument on
+        # one index can no longer stall the other two (2026-07-27: a single
+        # serial loop froze all three tapes at once). The scrip master behind
+        # resolve_dynamic is lock-guarded and day-cached in instruments, so
+        # three threads still cost one download.
+        def refresh_one(x, c, stagger):
+            _t.sleep(stagger)       # de-phase the per-index cycles
             first = True
             while True:
                 if not first:
                     _t.sleep(REFRESH_S)
                 first = False
-                # resolve any unresolved indices from ONE scrip-master download
-                todo = [c for c in cfgs.values() if "fut_id" not in c]
-                if todo:
-                    try:
-                        rows = instruments._load_scrip()
-                        for c in todo:
-                            instruments.resolve_dynamic(c, "", today, rows=rows)
-                    except Exception as e:
-                        print("instrument resolve failed", e)
-                for x, c in cfgs.items():
-                    if "fut_id" not in c:                # still unresolved -> retry next cycle
-                        continue
-                    try:
-                        payloads[x]["payload"] = build_payload(c)
-                        have[x] = True
-                    except Exception as e:  # keep last good data; else ask for a token
-                        if not have[x]:
-                            payloads[x]["payload"] = _waiting(x,
-                                "waiting for a valid Dhan token — click ⟳ TOKEN")
-                        print("live build failed", x, e)
+                try:
+                    if "fut_id" not in c:
+                        instruments.resolve_dynamic(
+                            c, "", _t.strftime("%Y-%m-%d"))
+                    payloads[x]["payload"] = build_payload(c)
+                    have[x] = True
+                except Exception as e:  # keep last good data; else ask for a token
+                    log.exception("live build failed %s", x)
+                    if not have[x]:
+                        payloads[x]["payload"] = _waiting(x,
+                            "waiting for a valid Dhan token — click ⟳ TOKEN")
+                    if "429" in str(e):     # rate-limited: back off, don't hammer
+                        log.warning("%s rate-limited, backing off 20s", x)
+                        _t.sleep(20)
 
-        threading.Thread(target=refresh, daemon=True).start()
+        for n, (x, c) in enumerate(cfgs.items()):
+            threading.Thread(target=refresh_one, args=(x, c, n * 5),
+                             daemon=True, name=f"refresh-{x}").start()
         ThreadingHTTPServer(("127.0.0.1", port),
                             partial(Handler, payloads=payloads,
                                     chains=chains, poller=poller)).serve_forever()
@@ -189,7 +207,8 @@ def main():
     chains = poller.boxes if poller else None
     payload = json.dumps(analyze(base, strike)).encode()
     payloads = {instruments.DEFAULT: {"payload": payload}}
-    print(f"analysis ready ({len(payload)//1024} KB), serving on http://127.0.0.1:{port}")
+    log.info("analysis ready (%s KB), serving on http://127.0.0.1:%s",
+             len(payload) // 1024, port)
     ThreadingHTTPServer(("127.0.0.1", port),
                         partial(Handler, payloads=payloads,
                                 chains=chains, poller=poller)).serve_forever()

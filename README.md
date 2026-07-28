@@ -82,3 +82,25 @@ report on, so those numbers are in-sample. Treat the tiers as **hypotheses, not
 proof.** The rules are frozen as of this commit; `chain_live.py` records every
 live day to `data/chain/`. Re-run the backtest on **30–50 fresh** days before
 trusting any tier — that is the real out-of-sample test.
+
+## Operational notes (2026-07-27 outage postmortem)
+
+The bar builder froze for ~1 h while the UI kept rendering the last payload as
+live. Root cause: `live._atm_ids()` re-downloaded the 37 MB detailed scrip
+master **every refresh cycle per index**; when CDN throughput dropped to
+~80 KB/s the single serial refresh thread hung (urllib `timeout=` bounds socket
+ops, not a slow trickle). Fixes now in place:
+
+- **Scrip master cached three deep** (memory / `data/scrip_master.csv` / download,
+  per IST day) — `instruments._load_scrip()`; ATM ids + pivots memoized in `live.py`.
+- **Wall-clock deadlines** on every download (`instruments.fetch_bytes`).
+- **Heartbeat**: `/api/data` carries `built_at`; the UI shows a **TAPE STALE**
+  banner when the payload is >90 s old. A frozen tape can no longer look live.
+- **`tapemap.log`**: all server diagnostics (with tracebacks) persist here,
+  not just in the console window.
+- **One refresh thread per index** — one bad index can't stall the others.
+- `/api/gex` serves the newest `data/gex_*.json` (adds `as_of`).
+
+**Known external quirk — Zerodha Kite MCP:** `get_positions` returns every
+position row **duplicated**. Never ingest it raw; dedupe on
+`(instrument_token, product)` and cross-check `option_premium` in `get_margins`.

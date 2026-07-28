@@ -16,3 +16,7 @@ __pycache__/
 
 # local Dhan client id (numeric account id)
 .dhan_client
+
+# daily runtime caches (rebuilt automatically)
+data/scrip_master.csv
+data/stick_state.json

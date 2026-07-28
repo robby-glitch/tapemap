@@ -15,11 +15,16 @@ All identifiers below were confirmed against live Dhan on 2026-07-23:
 """
 import csv
 import io
+import os
+import threading
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 IST = timezone(timedelta(hours=5, minutes=30))
 SCRIP_URL = "https://images.dhan.co/api-data/api-scrip-master-detailed.csv"
+SCRIP_CACHE = Path(__file__).parent / "data" / "scrip_master.csv"
 
 INSTRUMENTS = {
     "NIFTY":     {"under_id": 13, "under_seg": "IDX_I", "chain_seg": "NSE_FNO",
@@ -45,10 +50,61 @@ def get(idx):
     return dict(INSTRUMENTS[idx])
 
 
-def _load_scrip():
-    with urllib.request.urlopen(SCRIP_URL, timeout=60) as r:
-        raw = r.read().decode("utf-8", "ignore")
-    return list(csv.DictReader(io.StringIO(raw)))
+_scrip_lock = threading.Lock()
+_scrip_mem = {"day": None, "rows": None}
+
+
+def fetch_bytes(req, deadline_s, what):
+    """urlopen + chunked read under a WALL-CLOCK deadline. urllib's timeout=
+    only bounds individual socket operations, so a slow-trickling CDN response
+    can hang a thread for hours (2026-07-27 outage); this bounds the total."""
+    t0 = time.monotonic()
+    chunks = []
+    with urllib.request.urlopen(req, timeout=min(30, deadline_s)) as r:
+        while True:
+            if time.monotonic() - t0 > deadline_s:
+                raise TimeoutError(f"{what}: still downloading after {deadline_s}s")
+            b = r.read(1 << 20)
+            if not b:
+                break
+            chunks.append(b)
+    return b"".join(chunks)
+
+
+def _cache_fresh(path, now=None):
+    """The on-disk scrip master is usable if written today (IST) and plausibly
+    complete (the full detailed master is ~37 MB; a truncated download must
+    never be trusted for security-id resolution)."""
+    try:
+        st = path.stat()
+    except OSError:
+        return False
+    if st.st_size < 5_000_000:
+        return False
+    now = now or datetime.now(IST)
+    return (datetime.fromtimestamp(st.st_mtime, IST).strftime("%Y-%m-%d")
+            == now.strftime("%Y-%m-%d"))
+
+
+def _load_scrip(force=False):
+    """Scrip-master rows for the configured underlyings, cached three deep:
+    process memory (per IST day) -> data/scrip_master.csv (per IST day) ->
+    the 37 MB download. Callers hit memory after the first load of the day."""
+    with _scrip_lock:
+        day = datetime.now(IST).strftime("%Y-%m-%d")
+        if not force and _scrip_mem["day"] == day and _scrip_mem["rows"]:
+            return _scrip_mem["rows"]
+        if force or not _cache_fresh(SCRIP_CACHE):
+            raw = fetch_bytes(SCRIP_URL, 600, "scrip master")
+            SCRIP_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            tmp = SCRIP_CACHE.with_suffix(".tmp")
+            tmp.write_bytes(raw)
+            os.replace(tmp, SCRIP_CACHE)
+        text = SCRIP_CACHE.read_text(encoding="utf-8", errors="ignore")
+        rows = [r for r in csv.DictReader(io.StringIO(text))
+                if r.get(COL_UND) in INSTRUMENTS]
+        _scrip_mem["day"], _scrip_mem["rows"] = day, rows
+        return rows
 
 
 def resolve_futures_id(rows, under_sym, today):
