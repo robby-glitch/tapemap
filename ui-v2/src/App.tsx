@@ -6,25 +6,13 @@ import {
 } from 'recharts'
 import { useLiveData, HEAT_COLS, validateTrade } from './data'
 import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate } from './data'
+import { T } from './theme'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 // Colour carries exactly one meaning each. Before this, hue did two jobs at
 // once — purple meant "spring", cyan meant "gamma", while green and red ALSO
 // meant up and down — so it resolved to neither. Now brass is structure
 // (levels, walls, pins, dealer regime) and green/red are direction only.
-const T = {
-  bg: '#0B0E14',
-  card: '#141926',
-  inset: '#1B2130',
-  border: 'rgba(255,255,255,0.07)',
-  textPrimary: '#E8EDF5',
-  textSecondary: '#9AA7BD',
-  textMuted: '#5D6B84',
-  bull: '#2EC27E',          // direction only
-  bear: '#FF5F6B',          // direction only
-  caution: '#FFBF00',
-  accent: '#E0A852',        // structure: levels, walls, pins, regime
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
