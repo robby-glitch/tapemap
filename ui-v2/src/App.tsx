@@ -7,6 +7,7 @@ import {
 import { useLiveData, HEAT_COLS, validateTrade } from './data'
 import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate } from './data'
 import { T } from './theme'
+import TradeTab from './trade/TradeTab'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 // Colour carries exactly one meaning each. Before this, hue did two jobs at
@@ -16,7 +17,7 @@ import { T } from './theme'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
-type Tab = 'Heat' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map'
+type Tab = 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -1806,8 +1807,8 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
 export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
-  const tabs: Tab[] = ['Heat', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
-  const { data: liveData, error, lastUpdated, barCount, at, dead } = useLiveData(MOCK)
+  const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
+  const { data: liveData, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
 
   // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
@@ -1816,6 +1817,22 @@ export default function App() {
   const [speed, setSpeed] = useState(8)
   const nBars = barCount(activeIndex)
   const data = useMemo(() => at(scrub), [scrub, liveData])
+  const tape = useMemo(() => tapeBars(activeIndex), [tapeBars, activeIndex, liveData])
+  // MAP levels are bar-derived and causal under replay. MAX PAIN and GEX FLIP
+  // come from the chain, which is a live snapshot with no per-strike history
+  // (the same reason Chain.aligned goes false while scrubbing) — so they are
+  // drawn only when live, never during replay (honesty rule 6).
+  const tradeLevels = useMemo(() => {
+    const lv = [...(data.MAP[activeIndex]?.levels ?? [])]
+    if (scrub == null) {
+      const ch = data.CHAIN_DATA[activeIndex]
+      if (ch && Number.isFinite(ch.maxPain) && ch.maxPain > 0)
+        lv.push({ label: 'MAX PAIN', value: ch.maxPain, kind: 'strike', note: 'chain snapshot' })
+      if (ch?.flipPx != null)
+        lv.push({ label: 'GEX FLIP', value: ch.flipPx, kind: 'strike', note: 'chain snapshot' })
+    }
+    return lv
+  }, [data, activeIndex, scrub])
   const barTime = data.CHART_DATA[activeIndex]?.slice(-1)[0]?.time ?? '--:--'
 
   useEffect(() => {
@@ -1965,6 +1982,8 @@ export default function App() {
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
+        {activeTab === 'Trade'    && <TradeTab index={activeIndex} day={tape.day} bars={tape.bars}
+                                              levels={tradeLevels} cursor={scrub} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}
