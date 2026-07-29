@@ -217,12 +217,27 @@ work to build:
 - `updateLast(candle)` — the forming candle, including right-edge auto-scroll.
 - `setAlerts()` — draggable dashed price lines with tags. Entry and stop.
 
+Note on indicators: `setIndicators(indicators: IndicatorRenderData[])` takes
+**already-computed** arrays (`{instanceId, label, placement, outputs, range?}`),
+aligned 1:1 with the candles. The engine never computes an indicator itself —
+its `IndicatorDef` / `INDICATORS` registry is only a convenience layer for the
+twelve built-ins, which we do not use. That contract is exactly invariant #4,
+so every value on the chart comes from Python and the browser only reshapes.
+
+Also worth recording, because it will be asked again: the OSS library has **no
+user-editable indicator runtime**. A grep for `new Function`, `eval(`,
+`registerIndicator` and `addIndicator` across `src/` returns nothing. The
+JavaScript custom-indicator editor in the candl.live desktop product is
+app-level and is not part of what we vendor. Custom indicators for this tool
+therefore belong in Python, server-side — which is where invariant #4 wants
+them regardless.
+
 ### Our code — `ui-v2/src/trade/`
 
 | File | Responsibility |
 |---|---|
 | `useContract.ts` | polls `/api/contract`, returns bars, bands, OI, narration, forming candle |
-| `indicators.ts` | two `IndicatorDef`s — a 7-line `overlay` (VWAP + six bands) and a 1-line `pane` (OI). Both read server arrays through a closure; neither computes anything. |
+| `indicators.ts` | maps server arrays into `IndicatorRenderData[]` for `setIndicators()` — a 7-output `overlay` (VWAP + six bands) and a 1-output `pane` (OI). Pure reshaping; it computes nothing. |
 | `ContractChart.tsx` | mounts CandL, feeds `setData` / `updateLast`, owns the overlay canvas |
 | `NarrationOverlay.ts` | draws state glyphs on candles. **The only file that touches CandL's coordinate system.** Re-queries converters every frame, as their docs require. |
 | `NarrationRail.tsx` | the tiered scrolling feed |
