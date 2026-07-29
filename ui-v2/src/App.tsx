@@ -229,6 +229,7 @@ function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
     expiry: '',
     atmStraddle: 0,
     aligned: true,
+    flipPx: null,        // fallback has no gamma flip — null, never a fabricated level
   }
 }
 

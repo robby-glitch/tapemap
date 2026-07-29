@@ -3,7 +3,7 @@
 // into the exact shapes the App.tsx components already consume. On mount and
 // every 5s it pulls /api/data and /api/chain for all three indices in parallel,
 // tolerating a failing index (keeps last-good / mock fallback per index).
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // ── Target types (what the components read) ─────────────────────────────────────
 export type IndexKey = 'NIFTY' | 'BANKNIFTY' | 'SENSEX'
@@ -86,6 +86,9 @@ export interface Chain {
    * history, so the ladder cannot be replayed and must say so.
    */
   aligned: boolean
+  /** Dealer gamma flip price from the chain GEX profile, or null when the
+   *  chain could not compute one. Never guessed. */
+  flipPx: number | null
 }
 export interface EventItem {
   time: string
@@ -101,6 +104,17 @@ export interface ChartPoint {
   lower: number
   vol: number
   isFuture: boolean
+}
+
+// Tape Chart — one FUT bar, verbatim from the payload. The engine computed
+// every field server-side (invariant: UI renders, engine decides); this type
+// only names what arrives. Times are "HH:MM".
+export interface TapeBar {
+  t: string
+  o: number; h: number; l: number; c: number
+  v: number; oi: number
+  vwap: number
+  u1: number; d1: number; u2: number; d2: number; u3: number; d3: number
 }
 
 // Live Spike Radar — one row per index, one cell per activity/spike column.
@@ -460,6 +474,7 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
   const chain: Chain = {
     pcr: (hist?.pcr ?? m.pcr_oi ?? 0).toFixed(2),
     maxPain: hist?.mp ?? m.max_pain ?? 0,
+    flipPx: Number.isFinite(m.flip_px) ? m.flip_px : null,
     spot: C?.spot ?? b?.fut?.c ?? 0,
     expiry: C?.expiry ?? '',
     atmStraddle: (() => {
@@ -972,5 +987,23 @@ export function useLiveData(fallback: Dataset) {
     return assemble(per)
   }
 
-  return { data, loading, error, lastUpdated, barCount, at, dead }
+  // Tape Chart: the newest day's FUT bars, verbatim and FULL — replay is done
+  // by the chart engine's cursor (causal truncation), not by re-slicing here.
+  const tapeBars = useCallback((k: IndexKey): { day: string; bars: TapeBar[] } => {
+    const D = raw[k]?.D
+    const day = D?.days?.[D.days.length - 1]
+    if (!day) return { day: '', bars: [] }
+    const bars: TapeBar[] = []
+    for (const b of day.bars ?? []) {
+      const f = b.fut
+      if (!f) continue // engine ≥ c91c9d5 always emits fut; guard for older backends
+      bars.push({
+        t: b.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, oi: f.oi,
+        vwap: f.vwap, u1: f.u1, d1: f.d1, u2: f.u2, d2: f.d2, u3: f.u3, d3: f.d3,
+      })
+    }
+    return { day: day.day ?? '', bars }
+  }, [raw])
+
+  return { data, loading, error, lastUpdated, barCount, at, dead, tapeBars }
 }
