@@ -1,17 +1,71 @@
-# Contract Tape — a live trade analyser for a single option contract
+# Tape Chart — narration drawn on the chart
 
-**Date:** 2026-07-29
+**Date:** 2026-07-29 (re-scoped 2026-07-30)
 **Branch:** `feature/dashboard-v2`
 **Status:** design approved, not yet implemented
 
+## Scope decision, 2026-07-30 — index first
+
+This document was written for a single **option contract**. The decision now is
+to **build the index chart first** and treat the per-contract option chart as a
+separate, later piece.
+
+That reordering removes every risk this spec had flagged:
+
+| Risk when built on an option | On the index |
+|---|---|
+| Dhan's expired feed is rolling-ATM, so prior sessions may have no bars | the future has continuous history — no gaps |
+| Forming candle must be aggregated from chain-poller ticks, and only for strikes inside the window | `live.py` already builds FUT bars every 15s |
+| Index structure lives in spot space and must be revalued into premium via `gamma.py` | structure **is** in spot space — nothing to convert |
+| A new `/api/contract` route, new bar assembly, new VWAP path | **no new backend route at all** — see below |
+
+The interesting analytic (OI says *who won*, not merely that volume happened)
+survives the move. On the index it reads through the future's own OI quadrants
+(price up + OI up = new longs; price up + OI down = short covering) **and**
+through chain-wide positioning from `/api/chain`, which is arguably a stronger
+signal than any one strike's OI. The strike-specific version — writers opening
+into buying at a single strike — is what the later option chart adds.
+
+Everything below still describes the destination. Sections 1–5 were written
+contract-first; where they say "the contract", read "the future" for Phase 1.
+Section 6 carries the corrected phasing.
+
 ## The idea in one paragraph
 
-Pick one option contract — say NIFTY 23800 CE — and watch it the way you watch
-it in your broker terminal: its own premium candles, its own VWAP with standard
-deviation bands, open interest in a pane below. On top of that, a narration
-track that writes a line for every candle as it forms, and marks the candles
-where **absorption** happened directly on the chart. If you tell it your entry,
-it frames the narration around your trade.
+Watch the tape the way you watch it in your broker terminal: candles, VWAP with
+standard deviation bands, open interest in a pane below. On top of that, a
+narration track that writes a line for every candle as it forms, marks the
+candles where **absorption** happened, shades the regions where structure says
+stand down, and puts every level TapeMap already knows directly on the chart.
+If you log a position, it frames the narration around your trade.
+
+## Phase 1 needs no new backend — verified, not assumed
+
+`session_json()` (`engine.py:1173`) already emits, per bar row keyed on `t`:
+
+```
+o, h, l, c, vwap, u1, d1, u2, d2, u3, d3, oi, v, z
+```
+
+plus `pivots` at the top level and `events: [{t, kind, msg, data}]` anchored to
+the **same `t`**. So candle → narration is a join on `t`, the σ bands are
+already computed server-side, and the OI pane already has its series. Walls,
+max pain and gamma flip come from `/api/chain`, which `useLiveData` already
+polls alongside `/api/data` every 5s and already retains raw for replay.
+
+**One defect found while verifying this.** `session_json()` skips a row when
+either option leg is missing:
+
+```python
+if cb is None or pb is None:
+    continue
+```
+
+The FUT series is therefore intersected with ATM option availability — a minute
+where the option did not print silently deletes a future bar we actually have.
+Harmless for the three-book view it was written for, wrong for an index-only
+chart. It affects v1 too, so it lands on `main` as its own small fix rather
+than riding along with this feature.
 
 ## Why this is not a chart with commentary bolted on
 
@@ -303,15 +357,36 @@ build`, `python -m pytest -q`.
 
 ## 6. Phasing
 
-**Phase 1 — the data path.** `/api/contract` returning completed bars + VWAP
-bands, rendered on the vendored CandL chart with the OI pane, plus a contract
-selector. No narration. This proves the vendor decision and, critically,
-**measures how much multi-day option history Dhan actually serves.**
+Re-scoped 2026-07-30. Phases 1–3 are the **index** chart and need no new
+backend route; the option contract becomes Phase 5 and is where the original
+`/api/contract` work lands.
 
-**Phase 2 — the narration engine.** `contract_tape.py`, the four states, the
-tiered rail, and on-candle glyphs. The heart of the feature.
+**Phase 1 — the index chart.** FUT candles, VWAP + six σ bands, OI pane, all
+from `/api/data` as it stands, rendered on the vendored CandL engine. Plus the
+levels TapeMap already knows drawn directly on it: pivots, OI walls, max pain,
+gamma flip, PIN, floor/cap, session hi/lo. This proves the vendor decision
+against data we already trust.
 
-**Phase 3 — the position layer.** Entry, stop, P&L, position-framed asides.
+**Phase 2 — the callout.** The Kite-style hover box carrying that candle's
+narration, joined on `t`, with OHLC + volume + OI and its change. Plus the
+ribbon beneath the chart (one tick per candle, height by tier) so the day's
+shape reads at a glance. Narration content comes from the existing event
+stream; this phase is presentation, not analytics.
+
+**Phase 3 — zones.** No-trade (pinned regime · low range rank · inside ±0.5σ ·
+decay outrunning realised move) and watch (opposing book unwinding). Every zone
+names the fields that produced it, per honesty rule 3. This is the first phase
+that adds real analytics, and it is small.
+
+**Phase 4 — the position layer.** Entry, stop, P&L, position-framed asides.
+Structure only: the tool draws where levels are and says when structure crosses
+the stop **you** set. It does not choose a stop or a target.
+
+**Phase 5 — the option contract.** Everything in sections 1–5 above:
+`/api/contract`, `contract_tape.py`, the four strike-level states, and the
+spot→premium translation that draws index structure on a premium chart. Every
+component from Phases 1–4 is reused; only the data source and the state
+definitions are new.
 
 **Phase 4 — Echoes (later, not specified here).** CandL ships
 `lab/similarity.ts` (377 lines) for historical analogue matching, and we hold
