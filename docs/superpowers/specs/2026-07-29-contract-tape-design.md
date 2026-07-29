@@ -378,6 +378,11 @@ decay outrunning realised move) and watch (opposing book unwinding). Every zone
 names the fields that produced it, per honesty rule 3. This is the first phase
 that adds real analytics, and it is small.
 
+**Phase 3.5 — the structure layer.** SMC/ICT structures computed in Python and
+ranked by whether order flow confirmed them. Full detail in section 8. No new
+data: it is OHLC geometry over bars we already have, scored against OI and
+volume we already compute.
+
 **Phase 4 — the position layer.** Entry, stop, P&L, position-framed asides.
 Structure only: the tool draws where levels are and says when structure crosses
 the stop **you** set. It does not choose a stop or a target.
@@ -388,7 +393,7 @@ spot→premium translation that draws index structure on a premium chart. Every
 component from Phases 1–4 is reused; only the data source and the state
 definitions are new.
 
-**Phase 4 — Echoes (later, not specified here).** CandL ships
+**Phase 6 — Echoes (later, not specified here).** CandL ships
 `lab/similarity.ts` (377 lines) for historical analogue matching, and we hold
 ~55 cached Nifty days in `data/backtest/`. That would answer *"the last six
 times this contract absorbed at +2σ, here is what the next twenty minutes did"*
@@ -398,7 +403,111 @@ before Phase 1 fixes a storage shape.
 
 ---
 
-## 7. Invariants this design must not break
+## 7. Phase 3.5 — the structure layer (SMC/ICT, confirmed by flow)
+
+### Where this came from
+
+The operator's live TradingView chart (`NSE:NIFTY`, 1-minute) runs two studies,
+read directly over the TradingView MCP on 2026-07-30:
+
+- **Smart Money Concepts [LuxAlgo]** — 31 boxes, **479 labels**: BOS, CHoCH,
+  EQH, EQL, plus PDH 24041.15 / PDL 23954.60, PWH 24266.10 / PWL 23606.30,
+  PMH 24261.60 / PML 23070.15.
+- **ICT HTF Candles + Swings + Fractals (fadi)** — 120 lines; three live levels
+  at 24263.05 / 24259.65 / 24249.75.
+
+Two observations from the box geometry fix what they are. Boxes arrive in
+adjacent pairs sharing an edge (`24487.55–24483.78` and `24483.78–24480.00`) —
+a fair value gap drawn with its 50% split. And `23923.65–23858.30` and
+`23858.30–23792.95` are **both exactly 65.35 points** sharing 23858.30 — a
+premium/discount array splitting 23792.95–23923.65 at dead centre.
+
+### What we compute
+
+New module `structure.py`. Pure stdlib, no I/O, never imported by `engine.py` —
+same isolation as `chain_metrics.py`. All of it is OHLC geometry over bars we
+already have; **no new data source**.
+
+| Structure | Definition |
+|---|---|
+| Swing / fractal | pivot high or low over N bars |
+| BOS | close beyond the prior swing extreme, in the trend direction |
+| CHoCH | the first break *against* the prevailing trend |
+| EQH / EQL | two swing points within a tolerance — a liquidity pool |
+| Order block | last opposing candle before an impulsive move |
+| FVG | three-bar gap: `bar[i-2].h < bar[i].l` (bullish), inverse for bearish |
+| Premium / discount | the working range split at 50% |
+| PDH/PDL · PWH/PWL · PMH/PML | prior day / week / month extremes |
+
+Tolerances are expressed as fractions of the session's own realised range or as
+percentile ranks — never as point values — so invariant #1 holds and the same
+code works on NIFTY, BANKNIFTY and SENSEX without recalibration.
+
+### The intellectual-property line
+
+These are publicly documented ICT/SMC concepts. Reimplementing BOS or an FVG
+from its standard definition is as legitimate as reimplementing RSI.
+**We do not copy Pine source** from LuxAlgo, fadi, or anyone else — not even
+where a licence would permit it. `structure.py` is written from the definitions
+above, and the tests below are written against those definitions, not against
+another implementation's output.
+
+### The part that is actually new — flow confirmation
+
+SMC is **blind to order flow**. It says where structure is and has no idea
+whether anyone defended it. TapeMap has OI, volume, writer scores, walls and
+GEX. Every structure therefore carries a **confirmation score** sourced from
+fields we already compute:
+
+```
+order block  → OI built at that level?          ChainState per-strike oi_chg, ce_w/pe_w
+sweep of EQH → vol_r high AND OI unwinding?     Book.f.vol_r, Book.f.oi_slope
+BOS level    → did the OI wall hold or migrate? ChainState.role[k], wall_log
+FVG fill     → filled on rising or falling OI?  Book.f.oi_slope over the fill bars
+```
+
+A gap filled on *rising* OI means something entirely different from one filled
+on falling OI. That distinction is what the flow data buys, and it is why this
+is worth building rather than installing.
+
+### Why we rank instead of reproducing
+
+**479 labels on a 1-minute chart** is the same noise problem v1 already hit and
+solved with FOCUS (a measured 35% reduction on a real session). One-minute
+swing structure churns constantly and most of those marks mean nothing.
+
+So Phase 3.5 does **not** reproduce SMC as-is. It computes the same structures,
+scores each by flow confirmation, and surfaces the few that had real flow behind
+them — the rest stay available but muted. Unconfirmed structure is drawn faint
+and labelled **unconfirmed**; it is never silently dropped, because "we found
+nothing here" and "we are not showing you what we found" are different claims
+(honesty rule 3).
+
+### Testing
+
+`test_structure.py`:
+
+- **Geometry** — hand-built bar sequences asserting each structure fires exactly
+  where its definition says and nowhere else. Written from the definitions, not
+  from another tool's output.
+- **Causality** — structures computed over `bars[0..N]` equal structures
+  truncated at bar N. A swing point must not appear before its confirming bars.
+- **Index independence** — the same sequence scaled to BANKNIFTY and SENSEX
+  price levels yields the same structures, proving no absolute threshold crept in.
+- **Confirmation is separable** — with the flow inputs absent, every structure
+  scores `UNKNOWN`, never `unconfirmed`. "We could not check" and "we checked and
+  found nothing" must not collapse into the same rendering.
+
+### Later, if it earns it
+
+With ~55 cached days in `data/backtest/`, the confirmation score can be
+**measured** rather than asserted: do flow-confirmed order blocks hold more
+often than unconfirmed ones? That is a `backtest.py`-shaped question and it
+belongs after the layer exists, not before. Any number it produces is an
+in-sample hypothesis until forward-tested — the same caveat that already governs
+`band_backtest.py`.
+
+## 8. Invariants this design must not break
 
 1. No absolute market thresholds — percentile ranks only.
 2. Causal: bar `i` uses only bars `≤ i`. Replay is truncation, not recomputation.
