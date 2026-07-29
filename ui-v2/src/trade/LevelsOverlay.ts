@@ -27,6 +27,12 @@ export function startLevelsOverlay(
     if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
       canvas.width = w * dpr
       canvas.height = h * dpr
+      // A canvas is a REPLACED element: with position:absolute and inset:0 it
+      // takes its intrinsic size from these width/height attributes instead of
+      // stretching to the parent, so the CSS size must be set explicitly or the
+      // overlay renders dpr× too large and every level line misaligns.
+      canvas.style.width = `${w}px`
+      canvas.style.height = `${h}px`
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)

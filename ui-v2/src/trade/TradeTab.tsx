@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import ContractChart from './ContractChart'
 import { dayPrecision } from './indicators'
 import { T, MONO } from '../theme'
@@ -29,6 +30,24 @@ function Stat({ label, value, color, title }: {
 }
 
 export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
+  // The offset above this tab is content-dependent (the ANSWER band wraps
+  // differently per index, and banners appear conditionally), so a fixed
+  // calc(100vh - Npx) is wrong in some states and pushes the chart below the
+  // fold. Measure the real distance to the viewport bottom instead.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [availH, setAvailH] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = rootRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top
+      setAvailH(Math.max(320, window.innerHeight - top - 12))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
   // Honesty rule 1: no tape = say so at full width, and chart nothing. A
   // fallback must never occupy the space where live data goes.
   if (!bars.length) {
@@ -58,9 +77,9 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
   const dir = b.c >= b.o ? T.bull : T.bear // the bar's own direction, same as its candle
 
   return (
-    <div style={{
+    <div ref={rootRef} style={{
       display: 'flex', flexDirection: 'column',
-      height: 'clamp(420px, calc(100vh - 300px), 1200px)', padding: 16, gap: 10,
+      height: availH ?? 420, padding: 16, gap: 10,
     }}>
       <div style={{
         display: 'flex', alignItems: 'flex-end', gap: 22, flexWrap: 'wrap',
