@@ -47,7 +47,11 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
     )
   }
 
-  const at = cursor == null ? bars.length - 1 : Math.min(cursor, bars.length - 1)
+  // Clamp both ends: a negative cursor would index bars[-1] === undefined and
+  // throw on the first field read.
+  const at = cursor == null
+    ? bars.length - 1
+    : Math.max(0, Math.min(cursor, bars.length - 1))
   const b = bars[at]                       // causal: the shown bar, not the newest
   const live = cursor == null
   const prec = dayPrecision(day)
@@ -82,14 +86,17 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
         <Stat label="Open interest" value={`${(b.oi / 1e6).toFixed(2)}M`} />
         <Stat label="Volume" value={b.v.toLocaleString('en-IN')} />
         <Stat label="Bars" value={`${at + 1} / ${bars.length}`} />
+        {/* Amber for REPLAY, matching the no-tape banner and the date
+            disclosure: in this tab amber means "not the data you'd assume".
+            Brass is reserved for structure, so it must not mean "mode". */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7 }}>
           <span style={{
             width: 7, height: 7, borderRadius: '50%',
-            backgroundColor: live ? T.bull : T.accent,
+            backgroundColor: live ? T.bull : T.caution,
           }} />
           <span style={{
             fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
-            color: live ? T.bull : T.accent,
+            color: live ? T.bull : T.caution,
           }}>{live ? 'LIVE' : 'REPLAY'}</span>
         </div>
       </div>
