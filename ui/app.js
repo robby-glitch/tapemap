@@ -208,7 +208,12 @@ async function bootData(){
 }
 
 function setDay(idx){
-  S.day = S.data.days[idx];
+  // v1 is the three-book view: every panel needs FUT+CE+PE on the same bar.
+  // The engine now emits every FUT bar (option legs null when that minute
+  // didn't print), so the three-book intersection happens here, at the
+  // display boundary, instead of silently inside session_json().
+  const d = S.data.days[idx];
+  S.day = { ...d, bars: d.bars.filter(b => b.ce && b.pe) };
   [...$("dayTabs").children].forEach((b,j)=>b.classList.toggle("active", j===idx));
   S.tIdx = Object.fromEntries(S.day.bars.map((b,i)=>[b.t,i]));
   const stEv = S.day.events.filter(e=>e.kind==="STATE");

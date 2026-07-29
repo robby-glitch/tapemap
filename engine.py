@@ -1186,10 +1186,14 @@ def session_json(sess):
     pe_by_t = {b["T"]: b for b in sess.books["PE"].bars}
     for t, fb in fut_by_t.items():
         cb, pb = ce_by_t.get(t), pe_by_t.get(t)
-        if cb is None or pb is None:
-            continue
+        # Every FUT bar is emitted; a missing option leg is null, never a
+        # dropped row — the FUT series must not be intersected with ATM
+        # option availability (a minute the option didn't print still traded).
         row = {"t": t}
         for key, bar in (("fut", fb), ("ce", cb), ("pe", pb)):
+            if bar is None:
+                row[key] = None
+                continue
             f = bar.get("f", {})
             row[key] = {
                 "o": bar["O"], "h": bar["H"], "l": bar["L"], "c": bar["C"],
