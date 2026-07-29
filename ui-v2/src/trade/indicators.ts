@@ -10,12 +10,41 @@ const BRASS = '#E0A852'
 const BAND = ['rgba(224,168,82,0.70)', 'rgba(224,168,82,0.45)', 'rgba(224,168,82,0.28)']
 const OI_LINE = '#7F8EA3' // neutral — OI is a series here, not a direction call
 
-// Local-midnight epoch for the session date. Live payloads carry ISO dates;
-// replay CSV days ("Tue 15") don't parse — fall back to a fixed base so the
-// intraday HH:MM clock (which IS real data) still renders correctly.
+const MONTHS: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+}
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/
+const MON_DAY = /^([A-Za-z]{3})\s+(\d{1,2})$/
+
+// How much of the session's calendar date the payload actually told us. The
+// live backend emits ISO "YYYY-MM-DD" (exact); CSV replay emits "Jul 15" —
+// real month and day, but the string carries no year. Anything else tells us
+// nothing. The intraday HH:MM clock is real in all three cases; only the
+// calendar part varies, and the UI discloses anything short of 'exact' rather
+// than letting an inferred date read as fact.
+export type DayPrecision = 'exact' | 'no-year' | 'none'
+
+export function dayPrecision(day: string): DayPrecision {
+  if (ISO_DAY.test(day)) return 'exact'
+  const md = MON_DAY.exec(day.trim())
+  if (md && MONTHS[md[1].toLowerCase()] !== undefined) return 'no-year'
+  return 'none'
+}
+
+// Local-midnight epoch for the session date — the anchor the chart's time axis
+// is built on. Parses as much of the real date as the payload carries; when it
+// carries no year we assume the current one, and when it carries nothing
+// parseable we use a fixed anchor so bars still order correctly within the
+// session. dayPrecision() reports which case applied.
 export function dayBase(day: string): number {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day)
-  if (m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime()
+  const iso = ISO_DAY.exec(day)
+  if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]).getTime()
+  const md = MON_DAY.exec(day.trim())
+  if (md) {
+    const mo = MONTHS[md[1].toLowerCase()]
+    if (mo !== undefined) return new Date(new Date().getFullYear(), mo, +md[2]).getTime()
+  }
   return new Date(2026, 0, 1).getTime()
 }
 
