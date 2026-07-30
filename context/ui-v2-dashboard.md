@@ -198,9 +198,22 @@ data is worse than one that shows an error. The rules that came out of it:
   Hue = direction, brightness = intensity, ⚡ = spike. **Dead indices show
   "no tape" and are excluded from the spike count** — they used to render mock
   rows with invented signals like "⚡ AMPLIFIED-UP".
-- **Trade** — Phase 1 of the Tape Chart: the index futures tape on the
+- **Trade** — Phases 1–2 of the Tape Chart: the index futures tape on the
   vendored CandL Charts canvas engine, VWAP+σ overlay, OI pane, MAP levels,
-  replay cursor. See "Tape Chart, Phase 1" below.
+  replay cursor. See "Tape Chart, Phase 1" below. **Phase 2 adds** the
+  Kite-style hover **callout** (that candle's OHLC, volume and OI change above
+  that minute's narration), the **ribbon** beneath the chart (one tick per
+  candle, height by event tier, dimmed past the replay cursor), level **price
+  chips** at the right axis, and a **light reading surface — the default**,
+  because the operator reads charts in Kite on the light theme and reported the
+  dark build unreadable. `LIGHT`/`DARK` toggles it; the choice persists.
+  Phase 2 is **presentation only** — `trade/narration.ts` joins the payload's
+  existing event stream to bars on `t` and tiers it by kind; it computes no
+  analytics, quotes the engine's own wording rather than paraphrasing it, and a
+  minute with no event reads "no event on this bar — OHLC only" instead of
+  being given a story. Light palette comes from the approved 2026-07-29 mockup
+  (brass `#A9762A`, up `#1B8A38`, down `#C42B30` — deliberately darkened, since
+  the dark tokens fail on white).
 - **Tape** — intraday chart (Recharts) with VWAP, ±1σ, levels drawn on the
   chart, key-levels rail, plain-English order flow, MM perspective, and a
   diverging net-flow pressure histogram.
@@ -351,6 +364,11 @@ mock chain's `flip_px` is `null`.
   height · `2ed4e2a` give a freshly created chart engine the full series ·
   `57039d8` re-measure the chart's available height after every render ·
   `a008eeb` keep level labels clear of the chart's own legend row
+- `e4f0ceb` index-aware chart updates, live date parsing, stale disclosure ·
+  `6ee3d80` stop the height measurement freezing the page · `fbd624a` redraw the
+  overlay only on change · `f93ee44` keep the ResizeObserver (load-bearing)
+- **Phase 2** — `fff23ca` plan · `d09fcfc` light palette + narration join ·
+  `166c9cc` callout + ribbon · `f9ac101` light surface, hover, level price tags
 
 ## Open items
 
