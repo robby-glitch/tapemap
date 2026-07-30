@@ -16,6 +16,7 @@ JWT exp check surfaced as a payload error instead of a crash.
 
 import base64
 import json
+import logging
 import os
 import threading
 import time
@@ -29,9 +30,23 @@ ROOT = Path(__file__).parent
 FIXTURE = ROOT / "data" / "chain_sample.jsonl"
 CHAIN_DIR = ROOT / "data" / "chain"
 
+log = logging.getLogger("tapemap")       # same logger server.py wires to
+                                          # tapemap.log via basicConfig, so a
+                                          # timeout logged here reaches the
+                                          # file even though this module never
+                                          # calls basicConfig itself
+
 MOCK_S = 1                             # mock replays 1 snapshot/s (demo pace)
 RR_GAP_S = 3.5                         # gap BETWEEN chain requests (limit: 1/3s)
 WINDOW_PTS = 1500                      # default strike window (cfg overrides)
+CHAIN_DEADLINE_S = 20                  # wall-clock cap on dhan.option_chain():
+                                        # a healthy call finishes in ~1-2s;
+                                        # this is far above that but far below
+                                        # a genuine stall, so it trips fast
+                                        # enough to keep the round-robin
+                                        # moving without flagging slow-but-ok
+                                        # responses (2026-07-30: a hang here
+                                        # silently froze the poller for 95min)
 
 SESS_OPEN = 9 * 3600 + 15 * 60         # 09:15 IST — NSE/BSE session open
 SESS_CLOSE = 15 * 3600 + 30 * 60       # 15:30 IST — session close
@@ -75,6 +90,44 @@ def token_status(tok):
         return {"ok": False,
                 "msg": "Dhan token EXPIRED — generate a fresh access token"}
     return {"ok": True, "msg": f"token valid ~{left / 3600:.1f}h"}
+
+
+def _with_deadline(fn, deadline_s, what):
+    """Run fn() on a short-lived daemon thread and wait up to deadline_s for
+    it to finish, so a hung call (e.g. dhan.option_chain(), which accepts no
+    deadline/timeout of its own) can never block the caller past deadline_s.
+
+    Mirrors instruments.fetch_bytes's wall-clock guard for the same failure
+    mode (2026-07-27 outage; recurred for the chain fetch on 2026-07-30):
+    urllib/SDK timeout= only bounds individual socket ops, not the whole
+    call, so a slow-trickling or stalled response can hang forever with no
+    exception raised.
+
+    Threads cannot be killed in Python, so on timeout the worker thread is
+    simply abandoned still running -- it is created daemon=True precisely so
+    an abandoned, permanently-blocked worker can never prevent process exit.
+    The important property this buys is that the POLL LOOP itself is never
+    blocked again: on timeout we raise TimeoutError here, which the existing
+    `except Exception` in the poll loop turns into a tagged, skipped index.
+    """
+    result = {}
+
+    def _run():
+        try:
+            result["value"] = fn()
+        except Exception as e:                # noqa: BLE001 - re-raised below
+            result["error"] = e
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(deadline_s)
+    if t.is_alive():
+        log.error("chain: %s: no response in %ss (worker thread abandoned, "
+                   "daemon=True)", what, deadline_s)
+        raise TimeoutError(f"{what}: no response in {deadline_s}s")
+    if "error" in result:
+        raise result["error"]
+    return result["value"]
 
 
 def _client(tok):
@@ -199,7 +252,7 @@ class ChainPoller(threading.Thread):
                             "ce_pk": r.get("ce_pk"), "pe_pk": r.get("pe_pk")})
         self.boxes[idx]["payload"] = json.dumps({
             "ok": True, "mode": mode, "error": error, "index": idx,
-            "ts": snap["ts"], "expiry": expiry,
+            "ts": snap["ts"], "built_at": time.time(), "expiry": expiry,
             "spot": snap["spot"], "atm": snap["atm"],
             "strikes": strikes, "metrics": metrics,
             "series": thin_series(self.states[idx].series),
@@ -336,8 +389,11 @@ class ChainPoller(threading.Thread):
                     t0 = time.time()
                     try:
                         now = datetime.now(IST)
-                        data = _inner(dhan.option_chain(
-                            c["under_id"], c["under_seg"], expiries[idx]))
+                        resp = _with_deadline(
+                            lambda: dhan.option_chain(
+                                c["under_id"], c["under_seg"], expiries[idx]),
+                            CHAIN_DEADLINE_S, f"{idx} option_chain")
+                        data = _inner(resp)
                         snap = normalize(data, now, c.get("window", WINDOW_PTS))
                         metrics = self.states[idx].update(
                             snap, t_years(expiries[idx], now), self.prevs[idx])
