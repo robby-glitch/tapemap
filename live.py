@@ -12,13 +12,13 @@ Serving:           python server.py live  (refreshes every REFRESH_S)
 """
 
 import json
-import math
 import threading
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import contract_bars
 import instruments
 import structure
 from engine import Session, session_json
@@ -169,26 +169,30 @@ def _pivots(tok, cfg):
 
 def _bars(d, piv):
     """Dhan arrays -> engine bar dicts with session VWAP + sigma bands
-    (VWAP = cum(TP*V)/cumV, TP=(H+L+C)/3; bands = VWAP ± n*sqrt(Var_w))."""
+    (VWAP = cum(TP*V)/cumV, TP=(H+L+C)/3; bands = VWAP ± n*sqrt(Var_w)).
+
+    The band recurrence used to be inlined here. It was extracted verbatim to
+    `contract_bars.vwap_sigma` so the option-premium tape and this FUT path
+    share ONE derivation -- two would drift, and then v1 and v2 would disagree
+    about the same band on the same data (contract-tape spec, section 2).
+    The numbers this function returns are unchanged.
+    """
     n = len(d.get("close", []))
     oi = d.get("open_interest") or [0.0] * n
+    bands = contract_bars.vwap_sigma(
+        (d["high"][i], d["low"][i], d["close"][i], d["volume"][i])
+        for i in range(n))
     bars = []
-    cv = ctpv = cvar = 0.0
     for i in range(n):
         ts = datetime.fromtimestamp(d["timestamp"][i], IST)
-        h, l, c, v = d["high"][i], d["low"][i], d["close"][i], d["volume"][i]
-        tp = (h + l + c) / 3.0
-        cv += v
-        ctpv += tp * v
-        vwap = ctpv / cv if cv > 0 else c
-        cvar += v * (tp - vwap) ** 2
-        sd = math.sqrt(cvar / cv) if cv > 0 else 0.0
-        bar = {"T": ts.strftime("%H:%M"), "O": d["open"][i], "H": h, "L": l,
-               "C": c, "VWAP": vwap,
-               "U1": vwap + sd, "D1": vwap - sd,
-               "U2": vwap + 2 * sd, "D2": vwap - 2 * sd,
-               "U3": vwap + 3 * sd, "D3": vwap - 3 * sd,
-               "OI": oi[i], "V": v}
+        b = bands[i]
+        bar = {"T": ts.strftime("%H:%M"), "O": d["open"][i], "H": d["high"][i],
+               "L": d["low"][i], "C": d["close"][i],
+               "VWAP": b["vwap"],
+               "U1": b["u1"], "D1": b["d1"],
+               "U2": b["u2"], "D2": b["d2"],
+               "U3": b["u3"], "D3": b["d3"],
+               "OI": oi[i], "V": d["volume"][i]}
         bar.update(piv)
         bars.append(bar)
     return bars
