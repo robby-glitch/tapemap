@@ -149,13 +149,28 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span style={{
                     fontSize: 12, fontWeight: 700,
-                    color: setup.dir === 'UP' ? pal.bull : pal.bear,
+                    // Engine invariant (engine.py:440-442): a conflicted spring's
+                    // `dir` must never be treated as a directional vote, so the
+                    // arrow (the vote) is dropped and the kind goes neutral —
+                    // only an unconflicted setup borrows bull/bear.
+                    color: setup.conflict ? pal.textSecondary : (setup.dir === 'UP' ? pal.bull : pal.bear),
                   }}>
-                    {setup.dir === 'UP' ? '▲' : '▼'} {setup.kind}
+                    {setup.conflict ? '' : `${setup.dir === 'UP' ? '▲' : '▼'} `}{setup.kind}
                   </span>
                   <StatusChip pal={pal} status={setup.status}
                               dirColor={setup.dir === 'UP' ? pal.bull : pal.bear} />
+                  {/* Age: t0 is the setup's birth time, verbatim. Without this a
+                      40-minute-old LOADING setup and one born this bar look
+                      identical. */}
+                  <span style={{ fontFamily: MONO, fontSize: 9.5, color: pal.textMuted }}>
+                    since {setup.t0}
+                  </span>
                 </div>
+                {setup.conflict && (
+                  <span style={{ fontSize: 11, color: pal.caution }}>
+                    direction unresolved — books rotate against this spring
+                  </span>
+                )}
                 <span style={{ fontSize: 11, color: pal.textSecondary }}>
                   {setup.level_name} @ {setup.level_px.toFixed(1)}
                 </span>
@@ -238,21 +253,37 @@ export default function TradeTab({
     setSmc(next)
   }
 
+  // Clamp both ends: a negative cursor would index bars[-1] === undefined and
+  // throw on the first field read. Computed here (rather than only after the
+  // no-tape bail below) so structCounts, which needs the same clamp, never
+  // has to duplicate it — bars.length === 0 just yields at === -1, which is
+  // never read until the bail has already returned.
+  const at = cursor == null
+    ? bars.length - 1
+    : Math.max(0, Math.min(cursor, bars.length - 1))
+
   // What the SMC toggle's tooltip reports: SWING_H/SWING_L are never drawn
   // (LevelsOverlay.ts's drawStructures says why — each is already the
   // endpoint of a BOS, an EQH/EQL pool or an OB), so counting them alongside
   // the drawn kinds would tell the operator "N structures" when only a
   // fraction of N puts anything on the chart. Split into what's actually
   // rendered and what's tracked but not shown.
+  //
+  // Causality: while the replay cursor is set, a structure born past `at` has
+  // not happened yet as far as the chart is showing — LevelsOverlay's own
+  // drawStructures filter is `s.born <= cut`, and this tooltip must count the
+  // same set it draws, not the whole day's structures. Live (cursor === null)
+  // counts everything, matching the overlay's unclamped draw there too.
   const structCounts = useMemo(() => {
     if (!structures) return null
     let drawn = 0, swings = 0
     for (const s of structures) {
+      if (cursor != null && s.born > at) continue
       if (s.kind === 'SWING_H' || s.kind === 'SWING_L') swings++
       else drawn++
     }
     return { drawn, swings }
-  }, [structures])
+  }, [structures, cursor, at])
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
@@ -349,11 +380,6 @@ export default function TradeTab({
     )
   }
 
-  // Clamp both ends: a negative cursor would index bars[-1] === undefined and
-  // throw on the first field read.
-  const at = cursor == null
-    ? bars.length - 1
-    : Math.max(0, Math.min(cursor, bars.length - 1))
   const b = bars[at]                       // causal: the shown bar, not the newest
   const live = cursor == null
   const prec = dayPrecision(day)

@@ -668,16 +668,25 @@ export function startLevelsOverlay(
       `|${dBars.length},${dTimes.length},${data.cursor}` +
       `|${dFirst?.u1},${dFirst?.d1},${dLast?.u1},${dLast?.d1}` +
       `|${dNarrs.length},${lastNarr},${tierSum},${nBalloons}` +
-      `|${zones.length},${z0?.i0}:${z0?.i1}:${z0?.cls},${zN?.i0}:${zN?.i1}:${zN?.cls}` +
+      // `label` rather than `cls`: a verdict RENAME within the same cls (e.g.
+      // one CAUTION sentence replacing another) changes neither the class nor
+      // the run bounds, but it is drawn text — `cls` alone would miss it and
+      // leave the old sentence painted.
+      `|${zones.length},${z0?.i0}:${z0?.i1}:${z0?.label},${zN?.i0}:${zN?.i1}:${zN?.label}` +
       // Structures: the toggle, the availability (null vs an empty list — two
       // different facts), the count, and the first/last `born`. A new
-      // structure moves the count; the newest one moves the last born. An
-      // already-born structure never changes, because structure.py defines
-      // every field of one as a function of bars[0..born] only — so there is
-      // nothing else here that can move, and nothing per-frame that would
-      // collapse paint back to the ~3fps this guard exists to prevent.
+      // structure moves the count; the newest one moves the last born.
+      // Everything already-born and fully settled stays constant — EXCEPT the
+      // most recent structure while it is still forming: structure.py can
+      // still tighten its box (hi/lo) or resolve its confirm from
+      // UNKNOWN/UNCONFIRMED once later flow data arrives, same `born`. The
+      // last structure's confirm + rounded hi/lo (rounded to match this
+      // file's own price-text style, e.g. the level chips above) are added so
+      // that in-place shift repaints too, without keying anything per-frame.
       `|${smc ? 1 : 0}${structures ? '' : 'x'},${structs.length},` +
-      `${structs[0]?.born},${structs[structs.length - 1]?.born}`
+      `${structs[0]?.born},${structs[structs.length - 1]?.born},` +
+      `${structs[structs.length - 1]?.confirm},` +
+      `${structs[structs.length - 1]?.hi?.toFixed(1)},${structs[structs.length - 1]?.lo?.toFixed(1)}`
     if (sig === lastSig) return
     lastSig = sig
 
