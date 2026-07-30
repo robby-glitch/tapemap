@@ -348,6 +348,21 @@ function evDir(e: any): -1 | 0 | 1 {
   if (k === 'OI-PEAK-LAG') return m.includes('UPWARD') ? 1 : m.includes('DOWNWARD') ? -1 : 0
   if (k === 'SQUEEZE-RISK') return m.includes('UPSIDE') ? 1 : m.includes('DOWNSIDE') ? -1 : 0
   if (k === 'DIVERGENCE') return m.includes('HIGH') ? -1 : m.includes('LOW') ? 1 : 0
+  // ABSORPTION names the side whose effort produced NO result: engine.py sets
+  // `side = "sellers" if C < O else "buyers"` and prints "<side> hitting a
+  // wall". Sellers hitting a wall is a down-bar that could not make range —
+  // the wall held, so it reads UP; buyers hitting a wall is its mirror. This
+  // is the engine's own filing rather than an interpretation: the same branch
+  // writes trap_ev["UP"] for buyers and trap_ev["DN"] for sellers, i.e. the
+  // side that failed is the side that gets trapped.
+  if (k === 'ABSORPTION')
+    return m.includes('SELLERS HITTING') ? 1 : m.includes('BUYERS HITTING') ? -1 : 0
+  // GAMMA-PIN opens with its regime. FLOOR is "put wall below — dips into the
+  // strike get absorbed; upside is NOT capped"; CEILING is the mirror. PINNED
+  // says "dampens BOTH ways", which is not a direction and stays 0 — the whole
+  // point of that regime is that neither side is favoured.
+  if (k === 'GAMMA-PIN')
+    return m.startsWith('FLOOR') ? 1 : m.startsWith('CEILING') ? -1 : 0
   if (k === 'IGNITION') return m.startsWith('UP') || m.includes('UP:') ? 1 : -1
   if (k === 'ARMED' || k === 'SPRING') return s === 'UP' ? 1 : s === 'DN' ? -1 : 0
   if (k === 'WALL-MIGRATION' || k === 'ROLE-FLIP') return s === 'UP' ? 1 : s === 'DN' ? -1 : 0

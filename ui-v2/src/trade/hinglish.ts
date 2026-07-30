@@ -115,9 +115,13 @@ const G: Record<string, Gloss> = {
     short: 'ROLE PALTA',
     line: 'Us strike ka role palat gaya — jo rok raha tha wo ab sahara hai (ya ulta).',
   },
+  // Deliberately regime-neutral: this kind fires as FLOOR, CEILING or PINNED,
+  // and the direction chip beside it now carries which one (evDir reads the
+  // regime off the message). A line saying "dono taraf dabti hai" would be
+  // describing PINNED only, and would contradict the chip on the other two.
   'GAMMA-PIN': {
     short: 'PIN — CHIPKA',
-    line: 'Dealer hedging bhaav ko ek strike par chipka rahi hai — dono taraf dabti hai.',
+    line: 'Dealer hedging bhaav ko strike ke aas-paas rok rahi hai — kis taraf, wo aage ki line batati hai.',
   },
 
   // --- end of day ----------------------------------------------------------
