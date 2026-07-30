@@ -379,6 +379,13 @@ function drawStructures(
   // `born`, but this does not lean on that: it takes the largest `born` values
   // explicitly, so a change in the backend's ordering cannot silently start
   // showing the OLDEST zones instead of the newest.
+  // The CURRENT premium/discount cut: the newest range that exists at this
+  // bar. -Infinity when the layer publishes none, which draws nothing.
+  const eqBorn = live.reduce(
+    (m, s) => ((s.kind === 'PREMIUM' || s.kind === 'DISCOUNT') && s.born > m ? s.born : m),
+    -Infinity,
+  )
+
   const zoneCut = (() => {
     const borns = live.filter((s) => s.kind === 'FVG' || s.kind === 'OB').map((s) => s.born)
     if (borns.length <= STRUCT_ZONE_LIMIT) return -Infinity
@@ -471,6 +478,62 @@ function drawStructures(
       // drop the label instead of sliding it onto the visible box.
       placeLabel(label, Math.max(x0 + 2, pane.x + 2),
         h >= STRUCT_LABEL_PX + 2 ? top + h / 2 : top - STRUCT_LABEL_PX / 2 - 1, color)
+      continue
+    }
+
+    // Prior-session levels: drawn across the WHOLE pane and always labelled.
+    // There are exactly three of them, they are known before the session opens,
+    // and they are reference levels rather than events — the label-suppression
+    // rule above (confirmed-only) exists to thin ~180 intraday marks and would
+    // be actively wrong here. Their `confirm` is UNKNOWN by construction (a
+    // prior session's level has no flow in this payload), so the suffix is
+    // dropped: "PDH unchecked" would imply a flow question that was never asked.
+    if (s.kind === 'PDH' || s.kind === 'PDL' || s.kind === 'PDC') {
+      const y = conv.priceToY(s.hi)
+      if (!Number.isFinite(y)) continue
+      if (y < pane.y + LEGEND_BAND_PX || y > pane.y + pane.height - 2) continue
+      ctx.strokeStyle = withAlpha(brass, 0.7)
+      ctx.setLineDash([7, 5])
+      ctx.beginPath()
+      ctx.moveTo(pane.x, y)
+      ctx.lineTo(pane.x + pane.width, y)
+      ctx.stroke()
+      ctx.setLineDash([])
+      placeLabel(`${s.kind} ${s.hi.toFixed(1)}`, pane.x + 3, y - STRUCT_LABEL_PX,
+        withAlpha(brass, 0.95))
+      continue
+    }
+
+    // PREMIUM / DISCOUNT: only the CURRENT pair is drawn (see `eqBorn` above).
+    // The backend re-cuts the range ~45 times a session; every cut is published
+    // so replay can show the range as it stood at any bar, but painting all of
+    // them at once would be 90 overlapping bands describing one moving line.
+    if (s.kind === 'PREMIUM' || s.kind === 'DISCOUNT') {
+      if (s.born !== eqBorn) continue
+      const yMid = conv.priceToY(s.kind === 'PREMIUM' ? s.lo : s.hi) // the shared 50% edge
+      const yEnd = conv.priceToY(s.kind === 'PREMIUM' ? s.hi : s.lo) // the range's own end
+      if (!Number.isFinite(yMid) || !Number.isFinite(yEnd)) continue
+      // The equilibrium line itself, drawn once (PREMIUM's lo === DISCOUNT's hi).
+      if (s.kind === 'PREMIUM' && yMid > pane.y + LEGEND_BAND_PX && yMid < pane.y + pane.height - 2) {
+        ctx.strokeStyle = withAlpha(brass, 0.6)
+        ctx.setLineDash([2, 3])
+        ctx.beginPath()
+        ctx.moveTo(pane.x, yMid)
+        ctx.lineTo(pane.x + pane.width, yMid)
+        ctx.stroke()
+        ctx.setLineDash([])
+        placeLabel(`EQ ${s.lo.toFixed(1)}`, pane.x + 3, yMid - STRUCT_LABEL_PX,
+          withAlpha(brass, 0.9))
+      }
+      // The half's own name, at the far right against its outer edge, so the
+      // two halves are named without tinting the price area the operator just
+      // asked to keep clean.
+      const yLab = (yMid + yEnd) / 2
+      if (yLab > pane.y + LEGEND_BAND_PX && yLab < pane.y + pane.height - 2) {
+        const w = ctx.measureText(s.kind).width
+        placeLabel(s.kind, pane.x + pane.width - w - CHIP_MARGIN - 52, yLab,
+          withAlpha(brass, 0.75))
+      }
       continue
     }
 

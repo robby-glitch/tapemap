@@ -167,6 +167,12 @@ export interface TapeBar {
 // wire shape — no structure is derived, filtered or re-confirmed here.
 export type StructureKind =
   | 'FVG' | 'OB' | 'BOS' | 'CHOCH' | 'EQH' | 'EQL' | 'SWING_H' | 'SWING_L'
+  // Prior-session levels, inverted from the payload's own floor pivots and
+  // cross-checked before publication (structure.py's prior_day_hlc), plus the
+  // working range's 50% split. PD* carry `born: 0` — they are known before the
+  // session opens. PREMIUM/DISCOUNT are re-cut whenever the range moves, so
+  // several are published per session and the chart draws only the current one.
+  | 'PDH' | 'PDL' | 'PDC' | 'PREMIUM' | 'DISCOUNT'
 
 /**
  * Three distinct claims, which must never collapse into one rendering:
