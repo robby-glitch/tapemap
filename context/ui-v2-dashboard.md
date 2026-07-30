@@ -18,7 +18,8 @@
    bugs in this app came from one habit: showing a fallback as if it were real.
 
 Gates before you commit: `corepack pnpm exec tsc --noEmit`, `corepack pnpm
-build`, and `python -m pytest -q` from the repo root (41 tests). Verify in the
+build`, and `python -m pytest -q` from the repo root (43 tests — the two
+newest are `test_session_json.py`). Verify in the
 browser in a **fresh tab** — React hook-order warnings after an edit are HMR
 artifacts and do not reproduce on a clean load.
 
@@ -124,6 +125,31 @@ data is worse than one that shows an error. The rules that came out of it:
    (no per-strike history in the payload) so `Chain.aligned` is false while
    scrubbed and the ladder says it is a live snapshot.
 
+## Four bugs from the Trade tab, findable only by rendering
+
+1. `session_json()` in `engine.py` dropped a whole FUT bar whenever either
+   option leg was missing, silently intersecting the futures series with ATM
+   option availability. Fixed on `main` (`c91c9d5`) with a test; v1's
+   three-book view now re-applies that intersection explicitly at its display
+   boundary in `ui/app.js` `setDay`, so v1 rendering is unchanged.
+2. A `<canvas>` is a **replaced** element, so `position:absolute; inset:0`
+   does **not** stretch it — it takes its intrinsic size from its
+   `width`/`height` attributes. The overlay rendered at device-pixel size
+   (1.25× too large) and every level line misaligned until its CSS size was
+   set explicitly alongside the backing store.
+3. React `StrictMode` (on in `main.tsx`) remounts effects in dev, destroying
+   and recreating the chart engine — but a `useRef` holding the previous
+   `{day, barCount}` survives that remount, so the data effect took its
+   `updateLast` path against a brand-new empty engine and the chart held
+   **one** candle instead of 375. A fresh engine must always be given the
+   full `setData`.
+4. Sizing the chart with a hardcoded `calc(100vh - Npx)` is wrong here,
+   because the height of the dashboard chrome above the tab is
+   content-dependent (the ANSWER band wraps differently per index and
+   state). The available height is measured instead, and re-measured after
+   every render — measuring only on mount left a stale height when switching
+   from a dead index, overflowing the page by 227px.
+
 ## Architecture
 
 ### `src/data.ts` — the live-data layer
@@ -172,6 +198,9 @@ data is worse than one that shows an error. The rules that came out of it:
   Hue = direction, brightness = intensity, ⚡ = spike. **Dead indices show
   "no tape" and are excluded from the spike count** — they used to render mock
   rows with invented signals like "⚡ AMPLIFIED-UP".
+- **Trade** — Phase 1 of the Tape Chart: the index futures tape on the
+  vendored CandL Charts canvas engine, VWAP+σ overlay, OI pane, MAP levels,
+  replay cursor. See "Tape Chart, Phase 1" below.
 - **Tape** — intraday chart (Recharts) with VWAP, ±1σ, levels drawn on the
   chart, key-levels rail, plain-English order flow, MM perspective, and a
   diverging net-flow pressure histogram.
@@ -229,6 +258,71 @@ where the reference showed D.H.B. (24040.9).
 re-reading. Aggregation is server-side on purpose: the raw chain is ~180 MB a
 day and must never reach the browser.
 
+## Tape Chart, Phase 1 (`ui-v2/src/trade/`) — the Trade tab
+
+Phase 1 of the design in `docs/superpowers/specs/2026-07-29-contract-tape-design.md`;
+implementation plan `docs/superpowers/plans/2026-07-30-tape-chart-phase1.md`.
+
+- **No new backend route.** Everything comes from `/api/data` as it already
+  stood, plus `/api/chain` for two chain levels.
+- **Vendored library**: `ui-v2/src/vendor/candl/` — CandL Charts
+  (`github.com/rahulsangam7/Candl`, `@candllabs/charts`, Apache-2.0), pinned
+  at `538938105834d9231860d639e4b03956e5f3dd67`, 58 files (upstream `src/` +
+  LICENSE + NOTICE) compiled from source by Vite because the package isn't on
+  npm and its `files` field ships only `dist`. **Pristine, never edited** —
+  adaptations live beside it in `src/trade/`. Provenance + re-vendoring steps:
+  `ui-v2/src/vendor/VENDOR.md`. Required `noUnusedLocals`/`noUnusedParameters:
+  false` in `ui-v2/tsconfig.json` (upstream compiles with both off).
+- **Our code**, four files in `src/trade/`: `indicators.ts` (pure reshaping
+  of payload arrays into the engine's `IndicatorRenderData` — a 7-output
+  VWAP+σ overlay and a 1-output OI pane; computes nothing — plus
+  `dayBase`/`dayPrecision` for session-date handling), `LevelsOverlay.ts`
+  (the only file touching the engine's coordinate system; re-queries its
+  converters every frame to draw the `MAP` levels), `ContractChart.tsx`
+  (mounts the engine, feeds `setData`/`updateLast`, drives
+  `setReplayCursor`), `TradeTab.tsx` (composition + the stat-strip header).
+- **New shared module `ui-v2/src/theme.ts`**: the design tokens `T` were a
+  module-local const in `App.tsx` (used 236 times); moved here so `trade/`
+  could share them without a circular import from `App.tsx`. `App.tsx` now
+  imports `T` from `theme.ts`; all 11 token values unchanged.
+- **`data.ts`**: new `TapeBar` type and a `tapeBars(idx)` selector on
+  `useLiveData` returning `{ day, bars }` — the **full** day, deliberately
+  never truncated for replay, because the engine's own replay cursor does
+  the clipping and truncating the array would additionally resize the
+  chart's time axis. Also `Chain.flipPx` now surfaces the chain's `flip_px`,
+  computed server-side and previously dropped on the floor by the mapping.
+- Candle colours aligned to `T.bull`/`T.bear` through the library's
+  sanctioned `setSettings()` hook, not by editing the vendored theme (whose
+  own candles are teal/red).
+- Replay is causal at both layers: the engine's `setReplayCursor(index)`
+  clips every series-derived layer, and the header reads the shown bar, not
+  the newest.
+- **Honesty behaviours**: an index with no tape shows a full-width notice
+  and draws no chart at all (verified: zero canvases). `MAX PAIN` and
+  `GEX FLIP` are drawn only when live — the chain is a snapshot with no
+  per-strike history, the same reason `Chain.aligned` goes false while
+  scrubbing. `GEX FLIP` is omitted entirely when the chain's flip price is
+  `null` rather than inventing a level. A session key with no year (the CSV
+  replay keys are `Jul 15`/`Jul 16`/`Jul 17`) is disclosed in the header and
+  in a line beneath it, because the chart's date axis then infers the year —
+  the month, day and intraday clock are real.
+
+**Verified** against the `tapemap-mock-8765` replay backend (`Jul 17`, 375
+bars) in a real browser: 156 candle clusters spanning 99.6% of the plot
+width with both up and down candles; the overlay canvas rect exactly
+matching the chart canvas rect; header values matching the payload
+bar-for-bar (`15:29`, `24344.0`, `15.10M`, `375 / 375`); scrubbing to bar 101
+clipping the chart to 102 clusters and the header reading `10:55 / 24228.0 /
+15.26M / 101 / 375`; `MAX PAIN 24300` drawn while live; BANKNIFTY rendering
+zero canvases with the no-tape notice; zero console errors.
+
+**Not yet verified — a genuine live session.** In particular the
+minute-rollover path in `ContractChart` (where a bar count that grows by
+exactly one writes the now-final previous bar before appending the new one)
+cannot be exercised by the static replay fixture — only the same-minute
+refresh path is. Also unverified live: `GEX FLIP` actually drawing, since the
+mock chain's `flip_px` is `null`.
+
 ## Build history (`feature/dashboard-v2`)
 
 - `b6b8798` live-wire the Figma app · `7139ec7` heatmaps · `817adf3` level map
@@ -244,9 +338,26 @@ day and must never reach the browser.
 - `0e390b6` context files brought in line with reality
 - `93b3f9d` merge main (backend fixes landed there as `c2fc677`)
 - `e6a134e` Trending OI — `/api/oiflow` + OI Flow tab
+- `dce8e99` vendor CandL charting engine @5389381 (Apache-2.0, source-compiled)
+  · `b2e7ff8` tapeBars() — full-day FUT series · `e727383` trade/indicators —
+  reshape payload series into CandL render data
+- `c2a9bba` parse the real month/day from replay session keys · `d3faf35`
+  trade/LevelsOverlay — MAP levels via engine converters · `b262abb`
+  trade/ContractChart — CandL mount, live updates, replay cursor
+- `65f845e` TradeTab — stat-strip header, honest date disclosure, shared
+  tokens · `eca05f6` clamp the replay cursor at both ends; amber for REPLAY ·
+  `a412c0d` Trade tab — index tape on the CandL engine
+- `10c6e44` size the overlay canvas in CSS px; measure the chart's available
+  height · `2ed4e2a` give a freshly created chart engine the full series ·
+  `57039d8` re-measure the chart's available height after every render ·
+  `a008eeb` keep level labels clear of the chart's own legend row
 
 ## Open items
 
+- **Trade tab: verify against a genuine live session.** The
+  `tapemap-mock-8765` fixture only exercises the same-minute refresh path;
+  the minute-rollover path in `ContractChart` and a live-drawing `GEX FLIP`
+  (mock `flip_px` is `null`) are coded and typechecked but never rendered.
 - **Verify against a live session — this is the top item.** Everything after
   the 2026-07-28 close was verified against the mock-chain fixture, which
   serves only NIFTY and restarts at 09:15. Three things are coded, typechecked

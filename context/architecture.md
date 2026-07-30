@@ -12,6 +12,9 @@
 | Ground truth | TradingView CSV exports in `data/` | 3 labeled days for regression        |
 
 No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
+v2's one exception, the vendored CandL charting engine (see `ui-v2/`
+boundary below), is compiled in from source and ships no CDN or runtime
+dependency, so the offline guarantee still holds.
 
 ## System Boundaries
 
@@ -42,6 +45,11 @@ No frameworks, no bundlers, no external fonts/CDNs. The UI must work offline.
   read-only against the backend:** two fixes on that branch (`chain_live.py`
   per-strike OI peaks, `server.py` index-substitution) affect v1 too and are
   owed to `main`. Fully documented in `context/ui-v2-dashboard.md`.
+  **`ui-v2/src/vendor/candl/`** is the project's first vendored third-party
+  frontend dependency: CandL Charts (Apache-2.0), pinned commit, 58 files
+  compiled from source by Vite (not published to npm), pristine and never
+  edited — adaptations live beside it in `ui-v2/src/trade/`. See
+  `ui-v2/src/vendor/VENDOR.md` and `context/ui-v2-dashboard.md`.
 - `data/` — ground-truth CSVs (protected) + fetched day/chain JSON.
 - `context/` — these spec files; the source of truth for behavior.
 - `archive/` — old replay_*.txt regression baselines + superseded UI
