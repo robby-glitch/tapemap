@@ -40,11 +40,17 @@ export default function ContractChart({ index, day, bars, levels, cursor }: Prop
       gridVisible: true, crosshairVisible: true,
       alertSound: false, alertTune: 0, alertDuration: 1,
     })
-    // No ResizeObserver here: the engine already observes its own container
-    // and re-applies its size, so adding ours only doubled the work per resize.
+    // The engine installs its own ResizeObserver, but ours is NOT redundant —
+    // removing it was tried and measurably broke the chart: the host grows once
+    // TradeTab measures its available height, and without this the engine keeps
+    // a stale internal layout and draws the session into ~57% of the canvas
+    // (14 candle clusters instead of 156). Keep it.
+    const ro = new ResizeObserver(() => engine.resize())
+    ro.observe(host)
     const stopOverlay = startLevelsOverlay(overlayRef.current!, host, engine, () => levelsRef.current)
     return () => {
       stopOverlay()
+      ro.disconnect()
       engine.destroy()
       engineRef.current = null
     }
