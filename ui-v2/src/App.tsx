@@ -2033,7 +2033,9 @@ export default function App() {
                                               stale={idxDead || !!error} loading={loading} chainStale={chainStale}
                                               chainTs={activeChain.ts}
                                               focus={focus} onFocusToggle={() => setFocus(!focus)}
-                                              onIndexChange={setActiveIndex} />}
+                                              onIndexChange={setActiveIndex}
+                                              structures={tape.structures}
+                                              structuresWhy={tape.structuresWhy} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

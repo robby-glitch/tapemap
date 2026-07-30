@@ -161,6 +161,63 @@ export interface TapeBar {
   setup?: BarSetup | null
 }
 
+// ── SMC / ICT structure layer (Phase 3.5) ──────────────────────────────────────
+// Computed server-side by structure.py and attached to each day of /api/data as
+// a sibling of `bars` (commits b616e9d / b2856c9). This file only NAMES the
+// wire shape — no structure is derived, filtered or re-confirmed here.
+export type StructureKind =
+  | 'FVG' | 'OB' | 'BOS' | 'CHOCH' | 'EQH' | 'EQL' | 'SWING_H' | 'SWING_L'
+
+/**
+ * Three distinct claims, which must never collapse into one rendering:
+ *   CONFIRMED   — flow was checked and it agrees.
+ *   UNCONFIRMED — flow was checked and it does NOT agree.
+ *   UNKNOWN     — flow could not be checked at all (structure.py's OB and
+ *                 BOS/CHOCH cases: /api/data carries no per-strike chain).
+ * "We checked and found nothing" is a different statement from "we could not
+ * check", and both differ again from "we are not showing you".
+ */
+export type StructureConfirm = 'CONFIRMED' | 'UNCONFIRMED' | 'UNKNOWN'
+
+export interface Structure {
+  kind: StructureKind
+  /** Span the structure was read from. Indices into the day's UNFILTERED
+   *  `bars` array — see `tapeBars`'s skip guard for why that matters. */
+  i0: number
+  i1: number
+  /** The bar that COMPLETED the structure; `born >= i1`. Every field of a
+   *  structure is a function of bars[0..born] only, so causal replay is
+   *  truncation (`born <= cursor`), never recomputation. */
+  born: number
+  /** For area structures (FVG, OB, EQH, EQL) these bound the box. For point
+   *  structures (BOS, CHOCH, SWING_H, SWING_L) `hi === lo` — the single price
+   *  the structure is about (verified against a real 329-bar NIFTY session:
+   *  every BOS/CHOCH row came back with hi === lo === the broken level). */
+  hi: number
+  lo: number
+  /** +1 for anything bullish / high-side, −1 for its mirror. */
+  dir: 1 | -1
+  confirm: StructureConfirm
+  /** The backend's own sentence for the verdict, quoted verbatim. */
+  confirm_why: string
+}
+
+/**
+ * What the Tape Chart reads per index: the day's FUT bars plus the structure
+ * layer that indexes them.
+ *
+ * `structures` is null whenever those indices cannot be trusted, and
+ * `structuresWhy` then says why in the backend's/our own words. A null is a
+ * disclosure, not a silent absence — TradeTab prints it.
+ */
+export interface TapeView {
+  day: string
+  bars: TapeBar[]
+  structures: Structure[] | null
+  /** Empty string when `structures` is non-null. */
+  structuresWhy: string
+}
+
 // Live Spike Radar — one row per index, one cell per activity/spike column.
 export const HEAT_COLS = ['FUT VOL', 'FUT OI', 'CE VOL', 'CE OI', 'PE VOL', 'PE OI', 'GAMMA', 'SQZ'] as const
 export type HeatCol = (typeof HEAT_COLS)[number]
@@ -1054,14 +1111,20 @@ export function useLiveData(fallback: Dataset) {
 
   // Tape Chart: the newest day's FUT bars, verbatim and FULL — replay is done
   // by the chart engine's cursor (causal truncation), not by re-slicing here.
-  const tapeBars = useCallback((k: IndexKey): { day: string; bars: TapeBar[] } => {
+  const tapeBars = useCallback((k: IndexKey): TapeView => {
     const D = raw[k]?.D
     const day = D?.days?.[D.days.length - 1]
-    if (!day) return { day: '', bars: [] }
+    if (!day) return { day: '', bars: [], structures: null, structuresWhy: 'no session loaded yet' }
     const bars: TapeBar[] = []
+    // structure.py's indices address the day's UNFILTERED bar list, so the
+    // skip below silently shifts every one of them. In practice the engine
+    // emits a FUT leg on every bar (verified: 329/329 on the live 2026-07-30
+    // NIFTY session), but "in practice" is not a guarantee, and a structure
+    // layer drawn one bar off is worse than no structure layer at all.
+    let skipped = 0
     for (const b of day.bars ?? []) {
       const f = b.fut
-      if (!f) continue // engine ≥ c91c9d5 always emits fut; guard for older backends
+      if (!f) { skipped++; continue } // engine ≥ c91c9d5 always emits fut; guard for older backends
       bars.push({
         t: b.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, oi: f.oi,
         vwap: f.vwap, u1: f.u1, d1: f.d1, u2: f.u2, d2: f.d2, u3: f.u3, d3: f.d3,
@@ -1071,7 +1134,19 @@ export function useLiveData(fallback: Dataset) {
         ctx: b.ctx ?? null, gamma: b.gamma ?? null, setup: b.setup ?? null,
       })
     }
-    return { day: day.day ?? '', bars }
+    // Verbatim in the normal case: not filtered, not re-sorted, not
+    // re-confirmed. Anything else and the layer is withheld WITH a reason.
+    let structures: Structure[] | null = null
+    let structuresWhy = ''
+    if (!Array.isArray(day.structures)) {
+      structuresWhy = 'this backend publishes no structure layer'
+    } else if (skipped > 0) {
+      structuresWhy = `${skipped} bar${skipped === 1 ? '' : 's'} lacked a FUT leg, `
+        + 'so the layer’s bar indices no longer line up with the chart'
+    } else {
+      structures = day.structures as Structure[]
+    }
+    return { day: day.day ?? '', bars, structures, structuresWhy }
   }, [raw])
 
   return { data, loading, error, lastUpdated, barCount, at, dead, tapeBars }

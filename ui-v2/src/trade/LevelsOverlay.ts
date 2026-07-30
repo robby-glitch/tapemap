@@ -3,7 +3,7 @@
 // re-queried every frame (their docs say so — zoom/pan invalidates them).
 import type { IChartEngine } from '../vendor/candl/chart/types'
 import type { Converters } from '../vendor/candl/drawings/types'
-import type { MapLevel, TapeBar } from '../data'
+import type { MapLevel, Structure, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
 import type { Narration } from './narration'
@@ -74,6 +74,25 @@ const ZONE_ALPHA: Record<Mode, Record<'stand' | 'watch', number>> = {
 // Small enough to sit just under the engine's legend band without competing
 // with the 10px level labels that share the same corner.
 const ZONE_LABEL_PX = 8.5
+
+// SMC structure layer (Phase 3.5). Brass, because theme.ts's rule is that
+// brass IS structure — an FVG is not a direction claim, so it must not borrow
+// green/red even though it carries a `dir`. Dark needs the higher alpha for the
+// same apparent tint against #0B0E14, exactly as the zone bands do; OB reads a
+// touch stronger than FVG because a block is a level, a gap is a void.
+const STRUCT_ALPHA: Record<Mode, Record<'FVG' | 'OB', number>> = {
+  light: { FVG: 0.045, OB: 0.07 },
+  dark: { FVG: 0.07, OB: 0.10 },
+}
+const STRUCT_BORDER_ALPHA = 0.25
+// UNCONFIRMED and UNKNOWN both draw at this fraction of the above. They are
+// DIFFERENT claims and their labels say so ("unconfirmed" vs "unchecked"); the
+// shared dimming only says "not confirmed", which is true of both.
+const STRUCT_FAINT = 0.45
+const STRUCT_TICK_PX = 24        // BOS/CHoCH tick length, ending at x(born)
+const STRUCT_LABEL_PX = 8.5
+const STRUCT_LABEL_GAP = 3       // px between a tick/line end and its label
+const STRUCT_POOL_DASH: [number, number] = [3, 3]
 
 // Story balloon geometry. A tier-≥2 narration gets a persistent pill so the
 // day's story stays on the chart to refer back to, instead of living only in
@@ -217,6 +236,182 @@ function drawZones(
   }
 }
 
+/** An axis-aligned box already occupied by a drawn label. */
+type LabelBox = { x0: number; y0: number; x1: number; y1: number }
+
+/**
+ * The SMC / ICT structure layer (Phase 3.5), drawn between the zone bands and
+ * the σ ribbons. Every shape here is the BACKEND's — structure.py found it,
+ * named it and confirmed it; this function only positions it.
+ *
+ *   FVG / OB   translucent brass box over [lo, hi], from the structure's own
+ *              first bar and extended right to the last visible bar (or the
+ *              replay cursor while scrubbing).
+ *   BOS/CHoCH  a short tick at the broken level, ending at x(born), labelled.
+ *   EQH / EQL  a dashed line across the pool, from x(i0) to x(born).
+ *   SWING_H/L  deliberately not drawn — see the note at the bottom.
+ *
+ * Confirmation shows as opacity plus a label suffix: CONFIRMED at full alpha
+ * and no suffix, UNCONFIRMED faint + "unconfirmed" (flow was checked and
+ * disagreed), UNKNOWN faint + "unchecked" (flow could not be checked at all).
+ * A structure is NEVER dropped for being unconfirmed: "we found nothing" and
+ * "we are not showing you" are different statements.
+ *
+ * `taken` arrives pre-seeded with the level labels' boxes, so a structure
+ * label never overprints a price level's. It is mutated as labels are placed.
+ */
+function drawStructures(
+  ctx: CanvasRenderingContext2D,
+  conv: Converters,
+  pane: PaneRect,
+  pal: Palette,
+  times: number[],
+  structures: Structure[],
+  lastIdx: number,
+  mode: Mode,
+  taken: LabelBox[],
+) {
+  // Same clamp the zone bands use: `times` can be one append behind `bars` for
+  // a frame, and stopping one bar short beats blinking the whole layer out.
+  const cut = Math.min(lastIdx, times.length - 1)
+  if (cut < 0) return
+  const half = halfBarPx(conv, times)
+  const cutX = conv.timeToX(times[cut]) + half
+  if (!Number.isFinite(cutX)) return
+  const brass = pal.accent
+
+  /** CONFIRMED draws at the configured alpha, the other two at a fraction of
+   *  it. Never zero, and never a different hue — brass is structure. */
+  const scale = (s: Structure) => (s.confirm === 'CONFIRMED' ? 1 : STRUCT_FAINT)
+  const suffix = (s: Structure) =>
+    s.confirm === 'UNCONFIRMED' ? ' unconfirmed'
+      : s.confirm === 'UNKNOWN' ? ' unchecked' : ''
+  /** The single price a point/pool structure is about. `hi === lo` for
+   *  BOS/CHOCH (verified against a live payload), so this reads correctly
+   *  whether the backend sends a point or a span. */
+  const levelOf = (s: Structure) => (s.dir > 0 ? s.hi : s.lo)
+
+  // Causality, and the whole of it: structure.py guarantees every field of a
+  // structure — including its confirmation — is a function of bars[0..born],
+  // so this filter IS the replay truncation. Nothing is recomputed here.
+  const live: Structure[] = []
+  for (const s of structures) if (s.born >= 0 && s.born <= cut) live.push(s)
+
+  // Boxes first, so a translucent fill never washes over a tick, a pool line
+  // or a label drawn below.
+  for (const s of live) {
+    if (s.kind !== 'FVG' && s.kind !== 'OB') continue
+    const t0 = times[s.i0]
+    if (t0 == null) continue
+    const x0 = conv.timeToX(t0) - half
+    const yHi = conv.priceToY(s.hi)
+    const yLo = conv.priceToY(s.lo)
+    if (!Number.isFinite(x0) || !Number.isFinite(yHi) || !Number.isFinite(yLo)) continue
+    // Right edge is the last VISIBLE bar, i.e. the replay cursor when one is
+    // set. Whether a gap has since been filled is a later-bar question, so
+    // extending past the cursor would answer it with data the operator has
+    // scrubbed away from.
+    if (cutX <= x0) continue
+    const top = Math.min(yHi, yLo)
+    const h = Math.abs(yLo - yHi)
+    const sc = scale(s)
+    ctx.fillStyle = withAlpha(brass, STRUCT_ALPHA[mode][s.kind] * sc)
+    ctx.fillRect(x0, top, cutX - x0, h)
+    ctx.lineWidth = 1
+    ctx.strokeStyle = withAlpha(brass, STRUCT_BORDER_ALPHA * sc)
+    ctx.strokeRect(x0, top, cutX - x0, h)
+  }
+
+  ctx.font = `${STRUCT_LABEL_PX}px ${MONO_STACK}`
+  ctx.textBaseline = 'middle'
+  ctx.lineWidth = 1
+
+  /** Draw `text` at (x, y) unless it would leave the pane, overprint the
+   *  engine's OHLC legend, or collide with a label already placed. Only the
+   *  TEXT de-clutters — the structure's own box/tick/line is already drawn,
+   *  the same bargain the level labels below make (line always, label when it
+   *  clears). */
+  const placeLabel = (text: string, x: number, y: number, color: string) => {
+    const w = ctx.measureText(text).width
+    const box: LabelBox = {
+      x0: x, y0: y - STRUCT_LABEL_PX / 2 - 1,
+      x1: x + w, y1: y + STRUCT_LABEL_PX / 2 + 1,
+    }
+    if (box.x0 < pane.x || box.x1 > pane.x + pane.width - 2) return
+    if (box.y0 < pane.y + LEGEND_BAND_PX || box.y1 > pane.y + pane.height - 2) return
+    for (const t of taken) {
+      if (box.x0 < t.x1 && box.x1 > t.x0 && box.y0 < t.y1 && box.y1 > t.y0) return
+    }
+    taken.push(box)
+    ctx.fillStyle = color
+    ctx.fillText(text, x, y)
+  }
+
+  for (const s of live) {
+    const sc = scale(s)
+    const color = withAlpha(brass, 0.85 * sc)
+    const label = s.kind + suffix(s)
+
+    if (s.kind === 'FVG' || s.kind === 'OB') {
+      const t0 = times[s.i0]
+      if (t0 == null) continue
+      const x0 = conv.timeToX(t0) - half
+      const yHi = conv.priceToY(s.hi)
+      const yLo = conv.priceToY(s.lo)
+      if (!Number.isFinite(x0) || !Number.isFinite(yHi) || !Number.isFinite(yLo)) continue
+      const top = Math.min(yHi, yLo)
+      const h = Math.abs(yLo - yHi)
+      // Inside the box when it can hold the text; just above it otherwise. An
+      // 8.5px label crammed into a 3px gap reads as a different structure.
+      placeLabel(label, x0 + 2,
+        h >= STRUCT_LABEL_PX + 2 ? top + h / 2 : top - STRUCT_LABEL_PX / 2 - 1, color)
+      continue
+    }
+
+    if (s.kind === 'BOS' || s.kind === 'CHOCH') {
+      const tb = times[s.born]
+      if (tb == null) continue
+      const xb = Math.min(conv.timeToX(tb), cutX)
+      const y = conv.priceToY(levelOf(s))
+      if (!Number.isFinite(xb) || !Number.isFinite(y)) continue
+      if (y < pane.y + 1 || y > pane.y + pane.height - 1) continue
+      ctx.strokeStyle = color
+      ctx.beginPath()
+      ctx.moveTo(Math.max(pane.x, xb - STRUCT_TICK_PX), y)
+      ctx.lineTo(xb, y)
+      ctx.stroke()
+      placeLabel(label, xb + STRUCT_LABEL_GAP, y, color)
+      continue
+    }
+
+    if (s.kind === 'EQH' || s.kind === 'EQL') {
+      const t0 = times[s.i0]
+      const tb = times[s.born]
+      if (t0 == null || tb == null) continue
+      const x0 = conv.timeToX(t0)
+      const x1 = Math.min(conv.timeToX(tb), cutX)
+      const y = conv.priceToY(levelOf(s))
+      if (!Number.isFinite(x0) || !Number.isFinite(x1) || !Number.isFinite(y)) continue
+      if (x1 <= x0 || y < pane.y + 1 || y > pane.y + pane.height - 1) continue
+      ctx.strokeStyle = color
+      ctx.setLineDash(STRUCT_POOL_DASH)
+      ctx.beginPath()
+      ctx.moveTo(x0, y)
+      ctx.lineTo(x1, y)
+      ctx.stroke()
+      ctx.setLineDash([]) // never let dash state leak into the next stroke/fill
+      placeLabel(label, x1 + STRUCT_LABEL_GAP, y, color)
+      continue
+    }
+
+    // SWING_H / SWING_L arrive in the payload and are typed in data.ts, but
+    // are deliberately not drawn at this task's scope: each is already the
+    // endpoint of a BOS, an EQH/EQL pool or an OB, and on the live 329-bar
+    // NIFTY session there are 51 of them — enough pivot marks to bury the
+    // structures that actually carry a claim.
+  }
+}
+
 /**
  * Story balloons: a persistent pill for every tier-≥2 narration, so the day's
  * events stay legible after the mouse has moved on — the hover callout alone
@@ -323,6 +518,13 @@ export function startLevelsOverlay(
   getMode: () => Mode,
   getData: () => OverlayData,
   getZones: () => Zone[],
+  /** The backend's structure layer, or null when its bar indices cannot be
+   *  trusted (data.ts's skip guard) — in which case NOTHING is drawn and
+   *  TradeTab prints the reason instead. Misaligned boxes would be a lie. */
+  getStructures: () => Structure[] | null,
+  /** The SMC toggle. Off means the operator asked for the layer to be hidden,
+   *  which is not the same as the layer being unavailable. */
+  getSmc: () => boolean,
 ): () => void {
   const ctx = canvas.getContext('2d')!
   let raf = 0
@@ -359,6 +561,13 @@ export function startLevelsOverlay(
     const levels = getLevels()
     const data = getData()
     const zones = getZones()
+    const smc = getSmc()
+    const structures = getStructures()
+    // Drawn only when the operator asked for it AND the indices are
+    // trustworthy. `structs.length === 0` and `structures === null` both draw
+    // nothing, but they are different facts, and the signature below keeps
+    // them apart so the disclosure in TradeTab and this layer never disagree.
+    const structs = smc && structures ? structures : []
     const dBars = data.bars
     const dTimes = data.times
     const dNarrs = data.narrs
@@ -425,7 +634,16 @@ export function startLevelsOverlay(
       `|${dBars.length},${dTimes.length},${data.cursor}` +
       `|${dFirst?.u1},${dFirst?.d1},${dLast?.u1},${dLast?.d1}` +
       `|${dNarrs.length},${lastNarr},${tierSum},${nBalloons}` +
-      `|${zones.length},${z0?.i0}:${z0?.i1}:${z0?.cls},${zN?.i0}:${zN?.i1}:${zN?.cls}`
+      `|${zones.length},${z0?.i0}:${z0?.i1}:${z0?.cls},${zN?.i0}:${zN?.i1}:${zN?.cls}` +
+      // Structures: the toggle, the availability (null vs an empty list — two
+      // different facts), the count, and the first/last `born`. A new
+      // structure moves the count; the newest one moves the last born. An
+      // already-born structure never changes, because structure.py defines
+      // every field of one as a function of bars[0..born] only — so there is
+      // nothing else here that can move, and nothing per-frame that would
+      // collapse paint back to the ~3fps this guard exists to prevent.
+      `|${smc ? 1 : 0}${structures ? '' : 'x'},${structs.length},` +
+      `${structs[0]?.born},${structs[structs.length - 1]?.born}`
     if (sig === lastSig) return
     lastSig = sig
 
@@ -440,6 +658,48 @@ export function startLevelsOverlay(
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
       drawZones(ctx, conv, pane, dTimes, zones, lastIdx, mode)
+      ctx.restore()
+    }
+
+    // The level labels are DECIDED here, before anything else draws, though
+    // they are PAINTED further down in layer order. Two readers need one
+    // answer: the structure pass (which must not overprint a price level's
+    // label) and the level pass itself. Deciding twice would risk them
+    // disagreeing about which labels exist.
+    ctx.font = `10px ${MONO_STACK}`
+    // Copy before sorting — getLevels() may return the live MAP.levels array,
+    // and mutating it would corrupt whatever else reads it.
+    const visible = levels
+      .filter((lvl) => lvl.kind !== 'now') // the tape itself is the price
+      .map((lvl) => ({ lvl, y: conv.priceToY(lvl.value) }))
+      .filter(({ y }) => y >= pane.y + 4 && y <= pane.y + pane.height - 4)
+      .sort((a, b) => a.y - b.y)
+    // A label is drawn only if it clears the last DRAWN label by the min gap
+    // AND clears the engine's own OHLC legend in the top-left of the pane.
+    const takenLabels: LabelBox[] = []
+    const labelled: boolean[] = []
+    {
+      let lastLabelY = -Infinity // last *drawn label's* y, not the last level's y
+      for (const { lvl, y } of visible) {
+        const ok = y - lastLabelY >= LABEL_GAP && y >= pane.y + LEGEND_BAND_PX
+        labelled.push(ok)
+        if (!ok) continue
+        lastLabelY = y
+        const w = ctx.measureText(`${lvl.label} ${lvl.value.toFixed(1)}`).width
+        // Baseline 'bottom' at y-2 for a 10px font, padded by 1px each way.
+        takenLabels.push({ x0: pane.x + 6, y0: y - 13, x1: pane.x + 6 + w, y1: y - 1 })
+      }
+    }
+
+    // Structure layer SECOND — above the market-condition wash, below the σ
+    // ribbons and the level lines. It describes the same price geometry the
+    // levels do, so it must not sit on top of them and win the contrast.
+    if (lastIdx >= 0 && structs.length) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(pane.x, pane.y, pane.width, pane.height)
+      ctx.clip()
+      drawStructures(ctx, conv, pane, pal, dTimes, structs, lastIdx, mode, takenLabels)
       ctx.restore()
     }
 
@@ -464,16 +724,7 @@ export function startLevelsOverlay(
     const structColor = withAlpha(pal.accent, 0.85)
     const trapColor = withAlpha(pal.bear, 0.85)
 
-    // Copy before sorting — getLevels() may return the live MAP.levels array,
-    // and mutating it would corrupt whatever else reads it (e.g. Task 6's rail).
-    const visible = levels
-      .filter((lvl) => lvl.kind !== 'now') // the tape itself is the price
-      .map((lvl) => ({ lvl, y: conv.priceToY(lvl.value) }))
-      .filter(({ y }) => y >= pane.y + 4 && y <= pane.y + pane.height - 4)
-      .sort((a, b) => a.y - b.y)
-
-    let lastLabelY = -Infinity // last *drawn label's* y, not the last level's y
-    for (const { lvl, y } of visible) {
+    visible.forEach(({ lvl, y }, li) => {
       const color = lvl.kind === 'trap' ? trapColor : structColor
       ctx.strokeStyle = color
       ctx.fillStyle = color
@@ -501,13 +752,12 @@ export function startLevelsOverlay(
       ctx.textBaseline = 'bottom' // restore before the left label below
       ctx.fillStyle = color
 
-      // Draw the label only if it clears the last *drawn* label by the min gap
-      // AND clears the engine's own OHLC legend in the top-left of the pane.
-      if (y - lastLabelY >= LABEL_GAP && y >= pane.y + LEGEND_BAND_PX) {
+      // The gap/legend decision was made above (`labelled`), before the
+      // structure pass read it — same answer, one place.
+      if (labelled[li]) {
         ctx.fillText(`${lvl.label} ${lvl.value.toFixed(1)}`, pane.x + 6, y - 2)
-        lastLabelY = y
       }
-    }
+    })
 
     // Story balloons LAST — the persistent event markers sit above the bands,
     // the ribbons and the level lines, since they are the thing being read.

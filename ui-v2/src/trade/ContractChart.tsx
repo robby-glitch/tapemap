@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createChartEngine } from '../vendor/candl/chart/engine'
 import type { IChartEngine } from '../vendor/candl/chart/types'
-import type { TapeBar, MapLevel, IndexKey } from '../data'
+import type { TapeBar, MapLevel, IndexKey, Structure } from '../data'
 import type { Mode } from '../theme'
 import { CHART_UP, CHART_DOWN } from '../theme'
 import { toCandles, buildIndicators } from './indicators'
@@ -24,6 +24,13 @@ interface Props {
    *  that has no ctx to group yet renders exactly as before — an absent prop
    *  means "no bands", never an invented verdict. */
   zones?: Zone[]
+  /** The backend's SMC structure layer, or null when it is unavailable (no
+   *  such backend, or bar indices that cannot be trusted — see data.ts's skip
+   *  guard). Null draws nothing; TradeTab prints the reason. */
+  structures?: Structure[] | null
+  /** The SMC toggle. False = the operator hid the layer, which is a different
+   *  fact from the layer being unavailable, and is not disclosed as one. */
+  smc?: boolean
 }
 
 // A shared empty default, so an omitted `zones` prop does not hand the overlay
@@ -51,6 +58,7 @@ function nearestIndex(times: number[], t: number): number {
 
 export default function ContractChart({
   index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
+  structures = null, smc = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -79,6 +87,10 @@ export default function ContractChart({
   narrsRef.current = narrs
   const zonesRef = useRef<Zone[]>(zones)
   zonesRef.current = zones
+  const structuresRef = useRef<Structure[] | null>(structures)
+  structuresRef.current = structures
+  const smcRef = useRef<boolean>(smc)
+  smcRef.current = smc
   // The candle time axis (epoch ms), rebuilt once per data change (the same
   // [index, day, bars] effect that feeds the engine) — never recomputed
   // inside the mousemove handler itself.
@@ -130,6 +142,8 @@ export default function ContractChart({
         narrs: narrsRef.current, cursor: cursorRef.current,
       }),
       () => zonesRef.current,
+      () => structuresRef.current,
+      () => smcRef.current,
     )
 
     // Hover mapping: clientX -> container-relative x -> engine's own xToTime

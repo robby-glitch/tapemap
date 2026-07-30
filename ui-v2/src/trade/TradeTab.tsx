@@ -6,7 +6,7 @@ import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
 import { palette, MONO, useMode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem } from '../data'
+import type { TapeBar, MapLevel, IndexKey, EventItem, Structure } from '../data'
 
 interface Props {
   index: IndexKey
@@ -32,6 +32,11 @@ interface Props {
   focus: boolean
   onFocusToggle: () => void
   onIndexChange: (k: IndexKey) => void
+  /** The backend's SMC structure layer for this day, or null when it cannot be
+   *  drawn honestly. Null is DISCLOSED below, never silently absent. */
+  structures: Structure[] | null
+  /** Why `structures` is null, in data.ts's own words. Empty when it isn't. */
+  structuresWhy: string
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -215,12 +220,23 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
 
 export default function TradeTab({
   index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs,
-  focus, onFocusToggle, onIndexChange,
+  focus, onFocusToggle, onIndexChange, structures, structuresWhy,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
   const [mode, setMode] = useMode()
   const pal = palette(mode)
+
+  // SMC structure layer, default ON: the operator trades ICT/SMC, so the layer
+  // is the point of the tab, not a garnish. Persisted like `tape.mode` and
+  // `tape.focus`; only the literal string 'off' turns it off, so a corrupt or
+  // absent value fails towards showing the operator more, never less.
+  const [smc, setSmc] = useState<boolean>(() => localStorage.getItem('tape.smc') !== 'off')
+  const toggleSmc = () => {
+    const next = !smc
+    localStorage.setItem('tape.smc', next ? 'on' : 'off')
+    setSmc(next)
+  }
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
@@ -393,6 +409,25 @@ export default function TradeTab({
             }}
           >FOCUS</button>
 
+          {/* SMC: the structure layer (FVG / OB / BOS / CHoCH / EQH / EQL) on
+              the chart. Same styling family as FOCUS and LIGHT/DARK. When the
+              layer is unavailable the button still toggles — it is the
+              operator's preference, not a status light; the disclosure line
+              below is what reports availability. */}
+          <button
+            onClick={toggleSmc}
+            title={structures
+              ? `Show the backend's SMC structure layer (${structures.length} structures this session)`
+              : 'Show the SMC structure layer — unavailable for this session, see the note below'}
+            style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              padding: '3px 9px', cursor: 'pointer',
+              border: `1px solid ${pal.border}`, borderRadius: 4,
+              backgroundColor: smc ? pal.accent : 'transparent',
+              color: smc ? pal.card : pal.textMuted,
+            }}
+          >SMC</button>
+
           {/* With the glance bar hidden, its index switcher goes with it —
               this is just that switcher, not a duplicate of the whole bar. */}
           {focus && (
@@ -451,6 +486,16 @@ export default function TradeTab({
         </div>
       )}
 
+      {/* The layer is missing, so say so rather than let an empty chart read
+          as "no structure found". Faint, one line, and only when SMC is on —
+          with the toggle off the operator already knows why nothing is drawn. */}
+      {smc && !structures && (
+        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
+          Structure layer unavailable{structuresWhy ? ` — ${structuresWhy}` : ''}. No boxes are drawn
+          rather than boxes that might sit on the wrong bars.
+        </div>
+      )}
+
       <div style={{
         flex: 1, minHeight: 420, borderRadius: 6, overflow: 'hidden',
         border: `1px solid ${pal.border}`, backgroundColor: pal.card,
@@ -458,6 +503,7 @@ export default function TradeTab({
         <ContractChart
           index={index} day={day} bars={bars} levels={levels} cursor={cursor}
           mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
+          structures={structures} smc={smc}
         />
       </div>
 
@@ -465,7 +511,7 @@ export default function TradeTab({
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
 
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-        VWAP & σ bands · levels · OI
+        VWAP & σ bands · levels · OI{smc && structures ? ' · SMC structure (brass)' : ''}
       </div>
 
       {/* ENGINE READ — full width, directly below the ribbon+legend. Reads
