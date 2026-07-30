@@ -7,6 +7,7 @@ import { CHART_UP, CHART_DOWN } from '../theme'
 import { toCandles, buildIndicators } from './indicators'
 import { startLevelsOverlay } from './LevelsOverlay'
 import type { Narration } from './narration'
+import type { Zone } from './zones'
 import Callout from './Callout'
 
 interface Props {
@@ -19,7 +20,15 @@ interface Props {
   hover: number | null
   onHover: (i: number | null) => void
   narrs: (Narration | null)[]
+  /** Market-condition runs for the overlay's zone bands. Optional so a caller
+   *  that has no ctx to group yet renders exactly as before — an absent prop
+   *  means "no bands", never an invented verdict. */
+  zones?: Zone[]
 }
+
+// A shared empty default, so an omitted `zones` prop does not hand the overlay
+// a fresh array identity on every render.
+const NO_ZONES: Zone[] = []
 
 /** Nearest index in a sorted-ascending time array to `t` — the inverse of
  *  toCandles's own `dayBase(day) + minutes*60000` construction. Binary search
@@ -41,7 +50,7 @@ function nearestIndex(times: number[], t: number): number {
 }
 
 export default function ContractChart({
-  index, day, bars, levels, cursor, mode, hover, onHover, narrs,
+  index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -62,6 +71,14 @@ export default function ContractChart({
   cursorRef.current = cursor
   const onHoverRef = useRef(onHover)
   onHoverRef.current = onHover
+  // Same pattern for the overlay's two new inputs: the rAF loop in
+  // LevelsOverlay is started ONCE (in the []-deps effect below) and reads its
+  // data through getters, so narrations and zones must reach it via refs — a
+  // captured prop would freeze at the values of the first render.
+  const narrsRef = useRef<(Narration | null)[]>(narrs)
+  narrsRef.current = narrs
+  const zonesRef = useRef<Zone[]>(zones)
+  zonesRef.current = zones
   // The candle time axis (epoch ms), rebuilt once per data change (the same
   // [index, day, bars] effect that feeds the engine) — never recomputed
   // inside the mousemove handler itself.
@@ -88,10 +105,11 @@ export default function ContractChart({
     // grew === 0 and call updateLast on an empty engine — leaving the chart with
     // a single candle instead of the whole session.
     prevRef.current = { index: '', day: '', n: 0 }
-    // The vendored theme's own candles are teal/red (#26a69a/#ef5350) — foreign
-    // to this app's palette. setSettings is the library's sanctioned styling
-    // hook, so the colours align here rather than by editing the pristine
-    // vendor theme. Green/red carry direction, matching palette(mode).bull/bear.
+    // setSettings is the library's sanctioned styling hook, so candle colour is
+    // set here rather than by editing the pristine vendor theme. Green/red carry
+    // direction only. In LIGHT mode CHART_UP/DOWN are deliberately the
+    // Kite/TradingView default pair (#26a69a/#ef5350) so these candles match the
+    // ones the operator reads in Kite; dark stays on palette(mode).bull/bear.
     engine.setSettings({
       upColor: CHART_UP[mode], downColor: CHART_DOWN[mode],
       gridVisible: true, crosshairVisible: true,
@@ -107,7 +125,11 @@ export default function ContractChart({
     const stopOverlay = startLevelsOverlay(
       overlayRef.current!, host, engine,
       () => levelsRef.current, () => modeRef.current,
-      () => ({ bars: barsRef.current, times: timesRef.current, cursor: cursorRef.current }),
+      () => ({
+        bars: barsRef.current, times: timesRef.current,
+        narrs: narrsRef.current, cursor: cursorRef.current,
+      }),
+      () => zonesRef.current,
     )
 
     // Hover mapping: clientX -> container-relative x -> engine's own xToTime

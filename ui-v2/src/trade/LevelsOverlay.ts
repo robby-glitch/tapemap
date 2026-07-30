@@ -6,17 +6,27 @@ import type { Converters } from '../vendor/candl/drawings/types'
 import type { MapLevel, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
+import type { Narration } from './narration'
+import type { Zone } from './zones'
 
-/** What the σ ribbons need, re-read every frame like every other getter here:
- *  the bars carry each sigma level per-bar, `times` is the candle time axis
- *  (ContractChart already builds this for hover mapping — reused, not
- *  recomputed), and `cursor` is the replay index so the ribbons stop exactly
- *  where the candles do. */
-export interface RibbonData {
+/** What the per-bar passes (σ ribbons, story balloons) need, re-read every
+ *  frame like every other getter here: the bars carry each sigma level
+ *  per-bar, `times` is the candle time axis (ContractChart already builds this
+ *  for hover mapping — reused, not recomputed), `narrs` is the same 1:1
+ *  narration array the Callout and the Ribbon already read, and `cursor` is
+ *  the replay index so ribbons and balloons stop exactly where the candles do. */
+export interface OverlayData {
   bars: TapeBar[]
   times: number[]
+  narrs: (Narration | null)[]
   cursor: number | null
 }
+
+/** The pane geometry the engine hands out, in CSS px. */
+type PaneRect = { x: number; y: number; width: number; height: number }
+
+/** The active palette object — either `TL` or `T`; both carry these keys. */
+type Palette = ReturnType<typeof palette>
 
 // Ribbon fill alphas — the approved mockup's own ceiling (±1σ 0.075, ±2σ
 // 0.055), extended with a slightly dimmer ±3σ. Widest drawn first so the
@@ -43,6 +53,39 @@ const CHIP_H = 13
 const CHIP_PAD = 4
 const CHIP_MARGIN = 2
 
+// The font stack every text pass in this file shares. Kept local (rather than
+// theme.ts's MONO, which also lists Consolas) so the already-verified label
+// and chip metrics do not shift under an added family.
+const MONO_STACK = 'ui-monospace, SFMono-Regular, Menlo, monospace'
+
+// Zone bands (Phase 3): one vertical wash per market-condition run. One hue
+// per class, one alpha per mode — dark needs the higher alpha for the same
+// apparent tint against #0B0E14. `go` and `none` are never drawn: a green
+// light needs no warning wash, and a bar with no ctx must never be painted as
+// though it had a verdict.
+const ZONE_HUE: Record<'stand' | 'watch', string> = {
+  stand: '196,43,48',
+  watch: '255,191,0',
+}
+const ZONE_ALPHA: Record<Mode, Record<'stand' | 'watch', number>> = {
+  light: { stand: 0.05, watch: 0.07 },
+  dark: { stand: 0.08, watch: 0.10 },
+}
+// Small enough to sit just under the engine's legend band without competing
+// with the 10px level labels that share the same corner.
+const ZONE_LABEL_PX = 8.5
+
+// Story balloon geometry. A tier-≥2 narration gets a persistent pill so the
+// day's story stays on the chart to refer back to, instead of living only in
+// the hover callout.
+const PILL_H = 14
+const PILL_PAD_X = 5
+const PILL_R = 7
+const PILL_STEM = 6              // gap between the candle extreme and lane 0
+const PILL_LANES = 3             // outward lanes before de-cluttering starts
+const PILL_LANE_STEP = PILL_H + 2
+const PILL_GUTTER = 2            // horizontal breathing room between two pills
+
 /** Add an alpha channel to a `palette(mode)` colour. The overlay's dashed
  *  lines and chips need translucency the palette itself does not carry; this
  *  is the one place that derives it, always from a palette value passed in —
@@ -53,6 +96,36 @@ function withAlpha(hex: string, alpha: number): string {
   const g = (n >> 8) & 255
   const b = n & 255
   return `rgba(${r},${g},${b},${alpha})`
+}
+
+/** Trace a rounded rect into the current path. Hand-rolled rather than
+ *  `ctx.roundRect`, which is newer than this project's browser floor — a
+ *  missing method would THROW inside the rAF loop and take every later pass
+ *  (levels included) down with it, instead of degrading one pill. */
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  const rr = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + rr, y)
+  ctx.arcTo(x + w, y, x + w, y + h, rr)
+  ctx.arcTo(x + w, y + h, x, y + h, rr)
+  ctx.arcTo(x, y + h, x, y, rr)
+  ctx.arcTo(x, y, x + w, y, rr)
+  ctx.closePath()
+}
+
+/** Half the on-screen distance between two adjacent candles, measured off the
+ *  live axis rather than assumed. Zone bands pad by this at both ends so
+ *  consecutive runs tile edge-to-edge: `timeToX` returns a candle's CENTRE, so
+ *  an unpadded band would leave a bar-wide gap between one run's last candle
+ *  and the next run's first. 0 when the axis is degenerate (one bar, or a
+ *  non-finite step) — never a guessed pixel width. */
+function halfBarPx(conv: Converters, times: number[]): number {
+  if (times.length < 2) return 0
+  const step = conv.timeToX(times[1]) - conv.timeToX(times[0])
+  return Number.isFinite(step) && step > 0 ? step / 2 : 0
 }
 
 /** One σ ribbon: a filled polygon between the `uKey`/`dKey` per-bar values
@@ -90,13 +163,166 @@ function drawRibbon(
   }
 }
 
+/**
+ * Market-condition zone bands: a vertical wash spanning the pane height for
+ * every run of bars sharing one engine verdict. Drawn FIRST, so the σ ribbons,
+ * the level lines/chips and the story balloons all read on top of it.
+ *
+ * `lastIdx` is the cursor-clamped last visible bar, shared with the ribbons —
+ * a band is cut off there, never drawn past the candles it describes.
+ */
+function drawZones(
+  ctx: CanvasRenderingContext2D,
+  conv: Converters,
+  pane: PaneRect,
+  times: number[],
+  zones: Zone[],
+  lastIdx: number,
+  mode: Mode,
+) {
+  // Clamp rather than bail when `times` is one append behind `bars` (a render
+  // between the data effect's two writes can see exactly that): the bands then
+  // stop one bar short for a frame, the same way the ribbons and the balloons
+  // do, instead of the whole wash blinking out.
+  const cut = Math.min(lastIdx, times.length - 1)
+  if (cut < 0) return
+  const half = halfBarPx(conv, times)
+  const cutX = conv.timeToX(times[cut]) + half
+  if (!Number.isFinite(cutX)) return
+  ctx.font = `${ZONE_LABEL_PX}px ${MONO_STACK}`
+  ctx.textBaseline = 'top'
+  for (const z of zones) {
+    // 'go' needs no warning wash and 'none' has no verdict to show; both draw
+    // nothing, so a bar the backend said nothing about stays unpainted.
+    if (z.cls !== 'stand' && z.cls !== 'watch') continue
+    const t0 = times[z.i0]
+    const t1 = times[Math.min(z.i1, times.length - 1)]
+    if (t0 == null || t1 == null) continue
+    const x0 = conv.timeToX(t0) - half
+    // Causality: while scrubbing, the band stops exactly where the candles do.
+    // It must never advertise a verdict from a bar the cursor is hiding.
+    const x1 = Math.min(conv.timeToX(t1) + half, cutX)
+    if (!Number.isFinite(x0) || !Number.isFinite(x1) || x1 <= x0) continue
+    const hue = ZONE_HUE[z.cls]
+    ctx.fillStyle = `rgba(${hue},${ZONE_ALPHA[mode][z.cls]})`
+    ctx.fillRect(x0, pane.y, x1 - x0, pane.height)
+    // The label is the engine's own words, upper-cased for display only. It is
+    // skipped rather than truncated when the band is narrower than the text —
+    // a clipped half-word reads as a different verdict.
+    if (!z.label) continue
+    const label = z.label.toUpperCase()
+    if (ctx.measureText(label).width > x1 - x0 - 4) continue
+    ctx.fillStyle = `rgb(${hue})`
+    ctx.fillText(label, x0 + 2, pane.y + LEGEND_BAND_PX)
+  }
+}
+
+/**
+ * Story balloons: a persistent pill for every tier-≥2 narration, so the day's
+ * events stay legible after the mouse has moved on — the hover callout alone
+ * cannot be "referred to later".
+ *
+ * Placement: bear tone above the candle's high, bull tone below its low,
+ * structure/neutral above the high. Laid out left→right; a pill that would
+ * collide with the one already in its lane steps one lane further out, up to
+ * `PILL_LANES`. Past that, tier 2 is dropped (the ribbon and the callout still
+ * carry it — this only de-clutters) and tier 3 is kept in whichever lane it
+ * overlaps least, because a sprung trap must never silently vanish.
+ */
+function drawBalloons(
+  ctx: CanvasRenderingContext2D,
+  conv: Converters,
+  pane: PaneRect,
+  pal: Palette,
+  bars: TapeBar[],
+  times: number[],
+  narrs: (Narration | null)[],
+  lastIdx: number,
+) {
+  if (lastIdx < 0) return
+  ctx.font = `10px ${MONO_STACK}`
+  ctx.textBaseline = 'middle'
+  ctx.lineWidth = 1
+  // Rightmost drawn edge per side per lane: a pill only steps outward when it
+  // would actually collide with the pill already occupying that lane, so a
+  // sparse morning does not push the afternoon's events into orbit.
+  const laneRight: [number[], number[]] = [
+    [-Infinity, -Infinity, -Infinity], // lanes above the high
+    [-Infinity, -Infinity, -Infinity], // lanes below the low
+  ]
+  // Causality plus the arrays' own bounds — narrs/times are built 1:1 with
+  // bars, but a mid-poll render can see them one append apart.
+  const n = Math.min(lastIdx, narrs.length - 1, bars.length - 1, times.length - 1)
+  for (let i = 0; i <= n; i++) {
+    const nr = narrs[i]
+    if (!nr || nr.tier < 2) continue
+    const below = nr.tone === 'bull'
+    // theme.ts's rule: green/red is DIRECTION, brass is STRUCTURE. A toneless
+    // (neutral) event gets the muted text colour rather than borrowing either.
+    const tone = nr.tone === 'bull' ? pal.bull
+      : nr.tone === 'bear' ? pal.bear
+        : nr.tone === 'structure' ? pal.accent
+          : pal.textSecondary
+    const x = conv.timeToX(times[i])
+    const anchorY = conv.priceToY(below ? bars[i].l : bars[i].h)
+    if (!Number.isFinite(x) || !Number.isFinite(anchorY)) continue
+    if (x < pane.x - 2 || x > pane.x + pane.width + 2) continue // panned out of the pane
+    const text = nr.kind.toUpperCase()
+    const pillW = ctx.measureText(text).width + PILL_PAD_X * 2
+    if (pillW + 4 > pane.width) continue // pane cannot hold this pill at all
+    // Centred on the bar, then nudged to stay inside the pane. The STEM below
+    // still uses the bar's true x, so a nudged pill never mislabels a bar.
+    const px = Math.max(pane.x + 2, Math.min(x - pillW / 2, pane.x + pane.width - 2 - pillW))
+    const side = below ? 1 : 0
+    const lanes = laneRight[side]
+    let lane = -1
+    for (let l = 0; l < PILL_LANES; l++) {
+      if (px >= lanes[l]) { lane = l; break }
+    }
+    if (lane < 0) {
+      if (nr.tier < 3) continue // de-clutter: tier 2 yields, tier 3 never does
+      let best = 0
+      for (let l = 1; l < PILL_LANES; l++) if (lanes[l] < lanes[best]) best = l
+      lane = best
+    }
+    const off = PILL_STEM + lane * PILL_LANE_STEP
+    const pillTop = below ? anchorY + off : anchorY - off - PILL_H
+    // Never outside the pane rect, and never over the engine's OHLC legend.
+    if (pillTop < pane.y + LEGEND_BAND_PX) continue
+    if (pillTop + PILL_H > pane.y + pane.height - 2) continue
+    lanes[lane] = px + pillW + PILL_GUTTER
+
+    ctx.strokeStyle = withAlpha(tone, 0.5)
+    ctx.beginPath()
+    ctx.moveTo(x, anchorY)
+    ctx.lineTo(x, below ? pillTop : pillTop + PILL_H)
+    ctx.stroke()
+
+    roundedRectPath(ctx, px, pillTop, pillW, PILL_H, PILL_R)
+    if (nr.tier >= 3) {
+      // Tier 3 is the loud one: solid tone, panel-coloured text.
+      ctx.fillStyle = tone
+      ctx.fill()
+      ctx.fillStyle = pal.card
+    } else {
+      ctx.fillStyle = withAlpha(pal.card, 0.85)
+      ctx.fill()
+      ctx.strokeStyle = tone
+      ctx.stroke()
+      ctx.fillStyle = tone
+    }
+    ctx.fillText(text, px + PILL_PAD_X, pillTop + PILL_H / 2)
+  }
+}
+
 export function startLevelsOverlay(
   canvas: HTMLCanvasElement,
   host: HTMLElement,
   engine: IChartEngine,
   getLevels: () => MapLevel[],
   getMode: () => Mode,
-  getRibbon: () => RibbonData,
+  getData: () => OverlayData,
+  getZones: () => Zone[],
 ): () => void {
   const ctx = canvas.getContext('2d')!
   let raf = 0
@@ -131,43 +357,104 @@ export function startLevelsOverlay(
     // ~once-per-5s level updates and the rare pan/zoom/resize/mode switch.
     // `mode` is part of the signature so a theme toggle repaints immediately.
     const levels = getLevels()
-    const ribbon = getRibbon()
-    const rBars = ribbon.bars
-    const rTimes = ribbon.times
-    // Causality clamp: the ribbons' last drawn bar is the replay cursor, same
-    // as the candles — never the newest bar the cursor is hiding.
-    const rLastIdx = rBars.length
-      ? (ribbon.cursor != null ? Math.max(0, Math.min(ribbon.cursor, rBars.length - 1)) : rBars.length - 1)
+    const data = getData()
+    const zones = getZones()
+    const dBars = data.bars
+    const dTimes = data.times
+    const dNarrs = data.narrs
+    // Causality clamp: the last drawn bar for EVERY per-bar pass (ribbons,
+    // zone bands, balloons) is the replay cursor, same as the candles — never
+    // the newest bar the cursor is hiding.
+    const lastIdx = dBars.length
+      ? (data.cursor != null ? Math.max(0, Math.min(data.cursor, dBars.length - 1)) : dBars.length - 1)
       : -1
-    const rFirst = rBars[0]
-    const rLast = rLastIdx >= 0 ? rBars[rLastIdx] : undefined
+    const dFirst = dBars[0]
+    const dLast = lastIdx >= 0 ? dBars[lastIdx] : undefined
+    // What the balloon pass actually depends on, in one no-allocation pass:
+    //  - lastNarr:  `narrs.length` alone cannot see a `null` slot BECOMING a
+    //    Narration on a bar that already existed (the poll that appends bar N
+    //    also fills bar N-1's event), so without this a fresh event would
+    //    never repaint.
+    //  - tierSum:   nor can either of those see a narration's TIER change in
+    //    place — buildNarration keeps the highest-tier event of a minute, so a
+    //    TRAP-SPRUNG arriving into a minute that already held a STATE takes it
+    //    1 → 3 and a balloon must appear. Index-weighted, so a single bar's
+    //    tier moving always moves the sum.
+    //  - nBalloons: the count actually drawn, which pins a 2 → 3 restyle too.
+    // ~375 iterations of three integer ops, no allocation — and every value is
+    // constant between frames, so the skip still holds and paint does not
+    // collapse back to the ~3fps this guard was added to fix.
+    let lastNarr = -1
+    let tierSum = 0
+    let nBalloons = 0
+    for (let i = 0; i < dNarrs.length; i++) {
+      const nr = dNarrs[i]
+      if (!nr) continue
+      lastNarr = i
+      tierSum += (i + 1) * nr.tier
+      if (nr.tier >= 2) nBalloons++
+    }
+    const z0 = zones[0]
+    const zN = zones[zones.length - 1]
     // Signature additions for the ribbons: bar count and cursor catch any
     // append/replay-scrub, and the first+last VISIBLE bar's u1/d1 catch a
     // sigma value changing in place (e.g. a live VWAP/σ recompute on the same
     // bar count) — cheap because it reads 2 bars, never all ~375 every frame.
+    // Then the four narration fields computed above (balloons), and the zone
+    // count + first/last run bounds and class (bands): closed bars never
+    // change verdict, so the only run that moves is the last one — whose i1
+    // grows each minute — and a new verdict starts a new run, changing the
+    // count. A verdict rewritten inside an already-closed middle run would be
+    // missed, which the backend does not do.
     const sig = `${mode}|${bw}x${bh}|${pane.x},${pane.y},${pane.width},${pane.height}` +
       `|${conv.priceToY(0)},${conv.priceToY(1000)}` +
+      // Two TIME probes as well as the two price probes. `timeToX` is a pure
+      // linear map off view.start/range/plotWidth with no clamping (scales.ts
+      // indexToX), so these two numbers pin the horizontal transform exactly.
+      // The price probes alone only catch a pan indirectly — via the autoscale
+      // recompute — and would miss one across a flat stretch, leaving the zone
+      // bands and the balloons frozen at the old x while the candles moved.
+      // Constant between frames unless the view actually moves, so the skip
+      // still holds.
+      `|${conv.timeToX(0)},${conv.timeToX(60000)}` +
       `|${levels.map((l) => `${l.kind}:${l.value}:${l.label}`).join(';')}` +
-      `|${rBars.length},${ribbon.cursor}` +
-      `|${rFirst?.u1},${rFirst?.d1},${rLast?.u1},${rLast?.d1}`
+      // `times` is written by the data effect, `bars` during render, so the two
+      // can be one append apart for a frame. Its length is in the signature so
+      // the frame where they resync repaints — otherwise every per-bar pass
+      // would stay one bar short until the next poll.
+      `|${dBars.length},${dTimes.length},${data.cursor}` +
+      `|${dFirst?.u1},${dFirst?.d1},${dLast?.u1},${dLast?.d1}` +
+      `|${dNarrs.length},${lastNarr},${tierSum},${nBalloons}` +
+      `|${zones.length},${z0?.i0}:${z0?.i1}:${z0?.cls},${zN?.i0}:${zN?.i1}:${zN?.cls}`
     if (sig === lastSig) return
     lastSig = sig
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
+    // Zone bands FIRST — the market-condition wash is the backdrop everything
+    // else reads against, so it must sit under the σ ribbons, not over them.
+    if (lastIdx >= 0 && zones.length) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(pane.x, pane.y, pane.width, pane.height)
+      ctx.clip()
+      drawZones(ctx, conv, pane, dTimes, zones, lastIdx, mode)
+      ctx.restore()
+    }
+
     // σ ribbons: filled zones between the deviations, drawn UNDER the level
     // lines/chips below but over the chart canvas underneath this one. Widest
     // (±3σ) first so the narrower, slightly stronger ±1σ layers on top.
-    if (rLastIdx >= 0) {
+    if (lastIdx >= 0) {
       ctx.save()
       ctx.beginPath()
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
       const brass = pal.accent
-      drawRibbon(ctx, conv, rBars, rTimes, rLastIdx, 'u3', 'd3', withAlpha(brass, RIBBON_ALPHA.u3d3))
-      drawRibbon(ctx, conv, rBars, rTimes, rLastIdx, 'u2', 'd2', withAlpha(brass, RIBBON_ALPHA.u2d2))
-      drawRibbon(ctx, conv, rBars, rTimes, rLastIdx, 'u1', 'd1', withAlpha(brass, RIBBON_ALPHA.u1d1))
+      drawRibbon(ctx, conv, dBars, dTimes, lastIdx, 'u3', 'd3', withAlpha(brass, RIBBON_ALPHA.u3d3))
+      drawRibbon(ctx, conv, dBars, dTimes, lastIdx, 'u2', 'd2', withAlpha(brass, RIBBON_ALPHA.u2d2))
+      drawRibbon(ctx, conv, dBars, dTimes, lastIdx, 'u1', 'd1', withAlpha(brass, RIBBON_ALPHA.u1d1))
       ctx.restore()
     }
 
@@ -220,6 +507,17 @@ export function startLevelsOverlay(
         ctx.fillText(`${lvl.label} ${lvl.value.toFixed(1)}`, pane.x + 6, y - 2)
         lastLabelY = y
       }
+    }
+
+    // Story balloons LAST — the persistent event markers sit above the bands,
+    // the ribbons and the level lines, since they are the thing being read.
+    if (lastIdx >= 0 && dNarrs.length) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(pane.x, pane.y, pane.width, pane.height)
+      ctx.clip()
+      drawBalloons(ctx, conv, pane, pal, dBars, dTimes, dNarrs, lastIdx)
+      ctx.restore()
     }
   }
 

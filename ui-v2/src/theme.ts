@@ -48,9 +48,12 @@ export function palette(m: Mode) {
   return m === 'light' ? TL : T
 }
 
-/** For the chart engine's `setSettings` — candle up/down colour per mode. */
-export const CHART_UP = { light: '#1B8A38', dark: '#2EC27E' } as const
-export const CHART_DOWN = { light: '#C42B30', dark: '#FF5F6B' } as const
+/** For the chart engine's `setSettings` — candle up/down colour per mode.
+ *  Light pair: Kite/TradingView default pair, operator request 2026-07-30 —
+ *  the operator reads the real tape in Kite, so the candles must be the same
+ *  green/red there and here. Dark pair stays on this app's own palette. */
+export const CHART_UP = { light: '#26a69a', dark: '#2EC27E' } as const
+export const CHART_DOWN = { light: '#ef5350', dark: '#FF5F6B' } as const
 
 /** Persisted mode toggle, defaulting to light: the operator reads charts in
  *  Kite on the light theme and reported the dark build as unreadable. */
