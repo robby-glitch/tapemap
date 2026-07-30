@@ -399,6 +399,34 @@ mock chain's `flip_px` is `null`.
   UNKNOWN by construction on this payload path (needs per-strike chain OI the
   payload does not carry); no sortable confirmation score yet (tri-state only).
 
+## The light theme is now app-wide, and two colour rules were relaxed
+
+2026-07-30, at the operator's explicit request ("I want my chart to be like
+that, I mean the colors and white background", with a Kite screenshot): LIGHT
+mode now themes the **whole** v2 app, not just the Trade tab. `theme.ts` owns a
+`ModeProvider` context (single source of truth, still persisted at
+`localStorage['tape.mode']`, still defaulting to light) and `App.tsx`'s ~299
+`T.*` usages read the active palette instead. DARK is unchanged.
+
+Two deliberate relaxations of the one-meaning-per-colour rule, both operator-led
+and both recorded here so they are not "fixed" back by mistake:
+
+1. **Candles** are Kite's `#26a69a`/`#ef5350` in light mode, not the palette's
+   own bull/bear — so two greens and two reds now coexist on screen.
+2. **The σ bands are no longer brass.** They match the operator's Kite VWAP
+   study: ±1σ pink core, 1→2σ green shoulder, 2→3σ blue outer, drawn as five
+   **annuli** (three stacked full-width fills summed into one muddy wash) with
+   stronger edge lines. Brass still means structure everywhere else.
+
+Also from that pass, because the chart had become unreadable: **structure
+labels are drawn only for flow-CONFIRMED structures.** A real session carries
+~180 structures of which ~90% are UNCONFIRMED or UNKNOWN, and labelling them
+all buried the candles — the exact noise problem spec §7 exists to avoid.
+Nothing is hidden: every shape still draws, and opacity plus solid-vs-dashed
+borders still distinguish "checked and disagreed" from "could not check". The
+verdict zones became an 11px **condition track** below the engine's legend
+(with a hairline at each run's start) rather than a wash over the price area.
+
 ## Open items
 
 - **Trade tab: verify against a genuine live session.** The
