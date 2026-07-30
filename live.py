@@ -18,6 +18,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import band_rotation
 import contract_bars
 import instruments
 import structure
@@ -252,6 +253,23 @@ AXIS_RULE = (
     "(a repeated minute in the feed); the first bar wins and the rest are "
     "dropped, because a shared slot cannot hold two bars.")
 
+ROTATION_RULE = (
+    "`rotation` is the band-rotation detector's answer for this request, one "
+    "slot per `axis` index and the SAME length as every leg's arrays: null "
+    "where nothing fired, else a record "
+    "{i, side, leg, band, trigger, confirm, confirm_why, trap, trap_why}. "
+    "`i` is the axis index the record sits at, so rotation[i], axis[i], "
+    "legs.CE.bars[i] and legs.PE.bars[i] are all the same minute of the same "
+    "session. The ENGINE decides: a consumer renders these strings and these "
+    "verdicts and must never re-derive a tag, a reversal or a confirmation "
+    "from the bars it was handed -- two implementations of the operator's "
+    "setup would disagree the first time one of them was changed. At most one "
+    "record exists per bar even when both legs trigger (band_rotation "
+    "interpretation 6), which is why this is a sibling of `legs` and not a "
+    "field inside them. `confirm` is three-valued (CONFIRMED / UNCONFIRMED / "
+    "UNKNOWN) and `trap` likewise (CLEAR / SUSPECT / UNKNOWN); UNKNOWN means "
+    "unreadable, never 'fine', and must not be rendered as either verdict.")
+
 FORMING_WHY = (
     "forming is null in this build. The incomplete candle is aggregated from "
     "the ChainPoller's ~10.5s ticks (contract-tape spec section 2, 'The "
@@ -420,6 +438,11 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     in the payload; the full wording, including what happens when the legs'
     resample anchors differ, is `AXIS_RULE`.
 
+    `rotation` rides on that same axis as a SIBLING of `legs`: the
+    band-rotation detector's record for slot `i`, or null where nothing fired.
+    It is computed here, in the engine, so a UI renders it and never re-derives
+    it -- see `ROTATION_RULE`.
+
     `day` defaults to today and is the newest session charted. Passing an
     older `day` backfills history, but note the asymmetry: the BARS are
     historical while the chain snapshot the pair is picked from is fetched
@@ -524,6 +547,11 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
            "days": days, "sessions": sessions, "side": side, "strike": strike,
            "pair": pair, "pair_why": why, "legs": legs,
            "axis": [[d, t] for d, t in axis], "axis_rule": AXIS_RULE,
+           # A SIBLING of `legs`, on the same shared axis. Computed here, in
+           # the engine, so the browser never re-derives the operator's setup;
+           # see ROTATION_RULE. Additive: nothing above changes shape.
+           "rotation": band_rotation.detect(legs, axis),
+           "rotation_rule": ROTATION_RULE,
            "bars": None, "vwap": None, "oi": None, "bar_days": None,
            "gaps": sorted(gaps), "gap_reasons": reasons,
            "forming": None, "forming_why": FORMING_WHY,

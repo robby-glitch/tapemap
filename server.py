@@ -201,6 +201,9 @@ class Handler(SimpleHTTPRequestHandler):
                         "pair": None, "pair_why": None,
                         "legs": {}, "bars": None, "vwap": None, "oi": None,
                         "bar_days": None, "gaps": [], "gap_reasons": {},
+                        # empty, never absent: a consumer that reads `rotation`
+                        # must not have to tell "no signals" from "no field".
+                        "rotation": [], "rotation_rule": live.ROTATION_RULE,
                         "forming": None, "forming_why": live.FORMING_WHY,
                         "built_at": time.time(),
                         "live_error": f"{type(e).__name__}: {e}"}

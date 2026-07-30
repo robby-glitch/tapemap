@@ -318,6 +318,121 @@ def test_build_contract_emits_the_axis_and_aligns_both_legs(monkeypatch):
                 assert (leg["bar_days"][i], leg["bars"][i]["t"]) == (day, t)
 
 
+# ---- 5c. rotation rides that same axis, as a sibling of the legs -----------
+
+def _osc(day, n, side, spike_at):
+    """A payload that oscillates (so sigma is non-degenerate) and then, at
+    `spike_at`, pierces the band and closes back inside it -- the operator's
+    tag-AND-reverse. CE spikes DOWN (a BUY trigger), PE spikes UP so the pair
+    is rotating rather than both legs decaying together."""
+    t0 = datetime.strptime(day, "%Y-%m-%d").replace(
+        hour=9, minute=15, tzinfo=IST).timestamp()
+    base0 = 100.0 if side == "CE" else 200.0
+    p = {k: [] for k in ("open", "high", "low", "close", "volume",
+                         "open_interest", "timestamp")}
+    for i in range(n):
+        base = base0 + (2.0 if i % 2 else -2.0)
+        hi, lo = base + 1.0, base - 1.0
+        if i == spike_at:
+            if side == "CE":
+                lo = base0 - 20.0
+            else:
+                hi = base0 + 60.0
+        p["open"].append(base)
+        p["high"].append(hi)
+        p["low"].append(lo)
+        p["close"].append(base)
+        p["volume"].append(10.0)
+        p["open_interest"].append(500000 + 1000 * i if side == "CE"
+                                  else 700000 - 1000 * i)
+        p["timestamp"].append(t0 + 60 * i)
+    return p
+
+
+def _rotation_contract(monkeypatch, spike_at=14, n=20, interval=1):
+    import chain_live
+
+    monkeypatch.setattr(chain_live, "read_token", lambda: "tok")
+    monkeypatch.setattr(chain_live, "token_status", lambda t: {"ok": True})
+    monkeypatch.setattr(chain_live, "_client", lambda t: object())
+    monkeypatch.setattr(chain_live, "_with_deadline",
+                        lambda fn, s, label: fn())
+    monkeypatch.setattr(chain_live, "resolve_expiry",
+                        lambda *a, **k: "2026-08-04")
+    monkeypatch.setattr(live, "_atm_ids",
+                        lambda k, cfg: {"CE": "111", "PE": "222"})
+
+    def fetch(sec_id, day):
+        return _osc(day, n, "CE" if sec_id == "111" else "PE", spike_at)
+
+    return live.build_contract("NIFTY", strike=24350, side="BOTH",
+                               interval=interval, days=1, day="2026-07-30",
+                               chain_rows=[], fetch=fetch)
+
+
+def test_rotation_is_one_slot_per_axis_index(monkeypatch):
+    out = _rotation_contract(monkeypatch)
+    rot = out["rotation"]
+    assert len(rot) == len(out["axis"])
+    for leg in out["legs"].values():
+        assert len(rot) == len(leg["bars"])
+    # a record's own `i` IS its position: a consumer zips it onto the bars
+    for i, r in enumerate(rot):
+        assert r is None or r["i"] == i
+
+
+def test_rotation_is_the_engines_answer_not_a_second_derivation(monkeypatch):
+    import band_rotation
+
+    out = _rotation_contract(monkeypatch)
+    axis = [tuple(a) for a in out["axis"]]
+    # byte-for-byte what the detector says about the legs the payload carries,
+    # so a UI can never disagree with the engine by recomputing it
+    assert out["rotation"] == band_rotation.detect(out["legs"], axis)
+    # and the whole payload is accepted as its own input (detect unwraps it)
+    assert out["rotation"] == band_rotation.detect(out)
+
+
+def test_a_real_trigger_surfaces_on_the_route_at_the_right_minute(monkeypatch):
+    out = _rotation_contract(monkeypatch, spike_at=14)
+    fired = [r for r in out["rotation"] if r]
+    assert len(fired) == 1
+    r = fired[0]
+    assert (r["i"], r["side"], r["leg"], r["band"]) == (14, "BUY", "CE", "d3")
+    # the slot it landed on is the minute the CE actually pierced
+    day, t = out["axis"][r["i"]]
+    assert (day, t) == ("2026-07-30", "09:29")
+    assert out["legs"]["CE"]["bars"][r["i"]]["t"] == t
+    assert out["legs"]["CE"]["bars"][r["i"]]["l"] == 80.0
+    # the receipts are strings a human can check the numbers in
+    assert "d3" in r["trigger"] and "back above it" in r["trigger"]
+    assert r["confirm"] in ("CONFIRMED", "UNCONFIRMED", "UNKNOWN")
+    assert r["trap"] in ("CLEAR", "SUSPECT", "UNKNOWN")
+    assert r["confirm_why"] and r["trap_why"]
+
+
+def test_rotation_is_null_where_nothing_fired(monkeypatch):
+    out = _rotation_contract(monkeypatch, spike_at=99)   # never spikes
+    assert out["rotation"] == [None] * len(out["axis"])
+
+
+def test_rotation_is_additive_and_lives_beside_the_legs(monkeypatch):
+    out = _rotation_contract(monkeypatch)
+    # a sibling of `legs`, never a field inside one: at most ONE record exists
+    # per bar even when both legs trigger, so it cannot belong to a leg
+    assert "rotation" in out
+    for leg in out["legs"].values():
+        assert "rotation" not in leg
+        for key in ("bars", "vwap", "oi", "bar_days"):
+            assert len(leg[key]) == len(out["axis"])
+
+
+def test_rotation_rule_states_the_ui_must_not_recompute():
+    assert "never re-derive" in live.ROTATION_RULE
+    assert "UNKNOWN" in live.ROTATION_RULE
+    assert "axis" in live.ROTATION_RULE
+
+
 # ---- 6/7. forming, and param validation before any I/O ---------------------
 
 def test_forming_is_null_and_says_why():
