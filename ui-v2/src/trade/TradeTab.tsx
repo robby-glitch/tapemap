@@ -15,6 +15,14 @@ interface Props {
   cursor: number | null
   stale: boolean
   loading: boolean
+  /** True when the active index's option chain snapshot is past
+   *  CHAIN_STALE_S (data.ts). MAX PAIN and GEX FLIP in `levels` are
+   *  chain-derived, so they still draw — hiding real structure would be its
+   *  own lie — but must be labelled as not-current. */
+  chainStale: boolean
+  /** The chain snapshot's own IST clock ("HH:MM:SS"), for the stale-chain
+   *  disclosure line below. Empty when unknown. */
+  chainTs: string
 }
 
 function Stat({ pal, label, value, color, title }: {
@@ -34,7 +42,7 @@ function Stat({ pal, label, value, color, title }: {
   )
 }
 
-export default function TradeTab({ index, day, bars, levels, events, cursor, stale, loading }: Props) {
+export default function TradeTab({ index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
   const [mode, setMode] = useMode()
@@ -212,6 +220,12 @@ export default function TradeTab({ index, day, bars, levels, events, cursor, sta
           {prec === 'no-year'
             ? 'Session key carries no year — the date axis infers the current one; month, day and intraday times are real.'
             : 'Session key carries no parseable date — the date axis is synthetic; intraday times are real.'}
+        </div>
+      )}
+
+      {chainStale && (
+        <div style={{ fontSize: 11, color: pal.caution, paddingLeft: 2 }}>
+          Chain snapshot is stale — MAX PAIN and GEX FLIP below are from {chainTs || 'an earlier time'}, not now.
         </div>
       )}
 

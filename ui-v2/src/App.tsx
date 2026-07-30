@@ -4,7 +4,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { useLiveData, HEAT_COLS, validateTrade } from './data'
+import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
 import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate } from './data'
 import { T } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -219,6 +219,9 @@ function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
     atmStraddle: 0,
     aligned: true,
     flipPx: null,        // fallback has no gamma flip — null, never a fabricated level
+    ts: '',
+    // fallback has no real snapshot time — null reads as "unknown", never as fresh.
+    builtAt: null,
   }
 }
 
@@ -1835,6 +1838,17 @@ export default function App() {
   }, [data, activeIndex, scrub])
   const barTime = data.CHART_DATA[activeIndex]?.slice(-1)[0]?.time ?? '--:--'
 
+  // A stale chain is a separate failure from a dead tape or an unreachable
+  // backend: the futures tape can keep ticking normally while the option
+  // poller is hung, and MAX PAIN/GEX/PCR quietly render minutes-old numbers
+  // as if current. `builtAt` is the trustworthy signal for that — `null`
+  // means an older backend never sent it, which must read as "unknown", not
+  // "fresh", so the banner only fires once age is actually known and past
+  // the threshold.
+  const activeChain = data.CHAIN_DATA[activeIndex]
+  const chainAge = chainAgeS(activeChain)
+  const chainStale = chainAge != null && chainAge > CHAIN_STALE_S
+
   useEffect(() => {
     if (!playing || scrub == null) return
     const id = setInterval(() => {
@@ -1880,6 +1894,22 @@ export default function App() {
         }}>
           NO {activeIndex} TAPE — the backend has no session for this index, so the
           figures below are placeholder. {dead.length < 3 && 'The other indices are live.'}
+        </div>
+      )}
+
+      {/* The tape can be perfectly live while the option-chain poller hangs —
+          that gap is invisible unless it is called out on its own, separate
+          from the "backend unreachable" banner above (which already covers
+          this ground when it fires, so this stays silent then). */}
+      {!error && chainStale && (
+        <div style={{
+          padding: '9px 24px', backgroundColor: 'rgba(255,191,0,0.12)',
+          borderBottom: `1px solid ${T.caution}`, color: T.caution,
+          fontSize: 12.5, fontWeight: 600,
+        }}>
+          CHAIN STALE — last option-chain snapshot {activeChain.ts || '--:--:--'} ({Math.floor((chainAge as number) / 60)}m old).
+          Max pain, GEX, PCR and the chain-derived chart levels below are from that moment, not now.
+          Candles, VWAP and the σ bands are unaffected.
         </div>
       )}
 
@@ -1984,7 +2014,8 @@ export default function App() {
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
                                               levels={tradeLevels} events={data.EVENTS_BY_IDX[activeIndex]} cursor={scrub}
-                                              stale={idxDead || !!error} loading={loading} />}
+                                              stale={idxDead || !!error} loading={loading} chainStale={chainStale}
+                                              chainTs={activeChain.ts} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

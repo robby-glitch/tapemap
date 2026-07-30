@@ -89,6 +89,18 @@ export interface Chain {
   /** Dealer gamma flip price from the chain GEX profile, or null when the
    *  chain could not compute one. Never guessed. */
   flipPx: number | null
+  /** The poller's own IST clock ("HH:MM:SS") at the moment it built this
+   *  snapshot. Honest even when the payload is stale — it is the label for
+   *  `builtAt`, not a claim about now. */
+  ts: string
+  /**
+   * Epoch seconds when the poller published this chain snapshot (`built_at`
+   * on the wire), captured at publish time and deliberately NOT refreshed by
+   * `_tag_error` — a tagged-but-stale payload keeps looking stale. `null`
+   * when an older backend didn't supply the field, in which case staleness
+   * is unknown and must never be reported as fresh.
+   */
+  builtAt: number | null
 }
 export interface EventItem {
   time: string
@@ -316,6 +328,23 @@ function buildFocusFeed(events: any[]): any[] {
   return out
 }
 
+// The poller round-robins all three indices roughly every 15s, so 90s of
+// silence means several missed cycles, not one slow tick. This matches the
+// existing TAPE STALE threshold, so the two banners agree on what "stale"
+// means to the operator.
+export const CHAIN_STALE_S = 90
+
+/**
+ * Seconds since the chain snapshot was published, or null when that is
+ * unknowable (no chain yet, or an older backend that never sent `builtAt`).
+ * Callers must treat null as "unknown", never as "fresh" — a missing
+ * timestamp is not evidence of a live payload.
+ */
+export function chainAgeS(c: Chain | undefined, nowMs = Date.now()): number | null {
+  if (c?.builtAt == null) return null
+  return (nowMs / 1000) - c.builtAt
+}
+
 // De-dup near-equal level values (within `tol` pts), keeping the first seen.
 function dedupLevels(levels: Level[], tol = 2): Level[] {
   const out: Level[] = []
@@ -475,6 +504,10 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
     pcr: (hist?.pcr ?? m.pcr_oi ?? 0).toFixed(2),
     maxPain: hist?.mp ?? m.max_pain ?? 0,
     flipPx: Number.isFinite(m.flip_px) ? m.flip_px : null,
+    ts: C?.ts ?? '',
+    // null = an older backend that didn't publish built_at — staleness is
+    // UNKNOWN, not fresh, so this must never be treated as "just now".
+    builtAt: Number.isFinite(C?.built_at) ? C.built_at : null,
     spot: C?.spot ?? b?.fut?.c ?? 0,
     expiry: C?.expiry ?? '',
     atmStraddle: (() => {
