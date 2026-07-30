@@ -36,17 +36,23 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
   // fold. Measure the real distance to the viewport bottom instead.
   const rootRef = useRef<HTMLDivElement>(null)
   const [availH, setAvailH] = useState<number | null>(null)
+  // Deliberately no dependency array: this must re-measure after any render
+  // that can move our top edge — switching to an index whose no-tape branch
+  // doesn't attach the ref, or the ANSWER band above wrapping to a different
+  // height. The epsilon guard makes that safe: setting our own height cannot
+  // move our own top (we are the last child in a column), so the next measure
+  // computes the same value, returns `prev`, and the loop settles in one pass.
   useLayoutEffect(() => {
     const measure = () => {
       const el = rootRef.current
       if (!el) return
-      const top = el.getBoundingClientRect().top
-      setAvailH(Math.max(320, window.innerHeight - top - 12))
+      const next = Math.max(320, window.innerHeight - el.getBoundingClientRect().top - 12)
+      setAvailH((prev) => (prev != null && Math.abs(prev - next) < 2 ? prev : next))
     }
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-  }, [])
+  })
 
   // Honesty rule 1: no tape = say so at full width, and chart nothing. A
   // fallback must never occupy the space where live data goes.
