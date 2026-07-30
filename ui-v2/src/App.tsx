@@ -9,6 +9,9 @@ import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
+// Same Hinglish layer the Trade tab's balloons and callout use — one source of
+// captions, so a kind cannot read one way on the chart and another in the feed.
+import { glossOf, pillText, dirText } from './trade/hinglish'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 // Colour carries exactly one meaning each. Before this, hue did two jobs at
@@ -1145,7 +1148,30 @@ function EventsTab({ index }: { index: IndexKey }) {
             }}
           >
             <span className="mono" style={{ fontSize: 11, color: pal.textMuted, whiteSpace: 'nowrap', marginTop: 1 }}>{ev.time}</span>
-            <span style={{ fontSize: 13, color: pal.textPrimary, lineHeight: 1.5 }}>{ev.text}</span>
+            {/* Hinglish caption + the direction the engine already decided
+                (data.ts's evDir), then the engine's own sentence underneath,
+                verbatim. The gloss names the KIND — it never restates the
+                claim, so the original line has to stay visible beside it. An
+                unglossed kind falls back to the engine's own tag. */}
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', color: accent,
+                }}>
+                  {pillText(ev.tag)}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: accent }}>
+                  {dirText(ev.dir).arrow} {dirText(ev.dir).text}
+                </span>
+              </span>
+              {glossOf(ev.tag) && (
+                <span style={{ fontSize: 12.5, color: pal.textPrimary, lineHeight: 1.45 }}>
+                  {glossOf(ev.tag)!.line}
+                </span>
+              )}
+              <span style={{ fontSize: 12, color: pal.textSecondary, lineHeight: 1.5 }}>{ev.text}</span>
+            </span>
             {hovered === i && (
               <span style={{
                 marginLeft: 'auto',

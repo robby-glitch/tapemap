@@ -120,6 +120,16 @@ const G: Record<string, Gloss> = {
     line: 'Dealer hedging bhaav ko ek strike par chipka rahi hai — dono taraf dabti hai.',
   },
 
+  // --- end of day ----------------------------------------------------------
+  // engine.py's carry_verdict: how much of the day's OI build each book KEPT
+  // into the close (and, on expiry day, that nothing carries at all). It is a
+  // next-session note, not an intraday event — hence no direction word here;
+  // the engine's own line says which way the retained OI leans.
+  CARRY: {
+    short: 'RAAT BHAR KA CARRY',
+    line: 'Din bhar bana OI band hone tak kitna tika — yeh agli session ka jhukaav batata hai.',
+  },
+
   // --- setup lifecycle and regime -----------------------------------------
   ARMED: {
     short: 'TAIYAAR',
