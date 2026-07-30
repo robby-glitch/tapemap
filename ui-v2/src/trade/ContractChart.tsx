@@ -24,6 +24,12 @@ export default function ContractChart({ day, bars, levels, cursor }: Props) {
     const host = hostRef.current!
     const engine = createChartEngine(host, { theme: 'dark', pricePrecision: 2, chartType: 'candles' })
     engineRef.current = engine
+    // A newly created engine holds no series, so the next data effect MUST take
+    // the setData path. prevRef survives an effect remount (React StrictMode
+    // re-runs effects in dev), and without this reset the data effect would see
+    // grew === 0 and call updateLast on an empty engine — leaving the chart with
+    // a single candle instead of the whole session.
+    prevRef.current = { day: '', n: 0 }
     // The vendored theme's own candles are teal/red (#26a69a/#ef5350) — foreign
     // to this app's palette. setSettings is the library's sanctioned styling
     // hook, so the colours align here rather than by editing the pristine
