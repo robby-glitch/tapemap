@@ -42,11 +42,17 @@ Pick the CE and the PE whose **premiums are nearly equal** shortly after the
 open — tolerance ±30 (NIFTY) / ±50 (BANKNIFTY, SENSEX) — then follow that pair
 all day. This is a premium-parity ATM, not "nearest strike to spot".
 
-**OPEN QUESTION (blocking):** must both legs be the *same* strike, or may they
-be different strikes whose premiums match? The operator's own two charts on
-2026-07-30 were **SENSEX 77500 CE and 78000 PE** — different strikes — which
-suggests a premium-matched *pair* across strikes. Confirm before implementing;
-it changes the picker completely.
+**ANSWERED 2026-07-31: a premium-matched pair across DIFFERENT strikes.** Not
+one strike where CE ≈ PE. The picker scans the chain for a CE at one strike and
+a PE at another whose premiums are within tolerance of each other shortly after
+the open, and follows that pair. The operator's own 2026-07-30 charts —
+**SENSEX 77500 CE and 78000 PE** — are the reference case.
+
+Consequences for the implementation: the pair is generally **not** delta-neutral
+and not symmetric around spot, so nothing downstream may assume the two legs
+share a strike or sit equidistant from the index. Ties (several candidate pairs
+inside tolerance) need a documented rule — nearest-to-ATM is the obvious default
+but has not been confirmed with the operator.
 
 ### Trigger — a tag, but it must REVERSE
 
@@ -116,7 +122,7 @@ filters on "the book is against you" would delete the operator's edge.
 
 ---
 
-## Setup B — the pin
+## Setup B — the pin, and the SELL side
 
 > "if price are just fiddling in and around +-1 std and the books are showing
 > both die balance when can expect pinning coiling and as per gamma as well we
@@ -130,10 +136,53 @@ zones.
 (share of the last 30 bars inside ±1σ), `bw_r` (bandwidth rank, i.e. the
 compression), the BALANCE / COILING states, and `gamma.regime` PINNED.
 
-**OPEN QUESTION:** the expression. "buying and selling zones" reads as fading
-both edges, but whether that means buying the cheap leg at each edge or selling
-premium into the pin is **undecided by the operator** ("not decided on that
-one"). Do not guess — the two have opposite risk profiles.
+### ANSWERED 2026-07-31 — selling is in scope, and it is the mirror image
+
+> "if we can build the setup b something in here where we can also decided if
+> we want to sell option as well that also a good option because mostly markets
+> are in sidways so we can sell premium and can sit with market maker view to
+> eat premium the logic for selling is same always look to sell +3 bands
+> reversing from there we can sell that"
+
+**The trigger is one detector, not two.** Both sides are "premium at a band
+extreme, then reversing":
+
+| | leg's own premium | reversal | when preferred |
+|---|---|---|---|
+| **BUY** | at the lower band, −2σ / −3σ | turns back **up** off it | a moving day — the washed-out leg bounces |
+| **SELL** | at the **+3σ** upper band | turns back **down** off it | a sideways / pinned day — eat premium beside the market maker |
+
+So Setup A and Setup B share one primitive — *band extreme + reversal* — and the
+**regime picks which side you want**. That is the whole design: build the
+detector once, symmetric, and let PINNED/COILING versus a moving day select
+between buying the cheap leg and selling the stretched one.
+
+Note the asymmetry in the operator's own thresholds: they buy at −2σ *or* −3σ,
+but sell only at **+3σ**. Selling is the more selective condition, which fits —
+a stretched premium can stretch further.
+
+### What kills a short — the engine already computes it
+
+Selling is not the buy rule with the sign flipped, because the risk is not
+symmetric: the buyer's worst case is the premium paid, the seller's is open-
+ended. Two things the engine already produces map directly onto "get out":
+
+- **`SQUEEZE-RISK`** — literally "writer book pressed on its pain side, unwind
+  accelerating → upside/downside squeeze risk building". That is precisely the
+  event that ends a premium seller's day, and it is already emitted per book
+  with its own receipts. For a short it is a **kill condition**, not a
+  directional read. (Worth noting: scored as a directional signal on 2026-07-30
+  it was the worst performer, 2/10 — which is consistent with it being a
+  warning rather than a call, and with it being useful for exactly this.)
+- **`WALL-MIGRATION` / `role` flipping** — the wall you sold against moving is
+  the structural version of the same thing.
+
+`gamma.regime` also tells you which side is safer to sell: FLOOR means put
+writers are defending below, CEILING means call writers are defending above.
+
+**Still to decide with the operator:** position management for a short — band-to-
+band on the way down is the buyer's exit rule, but a seller's exit is a stop
+plus a decay target, and they have not specified either. Do not invent them.
 
 ---
 
@@ -187,13 +236,18 @@ COILING states · `inside1` · pivots · PDH/PDL/PDC and premium/discount
 1. **Per-strike premium bars + option-side VWAP σ bands** — Phase 5
    (`/api/contract`). Everything in Setup A depends on it. Source is the
    existing `ChainPoller` tick stream; no new feed.
-2. **The 09:20 premium-matched leg picker** (±30 NIFTY / ±50 BANKNIFTY, SENSEX)
-   — blocked on the same-strike-vs-pair question above.
-3. **OI acceleration** — the slope of `oi_slope`, per book, both sides.
-4. **Reversal-from-band detection**, tuned separately for premium and index.
+2. **The 09:20 premium-matched leg picker** — a CE and a PE at *different*
+   strikes whose premiums are within ±30 (NIFTY) / ±50 (BANKNIFTY, SENSEX).
+3. **Band-extreme + reversal detection — ONE symmetric detector**, tuned per
+   series (premium vs index): lower band → buy side, +3σ → sell side.
+4. **OI acceleration** — the slope of `oi_slope`, per book, both sides.
 5. **The compression→expansion trap filter** over `bw_r`, plus naming the
    trapped side from wall OI.
-6. **Setup B**, once the operator decides the expression.
+6. **The regime selector** — PINNED/COILING favours the sell side, a moving day
+   favours the buy side. Inputs all exist (`inside1`, `bw_r`, `gamma.regime`,
+   BALANCE/COILING).
+7. **Short kill conditions** — wire `SQUEEZE-RISK` and `WALL-MIGRATION`/`role`
+   flips as exits for a sold leg, not as directional reads.
 
 ## How this gets validated
 
