@@ -40,12 +40,11 @@ export default function ContractChart({ index, day, bars, levels, cursor }: Prop
       gridVisible: true, crosshairVisible: true,
       alertSound: false, alertTune: 0, alertDuration: 1,
     })
-    const ro = new ResizeObserver(() => engine.resize())
-    ro.observe(host)
+    // No ResizeObserver here: the engine already observes its own container
+    // and re-applies its size, so adding ours only doubled the work per resize.
     const stopOverlay = startLevelsOverlay(overlayRef.current!, host, engine, () => levelsRef.current)
     return () => {
       stopOverlay()
-      ro.disconnect()
       engine.destroy()
       engineRef.current = null
     }

@@ -24,6 +24,7 @@ export function startLevelsOverlay(
 ): () => void {
   const ctx = canvas.getContext('2d')!
   let raf = 0
+  let lastSig = ''
 
   const draw = () => {
     raf = requestAnimationFrame(draw)
@@ -40,19 +41,31 @@ export function startLevelsOverlay(
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
     }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, w, h)
 
     const conv = engine.getMainConverters()
     const pane = engine.getMainPaneRect()
     if (!conv || !pane) return // engine not laid out yet — draw nothing, never guess
+
+    // Cheap per-frame guard: if nothing the drawing depends on has moved since
+    // the last frame, skip the clear + redraw entirely. Not touching the canvas
+    // means no repaint is queued, so the compositor stays idle between the
+    // ~once-per-5s level updates and the rare pan/zoom/resize.
+    const levels = getLevels()
+    const sig = `${bw}x${bh}|${pane.x},${pane.y},${pane.width},${pane.height}` +
+      `|${conv.priceToY(0)},${conv.priceToY(1000)}` +
+      `|${levels.map((l) => `${l.kind}:${l.value}:${l.label}`).join(';')}`
+    if (sig === lastSig) return
+    lastSig = sig
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, w, h)
 
     ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace'
     ctx.textBaseline = 'bottom'
 
     // Copy before sorting — getLevels() may return the live MAP.levels array,
     // and mutating it would corrupt whatever else reads it (e.g. Task 6's rail).
-    const visible = getLevels()
+    const visible = levels
       .filter((lvl) => lvl.kind !== 'now') // the tape itself is the price
       .map((lvl) => ({ lvl, y: conv.priceToY(lvl.value) }))
       .filter(({ y }) => y >= pane.y + 4 && y <= pane.y + pane.height - 4)
