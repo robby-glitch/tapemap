@@ -194,6 +194,21 @@ and in the chain-mapping object where `maxPain: hist?.mp ?? m.max_pain ?? 0` is 
     flipPx: Number.isFinite(m.flip_px) ? m.flip_px : null,
 ```
 
+The field stays **required**, so the compiler forces every construction site to
+decide about it. That means one more site: `mockChain()` in `App.tsx` (~:209)
+also builds a `Chain`, so add it there beside the other explicit fallback
+fields (`mpDist: 0`, `spot: 0`, `expiry: ''`, …):
+
+```ts
+    flipPx: null,        // fallback has no gamma flip — null, never a fabricated level
+```
+
+Not optional (`flipPx?:`): optional lets a future construction site forget the
+field, and `undefined` would then read as "no flip" indistinguishably from a
+genuine absence. This is the only App.tsx line that belongs to Task 2 rather
+than Task 7 — without it `tsc --noEmit` fails, and a task must leave the tree
+compiling. (Found during execution: the plan originally missed this site.)
+
 - [ ] **Step 4: Gate**
 
 Run: `corepack pnpm --dir ui-v2 exec tsc --noEmit` — expected clean (nothing consumes it yet).
@@ -296,6 +311,17 @@ git commit -m "feat(ui-v2): trade/indicators — reshape payload series into Can
 **Interfaces:**
 - Consumes: `IChartEngine` from `../vendor/candl/chart/types`; `MapLevel` from `../data` (`{ label, value, kind: 'now'|'pivot'|'wall'|'vwap'|'band'|'pin'|'floor'|'cap'|'strike'|'trap'|'session', note }`).
 - Produces: `startLevelsOverlay(canvas: HTMLCanvasElement, host: HTMLElement, engine: IChartEngine, getLevels: () => MapLevel[]): () => void` (returns a stop function) — used by Task 5. **This is the only file that touches CandL's coordinate system**, and it re-queries the converters every frame, as the engine docs require.
+
+**Added during execution — label collision handling.** The code below draws every
+label unconditionally. In practice `MAP.levels` carries 15+ entries (seven
+pivots, both OI walls, VWAP, ±1σ, PIN, floor, cap, session hi/lo, plus MAX PAIN
+and GEX FLIP), many within a few pixels of each other on a ~500px pane, and the
+labels pile into an illegible stack. Required behaviour: **always draw every
+line** (suppressing a line would hide a real level), but draw a label only when
+it clears the last drawn label vertically; sort by `y` first so the decision is
+deterministic. A level whose label is suppressed still shows its line, so
+nothing is silently dropped — and the Task 6 header/rail remains the place the
+full list is readable.
 
 - [ ] **Step 1: Write the module**
 
@@ -409,6 +435,15 @@ export default function ContractChart({ day, bars, levels, cursor }: Props) {
     const host = hostRef.current!
     const engine = createChartEngine(host, { theme: 'dark', pricePrecision: 2, chartType: 'candles' })
     engineRef.current = engine
+    // The vendored theme's own candles are teal/red (#26a69a/#ef5350) — foreign
+    // to this app's palette. setSettings is the library's sanctioned styling
+    // hook, so the colours align here rather than by editing the pristine
+    // vendor theme. Green/red carry direction, matching T.bull / T.bear.
+    engine.setSettings({
+      upColor: '#2EC27E', downColor: '#FF5F6B',
+      gridVisible: true, crosshairVisible: true,
+      alertSound: false, alertTune: 0, alertDuration: 1,
+    })
     const ro = new ResizeObserver(() => engine.resize())
     ro.observe(host)
     const stopOverlay = startLevelsOverlay(overlayRef.current!, host, engine, () => levelsRef.current)
@@ -426,12 +461,19 @@ export default function ContractChart({ day, bars, levels, cursor }: Props) {
     const candles = toCandles(day, bars)
     const prev = prevRef.current
     const grew = bars.length - prev.n
-    if (day === prev.day && (grew === 0 || grew === 1)) {
-      // same forming minute refreshed, or the minute rolled over — updateLast
-      // replaces on equal open time and appends otherwise (engine contract).
-      engine.updateLast(candles[candles.length - 1])
+    const n = candles.length
+    if (day === prev.day && grew === 0) {
+      engine.updateLast(candles[n - 1])   // same forming minute, refreshed
+    } else if (day === prev.day && grew === 1 && n >= 2) {
+      // The minute rolled over. The bar we last pushed was still forming, so
+      // its final OHLC must be written before the new one is appended —
+      // otherwise the closed candle keeps the mid-formation values it had at
+      // the last poll. updateLast replaces on equal open time and appends
+      // otherwise (engine contract), so these two calls do exactly that.
+      engine.updateLast(candles[n - 2])
+      engine.updateLast(candles[n - 1])
     } else {
-      engine.setData(candles) // first load, day change, or resync
+      engine.setData(candles) // first load, day change, or any gap — resync
     }
     engine.setIndicators(buildIndicators(bars))
     prevRef.current = { day, n: bars.length }
@@ -466,16 +508,66 @@ git commit -m "feat(ui-v2): trade/ContractChart — CandL mount, live updates, r
 ### Task 6: `trade/TradeTab.tsx` — composition + the honest empty state
 
 **Files:**
+- Create: `ui-v2/src/theme.ts` (extract the design tokens so `trade/` can share them)
+- Modify: `ui-v2/src/App.tsx:15` (import `T` instead of declaring it — all 236 existing `T.*` uses are untouched)
 - Create: `ui-v2/src/trade/TradeTab.tsx`
 
 **Interfaces:**
-- Consumes: `ContractChart` from `./ContractChart`; `TapeBar`, `MapLevel`, `IndexKey` from `../data`.
+- Consumes: `ContractChart` from `./ContractChart`; `TapeBar`, `MapLevel`, `IndexKey` from `../data`; `dayPrecision` from `./indicators` (added by the Task 3 review fix: returns `'exact'` for an ISO session date, `'no-year'` for a CSV replay key like `Jul 15` whose month and day are real but whose year is inferred, `'none'` when nothing parsed). The header must **disclose** anything other than `'exact'` — the intraday clock is always real, but an inferred calendar date must never read as fact.
 - Produces: `default TradeTab({ index, day, bars, levels, cursor }: { index: IndexKey; day: string; bars: TapeBar[]; levels: MapLevel[]; cursor: number | null })` — used by Task 7.
 
-- [ ] **Step 1: Write the component**
+- [ ] **Step 1: Extract the design tokens into `ui-v2/src/theme.ts`**
+
+`T` is currently a module-local `const` in `App.tsx:15` and is used 236 times
+there. The `trade/` components need the same tokens, and importing them from
+`App.tsx` would be circular (`App.tsx` imports `TradeTab`). So move the
+declaration — do not duplicate the values, and do not change any of them:
+
+```ts
+// Design tokens. Colour carries exactly one meaning each: brass is STRUCTURE
+// (levels, walls, pins, σ-bands, ATM, positive GEX), green/red are DIRECTION
+// only. Before that rule, purple meant "spring" while green/red also meant
+// up/down, so hue resolved to neither.
+export const T = {
+  bg: '#0B0E14',
+  card: '#141926',
+  inset: '#1B2130',
+  border: 'rgba(255,255,255,0.07)',
+  textPrimary: '#E8EDF5',
+  textSecondary: '#9AA7BD',
+  textMuted: '#5D6B84',
+  bull: '#2EC27E',          // direction only
+  bear: '#FF5F6B',          // direction only
+  caution: '#FFBF00',
+  accent: '#E0A852',        // structure: levels, walls, pins, regime
+} as const
+
+/** Tabular monospace, so digits do not jitter as prices tick. */
+export const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+```
+
+Then in `App.tsx` delete the `const T = {...}` block (keeping its comment with
+the tokens, as above) and add to the imports at the top:
+
+```ts
+import { T } from './theme'
+```
+
+Every existing `T.*` reference in `App.tsx` keeps working unchanged. Verify with
+`corepack pnpm --dir ui-v2 exec tsc --noEmit` before continuing — this step must
+be type-clean on its own.
+
+- [ ] **Step 2: Write the component**
+
+The header is a stat strip, not a row of loose spans: each cell is a muted
+label above a tabular-mono value, so the eye lands on the number. It reads the
+**shown** bar under replay, never the newest, and it discloses an inferred
+session date rather than letting one read as fact.
 
 ```tsx
 import ContractChart from './ContractChart'
+import { dayPrecision } from './indicators'
+import { T, MONO } from '../theme'
 import type { TapeBar, MapLevel, IndexKey } from '../data'
 
 interface Props {
@@ -486,39 +578,119 @@ interface Props {
   cursor: number | null
 }
 
+function Stat({ label, value, color, title }: {
+  label: string; value: string; color?: string; title?: string
+}) {
+  return (
+    <div title={title} style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <span style={{
+        fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase',
+        color: T.textMuted, whiteSpace: 'nowrap',
+      }}>{label}</span>
+      <span style={{
+        fontFamily: MONO, fontSize: 13, fontWeight: 600,
+        color: color ?? T.textPrimary, whiteSpace: 'nowrap',
+      }}>{value}</span>
+    </div>
+  )
+}
+
 export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
-  // Honesty rule 1: no tape = say so at full width. Never chart the fallback.
+  // Honesty rule 1: no tape = say so at full width, and chart nothing. A
+  // fallback must never occupy the space where live data goes.
   if (!bars.length) {
     return (
-      <div style={{
-        padding: '48px 24px', textAlign: 'center', color: '#FFBF00',
-        fontSize: 13, fontWeight: 600, letterSpacing: '0.02em',
-      }}>
-        NO {index} TAPE — the backend has no session for this index, so there is nothing to chart.
+      <div style={{ padding: 16 }}>
+        <div style={{
+          padding: '14px 18px', borderRadius: 6,
+          backgroundColor: 'rgba(255,191,0,0.10)',
+          border: `1px solid ${T.caution}`, color: T.caution,
+          fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
+        }}>
+          NO {index} TAPE — the backend has no session for this index, so there is
+          nothing to chart. No candles are drawn rather than placeholder ones.
+        </div>
       </div>
     )
   }
 
-  const at = cursor == null ? bars.length - 1 : Math.min(cursor, bars.length - 1)
-  const b = bars[at] // causal: header reads the shown bar, not the newest
+  // Clamp both ends: a negative cursor would index bars[-1] === undefined and
+  // throw on the first field read.
+  const at = cursor == null
+    ? bars.length - 1
+    : Math.max(0, Math.min(cursor, bars.length - 1))
+  const b = bars[at]                       // causal: the shown bar, not the newest
+  const live = cursor == null
+  const prec = dayPrecision(day)
+  const dir = b.c >= b.o ? T.bull : T.bear // the bar's own direction, same as its candle
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 280px)', minHeight: 440, padding: 16, gap: 8 }}>
-      <div style={{ display: 'flex', gap: 18, alignItems: 'baseline', fontSize: 12, color: '#8A93A6', fontFamily: 'ui-monospace, monospace' }}>
-        <span style={{ color: '#E8ECF3', fontWeight: 700, fontSize: 13 }}>{index} FUT</span>
-        <span>{day}</span>
-        <span>{b.t}</span>
-        <span>C {b.c.toFixed(1)}</span>
-        <span>OI {(b.oi / 1e6).toFixed(2)}M</span>
-        <span>{at + 1}/{bars.length} bars</span>
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      height: 'clamp(420px, calc(100vh - 300px), 1200px)', padding: 16, gap: 10,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', gap: 22, flexWrap: 'wrap',
+        padding: '10px 14px', backgroundColor: T.card,
+        border: `1px solid ${T.border}`, borderRadius: 6,
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 9.5, letterSpacing: '0.07em', color: T.textMuted }}>
+            CONTRACT
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.02em' }}>
+            {index} FUT
+          </span>
+        </div>
+        <Stat label="Session" value={day || '—'}
+              color={prec === 'exact' ? T.textPrimary : T.caution}
+              title={prec === 'exact' ? undefined
+                : prec === 'no-year'
+                  ? 'This session key carries no year, so the chart’s date axis infers the current one. The month, day and intraday clock are real.'
+                  : 'This session key carries no parseable date, so the chart’s date axis is synthetic. The intraday clock is real.'} />
+        <Stat label="Bar" value={b.t} />
+        <Stat label="Close" value={b.c.toFixed(1)} color={dir} />
+        <Stat label="Open interest" value={`${(b.oi / 1e6).toFixed(2)}M`} />
+        <Stat label="Volume" value={b.v.toLocaleString('en-IN')} />
+        <Stat label="Bars" value={`${at + 1} / ${bars.length}`} />
+        {/* Amber for REPLAY, matching the no-tape banner and the date
+            disclosure: in this tab amber means "not the data you'd assume".
+            Brass is reserved for structure, so it must not mean "mode". */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%',
+            backgroundColor: live ? T.bull : T.caution,
+          }} />
+          <span style={{
+            fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
+            color: live ? T.bull : T.caution,
+          }}>{live ? 'LIVE' : 'REPLAY'}</span>
+        </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
+
+      {prec !== 'exact' && (
+        <div style={{ fontSize: 11, color: T.textMuted, paddingLeft: 2 }}>
+          {prec === 'no-year'
+            ? 'Session key carries no year — the date axis infers the current one; month, day and intraday times are real.'
+            : 'Session key carries no parseable date — the date axis is synthetic; intraday times are real.'}
+        </div>
+      )}
+
+      <div style={{
+        flex: 1, minHeight: 0, borderRadius: 6, overflow: 'hidden',
+        border: `1px solid ${T.border}`,
+      }}>
         <ContractChart day={day} bars={bars} levels={levels} cursor={cursor} />
       </div>
     </div>
   )
 }
 ```
+
+The chart sits inside a bordered, rounded, `overflow: hidden` frame: the
+vendored engine paints its own `#0e1117` background (`engine.ts:1699`) which
+cannot be overridden through its API, and framing it this way makes that
+slightly-lighter panel read as a deliberate inset rather than a mismatch.
 
 - [ ] **Step 2: Gate**
 
@@ -536,13 +708,17 @@ git commit -m "feat(ui-v2): TradeTab — chart composition with honest no-tape s
 ### Task 7: Wire the tab into `App.tsx`
 
 **Files:**
-- Modify: `ui-v2/src/App.tsx:31` (the `Tab` union), `:1820` (the `tabs` array), `:1821` (the `useLiveData` destructure), `:1978-1984` (the tab render block)
+- Modify: `ui-v2/src/App.tsx` — five edits. Line numbers as of the start of this
+  task (they shifted when Task 6 extracted the tokens, so locate by content, not
+  by number): the `Tab` union `:19`, the `tabs` array `:1809`, the `useLiveData`
+  destructure `:1810`, the `data` memo `:1818` (insert after it), and the tab
+  render block starting `:1967`.
 
 **Interfaces:**
 - Consumes: `TradeTab` (Task 6), `tapeBars` (Task 2), existing `scrub` state and `data` (the replay-truncated `Dataset` — its `MAP` is already causal under replay, which is exactly what the overlay must show).
 - Produces: the user-visible `Trade` tab.
 
-- [ ] **Step 1: Extend the Tab union and tabs array** (`App.tsx:31` and `:1820`)
+- [ ] **Step 1: Extend the Tab union and tabs array** (the `type Tab` line and the `const tabs: Tab[]` line)
 
 ```ts
 type Tab = 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map'
@@ -552,7 +728,7 @@ type Tab = 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validat
   const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
 ```
 
-- [ ] **Step 2: Import and destructure** (top of file + `:1821`)
+- [ ] **Step 2: Import and destructure** (top of file, beside the existing `import { T } from './theme'`; then the `useLiveData(MOCK)` line)
 
 ```ts
 import TradeTab from './trade/TradeTab'
@@ -562,7 +738,7 @@ import TradeTab from './trade/TradeTab'
   const { data: liveData, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
 ```
 
-- [ ] **Step 3: Select the active index's tape and levels once per render** (next to the existing `data` memo, ~`:1829`)
+- [ ] **Step 3: Select the active index's tape and levels once per render** (insert immediately after the existing `const data = useMemo(() => at(scrub), [scrub, liveData])` line)
 
 ```ts
   const tape = useMemo(() => tapeBars(activeIndex), [tapeBars, activeIndex, liveData])
@@ -583,7 +759,7 @@ import TradeTab from './trade/TradeTab'
   }, [data, activeIndex, scrub])
 ```
 
-- [ ] **Step 4: Render the tab** (in the block at `:1978`, after the Heat line)
+- [ ] **Step 4: Render the tab** (in the tab render block, immediately after the `activeTab === 'Heat'` line)
 
 ```tsx
         {activeTab === 'Trade'    && <TradeTab index={activeIndex} day={tape.day} bars={tape.bars}
