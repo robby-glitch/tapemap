@@ -234,7 +234,10 @@ def build_payload(cfg):
     # Phase 3.5 SMC/ICT layer, additive: each structure carries the index of
     # the bar that completed it, so the UI clips by `born` instead of the
     # backend re-deriving structure per scrub position. v1 ignores the key.
-    js["structures"] = structure.compute(js["bars"])
+    # The pivots block goes in too: it is the prior session's H/L/C in reduced
+    # form, and structure.py inverts PDH/PDL/PDC back out of it (refusing, and
+    # emitting nothing, if the numbers do not check out as floor pivots).
+    js["structures"] = structure.compute(js["bars"], pivots=js.get("pivots"))
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
                        "expiry": cfg["expiry"], "built_at": time.time(),
                        "days": [js]}).encode()

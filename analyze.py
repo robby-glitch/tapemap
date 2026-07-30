@@ -23,8 +23,10 @@ def analyze(base="data", strike=24200.0, expiry="2026-07-21"):
             s.run()
             js = session_json(s)
             # same additive Phase 3.5 key as live.py: replay must carry the
-            # structure layer too, or the two paths disagree about the tape
-            js["structures"] = structure.compute(js["bars"])
+            # structure layer too, or the two paths disagree about the tape --
+            # including the pivots block, which is where PDH/PDL/PDC come from
+            js["structures"] = structure.compute(js["bars"],
+                                                 pivots=js.get("pivots"))
             days.append(js)
     return {"strike": strike, "days": days}
 
