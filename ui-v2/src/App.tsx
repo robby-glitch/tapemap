@@ -1810,6 +1810,14 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
 export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
+  // FOCUS: while on and the Trade tab is active, hide the glance bar + ANSWER
+  // band so the chart reclaims that ~417px of chrome (Kite gives the chart
+  // nearly the whole viewport; this dashboard didn't). Persisted the same way
+  // useMode() persists its own toggle — defaults OFF so nothing changes for
+  // anyone who hasn't opted in.
+  const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
+  const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
+  const focusHidesChrome = focus && activeTab === 'Trade'
   const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
   const { data: liveData, loading, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
@@ -1864,7 +1872,13 @@ export default function App() {
   return (
     <DataCtx.Provider value={data}>
     <div style={{ minHeight: '100vh', backgroundColor: T.bg, display: 'flex', flexDirection: 'column' }}>
-      <GlanceBar active={activeIndex} setActive={setActiveIndex} lastUpdated={lastUpdated} error={error} />
+      {/* FOCUS hides only the glance bar + ANSWER band, and only on the Trade
+          tab — every safety banner below (NOT LIVE / NO {index} TAPE / CHAIN
+          STALE) still renders unconditionally: buying chart pixels by hiding
+          a staleness disclosure is the one trade this tool refuses to make. */}
+      {!focusHidesChrome && (
+        <GlanceBar active={activeIndex} setActive={setActiveIndex} lastUpdated={lastUpdated} error={error} />
+      )}
 
       {/* A trading screen must never present placeholder numbers as real. The
           fallback dataset exists so the first paint isn't empty — the moment
@@ -1913,7 +1927,9 @@ export default function App() {
         </div>
       )}
 
-      <AnswerBand index={activeIndex} stale={!!error || idxDead} />
+      {!focusHidesChrome && (
+        <AnswerBand index={activeIndex} stale={!!error || idxDead} />
+      )}
 
       {/* Tab bar */}
       <div style={{
@@ -2015,7 +2031,9 @@ export default function App() {
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
                                               levels={tradeLevels} events={data.EVENTS_BY_IDX[activeIndex]} cursor={scrub}
                                               stale={idxDead || !!error} loading={loading} chainStale={chainStale}
-                                              chainTs={activeChain.ts} />}
+                                              chainTs={activeChain.ts}
+                                              focus={focus} onFocusToggle={() => setFocus(!focus)}
+                                              onIndexChange={setActiveIndex} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

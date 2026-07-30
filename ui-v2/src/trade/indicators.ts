@@ -5,9 +5,10 @@ import type { Candle } from '../vendor/candl/core/types'
 import type { IndicatorRenderData } from '../vendor/candl/chart/types'
 import type { TapeBar } from '../data'
 
-// One-meaning colour (App.tsx `T`): brass is structure. Bands fade outward.
+// One-meaning colour (App.tsx `T`): brass is structure. The σ deviations
+// themselves are filled ribbons drawn on the overlay canvas (LevelsOverlay),
+// not lines here — so this file no longer needs a per-band line colour.
 const BRASS = '#E0A852'
-const BAND = ['rgba(224,168,82,0.70)', 'rgba(224,168,82,0.45)', 'rgba(224,168,82,0.28)']
 const OI_LINE = '#7F8EA3' // neutral — OI is a series here, not a direction call
 
 const MONTHS: Record<string, number> = {
@@ -65,15 +66,12 @@ const series = (bars: TapeBar[], f: (b: TapeBar) => number) =>
 export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
   return [
     {
+      // The σ deviations themselves are no longer drawn as lines here — they
+      // are filled ribbons on the overlay canvas (see LevelsOverlay's
+      // startLevelsOverlay), which is why this instance now emits only VWAP.
       instanceId: 'vwap-bands', label: 'VWAP ±σ', placement: 'overlay',
       outputs: [
         { name: 'vwap', values: series(bars, (b) => b.vwap), color: BRASS },
-        { name: '+1σ', values: series(bars, (b) => b.u1), color: BAND[0] },
-        { name: '-1σ', values: series(bars, (b) => b.d1), color: BAND[0] },
-        { name: '+2σ', values: series(bars, (b) => b.u2), color: BAND[1] },
-        { name: '-2σ', values: series(bars, (b) => b.d2), color: BAND[1] },
-        { name: '+3σ', values: series(bars, (b) => b.u3), color: BAND[2] },
-        { name: '-3σ', values: series(bars, (b) => b.d3), color: BAND[2] },
       ],
     },
     {

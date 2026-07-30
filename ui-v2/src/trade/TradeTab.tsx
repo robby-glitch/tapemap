@@ -23,7 +23,16 @@ interface Props {
   /** The chain snapshot's own IST clock ("HH:MM:SS"), for the stale-chain
    *  disclosure line below. Empty when unknown. */
   chainTs: string
+  /** FOCUS mode (App.tsx-owned, persisted under `tape.focus`): while on and
+   *  this tab is active, App hides the glance bar + ANSWER band so the chart
+   *  gets that height. The index switcher normally lives in the glance bar,
+   *  so this tab surfaces a small substitute while it's hidden. */
+  focus: boolean
+  onFocusToggle: () => void
+  onIndexChange: (k: IndexKey) => void
 }
+
+const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
 
 function Stat({ pal, label, value, color, title }: {
   pal: ReturnType<typeof palette>; label: string; value: string; color?: string; title?: string
@@ -42,7 +51,10 @@ function Stat({ pal, label, value, color, title }: {
   )
 }
 
-export default function TradeTab({ index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs }: Props) {
+export default function TradeTab({
+  index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs,
+  focus, onFocusToggle, onIndexChange,
+}: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
   const [mode, setMode] = useMode()
@@ -191,6 +203,42 @@ export default function TradeTab({ index, day, bars, levels, events, cursor, sta
               >{m === 'light' ? 'LIGHT' : 'DARK'}</button>
             ))}
           </div>
+
+          {/* FOCUS: hides the glance bar + ANSWER band (App.tsx-owned state)
+              while this tab is active, so the chart reclaims that height.
+              Styled like the LIGHT/DARK toggle, palette tokens only. */}
+          <button
+            onClick={onFocusToggle}
+            title="Hide the glance bar and ANSWER band while on this tab, so the chart gets more height"
+            style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              padding: '3px 9px', cursor: 'pointer',
+              border: `1px solid ${pal.border}`, borderRadius: 4,
+              backgroundColor: focus ? pal.accent : 'transparent',
+              color: focus ? pal.card : pal.textMuted,
+            }}
+          >FOCUS</button>
+
+          {/* With the glance bar hidden, its index switcher goes with it —
+              this is just that switcher, not a duplicate of the whole bar. */}
+          {focus && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              {INDEX_KEYS.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => onIndexChange(k)}
+                  style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                    padding: '3px 8px', cursor: 'pointer', borderRadius: 4,
+                    border: `1px solid ${k === index ? pal.accent : pal.border}`,
+                    backgroundColor: 'transparent',
+                    color: k === index ? pal.accent : pal.textMuted,
+                  }}
+                >{k}</button>
+              ))}
+            </div>
+          )}
+
           {/* Amber for REPLAY, matching the no-tape banner and the date
               disclosure: in this tab amber means "not the data you'd assume".
               Brass is reserved for structure, so it must not mean "mode".

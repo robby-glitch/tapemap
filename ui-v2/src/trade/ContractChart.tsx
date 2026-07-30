@@ -107,6 +107,7 @@ export default function ContractChart({
     const stopOverlay = startLevelsOverlay(
       overlayRef.current!, host, engine,
       () => levelsRef.current, () => modeRef.current,
+      () => ({ bars: barsRef.current, times: timesRef.current, cursor: cursorRef.current }),
     )
 
     // Hover mapping: clientX -> container-relative x -> engine's own xToTime
