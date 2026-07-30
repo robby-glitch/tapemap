@@ -558,7 +558,10 @@ export default function TradeTab({
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
 
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-        VWAP & σ bands · levels · OI{smc && structures ? ' · SMC structure (brass)' : ''}
+        VWAP · σ bands ±1σ pink / ±2σ green / ±3σ blue · levels · OI
+        {smc && structures && structures.length
+          ? ' · SMC structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed, faint dashed = unchecked)'
+          : ''}
       </div>
 
       {/* ENGINE READ — full width, directly below the ribbon+legend. Reads

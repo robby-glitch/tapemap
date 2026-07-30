@@ -28,14 +28,20 @@ type PaneRect = { x: number; y: number; width: number; height: number }
 /** The active palette object — either `TL` or `T`; both carry these keys. */
 type Palette = ReturnType<typeof palette>
 
-// Ribbon fill alphas — the approved mockup's own ceiling (±1σ 0.075, ±2σ
-// 0.055), extended with a slightly dimmer ±3σ. Widest drawn first so the
-// narrower, slightly stronger ones layer on top without darkening past this.
-const RIBBON_ALPHA: Record<'u1d1' | 'u2d2' | 'u3d3', number> = {
-  u3d3: 0.040,
-  u2d2: 0.055,
-  u1d1: 0.075,
-}
+// σ band palette — matched to the operator's own Kite VWAP-band study
+// (screenshot, 2026-07-30): the ±1σ core reads pink/red, the 1→2σ shoulder
+// green, the 2→3σ outer blue, each with a stronger edge line. Deliberately NOT
+// brass: the operator reads this nested distance scale by hue in Kite all day,
+// and matching it was an explicit request. Drawn as ANNULI (u3→u2, u2→u1,
+// u1→d1, d1→d2, d2→d3) rather than three stacked full-width fills, so each
+// ring keeps its own hue instead of muddying into the sum of all three.
+const BAND_RGB = {
+  core: '244,67,54',   // ±1σ  — Kite's inner pink
+  mid: '76,175,80',    // 1→2σ — Kite's green shoulder
+  outer: '33,150,243', // 2→3σ — Kite's blue outer
+} as const
+const BAND_FILL_ALPHA: Record<Mode, number> = { light: 0.085, dark: 0.11 }
+const BAND_EDGE_ALPHA: Record<Mode, number> = { light: 0.42, dark: 0.34 }
 
 // Minimum vertical gap between two drawn labels, for a 10px font.
 const LABEL_GAP = 11
@@ -68,9 +74,14 @@ const ZONE_HUE: Record<'stand' | 'watch', string> = {
   watch: '255,191,0',
 }
 const ZONE_ALPHA: Record<Mode, Record<'stand' | 'watch', number>> = {
-  light: { stand: 0.05, watch: 0.07 },
-  dark: { stand: 0.08, watch: 0.10 },
+  light: { stand: 0.30, watch: 0.34 },
+  dark: { stand: 0.36, watch: 0.40 },
 }
+// The condition track's height, and the alpha of the hairline dropped from it
+// at each run's start. Higher alphas than a full-height wash could carry —
+// a 9px strip can be read at a glance without tinting the price area.
+const ZONE_STRIP_PX = 11
+const ZONE_EDGE_ALPHA: Record<Mode, number> = { light: 0.16, dark: 0.20 }
 // Small enough to sit just under the engine's legend band without competing
 // with the 10px level labels that share the same corner.
 const ZONE_LABEL_PX = 8.5
@@ -81,10 +92,13 @@ const ZONE_LABEL_PX = 8.5
 // same apparent tint against #0B0E14, exactly as the zone bands do; OB reads a
 // touch stronger than FVG because a block is a level, a gap is a void.
 const STRUCT_ALPHA: Record<Mode, Record<'FVG' | 'OB', number>> = {
-  light: { FVG: 0.045, OB: 0.07 },
-  dark: { FVG: 0.07, OB: 0.10 },
+  light: { FVG: 0.030, OB: 0.050 },
+  dark: { FVG: 0.055, OB: 0.085 },
 }
-const STRUCT_BORDER_ALPHA = 0.25
+// Lowered from 0.25 with the fills: ~85 boxes overlap on a real session, and
+// each border added a visible brass rule, so the compounded haze read as a
+// stain over the candles rather than as structure.
+const STRUCT_BORDER_ALPHA = 0.16
 // UNCONFIRMED and UNKNOWN are DIFFERENT claims and their labels say so
 // ("unconfirmed" vs "unchecked"), so the shape now carries the distinction
 // too, not just the label text: UNCONFIRMED (flow checked, disagreed) draws
@@ -151,20 +165,27 @@ function halfBarPx(conv: Converters, times: number[]): number {
   return Number.isFinite(step) && step > 0 ? step / 2 : 0
 }
 
+/** A band key on `TapeBar` — any of the six σ deviations. Both edges of a
+ *  ribbon take the same union so an ANNULUS (e.g. `u3`→`u2`, or `d1`→`d2`) is
+ *  expressible, not only a symmetric ±nσ pair. */
+type BandKey = 'u1' | 'u2' | 'u3' | 'd1' | 'd2' | 'd3'
+
 /** One σ ribbon: a filled polygon between the `uKey`/`dKey` per-bar values
- *  across bars `[0, lastIdx]`. Walks the upper edge left→right then the lower
- *  edge right→left and closes — one path per CONTIGUOUS run of finite values,
- *  so a non-finite bar (the payload can carry nulls) ends the current run and
- *  starts a new one rather than being bridged over: a hole stays a hole. */
+ *  across bars `[0, lastIdx]`, optionally with its two edges stroked. Walks the
+ *  upper edge left→right then the lower edge right→left and closes — one path
+ *  per CONTIGUOUS run of finite values, so a non-finite bar (the payload can
+ *  carry nulls) ends the current run and starts a new one rather than being
+ *  bridged over: a hole stays a hole. */
 function drawRibbon(
   ctx: CanvasRenderingContext2D,
   conv: Converters,
   bars: TapeBar[],
   times: number[],
   lastIdx: number,
-  uKey: 'u1' | 'u2' | 'u3',
-  dKey: 'd1' | 'd2' | 'd3',
+  uKey: BandKey,
+  dKey: BandKey,
   fillStyle: string,
+  edgeStyle?: string,
 ) {
   ctx.fillStyle = fillStyle
   let i = 0
@@ -181,6 +202,21 @@ function drawRibbon(
       for (let k = j; k >= i; k--) ctx.lineTo(conv.timeToX(times[k]), conv.priceToY(bars[k][dKey]))
       ctx.closePath()
       ctx.fill()
+      if (edgeStyle) {
+        // Stroke each edge as its own open path — closing the polygon instead
+        // would draw two vertical joins across the band, which Kite's study
+        // does not have.
+        ctx.strokeStyle = edgeStyle
+        ctx.lineWidth = 1
+        for (const key of [uKey, dKey]) {
+          ctx.beginPath()
+          ctx.moveTo(conv.timeToX(times[i]), conv.priceToY(bars[i][key]))
+          for (let k = i + 1; k <= j; k++) {
+            ctx.lineTo(conv.timeToX(times[k]), conv.priceToY(bars[k][key]))
+          }
+          ctx.stroke()
+        }
+      }
     }
     i = j + 1
   }
@@ -227,8 +263,22 @@ function drawZones(
     const x1 = Math.min(conv.timeToX(t1) + half, cutX)
     if (!Number.isFinite(x0) || !Number.isFinite(x1) || x1 <= x0) continue
     const hue = ZONE_HUE[z.cls]
+    // A CONDITION TRACK along the top of the pane, not a full-height wash.
+    // Washing the whole price area was legible in isolation but unreadable
+    // stacked under the σ bands and the structure boxes — the operator's own
+    // words on the full-height version were "everything cramped up". The strip
+    // keeps every verdict on screen, in the engine's own colour and words,
+    // while the price area stays as clean as their Kite chart.
+    // Sits just BELOW the engine's own OHLC legend band, which owns the top
+    // LEGEND_BAND_PX of the pane — starting at pane.y would print the track
+    // straight through "O 24363.80 H 24364.00 …".
+    const stripTop = pane.y + LEGEND_BAND_PX
     ctx.fillStyle = `rgba(${hue},${ZONE_ALPHA[mode][z.cls]})`
-    ctx.fillRect(x0, pane.y, x1 - x0, pane.height)
+    ctx.fillRect(x0, stripTop, x1 - x0, ZONE_STRIP_PX)
+    // A hairline dropped from the strip marks where the run starts, so a
+    // condition change is still locatable against the candles.
+    ctx.fillStyle = `rgba(${hue},${ZONE_EDGE_ALPHA[mode]})`
+    ctx.fillRect(x0, stripTop, 1, pane.height - LEGEND_BAND_PX)
     // The label is the engine's own words, upper-cased for display only. It is
     // skipped rather than truncated when the band is narrower than the text —
     // a clipped half-word reads as a different verdict.
@@ -236,7 +286,7 @@ function drawZones(
     const label = z.label.toUpperCase()
     if (ctx.measureText(label).width > x1 - x0 - 4) continue
     ctx.fillStyle = `rgb(${hue})`
-    ctx.fillText(label, x0 + 2, pane.y + LEGEND_BAND_PX)
+    ctx.fillText(label, x0 + 2, stripTop + 1)
   }
 }
 
@@ -347,6 +397,7 @@ function drawStructures(
    *  the same bargain the level labels below make (line always, label when it
    *  clears). */
   const placeLabel = (text: string, x: number, y: number, color: string) => {
+    if (!text) return // unconfirmed/unchecked structures draw their shape only
     const w = ctx.measureText(text).width
     const box: LabelBox = {
       x0: x, y0: y - STRUCT_LABEL_PX / 2 - 1,
@@ -365,7 +416,13 @@ function drawStructures(
   for (const s of live) {
     const sc = scale(s)
     const color = withAlpha(brass, 0.85 * sc)
-    const label = s.kind + suffix(s)
+    // Text is for the FLOW-CONFIRMED few only. A real session carries ~180
+    // structures of which ~90% are UNCONFIRMED or UNKNOWN, and labelling them
+    // all buried the candles under "FVG unconfirmed / OB unchecked" — the exact
+    // 479-label noise problem spec §7 exists to avoid. The unlabelled ones are
+    // NOT hidden: every shape still draws, and its opacity + dashed-vs-solid
+    // border still distinguish unconfirmed from unchecked (see the constants).
+    const label = s.confirm === 'CONFIRMED' ? s.kind + suffix(s) : ''
 
     if (s.kind === 'FVG' || s.kind === 'OB') {
       const t0 = times[s.i0]
@@ -755,18 +812,27 @@ export function startLevelsOverlay(
       ctx.restore()
     }
 
-    // σ ribbons: filled zones between the deviations, drawn UNDER the level
-    // lines/chips below but over the chart canvas underneath this one. Widest
-    // (±3σ) first so the narrower, slightly stronger ±1σ layers on top.
+    // σ bands, Kite-style: five ANNULI rather than three stacked full-width
+    // fills, so the blue outer / green shoulder / pink core each keep their own
+    // hue (stacking three washes would render the core as the sum of all
+    // three). Drawn UNDER the level lines/chips below, over the chart canvas
+    // underneath this one.
     if (lastIdx >= 0) {
       ctx.save()
       ctx.beginPath()
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
-      const brass = pal.accent
-      drawRibbon(ctx, conv, dBars, dTimes, lastIdx, 'u3', 'd3', withAlpha(brass, RIBBON_ALPHA.u3d3))
-      drawRibbon(ctx, conv, dBars, dTimes, lastIdx, 'u2', 'd2', withAlpha(brass, RIBBON_ALPHA.u2d2))
-      drawRibbon(ctx, conv, dBars, dTimes, lastIdx, 'u1', 'd1', withAlpha(brass, RIBBON_ALPHA.u1d1))
+      const fa = BAND_FILL_ALPHA[mode]
+      const ea = BAND_EDGE_ALPHA[mode]
+      const ring = (u: BandKey, d: BandKey, rgb: string) => drawRibbon(
+        ctx, conv, dBars, dTimes, lastIdx, u, d,
+        `rgba(${rgb},${fa})`, `rgba(${rgb},${ea})`,
+      )
+      ring('u3', 'u2', BAND_RGB.outer)
+      ring('d2', 'd3', BAND_RGB.outer)
+      ring('u2', 'u1', BAND_RGB.mid)
+      ring('d1', 'd2', BAND_RGB.mid)
+      ring('u1', 'd1', BAND_RGB.core)
       ctx.restore()
     }
 
