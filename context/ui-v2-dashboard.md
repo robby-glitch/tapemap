@@ -213,7 +213,22 @@ data is worse than one that shows an error. The rules that came out of it:
   minute with no event reads "no event on this bar — OHLC only" instead of
   being given a story. Light palette comes from the approved 2026-07-29 mockup
   (brass `#A9762A`, up `#1B8A38`, down `#C42B30` — deliberately darkened, since
-  the dark tokens fail on white).
+  the dark tokens fail on white). **Phase 3 adds** (all presentation of per-bar
+  engine decisions already in the payload — `bars[i].ctx/gamma/setup`; no new
+  backend): **zone bands** (contiguous runs of the engine's own tradeability
+  verdict — GO/READY/WAIT/STAND ASIDE/CAUTION/SPENT — washed red for
+  stand-aside/spent, amber for ready/wait/caution, labelled with the verdict
+  verbatim + run length; cursor-sliced while scrubbing so a label never leaks a
+  run's post-cursor length), **story balloons** (persistent pills on tier ≥ 2
+  event bars — filled tier 3, outlined tier 2, three collision lanes, tier 2
+  dropped first — so the day's story stays on the chart to refer back to), the
+  **ENGINE READ panel** below the chart (the engine's verdict + vwhy + its
+  quantified line, Δ15m flips, the armed/loading/invalidated setup with its own
+  level and invalidation ref, `plays[]` verbatim, floor/cap chips; a bar with
+  no ctx says "engine context unavailable for this bar"; footer: descriptive,
+  not advice · signals only, orders never), and **Kite candle colours** in
+  light mode (`#26a69a`/`#ef5350`, the Zerodha Kite default pair, operator
+  request).
 - **Tape** — intraday chart (Recharts) with VWAP, ±1σ, levels drawn on the
   chart, key-levels rail, plain-English order flow, MM perspective, and a
   diverging net-flow pressure histogram.
@@ -369,6 +384,9 @@ mock chain's `flip_px` is `null`.
   overlay only on change · `f93ee44` keep the ResizeObserver (load-bearing)
 - **Phase 2** — `fff23ca` plan · `d09fcfc` light palette + narration join ·
   `166c9cc` callout + ribbon · `f9ac101` light surface, hover, level price tags
+- **Phase 3** — `ceaeceb` plan · `37c399f` ctx/gamma/setup on TapeBar + zone
+  grouping · `f1d5be3` Kite candles, story balloons, zone bands · `2dd103a`
+  ENGINE READ panel + cursor-sliced zone wiring
 
 ## Open items
 
