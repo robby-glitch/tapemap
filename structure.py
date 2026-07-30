@@ -87,9 +87,10 @@ of the session, which is what keeps truncation honest.
 FLOW CONFIRMATION -- the part SMC does not have (spec section 7). Sources are
 the per-bar FUT flow fields the engine already publishes:
 
-  EQH / EQL  was the pool TAGGED by a sweep? vol_r in the top (1-VOL_PCTL) of
-             the session so far AND oi_slope < 0 (positions leaving) on the
-             second pivot bar.                      -> CONFIRMED/UNCONFIRMED
+  EQH / EQL  did the pool FORM on distribution? vol_r in the top (1-VOL_PCTL)
+             of the session so far AND oi_slope < 0 (positions leaving) on the
+             second pivot bar. (The SWEEP of the pool is a later-bar question,
+             deferred — see above.)                 -> CONFIRMED/UNCONFIRMED
   FVG        was the gap OPENED by real displacement? vol_r ranked high on the
              gap bar AND oi_slope summing positive across the three bars (new
              positions behind the move, not a short squeeze).
@@ -187,7 +188,7 @@ def _vol_note(V, at, born, bar_no):
 
 
 def _confirm_pool(kind, V, S, at, born, bar_no):
-    """EQH/EQL: was the pool tagged on expanded volume with OI leaving?"""
+    """EQH/EQL: did the pool FORM on expanded volume with OI leaving?"""
     s = S[at]
     if s is None:
         return UNKNOWN, (f"no flow read for {kind} at bar {bar_no}: "
