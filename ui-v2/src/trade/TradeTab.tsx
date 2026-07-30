@@ -38,23 +38,34 @@ export default function TradeTab({ index, day, bars, levels, cursor, stale, load
   // fold. Measure the real distance to the viewport bottom instead.
   const rootRef = useRef<HTMLDivElement>(null)
   const [availH, setAvailH] = useState<number | null>(null)
-  // Deliberately no dependency array: this must re-measure after any render
-  // that can move our top edge — switching to an index whose no-tape branch
-  // doesn't attach the ref, or the ANSWER band above wrapping to a different
-  // height. The epsilon guard makes that safe: setting our own height cannot
-  // move our own top (we are the last child in a column), so the next measure
-  // computes the same value, returns `prev`, and the loop settles in one pass.
+  // Size the column to the space actually available. The offset above this tab
+  // is content-dependent (the ANSWER band wraps differently per index, and
+  // banners appear conditionally), so a fixed calc(100vh - Npx) is wrong in some
+  // states. Measure instead — but strictly event-driven: this effect MUST keep
+  // its dependency array, and the observer MUST watch the parent rather than our
+  // own box. A dep-less layout effect that sets state here does not converge,
+  // because our container is `flex:1` inside a `min-height:100vh` column, so
+  // growing our height moves our own top and the value oscillates. Layout
+  // effects run before paint, so that loop freezes the page outright.
   useLayoutEffect(() => {
+    const el = rootRef.current
+    if (!el) return
     const measure = () => {
-      const el = rootRef.current
-      if (!el) return
-      const next = Math.max(320, window.innerHeight - el.getBoundingClientRect().top - 12)
+      const node = rootRef.current
+      if (!node) return
+      const next = Math.max(320, window.innerHeight - node.getBoundingClientRect().top - 12)
       setAvailH((prev) => (prev != null && Math.abs(prev - next) < 2 ? prev : next))
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  })
+    const parent = el.parentElement
+    const ro = parent ? new ResizeObserver(measure) : null
+    if (parent && ro) ro.observe(parent)
+    return () => {
+      window.removeEventListener('resize', measure)
+      ro?.disconnect()
+    }
+  }, [index, bars.length === 0])
 
   // Honesty rule 1: no tape = say so at full width, and chart nothing. A
   // fallback must never occupy the space where live data goes. But before the
