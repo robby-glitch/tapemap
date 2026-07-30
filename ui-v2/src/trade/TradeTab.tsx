@@ -5,6 +5,9 @@ import Ribbon from './Ribbon'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
+// The overlay owns the cap; the legend below only reports it, so the number the
+// operator reads can never drift from the number actually drawn.
+import { STRUCT_ZONE_LIMIT } from './LevelsOverlay'
 import { palette, MONO, useMode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem, Structure } from '../data'
 
@@ -117,7 +120,7 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
       padding: '12px 16px', borderRadius: 6, backgroundColor: pal.card,
       border: `1px solid ${pal.border}`, display: 'flex', flexDirection: 'column', gap: 10,
     }}>
-      <div style={label}>ENGINE READ</div>
+      <div style={label}>WHAT THE ENGINE SAYS TO WATCH</div>
 
       {!ctx ? (
         <div style={{ fontSize: 11, color: pal.textMuted }}>
@@ -191,7 +194,7 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
 
           {/* PLAYS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 220, flex: '2 1 220px' }}>
-            <span style={label}>PLAYS</span>
+            <span style={label}>LOOK FOR — THE ENGINE'S CONDITIONAL PLAYS</span>
             {ctx.plays.length ? ctx.plays.map((p, i) => (
               <div key={i} style={{
                 fontFamily: MONO, fontSize: 11, color: pal.textPrimary,
@@ -277,13 +280,18 @@ export default function TradeTab({
   // counts everything, matching the overlay's unclamped draw there too.
   const structCounts = useMemo(() => {
     if (!structures) return null
-    let drawn = 0, swings = 0
+    let drawn = 0, swings = 0, zones = 0
     for (const s of structures) {
       if (cursor != null && s.born > at) continue
       if (s.kind === 'SWING_H' || s.kind === 'SWING_L') swings++
-      else drawn++
+      else {
+        drawn++
+        // FVG/OB are the only capped kinds (STRUCT_ZONE_LIMIT); counted apart
+        // so the legend can disclose how many of them the chart is holding back.
+        if (s.kind === 'FVG' || s.kind === 'OB') zones++
+      }
     }
-    return { drawn, swings }
+    return { drawn, swings, zones }
   }, [structures, cursor, at])
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
@@ -333,6 +341,11 @@ export default function TradeTab({
     const measure = () => {
       const node = rootRef.current
       if (!node) return
+      // The CHART column fills the viewport exactly. The engine's read is a
+      // sibling BELOW it (see the render), deliberately outside this budget:
+      // the operator asked for a bigger chart plus "the page scrollable a
+      // little bit" with the suggestion at the bottom of it, and that is
+      // precisely a full-height chart followed by one panel's worth of scroll.
       const next = Math.max(320, window.innerHeight - node.getBoundingClientRect().top - 12)
       setAvailH((prev) => (prev != null && Math.abs(prev - next) < 2 ? prev : next))
     }
@@ -389,9 +402,10 @@ export default function TradeTab({
   const modeColor = stale || !live ? pal.caution : pal.bull
 
   return (
+    <>
     <div ref={rootRef} style={{
       display: 'flex', flexDirection: 'column',
-      height: availH ?? 420, padding: 16, gap: 8,
+      height: availH ?? 420, padding: '16px 16px 0', gap: 8,
       backgroundColor: pal.bg,
     }}>
       {/* Stat strip — one compact row (Task 6's "breathing room"): 11px
@@ -558,16 +572,25 @@ export default function TradeTab({
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
 
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-        VWAP · σ bands ±1σ pink / ±2σ green / ±3σ blue · levels · OI
+        VWAP red · σ bands ±1σ dark red / ±2σ green / ±3σ blue · levels · OI
         {smc && structures && structures.length
-          ? ' · SMC structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed, faint dashed = unchecked)'
+          ? ` · SMC structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed,`
+            + ` faint dashed = unchecked)${structCounts && structCounts.zones > STRUCT_ZONE_LIMIT
+              ? ` · newest ${STRUCT_ZONE_LIMIT} of ${structCounts.zones} FVG/OB zones drawn`
+              : ''}`
           : ''}
       </div>
 
-      {/* ENGINE READ — full width, directly below the ribbon+legend. Reads
-          bars[at] only (the SAME cursor-clamped bar `b` the stat strip above
-          uses), so replay scrubs it causally too. */}
+    </div>
+
+    {/* The engine's read sits BELOW the full-height chart column, so the page
+        carries one panel's worth of scroll and the suggestion is at the bottom
+        of it — the operator's own layout request. It reads bars[at] only (the
+        SAME cursor-clamped bar `b` the stat strip uses), so replay scrubs it
+        causally too. */}
+    <div style={{ padding: '8px 16px 16px', backgroundColor: pal.bg }}>
       <EngineReadPanel pal={pal} bar={b} />
     </div>
+    </>
   )
 }

@@ -8,7 +8,11 @@ import type { TapeBar } from '../data'
 // One-meaning colour (App.tsx `T`): brass is structure. The σ deviations
 // themselves are filled ribbons drawn on the overlay canvas (LevelsOverlay),
 // not lines here — so this file no longer needs a per-band line colour.
-const BRASS = '#E0A852'
+// VWAP is bright red, matching the operator's own Kite band study (legend
+// screenshot, 2026-07-30) — the σ bands' dark-red/sage/azure shading lives in
+// LevelsOverlay's BAND_RGB. Eyeballed from that legend, so a shade may be off;
+// these two sites are the only places to correct it.
+const VWAP_LINE = '#FF1A1A'
 const OI_LINE = '#7F8EA3' // neutral — OI is a series here, not a direction call
 
 const MONTHS: Record<string, number> = {
@@ -71,7 +75,7 @@ export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
       // startLevelsOverlay), which is why this instance now emits only VWAP.
       instanceId: 'vwap-bands', label: 'VWAP ±σ', placement: 'overlay',
       outputs: [
-        { name: 'vwap', values: series(bars, (b) => b.vwap), color: BRASS },
+        { name: 'vwap', values: series(bars, (b) => b.vwap), color: VWAP_LINE },
       ],
     },
     {

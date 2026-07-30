@@ -35,13 +35,20 @@ type Palette = ReturnType<typeof palette>
 // and matching it was an explicit request. Drawn as ANNULI (u3→u2, u2→u1,
 // u1→d1, d1→d2, d2→d3) rather than three stacked full-width fills, so each
 // ring keeps its own hue instead of muddying into the sum of all three.
+// Read off the operator's own Kite band legend (screenshot, 2026-07-30):
+// 1σ dark red · 2σ sage green · 3σ azure. These are EYEBALLED from that legend
+// image, not sampled out of Kite's config — if a hex is off it is off by a
+// shade, and this is the one place to correct it. VWAP's own bright red lives
+// in indicators.ts, which owns that line.
 const BAND_RGB = {
-  core: '244,67,54',   // ±1σ  — Kite's inner pink
-  mid: '76,175,80',    // 1→2σ — Kite's green shoulder
-  outer: '33,150,243', // 2→3σ — Kite's blue outer
+  core: '139,26,26',   // ±1σ  — Kite's dark red
+  mid: '143,188,143',  // 1→2σ — Kite's sage green
+  outer: '0,168,232',  // 2→3σ — Kite's azure
 } as const
-const BAND_FILL_ALPHA: Record<Mode, number> = { light: 0.085, dark: 0.11 }
-const BAND_EDGE_ALPHA: Record<Mode, number> = { light: 0.42, dark: 0.34 }
+const BAND_FILL_ALPHA: Record<Mode, number> = { light: 0.10, dark: 0.13 }
+// Higher than the fill so each band's boundary reads as its own line, the way
+// the operator's Kite study draws it.
+const BAND_EDGE_ALPHA: Record<Mode, number> = { light: 0.55, dark: 0.45 }
 
 // Minimum vertical gap between two drawn labels, for a 10px font.
 const LABEL_GAP = 11
@@ -111,6 +118,16 @@ const STRUCT_TICK_PX = 24        // BOS/CHoCH tick length, ending at x(born)
 const STRUCT_LABEL_PX = 8.5
 const STRUCT_LABEL_GAP = 3       // px between a tick/line end and its label
 const STRUCT_POOL_DASH: [number, number] = [3, 3]
+/** How many FVG/OB zones are drawn, newest first. A real session produces ~85
+ *  of them; drawn all at once their translucent fills compound into horizontal
+ *  brass banding across the whole chart, which is what the operator was looking
+ *  at when they said they could not see anything. Zones are ranked by `born`,
+ *  so the ones kept are the most recent — the ones price is still trading
+ *  against. The count dropped is DISCLOSED in the chart's legend line (see
+ *  TradeTab), because "we found nothing here" and "we are not showing you what
+ *  we found" are different claims. Breaks/pools are never capped: there are
+ *  only ~40 of them and they draw as thin lines, not fills. */
+export const STRUCT_ZONE_LIMIT = 12
 
 // Story balloon geometry. A tier-≥2 narration gets a persistent pill so the
 // day's story stays on the chart to refer back to, instead of living only in
@@ -358,10 +375,22 @@ function drawStructures(
   const live: Structure[] = []
   for (const s of structures) if (s.born >= 0 && s.born <= cut) live.push(s)
 
+  // The newest STRUCT_ZONE_LIMIT zones, by birth. structure.py already sorts by
+  // `born`, but this does not lean on that: it takes the largest `born` values
+  // explicitly, so a change in the backend's ordering cannot silently start
+  // showing the OLDEST zones instead of the newest.
+  const zoneCut = (() => {
+    const borns = live.filter((s) => s.kind === 'FVG' || s.kind === 'OB').map((s) => s.born)
+    if (borns.length <= STRUCT_ZONE_LIMIT) return -Infinity
+    borns.sort((a, b) => b - a)
+    return borns[STRUCT_ZONE_LIMIT - 1]
+  })()
+
   // Boxes first, so a translucent fill never washes over a tick, a pool line
   // or a label drawn below.
   for (const s of live) {
     if (s.kind !== 'FVG' && s.kind !== 'OB') continue
+    if (s.born < zoneCut) continue
     const t0 = times[s.i0]
     if (t0 == null) continue
     const x0 = conv.timeToX(t0) - half
@@ -425,6 +454,7 @@ function drawStructures(
     const label = s.confirm === 'CONFIRMED' ? s.kind + suffix(s) : ''
 
     if (s.kind === 'FVG' || s.kind === 'OB') {
+      if (s.born < zoneCut) continue // same newest-N cap the fills above use
       const t0 = times[s.i0]
       if (t0 == null) continue
       const x0 = conv.timeToX(t0) - half
