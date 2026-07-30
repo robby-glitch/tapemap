@@ -100,18 +100,36 @@ def validate(day):
               f"C {d['close'][i]:.1f} V {d['volume'][i]:.0f} OI {oi:.0f}")
 
 
-def rest_intraday(token, sec_id, instrument, day, oi=False):
-    """Direct REST 1-min chart call (the SDK lacks the oi flag; validated
-    pattern: POST /v2/charts/intraday with oi:true returns open_interest)."""
-    body = json.dumps({
+def _intraday_body(sec_id, instrument, day, oi):
+    """Build the POST body for /v2/charts/intraday.
+
+    `toDate` is EXCLUSIVE on this endpoint -- fromDate == toDate == day
+    returns zero bars, always (verified live 2026-07-30: NIFTY sec id 65852
+    returned 375 real 1-min bars with toDate = day + 1, none with toDate =
+    day). So toDate is always day plus one calendar day here, even though
+    callers still pass a single session -- do NOT "simplify" this back to
+    toDate = day, it will silently break every fetch.
+    """
+    to_date = (datetime.strptime(day, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    return {
         "securityId": str(sec_id),
         "exchangeSegment": "NSE_FNO",
         "instrument": instrument,
         "interval": "1",
         "oi": bool(oi),
         "fromDate": day,
-        "toDate": day,
-    }).encode()
+        "toDate": to_date,
+    }
+
+
+def rest_intraday(token, sec_id, instrument, day, oi=False):
+    """Direct REST 1-min chart call (the SDK lacks the oi flag; validated
+    pattern: POST /v2/charts/intraday with oi:true returns open_interest).
+
+    `day` is a single calendar session; see _intraday_body for why toDate
+    is sent as day + 1 (the endpoint's toDate is exclusive).
+    """
+    body = json.dumps(_intraday_body(sec_id, instrument, day, oi)).encode()
     req = urllib.request.Request(
         INTRADAY_URL, data=body, method="POST",
         headers={"Content-Type": "application/json",
