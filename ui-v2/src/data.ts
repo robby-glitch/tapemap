@@ -118,6 +118,30 @@ export interface ChartPoint {
   isFuture: boolean
 }
 
+// Per-bar engine decisions — the same ctx/gamma/setup blocks `mapIndex` below
+// already reads off the live bar (as `any`), now named so the Tape Chart can
+// read them too. Field spellings copied verbatim from engine.py's ctx_track
+// (~1091), gamma.track (~260) and setup_track (~891) — the engine owns the
+// vocabulary; this file only names it, never rewords or re-derives it.
+export interface BarCtx {
+  verdict: string; vwhy: string; breadth: string; line: string
+  flips: string[]; age: number
+  rng30: number; rng_r: number; vol30: number; inside1: number
+  z: number; bw_r: number
+  pin: { k: number; dist: number; regime: string } | null
+  plays: string[]
+  floor: [string, number] | null
+  cap: [string, number] | null
+  episode?: unknown; loc?: string
+}
+export interface BarGamma { regime: string; w_ce: number; w_pe: number; proxy: number }
+export interface BarSetup {
+  status: string; dir: 'UP' | 'DOWN'; t0: string; kind: string
+  level_name: string; level_px: number; ref: number
+  intensity: number; conflict: boolean; comp: number
+  died?: string; fired?: string
+}
+
 // Tape Chart — one FUT bar, verbatim from the payload. The engine computed
 // every field server-side (invariant: UI renders, engine decides); this type
 // only names what arrives. Times are "HH:MM".
@@ -127,6 +151,14 @@ export interface TapeBar {
   v: number; oi: number
   vwap: number
   u1: number; d1: number; u2: number; d2: number; u3: number; d3: number
+  /** Additive blocks only some backends/bars carry — early bars may predate
+   *  the ctx block, older backends may lack it entirely. `null` (never a
+   *  default) whenever the payload didn't carry the block for this bar, so a
+   *  bar with no verdict can never be mistaken for one that inherited its
+   *  neighbour's. */
+  ctx?: BarCtx | null
+  gamma?: BarGamma | null
+  setup?: BarSetup | null
 }
 
 // Live Spike Radar — one row per index, one cell per activity/spike column.
@@ -1033,6 +1065,10 @@ export function useLiveData(fallback: Dataset) {
       bars.push({
         t: b.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, oi: f.oi,
         vwap: f.vwap, u1: f.u1, d1: f.d1, u2: f.u2, d2: f.d2, u3: f.u3, d3: f.d3,
+        // Pass the whole block through — never reconstruct field-by-field —
+        // so an unrecognized extra field the engine adds later still rides
+        // along, and a bar predating the block gets `null`, never inherits.
+        ctx: b.ctx ?? null, gamma: b.gamma ?? null, setup: b.setup ?? null,
       })
     }
     return { day: day.day ?? '', bars }
