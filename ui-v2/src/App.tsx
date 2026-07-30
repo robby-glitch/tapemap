@@ -1983,7 +1983,7 @@ export default function App() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
-                                              levels={tradeLevels} cursor={scrub}
+                                              levels={tradeLevels} events={data.EVENTS_BY_IDX[activeIndex]} cursor={scrub}
                                               stale={idxDead || !!error} loading={loading} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}

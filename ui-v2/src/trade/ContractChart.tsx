@@ -1,9 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createChartEngine } from '../vendor/candl/chart/engine'
 import type { IChartEngine } from '../vendor/candl/chart/types'
 import type { TapeBar, MapLevel, IndexKey } from '../data'
+import type { Mode } from '../theme'
+import { CHART_UP, CHART_DOWN } from '../theme'
 import { toCandles, buildIndicators } from './indicators'
 import { startLevelsOverlay } from './LevelsOverlay'
+import type { Narration } from './narration'
+import Callout from './Callout'
 
 interface Props {
   index: IndexKey
@@ -11,19 +15,72 @@ interface Props {
   bars: TapeBar[]
   levels: MapLevel[]
   cursor: number | null // replay bar index; null = live
+  mode: Mode
+  hover: number | null
+  onHover: (i: number | null) => void
+  narrs: (Narration | null)[]
 }
 
-export default function ContractChart({ index, day, bars, levels, cursor }: Props) {
+/** Nearest index in a sorted-ascending time array to `t` — the inverse of
+ *  toCandles's own `dayBase(day) + minutes*60000` construction. Binary search
+ *  since the axis is monotonic (one entry per bar, in bar order). */
+function nearestIndex(times: number[], t: number): number {
+  if (!times.length) return 0
+  let lo = 0
+  let hi = times.length - 1
+  if (t <= times[0]) return 0
+  if (t >= times[hi]) return hi
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (times[mid] === t) return mid
+    if (times[mid] < t) lo = mid + 1
+    else hi = mid
+  }
+  if (lo > 0 && Math.abs(times[lo - 1] - t) <= Math.abs(times[lo] - t)) return lo - 1
+  return lo
+}
+
+export default function ContractChart({
+  index, day, bars, levels, cursor, mode, hover, onHover, narrs,
+}: Props) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<IChartEngine | null>(null)
   const levelsRef = useRef<MapLevel[]>(levels)
+  const modeRef = useRef<Mode>(mode)
   const prevRef = useRef<{ index: string; day: string; n: number }>({ index: '', day: '', n: 0 })
   levelsRef.current = levels
+  modeRef.current = mode
+
+  // Refs so the single long-lived mousemove listener (attached once, at engine
+  // creation) always reads current data without needing to be re-attached
+  // whenever bars/cursor/onHover change identity.
+  const barsRef = useRef<TapeBar[]>(bars)
+  barsRef.current = bars
+  const cursorRef = useRef<number | null>(cursor)
+  cursorRef.current = cursor
+  const onHoverRef = useRef(onHover)
+  onHoverRef.current = onHover
+  // The candle time axis (epoch ms), rebuilt once per data change (the same
+  // [index, day, bars] effect that feeds the engine) — never recomputed
+  // inside the mousemove handler itself.
+  const timesRef = useRef<number[]>([])
+  // The last index this component itself set via mousemove, so the
+  // hover-position effect below can tell "the chart's own cursor moved" apart
+  // from "hover arrived from elsewhere (e.g. the ribbon)".
+  const internalHoverRef = useRef<number | null>(null)
+
+  // Where to anchor the Callout: literal mouse position while hovering the
+  // chart itself; recomputed from the engine's own converters when `hover`
+  // arrives from outside (Ribbon), since there is no mouse position to read
+  // in that case. `w`/`h` are the frame size at the moment of the read, used
+  // for the Callout's own edge-flip math.
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
   useEffect(() => {
     const host = hostRef.current!
-    const engine = createChartEngine(host, { theme: 'dark', pricePrecision: 2, chartType: 'candles' })
+    const engine = createChartEngine(host, { theme: mode, pricePrecision: 2, chartType: 'candles' })
     engineRef.current = engine
     // A newly created engine holds no series, so the next data effect MUST take
     // the setData path. prevRef survives an effect remount (React StrictMode
@@ -34,9 +91,9 @@ export default function ContractChart({ index, day, bars, levels, cursor }: Prop
     // The vendored theme's own candles are teal/red (#26a69a/#ef5350) — foreign
     // to this app's palette. setSettings is the library's sanctioned styling
     // hook, so the colours align here rather than by editing the pristine
-    // vendor theme. Green/red carry direction, matching T.bull / T.bear.
+    // vendor theme. Green/red carry direction, matching palette(mode).bull/bear.
     engine.setSettings({
-      upColor: '#2EC27E', downColor: '#FF5F6B',
+      upColor: CHART_UP[mode], downColor: CHART_DOWN[mode],
       gridVisible: true, crosshairVisible: true,
       alertSound: false, alertTune: 0, alertDuration: 1,
     })
@@ -47,8 +104,48 @@ export default function ContractChart({ index, day, bars, levels, cursor }: Prop
     // (14 candle clusters instead of 156). Keep it.
     const ro = new ResizeObserver(() => engine.resize())
     ro.observe(host)
-    const stopOverlay = startLevelsOverlay(overlayRef.current!, host, engine, () => levelsRef.current)
+    const stopOverlay = startLevelsOverlay(
+      overlayRef.current!, host, engine,
+      () => levelsRef.current, () => modeRef.current,
+    )
+
+    // Hover mapping: clientX -> container-relative x -> engine's own xToTime
+    // -> nearest bar index. The overlay canvas is pointer-events:none, so the
+    // container itself receives these. Converters are re-queried on every
+    // move (never cached — they go stale under pan/zoom).
+    const onMove = (e: MouseEvent) => {
+      const eng = engineRef.current
+      const container = containerRef.current
+      const times = timesRef.current
+      if (!eng || !container || !times.length) return
+      const conv = eng.getMainConverters()
+      if (!conv) return
+      const rect = container.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const t = conv.xToTime(x)
+      const maxIdx = barsRef.current.length - 1
+      let idx = Math.max(0, Math.min(nearestIndex(times, t), maxIdx))
+      // The causality rule: hovering must never reveal a bar the replay
+      // cursor is hiding. Not optional.
+      const cur = cursorRef.current
+      if (cur != null) idx = Math.min(idx, Math.max(0, Math.min(cur, maxIdx)))
+      internalHoverRef.current = idx
+      setHoverPos({ x, y, w: rect.width, h: rect.height })
+      onHoverRef.current(idx)
+    }
+    const onLeave = () => {
+      internalHoverRef.current = null
+      setHoverPos(null)
+      onHoverRef.current(null)
+    }
+    const container = containerRef.current!
+    container.addEventListener('mousemove', onMove)
+    container.addEventListener('mouseleave', onLeave)
+
     return () => {
+      container.removeEventListener('mousemove', onMove)
+      container.removeEventListener('mouseleave', onLeave)
       stopOverlay()
       ro.disconnect()
       engine.destroy()
@@ -78,6 +175,7 @@ export default function ContractChart({ index, day, bars, levels, cursor }: Prop
       engine.setData(candles) // first load, index/day change, or any gap — resync
     }
     engine.setIndicators(buildIndicators(bars))
+    timesRef.current = candles.map((c) => c.time)
     prevRef.current = { index, day, n: bars.length }
   }, [index, day, bars])
 
@@ -85,10 +183,58 @@ export default function ContractChart({ index, day, bars, levels, cursor }: Prop
     engineRef.current?.setReplayCursor(cursor)
   }, [cursor])
 
+  // Mode: repaint the engine's own theme and candle colours whenever it
+  // changes (the toggle in TradeTab), independent of the data effect above.
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    engine.setTheme(mode)
+    engine.setSettings({
+      upColor: CHART_UP[mode], downColor: CHART_DOWN[mode],
+      gridVisible: true, crosshairVisible: true,
+      alertSound: false, alertTune: 0, alertDuration: 1,
+    })
+  }, [mode])
+
+  // Keep the Callout positioned when `hover` arrived from outside (the
+  // ribbon) rather than from this component's own mousemove — derive its
+  // screen position from the engine's own converters at the hovered bar's
+  // own time/price rather than guessing.
+  useEffect(() => {
+    if (hover == null) {
+      setHoverPos(null)
+      return
+    }
+    if (hover === internalHoverRef.current) return // mousemove already positioned it
+    const engine = engineRef.current
+    const container = containerRef.current
+    const conv = engine?.getMainConverters()
+    const t = timesRef.current[hover]
+    const bar = barsRef.current[hover]
+    if (!conv || !container || t == null || !bar) return
+    const rect = container.getBoundingClientRect()
+    setHoverPos({ x: conv.timeToX(t), y: conv.priceToY(bar.c), w: rect.width, h: rect.height })
+  }, [hover, bars, day])
+
+  const hoverBar = hover != null ? bars[hover] : null
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
       <canvas ref={overlayRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+      {hover != null && hoverPos && hoverBar && (
+        <Callout
+          mode={mode}
+          bar={hoverBar}
+          prevBar={hover > 0 ? bars[hover - 1] : null}
+          day={day}
+          narr={narrs[hover] ?? null}
+          x={hoverPos.x}
+          y={hoverPos.y}
+          boxW={hoverPos.w}
+          boxH={hoverPos.h}
+        />
+      )}
     </div>
   )
 }
