@@ -50,9 +50,31 @@ the open, and follows that pair. The operator's own 2026-07-30 charts —
 
 Consequences for the implementation: the pair is generally **not** delta-neutral
 and not symmetric around spot, so nothing downstream may assume the two legs
-share a strike or sit equidistant from the index. Ties (several candidate pairs
-inside tolerance) need a documented rule — nearest-to-ATM is the obvious default
-but has not been confirmed with the operator.
+share a strike or sit equidistant from the index.
+
+**ANSWERED 2026-07-31 — the ATM straddle is the anchor, and the tolerance is
+only an admission gate.** Implementing "minimise |CE − PE| within ±30/±50"
+literally selects deep-OTM wings: both legs converge to ~₹0, so their difference
+is ~₹0.05 and they beat the ATM straddle every time (measured: 520 of 668 cross
+pairs sat inside tolerance, so the gate was selecting almost nothing). The
+operator's answer — *"yeah straddle is about right because they almost forms
+mirror charts"* — gives both the fix and the reason: near-the-money legs mirror
+each other (delta ≈ ±0.5), which is the property the setup actually reads. Deep
+wings do not mirror, they merely decay together.
+
+So: **tolerance admits, distance-to-ATM selects, premium difference tie-breaks.**
+
+**EXPIRY DAY IS OUT OF SCOPE, and this is the one trap to avoid.** The reference
+charts (SENSEX 77500 CE / 78000 PE) differed by ₹173.25 at 09:20 and only
+converged at 13:39 — which looks like it disproves the rule, and does not:
+**2026-07-30 was SENSEX expiry**. Operator: *"since today was sensex expiry so
+that why otherwise atm straddle is ideal"*. On expiry the ATM straddle is
+decaying into settlement and the strikes that matter are the walls — a different
+selection problem. **Do not tune the tolerance or the objective to make an
+expiry session fit**; that fits the exception and breaks the ordinary case. The
+expiry-day rule is **unspecified — ask before building it.** `engine.py`'s
+`carry_verdict` already branches on `gamma.t <= 0.5`; reuse that test rather
+than inventing a second definition of expiry day.
 
 ### Trigger — a tag, but it must REVERSE
 

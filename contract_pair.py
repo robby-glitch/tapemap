@@ -93,17 +93,25 @@ which is the property their setup actually reads off the chart. Deep wings
 do not mirror one another -- they merely decay together, which looks like
 agreement in raw premium but is not the same market behaviour.
 
-OPEN OBSERVATION, not a settled question -- record, do not silently drop:
-the operator's own reference charts were SENSEX 77500 CE and 78000 PE, but
-at 09:20 those two legs' premiums differed by Rs 173.25 -- far outside the
-+/-50 tolerance -- and only converged to within Re 1 of each other at 13:39
-(both ~Rs 264.65). So that reference pair cannot have been produced by a
-09:20 +/-50 rule of any kind, minimise-diff or nearest-ATM. The most likely
-reading, consistent with "straddle is about right", is that the rule
-selects the near-ATM pair EARLY in the session and the operator's reference
-charts were simply whatever pair they happened to be watching mid-session,
-by which time strikes/premiums had moved. This is evidence for the
-nearest-ATM objective being the right one, not proof of it -- still open.
+RESOLVED, and the resolution is a scope boundary worth knowing. The
+operator's reference charts were SENSEX 77500 CE and 78000 PE, and at 09:20
+those two legs' premiums differed by Rs 173.25 -- far outside the +/-50
+tolerance -- converging to within Re 1 only at 13:39 (both ~Rs 264.65). That
+looked like it disproved the whole rule. It does not: **2026-07-30 was
+SENSEX EXPIRY DAY**. The operator's own words -- "since today was sensex
+expiry so that why otherwise atm straddle is ideal".
+
+So this module implements the NORMAL-DAY rule, and expiry day is a
+DIFFERENT REGIME whose rule the operator has not specified. Do not tune the
+tolerance or the objective to make an expiry session fit -- you would be
+fitting the exception and breaking the ordinary case. On expiry the ATM
+straddle is decaying into settlement and the strikes that matter are the
+walls, which is a different selection problem entirely.
+
+The codebase already has a precedent for branching on this: engine.py's
+carry_verdict tests `gamma.t <= 0.5` (days to expiry) and swaps its whole
+verdict for a settlement message. A future expiry-aware picker should reuse
+that test rather than invent a second definition of "expiry day".
 
 TOLERANCE. Defaults by index, overridden by an explicit `tol`. This stays a
 hard ADMISSION GATE only -- it is never widened, and it never determines
