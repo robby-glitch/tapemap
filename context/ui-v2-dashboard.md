@@ -17,11 +17,17 @@
 4. **Read THE HONESTY RULES below before changing any display.** Five separate
    bugs in this app came from one habit: showing a fallback as if it were real.
 
-Gates before you commit: `corepack pnpm exec tsc --noEmit`, `corepack pnpm
-build`, and `python -m pytest -q` from the repo root (43 tests — the two
-newest are `test_session_json.py`). Verify in the
-browser in a **fresh tab** — React hook-order warnings after an edit are HMR
-artifacts and do not reproduce on a clean load.
+Gates before you commit: `corepack pnpm --dir ui-v2 exec tsc --noEmit`,
+`corepack pnpm --dir ui-v2 build`, and `python -m pytest -q` from the repo root
+(**102 tests** as of 2026-07-30 — the newest are `test_structure.py`,
+`test_chain_deadline.py`, `test_session_json.py`). Verify in the browser in a
+**fresh tab** — React hook-order warnings after an edit are HMR artifacts and
+do not reproduce on a clean load.
+
+**A hook will block your first Write/Edit per file and your first Bash call**
+with a "present these facts" prompt. State the facts in plain text (importers,
+affected API, schemas, the user's verbatim instruction), then retry the
+identical call — it passes the second time. It is not a permission failure.
 
 ## Status — read this first
 
@@ -486,23 +492,114 @@ panels always show everything and FOCUS toggles off — but the feed is shorter.
 Port both rules to `ui/app.js` when v1 next takes a correctness fix, or the two
 frontends will keep colouring the same event differently.
 
-## Open items
+## Claim strength — a warning must not be worded like a read
 
-- **Trade tab: verify against a genuine live session.** The
-  `tapemap-mock-8765` fixture only exercises the same-minute refresh path;
-  the minute-rollover path in `ContractChart` and a live-drawing `GEX FLIP`
-  (mock `flip_px` is `null`) are coded and typechecked but never rendered.
-- **Verify against a live session — this is the top item.** Everything after
-  the 2026-07-28 close was verified against the mock-chain fixture, which
-  serves only NIFTY and restarts at 09:15. Three things are coded, typechecked
-  and never actually rendered:
-  - the **OffPeak badge** (nothing in the fixture is 8% off its peak),
-  - the FOCUS **"+N agreeing"** merge (no qualifying minute in that data),
-  - **OI Flow at depth** — the fixture only ever accumulates a few marks with
-    its own strikes (23900-24700), not a real ladder across a full day.
-- **Performance**: `useLiveData` re-maps three indices every 5s, and replay
-  re-maps on every scrub tick. Fine at 375 bars; the first thing to feel slow
-  if multiple days are ever loaded.
+Every directional event first wore the same chip ("UPAR ka ishaara") whether
+the engine had called a move or warned about one. `hinglish.ts` now assigns
+each kind a **claim strength**, read off its own emit text in `engine.py`:
+
+| claim | chip | kinds |
+|---|---|---|
+| `call` — the market DID something | `▲ UPAR ka ishaara` | ABSORPTION · CLIMAX · IGNITION · DIVERGENCE · TRAP-SPRUNG · SPRING · SPRING-FAIL · BAND-REVERSAL · BAND-BREAK |
+| `risk` — a warning, explicitly not yet | `▲ UPAR ka RISK — abhi hua nahi` | SQUEEZE-RISK · TRAP-SETTING · TRAP · ARMED |
+| `lean` — positioning or structure tilts | `▲ jhukaav UPAR — ishaara nahi` | CAMPAIGN · BUYER-BUILD · GAMMA-PIN · OI-PEAK-LAG · PRESS · WALL-MIGRATION · ROLE-FLIP · CARRY |
+
+Unknown kinds default to `lean`, the weakest — understating a new event beats
+promoting it to a read nobody wrote. `dirText(tone, kind)` is the one function;
+`Callout.tsx` and `App.tsx`'s EventsTab both pass the kind.
+
+Two judgement calls to revisit if they ever look wrong: **ARMED is `risk`**
+(the engine's own setup lifecycle says LOADING/ARMED has not triggered), and
+**OI-PEAK-LAG is `lean`** despite its text ending "reversal fuel → UPWARD" —
+fuel is not ignition.
+
+## `signal_review.py` — did the signals play out?
+
+`python signal_review.py [IDX] [port]` scores a running session's events
+against what the futures actually did: forward move at +5/+15/+30m signed by
+the called direction, MFE/MAE, grouped by kind AND by claim strength, with the
+**unconditional** move over every bar printed as the control. It replicates
+`evDir` — **keep the two in step**, the script says so at the top.
+
+First run, 2026-07-30 NIFTY (375 bars, 83 events, 51 directional):
+
+```
+call  (a read)       n=13  +30m avg  +16.9 pts, hit 10/13 | UP +11.8 | DN +22.8
+risk  (a warning)    n=16  +30m avg   -0.1 pts, hit  8/16
+lean  (positioning)  n=16  +30m avg   -6.2 pts, hit  8/16
+control: a long held 30m averages +4.1 (57% up); a short -4.1
+```
+
+TRAP-SETTING went 5/5 and TRAP-SPRUNG 4/4 at +30m; the single IGNITION failed
+(−15 after +37 MFE); SQUEEZE-RISK was worst at −19.0 over 10.
+
+**Do not read this as evidence.** One session, events cluster (one minute
+carried three), futures rather than premium, no costs, fixed 30-minute exit.
+Its only real use was showing that a warning and a read were being worded
+identically. Note also that an earlier ad-hoc grouping of the same day reported
+`call n=18 +22.3, 15/18` — the figure moved because TRAP-SETTING and ARMED were
+then counted as calls and are now `risk`. Same data, different buckets: exactly
+why the buckets had to be fixed a priori rather than chosen from the result.
+The real answer needs the ~55 cached days in `data/backtest/`.
+
+## Open items — accurate as of 2026-07-30 close
+
+**Do first, next session (in this order):**
+
+1. **Watch one open with the new build.** Everything from Phase 3 onward was
+   verified on a session that had already closed, replaying today's 375 bars.
+   Never seen live: the CHAIN STALE banner actually firing (the poller only
+   publishes `built_at` once polling resumes at 09:15), a **PINNED** or
+   **CEILING** gamma regime (today was FLOOR all day, so the `lean` chip has
+   only ever rendered one of its three regimes), and premium/discount re-cutting
+   as a range moves rather than sitting on the last cut of a finished day.
+2. **The honesty bug found and NOT fixed** — with the chain poller idle outside
+   market hours, the Chain tab and the ANSWER band print `PCR 0.00`,
+   `MAX PAIN 0`, `GEX Neutral`, `SQUEEZE Low` as though they were readings.
+   They are empty-chain zeros. It self-heals at 09:15, which is why it was left,
+   but by rule 1 it should say "chain unavailable — market closed". ~5 display
+   sites. **This is the highest-value correctness item on the list.**
+3. **EQH/EQL tolerance looks too loose.** On the same 2026-07-30 session our
+   `structure.py` printed 9 EQH and 7 EQL where the operator's LuxAlgo printed
+   2 and 2 (compared after a 58.4-pt FUT→spot basis; see the SMC section).
+   `EQ_FRAC` is the dial. BOS/CHoCH agreed well, so this is specific to pools.
+
+**Known gaps, deliberate:**
+
+- **PWH/PWL and PMH/PML** need weekly/monthly history (a daily-candle fetch
+  plus a cache). Not derivable from the one-session pivots block — see above.
+- **FVG/OB boxes extend to "now", not to fill.** `structure.py` defers the fill
+  event (it needs a second birth on a later bar, which the fixed `kind` enum
+  has no member for), so a filled gap keeps drawing. The chart caps the drawn
+  zones to the newest 12 of ~85 and discloses the count, which contains the
+  symptom rather than curing it.
+- **OB and BOS/CHoCH confirmation is `UNKNOWN` by construction** — they need
+  per-strike chain OI that `/api/data` does not carry (~2/3 of all structures).
+  A FUT-volume proxy was considered and refused: it would answer a different
+  question under the same label.
+- **No sortable confirmation score** — the wire carries a tri-state, so FOCUS
+  cannot rank structures by how well flow confirmed them. `confirm_why` holds
+  the numbers but has no consumer; a hover on a structure is the obvious home.
+- **`evDir` now differs between v1 and v2** (ABSORPTION, GAMMA-PIN). Port to
+  `ui/app.js` when v1 next takes a fix, and bump its `?v=`.
+
+**Smaller, still open:**
+
+- `GEX FLIP` has never been *seen* drawn — it has only ever been off-pane
+  (2026-07-30: flip 24547 against a 24250–24397 range). Not a defect.
+- Callout edge-flip uses a fixed 280×210 size estimate rather than measuring.
+- **Performance**: `useLiveData` re-maps three indices every 5s and replay
+  re-maps per scrub tick. Fine at 375 bars; first thing to feel slow if
+  multiple days are ever loaded.
 - Consider persisting active index/tab across refresh.
-- v1 parity: the porting list is complete — new chain fields, FOCUS, replay
-  scrub and token capture are all done.
+- Possibly still open from the 2026-07-25 desk-grade review, never verified:
+  the live tape resolves the **monthly** futures expiry while
+  `chain_live.resolve_expiry` takes the nearest **weekly**, so the shipped
+  system may not be the backtested one.
+  (`docs/superpowers/specs/2026-07-25-tapemap-v2-desk-grade-review.md`)
+
+**Done, do not redo:** Phases 1–3.5 of the Tape Chart; the app-wide light
+theme; the Kite band palette; the Hinglish layer across chart, callout and
+Events; PDH/PDL/PDC + premium/discount; the live-server restart that activated
+`structures`. v1 parity for chain fields, FOCUS, replay scrub and token capture
+was already complete before this session.
