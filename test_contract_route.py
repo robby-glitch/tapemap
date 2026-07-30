@@ -202,6 +202,122 @@ def test_resampling_samples_the_bands_it_does_not_recompute_them():
         assert three["vwap"][j] == one["vwap"][i]
 
 
+# ---- 5b. the shared axis: both legs index the same minute ------------------
+
+def test_legs_are_joined_on_one_axis_not_by_position():
+    # the reproduced failure: CE has only 07-30, PE has 07-29 and 07-30, so
+    # index 0 used to compare 07-30 09:15 against 07-29 09:15
+    sess = ["2026-07-29", "2026-07-30"]
+    ce = live._leg_series(
+        lambda d: _payload(d, n=5) if d == "2026-07-30" else {}, sess, 1)
+    pe = live._leg_series(lambda d: _payload(d, n=5), sess, 1)
+    assert len(ce["bars"]) == 5 and len(pe["bars"]) == 10   # before the join
+
+    legs = {"CE": ce, "PE": pe}
+    axis = live._shared_axis(legs)
+    for leg in legs.values():
+        live._align_to_axis(leg, axis)
+
+    assert len(axis) == 10
+    for leg in legs.values():
+        for key in ("bars", "vwap", "oi", "bar_days"):
+            assert len(leg[key]) == len(axis)
+    # every slot means the same session and minute on BOTH legs
+    for i, (day, t) in enumerate(axis):
+        for leg in legs.values():
+            assert leg["bar_days"][i] == day
+            if leg["bars"][i] is not None:
+                assert leg["bars"][i]["t"] == t
+    # CE is explicitly absent for the whole of 07-29 rather than shifted onto it
+    assert ce["bars"][:5] == [None] * 5
+    assert all(b is not None for b in ce["bars"][5:])
+    assert all(b is not None for b in pe["bars"])
+
+
+def test_a_minute_one_leg_never_traded_is_null_never_carried_forward():
+    def ce_fetch(d):
+        p = _payload(d, n=4)
+        return {k: v[:2] + v[3:] for k, v in p.items()}   # CE misses 09:17
+
+    ce = live._leg_series(ce_fetch, ["2026-07-30"], 1)
+    pe = live._leg_series(lambda d: _payload(d, n=4), ["2026-07-30"], 1)
+    legs = {"CE": ce, "PE": pe}
+    axis = live._shared_axis(legs)
+    for leg in legs.values():
+        live._align_to_axis(leg, axis)
+
+    assert [t for _d, t in axis] == ["09:15", "09:16", "09:17", "09:18"]
+    assert ce["bars"][2] is None                 # the minute it did not print
+    assert ce["vwap"][2] is None and ce["oi"][2] is None
+    # and NOT the previous bar repeated, which would invent a print
+    assert ce["bars"][1]["t"] == "09:16"
+    assert ce["bars"][3]["t"] == "09:18"         # not shifted up into the hole
+
+
+def test_a_single_leg_is_unchanged_by_the_join():
+    leg = live._leg_series(lambda d: _payload(d, n=5), ["2026-07-30"], 1)
+    before = [dict(b) for b in leg["bars"]]
+    axis = live._shared_axis({"CE": leg})
+    live._align_to_axis(leg, axis)
+    assert leg["bars"] == before
+    assert axis == [("2026-07-30", b["t"]) for b in before]
+    assert leg["axis_collisions"] == 0
+
+
+def test_a_duplicated_slot_keeps_the_first_bar_and_is_counted():
+    leg = {"bars": [{"t": "09:15", "c": 1.0}, {"t": "09:15", "c": 2.0}],
+           "vwap": [{"vwap": 1.0}, {"vwap": 2.0}], "oi": [10, 20],
+           "bar_days": ["2026-07-30", "2026-07-30"]}
+    axis = live._shared_axis({"X": leg})
+    live._align_to_axis(leg, axis)
+    assert len(axis) == 1
+    assert leg["bars"][0]["c"] == 1.0            # a slot cannot hold two bars
+    assert leg["axis_collisions"] == 1
+
+
+def test_axis_rule_states_the_join_and_forbids_carrying_forward():
+    assert "null" in live.AXIS_RULE
+    assert "carried forward" in live.AXIS_RULE
+
+
+def test_build_contract_emits_the_axis_and_aligns_both_legs(monkeypatch):
+    import chain_live
+
+    monkeypatch.setattr(chain_live, "read_token", lambda: "tok")
+    monkeypatch.setattr(chain_live, "token_status", lambda t: {"ok": True})
+    monkeypatch.setattr(chain_live, "_client", lambda t: object())
+    monkeypatch.setattr(chain_live, "_with_deadline",
+                        lambda fn, s, label: fn())
+    monkeypatch.setattr(chain_live, "resolve_expiry",
+                        lambda *a, **k: "2026-08-04")
+    monkeypatch.setattr(live, "_atm_ids",
+                        lambda k, cfg: {"CE": "111", "PE": "222"})
+
+    def fetch(sec_id, day):
+        # the CE leg is missing the older session entirely
+        if sec_id == "111" and day == "2026-07-29":
+            return {}
+        return _payload(day, n=5)
+
+    out = live.build_contract("NIFTY", strike=24200, side="BOTH", interval=1,
+                              days=2, day="2026-07-30", chain_rows=[],
+                              fetch=fetch)
+
+    assert len(out["axis"]) == 10
+    assert out["axis"][0] == ["2026-07-29", "09:15"]
+    assert out["axis_rule"] == live.AXIS_RULE
+    ce, pe = out["legs"]["CE"], out["legs"]["PE"]
+    for leg in (ce, pe):
+        assert len(leg["bars"]) == len(out["axis"])
+    assert ce["bars"][:5] == [None] * 5          # CE never traded on the 29th
+    assert all(b is not None for b in pe["bars"])
+    # same index, same minute, same session -- the whole point of the axis
+    for i, (day, t) in enumerate(out["axis"]):
+        for leg in (ce, pe):
+            if leg["bars"][i] is not None:
+                assert (leg["bar_days"][i], leg["bars"][i]["t"]) == (day, t)
+
+
 # ---- 6/7. forming, and param validation before any I/O ---------------------
 
 def test_forming_is_null_and_says_why():

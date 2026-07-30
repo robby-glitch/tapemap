@@ -235,6 +235,23 @@ CONTRACT_DEADLINE_S = 25        # wall-clock cap on ONE intraday chart call.
 CONTRACT_MAX_DAYS = 10          # days x legs is one request each; bounded so a
                                 # stray ?days=900 cannot walk into the rate cap
 
+AXIS_RULE = (
+    "bars/vwap/oi/bar_days on EVERY leg are indexed by the shared `axis`: "
+    "axis[i] is the (session, bar label) pair that slot i means, so "
+    "legs.CE.bars[i] and legs.PE.bars[i] are the same minute of the same "
+    "session, or null. A leg with no bar at a slot gets an explicit null in "
+    "bars, vwap and oi -- never a value carried forward from a neighbouring "
+    "bar, which would invent a print that never happened. The axis is the "
+    "UNION of the legs' slots sorted by session then clock, so a minute only "
+    "one leg traded is still a slot and the hole is visible rather than "
+    "closed up. Slots match on the exact label: with interval > 1 each leg's "
+    "buckets are anchored on ITS OWN first bar, so two legs whose sessions "
+    "start at different minutes can produce disjoint labels -- that shows up "
+    "as nulls on both sides, which is the honest reading, not an alignment. "
+    "`axis_collisions` on a leg counts slots that leg filled more than once "
+    "(a repeated minute in the feed); the first bar wins and the rest are "
+    "dropped, because a shared slot cannot hold two bars.")
+
 FORMING_WHY = (
     "forming is null in this build. The incomplete candle is aggregated from "
     "the ChainPoller's ~10.5s ticks (contract-tape spec section 2, 'The "
@@ -318,6 +335,59 @@ def _leg_series(fetch, sessions, interval):
             "forming": None, "forming_why": FORMING_WHY}
 
 
+def _slot(day, bar):
+    """The (session, bar label) a bar occupies. The join key for the axis."""
+    return (day, bar.get("t") if isinstance(bar, dict) else None)
+
+
+def _shared_axis(legs):
+    """Union of every leg's slots, in session order then clock order.
+
+    `_leg_series` guarantees each leg's arrays are 1:1 WITHIN that leg, which
+    says nothing about two legs lining up with each other: a leg is built from
+    its own requests, and a session either leg is missing (or a minute one of
+    them never traded) shifts everything after it by one index. The operator's
+    setup is a JOINT read -- buy the leg at -2 sigma WHILE the other side comes
+    down from +2/+3 -- so a consumer indexing both legs by `i` must be indexing
+    the same minute. Reproduced before this existed: CE 5 bars all on 07-30,
+    PE 10 bars spanning 07-29 and 07-30, and index 0 compared 07-30 09:15
+    against 07-29 09:15.
+    """
+    seen, slots = set(), []
+    for leg in legs.values():
+        for key in map(_slot, leg["bar_days"], leg["bars"]):
+            if key not in seen:
+                seen.add(key)
+                slots.append(key)
+    return sorted(slots, key=lambda k: (k[0] or "", k[1] or ""))
+
+
+def _align_to_axis(leg, axis):
+    """Re-index one leg's arrays onto `axis`, in place. See AXIS_RULE.
+
+    A slot the leg has no bar for becomes an explicit `None` in `bars`, `vwap`
+    and `oi`. Nothing is carried forward from the previous bar: a null says
+    "this leg did not print here", and a repeated close would say "it traded
+    here at this price", which is a different and untrue claim.
+    """
+    idx, collisions = {}, 0
+    for i, key in enumerate(map(_slot, leg["bar_days"], leg["bars"])):
+        if key in idx:
+            collisions += 1
+            continue
+        idx[key] = i
+    bars, vwap, oi = [], [], []
+    for key in axis:
+        j = idx.get(key)
+        bars.append(leg["bars"][j] if j is not None else None)
+        vwap.append(leg["vwap"][j] if j is not None else None)
+        oi.append(leg["oi"][j] if j is not None else None)
+    leg["bars"], leg["vwap"], leg["oi"] = bars, vwap, oi
+    leg["bar_days"] = [d for d, _t in axis]
+    leg["axis_collisions"] = collisions
+    return leg
+
+
 def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
                    day=None, chain_rows=None, fetch=None):
     """The `/api/contract` payload: option-premium bars + their own VWAP.
@@ -335,6 +405,14 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     there is no single top-level series and `bars`/`vwap`/`oi` are `null`; the
     arrays live under `legs.CE` / `legs.PE`. With one side requested the
     top-level arrays are filled in as spec section 2 describes.
+
+    JOIN RULE: the response carries ONE `axis` -- a list of `[session, bar
+    label]` pairs -- and every leg's `bars`/`vwap`/`oi`/`bar_days` is indexed
+    by it, so `legs.CE.bars[i]` and `legs.PE.bars[i]` are the same minute of
+    the same session or `null`. Legs are NOT independently indexed and a
+    missing bar is never filled in from its neighbour. `axis_rule` states this
+    in the payload; the full wording, including what happens when the legs'
+    resample anchors differ, is `AXIS_RULE`.
 
     `day` defaults to today and is the newest session charted. Passing an
     older `day` backfills history, but note the asymmetry: the BARS are
@@ -426,9 +504,17 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
                 gaps.append(g)
             reasons[f"{s} {g}"] = leg["gap_reasons"][g]
 
+    # ONE axis for the request. Built AFTER every leg so it is the union of
+    # what the legs really hold, then both legs are re-indexed onto it -- the
+    # legs are 1:1 with each other only from here on.
+    axis = _shared_axis(legs)
+    for leg in legs.values():
+        _align_to_axis(leg, axis)
+
     out = {"ok": True, "index": idx, "expiry": expiry, "interval": interval,
            "days": days, "sessions": sessions, "side": side, "strike": strike,
            "pair": pair, "pair_why": why, "legs": legs,
+           "axis": [[d, t] for d, t in axis], "axis_rule": AXIS_RULE,
            "bars": None, "vwap": None, "oi": None, "bar_days": None,
            "gaps": sorted(gaps), "gap_reasons": reasons,
            "forming": None, "forming_why": FORMING_WHY,
