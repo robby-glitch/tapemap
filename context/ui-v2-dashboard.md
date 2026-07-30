@@ -387,6 +387,17 @@ mock chain's `flip_px` is `null`.
 - **Phase 3** — `ceaeceb` plan · `37c399f` ctx/gamma/setup on TapeBar + zone
   grouping · `f1d5be3` Kite candles, story balloons, zone bands · `2dd103a`
   ENGINE READ panel + cursor-sliced zone wiring
+- **Phase 3.5** — `b616e9d` structure.py (SMC/ICT from public definitions,
+  pure stdlib, causal, rank/fraction tolerances only) · `b2856c9` attached to
+  both payload paths as additive `structures` per day · `c20716c`+`3a00120`
+  review fixes (near-boundary tolerance tests, sweep→formation honesty) ·
+  `e742c1c`+`eb099b1` the render layer (SMC toggle, tri-state
+  CONFIRMED/UNCONFIRMED/UNKNOWN carried in shape opacity+dash, index-alignment
+  skip guard, causal clipping). Known deferred: FVG/OB boxes extend right until
+  now, not until filled (needs a second-birth fill event in structure.py) —
+  busy sessions wash the right edge brass; OB and BOS/CHoCH confirmation is
+  UNKNOWN by construction on this payload path (needs per-strike chain OI the
+  payload does not carry); no sortable confirmation score yet (tri-state only).
 
 ## Open items
 
