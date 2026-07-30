@@ -427,6 +427,35 @@ borders still distinguish "checked and disagreed" from "could not check". The
 verdict zones became an 11px **condition track** below the engine's legend
 (with a hairline at each run's start) rather than a wash over the price area.
 
+## Prior-day levels are DERIVED, not fetched — and the check is the point
+
+`structure.py` now publishes PDH/PDL/PDC. They are not a new data feed: the
+payload's `pivots` block is standard floor pivots off the prior session's
+H/L/C, and that reduction inverts exactly — `H = 2P − S1`, `L = 2P − R1`,
+`C = 3P − H − L`. It is publishable only because it is **checkable**: floor
+pivots pin four more numbers off the same H/L/C (R2, S2, R3, S3), and
+`prior_day_hlc()` recomputes all four and returns `None` — emitting no PD* at
+all — unless they match. A Fibonacci or Camarilla feed inverts to a number just
+as readily; only the cross-check tells them apart, and an unverifiable
+prior-day high is a fabricated level, not a level.
+
+One real wrinkle the check found: this repo emits **two** third-level
+conventions — `live.py`/`backtest.py` use `R3 = H + 2(P−L)`, the vendor export
+behind `data/*_3day.csv` uses `R3 = P + 2(H−L)`. P/R1/R2/S1/S2 are identical.
+Both are functions of the same H/L so either corroborates; a set MIXING them is
+refused, and each receipt names which convention verified it.
+
+**PWH/PWL and PMH/PML are still absent, and cannot be derived this way** — the
+pivots block reduces one prior *session*. A weekly pivot block would make
+PWH/PWL derivable identically; the feed does not send one, so they need real
+weekly/monthly history (a daily-candle fetch plus a cache) before they can be
+drawn.
+
+Premium/discount also lands: the working range (most recent confirmed swing
+high/low) split at 50%, re-cut only when the range moves (~45 times a session,
+not 375). The chart draws only the **current** cut — one dashed EQ line and the
+two halves named — because 90 published bands describe one moving line.
+
 ## Open items
 
 - **Trade tab: verify against a genuine live session.** The
