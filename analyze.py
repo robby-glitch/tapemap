@@ -6,6 +6,7 @@ Used by server.py (import) or standalone: python analyze.py [data_dir] [strike]
 import json
 import sys
 
+import structure
 from engine import Session, days_to_expiry, load, session_json
 
 
@@ -20,7 +21,11 @@ def analyze(base="data", strike=24200.0, expiry="2026-07-21"):
             s = Session(day, fut[day], ce[day], pe[day], quiet=True,
                         strike=strike, t_days=t_days)
             s.run()
-            days.append(session_json(s))
+            js = session_json(s)
+            # same additive Phase 3.5 key as live.py: replay must carry the
+            # structure layer too, or the two paths disagree about the tape
+            js["structures"] = structure.compute(js["bars"])
+            days.append(js)
     return {"strike": strike, "days": days}
 
 

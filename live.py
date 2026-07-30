@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import instruments
+import structure
 from engine import Session, session_json
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -230,6 +231,10 @@ def build_payload(cfg):
     # close — suppress it so the feed never shows a 15:29 event at 10:30
     if js["bars"] and js["bars"][-1]["t"] < "15:25":
         js["events"] = [e for e in js["events"] if e["kind"] != "CARRY"]
+    # Phase 3.5 SMC/ICT layer, additive: each structure carries the index of
+    # the bar that completed it, so the UI clips by `born` instead of the
+    # backend re-deriving structure per scrub position. v1 ignores the key.
+    js["structures"] = structure.compute(js["bars"])
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
                        "expiry": cfg["expiry"], "built_at": time.time(),
                        "days": [js]}).encode()
