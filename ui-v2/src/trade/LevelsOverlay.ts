@@ -11,6 +11,11 @@ const TRAP = 'rgba(255,95,107,0.85)'
 // Minimum vertical gap between two drawn labels, for a 10px font.
 const LABEL_GAP = 11
 
+// The chart engine draws its own OHLC legend across the top-left of the main
+// pane. A label landing in that band would overprint it and both become
+// illegible, so labels start below it — the level's LINE is still drawn.
+const LEGEND_BAND_PX = 26
+
 export function startLevelsOverlay(
   canvas: HTMLCanvasElement,
   host: HTMLElement,
@@ -66,8 +71,9 @@ export function startLevelsOverlay(
       ctx.stroke()
       ctx.setLineDash([]) // reset so dash state never leaks into the next stroke/fill
 
-      // Draw the label only if it clears the last *drawn* label by the min gap.
-      if (y - lastLabelY >= LABEL_GAP) {
+      // Draw the label only if it clears the last *drawn* label by the min gap
+      // AND clears the engine's own OHLC legend in the top-left of the pane.
+      if (y - lastLabelY >= LABEL_GAP && y >= pane.y + LEGEND_BAND_PX) {
         ctx.fillText(`${lvl.label} ${lvl.value.toFixed(1)}`, pane.x + 6, y - 2)
         lastLabelY = y
       }
