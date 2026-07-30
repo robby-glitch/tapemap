@@ -9,6 +9,7 @@ import type { Mode } from '../theme'
 import { MONO } from '../theme'
 import { dayBase } from './indicators'
 import type { Narration } from './narration'
+import { glossOf, pillText, dirText } from './hinglish'
 import type { TapeBar } from '../data'
 
 interface Props {
@@ -155,13 +156,36 @@ export default function Callout({ mode, bar, prevBar, day, narr, x, y, boxW, box
       {/* Narration block — a bar with no event says so, never invents one. */}
       {narr ? (
         <div style={{ padding: '9px 11px 10px', borderTop: `1px solid ${pal.border}`, borderLeft: `3px solid ${accent}` }}>
+          {/* Hinglish first, because it is what reads at a glance: the kind's
+              own caption, then which way the engine already said this leans.
+              The engine's English sentence and its numbers follow underneath,
+              verbatim — the gloss translates the KIND, never the claim, so the
+              receipt has to stay on screen right next to it. */}
           <div style={{
-            fontSize: 10, letterSpacing: '0.11em', textTransform: 'uppercase',
-            fontWeight: 700, color: accent, marginBottom: 3,
+            display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 3, flexWrap: 'wrap',
           }}>
-            {narr.kind}
+            <span style={{
+              fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase',
+              fontWeight: 700, color: accent,
+            }}>
+              {pillText(narr.kind)}
+            </span>
+            <span style={{ fontSize: 10, color: accent, fontWeight: 600 }}>
+              {dirText(narr.tone).arrow} {dirText(narr.tone).text}
+            </span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 580, lineHeight: 1.35, color: pal.textPrimary, marginBottom: 3 }}>
+          {glossOf(narr.kind) && (
+            <div style={{ fontSize: 12, lineHeight: 1.4, color: pal.textPrimary, marginBottom: 5 }}>
+              {glossOf(narr.kind)!.line}
+            </div>
+          )}
+          <div style={{
+            fontSize: 9.5, letterSpacing: '0.09em', textTransform: 'uppercase',
+            color: pal.textMuted, marginBottom: 2,
+          }}>
+            engine ke apne shabd — {narr.kind}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 560, lineHeight: 1.35, color: pal.textSecondary, marginBottom: 3 }}>
             {narr.head}
           </div>
           <div style={{ fontSize: 11, color: pal.textSecondary, lineHeight: 1.45 }}>
@@ -171,7 +195,7 @@ export default function Callout({ mode, bar, prevBar, day, narr, x, y, boxW, box
       ) : (
         <div style={{ padding: '9px 11px 10px', borderTop: `1px solid ${pal.border}` }}>
           <div style={{ fontSize: 11, color: pal.textMuted }}>
-            no event on this bar — OHLC only
+            is bar par koi event nahi — sirf OHLC
           </div>
         </div>
       )}

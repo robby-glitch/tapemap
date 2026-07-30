@@ -7,6 +7,7 @@ import type { MapLevel, Structure, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
 import type { Narration } from './narration'
+import { pillText } from './hinglish'
 import type { Zone } from './zones'
 
 /** What the per-bar passes (σ ribbons, story balloons) need, re-read every
@@ -646,7 +647,9 @@ function drawBalloons(
     const anchorY = conv.priceToY(below ? bars[i].l : bars[i].h)
     if (!Number.isFinite(x) || !Number.isFinite(anchorY)) continue
     if (x < pane.x - 2 || x > pane.x + pane.width + 2) continue // panned out of the pane
-    const text = nr.kind.toUpperCase()
+    // Hinglish caption, so a balloon says what happened rather than naming a
+    // category. An unglossed kind falls back to the engine's own string.
+    const text = pillText(nr.kind).toUpperCase()
     const pillW = ctx.measureText(text).width + PILL_PAD_X * 2
     if (pillW + 4 > pane.width) continue // pane cannot hold this pill at all
     // Centred on the bar, then nudged to stay inside the pane. The STEM below
