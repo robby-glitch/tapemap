@@ -1114,7 +1114,11 @@ export function useLiveData(fallback: Dataset) {
   const tapeBars = useCallback((k: IndexKey): TapeView => {
     const D = raw[k]?.D
     const day = D?.days?.[D.days.length - 1]
-    if (!day) return { day: '', bars: [], structures: null, structuresWhy: 'no session loaded yet' }
+    // No session at all yet — this is the tab's own loading/no-tape state,
+    // not a structure-layer availability fact, so there is no "why" to give:
+    // TradeTab reads the empty `day` string itself as the signal to suppress
+    // its structure disclosure, rather than parsing this string's wording.
+    if (!day) return { day: '', bars: [], structures: null, structuresWhy: '' }
     const bars: TapeBar[] = []
     // structure.py's indices address the day's UNFILTERED bar list, so the
     // skip below silently shifts every one of them. In practice the engine
@@ -1144,7 +1148,19 @@ export function useLiveData(fallback: Dataset) {
       structuresWhy = `${skipped} bar${skipped === 1 ? '' : 's'} lacked a FUT leg, `
         + 'so the layer’s bar indices no longer line up with the chart'
     } else {
-      structures = day.structures as Structure[]
+      // Verbatim, but not blind: a row whose `confirm` is not one of the three
+      // known values still gets shown (never dropped for a wire surprise) —
+      // normalised to UNKNOWN, the honest reading of "not recognised", with
+      // the surprising original value kept in `confirm_why` rather than
+      // silently overwritten. One cheap map, no deep validation.
+      structures = (day.structures as Structure[]).map((s) => {
+        if (s.confirm === 'CONFIRMED' || s.confirm === 'UNCONFIRMED' || s.confirm === 'UNKNOWN') return s
+        return {
+          ...s,
+          confirm: 'UNKNOWN' as const,
+          confirm_why: `unrecognised confirm "${s.confirm}" — treated as unchecked; ${s.confirm_why ?? ''}`,
+        }
+      })
     }
     return { day: day.day ?? '', bars, structures, structuresWhy }
   }, [raw])

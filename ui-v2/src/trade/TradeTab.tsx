@@ -238,6 +238,22 @@ export default function TradeTab({
     setSmc(next)
   }
 
+  // What the SMC toggle's tooltip reports: SWING_H/SWING_L are never drawn
+  // (LevelsOverlay.ts's drawStructures says why — each is already the
+  // endpoint of a BOS, an EQH/EQL pool or an OB), so counting them alongside
+  // the drawn kinds would tell the operator "N structures" when only a
+  // fraction of N puts anything on the chart. Split into what's actually
+  // rendered and what's tracked but not shown.
+  const structCounts = useMemo(() => {
+    if (!structures) return null
+    let drawn = 0, swings = 0
+    for (const s of structures) {
+      if (s.kind === 'SWING_H' || s.kind === 'SWING_L') swings++
+      else drawn++
+    }
+    return { drawn, swings }
+  }, [structures])
+
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
   const narrs = useMemo(() => buildNarration(bars, events), [bars, events])
@@ -416,8 +432,8 @@ export default function TradeTab({
               below is what reports availability. */}
           <button
             onClick={toggleSmc}
-            title={structures
-              ? `Show the backend's SMC structure layer (${structures.length} structures this session)`
+            title={structCounts
+              ? `Show the backend's SMC structure layer (${structCounts.drawn} structures drawn · ${structCounts.swings} swings tracked)`
               : 'Show the SMC structure layer — unavailable for this session, see the note below'}
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
@@ -488,8 +504,12 @@ export default function TradeTab({
 
       {/* The layer is missing, so say so rather than let an empty chart read
           as "no structure found". Faint, one line, and only when SMC is on —
-          with the toggle off the operator already knows why nothing is drawn. */}
-      {smc && !structures && (
+          with the toggle off the operator already knows why nothing is drawn.
+          Gated on `day` too: an empty day is the tab's own initial-load state
+          (the bail above already covers it with a loading/no-tape message),
+          not a real session whose structures came back absent or misaligned —
+          those two must never share this disclosure line. */}
+      {smc && day && !structures && (
         <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
           Structure layer unavailable{structuresWhy ? ` — ${structuresWhy}` : ''}. No boxes are drawn
           rather than boxes that might sit on the wrong bars.

@@ -85,10 +85,14 @@ const STRUCT_ALPHA: Record<Mode, Record<'FVG' | 'OB', number>> = {
   dark: { FVG: 0.07, OB: 0.10 },
 }
 const STRUCT_BORDER_ALPHA = 0.25
-// UNCONFIRMED and UNKNOWN both draw at this fraction of the above. They are
-// DIFFERENT claims and their labels say so ("unconfirmed" vs "unchecked"); the
-// shared dimming only says "not confirmed", which is true of both.
-const STRUCT_FAINT = 0.45
+// UNCONFIRMED and UNKNOWN are DIFFERENT claims and their labels say so
+// ("unconfirmed" vs "unchecked"), so the shape now carries the distinction
+// too, not just the label text: UNCONFIRMED (flow checked, disagreed) draws
+// noticeably faint with the normal solid 1px border; UNKNOWN (flow could not
+// be checked) draws fainter still, with a DASHED border, so a de-cluttered
+// label (or a screenshot with the label cropped) still reads which claim it is.
+const STRUCT_FAINT_UNCONFIRMED = 0.55
+const STRUCT_FAINT_UNKNOWN = 0.35
 const STRUCT_TICK_PX = 24        // BOS/CHoCH tick length, ending at x(born)
 const STRUCT_LABEL_PX = 8.5
 const STRUCT_LABEL_GAP = 3       // px between a tick/line end and its label
@@ -251,11 +255,13 @@ type LabelBox = { x0: number; y0: number; x1: number; y1: number }
  *   EQH / EQL  a dashed line across the pool, from x(i0) to x(born).
  *   SWING_H/L  deliberately not drawn — see the note at the bottom.
  *
- * Confirmation shows as opacity plus a label suffix: CONFIRMED at full alpha
- * and no suffix, UNCONFIRMED faint + "unconfirmed" (flow was checked and
- * disagreed), UNKNOWN faint + "unchecked" (flow could not be checked at all).
- * A structure is NEVER dropped for being unconfirmed: "we found nothing" and
- * "we are not showing you" are different statements.
+ * Confirmation shows as opacity plus border style plus a label suffix:
+ * CONFIRMED at full alpha, solid border, no suffix; UNCONFIRMED at 0.55×
+ * alpha, solid border, "unconfirmed" (flow was checked and disagreed);
+ * UNKNOWN at 0.35× alpha, DASHED border, "unchecked" (flow could not be
+ * checked at all) — the shape alone tells the two apart once a label is
+ * de-cluttered. A structure is NEVER dropped for being unconfirmed: "we
+ * found nothing" and "we are not showing you" are different statements.
  *
  * `taken` arrives pre-seeded with the level labels' boxes, so a structure
  * label never overprints a price level's. It is mutated as labels are placed.
@@ -280,9 +286,14 @@ function drawStructures(
   if (!Number.isFinite(cutX)) return
   const brass = pal.accent
 
-  /** CONFIRMED draws at the configured alpha, the other two at a fraction of
-   *  it. Never zero, and never a different hue — brass is structure. */
-  const scale = (s: Structure) => (s.confirm === 'CONFIRMED' ? 1 : STRUCT_FAINT)
+  /** CONFIRMED draws at the configured alpha. UNCONFIRMED and UNKNOWN each
+   *  get their own fraction of it (never zero, and never a different hue —
+   *  brass is structure) so the two claims stay visually distinct even once
+   *  a label is de-cluttered; the border dash (below) carries the rest. */
+  const scale = (s: Structure) =>
+    s.confirm === 'CONFIRMED' ? 1
+      : s.confirm === 'UNCONFIRMED' ? STRUCT_FAINT_UNCONFIRMED
+        : STRUCT_FAINT_UNKNOWN
   const suffix = (s: Structure) =>
     s.confirm === 'UNCONFIRMED' ? ' unconfirmed'
       : s.confirm === 'UNKNOWN' ? ' unchecked' : ''
@@ -319,7 +330,11 @@ function drawStructures(
     ctx.fillRect(x0, top, cutX - x0, h)
     ctx.lineWidth = 1
     ctx.strokeStyle = withAlpha(brass, STRUCT_BORDER_ALPHA * sc)
+    // UNKNOWN gets a dashed border — "could not be checked" reads differently
+    // from UNCONFIRMED's solid one even with the label gone.
+    if (s.confirm === 'UNKNOWN') ctx.setLineDash(STRUCT_POOL_DASH)
     ctx.strokeRect(x0, top, cutX - x0, h)
+    if (s.confirm === 'UNKNOWN') ctx.setLineDash([]) // never let dash state leak into the next stroke/fill
   }
 
   ctx.font = `${STRUCT_LABEL_PX}px ${MONO_STACK}`
@@ -363,7 +378,11 @@ function drawStructures(
       const h = Math.abs(yLo - yHi)
       // Inside the box when it can hold the text; just above it otherwise. An
       // 8.5px label crammed into a 3px gap reads as a different structure.
-      placeLabel(label, x0 + 2,
+      // Clamped to the pane's left edge rather than the box's own: at the
+      // default 160-bar view most boxes start left of the viewport, and an
+      // unclamped x there is exactly what made placeLabel's own edge bail
+      // drop the label instead of sliding it onto the visible box.
+      placeLabel(label, Math.max(x0 + 2, pane.x + 2),
         h >= STRUCT_LABEL_PX + 2 ? top + h / 2 : top - STRUCT_LABEL_PX / 2 - 1, color)
       continue
     }
@@ -380,7 +399,15 @@ function drawStructures(
       ctx.moveTo(Math.max(pane.x, xb - STRUCT_TICK_PX), y)
       ctx.lineTo(xb, y)
       ctx.stroke()
-      placeLabel(label, xb + STRUCT_LABEL_GAP, y, color)
+      // The newest break sits within ~5 bars of the pane's right edge, where
+      // a right-side label cannot fit — fall back to the shape's LEFT rather
+      // than dropping it, so the newest BOS/CHoCH is never the one unlabelled.
+      {
+        const w = ctx.measureText(label).width
+        const rightX = xb + STRUCT_LABEL_GAP
+        const lx = rightX + w > pane.x + pane.width - 2 ? xb - STRUCT_LABEL_GAP - w : rightX
+        placeLabel(label, lx, y, color)
+      }
       continue
     }
 
@@ -400,7 +427,14 @@ function drawStructures(
       ctx.lineTo(x1, y)
       ctx.stroke()
       ctx.setLineDash([]) // never let dash state leak into the next stroke/fill
-      placeLabel(label, x1 + STRUCT_LABEL_GAP, y, color)
+      // Same right-edge fallback as BOS/CHoCH above: the pool's `born` end is
+      // the same ~5-bar right margin the newest break lands in.
+      {
+        const w = ctx.measureText(label).width
+        const rightX = x1 + STRUCT_LABEL_GAP
+        const lx = rightX + w > pane.x + pane.width - 2 ? x1 - STRUCT_LABEL_GAP - w : rightX
+        placeLabel(label, lx, y, color)
+      }
       continue
     }
 
@@ -683,11 +717,20 @@ export function startLevelsOverlay(
       for (const { lvl, y } of visible) {
         const ok = y - lastLabelY >= LABEL_GAP && y >= pane.y + LEGEND_BAND_PX
         labelled.push(ok)
-        if (!ok) continue
-        lastLabelY = y
-        const w = ctx.measureText(`${lvl.label} ${lvl.value.toFixed(1)}`).width
-        // Baseline 'bottom' at y-2 for a 10px font, padded by 1px each way.
-        takenLabels.push({ x0: pane.x + 6, y0: y - 13, x1: pane.x + 6 + w, y1: y - 1 })
+        if (ok) {
+          lastLabelY = y
+          const w = ctx.measureText(`${lvl.label} ${lvl.value.toFixed(1)}`).width
+          // Baseline 'bottom' at y-2 for a 10px font, padded by 1px each way.
+          takenLabels.push({ x0: pane.x + 6, y0: y - 13, x1: pane.x + 6 + w, y1: y - 1 })
+        }
+        // Every visible level also gets a right-axis price chip, painted much
+        // further down (~46px wide, 13px tall) regardless of whether its left
+        // label cleared the collision check above. Seeded here, in the same
+        // hoisted block, so the structure pass below never puts a label under
+        // a chip that hasn't been painted yet.
+        const chipW = ctx.measureText(lvl.value.toFixed(1)).width + CHIP_PAD * 2
+        const chipX = pane.x + pane.width - chipW - CHIP_MARGIN
+        takenLabels.push({ x0: chipX, y0: y - CHIP_H / 2, x1: chipX + chipW, y1: y + CHIP_H / 2 })
       }
     }
 
