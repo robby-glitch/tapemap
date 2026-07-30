@@ -173,19 +173,23 @@ class Handler(SimpleHTTPRequestHandler):
                     strike = None      # unparseable -> let the pair picker choose
             # Reuse the chain snapshot the poller already paid for rather than
             # spending another request against Dhan's 1-per-3s chain limit.
-            rows = None
+            # `atm` rides along with it so contract_pair.pick_pair ranks
+            # candidates against the real ATM instead of its own proxy.
+            rows, atm = None, None
             box = (self.chains or {}).get(idx)
             if box and box.get("payload"):
                 try:
                     pl = json.loads(box["payload"])
-                    rows = pl.get("strikes") if pl.get("ok") else None
+                    if pl.get("ok"):
+                        rows = pl.get("strikes")
+                        atm = pl.get("atm")
                 except ValueError:
                     rows = None
             import live                          # local: same style as do_POST
             try:
                 body = live.build_contract(idx, strike=strike, side=side,
                                            interval=interval, days=days,
-                                           chain_rows=rows)
+                                           chain_rows=rows, atm=atm)
             except Exception as e:
                 # Same isolation as /api/data: this index reports its own
                 # failure, the others are untouched, and the traceback lands

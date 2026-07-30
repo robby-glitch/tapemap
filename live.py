@@ -389,14 +389,20 @@ def _align_to_axis(leg, axis):
 
 
 def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
-                   day=None, chain_rows=None, fetch=None):
+                   day=None, chain_rows=None, atm=None, fetch=None):
     """The `/api/contract` payload: option-premium bars + their own VWAP.
 
     `strike` None means "let contract_pair.pick_pair choose", which needs a
     chain snapshot: pass `chain_rows` (the `strikes` list off an /api/chain
     payload) to reuse one the poller already paid for, or leave it None and
-    one is fetched. `pick_pair` returns a `(pair, why)` TUPLE and the pair's
-    CE and PE sit at DIFFERENT strikes -- that is the setup, not a bug.
+    one is fetched. Pass `atm` alongside it (the same payload's top-level
+    `atm` -- see `chain_live.normalize` / `ChainPoller._publish`) so
+    `pick_pair` ranks candidates against the real ATM instead of falling
+    back to its own same-strike proxy; when `chain_rows` is left `None` and
+    fetched here, the freshly-fetched snapshot's own `atm` is used unless
+    the caller already supplied one. `pick_pair` returns a `(pair, why)`
+    TUPLE and the pair's CE and PE sit at DIFFERENT strikes -- that is the
+    setup, not a bug.
 
     `fetch(sec_id, day) -> rest_intraday payload` is injectable so the
     assembly can be tested without a token or a network.
@@ -461,13 +467,16 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
                 lambda: dhan.option_chain(cfg["under_id"], cfg["under_seg"],
                                           expiry),
                 chain_live.CHAIN_DEADLINE_S, f"{idx} option_chain")
-            chain_rows = chain_live.normalize(
+            snap = chain_live.normalize(
                 chain_live._inner(resp), datetime.now(IST),
-                cfg.get("window", chain_live.WINDOW_PTS))["strikes"]
+                cfg.get("window", chain_live.WINDOW_PTS))
+            chain_rows = snap["strikes"]
+            if atm is None:
+                atm = snap.get("atm")
         except Exception as e:                   # noqa: BLE001 - reported below
             why = f"no chain snapshot to pick a pair from: {type(e).__name__}: {e}"
     if chain_rows:
-        pair, why = pick_pair(chain_rows, idx)
+        pair, why = pick_pair(chain_rows, idx, atm=atm)
     elif why is None:
         why = ("pair not computed: an explicit strike was requested and no "
                "chain snapshot was supplied, so no chain request was spent")

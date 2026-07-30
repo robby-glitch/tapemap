@@ -27,7 +27,7 @@ confirmed as the premium field on both `ce` and `pe` books (same two
 sources). A `strike` key is accepted as a defensive fallback if `k` is
 absent, but `k` is what the real feed actually sends.
 
-RETURN CONTRACT. `pick_pair(chain_rows, idx, tol=None)` returns a
+RETURN CONTRACT. `pick_pair(chain_rows, idx, tol=None, atm=None)` returns a
 `(pair, why)` tuple -- always two values. This is a deliberate small
 departure from the plan doc's inline sketch of a single
 `{"ce": ..., "pe": ..., "why": str}` dict on success only: with a single
@@ -43,22 +43,71 @@ signal carries its receipt). On success::
 On failure (nothing inside tolerance, or no usable data at all) `pair` is
 `None`.
 
-ASSUMPTION NOT YET CONFIRMED WITH THE OPERATOR -- do not bury this:
-when more than one CE/PE pair ties at the smallest `abs(ce_ltp - pe_ltp)`
-inside tolerance, this picks the pair nearest to an ATM proxy. The picker's
-signature carries no spot/atm input, so the proxy is derived from the chain
-itself: the single strike (if any) where that SAME strike's own CE and PE
-premiums are closest to each other -- the classic put-call-parity
-approximation for ATM, and, notably, the exact "one strike where CE == PE"
-point the spec says the setup is NOT. Using it only as an internal ATM
-*estimate* for tie-breaking (never as the returned pair itself) is this
-implementation's choice, not the operator's. Both the tie-break rule itself
-and this proxy for "ATM" are open questions -- confirm with the operator
-before relying on tie-broken output. Ties are detected by exact float
-equality of the diff; real premiums rarely tie exactly, so in practice this
-path fires on synthetic/test data far more than on live ticks.
+THE OBJECTIVE (fixed 2026-07-31; this used to minimise `abs(ce_ltp - pe_ltp)`
+over every admitted cross pair -- see "WHY THE OBJECTIVE CHANGED" below).
+Ranking now runs in two stages over the pairs that already passed the
+tolerance ADMISSION GATE:
 
-TOLERANCE. Defaults by index, overridden by an explicit `tol`::
+    1. PRIMARY key -- distance to the ATM straddle:
+       `abs(ce_strike - atm) + abs(pe_strike - atm)`.
+       Smallest wins. This is the sum of each leg's own distance from ATM,
+       not a distance between the two legs.
+    2. TIE-BREAK -- `abs(ce_ltp - pe_ltp)`, smallest wins. Only reached when
+       two or more candidates sit at the exact same ATM distance.
+    3. A final deterministic tie-break (lowest CE strike, then lowest PE
+       strike) so the result never depends on dict/set ordering.
+
+`atm` is an explicit parameter now: pass the chain snapshot's own top-level
+`atm` (see `chain_live.normalize` / `ChainPoller._publish`, and how
+`server.py`'s `/api/contract` handler and `live.build_contract` thread it
+through) so no extra request and no proxy are needed for a live call. When
+`atm` is not supplied, `_atm_proxy` derives an ESTIMATE from `chain_rows`
+itself -- the strike (if any) whose own CE and PE premiums are closest to
+each other, i.e. the classic put-call-parity approximation for ATM. `why`
+always says which one was used ("atm=<value> (supplied)" vs "atm=<value>
+(proxy, no atm given)"), so a caller can tell a real ATM apart from an
+estimate. If neither is available (no `atm` argument and no same-strike
+CE/PE row to build a proxy from), ranking falls back to the OLD rule --
+smallest `abs(ce_ltp - pe_ltp)` first, then the same deterministic
+strike order -- and `why` says plainly that no ATM information existed.
+
+WHY THE OBJECTIVE CHANGED. Measured on real cached snapshots
+(`data/chain/chain_NIFTY_2026-07-30.jsonl`, `chain_SENSEX_2026-07-30.jsonl`,
+09:20 rows): deep-OTM wings on both sides decay to near-zero premium on
+BOTH legs, so their difference is tiny (~0.05) and a bare
+`min(abs(ce_ltp - pe_ltp))` search picks them almost every time --
+- NIFTY 2026-07-30 09:20 (spot 24262.05): old rule chose CE 24800@4.40 /
+  PE 23250@4.40 (a 4-way tie at diff 0), while the ATM straddle
+  24300 CE@106.10 / 24300 PE@114.70 (diff 8.60) lost outright.
+- SENSEX same day 09:20 (spot 77665.2): old rule chose CE 78300@11.05 /
+  PE 76900@11.05, both deep OTM.
+- Of 668 cross pairs admitted by the SENSEX gate that day, 520 sat inside
+  tolerance -- the tolerance gate was doing almost no selecting; the
+  minimise-diff objective was doing all the (wrong) work.
+
+The operator was asked whether to add a premium floor or a
+fraction-of-the-ATM-straddle constraint instead. Their answer, verbatim:
+"yeah straddle is about right because they almost forms mirror charts."
+The reasoning: near-the-money CE and PE mirror each other (delta ~= +/-0.5),
+which is the property their setup actually reads off the chart. Deep wings
+do not mirror one another -- they merely decay together, which looks like
+agreement in raw premium but is not the same market behaviour.
+
+OPEN OBSERVATION, not a settled question -- record, do not silently drop:
+the operator's own reference charts were SENSEX 77500 CE and 78000 PE, but
+at 09:20 those two legs' premiums differed by Rs 173.25 -- far outside the
++/-50 tolerance -- and only converged to within Re 1 of each other at 13:39
+(both ~Rs 264.65). So that reference pair cannot have been produced by a
+09:20 +/-50 rule of any kind, minimise-diff or nearest-ATM. The most likely
+reading, consistent with "straddle is about right", is that the rule
+selects the near-ATM pair EARLY in the session and the operator's reference
+charts were simply whatever pair they happened to be watching mid-session,
+by which time strikes/premiums had moved. This is evidence for the
+nearest-ATM objective being the right one, not proof of it -- still open.
+
+TOLERANCE. Defaults by index, overridden by an explicit `tol`. This stays a
+hard ADMISSION GATE only -- it is never widened, and it never determines
+which admitted pair wins; ranking (above) does that::
 
     NIFTY      +/-30
     BANKNIFTY  +/-50
@@ -112,8 +161,12 @@ def _legs(chain_rows, side):
 
 def _atm_proxy(chain_rows):
     """The strike (if any) whose own CE and PE premiums are closest to each
-    other -- an ATM ESTIMATE used only for the tie-break, never returned as
-    the pair itself. See the module docstring's unconfirmed-assumption note.
+    other -- an ATM ESTIMATE used only when the caller supplies no real
+    `atm`. See the module docstring's "WHY THE OBJECTIVE CHANGED" section:
+    this is the classic put-call-parity approximation for ATM, and, notably,
+    the exact "one strike where CE == PE" point the spec says the setup is
+    NOT -- it is used here purely as an internal ATM estimate, never as the
+    returned pair itself.
     """
     best_k, best_diff = None, None
     for row in chain_rows or ():
@@ -131,9 +184,10 @@ def _atm_proxy(chain_rows):
     return best_k
 
 
-def pick_pair(chain_rows, idx, tol=None):
-    """The premium-matched CE/PE pair, or `(None, why)`. See module
-    docstring for the full contract."""
+def pick_pair(chain_rows, idx, tol=None, atm=None):
+    """The nearest-to-ATM CE/PE pair (premium diff as tie-break), or
+    `(None, why)`. See module docstring for the full contract, the ranking
+    rule, and why it changed from a bare premium-diff minimisation."""
     if tol is None:
         tol = TOL_BY_IDX.get(idx)
         if tol is None:
@@ -142,6 +196,7 @@ def pick_pair(chain_rows, idx, tol=None):
                 f"tol explicitly (defaults only cover "
                 f"{sorted(TOL_BY_IDX)})")
     tol = float(tol)
+    atm = _finite(atm)
 
     if not chain_rows:
         return None, "empty chain_rows: no strikes to pick a pair from"
@@ -155,6 +210,8 @@ def pick_pair(chain_rows, idx, tol=None):
 
     # (diff, ce_strike, ce_ltp, pe_strike, pe_ltp) for every DIFFERENT-strike
     # cross pair; same-strike combos are the CE==PE point, not this setup.
+    # Sorted by diff purely so the "nothing admitted" message below can name
+    # the closest miss -- diff is NOT the ranking key once pairs are admitted.
     candidates = sorted(
         (abs(cp - pp), cs, cp, ps, pp)
         for cs, cp in ce_legs for ps, pp in pe_legs if cs != ps)
@@ -171,37 +228,35 @@ def pick_pair(chain_rows, idx, tol=None):
             f"no CE/PE pair within tol +/-{tol:g} ({idx}); closest was "
             f"CE {cs:g}@{cp:g} vs PE {ps:g}@{pp:g}, diff={diff:g}")
 
-    min_diff = within[0][0]
-    tied = [c for c in within if c[0] == min_diff]
+    atm_source = "supplied"
+    atm_used = atm
+    if atm_used is None:
+        atm_used = _atm_proxy(chain_rows)
+        atm_source = "proxy, no atm given"
 
-    if len(tied) == 1:
-        diff, cs, cp, ps, pp = tied[0]
-        why = (f"CE {cs:g}@{cp:g} vs PE {ps:g}@{pp:g}: diff={diff:g} within "
-               f"tol +/-{tol:g} ({idx})")
+    if atm_used is None:
+        # No real atm and no same-strike straddle to estimate one from
+        # either -- fall back to the old rule (smallest premium diff, then a
+        # stable strike order) rather than guessing an ATM value.
+        diff, cs, cp, ps, pp = sorted(within, key=lambda c: (c[0], c[1], c[3]))[0]
+        why = (
+            f"CE {cs:g}@{cp:g} vs PE {ps:g}@{pp:g}: diff={diff:g} within "
+            f"tol +/-{tol:g} ({idx}); no ATM available (not supplied, and "
+            f"no same-strike CE/PE row to estimate one from), so ranked by "
+            f"smallest premium diff among {len(within)} admitted pair(s)")
     else:
-        atm = _atm_proxy(chain_rows)
-        if atm is None:
-            # No same-strike straddle to estimate an ATM proxy from either
-            # -- fall back to a stable, deterministic order (lowest CE
-            # strike, then lowest PE strike) rather than guessing further.
-            diff, cs, cp, ps, pp = sorted(tied, key=lambda c: (c[1], c[3]))[0]
-            why = (
-                f"{len(tied)} pairs tied at diff={diff:g} within tol "
-                f"+/-{tol:g} ({idx}); no ATM proxy available (no strike had "
-                f"both CE and PE ltp), so the lowest-strike pair CE "
-                f"{cs:g}/PE {ps:g} was chosen deterministically -- "
-                f"UNCONFIRMED tie-break, ask the operator")
-        else:
-            diff, cs, cp, ps, pp = sorted(
-                tied,
-                key=lambda c: (abs(c[1] - atm) + abs(c[3] - atm), c[1], c[3])
-            )[0]
-            why = (
-                f"{len(tied)} pairs tied at diff={diff:g} within tol "
-                f"+/-{tol:g} ({idx}); resolved by nearest-to-ATM proxy "
-                f"(atm~={atm:g}, the strike whose own CE/PE ltp are "
-                f"closest -- UNCONFIRMED tie-break rule, ask the operator): "
-                f"chose CE {cs:g}@{cp:g} / PE {ps:g}@{pp:g}")
+        def _atm_dist(c):
+            _diff, ce_k, _cp, pe_k, _pp = c
+            return abs(ce_k - atm_used) + abs(pe_k - atm_used)
+
+        diff, cs, cp, ps, pp = sorted(
+            within, key=lambda c: (_atm_dist(c), c[0], c[1], c[3]))[0]
+        ce_dist, pe_dist = abs(cs - atm_used), abs(ps - atm_used)
+        why = (
+            f"CE {cs:g}@{cp:g} (dist {ce_dist:g} from atm) / PE {ps:g}@{pp:g} "
+            f"(dist {pe_dist:g} from atm) nearest to atm={atm_used:g} "
+            f"({atm_source}) among {len(within)} pair(s) within tol "
+            f"+/-{tol:g} ({idx}); premium diff={diff:g} used only as tie-break")
 
     return {"ce": {"strike": cs, "ltp": cp},
             "pe": {"strike": ps, "ltp": pp}}, why
