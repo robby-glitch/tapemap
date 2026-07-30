@@ -1,8 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import ContractChart from './ContractChart'
 import Ribbon from './Ribbon'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
+import { buildZones } from './zones'
 import { palette, MONO, useMode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem } from '../data'
 
@@ -51,6 +53,166 @@ function Stat({ pal, label, value, color, title }: {
   )
 }
 
+// Mirrors zones.ts's own VERDICT_CLS (Task 1 mapping) — kept as a local copy
+// rather than importing, since this panel colours a single bar's live
+// `ctx.verdict` directly and has no zone/run to borrow a `cls` from. Never
+// used to alter what's displayed, only which palette family paints it.
+const VERDICT_CLS: Record<string, 'stand' | 'watch' | 'go'> = {
+  GO: 'go', READY: 'watch', WAIT: 'watch', CAUTION: 'watch',
+  'STAND ASIDE': 'stand', SPENT: 'stand',
+}
+
+function verdictColor(pal: ReturnType<typeof palette>, verdict: string): string {
+  const cls = VERDICT_CLS[verdict]
+  if (cls === 'go') return pal.bull
+  if (cls === 'stand') return pal.bear
+  if (cls === 'watch') return pal.caution
+  return pal.textPrimary // an unrecognised verdict string: neutral, not a guessed direction
+}
+
+// SETUP's status chip: LOADING is still forming (outline, caution), ARMED is
+// live (filled, the setup's own direction colour), EXPIRED/INVALIDATED are
+// dead (struck through, faint). Any other status string still renders —
+// plain outline, no colour claim — rather than being silently dropped.
+function StatusChip({ pal, status, dirColor }: {
+  pal: ReturnType<typeof palette>; status: string; dirColor: string
+}) {
+  const dead = status === 'EXPIRED' || status === 'INVALIDATED'
+  const armed = status === 'ARMED'
+  const loading = status === 'LOADING'
+  return (
+    <span style={{
+      fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', padding: '1px 6px',
+      borderRadius: 3, fontFamily: MONO,
+      textDecoration: dead ? 'line-through' : 'none',
+      color: armed ? pal.card : dead ? pal.textMuted : loading ? pal.caution : pal.textSecondary,
+      backgroundColor: armed ? dirColor : 'transparent',
+      border: armed ? 'none' : `1px solid ${dead ? pal.border : loading ? pal.caution : pal.border}`,
+    }}>{status}</span>
+  )
+}
+
+/**
+ * The ENGINE READ panel — the operator's requested "suggested trade" slot,
+ * built the only honest way it can be: it surfaces the ENGINE's own existing
+ * read with its receipts, quoted verbatim, and never invents or strengthens
+ * a recommendation of its own. Reads `bar` — always `bars[at]`, the same
+ * cursor-clamped bar the stat strip above uses — and nothing else, so a bar
+ * with no ctx never borrows a neighbour's read.
+ */
+function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: TapeBar }) {
+  const ctx = bar.ctx
+  const setup = bar.setup
+  const label: CSSProperties = {
+    fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase',
+    color: pal.textMuted, fontWeight: 700,
+  }
+  return (
+    <div style={{
+      padding: '12px 16px', borderRadius: 6, backgroundColor: pal.card,
+      border: `1px solid ${pal.border}`, display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <div style={label}>ENGINE READ</div>
+
+      {!ctx ? (
+        <div style={{ fontSize: 11, color: pal.textMuted }}>
+          engine context unavailable for this bar
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {/* VERDICT */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 190, flex: '1 1 190px' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: verdictColor(pal, ctx.verdict) }}>
+              {ctx.verdict}
+            </span>
+            <span style={{ fontSize: 11, color: pal.textSecondary }}>{ctx.vwhy}</span>
+            <span style={{ fontFamily: MONO, fontSize: 10.5, color: pal.textMuted }}>{ctx.line}</span>
+            <span style={{ fontSize: 10.5, color: pal.textMuted }}>{ctx.breadth}</span>
+            {ctx.flips.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, fontSize: 10, color: pal.textMuted, marginTop: 2 }}>
+                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Δ15m</span>
+                <span style={{ fontFamily: MONO }}>{ctx.flips.join(' · ')}</span>
+              </div>
+            )}
+          </div>
+
+          {/* SETUP */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 190, flex: '1 1 190px' }}>
+            <span style={label}>SETUP</span>
+            {setup ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{
+                    fontSize: 12, fontWeight: 700,
+                    color: setup.dir === 'UP' ? pal.bull : pal.bear,
+                  }}>
+                    {setup.dir === 'UP' ? '▲' : '▼'} {setup.kind}
+                  </span>
+                  <StatusChip pal={pal} status={setup.status}
+                              dirColor={setup.dir === 'UP' ? pal.bull : pal.bear} />
+                </div>
+                <span style={{ fontSize: 11, color: pal.textSecondary }}>
+                  {setup.level_name} @ {setup.level_px.toFixed(1)}
+                </span>
+                <span style={{ fontSize: 11, color: pal.textMuted }}>
+                  invalid past {setup.ref.toFixed(1)}
+                </span>
+                <span style={{ fontFamily: MONO, fontSize: 10.5, color: pal.textMuted }}>
+                  intensity {setup.intensity.toFixed(2)} · comp {setup.comp.toFixed(2)}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 11, color: pal.textMuted }}>
+                no setup armed — engine has nothing loaded here
+              </span>
+            )}
+          </div>
+
+          {/* PLAYS */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 220, flex: '2 1 220px' }}>
+            <span style={label}>PLAYS</span>
+            {ctx.plays.length ? ctx.plays.map((p, i) => (
+              <div key={i} style={{
+                fontFamily: MONO, fontSize: 11, color: pal.textPrimary,
+                display: 'flex', gap: 7, lineHeight: 1.4,
+              }}>
+                <span style={{ color: pal.accent }}>▪</span><span>{p}</span>
+              </div>
+            )) : (
+              <span style={{ fontSize: 11, color: pal.textMuted }}>
+                no conditional plays on this bar
+              </span>
+            )}
+          </div>
+
+          {/* FLOOR / CAP — omitted entirely when both null */}
+          {(ctx.floor || ctx.cap) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 130 }}>
+              <span style={label}>FLOOR / CAP</span>
+              {ctx.floor && (
+                <span style={{
+                  fontFamily: MONO, fontSize: 11, fontWeight: 600, color: pal.accent,
+                  border: `1px solid ${pal.accent}`, borderRadius: 3, padding: '1px 7px', width: 'fit-content',
+                }}>FLOOR {ctx.floor[0]} {ctx.floor[1].toFixed(1)}</span>
+              )}
+              {ctx.cap && (
+                <span style={{
+                  fontFamily: MONO, fontSize: 11, fontWeight: 600, color: pal.accent,
+                  border: `1px solid ${pal.accent}`, borderRadius: 3, padding: '1px 7px', width: 'fit-content',
+                }}>CAP {ctx.cap[0]} {ctx.cap[1].toFixed(1)}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ fontSize: 10, color: pal.textMuted, borderTop: `1px solid ${pal.border}`, paddingTop: 8 }}>
+        the engine's own read, quoted with its receipts — descriptive, not advice · signals only, orders never
+      </div>
+    </div>
+  )
+}
+
 export default function TradeTab({
   index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange,
@@ -63,6 +225,18 @@ export default function TradeTab({
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
   const narrs = useMemo(() => buildNarration(bars, events), [bars, events])
+
+  // Causality (binding, Task 2 review): a zone's label/why embed the run's
+  // FULL length, so while the replay cursor is set, buildZones must never
+  // see bars past it — otherwise a band would announce how long a regime
+  // persists beyond where the operator has scrubbed to. Slice first, group
+  // second; buildZones itself has no notion of a cursor.
+  const zones = useMemo(() => {
+    const sliced = cursor == null
+      ? bars
+      : bars.slice(0, Math.max(0, Math.min(cursor, bars.length - 1)) + 1)
+    return buildZones(sliced)
+  }, [bars, cursor])
 
   const [hover, setHover] = useState<number | null>(null)
   // Hovering must never reveal a bar the replay cursor is hiding — the
@@ -283,7 +457,7 @@ export default function TradeTab({
       }}>
         <ContractChart
           index={index} day={day} bars={bars} levels={levels} cursor={cursor}
-          mode={mode} hover={hover} onHover={handleHover} narrs={narrs}
+          mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
         />
       </div>
 
@@ -293,6 +467,11 @@ export default function TradeTab({
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
         VWAP & σ bands · levels · OI
       </div>
+
+      {/* ENGINE READ — full width, directly below the ribbon+legend. Reads
+          bars[at] only (the SAME cursor-clamped bar `b` the stat strip above
+          uses), so replay scrubs it causally too. */}
+      <EngineReadPanel pal={pal} bar={b} />
     </div>
   )
 }
