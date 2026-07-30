@@ -17,6 +17,10 @@ Families:
   4. Confirmation separable — flow inputs absent => every structure UNKNOWN,
                     never UNCONFIRMED; flow present => real CONFIRMED /
                     UNCONFIRMED verdicts whose receipts name the numbers.
+  5. Derived levels — the prior-day extremes inverted out of the payload's
+                    floor pivots (and the self-check that REFUSES to publish
+                    one when the feed's pivots are not the standard kind), and
+                    the premium/discount split of the working range.
 """
 
 from collections import Counter
@@ -24,6 +28,25 @@ from collections import Counter
 import structure
 
 BASE = 24000.0                 # NIFTY-ish; x2.35 -> BANKNIFTY, x3.2 -> SENSEX
+
+# The live NIFTY payload's top-level `pivots` block, read on 2026-07-30. These
+# are STANDARD floor pivots off the PRIOR session's H/L/C (live.py::_pivots,
+# backtest.py::_pivots, both `P = (H+L+C)/3`), so the prior day's extremes
+# invert straight back out of them:
+#     H = 2P - S1 = 24346.60   L = 2P - R1 = 24222.40   C = 3P - H - L = 24303.40
+# and those reproduce the OTHER four pivots to the paisa, which is the whole
+# reason the derivation is publishable rather than a guess.
+NIFTY_PIVOTS = {"P": 24290.8, "R1": 24359.2, "S1": 24235.0,
+                "R2": 24415.0, "S2": 24166.6,
+                "R3": 24483.4, "S3": 24110.8}
+PD_H, PD_L, PD_C = 24346.60, 24222.40, 24303.40
+
+
+def _scaled_pivots(scale):
+    """The same pivot set at another index's price level. Floor pivots are
+    homogeneous of degree 1 in H/L/C, so scaling the pivots is exactly scaling
+    the prior session -- the inverted H/L/C must scale with them."""
+    return {k: v * scale for k, v in NIFTY_PIVOTS.items()}
 
 
 def _seq(rows, scale=1.0, vol=None, oi=None, drop_fut=()):
@@ -284,9 +307,13 @@ def test_bearish_fvg_mirrors():
 def test_bos_then_choch_on_the_story_and_nothing_else():
     st = structure.compute(_seq(STORY))
     # two order blocks: the doji-heavy tent makes any real body rank top-20%,
-    # which is the percentile rule doing exactly what it is told
+    # which is the percentile rule doing exactly what it is told. The
+    # PREMIUM/DISCOUNT pair appears twice because the working range is
+    # re-cut twice (bar 9 pairs the first swing high with the first swing low;
+    # bar 14's swing low replaces the low) -- and NOT on any other bar.
     assert _counts(st) == {"SWING_H": 1, "SWING_L": 2, "BOS": 1,
-                           "CHOCH": 1, "FVG": 2, "OB": 2}, _counts(st)
+                           "CHOCH": 1, "FVG": 2, "OB": 2,
+                           "PREMIUM": 2, "DISCOUNT": 2}, _counts(st)
     bos = _one(st, "BOS")
     assert (bos["i0"], bos["born"], bos["dir"]) == (3, 7, 1)
     assert bos["hi"] == bos["lo"] == round(BASE + 10.0, 2)   # the level broken
@@ -314,7 +341,8 @@ def test_choch_fires_on_an_up_break_once_a_down_trend_is_established():
 
 def test_eqh_pairs_two_swing_highs_inside_a_relative_tolerance():
     st = structure.compute(_seq(EQ_ROWS))
-    assert _counts(st) == {"SWING_H": 2, "SWING_L": 1, "EQH": 1}, _counts(st)
+    assert _counts(st) == {"SWING_H": 2, "SWING_L": 1, "EQH": 1,
+                           "PREMIUM": 2, "DISCOUNT": 2}, _counts(st)
     e = _one(st, "EQH")
     assert (e["i0"], e["i1"], e["born"], e["dir"]) == (3, 9, 12, 1)
     assert (e["lo"], e["hi"]) == (round(BASE + 9.8, 2), round(BASE + 10.0, 2))
@@ -322,13 +350,15 @@ def test_eqh_pairs_two_swing_highs_inside_a_relative_tolerance():
 
 def test_eqh_does_not_fire_outside_the_tolerance():
     st = structure.compute(_seq(NOEQ_ROWS))
-    assert _counts(st) == {"SWING_H": 2, "SWING_L": 1}, _counts(st)
+    assert _counts(st) == {"SWING_H": 2, "SWING_L": 1,
+                           "PREMIUM": 2, "DISCOUNT": 2}, _counts(st)
 
 
 def test_eql_mirrors():
     rows = [(o, -l, -h, c) for (o, h, l, c) in EQ_ROWS]
     st = structure.compute(_seq(rows))
-    assert _counts(st) == {"SWING_L": 2, "SWING_H": 1, "EQL": 1}, _counts(st)
+    assert _counts(st) == {"SWING_L": 2, "SWING_H": 1, "EQL": 1,
+                           "PREMIUM": 2, "DISCOUNT": 2}, _counts(st)
     e = _one(st, "EQL")
     assert (e["i0"], e["i1"], e["born"], e["dir"]) == (3, 9, 12, -1)
 
@@ -399,13 +429,21 @@ def test_a_swing_does_not_exist_before_its_confirming_bars():
 
 
 def test_every_structure_is_born_at_or_after_its_span():
+    # `dir` is 0 exactly for the kinds that HAVE no side: a prior-session
+    # close is neither high- nor low-side, and a 50% split is a band, not a
+    # direction. Every other kind must still commit to +1 or -1.
+    sideless = ("PDC", "PREMIUM", "DISCOUNT")
     for rows in (STORY, EQ_ROWS, OB_UP, OB_DOWN, TENT):
-        for s in structure.compute(_seq(rows)):
+        for s in structure.compute(_seq(rows), pivots=NIFTY_PIVOTS):
             assert s["i0"] <= s["i1"] <= s["born"], s
             assert s["lo"] <= s["hi"], s
             assert s["kind"] in ("FVG", "OB", "BOS", "CHOCH", "EQH", "EQL",
-                                 "SWING_H", "SWING_L"), s
-            assert s["dir"] in (1, -1), s
+                                 "SWING_H", "SWING_L", "PDH", "PDL", "PDC",
+                                 "PREMIUM", "DISCOUNT"), s
+            if s["kind"] in sideless:
+                assert s["dir"] == 0, s
+            else:
+                assert s["dir"] in (1, -1), s
 
 
 def test_fvg_hi_is_always_strictly_above_lo():
@@ -572,6 +610,272 @@ def test_flow_present_produces_both_verdicts():
     st = structure.compute(_seq(STORY, vol=vol, oi=oi))
     got = {s["confirm"] for s in st}
     assert "CONFIRMED" in got and "UNCONFIRMED" in got, got
+
+
+# =============================================== family 5: derived levels
+
+def test_prior_day_hlc_inverts_the_real_nifty_pivots():
+    # the numbers off the live 2026-07-30 NIFTY payload, not a fixture
+    got = structure.prior_day_hlc(NIFTY_PIVOTS)
+    assert got is not None, "the real payload's pivots must invert"
+    H, L, C = got
+    assert (round(H, 2), round(L, 2), round(C, 2)) == (PD_H, PD_L, PD_C), got
+
+
+def test_prior_day_hlc_rejects_a_pivot_set_that_is_not_floor_pivots():
+    # Fibonacci pivots off the SAME prior session: P is identical and R1/S1
+    # are still "P +/- something", so the inversion H = 2P - S1 happily
+    # produces a number -- it is only the R2/S2/R3/S3 cross-check that catches
+    # that this feed is not computing standard floor pivots. Without the
+    # cross-check this would publish a fabricated prior-day high.
+    P, rng = (PD_H + PD_L + PD_C) / 3.0, PD_H - PD_L
+    fib = {"P": P,
+           "R1": P + 0.382 * rng, "S1": P - 0.382 * rng,
+           "R2": P + 0.618 * rng, "S2": P - 0.618 * rng,
+           "R3": P + rng, "S3": P - rng}
+    assert structure.prior_day_hlc(fib) is None
+
+
+def test_the_inversion_reproduces_a_prior_session_we_can_check_against_bars():
+    # The strongest evidence available without I/O: data/*_3day.csv holds three
+    # CONSECUTIVE sessions, so the pivots the engine emits for Jul 16 must
+    # invert to Jul 15's own bars. These are the real numbers from that replay
+    # (analyze.analyze()["days"][1]["pivots"], and max/min/last over
+    # ["days"][0]["bars"]) -- the derivation lands within the 0.01 the stored
+    # pivots' own 2-dp rounding allows, which no amount of hand-built table
+    # could demonstrate.
+    jul16 = {"P": 24097.77, "R1": 24202.43, "R2": 24332.87, "R3": 24567.97,
+             "S1": 23967.33, "S2": 23862.67, "S3": 23627.57}
+    jul15_hlc = (24228.20, 23993.10, 24072.00)      # actual bars, that session
+    got = structure.prior_day_hlc(jul16)
+    assert got is not None, "the replay path's own pivots must invert"
+    for g, want in zip(got, jul15_hlc):
+        assert abs(g - want) <= 0.02, (got, jul15_hlc)
+
+
+def test_both_third_level_conventions_invert_to_the_same_prior_session():
+    # This repo emits BOTH: live.py/backtest.py use R3 = H + 2(P-L) (that is
+    # NIFTY_PIVOTS above), while the vendor export behind data/*_3day.csv uses
+    # R3 = P + 2(H-L). P/R1/R2/S1/S2 are identical either way, and both third
+    # levels are functions of the same H/L -- so both must invert, to the same
+    # prior session. Rejecting the second would have silently blanked PDH/PDL
+    # on the entire replay path.
+    P = NIFTY_PIVOTS["P"]
+    other = dict(NIFTY_PIVOTS,
+                 R3=P + 2.0 * (PD_H - PD_L), S3=P - 2.0 * (PD_H - PD_L))
+    assert round(other["R3"], 2) != round(NIFTY_PIVOTS["R3"], 2)   # really other
+    got = structure.prior_day_hlc(other)
+    assert got is not None
+    assert [round(v, 2) for v in got] == [PD_H, PD_L, PD_C], got
+
+
+def test_a_pivot_set_mixing_the_two_third_level_conventions_is_rejected():
+    # R3 from one formula and S3 from the other is neither formula's output,
+    # so it is not evidence of anything and must not pass.
+    P = NIFTY_PIVOTS["P"]
+    mixed = dict(NIFTY_PIVOTS, S3=P - 2.0 * (PD_H - PD_L))   # R3 stays convention A
+    assert structure.prior_day_hlc(mixed) is None
+
+
+def test_the_receipt_names_which_convention_verified_it():
+    st = structure.compute(_seq(STORY), pivots=NIFTY_PIVOTS)
+    why = [s for s in st if s["kind"] == "PDH"][0]["confirm_why"]
+    assert "R3 = H + 2(P-L)" in why, why
+    P = NIFTY_PIVOTS["P"]
+    other = dict(NIFTY_PIVOTS,
+                 R3=P + 2.0 * (PD_H - PD_L), S3=P - 2.0 * (PD_H - PD_L))
+    st2 = structure.compute(_seq(STORY), pivots=other)
+    why2 = [s for s in st2 if s["kind"] == "PDH"][0]["confirm_why"]
+    assert "R3 = P + 2(H-L)" in why2, why2
+
+
+def test_every_cross_check_pivot_is_actually_checked():
+    # perturb each cross-checked pivot in turn by 0.1% of P -- far beyond any
+    # float slack, far below "obviously a different formula". Each one alone
+    # must sink the derivation, which is what proves all four checks are live
+    # rather than one check and three decorations.
+    for k in ("R2", "S2", "R3", "S3"):
+        bad = dict(NIFTY_PIVOTS)
+        bad[k] += 0.001 * NIFTY_PIVOTS["P"]
+        assert structure.prior_day_hlc(bad) is None, k
+
+
+def test_float_noise_does_not_sink_the_derivation():
+    # the guard is an ARITHMETIC comparison, not a market threshold: a payload
+    # that round-tripped through JSON at reduced precision must still invert.
+    for k in ("R2", "S2", "R3", "S3"):
+        noisy = dict(NIFTY_PIVOTS)
+        noisy[k] += 1e-8 * NIFTY_PIVOTS["P"]
+        assert structure.prior_day_hlc(noisy) is not None, k
+
+
+def test_prior_day_hlc_rejects_junk_and_missing_pivots():
+    assert structure.prior_day_hlc(None) is None
+    assert structure.prior_day_hlc({}) is None
+    assert structure.prior_day_hlc({"P": 1.0}) is None
+    short = {k: v for k, v in NIFTY_PIVOTS.items() if k != "R3"}
+    assert structure.prior_day_hlc(short) is None
+    nan = dict(NIFTY_PIVOTS, R2=float("nan"))
+    assert structure.prior_day_hlc(nan) is None
+    txt = dict(NIFTY_PIVOTS, S1="24235.0")
+    assert structure.prior_day_hlc(txt) is None
+
+
+def test_prior_day_hlc_rejects_a_close_outside_the_range():
+    # H/L/C that no session could have printed: an inversion that lands the
+    # close outside its own high/low is not describing a prior session.
+    H, L, C = 100.0, 90.0, 120.0                 # C above H
+    P = (H + L + C) / 3.0
+    impossible = {"P": P, "R1": 2 * P - L, "S1": 2 * P - H,
+                  "R2": P + (H - L), "S2": P - (H - L),
+                  "R3": H + 2 * (P - L), "S3": L - 2 * (H - P)}
+    # every cross-check passes by construction; only the H >= C >= L sanity
+    # rule can reject it
+    assert structure.prior_day_hlc(impossible) is None
+
+
+def test_prior_day_levels_are_emitted_before_the_first_bar():
+    st = structure.compute(_seq(STORY), pivots=NIFTY_PIVOTS)
+    pd = {s["kind"]: s for s in st if s["kind"].startswith("PD")}
+    assert set(pd) == {"PDH", "PDL", "PDC"}, pd
+    for kind, level, d in (("PDH", PD_H, 1), ("PDL", PD_L, -1),
+                           ("PDC", PD_C, 0)):
+        s = pd[kind]
+        assert (s["i0"], s["i1"], s["born"]) == (0, 0, 0), s
+        assert s["hi"] == s["lo"] == level, s
+        assert s["dir"] == d, s
+        assert s["confirm"] == "UNKNOWN", s
+        why = s["confirm_why"]
+        assert "floor pivots" in why and "R2/S2/R3/S3" in why, why
+        assert "prior session" in why or "prior-session" in why, why
+        assert "no flow" in why.lower(), why
+    assert "2P - S1" in pd["PDH"]["confirm_why"]
+    assert "2P - R1" in pd["PDL"]["confirm_why"]
+    assert "3P - H - L" in pd["PDC"]["confirm_why"]
+
+
+def test_no_pivots_no_prior_day_levels():
+    # default keeps every existing caller/test byte-identical
+    assert not [s for s in structure.compute(_seq(STORY))
+                if s["kind"].startswith("PD")]
+    # ... and a feed whose pivots are not floor pivots publishes nothing
+    # rather than a fabricated level
+    P, rng = (PD_H + PD_L + PD_C) / 3.0, PD_H - PD_L
+    fib = {"P": P, "R1": P + 0.382 * rng, "S1": P - 0.382 * rng,
+           "R2": P + 0.618 * rng, "S2": P - 0.618 * rng,
+           "R3": P + rng, "S3": P - rng}
+    assert structure.compute(_seq(STORY), pivots=fib) == structure.compute(
+        _seq(STORY))
+
+
+def test_prior_day_levels_survive_truncation_including_at_bar_zero():
+    bars = _seq(STORY)
+    full = structure.compute(bars, pivots=NIFTY_PIVOTS)
+    assert len([s for s in full if s["born"] == 0]) == 3
+    for k in range(len(bars)):
+        assert [s for s in full if s["born"] <= k] == structure.compute(
+            bars[:k + 1], pivots=NIFTY_PIVOTS), f"truncation mismatch at {k}"
+    # a payload with no bars at all has no index space to hang a level on
+    assert structure.compute([], pivots=NIFTY_PIVOTS) == []
+
+
+def test_prior_day_levels_scale_with_the_index():
+    for scale in (2.35, 3.2):
+        H, L, C = structure.prior_day_hlc(_scaled_pivots(scale))
+        for got, want in ((H, PD_H), (L, PD_L), (C, PD_C)):
+            assert abs(got - want * scale) <= 0.02, (scale, got, want)
+
+
+# --- premium / discount
+
+def _splits(st):
+    return sorted([s for s in st if s["kind"] in ("PREMIUM", "DISCOUNT")],
+                  key=lambda s: (s["born"], s["kind"]))
+
+
+def test_premium_discount_split_the_working_range_at_fifty_percent():
+    st = structure.compute(_seq(STORY))
+    sp = _splits(st)
+    assert len(sp) == 4, sp
+    # bar 9: the swing high (+10, pivot bar 3) is paired with the swing low
+    # (-7, pivot bar 6) the moment that low is CONFIRMED -- the later of the
+    # two swings is what the pair is born on
+    disc, prem = sp[0], sp[1]
+    assert disc["kind"] == "DISCOUNT" and prem["kind"] == "PREMIUM"
+    mid = round(BASE + 1.5, 2)                      # (10 + -7) / 2
+    assert (prem["lo"], prem["hi"]) == (mid, round(BASE + 10.0, 2)), prem
+    assert (disc["lo"], disc["hi"]) == (round(BASE - 7.0, 2), mid), disc
+    for s in (prem, disc):
+        assert (s["i0"], s["i1"], s["born"], s["dir"]) == (3, 6, 9, 0), s
+    # bar 14: a new swing low (+5) replaces the low -> the range is re-cut
+    disc2, prem2 = sp[2], sp[3]
+    mid2 = round(BASE + 7.5, 2)                     # (10 + 5) / 2
+    assert (prem2["lo"], prem2["hi"]) == (mid2, round(BASE + 10.0, 2)), prem2
+    assert (disc2["lo"], disc2["hi"]) == (round(BASE + 5.0, 2), mid2), disc2
+    assert (prem2["i0"], prem2["i1"], prem2["born"]) == (3, 11, 14), prem2
+    # the two halves meet exactly at the midpoint: no gap, no overlap
+    assert prem["lo"] == disc["hi"] and prem2["lo"] == disc2["hi"]
+
+
+def test_premium_discount_is_not_re_emitted_once_per_bar():
+    st = structure.compute(_seq(STORY))
+    born = sorted({s["born"] for s in _splits(st)})
+    # STORY runs 16 bars; the range only MOVES on the two bars that confirm a
+    # new swing, so a per-bar emitter would show 7+ births here, not 2
+    assert born == [9, 14], born
+    assert len(_splits(st)) == 2 * len(born)
+
+
+def test_premium_discount_needs_both_sides_of_a_range():
+    # TENT has a swing high and no swing low: half a range is not a range
+    assert not _splits(structure.compute(_seq(TENT)))
+    rows = [(o, -l, -h, c) for (o, h, l, c) in TENT]      # only a swing low
+    assert not _splits(structure.compute(_seq(rows)))
+
+
+def test_premium_discount_split_is_index_independent():
+    # the 50% cut must land at the same PLACE in the range at every index
+    # level -- a midpoint computed with any absolute term would not.
+    for rows in (STORY, EQ_ROWS, NOEQ_ROWS):
+        base = _splits(structure.compute(_seq(rows)))
+        assert base, rows
+        for scale in (2.35, 3.2):                 # BANKNIFTY, SENSEX
+            got = _splits(structure.compute(_seq(rows, scale=scale)))
+            assert _shape(got) == _shape(base), (scale, rows)
+            for a, b in zip(base, got):
+                assert abs(a["hi"] * scale - b["hi"]) <= 0.02, (scale, a, b)
+                assert abs(a["lo"] * scale - b["lo"]) <= 0.02, (scale, a, b)
+            # the two halves are equal by construction, at every scale: a cut
+            # carrying any absolute term would lopside once rescaled
+            for i in range(0, len(got), 2):
+                d, pm = got[i], got[i + 1]
+                assert d["kind"] == "DISCOUNT" and pm["kind"] == "PREMIUM"
+                assert abs((pm["hi"] - pm["lo"]) - (d["hi"] - d["lo"])) <= 0.02
+                assert pm["hi"] - pm["lo"] > 0, pm
+
+
+def test_premium_discount_confirmation_is_unknown_geometry():
+    vol = [0.5] * 16
+    vol[8] = 3.0
+    oi = [10] * 16
+    st = structure.compute(_seq(STORY, vol=vol, oi=oi), pivots=NIFTY_PIVOTS)
+    for s in _splits(st):
+        # flow is PRESENT here and the module still says UNKNOWN: there is no
+        # flow question attached to a midpoint, which is a different claim
+        # from "we checked and flow said no"
+        assert s["confirm"] == "UNKNOWN", s
+        assert s["confirm"] != "UNCONFIRMED"
+        assert "vol_r" in s["confirm_why"] and "oi_slope" in s["confirm_why"], s
+        assert any(ch.isdigit() for ch in s["confirm_why"]), s
+
+
+def test_derived_levels_do_not_disturb_the_rest_of_the_layer():
+    # passing pivots adds PD* and nothing else; the geometry layer is
+    # untouched by a level that came from another session
+    bars = _seq(STORY)
+    without = structure.compute(bars)
+    with_piv = structure.compute(bars, pivots=NIFTY_PIVOTS)
+    assert [s for s in with_piv if not s["kind"].startswith("PD")] == without
 
 
 if __name__ == "__main__":
