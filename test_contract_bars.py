@@ -242,6 +242,55 @@ def test_contract_bars_and_live_agree_to_the_last_bit():
             assert a[lo] == b[up], f"{lo} drifted from live.py at {a['t']}"
 
 
+def test_backtest_bands_and_contract_bars_agree_to_the_last_bit():
+    """The other half of the anti-drift lock.
+
+    `backtest._bands` is a THIRD copy of the same VWAP/sigma recurrence, and
+    the operator's whole validation story -- encode, then score, over the
+    cached sessions -- runs through it. If it drifts from `vwap_sigma`, the
+    tool scores signals against bands it no longer draws and nothing else in
+    the suite would notice. This does not merge the copy (backtest.py is left
+    alone deliberately); it locks the two together so an edit to one has to
+    be an edit to both.
+    """
+    import backtest
+
+    rows = [(24000, 24040, 23990, 24030, 1200),
+            (24030, 24075, 24025, 24060, 3400),
+            (24060, 24065, 23980, 23995, 5100),
+            (23995, 24010, 23940, 23950, 2750),
+            (23950, 24020, 23945, 24015, 6300)]
+    ours = contract_bars.vwap_sigma([(h, l, c, v) for _o, h, l, c, v in rows])
+    theirs = backtest._bands(
+        [{"H": h, "L": l, "C": c, "V": v} for _o, h, l, c, v in rows], {})
+
+    assert len(ours) == len(theirs) == len(rows)
+    for i, (a, b) in enumerate(zip(ours, theirs)):
+        for lo, up in (("vwap", "VWAP"), ("u1", "U1"), ("d1", "D1"),
+                       ("u2", "U2"), ("d2", "D2"), ("u3", "U3"), ("d3", "D3")):
+            assert a[lo] == b[up], f"{lo} drifted from backtest.py at bar {i}"
+
+
+def test_backtest_shares_the_zero_volume_fallback_too():
+    """With no volume there is no volume-weighted price, so VWAP falls back to
+    the close and sigma is 0. It is a quirk, not a definition, which is exactly
+    the kind of thing a re-implementation gets wrong."""
+    import backtest
+
+    rows = [(100, 102, 99, 101, 0), (101, 103, 100, 102, 0),
+            (102, 105, 101, 104, 500)]
+    ours = contract_bars.vwap_sigma([(h, l, c, v) for _o, h, l, c, v in rows])
+    theirs = backtest._bands(
+        [{"H": h, "L": l, "C": c, "V": v} for _o, h, l, c, v in rows], {})
+
+    assert ours[0]["vwap"] == theirs[0]["VWAP"] == 101      # the close
+    assert ours[0]["u3"] == theirs[0]["U3"] == 101          # sigma is 0
+    for a, b in zip(ours, theirs):
+        for lo, up in (("vwap", "VWAP"), ("u1", "U1"), ("d1", "D1"),
+                       ("u2", "U2"), ("d2", "D2"), ("u3", "U3"), ("d3", "D3")):
+            assert a[lo] == b[up]
+
+
 # -------------------------------------------------------------- 3. causality
 
 def test_bands_are_causal_under_truncation():
