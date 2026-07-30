@@ -197,7 +197,8 @@ def _confirm_pool(kind, V, S, at, born, bar_no):
         return UNKNOWN, f"no flow read for {kind} at bar {bar_no}: {note}"
     unwind = s < 0
     return (CONFIRMED if (ok and unwind) else UNCONFIRMED,
-            f"{kind} tagged at bar {bar_no}: {note}; oi_slope={s:+.0f} "
+            f"{kind} formation at bar {bar_no} -- sweep flow is a later-bar "
+            f"question, not answered here: {note}; oi_slope={s:+.0f} "
             f"({'unwinding' if unwind else 'not unwinding'})")
 
 

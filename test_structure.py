@@ -88,6 +88,22 @@ STORY = [(  0.0,  1.0, -1.0,  0.0),   # 0
          (  8.0, 10.0,  8.0,  9.8),   # 14 SWING_L(+5) born here
          (  9.0,  9.0,  2.0,  3.0)]   # 15 close 3 < 5 -> CHoCH down
 
+# STORY only ever exercises CHoCH on a DOWN break (structure.py:296-301) --
+# the mirror branch, an UP break while trend == -1 (structure.py:292), is
+# never visited by any table above, so mutating that line to always emit
+# "BOS" passes every existing test. Full negation (o,h,l,c) -> (-o,-l,-h,-c)
+# swaps every high/low/close role consistently (unlike the h/l-only flip
+# `test_swing_low_mirrors` uses on TENT, which gets away with leaving o/c
+# alone only because TENT's o and c are both always 0): the first break in
+# STORY (up, trend 0 -> 1) becomes a DOWN break (trend 0 -> -1), and the
+# second break (down, against trend 1 -> CHoCH) becomes an UP break against
+# trend -1 -> CHoCH up, the untested branch. STORY[:8] is appended after it
+# unchanged, so the trend-flip-then-break pattern that opened STORY (a fresh
+# SWING_H born 6 bars in, broken on the 7th) recurs once more -- but this
+# time trend is already +1 from the CHoCH, so the same shape must classify
+# as BOS, not CHoCH, proving the flip actually took effect.
+CHOCH_UP_STORY = [(-o, -l, -h, -c) for (o, h, l, c) in STORY] + STORY[:8]
+
 # Two swing highs 0.2 apart -> EQH (tolerance is a FRACTION of the session's
 # own realised range: 0.05 * 17.0 = 0.85 at the confirming bar).
 EQ_ROWS = [(0.0,  1.0, -1.0, 0.0),    # 0
@@ -107,6 +123,68 @@ EQ_ROWS = [(0.0,  1.0, -1.0, 0.0),    # 0
 # same shape, second high 5.0 away -> outside tolerance, no pool
 NOEQ_ROWS = [r if i != 9 else (0.0, 5.0, -4.0, 0.0)
              for i, r in enumerate(EQ_ROWS)]
+
+# EQ_ROWS/NOEQ_ROWS clear EQ_FRAC * rng by such a wide margin (0.2 apart on a
+# 0.85 tolerance, or 5.0 apart -- nowhere close) that absolutizing EQ_FRAC *
+# rng (structure.py:271,281) to a constant like 0.85 still passes every test
+# above, at every scale: the margin swallows the difference between a
+# relative and an absolute threshold. These two tables instead put the
+# separation at ~0.94x / ~1.06x the tolerance -- close enough that only the
+# relative rule gets both sides right at every scale; a hard-coded constant
+# starts disagreeing with the relative rule the moment the price offsets are
+# rescaled (BANKNIFTY/SENSEX), because the constant does not rescale with
+# them. rng is pinned at 18.0 (hi_run 12.0, lo_run -6.0) so tol = 0.05*18 =
+# 0.9 exactly; separation 0.846 = 0.94*0.9 (fires), 0.954 = 1.06*0.9 (absent).
+EQ_NEAR_FIRE_ROWS = [
+    (0.0,  1.0, -1.0, 0.0),
+    (0.0,  2.0, -2.0, 0.0),
+    (0.0,  3.0, -3.0, 0.0),
+    (0.0, 12.0, -4.0, 0.0),      # pivot HIGH +12.0 -> hi_run
+    (0.0,  3.0, -5.0, 0.0),
+    (0.0,  2.0, -6.0, 0.0),
+    (0.0,  1.0, -6.0, 0.0),      # -6.0 -> lo_run
+    (0.0,  2.0, -6.0, 0.0),
+    (0.0,  3.0, -5.0, 0.0),
+    (0.0, 11.154, -4.0, 0.0),    # pivot HIGH +11.154: 0.846 below the first
+    (0.0,  3.0, -5.0, 0.0),
+    (0.0,  2.0, -6.0, 0.0),
+    (0.0,  1.0, -6.0, 0.0),
+]
+
+# mirror: separation just OVER the tolerance (1.06x) -- must stay absent at
+# every scale, not merely at 1x.
+EQ_NEAR_NOFIRE_ROWS = [r if i != 9 else (0.0, 11.046, -4.0, 0.0)
+                       for i, r in enumerate(EQ_NEAR_FIRE_ROWS)]
+
+# Same discrimination for the FVG floor (structure.py:305), scaled DOWN
+# instead of up: FVG_MIN_FRAC is only 1% of rng to begin with, so shrinking
+# the table (0.3x) separates a relative floor from an absolutized one more
+# sharply than growing it would. rng is pinned at 20.0 (hi_run 19.0, lo_run
+# -1.0) so floor = 0.01*20 = 0.20 exactly; the gap is 0.21 -- just over the
+# relative floor at every scale, but under a floor absolutized to 0.20 (the
+# value this floor happens to take on THIS table at 1x) the instant the
+# table is shrunk to 0.3x, since 0.3*0.21 = 0.063 < 0.20.
+FVG_NEAR_FLOOR_ROWS = [
+    (0.0, 1.0, -1.0, 0.0),
+    (0.0, 1.0, -1.0, 0.0),
+    (0.0, 1.0, -1.0, 0.0),       # h = +1.0
+    (0.0, 1.0, -1.0, 0.0),
+    (1.21, 19.0, 1.21, 1.21),    # l = +1.21 -> gap 0.21 over rng 20.0
+]
+
+# a gap that is real and positive (clears the strict `<` at structure.py:307
+# on its own) but sits BELOW the relative floor -- unlike the zero-gap
+# "touch" case in test_fvg_is_a_three_bar_gap_and_a_touch_is_not_one, which
+# is rejected by the strict `<` before the floor check is ever reached and so
+# cannot tell the two guards apart, this one reaches the floor check and is
+# rejected there alone.
+FVG_SUBFLOOR_ROWS = [
+    (0.0, 1.0, -1.0, 0.0),
+    (0.0, 1.0, -1.0, 0.0),
+    (0.0, 1.0, -1.0, 0.0),
+    (0.0, 1.0, -1.0, 0.0),
+    (1.15, 19.0, 1.15, 1.15),    # l = +1.15 -> gap 0.15, under the 0.20 floor
+]
 
 # five quiet bars then one impulsive up bar; bar 4 is the last DOWN candle
 OB_UP = [(0.0, 1.0, -1.0, 0.2),       # 0  up
@@ -181,6 +259,14 @@ def test_fvg_is_a_three_bar_gap_and_a_touch_is_not_one():
     assert (g["lo"], g["hi"]) == (round(BASE + 1.0, 2), round(BASE + 2.5, 2))
 
 
+def test_fvg_sub_floor_gap_is_not_a_gap():
+    # a real, positive gap (0.15) that clears the strict `<` on its own but
+    # sits under the relative floor (0.20) -- rejected by the floor alone,
+    # which the touch case above (rejected by the strict `<` first) cannot
+    # demonstrate since the two guards mask each other there.
+    assert structure.compute(_seq(FVG_SUBFLOOR_ROWS)) == []
+
+
 def test_bearish_fvg_mirrors():
     rows = [(0.0, 1.0, -1.0, 0.0),
             (0.0, 1.0, -1.0, 0.0),
@@ -207,6 +293,23 @@ def test_bos_then_choch_on_the_story_and_nothing_else():
     ch = _one(st, "CHOCH")
     assert (ch["i0"], ch["born"], ch["dir"]) == (11, 15, -1)
     assert ch["hi"] == ch["lo"] == round(BASE + 5.0, 2)
+
+
+def test_choch_fires_on_an_up_break_once_a_down_trend_is_established():
+    # STORY only ever breaks trend down-then-CHoCH; this table breaks trend
+    # up-then-CHoCH instead (structure.py:292, the branch STORY never visits)
+    # and then shows the flip stuck: a second up-break afterward is BOS again.
+    st = structure.compute(_seq(CHOCH_UP_STORY))
+    bos = sorted([s for s in st if s["kind"] == "BOS"], key=lambda s: s["born"])
+    choch = [s for s in st if s["kind"] == "CHOCH"]
+    assert len(bos) == 2 and len(choch) == 1, (bos, choch)
+    # first break: down, no trend yet to contradict -> BOS; trend 0 -> -1
+    assert (bos[0]["i0"], bos[0]["born"], bos[0]["dir"]) == (3, 7, -1), bos[0]
+    # second break: up, against the now-established down-trend -> CHOCH
+    ch = choch[0]
+    assert (ch["i0"], ch["born"], ch["dir"]) == (11, 15, 1), ch
+    # trend is now +1: the next up-break is BOS again, not CHOCH
+    assert (bos[1]["i0"], bos[1]["born"], bos[1]["dir"]) == (19, 23, 1), bos[1]
 
 
 def test_eqh_pairs_two_swing_highs_inside_a_relative_tolerance():
@@ -305,6 +408,19 @@ def test_every_structure_is_born_at_or_after_its_span():
             assert s["dir"] in (1, -1), s
 
 
+def test_fvg_hi_is_always_strictly_above_lo():
+    # a floor that let a zero- or negative-width box through would be a gap
+    # the UI cannot draw; check every FVG the suite's sequences produce, not
+    # just the ones the dedicated FVG tests happen to construct.
+    fvgs = []
+    for rows in (STORY, EQ_ROWS, NOEQ_ROWS, OB_UP, OB_DOWN, TENT,
+                 CHOCH_UP_STORY, FVG_NEAR_FLOOR_ROWS):
+        fvgs += [s for s in structure.compute(_seq(rows)) if s["kind"] == "FVG"]
+    assert fvgs, "no FVG anywhere -- this test would be proving nothing"
+    for g in fvgs:
+        assert g["hi"] > g["lo"], g
+
+
 # =============================================== family 3: index independence
 
 def _shape(structs):
@@ -329,6 +445,34 @@ def test_same_structures_at_banknifty_and_sensex_scale():
                 assert abs(a["lo"] * scale - b["lo"]) <= 0.02, (scale, a, b)
 
 
+def test_eqh_near_boundary_tolerance_stays_relative_across_scale():
+    # every decision in test_same_structures_at_banknifty_and_sensex_scale
+    # clears its margin so widely that absolutizing EQ_FRAC * rng to a
+    # constant (e.g. 0.85, structure.py:271,281) still passes it at every
+    # scale. This table's separation sits at ~0.94x the relative tolerance,
+    # which only a genuinely relative rule keeps firing once the table is
+    # rescaled to BANKNIFTY/SENSEX levels.
+    for scale in (1.0, 2.35, 3.2):
+        st = structure.compute(_seq(EQ_NEAR_FIRE_ROWS, scale=scale))
+        _one(st, "EQH")  # raises if it is not there, at every scale
+
+
+def test_eqh_just_over_the_near_boundary_stays_absent_across_scale():
+    # mirror of the above: ~1.06x the tolerance, must stay absent everywhere
+    for scale in (1.0, 2.35, 3.2):
+        st = structure.compute(_seq(EQ_NEAR_NOFIRE_ROWS, scale=scale))
+        assert not [s for s in st if s["kind"] == "EQH"], (scale, st)
+
+
+def test_fvg_near_floor_gap_stays_relative_across_scale():
+    # same discrimination for FVG_MIN_FRAC (structure.py:305); scaling DOWN
+    # to 0.3x is what exposes an absolutized floor here, since the floor is
+    # only 1% of rng to begin with and the gap is chosen just over it.
+    for scale in (1.0, 0.3, 2.35, 3.2):
+        st = structure.compute(_seq(FVG_NEAR_FLOOR_ROWS, scale=scale))
+        _one(st, "FVG")
+
+
 # =============================================== family 4: confirmation
 
 def test_absent_flow_is_unknown_never_unconfirmed():
@@ -342,14 +486,21 @@ def test_absent_flow_is_unknown_never_unconfirmed():
         assert not [s for s in st if s["confirm"] == "UNCONFIRMED"]
 
 
-def test_flow_present_confirms_an_eqh_sweep():
+def test_flow_present_confirms_an_eqh_formation():
+    # NB: this checks flow on the second pivot's FORMATION bar (bar 9 here,
+    # where the pivot itself completes), not a later sweep through the
+    # pool -- structure.py cannot see bars after `born` (invariant 2), so a
+    # sweep read is a different, later-born question this receipt is
+    # careful not to claim an answer to. See the module docstring's
+    # deferred-work note.
     vol = [0.5] * 13
-    vol[9] = 3.0                       # the second tag came on expanded volume
+    vol[9] = 3.0                       # the pivot's own bar came on expanded volume
     oi = [10] * 13
     oi[9] = -1500                      # ... with OI unwinding
     e = _one(structure.compute(_seq(EQ_ROWS, vol=vol, oi=oi)), "EQH")
     assert e["confirm"] == "CONFIRMED", e
     assert "3.00" in e["confirm_why"] and "-1500" in e["confirm_why"], e
+    assert "formation" in e["confirm_why"], e
 
 
 def test_eqh_unconfirmed_when_volume_is_ordinary():
