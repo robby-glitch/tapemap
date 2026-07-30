@@ -1,11 +1,31 @@
 @import 'tailwindcss';
 
+/* The page itself has to follow the mode, not just the cards drawn on it.
+   <html data-mode> is stamped by theme.ts's ModeProvider before first paint;
+   these variables mirror theme.ts's T (dark) and TL (light) exactly. Dark is
+   the bare :root so the values it had before this file learned about light are
+   still the values it uses. */
+:root {
+  --page-bg: #0B0E14;
+  --page-text: #E8EDF5;
+  --page-muted: #5D6B84;
+  --page-ink: 255,255,255;   /* scrollbar / hairline wash ink */
+  --page-brass: 224,168,82;  /* structure glow */
+}
+:root[data-mode='light'] {
+  --page-bg: #F7F8FA;
+  --page-text: #141A22;
+  --page-muted: #6B7482;
+  --page-ink: 20,26,34;
+  --page-brass: 169,118,42;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background-color: #0B0E14;
-  color: #E8EDF5;
+  background-color: var(--page-bg);
+  color: var(--page-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -14,7 +34,7 @@ html, body, #root {
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(var(--page-ink),0.1); border-radius: 2px; }
 
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
@@ -23,8 +43,8 @@ html, body, #root {
 
 /* brass, not purple — the glow marks structure, never direction */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 12px 2px rgba(224,168,82,0.22); }
-  50% { box-shadow: 0 0 24px 6px rgba(224,168,82,0.40); }
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(var(--page-brass),0.22); }
+  50% { box-shadow: 0 0 24px 6px rgba(var(--page-brass),0.40); }
 }
 
 .live-dot { animation: pulse-live 1.8s ease-in-out infinite; }
@@ -49,5 +69,5 @@ html, body, #root {
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #5D6B84;
+  color: var(--page-muted);
 }
