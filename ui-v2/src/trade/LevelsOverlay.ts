@@ -27,11 +27,12 @@ export function startLevelsOverlay(
 
   const draw = () => {
     raf = requestAnimationFrame(draw)
-    const dpr = window.devicePixelRatio || 1
+    const dpr = Math.max(1, window.devicePixelRatio || 1)
     const w = host.clientWidth, h = host.clientHeight
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width = w * dpr
-      canvas.height = h * dpr
+    const bw = Math.round(w * dpr), bh = Math.round(h * dpr)
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw
+      canvas.height = bh
       // A canvas is a REPLACED element: with position:absolute and inset:0 it
       // takes its intrinsic size from these width/height attributes instead of
       // stretching to the parent, so the CSS size must be set explicitly or the

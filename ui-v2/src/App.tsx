@@ -1808,7 +1808,7 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
   const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
-  const { data: liveData, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
+  const { data: liveData, loading, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
 
   // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
@@ -1828,7 +1828,7 @@ export default function App() {
       const ch = data.CHAIN_DATA[activeIndex]
       if (ch && Number.isFinite(ch.maxPain) && ch.maxPain > 0)
         lv.push({ label: 'MAX PAIN', value: ch.maxPain, kind: 'strike', note: 'chain snapshot' })
-      if (ch?.flipPx != null)
+      if (ch?.flipPx != null && ch.flipPx > 0)
         lv.push({ label: 'GEX FLIP', value: ch.flipPx, kind: 'strike', note: 'chain snapshot' })
     }
     return lv
@@ -1982,8 +1982,9 @@ export default function App() {
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
-        {activeTab === 'Trade'    && <TradeTab index={activeIndex} day={tape.day} bars={tape.bars}
-                                              levels={tradeLevels} cursor={scrub} />}
+        {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
+                                              levels={tradeLevels} cursor={scrub}
+                                              stale={idxDead || !!error} loading={loading} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

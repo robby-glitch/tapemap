@@ -15,14 +15,15 @@ const MONTHS: Record<string, number> = {
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
 }
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/
-const MON_DAY = /^([A-Za-z]{3})\s+(\d{1,2})$/
+const MON_DAY = /^([A-Za-z]{3})\s+(\d{1,2})\b/
 
 // How much of the session's calendar date the payload actually told us. The
-// live backend emits ISO "YYYY-MM-DD" (exact); CSV replay emits "Jul 15" —
-// real month and day, but the string carries no year. Anything else tells us
-// nothing. The intraday HH:MM clock is real in all three cases; only the
-// calendar part varies, and the UI discloses anything short of 'exact' rather
-// than letting an inferred date read as fact.
+// live backend emits ISO "YYYY-MM-DD" (exact); the live poller also emits
+// "Jul 30 LIVE" (real month/day plus a trailing " LIVE" suffix — live.py:225);
+// CSV replay emits "Jul 15" — real month and day, but the string carries no
+// year. Anything else tells us nothing. The intraday HH:MM clock is real in
+// all three cases; only the calendar part varies, and the UI discloses
+// anything short of 'exact' rather than letting an inferred date read as fact.
 export type DayPrecision = 'exact' | 'no-year' | 'none'
 
 export function dayPrecision(day: string): DayPrecision {

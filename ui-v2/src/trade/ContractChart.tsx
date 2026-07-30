@@ -1,23 +1,24 @@
 import { useEffect, useRef } from 'react'
 import { createChartEngine } from '../vendor/candl/chart/engine'
 import type { IChartEngine } from '../vendor/candl/chart/types'
-import type { TapeBar, MapLevel } from '../data'
+import type { TapeBar, MapLevel, IndexKey } from '../data'
 import { toCandles, buildIndicators } from './indicators'
 import { startLevelsOverlay } from './LevelsOverlay'
 
 interface Props {
+  index: IndexKey
   day: string
   bars: TapeBar[]
   levels: MapLevel[]
   cursor: number | null // replay bar index; null = live
 }
 
-export default function ContractChart({ day, bars, levels, cursor }: Props) {
+export default function ContractChart({ index, day, bars, levels, cursor }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<IChartEngine | null>(null)
   const levelsRef = useRef<MapLevel[]>(levels)
-  const prevRef = useRef<{ day: string; n: number }>({ day: '', n: 0 })
+  const prevRef = useRef<{ index: string; day: string; n: number }>({ index: '', day: '', n: 0 })
   levelsRef.current = levels
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function ContractChart({ day, bars, levels, cursor }: Props) {
     // re-runs effects in dev), and without this reset the data effect would see
     // grew === 0 and call updateLast on an empty engine — leaving the chart with
     // a single candle instead of the whole session.
-    prevRef.current = { day: '', n: 0 }
+    prevRef.current = { index: '', day: '', n: 0 }
     // The vendored theme's own candles are teal/red (#26a69a/#ef5350) — foreign
     // to this app's palette. setSettings is the library's sanctioned styling
     // hook, so the colours align here rather than by editing the pristine
@@ -57,9 +58,10 @@ export default function ContractChart({ day, bars, levels, cursor }: Props) {
     const prev = prevRef.current
     const grew = bars.length - prev.n
     const n = candles.length
-    if (day === prev.day && grew === 0) {
+    const same = index === prev.index && day === prev.day
+    if (same && grew === 0) {
       engine.updateLast(candles[n - 1])   // same forming minute, refreshed
-    } else if (day === prev.day && grew === 1 && n >= 2) {
+    } else if (same && grew === 1 && n >= 2) {
       // The minute rolled over. The bar we last pushed was still forming, so
       // its final OHLC must be written before the new one is appended —
       // otherwise the closed candle keeps the mid-formation values it had at
@@ -68,11 +70,11 @@ export default function ContractChart({ day, bars, levels, cursor }: Props) {
       engine.updateLast(candles[n - 2])
       engine.updateLast(candles[n - 1])
     } else {
-      engine.setData(candles) // first load, day change, or any gap — resync
+      engine.setData(candles) // first load, index/day change, or any gap — resync
     }
     engine.setIndicators(buildIndicators(bars))
-    prevRef.current = { day, n: bars.length }
-  }, [day, bars])
+    prevRef.current = { index, day, n: bars.length }
+  }, [index, day, bars])
 
   useEffect(() => {
     engineRef.current?.setReplayCursor(cursor)

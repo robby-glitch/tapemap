@@ -10,6 +10,8 @@ interface Props {
   bars: TapeBar[]
   levels: MapLevel[]
   cursor: number | null
+  stale: boolean
+  loading: boolean
 }
 
 function Stat({ label, value, color, title }: {
@@ -29,7 +31,7 @@ function Stat({ label, value, color, title }: {
   )
 }
 
-export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
+export default function TradeTab({ index, day, bars, levels, cursor, stale, loading }: Props) {
   // The offset above this tab is content-dependent (the ANSWER band wraps
   // differently per index, and banners appear conditionally), so a fixed
   // calc(100vh - Npx) is wrong in some states and pushes the chart below the
@@ -55,8 +57,24 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
   })
 
   // Honesty rule 1: no tape = say so at full width, and chart nothing. A
-  // fallback must never occupy the space where live data goes.
+  // fallback must never occupy the space where live data goes. But before the
+  // first poll resolves, a healthy index also has zero bars — that transient
+  // state must read as "loading", not "no session", or a fine index looks dead.
   if (!bars.length) {
+    if (loading) {
+      return (
+        <div style={{ padding: 16 }}>
+          <div style={{
+            padding: '14px 18px', borderRadius: 6,
+            backgroundColor: T.card,
+            border: `1px solid ${T.border}`, color: T.textMuted,
+            fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
+          }}>
+            Loading {index} tape…
+          </div>
+        </div>
+      )
+    }
     return (
       <div style={{ padding: 16 }}>
         <div style={{
@@ -81,6 +99,8 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
   const live = cursor == null
   const prec = dayPrecision(day)
   const dir = b.c >= b.o ? T.bull : T.bear // the bar's own direction, same as its candle
+  const mode = stale ? 'STALE' : live ? 'LIVE' : 'REPLAY'
+  const modeColor = stale || !live ? T.caution : T.bull
 
   return (
     <div ref={rootRef} style={{
@@ -113,18 +133,26 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
         <Stat label="Bars" value={`${at + 1} / ${bars.length}`} />
         {/* Amber for REPLAY, matching the no-tape banner and the date
             disclosure: in this tab amber means "not the data you'd assume".
-            Brass is reserved for structure, so it must not mean "mode". */}
+            Brass is reserved for structure, so it must not mean "mode". STALE
+            is the same amber — a dead index's last-good tape is exactly as
+            "not what you'd assume" as a replay frame. */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7 }}>
           <span style={{
             width: 7, height: 7, borderRadius: '50%',
-            backgroundColor: live ? T.bull : T.caution,
+            backgroundColor: modeColor,
           }} />
           <span style={{
             fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
-            color: live ? T.bull : T.caution,
-          }}>{live ? 'LIVE' : 'REPLAY'}</span>
+            color: modeColor,
+          }}>{mode}</span>
         </div>
       </div>
+
+      {stale && (
+        <div style={{ fontSize: 11, color: T.caution, paddingLeft: 2 }}>
+          This index stopped updating — the chart below is the last tape received, not live. Its final bar is {b.t}.
+        </div>
+      )}
 
       {prec !== 'exact' && (
         <div style={{ fontSize: 11, color: T.textMuted, paddingLeft: 2 }}>
@@ -138,7 +166,7 @@ export default function TradeTab({ index, day, bars, levels, cursor }: Props) {
         flex: 1, minHeight: 0, borderRadius: 6, overflow: 'hidden',
         border: `1px solid ${T.border}`,
       }}>
-        <ContractChart day={day} bars={bars} levels={levels} cursor={cursor} />
+        <ContractChart index={index} day={day} bars={bars} levels={levels} cursor={cursor} />
       </div>
     </div>
   )
