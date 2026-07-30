@@ -145,6 +145,62 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(json.dumps({"ok": True, "index": idx,
                                    "interval": interval, "strikes": avail,
                                    "selected": strikes, "rows": rows}).encode())
+        elif self.path.startswith("/api/contract"):
+            # Option-premium tape: 1-min bars + their own session VWAP bands,
+            # per leg. The heavy lifting is live.build_contract (fetch + the
+            # pure contract_bars/contract_pair layers); this handler only
+            # parses params and keeps one index's failure off the others.
+            idx = self._idx()
+            q = parse_qs(urlsplit(self.path).query)
+
+            def _int(name, dflt, lo, hi):
+                try:
+                    return max(lo, min(hi, int((q.get(name) or [str(dflt)])[0])))
+                except ValueError:
+                    return dflt
+
+            interval = _int("interval", 3, 1, 60)
+            days = _int("days", 1, 1, 10)
+            side = ((q.get("side") or ["both"])[0] or "both").upper()
+            if side not in ("CE", "PE", "BOTH"):
+                side = "BOTH"
+            raw = (q.get("strike") or [""])[0].strip()
+            strike = None
+            if raw:
+                try:
+                    strike = float(raw)
+                except ValueError:
+                    strike = None      # unparseable -> let the pair picker choose
+            # Reuse the chain snapshot the poller already paid for rather than
+            # spending another request against Dhan's 1-per-3s chain limit.
+            rows = None
+            box = (self.chains or {}).get(idx)
+            if box and box.get("payload"):
+                try:
+                    pl = json.loads(box["payload"])
+                    rows = pl.get("strikes") if pl.get("ok") else None
+                except ValueError:
+                    rows = None
+            import live                          # local: same style as do_POST
+            try:
+                body = live.build_contract(idx, strike=strike, side=side,
+                                           interval=interval, days=days,
+                                           chain_rows=rows)
+            except Exception as e:
+                # Same isolation as /api/data: this index reports its own
+                # failure, the others are untouched, and the traceback lands
+                # in tapemap.log rather than a closed console.
+                log.exception("contract build failed %s", idx)
+                body = {"ok": False, "index": idx, "strike": strike,
+                        "side": side, "interval": interval, "days": days,
+                        "expiry": None, "sessions": [],
+                        "pair": None, "pair_why": None,
+                        "legs": {}, "bars": None, "vwap": None, "oi": None,
+                        "bar_days": None, "gaps": [], "gap_reasons": {},
+                        "forming": None, "forming_why": live.FORMING_WHY,
+                        "built_at": time.time(),
+                        "live_error": f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(body).encode())
         elif self.path.startswith("/api/gex"):
             # newest gex_YYYY-MM-DD.json (filenames sort chronologically)
             files = sorted((ROOT / "data").glob("gex_*.json"))

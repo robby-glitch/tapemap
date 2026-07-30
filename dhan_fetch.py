@@ -100,20 +100,38 @@ def validate(day):
               f"C {d['close'][i]:.1f} V {d['volume'][i]:.0f} OI {oi:.0f}")
 
 
-def _intraday_body(sec_id, instrument, day, oi):
+def _intraday_body(sec_id, instrument, day, oi, seg="NSE_FNO"):
     """Build the POST body for /v2/charts/intraday.
 
-    `toDate` is EXCLUSIVE on this endpoint -- fromDate == toDate == day
-    returns zero bars, always (verified live 2026-07-30: NIFTY sec id 65852
-    returned 375 real 1-min bars with toDate = day + 1, none with toDate =
-    day). So toDate is always day plus one calendar day here, even though
-    callers still pass a single session -- do NOT "simplify" this back to
-    toDate = day, it will silently break every fetch.
+    `toDate` is EXCLUSIVE for the MOST RECENT session -- fromDate == toDate
+    == day returns zero bars for it (verified live 2026-07-30: NIFTY sec id
+    65852 returned 375 real 1-min bars with toDate = day + 1, none with
+    toDate = day). So toDate is always day plus one calendar day here, even
+    though callers still pass a single session -- do NOT "simplify" this back
+    to toDate = day, it will silently break the newest fetch.
+
+    It is NOT exclusive for older sessions. Re-measured 2026-07-31 against
+    the same security, reproducible over three passes::
+
+        07-30 -> 07-30:    0 bars      07-30 -> 07-31:  375 (07-30 only)
+        07-29 -> 07-29:  375 bars      07-29 -> 07-30:  375 (07-29 only)
+        07-28 -> 07-28:  375 bars      07-28 -> 07-29:  750 (07-28 AND 07-29)
+        07-27 -> 07-28:  750 bars (07-27 AND 07-28)
+
+    So day + 1 OVER-FETCHES the following session once the requested day is
+    old enough. A caller asking for one session must therefore filter the
+    response by each bar's own IST timestamp rather than trusting the request
+    date -- `live._one_session` does exactly that and carries the receipt.
+
+    `seg` is the exchange segment. It defaults to NSE_FNO (what every caller
+    before /api/contract needed) but must be BSE_FNO for SENSEX legs --
+    `instruments.py` carries the right value per index as `fut_seg`, and
+    sending the wrong one returns an empty series rather than an error.
     """
     to_date = (datetime.strptime(day, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     return {
         "securityId": str(sec_id),
-        "exchangeSegment": "NSE_FNO",
+        "exchangeSegment": seg,
         "instrument": instrument,
         "interval": "1",
         "oi": bool(oi),
@@ -122,14 +140,15 @@ def _intraday_body(sec_id, instrument, day, oi):
     }
 
 
-def rest_intraday(token, sec_id, instrument, day, oi=False):
+def rest_intraday(token, sec_id, instrument, day, oi=False, seg="NSE_FNO"):
     """Direct REST 1-min chart call (the SDK lacks the oi flag; validated
     pattern: POST /v2/charts/intraday with oi:true returns open_interest).
 
     `day` is a single calendar session; see _intraday_body for why toDate
-    is sent as day + 1 (the endpoint's toDate is exclusive).
+    is sent as day + 1 (the endpoint's toDate is exclusive) and why `seg`
+    exists.
     """
-    body = json.dumps(_intraday_body(sec_id, instrument, day, oi)).encode()
+    body = json.dumps(_intraday_body(sec_id, instrument, day, oi, seg)).encode()
     req = urllib.request.Request(
         INTRADAY_URL, data=body, method="POST",
         headers={"Content-Type": "application/json",
