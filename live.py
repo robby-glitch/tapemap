@@ -21,6 +21,7 @@ from pathlib import Path
 import contract_bars
 import instruments
 import structure
+from dhan_fetch import _intraday_body, _one_session
 from engine import Session, session_json
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -99,10 +100,28 @@ def _throttle(min_gap=0.35):
 
 
 def _intraday(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO"):
+    """v1's intraday fetch: ONE session, consumed whole.
+
+    The body comes from `dhan_fetch._intraday_body` so there is exactly one
+    place in the codebase that decides a date range. `to_day=day` is passed
+    EXPLICITLY to keep this path bit-for-bit what it has always sent, because
+    both callers consume the response without slicing it:
+
+      * `build_payload` charts the CURRENT session, where toDate == day is the
+        value in production today.
+      * `_pivots` reads the PRIOR session's H/L/C. Older sessions do serve
+        fromDate == toDate (measured 2026-07-31: 07-29 -> 07-29 = 375 bars),
+        while day + 1 would return 750 bars across two days and quietly
+        compute yesterday's pivots off a two-day high and low.
+
+    The measured date behaviour, including the newest session returning zero
+    bars for toDate == day, is recorded in `_intraday_body`'s docstring. What
+    makes it safe to ignore here is that neither caller PERSISTS these bars;
+    anything that does must go through `dhan_fetch._one_session` first.
+    """
     _throttle()
-    body = json.dumps({"securityId": str(sec_id), "exchangeSegment": seg,
-                       "instrument": instrument, "interval": "1", "oi": oi,
-                       "fromDate": day, "toDate": day}).encode()
+    body = json.dumps(_intraday_body(sec_id, instrument, day, oi, seg,
+                                     to_day=day)).encode()
     req = urllib.request.Request(INTRADAY_URL, data=body, method="POST",
                                  headers={"Content-Type": "application/json",
                                           "access-token": tok})
@@ -239,68 +258,6 @@ def _sessions_back(day, n):
     while len(out) < n:
         out.append(instruments._prev_trading_day(out[-1]))
     return list(reversed(out))
-
-
-def _one_session(raw, day):
-    """Slice a rest_intraday response down to the bars that really fall on
-    `day` (IST). Returns `(payload, served, lost)`.
-
-    WHY THIS EXISTS -- measured against live Dhan on 2026-07-31, security
-    65852, and REPRODUCIBLE over three passes:
-
-        fromDate=2026-07-30 toDate=2026-07-30 ->    0 bars
-        fromDate=2026-07-30 toDate=2026-07-31 ->  375 bars, 07-30 only
-        fromDate=2026-07-29 toDate=2026-07-29 ->  375 bars, 07-29 only
-        fromDate=2026-07-29 toDate=2026-07-30 ->  375 bars, 07-29 only
-        fromDate=2026-07-28 toDate=2026-07-28 ->  375 bars, 07-28 only
-        fromDate=2026-07-28 toDate=2026-07-29 ->  750 bars, 07-28 AND 07-29
-        fromDate=2026-07-27 toDate=2026-07-28 ->  750 bars, 07-27 AND 07-28
-
-    No single rule fits: toDate behaves EXCLUSIVE for the most recent session
-    (which is why dhan_fetch sends day+1 at all -- without it the newest day
-    returns nothing) and INCLUSIVE for older ones, where day+1 silently drags
-    in the NEXT session too. So a response for "day" cannot be assumed to
-    contain only "day", and the request date is not a safe label for the bars
-    that come back.
-
-    The bars are therefore dated from their OWN timestamps. Bars belonging to
-    another session are removed here rather than downstream, because they
-    would otherwise be banded into this session's VWAP -- two trading days
-    sharing one 09:15 anchor, which is exactly the leak the per-session split
-    exists to prevent. `served` reports what Dhan actually sent, per date, so
-    the over-fetch stays visible instead of being quietly discarded.
-
-    `lost` counts rows dropped before reshape: ragged-array truncation plus
-    rows whose timestamp is not a real instant and so cannot be placed in any
-    session at all.
-    """
-    if not isinstance(raw, dict):
-        return {}, {}, 0
-    arrays = {k: v for k, v in raw.items() if isinstance(v, (list, tuple))}
-    if "timestamp" not in arrays or not arrays:
-        return raw if isinstance(raw, dict) else {}, {}, 0
-    lens = [len(v) for v in arrays.values()]
-    n, longest = min(lens), max(lens)
-    ts = arrays["timestamp"]
-    served, keep, bad = {}, [], 0
-    for i in range(n):
-        t = ts[i]
-        d = None
-        if isinstance(t, (int, float)) and not isinstance(t, bool):
-            try:
-                d = datetime.fromtimestamp(t, IST).strftime("%Y-%m-%d")
-            except (OverflowError, OSError, ValueError):
-                d = None
-        if d is None:
-            bad += 1
-            continue
-        served[d] = served.get(d, 0) + 1
-        if d == day:
-            keep.append(i)
-    out = dict(raw)
-    for k, v in arrays.items():
-        out[k] = [v[i] for i in keep]
-    return out, served, (longest - n) + bad
 
 
 def _leg_series(fetch, sessions, interval):
