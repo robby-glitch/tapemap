@@ -1162,7 +1162,7 @@ function EventsTab({ index }: { index: IndexKey }) {
                   {pillText(ev.tag)}
                 </span>
                 <span style={{ fontSize: 10, fontWeight: 600, color: accent }}>
-                  {dirText(ev.dir).arrow} {dirText(ev.dir).text}
+                  {dirText(ev.dir, ev.tag).arrow} {dirText(ev.dir, ev.tag).text}
                 </span>
               </span>
               {glossOf(ev.tag) && (

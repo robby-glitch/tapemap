@@ -171,7 +171,7 @@ export default function Callout({ mode, bar, prevBar, day, narr, x, y, boxW, box
               {pillText(narr.kind)}
             </span>
             <span style={{ fontSize: 10, color: accent, fontWeight: 600 }}>
-              {dirText(narr.tone).arrow} {dirText(narr.tone).text}
+              {dirText(narr.tone, narr.kind).arrow} {dirText(narr.tone, narr.kind).text}
             </span>
           </div>
           {glossOf(narr.kind) && (

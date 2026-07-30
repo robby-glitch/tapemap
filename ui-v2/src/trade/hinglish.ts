@@ -168,13 +168,77 @@ export function pillText(kind: string): string {
   return glossOf(kind)?.short ?? kind
 }
 
-/** Which way this event leans, in the operator's own words. `tone` is decided
- *  upstream by evDir (data.ts) — this only names it. 'structure' is a level
- *  event: it has a side on the chart but the engine did not call a direction
- *  from it, and saying otherwise would be inventing one. */
-export function dirText(tone: Narration['tone']): { arrow: string; text: string } {
-  if (tone === 'bull') return { arrow: '▲', text: 'UPAR ka ishaara' }
-  if (tone === 'bear') return { arrow: '▼', text: 'NEECHE ka ishaara' }
+/**
+ * How STRONG a claim a kind is making, which is a different question from
+ * which way it points. Read off each kind's own emit text in engine.py:
+ *
+ *   'call'  the engine is saying the market DID something directional —
+ *           "BULL TRAP SPRUNG", "band reversal", "spring". A read.
+ *   'risk'  a warning about what could happen NEXT, explicitly not yet:
+ *           "upside squeeze RISK BUILDING", a trap being SET, a setup ARMED
+ *           but untriggered.
+ *   'lean'  positioning or structure that tilts one way without predicting a
+ *           move: "PE writers pressing … → BULLISH", a gamma FLOOR whose text
+ *           says dips get absorbed, a book that is "reversal fuel".
+ *
+ * This exists because the direction chip was wording all three identically as
+ * "ishaara" (a read). On 2026-07-30 the 'call' kinds ran 15/18 at +30m while
+ * the 'lean' and 'risk' kinds ran 11/27 — a warning dressed as a read is the
+ * kind of thing that gets acted on. One session proves nothing about the hit
+ * rates, but it is reason enough not to let a risk warning borrow a read's
+ * wording.
+ */
+export type Claim = 'call' | 'risk' | 'lean'
+
+const CLAIM: Record<string, Claim> = {
+  ABSORPTION: 'call',
+  CLIMAX: 'call',
+  IGNITION: 'call',
+  DIVERGENCE: 'call',
+  'TRAP-SPRUNG': 'call',
+  SPRING: 'call',
+  'SPRING-FAIL': 'call',
+  'BAND-REVERSAL': 'call',
+  'BAND-BREAK': 'call',
+
+  'SQUEEZE-RISK': 'risk',
+  'TRAP-SETTING': 'risk',
+  TRAP: 'risk',
+  ARMED: 'risk',
+
+  CAMPAIGN: 'lean',
+  'BUYER-BUILD': 'lean',
+  'GAMMA-PIN': 'lean',
+  'OI-PEAK-LAG': 'lean',
+  PRESS: 'lean',
+  'WALL-MIGRATION': 'lean',
+  'ROLE-FLIP': 'lean',
+  CARRY: 'lean',
+}
+
+/** Defaults to the WEAKEST claim. An unknown kind cannot have a direction
+ *  anyway (evDir returns 0 for anything it does not name), so this is
+ *  unreachable in practice — but if that ever changes, understating a new
+ *  event beats promoting it to a read nobody wrote. */
+export function claimOf(kind: string): Claim {
+  return CLAIM[kind?.trim().toUpperCase()] ?? 'lean'
+}
+
+/** Which way this event points, in the operator's own words, worded to match
+ *  what the kind actually claims. `tone` is decided upstream by evDir
+ *  (data.ts) — this only names it, and never upgrades a warning into a read.
+ *  'structure' is a level event: it has a side on the chart but the engine
+ *  called no direction from it, and saying otherwise would invent one. */
+export function dirText(
+  tone: Narration['tone'], kind = '',
+): { arrow: string; text: string } {
   if (tone === 'structure') return { arrow: '◆', text: 'level ki baat — direction nahi' }
-  return { arrow: '—', text: 'direction saaf nahi' }
+  if (tone !== 'bull' && tone !== 'bear') return { arrow: '—', text: 'direction saaf nahi' }
+  const up = tone === 'bull'
+  const arrow = up ? '▲' : '▼'
+  const side = up ? 'UPAR' : 'NEECHE'
+  const claim = claimOf(kind)
+  if (claim === 'risk') return { arrow, text: `${side} ka RISK — abhi hua nahi` }
+  if (claim === 'lean') return { arrow, text: `jhukaav ${side} — ishaara nahi` }
+  return { arrow, text: `${side} ka ishaara` }
 }
