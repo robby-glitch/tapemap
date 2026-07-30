@@ -158,7 +158,8 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
                     {setup.conflict ? '' : `${setup.dir === 'UP' ? '▲' : '▼'} `}{setup.kind}
                   </span>
                   <StatusChip pal={pal} status={setup.status}
-                              dirColor={setup.dir === 'UP' ? pal.bull : pal.bear} />
+                              dirColor={setup.conflict ? pal.textSecondary
+                                : (setup.dir === 'UP' ? pal.bull : pal.bear)} />
                   {/* Age: t0 is the setup's birth time, verbatim. Without this a
                       40-minute-old LOADING setup and one born this bar look
                       identical. */}
