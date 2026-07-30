@@ -6,7 +6,8 @@ import {
 } from 'recharts'
 import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
 import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate } from './data'
-import { T } from './theme'
+import { usePalette, useMode, palette, rgbOf } from './theme'
+import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
@@ -337,37 +338,59 @@ function useData(): Dataset {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n: number) => n.toLocaleString('en-IN')
+/** `rgba()` from a palette token — the only route by which a colour in this
+ *  file acquires an alpha channel. Every tint, hairline and glow below used to
+ *  be a literal `rgba(255,255,255,…)` or `rgba(224,168,82,…)`, which is a
+ *  dark-surface assumption baked past the palette: white at 7% is invisible on
+ *  white. Alphas are unchanged, so dark still renders exactly as before. */
+const wash = (token: string, alpha: number | string) => `rgba(${rgbOf(token)},${alpha})`
 // Real OI is large (millions of units). Show in lakhs (L), or thousands (K) below 1L.
 const formatOI = (n: number) => n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : `${(n / 1e3).toFixed(1)}K`
-// Heat-tile color: hue from tone, alpha ramp from intensity (0–3).
-const HEAT_RGB: Record<HeatTone, string> = { bull: '46,194,126', bear: '255,95,107', neutral: '93,107,132' }
+/* These three were module-level colour constants, which is exactly the shape a
+   theme cannot reach: evaluated once at import, they would keep painting the
+   dark palette forever while the rest of the page went white. Each now takes
+   the active palette from its caller. The dark values are unchanged — every
+   triplet below is `rgbOf()` of the same dark token the literal spelled out
+   (bull #2EC27E → 46,194,126, bear #FF5F6B → 255,95,107, muted #5D6B84 →
+   93,107,132), so dark renders byte-identically. */
+
+// Heat-tile hue per tone, as the `r,g,b` triplet the alpha ramp needs.
+const heatRgb = (pal: Palette): Record<HeatTone, string> => ({
+  bull: rgbOf(pal.bull), bear: rgbOf(pal.bear), neutral: rgbOf(pal.textMuted),
+})
 // Spike-radar cell background: hue by direction, alpha ramps with intensity (0..1).
-const heatColor = (dir: HeatTone, intensity: number) => `rgba(${HEAT_RGB[dir]}, ${(0.08 + 0.55 * Math.max(0, Math.min(1, intensity))).toFixed(3)})`
+const heatColor = (pal: Palette, dir: HeatTone, intensity: number) =>
+  `rgba(${heatRgb(pal)[dir]}, ${(0.08 + 0.55 * Math.max(0, Math.min(1, intensity))).toFixed(3)})`
 // Levels-map per-kind styling (wall color resolves to CALL=bear / PUT=bull at render).
-const KIND_STYLE: Record<MapLevelKind, { color: string; dot: number; marker?: string }> = {
-  now:     { color: T.accent, dot: 9 },
-  wall:    { color: T.textSecondary, dot: 8 },
-  pin:     { color: T.accent, dot: 8, marker: '◎' },
-  pivot:   { color: T.textMuted, dot: 5 },
-  vwap:    { color: T.caution, dot: 6 },
-  band:    { color: 'rgba(224,168,82,0.6)', dot: 4 },
-  floor:   { color: T.bull, dot: 6 },
-  cap:     { color: T.bear, dot: 6 },
-  strike:  { color: '#E8C15A', dot: 6 },
-  session: { color: T.textMuted, dot: 4 },
-  trap:    { color: T.caution, dot: 6, marker: '⚑' },
-}
+const kindStyle = (pal: Palette): Record<MapLevelKind, { color: string; dot: number; marker?: string }> => ({
+  now:     { color: pal.accent, dot: 9 },
+  wall:    { color: pal.textSecondary, dot: 8 },
+  pin:     { color: pal.accent, dot: 8, marker: '◎' },
+  pivot:   { color: pal.textMuted, dot: 5 },
+  vwap:    { color: pal.caution, dot: 6 },
+  band:    { color: `rgba(${rgbOf(pal.accent)},0.6)`, dot: 4 },
+  floor:   { color: pal.bull, dot: 6 },
+  cap:     { color: pal.bear, dot: 6 },
+  strike:  { color: pal.strike, dot: 6 },
+  session: { color: pal.textMuted, dot: 4 },
+  trap:    { color: pal.caution, dot: 6, marker: '⚑' },
+})
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function TimingChip({ value }: { value: string }) {
+  // The literals these entries used to hold were the dark palette spelled out
+  // by hand — caution, accent, bull, bear, textMuted. Read from the palette
+  // they now follow the mode, and on white they use TL's darkened variants
+  // instead of the neon pair that vanishes there.
+  const pal = usePalette()
   const colors: Record<string, [string, string]> = {
-    WAIT:  ['rgba(255,191,0,0.12)', '#FFBF00'],
-    READY: ['rgba(224,168,82,0.15)', '#E0A852'],
-    GO:    ['rgba(46,194,126,0.15)', '#2EC27E'],
-    CAUTION: ['rgba(255,95,107,0.12)', '#FF5F6B'],
+    WAIT:  [wash(pal.caution, 0.12), pal.caution],
+    READY: [wash(pal.accent, 0.15), pal.accent],
+    GO:    [wash(pal.bull, 0.15), pal.bull],
+    CAUTION: [wash(pal.bear, 0.12), pal.bear],
   }
-  const [bg, fg] = colors[value] ?? ['rgba(93,107,132,0.15)', '#5D6B84']
+  const [bg, fg] = colors[value] ?? [wash(pal.textMuted, 0.15), pal.textMuted]
   return (
     <span className="chip" style={{ backgroundColor: bg, color: fg }}>
       {value === 'WAIT' && '⏸ '}{value === 'READY' && '⚡ '}{value === 'GO' && '▶ '}
@@ -377,12 +400,13 @@ function TimingChip({ value }: { value: string }) {
 }
 
 function DirectionChip({ value }: { value: string }) {
+  const pal = usePalette()
   const colors: Record<string, [string, string]> = {
-    BEARISH: ['rgba(255,95,107,0.12)', '#FF5F6B'],
-    BULLISH: ['rgba(46,194,126,0.12)', '#2EC27E'],
-    NEUTRAL: ['rgba(93,107,132,0.12)', '#9AA7BD'],
+    BEARISH: [wash(pal.bear, 0.12), pal.bear],
+    BULLISH: [wash(pal.bull, 0.12), pal.bull],
+    NEUTRAL: [wash(pal.textMuted, 0.12), pal.textSecondary],
   }
-  const [bg, fg] = colors[value] ?? ['rgba(93,107,132,0.12)', '#9AA7BD']
+  const [bg, fg] = colors[value] ?? [wash(pal.textMuted, 0.12), pal.textSecondary]
   return (
     <span className="chip" style={{ backgroundColor: bg, color: fg }}>
       {value === 'BEARISH' && '▼ '}{value === 'BULLISH' && '▲ '}{value === 'NEUTRAL' && '〰 '}
@@ -397,20 +421,23 @@ function IndexCell({ idx, data, active, onClick }: {
   active: boolean
   onClick: () => void
 }) {
+  const [mode] = useMode()
+  const pal = palette(mode)
   const isUp = data.pct >= 0
-  const color = Math.abs(data.pct) < 0.1 ? T.textSecondary : isUp ? T.bull : T.bear
+  const color = Math.abs(data.pct) < 0.1 ? pal.textSecondary : isUp ? pal.bull : pal.bear
 
   return (
     <button
       onClick={onClick}
       className={data.highlight ? 'trending-glow' : ''}
       style={{
-        backgroundColor: active ? '#1B2130' : '#141926',
+        // #1B2130 / #141926 were the dark palette's inset and card, inlined.
+        backgroundColor: active ? pal.inset : pal.card,
         border: data.highlight
-          ? `1px solid ${T.accent}`
+          ? `1px solid ${pal.accent}`
           : active
-          ? `1px solid rgba(255,255,255,0.12)`
-          : `1px solid ${T.border}`,
+          ? `1px solid ${wash(pal.ink, 0.12)}`
+          : `1px solid ${pal.border}`,
         borderRadius: 10,
         padding: '8px 14px',
         cursor: 'pointer',
@@ -428,8 +455,10 @@ function IndexCell({ idx, data, active, onClick }: {
           fontSize: 9,
           fontWeight: 700,
           letterSpacing: '0.1em',
-          backgroundColor: T.accent,
-          color: '#fff',
+          backgroundColor: pal.accent,
+          // White on light brass is 4.4:1 at 9px; ink on it is 6.4:1. Dark
+          // keeps the white it has always had.
+          color: mode === 'light' ? pal.textPrimary : '#fff',
           padding: '1px 7px',
           borderRadius: 4,
         }}>
@@ -437,11 +466,11 @@ function IndexCell({ idx, data, active, onClick }: {
         </span>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: T.textPrimary }}>{idx}</span>
-        <span style={{ fontSize: 10, color: T.textMuted }}>{data.state}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: pal.textPrimary }}>{idx}</span>
+        <span style={{ fontSize: 10, color: pal.textMuted }}>{data.state}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span className="mono" style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>
+        <span className="mono" style={{ fontSize: 15, fontWeight: 600, color: pal.textPrimary }}>
           {fmt(data.price)}
         </span>
         <span className="mono" style={{ fontSize: 11, color, fontWeight: 600 }}>
@@ -463,6 +492,7 @@ function IndexCell({ idx, data, active, onClick }: {
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/    // client sanity; server re-validates
 
 function TokenCapture({ tone = 'quiet' }: { tone?: 'quiet' | 'loud' }) {
+  const pal = usePalette()
   const [mode, setMode] = useState<'idle' | 'busy' | 'paste'>('idle')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -504,8 +534,8 @@ function TokenCapture({ tone = 'quiet' }: { tone?: 'quiet' | 'loud' }) {
   const btnStyle = {
     fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', padding: '4px 10px',
     borderRadius: 3, cursor: 'pointer', background: 'transparent',
-    border: `1px solid ${tone === 'loud' ? T.caution : T.border}`,
-    color: tone === 'loud' ? T.caution : T.textMuted,
+    border: `1px solid ${tone === 'loud' ? pal.caution : pal.border}`,
+    color: tone === 'loud' ? pal.caution : pal.textMuted,
   } as const
 
   return (
@@ -517,12 +547,12 @@ function TokenCapture({ tone = 'quiet' }: { tone?: 'quiet' | 'loud' }) {
             placeholder="paste Dhan token"
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitPaste() } }}
             style={{
-              background: T.inset, border: `1px solid ${T.border}`, borderRadius: 3,
-              padding: '4px 8px', color: T.textPrimary, fontSize: 11.5, width: 190,
+              background: pal.inset, border: `1px solid ${pal.border}`, borderRadius: 3,
+              padding: '4px 8px', color: pal.textPrimary, fontSize: 11.5, width: 190,
               outline: 'none', fontFamily: 'inherit',
             }}
           />
-          <button onClick={submitPaste} style={{ ...btnStyle, borderColor: T.accent, color: T.accent }}>SAVE</button>
+          <button onClick={submitPaste} style={{ ...btnStyle, borderColor: pal.accent, color: pal.accent }}>SAVE</button>
           <button onClick={() => setMode('idle')} style={btnStyle}>CANCEL</button>
         </>
       ) : (
@@ -532,7 +562,7 @@ function TokenCapture({ tone = 'quiet' }: { tone?: 'quiet' | 'loud' }) {
         </button>
       )}
       {msg && (
-        <span style={{ fontSize: 11, color: msg.ok ? T.bull : T.bear, maxWidth: 340 }}>
+        <span style={{ fontSize: 11, color: msg.ok ? pal.bull : pal.bear, maxWidth: 340 }}>
           {msg.text}
         </span>
       )}
@@ -547,13 +577,14 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
   error: string | null
 }) {
   const { INDICES } = useData()
+  const pal = usePalette()
   return (
     <div style={{
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      backgroundColor: T.card,
-      borderBottom: `1px solid ${T.border}`,
+      backgroundColor: pal.card,
+      borderBottom: `1px solid ${pal.border}`,
       padding: '0 24px',
       display: 'flex',
       alignItems: 'center',
@@ -563,15 +594,15 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
     }}>
       {/* Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.12em', color: T.textPrimary }}>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.12em', color: pal.textPrimary }}>
           TAPEMAP
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: T.bull }}>
-          <span className="live-dot" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: T.bull, display: 'inline-block' }} />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: pal.bull }}>
+          <span className="live-dot" style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: pal.bull, display: 'inline-block' }} />
           LIVE
         </span>
         {lastUpdated && (
-          <span className="mono" style={{ fontSize: 10, color: T.textMuted }}>
+          <span className="mono" style={{ fontSize: 10, color: pal.textMuted }}>
             updated {lastUpdated.toLocaleTimeString('en-GB')}
           </span>
         )}
@@ -580,9 +611,9 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
             fontSize: 9,
             fontWeight: 700,
             letterSpacing: '0.06em',
-            color: T.caution,
-            backgroundColor: 'rgba(255,191,0,0.1)',
-            border: `1px solid rgba(255,191,0,0.2)`,
+            color: pal.caution,
+            backgroundColor: wash(pal.caution, 0.1),
+            border: `1px solid ${wash(pal.caution, 0.2)}`,
             borderRadius: 4,
             padding: '1px 6px',
           }}>
@@ -609,22 +640,33 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
   )
 }
 
+/* Recharts renders this as a real element, so it may hold hooks. It has to:
+   a tooltip that keeps its dark #1B2130 panel while the chart behind it turns
+   white is the one component where getting the theme wrong is invisible until
+   you hover — and its label was pal.textMuted on that dark panel, which on a
+   white panel would be the same reading either way only by luck. */
 const ChartTooltip = ({ active, payload, label }: any) => {
+  const [mode] = useMode()
+  const pal = palette(mode)
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      backgroundColor: '#1B2130',
-      border: `1px solid rgba(255,255,255,0.1)`,
+      backgroundColor: pal.inset,
+      border: `1px solid ${wash(pal.ink, 0.1)}`,
       borderRadius: 8,
       padding: '8px 12px',
       fontSize: 11,
-      color: T.textSecondary,
+      color: pal.textSecondary,
+      // On white, an inset-coloured panel is nearly the card colour, so the
+      // tooltip needs a shadow to read as floating rather than as a hole.
+      // Light only: dark mode is meant to look exactly as it did before.
+      boxShadow: mode === 'light' ? `0 4px 14px ${wash(pal.ink, 0.16)}` : undefined,
     }}>
-      <div style={{ marginBottom: 4, color: T.textMuted }}>{label}</div>
+      <div style={{ marginBottom: 4, color: pal.textMuted }}>{label}</div>
       {payload.filter((p: any) => p.dataKey === 'price' || p.dataKey === 'vwap').map((p: any) => (
         <div key={p.dataKey} style={{ display: 'flex', gap: 8 }}>
-          <span style={{ color: p.dataKey === 'vwap' ? '#FFBF00' : T.textPrimary }}>{p.dataKey === 'vwap' ? 'VWAP' : 'Price'}:</span>
-          <span className="mono" style={{ color: T.textPrimary, fontWeight: 600 }}>{fmt(Math.round(p.value))}</span>
+          <span style={{ color: p.dataKey === 'vwap' ? pal.caution : pal.textPrimary }}>{p.dataKey === 'vwap' ? 'VWAP' : 'Price'}:</span>
+          <span className="mono" style={{ color: pal.textPrimary, fontWeight: 600 }}>{fmt(Math.round(p.value))}</span>
         </div>
       ))}
     </div>
@@ -633,6 +675,8 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 
 function TapeTab({ index }: { index: IndexKey }) {
   const { KEY_LEVELS, ORDER_FLOW, CHART_DATA, PRESSURE, MAP } = useData()
+  const [mode] = useMode()
+  const pal = palette(mode)
   const levels = KEY_LEVELS[index]
   const flow = ORDER_FLOW[index]
   const data = CHART_DATA[index]
@@ -659,14 +703,14 @@ function TapeTab({ index }: { index: IndexKey }) {
       return acc
     }, [])
   const refColor = (l: typeof map.levels[number]) =>
-    l.kind === 'wall' ? (l.label === 'CALL' ? T.bear : T.bull)
-    : l.kind === 'pin' ? T.accent
-    : l.kind === 'floor' ? T.bull
-    : l.kind === 'cap' ? T.bear
-    : l.kind === 'strike' ? '#E8C15A'
-    : l.kind === 'trap' ? T.caution
-    : l.kind === 'band' ? 'rgba(255,255,255,0.14)'
-    : T.textMuted
+    l.kind === 'wall' ? (l.label === 'CALL' ? pal.bear : pal.bull)
+    : l.kind === 'pin' ? pal.accent
+    : l.kind === 'floor' ? pal.bull
+    : l.kind === 'cap' ? pal.bear
+    : l.kind === 'strike' ? pal.strike
+    : l.kind === 'trap' ? pal.caution
+    : l.kind === 'band' ? wash(pal.ink, 0.14)
+    : pal.textMuted
   const strongKind = (k: string) =>
     k === 'wall' || k === 'pin' || k === 'floor' || k === 'cap' || k === 'strike' || k === 'trap'
 
@@ -674,8 +718,8 @@ function TapeTab({ index }: { index: IndexKey }) {
     <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px', gap: 16, padding: 24, flex: 1 }}>
       {/* Left: Key Levels */}
       <div style={{
-        backgroundColor: T.card,
-        border: `1px solid ${T.border}`,
+        backgroundColor: pal.card,
+        border: `1px solid ${pal.border}`,
         borderRadius: 14,
         padding: '16px 0',
         display: 'flex',
@@ -691,26 +735,26 @@ function TapeTab({ index }: { index: IndexKey }) {
               key={lvl.label}
               style={{
                 padding: '10px 16px',
-                borderLeft: isHere ? `3px solid ${T.accent}` : '3px solid transparent',
-                backgroundColor: isHere ? 'rgba(224,168,82,0.06)' : 'transparent',
+                borderLeft: isHere ? `3px solid ${pal.accent}` : '3px solid transparent',
+                backgroundColor: isHere ? wash(pal.accent, 0.06) : 'transparent',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, letterSpacing: '0.06em' }}>{lvl.label}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: pal.textMuted, letterSpacing: '0.06em' }}>{lvl.label}</span>
                 {!isHere && (
                   <span className="mono" style={{
                     fontSize: 10,
-                    color: isUp ? T.bull : T.bear,
+                    color: isUp ? pal.bull : pal.bear,
                     fontWeight: 600,
                   }}>
                     {isUp ? '▲' : '▼'} {isUp ? '+' : ''}{lvl.dist}
                   </span>
                 )}
               </div>
-              <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: isHere ? T.accent : T.textPrimary }}>
+              <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: isHere ? pal.accent : pal.textPrimary }}>
                 {fmt(lvl.value)}
               </div>
-              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 1 }}>{lvl.note}</div>
+              <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 1 }}>{lvl.note}</div>
             </div>
           )
         })}
@@ -718,8 +762,8 @@ function TapeTab({ index }: { index: IndexKey }) {
 
       {/* Center: Chart */}
       <div style={{
-        backgroundColor: T.card,
-        border: `1px solid ${T.border}`,
+        backgroundColor: pal.card,
+        border: `1px solid ${pal.border}`,
         borderRadius: 14,
         padding: '16px 8px 8px 4px',
         display: 'flex',
@@ -727,10 +771,14 @@ function TapeTab({ index }: { index: IndexKey }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', marginBottom: 12 }}>
           <div className="micro-label">Price · VWAP · ±1σ · Key Levels</div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: T.textMuted }}>
-            <span style={{ color: T.textPrimary }}>— Price</span>
-            <span style={{ color: T.caution }}>-- VWAP</span>
-            <span style={{ color: 'rgba(224,168,82,0.6)' }}>▨ ±1σ</span>
+          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: pal.textMuted }}>
+            <span style={{ color: pal.textPrimary }}>— Price</span>
+            <span style={{ color: pal.caution }}>-- VWAP</span>
+            {/* A legend swatch echoing the band's own translucency. At 0.6 on
+                white that is 2.1:1 — and the band it labels is drawn at 0.09,
+                so the swatch was never a literal sample anyway. Light mode
+                takes it to full brass; dark keeps the value it had. */}
+            <span style={{ color: mode === 'light' ? pal.accent : wash(pal.accent, 0.6) }}>▨ ±1σ</span>
           </div>
         </div>
         <div style={{ height: 380 }}>
@@ -738,28 +786,28 @@ function TapeTab({ index }: { index: IndexKey }) {
             <ComposedChart data={data} margin={{ top: 6, right: 78, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={T.accent} stopOpacity={0.10} />
-                  <stop offset="100%" stopColor={T.accent} stopOpacity={0} />
+                  <stop offset="0%" stopColor={pal.accent} stopOpacity={0.10} />
+                  <stop offset="100%" stopColor={pal.accent} stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={T.accent} stopOpacity={0.09} />
-                  <stop offset="100%" stopColor={T.accent} stopOpacity={0.04} />
+                  <stop offset="0%" stopColor={pal.accent} stopOpacity={0.09} />
+                  <stop offset="100%" stopColor={pal.accent} stopOpacity={0.04} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 6" stroke={wash(pal.ink, 0.04)} vertical={false} />
               <XAxis
                 dataKey="time"
                 ticks={xTicks}
                 interval={0}
                 minTickGap={40}
-                tick={{ fill: T.textMuted, fontSize: 10 }}
+                tick={{ fill: pal.textMuted, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
                 domain={[zLo, zHi]}
                 allowDataOverflow
-                tick={{ fill: T.textMuted, fontSize: 10 }}
+                tick={{ fill: pal.textMuted, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={v => fmt(Math.round(v))}
@@ -768,7 +816,7 @@ function TapeTab({ index }: { index: IndexKey }) {
               <Tooltip content={<ChartTooltip />} />
               {/* ±1σ band: accent between per-bar upper and lower (card mask hides below lower) */}
               <Area type="monotone" dataKey="upper" stroke="none" fill="url(#bandFill)" isAnimationActive={false} />
-              <Area type="monotone" dataKey="lower" stroke="none" fill={T.card} isAnimationActive={false} />
+              <Area type="monotone" dataKey="lower" stroke="none" fill={pal.card} isAnimationActive={false} />
               {/* Key levels ON the chart as horizontal reference lines */}
               {refLevels.map((l, i) => {
                 const c = refColor(l)
@@ -791,9 +839,9 @@ function TapeTab({ index }: { index: IndexKey }) {
                 )
               })}
               {/* VWAP */}
-              <Line type="monotone" dataKey="vwap" stroke={T.caution} strokeWidth={1} strokeDasharray="4 4" dot={false} activeDot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="vwap" stroke={pal.caution} strokeWidth={1} strokeDasharray="4 4" dot={false} activeDot={false} isAnimationActive={false} />
               {/* Price — the hero (bold line + depth fill in one series) */}
-              <Area type="monotone" dataKey="price" stroke={T.textPrimary} strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 3, fill: T.accent, strokeWidth: 0 }} isAnimationActive={false} />
+              <Area type="monotone" dataKey="price" stroke={pal.textPrimary} strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 3, fill: pal.accent, strokeWidth: 0 }} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -802,29 +850,29 @@ function TapeTab({ index }: { index: IndexKey }) {
         <div style={{ padding: '10px 12px 4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <div className="micro-label">Pressure Tape — net order-flow (bucketed)</div>
-            <div style={{ display: 'flex', gap: 12, fontSize: 10, color: T.textMuted }}>
-              <span style={{ color: T.bull }}>▲ buying</span>
-              <span style={{ color: T.bear }}>▼ selling</span>
-              <span style={{ color: T.textMuted }}>· balanced</span>
+            <div style={{ display: 'flex', gap: 12, fontSize: 10, color: pal.textMuted }}>
+              <span style={{ color: pal.bull }}>▲ buying</span>
+              <span style={{ color: pal.bear }}>▼ selling</span>
+              <span style={{ color: pal.textMuted }}>· balanced</span>
             </div>
           </div>
           <div style={{ position: 'relative', height: 64, paddingLeft: 62, paddingRight: 78 }}>
             {/* zero centerline */}
-            <div style={{ position: 'absolute', left: 62, right: 78, top: '50%', height: 1, background: 'rgba(255,255,255,0.06)' }} />
+            <div style={{ position: 'absolute', left: 62, right: 78, top: '50%', height: 1, background: wash(pal.ink, 0.06) }} />
             <div style={{ position: 'relative', display: 'flex', gap: 2, height: '100%', alignItems: 'stretch' }}>
               {pressure.map((c, i) => {
                 const up = c.val > 0.03
                 const dn = c.val < -0.03
                 const h = Math.min(46, Math.abs(c.val) * 46)
                 const alpha = (0.35 + 0.5 * Math.abs(c.val)).toFixed(3)
-                const green = `rgba(46,194,126, ${alpha})`
-                const red = `rgba(255,95,107, ${alpha})`
+                const green = wash(pal.bull, alpha)
+                const red = wash(pal.bear, alpha)
                 return (
                   <div key={i} title={c.note} style={{ flex: 1, minWidth: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                     {/* top half — buying grows up from the centerline */}
                     <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                       {up && <div style={{ width: '100%', height: h, background: green, borderRadius: '3px 3px 0 0' }} />}
-                      {!up && !dn && <div style={{ width: '100%', height: 3, background: 'rgba(93,107,132,0.35)' }} />}
+                      {!up && !dn && <div style={{ width: '100%', height: 3, background: wash(pal.textMuted, 0.35) }} />}
                     </div>
                     {/* bottom half — selling grows down from the centerline */}
                     <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
@@ -840,8 +888,8 @@ function TapeTab({ index }: { index: IndexKey }) {
 
       {/* Right: Order Flow */}
       <div style={{
-        backgroundColor: T.card,
-        border: `1px solid ${T.border}`,
+        backgroundColor: pal.card,
+        border: `1px solid ${pal.border}`,
         borderRadius: 14,
         padding: 16,
         display: 'flex',
@@ -850,10 +898,10 @@ function TapeTab({ index }: { index: IndexKey }) {
       }}>
         <div>
           <div className="micro-label" style={{ marginBottom: 10 }}>Order Flow</div>
-          <p style={{ fontSize: 13, color: T.textPrimary, lineHeight: 1.65, margin: 0 }}>
+          <p style={{ fontSize: 13, color: pal.textPrimary, lineHeight: 1.65, margin: 0 }}>
             {flow.main.split('. ').map((sentence, i, arr) => (
               <span key={i}>
-                <span style={{ color: i === 0 ? T.textPrimary : T.textSecondary }}>{sentence}{i < arr.length - 1 ? '. ' : ''}</span>
+                <span style={{ color: i === 0 ? pal.textPrimary : pal.textSecondary }}>{sentence}{i < arr.length - 1 ? '. ' : ''}</span>
               </span>
             ))}
           </p>
@@ -866,9 +914,9 @@ function TapeTab({ index }: { index: IndexKey }) {
             gap: 6,
             fontSize: 10,
             fontWeight: 600,
-            color: T.caution,
-            backgroundColor: 'rgba(255,191,0,0.08)',
-            border: `1px solid rgba(255,191,0,0.15)`,
+            color: pal.caution,
+            backgroundColor: wash(pal.caution, 0.08),
+            border: `1px solid ${wash(pal.caution, 0.15)}`,
             borderRadius: 6,
             padding: '2px 8px',
             marginBottom: 8,
@@ -876,7 +924,7 @@ function TapeTab({ index }: { index: IndexKey }) {
             ● {flow.main.includes('decelerating') ? 'decelerating' : 'building'}
           </div>
           <div className="micro-label" style={{ marginBottom: 6 }}>MM Perspective</div>
-          <p style={{ fontSize: 12, color: T.textSecondary, margin: 0, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 12, color: pal.textSecondary, margin: 0, lineHeight: 1.55 }}>
             {flow.mm}
           </p>
         </div>
@@ -889,12 +937,12 @@ function TapeTab({ index }: { index: IndexKey }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 padding: '8px 10px',
-                backgroundColor: T.inset,
+                backgroundColor: pal.inset,
                 borderRadius: 8,
-                border: `1px solid ${T.border}`,
+                border: `1px solid ${pal.border}`,
               }}>
-                <span style={{ fontSize: 11, color: T.textMuted }}>{s.label}</span>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{s.value}</span>
+                <span style={{ fontSize: 11, color: pal.textMuted }}>{s.label}</span>
+                <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: pal.textPrimary }}>{s.value}</span>
               </div>
             ))}
           </div>
@@ -909,6 +957,7 @@ function TapeTab({ index }: { index: IndexKey }) {
    you only print current OI — and that difference is the whole game. Shown
    only once it is worth reacting to. */
 function OffPeak({ oi, pk }: { oi: number; pk: number }) {
+  const pal = usePalette()
   if (!pk || pk <= 0) return null
   const off = 1 - oi / pk
   if (off < 0.08) return null
@@ -916,7 +965,7 @@ function OffPeak({ oi, pk }: { oi: number; pk: number }) {
     <span className="mono" title={`session peak ${Math.round(pk).toLocaleString('en-IN')}`}
       style={{
         fontSize: 9.5, fontWeight: 700, letterSpacing: '0.02em',
-        color: off >= 0.30 ? T.caution : T.textSecondary, opacity: 0.95,
+        color: off >= 0.30 ? pal.caution : pal.textSecondary, opacity: 0.95,
       }}>
       −{Math.round(off * 100)}%
     </span>
@@ -925,6 +974,7 @@ function OffPeak({ oi, pk }: { oi: number; pk: number }) {
 
 function ChainTab({ index }: { index: IndexKey }) {
   const { CHAIN_DATA } = useData()
+  const pal = usePalette()
   const chain = CHAIN_DATA[index]
   const maxCeOI = Math.max(1, ...chain.strikes.map(s => s.ceOI))
   const maxPeOI = Math.max(1, ...chain.strikes.map(s => s.peOI))
@@ -941,47 +991,47 @@ function ChainTab({ index }: { index: IndexKey }) {
           { label: 'Squeeze Fuel', value: chain.squeeze, note: chain.squeeze === 'High' ? 'Large short base' : 'Limited short' },
         ].map(stat => (
           <div key={stat.label} style={{
-            backgroundColor: T.card,
-            border: `1px solid ${T.border}`,
+            backgroundColor: pal.card,
+            border: `1px solid ${pal.border}`,
             borderRadius: 14,
             padding: '16px 20px',
           }}>
             <div className="micro-label" style={{ marginBottom: 8 }}>{stat.label}</div>
-            <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>{stat.value}</div>
-            <div style={{ fontSize: 11, color: T.textMuted }}>{stat.note}</div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: pal.textPrimary, marginBottom: 4 }}>{stat.value}</div>
+            <div style={{ fontSize: 11, color: pal.textMuted }}>{stat.note}</div>
           </div>
         ))}
       </div>
 
       {/* Strike heatmap */}
       <div style={{
-        backgroundColor: T.card,
-        border: `1px solid ${T.border}`,
+        backgroundColor: pal.card,
+        border: `1px solid ${pal.border}`,
         borderRadius: 14,
         overflow: 'hidden',
       }}>
-        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${pal.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="micro-label">
             Strike Heatmap — CE OI · GEX · PE OI
             {!chain.aligned && (
-              <span style={{ color: T.caution, marginLeft: 10, letterSpacing: 0, textTransform: 'none' }}>
+              <span style={{ color: pal.caution, marginLeft: 10, letterSpacing: 0, textTransform: 'none' }}>
                 live snapshot — the ladder has no per-strike history, so it is not replayed
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: T.textMuted }}>
-            <span style={{ color: T.bear }}>■ CE writers</span>
-            <span style={{ color: T.bull }}>■ PE writers</span>
-            <span style={{ color: T.accent }}>■ +GEX</span>
-            <span style={{ color: T.caution }}>■ −GEX</span>
+          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: pal.textMuted }}>
+            <span style={{ color: pal.bear }}>■ CE writers</span>
+            <span style={{ color: pal.bull }}>■ PE writers</span>
+            <span style={{ color: pal.accent }}>■ +GEX</span>
+            <span style={{ color: pal.caution }}>■ −GEX</span>
           </div>
         </div>
         {/* Column header */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderBottom: `1px solid ${T.border}` }}>
-          <div style={{ flex: 1, fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>CE OI</div>
-          <div style={{ width: 48, textAlign: 'center', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>GEX</div>
-          <div style={{ width: 160, textAlign: 'center', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>STRIKE</div>
-          <div style={{ flex: 1, textAlign: 'right', fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>PE OI</div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderBottom: `1px solid ${pal.border}` }}>
+          <div style={{ flex: 1, fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>CE OI</div>
+          <div style={{ width: 48, textAlign: 'center', fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>GEX</div>
+          <div style={{ width: 160, textAlign: 'center', fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>STRIKE</div>
+          <div style={{ flex: 1, textAlign: 'right', fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>PE OI</div>
         </div>
         {/* Rows */}
         {chain.strikes.map(s => {
@@ -990,51 +1040,51 @@ function ChainTab({ index }: { index: IndexKey }) {
           const ceA = Math.min(1, s.ceOI / maxCeOI)
           const peA = Math.min(1, s.peOI / maxPeOI)
           const gexA = Math.min(1, Math.abs(s.gex) / maxAbsGex)
-          const gexRGB = s.gex > 0 ? '224,168,82' : '255,191,0'
+          const gexRGB = rgbOf(s.gex > 0 ? pal.accent : pal.caution)
           return (
             <div key={s.strike} style={{
               display: 'flex',
               alignItems: 'stretch',
-              borderBottom: `1px solid ${T.border}`,
-              backgroundColor: isATM ? 'rgba(224,168,82,0.06)' : 'transparent',
+              borderBottom: `1px solid ${pal.border}`,
+              backgroundColor: isATM ? wash(pal.accent, 0.06) : 'transparent',
             }}>
               {/* CE OI heat cell */}
               <div style={{
                 flex: 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
                 padding: '10px 14px',
-                backgroundColor: `rgba(255,95,107,${(0.06 + 0.64 * ceA).toFixed(3)})`,
+                backgroundColor: wash(pal.bear, (0.06 + 0.64 * ceA).toFixed(3)),
               }}>
                 <OffPeak oi={s.ceOI} pk={s.cePk} />
-                <span className="mono" style={{ fontSize: 12, color: T.textPrimary, fontWeight: 600 }}>{formatOI(s.ceOI)}</span>
+                <span className="mono" style={{ fontSize: 12, color: pal.textPrimary, fontWeight: 600 }}>{formatOI(s.ceOI)}</span>
               </div>
               {/* GEX strip */}
               <div title={`GEX ${Math.round(s.gex).toLocaleString('en-IN')}`} style={{
                 width: 48,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: `rgba(${gexRGB},${(0.10 + 0.80 * gexA).toFixed(3)})`,
-                borderLeft: `1px solid ${T.border}`,
-                borderRight: `1px solid ${T.border}`,
+                borderLeft: `1px solid ${pal.border}`,
+                borderRight: `1px solid ${pal.border}`,
               }}>
-                <span className="mono" style={{ fontSize: 9, color: T.textPrimary, opacity: 0.85 }}>{s.gex > 0 ? '+' : '−'}</span>
+                <span className="mono" style={{ fontSize: 9, color: pal.textPrimary, opacity: 0.85 }}>{s.gex > 0 ? '+' : '−'}</span>
               </div>
               {/* Strike */}
               <div style={{ width: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 4px' }}>
-                <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: isATM ? T.accent : isWall ? T.textPrimary : T.textSecondary }}>
+                <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: isATM ? pal.accent : isWall ? pal.textPrimary : pal.textSecondary }}>
                   {fmt(s.strike)}
                 </span>
-                {s.type === 'callwall' && <span style={{ fontSize: 9, color: T.bear, marginLeft: 6, fontWeight: 600 }}>▲</span>}
-                {s.type === 'putwall' && <span style={{ fontSize: 9, color: T.bull, marginLeft: 6, fontWeight: 600 }}>▼</span>}
-                {isATM && <span style={{ fontSize: 9, color: T.accent, marginLeft: 6, fontWeight: 600 }}>◉</span>}
+                {s.type === 'callwall' && <span style={{ fontSize: 9, color: pal.bear, marginLeft: 6, fontWeight: 600 }}>▲</span>}
+                {s.type === 'putwall' && <span style={{ fontSize: 9, color: pal.bull, marginLeft: 6, fontWeight: 600 }}>▼</span>}
+                {isATM && <span style={{ fontSize: 9, color: pal.accent, marginLeft: 6, fontWeight: 600 }}>◉</span>}
               </div>
               {/* PE OI heat cell */}
               <div style={{
                 flex: 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8,
                 padding: '10px 14px',
-                backgroundColor: `rgba(46,194,126,${(0.06 + 0.64 * peA).toFixed(3)})`,
+                backgroundColor: wash(pal.bull, (0.06 + 0.64 * peA).toFixed(3)),
               }}>
-                <span className="mono" style={{ fontSize: 12, color: T.textPrimary, fontWeight: 600 }}>{formatOI(s.peOI)}</span>
+                <span className="mono" style={{ fontSize: 12, color: pal.textPrimary, fontWeight: 600 }}>{formatOI(s.peOI)}</span>
                 <OffPeak oi={s.peOI} pk={s.pePk} />
               </div>
             </div>
@@ -1047,6 +1097,7 @@ function ChainTab({ index }: { index: IndexKey }) {
 
 function EventsTab({ index }: { index: IndexKey }) {
   const { EVENTS_BY_IDX, FOCUS_BY_IDX } = useData()
+  const pal = usePalette()
   // FOCUS is the default: on a live expiry day the raw log repeats itself so
   // often that the signal is buried. Preference persists, as it does in v1.
   const [focus, setFocus] = useState(() => localStorage.getItem('focus') !== '0')
@@ -1064,16 +1115,16 @@ function EventsTab({ index }: { index: IndexKey }) {
           style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 9px',
             borderRadius: 3, cursor: 'pointer', background: 'transparent',
-            border: `1px solid ${focus ? T.accent : T.border}`,
-            color: focus ? T.accent : T.textMuted,
+            border: `1px solid ${focus ? pal.accent : pal.border}`,
+            color: focus ? pal.accent : pal.textMuted,
           }}
         >FOCUS</button>
         {focus && hidden > 0 && (
-          <span style={{ fontSize: 11, color: T.textMuted }}>{hidden} repeat{hidden === 1 ? '' : 's'} hidden</span>
+          <span style={{ fontSize: 11, color: pal.textMuted }}>{hidden} repeat{hidden === 1 ? '' : 's'} hidden</span>
         )}
       </div>
       {events.map((ev, i) => {
-        const accent = ev.dir === 'bull' ? T.bull : ev.dir === 'bear' ? T.bear : T.textMuted
+        const accent = ev.dir === 'bull' ? pal.bull : ev.dir === 'bear' ? pal.bear : pal.textMuted
         return (
           <div
             key={i}
@@ -1083,18 +1134,18 @@ function EventsTab({ index }: { index: IndexKey }) {
               display: 'flex',
               gap: 16,
               padding: '14px 18px',
-              backgroundColor: hovered === i ? T.inset : T.card,
-              borderTop: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
-              borderRight: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
-              borderBottom: `1px solid ${hovered === i ? 'rgba(255,255,255,0.1)' : T.border}`,
+              backgroundColor: hovered === i ? pal.inset : pal.card,
+              borderTop: `1px solid ${hovered === i ? wash(pal.ink, 0.1) : pal.border}`,
+              borderRight: `1px solid ${hovered === i ? wash(pal.ink, 0.1) : pal.border}`,
+              borderBottom: `1px solid ${hovered === i ? wash(pal.ink, 0.1) : pal.border}`,
               borderLeft: `3px solid ${accent}`,
               borderRadius: 10,
               cursor: 'pointer',
               transition: 'all 150ms',
             }}
           >
-            <span className="mono" style={{ fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap', marginTop: 1 }}>{ev.time}</span>
-            <span style={{ fontSize: 13, color: T.textPrimary, lineHeight: 1.5 }}>{ev.text}</span>
+            <span className="mono" style={{ fontSize: 11, color: pal.textMuted, whiteSpace: 'nowrap', marginTop: 1 }}>{ev.time}</span>
+            <span style={{ fontSize: 13, color: pal.textPrimary, lineHeight: 1.5 }}>{ev.text}</span>
             {hovered === i && (
               <span style={{
                 marginLeft: 'auto',
@@ -1102,7 +1153,7 @@ function EventsTab({ index }: { index: IndexKey }) {
                 fontWeight: 700,
                 letterSpacing: '0.1em',
                 color: accent,
-                backgroundColor: `rgba(${ev.dir === 'bull' ? '46,194,126' : ev.dir === 'bear' ? '255,95,107' : '93,107,132'},0.1)`,
+                backgroundColor: wash(accent, 0.1),
                 padding: '2px 8px',
                 borderRadius: 4,
                 alignSelf: 'flex-start',
@@ -1120,6 +1171,7 @@ function EventsTab({ index }: { index: IndexKey }) {
 
 function ValidateTab({ index }: { index: IndexKey }) {
   const { READS, CHAIN_DATA, CHART_DATA } = useData()
+  const pal = usePalette()
   const read = READS[index]
   const chain = CHAIN_DATA[index]
   const nowHHMM = CHART_DATA[index]?.slice(-1)[0]?.time ?? '12:00'
@@ -1135,9 +1187,9 @@ function ValidateTab({ index }: { index: IndexKey }) {
   const [position, setPosition] = useState<'Long' | 'Short'>('Long')
 
   const check = validateTrade(chain, read, strike, side, position, nowHHMM)
-  const vCol = check?.verdict === 'TAKE' ? T.bull
-    : check?.verdict === 'SMALL' ? T.caution : T.bear
-  const gCol = (v: Gate['verdict']) => v === 'pass' ? T.bull : v === 'warn' ? T.caution : T.bear
+  const vCol = check?.verdict === 'TAKE' ? pal.bull
+    : check?.verdict === 'SMALL' ? pal.caution : pal.bear
+  const gCol = (v: Gate['verdict']) => v === 'pass' ? pal.bull : v === 'warn' ? pal.caution : pal.bear
   const gMark = (v: Gate['verdict']) => v === 'pass' ? '✓' : v === 'warn' ? '!' : '✕'
 
   const seg = <K extends string>(
@@ -1148,9 +1200,9 @@ function ValidateTab({ index }: { index: IndexKey }) {
         <button key={o} onClick={() => onPick(o)} style={{
           flex: 1, padding: '7px 8px', borderRadius: 6, fontSize: 12.5, fontWeight: 600,
           cursor: 'pointer', transition: 'all 150ms',
-          border: `1px solid ${value === o ? tone(o) : T.border}`,
+          border: `1px solid ${value === o ? tone(o) : pal.border}`,
           backgroundColor: value === o ? `${tone(o)}1A` : 'transparent',
-          color: value === o ? tone(o) : T.textMuted,
+          color: value === o ? tone(o) : pal.textMuted,
         }}>{o}</button>
       ))}
     </div>
@@ -1160,16 +1212,16 @@ function ValidateTab({ index }: { index: IndexKey }) {
     <div style={{ padding: 24, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
       {/* ── the contract ── */}
       <div style={{
-        backgroundColor: T.card, border: `1px solid ${T.border}`,
+        backgroundColor: pal.card, border: `1px solid ${pal.border}`,
         borderRadius: 12, padding: 20, width: 300,
       }}>
         <div className="micro-label" style={{ marginBottom: 14 }}>Contract — {index}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: T.textMuted }}>Strike</span>
+            <span style={{ fontSize: 11, color: pal.textMuted }}>Strike</span>
             <select value={strike} onChange={e => setStrike(+e.target.value)} style={{
-              backgroundColor: T.inset, border: `1px solid ${T.border}`, borderRadius: 6,
-              padding: '8px 10px', color: T.textPrimary, fontSize: 13,
+              backgroundColor: pal.inset, border: `1px solid ${pal.border}`, borderRadius: 6,
+              padding: '8px 10px', color: pal.textPrimary, fontSize: 13,
               fontFamily: 'inherit', outline: 'none',
             }}>
               {ladder.map(s => (
@@ -1181,27 +1233,27 @@ function ValidateTab({ index }: { index: IndexKey }) {
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: T.textMuted }}>Option type</span>
-            {seg(['CE', 'PE'] as const, side, setSide, k => k === 'CE' ? T.bear : T.bull)}
+            <span style={{ fontSize: 11, color: pal.textMuted }}>Option type</span>
+            {seg(['CE', 'PE'] as const, side, setSide, k => k === 'CE' ? pal.bear : pal.bull)}
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: T.textMuted }}>Position</span>
-            {seg(['Long', 'Short'] as const, position, setPosition, () => T.accent)}
+            <span style={{ fontSize: 11, color: pal.textMuted }}>Position</span>
+            {seg(['Long', 'Short'] as const, position, setPosition, () => pal.accent)}
           </label>
 
           {/* live premium, so the choice is never blind */}
           <div style={{
-            borderTop: `1px solid ${T.border}`, paddingTop: 12, display: 'grid',
+            borderTop: `1px solid ${pal.border}`, paddingTop: 12, display: 'grid',
             gridTemplateColumns: '1fr auto', rowGap: 7, fontSize: 12,
           }}>
-            <span style={{ color: T.textMuted }}>Premium</span>
+            <span style={{ color: pal.textMuted }}>Premium</span>
             <span className="mono">{check ? `${check.premium.toFixed(2)}` : '—'}</span>
-            <span style={{ color: T.textMuted }}>Intrinsic / time</span>
+            <span style={{ color: pal.textMuted }}>Intrinsic / time</span>
             <span className="mono">{check ? `${check.intrinsic.toFixed(0)} / ${check.timeValue.toFixed(1)}` : '—'}</span>
-            <span style={{ color: T.textMuted }}>Breakeven</span>
-            <span className="mono" style={{ color: T.accent }}>{check ? check.breakeven.toFixed(0) : '—'}</span>
-            <span style={{ color: T.textMuted }}>Spot now</span>
+            <span style={{ color: pal.textMuted }}>Breakeven</span>
+            <span className="mono" style={{ color: pal.accent }}>{check ? check.breakeven.toFixed(0) : '—'}</span>
+            <span style={{ color: pal.textMuted }}>Spot now</span>
             <span className="mono">{chain.spot.toFixed(2)}</span>
           </div>
         </div>
@@ -1211,15 +1263,15 @@ function ValidateTab({ index }: { index: IndexKey }) {
       <div style={{ flex: 1, minWidth: 340, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {!check ? (
           <div style={{
-            backgroundColor: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 12, padding: 20, fontSize: 13, color: T.textMuted,
+            backgroundColor: pal.card, border: `1px solid ${pal.border}`,
+            borderRadius: 12, padding: 20, fontSize: 13, color: pal.textMuted,
           }}>
             No premium quoted for that contract right now — nothing to check against.
           </div>
         ) : (
           <>
             <div style={{
-              backgroundColor: T.card, border: `1px solid ${T.border}`,
+              backgroundColor: pal.card, border: `1px solid ${pal.border}`,
               borderRadius: 12, padding: '18px 20px',
               borderLeft: `3px solid ${vCol}`,
             }}>
@@ -1227,14 +1279,14 @@ function ValidateTab({ index }: { index: IndexKey }) {
                 <span style={{
                   fontSize: 22, fontWeight: 800, letterSpacing: '0.04em', color: vCol,
                 }}>{check.verdict}</span>
-                <span className="mono" style={{ fontSize: 12, color: T.textMuted }}>
+                <span className="mono" style={{ fontSize: 12, color: pal.textMuted }}>
                   {check.score}/100
                 </span>
-                <span style={{ fontSize: 13.5, color: T.textSecondary, flex: 1, minWidth: 220 }}>
+                <span style={{ fontSize: 13.5, color: pal.textSecondary, flex: 1, minWidth: 220 }}>
                   {check.headline}
                 </span>
               </div>
-              <div style={{ height: 4, backgroundColor: T.inset, borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
+              <div style={{ height: 4, backgroundColor: pal.inset, borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', width: `${check.score}%`, backgroundColor: vCol,
                   borderRadius: 2, transition: 'width 350ms ease',
@@ -1244,43 +1296,43 @@ function ValidateTab({ index }: { index: IndexKey }) {
 
             {/* the one comparison that decides most option buys */}
             <div style={{
-              backgroundColor: T.card, border: `1px solid ${T.border}`,
+              backgroundColor: pal.card, border: `1px solid ${pal.border}`,
               borderRadius: 12, padding: '16px 20px',
             }}>
               <div className="micro-label" style={{ marginBottom: 12 }}>
                 Move required vs move priced
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-                <span className="mono" style={{ fontSize: 26, fontWeight: 700, color: check.emRatio > 1 ? T.bear : T.textPrimary }}>
+                <span className="mono" style={{ fontSize: 26, fontWeight: 700, color: check.emRatio > 1 ? pal.bear : pal.textPrimary }}>
                   {check.moveNeeded.toFixed(0)}
                 </span>
-                <span style={{ fontSize: 12, color: T.textMuted }}>pts needed</span>
-                <span style={{ fontSize: 12, color: T.textMuted }}>vs</span>
-                <span className="mono" style={{ fontSize: 18, color: T.accent }}>
+                <span style={{ fontSize: 12, color: pal.textMuted }}>pts needed</span>
+                <span style={{ fontSize: 12, color: pal.textMuted }}>vs</span>
+                <span className="mono" style={{ fontSize: 18, color: pal.accent }}>
                   {check.expectedMove.toFixed(0)}
                 </span>
-                <span style={{ fontSize: 12, color: T.textMuted }}>priced for the rest of the session</span>
+                <span style={{ fontSize: 12, color: pal.textMuted }}>priced for the rest of the session</span>
               </div>
-              <div style={{ position: 'relative', height: 8, backgroundColor: T.inset, borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', height: 8, backgroundColor: pal.inset, borderRadius: 4, overflow: 'hidden' }}>
                 <div style={{
                   position: 'absolute', top: 0, bottom: 0, left: 0,
                   width: `${Math.min(100, 100 / Math.max(check.emRatio, 0.01))}%`,
-                  backgroundColor: 'rgba(224,168,82,0.35)',
+                  backgroundColor: wash(pal.accent, 0.35),
                 }} />
                 <div style={{
                   position: 'absolute', top: 0, bottom: 0, left: 0,
                   width: `${Math.min(100, (check.emRatio / Math.max(check.emRatio, 1)) * 100)}%`,
-                  backgroundColor: check.emRatio > 1 ? T.bear : T.bull, opacity: 0.75,
+                  backgroundColor: check.emRatio > 1 ? pal.bear : pal.bull, opacity: 0.75,
                 }} />
               </div>
-              <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 9 }}>
+              <div style={{ fontSize: 11.5, color: pal.textMuted, marginTop: 9 }}>
                 Delta {Number.isFinite(check.delta) ? check.delta.toFixed(2) : 'n/a'} · bid-ask {(check.spreadPct * 100).toFixed(1)}% of premium
                 {check.wall && ` · ${(check.wall.oi / 1e6).toFixed(1)}M at ${check.wall.strike} in the way`}
               </div>
             </div>
 
             <div style={{
-              backgroundColor: T.card, border: `1px solid ${T.border}`,
+              backgroundColor: pal.card, border: `1px solid ${pal.border}`,
               borderRadius: 12, padding: '16px 20px',
             }}>
               <div className="micro-label" style={{ marginBottom: 12 }}>What it clears, what it does not</div>
@@ -1288,8 +1340,8 @@ function ValidateTab({ index }: { index: IndexKey }) {
                 {check.gates.map((g, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 118px 1fr', gap: 10, alignItems: 'baseline' }}>
                     <span style={{ color: gCol(g.verdict), fontSize: 12, fontWeight: 700 }}>{gMark(g.verdict)}</span>
-                    <span style={{ fontSize: 11.5, color: T.textMuted, letterSpacing: '0.02em' }}>{g.label}</span>
-                    <span style={{ fontSize: 12.5, color: g.verdict === 'pass' ? T.textSecondary : T.textPrimary, lineHeight: 1.5 }}>
+                    <span style={{ fontSize: 11.5, color: pal.textMuted, letterSpacing: '0.02em' }}>{g.label}</span>
+                    <span style={{ fontSize: 12.5, color: g.verdict === 'pass' ? pal.textSecondary : pal.textPrimary, lineHeight: 1.5 }}>
                       {g.detail}
                     </span>
                   </div>
@@ -1305,6 +1357,7 @@ function ValidateTab({ index }: { index: IndexKey }) {
 
 function MapTab({ index }: { index: IndexKey }) {
   const { MAP } = useData()
+  const pal = usePalette()
   const m = MAP[index]
   const H = 520
   const span = Math.max(1, m.zoneHi - m.zoneLo)
@@ -1323,30 +1376,30 @@ function MapTab({ index }: { index: IndexKey }) {
   return (
     <div style={{ padding: 24, maxWidth: 720 }}>
       <div className="micro-label" style={{ marginBottom: 4 }}>Levels Map — {index} · action zone</div>
-      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
+      <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 16 }}>
         Real levels around price — pivots, OI walls, VWAP, ±1σ, dealer pin, floor/cap, traps. Zoomed to where the fight is now.
       </div>
-      <div style={{ backgroundColor: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: '20px 24px' }}>
+      <div style={{ backgroundColor: pal.card, border: `1px solid ${pal.border}`, borderRadius: 14, padding: '20px 24px' }}>
         <div style={{ position: 'relative', height: H }}>
           {/* ±1σ band shade */}
           {bandHi != null && bandLo != null && (
             <div style={{
               position: 'absolute', left: 0, right: 0,
               top: yOf(bandHi), height: Math.max(1, yOf(bandLo) - yOf(bandHi)),
-              background: 'rgba(224,168,82,0.06)', borderRadius: 4,
+              background: wash(pal.accent, 0.06), borderRadius: 4,
             }} />
           )}
           {/* NOW line */}
-          <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 0, borderTop: `1px solid ${T.accent}`, zIndex: 4 }}>
-            <span className="mono" style={{ position: 'absolute', right: 0, top: -9, fontSize: 10, color: T.accent, fontWeight: 700 }}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 0, borderTop: `1px solid ${pal.accent}`, zIndex: 4 }}>
+            <span className="mono" style={{ position: 'absolute', right: 0, top: -9, fontSize: 10, color: pal.accent, fontWeight: 700 }}>
               NOW {fmt(Math.round(m.now))}
             </span>
           </div>
           {/* Levels */}
           {m.levels.map((lvl, i) => {
             if (lvl.kind === 'now') return null
-            const st = KIND_STYLE[lvl.kind]
-            const color = lvl.kind === 'wall' ? (lvl.label === 'CALL' ? T.bear : T.bull) : st.color
+            const st = kindStyle(pal)[lvl.kind]
+            const color = lvl.kind === 'wall' ? (lvl.label === 'CALL' ? pal.bear : pal.bull) : st.color
             const off = lvl.value > m.zoneHi ? 'up' : lvl.value < m.zoneLo ? 'down' : null
             const y = yOf(lvl.value)
             const above = lvl.value >= m.now
@@ -1358,29 +1411,29 @@ function MapTab({ index }: { index: IndexKey }) {
               }}>
                 <div style={{
                   width: st.dot, height: st.dot, borderRadius: '50%', backgroundColor: color, flexShrink: 0,
-                  boxShadow: lvl.kind === 'pin' ? `0 0 8px ${T.accent}` : undefined,
+                  boxShadow: lvl.kind === 'pin' ? `0 0 8px ${pal.accent}` : undefined,
                 }} />
-                <div style={{ flex: 1, height: 0, borderTop: `1px dashed rgba(${above ? '255,95,107' : '46,194,126'},0.14)` }} />
+                <div style={{ flex: 1, height: 0, borderTop: `1px dashed ${wash(above ? pal.bear : pal.bull, 0.14)}` }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 280 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, width: 46, textAlign: 'right' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: pal.textMuted, width: 46, textAlign: 'right' }}>
                     {st.marker ? `${st.marker} ` : ''}{lvl.label}
                   </span>
                   <span className="mono" style={{ fontSize: 13, fontWeight: 700, color, width: 66 }}>
                     {fmt(Math.round(lvl.value))}
                   </span>
-                  <span style={{ fontSize: 11, color: T.textMuted }}>{note}</span>
+                  <span style={{ fontSize: 11, color: pal.textMuted }}>{note}</span>
                 </div>
               </div>
             )
           })}
         </div>
         {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap', fontSize: 10, color: T.textMuted, alignItems: 'center' }}>
-          {legendItem(T.bear, 'call wall')}
-          {legendItem(T.bull, 'put wall')}
-          {legendItem(T.accent, 'dealer pin')}
-          {legendItem(T.textMuted, 'pivot / session')}
-          {legendItem(T.caution, 'vwap · trap')}
+        <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap', fontSize: 10, color: pal.textMuted, alignItems: 'center' }}>
+          {legendItem(pal.bear, 'call wall')}
+          {legendItem(pal.bull, 'put wall')}
+          {legendItem(pal.accent, 'dealer pin')}
+          {legendItem(pal.textMuted, 'pivot / session')}
+          {legendItem(pal.caution, 'vwap · trap')}
         </div>
       </div>
     </div>
@@ -1391,6 +1444,8 @@ function HeatTab({ active, setActive, dead }: {
   active: IndexKey; setActive: (k: IndexKey) => void; dead: IndexKey[]
 }) {
   const { HEAT, INDICES } = useData()
+  const [mode] = useMode()
+  const pal = palette(mode)
   const keys: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
   // This is the one view read across all three indices at once, so a dead one
   // must not sit here looking identical to a live one. Its fallback row would
@@ -1402,7 +1457,7 @@ function HeatTab({ active, setActive, dead }: {
 
   const legend = (dir: HeatTone, glyph: string, label: string) => (
     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ color: `rgb(${HEAT_RGB[dir]})`, fontSize: 11 }}>{glyph}</span>{label}
+      <span style={{ color: `rgb(${heatRgb(pal)[dir]})`, fontSize: 11 }}>{glyph}</span>{label}
     </span>
   )
 
@@ -1412,18 +1467,18 @@ function HeatTab({ active, setActive, dead }: {
         <div className="micro-label">Live Spike Radar</div>
         {spikeCount > 0 && (
           <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: T.caution,
-            background: 'rgba(255,191,0,0.12)', border: '1px solid rgba(255,191,0,0.25)',
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: pal.caution,
+            background: wash(pal.caution, 0.12), border: `1px solid ${wash(pal.caution, 0.25)}`,
             borderRadius: 4, padding: '1px 7px',
           }}>
             ⚡ {spikeCount} spikes live
           </span>
         )}
       </div>
-      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
+      <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 16 }}>
         Live spike radar — volume, OI, gamma &amp; squeeze across futures + both option legs. Brighter = bigger; glowing ⚡ = spiking.
       </div>
-      <div style={{ backgroundColor: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 16 }}>
+      <div style={{ backgroundColor: pal.card, border: `1px solid ${pal.border}`, borderRadius: 14, padding: 16 }}>
         {/* Header row */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           <div style={{ width: 132 }} />
@@ -1445,36 +1500,36 @@ function HeatTab({ active, setActive, dead }: {
                   width: 132,
                   textAlign: 'left',
                   cursor: 'pointer',
-                  background: isActive ? T.inset : 'transparent',
-                  borderTop: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : T.border}`,
-                  borderRight: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : T.border}`,
-                  borderBottom: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : T.border}`,
-                  borderLeft: hot ? `3px solid ${T.accent}` : '3px solid transparent',
+                  background: isActive ? pal.inset : 'transparent',
+                  borderTop: `1px solid ${isActive ? wash(pal.ink, 0.12) : pal.border}`,
+                  borderRight: `1px solid ${isActive ? wash(pal.ink, 0.12) : pal.border}`,
+                  borderBottom: `1px solid ${isActive ? wash(pal.ink, 0.12) : pal.border}`,
+                  borderLeft: hot ? `3px solid ${pal.accent}` : '3px solid transparent',
                   borderRadius: 8,
                   padding: '8px 12px',
-                  color: T.textPrimary,
+                  color: pal.textPrimary,
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
                   gap: 2,
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 700, color: isDead(k) ? T.textMuted : T.textPrimary }}>{k}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: isDead(k) ? pal.textMuted : pal.textPrimary }}>{k}</span>
                 <span className="mono" style={{
-                  fontSize: 11, color: T.textMuted,
+                  fontSize: 11, color: pal.textMuted,
                   textDecoration: isDead(k) ? 'line-through' : 'none',
                 }}>{fmt(INDICES[k].price)}</span>
               </button>
               {isDead(k) ? (
                 <div style={{
                   flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-                  border: `1px dashed ${T.border}`, borderRadius: 8, padding: '8px 14px',
-                  fontSize: 11.5, color: T.caution,
+                  border: `1px dashed ${pal.border}`, borderRadius: 8, padding: '8px 14px',
+                  fontSize: 11.5, color: pal.caution,
                 }}>
                   no {k} tape — nothing to read here
                 </div>
               ) : cells.map((cell, i) => {
-                const hue = HEAT_RGB[cell.dir]
+                const hue = heatRgb(pal)[cell.dir]
                 const arrow = cell.dir === 'bull' ? '▲' : cell.dir === 'bear' ? '▼' : '·'
                 return (
                   <div
@@ -1484,8 +1539,8 @@ function HeatTab({ active, setActive, dead }: {
                       flex: 1,
                       height: 46,
                       borderRadius: 8,
-                      backgroundColor: heatColor(cell.dir, cell.intensity),
-                      border: cell.spike ? `1px solid rgba(${hue},0.9)` : `1px solid ${T.border}`,
+                      backgroundColor: heatColor(pal, cell.dir, cell.intensity),
+                      border: cell.spike ? `1px solid rgba(${hue},0.9)` : `1px solid ${pal.border}`,
                       boxShadow: cell.spike ? `0 0 10px 1px rgba(${hue},0.55)` : undefined,
                       display: 'flex',
                       flexDirection: 'column',
@@ -1496,10 +1551,16 @@ function HeatTab({ active, setActive, dead }: {
                       padding: '0 4px',
                     }}
                   >
-                    <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.1, color: cell.intensity > 0.5 ? T.textPrimary : T.textSecondary }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.1, color: cell.intensity > 0.5 ? pal.textPrimary : pal.textSecondary }}>
                       {cell.spike ? '⚡ ' : ''}{cell.label}
                     </span>
-                    <span style={{ fontSize: 9, color: `rgb(${hue})`, opacity: 0.9 }}>{arrow}</span>
+                    {/* The tile's own hue, on a tile washed in that same hue.
+                        On a dark tile the bright token reads; on a white
+                        surface the wash goes saturated and the glyph
+                        disappears into it (measured 1.5–2.8:1). Direction is
+                        already carried by the tile colour and the arrow's
+                        shape, so light mode draws the glyph in ink. */}
+                    <span style={{ fontSize: 9, color: mode === 'light' ? pal.textPrimary : `rgb(${hue})`, opacity: 0.9 }}>{arrow}</span>
                   </div>
                 )
               })}
@@ -1507,11 +1568,11 @@ function HeatTab({ active, setActive, dead }: {
           )
         })}
         {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 10, color: T.textMuted, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 10, color: pal.textMuted, alignItems: 'center', flexWrap: 'wrap' }}>
           {legend('bull', '▲', 'bullish')}
           {legend('bear', '▼', 'bearish')}
           {legend('neutral', '·', 'neutral')}
-          <span style={{ color: T.caution }}>⚡ spike</span>
+          <span style={{ color: pal.caution }}>⚡ spike</span>
           <span>brighter = stronger</span>
         </div>
       </div>
@@ -1535,6 +1596,7 @@ interface FlowRow {
 const inr = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 0 })
 
 function OiFlowTab({ index }: { index: IndexKey }) {
+  const pal = usePalette()
   const [mins, setMins] = useState(15)
   const [rows, setRows] = useState<FlowRow[]>([])
   const [avail, setAvail] = useState<number[]>([])
@@ -1571,12 +1633,12 @@ function OiFlowTab({ index }: { index: IndexKey }) {
 
   const th: React.CSSProperties = {
     textAlign: 'right', padding: '7px 10px', fontSize: 9.5, fontWeight: 600,
-    letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textMuted,
-    borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+    letterSpacing: '0.09em', textTransform: 'uppercase', color: pal.textMuted,
+    borderBottom: `1px solid ${pal.border}`, whiteSpace: 'nowrap',
   }
   const td: React.CSSProperties = {
     textAlign: 'right', padding: '6px 10px', fontSize: 12,
-    borderBottom: '1px solid rgba(255,255,255,0.035)', whiteSpace: 'nowrap',
+    borderBottom: `1px solid ${wash(pal.ink, 0.035)}`, whiteSpace: 'nowrap',
   }
 
   return (
@@ -1584,12 +1646,12 @@ function OiFlowTab({ index }: { index: IndexKey }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <span className="micro-label">Trending OI — {index}</span>
         <select value={mins} onChange={e => setMins(+e.target.value)} style={{
-          background: T.inset, color: T.textSecondary, fontSize: 11,
-          border: `1px solid ${T.border}`, borderRadius: 3, padding: '4px 7px',
+          background: pal.inset, color: pal.textSecondary, fontSize: 11,
+          border: `1px solid ${pal.border}`, borderRadius: 3, padding: '4px 7px',
         }}>
           {[5, 15, 30, 60].map(m => <option key={m} value={m}>{m} min</option>)}
         </select>
-        <span style={{ fontSize: 11, color: T.textMuted }}>
+        <span style={{ fontSize: 11, color: pal.textMuted }}>
           {rows.length} mark{rows.length === 1 ? '' : 's'} · OI added since the open,
           summed over {(sel ?? avail).length || '—'} strikes
         </span>
@@ -1597,7 +1659,7 @@ function OiFlowTab({ index }: { index: IndexKey }) {
           <button onClick={() => setSel(null)} style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '3px 9px',
             borderRadius: 3, cursor: 'pointer', background: 'transparent',
-            border: `1px solid ${T.border}`, color: T.textMuted,
+            border: `1px solid ${pal.border}`, color: pal.textMuted,
           }}>ALL STRIKES</button>
         )}
       </div>
@@ -1609,9 +1671,9 @@ function OiFlowTab({ index }: { index: IndexKey }) {
             return (
               <button key={k} onClick={() => toggle(k)} className="mono" style={{
                 fontSize: 10.5, padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
-                background: on ? 'rgba(224,168,82,0.12)' : 'transparent',
-                border: `1px solid ${on ? 'rgba(224,168,82,0.45)' : T.border}`,
-                color: on ? T.accent : T.textMuted,
+                background: on ? wash(pal.accent, 0.12) : 'transparent',
+                border: `1px solid ${on ? wash(pal.accent, 0.45) : pal.border}`,
+                color: on ? pal.accent : pal.textMuted,
               }}>{k}</button>
             )
           })}
@@ -1620,17 +1682,17 @@ function OiFlowTab({ index }: { index: IndexKey }) {
 
       {err ? (
         <div style={{
-          background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
-          padding: 20, fontSize: 13, color: T.caution,
+          background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
+          padding: 20, fontSize: 13, color: pal.caution,
         }}>Trending OI unavailable — {err}. It needs the chain poller running.</div>
       ) : !rows.length ? (
         <div style={{
-          background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
-          padding: 20, fontSize: 13, color: T.textMuted,
+          background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
+          padding: 20, fontSize: 13, color: pal.textMuted,
         }}>No marks yet — the first row appears at the next {mins}-minute boundary.</div>
       ) : (
         <div style={{
-          background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
+          background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
           overflowX: 'auto',
         }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1652,20 +1714,20 @@ function OiFlowTab({ index }: { index: IndexKey }) {
             <tbody>
               {[...rows].reverse().map(r => {
                 const bull = r.sentiment === 'BULLISH'
-                const sCol = r.diff > 0 ? T.bull : r.diff < 0 ? T.bear : T.textMuted
-                const dCol = (r.chg_dir ?? 0) > 0 ? T.bull : (r.chg_dir ?? 0) < 0 ? T.bear : T.textMuted
+                const sCol = r.diff > 0 ? pal.bull : r.diff < 0 ? pal.bear : pal.textMuted
+                const dCol = (r.chg_dir ?? 0) > 0 ? pal.bull : (r.chg_dir ?? 0) < 0 ? pal.bear : pal.textMuted
                 return (
                   <tr key={r.time}>
-                    <td className="mono" style={{ ...td, textAlign: 'left', color: T.textSecondary }}>{r.time}</td>
+                    <td className="mono" style={{ ...td, textAlign: 'left', color: pal.textSecondary }}>{r.time}</td>
                     <td className="mono" style={td}>{r.ltp?.toFixed(2) ?? '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>
                       {r.brk ? (
                         <span className="mono" style={{
                           fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
-                          color: r.brk === 'DHB' ? T.bull : T.bear,
-                          background: r.brk === 'DHB' ? 'rgba(46,194,126,0.12)' : 'rgba(255,95,107,0.12)',
+                          color: r.brk === 'DHB' ? pal.bull : pal.bear,
+                          background: r.brk === 'DHB' ? wash(pal.bull, 0.12) : wash(pal.bear, 0.12),
                         }}>{r.brk} {r.brk_px}</span>
-                      ) : <span style={{ color: T.textMuted }}>·</span>}
+                      ) : <span style={{ color: pal.textMuted }}>·</span>}
                     </td>
                     <td className="mono" style={td}>{inr(r.call)}</td>
                     <td className="mono" style={td}>{inr(r.put)}</td>
@@ -1687,8 +1749,8 @@ function OiFlowTab({ index }: { index: IndexKey }) {
                       <span style={{
                         fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
                         padding: '2px 8px', borderRadius: 3,
-                        color: bull ? T.bull : T.bear,
-                        background: bull ? 'rgba(46,194,126,0.12)' : 'rgba(255,95,107,0.12)',
+                        color: bull ? pal.bull : pal.bear,
+                        background: bull ? wash(pal.bull, 0.12) : wash(pal.bear, 0.12),
                       }}>{r.sentiment}</span>
                     </td>
                   </tr>
@@ -1698,7 +1760,7 @@ function OiFlowTab({ index }: { index: IndexKey }) {
           </table>
         </div>
       )}
-      <div style={{ fontSize: 11, color: T.textMuted, maxWidth: '78ch' }}>
+      <div style={{ fontSize: 11, color: pal.textMuted, maxWidth: '78ch' }}>
         Each row is the chain <b>as at</b> that mark, not an average of the
         interval after it. Diff = put minus call; strength divides it by the
         larger leg; "chg in dir" is how far Diff moved since the previous mark.
@@ -1715,12 +1777,13 @@ function OiFlowTab({ index }: { index: IndexKey }) {
    else competes with. Everything below is evidence for this band.          */
 function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
   const { INDICES, READS, CHAIN_DATA, KEY_LEVELS } = useData()
+  const pal = usePalette()
   const info = INDICES[index]
   const read = READS[index]
   const chain = CHAIN_DATA[index]
   const levels = KEY_LEVELS[index] ?? []
 
-  const dirCol = info.change > 0 ? T.bull : info.change < 0 ? T.bear : T.textSecondary
+  const dirCol = info.change > 0 ? pal.bull : info.change < 0 ? pal.bear : pal.textSecondary
   const above = levels.filter(l => l.value > info.price).sort((a, b) => a.value - b.value)[0]
   const below = levels.filter(l => l.value < info.price).sort((a, b) => b.value - a.value)[0]
   const mpDist = Math.round(chain.maxPain - info.price)
@@ -1729,13 +1792,13 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
     <span key={label} className="mono" style={{
       fontSize: 10.5, letterSpacing: '0.05em', padding: '3px 8px', borderRadius: 3,
       whiteSpace: 'nowrap',
-      border: `1px solid ${tone === 'structure' ? 'rgba(224,168,82,0.45)' : T.border}`,
-      color: tone === 'structure' ? T.accent : T.textMuted,
+      border: `1px solid ${tone === 'structure' ? wash(pal.accent, 0.45) : pal.border}`,
+      color: tone === 'structure' ? pal.accent : pal.textMuted,
     }}>{label}</span>
   )
 
   return (
-    <div style={{ backgroundColor: T.bg, borderBottom: `1px solid ${T.border}` }}>
+    <div style={{ backgroundColor: pal.bg, borderBottom: `1px solid ${pal.border}` }}>
       <div style={{
         display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 26,
         alignItems: 'center', padding: '14px 24px',
@@ -1744,12 +1807,12 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
           <div className="mono" style={{
             fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em',
             // a price you cannot trust must not look like one you can
-            color: stale ? T.textMuted : T.textPrimary,
+            color: stale ? pal.textMuted : pal.textPrimary,
             textDecoration: stale ? 'line-through' : 'none',
           }}>
             {info.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="mono" style={{ fontSize: 12, color: stale ? T.textMuted : dirCol, marginTop: 5 }}>
+          <div className="mono" style={{ fontSize: 12, color: stale ? pal.textMuted : dirCol, marginTop: 5 }}>
             {stale ? 'placeholder' : `${info.change > 0 ? '+' : ''}${info.change.toFixed(2)} · ${info.pct > 0 ? '+' : ''}${info.pct.toFixed(2)}%`}
           </div>
         </div>
@@ -1758,7 +1821,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
           {stale ? (
             <div style={{
               fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase',
-              color: T.bear, fontWeight: 700, marginBottom: 4,
+              color: pal.bear, fontWeight: 700, marginBottom: 4,
             }}>
               No live data — do not trade from this screen
             </div>
@@ -1772,7 +1835,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
             {read.headline}
           </div>
           {read.sub && (
-            <div style={{ fontSize: 12.5, color: T.textSecondary, marginTop: 3 }}>{read.sub}</div>
+            <div style={{ fontSize: 12.5, color: pal.textSecondary, marginTop: 3 }}>{read.sub}</div>
           )}
         </div>
 
@@ -1789,25 +1852,28 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
 
       <div style={{
         display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap',
-        padding: '8px 24px', backgroundColor: T.card,
-        borderTop: `1px solid ${T.border}`, fontSize: 12.5,
+        padding: '8px 24px', backgroundColor: pal.card,
+        borderTop: `1px solid ${pal.border}`, fontSize: 12.5,
       }}>
         <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Changes if</span>
         {above
-          ? <span>breaks <span className="mono" style={{ color: T.accent }}>{above.value}</span>
-              <span style={{ color: T.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
-          : <span style={{ color: T.textMuted }}>no level mapped above</span>}
-        <span style={{ color: T.textMuted }}>·</span>
+          ? <span>breaks <span className="mono" style={{ color: pal.accent }}>{above.value}</span>
+              <span style={{ color: pal.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
+          : <span style={{ color: pal.textMuted }}>no level mapped above</span>}
+        <span style={{ color: pal.textMuted }}>·</span>
         {below
-          ? <span>or loses <span className="mono" style={{ color: T.accent }}>{below.value}</span>
-              <span style={{ color: T.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
-          : <span style={{ color: T.textMuted }}>no level mapped below</span>}
+          ? <span>or loses <span className="mono" style={{ color: pal.accent }}>{below.value}</span>
+              <span style={{ color: pal.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
+          : <span style={{ color: pal.textMuted }}>no level mapped below</span>}
       </div>
     </div>
   )
 }
 
 export default function App() {
+  // The shell paints from the same mode the chart does — see theme.ts's
+  // ModeProvider, mounted in main.tsx above this component.
+  const pal = usePalette()
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
   // FOCUS: while on and the Trade tab is active, hide the glance bar + ANSWER
@@ -1871,7 +1937,7 @@ export default function App() {
 
   return (
     <DataCtx.Provider value={data}>
-    <div style={{ minHeight: '100vh', backgroundColor: T.bg, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: pal.bg, display: 'flex', flexDirection: 'column' }}>
       {/* FOCUS hides only the glance bar + ANSWER band, and only on the Trade
           tab — every safety banner below (NOT LIVE / NO {index} TAPE / CHAIN
           STALE) still renders unconditionally: buying chart pixels by hiding
@@ -1886,8 +1952,8 @@ export default function App() {
           "reconnecting" chip beside believable-looking prices. */}
       {error && (
         <div style={{
-          padding: '9px 24px', backgroundColor: 'rgba(255,95,107,0.12)',
-          borderBottom: `1px solid ${T.bear}`, color: T.bear,
+          padding: '9px 24px', backgroundColor: wash(pal.bear, 0.12),
+          borderBottom: `1px solid ${pal.bear}`, color: pal.bear,
           fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
           display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap',
         }}>
@@ -1902,8 +1968,8 @@ export default function App() {
       {/* One index can be down while the others are fine — say which. */}
       {!error && idxDead && (
         <div style={{
-          padding: '9px 24px', backgroundColor: 'rgba(255,191,0,0.12)',
-          borderBottom: `1px solid ${T.caution}`, color: T.caution,
+          padding: '9px 24px', backgroundColor: wash(pal.caution, 0.12),
+          borderBottom: `1px solid ${pal.caution}`, color: pal.caution,
           fontSize: 12.5, fontWeight: 600,
         }}>
           NO {activeIndex} TAPE — the backend has no session for this index, so the
@@ -1917,8 +1983,8 @@ export default function App() {
           this ground when it fires, so this stays silent then). */}
       {!error && chainStale && (
         <div style={{
-          padding: '9px 24px', backgroundColor: 'rgba(255,191,0,0.12)',
-          borderBottom: `1px solid ${T.caution}`, color: T.caution,
+          padding: '9px 24px', backgroundColor: wash(pal.caution, 0.12),
+          borderBottom: `1px solid ${pal.caution}`, color: pal.caution,
           fontSize: 12.5, fontWeight: 600,
         }}>
           CHAIN STALE — last option-chain snapshot {activeChain.ts || '--:--:--'} ({Math.floor((chainAge as number) / 60)}m old).
@@ -1937,8 +2003,8 @@ export default function App() {
         alignItems: 'center',
         gap: 2,
         padding: '0 24px',
-        backgroundColor: T.card,
-        borderBottom: `1px solid ${T.border}`,
+        backgroundColor: pal.card,
+        borderBottom: `1px solid ${pal.border}`,
       }}>
         {tabs.map(tab => (
           <button
@@ -1948,12 +2014,12 @@ export default function App() {
               padding: '12px 16px',
               fontSize: 13,
               fontWeight: activeTab === tab ? 600 : 400,
-              color: activeTab === tab ? T.textPrimary : T.textMuted,
+              color: activeTab === tab ? pal.textPrimary : pal.textMuted,
               backgroundColor: 'transparent',
               borderTop: 'none',
               borderLeft: 'none',
               borderRight: 'none',
-              borderBottom: `2px solid ${activeTab === tab ? T.accent : 'transparent'}`,
+              borderBottom: `2px solid ${activeTab === tab ? pal.accent : 'transparent'}`,
               cursor: 'pointer',
               transition: 'all 150ms',
               letterSpacing: '0.01em',
@@ -1962,7 +2028,7 @@ export default function App() {
             {tab}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', fontSize: 11, color: T.textMuted }}>
+        <div style={{ marginLeft: 'auto', fontSize: 11, color: pal.textMuted }}>
           <span className="mono">{lastUpdated ? lastUpdated.toLocaleTimeString('en-GB') : '—'}</span> IST
         </div>
       </div>
@@ -1971,8 +2037,8 @@ export default function App() {
       {nBars > 1 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px',
-          borderBottom: `1px solid ${T.border}`,
-          backgroundColor: scrub == null ? T.bg : 'rgba(224,168,82,0.07)',
+          borderBottom: `1px solid ${pal.border}`,
+          backgroundColor: scrub == null ? pal.bg : wash(pal.accent, 0.07),
         }}>
           <button
             onClick={() => {
@@ -1982,21 +2048,21 @@ export default function App() {
             title={scrub == null ? 'Replay the last hour' : playing ? 'Pause' : 'Play'}
             style={{
               width: 30, height: 26, borderRadius: 3, cursor: 'pointer',
-              background: 'transparent', border: `1px solid ${T.border}`,
-              color: T.textPrimary, fontSize: 12,
+              background: 'transparent', border: `1px solid ${pal.border}`,
+              color: pal.textPrimary, fontSize: 12,
             }}
           >{playing ? '❚❚' : '▶'}</button>
 
           <select value={speed} onChange={(e) => setSpeed(+e.target.value)}
             style={{
-              background: T.inset, color: T.textSecondary, fontSize: 11,
-              border: `1px solid ${T.border}`, borderRadius: 3, padding: '4px 6px',
+              background: pal.inset, color: pal.textSecondary, fontSize: 11,
+              border: `1px solid ${pal.border}`, borderRadius: 3, padding: '4px 6px',
             }}>
             {[1, 3, 8, 25].map(s => <option key={s} value={s}>{s}×</option>)}
           </select>
 
           <span className="mono" style={{
-            fontSize: 12, color: scrub == null ? T.textMuted : T.accent,
+            fontSize: 12, color: scrub == null ? pal.textMuted : pal.accent,
             minWidth: 46, fontWeight: 600,
           }}>{barTime}</span>
 
@@ -2005,11 +2071,11 @@ export default function App() {
             value={scrub == null ? nBars - 1 : scrub}
             onChange={(e) => { setScrub(+e.target.value); setPlaying(false) }}
             aria-label="Replay position"
-            style={{ flex: 1, accentColor: T.accent, cursor: 'pointer' }}
+            style={{ flex: 1, accentColor: pal.accent, cursor: 'pointer' }}
           />
 
           {scrub == null ? (
-            <span className="mono" style={{ fontSize: 10.5, color: T.textMuted, letterSpacing: '0.06em' }}>
+            <span className="mono" style={{ fontSize: 10.5, color: pal.textMuted, letterSpacing: '0.06em' }}>
               LIVE
             </span>
           ) : (
@@ -2018,7 +2084,7 @@ export default function App() {
               style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 padding: '4px 10px', borderRadius: 3, cursor: 'pointer',
-                background: 'transparent', border: `1px solid ${T.accent}`, color: T.accent,
+                background: 'transparent', border: `1px solid ${pal.accent}`, color: pal.accent,
               }}
             >RETURN TO LIVE</button>
           )}
