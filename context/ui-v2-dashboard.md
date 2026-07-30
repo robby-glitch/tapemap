@@ -456,6 +456,36 @@ high/low) split at 50%, re-cut only when the range moves (~45 times a session,
 not 375). The chart draws only the **current** cut — one dashed EQ line and the
 two halves named — because 90 published bands describe one moving line.
 
+## Hinglish, and the one place v1 and v2 now disagree
+
+`ui-v2/src/trade/hinglish.ts` glosses every event KIND the engine can emit — a
+short caption for the chart balloons and the Events feed, plus a one-line plain
+reading for the callout. It is a translation of the **kind**, never of the
+claim: the engine's own sentence and its numbers are always rendered verbatim
+beside it ("engine ke apne shabd"), no gloss states a number, and an unglossed
+kind falls back to the engine's own tag — untranslated rather than
+mistranslated. Direction words (UPAR / NEECHE ka ishaara) come from `evDir`,
+never from the kind.
+
+**`evDir` now differs between v1 and v2, deliberately.** v2 resolves two kinds
+v1 still returns neutral for:
+
+- **ABSORPTION** — `engine.py` sets `side = "sellers" if C < O else "buyers"`
+  and prints "<side> hitting a wall". The named side is the one whose effort
+  produced no range, so sellers-hitting reads UP and buyers-hitting reads DOWN.
+  This is the engine's own filing rather than an interpretation: the same
+  branch writes `trap_ev["UP"]` for buyers and `trap_ev["DN"]` for sellers.
+- **GAMMA-PIN** — the message opens with its regime. FLOOR ("dips into the
+  strike get absorbed; upside is NOT capped") is UP, CEILING is its mirror,
+  PINNED stays neutral because dampening both ways is not a direction.
+
+**Consequence to know:** FOCUS silences a quiet kind that echoes the log's
+direction, so giving these two a direction made FOCUS hide more. On the
+2026-07-30 NIFTY session the hidden count went 35 → 39. Nothing is lost — the
+panels always show everything and FOCUS toggles off — but the feed is shorter.
+Port both rules to `ui/app.js` when v1 next takes a correctness fix, or the two
+frontends will keep colouring the same event differently.
+
 ## Open items
 
 - **Trade tab: verify against a genuine live session.** The
