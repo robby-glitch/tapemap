@@ -2127,7 +2127,9 @@ export default function App() {
                                               focus={focus} onFocusToggle={() => setFocus(!focus)}
                                               onIndexChange={setActiveIndex}
                                               structures={tape.structures}
-                                              structuresWhy={tape.structuresWhy} />}
+                                              structuresWhy={tape.structuresWhy}
+                                              rotation={tape.rotation}
+                                              rotationWhy={tape.rotationWhy} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

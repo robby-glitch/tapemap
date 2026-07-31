@@ -9,7 +9,7 @@ import { buildZones } from './zones'
 // operator reads can never drift from the number actually drawn.
 import { STRUCT_ZONE_LIMIT } from './LevelsOverlay'
 import { palette, MONO, useMode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem, Structure } from '../data'
+import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure } from '../data'
 
 interface Props {
   index: IndexKey
@@ -40,6 +40,11 @@ interface Props {
   structures: Structure[] | null
   /** Why `structures` is null, in data.ts's own words. Empty when it isn't. */
   structuresWhy: string
+  /** The backend's index band-rotation signals for this day, 1:1 with `bars`,
+   *  or null when they cannot be drawn honestly. Null is DISCLOSED below. */
+  rotation: (RotationSignal | null)[] | null
+  /** Why `rotation` is null, in data.ts's own words. Empty when it isn't. */
+  rotationWhy: string
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -240,6 +245,7 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
 export default function TradeTab({
   index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange, structures, structuresWhy,
+  rotation, rotationWhy,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
@@ -293,6 +299,20 @@ export default function TradeTab({
     }
     return { drawn, swings, zones }
   }, [structures, cursor, at])
+
+  // How many band-rotation signals the chart is actually showing. Causality:
+  // one born past the cursor has not happened yet as far as the chart is
+  // concerned, and the overlay's own draw clamps to the same bar — this count
+  // must describe the same set, never the whole day's.
+  const rotCount = useMemo(() => {
+    if (!rotation) return null
+    let fired = 0
+    for (let i = 0; i < rotation.length; i++) {
+      if (cursor != null && i > at) break
+      if (rotation[i]) fired++
+    }
+    return fired
+  }, [rotation, cursor, at])
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
@@ -557,6 +577,17 @@ export default function TradeTab({
         </div>
       )}
 
+      {/* The band-rotation layer is missing, so say so — an unmarked chart
+          must not read as "your setup never printed today". Gated on `day` for
+          the same reason the structure line above is: an empty day is the
+          tab's own initial-load state, already covered by the bail. */}
+      {day && !rotation && (
+        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
+          Band-rotation signals unavailable{rotationWhy ? ` — ${rotationWhy}` : ''}. No setup
+          markers are drawn rather than markers that might sit on the wrong bars.
+        </div>
+      )}
+
       <div style={{
         flex: 1, minHeight: 420, borderRadius: 6, overflow: 'hidden',
         border: `1px solid ${pal.border}`, backgroundColor: pal.card,
@@ -564,7 +595,7 @@ export default function TradeTab({
         <ContractChart
           index={index} day={day} bars={bars} levels={levels} cursor={cursor}
           mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
-          structures={structures} smc={smc}
+          structures={structures} smc={smc} rotation={rotation}
         />
       </div>
 
@@ -573,6 +604,11 @@ export default function TradeTab({
 
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
         VWAP red · σ bands ±1σ dark red / ±2σ green / ±3σ blue · levels · OI
+        {rotCount != null
+          ? ` · ${rotCount} band-rotation setup${rotCount === 1 ? '' : 's'} (triangle on the σ band`
+            + ` it tagged, square pill; faded = the index was not squeezing into it,`
+            + ` dashed = that could not be checked)`
+          : ''}
         {smc && structures && structures.length
           ? ` · SMC structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed,`
             + ` faint dashed = unchecked)${structCounts && structCounts.zones > STRUCT_ZONE_LIMIT

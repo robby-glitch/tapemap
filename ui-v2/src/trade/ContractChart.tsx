@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createChartEngine } from '../vendor/candl/chart/engine'
 import type { IChartEngine } from '../vendor/candl/chart/types'
-import type { TapeBar, MapLevel, IndexKey, Structure } from '../data'
+import type { TapeBar, MapLevel, IndexKey, RotationSignal, Structure } from '../data'
 import type { Mode } from '../theme'
 import { CHART_UP, CHART_DOWN } from '../theme'
 import { toCandles, buildIndicators } from './indicators'
@@ -31,6 +31,10 @@ interface Props {
   /** The SMC toggle. False = the operator hid the layer, which is a different
    *  fact from the layer being unavailable, and is not disclosed as one. */
   smc?: boolean
+  /** The backend's index band-rotation signals, 1:1 with `bars`, or null when
+   *  they cannot be lined up honestly (data.ts's guard). Null draws nothing;
+   *  TradeTab prints the reason. */
+  rotation?: (RotationSignal | null)[] | null
 }
 
 // A shared empty default, so an omitted `zones` prop does not hand the overlay
@@ -58,7 +62,7 @@ function nearestIndex(times: number[], t: number): number {
 
 export default function ContractChart({
   index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
-  structures = null, smc = true,
+  structures = null, smc = true, rotation = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -91,6 +95,10 @@ export default function ContractChart({
   structuresRef.current = structures
   const smcRef = useRef<boolean>(smc)
   smcRef.current = smc
+  // Same ref pattern again: the rAF loop reads its data through getters, so a
+  // captured prop would freeze at the first render's value.
+  const rotationRef = useRef<(RotationSignal | null)[] | null>(rotation)
+  rotationRef.current = rotation
   // The candle time axis (epoch ms), rebuilt once per data change (the same
   // [index, day, bars] effect that feeds the engine) — never recomputed
   // inside the mousemove handler itself.
@@ -140,6 +148,7 @@ export default function ContractChart({
       () => ({
         bars: barsRef.current, times: timesRef.current,
         narrs: narrsRef.current, cursor: cursorRef.current,
+        rotation: rotationRef.current,
       }),
       () => zonesRef.current,
       () => structuresRef.current,
@@ -266,6 +275,7 @@ export default function ContractChart({
           prevBar={hover > 0 ? bars[hover - 1] : null}
           day={day}
           narr={narrs[hover] ?? null}
+          rot={rotation?.[hover] ?? null}
           x={hoverPos.x}
           y={hoverPos.y}
           boxW={hoverPos.w}

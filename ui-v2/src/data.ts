@@ -208,13 +208,56 @@ export interface Structure {
   confirm_why: string
 }
 
+// ── Band-rotation signals on the INDEX (band_rotation.detect_index) ────────────
+// The operator's OWN setup — a band extreme with a same-bar reversal — run
+// server-side on the index's own bars and attached to each day of /api/data as
+// a sibling of `bars`, one slot per bar, null where nothing fired. This file
+// only NAMES the wire shape; no signal is derived, filtered or re-judged here.
+
+/** Which σ band the bar pierced. The backend's asymmetry (buy the −2/−3σ
+ *  extreme, sell only the +3σ one) is the operator's own, so there is no
+ *  'u2' — a +2σ reversal is deliberately not a sell. */
+export type RotationBand = 'd2' | 'd3' | 'u3'
+
+/**
+ * `confirm` is ALWAYS 'UNKNOWN' on an index signal, and that is structural,
+ * not a data gap: confirmation asks whether the OPPOSITE option leg is
+ * rotating and whether OI is decelerating on both books, and a single index
+ * series has neither. `confirm_why` carries the backend's own sentence saying
+ * so. It must never be rendered as, or rounded to, a confirmation.
+ */
+export interface RotationSignal {
+  /** Index into the day's UNFILTERED `bars` — the same caveat `Structure`
+   *  carries, and guarded the same way in `tapeBars`. */
+  i: number
+  /** The bar's own "HH:MM" label, or null when the bar carried none. */
+  t: string | null
+  side: 'BUY' | 'SELL'
+  /** 'index' for these. Never 'CE'/'PE' — an index signal must not be
+   *  bucketed with an option-leg one. */
+  leg: string
+  band: RotationBand
+  /** The backend's own receipt for the trigger, quoted verbatim. */
+  trigger: string
+  /** Hits that lost a per-bar tie-break. Always null on the index path —
+   *  there is no other leg that could have lost one. */
+  also: string[] | null
+  confirm: StructureConfirm
+  confirm_why: string
+  /** What the index's own VWAP band was doing BEFORE the move. */
+  trap: 'CLEAR' | 'SUSPECT' | 'UNKNOWN'
+  trap_why: string
+  /** Index bars the band held that width, or null where never measured. */
+  trap_dwell: number | null
+}
+
 /**
  * What the Tape Chart reads per index: the day's FUT bars plus the structure
- * layer that indexes them.
+ * layer and the band-rotation signals that index them.
  *
- * `structures` is null whenever those indices cannot be trusted, and
- * `structuresWhy` then says why in the backend's/our own words. A null is a
- * disclosure, not a silent absence — TradeTab prints it.
+ * `structures` / `rotation` are null whenever those indices cannot be trusted,
+ * and the matching `*Why` then says why in the backend's/our own words. A null
+ * is a disclosure, not a silent absence — TradeTab prints it.
  */
 export interface TapeView {
   day: string
@@ -222,6 +265,11 @@ export interface TapeView {
   structures: Structure[] | null
   /** Empty string when `structures` is non-null. */
   structuresWhy: string
+  /** One slot per bar, 1:1 with `bars`; null inside the array where nothing
+   *  fired, and the WHOLE array null when it cannot be aligned honestly. */
+  rotation: (RotationSignal | null)[] | null
+  /** Empty string when `rotation` is non-null. */
+  rotationWhy: string
 }
 
 // Live Spike Radar — one row per index, one cell per activity/spike column.
@@ -1139,7 +1187,12 @@ export function useLiveData(fallback: Dataset) {
     // not a structure-layer availability fact, so there is no "why" to give:
     // TradeTab reads the empty `day` string itself as the signal to suppress
     // its structure disclosure, rather than parsing this string's wording.
-    if (!day) return { day: '', bars: [], structures: null, structuresWhy: '' }
+    if (!day) {
+      return {
+        day: '', bars: [], structures: null, structuresWhy: '',
+        rotation: null, rotationWhy: '',
+      }
+    }
     const bars: TapeBar[] = []
     // structure.py's indices address the day's UNFILTERED bar list, so the
     // skip below silently shifts every one of them. In practice the engine
@@ -1183,7 +1236,40 @@ export function useLiveData(fallback: Dataset) {
         }
       })
     }
-    return { day: day.day ?? '', bars, structures, structuresWhy }
+
+    // Band-rotation signals ride the SAME unfiltered bar indices as the
+    // structure layer, so they take the same skip guard: a signal drawn one
+    // bar off would claim the operator's own setup fired on a minute it did
+    // not. The backend emits one slot per bar including nulls, so a length
+    // mismatch is a real disagreement about the bar list and is disclosed
+    // rather than papered over by padding or truncating.
+    let rotation: (RotationSignal | null)[] | null = null
+    let rotationWhy = ''
+    const rawRot = day.rotation
+    if (!Array.isArray(rawRot)) {
+      rotationWhy = 'this backend publishes no index band-rotation layer'
+    } else if (skipped > 0) {
+      rotationWhy = `${skipped} bar${skipped === 1 ? '' : 's'} lacked a FUT leg, `
+        + 'so the signals’ bar indices no longer line up with the chart'
+    } else if (rawRot.length !== bars.length) {
+      rotationWhy = `the backend sent ${rawRot.length} signal slot${rawRot.length === 1 ? '' : 's'} `
+        + `for ${bars.length} bars, so they cannot be lined up 1:1`
+    } else {
+      // Verbatim, but not blind — same bargain the structure layer makes: a
+      // row whose `confirm` is not one of the three known values is still
+      // shown, normalised to UNKNOWN (the honest reading of "not recognised")
+      // with the surprising original kept in `confirm_why`, never dropped.
+      rotation = (rawRot as (RotationSignal | null)[]).map((r) => {
+        if (!r) return null
+        if (r.confirm === 'CONFIRMED' || r.confirm === 'UNCONFIRMED' || r.confirm === 'UNKNOWN') return r
+        return {
+          ...r,
+          confirm: 'UNKNOWN' as const,
+          confirm_why: `unrecognised confirm "${r.confirm}" — treated as unchecked; ${r.confirm_why ?? ''}`,
+        }
+      })
+    }
+    return { day: day.day ?? '', bars, structures, structuresWhy, rotation, rotationWhy }
   }, [raw])
 
   return { data, loading, error, lastUpdated, barCount, at, dead, tapeBars }

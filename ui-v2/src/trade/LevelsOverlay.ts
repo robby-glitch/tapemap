@@ -3,7 +3,7 @@
 // re-queried every frame (their docs say so — zoom/pan invalidates them).
 import type { IChartEngine } from '../vendor/candl/chart/types'
 import type { Converters } from '../vendor/candl/drawings/types'
-import type { MapLevel, Structure, TapeBar } from '../data'
+import type { MapLevel, RotationSignal, Structure, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
 import type { Narration } from './narration'
@@ -21,6 +21,10 @@ export interface OverlayData {
   times: number[]
   narrs: (Narration | null)[]
   cursor: number | null
+  /** The backend's index band-rotation signals, 1:1 with `bars`, or null when
+   *  they cannot be aligned honestly (data.ts's skip/length guard) — in which
+   *  case NOTHING is drawn and TradeTab prints the reason. */
+  rotation: (RotationSignal | null)[] | null
 }
 
 /** The pane geometry the engine hands out, in CSS px. */
@@ -140,6 +144,32 @@ const PILL_STEM = 6              // gap between the candle extreme and lane 0
 const PILL_LANES = 3             // outward lanes before de-cluttering starts
 const PILL_LANE_STEP = PILL_H + 2
 const PILL_GUTTER = 2            // horizontal breathing room between two pills
+
+// Band-rotation markers (band_rotation.detect_index). A DIFFERENT CLAIM from
+// an event balloon — the operator's own setup, not something the engine
+// observed — so it must not be mistakable for one at a glance. It IS a
+// direction claim (BUY/SELL), so theme.ts's rule puts it on bull/bear and the
+// distinction has to be carried by SHAPE, not by hue:
+//
+//   * a SQUARE-cornered pill (radius 2) against the balloons' rounded 7,
+//   * a 1.5px border where a tier-2 balloon has 1,
+//   * a filled TRIANGLE sitting on the σ band the bar actually pierced,
+//     with a hairline from that band to the pill — a balloon anchors on the
+//     candle extreme and has no band mark at all.
+//
+// The triangle is the load-bearing difference: it is the only mark on this
+// chart drawn AT a σ level rather than at a candle.
+const ROT_PILL_R = 2
+const ROT_BORDER_PX = 1.5
+const ROT_TRI_PX = 5             // half-width of the band marker's triangle
+const ROT_STEM = 4               // gap between the band mark and lane 0
+// Faded for a signal whose pre-move compression read came back SUSPECT (the
+// index band was not squeezing, or was already releasing). Never hidden: that
+// is the backend's context on the setup, not a veto of it. UNKNOWN — "we could
+// not check" — sits between the two, and the dashed border says which is which.
+const ROT_SUSPECT_ALPHA = 0.55
+const ROT_UNKNOWN_ALPHA = 0.75
+const ROT_DASH: [number, number] = [3, 2]
 
 /** Add an alpha channel to a `palette(mode)` colour. The overlay's dashed
  *  lines and chips need translucency the palette itself does not carry; this
@@ -597,6 +627,182 @@ function drawStructures(
   }
 }
 
+/** Rightmost drawn edge per side (0 = above the high, 1 = below the low) per
+ *  lane. One array is shared by the rotation pass and the balloon pass, which
+ *  is what keeps a setup marker and an event pill off each other. */
+type LaneRight = [number[], number[]]
+
+/** A fresh lane ledger — `PILL_LANES` empty lanes on each side. */
+function newLanes(): LaneRight {
+  return [
+    Array(PILL_LANES).fill(-Infinity),  // lanes above the high
+    Array(PILL_LANES).fill(-Infinity),  // lanes below the low
+  ]
+}
+
+/**
+ * Which lane a pill starting at `px` on `side` can use — the first whose
+ * occupant it clears. `keep` decides what happens when every lane is taken:
+ * true returns the least-occupied one anyway (nothing is ever dropped), false
+ * returns −1 so the caller can de-clutter instead.
+ *
+ * Does NOT mutate: a pill can still bail on the pane bounds after choosing a
+ * lane, and one that never draws must not reserve space. `takeLane` is the
+ * commit, called only once the pill is certain to paint.
+ */
+function pickLane(lanes: LaneRight, side: 0 | 1, px: number, keep: boolean): number {
+  const row = lanes[side]
+  for (let l = 0; l < PILL_LANES; l++) {
+    if (px >= row[l]) return l
+  }
+  if (!keep) return -1
+  let best = 0
+  for (let l = 1; l < PILL_LANES; l++) if (row[l] < row[best]) best = l
+  return best
+}
+
+/** Commit a placed pill's footprint to its lane. */
+function takeLane(lanes: LaneRight, side: 0 | 1, lane: number, px: number, pillW: number) {
+  lanes[side][lane] = px + pillW + PILL_GUTTER
+}
+
+/**
+ * Band-rotation markers: the operator's OWN setup, drawn where it fired.
+ *
+ * Every one of these is the BACKEND's — band_rotation.detect_index found the
+ * tag and the same-bar reversal on the index's own bars; this function only
+ * positions it. It is a different claim from an event balloon (that is
+ * something the engine observed; this is the operator's setup printing), so it
+ * is deliberately a different SHAPE: a triangle on the σ band the bar actually
+ * pierced, a stem, and a square-cornered pill naming the direction and the
+ * band ("▲ BUY d2").
+ *
+ * A BUY marker hangs below the bar's low, a SELL above its high — the side the
+ * reversal came from, so the mark sits where the operator's eye already is.
+ *
+ * The compression read rides as opacity + border style, never as suppression:
+ * CLEAR full and solid; SUSPECT faded and solid (checked, the index was not
+ * squeezing); UNKNOWN in between and DASHED (could not be checked). A signal
+ * is NEVER dropped for its trap verdict — "we found nothing" and "we are not
+ * showing you" are different statements.
+ *
+ * `confirm` is not drawn at all: on an index series it is UNKNOWN by
+ * construction (there is no opposite leg), so a per-marker "unchecked" badge
+ * would imply a question that varies between signals when it never does. The
+ * hover callout carries the backend's sentence in full.
+ */
+function drawRotation(
+  ctx: CanvasRenderingContext2D,
+  conv: Converters,
+  pane: PaneRect,
+  pal: Palette,
+  bars: TapeBar[],
+  times: number[],
+  rotation: (RotationSignal | null)[],
+  lastIdx: number,
+  lanes: LaneRight,
+) {
+  if (lastIdx < 0) return
+  ctx.font = `bold 10px ${MONO_STACK}`
+  ctx.textBaseline = 'middle'
+  // Causality plus the arrays' own bounds — rotation/times are built 1:1 with
+  // bars, but a mid-poll render can see them one append apart.
+  const n = Math.min(lastIdx, rotation.length - 1, bars.length - 1, times.length - 1)
+  for (let i = 0; i <= n; i++) {
+    const sig = rotation[i]
+    if (!sig) continue
+    const buy = sig.side === 'BUY'
+    // Direction, so theme.ts puts it on bull/bear. The SHAPE is what tells it
+    // apart from an event balloon; the hue is what tells the operator which
+    // way it leans, and borrowing brass here would say "structure" instead.
+    const tone = buy ? pal.bull : pal.bear
+    const alpha = sig.trap === 'CLEAR' ? 1
+      : sig.trap === 'UNKNOWN' ? ROT_UNKNOWN_ALPHA : ROT_SUSPECT_ALPHA
+    const stroke = withAlpha(tone, alpha)
+
+    const x = conv.timeToX(times[i])
+    if (!Number.isFinite(x)) continue
+    if (x < pane.x - 2 || x > pane.x + pane.width + 2) continue // panned out
+    // The σ level the bar actually pierced, read off the bar itself — the same
+    // per-bar band the ribbons above are drawn from, never re-derived here.
+    const level = bars[i][sig.band]
+    const bandY = conv.priceToY(level)
+    const extremeY = conv.priceToY(buy ? bars[i].l : bars[i].h)
+    if (!Number.isFinite(bandY) || !Number.isFinite(extremeY)) continue
+    // Hang off whichever is further out — the band or the candle's own
+    // extreme. The wick pierced the band, so which one that is depends on how
+    // far past it price went, and anchoring on the band alone would put the
+    // pill inside the candle on a deep piercing bar.
+    const anchorY = buy ? Math.max(bandY, extremeY) : Math.min(bandY, extremeY)
+
+    const text = `${buy ? '▲' : '▼'} ${sig.side} ${sig.band}`
+    const pillW = ctx.measureText(text).width + PILL_PAD_X * 2
+    if (pillW + 4 > pane.width) continue // pane cannot hold this pill at all
+    const px = Math.max(pane.x + 2, Math.min(x - pillW / 2, pane.x + pane.width - 2 - pillW))
+    const side: 0 | 1 = buy ? 1 : 0
+    // `keep` is true: the operator's own setup is never de-cluttered away.
+    const lane = pickLane(lanes, side, px, true)
+    const off = ROT_STEM + lane * PILL_LANE_STEP
+    // CLAMPED into the pane, not dropped. A story balloon that will not fit
+    // simply bails — it is one of many, and the ribbon and the callout still
+    // carry it. A setup marker has no such second home, and the +3σ case makes
+    // this concrete: a SELL hangs off a band sitting near the top of the pane,
+    // so the outward placement lands over the engine's OHLC legend and the
+    // whole signal would silently vanish (measured: 2 of 15 on the live
+    // 2026-07-31 NIFTY session). Moving the pill is safe because the STEM is
+    // still drawn from the true band y and the triangle still sits ON the
+    // band, so nothing about WHERE the signal fired is altered — only where
+    // its label is parked, exactly as `px` already slides horizontally.
+    const topLimit = pane.y + LEGEND_BAND_PX
+    const botLimit = pane.y + pane.height - 2 - PILL_H
+    if (botLimit < topLimit) continue          // pane too short to hold a pill
+    const pillTop = Math.max(topLimit,
+      Math.min(buy ? anchorY + off : anchorY - off - PILL_H, botLimit))
+    takeLane(lanes, side, lane, px, pillW)
+
+    // The band mark: a filled triangle sitting ON the pierced σ level,
+    // pointing the way the bar reversed. Nothing else on this chart is drawn
+    // at a σ level, which is what makes a setup marker unmistakable.
+    ctx.fillStyle = stroke
+    ctx.beginPath()
+    if (buy) {
+      ctx.moveTo(x, bandY - ROT_TRI_PX)
+      ctx.lineTo(x - ROT_TRI_PX, bandY + ROT_TRI_PX)
+      ctx.lineTo(x + ROT_TRI_PX, bandY + ROT_TRI_PX)
+    } else {
+      ctx.moveTo(x, bandY + ROT_TRI_PX)
+      ctx.lineTo(x - ROT_TRI_PX, bandY - ROT_TRI_PX)
+      ctx.lineTo(x + ROT_TRI_PX, bandY - ROT_TRI_PX)
+    }
+    ctx.closePath()
+    ctx.fill()
+
+    // Stem from the band mark to the pill, through the candle's extreme.
+    ctx.strokeStyle = withAlpha(tone, alpha * 0.5)
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x, bandY)
+    ctx.lineTo(x, buy ? pillTop : pillTop + PILL_H)
+    ctx.stroke()
+
+    // The pill: square corners and a heavier border, so it does not read as
+    // one of the rounded story balloons even in a screenshot.
+    roundedRectPath(ctx, px, pillTop, pillW, PILL_H, ROT_PILL_R)
+    ctx.fillStyle = withAlpha(pal.card, 0.92)
+    ctx.fill()
+    ctx.lineWidth = ROT_BORDER_PX
+    ctx.strokeStyle = stroke
+    // UNKNOWN compression gets a dashed border — "could not be checked" reads
+    // differently from SUSPECT's solid one even with the colour washed out.
+    if (sig.trap === 'UNKNOWN') ctx.setLineDash(ROT_DASH)
+    ctx.stroke()
+    ctx.setLineDash([]) // never let dash state leak into the next stroke/fill
+    ctx.lineWidth = 1
+    ctx.fillStyle = stroke
+    ctx.fillText(text, px + PILL_PAD_X, pillTop + PILL_H / 2)
+  }
+}
+
 /**
  * Story balloons: a persistent pill for every tier-≥2 narration, so the day's
  * events stay legible after the mouse has moved on — the hover callout alone
@@ -618,18 +824,15 @@ function drawBalloons(
   times: number[],
   narrs: (Narration | null)[],
   lastIdx: number,
+  /** Rightmost drawn edge per side per lane, SHARED with the rotation pass
+   *  (which runs first and takes the inner lanes) so the two layers cannot
+   *  overprint each other. Mutated as pills are placed. */
+  laneRight: LaneRight,
 ) {
   if (lastIdx < 0) return
   ctx.font = `10px ${MONO_STACK}`
   ctx.textBaseline = 'middle'
   ctx.lineWidth = 1
-  // Rightmost drawn edge per side per lane: a pill only steps outward when it
-  // would actually collide with the pill already occupying that lane, so a
-  // sparse morning does not push the afternoon's events into orbit.
-  const laneRight: [number[], number[]] = [
-    [-Infinity, -Infinity, -Infinity], // lanes above the high
-    [-Infinity, -Infinity, -Infinity], // lanes below the low
-  ]
   // Causality plus the arrays' own bounds — narrs/times are built 1:1 with
   // bars, but a mid-poll render can see them one append apart.
   const n = Math.min(lastIdx, narrs.length - 1, bars.length - 1, times.length - 1)
@@ -655,24 +858,16 @@ function drawBalloons(
     // Centred on the bar, then nudged to stay inside the pane. The STEM below
     // still uses the bar's true x, so a nudged pill never mislabels a bar.
     const px = Math.max(pane.x + 2, Math.min(x - pillW / 2, pane.x + pane.width - 2 - pillW))
-    const side = below ? 1 : 0
-    const lanes = laneRight[side]
-    let lane = -1
-    for (let l = 0; l < PILL_LANES; l++) {
-      if (px >= lanes[l]) { lane = l; break }
-    }
-    if (lane < 0) {
-      if (nr.tier < 3) continue // de-clutter: tier 2 yields, tier 3 never does
-      let best = 0
-      for (let l = 1; l < PILL_LANES; l++) if (lanes[l] < lanes[best]) best = l
-      lane = best
-    }
+    const side: 0 | 1 = below ? 1 : 0
+    // De-clutter: tier 2 yields when every lane is taken, tier 3 never does.
+    const lane = pickLane(laneRight, side, px, nr.tier >= 3)
+    if (lane < 0) continue
     const off = PILL_STEM + lane * PILL_LANE_STEP
     const pillTop = below ? anchorY + off : anchorY - off - PILL_H
     // Never outside the pane rect, and never over the engine's OHLC legend.
     if (pillTop < pane.y + LEGEND_BAND_PX) continue
     if (pillTop + PILL_H > pane.y + pane.height - 2) continue
-    lanes[lane] = px + pillW + PILL_GUTTER
+    takeLane(laneRight, side, lane, px, pillW)
 
     ctx.strokeStyle = withAlpha(tone, 0.5)
     ctx.beginPath()
@@ -758,6 +953,10 @@ export function startLevelsOverlay(
     const dBars = data.bars
     const dTimes = data.times
     const dNarrs = data.narrs
+    // Null (cannot be aligned) and an all-null array (aligned, nothing fired)
+    // are different facts. Both draw nothing; the signature below keeps them
+    // apart so this layer and TradeTab's disclosure never disagree.
+    const dRot = data.rotation
     // Causality clamp: the last drawn bar for EVERY per-bar pass (ribbons,
     // zone bands, balloons) is the replay cursor, same as the candles — never
     // the newest bar the cursor is hiding.
@@ -790,6 +989,31 @@ export function startLevelsOverlay(
       tierSum += (i + 1) * nr.tier
       if (nr.tier >= 2) nBalloons++
     }
+    // What the rotation pass depends on, in the same no-allocation style as
+    // the narration scan above:
+    //  - nRot / lastRot: a new signal appears (count moves, last index moves).
+    //  - lastSig*:       the NEWEST signal can still change in place. The
+    //    forming bar's trap verdict resolves as the run-up grows, and its
+    //    band can deepen from d2 to d3 within the same minute if the low
+    //    extends — both restyle a marker that is already drawn, at an
+    //    unchanged count. Everything older is settled and constant between
+    //    frames, so the skip guard still holds.
+    let nRot = 0
+    let lastRot = -1
+    let lastRotBand = ''
+    let lastRotTrap = ''
+    let lastRotSide = ''
+    if (dRot) {
+      for (let i = 0; i < dRot.length; i++) {
+        const r = dRot[i]
+        if (!r) continue
+        nRot++
+        lastRot = i
+        lastRotBand = r.band
+        lastRotTrap = r.trap
+        lastRotSide = r.side
+      }
+    }
     const z0 = zones[0]
     const zN = zones[zones.length - 1]
     // Signature additions for the ribbons: bar count and cursor catch any
@@ -821,6 +1045,11 @@ export function startLevelsOverlay(
       `|${dBars.length},${dTimes.length},${data.cursor}` +
       `|${dFirst?.u1},${dFirst?.d1},${dLast?.u1},${dLast?.d1}` +
       `|${dNarrs.length},${lastNarr},${tierSum},${nBalloons}` +
+      // Rotation markers: availability (null vs an aligned array — two
+      // different facts), the array length, how many fired, and the newest
+      // signal's index/side/band/trap for the in-place changes above.
+      `|${dRot ? dRot.length : 'x'},${nRot},${lastRot},` +
+      `${lastRotSide}${lastRotBand}${lastRotTrap}` +
       // `label` rather than `cls`: a verdict RENAME within the same cls (e.g.
       // one CAUTION sentence replacing another) changes neither the class nor
       // the run bounds, but it is drawn text — `cls` alone would miss it and
@@ -973,14 +1202,19 @@ export function startLevelsOverlay(
       }
     })
 
-    // Story balloons LAST — the persistent event markers sit above the bands,
-    // the ribbons and the level lines, since they are the thing being read.
-    if (lastIdx >= 0 && dNarrs.length) {
+    // Markers LAST — the persistent pills sit above the bands, the ribbons and
+    // the level lines, since they are the thing being read. The two passes
+    // share ONE lane ledger, so a setup marker and an event balloon can never
+    // land on top of each other; rotation runs first and takes the inner
+    // lanes, because the operator's own setup is what the tab is for.
+    if (lastIdx >= 0 && (dRot || dNarrs.length)) {
       ctx.save()
       ctx.beginPath()
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
-      drawBalloons(ctx, conv, pane, pal, dBars, dTimes, dNarrs, lastIdx)
+      const lanes = newLanes()
+      if (dRot) drawRotation(ctx, conv, pane, pal, dBars, dTimes, dRot, lastIdx, lanes)
+      if (dNarrs.length) drawBalloons(ctx, conv, pane, pal, dBars, dTimes, dNarrs, lastIdx, lanes)
       ctx.restore()
     }
   }

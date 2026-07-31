@@ -10,7 +10,7 @@ import { MONO } from '../theme'
 import { dayBase } from './indicators'
 import type { Narration } from './narration'
 import { glossOf, pillText, dirText } from './hinglish'
-import type { TapeBar } from '../data'
+import type { RotationSignal, TapeBar } from '../data'
 
 interface Props {
   mode: Mode
@@ -18,6 +18,9 @@ interface Props {
   prevBar: TapeBar | null
   day: string
   narr: Narration | null
+  /** The band-rotation signal on THIS bar, or null. Presentation only: every
+   *  sentence below is the backend's own, quoted verbatim. */
+  rot?: RotationSignal | null
   /** Cursor position inside the chart frame. */
   x: number
   y: number
@@ -33,6 +36,10 @@ interface Props {
 // so the CSS min/max-width still governs what actually paints.
 const ASSUMED_W = 280
 const ASSUMED_H = 210
+// Roughly what the band-rotation block adds when a bar carries a signal:
+// a header, the trigger receipt, the compression read and the confirmation
+// note. Same standing as the constants above — position arithmetic only.
+const ROT_BLOCK_H = 130
 const EDGE_MARGIN = 6
 const CURSOR_GAP = 20
 
@@ -94,10 +101,17 @@ function toneColor(pal: ReturnType<typeof palette>, tone: Narration['tone']): st
   }
 }
 
-export default function Callout({ mode, bar, prevBar, day, narr, x, y, boxW, boxH }: Props) {
+export default function Callout({ mode, bar, prevBar, day, narr, rot = null, x, y, boxW, boxH }: Props) {
   const pal = palette(mode)
-  const { left, top } = computePosition(x, y, boxW, boxH)
+  // The box grows by the rotation block when there is one, so the
+  // edge-flip/clamp arithmetic keeps the WHOLE callout on screen rather than
+  // pushing its receipts off the bottom of the frame.
+  const { left, top } = computePosition(x, y, boxW, boxH, ASSUMED_W,
+    ASSUMED_H + (rot ? ROT_BLOCK_H : 0))
   const accent = narr ? toneColor(pal, narr.tone) : pal.border
+  // A rotation signal IS a direction claim, so it takes bull/bear — the same
+  // rule the chart marker follows, so the callout and the pill agree on hue.
+  const rotTone = rot ? (rot.side === 'BUY' ? pal.bull : pal.bear) : pal.border
 
   return (
     <div style={{
@@ -152,6 +166,57 @@ export default function Callout({ mode, bar, prevBar, day, narr, x, y, boxW, box
           <span style={{ color: pal.textPrimary, fontWeight: 560 }}>{formatOi(bar.oi, prevBar)}</span>
         </div>
       </div>
+
+      {/* Band-rotation block — the operator's OWN setup, above the engine's
+          narration because it is the claim they came for. Every sentence is
+          the backend's, quoted verbatim: this component computes nothing
+          about the market, and in particular never upgrades an UNKNOWN. */}
+      {rot && (
+        <div style={{
+          padding: '9px 11px 10px', borderTop: `1px solid ${pal.border}`,
+          borderLeft: `3px solid ${rotTone}`,
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4, flexWrap: 'wrap',
+          }}>
+            <span style={{
+              fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase',
+              fontWeight: 700, color: rotTone,
+            }}>
+              {rot.side === 'BUY' ? '▲' : '▼'} {rot.side} {rot.band}
+            </span>
+            <span style={{ fontSize: 10, color: pal.textMuted, fontWeight: 600 }}>
+              band se palat — apna setup
+            </span>
+          </div>
+          <div style={{ fontSize: 11.5, lineHeight: 1.45, color: pal.textPrimary, marginBottom: 5 }}>
+            {rot.trigger}
+          </div>
+          <div style={{
+            fontSize: 9.5, letterSpacing: '0.09em', textTransform: 'uppercase',
+            color: pal.textMuted, marginBottom: 2,
+          }}>
+            squeeze pehle — {rot.trap}
+            {rot.trap_dwell != null ? ` · dwell ${rot.trap_dwell}` : ''}
+          </div>
+          <div style={{ fontSize: 11, color: pal.textSecondary, lineHeight: 1.45, marginBottom: 5 }}>
+            {rot.trap_why}
+          </div>
+          {/* The confirmation is UNKNOWN on every index signal and its reason
+              says why. Shown, never hidden: a reader who sees the trigger and
+              no confirmation line would fill the gap in themselves, and the
+              guess that costs money is the optimistic one. */}
+          <div style={{
+            fontSize: 9.5, letterSpacing: '0.09em', textTransform: 'uppercase',
+            color: pal.textMuted, marginBottom: 2,
+          }}>
+            confirm — {rot.confirm}
+          </div>
+          <div style={{ fontSize: 10.5, color: pal.textMuted, lineHeight: 1.4 }}>
+            {rot.confirm_why}
+          </div>
+        </div>
+      )}
 
       {/* Narration block — a bar with no event says so, never invents one. */}
       {narr ? (
