@@ -253,6 +253,22 @@ AXIS_RULE = (
     "(a repeated minute in the feed); the first bar wins and the rest are "
     "dropped, because a shared slot cannot hold two bars.")
 
+INDEX_SERIES_RULE = (
+    "`index_series` is the INDEX (futures) tape for the same sessions, in the "
+    "same shape as a leg (bars / vwap / oi / bar_days, 1:1 with each other) "
+    "and banded by the SAME `contract_bars.vwap_sigma` recurrence the v1 FUT "
+    "chart uses, so it is the band the operator already reads on screen. It "
+    "exists because the compression half of the setup is judged on the index "
+    "and not on option premium -- *'squeeze on index entry on option chart'* "
+    "-- while the TRIGGER stays on the option leg's own bands. It is "
+    "deliberately NOT re-indexed onto `axis`: the axis is the union of the "
+    "two OPTION legs' minutes, and a minute neither option printed is still a "
+    "minute the index's band existed, so aligning it would punch holes in the "
+    "very history the compression rank is taken against. The detector joins "
+    "it by (session, bar label) instead. It is null when it could not be "
+    "fetched, and `index_series_why` then says why; every `trap` reads "
+    "UNKNOWN in that case and NEVER falls back to premium.")
+
 ROTATION_RULE = (
     "`rotation` is the band-rotation detector's answer for this request, one "
     "slot per `axis` index and the SAME length as every leg's arrays: null "
@@ -272,9 +288,11 @@ ROTATION_RULE = (
     "sides were at their extremes on one minute. `confirm` is three-valued "
     "(CONFIRMED / UNCONFIRMED / UNKNOWN) and `trap` likewise (CLEAR / SUSPECT "
     "/ UNKNOWN); UNKNOWN means unreadable, never 'fine', and must not be "
-    "rendered as either verdict. `trap_dwell` is how many consecutive bars "
-    "price had held a range that narrow, or null where the trap read never "
-    "got that far.")
+    "rendered as either verdict. `trap` is measured on `index_series` -- the "
+    "INDEX band's width in points, ranked against a trailing window -- and is "
+    "UNKNOWN whenever that series is missing. `trap_dwell` is how many "
+    "consecutive INDEX bars the band had held a width that tight, or null "
+    "where the trap read never got that far.")
 
 FORMING_WHY = (
     "forming is null in this build. The incomplete candle is aggregated from "
@@ -413,7 +431,8 @@ def _align_to_axis(leg, axis):
 
 
 def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
-                   day=None, chain_rows=None, atm=None, fetch=None):
+                   day=None, chain_rows=None, atm=None, fetch=None,
+                   index_fetch=None):
     """The `/api/contract` payload: option-premium bars + their own VWAP.
 
     `strike` None means "let contract_pair.pick_pair choose", which needs a
@@ -429,7 +448,14 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     setup, not a bug.
 
     `fetch(sec_id, day) -> rest_intraday payload` is injectable so the
-    assembly can be tested without a token or a network.
+    assembly can be tested without a token or a network. `index_fetch(day) ->
+    rest_intraday payload` is the same hook for the INDEX (futures) series and
+    takes ONE argument, because the futures security id is resolved in here
+    and an injecting caller has no business having to know it. Injecting
+    `fetch` WITHOUT `index_fetch` suppresses the index request altogether:
+    taking over the option I/O and then being handed a silent network call for
+    the index would defeat the point of injecting at all. `index_series` is
+    then null with `index_series_why` saying so, and every `trap` is UNKNOWN.
 
     Shape note: with `side=BOTH` the two legs are two different strikes, so
     there is no single top-level series and `bars`/`vwap`/`oi` are `null`; the
@@ -447,7 +473,9 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     `rotation` rides on that same axis as a SIBLING of `legs`: the
     band-rotation detector's record for slot `i`, or null where nothing fired.
     It is computed here, in the engine, so a UI renders it and never re-derives
-    it -- see `ROTATION_RULE`.
+    it -- see `ROTATION_RULE`. Its compression read comes off `index_series`,
+    the futures tape for the same sessions, which is NOT axis-aligned; see
+    `INDEX_SERIES_RULE`.
 
     `day` defaults to today and is the newest session charted. Passing an
     older `day` backfills history, but note the asymmetry: the BARS are
@@ -527,6 +555,7 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
                                              oi=True, seg=cfg["fut_seg"]),
             CONTRACT_DEADLINE_S, f"{idx} intraday {sec_id} {sess}")
 
+    injected = fetch is not None
     fetch = fetch or _real_fetch
     legs, gaps, reasons = {}, [], {}
     for s, k in want:
@@ -542,9 +571,57 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
                 gaps.append(g)
             reasons[f"{s} {g}"] = leg["gap_reasons"][g]
 
+    # The INDEX tape the compression read is taken from. Fetched here rather
+    # than derived from anything already in hand: the option legs cannot
+    # answer it (that was the 2026-07-31 correction) and no other caller has
+    # the futures series for a BACKFILLED session.
+    #
+    # `resolve_dynamic` writes fut_id AND expiry into the cfg it is handed, so
+    # it gets its OWN copy: `cfg["expiry"]` above is the OPTION expiry that
+    # decides which contracts `_atm_ids` resolved, and letting the futures
+    # expiry overwrite it would silently chart a different strike's history.
+    # It resolves against `day`, not today, so a backfilled session gets the
+    # future that was actually current then (NIFTY 2026-07-30 -> 58072; the
+    # `FUT_ID = "61093"` constant in dhan_fetch.py is a stale July id and must
+    # never be used here).
+    index_series, index_why = None, None
+    if index_fetch is None and injected:
+        index_why = ("no index series was requested: `fetch` was injected but "
+                     "`index_fetch` was not, so this build made no index "
+                     "call. Compression reads UNKNOWN on every bar.")
+    else:
+        fut_id, ifetch = None, index_fetch
+        if ifetch is None:                       # only then is an id needed
+            try:
+                fut_id = instruments.resolve_dynamic(
+                    instruments.get(idx), tok, day)["fut_id"]
+            except Exception as e:               # noqa: BLE001 - reported below
+                index_why = (f"no index series: the futures security id for "
+                             f"{idx} on {day} did not resolve "
+                             f"({type(e).__name__}: {e}). Compression reads "
+                             f"UNKNOWN on every bar.")
+            if fut_id is not None:
+                def ifetch(sess, _i=fut_id):
+                    _throttle()                  # the same 5-req/s gate
+                    return chain_live._with_deadline(
+                        lambda: dhan_fetch.rest_intraday(
+                            tok, _i, "FUTIDX", sess, oi=True,
+                            seg=cfg["fut_seg"]),
+                        CONTRACT_DEADLINE_S, f"{idx} intraday FUT {_i} {sess}")
+        if ifetch is not None:
+            index_series = _leg_series(ifetch, sessions, interval)
+            index_series["security_id"] = fut_id
+            index_series["instrument"] = "FUTIDX"
+            if not index_series["bars"]:
+                said = "; ".join(index_series["gap_reasons"].values())
+                index_why = (f"the index series (FUT {fut_id}) came back "
+                             f"empty for {', '.join(sessions)}: "
+                             f"{said or 'no reason recorded'}")
+
     # ONE axis for the request. Built AFTER every leg so it is the union of
     # what the legs really hold, then both legs are re-indexed onto it -- the
-    # legs are 1:1 with each other only from here on.
+    # legs are 1:1 with each other only from here on. `index_series` is
+    # deliberately NOT aligned onto it; see INDEX_SERIES_RULE.
     axis = _shared_axis(legs)
     for leg in legs.values():
         _align_to_axis(leg, axis)
@@ -556,8 +633,11 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
            # A SIBLING of `legs`, on the same shared axis. Computed here, in
            # the engine, so the browser never re-derives the operator's setup;
            # see ROTATION_RULE. Additive: nothing above changes shape.
-           "rotation": band_rotation.detect(legs, axis),
+           "rotation": band_rotation.detect(legs, axis,
+                                            index_series=index_series),
            "rotation_rule": ROTATION_RULE,
+           "index_series": index_series, "index_series_why": index_why,
+           "index_series_rule": INDEX_SERIES_RULE,
            "bars": None, "vwap": None, "oi": None, "bar_days": None,
            "gaps": sorted(gaps), "gap_reasons": reasons,
            "forming": None, "forming_why": FORMING_WHY,

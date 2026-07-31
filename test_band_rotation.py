@@ -8,16 +8,21 @@ minute of the same session -- or an explicit `None` where that leg did not
 print. Bars carry `contract_bars.BAR_KEYS` (`t,o,h,l,c,v,oi`), bands carry
 `BAND_KEYS` (`vwap,u1,d1,u2,d2,u3,d3`).
 
+The INDEX series is the second input and rides the same shape (that is what
+`live._leg_series` returns when pointed at the futures security id). Every
+trap fixture drives it and nothing else: the trigger is on the option leg, the
+squeeze is on the index -- *"squeeze on index entry on option chart"*.
+
 Families:
   1. Trigger    -- BUY at d2/d3, SELL only at u3, tag alone never fires.
   2. Confirm    -- the other leg rotating, plus OI DECELERATION on both legs.
   3. Positioning-- a heavy book on the side being bought must NOT suppress.
-  4. Trap       -- CLEAR / SUSPECT / UNKNOWN off the pre-move PRICE range:
-                    its trailing rank, its dwell, its direction, and the
-                    operator's 09:25 anchor.
+  4. Trap       -- CLEAR / SUSPECT / UNKNOWN off the INDEX band width: its
+                    trailing rank, its dwell, its direction, the operator's
+                    09:25 anchor, and their own 2026-07-30 reference session.
   5. Causality  -- truncation reproduces full records, byte for byte.
-  6. Independence -- the same shape at BANKNIFTY/SENSEX premium magnitudes
-                    yields the same signals (no absolute threshold crept in).
+  6. Independence -- the same shape at BANKNIFTY/SENSEX magnitudes yields the
+                    same signals (no absolute threshold crept in).
   7. Junk input -- never raises, never fabricates.
 """
 
@@ -25,6 +30,7 @@ import band_rotation
 from band_rotation import detect
 
 DAY = "2026-07-30"
+DAY2 = "2026-07-31"
 VWAP = 100.0
 SD = 5.0
 
@@ -39,12 +45,18 @@ TAG_U2_REV = (99.0, 111.0, 100.0)      # +2 sigma tag + reversal: NOT a sell
 BUY_D2_SD10 = (79.0, 101.0, 100.0)     # d2 is 80 when sd is 10
 UP_FROM_D2 = (89.0, 101.0, 89.5)       # the mirror rotation tag (lower band)
 
-# Price-range rows for the trap family. Each is inert against every band used
-# here; only the HIGH/LOW SPREAD differs, which is the whole point -- the
-# compression read is on price, and the bands never move in these scenes.
+# Option-premium rows whose only difference is the HIGH/LOW SPREAD. Version
+# two of this module ranked exactly this and it is now inert by design: the
+# compression read left the premium entirely.
 WIDE = (95.0, 105.0, 100.0)            # spread 10.00
 NARROW = (99.9, 100.1, 100.0)          # spread  0.20
-TIGHT = (99.95, 100.05, 100.0)         # spread  0.10
+
+# The index band width used wherever a test is NOT about compression. It never
+# changes, so it ranks 1.00, is never compression, and every such test gets a
+# definite SUSPECT instead of an UNKNOWN that would hide which gate it is
+# really exercising.
+FLAT_W = 100.0
+LEVEL = 24000.0                        # a NIFTY-ish index level
 
 
 def _t(i):
@@ -57,6 +69,53 @@ def _band(vwap, sd):
             "u2": vwap + 2 * sd, "d2": vwap - 2 * sd,
             "u3": vwap + 3 * sd, "d3": vwap - 3 * sd}
 
+
+# ------------------------------------------------------------- index fixtures
+
+def _ix_days(widths, days, t0=0, level=LEVEL, scale=1.0):
+    """A leg-shaped INDEX series: reading `k` is a band `widths[k]` points
+    wide (u3 - d3), centred on `level`, labelled `_t(t0 + k)` on `days[k]`."""
+    bars, bands, out_days = [], [], []
+    for k, w in enumerate(widths):
+        half = w * scale / 2.0
+        lvl = level * scale
+        bars.append({"t": _t(t0 + k)})
+        bands.append({"vwap": lvl,
+                      "u1": lvl + half / 3.0, "d1": lvl - half / 3.0,
+                      "u2": lvl + 2 * half / 3.0, "d2": lvl - 2 * half / 3.0,
+                      "u3": lvl + half, "d3": lvl - half})
+        out_days.append(days[k])
+    return {"bars": bars, "vwap": bands, "bar_days": out_days}
+
+
+def _ix(widths, day=DAY, t0=0, level=LEVEL, scale=1.0):
+    return _ix_days(widths, [day] * len(widths), t0, level, scale)
+
+
+def _flat(n, w=FLAT_W, day=DAY):
+    return _ix([w] * n, day=day)
+
+
+def _squeeze(n, wide=100.0, tail=(90.0, 80.0, 70.0, 60.0, 50.0)):
+    """Wide all session, then a tail that keeps TIGHTENING into the move."""
+    return [wide] * (n - 1 - len(tail)) + list(tail) + [wide]
+
+
+def _n_of(legs):
+    for leg in legs.values():
+        if isinstance(leg, dict) and leg.get("bars"):
+            return len(leg["bars"])
+    return 0
+
+
+def _run(legs, idx=None, n=None, **kw):
+    """`detect` with an index series -- flat by default (see FLAT_W)."""
+    if idx is None:
+        idx = _flat(n or _n_of(legs))
+    return detect(legs, index_series=idx, **kw)
+
+
+# -------------------------------------------------------------- leg fixtures
 
 def _decel(n, base=100000.0, step=500.0, drop=20.0):
     """OI still building but the RATE of building falls every bar."""
@@ -120,7 +179,8 @@ def _scene(n=21, trig=20, trig_row=BUY_D2_SD5, trig_leg="CE",
 
     CE fires at `trig`; PE tags its +2 sigma at `other_tag` and is back below
     it by `trig`; both books are decelerating. `pre` overwrites rows on the
-    TRIGGERING leg -- the run-up the trap filter reads.
+    TRIGGERING leg -- the option-premium run-up, which the trap read no longer
+    looks at and which several tests use to prove exactly that.
     """
     trig_rows = dict(pre or {})
     if trig is not None:
@@ -139,7 +199,7 @@ def _scene(n=21, trig=20, trig_row=BUY_D2_SD5, trig_leg="CE",
 # ---------------------------------------------------------------- 1. trigger
 
 def test_buy_fires_on_a_d2_tag_with_a_same_bar_reversal():
-    out = detect(_scene())
+    out = _run(_scene())
     assert len(out) == 21
     assert _shape(out) == [(20, "BUY", "CE", "d2", "CONFIRMED", "SUSPECT")]
     rec = out[20]
@@ -150,11 +210,11 @@ def test_buy_fires_on_a_d2_tag_with_a_same_bar_reversal():
 def test_a_tag_with_no_reversal_does_not_fire():
     # Identical to the firing case except the bar closes BELOW the band it
     # tagged. The touch is not the signal; the reversal is.
-    assert _fired(detect(_scene(trig_row=TAG_NO_REV))) == []
+    assert _fired(_run(_scene(trig_row=TAG_NO_REV))) == []
 
 
 def test_a_d3_tag_is_reported_as_d3_not_d2():
-    out = detect(_scene(trig_row=BUY_D3_SD5))
+    out = _run(_scene(trig_row=BUY_D3_SD5))
     assert _shape(out) == [(20, "BUY", "CE", "d3", "CONFIRMED", "SUSPECT")]
     assert "85.00" in out[20]["trigger"]
 
@@ -163,54 +223,54 @@ def test_sell_needs_u3_a_u2_reversal_is_not_a_sell():
     # The operator's asymmetry, encoded: buy at -2 OR -3 sigma, sell only at
     # +3. A +2 sigma tag that reverses is not a sell and must not be
     # "symmetrised" into one.
-    assert _fired(detect(_scene(trig_row=TAG_U2_REV, other_tag=None))) == []
-    out = detect(_scene(trig_row=SELL_U3_SD5, other_tag_row=UP_FROM_D2))
+    assert _fired(_run(_scene(trig_row=TAG_U2_REV, other_tag=None))) == []
+    out = _run(_scene(trig_row=SELL_U3_SD5, other_tag_row=UP_FROM_D2))
     assert _shape(out) == [(20, "SELL", "CE", "u3", "CONFIRMED", "SUSPECT")]
     assert "116.00" in out[20]["trigger"] and "115.00" in out[20]["trigger"]
 
 
 def test_a_sell_tag_with_no_reversal_does_not_fire():
-    assert _fired(detect(_scene(trig_row=(99.0, 117.0, 116.5)))) == []
+    assert _fired(_run(_scene(trig_row=(99.0, 117.0, 116.5)))) == []
 
 
 def test_nothing_fires_where_nothing_touches_a_band():
-    assert _fired(detect(_scene(trig=None, other_tag=None))) == []
+    assert _fired(_run(_scene(trig=None, other_tag=None))) == []
 
 
 # ---------------------------------------------------------------- 2. confirm
 
 def test_confirmation_needs_the_other_leg_coming_down_from_its_upper_band():
-    out = detect(_scene(other_tag=None))
+    out = _run(_scene(other_tag=None))
     assert out[20]["confirm"] == "UNCONFIRMED"
     assert "did not tag" in out[20]["confirm_why"]
 
-    out = detect(_scene())                      # PE tagged u2 six bars back
+    out = _run(_scene())                        # PE tagged u2 six bars back
     assert out[20]["confirm"] == "CONFIRMED"
     assert "110.00" in out[20]["confirm_why"]   # the u2 it came down from
 
 
 def test_a_stale_rotation_tag_outside_the_window_does_not_confirm():
     # Same tag, but 20 bars back rather than 6: the pair is not rotating now.
-    out = detect(_scene(n=32, trig=31, other_tag=5))
+    out = _run(_scene(n=32, trig=31, other_tag=5))
     assert out[31]["confirm"] == "UNCONFIRMED"
 
 
 def test_the_other_leg_must_be_back_below_the_band_it_tagged():
     # It tagged u2 and is still sitting on it at the trigger bar -- stretched,
     # not rotating.
-    out = detect(_scene(other_tag=20, other_tag_row=(109.0, 111.0, 111.0)))
+    out = _run(_scene(other_tag=20, other_tag_row=(109.0, 111.0, 111.0)))
     assert out[20]["confirm"] == "UNCONFIRMED"
 
 
 def test_oi_deceleration_is_required_on_both_legs():
-    base = detect(_scene())
+    base = _run(_scene())
     assert base[20]["confirm"] == "CONFIRMED"
 
-    slowing = detect(_scene(ce_oi=_accel(21)))
+    slowing = _run(_scene(ce_oi=_accel(21)))
     assert slowing[20]["confirm"] == "UNCONFIRMED"
     assert "CE" in slowing[20]["confirm_why"]
 
-    slowing = detect(_scene(pe_oi=_accel(21, base=80000.0)))
+    slowing = _run(_scene(pe_oi=_accel(21, base=80000.0)))
     assert slowing[20]["confirm"] == "UNCONFIRMED"
     assert "PE" in slowing[20]["confirm_why"]
 
@@ -218,17 +278,17 @@ def test_oi_deceleration_is_required_on_both_legs():
 def test_oi_read_is_rank_and_sign_only_not_a_lot_count():
     # The same OI SHAPE at a hundred times the size decides the same way.
     big = [v * 100.0 for v in _decel(21)]
-    assert detect(_scene(ce_oi=big))[20]["confirm"] == "CONFIRMED"
+    assert _run(_scene(ce_oi=big))[20]["confirm"] == "CONFIRMED"
 
 
 def test_too_little_oi_history_is_unknown_not_confirmed():
-    out = detect(_scene(n=9, trig=8, other_tag=4))
+    out = _run(_scene(n=9, trig=8, other_tag=4))
     assert out[8]["confirm"] == "UNKNOWN"
     assert "OI" in out[8]["confirm_why"]
 
 
 def test_a_missing_other_leg_bar_yields_unknown_never_a_fabricated_read():
-    out = detect(_scene(holes=(20,)))
+    out = _run(_scene(holes=(20,)))
     assert out[20]["side"] == "BUY"            # our own leg still triggered
     assert out[20]["confirm"] == "UNKNOWN"
     assert "did not print" in out[20]["confirm_why"]
@@ -237,13 +297,13 @@ def test_a_missing_other_leg_bar_yields_unknown_never_a_fabricated_read():
 def test_a_hole_inside_the_rotation_window_is_unknown_not_absence():
     # No tag among the bars we could read, but bars we could not read sit
     # inside the window: that is "we cannot tell", not "it did not happen".
-    out = detect(_scene(other_tag=None, holes=(14, 15)))
+    out = _run(_scene(other_tag=None, holes=(14, 15)))
     assert out[20]["confirm"] == "UNKNOWN"
 
 
 def test_a_single_leg_request_confirms_nothing_rather_than_inventing_it():
     legs = _scene()
-    out = detect({"CE": legs["CE"]})
+    out = _run({"CE": legs["CE"]})
     assert out[20]["side"] == "BUY"
     assert out[20]["confirm"] == "UNKNOWN"
 
@@ -255,13 +315,13 @@ def test_a_heavy_book_on_the_bought_side_does_not_suppress_the_signal():
     the last band so we can except a bounce from there'. Buying the PE while
     the PE book is enormous is the setup, not a reason to stay out."""
     n = 21
-    light = detect(_scene(trig_leg="PE", trig_row=BUY_D2_SD5,
-                          other_tag_row=TAG_U2_REV))
+    light = _run(_scene(trig_leg="PE", trig_row=BUY_D2_SD5,
+                        other_tag_row=TAG_U2_REV))
     # The same PE book, 250x bigger and 5 million lots deep: put-heavy, and
     # the leg being bought is the put.
     heavy_oi = [v * 250.0 + 5_000_000.0 for v in _decel(n, base=80000.0)]
-    heavy = detect(_scene(trig_leg="PE", trig_row=BUY_D2_SD5,
-                          other_tag_row=TAG_U2_REV, pe_oi=heavy_oi))
+    heavy = _run(_scene(trig_leg="PE", trig_row=BUY_D2_SD5,
+                        other_tag_row=TAG_U2_REV, pe_oi=heavy_oi))
 
     assert _shape(light) == [(20, "BUY", "PE", "d2", "CONFIRMED", "SUSPECT")]
     assert _shape(heavy) == _shape(light)
@@ -269,143 +329,203 @@ def test_a_heavy_book_on_the_bought_side_does_not_suppress_the_signal():
 
 # ------------------------------------------------------------------- 4. trap
 
-def _coil(n=21, wide_to=15, box=NARROW):
-    """Wide range all session, then a coil of `box` bars up to the trigger."""
-    return {**{i: WIDE for i in range(wide_to)},
-            **{i: box for i in range(wide_to, n - 1)}}
+def test_no_index_series_is_unknown_and_never_clear():
+    """The whole point of the rebuild: the squeeze is read on the index. With
+    no index series there is no read, and 'we could not check' must never be
+    reported as 'we checked and it is fine'."""
+    rec = detect(_scene(pre={i: NARROW for i in range(20)}))[20]
+    assert rec["trap"] == "UNKNOWN"
+    assert rec["trap_dwell"] is None
+    assert "no index series was supplied" in rec["trap_why"]
+    assert "never" in rec["trap_why"]          # ... fallen back to premium
 
 
-def _taper(a, b, spread=0.30, step=0.02):
-    """A coil that keeps TIGHTENING: bar `a` spans `spread` and every bar
-    after it a step less, so each rolling range reading is a new low and the
-    dwell can run the whole length of it. Everything before `a` is WIDE."""
-    rows = {i: WIDE for i in range(a)}
-    for k in range(a, b):
-        half = (spread - step * (k - a)) / 2
-        rows[k] = (100.0 - half, 100.0 + half, 100.0)
-    return rows
-
-
-def test_trap_clear_when_price_coiled_into_the_move():
-    out = detect(_scene(pre=_coil()))
-    rec = out[20]
+def test_trap_clear_when_the_index_band_squeezed_into_the_move():
+    rec = _run(_scene(), idx=_ix(_squeeze(21)))[20]
     assert rec["trap"] == "CLEAR"
     assert "rank" in rec["trap_why"] and "narrowing" in rec["trap_why"]
+    assert "50.0 points" in rec["trap_why"]    # the width it really measured
     assert rec["trap_dwell"] == 5
     assert "for 5 consecutive bar(s)" in rec["trap_why"]
 
 
-def test_the_band_envelope_does_not_decide_it_price_does():
-    """The operator's own chart is a WIDE +/-1 sigma region with price
-    grinding in a thin strip inside it. Widening every band while leaving
-    price alone must not change the verdict, and squeezing every band while
-    price keeps swinging must not manufacture one."""
-    coil = _coil()
-    tight_bands = detect(_scene(pre=coil, sds=[1.0] * 21))
-    wide_bands = detect(_scene(pre=coil, sds=[5.0] * 21))
-    assert tight_bands[20]["trap"] == wide_bands[20]["trap"] == "CLEAR"
+def test_the_option_leg_does_not_decide_it_the_index_band_does():
+    """The correction of 2026-07-31, locked down in both directions. Version
+    two of this module ranked the OPTION's price range; version one ranked the
+    OPTION's band width over its own decaying VWAP. Neither may be able to
+    move this verdict again."""
+    n = 21
+    coil = {**{i: WIDE for i in range(15)}, **{i: NARROW for i in range(15, 20)}}
 
-    # No coil in price; bands squeezed hard right before the move. The old
-    # band-width filter called this compression -- it is not.
-    squeezed = detect(_scene(sds=[10.0] * 15 + [3.0] * 5 + [10.0],
-                             trig_row=BUY_D2_SD10))
-    assert _shape(squeezed) == [(20, "BUY", "CE", "d2", "CONFIRMED",
-                                 "SUSPECT")]
+    # (a) The index squeezed. Whatever the option premium did -- coiled,
+    # swung, or had its own bands squeezed or blown out -- the answer is the
+    # index's answer.
+    sq = _ix(_squeeze(n))
+    assert _run(_scene(), idx=sq)[20]["trap"] == "CLEAR"
+    assert _run(_scene(pre=coil), idx=sq)[20]["trap"] == "CLEAR"
+    assert _run(_scene(sds=[1.0] * n), idx=sq)[20]["trap"] == "CLEAR"
+    wide_bands = _scene(sds=[10.0] * 15 + [3.0] * 5 + [10.0],
+                        trig_row=BUY_D2_SD10)
+    assert _run(wide_bands, idx=sq)[20]["trap"] == "CLEAR"
+
+    # (b) The index did NOT squeeze. A hard coil in the premium must not
+    # manufacture a CLEAR out of it.
+    assert _run(_scene(pre=coil))[20]["trap"] == "SUSPECT"
+    assert _run(_scene(pre=coil), idx=_flat(n))[20]["trap"] == "SUSPECT"
 
 
 def test_trap_suspect_says_what_it_measured_and_asserts_no_expansion():
     """Regression: the receipt used to claim 'bands were already wide ... no
-    prior coil' at every non-CLEAR rank, including a session where the range
+    prior coil' at every non-CLEAR rank, including a session where the width
     never changed at all. It must state the measurement, not an event."""
-    rec = detect(_scene())[20]                 # every bar the same width
+    rec = _run(_scene())[20]                   # every index reading the same
     assert rec["trap"] == "SUSPECT"
     why = rec["trap_why"]
     assert "already wide" not in why and "expanding" not in why
     assert "rank 1.00" in why and "not in the bottom 30%" in why
-    assert "flat" in why                       # what the range actually did
+    assert "flat" in why                       # what the band actually did
+    assert "100.0 points" in why
 
 
-def test_a_narrow_range_that_is_already_expanding_is_suspect():
+def test_a_tight_band_that_is_already_expanding_is_suspect():
     """*'the whole vwap bands are expanding not narrowing or staying flat'* --
     the level alone is not enough, the direction of change is a second read.
-    Here the range still ranks in the bottom 30% but it has already started
-    opening up, so the coil was breaking before the trigger bar."""
+    Here the index band still ranks in the bottom 30% but it has already
+    started opening up, so the squeeze was releasing before the trigger."""
     n = 31
-    pre = {**{i: WIDE for i in range(20)},
-           **{i: TIGHT for i in range(20, 25)},
-           **{i: NARROW for i in range(25, 30)}}
-    rec = detect(_scene(n=n, trig=30, other_tag=24, pre=pre))[30]
+    widths = ([100.0] * 20 + [40.0, 38.0, 36.0, 34.0, 32.0]
+              + [33.0, 34.0, 35.0, 36.0, 37.0] + [100.0])
+    rec = _run(_scene(n=n, trig=30, other_tag=24), idx=_ix(widths))[30]
     assert rec["trap"] == "SUSPECT"
-    assert "bottom 30%" in rec["trap_why"]     # it WAS narrow
+    assert "bottom 30%" in rec["trap_why"]     # it WAS tight
     assert "expanding" in rec["trap_why"]      # and that is why it failed
     assert rec["trap_dwell"] == 10
 
 
-def test_dwell_counts_how_long_the_range_has_stayed_that_narrow():
+def test_dwell_counts_how_long_the_index_band_has_stayed_that_tight():
     """*'is its a good thing to notice ... for how long the price are in this
-    range'*. A coil that keeps tightening for 15 bars reports 15; a five-bar
-    one reports five; a session that never compressed reports none. The count
-    is a separate reading from the rank and never changes the verdict."""
+    range'*. A squeeze that keeps tightening for 15 bars reports 15; a
+    five-bar one reports five; a session whose band never moved reports none.
+    The count is a separate reading from the rank and never gates."""
     n = 61
-    long_coil = detect(_scene(n=n, trig=60, other_tag=54,
-                              pre=_taper(45, 60)))[60]
+    long_taper = [100.0] * 45 + [45.0 - k for k in range(15)] + [100.0]
+    long_coil = _run(_scene(n=n, trig=60, other_tag=54),
+                     idx=_ix(long_taper))[60]
     assert long_coil["trap"] == "CLEAR"
     assert long_coil["trap_dwell"] == 15
     assert "for 15 consecutive bar(s)" in long_coil["trap_why"]
 
-    short_coil = detect(_scene(pre=_coil()))[20]
+    short_coil = _run(_scene(), idx=_ix(_squeeze(21)))[20]
     assert short_coil["trap"] == "CLEAR"
     assert short_coil["trap_dwell"] == 5
 
-    flat = detect(_scene())[20]                 # never compressed at all
+    flat = _run(_scene())[20]                   # never compressed at all
     assert flat["trap_dwell"] == 0
-    assert "not holding a narrow range" in flat["trap_why"]
+    assert "not holding a tight width" in flat["trap_why"]
 
 
 def test_no_compression_verdict_before_the_operators_0925_anchor():
     """*'by 9:25 we have the values for vwap standard deviation and from there
     we judge'*. The anchor is read off the bar's own clock label, so it lands
-    at 09:25 whatever the bar interval is."""
-    early = detect(_scene(n=11, trig=9, other_tag=4))[9]     # 09:24
-    assert early["trap"] == "UNKNOWN"
+    at 09:25 whatever the bar interval is, and it is checked even when a
+    perfectly good index series is sitting right there."""
+    early = _run(_scene(n=11, trig=9, other_tag=4), idx=_ix(_squeeze(11)))[9]
+    assert early["trap"] == "UNKNOWN"          # 09:24
     assert "09:25" in early["trap_why"] and "09:24" in early["trap_why"]
 
-    # One bar later is past the anchor -- and still UNKNOWN, but now for the
-    # honest reason that there is nothing to rank against yet.
-    late = detect(_scene(n=12, trig=10, other_tag=4))[10]    # 09:25
-    assert late["trap"] == "UNKNOWN"
-    assert "history" in late["trap_why"] and "09:25" not in late["trap_why"]
+    # Past the anchor, but the index feed only starts at 09:18 -- so there are
+    # 7 readings before the move where 10 are needed. Still UNKNOWN, and now
+    # for the honest reason that there is not enough to rank.
+    late = _run(_scene(n=12, trig=10, other_tag=4),
+                idx=_ix([100.0] * 9, t0=3))[10]
+    assert late["trap"] == "UNKNOWN"           # 09:25
+    assert "7 index band reading(s)" in late["trap_why"]
+    assert "09:25" not in late["trap_why"]
 
 
 def test_an_unlabelled_bar_is_unknown_rather_than_assumed_late_enough():
-    legs = _scene(pre=_coil())
+    legs = _scene()
     legs["CE"]["bars"][20] = dict(legs["CE"]["bars"][20], t=None)
-    rec = detect(legs)[20]
+    rec = _run(legs, idx=_ix(_squeeze(21)))[20]
     assert rec["trap"] == "UNKNOWN"
     assert rec["trap_dwell"] is None
     assert "clock" in rec["trap_why"]
 
 
-def test_trap_range_is_normalised_so_a_bigger_premium_is_not_wider():
-    coil = _coil()
-    small = detect(_scene(pre=coil))
-    big = detect(_scene(pre=coil, scale=9.0))
-    assert small[20]["trap"] == big[20]["trap"] == "CLEAR"
-    assert small[20]["trap_dwell"] == big[20]["trap_dwell"]
-
-
 def test_the_rank_is_trailing_not_session_so_far():
     """The first version ranked against the session so far, which -- because
-    sigma accumulates from the 09:15 anchor -- measured how LATE it was. The
-    same coil must read the same whether it sits early or late in a session."""
-    early = detect(_scene(n=21, trig=20, other_tag=14, pre=_coil()))[20]
-    late = detect(_scene(n=61, trig=60, other_tag=54,
-                         pre=_coil(n=61, wide_to=55)))[60]
+    it normalised by a DECAYING premium VWAP -- measured how LATE it was. The
+    same index squeeze must read the same whether it sits early or late."""
+    early = _run(_scene(n=21, trig=20, other_tag=14), idx=_ix(_squeeze(21)))[20]
+    late = _run(_scene(n=61, trig=60, other_tag=54), idx=_ix(_squeeze(61)))[60]
     assert early["trap"] == late["trap"] == "CLEAR"
     assert early["trap_dwell"] == late["trap_dwell"] == 5
 
 
-# --------------------------------------------------------------- 4b. one bar
+# ------------------------------------------- 4b. the operator's own session
+
+# Their Kite export of NIFTY AUG FUT for 2026-07-30, +/-3 sigma width in
+# points, reproduced from the CSV in the spec. Every figure is theirs.
+PHASES = [("09:15", 104.7), ("09:25", 104.7), ("10:20", 93.0),
+          ("10:40", 105.3), ("11:50", 100.9), ("12:30", 87.4),
+          ("12:40", 163.7), ("13:00", 173.2), ("15:29", 172.3)]
+
+
+def _reference_widths():
+    """The phase table interpolated to one reading a minute from 09:15."""
+    pts = [(int(t[:2]) * 60 + int(t[3:]) - (9 * 60 + 15), w) for t, w in PHASES]
+    out = []
+    for m in range(pts[-1][0] + 1):
+        k = max(j for j in range(len(pts)) if pts[j][0] <= m)
+        if k == len(pts) - 1:
+            out.append(pts[k][1])
+            continue
+        (m0, w0), (m1, w1) = pts[k], pts[k + 1]
+        out.append(w0 + (w1 - w0) * (m - m0) / (m1 - m0))
+    return out
+
+
+def _at_clock(hhmm, other_back=6):
+    """A CONFIRMED trigger at wall-clock `hhmm` of the reference session."""
+    i = int(hhmm[:2]) * 60 + int(hhmm[3:]) - (9 * 60 + 15)
+    widths = _reference_widths()
+    legs = _scene(n=i + 1, trig=i, other_tag=i - other_back)
+    return _run(legs, idx=_ix(widths[:i + 1]))[i]
+
+
+def test_the_operators_reference_squeeze_at_1230_reads_as_a_squeeze():
+    """ACCEPTANCE. *"squeeze 2 ... 12:30 87.4 -- day's tightest"*. A correct
+    implementation has to see the 11:50 -> 12:30 contraction."""
+    rec = _at_clock("12:30")
+    assert rec["trap"] == "CLEAR"
+    assert "narrowing" in rec["trap_why"]
+    assert "87." in rec["trap_why"]            # the width they quoted
+    assert rec["trap_dwell"] >= 10             # a long, real coil
+
+
+def test_the_1240_blast_out_of_it_is_not_a_squeeze():
+    """ACCEPTANCE, the other half. *"blast 12:40 163.7"* -- by then the band
+    has nearly doubled in ten minutes, so a trigger there broke out of an
+    EXPANSION, not a coil, and must not be reported as clean."""
+    rec = _at_clock("12:40")
+    assert rec["trap"] == "SUSPECT"
+    assert "expanding" in rec["trap_why"]
+    assert rec["trap_dwell"] == 0
+
+    # ... and the plateau after it is no better.
+    assert _at_clock("13:00")["trap"] == "SUSPECT"
+
+
+def test_the_reference_session_is_not_one_long_verdict():
+    """The failure mode of version one was a filter that said the same thing
+    all day (band width grew monotonically, so lateness WAS the verdict). On
+    the operator's own session the answer must actually change."""
+    seen = {_at_clock(t)["trap"] for t in
+            ("10:20", "11:50", "12:30", "12:40", "13:00", "15:00")}
+    assert seen == {"CLEAR", "SUSPECT"}
+
+
+# --------------------------------------------------------------- 4c. one bar
 
 def test_when_both_legs_fire_on_one_bar_the_loser_is_named_not_dropped():
     """Both legs at their extremes on one minute is the operator's rotation in
@@ -414,7 +534,7 @@ def test_when_both_legs_fire_on_one_bar_the_loser_is_named_not_dropped():
     n = 21
     ce = _leg(_rows(n, {20: BUY_D2_SD5}), _decel(n))
     pe = _leg(_rows(n, {20: BUY_D3_SD5}), _decel(n, base=80000.0))
-    out = detect({"CE": ce, "PE": pe})
+    out = _run({"CE": ce, "PE": pe})
     assert len(_fired(out)) == 1               # still exactly one per bar
     rec = out[20]
     assert (rec["leg"], rec["band"]) == ("PE", "d3")     # deeper sigma wins
@@ -427,14 +547,14 @@ def test_an_equal_sigma_tie_goes_to_ce_and_still_names_the_pe_hit():
     n = 21
     ce = _leg(_rows(n, {20: BUY_D2_SD5}), _decel(n))
     pe = _leg(_rows(n, {20: BUY_D2_SD5}), _decel(n, base=80000.0))
-    out = detect({"CE": ce, "PE": pe})
+    out = _run({"CE": ce, "PE": pe})
     assert len(_fired(out)) == 1
     assert (out[20]["leg"], out[20]["band"]) == ("CE", "d2")
     assert out[20]["also"] and out[20]["also"][0].startswith("PE low")
 
 
 def test_a_lone_hit_names_no_other_leg():
-    assert detect(_scene())[20]["also"] is None
+    assert _run(_scene())[20]["also"] is None
 
 
 # -------------------------------------------------------------- 5. causality
@@ -442,51 +562,98 @@ def test_a_lone_hit_names_no_other_leg():
 def test_truncation_reproduces_the_full_records_exactly():
     """Bar i is a function of bars <= i, so replaying half the session must
     reproduce the first half's records field for field -- not merely the same
-    number of them."""
+    number of them. The index series is bounded by the bar's own clock label,
+    so this holds whether or not the index is truncated alongside the legs."""
     legs = _scene(n=21, trig=20, other_tag=14)
     legs["CE"]["bars"][12] = dict(legs["CE"]["bars"][12],
                                   l=89.0, h=101.0, c=100.0)
-    full = detect(legs)
+    idx = _ix(_squeeze(21))
+    full = _run(legs, idx=idx)
     assert full[12] is not None and full[20] is not None
 
     for k in (13, 15, 18, 21):
         cut = {s: {"bars": leg["bars"][:k], "vwap": leg["vwap"][:k],
                    "oi": leg["oi"][:k], "bar_days": leg["bar_days"][:k]}
                for s, leg in legs.items()}
-        assert detect(cut) == full[:k], f"replay diverged at k={k}"
+        cut_idx = {"bars": idx["bars"][:k], "vwap": idx["vwap"][:k],
+                   "bar_days": idx["bar_days"][:k]}
+        assert _run(cut, idx=idx) == full[:k], f"replay diverged at k={k}"
+        assert _run(cut, idx=cut_idx) == full[:k], f"both cut, k={k}"
+
+
+def test_a_later_index_reading_cannot_change_an_earlier_record():
+    """The index join is by clock label, so nothing stops a caller handing in
+    the WHOLE session's index series while replaying its first half. Bars
+    after the trigger's label must be invisible to it."""
+    legs = _scene(n=21, trig=12, other_tag=6)
+    widths = _squeeze(21)
+    before = _run(legs, idx=_ix(widths))[12]
+    blown = widths[:13] + [9999.0] * 8
+    assert _run(legs, idx=_ix(blown))[12] == before
 
 
 def test_a_later_bar_cannot_change_an_earlier_record():
     legs = _scene(n=21, trig=12, other_tag=6)
-    before = detect(legs)
+    before = _run(legs)
     legs["CE"]["bars"][20] = dict(legs["CE"]["bars"][20], l=1.0, c=100.0)
-    assert detect(legs)[:13] == before[:13]
+    assert _run(legs)[:13] == before[:13]
 
 
 def test_sessions_do_not_bleed_into_each_other():
-    # Two sessions on one axis: yesterday's compression cannot rank today's
-    # bar, and yesterday's tag cannot confirm today's trigger.
+    # Two sessions on one axis: yesterday's squeeze cannot rank today's bar,
+    # and yesterday's tag cannot confirm today's trigger.
     n = 21
     legs = _scene(n=n, trig=20, other_tag=14)
+    days = [DAY] * 15 + [DAY2] * 6
     for leg in legs.values():
-        leg["bar_days"] = [DAY] * 15 + ["2026-07-31"] * 6
-    out = detect(legs)
+        leg["bar_days"] = list(days)
+    out = _run(legs, idx=_ix_days(_squeeze(n), days))
     assert out[20]["confirm"] == "UNCONFIRMED"   # the tag is in the prior day
-    assert out[20]["trap"] == "UNKNOWN"          # only 7 bars of today
+    assert out[20]["trap"] == "UNKNOWN"          # only 5 index readings today
+    assert "5 index band reading(s)" in out[20]["trap_why"]
+
+
+def test_an_unlabelled_index_series_is_refused_across_sessions():
+    """A series with no session labels is a single-session series. Joining it
+    onto a two-day axis would let one day's band rank the other day's bar --
+    the exact leak `bar_days` exists to stop -- so it is refused, not guessed
+    at."""
+    n = 21
+    legs = _scene(n=n, trig=20, other_tag=14)
+    days = [DAY] * 15 + [DAY2] * 6
+    for leg in legs.values():
+        leg["bar_days"] = list(days)
+    idx = _ix(_squeeze(n))
+    idx["bar_days"] = [None] * n
+    rec = _run(legs, idx=idx)[20]
+    assert rec["trap"] == "UNKNOWN"
+    assert "no session labels" in rec["trap_why"] and "2 sessions" in rec["trap_why"]
 
 
 # ----------------------------------------------------------- 6. independence
 
-def test_index_independence_the_same_shape_at_any_premium_magnitude():
-    """NIFTY premiums live near 100, BANKNIFTY/SENSEX near 1000. Scaling the
-    whole series must not change a single signal -- if it does, an absolute
-    market threshold crept in."""
-    coil = _coil()
-    ref = _shape(detect(_scene(pre=coil)))
+def test_index_independence_the_same_shape_at_any_magnitude():
+    """NIFTY premiums live near 100 and the index near 24,000; SENSEX is
+    ~80,000 with premiums to match. Scaling BOTH series must not change a
+    single signal -- if it does, an absolute market threshold crept in. It
+    works because a rank is invariant under rescaling and the direction test
+    reads only a sign, so no normaliser is needed at all."""
+    widths = _squeeze(21)
+    ref = _shape(_run(_scene(), idx=_ix(widths)))
     assert ref and ref[0][-1] == "CLEAR"
     for k in (0.4, 3.0, 8.0, 25.0):
-        got = _shape(detect(_scene(pre=coil, scale=k)))
+        got = _shape(_run(_scene(scale=k), idx=_ix(widths, scale=k)))
         assert got == ref, f"scale {k} changed the signals"
+
+
+def test_the_index_level_itself_is_never_read():
+    """Only the DISTANCE between the bands is. Sliding the whole index up or
+    down without changing its width must not move a verdict."""
+    widths = _squeeze(21)
+    base = _run(_scene(), idx=_ix(widths))[20]
+    for level in (1000.0, 24000.0, 82000.0):
+        assert _run(_scene(), idx=_ix(widths, level=level))[20]["trap"] == \
+            base["trap"]
 
 
 # ------------------------------------------------------------- 7. junk input
@@ -498,30 +665,57 @@ def test_junk_input_returns_empty_and_never_raises():
     assert detect({"CE": {"bars": [], "vwap": [], "oi": []}}) == []
 
 
+def test_a_junk_index_series_is_unknown_and_never_raises():
+    for junk in (42, "no", [], {}, [None, 7], {"bars": "no"},
+                 [{"t": "09:30"}], {"bars": [{"t": "09:30"}], "vwap": [None]}):
+        rec = _run(_scene(), idx=junk)[20]
+        assert rec["trap"] == "UNKNOWN", junk
+        assert rec["trap_dwell"] is None
+
+
+def test_a_flat_index_shape_is_accepted_too():
+    """`/api/data`'s `day.bars[].fut` carries the band keys on the bar itself
+    and `vwap` as a NUMBER, so the two accepted shapes cannot be confused."""
+    widths = _squeeze(21)
+    leg_shape = _run(_scene(), idx=_ix(widths))
+    flat = []
+    for k, w in enumerate(widths):
+        flat.append({"day": DAY, "t": _t(k), "vwap": LEVEL,
+                     "u3": LEVEL + w / 2.0, "d3": LEVEL - w / 2.0})
+    assert _run(_scene(), idx=flat) == leg_shape
+
+
 def test_a_none_bar_on_the_firing_leg_simply_has_no_record():
     legs = _scene()
     legs["CE"]["bars"][20] = None
     legs["CE"]["vwap"][20] = None
-    assert _fired(detect(legs)) == []
+    assert _fired(_run(legs)) == []
 
 
 def test_a_missing_band_is_not_treated_as_zero():
     legs = _scene()
     legs["CE"]["vwap"][20] = dict(legs["CE"]["vwap"][20], d2=None, d3=None)
-    assert _fired(detect(legs)) == []
+    assert _fired(_run(legs)) == []
 
 
 def test_a_whole_contract_payload_is_accepted_too():
     legs = _scene()
-    payload = {"legs": legs, "axis": [[DAY, _t(i)] for i in range(21)]}
-    assert detect(payload) == detect(legs)
+    idx = _ix(_squeeze(21))
+    payload = {"legs": legs, "axis": [[DAY, _t(i)] for i in range(21)],
+               "index": "NIFTY",              # the NAME, not the series
+               "index_series": idx}
+    assert detect(payload) == detect(legs, [(DAY, _t(i)) for i in range(21)],
+                                     index_series=idx)
+    assert detect(payload)[20]["trap"] == "CLEAR"
 
 
 def test_the_named_constants_are_documented_windows_not_price_levels():
-    for name in ("ROTATION_WINDOW", "OI_WINDOW", "RANGE_WINDOW",
-                 "TRAIL_WINDOW", "TRAIL_MIN"):
+    for name in ("ROTATION_WINDOW", "OI_WINDOW", "TRAIL_WINDOW", "TRAIL_MIN",
+                 "TREND_WINDOW"):
         assert isinstance(getattr(band_rotation, name), int)
     assert 0.0 < band_rotation.COMPRESSION_RANK < 1.0
+    # The width is a DIFFERENCE of two band names, never a points threshold.
+    assert band_rotation.WIDTH_BANDS == ("u3", "d3")
     # The one clock time in the module is the operator's own 09:25 anchor --
     # a session landmark, not a market level.
     assert band_rotation.ANCHOR_HHMM == "09:25"

@@ -267,15 +267,29 @@ CLEAR happened twice in 73 sessions. Two separate reasons, both now understood:
    index underneath it. Any width measure on premium must use ABSOLUTE width or
    a stable denominator, never the decaying premium VWAP.
 
-   *(OPEN: the operator watches both charts; confirm that squeeze is judged on
-   the index while entry is taken on the option, before building it that way.)*
+   **ANSWERED 2026-07-31 — *"squeeze on index entry on option chart"*.** The
+   operator confirmed it in those words, so `band_rotation.detect` now takes
+   an optional index series and reads `u3 - d3` in POINTS off it, ranked
+   against a trailing window, with the trigger untouched on the option leg.
+   Without that series the compression verdict is `UNKNOWN` and never falls
+   back to premium. Measured on their own reference session (real Dhan FUT
+   58072, 2026-07-30, 3-minute): our widths reproduce their Kite export to
+   within ~2% (09:25 97.7 vs 104.7, 12:30 85.8 vs 87.4, 12:40 160.2 vs 163.7,
+   13:00 170.3 vs 173.2 — the same shape, our incremental-variance estimate
+   sitting ~1.8% low), the 12:30 bar reads `CLEAR` at rank 0.03 with a 13-bar
+   dwell, and every bar from 12:33 onward reads `SUSPECT`, expanding. The two
+   triggers that actually fired around the reference trap — 12:33 SELL CE u3
+   and 12:36 BUY PE d2 — are both `SUSPECT`.
 
-So compression is measured on **price**, not on the envelope:
+So compression is measured on the **index's own VWAP band**, in points:
 
-- **Range** — the high/low range over a trailing window, normalised (by VWAP,
-  or by the band width so it reads as "how much of the available room is price
-  actually using"), ranked against a **trailing** window rather than the
-  session so far, so "narrow" means narrow relative to recently.
+- **Width** — `u3 - d3` on the INDEX, absolute and never divided by a VWAP,
+  ranked against a **trailing** window rather than the session so far, so
+  "narrow" means narrow relative to recently. (An intermediate version ranked
+  the option's PRICE range instead; it was better than version one but it was
+  still reading the wrong instrument, and the operator's correction above
+  settles which.) A rank is invariant under rescaling, so the points stay
+  index-independent with no normaliser at all.
 - **Dwell** — *"is its a good thing to notice or keep in mind for how long the
   price are in this range"*: yes. How many consecutive bars price has held that
   narrow range is a separate signal from how narrow it is. A thin range held for
@@ -333,8 +347,10 @@ COILING states · `inside1` · pivots · PDH/PDL/PDC and premium/discount
 3. **Band-extreme + reversal detection — ONE symmetric detector**, tuned per
    series (premium vs index): lower band → buy side, +3σ → sell side.
 4. **OI acceleration** — the slope of `oi_slope`, per book, both sides.
-5. **The compression→expansion trap filter** over `bw_r`, plus naming the
-   trapped side from wall OI.
+5. **The compression→expansion trap filter** over the INDEX band width (done,
+   2026-07-31: `band_rotation._trap` + `live.build_contract`'s `index_series`,
+   futures id resolved per session so a backfill charts the future that was
+   current then), plus naming the trapped side from wall OI (not done).
 6. **The regime selector** — PINNED/COILING favours the sell side, a moving day
    favours the buy side. Inputs all exist (`inside1`, `bw_r`, `gamma.regime`,
    BALANCE/COILING).

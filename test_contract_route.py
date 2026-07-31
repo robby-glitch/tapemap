@@ -433,6 +433,139 @@ def test_rotation_rule_states_the_ui_must_not_recompute():
     assert "axis" in live.ROTATION_RULE
 
 
+# ---- 5d. the INDEX series the compression read is taken from ---------------
+
+def _fut(day, n, swing):
+    """A futures payload whose per-bar deviation follows `swing`, so the
+    sigma bands widen or narrow on demand. Volume is constant, so the
+    incremental-variance recurrence is driven by the deviations alone."""
+    t0 = datetime.strptime(day, "%Y-%m-%d").replace(
+        hour=9, minute=15, tzinfo=IST).timestamp()
+    p = {k: [] for k in ("open", "high", "low", "close", "volume",
+                         "open_interest", "timestamp")}
+    for i in range(n):
+        s = swing[i] if i < len(swing) else swing[-1]
+        c = 24000.0 + (s if i % 2 else -s)
+        p["open"].append(c)
+        p["high"].append(c + 1.0)
+        p["low"].append(c - 1.0)
+        p["close"].append(c)
+        p["volume"].append(1000.0)
+        p["open_interest"].append(1_000_000)
+        p["timestamp"].append(t0 + 60 * i)
+    return p
+
+
+def _with_index(monkeypatch, swing, n=20, spike_at=14):
+    import chain_live
+
+    monkeypatch.setattr(chain_live, "read_token", lambda: "tok")
+    monkeypatch.setattr(chain_live, "token_status", lambda t: {"ok": True})
+    monkeypatch.setattr(chain_live, "_client", lambda t: object())
+    monkeypatch.setattr(chain_live, "_with_deadline", lambda fn, s, label: fn())
+    monkeypatch.setattr(chain_live, "resolve_expiry", lambda *a, **k: "2026-08-04")
+    monkeypatch.setattr(live, "_atm_ids", lambda k, cfg: {"CE": "111", "PE": "222"})
+
+    return live.build_contract(
+        "NIFTY", strike=24350, side="BOTH", interval=1, days=1,
+        day="2026-07-30", chain_rows=[],
+        fetch=lambda sec_id, day: _osc(day, n, "CE" if sec_id == "111"
+                                       else "PE", spike_at),
+        index_fetch=lambda day: _fut(day, n, swing))
+
+
+def test_the_index_series_rides_along_and_is_what_the_detector_read(monkeypatch):
+    import band_rotation
+
+    out = _with_index(monkeypatch, [30.0] * 10 + [0.2] * 10)
+    idx = out["index_series"]
+    assert out["index_series_why"] is None
+    assert idx["instrument"] == "FUTIDX"
+    # an injected index_fetch resolves no security id, and says so by leaving
+    # the field null rather than inventing one
+    assert idx["security_id"] is None
+    for key in ("bars", "vwap", "oi", "bar_days"):
+        assert len(idx[key]) == 20
+    # bar 0 has no variance yet, so its band is a point; bar 1 onward is real
+    assert idx["vwap"][0]["u3"] == idx["vwap"][0]["d3"]
+    assert idx["vwap"][5]["u3"] > idx["vwap"][5]["d3"]
+    assert out["index_series_rule"] == live.INDEX_SERIES_RULE
+
+    axis = [tuple(a) for a in out["axis"]]
+    assert out["rotation"] == band_rotation.detect(out["legs"], axis,
+                                                   index_series=idx)
+    # and the payload is accepted whole: `index` is the NAME, the series has
+    # its own key, so unwrapping cannot confuse them
+    assert out["index"] == "NIFTY"
+    assert out["rotation"] == band_rotation.detect(out)
+
+
+def test_the_index_series_and_not_the_option_legs_decides_the_trap(monkeypatch):
+    """The same option legs, the same trigger, two different index tapes: a
+    futures band that is CALMING into the move versus one blowing out. If the
+    verdict were still being read off the premium these would agree."""
+    calm = _with_index(monkeypatch, [30.0] * 10 + [0.2] * 10)
+    wild = _with_index(monkeypatch, [0.2] * 10 + [30.0] * 10)
+
+    c = [r for r in calm["rotation"] if r][0]
+    w = [r for r in wild["rotation"] if r][0]
+    assert (c["i"], c["side"], c["leg"]) == (w["i"], w["side"], w["leg"])
+    assert c["trap"] == "CLEAR" and w["trap"] == "SUSPECT"
+    assert "index band" in c["trap_why"] and "points" in c["trap_why"]
+
+
+def test_without_an_index_fetch_the_trap_is_unknown_never_clear(monkeypatch):
+    """An injected `fetch` with no `index_fetch` makes no index call at all --
+    and the honest consequence is UNKNOWN on every bar, not a verdict guessed
+    off the premium."""
+    out = _rotation_contract(monkeypatch)
+    assert out["index_series"] is None
+    assert "index_fetch" in out["index_series_why"]
+    fired = [r for r in out["rotation"] if r]
+    assert fired
+    for r in fired:
+        assert r["trap"] == "UNKNOWN"
+        assert r["trap_dwell"] is None
+        assert "no index series was supplied" in r["trap_why"]
+
+
+def test_the_index_series_is_not_re_indexed_onto_the_option_axis(monkeypatch):
+    """It must keep its own minutes: the axis is the union of the two OPTION
+    legs' slots, and aligning the index to it would delete index history the
+    compression rank is taken against."""
+    import chain_live
+    import band_rotation
+
+    monkeypatch.setattr(chain_live, "read_token", lambda: "tok")
+    monkeypatch.setattr(chain_live, "token_status", lambda t: {"ok": True})
+    monkeypatch.setattr(chain_live, "_client", lambda t: object())
+    monkeypatch.setattr(chain_live, "_with_deadline", lambda fn, s, label: fn())
+    monkeypatch.setattr(chain_live, "resolve_expiry", lambda *a, **k: "2026-08-04")
+    monkeypatch.setattr(live, "_atm_ids", lambda k, cfg: {"CE": "111", "PE": "222"})
+
+    # the options print 20 minutes; the index prints 30 of them
+    out = live.build_contract(
+        "NIFTY", strike=24350, side="BOTH", interval=1, days=1,
+        day="2026-07-30", chain_rows=[],
+        fetch=lambda sec_id, day: _osc(day, 20, "CE" if sec_id == "111"
+                                       else "PE", 14),
+        index_fetch=lambda day: _fut(day, 30, [30.0] * 10 + [0.2] * 20))
+
+    assert len(out["axis"]) == 20
+    assert len(out["index_series"]["bars"]) == 30      # kept, not truncated
+    assert out["index_series"]["bars"][-1]["t"] == "09:44"
+    # and the detector still lines the two up by clock label, not by position
+    r = [x for x in out["rotation"] if x][0]
+    assert r["trap"] in ("CLEAR", "SUSPECT")
+    assert out["rotation"] == band_rotation.detect(out)
+
+
+def test_index_series_rule_states_why_it_is_not_axis_aligned():
+    assert "NOT re-indexed onto `axis`" in live.INDEX_SERIES_RULE
+    assert "squeeze on index entry on option chart" in live.INDEX_SERIES_RULE
+    assert "NEVER falls back to premium" in live.INDEX_SERIES_RULE
+
+
 # ---- 6/7. forming, and param validation before any I/O ---------------------
 
 def test_forming_is_null_and_says_why():
