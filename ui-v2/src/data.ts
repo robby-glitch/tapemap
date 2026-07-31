@@ -135,6 +135,53 @@ export interface BarCtx {
   episode?: unknown; loc?: string
 }
 export interface BarGamma { regime: string; w_ce: number; w_pe: number; proxy: number }
+
+/** One option leg of a tape bar — the engine's tracked ATM strike, verbatim
+ *  from the payload's `ce`/`pe` blocks (engine.py session_json). The premium's
+ *  OWN session VWAP and σ bands, computed server-side; the UI renders them and
+ *  derives nothing. NOTE this series is rolling-ATM: the sticky strike
+ *  migrates with spot, so a premium step at a hop is a strike change, not a
+ *  trade — every consumer must disclose that. */
+export interface BarLeg {
+  o: number; h: number; l: number; c: number
+  vwap: number
+  u1: number; d1: number; u2: number; d2: number; u3: number; d3: number
+  oi: number | null; v: number
+  /** Extra engine fields ride along untyped (z, vol_r, oi_slope, oi_r,
+   *  prem_d, bw_r) — the block is passed through whole, never rebuilt. */
+  [extra: string]: unknown
+}
+
+/** Floor pivots of ONE option leg's own prior session (`opt_pivots.ce/pe` on
+ *  the wire) — computed server-side by live._floor_pivots from the contract's
+ *  own H/L/C, which ride along as receipts. Rendered verbatim, never derived
+ *  here. */
+export interface OptPivotLeg {
+  P: number; R1: number; S1: number; R2: number; S2: number; R3: number; S3: number
+  H: number; L: number; C: number
+}
+export interface OptPivots {
+  strike: number
+  prev_day: string
+  expiry: string
+  ce: OptPivotLeg | null
+  pe: OptPivotLeg | null
+  /** Per-leg reason when that leg is null (no prior session / fetch failed).
+   *  "No pivots exist" and "we could not get them" stay different sentences. */
+  why: { ce: string | null; pe: string | null }
+}
+
+/* One row of /api/oiflow — Trending OI, aggregated server-side from the chain
+   poller's minute grid (chain_metrics.ChainState.oi_flow). `call`/`put` are
+   cumulative day OI CHANGE summed over the selected strikes, not outstanding
+   OI; each row is the chain AS AT its clock mark. Shared by the OI Flow tab
+   and the Trade tab's OI strip + zone read. */
+export interface FlowRow {
+  time: string; ltp: number | null; call: number; put: number; diff: number
+  strength: number; pcr: number | null; chg_dir: number | null
+  chg_dir_pct: number | null; sentiment: string
+  brk: string | null; brk_px: number | null
+}
 export interface BarSetup {
   status: string; dir: 'UP' | 'DOWN'; t0: string; kind: string
   level_name: string; level_px: number; ref: number
@@ -159,6 +206,13 @@ export interface TapeBar {
   ctx?: BarCtx | null
   gamma?: BarGamma | null
   setup?: BarSetup | null
+  /** The tracked ATM strike's option legs, verbatim from the payload. `null`
+   *  when that leg did not print this minute — a missing leg minute stays a
+   *  hole (session_json history: intersecting FUT with leg availability
+   *  silently dropped whole bars once; never again). Rolling-ATM series —
+   *  see BarLeg. */
+  ce?: BarLeg | null
+  pe?: BarLeg | null
 }
 
 // ── SMC / ICT structure layer (Phase 3.5) ──────────────────────────────────────
@@ -262,6 +316,18 @@ export interface RotationSignal {
 export interface TapeView {
   day: string
   bars: TapeBar[]
+  /** The engine's tracked ATM strike for this session (`day.strike` on the
+   *  wire) — the strike the bars' ce/pe legs belong to as of the newest bar.
+   *  Sticky but ROLLING: it migrates with spot, so it names where the leg
+   *  series currently lives, not where every bar of it was. null when the
+   *  payload doesn't carry it. */
+  strike: number | null
+  /** Prior-session floor pivots per option leg (`opt_pivots` on the wire), or
+   *  null when the backend doesn't publish them. */
+  optPivots: OptPivots | null
+  /** Which expiry the ce/pe legs, their pivots and t_days belong to
+   *  (`opt_expiry`) — the NEAREST expiry, the one the operator trades. */
+  optExpiry: string | null
   structures: Structure[] | null
   /** Empty string when `structures` is non-null. */
   structuresWhy: string
@@ -1189,8 +1255,8 @@ export function useLiveData(fallback: Dataset) {
     // its structure disclosure, rather than parsing this string's wording.
     if (!day) {
       return {
-        day: '', bars: [], structures: null, structuresWhy: '',
-        rotation: null, rotationWhy: '',
+        day: '', bars: [], strike: null, optPivots: null, optExpiry: null,
+        structures: null, structuresWhy: '', rotation: null, rotationWhy: '',
       }
     }
     const bars: TapeBar[] = []
@@ -1210,6 +1276,10 @@ export function useLiveData(fallback: Dataset) {
         // so an unrecognized extra field the engine adds later still rides
         // along, and a bar predating the block gets `null`, never inherits.
         ctx: b.ctx ?? null, gamma: b.gamma ?? null, setup: b.setup ?? null,
+        // The tracked ATM strike's option legs — the series the operator's
+        // ±3σ trigger actually lives on. Same pass-through rule; null when
+        // the leg didn't print that minute.
+        ce: b.ce ?? null, pe: b.pe ?? null,
       })
     }
     // Verbatim in the normal case: not filtered, not re-sorted, not
@@ -1269,7 +1339,14 @@ export function useLiveData(fallback: Dataset) {
         }
       })
     }
-    return { day: day.day ?? '', bars, structures, structuresWhy, rotation, rotationWhy }
+    return {
+      day: day.day ?? '', bars,
+      strike: typeof day.strike === 'number' && Number.isFinite(day.strike) ? day.strike : null,
+      // Whole-block pass-through, same rule as ctx/gamma/setup.
+      optPivots: (day.opt_pivots as OptPivots | undefined) ?? null,
+      optExpiry: typeof day.opt_expiry === 'string' ? day.opt_expiry : null,
+      structures, structuresWhy, rotation, rotationWhy,
+    }
   }, [raw])
 
   return { data, loading, error, lastUpdated, barCount, at, dead, tapeBars }

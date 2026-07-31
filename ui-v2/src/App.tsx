@@ -5,7 +5,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow } from './data'
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -1611,13 +1611,8 @@ function HeatTab({ active, setActive, dead }: {
    One row per clock mark: how much call and put OI has been ADDED across the
    selected strikes since the day opened, and which way that is tilting.
    Aggregated server-side (/api/oiflow) — the minute grid behind it is a few
-   hundred KB while the raw chain is ~180 MB a day.                        */
-interface FlowRow {
-  time: string; ltp: number | null; call: number; put: number; diff: number
-  strength: number; pcr: number | null; chg_dir: number | null
-  chg_dir_pct: number | null; sentiment: string
-  brk: string | null; brk_px: number | null
-}
+   hundred KB while the raw chain is ~180 MB a day. Row shape (`FlowRow`) is
+   shared with the Trade tab's OI strip + zone read and lives in data.ts. */
 
 const inr = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 0 })
 
@@ -2121,6 +2116,8 @@ export default function App() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
+                                              chain={activeChain} strike={tape.strike}
+                                              optPivots={tape.optPivots} optExpiry={tape.optExpiry}
                                               levels={tradeLevels} events={data.EVENTS_BY_IDX[activeIndex]} cursor={scrub}
                                               stale={idxDead || !!error} loading={loading} chainStale={chainStale}
                                               chainTs={activeChain.ts}

@@ -3,7 +3,7 @@
 // already-computed values aligned 1:1 with the candles.
 import type { Candle } from '../vendor/candl/core/types'
 import type { IndicatorRenderData } from '../vendor/candl/chart/types'
-import type { TapeBar } from '../data'
+import type { TapeBar, BarLeg, OptPivotLeg } from '../data'
 
 // One-meaning colour (App.tsx `T`): brass is structure. The σ deviations
 // themselves are filled ribbons drawn on the overlay canvas (LevelsOverlay),
@@ -66,6 +66,91 @@ export function toCandles(day: string, bars: TapeBar[]): Candle[] {
 // becomes a null gap in the plot, never a drawn falsehood.
 const series = (bars: TapeBar[], f: (b: TapeBar) => number) =>
   bars.map((b) => { const v = f(b); return Number.isFinite(v) ? v : null })
+
+/* ── ATM option-leg panes ─────────────────────────────────────────────────
+   The leg charts are small and carry no LevelsOverlay, so their σ bands are
+   plain indicator LINES on the engine (the pattern this file used for the
+   FUT chart before the ribbons). Colours echo the overlay's BAND_RGB family
+   (±1σ dark red / ±2σ sage / ±3σ azure) so the two charts read as one
+   system; VWAP is the same bright red as the FUT chart. */
+const LEG_BAND_LINES: [keyof BarLeg, string][] = [
+  ['vwap', VWAP_LINE],
+  ['u1', '#8B1A1A'], ['d1', '#8B1A1A'],
+  ['u2', '#5F9C5F'], ['d2', '#5F9C5F'],
+  ['u3', '#0084B8'], ['d3', '#0084B8'],
+]
+
+export interface LegRender {
+  candles: Candle[]
+  indicators: IndicatorRenderData[]
+  /** leg-local candle index -> source index into `bars`. Needed to clamp the
+   *  replay cursor: the leg skips bars where it didn't print, so bar index N
+   *  is NOT candle index N. */
+  map: number[]
+  /** Bars whose FUT printed but this leg did not — disclosed, never bridged. */
+  missing: number
+}
+
+// Prior-day pivot lines on the leg panes: horizontal constants, one muted
+// colour for all seven — they are structure, not direction, and the pane is
+// small enough that seven coloured lines would fight the bands.
+const PIV_LINE = '#8A93A0'
+const PIV_KEYS: (keyof OptPivotLeg)[] = ['P', 'R1', 'S1', 'R2', 'S2', 'R3', 'S3']
+
+/** One option leg -> candles + band lines + OI pane (+ prior-day pivot lines
+ *  when the backend published them for this leg), built together so the
+ *  indicator values stay aligned 1:1 with the candles even though null-leg
+ *  bars are skipped. Purely a reshape of engine-computed fields. */
+export function legRender(day: string, bars: TapeBar[], leg: 'ce' | 'pe',
+                          piv?: OptPivotLeg | null): LegRender {
+  const base = dayBase(day)
+  const candles: Candle[] = []
+  const map: number[] = []
+  const values: Record<string, (number | null)[]> = {}
+  for (const [k] of LEG_BAND_LINES) values[k as string] = []
+  const oi: (number | null)[] = []
+  let missing = 0
+  for (let i = 0; i < bars.length; i++) {
+    const L = bars[i][leg]
+    if (!L) { missing++; continue }
+    const [hh, mm] = bars[i].t.split(':').map(Number)
+    candles.push({
+      time: base + (hh * 60 + mm) * 60_000,
+      open: L.o, high: L.h, low: L.l, close: L.c, volume: L.v,
+    })
+    map.push(i)
+    for (const [k] of LEG_BAND_LINES) {
+      const v = L[k]
+      values[k as string].push(typeof v === 'number' && Number.isFinite(v) ? v : null)
+    }
+    oi.push(typeof L.oi === 'number' && Number.isFinite(L.oi) ? L.oi : null)
+  }
+  const indicators: IndicatorRenderData[] = [
+    {
+      instanceId: `${leg}-bands`, label: 'VWAP ±σ', placement: 'overlay',
+      outputs: LEG_BAND_LINES.map(([k, color]) => ({
+        name: k as string, values: values[k as string], color,
+      })),
+    },
+    {
+      instanceId: `${leg}-oi`, label: 'OI', placement: 'pane',
+      outputs: [{ name: 'oi', values: oi, color: OI_LINE }],
+    },
+  ]
+  if (piv) {
+    // Constant per bar — the pivot IS a horizontal level. Values come from
+    // the backend block verbatim; nothing is computed here (invariant #6).
+    indicators.push({
+      instanceId: `${leg}-pivots`, label: 'PIVOTS (prior session)', placement: 'overlay',
+      outputs: PIV_KEYS.map((k) => ({
+        name: k as string,
+        values: candles.map(() => (Number.isFinite(piv[k]) ? piv[k] : null)),
+        color: PIV_LINE,
+      })),
+    })
+  }
+  return { candles, indicators, map, missing }
+}
 
 export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
   return [

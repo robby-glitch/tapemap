@@ -1,7 +1,9 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import ContractChart from './ContractChart'
 import Ribbon from './Ribbon'
+import LegChart from './LegChart'
+import ZoneRead, { crl } from './ZoneRead'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
@@ -9,7 +11,7 @@ import { buildZones } from './zones'
 // operator reads can never drift from the number actually drawn.
 import { STRUCT_ZONE_LIMIT } from './LevelsOverlay'
 import { palette, MONO, useMode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure } from '../data'
+import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure, Chain, FlowRow, OptPivots } from '../data'
 
 interface Props {
   index: IndexKey
@@ -18,6 +20,17 @@ interface Props {
   levels: MapLevel[]
   events: EventItem[]
   cursor: number | null
+  /** The live chain snapshot for this index — feeds the ZONE READ's books and
+   *  GEX groups. Live-only (no per-strike history), so during replay the
+   *  panel labels those groups as not cursor-aligned rather than hiding them. */
+  chain: Chain
+  /** The engine's tracked ATM strike (TapeView.strike) — names which strike
+   *  the ce/pe leg panes belong to. Rolling; the panes disclose that. */
+  strike: number | null
+  /** Prior-session floor pivots per leg + the legs' expiry (nearest — the
+   *  contract the operator trades). Null when the backend predates them. */
+  optPivots: OptPivots | null
+  optExpiry: string | null
   stale: boolean
   loading: boolean
   /** True when the active index's option chain snapshot is past
@@ -243,7 +256,8 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
 }
 
 export default function TradeTab({
-  index, day, bars, levels, events, cursor, stale, loading, chainStale, chainTs,
+  index, day, bars, levels, events, cursor, chain, strike, optPivots, optExpiry,
+  stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange, structures, structuresWhy,
   rotation, rotationWhy,
 }: Props) {
@@ -287,6 +301,33 @@ export default function TradeTab({
     localStorage.setItem('tape.story', next ? 'on' : 'off')
     setStory(next)
   }
+
+  // Trending OI for the strip + the ZONE READ's flow group. Tab-local and on
+  // the OI Flow tab's own 15s cadence — /api/oiflow aggregates from the chain
+  // poller's in-memory minute grid, so this costs no Dhan request. One fetch,
+  // two consumers.
+  const [flowRows, setFlowRows] = useState<FlowRow[] | null>(null)
+  const [flowErr, setFlowErr] = useState<string>('')
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const r = await fetch(`/api/oiflow?idx=${index}&interval=15`)
+        const j = await r.json()
+        if (!alive) return
+        if (!j.ok) { setFlowErr(j.error || 'flow unavailable'); setFlowRows(null); return }
+        setFlowErr('')
+        setFlowRows(j.rows || [])
+      } catch { if (alive) { setFlowErr('backend unreachable'); setFlowRows(null) } }
+    }
+    load()
+    const id = setInterval(load, 15000)
+    return () => { alive = false; clearInterval(id) }
+  }, [index])
+  const lastFlow = flowRows && flowRows.length ? flowRows[flowRows.length - 1] : null
+  const flowWhy = flowErr || (flowRows && !flowRows.length
+    ? 'no flow marks yet — the chain poller has not recorded a clock mark this session'
+    : lastFlow ? '' : 'no flow rows yet')
 
   // Clamp both ends: a negative cursor would index bars[-1] === undefined and
   // throw on the first field read. Computed here (rather than only after the
@@ -655,6 +696,43 @@ export default function TradeTab({
         />
       </div>
 
+      {/* The last Trending-OI read, directly on the chart — the operator's
+          explicit ask. The mark time is always shown (the row is the chain AS
+          AT that clock mark, not now), and while replaying the strip dims and
+          says it is live rather than pretending it scrubbed. */}
+      <div style={{
+        fontFamily: MONO, fontSize: 11, paddingLeft: 2,
+        color: pal.textSecondary, opacity: cursor != null ? 0.55 : 1,
+      }}>
+        {lastFlow ? (
+          <>
+            <span style={{ fontWeight: 700, color: pal.textMuted }}>OI {lastFlow.time}</span>
+            {' · CALL '}{crl(lastFlow.call)}
+            {' · PUT '}{crl(lastFlow.put)}
+            {' · DIFF '}{crl(lastFlow.diff)} {lastFlow.diff >= 0 ? 'PUT' : 'CALL'}-heavy{' '}
+            {Math.abs(lastFlow.strength * 100).toFixed(0)}%
+            {lastFlow.pcr != null && <>{' · PCR '}{lastFlow.pcr.toFixed(2)}</>}
+            {lastFlow.chg_dir != null && (
+              <>{' · Δ '}{lastFlow.chg_dir >= 0 ? '▲' : '▼'}{crl(Math.abs(lastFlow.chg_dir)).slice(1)}</>
+            )}
+            {lastFlow.brk && (
+              <span style={{ color: pal.accent, fontWeight: 700 }}>
+                {' · '}{lastFlow.brk} {lastFlow.brk_px != null ? lastFlow.brk_px.toFixed(1) : ''}
+              </span>
+            )}
+            {cursor != null && (
+              <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
+                {' · live flow — not aligned to the replay cursor'}
+              </span>
+            )}
+          </>
+        ) : (
+          <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
+            Trending OI unavailable — {flowWhy}
+          </span>
+        )}
+      </div>
+
       {/* The day's shape at a glance, dimmed past the replay cursor. */}
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
 
@@ -697,12 +775,30 @@ export default function TradeTab({
 
     </div>
 
-    {/* The engine's read sits BELOW the full-height chart column, so the page
-        carries one panel's worth of scroll and the suggestion is at the bottom
-        of it — the operator's own layout request. It reads bars[at] only (the
-        SAME cursor-clamped bar `b` the stat strip uses), so replay scrubs it
-        causally too. */}
-    <div style={{ padding: '8px 16px 16px', backgroundColor: pal.bg }}>
+    {/* Below the full-height chart column, in the operator's reading order:
+        the ATM option legs (where the ±3σ trigger actually lives), then the
+        ZONE READ (what sits at this price), then the engine's own read. All
+        three read the SAME cursor-clamped bar `b` / cursor, so replay scrubs
+        them causally together. */}
+    <div style={{
+      padding: '8px 16px 16px', backgroundColor: pal.bg,
+      display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <LegChart day={day} bars={bars} leg="ce" strike={strike} cursor={cursor} mode={mode}
+                  pivots={optPivots?.ce ?? null} pivotsWhy={optPivots?.why?.ce ?? null}
+                  expiry={optExpiry} />
+        <LegChart day={day} bars={bars} leg="pe" strike={strike} cursor={cursor} mode={mode}
+                  pivots={optPivots?.pe ?? null} pivotsWhy={optPivots?.why?.pe ?? null}
+                  expiry={optExpiry} />
+      </div>
+      <ZoneRead
+        pal={pal} bar={b} chain={chain} levels={levels}
+        rot={rotation?.[at] ?? null}
+        structures={structures} structuresWhy={structuresWhy}
+        flow={lastFlow} flowWhy={flowWhy}
+        replaying={cursor != null}
+      />
       <EngineReadPanel pal={pal} bar={b} />
     </div>
     </>
