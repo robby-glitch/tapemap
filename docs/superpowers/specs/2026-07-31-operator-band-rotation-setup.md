@@ -239,12 +239,36 @@ CLEAR happened twice in 73 sessions. Two separate reasons, both now understood:
    accumulates from the 09:15 anchor. Ranking a pre-move window against the
    session so far therefore measures **how late in the day it is**, not whether
    price coiled. No threshold fixes that; the comparison is the wrong shape.
-2. **More important — band width is the wrong quantity.** The operator's own
-   annotated chart (2026-07-31) shows a long coil where the ±1σ region is
-   *wide* while price grinds in a thin strip just below VWAP: *"Price is in this
-   narrow range just below vwap and -1std deviation"*, followed by a vertical
-   break through the upper bands. Band width would call that period
-   uncompressed and miss the setup entirely.
+2. ~~Band width is the wrong quantity.~~ **WRONG — corrected 2026-07-31 by the
+   operator, with data.** Cause 1 above is real but it is an artefact of
+   NORMALISING BY VWAP on **option premium**: premium decays through the day, so
+   `width / vwap` rises mechanically even when the band is flat. On the
+   **futures**, where VWAP is stable, band width contracts and expands exactly
+   as the operator says. Verified against their own Kite export of NIFTY AUG FUT
+   for 2026-07-30 (±3σ width, points):
+
+   | phase | time | width |
+   |---|---|---|
+   | start | 09:25 | 104.7 |
+   | squeeze 1 | → 10:20 | 93.0 |
+   | pop | → 10:40 | 105.3 |
+   | drift | → 11:50 | 100.9 |
+   | **squeeze 2** | **12:30** | **87.4 — day's tightest** |
+   | blast | 12:40 | 163.7 |
+   | plateau | 13:00 | 173.2 — day's widest |
+
+   The band roughly doubled in ten minutes while the future ran ~110 points.
+   ±1σ tracks the same shape (34.9 → 29.1 → 57.4). Every figure reproduced from
+   the CSV; the operator's own phase table was correct in full.
+
+   **Design consequence:** measure compression on the **index/futures** series,
+   not on option premium. The trigger stays on the option leg — that is where
+   the band touch is bought — but the squeeze/expansion read comes from the
+   index underneath it. Any width measure on premium must use ABSOLUTE width or
+   a stable denominator, never the decaying premium VWAP.
+
+   *(OPEN: the operator watches both charts; confirm that squeeze is judged on
+   the index while entry is taken on the option, before building it that way.)*
 
 So compression is measured on **price**, not on the envelope:
 
