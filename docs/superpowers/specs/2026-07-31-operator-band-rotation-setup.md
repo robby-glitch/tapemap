@@ -228,10 +228,56 @@ The distinction is **what the band width was doing BEFORE the move**:
 | **Real** | narrow / flat, range small — smart money loading inside compression | the break that follows is the move; bands expand, price makes HH or LL |
 | **Trap** | already wide / expanding, no prior compression | a spike with nothing behind it — 2026-07-30 12:30 is the reference case: straight up, no follow-through, gave it back to near the day's low |
 
-`bw_r` (bandwidth rank) is exactly this measurement and already exists per bar.
-The rule to encode is roughly: *a break is trustworthy when it emerges from a
-low-`bw_r` regime; a spike while `bw_r` is already high is suspect.* The COILING
-state (`bw_r < 0.3`) already marks the loading phase.
+### REFINED 2026-07-31 — it is PRICE range and DWELL, not band width
+
+The first implementation ranked **band width** and it does not work: measured
+over 73 cached sessions it marked CLEAR on 26 of 747 signals, and CONFIRMED +
+CLEAR happened twice in 73 sessions. Two separate reasons, both now understood:
+
+1. **Band width grows monotonically through every session** (median
+   `(u1-d1)/vwap` rises 0.117 → 0.388 across session deciles) because σ
+   accumulates from the 09:15 anchor. Ranking a pre-move window against the
+   session so far therefore measures **how late in the day it is**, not whether
+   price coiled. No threshold fixes that; the comparison is the wrong shape.
+2. **More important — band width is the wrong quantity.** The operator's own
+   annotated chart (2026-07-31) shows a long coil where the ±1σ region is
+   *wide* while price grinds in a thin strip just below VWAP: *"Price is in this
+   narrow range just below vwap and -1std deviation"*, followed by a vertical
+   break through the upper bands. Band width would call that period
+   uncompressed and miss the setup entirely.
+
+So compression is measured on **price**, not on the envelope:
+
+- **Range** — the high/low range over a trailing window, normalised (by VWAP,
+  or by the band width so it reads as "how much of the available room is price
+  actually using"), ranked against a **trailing** window rather than the
+  session so far, so "narrow" means narrow relative to recently.
+- **Dwell** — *"is its a good thing to notice or keep in mind for how long the
+  price are in this range"*: yes. How many consecutive bars price has held that
+  narrow range is a separate signal from how narrow it is. A thin range held for
+  90 minutes has far more loaded inside it than the same range held for ten.
+- **Direction of change** — the operator's words are *"expanding or narrowing"*
+  and *"not narrowing or staying flat"*. Judge the **trend** of the measure
+  across the run-up, not only its level.
+
+**Anchor at 09:25.** *"by 9:25 we have the values for vwap standard deviation
+and from there we judge wheather they are expanding or narrowing."* Before that
+there is too little session to rank anything — which matches the measured
+finding that 23% of triggers land in the first 10 bars, where every gate is
+`UNKNOWN` by construction. Do not report a compression verdict before the
+anchor; report `UNKNOWN`.
+
+### The ±1σ interior is the NO-TRADE zone
+
+*"mostly +1 -1 is like the zone of no trading becuase during whole day the price
+almost spent of the their time in their."* This is the counterpart to Setup B
+and must not be confused with it: the **interior** of ±1σ is where price idles
+and where the operator does not trade; Setup B's *"buying and selling zones"*
+are the **edges** of that box during a pin, not its middle.
+
+**OPEN — confirm before relying on it:** that reading (interior = stand aside,
+edges = the zones) reconciles two statements that otherwise conflict, but the
+operator has not confirmed it in those words.
 
 And the second half — **who is being trapped**:
 
