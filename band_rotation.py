@@ -44,8 +44,9 @@ WHAT THE OPERATOR SAID, AND WHAT THIS DOES WITH IT
     no filter anywhere in this module that suppresses a signal because the
     book is heavy on the side being bought; adding one would delete the edge.
   * *"smart money always make possition is narrow ... than the market start
-    moving"* -- the trap filter reads band width BEFORE the move, not the move
-    itself.
+    moving"* -- the trap filter reads what PRICE was doing BEFORE the move,
+    not the move itself: how narrow its range was, how long it held it, and
+    whether that range was narrowing or expanding into the break.
 
 INTERPRETATIONS -- places where the operator was not literal and this module
 had to choose. Every one of these is worth putting back to them.
@@ -80,16 +81,25 @@ had to choose. Every one of these is worth putting back to them.
   6. ONE RECORD PER BAR. Both legs can satisfy the trigger on the same bar
      (both at their floors = theta, not rotation). The stronger sigma wins,
      CE before PE on a tie. A per-leg record was not asked for and would let a
-     consumer double-count one minute.
+     consumer double-count one minute. The hit that LOST the tie-break is not
+     thrown away silently -- it is named in `also` and in the trigger receipt,
+     because a consumer reading "CE fired" has no other way to learn that the
+     PE qualified on the same minute, which is the cleanest form of the
+     operator's rotation.
+  7. COMPRESSION IS MEASURED ON PRICE. See `_trap` -- the operator's own
+     refinement of 2026-07-31, and the reason this module's first version
+     did not work.
 
 NO ABSOLUTE MARKET THRESHOLDS. The sigma bands are the operator's own relative
 thresholds and are used as given. Everything this module adds on top is rank
-or sign based -- band width is normalised by the leg's own VWAP and RANKED
-over the session so far, and the OI read is the SIGN of a change in slope,
-never a lot count. The same shaped series at NIFTY, BANKNIFTY or SENSEX
-premium magnitudes therefore yields identical signals; `test_band_rotation.py`
-locks that down, because an absolute number here would silently work on one
-index and misfire on another.
+or sign based -- the price range is normalised by the leg's own VWAP and
+RANKED against a trailing window, dwell and the two OI reads are counts and
+SIGNS, never a rupee level or a lot count. The one clock time in the module is
+the operator's own 09:25 anchor, which is a session landmark rather than a
+market level. The same shaped series at NIFTY, BANKNIFTY or SENSEX premium
+magnitudes therefore yields identical signals; `test_band_rotation.py` locks
+that down, because an absolute number here would silently work on one index
+and misfire on another.
 
 CAUSALITY. Every window looks BACKWARD and stops at the session boundary
 (`bar_days`), so a multi-session axis cannot let yesterday's compression rank
@@ -128,25 +138,53 @@ ROTATION_WINDOW = 10
 OI_WINDOW = 5
 
 # --- The trap filter -----------------------------------------------------
-# How many bars BEFORE the trigger bar count as "before the move". The
-# operator's tell is what band width was doing while smart money loaded, which
-# is the run-up, not the break itself -- so the trigger bar is excluded from
-# this window on purpose (its own expansion is the move).
-TRAP_LOOKBACK = 5
+# How many bars of PRICE make up one range reading: the high/low of the last
+# RANGE_WINDOW bars, i.e. the box price is currently working inside. The
+# trigger bar is never part of the reading a verdict is based on -- its own
+# expansion is the move, not the run-up.
+RANGE_WINDOW = 5
 
-# Below this many band widths in the session so far there is nothing to rank
-# against and the answer is UNKNOWN, never CLEAR. 10 bars is the smallest
-# population where a 0.30 rank threshold can be distinguished at all (3 bars
-# below it); at the default interval that is ~09:45, so early-session signals
-# honestly say "too early to tell" rather than claiming a clean coil.
-TRAP_MIN_HISTORY = 10
+# How many recent range readings the pre-move reading is ranked against. This
+# is THE fix for the first version's first defect: ranking against the session
+# so far measured how late in the day it was, because sigma accumulates from
+# the 09:15 anchor and band width therefore grows monotonically (median
+# `(u1-d1)/vwap` 0.117 -> 0.388 across session deciles, measured over 73 cached
+# sessions). A trailing window asks the operator's actual question -- "is this
+# narrow compared to how price has been moving lately" -- and carries no
+# session-clock bias. 30 readings is ~90 minutes at the default 3-minute
+# interval: long enough to be a population, short enough not to reach back to
+# the open.
+TRAIL_WINDOW = 30
 
-# A pre-move width in the bottom 30% of the session's widths is "compression".
-# Chosen to match the COILING state the rest of the tool already uses
-# (`bw_r < 0.3`, see the Tape Chart spec) so the same word means the same
-# thing in two places. It is a RANK, not a width, so it carries across indices
-# and across a quiet day versus a violent one.
+# Below this many readings there is nothing to rank against and the answer is
+# UNKNOWN, never CLEAR. 10 is the smallest population where a 0.30 rank
+# threshold can be distinguished at all (3 readings below it).
+TRAIL_MIN = 10
+
+# Over how many readings the DIRECTION of change is judged -- *"expanding or
+# narrowing"*, *"not narrowing or staying flat"*. The two halves' means are
+# compared, so this must be even, at least 4 to have two samples a side, and
+# no larger than TRAIL_MIN -- a verdict that ranks the range must always be
+# able to say which way it was going.
+TREND_WINDOW = 6
+
+# A pre-move range in the bottom 30% of the trailing readings is
+# "compression". Carried over unchanged from the COILING state the rest of the
+# tool already uses (`bw_r < 0.3`, see the Tape Chart spec) so the same word
+# means the same thing in two places, and deliberately NOT retuned against the
+# output of this module. It is a RANK, not a range, so it carries across
+# indices and across a quiet day versus a violent one.
 COMPRESSION_RANK = 0.30
+
+# *"by 9:25 we have the values for vwap standard deviation and from there we
+# judge wheather they are expanding or narrowing."* Before this clock time the
+# verdict is UNKNOWN whatever the arithmetic says. It is read off the BAR'S
+# OWN `t` label rather than counted in bars, so it lands at 09:25 on a 1-, 3-
+# or 15-minute chart alike and cannot drift with the interval or with a
+# session whose feed dropped its first minutes. A bar with no readable clock
+# label is UNKNOWN, not assumed to be late enough.
+ANCHOR_HHMM = "09:25"
+ANCHOR_MINUTE = 9 * 60 + 25
 
 
 def _num(x):
@@ -347,58 +385,222 @@ def _confirm(views, own, i, days, side):
     return "CONFIRMED", why
 
 
-def _widths(view, i, days):
-    """(bar index, band width / vwap) for this session up to and including i.
+def _minute(t):
+    """A "HH:MM" bar label -> minutes since midnight, or None."""
+    if not isinstance(t, str):
+        return None
+    parts = t.split(":")
+    if len(parts) < 2:
+        return None
+    try:
+        hh, mm = int(parts[0]), int(parts[1])
+    except ValueError:
+        return None
+    return hh * 60 + mm if 0 <= hh < 24 and 0 <= mm < 60 else None
 
-    Normalised by the leg's OWN vwap, which is what makes a 40-rupee premium
-    and a 900-rupee one comparable at all.
+
+def _price_points(view, i, days):
+    """[(j, high, low, vwap)] for this session's readable bars up to `i`.
+
+    Bars the feed never delivered are absent rather than interpolated, so a
+    window is a window of bars that EXIST -- the same rule `_oi_slopes` uses.
     """
     out = []
     for j in range(i + 1):
         if _at(days, j) != _at(days, i):
             continue
-        v = _band(view, j)
-        if not v:
+        b, v = _bar(view, j), _band(view, j)
+        if b is None or v is None:
             continue
-        u1, d1, vw = (_num(v.get(k)) for k in ("u1", "d1", "vwap"))
-        if u1 is None or d1 is None or vw is None or vw <= 0:
+        h, l, vw = _num(b.get("h")), _num(b.get("l")), _num(v.get("vwap"))
+        if h is None or l is None or vw is None or vw <= 0:
             continue
-        out.append((j, (u1 - d1) / vw))
+        out.append((j, h, l, vw))
     return out
 
 
+def _ranges(pts):
+    """Rolling price range over RANGE_WINDOW bars, over vwap.
+
+    `out[m]` is the range of `pts[m : m + RANGE_WINDOW]`; the last entry is
+    therefore the box price is working inside right now.
+
+    Normalised by the leg's OWN vwap, which is what makes a 40-rupee premium
+    and a 900-rupee one comparable at all -- and, deliberately, NOT by the
+    band width. Band width is the envelope, and dividing by it would fold
+    sigma's monotone session accumulation straight back into the measure this
+    module exists to keep clean; the operator's own annotated chart is a WIDE
+    +/-1 sigma region with price grinding in a thin strip inside it, so the
+    envelope and the strip have to be allowed to disagree.
+    """
+    out = []
+    for k in range(RANGE_WINDOW - 1, len(pts)):
+        win = pts[k - RANGE_WINDOW + 1:k + 1]
+        hi, lo = max(p[1] for p in win), min(p[2] for p in win)
+        out.append((hi - lo) / pts[k][3])
+    return out
+
+
+def _rank(pre, m):
+    """Rank of reading `m` among the TRAIL_WINDOW readings ending at it.
+
+    `(rank, population size)`, or `(None, size)` when the population is too
+    small to rank against at all. `<=` counts ties, so an unchanging series
+    ranks 1.00 -- "price is using exactly as much room as it always has",
+    which is not compression and must not read as it.
+    """
+    trail = pre[max(0, m - TRAIL_WINDOW + 1):m + 1]
+    if len(trail) < TRAIL_MIN:
+        return None, len(trail)
+    return sum(1 for r in trail if r <= pre[m]) / len(trail), len(trail)
+
+
+def _dwell(pre):
+    """For how many consecutive BARS the range has stayed compressed.
+
+    *"is its a good thing to notice or keep in mind for how long the price are
+    in this range"* -- yes: how LONG price has been coiling is a different
+    reading from how narrow it is right now, and *"a thin range held for 90
+    minutes has far more loaded inside it than the same range held for ten"*.
+    The walk goes backward from the bar before the move while each bar's own
+    range reading still ranks in the bottom `COMPRESSION_RANK`, and stops at
+    the first bar that did not -- or where there is no longer enough history
+    to rank, so the count is what could be VERIFIED rather than a guess.
+
+    Reported in bars: a run of `k` compressed readings covers
+    `k + RANGE_WINDOW - 1` bars, because the first reading already spans a
+    whole `RANGE_WINDOW`. Zero when price is not compressed here at all.
+
+    MEASURED DEAD END, kept as a warning. The first definition was the
+    intuitive one -- take the high/low box of the last `RANGE_WINDOW` bars and
+    count back while price stayed inside it. It measures the wrong thing: a
+    WIDE box swallows more history, so "long dwell" came out as a synonym for
+    "the recent box is wide". On the 73 cached sessions every record with a
+    dwell of 10+ bars failed the compression rank -- 0 of 79 were ever CLEAR,
+    and ranking against the pre-box regime instead did not rescue a single one
+    (0 of 79 again). The operator's longest and best coils were the one case
+    the filter could never pass, for a definitional reason and not a market
+    one.
+    """
+    held = 0
+    for m in range(len(pre) - 1, -1, -1):
+        rank, _n = _rank(pre, m)
+        if rank is None or rank > COMPRESSION_RANK:
+            break
+        held += 1
+    return held + RANGE_WINDOW - 1 if held else 0
+
+
+def _direction(pre):
+    """(prior mean, recent mean) of the last TREND_WINDOW readings.
+
+    *"expanding or narrowing"*, *"not narrowing or staying flat"* -- so the
+    LEVEL of the range is not the whole answer; its trend across the run-up is
+    a second reading. The two halves of the run-up are compared and only the
+    SIGN of the difference is ever used, so no magnitude is a threshold here.
+
+    The readings overlap -- consecutive ones share all but one bar -- so this
+    is a smoothed trend rather than a bar-to-bar one. That is wanted: the
+    question is what the run-up was doing, not what the last minute did.
+
+    There is no "not enough readings" case to handle: `TREND_WINDOW` is
+    smaller than `TRAIL_MIN`, and the caller has already refused to rank
+    anything with fewer than `TRAIL_MIN` readings.
+    """
+    half = TREND_WINDOW // 2
+    win = pre[-TREND_WINDOW:]
+    return sum(win[:half]) / half, sum(win[half:]) / (TREND_WINDOW - half)
+
+
 def _trap(view, i, days):
-    """What was band width doing BEFORE this move? CLEAR / SUSPECT / UNKNOWN.
+    """What was PRICE doing before this move? CLEAR / SUSPECT / UNKNOWN.
 
     *"smart money always make possition is narrow change once they load there
-    position than the market start moving"*. A break out of compression is the
-    real thing; a spike while the bands were already wide is the trap (the
+    position than the market start moving"*. A break out of a coil is the real
+    thing; a spike out of a range that was already opening up is the trap (the
     reference case is 2026-07-30 12:30 -- straight up, no follow-through, gave
     it all back to near the day's low).
 
-    UNKNOWN is a real answer and is never rounded to CLEAR: "we checked and it
-    is fine" and "it is too early to check" are different claims.
+    Three separate readings, all on price, none on the envelope:
+
+      * RANGE  -- the high/low of the last `RANGE_WINDOW` bars before the
+        move, over the leg's own vwap, RANKED against the last `TRAIL_WINDOW`
+        readings. Trailing, not session-so-far: see `TRAIL_WINDOW`.
+      * DWELL  -- for how many consecutive bars the range has stayed that
+        narrow. Reported always, with its bar count; it is context the
+        operator asked for, not a gate, so it never turns a CLEAR into a
+        SUSPECT nor a SUSPECT into a CLEAR on its own.
+      * DIRECTION -- whether that range was narrowing, flat or expanding into
+        the break. *"not narrowing or staying flat"* is the trap's tell, so an
+        EXPANDING range is a SUSPECT however low it ranks.
+
+    STILL OPEN with the operator: they said a long-held thin range has more
+    loaded inside it than a short one, which reads like a strength ordering
+    among coils, but they never said a long dwell should be able to override
+    a rank that says the range is not narrow, nor how long is long. So dwell
+    is reported and never gates. Ask before making it one.
+
+    CLEAR needs the range to be both narrow AND not expanding. UNKNOWN is a
+    real answer and is never rounded to CLEAR: "we checked and it is fine",
+    "it is too early to check" and "it is before the operator's 09:25 anchor"
+    are three different claims and each says so in its own words.
+
+    Returns `(verdict, why, dwell)`; `dwell` is None where it was never
+    reached.
     """
-    widths = _widths(view, i, days)
-    session = [w for _j, w in widths]
-    pre = [w for j, w in widths if i - TRAP_LOOKBACK <= j <= i - 1]
-    if len(session) < TRAP_MIN_HISTORY:
-        return "UNKNOWN", (f"only {len(session)} bar(s) of session history "
-                           f"here; {TRAP_MIN_HISTORY} are needed before a "
-                           f"width can be ranked, so compression is untested")
-    if len(pre) < TRAP_LOOKBACK:
-        return "UNKNOWN", (f"only {len(pre)} of the {TRAP_LOOKBACK} bars "
-                           f"before this move have a readable band width, so "
-                           f"what preceded it cannot be ranked")
-    mean = sum(pre) / len(pre)
-    rank = sum(1 for w in session if w <= mean) / len(session)
-    shape = (f"width before the move {mean:.4f} of vwap, rank {rank:.2f} of "
-             f"{len(session)} bars this session")
-    if rank <= COMPRESSION_RANK:
-        return "CLEAR", (f"emerged from compression: {shape} (bottom "
-                         f"{COMPRESSION_RANK:.0%})")
-    return "SUSPECT", (f"bands were already wide when it moved: {shape} -- no "
-                       f"prior coil, so the break has nothing behind it")
+    bar = _bar(view, i)
+    minute = _minute(bar.get("t")) if bar else None
+    if minute is None:
+        return "UNKNOWN", (f"this bar carries no readable clock label, so the "
+                           f"operator's {ANCHOR_HHMM} anchor cannot be "
+                           f"checked and compression is untested"), None
+    if minute < ANCHOR_MINUTE:
+        return "UNKNOWN", (f"this bar is {bar['t']}, before the "
+                           f"{ANCHOR_HHMM} anchor -- there is too little "
+                           f"session to say what price was doing, so "
+                           f"compression is untested"), None
+
+    pts = _price_points(view, i, days)
+    pre_pts = [p for p in pts if p[0] <= i - 1]
+    if len(pre_pts) < RANGE_WINDOW:
+        return "UNKNOWN", (f"only {len(pre_pts)} readable bar(s) of this "
+                           f"session before the move; {RANGE_WINDOW} are "
+                           f"needed for one range reading, so compression is "
+                           f"untested"), None
+
+    pre = _ranges(pre_pts)
+    cur = pre[-1]
+    rank, seen = _rank(pre, len(pre) - 1)
+    if rank is None:
+        return "UNKNOWN", (f"only {seen} range reading(s) of session history "
+                           f"before this move; {TRAIL_MIN} are needed before "
+                           f"a range can be ranked, so compression is "
+                           f"untested"), None
+
+    narrow = rank <= COMPRESSION_RANK
+    dwell = _dwell(pre)
+    shape = (f"range before the move {cur:.4f} of vwap, rank {rank:.2f} of "
+             f"the last {seen} readings")
+    held = (f"price has held a range that narrow for {dwell} consecutive "
+            f"bar(s)" if dwell else
+            "price is not holding a narrow range here at all")
+
+    prior, recent = _direction(pre)
+    word = ("expanding" if recent > prior else
+            "narrowing" if recent < prior else "flat")
+    move = (f"the range was {word} into it ({prior:.4f} -> {recent:.4f} of "
+            f"vwap across the last {TREND_WINDOW} readings)")
+    if narrow and word != "expanding":
+        return "CLEAR", (f"broke out of a coil: {shape} (bottom "
+                         f"{COMPRESSION_RANK:.0%}), {held}, and "
+                         f"{move}"), dwell
+    if narrow:
+        return "SUSPECT", (f"{shape} (bottom {COMPRESSION_RANK:.0%}) and "
+                           f"{held}, but {move} -- the coil was already "
+                           f"opening up before this bar"), dwell
+    return "SUSPECT", (f"{shape} -- not in the bottom "
+                       f"{COMPRESSION_RANK:.0%}, so price was not coiling "
+                       f"into this move; {held}, and {move}"), dwell
 
 
 def detect(legs, axis=None):
@@ -410,8 +612,10 @@ def detect(legs, axis=None):
 
         {"i": int, "side": "BUY"|"SELL", "leg": "CE"|"PE",
          "band": "d2"|"d3"|"u3", "trigger": str,
+         "also": [str] | None,      # hits on this bar that lost the tie-break
          "confirm": "CONFIRMED"|"UNCONFIRMED"|"UNKNOWN", "confirm_why": str,
-         "trap": "CLEAR"|"SUSPECT"|"UNKNOWN", "trap_why": str}
+         "trap": "CLEAR"|"SUSPECT"|"UNKNOWN", "trap_why": str,
+         "trap_dwell": int | None}  # bars price held its pre-move box
 
     Nothing is ever raised for shape: a missing leg, a null bar, a band the
     feed never sent -- each removes what it removes and is said out loud in
@@ -463,13 +667,22 @@ def detect(legs, axis=None):
             out.append(None)
             continue
         # Interpretation 6: one record per bar, strongest sigma first, then
-        # CE before PE so the choice is deterministic and replayable.
+        # CE before PE so the choice is deterministic and replayable. The
+        # loser is NAMED rather than dropped -- both legs qualifying on one
+        # minute is the pair rotating in its purest form, and a consumer that
+        # only ever sees the winner cannot tell that apart from a lone tag.
         name, hit = min(hits, key=lambda h: (-_SIGMA[h[1]["band"]],
                                              _LEGS.index(h[0])))
+        also = [_trigger_why(n, h) for n, h in hits if n != name] or None
+        trigger = _trigger_why(name, hit)
+        if also:
+            trigger += (f" (the other leg qualified on this same bar too -- "
+                        f"{'; '.join(also)} -- and one record is emitted per "
+                        f"bar, the deeper sigma reported)")
         confirm, confirm_why = _confirm(views, name, i, days, hit["side"])
-        trap, trap_why = _trap(views[name], i, days)
+        trap, trap_why, dwell = _trap(views[name], i, days)
         out.append({"i": i, "side": hit["side"], "leg": name,
-                    "band": hit["band"], "trigger": _trigger_why(name, hit),
+                    "band": hit["band"], "trigger": trigger, "also": also,
                     "confirm": confirm, "confirm_why": confirm_why,
-                    "trap": trap, "trap_why": trap_why})
+                    "trap": trap, "trap_why": trap_why, "trap_dwell": dwell})
     return out

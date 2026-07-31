@@ -257,7 +257,8 @@ ROTATION_RULE = (
     "`rotation` is the band-rotation detector's answer for this request, one "
     "slot per `axis` index and the SAME length as every leg's arrays: null "
     "where nothing fired, else a record "
-    "{i, side, leg, band, trigger, confirm, confirm_why, trap, trap_why}. "
+    "{i, side, leg, band, trigger, also, confirm, confirm_why, trap, "
+    "trap_why, trap_dwell}. "
     "`i` is the axis index the record sits at, so rotation[i], axis[i], "
     "legs.CE.bars[i] and legs.PE.bars[i] are all the same minute of the same "
     "session. The ENGINE decides: a consumer renders these strings and these "
@@ -266,9 +267,14 @@ ROTATION_RULE = (
     "setup would disagree the first time one of them was changed. At most one "
     "record exists per bar even when both legs trigger (band_rotation "
     "interpretation 6), which is why this is a sibling of `legs` and not a "
-    "field inside them. `confirm` is three-valued (CONFIRMED / UNCONFIRMED / "
-    "UNKNOWN) and `trap` likewise (CLEAR / SUSPECT / UNKNOWN); UNKNOWN means "
-    "unreadable, never 'fine', and must not be rendered as either verdict.")
+    "field inside them; when the other leg qualified on that same bar it is "
+    "named in `also` rather than dropped, so a consumer can see that both "
+    "sides were at their extremes on one minute. `confirm` is three-valued "
+    "(CONFIRMED / UNCONFIRMED / UNKNOWN) and `trap` likewise (CLEAR / SUSPECT "
+    "/ UNKNOWN); UNKNOWN means unreadable, never 'fine', and must not be "
+    "rendered as either verdict. `trap_dwell` is how many consecutive bars "
+    "price had held a range that narrow, or null where the trap read never "
+    "got that far.")
 
 FORMING_WHY = (
     "forming is null in this build. The incomplete candle is aggregated from "
