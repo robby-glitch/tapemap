@@ -907,6 +907,14 @@ export function startLevelsOverlay(
   /** The SMC toggle. Off means the operator asked for the layer to be hidden,
    *  which is not the same as the layer being unavailable. */
   getSmc: () => boolean,
+  /** The event-derived layers drawn OVER the price area — the zone/condition
+   *  bands and the story balloons. Default off, because neither was ever
+   *  scored: signal_review.py measured the engine's own directional events at
+   *  -0.1 pts (`risk`) and -6.2 pts (`lean`) at +30m against a +4.1 control,
+   *  and the tab draws ~83 of them a session at equal visual weight. Unproven
+   *  is not the same as wrong, so nothing is deleted — it is opt-in, and
+   *  TradeTab's legend reports how many are being withheld. */
+  getStory: () => boolean,
 ): () => void {
   const ctx = canvas.getContext('2d')!
   let raf = 0
@@ -944,6 +952,7 @@ export function startLevelsOverlay(
     const data = getData()
     const zones = getZones()
     const smc = getSmc()
+    const story = getStory()
     const structures = getStructures()
     // Drawn only when the operator asked for it AND the indices are
     // trustworthy. `structs.length === 0` and `structures === null` both draw
@@ -1065,6 +1074,10 @@ export function startLevelsOverlay(
       // last structure's confirm + rounded hi/lo (rounded to match this
       // file's own price-text style, e.g. the level chips above) are added so
       // that in-place shift repaints too, without keying anything per-frame.
+      // `story` belongs here for the same reason `smc` does: the frame-skip
+      // guard would otherwise hold the last painted frame after a toggle, and
+      // the layer would appear stuck on until something else moved.
+      `|${story ? 1 : 0},${zones.length}` +
       `|${smc ? 1 : 0}${structures ? '' : 'x'},${structs.length},` +
       `${structs[0]?.born},${structs[structs.length - 1]?.born},` +
       `${structs[structs.length - 1]?.confirm},` +
@@ -1077,7 +1090,7 @@ export function startLevelsOverlay(
 
     // Zone bands FIRST — the market-condition wash is the backdrop everything
     // else reads against, so it must sit under the σ ribbons, not over them.
-    if (lastIdx >= 0 && zones.length) {
+    if (lastIdx >= 0 && zones.length && story) {
       ctx.save()
       ctx.beginPath()
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
@@ -1207,14 +1220,20 @@ export function startLevelsOverlay(
     // share ONE lane ledger, so a setup marker and an event balloon can never
     // land on top of each other; rotation runs first and takes the inner
     // lanes, because the operator's own setup is what the tab is for.
-    if (lastIdx >= 0 && (dRot || dNarrs.length)) {
+    if (lastIdx >= 0 && (dRot || (story && dNarrs.length))) {
       ctx.save()
       ctx.beginPath()
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
       const lanes = newLanes()
+      // Rotation is NOT gated by `story`. It is the operator's own setup —
+      // the only analytic here derived from their edge rather than someone
+      // else's vocabulary, and the only one measured, found wrong and
+      // corrected twice. The event balloons are the unscored layer.
       if (dRot) drawRotation(ctx, conv, pane, pal, dBars, dTimes, dRot, lastIdx, lanes)
-      if (dNarrs.length) drawBalloons(ctx, conv, pane, pal, dBars, dTimes, dNarrs, lastIdx, lanes)
+      if (story && dNarrs.length) {
+        drawBalloons(ctx, conv, pane, pal, dBars, dTimes, dNarrs, lastIdx, lanes)
+      }
       ctx.restore()
     }
   }

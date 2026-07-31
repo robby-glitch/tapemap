@@ -252,15 +252,40 @@ export default function TradeTab({
   const [mode, setMode] = useMode()
   const pal = palette(mode)
 
-  // SMC structure layer, default ON: the operator trades ICT/SMC, so the layer
-  // is the point of the tab, not a garnish. Persisted like `tape.mode` and
-  // `tape.focus`; only the literal string 'off' turns it off, so a corrupt or
-  // absent value fails towards showing the operator more, never less.
-  const [smc, setSmc] = useState<boolean>(() => localStorage.getItem('tape.smc') !== 'off')
+  // SMC structure layer, now default OFF — reversed 2026-07-31 on measurement,
+  // not taste. On the operator's own 2026-07-30 session structure.py printed 9
+  // EQH and 7 EQL where their LuxAlgo printed 2 and 2 (4x over-firing); ~2/3 of
+  // all structures are UNKNOWN by construction because the payload carries no
+  // per-strike chain OI to confirm them; and the FVG/OB boxes never close, so a
+  // filled gap keeps drawing. ~180 shapes a session buried the candles, which
+  // is the exact noise the spec exists to avoid.
+  //
+  // The gate flipped with the default: `=== 'on'` now, so an absent or corrupt
+  // value fails towards the QUIET chart. That inverts the old convention here
+  // deliberately — with an unscored layer, failing "open" means failing towards
+  // clutter the measurements do not support.
+  const [smc, setSmc] = useState<boolean>(() => localStorage.getItem('tape.smc') === 'on')
   const toggleSmc = () => {
     const next = !smc
     localStorage.setItem('tape.smc', next ? 'on' : 'off')
     setSmc(next)
+  }
+
+  // STORY — the zone/condition bands and the event balloons, the two layers
+  // drawn OVER the price area from the engine's event stream. Default OFF for
+  // the same reason: signal_review.py scored the engine's own directional
+  // events at -0.1 pts (`risk`, n=16) and -6.2 pts (`lean`, n=16) at +30m
+  // against a +4.1 control — two of three claim-strength buckets did worse than
+  // doing nothing — and the tab renders ~83 events a session at equal weight.
+  //
+  // Nothing is deleted. Unproven is not the same as disproven, the operator can
+  // switch it back on in one click, and the legend below reports how many
+  // events are being withheld so "hidden" never reads as "none found".
+  const [story, setStory] = useState<boolean>(() => localStorage.getItem('tape.story') === 'on')
+  const toggleStory = () => {
+    const next = !story
+    localStorage.setItem('tape.story', next ? 'on' : 'off')
+    setStory(next)
   }
 
   // Clamp both ends: a negative cursor would index bars[-1] === undefined and
@@ -317,6 +342,19 @@ export default function TradeTab({
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
   const narrs = useMemo(() => buildNarration(bars, events), [bars, events])
+
+  // How many events the STORY layer is holding back. Same causal clamp as
+  // rotCount: an event past the cursor has not happened yet as far as the
+  // chart is concerned, so it must not be counted into a disclosure that
+  // describes what is being withheld from the CURRENT view.
+  const eventCount = useMemo(() => {
+    let n = 0
+    for (let i = 0; i < narrs.length; i++) {
+      if (cursor != null && i > at) break
+      if (narrs[i]) n++
+    }
+    return n
+  }, [narrs, cursor, at])
 
   // Causality (binding, Task 2 review): a zone's label/why embed the run's
   // FULL length, so while the replay cursor is set, buildZones must never
@@ -505,6 +543,24 @@ export default function TradeTab({
             }}
           >SMC</button>
 
+          {/* STORY: the event-derived layers over price (condition bands +
+              balloons). Same styling family. Off by default — see the state
+              above for the measurements. The title names the count so the
+              operator knows what turning it on would add. */}
+          <button
+            onClick={toggleStory}
+            title={narrs.length
+              ? `Show the engine's event layers over price — ${eventCount} event${eventCount === 1 ? '' : 's'} and ${zones.length} condition band${zones.length === 1 ? '' : 's'} on this session. Off by default: these were never scored, and the ones that were measured did worse than doing nothing.`
+              : 'Show the engine\'s event layers over price — no events on this session'}
+            style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              padding: '3px 9px', cursor: 'pointer',
+              border: `1px solid ${pal.border}`, borderRadius: 4,
+              backgroundColor: story ? pal.accent : 'transparent',
+              color: story ? pal.card : pal.textMuted,
+            }}
+          >STORY</button>
+
           {/* With the glance bar hidden, its index switcher goes with it —
               this is just that switcher, not a duplicate of the whole bar. */}
           {focus && (
@@ -595,7 +651,7 @@ export default function TradeTab({
         <ContractChart
           index={index} day={day} bars={bars} levels={levels} cursor={cursor}
           mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
-          structures={structures} smc={smc} rotation={rotation}
+          structures={structures} smc={smc} rotation={rotation} story={story}
         />
       </div>
 
@@ -616,6 +672,28 @@ export default function TradeTab({
               : ''}`
           : ''}
       </div>
+
+      {/* What the chart is NOT drawing, and how much of it there is.
+          Honesty rule: "we are not showing you" must never be indistinguishable
+          from "we checked and found nothing". A layer that is merely switched
+          off has to say so, with its count, or a quiet chart reads as a quiet
+          market. Only rendered once the session has loaded (`day`), so an empty
+          first paint never claims anything is being withheld. */}
+      {day && (!story || !smc) && (
+        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2, opacity: 0.85 }}>
+          Hidden:
+          {!story && ` STORY — ${eventCount} event${eventCount === 1 ? '' : 's'}`
+            + ` and ${zones.length} condition band${zones.length === 1 ? '' : 's'} not drawn`}
+          {!story && !smc && ' ·'}
+          {!smc && (structures
+            ? ` SMC — ${structCounts ? structCounts.drawn : 0} structure${structCounts && structCounts.drawn === 1 ? '' : 's'} not drawn`
+            : ' SMC — unavailable for this session, not merely hidden')}
+          {'. '}
+          Both are off by default because they were never scored against what
+          price did next; the buttons above turn them back on. Hover still reads
+          every event on its own bar.
+        </div>
+      )}
 
     </div>
 

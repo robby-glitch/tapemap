@@ -35,6 +35,13 @@ interface Props {
    *  they cannot be lined up honestly (data.ts's guard). Null draws nothing;
    *  TradeTab prints the reason. */
   rotation?: (RotationSignal | null)[] | null
+  /** The unscored event layers drawn over price — zone/condition bands and
+   *  story balloons. Defaults TRUE so this component renders as it always did
+   *  when the prop is omitted; TradeTab passes the operator's toggle, which
+   *  defaults off. `narrs` still reaches the hover Callout either way — an
+   *  on-demand read is not clutter, and hiding it would remove information the
+   *  operator asked for rather than noise they did not. */
+  story?: boolean
 }
 
 // A shared empty default, so an omitted `zones` prop does not hand the overlay
@@ -62,7 +69,7 @@ function nearestIndex(times: number[], t: number): number {
 
 export default function ContractChart({
   index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
-  structures = null, smc = true, rotation = null,
+  structures = null, smc = true, rotation = null, story = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -99,6 +106,8 @@ export default function ContractChart({
   // captured prop would freeze at the first render's value.
   const rotationRef = useRef<(RotationSignal | null)[] | null>(rotation)
   rotationRef.current = rotation
+  const storyRef = useRef<boolean>(story)
+  storyRef.current = story
   // The candle time axis (epoch ms), rebuilt once per data change (the same
   // [index, day, bars] effect that feeds the engine) — never recomputed
   // inside the mousemove handler itself.
@@ -153,6 +162,7 @@ export default function ContractChart({
       () => zonesRef.current,
       () => structuresRef.current,
       () => smcRef.current,
+      () => storyRef.current,
     )
 
     // Hover mapping: clientX -> container-relative x -> engine's own xToTime
