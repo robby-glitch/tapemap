@@ -84,3 +84,64 @@ def test_cache_fresh_rejects_yesterday(tmp_path):
 
 def test_cache_fresh_missing_file(tmp_path):
     assert not instruments._cache_fresh(tmp_path / "nope.csv")
+
+
+# ── current-expiry resolution + option pivots (2026-08-01) ──────────────────
+# The operator trades the CURRENT expiry only; the tape used to resolve its
+# option legs at cfg["expiry"], which resolve_dynamic sets from the FUTURES
+# (monthly) contract. These lock the fix and the new opt_pivots block.
+
+def test_nearest_opt_expiry_picks_current_not_monthly(monkeypatch):
+    monkeypatch.setattr(instruments, "_load_scrip", lambda force=False: ROWS)
+    live._opt_exp_cache.clear()
+    # Before the near expiry: pick it, not the monthly.
+    assert live._nearest_opt_expiry("NIFTY", "2026-07-27") == "2026-07-28"
+    # ON expiry day the current expiry stays current until close (>=, not >).
+    live._opt_exp_cache.clear()
+    assert live._nearest_opt_expiry("NIFTY", "2026-07-28") == "2026-07-28"
+    # After it rolls, the next one (here the monthly) becomes current.
+    live._opt_exp_cache.clear()
+    assert live._nearest_opt_expiry("NIFTY", "2026-07-29") == "2026-08-25"
+    # No expiry at all fails loudly rather than charting a guess.
+    live._opt_exp_cache.clear()
+    with pytest.raises(RuntimeError):
+        live._nearest_opt_expiry("NOSUCH", "2026-07-27")
+
+
+def test_floor_pivots_matches_this_repos_convention():
+    p = live._floor_pivots(100.0, 90.0, 95.0)
+    assert p["P"] == pytest.approx(95.0)
+    assert p["R1"] == pytest.approx(100.0) and p["S1"] == pytest.approx(90.0)
+    assert p["R2"] == pytest.approx(105.0) and p["S2"] == pytest.approx(85.0)
+    # R3 = H + 2(P-L) — live.py's convention, NOT the vendor CSV's P + 2(H-L).
+    assert p["R3"] == pytest.approx(110.0) and p["S3"] == pytest.approx(80.0)
+
+
+def test_opt_pivots_math_absence_and_cache(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_intraday(tok, sec_id, instrument, day, oi=False, seg="NSE_FNO"):
+        calls["n"] += 1
+        if sec_id == "1001":               # CE traded yesterday
+            return {"high": [104.0, 110.0], "low": [92.0, 95.0],
+                    "close": [100.0, 101.0]}
+        return {}                          # PE has no prior session
+
+    monkeypatch.setattr(live, "_intraday", fake_intraday)
+    monkeypatch.setattr(live.time, "sleep", lambda s: None)
+    live._opt_piv_cache.clear()
+    cfg = {"under_sym": "NIFTY", "expiry": "2026-07-28",
+           "prev_day": "2026-07-27", "fut_seg": "NSE_FNO"}
+    ids = {"CE": "1001", "PE": "1002"}
+
+    out = live._opt_pivots("tok", cfg, 23850.0, ids)
+    # CE: pivots from ITS OWN H/L/C, receipts included.
+    assert out["ce"]["H"] == 110.0 and out["ce"]["L"] == 92.0 and out["ce"]["C"] == 101.0
+    assert out["ce"]["P"] == pytest.approx((110.0 + 92.0 + 101.0) / 3.0)
+    assert out["why"]["ce"] is None
+    # PE: absent leg is None WITH a reason — never invented.
+    assert out["pe"] is None and "no prior session" in out["why"]["pe"]
+    # Cache: a second call fetches nothing new (yesterday cannot change).
+    n = calls["n"]
+    again = live._opt_pivots("tok", cfg, 23850.0, ids)
+    assert calls["n"] == n and again["ce"] == out["ce"]

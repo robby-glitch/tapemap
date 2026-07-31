@@ -178,13 +178,97 @@ def _pivots(tok, cfg):
         return _piv_cache[key]
     d = _intraday(tok, cfg["fut_id"], "FUTIDX", cfg["prev_day"], oi=False,
                   seg=cfg["fut_seg"])
-    H, L, C = max(d["high"]), min(d["low"]), d["close"][-1]
-    P = (H + L + C) / 3.0
-    piv = {"P": P, "R1": 2 * P - L, "S1": 2 * P - H,
-           "R2": P + (H - L), "S2": P - (H - L),
-           "R3": H + 2 * (P - L), "S3": L - 2 * (H - P)}
+    piv = _floor_pivots(max(d["high"]), min(d["low"]), d["close"][-1])
     _piv_cache[key] = piv
     return piv
+
+
+def _floor_pivots(H, L, C):
+    """Standard floor pivots from one session's H/L/C. ONE derivation for the
+    FUT and the option legs — this repo already grew two R3 conventions once
+    (live.py vs the vendor CSV export; see structure.prior_day_hlc), so the
+    formula lives in exactly one place. R3 = H + 2(P-L) is this repo's."""
+    P = (H + L + C) / 3.0
+    return {"P": P, "R1": 2 * P - L, "S1": 2 * P - H,
+            "R2": P + (H - L), "S2": P - (H - L),
+            "R3": H + 2 * (P - L), "S3": L - 2 * (H - P)}
+
+
+_opt_exp_cache = {}                       # (sym, today) -> "YYYY-MM-DD"
+
+
+def _nearest_opt_expiry(under_sym, today):
+    """Nearest unexpired OPTION expiry for `under_sym`, from the scrip master.
+
+    The operator trades the CURRENT expiry only — and until 2026-08-01 the
+    tape resolved its CE/PE legs at cfg['expiry'], which resolve_dynamic sets
+    from the FUTURES contract, i.e. the MONTHLY. The chain analytics were
+    already on the nearest expiry (chain_live.resolve_expiry), so the tape's
+    option legs and the chain's books sat on different expiries — the exact
+    mismatch the 2026-07-25 desk-grade review flagged as 'possibly open'.
+    This resolves it: nearest OPTIDX expiry >= today, local scrip-master scan,
+    no API call. On expiry day the current expiry stays current until close
+    (>=, not >)."""
+    key = (under_sym, today)
+    if key in _opt_exp_cache:
+        return _opt_exp_cache[key]
+    exps = {(r.get("SM_EXPIRY_DATE") or "")[:10]
+            for r in instruments._load_scrip()
+            if r.get("UNDERLYING_SYMBOL") == under_sym
+            and r.get("INSTRUMENT") == "OPTIDX"}
+    cands = sorted(e for e in exps if e >= today)
+    if not cands:
+        raise RuntimeError(f"no unexpired option expiry for {under_sym} "
+                           f"in the scrip master")
+    _opt_exp_cache[key] = cands[0]
+    return cands[0]
+
+
+_opt_piv_cache = {}     # (sym, expiry, strike, side, prev_day) -> leg dict|None
+
+
+def _opt_pivots(tok, cfg, strike, ids):
+    """Floor pivots off each option leg's OWN prior session — the operator
+    reads pivots on option charts too ("pivots also are good support and
+    resistance on index as well as on option charts").
+
+    Per (contract, prev_day), cached: yesterday's premium cannot change
+    intraday, so each leg costs ONE Dhan fetch per strike per day — and a
+    sticky-strike hop naturally refetches for the new contract, because the
+    strike is in the key.
+
+    A leg with no usable prior session (a strike that did not trade yesterday,
+    or the first session after its expiry rolled) gets None PLUS the reason —
+    an invented pivot is a fabricated level, and "no prior session" must never
+    be rendered as "no pivots exist". Failures never break the tape: the
+    caller attaches whatever this returns.
+    """
+    out = {"strike": strike, "prev_day": cfg["prev_day"],
+           "expiry": cfg["expiry"], "ce": None, "pe": None,
+           "why": {"ce": None, "pe": None}}
+    for side in ("CE", "PE"):
+        key = (cfg["under_sym"], cfg["expiry"], strike, side, cfg["prev_day"])
+        if key in _opt_piv_cache:
+            leg, why = _opt_piv_cache[key]
+        else:
+            try:
+                time.sleep(0.22)             # same pacing as build_payload's fetches
+                d = _intraday(tok, ids[side], "OPTIDX", cfg["prev_day"],
+                              oi=False, seg=cfg["fut_seg"])
+                if d.get("close"):
+                    H, L, C = max(d["high"]), min(d["low"]), d["close"][-1]
+                    leg = dict(_floor_pivots(H, L, C), H=H, L=L, C=C)
+                    why = None
+                else:
+                    leg, why = None, (f"no prior session for this contract on "
+                                      f"{cfg['prev_day']} — strike may be newly "
+                                      f"listed or its expiry rolled")
+            except Exception as e:           # isolation: pivots must never kill the tape
+                leg, why = None, f"prior-day fetch failed: {type(e).__name__}: {e}"
+            _opt_piv_cache[key] = (leg, why)
+        out[side.lower()] = leg
+        out["why"][side.lower()] = why
+    return out
 
 
 def _bars(d, piv):
@@ -661,7 +745,11 @@ def build_payload(cfg):
                            "built_at": time.time(),
                            "live_error": "no bars yet for " + today}).encode()
     strike = float(_pick_strike(fut_raw["close"][-1], cfg))
-    ids = _atm_ids(strike, cfg)
+    # The option side of the tape lives on the NEAREST expiry — the one the
+    # operator actually trades — not on cfg['expiry'], which is the FUTURES
+    # (monthly) contract's. See _nearest_opt_expiry for the history.
+    ocfg = dict(cfg, expiry=_nearest_opt_expiry(cfg["under_sym"], today))
+    ids = _atm_ids(strike, ocfg)
     time.sleep(0.22)
     ce_raw = _intraday(tok, ids["CE"], "OPTIDX", today, seg=seg)
     time.sleep(0.22)
@@ -675,7 +763,11 @@ def build_payload(cfg):
     ce = [b for b in ce if b["T"] in keep]
     pe = [b for b in pe if b["T"] in keep]
 
-    exp = datetime.strptime(cfg["expiry"] + " 15:30",
+    # t_days prices the legs we actually chart — the nearest expiry's — so the
+    # greeks and gamma.t now describe the operator's own contract. Note the
+    # engine's expiry-day branch (gamma.t <= 0.5) therefore fires on WEEKLY
+    # expiry days now, which is correct for what is being traded.
+    exp = datetime.strptime(ocfg["expiry"] + " 15:30",
                             "%Y-%m-%d %H:%M").replace(tzinfo=IST)
     t_days = max((exp - datetime.now(IST)).total_seconds() / 86400.0, 0.25)
     s = Session(day_lbl + " LIVE", fut, ce, pe, quiet=True,
@@ -700,6 +792,14 @@ def build_payload(cfg):
     # on every record by construction — see band_rotation.detect_index.
     js["rotation"] = band_rotation.detect_index(js["bars"])
     js["rotation_rule"] = band_rotation.INDEX_ROTATION_RULE
+    # Floor pivots of each tracked option leg's OWN prior session, additive
+    # (v1 ignores the key). Same formula as the FUT pivots (_floor_pivots),
+    # applied to the contract's own H/L/C; a leg with no prior session says
+    # why instead of inventing levels. The whole block is fail-soft.
+    js["opt_pivots"] = _opt_pivots(tok, ocfg, strike, ids)
+    # Which expiry the ce/pe legs (and their pivots, and t_days) belong to —
+    # disclosed so the UI can name the contract rather than implying it.
+    js["opt_expiry"] = ocfg["expiry"]
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
                        "expiry": cfg["expiry"], "built_at": time.time(),
                        "days": [js]}).encode()
