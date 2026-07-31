@@ -1,0 +1,504 @@
+{
+ "BANKNIFTY 2026-06-01": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-02": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-03": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-04": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-05": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-08": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-09": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-10": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-11": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-12": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-15": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-16": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-17": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-18": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-19": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-22": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-23": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-24": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-25": {
+  "bars": 375,
+  "is_monthly_expiry": true,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-26": {
+  "ok": false,
+  "reason": "Dhan served no bars for this session (holiday or outage -- indistinguishable at this layer)"
+ },
+ "BANKNIFTY 2026-06-29": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-06-30": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-01": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-02": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-03": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-06": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-07": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-08": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-09": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-10": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-13": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-14": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-15": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-16": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-17": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-20": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-21": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-22": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-23": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-24": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-27": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-28": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-29": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-30": {
+  "bars": 375,
+  "is_monthly_expiry": true,
+  "ok": true
+ },
+ "BANKNIFTY 2026-07-31": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-06-26": {
+  "ok": false,
+  "reason": "Dhan served no bars for this session (holiday or outage -- indistinguishable at this layer)"
+ },
+ "NIFTY 2026-07-20": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-21": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-22": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-23": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-24": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-27": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-28": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-29": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "NIFTY 2026-07-30": {
+  "bars": 375,
+  "is_monthly_expiry": true,
+  "ok": true
+ },
+ "NIFTY 2026-07-31": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-01": {
+  "bars": 161,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-02": {
+  "bars": 270,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-03": {
+  "bars": 292,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-04": {
+  "bars": 357,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-05": {
+  "bars": 356,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-08": {
+  "bars": 365,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-09": {
+  "bars": 370,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-10": {
+  "bars": 356,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-11": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-12": {
+  "bars": 370,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-15": {
+  "bars": 372,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-16": {
+  "bars": 372,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-17": {
+  "bars": 363,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-18": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-19": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-22": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-23": {
+  "bars": 363,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-24": {
+  "bars": 354,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-25": {
+  "bars": 374,
+  "is_monthly_expiry": true,
+  "ok": true
+ },
+ "SENSEX 2026-06-26": {
+  "ok": false,
+  "reason": "Dhan served no bars for this session (holiday or outage -- indistinguishable at this layer)"
+ },
+ "SENSEX 2026-06-29": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-06-30": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-01": {
+  "bars": 366,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-02": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-03": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-06": {
+  "bars": 367,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-07": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-08": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-09": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-10": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-13": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-14": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-15": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-16": {
+  "bars": 373,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-17": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-20": {
+  "bars": 374,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-21": {
+  "bars": 369,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-22": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-23": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-24": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-27": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-28": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-29": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ },
+ "SENSEX 2026-07-30": {
+  "bars": 375,
+  "is_monthly_expiry": true,
+  "ok": true
+ },
+ "SENSEX 2026-07-31": {
+  "bars": 375,
+  "is_monthly_expiry": false,
+  "ok": true
+ }
+}
