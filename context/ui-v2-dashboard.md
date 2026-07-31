@@ -542,6 +542,96 @@ then counted as calls and are now `risk`. Same data, different buckets: exactly
 why the buckets had to be fixed a priori rather than chosen from the result.
 The real answer needs the ~55 cached days in `data/backtest/`.
 
+## Phase 5 + the operator's own setup (2026-07-31) — READ THIS FIRST
+
+The single most important thing about this work: **almost none of it is
+visible.** `/api/contract` is **never called from the frontend** (verified by
+grep, zero references). The only part on screen is the *index* rotation marker
+shipped 2026-07-31 morning, fed by `/api/data`.
+
+### What exists, and where
+
+| module | what it does | in the UI? |
+|---|---|---|
+| `contract_bars.py` | option-premium bars + that leg's **own** VWAP and ±1/2/3σ | no |
+| `contract_pair.py` | the 09:20 ATM-anchored premium-matched pair | no |
+| `/api/contract` | both legs on one shared `(day, t)` axis, `gaps[]`, `forming: null` | **never called** |
+| `band_rotation.py` | the operator's setup: band tag + same-bar reversal, other-leg rotation, OI deceleration, compression | two-leg: **no** · index: yes |
+| `/api/data` `rotation` key | index-only signals, 1:1 with bars | **yes** — chart markers + callout |
+
+**The index version is the DEGRADED one.** A single series has no opposite leg,
+so its `confirm` is permanently `UNKNOWN` with that reason stated. The full
+setup — the one that actually checks "the other side coming down from +2/+3σ" —
+runs only on the option pair, and has no way to reach the screen.
+
+**Next build, and it is the obvious one:** the option pair chart in the Trade
+tab. Two premium panes (CE and PE) with their own σ bands, the picked pair in a
+header, the two-leg rotation signals drawn on them, and their OI panes (the
+OI-deceleration condition is half the rule and the operator reads it off those
+charts). The operator has NOT yet chosen side-by-side vs stacked.
+
+### Verified against the operator's own Kite export (2026-07-30 NIFTY AUG FUT)
+
+**Our bands ARE their bands.** VWAP within **0.078 points** median (max 0.159);
+±3σ width ratio ours/Kite median **0.981** over 374 bars. Only the opening bars
+diverge (min 0.482), which is the known incremental-variance under-estimate.
+This closes a question that was open all session — a band touch the tool reports
+is a band touch they can see.
+
+**Band width contracts and expands** — the operator was right and an earlier
+measurement of mine was wrong. Their phase table reproduced exactly: 09:25
+104.7 → 12:30 **87.4 (day's tightest)** → 12:40 163.7 → 13:00 173.2. My
+"monotonic growth" finding was an artefact of normalising width by VWAP on
+**decaying option premium**. On futures, with a stable VWAP, the squeeze cycle
+is real. Hence: **squeeze read on the index, entry on the option chart** —
+confirmed by the operator in those words.
+
+### Live verification, 2026-07-31 open
+
+Index detector: 09:39 **fired** (`low 24371.10 ≤ d2 24376.80`, same bar closed
+`24385.00` back above; price then ran to 24419, ~+34 pts). 09:35–09:38 each
+tagged d2 and closed below → correctly did **not** fire. Option pair that
+morning: 24350 CE / 24300 PE, four signals, incl. `BUY PE d3` with *"PE low
+67.50 ≤ d3 67.59, closed 71.00 back above; CE tagged u3 two bars back, now
+105.30 below it"* — the rotation, on premium bands.
+
+### Decisions waiting on the operator — do not guess these
+
+1. **Gate the trigger at 09:25?** 9 of today's 15 index signals fired in the
+   first 10 bars, where σ has few samples and the bands sit on price (e.g. a
+   1.2-point pierce of d3). The operator's own 09:25 anchor currently gates only
+   the *trap*, not the trigger. One-line change; deletes those 9, leaves 09:39.
+2. **Re-fire suppression** — 09:25/26/27 all tagged the same 24415 level.
+3. **`CONFIRMED` + trap `CLEAR` = 0 of 64** across 55 sessions (expected ~9,
+   p≈3e-5). Measured cause: CONFIRMED records sit at median index-width rank
+   **1.00**, 58/64 expanding — the rotation confirmation fires when both legs
+   have just been at their extremes, i.e. *after* the band blew out, while
+   compression is *before*. The two gates describe different phases, so ANDing
+   them is near-impossible by construction. Compression probably belongs as
+   **context** ("this came out of a squeeze N bars ago"), not a co-condition.
+4. **Expiry-day rule** — unspecified. `contract_pair.py` implements the
+   normal-day rule only; do not tune anything to fit an expiry session.
+5. **Seller's stop and decay target** — undecided, must not be invented.
+6. **Setup B expression** — buy the cheap leg at each ±1σ edge, or sell premium
+   into the pin? Undecided.
+7. **±1σ interior = no-trade, edges = the zones** — that reading reconciles two
+   of the operator's statements but they have not confirmed it in those words.
+
+### Operational facts worth not rediscovering
+
+- **`toDate` on Dhan's intraday endpoint is exclusive for the NEWEST session but
+  INCLUSIVE for older ones.** `fromDate == toDate` returns 0 bars for today and
+  375 for an older day; `toDate = day+1` over-serves older days (750 bars, two
+  sessions). Every caller must slice by session — `live._one_session` does it.
+  Getting this wrong banded two trading days onto one 09:15 VWAP anchor and
+  silently poisoned every IV/writer-score/GEX in a chain file.
+- **`FUT_ID = "61093"` in `dhan_fetch.py` is STALE** — returns 0 bars for every
+  date. The resolver gives **58072** for NIFTY AUG FUT
+  (`resolve_dynamic(get(idx), tok, day)['fut_id']`). Use the resolver; the id
+  rolls with expiry.
+- `2026-07-31` served 0 bars from Dhan the previous evening — holiday vs
+  unpublished unknown; exchange holidays are not modelled and surface as gaps.
+
 ## Open items — accurate as of 2026-07-30 close
 
 **Do first, next session (in this order):**
