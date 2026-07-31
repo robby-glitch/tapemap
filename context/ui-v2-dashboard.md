@@ -19,10 +19,10 @@
 
 Gates before you commit: `corepack pnpm --dir ui-v2 exec tsc --noEmit`,
 `corepack pnpm --dir ui-v2 build`, and `python -m pytest -q` from the repo root
-(**102 tests** as of 2026-07-30 — the newest are `test_structure.py`,
-`test_chain_deadline.py`, `test_session_json.py`). Verify in the browser in a
-**fresh tab** — React hook-order warnings after an edit are HMR artifacts and
-do not reproduce on a clean load.
+(**265 tests** as of 2026-08-01 — the newest lock the current-expiry pick, the
+R3 pivot convention and the opt-pivot math in `test_live_cache.py`). Verify in
+the browser in a **fresh tab** — React hook-order warnings after an edit are
+HMR artifacts and do not reproduce on a clean load.
 
 **A hook will block your first Write/Edit per file and your first Bash call**
 with a "present these facts" prompt. State the facts in plain text (importers,
@@ -569,6 +569,12 @@ tab. Two premium panes (CE and PE) with their own σ bands, the picked pair in a
 header, the two-leg rotation signals drawn on them, and their OI panes (the
 OI-deceleration condition is half the rule and the operator reads it off those
 charts). The operator has NOT yet chosen side-by-side vs stacked.
+**Update 2026-08-01:** the *ATM* leg panes now exist in the Trade tab
+(`trade/LegChart.tsx`, from `/api/data`'s own ce/pe blocks — rolling-ATM,
+current expiry, prior-day pivots). That is NOT this pair chart: the
+premium-matched pair across different strikes, with the two-leg `confirm`,
+still only lives behind the never-called `/api/contract` — and per the
+operator, per-leg pivots belong there too ("B first, both eventually").
 
 ### Verified against the operator's own Kite export (2026-07-30 NIFTY AUG FUT)
 
@@ -632,17 +638,104 @@ morning: 24350 CE / 24300 PE, four signals, incl. `BUY PE d3` with *"PE low
 - `2026-07-31` served 0 bars from Dhan the previous evening — holiday vs
   unpublished unknown; exchange holidays are not modelled and surface as gaps.
 
-## Open items — accurate as of 2026-07-30 close
+## 2026-07-31 → 08-01 — the strip, the zone read, the expiry fix (READ THIS)
+
+**The operator rejected the chart** ("the charts and all that you create is
+absolutely shit… hardly any sense… our tool is not having the overall feel
+what market is trying to do") and the direction changed from *more layers* to
+*strip, then assemble context at the operator's zones*. Five commits:
+
+### `677ffc8` — backfill + the squeeze/OI hypothesis scored to a NO
+
+The idea "squeeze breakout + falling OI = covering, fades" looked good at n=5
+and **died at scale**: BANKNIFTY inverts the sign outright (OI-falling arm
+closed +124.4 mean / +87.9 median, 83% green) and every OI-falling arm has a
+POSITIVE median close. It survives only pooled across indices — the case
+pre-registered as a failure. `squeeze_score.py` reproduces the whole run
+(per-index first, both controls, 12-cell grid). **Do not revive it without
+new evidence.** Facts that outlast it: `backfill.py` can now extend
+`data/backtest/` (NIFTY flat, other indices in subdirs — an index prefix
+would corrupt eight readers' `basename[4:14]` date slice); **Dhan serves
+NOTHING before 2026-06-01** for any index (expired contracts drop out of the
+scrip master, and `resolve_dynamic` silently returns the CURRENT contract for
+any historical date); contract OI ramps mechanically through rollover week
+(1.2M → 18M) — but `band_rotation`'s OI-deceleration is **immune** (session-
+local + second derivative; verified flat ~50% across dte buckets — don't
+re-flag it). The cache mixes a live front-month capture (to 07-17) with a
+backfilled AUG contract (07-20 on): never compare the two on OI LEVEL.
+
+### `109a623` — the chart stripped to what was measured
+
+SMC and the new **STORY** toggle (condition bands + event balloons) are now
+**default OFF**, justified by the repo's own numbers (signal_review: `risk`
+−0.1 / `lean` −6.2 vs +4.1 control; EQH 4× over-fire vs the operator's
+LuxAlgo). Rotation markers deliberately ungated — the operator's own setup is
+never de-cluttered. The legend discloses hidden counts ("Hidden: STORY — 65
+events…"); both gates flipped to `=== 'on'` so a corrupt localStorage fails
+toward the QUIET chart. Nothing deleted, all one click away.
+
+### `472b414` — the tape's option side moved to the CURRENT expiry, + pivots
+
+The operator caught it: "we only work in the current expiry i think you are
+selecting monthly." Confirmed — `cfg["expiry"]` comes from the FUTURES
+contract (monthly), so the tape's ce/pe legs, `t_days` and gamma's expiry-day
+branch were monthly while the chain was already weekly. **The desk-grade
+review item is confirmed real and now fixed**: `_nearest_opt_expiry()`
+(scrip-master scan, `>=` today so expiry day stays current) drives the legs,
+`t_days` and the new `opt_pivots`. Consequences: gamma's expiry-day branch
+now fires on WEEKLY expiry days, and the cached `opt_*` backtest captures are
+monthly-leg data — the live series changed contract on 2026-08-01.
+`opt_pivots` (additive): floor pivots off each leg's OWN prior session, one
+shared `_floor_pivots` with the FUT (this repo grew two R3 conventions once),
+H/L/C receipts included, null-with-reason when a strike has no prior session.
+`opt_expiry` names the contract on the wire.
+
+### `a32f16c` — the zone read: what the operator actually asked for
+
+Their brief, verbatim: "i look at the index chart of NIFTY and look at the
+ATM straddle charts of options… if the market is down there, it should, with
+the help of OI, [say] how our books are looking, what GEX is saying, whether
+it supports trading in that zone… think everything as a whole." Three pieces,
+all presentation over data already published:
+
+- **OI strip** under the chart — the latest `/api/oiflow` mark (CALL/PUT
+  added, DIFF+side+strength, PCR, Δ, DHB/DLB), mark time always shown,
+  dimmed + labelled while replaying. Tab-local 15s poll, zero Dhan cost.
+- **ZONE READ** (`trade/ZoneRead.tsx`) — always-on panel above ENGINE READ:
+  WHERE / BOOKS (walls + off-peak %) / GEX (first consumer of `gexSpot`) /
+  FLOW / GAMMA / STRUCTURE (pools worded "formed; sweep not tracked") /
+  SETUP (rotation verbatim). Accent + IN ZONE chip only when the bar TAGS
+  ±2/3σ. **No tally, no score** — SUPPORTS/AGAINST tagging is future work
+  that needs rules in the engine, scored first.
+- **ATM leg charts** (`trade/LegChart.tsx`) — CE/PE premium panes against
+  their OWN engine-computed σ bands + OI panes + prior-day pivots. **The
+  find: the ce/pe legs were in every `/api/data` bar all along** and
+  `tapeBars` dropped them — zero new fetches. Rolling-ATM disclosure is
+  mandatory; headers name the expiry.
+
+Verified in-browser on the live 07-31 session (strip digits reconcile with
+the operator's own Trending-OI screen; both leg canvases painted; replay
+disclosures fire). First live sightings: the CHAIN STALE banner and gamma
+PINNED. The **server on 8765 was restarted 2026-08-01** and runs this code.
+
+### Monday-open checklist (first session on the new build)
+
+1. Fresh Dhan token (**⟳ TOKEN**) — Friday's expires Saturday ~13:00.
+2. Leg pane headers say the current WEEKLY expiry, not `2026-08-25`.
+3. Leg pivot values vs Kite on the same contracts — the direct cross-check.
+4. `opt_pivots` on the wire (never yet seen live — built on a closed market).
+5. Whether ZONE READ's build-up (flow + books + width rank) reads usefully
+   BEFORE price reaches a band, which is its entire purpose.
+
+## Open items — accurate as of 2026-08-01
 
 **Do first, next session (in this order):**
 
-1. **Watch one open with the new build.** Everything from Phase 3 onward was
-   verified on a session that had already closed, replaying today's 375 bars.
-   Never seen live: the CHAIN STALE banner actually firing (the poller only
-   publishes `built_at` once polling resumes at 09:15), a **PINNED** or
-   **CEILING** gamma regime (today was FLOOR all day, so the `lean` chip has
-   only ever rendered one of its three regimes), and premium/discount re-cutting
-   as a range moves rather than sitting on the last cut of a finished day.
+1. **Watch one open with the new build** — now Monday 2026-08-03, and the list
+   shrank: CHAIN STALE and gamma **PINNED** were both seen live on 07-31/08-01.
+   Still never seen live: a **CEILING** regime, premium/discount re-cutting as
+   a range moves, `opt_pivots` on the wire, and the legs resolving the weekly
+   expiry in a real session (the whole Monday-open checklist above).
 2. **The honesty bug found and NOT fixed** — with the chain poller idle outside
    market hours, the Chain tab and the ANSWER band print `PCR 0.00`,
    `MAX PAIN 0`, `GEX Neutral`, `SQUEEZE Low` as though they were readings.
@@ -692,4 +785,9 @@ morning: 24350 CE / 24300 PE, four signals, incl. `BUY PE d3` with *"PE low
 theme; the Kite band palette; the Hinglish layer across chart, callout and
 Events; PDH/PDL/PDC + premium/discount; the live-server restart that activated
 `structures`. v1 parity for chain fields, FOCUS, replay scrub and token capture
-was already complete before this session.
+was already complete before this session. **Added 2026-07-31→08-01** (see the
+dated section above): the chart strip (SMC/STORY opt-in), `backfill.py` +
+`squeeze_score.py` (hypothesis scored to a no — do not revive), the
+current-expiry fix + `opt_pivots`, and the zone read build (OI strip, ZONE
+READ panel, ATM leg charts). The 8765 server was restarted onto this code on
+2026-08-01.
