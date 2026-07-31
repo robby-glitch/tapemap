@@ -709,6 +709,192 @@ def test_a_whole_contract_payload_is_accepted_too():
     assert detect(payload)[20]["trap"] == "CLEAR"
 
 
+# ------------------------------------- 8. the INDEX side (`detect_index`)
+#
+# The same trigger, run on ONE series -- the index's own bars, as `/api/data`
+# publishes them. What is verified here is (a) the acceptance case the operator
+# found on their own chart, verbatim off the live tape, (b) that a single
+# series never claims a confirmation it cannot have, and (c) that the trigger
+# really is the SAME primitive the option path uses, not a copy that can drift.
+
+# The live 2026-07-31 NIFTY 1-minute FUT tape, read straight off
+# `/api/data?idx=NIFTY` while the market was open: (t, low, high, close,
+# d2, d3, u3). 09:35-09:38 each TAG d2 and close BELOW it -- a touch is not a
+# signal. 09:39 tags d2 and the SAME bar closes back above it, and price then
+# ran to 24419 (~+34 points). The -3 sigma line was never reached (lows
+# 24370-24371 against d3 24358-24377), so this is a d2 trigger, not a d3 one.
+LIVE_0731 = [
+    ("09:35", 24379.0, 24385.0, 24379.0, 24390.28, 24376.78, 24457.77),
+    ("09:36", 24375.0, 24385.0, 24380.0, 24386.11, 24371.21, 24460.65),
+    ("09:37", 24370.2, 24385.0, 24372.7, 24382.91, 24366.92, 24462.86),
+    ("09:38", 24370.0, 24377.1, 24371.3, 24379.11, 24361.85, 24465.42),
+    ("09:39", 24371.1, 24387.3, 24385.0, 24376.80, 24358.90, 24466.27),
+    ("09:40", 24380.0, 24387.7, 24385.0, 24375.48, 24357.28, 24466.48),
+]
+
+
+def _fut(low, high, close, d2, d3):
+    """A FUT block with the whole sigma ladder, derived from d2 and d3 alone.
+
+    One sigma IS `d2 - d3`, so the rest of the ladder follows -- and
+    `test_the_live_fixture_really_is_the_engines_own_sigma_ladder` checks the
+    derived u3 against the u3 the live feed actually sent, which is what makes
+    this a reconstruction of the real band rather than an invented one.
+    """
+    sd = d2 - d3
+    vwap = d2 + 2 * sd
+    return {"o": close, "h": high, "l": low, "c": close, "v": 1000.0,
+            "oi": 100000.0, "vwap": vwap,
+            "u1": vwap + sd, "d1": vwap - sd,
+            "u2": vwap + 2 * sd, "d2": d2, "u3": vwap + 3 * sd, "d3": d3}
+
+
+# 20 inert bars, 09:15-09:34, so the trap read has a population to rank the
+# live rows against. SYNTHETIC: they carry no claim about what the real
+# session's band did before 09:35, which is why no test below asserts a trap
+# VERDICT on this fixture -- only the trigger, which reads one bar.
+PAD_N = 20
+
+
+def _live_rows(scale=1.0, upto=None):
+    """`/api/data` day rows: the clock on the ROW, the bands under `fut`."""
+    rows = []
+    for k in range(PAD_N):
+        rows.append({"t": _t(k), "ce": None, "pe": None,
+                     "fut": _fut(24395.0 * scale, 24405.0 * scale,
+                                 24400.0 * scale, 24320.0 * scale,
+                                 24300.0 * scale)})
+    for t, low, high, close, d2, d3, _u3 in LIVE_0731:
+        rows.append({"t": t, "ce": None, "pe": None,
+                     "fut": _fut(low * scale, high * scale, close * scale,
+                                 d2 * scale, d3 * scale)})
+    return rows if upto is None else rows[:upto]
+
+
+def _at_t(out, t):
+    for r in out:
+        if r is not None and r["t"] == t:
+            return r
+    return None
+
+
+def test_the_live_fixture_really_is_the_engines_own_sigma_ladder():
+    """d2 and d3 are one sigma apart, so u3 is implied -- and the implied u3
+    matches the u3 the live feed really sent.
+
+    Not to the cent: `engine.session_json` rounds every band to 2dp on its
+    own, so the reconstructed sigma (`d2 - d3`) carries up to 0.01 of error
+    and `u3 = d2 + 5*sigma` up to 0.055 of it. 0.1 points on a 24,000 index is
+    the rounding, not a different ladder.
+    """
+    for _t_, _l, _h, _c, d2, d3, u3 in LIVE_0731:
+        assert abs(_fut(0, 0, 0, d2, d3)["u3"] - u3) <= 0.1
+
+
+def test_the_index_d2_reversal_the_operator_caught_on_their_own_chart():
+    """2026-07-31 09:39 NIFTY: the acceptance case, off the live tape."""
+    out = band_rotation.detect_index(_live_rows())
+    rec = _at_t(out, "09:39")
+    assert rec is not None, "09:39 must fire -- the tag AND the reversal"
+    assert (rec["side"], rec["band"], rec["leg"]) == ("BUY", "d2", "index")
+    assert "24371.10" in rec["trigger"] and "24376.80" in rec["trigger"]
+    assert "24385.00" in rec["trigger"]
+
+
+def test_the_bars_that_only_tagged_the_band_do_not_fire():
+    """09:35-09:38 each pierced d2 and closed BELOW it. A touch is not a
+    signal -- *"tag or wick is enough but has to reverse from the last
+    band"*."""
+    out = band_rotation.detect_index(_live_rows())
+    for t in ("09:35", "09:36", "09:37", "09:38"):
+        assert _at_t(out, t) is None, t
+
+
+def test_an_index_signal_is_never_confirmed_and_says_why():
+    fired = _fired(band_rotation.detect_index(_live_rows()))
+    assert fired
+    for rec in fired:
+        assert rec["confirm"] == "UNKNOWN"
+        assert "no opposite leg" in rec["confirm_why"]
+        assert rec["also"] is None      # no other leg could lose a tie-break
+
+
+def test_index_records_are_one_slot_per_bar_and_aligned():
+    rows = _live_rows()
+    out = band_rotation.detect_index(rows)
+    assert len(out) == len(rows)
+    for i, rec in enumerate(out):
+        if rec is not None:
+            assert rec["i"] == i and rec["t"] == rows[i]["t"]
+
+
+def test_the_index_trigger_is_the_same_primitive_the_option_path_uses():
+    """One geometry, both entry points, one answer -- so a change to the
+    trigger cannot silently apply to options and not to the index."""
+    for row, side, band in ((BUY_D2_SD5, "BUY", "d2"),
+                            (BUY_D3_SD5, "BUY", "d3"),
+                            (SELL_U3_SD5, "SELL", "u3"),
+                            (TAG_NO_REV, None, None),
+                            (TAG_U2_REV, None, None)):
+        low, high, close = row
+        bands = _band(VWAP, SD)
+        flat = [dict(bands, t=_t(0), o=close, h=high, l=low, c=close)]
+        got = band_rotation.detect_index(flat)[0]
+        leg = _leg([row], _decel(1))
+        opt = _fired(detect({"CE": leg}))
+        if side is None:
+            assert got is None and opt == [], row
+            continue
+        assert (got["side"], got["band"]) == (side, band), row
+        assert (opt[0]["side"], opt[0]["band"]) == (side, band), row
+
+
+def test_an_index_bar_the_feed_never_sent_keeps_its_slot():
+    rows = _live_rows()
+    rows[PAD_N + 4]["fut"] = None       # the 09:39 bar, blanked
+    out = band_rotation.detect_index(rows)
+    assert len(out) == len(rows)
+    assert out[PAD_N + 4] is None
+    assert _at_t(out, "09:39") is None
+
+
+def test_index_truncation_reproduces_the_earlier_records_exactly():
+    """Causality: replaying a truncated series must reproduce the earlier
+    records field for field -- nothing later may reach back."""
+    full = band_rotation.detect_index(_live_rows())
+    for cut in range(PAD_N, len(full) + 1):
+        assert band_rotation.detect_index(_live_rows(upto=cut)) == full[:cut]
+
+
+def test_index_signals_are_magnitude_independent():
+    """The same shape at a SENSEX-sized level fires on the same bars with the
+    same bands -- no absolute price threshold crept into the index path."""
+    base = band_rotation.detect_index(_live_rows())
+    big = band_rotation.detect_index(_live_rows(scale=3.3))
+    assert [(r["i"], r["side"], r["band"]) for r in _fired(base)] == \
+        [(r["i"], r["side"], r["band"]) for r in _fired(big)]
+
+
+def test_detect_index_junk_input_returns_empty_and_never_raises():
+    for junk in (None, {}, [], "no", 42, [None, None], [7, "x"],
+                 [{"t": "09:30"}], [{"t": None, "fut": {}}],
+                 [{"fut": {"l": 1, "h": 2, "c": 3}}]):
+        out = band_rotation.detect_index(junk)
+        assert isinstance(out, list)
+        assert all(r is None for r in out), junk
+
+
+def test_the_index_path_never_fabricates_a_compression_read():
+    """One bar has nothing to rank against, so the trap is UNKNOWN -- never
+    CLEAR, and never rounded to it."""
+    bands = _band(VWAP, SD)
+    low, high, close = BUY_D2_SD5
+    one = [dict(bands, t="09:39", o=close, h=high, l=low, c=close)]
+    rec = band_rotation.detect_index(one)[0]
+    assert rec["trap"] == "UNKNOWN"
+    assert rec["trap_dwell"] is None
+
+
 def test_the_named_constants_are_documented_windows_not_price_levels():
     for name in ("ROTATION_WINDOW", "OI_WINDOW", "TRAIL_WINDOW", "TRAIL_MIN",
                  "TREND_WINDOW"):

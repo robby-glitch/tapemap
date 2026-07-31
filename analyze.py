@@ -6,6 +6,7 @@ Used by server.py (import) or standalone: python analyze.py [data_dir] [strike]
 import json
 import sys
 
+import band_rotation
 import structure
 from engine import Session, days_to_expiry, load, session_json
 
@@ -27,6 +28,11 @@ def analyze(base="data", strike=24200.0, expiry="2026-07-21"):
             # including the pivots block, which is where PDH/PDL/PDC come from
             js["structures"] = structure.compute(js["bars"],
                                                  pivots=js.get("pivots"))
+            # same additive key as live.py, for the same reason: replay must
+            # carry the index-side band-rotation signals too, or the live tape
+            # and the replayed one disagree about the operator's own setup
+            js["rotation"] = band_rotation.detect_index(js["bars"])
+            js["rotation_rule"] = band_rotation.INDEX_ROTATION_RULE
             days.append(js)
     return {"strike": strike, "days": days}
 

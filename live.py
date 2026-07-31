@@ -693,6 +693,13 @@ def build_payload(cfg):
     # form, and structure.py inverts PDH/PDL/PDC back out of it (refusing, and
     # emitting nothing, if the numbers do not check out as floor pivots).
     js["structures"] = structure.compute(js["bars"], pivots=js.get("pivots"))
+    # The operator's own band-rotation setup, run on THIS INDEX's bars — the
+    # same trigger /api/contract applies to the option legs, which is why the
+    # code is shared rather than copied. Additive and 1:1 with `bars`, null
+    # where nothing fired; v1 (ui/app.js) ignores the key. `confirm` is UNKNOWN
+    # on every record by construction — see band_rotation.detect_index.
+    js["rotation"] = band_rotation.detect_index(js["bars"])
+    js["rotation_rule"] = band_rotation.INDEX_ROTATION_RULE
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
                        "expiry": cfg["expiry"], "built_at": time.time(),
                        "days": [js]}).encode()

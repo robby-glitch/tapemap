@@ -32,6 +32,15 @@ premium. See `_trap`.
 OUTPUT is one slot per axis index, `None` where nothing fired, so a consumer
 can zip it straight onto the bars.
 
+SECOND ENTRY POINT: `detect_index`, which runs the SAME trigger on a single
+series -- the index's own bars, as `/api/data` already publishes them. The
+operator's setup is theirs whatever chart it prints on, and the Trade tab
+shows the index, so a d2 reversal there was going unflagged. It shares
+`_trigger` rather than reimplementing it, and it is honest about what a single
+series cannot answer: `confirm` is UNKNOWN on every record, because the pair
+rotation and the two-book OI read have no meaning without an opposite leg.
+See that function.
+
 WHAT THE OPERATOR SAID, AND WHAT THIS DOES WITH IT
 
   * *"tag or wick is enough but has to reverse from the last band"* -- the
@@ -687,6 +696,133 @@ def _trap(by_day, why_none, day, t):
     return "SUSPECT", (f"{shape} -- not in the bottom "
                        f"{COMPRESSION_RANK:.0%}, so the index was not "
                        f"squeezing into this move; {held}, and {move}"), dwell
+
+
+# --- The single-series (INDEX) entry point -------------------------------
+# The name a single-series record files itself under. Not "CE"/"PE": there is
+# no leg here, and a consumer that groups by `leg` must never bucket an index
+# signal with an option one.
+INDEX_LEG = "index"
+
+# Why a single series can never be CONFIRMED. This is not a data gap that
+# better inputs would close -- it is structural: `_confirm` is a Kleene AND of
+# "is the OTHER leg rotating off its opposite extreme" and "is OI decelerating
+# on BOTH books", and an index has neither an other leg nor a strike's OI. So
+# the answer is UNKNOWN, said in these words, on every index record.
+SINGLE_SERIES_CONFIRM_WHY = (
+    "a single index series has no opposite leg: the rotation half of the "
+    "confirmation (*\"the other side is also coming down from the +3 +2 upper "
+    "line\"*) and the two-book OI deceleration are both undefined here, so "
+    "this is trigger plus compression context only and is never CONFIRMED")
+
+INDEX_ROTATION_RULE = (
+    "`rotation` is the band-rotation trigger run on THIS INDEX's own bars, "
+    "one slot per bar of `bars`, null where nothing fired -- rotation[i] and "
+    "bars[i] are the same minute. A record is the operator's own setup: the "
+    "bar's low pierced its d2/d3 (or its high pierced u3) and the SAME bar "
+    "closed back on the other side of that band. `confirm` is ALWAYS "
+    "\"UNKNOWN\" here and `confirm_why` says why -- the pair rotation and the "
+    "two-book OI deceleration that /api/contract's `rotation` can answer do "
+    "not exist for one series. `trap` is the same compression read as there, "
+    "and it was already measured on the index, so it applies unchanged. "
+    "Additive: a consumer that does not know the key must ignore it.")
+
+
+def _index_bar(row):
+    """One index bar, from either shape `/api/data` and this module accept.
+
+      * DAY ROW  -- `{"t": "HH:MM", "fut": {o,h,l,c,vwap,u1..d3, ...}, ...}`,
+        i.e. an element of `/api/data`'s `day.bars`. The clock label lives on
+        the ROW and the bands live under `fut`, so the two are merged into one
+        dict here (the row's `t` wins: it is the bar's own label).
+      * FLAT     -- a dict already carrying `t` AND the band keys, which is
+        what `_index_rows` documents as the flat shape.
+
+    None for anything else -- a null row keeps its slot in the output rather
+    than shifting every later index by one.
+    """
+    if not isinstance(row, dict):
+        return None
+    fut = row.get("fut")
+    if not isinstance(fut, dict):
+        return row
+    t = row.get("t")
+    return dict(fut, t=t) if isinstance(t, str) else dict(fut)
+
+
+def detect_index(bars, days=None):
+    """The band-rotation records for ONE series -- the index's own bars.
+
+    The operator found this gap on their own chart: `detect` above only ever
+    watches OPTION legs, and the Trade tab shows the INDEX, so a textbook
+    instance of their setup on NIFTY itself passed unflagged (2026-07-31,
+    09:39: low 24371.10 tagged d2 24376.80 and the same bar closed 24385.00,
+    then ran ~34 points).
+
+    THE TRIGGER IS THE SAME CODE, not a second implementation: `_trigger` was
+    already a single-series primitive -- it reads one bar and one band dict and
+    knows nothing about legs -- so this passes the index bar as BOTH, since an
+    index bar carries its own VWAP bands. Change the trigger and both callers
+    change together, which is the point.
+
+    WHAT IS DELIBERATELY NOT THE SAME:
+
+      * CONFIRMATION DOES NOT EXIST HERE. See `SINGLE_SERIES_CONFIRM_WHY`.
+        `confirm` is `"UNKNOWN"` on every record -- never `"CONFIRMED"`, and
+        never omitted, because a consumer reading a record with no `confirm`
+        field would have to guess, and the guess that costs money is the
+        optimistic one.
+      * THE COMPRESSION / TRAP READ IS UNCHANGED. It was ALREADY an index
+        read (the operator's 2026-07-31 correction: *"squeeze on index entry
+        on option chart"*), and here the series it ranks and the series that
+        triggered are the same one -- which is what the operator does when
+        they read the squeeze and the reversal off the same NIFTY chart.
+
+    INTERPRETATION, AND IT IS OPEN. The buy-at-d2/d3 / sell-only-at-u3
+    asymmetry is inherited verbatim from `BUY_BANDS`/`SELL_BANDS`, and the
+    operator gave it for an option PREMIUM (*"a stretched premium can stretch
+    further"* -- a premium has a floor at zero and no ceiling, which an index
+    does not). Whether the same asymmetry is what they want on the index is a
+    question for them; it is inherited rather than silently symmetrised so
+    that there is exactly one place to change it if the answer is no.
+
+    `bars` is `/api/data`'s `day.bars` (or a flat list -- see `_index_bar`).
+    `days` is an optional per-bar session label; a single-session payload
+    needs none, and unlabelled bars are one session, which is what a day is.
+
+    Returns a list the LENGTH OF `bars`, aligned 1:1 with it, `None` where
+    nothing fired, else the same record shape `detect` emits (plus `t`, the
+    bar's own label) with `leg` set to `INDEX_LEG` and `also` always None --
+    there is no other leg that could have lost a tie-break.
+    """
+    if not isinstance(bars, (list, tuple)) or not bars:
+        return []
+    rows = [_index_bar(b) for b in bars]
+    n = len(rows)
+    day_list = (list(days) if isinstance(days, (list, tuple)) and len(days) == n
+                else [None] * n)
+    # The trigger series IS the compression series. Normalised once, not per
+    # bar, exactly as `detect` does it.
+    by_day, why_none = _index_by_day(rows, day_list)
+
+    out = []
+    for i, bar in enumerate(rows):
+        if bar is None:
+            out.append(None)
+            continue
+        hit = _trigger(bar, bar)       # one series: it carries its own bands
+        if hit is None:
+            out.append(None)
+            continue
+        t = bar.get("t")
+        trap, trap_why, dwell = _trap(by_day, why_none, _at(day_list, i), t)
+        out.append({"i": i, "t": t if isinstance(t, str) else None,
+                    "side": hit["side"], "leg": INDEX_LEG, "band": hit["band"],
+                    "trigger": _trigger_why(INDEX_LEG, hit), "also": None,
+                    "confirm": "UNKNOWN",
+                    "confirm_why": SINGLE_SERIES_CONFIRM_WHY,
+                    "trap": trap, "trap_why": trap_why, "trap_dwell": dwell})
+    return out
 
 
 def detect(legs, axis=None, index_series=None):
