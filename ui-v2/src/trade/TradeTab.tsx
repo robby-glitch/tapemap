@@ -517,7 +517,16 @@ export default function TradeTab({
     <>
     <div ref={rootRef} style={{
       display: 'flex', flexDirection: 'column',
-      height: availH ?? 420, padding: '16px 16px 0', gap: 8,
+      // minHeight, NOT height: the chart child is `flex:1` with minHeight 420,
+      // so it cannot shrink to absorb overflow. With a fixed height the rows
+      // added below it (OI strip, legend, the Hidden disclosure) spilled out
+      // of the box and painted over the option-leg panes — the operator saw
+      // the Hidden line floating across the CE chart. As a minimum it still
+      // fills the viewport when content is short (flex:1 expands the chart),
+      // and simply grows when it is not. Safe for the measurement loop: the
+      // column's own `top` is set by what is ABOVE it, so growing downward
+      // cannot move it, and the ResizeObserver watches the parent, not self.
+      minHeight: availH ?? 420, padding: '16px 16px 0', gap: 8,
       backgroundColor: pal.bg,
     }}>
       {/* Stat strip — one compact row (Task 6's "breathing room"): 11px
