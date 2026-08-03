@@ -302,6 +302,19 @@ export default function TradeTab({
     setStory(next)
   }
 
+  // Leg-pane layout. Default SPLIT (side by side) because the operator's setup
+  // is a PAIR read — one leg washed out at its floor while the other unwinds
+  // from stretched — and that comparison wants both legs on screen at once.
+  // STACK gives each pane the full width instead, which buys horizontal
+  // resolution for reading individual candles. Both are tall (LegChart's
+  // PANE_H); the page scrolls, so height costs nothing.
+  const [legStack, setLegStack] = useState<boolean>(() => localStorage.getItem('tape.legstack') === 'on')
+  const toggleLegStack = () => {
+    const next = !legStack
+    localStorage.setItem('tape.legstack', next ? 'on' : 'off')
+    setLegStack(next)
+  }
+
   // Trending OI for the strip + the ZONE READ's flow group. Tab-local and on
   // the OI Flow tab's own 15s cadence — /api/oiflow aggregates from the chain
   // poller's in-memory minute grid, so this costs no Dhan request. One fetch,
@@ -602,6 +615,23 @@ export default function TradeTab({
             }}
           >STORY</button>
 
+          {/* LEGS: how the CE/PE premium panes are laid out. Same styling
+              family; the label names the state you would switch TO is wrong —
+              it names the CURRENT one, like LIGHT/DARK, so the button reads as
+              a state not a command. */}
+          <button
+            onClick={toggleLegStack}
+            title={legStack
+              ? 'CE and PE panes stacked full-width — more horizontal resolution per pane. Click for side by side.'
+              : 'CE and PE panes side by side — both legs visible at once, which is what the pair rotation read needs. Click to stack them full-width.'}
+            style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              padding: '3px 9px', cursor: 'pointer',
+              border: `1px solid ${pal.border}`, borderRadius: 4,
+              backgroundColor: 'transparent', color: pal.textMuted,
+            }}
+          >{legStack ? 'LEGS STACKED' : 'LEGS SPLIT'}</button>
+
           {/* With the glance bar hidden, its index switcher goes with it —
               this is just that switcher, not a duplicate of the whole bar. */}
           {focus && (
@@ -787,10 +817,10 @@ export default function TradeTab({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         <LegChart day={day} bars={bars} leg="ce" strike={strike} cursor={cursor} mode={mode}
                   pivots={optPivots?.ce ?? null} pivotsWhy={optPivots?.why?.ce ?? null}
-                  expiry={optExpiry} />
+                  expiry={optExpiry} wide={legStack} />
         <LegChart day={day} bars={bars} leg="pe" strike={strike} cursor={cursor} mode={mode}
                   pivots={optPivots?.pe ?? null} pivotsWhy={optPivots?.why?.pe ?? null}
-                  expiry={optExpiry} />
+                  expiry={optExpiry} wide={legStack} />
       </div>
       <ZoneRead
         pal={pal} bar={b} chain={chain} levels={levels}

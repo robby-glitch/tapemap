@@ -31,11 +31,22 @@ interface Props {
   /** The expiry the leg belongs to (`opt_expiry`) — the NEAREST one, i.e. the
    *  contract the operator actually trades. Named in the header. */
   expiry?: string | null
+  /** Full width (stacked, one leg per row) instead of sharing the row. */
+  wide?: boolean
 }
+
+// Why this is not ~200px, which is what it was until the operator said the
+// panes were "crammped up": the engine gives the OI sub-pane SUB_PANE_H=110
+// plus a separator and the time axis, so a 200px host left mainH = 62 — under
+// its own 120px floor, which then shrank the OI pane to 52 and pinned price at
+// exactly 120px. Candles AND seven band lines in 120 pixels. At 460 the price
+// pane gets ~320 and the OI pane its full 110. The page scrolls; height here
+// is free, and reading the premium against its own bands is the whole job.
+const PANE_H = 460
 
 export default function LegChart({
   day, bars, leg, strike, cursor, mode,
-  pivots = null, pivotsWhy = null, expiry = null,
+  pivots = null, pivotsWhy = null, expiry = null, wide = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<IChartEngine | null>(null)
@@ -120,7 +131,10 @@ export default function LegChart({
   const name = leg.toUpperCase()
   return (
     <div style={{
-      flex: '1 1 380px', minWidth: 320, display: 'flex', flexDirection: 'column',
+      // `1 1 100%` forces one pane per row inside the same wrapping row, so
+      // stacked mode needs no separate container.
+      flex: wide ? '1 1 100%' : '1 1 380px',
+      minWidth: 320, display: 'flex', flexDirection: 'column',
       border: `1px solid ${pal.border}`, borderRadius: 6, overflow: 'hidden',
       backgroundColor: pal.card,
     }}>
@@ -142,12 +156,12 @@ export default function LegChart({
         </span>
       </div>
       {render.candles.length ? (
-        <div ref={hostRef} style={{ flex: 1, minHeight: 200 }} />
+        <div ref={hostRef} style={{ flex: 1, minHeight: PANE_H }} />
       ) : (
         // Honesty rule 1: an absent leg says so at full width; no placeholder
         // candles. The host div is not mounted at all, so zero canvases.
         <div style={{
-          flex: 1, minHeight: 200, display: 'flex', alignItems: 'center',
+          flex: 1, minHeight: PANE_H, display: 'flex', alignItems: 'center',
           justifyContent: 'center', fontSize: 11, color: pal.textMuted, padding: 12,
           textAlign: 'center',
         }}>
