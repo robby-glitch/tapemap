@@ -718,6 +718,42 @@ the operator's own Trending-OI screen; both leg canvases painted; replay
 disclosures fire). First live sightings: the CHAIN STALE banner and gamma
 PINNED. The **server on 8765 was restarted 2026-08-01** and runs this code.
 
+### 2026-08-03, first LIVE session on this build — what it exposed
+
+The build survived its first real open; three things needed fixing from the
+operator's own eyes, all committed:
+
+- **`6032c17`** the leg panes were "crammped up". A 200px host made the engine
+  compute `mainH = 62`, trip its own 120px floor, shrink the OI sub-pane to 52
+  and pin price at exactly 120px. Now `PANE_H = 460` (price ~322, OI its full
+  110) plus a **LEGS SPLIT/STACKED** toggle (`tape.legstack`).
+- **`914304c`** the Hidden-layers disclosure floated across the CE pane. The
+  tab's root column had a FIXED height while the chart child is `flex:1
+  minHeight:420` — nothing could shrink, so rows added below it spilled out
+  and painted over the leg panes. Now `minHeight`. **If you add another row
+  under the chart, this is the failure mode to expect.**
+- Confirmed working live: the sticky ATM migrated **24600 → 24700** mid-session
+  and the leg panes followed it, refetching `opt_pivots` for the new contracts
+  — a real strike hop, which is exactly what the rolling-ATM disclosure exists
+  for. `opt_expiry 2026-08-04` held (the current weekly, not the monthly).
+  OI strip live: `12:00 · CALL +4.37Cr · PUT +12.26Cr · DIFF +7.88Cr
+  PUT-heavy 64% · PCR 2.80 · DHB 24603.8`.
+- Ops note: the **Vite dev server (5173) died mid-session while the backend
+  (8765) stayed up**. "The app stopped" is usually the frontend; check
+  `netstat` for BOTH ports before assuming data loss.
+
+### STILL NOT SCORED — the honest state of the tool
+
+Everything above is plumbing and presentation. **The operator's own edge has
+never been backtested.** `band_rotation` was encoded 2026-07-31 and the spec's
+own rule — *"Encode, then score — in that order, and score before trusting"* —
+has not been applied to it. `signal_review.py` scored the ENGINE's events (and
+found two of three buckets worse than doing nothing); the band-rotation
+detector, the trap filter and the ZONE READ's confluence have never been run
+against forward outcomes. The one hypothesis that WAS scored (squeeze + OI
+direction) died. Treat every signal on screen as unvalidated until that
+changes — the tool is honest and readable, not proven.
+
 ### Monday-open checklist (first session on the new build)
 
 1. Fresh Dhan token (**⟳ TOKEN**) — Friday's expires Saturday ~13:00.
