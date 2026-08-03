@@ -517,16 +517,21 @@ export default function TradeTab({
     <>
     <div ref={rootRef} style={{
       display: 'flex', flexDirection: 'column',
-      // minHeight, NOT height: the chart child is `flex:1` with minHeight 420,
-      // so it cannot shrink to absorb overflow. With a fixed height the rows
-      // added below it (OI strip, legend, the Hidden disclosure) spilled out
-      // of the box and painted over the option-leg panes — the operator saw
-      // the Hidden line floating across the CE chart. As a minimum it still
-      // fills the viewport when content is short (flex:1 expands the chart),
-      // and simply grows when it is not. Safe for the measurement loop: the
-      // column's own `top` is set by what is ABOVE it, so growing downward
-      // cannot move it, and the ResizeObserver watches the parent, not self.
-      minHeight: availH ?? 420, padding: '16px 16px 0', gap: 8,
+      // MUST be a definite `height`, never minHeight. ContractChart's root is
+      // `height:100%`, and a percentage height cannot resolve against a flex
+      // item whose container is auto-height — switching this to minHeight
+      // collapsed the index chart to zero (measured: CANVAS 0 -> DIV 0 -> DIV 0
+      // inside a 420px container) while the leg panes were unharmed, because
+      // they size from a real pixel minHeight rather than a percentage.
+      // The row-overflow this briefly tried to fix is handled where it belongs
+      // instead — at the chart container's own minHeight, below.
+      height: availH ?? 420, padding: '16px 16px 0', gap: 8,
+      // Hard guarantee: with a fixed height, anything that does not fit must
+      // be CLIPPED, never allowed to paint over the panes below. The chart's
+      // low minHeight above means this should never actually bite — but a
+      // clipped chart edge is a survivable bug, and text printed across the
+      // option charts is not.
+      overflow: 'hidden',
       backgroundColor: pal.bg,
     }}>
       {/* Stat strip — one compact row (Task 6's "breathing room"): 11px
@@ -725,7 +730,14 @@ export default function TradeTab({
       )}
 
       <div style={{
-        flex: 1, minHeight: 420, borderRadius: 6, overflow: 'hidden',
+        // 180, not 420: the shock absorber for a column whose height is fixed
+        // (it must be — ContractChart resolves its height as a percentage of
+        // it). availH floors at 320, and the stat strip plus disclosure lines
+        // take ~110 of that, so anything above ~200 here overflows the column
+        // on a very short viewport and paints over what follows. Measured at
+        // innerHeight 450: a 240 floor overflowed by 30px. 180 fits the worst
+        // case; on a real screen flex:1 gives the chart 400+ anyway.
+        flex: 1, minHeight: 180, borderRadius: 6, overflow: 'hidden',
         border: `1px solid ${pal.border}`, backgroundColor: pal.card,
       }}>
         <ContractChart
@@ -734,7 +746,20 @@ export default function TradeTab({
           structures={structures} smc={smc} rotation={rotation} story={story}
         />
       </div>
+    </div>
 
+    {/* Everything below the chart lives OUTSIDE the fixed-height column.
+        That column must have a definite height (ContractChart resolves its
+        own height as a percentage of it), which means it cannot grow — so any
+        row placed inside it after the chart competes for the chart's pixels
+        and, once the chart hits its minHeight floor, spills out of the box and
+        paints over whatever follows. That is exactly how the Hidden-layers
+        line ended up printed across the CE premium pane. Out here the page
+        simply scrolls, and the visual order is unchanged. */}
+    <div style={{
+      padding: '0 16px', backgroundColor: pal.bg,
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
       {/* The last Trending-OI read, directly on the chart — the operator's
           explicit ask. The mark time is always shown (the row is the chain AS
           AT that clock mark, not now), and while replaying the strip dims and
@@ -811,7 +836,6 @@ export default function TradeTab({
           every event on its own bar.
         </div>
       )}
-
     </div>
 
     {/* Below the full-height chart column, in the operator's reading order:
