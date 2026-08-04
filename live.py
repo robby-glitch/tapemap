@@ -12,6 +12,7 @@ Serving:           python server.py live  (refreshes every REFRESH_S)
 """
 
 import json
+import math
 import threading
 import time
 import urllib.request
@@ -733,6 +734,48 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     return out
 
 
+# --- basis plausibility -------------------------------------------------
+# The operator's own read of the instrument (2026-08-05): NIFTY futures trade
+# ABOVE the index, roughly 20-150 points, and a discount is unusual. That
+# asymmetry is the guard: the upside is left generous (carry is largest early
+# in a monthly contract) and the downside tight, because a futures price BELOW
+# the index is not a market state we see -- it means one of the two numbers is
+# stale.
+#
+# Why this matters more than it looks: everything DRAWN on the chart is
+# futures-frame, and every chain-derived level (walls, PIN, STK, max pain, GEX
+# flip) arrives in INDEX terms and is moved onto the tape by adding `basis`. A
+# wrong basis does not degrade the chart -- it MISPLACES every one of those
+# lines. That is exactly what cost a full day on 2026-08-04 (HANDOFF 6b), and
+# the post-close print that exposed it was -52.90.
+BASIS_MAX_PCT = 0.010      # +1.0% of spot -- ~+246 at NIFTY 24600
+BASIS_MIN_PCT = -0.0015    # -0.15%        -- ~-37; catches the -52.90 print
+
+
+def _basis(fut_last, spot):
+    """(basis, why) -- the futures/index carry, or None with a reason.
+
+    Returning 0.0 on failure, which this used to do, is not a safe default: it
+    is the positive claim "futures and index are at the same price", and the UI
+    draws chain levels on it. No plausible basis, no number.
+    """
+    try:
+        s = float(spot)
+        f = float(fut_last)
+    except (TypeError, ValueError):
+        return None, "the futures last price or the chain spot was unreadable"
+    if not (math.isfinite(s) and math.isfinite(f)) or s <= 0:
+        return None, "the chain gave no usable spot to measure the futures against"
+    b = f - s
+    lo, hi = s * BASIS_MIN_PCT, s * BASIS_MAX_PCT
+    if not lo <= b <= hi:
+        return None, (f"futures {f:.2f} against index {s:.2f} is a basis of "
+                      f"{b:+.2f} ({b / s:+.2%}), outside the plausible "
+                      f"{lo:+.0f}..{hi:+.0f} for this instrument -- one of the "
+                      f"two prices is stale, so no chain level is placed")
+    return b, ""
+
+
 def build_payload(cfg, spot=None):
     """Fetch today, run the engine, return the /api/data JSON bytes for `cfg`.
 
@@ -742,7 +785,9 @@ def build_payload(cfg, spot=None):
     future is monthly. We take one scalar `basis` from the latest bar rather
     than a per-bar spot series because only the current spot is available,
     and intraday carry is near-constant while the tape moves in points.
-    Passing nothing keeps the old behaviour exactly (basis 0.0).
+    Passing nothing, or passing a spot that makes the carry implausible, now
+    publishes `basis: null` plus a `basis_why` sentence rather than the 0.0 it
+    used to invent -- see `_basis` for why 0.0 was never a safe default.
     """
     tok = _token()
     today = datetime.now(IST).strftime("%Y-%m-%d")
@@ -755,13 +800,12 @@ def build_payload(cfg, spot=None):
                            "live_error": "no bars yet for " + today}).encode()
     # Basis first: the strike is picked in the OPTION's frame too, or the
     # engine's "ATM" sits a whole 50-point step above the real one.
-    basis = 0.0
-    if spot:
-        try:
-            basis = float(fut_raw["close"][-1]) - float(spot)
-        except (TypeError, ValueError):
-            basis = 0.0
-    strike = float(_pick_strike(fut_raw["close"][-1] - basis, cfg))
+    basis, basis_why = _basis(fut_raw["close"][-1], spot)
+    # A strike still has to be picked -- the legs cannot be fetched without one
+    # -- and with no trustworthy carry the best available estimate is zero. That
+    # is a FETCH decision, not a published fact: `basis` still goes out as null
+    # with `basis_why`, so nothing chain-derived is drawn on the tape.
+    strike = float(_pick_strike(fut_raw["close"][-1] - (basis or 0.0), cfg))
     # The option side of the tape lives on the NEAREST expiry — the one the
     # operator actually trades — not on cfg['expiry'], which is the FUTURES
     # (monthly) contract's. See _nearest_opt_expiry for the history.
@@ -788,7 +832,7 @@ def build_payload(cfg, spot=None):
                             "%Y-%m-%d %H:%M").replace(tzinfo=IST)
     t_days = max((exp - datetime.now(IST)).total_seconds() / 86400.0, 0.25)
     s = Session(day_lbl + " LIVE", fut, ce, pe, quiet=True,
-                strike=strike, t_days=t_days, basis=basis)
+                strike=strike, t_days=t_days, basis=basis or 0.0)
     s.run()
     js = session_json(s)
     # mid-session: the end-of-day CARRY verdict is meaningless until the
@@ -825,7 +869,12 @@ def build_payload(cfg, spot=None):
     # both are null when the chain was unavailable -- never guessed.
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
                        "expiry": cfg["expiry"], "built_at": time.time(),
-                       "basis": round(basis, 2) if spot else None,
+                       "basis": round(basis, 2) if basis is not None else None,
+                       # Additive: a consumer that does not know the key ignores
+                       # it. Empty string when basis is fine -- "we checked and
+                       # it is good" and "we could not check" stay different
+                       # sentences.
+                       "basis_why": basis_why,
                        "spot": float(spot) if spot else None,
                        "days": [js]}).encode()
 
