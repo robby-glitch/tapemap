@@ -156,9 +156,18 @@ class GammaLayer:
     # parameter, expressed relative to the strike (no absolute points)
     WIDTH = 0.0035
 
-    def __init__(self, sess, strike, t_days):
+    def __init__(self, sess, strike, t_days, basis=0.0):
         self.s = sess
         self.k = strike
+        # Futures-minus-index. The tape this layer reads is the MONTHLY
+        # future; the options it prices are the NEAREST WEEKLY. The gap
+        # between them is monthly carry and has no business in a weekly
+        # option's forward -- on 2026-08-04 it was 59 points, more than a
+        # full strike step. Left in, it made every CE unsolvable all day
+        # (iv_ce null) and inflated the PE's solved IV to 0.2584 against
+        # the chain's 0.1102. Backtests pass nothing and get 0.0, which is
+        # exactly the behaviour they had before this existed.
+        self.basis = basis or 0.0
         self.t = max(t_days, 0.25) if t_days else 1.0
         self.w = {"CE": 0.0, "PE": 0.0}          # writer score in [-1, 1]
         self.oi0 = None                          # session-open OI/premium refs
@@ -179,7 +188,10 @@ class GammaLayer:
     def update(self, i, fb, cb, pb, ff, cf, pf, mature):
         if self.k is None:
             return
-        F = fb["C"]
+        # Index-frame forward for everything option-shaped: the strike
+        # distance, the pin bell, and the IV solve below all live in the
+        # option's own frame, not the futures tape's.
+        F = fb["C"] - self.basis
         dist = (F - self.k) / (self.WIDTH * self.k)
         near = abs(dist) < 1.2   # within ~1.2 bell widths of the strike
         proxy = math.exp(-0.5 * dist * dist) / math.sqrt(self.t)
@@ -318,10 +330,12 @@ class GammaLayer:
 class Session:
     """Replays one day across the three books and emits the event stream."""
 
-    def __init__(self, day, fut, ce, pe, quiet=False, strike=None, t_days=None):
+    def __init__(self, day, fut, ce, pe, quiet=False, strike=None,
+                 t_days=None, basis=0.0):
         self.day = day
         self.strike = strike
-        self.gamma = GammaLayer(self, strike, t_days)
+        self.basis = basis or 0.0      # futures - index; see GammaLayer
+        self.gamma = GammaLayer(self, strike, t_days, basis)
         self.fut_bars, self.ce_bars, self.pe_bars = fut, ce, pe
         self.ce_by_t = {b["T"]: b for b in ce}
         self.pe_by_t = {b["T"]: b for b in pe}
@@ -999,10 +1013,18 @@ class Session:
         for nm, (lvl, dd, _t) in self.flipped.items():
             cands.append((f"{nm} flipped {'support' if dd > 0 else 'resistance'}", lvl))
         if self.gamma.k:
-            if self.gamma.w["CE"] > 0.5 and self.gamma.k > C - med:
-                cands.append((f"CE wall {cb['OI']/1e6:.0f}M", self.gamma.k))
-            if self.gamma.w["PE"] > 0.5 and self.gamma.k < C + med:
-                cands.append((f"PE wall {pb['OI']/1e6:.0f}M", self.gamma.k))
+            # One frame rule, and it cuts both ways: a strike is an INDEX-frame
+            # number, so compare it against the index-frame price (C - basis),
+            # but every level in `cands` is drawn on the FUTURES tape, so emit
+            # it back in that frame (k + basis). Mixing the two put the CE wall
+            # ~72 points from where price actually met it on 2026-08-04.
+            Ci = C - self.basis
+            if self.gamma.w["CE"] > 0.5 and self.gamma.k > Ci - med:
+                cands.append((f"CE wall {cb['OI']/1e6:.0f}M",
+                              self.gamma.k + self.basis))
+            if self.gamma.w["PE"] > 0.5 and self.gamma.k < Ci + med:
+                cands.append((f"PE wall {pb['OI']/1e6:.0f}M",
+                              self.gamma.k + self.basis))
         below = [(n, p) for n, p in cands if p < C - med]
         above = [(n, p) for n, p in cands if p > C + med]
         floor = max(below, key=lambda x: x[1]) if below else None
@@ -1100,7 +1122,14 @@ class Session:
             if self.gamma.iv_r["CE"] is not None else None,
             "ivr_pe": round(self.gamma.iv_r["PE"], 2)
             if self.gamma.iv_r["PE"] is not None else None,
-            "pin": ({"k": self.gamma.k, "dist": round(C - self.gamma.k),
+            # Distance to a STRIKE is an option-frame quantity: C is the
+            # futures close and the strike lives in the index frame, so the
+            # basis has to come off or the sign itself can be wrong. On
+            # 2026-08-04 at 14:05 this read "+20 above 24500" while the index
+            # was 52 points BELOW it -- a 72-point error that flipped the
+            # side price was on.
+            "pin": ({"k": self.gamma.k,
+                     "dist": round(C - self.basis - self.gamma.k),
                      "regime": regime} if self.gamma.k else None),
             "t_exp": round(self.gamma.t, 2),
             "episode": episode, "loc": loc, "plays": plays,

@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import instruments
+import trigger_log
 from analyze import analyze
 
 ROOT = Path(__file__).parent
@@ -284,8 +285,30 @@ def main():
                     if "fut_id" not in c:
                         instruments.resolve_dynamic(
                             c, "", _t.strftime("%Y-%m-%d"))
-                    payloads[x]["payload"] = build_payload(c)
+                    # The chain poller already knows the live INDEX price.
+                    # Hand it over: the tape is the monthly future, the legs
+                    # are the nearest weekly, and pricing one off the other
+                    # put a 59-point carry into the option maths on
+                    # 2026-08-04 (every CE unsolvable, PE IV 2.3x the
+                    # chain's). Absent chain -> None -> old behaviour.
+                    spot = None
+                    box = chains.get(x)
+                    if box and box.get("payload"):
+                        try:
+                            pl = json.loads(box["payload"])
+                            if pl.get("ok"):
+                                spot = pl.get("spot")
+                        except ValueError:
+                            spot = None
+                    payloads[x]["payload"] = build_payload(c, spot=spot)
                     have[x] = True
+                    # Log any NEW band-rotation trigger with the gamma/OI
+                    # context the operator watches (trigger_log.py). log_new
+                    # is fail-soft by contract — the tape must never stall
+                    # for the logger's sake (2026-07-27 post-mortem).
+                    trigger_log.log_new(
+                        x, payloads[x]["payload"],
+                        poller.states.get(x) if poller else None)
                 except Exception as e:  # keep last good data; else ask for a token
                     log.exception("live build failed %s", x)
                     if not have[x]:

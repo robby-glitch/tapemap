@@ -733,8 +733,17 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     return out
 
 
-def build_payload(cfg):
-    """Fetch today, run the engine, return the /api/data JSON bytes for `cfg`."""
+def build_payload(cfg, spot=None):
+    """Fetch today, run the engine, return the /api/data JSON bytes for `cfg`.
+
+    `spot` is the chain poller's live INDEX price. The futures tape trades at
+    a carry premium to it (59 points on 2026-08-04, more than a strike step),
+    and that premium must not reach the option maths: the legs are weekly, the
+    future is monthly. We take one scalar `basis` from the latest bar rather
+    than a per-bar spot series because only the current spot is available,
+    and intraday carry is near-constant while the tape moves in points.
+    Passing nothing keeps the old behaviour exactly (basis 0.0).
+    """
     tok = _token()
     today = datetime.now(IST).strftime("%Y-%m-%d")
     day_lbl = datetime.now(IST).strftime("%b %d")
@@ -744,7 +753,15 @@ def build_payload(cfg):
         return json.dumps({"index": cfg["under_sym"], "strike": None, "days": [],
                            "built_at": time.time(),
                            "live_error": "no bars yet for " + today}).encode()
-    strike = float(_pick_strike(fut_raw["close"][-1], cfg))
+    # Basis first: the strike is picked in the OPTION's frame too, or the
+    # engine's "ATM" sits a whole 50-point step above the real one.
+    basis = 0.0
+    if spot:
+        try:
+            basis = float(fut_raw["close"][-1]) - float(spot)
+        except (TypeError, ValueError):
+            basis = 0.0
+    strike = float(_pick_strike(fut_raw["close"][-1] - basis, cfg))
     # The option side of the tape lives on the NEAREST expiry — the one the
     # operator actually trades — not on cfg['expiry'], which is the FUTURES
     # (monthly) contract's. See _nearest_opt_expiry for the history.
@@ -771,7 +788,7 @@ def build_payload(cfg):
                             "%Y-%m-%d %H:%M").replace(tzinfo=IST)
     t_days = max((exp - datetime.now(IST)).total_seconds() / 86400.0, 0.25)
     s = Session(day_lbl + " LIVE", fut, ce, pe, quiet=True,
-                strike=strike, t_days=t_days)
+                strike=strike, t_days=t_days, basis=basis)
     s.run()
     js = session_json(s)
     # mid-session: the end-of-day CARRY verdict is meaningless until the
@@ -800,8 +817,16 @@ def build_payload(cfg):
     # Which expiry the ce/pe legs (and their pivots, and t_days) belong to —
     # disclosed so the UI can name the contract rather than implying it.
     js["opt_expiry"] = ocfg["expiry"]
+    # Disclosed, not hidden: every chain-derived level (walls, pin, max pain,
+    # gamma flip) is quoted in the INDEX frame while these bars are FUTURES.
+    # Publishing the measured basis is what lets the UI put both on one axis
+    # instead of drawing option levels ~59 points from where they belong.
+    # `spot` rides along so the screen can name the number it converted from;
+    # both are null when the chain was unavailable -- never guessed.
     return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
                        "expiry": cfg["expiry"], "built_at": time.time(),
+                       "basis": round(basis, 2) if spot else None,
+                       "spot": float(spot) if spot else None,
                        "days": [js]}).encode()
 
 
