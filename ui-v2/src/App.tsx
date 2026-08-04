@@ -9,6 +9,7 @@ import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
+import ProtoTab from './proto/ProtoTab'
 // Same Hinglish layer the Trade tab's balloons and callout use — one source of
 // captions, so a kind cannot read one way on the chart and another in the feed.
 import { glossOf, pillText, dirText } from './trade/hinglish'
@@ -21,7 +22,10 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
-type Tab = 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map'
+// 'Proto' is the throwaway lightweight-charts spike (src/proto/). It is not a
+// feature: it exists to decide v3's charting foundation and gets deleted with
+// its directory once the verdict is recorded. See context/HANDOFF.md §6b.
+type Tab = 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map' | 'Proto'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -1905,7 +1909,7 @@ export default function App() {
   const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
-  const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map']
+  const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Proto']
   const { data: liveData, loading, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
 
@@ -2133,6 +2137,12 @@ export default function App() {
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
         {activeTab === 'Validate' && <ValidateTab index={activeIndex} />}
         {activeTab === 'Map'      && <MapTab index={activeIndex} />}
+        {/* No key={activeIndex}: unlike TradeTab, the spike is deliberately
+            exposed to an index switch without a remount, because surviving one
+            is a real v3 requirement. */}
+        {activeTab === 'Proto'    && <ProtoTab day={tape.day} bars={tape.bars}
+                                              rotation={tape.rotation} rotationWhy={tape.rotationWhy}
+                                              levels={tradeLevels} />}
       </div>
     </div>
     </DataCtx.Provider>
