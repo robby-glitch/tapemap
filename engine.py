@@ -66,6 +66,17 @@ def load(path):
     return kept, {d: years[d] for d in kept}
 
 
+# The smallest time-to-expiry the greeks are priced with, in DAYS.
+#
+# This is NOT the same 0.25 as days_to_expiry's "+0.25 intraday theta stub"
+# below, and the two sharing a literal is what made D7 hard to see. That one
+# is ADDITIVE -- the fraction of the expiry day itself, added to whole days.
+# This one is a FLOOR -- a numerical guard, because Black-Scholes gamma
+# diverges at the money as t approaches zero. They now have different names so
+# a reader cannot conflate them again.
+GAMMA_T_FLOOR = 0.25
+
+
 def days_to_expiry(day, year, expiry):
     """Calendar days from a session day to `expiry` (YYYY-MM-DD), floored above
     zero, plus 0.25 for the intraday theta stub. Month/year-boundary safe."""
@@ -168,7 +179,17 @@ class GammaLayer:
         # the chain's 0.1102. Backtests pass nothing and get 0.0, which is
         # exactly the behaviour they had before this existed.
         self.basis = basis or 0.0
-        self.t = max(t_days, 0.25) if t_days else 1.0
+        # The real time to expiry, and the number the greeks are actually
+        # priced with. They are the same until expiry afternoon, where the
+        # floor binds and `t` stops moving while the clock does not: at 15:00
+        # on expiry there are ~30 minutes left, not the six hours 0.25 days
+        # claims. The floor stays -- gamma diverges at the money as t -> 0 --
+        # but nothing downstream may read `t` as the live clock without also
+        # reading `t_floored`. That silent freeze was D7.
+        self.t_real = float(t_days) if t_days else None
+        self.t = max(t_days, GAMMA_T_FLOOR) if t_days else 1.0
+        self.t_floored = (self.t_real is not None
+                          and self.t_real < GAMMA_T_FLOOR)
         self.w = {"CE": 0.0, "PE": 0.0}          # writer score in [-1, 1]
         self.oi0 = None                          # session-open OI/premium refs
         self.px0 = None
@@ -1132,6 +1153,14 @@ class Session:
                      "dist": round(C - self.basis - self.gamma.k),
                      "regime": regime} if self.gamma.k else None),
             "t_exp": round(self.gamma.t, 2),
+            # What the greeks were PRICED with (`t_exp`) against what the clock
+            # actually says (`t_real`). Equal all session except on expiry
+            # afternoon, where t_exp freezes at the floor. Additive keys: a
+            # panel showing a greek must disclose when `t_floored` is true,
+            # and a consumer that does not know them ignores them.
+            "t_real": (None if self.gamma.t_real is None
+                       else round(self.gamma.t_real, 4)),
+            "t_floored": self.gamma.t_floored,
             "episode": episode, "loc": loc, "plays": plays,
             "floor": [floor[0], round(floor[1], 1)] if floor else None,
             "cap": [cap[0], round(cap[1], 1)] if cap else None,

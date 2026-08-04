@@ -830,7 +830,12 @@ def build_payload(cfg, spot=None):
     # expiry days now, which is correct for what is being traded.
     exp = datetime.strptime(ocfg["expiry"] + " 15:30",
                             "%Y-%m-%d %H:%M").replace(tzinfo=IST)
-    t_days = max((exp - datetime.now(IST)).total_seconds() / 86400.0, 0.25)
+    # The REAL time to expiry, unfloored. GammaLayer owns the numerical floor
+    # (engine.GAMMA_T_FLOOR) and reports when it binds; flooring here as well
+    # meant the freeze happened twice and was invisible at both sites, which
+    # is what D7 was. Clamped at zero only so a post-expiry clock cannot go
+    # negative.
+    t_days = max((exp - datetime.now(IST)).total_seconds() / 86400.0, 0.0)
     s = Session(day_lbl + " LIVE", fut, ce, pe, quiet=True,
                 strike=strike, t_days=t_days, basis=basis or 0.0)
     s.run()
