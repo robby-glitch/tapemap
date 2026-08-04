@@ -32,6 +32,7 @@ from bisect import bisect_right, insort
 from collections import defaultdict
 from datetime import datetime
 
+from chain_metrics import PREM_TICK, W_SAT
 from gamma import implied_vol
 
 # ---------------------------------------------------------------- data loading
@@ -193,7 +194,16 @@ class GammaLayer:
         self.w = {"CE": 0.0, "PE": 0.0}          # writer score in [-1, 1]
         self.oi0 = None                          # session-open OI/premium refs
         self.px0 = None
-        self.build_peak = {"CE": 0.0, "PE": 0.0}
+        # Writer/buyer flow, accumulated from PER-BAR classifications the way
+        # chain_metrics accumulates from per-bucket ones. `w_bars` counts the
+        # bars that actually carried a classifiable move and is the score's
+        # confidence: a w built from three bars is not the same claim as one
+        # built from ninety, and nothing used to say which it was (D8).
+        self.w_flow = {"CE": 0.0, "PE": 0.0}
+        self.b_flow = {"CE": 0.0, "PE": 0.0}
+        self.w_bars = {"CE": 0, "PE": 0}
+        self.prev_oi = {"CE": None, "PE": None}
+        self.prev_px = {"CE": None, "PE": None}
         self.peak_oi = {"CE": 0.0, "PE": 0.0}
         self.oi_rank = {"CE": Rank(), "PE": Rank()}
         self.pv_rank = {"CE": Rank(), "PE": Rank()}   # |premium velocity|
@@ -229,18 +239,47 @@ class GammaLayer:
             # that unwound 20% is still a wall; level-rank decays wrongly)
             oir = ob["OI"] / self.peak_oi[nm] if self.peak_oi[nm] > 0 else 0.0
             pvr = self.pv_rank[nm].rank(abs(of["prem_d"]))
-            # writer score = session-cumulative positioning (same read that
-            # validated in the GEX-lite study): net new OI since open,
-            # classified by premium direction since open. Magnitude relative
-            # to the session's own largest build (self-scaling).
-            doi = ob["OI"] - self.oi0[nm]
-            self.build_peak[nm] = max(self.build_peak[nm], doi)
-            dpx = ob["C"] - self.px0[nm]
-            # 2% premium-move floor (relative) before calling a direction
-            direction = 1.0 if dpx < -0.02 * self.px0[nm] else \
-                (-1.0 if dpx > 0.02 * self.px0[nm] else 0.0)
-            mag = max(doi, 0.0) / self.build_peak[nm] if self.build_peak[nm] > 0 else 0.0
-            self.w[nm] = direction * min(1.0, mag)
+            # Writer score, classified PER BAR -- the same rule and the same
+            # saturation constant chain_metrics uses per bucket, imported
+            # rather than restated so there is one methodology and not two
+            # (D8).
+            #
+            #   OI up   + premium down -> writers add     (+d_oi to w_flow)
+            #   OI up   + premium up   -> buyers add      (+d_oi to b_flow)
+            #   OI down + premium up   -> writers cover   (-d_oi to w_flow)
+            #   OI down + premium down -> longs bail      (-d_oi to b_flow)
+            #
+            # What this replaces, and why (D2). The old score was net OI SINCE
+            # OPEN over the session's own largest build -- so the moment `doi`
+            # set a new high the ratio was doi/doi = 1.0 EXACTLY, and it
+            # pegged on any trending build day. Its direction came from
+            # premium-since-open against a flat 2% floor, and on expiry day
+            # theta alone clears that floor by mid-morning, so `direction` sat
+            # at +1.0 whoever was actually positioning. Together: w_ce = 1.0
+            # all session, carrying no information at all.
+            #
+            # Both faults come from measuring CUMULATIVELY. One bar's OI and
+            # premium change carry no theta worth the name and need no
+            # self-scaling reference, so neither fault can re-form here.
+            p_oi, p_px = self.prev_oi[nm], self.prev_px[nm]
+            if p_oi is not None:
+                d_oi = ob["OI"] - p_oi
+                d_p = ob["C"] - p_px
+                # A sub-tick premium move cannot classify anything; the bar is
+                # skipped rather than guessed at, and w_bars records that it
+                # was skipped.
+                if d_oi and abs(d_p) >= PREM_TICK:
+                    self.w_bars[nm] += 1
+                    if (d_oi > 0) == (d_p < 0):
+                        self.w_flow[nm] += d_oi
+                    else:
+                        self.b_flow[nm] += d_oi
+            self.prev_oi[nm], self.prev_px[nm] = ob["OI"], ob["C"]
+            net = self.w_flow[nm] - self.b_flow[nm]
+            # Saturates when net flow reaches W_SAT of the CURRENT book -- a
+            # stable denominator, so a pegged score now means the book really
+            # did turn over that much.
+            self.w[nm] = max(-1.0, min(1.0, net / max(W_SAT * ob["OI"], 1.0)))
             sl = of["oi_slope"]
             if sl < 0 and abs(sl) > abs(self.last_slope[nm]):
                 self.unwind[nm] += 1
@@ -292,6 +331,13 @@ class GammaLayer:
                 self.iv_r[nm] = self.ivr[nm].rank(self.iv[nm])
         self.track[fb["T"]] = {"regime": regime,
                                "w_ce": round(wc, 2), "w_pe": round(wp, 2),
+                               # How many bars actually carried a classifiable
+                               # OI+premium move. A score built from three bars
+                               # and one built from ninety used to print
+                               # identically; a panel showing w must be able to
+                               # say which it is holding (D8). Additive.
+                               "w_bars_ce": self.w_bars["CE"],
+                               "w_bars_pe": self.w_bars["PE"],
                                "proxy": round(proxy, 3),
                                "iv_ce": self.iv["CE"], "iv_pe": self.iv["PE"]}
 
