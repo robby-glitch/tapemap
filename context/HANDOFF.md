@@ -176,11 +176,30 @@ ARMED → TRIGGERED → IN TRADE → OUT, where the screen is mostly EMPTY becau
 setup fires 1-2× a week. It is a **new frontend on this same backend**; if v3
 touches the backend it is not v3, it is a third unfinished app. Order agreed:
 commit (done) → D2 + basis guard → whale/`confirm_score` measurement → v3.
-Next concrete step: a throwaway `/proto` route on **lightweight-charts** proving
-three things `candl` already does — candles + VWAP + six σ lines with a filled
-envelope, a synced OI pane (v5 panes), and one rotation pill anchored to its
-candle (v5 primitives). All three clean → build v3 on it. Any one a fight →
-keep `candl`. Decide from the prototype, not from taste.
+**Charting foundation — SETTLED 2026-08-05. Keep `candl`.** The throwaway
+`/proto` spike ran. lightweight-charts **passed all three** pre-registered
+proofs (σ envelope with `drawRibbon` reused at a one-line diff, OI pane from a
+bare `paneIndex`, pills anchored with no rAF loop) — and the answer is still
+candl, because the rubric missed the axis that decides it: **drawing tools.**
+`candl` ships **61** with a full lifecycle API; lightweight-charts ships
+**zero**. Full scoring, and the three things worth salvaging from the spike:
+**`research-findings.md` §6.**
+
+**The live finding underneath it:** ui-v2 turns **none** of those 61 tools on.
+The entire app-side reference to candl's drawings module is
+`LevelsOverlay.ts:5` importing the `Converters` *type*. The operator has never
+been able to draw on their own chart, and the fix is a toolbar, not an engine —
+`setActiveTool` / `setDrawings` / `onDrawingsChange` / `setMagnet` are already
+on `IChartEngine`. Verified working 2026-08-05 (`ui-v2/src/proto/ProtoDraw.tsx`,
+11 of the 61 exercised, drawings surviving a refresh via localStorage).
+
+**So v3's first chart task is exposing that toolbar, not replacing the engine.**
+Mind §4 when it lands in TradeTab — a row under the chart is exactly what
+collapsed it twice.
+
+`ui-v2/src/proto/` is a **throwaway**: delete the directory, revert the five
+`App.tsx` lines, `corepack pnpm --dir ui-v2 remove lightweight-charts`. Kept
+for now only as the evidence behind this verdict.
 
 **Whale/volume-anomaly layer** (operator's TradingView indicator, source read
 2026-08-04): buy/sell volume split by close position in the bar's range

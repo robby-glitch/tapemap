@@ -33,10 +33,16 @@ management, not a verdict on it.
 import statistics as st
 import sys
 
+import band_rotation as br
 from rotation_score import collect
 from squeeze_score import load
 
 INDICES = ("NIFTY", "BANKNIFTY", "SENSEX")
+# The three management arms. "hold" was implemented in `simulate` from the
+# start but never wired into main, so the operator's OWN chosen management --
+# leave the stop alone until VWAP -- was the one arm never printed.
+ARMS = (False, True, "hold")
+ARM_TAG = {False: "ladder", True: "patient", "hold": "hold"}
 LADDER = ("d3", "d2", "d1", "vwap", "u1", "u2", "u3")
 INIT_BUF = 20.0          # points below the entry band
 TIGHT_BUF = 15.0         # points below the price high once u2 is touched
@@ -115,8 +121,34 @@ def simulate(bars, i, band, trace=False, patient=False):
             "rung": rung, "t": last["t"], "eod": True}
 
 
-def run(idx, trace_day=None, patient=False):
-    rows, _, _ = collect(idx)
+def _new_rows(idx):
+    """Entries from the operator's ACTUAL two-candle rule (§5c), in the shape
+    `run` already consumes.
+
+    The detector has already applied the 09:25 gate, the reference walk, the
+    window and the re-fire lock, so `anchored`/`first` are True BY
+    CONSTRUCTION here rather than filtered afterwards -- unlike the one-candle
+    path, where both are measurement choices made in rotation_score."""
+    days = load(idx)
+    rows = []
+    for day, D in sorted(days.items()):
+        bars = D["bars"]
+        if not bars:
+            continue
+        close = [b["c"] for b in bars]
+        for rec in br.detect_index_run(bars, stop_pts=INIT_BUF):
+            if rec is None:
+                continue
+            i = rec["i"]
+            j = i + 10                       # +30m on 3-minute bars
+            rows.append({"day": day, "t": rec["t"], "i": i, "side": "BUY",
+                         "band": rec["band"], "anchored": True, "first": True,
+                         "+30m": None if j >= len(close) else close[j] - close[i]})
+    return rows
+
+
+def run(idx, trace_day=None, patient=False, rule="old"):
+    rows = collect(idx)[0] if rule == "old" else _new_rows(idx)
     days = load(idx)
     out = {"d3": [], "d2": []}
     for r in rows:
@@ -127,7 +159,7 @@ def run(idx, trace_day=None, patient=False):
         tr = trace_day == r["day"]
         if tr:
             print(f"  {idx} {r['day']} {r['t']} BUY {r['band']}"
-                  f" [{'patient' if patient else 'ladder'}]")
+                  f" [{ARM_TAG[patient]}]")
         sim = simulate(days[r["day"]]["bars"], r["i"], r["band"], trace=tr,
                        patient=patient)
         if sim is None or sim["risk"] <= 0:
@@ -160,26 +192,36 @@ def _show(label, trades):
 
 def main():
     trace_day = sys.argv[1] if len(sys.argv) > 1 else None
-    pooled = {False: {"d3": [], "d2": []}, True: {"d3": [], "d2": []}}
-    for idx in INDICES:
-        print(f"\n{idx}")
-        for patient in (False, True):
-            tag = "patient" if patient else "ladder"
-            out = run(idx, trace_day, patient=patient)
-            _show(f"d3 {tag}", out["d3"])
-            _show(f"d2 {tag}", out["d2"])
-            for k in pooled[patient]:
-                pooled[patient][k].extend(out[k])
-    print("\nPOOLED -- co-moving indices; a pooled effect is a warning, not a result")
-    for patient in (False, True):
-        tag = "patient" if patient else "ladder"
-        _show(f"d3 {tag}", pooled[patient]["d3"])
-        _show(f"d2 {tag}", pooled[patient]["d2"])
-    print("\nSame entries rotation_score scored; only the management differs. "
-          "'patient' = the operator's clarified\nrule: narrow bands below VWAP "
-          "-> stop to entry and wait; the trail arms past VWAP. Futures "
-          "points,\nno costs, fills assumed at the stop. scr = breakeven "
-          "scratches. First measurement, not a verdict.")
+    for rule in ("old", "new"):
+        head = ("OLD one-candle entries (research-findings §1, VOID)"
+                if rule == "old"
+                else "NEW two-candle entries -- the operator's rule (§5c)")
+        print(f"\n{'=' * 72}\n{head}")
+        # The new rule is d3 BUY only by construction, so its d2 bucket is
+        # always empty and printing it would read as a measured zero.
+        bands = ("d3", "d2") if rule == "old" else ("d3",)
+        pooled = {a: {b: [] for b in bands} for a in ARMS}
+        for idx in INDICES:
+            print(f"\n{idx}")
+            for patient in ARMS:
+                out = run(idx, trace_day, patient=patient, rule=rule)
+                for b in bands:
+                    _show(f"{b} {ARM_TAG[patient]}", out[b])
+                    pooled[patient][b].extend(out[b])
+        print("\nPOOLED -- co-moving indices; a pooled effect is a warning, "
+              "not a result")
+        for patient in ARMS:
+            for b in bands:
+                _show(f"{b} {ARM_TAG[patient]}", pooled[patient][b])
+    print("\nOnly the management differs within each block; the entries are "
+          "fixed.\n"
+          "  ladder  = trail band-to-band from the first rung up\n"
+          "  patient = narrow bands below VWAP -> stop to entry and wait\n"
+          "  hold    = the operator's own rule: leave the initial stop ALONE "
+          "until VWAP,\n            then trail. Implemented from the start but "
+          "never printed until now.\n"
+          "Futures points, no costs, fills assumed AT the stop. scr = "
+          "breakeven scratches.")
 
 
 if __name__ == "__main__":

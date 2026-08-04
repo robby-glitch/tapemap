@@ -13,7 +13,24 @@ Last updated: 2026-08-04.
 
 **NIFTY (and SENSEX) — d3 band reversal, intraday, buy-side only.**
 
-The rule, as the data supports it:
+> ### ⚠️ VOID as of 2026-08-05 — measured on the wrong trigger
+>
+> Every number in this section describes a **one-candle** rule: a bar pierces
+> d3 *and the same bar closes back above it*, enter at that close. Asked
+> directly on 2026-08-05, the operator described a **two-candle** rule: a bar
+> **touches** d3 (no close-back needed), and entry comes when a **later** bar
+> closes above **that bar's high**. Entry is therefore later and higher.
+>
+> So **72% / +21.0 pts / −20.7 adverse swing are VOID — not disproven.**
+> Correctly measured, wrong instrument. The same thing that happened to
+> `confirm_score` (HANDOFF §6b). `band_rotation._trigger` still implements the
+> old rule, so the pills on the chart do not mark the operator's entries.
+>
+> The real rule is pre-registered in **§5c** and must be scored before any of
+> it is trusted or drawn. Keep this section as the record of what was measured.
+
+The rule, as the data supports it (**the OLD, one-candle trigger — see the
+VOID notice above**):
 
 > After **09:30**, a 3-min candle's low pierces **d3 (−3σ of session VWAP)**
 > and the *same candle closes back above it*. Enter at that close. Stop 20 pts
@@ -194,6 +211,233 @@ Needs ~15 sessions before any number is worth reading.
 ---
 
 ## 6. Known gap the code cannot yet see
+
+## 5c. PRE-REGISTERED — the operator's ACTUAL d3 rule (written 2026-08-05, UNTESTED)
+
+Registered **before** any scoring run, per §5. **Nothing below is a result.**
+
+**Why this exists.** §1's rule is not the rule the operator trades. `_trigger`
+(`band_rotation.py:275`) implements a one-candle setup; the operator described a
+two-candle one. §1 is therefore VOID, and this is what must be scored.
+
+**The rule, as the operator specified it.** NIFTY index, 3-min bars, after
+**09:25**, **d3 only**:
+
+1. **ARM** — a candle whose **low touches or pierces d3**. *No close-back
+   requirement.* That candle is the **reference**; remember its **high**.
+2. **RE-ARM** — a later candle printing a **new lower low** becomes the new
+   reference. Falling lows collapse into one setup; they do not stack.
+3. **TRIGGER** — a candle **closes above the reference candle's high**.
+   Entry at **that candle's close**.
+4. **EXPIRY** — no trigger within **10 candles (30 min)** → setup cancels.
+   *(Assumption, flagged: a new lower low restarts this countdown.)*
+5. **STOP** — d3 − 20 pts.
+6. **MANAGE** — unchanged from §1: hold the stop until VWAP; past VWAP trail
+   band-to-band; from +2σ, 15 pts under the high; flat by 15:15.
+7. **RE-FIRE** — after an entry: if **stopped out**, the next setup may arm
+   immediately; otherwise **not until VWAP is touched**.
+
+**Predictions, committed in advance:**
+
+1. It fires **less often** than the old rule on the same sessions — a
+   close-above-the-high is a stricter second condition than a same-bar reclaim.
+2. Its **mean MAE is smaller in magnitude than −20.7**, because entry is later
+   and higher.
+3. Therefore the **20-pt stop is no longer sized to the adverse swing** and is
+   probably loose. (Widening or tightening it stays a risk decision for the
+   operator — this predicts the measurement, not the choice.)
+4. Hit rate at +30m is **materially above** the ~50% / +0.3 pt control.
+
+**Falsifier:** hit rate at +30m at or below **~55%**, **or** a median at or
+below the control, **or** the result collapsing once the single best trade is
+dropped (§5 lesson 2).
+
+**Provenance and hazards — record these now, not after the number.**
+
+- The rule was **not** mined from `data/backtest/`; it came from the operator's
+  own description. That makes this a legitimate first test rather than another
+  slice, so §5's stop-rule is satisfied.
+- It is **one** rule with **one** parameter set. Do **not** grid-search the
+  10-candle window, the 20-pt stop, or the band. If N is ever varied, **every**
+  variant must be reported, never the best one.
+- 2026-08-04 sits in the cache and was on screen while the rule was being
+  specified. The rule was not derived from it, so it is not disqualified — but
+  it is not independent evidence either.
+
+**Data:** NIFTY 3-min bars via `squeeze_score.load` (`vwap_bands` → `resample(3)`
+— that order is load-bearing: 0.972 vs 0.948 reversed).
+
+**Scorer:** `run_score.py`, head-to-head against the old rule on identical
+sessions, with a real stop applied (`rotation_score.py` is deliberately
+stop-free).
+
+### RESULT — run 2026-08-05. NOT falsified, but not for the predicted reason.
+
+`run_score.py` reproduces §1's headline exactly on the old rule's own
+population (d3 BUY, first-of-run, post-09:25: **n=18, 72.2%, med +21.00**),
+which is what validates the scorer before anything new is read off it.
+
+**NIFTY, 65 cached sessions, +30m:**
+
+| | OLD d3 BUY (§1) | **NEW two-candle** | control |
+|---|---|---|---|
+| trades | 18 (0.28/session) | **19 (0.29/session)** | — |
+| hit | 72.2% | **68.4%** | 49.5% |
+| median | +21.00 | **+12.80** | +0.00 |
+| MAE median | −22.20 | **−13.90** | — |
+| **with the 20-pt stop** | 61.1%, med +15.65 | **68.4%, med +12.80** | — |
+| **stopped out** | 5/18 = **27.8%** | **3/19 = 15.8%** | — |
+| less the best trade | 70.6%, +18.70 | **66.7%, +11.40** | — |
+
+**Falsifier not triggered:** 68.4% > 55%, median +12.80 > control, and it
+survives dropping the single best trade. **The edge is real on NIFTY.**
+
+**Prediction scorecard, scored honestly:**
+
+1. *"fires less often"* — **WRONG.** 19 vs 18. Essentially identical frequency.
+   The reasoning (a stricter second condition) was sound but the arming
+   condition is looser (a touch, not a pierce-and-reclaim), and the two cancel.
+2. *"MAE smaller than −20.7"* — **MIXED.** Median −13.90 (smaller), mean −29.97
+   (larger). Outlier-driven; the median is the honest read of "typical".
+3. *"the 20-pt stop is loose"* — **SUPPORTED**, by the halved stop-out rate.
+4. *"hit materially above control"* — **CONFIRMED**, 68.4% vs 49.5%.
+
+**The finding that matters, and it is not the headline.** On raw forward move
+the old rule looks *better* (72.2% / +21.00 vs 68.4% / +12.80). **With the stop
+applied — which is how it is actually traded — the new rule wins:** 68.4% vs
+61.1%, and it is stopped out **half as often** (15.8% vs 27.8%). Entering later
+and higher buys a trade that survives. The operator's rule trades median gain
+for durability, which is exactly the trade a real stop rewards.
+
+**Corroborating detail:** the new rule's **+6m is negative** (42.1%, med −2.70)
+and only turns at +15m. The trade goes against you first and then works — which
+is independent support for §1's measured management finding that moving to
+breakeven costs ~13 pts/trade. Do not move the stop early.
+
+**Where it fails, as expected.** BANKNIFTY: 37.5% hit, med −75.90 (n=8) — and
+the old rule fails there too (14.3%, n=7). §3's regime map holds; BANKNIFTY
+still inverts. SENSEX agrees with NIFTY (58.3%, med +23.28, **0/12 stopped
+out**, n=12), though its own control is an odd 42% and the old rule's n=4 there
+is not readable.
+
+**Caveats that must travel with these numbers.**
+- **n=19.** That is ~1.4 signals a week, matching the operator's own "1–2 per
+  week" — but it is a small sample and one bad month would move it.
+- Old and new were measured on the **same 65 sessions**, so they are not
+  independent samples; the comparison is paired, the significance is not.
+- Nothing here tests the **option-leg expression**. The operator trades
+  premium-matched legs (ATM when its premium is > ₹100, else strikes > ₹100 on
+  both sides), and this scores the **index** only.
+### Management, re-run on the new entries (`trail_score.py`, 2026-08-05)
+
+The `"hold"` arm existed in `simulate` from the start but was never wired into
+`main` — so the operator's OWN chosen management was the one arm never printed.
+Now wired, and run against both rules' entries.
+
+**Pooled d3, all three indices** (pooling is a warning, not a result):
+
+| entries | arm | mean | **median** | **hit** | scratches |
+|---|---|---|---|---|---|
+| OLD one-candle (n=29) | ladder | +3.6 | −9.0 | 41% | 0 |
+| | patient | +0.1 | −9.0 | 28% | **6** |
+| | hold | +4.5 | −15.2 | 48% | 0 |
+| **NEW two-candle (n=39)** | ladder | +33.2 | +1.8 | 54% | 0 |
+| | patient | +32.3 | +0.9 | 51% | 0 |
+| | **hold** | +31.9 | **+6.9** | **59%** | 0 |
+
+**Two things fall out, and they point the same way as §1's original management
+finding rather than against it.**
+
+1. **The new entries are better under EVERY arm.** Every OLD median is
+   negative (−9.0 / −9.0 / −15.2); every NEW median is positive
+   (+1.8 / +0.9 / +6.9). The entry rule, not the management, is what moved.
+2. **`hold` buys consistency, not size.** It has the best hit rate (59% vs 54%
+   / 51%) and much the best median (+6.9 vs +1.8 / +0.9), but the *lowest*
+   mean (+31.9). Leaving the stop alone until VWAP wins more trades and gives
+   up some tail. On NIFTY alone (n=19) the same shape: hold 63% hit and +6.9
+   median against ladder's 58% and +3.2, while ladder's mean is higher (+4.8
+   vs +0.3).
+
+**`patient` produced 6 breakeven scratches on the old d3 entries and `hold`
+produced none** — a direct, independent replay of §1's measured "moving to
+breakeven costs ~13 pts/trade". The operator's instinct to leave the stop alone
+is supported by a second, separate measurement.
+
+Also visible: `hold`'s median exit rung is **u1** on NIFTY and SENSEX where
+`patient` stops at **vwap**. Not touching the stop lets the runners run.
+
+BANKNIFTY is negative on every arm (hold worst, −74.4, n=8). §3's regime map
+holds.
+
+**Still not measured:** the option-leg expression. Every number above is the
+index. The operator trades premium-matched legs (ATM when its premium is
+> ₹100, else strikes > ₹100 on both sides), and that has never been scored.
+
+---
+
+## 6. VERDICT — v3's charting foundation (2026-08-05)
+
+The throwaway `/proto` spike ran against live bars and the 04-Aug fixture.
+**Decision: keep `candl`.** Not because lightweight-charts failed — it passed
+all three pre-registered proofs — but because the rubric asked the wrong
+question.
+
+### The three proofs, scored against the rubric written before the run
+
+| proof | verdict | evidence |
+|---|---|---|
+| 1 · filled σ envelope | **PASS** | `drawRibbon` reused with **zero body changes** — `diff` vs `LevelsOverlay.ts:227-271` is exactly **one line** (`conv: Converters` → `conv: Conv`). Five annuli, distinct hues. `autoscaleInfo` exists in v5.2.0 and keeps ±3σ in view. |
+| 2 · synced OI pane | **PASS** | `chart.addSeries(LineSeries, {}, 1)` creates the pane outright: `panes()` → 2, series `[2,1]`, 385 points, shared time axis, **zero glue code**. |
+| 3 · rotation pill | **PASS** | Anchored by `logicalToCoordinate` + `priceToCoordinate`; 21 pills on their own candles at their own σ levels. **No rAF loop and no frame-skip signature needed** — the chart's own paint drives it. |
+| time axis | **PASS** | `LWC holds 2026-08-04T14:51:00.000Z` for the bar the payload calls `14:51`. Machine-timezone independent (verified at offsets 0 and −330). |
+| gates | **PASS** | tsc 0 · build 0 · pytest 278. |
+
+### Why the verdict is still "keep candl"
+
+**Drawing tools — the axis the rubric never covered.** `candl` ships **61**
+tools with a full lifecycle API (`setActiveTool` / `setDrawings` /
+`onDrawingsChange` / `onSelectionChange` / `setMagnet`). lightweight-charts
+ships **zero**, by design — every tool would be hand-built as a primitive, with
+hit-testing, drag handles, selection, persistence and undo.
+
+The operator trades ICT/SMC. Trendlines, channels, fibs and boxes are the
+method, not decoration. Verified working on 2026-08-05 via `ProtoDraw.tsx`.
+
+**The thing nobody had noticed:** ui-v2 turns **none** of those 61 on. The only
+app-side reference to the entire drawings module is `LevelsOverlay.ts:5`
+importing the `Converters` *type*. The capability has been one toolbar away the
+whole time — which is why the operator could never draw on their own chart.
+
+### What the spike genuinely established (worth keeping)
+
+- **`LevelsOverlay` was never candl-coupled.** Its whole runtime surface is two
+  calls (`getMainConverters`, `getMainPaneRect`) and two methods off them. The
+  migration was always cheap — it simply is not worth making.
+- The **series-primitive + 2-method adapter** pattern works, if this is ever
+  revisited. Use `logicalToCoordinate`, **not** `timeToCoordinate`: the latter
+  returns null off-screen and `drawRibbon` treats non-finite as a run break, so
+  the envelope would fragment under pan.
+- lightweight-charts renders **UTC only**. Bars carry `"HH:MM"` IST and no
+  epoch, so stamps must be built as *the epoch whose UTC clock is the IST wall
+  clock* (`protoTime.ts`). Naive `dayBase()/1000` puts the axis 5:30 out.
+
+### Costs that going LWC would have had to pay
+
+61 drawing tools · the replay cursor (`candl` has native `setReplayCursor`
+driven at 25× / 40 ms; LWC has no equivalent) · an OHLC legend (LWC draws none)
+· `LegChart`, never proven · +55 kB gzip.
+
+### Not measured — do not read this verdict as covering them
+
+- The **replay cursor** port (the operator scoped the spike to three proofs).
+- **`LegChart`**: its σ bands are plain *lines*, plus seven pivot lines, its own
+  OI pane and a `map[]` for skipped bars. Three passing proofs say nothing
+  about it.
+- **50 of the 61** drawing tools. Eleven were exercised.
+
+---
+
+## 7. Known gap the code cannot yet see
 
 The operator reads *"is price rejecting the band or walking along it"* off the
 chart in one second (Kite screenshots, RELIANCE 31-Jul and 3-Aug, 2026-08-04).

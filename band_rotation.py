@@ -825,6 +825,152 @@ def detect_index(bars, days=None):
     return out
 
 
+# --- The operator's ACTUAL rule: a two-candle run -------------------------
+# Pre-registered in `context/research-findings.md` §5c on 2026-08-05. UNSCORED
+# -- nothing may be drawn or traded off this until §5c's number lands.
+#
+# `_trigger` above is a ONE-candle rule and is deliberately left alone: the
+# two-leg `detect` path shares it, seven tests lock its semantics, and
+# `trigger_log.py` parses its receipt sentence. This is a SECOND detector so
+# the two can be scored head to head; when the number arrives, one of them wins
+# and the loser goes.
+#
+# The difference in one line: `_trigger` wants ONE bar to pierce d3 AND close
+# back above it. This wants a bar to TOUCH d3, then a LATER bar to close above
+# THAT bar's high. The entry is therefore later, and higher.
+
+# The only band this rule reads. A NAME, never a price level.
+RUN_BAND = "d3"
+# How many bars a reference stays live. The operator said 10 candles and the
+# scoring path feeds 3-minute bars, so this is their 30 minutes -- counted in
+# BARS like every other window here, so it cannot drift with the interval the
+# way a wall-clock deadline would.
+RUN_WINDOW = 10
+
+
+def _run_read(bar):
+    """(low, high, close, d3, vwap) as finite floats, or None if the bar's own
+    OHLC cannot be read. `d3` and `vwap` may each be None -- a missing band is
+    a fact the caller handles, never a zero."""
+    low, high, close = (_num(bar.get(k)) for k in ("l", "h", "c"))
+    if low is None or high is None or close is None:
+        return None
+    return low, high, close, _num(bar.get(RUN_BAND)), _num(bar.get("vwap"))
+
+
+def _run_why(ref_t, ref_high, level, close, waited):
+    """The receipt. Worded so it can never be confused with `_trigger_why`'s
+    sentence -- `trigger_log.py` parses that one, and the two rules must stay
+    tellable apart in a log written months from now."""
+    at = f" at {ref_t}" if isinstance(ref_t, str) and ref_t else ""
+    bars = "bar" if waited == 1 else "bars"
+    return (f"index low touched {RUN_BAND} {_f(level)}{at}, then closed "
+            f"{_f(close)} above that candle's high {_f(ref_high)} "
+            f"{waited} {bars} later")
+
+
+def detect_index_run(bars, days=None, stop_pts=None):
+    """The operator's own two-candle d3 setup, one slot per bar of `bars`.
+
+    ARM      a bar whose low TOUCHES d3 (no close-back needed). That bar is
+             the reference; its HIGH is the level to beat. Gated at 09:25 off
+             the bar's own clock label, so it lands right on any interval.
+    RE-ARM   a later bar printing a NEW LOWER LOW becomes the reference, and
+             the countdown restarts with it. A run of falling lows is ONE
+             setup, not a stack of them.
+    TRIGGER  a bar that CLOSES above the reference's high. A wick through is
+             not a trigger. Entry is that close.
+    EXPIRE   no trigger within RUN_WINDOW bars of the current reference.
+
+    `stop_pts` is the re-fire lock's only price input and is a PARAMETER, not
+    a module constant: after an entry the next setup cannot arm until price
+    touches VWAP, or -- when the caller says what the stop was -- until that
+    stop is hit. Called without it, the lock is VWAP-only, which is the
+    conservative reading (it can only ever suppress a later signal, never
+    invent one). The stop itself belongs to the scorer, not here.
+
+    Records carry the same keys `detect_index` emits, so every existing
+    consumer reads them unchanged, plus `ref_i` / `ref_high` / `level` /
+    `waited` describing the run that produced the entry.
+    """
+    if not isinstance(bars, (list, tuple)) or not bars:
+        return []
+    rows = [_index_bar(b) for b in bars]
+    n = len(rows)
+    day_list = (list(days) if isinstance(days, (list, tuple)) and len(days) == n
+                else [None] * n)
+    # Same compression series the one-candle path uses, normalised once.
+    by_day, why_none = _index_by_day(rows, day_list)
+
+    out = [None] * n
+    ref = None            # the live reference candle, or None
+    lock = None           # {"stop": float|None} while a trade is considered open
+    cur_day = object()    # sentinel: the first bar always opens a session
+
+    for i, bar in enumerate(rows):
+        day = _at(day_list, i)
+        if day != cur_day:
+            # A new session starts clean: a reference never survives the close.
+            cur_day, ref, lock = day, None, None
+        if bar is None:
+            continue
+        read = _run_read(bar)
+        if read is None:
+            continue
+        low, high, close, lvl, vwap = read
+
+        # 1. The re-fire lock outranks everything.
+        if lock is not None:
+            if lock["stop"] is not None and low <= lock["stop"]:
+                lock = None
+            elif vwap is not None and high >= vwap:
+                lock = None
+            else:
+                continue
+
+        # 2. Expire a reference that waited too long.
+        if ref is not None and i - ref["i"] > RUN_WINDOW:
+            ref = None
+
+        # 3. A new lower low MOVES the reference (and restarts its clock).
+        #    Such a bar cannot also trigger -- it would be beating its own high.
+        if ref is not None and low < ref["low"]:
+            ref = {"i": i, "t": bar.get("t"), "low": low, "high": high,
+                   "level": lvl if lvl is not None else ref["level"]}
+            continue
+
+        # 4. Arm on a TOUCH of d3, after 09:25. A bar with no readable clock is
+        #    not assumed to be late enough.
+        if ref is None:
+            t = bar.get("t")
+            minute = _minute(t) if isinstance(t, str) else None
+            if (lvl is not None and low <= lvl
+                    and minute is not None and minute >= ANCHOR_MINUTE):
+                ref = {"i": i, "t": t, "low": low, "high": high, "level": lvl}
+            continue
+
+        # 5. Trigger: a CLOSE above the reference's high.
+        if close > ref["high"]:
+            t = bar.get("t")
+            trap, trap_why, dwell = _trap(by_day, why_none, day, t)
+            waited = i - ref["i"]
+            out[i] = {"i": i, "t": t if isinstance(t, str) else None,
+                      "side": "BUY", "leg": INDEX_LEG, "band": RUN_BAND,
+                      "trigger": _run_why(ref["t"], ref["high"], ref["level"],
+                                          close, waited),
+                      "also": None,
+                      "confirm": "UNKNOWN",
+                      "confirm_why": SINGLE_SERIES_CONFIRM_WHY,
+                      "trap": trap, "trap_why": trap_why, "trap_dwell": dwell,
+                      "ref_i": ref["i"], "ref_high": ref["high"],
+                      "level": ref["level"], "waited": waited}
+            lock = {"stop": (ref["level"] - stop_pts)
+                    if (stop_pts is not None and ref["level"] is not None)
+                    else None}
+            ref = None
+    return out
+
+
 def detect(legs, axis=None, index_series=None):
     """The band-rotation records for one `/api/contract` request.
 
