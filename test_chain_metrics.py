@@ -9,7 +9,8 @@ OI/premium paths, and squeeze quiet-then-fires on the synthetic fixture.
 import json
 from pathlib import Path
 
-from chain_metrics import ChainState, _iv_at, _sane_iv, max_pain, pcr
+from chain_metrics import (GEX_SPOT_STEPS, WALL_HOLD, ChainState, _iv_at,
+                           _sane_iv, max_pain, pcr)
 
 FIXTURE = Path(__file__).parent / "data" / "chain_sample.jsonl"
 
@@ -213,6 +214,73 @@ def test_a_blown_up_iv_cannot_reach_gex():
     assert m["flip_px"] is None, m
     assert m["wall_up"] is None and m["wall_dn"] is None, m
     print("PASS blown-up IV kept out of GEX entirely")
+
+
+def test_gex_spot_reaches_past_one_strike_and_says_how_far():
+    """D5. The near-money window was +/-1 strike step, which admitted two
+    strikes -- three when spot sat exactly on a strike, so even the COUNT
+    moved -- and one strike's OI blip could swing the sign of the number the
+    regime label is read from."""
+    st = ChainState()
+    prev = None
+    ks = (24200, 24300, 24400, 24500, 24600)          # 100-point steps
+    for i in range(4):
+        strikes = [_row(k, 400_000, 400_000, ce_ltp=80.0, pe_ltp=80.0)
+                   for k in ks]
+        s = snap(34000 + i * 10, 24400.0, strikes)
+        m = st.update(s, 0.004, prev)
+        prev = s
+    assert m["gex_spot_band"] == 100.0 * GEX_SPOT_STEPS
+    assert m["gex_spot_band"] > 100.0, "one strike step was the bug"
+    # A book two strikes out must now be inside the window.
+    assert abs(24600 - 24400) <= m["gex_spot_band"]
+    print(f"PASS gex_spot band +/-{m['gex_spot_band']:.0f} pts")
+
+
+def _wall_migrations(heavies, spot=24300.0):
+    """Drive ChainState with a per-reading choice of which CE strike above spot
+    carries the heavy writer book, and return only the WALL-MIGRATION events.
+
+    Premium bleeds on every reading so a writer score actually builds; the OI
+    is assigned rather than accumulated so the wall follows `heavies` at once.
+    """
+    st, prev, m = ChainState(), None, None
+    ltp = {24100: 60.0, 24400: 60.0, 24500: 60.0}
+    for i, heavy in enumerate(heavies):
+        for k in ltp:
+            ltp[k] = max(5.0, ltp[k] - 0.4)
+        strikes = [_row(k,
+                        900_000 if k == heavy else 200_000,
+                        900_000 if k == 24100 else 200_000,
+                        ce_ltp=ltp[k], pe_ltp=ltp[k],
+                        ce_chg=60_000 if k == heavy else 0,
+                        pe_chg=60_000 if k == 24100 else 0)
+                   for k in (24100, 24400, 24500)]
+        s = snap(34000 + i * 10, spot, strikes)
+        m = st.update(s, 0.004, prev)
+        prev = s
+    return [e for e in m["wall_log"] if e["kind"] == "WALL-MIGRATION"]
+
+
+def test_a_flickering_wall_announces_nothing():
+    """P2. `self.walls[tag]` was overwritten every reading and ANY change
+    printed a headline, so a wall oscillating between two strikes announced on
+    every leg — twelve "migrations" in one hour on 2026-08-04. An oscillation
+    returns to the announced wall on every other reading, which resets the
+    candidate, so it can never accumulate WALL_HOLD."""
+    flicker = [24400, 24500, 24400, 24500, 24400, 24500, 24400, 24500]
+    assert _wall_migrations(flicker) == []
+
+
+def test_a_wall_that_holds_announces_once():
+    """The other half: hysteresis must not swallow a real migration, and must
+    not repeat it once announced."""
+    held = [24400] * 4 + [24500] * 6
+    evts = _wall_migrations(held)
+    assert len(evts) == 1, evts
+    assert evts[0]["k"] == 24500
+    assert "held" in evts[0]["msg"]
+    print(f"PASS one migration after {WALL_HOLD} readings: {evts[0]['msg'][:60]}")
 
 
 def test_hollow_squeeze_killed():

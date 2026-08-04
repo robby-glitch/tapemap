@@ -61,6 +61,21 @@ SQ_SIDE_TOL = 60        # a CE book only caps price at/above spot and a PE book
                         # are losers closing out, not a wall failing.
 WALL_ROLE_M = 1.15      # one side must lead the other by this much to own a
                         # strike; going through CONTESTED is the hysteresis
+# Consecutive readings a new wall must hold before a migration is announced.
+#
+# There was no hysteresis at all: `self.walls[tag]` was overwritten every tick
+# and ANY change printed a headline, so a wall oscillating 24600/24650 between
+# polls announced on every leg. On 2026-08-04 that produced twelve
+# "migrations" in one hour, which is not structure, it is jitter with a
+# sentence attached (P2).
+#
+# Counted in READINGS, not minutes, like every other window in this module, so
+# it cannot drift with the poll cadence. Deliberately NOT paired with a
+# distance threshold: a one-strike move that HOLDS is a real migration, and a
+# minimum-distance rule would swallow it while doing nothing about flicker,
+# which is the actual failure.
+WALL_HOLD = 3
+
 WALL_MIN_SH = 0.25      # ... and the strike must carry this share of the
                         # chain's heaviest book before its role is news
 HEAVY_SH = 0.50         # strikes at/above this share define the "book zone":
@@ -68,6 +83,20 @@ HEAVY_SH = 0.50         # strikes at/above this share define the "book zone":
 SKEW_OFF = 300          # skew measured ATM-300 PE vs ATM+300 CE
 IV_MAX = 2.0            # >200% vol is a solver blow-up, not a reading
 IV_MIN_TV = 2.0         # ... and so is any fit on less time value than this.
+
+# How wide "near the money" is for `gex_spot`, in STRIKE STEPS either side.
+#
+# The original +/-1 step admitted two strikes -- three when spot sat exactly on
+# a strike, so even the COUNT moved -- and a single strike's OI blip could
+# swing the sign of the number the regime label is read from (D5).
+#
+# Deliberately not widened further than this. `gex_spot` earns its keep by
+# DISAGREEING with `gex_total`: on 2026-08-04 the total printed +179k, carried
+# by the wings, while the near-money book the hedgers actually trade against
+# was -42k, and the tape sprang a bull trap at 10:13. Widen this toward the
+# wings and gex_spot converges on gex_total, and the distinction that caught
+# that day disappears.
+GEX_SPOT_STEPS = 2
                         # Near expiry an option trades at intrinsic and the
                         # solver has nothing left to fit: 2026-07-28 14:52
                         # printed atm_pe 1.3313 (133% vol) off ~Rs 0.5 of time
@@ -230,7 +259,11 @@ class ChainState:
         # 375 minutes x ~50 strikes x 2 legs is a few hundred KB per index.
         self.minutes = {}       # "HH:MM" -> {"spot": float, "k": {strike: (ce_chg, pe_chg)}}
         self.role = {}          # k -> "CEILING"/"FLOOR"/"CONTESTED"
-        self.walls = {}         # "up"/"dn" -> last wall strike
+        self.walls = {}         # "up"/"dn" -> the ANNOUNCED wall strike
+        # "up"/"dn" -> (candidate strike, consecutive readings seen). A wall
+        # only replaces the announced one after it has held for WALL_HOLD
+        # readings; see the migration block for why (P2).
+        self.wall_cand = {}
         self.wall_log = []      # structural changes, newest last
         self.peak = {}          # (k, "ce"/"pe") -> session-high OI. "% off
                                 # peak" is the cheapest read of a wall losing
@@ -335,7 +368,12 @@ class ChainState:
         # nothing about here, so say that instead of guessing.
         metrics = {
             "gex_spot": sum(v for k, v in per_gex.items()
-                            if v is not None and abs(k - spot) <= step),
+                            if v is not None
+                            and abs(k - spot) <= step * GEX_SPOT_STEPS),
+            # The half-width actually summed above, in points. Additive, and
+            # published so the number can be read rather than assumed -- a
+            # near-money GEX means nothing without knowing how near.
+            "gex_spot_band": round(step * GEX_SPOT_STEPS, 2),
             "book_zone": [min(heavy), max(heavy)] if heavy else None,
             "in_book_zone": in_zone,
             "mp_dist": round(mp - spot, 1) if mp is not None else None,
@@ -490,14 +528,34 @@ class ChainState:
         for tag, key, word in (("up", "wall_up", "ceiling"),
                                ("dn", "wall_dn", "floor")):
             now, was = prof.get(key), self.walls.get(tag)
+            if not was:
+                # First sighting this session: adopt it silently. There is no
+                # migration without a previous position to have migrated from.
+                if now:
+                    self.walls[tag] = now
+                self.wall_cand[tag] = (None, 0)
+                continue
+            if not now or now == was:
+                # Unchanged, or it wandered off and came straight back. Either
+                # way the candidate is dead — this reset is what kills flicker,
+                # because an oscillation returns here on every other reading
+                # and can never accumulate the count below.
+                self.wall_cand[tag] = (None, 0)
+                continue
+            cand, seen = self.wall_cand.get(tag, (None, 0))
+            seen = seen + 1 if now == cand else 1
+            self.wall_cand[tag] = (now, seen)
+            if seen < WALL_HOLD:
+                continue                      # not convinced yet, say nothing
             self.walls[tag] = now
-            if was and now and now != was:
-                moved = "up" if now > was else "down"
-                out.append({
-                    "ts": ts, "kind": "WALL-MIGRATION", "k": now,
-                    "side": "UP" if moved == "up" else "DN",
-                    "msg": (f"{word} moved {was:.0f} → {now:.0f} ({moved}) — "
-                            f"writers relocated their defence, spot {spot:.0f}")})
+            self.wall_cand[tag] = (None, 0)
+            moved = "up" if now > was else "down"
+            out.append({
+                "ts": ts, "kind": "WALL-MIGRATION", "k": now,
+                "side": "UP" if moved == "up" else "DN",
+                "msg": (f"{word} moved {was:.0f} → {now:.0f} ({moved}) and held "
+                        f"{WALL_HOLD} readings — writers relocated their "
+                        f"defence, spot {spot:.0f}")})
         self.wall_log = (self.wall_log + out)[-40:]
         return out
 
