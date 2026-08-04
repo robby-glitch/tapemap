@@ -570,6 +570,17 @@ export function chainAgeS(c: Chain | undefined, nowMs = Date.now()): number | nu
 }
 
 // De-dup near-equal level values (within `tol` pts), keeping the first seen.
+/** Round to one decimal, preserving null — a level we could not place stays
+ *  absent rather than becoming 0. */
+function round1(v: number | null): number | null {
+  return v == null ? null : Math.round(v * 10) / 10
+}
+
+/** An implied vol as a percent, or an em-dash when the solver had no answer. */
+function ivPct(v: number | null | undefined): string {
+  return typeof v === 'number' && v > 0 ? `${(v * 100).toFixed(1)}%` : '—'
+}
+
 function dedupLevels(levels: Level[], tol = 2): Level[] {
   const out: Level[] = []
   for (const lvl of levels) {
@@ -633,9 +644,18 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
     sub: ctx.plays?.[0] || `Reclaim VWAP ${Math.round(f.vwap)} to confirm a turn.`,
   }
 
-  // KEY_LEVELS
-  const wallUp = m.wall_up
-  const wallDn = m.wall_dn
+  // KEY_LEVELS. The chain quotes its walls against the INDEX; every level
+  // here is drawn against the FUTURES tape. That gap was 72 points on
+  // 2026-08-04 — more than a full strike step — so an unconverted wall lands
+  // on the wrong side of price. `basis` is measured server-side once per
+  // refresh (live.build_payload) and is null whenever the chain could not be
+  // read; in that case we show no wall at all rather than one we know is
+  // displaced. A missing level is a smaller lie than a misplaced one.
+  const basis: number | null = typeof D.basis === 'number' ? D.basis : null
+  const toTape = (v: number | null | undefined): number | null =>
+    v == null || basis == null ? null : v + basis
+  const wallUp = toTape(m.wall_up)
+  const wallDn = toTape(m.wall_dn)
   const capV = ctx.cap ? ctx.cap[1] : undefined
   const floorV = ctx.floor ? ctx.floor[1] : undefined
   const raw: Level[] = []
@@ -683,7 +703,11 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
     stats: [
       { label: 'Realized σ', value: `${(f.z ?? 0).toFixed(2)}σ` },
       { label: '30m Range', value: `${Math.round(ctx.rng30 ?? 0)} pts · p${Math.round((ctx.rng_r ?? 0) * 100)}` },
-      { label: 'ATM IV', value: `${((g?.iv_ce ?? 0) * 100).toFixed(1)}/${((g?.iv_pe ?? 0) * 100).toFixed(1)}%` },
+      // A null IV means the solver could not price that leg — it is NOT zero
+      // volatility. `?? 0` rendered "unsolvable" as a confident "0.0%" all
+      // through 2026-08-04, which is the one thing this app is not allowed
+      // to do: invent a number where it has none.
+      { label: 'ATM IV', value: `${ivPct(g?.iv_ce)} / ${ivPct(g?.iv_pe)}` },
     ],
   }
 
@@ -726,8 +750,18 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
     .reverse() // highest strike on top, matching the design ladder
   const chain: Chain = {
     pcr: (hist?.pcr ?? m.pcr_oi ?? 0).toFixed(2),
-    maxPain: hist?.mp ?? m.max_pain ?? 0,
-    flipPx: Number.isFinite(m.flip_px) ? m.flip_px : null,
+    // Max pain and the gamma flip are chain numbers, quoted against the
+    // INDEX. Converted here, at the one place they enter the app, so the
+    // header chip, the chart level (App.tsx) and `mpDist` below cannot
+    // disagree: on 2026-08-04 the chip read "MAX PAIN 24500 · -34" — below
+    // price — while the backend's own mp_dist said +26 above it. Same
+    // number, two frames, one screen. 0/null when basis is unknown; every
+    // consumer already guards on `> 0` / null rather than drawing it.
+    // Rounded because converting a strike leaves the basis's decimals on a
+    // number that reads as a level ("24571.05" is false precision on a
+    // 50-point grid); one point is nothing on a 24,500 level.
+    maxPain: Math.round(toTape(hist?.mp ?? m.max_pain) ?? 0),
+    flipPx: Number.isFinite(m.flip_px) ? round1(toTape(m.flip_px)) : null,
     ts: C?.ts ?? '',
     // null = an older backend that didn't publish built_at — staleness is
     // UNKNOWN, not fresh, so this must never be treated as "just now".
@@ -876,7 +910,13 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
   addLvl(now, 'NOW', 'now', 'last price', 0)
   addLvl(wallUp, 'CALL', 'wall', 'call wall — resistance', 1)
   addLvl(wallDn, 'PUT', 'wall', 'put wall — support', 1)
-  if (ctx.pin?.k != null) addLvl(ctx.pin.k, 'PIN', 'pin', `dealer magnet (${ctx.pin.regime})`, 2)
+  // PIN and STK below are STRIKES — index-frame numbers — while this axis is
+  // the futures tape. Unconverted on 2026-08-04 the dealer magnet drew ~60
+  // points low and on the WRONG SIDE of price, sitting below NOW while the
+  // CALL wall on the very same strike (already converted) sat correctly
+  // above it. Two levels naming the same strike, 60 points apart.
+  if (ctx.pin?.k != null)
+    addLvl(toTape(ctx.pin.k), 'PIN', 'pin', `dealer magnet (${ctx.pin.regime})`, 2)
   const piv = day.pivots || {}
   for (const key of ['R3', 'R2', 'R1', 'P', 'S1', 'S2', 'S3']) addLvl(piv[key], key, 'pivot', 'pivot', 3)
   addLvl(f.vwap, 'VWAP', 'vwap', 'fair value', 4)
@@ -884,7 +924,7 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
   if (ctx.cap) addLvl(ctx.cap[1], 'CAP', 'cap', String(ctx.cap[0]), 5)
   addLvl(f.u1, '+1σ', 'band', 'volatility band', 6)
   addLvl(f.d1, '−1σ', 'band', 'volatility band', 6)
-  addLvl(day.strike, 'STK', 'strike', 'ATM strike', 7)
+  addLvl(toTape(day.strike), 'STK', 'strike', 'ATM strike', 7)
   addLvl(sesHi, 'HI', 'session', 'session high', 8)
   addLvl(sesLo, 'LO', 'session', 'session low', 8)
   // Traps: resolve each trap event's price by its bar's close, dedupe by price, keep latest, max 3.
