@@ -5,8 +5,8 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-03, after the build's first live session.
-Branch: `feature/dashboard-v2`. Nothing is pushed.
+Last updated: 2026-08-04, after the frame-bug day. 278 tests.
+Branch: `feature/dashboard-v2`, six commits ahead. **Nothing is pushed.**
 
 ---
 
@@ -128,6 +128,67 @@ just that your new row looks right. That is exactly the check that was skipped.
 | classic 15-min ORB | ❌ **REJECTED 2026-08-03** — NIFTY breakouts *fade* (39% hit, −21.1 to close). `orb_score.py`. Detail: **`research-findings.md` §2** |
 | **`band_rotation` — the operator's edge** | ⚠️ **SCORED — the one surviving edge.** NIFTY d3 buy: 72% hit, med +21 @30m vs +0.3 control (n=18). d2 = noise, selling = dead, compression filter = harmful. Management measured too (`trail_score.py`): **hold the stop until VWAP, never breakeven**. Two-leg confirm scored (`confirm_score.py`): does not help buys. **Full rule + numbers: `research-findings.md` §1** |
 | ZONE READ confluence | ❌ makes no claim by design; unvalidated as a read |
+
+## 6b. 2026-08-04 — the frame-bug day, and where v3 starts
+
+**One class of bug produced most of what felt broken.** The tape is the MONTHLY
+future; the option legs are the NEAREST WEEKLY. The carry between them ran
+59→104 points that day — more than a strike step — and it was reaching both the
+maths and the pixels. Fixed end to end (commit `67b9e6a`, `19ab6df`, `32e1db0`):
+the engine's option forward and strike pick, `ctx.pin.dist`, `ctx.cap/floor`,
+and on the UI side the walls, PIN, STK, max pain and gamma flip. The rule now
+is one sentence: **anything DRAWN on the chart is futures-frame; any DISTANCE
+to a strike is index-frame; `basis` is published in the payload and a level
+whose frame is unknown is not drawn at all.**
+
+Also fixed: `trigger_log` was logging forming bars (5 of 12 rows that morning
+did not survive their own bar's close); `flip_px` conflated three kinds of
+missing; `gex_regime` labelled off `gex_total` while the near-money book said
+the opposite.
+
+**A verdict went VOID.** `confirm_score.py` measured the two-leg confirm on
+**monthly ATM** legs. The operator does not trade ATM — they take
+**premium-matched legs, both above ₹100, within ±₹25 of each other**, going deep
+ITM when the near strike gets cheap (see the `operator-trading-style` memory).
+On 2026-08-04 the ₹11 ATM CE tagged no band all session — no entry signal and,
+worse, no exit — while their real 24500 CE gave both. So "confirm does not help
+buys" was measured on the wrong instrument: **void, not disproven.** Re-run it.
+
+**Still broken** (independent audit, 2026-08-04) — none of these are cosmetic:
+
+| | what |
+|---|---|
+| D2 | `engine.py` writer score self-scales off its own running max and reads direction from cumulative premium vs open with a 2% floor — on expiry day theta alone trips it, so `w_ce` pegs at 1.0 and the regime carries no information |
+| D3 | raw Dhan IV feeds GEX with no clamp; the sanity gates exist but only on the display path |
+| D5 | `gex_spot` sums ±1 strike (2 strikes) — too narrow to be stable |
+| D7 | `t_days` floors at 0.25 and freezes through expiry afternoon |
+| D8 | three independent writer-score methodologies feed three panels, with no confidence anywhere |
+| P2 | wall migrations have no hysteresis — 12 "headlines" in one hour on 2026-08-04 |
+| new | no sanity guard on `basis`; the post-close chain print gave −52.9 |
+
+**UI audit** (`/impeccable audit`, scored 7/20): both P0s fixed. Seven left —
+zero `@media` queries anywhere, no focus indicators, no `prefers-reduced-motion`,
+`transition: width`, four side-tab accent borders, Inter/Roboto (a terminal needs
+tabular figures), and ~30 hard-coded colours outside `theme.ts`.
+
+**v3, agreed 2026-08-04.** Not a dashboard — a **state machine**: WAITING →
+ARMED → TRIGGERED → IN TRADE → OUT, where the screen is mostly EMPTY because the
+setup fires 1-2× a week. It is a **new frontend on this same backend**; if v3
+touches the backend it is not v3, it is a third unfinished app. Order agreed:
+commit (done) → D2 + basis guard → whale/`confirm_score` measurement → v3.
+Next concrete step: a throwaway `/proto` route on **lightweight-charts** proving
+three things `candl` already does — candles + VWAP + six σ lines with a filled
+envelope, a synced OI pane (v5 panes), and one rotation pill anchored to its
+candle (v5 primitives). All three clean → build v3 on it. Any one a fight →
+keep `candl`. Decide from the prototype, not from taste.
+
+**Whale/volume-anomaly layer** (operator's TradingView indicator, source read
+2026-08-04): buy/sell volume split by close position in the bar's range
+(`(close-low)/range × volume`), flagged at 3/4.5/6σ over a 5-bar rolling mean.
+Fully reproducible from data we already cache — no tick data needed — and better
+on futures than on the index, where volume is synthetic. Two caveats: it is not
+real delta (close position ≠ aggression), and a 5-bar σ window makes it fire in
+clusters. Score it as a **d3 co-condition**, pre-registered, before it draws.
 
 ## 7. Open work, in priority order
 
