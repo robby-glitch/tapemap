@@ -154,7 +154,30 @@ On 2026-08-04 the ₹11 ATM CE tagged no band all session — no entry signal an
 worse, no exit — while their real 24500 CE gave both. So "confirm does not help
 buys" was measured on the wrong instrument: **void, not disproven.** Re-run it.
 
-**Still broken** (independent audit, 2026-08-04) — none of these are cosmetic:
+**✅ ALL SEVEN FIXED, 2026-08-05.** The table below is kept as the record of
+what was wrong and where. Each row now names its fix; each has tests.
+
+| | fix |
+|---|---|
+| D2 | writer score classifies PER BAR (chain_metrics' rule) and saturates against W_SAT of the CURRENT book, so pegging must be earned. `test_writer_score.py` |
+| D3 | the IV gate is one shared `_sane_iv`, used by the GEX computation as well as the display. `test_chain_metrics.py` |
+| D5 | `gex_spot` widened to `GEX_SPOT_STEPS = 2` and publishes `gex_spot_band`. Deliberately not wider — it earns its keep by disagreeing with `gex_total` |
+| D7 | the floor lives in one place (`GAMMA_T_FLOOR`) and `t_real`/`t_floored` travel beside it. `test_expiry_clock.py` |
+| D8 | engine imports chain_metrics' rule and constants instead of restating them; `w_bars_ce`/`w_bars_pe` publish the confidence. **Correction:** there were **two** producers, not three — the third was a display-side read |
+| P2 | a wall must hold `WALL_HOLD = 3` readings before it announces. Flicker resets the candidate, so it can never accumulate |
+| basis | implausible carry → `basis: null` + `basis_why`, never a fabricated 0.0. Band is asymmetric (−0.15%..+1.0%) because futures trade above the index. `test_option_frame.py` |
+
+**Two things these fixes deliberately did NOT do**, so nobody reads them as
+finished:
+- The **UI discloses none of it.** `basis_why`, `t_floored`, `w_bars_*` and
+  `gex_spot_band` are all published and all unread. The backend tells the
+  truth; the screen is still silent. v3's job.
+- When `basis` is null the engine still runs at `basis=0.0`, so `ctx.pin.dist`,
+  `cap` and `floor` are computed as if carry were zero. Teaching the engine
+  "basis unknown" is a larger change and was not folded in.
+
+**Still broken** (the original independent audit, 2026-08-04) — none of these
+were cosmetic:
 
 | | what |
 |---|---|
