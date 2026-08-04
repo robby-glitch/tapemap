@@ -127,7 +127,7 @@ def gex_profile(strikes_data, F, T):
         w_oi = s["ce_oi"] * s["ce_w"] + s["pe_oi"] * s["pe_w"]
         cache.append((s["k"], mean_iv, w_oi))
     if not cache:
-        return {"gex_total": None, "flip_px": None,
+        return {"gex_total": None, "flip_px": None, "flip_status": "NO_IV",
                 "wall_up": None, "wall_dn": None}
     cache.sort()
 
@@ -144,7 +144,15 @@ def gex_profile(strikes_data, F, T):
     # sign change of total GEX, keep the crossing nearest the current spot F
     lo, hi = cache[0][0], cache[-1][0]
     flip_px = None
+    # A missing flip has three causes and they mean different things to a
+    # trader: the book never changes sign anywhere in range (a REGIME, and
+    # worth saying out loud), only one strike was usable (no scan possible),
+    # or no IV solved at all (we could not look). Returning a bare None for
+    # all three makes "there is no flip" indistinguishable from "we don't
+    # know", which is the one conflation this repo does not allow.
+    flip_status = "ONE_STRIKE"
     if hi > lo:
+        flip_status = "NO_CROSSING"
         step = (hi - lo) / 200.0
         prev_F, prev_v = lo, total_at(lo)
         for n in range(1, 201):
@@ -155,6 +163,7 @@ def gex_profile(strikes_data, F, T):
                 cross = prev_F + (cur_F - prev_F) * (0.0 - prev_v) / (cur_v - prev_v)
                 if flip_px is None or abs(cross - F) < abs(flip_px - F):
                     flip_px = cross
+                    flip_status = "FOUND"
             prev_F, prev_v = cur_F, cur_v
 
     def _wall(cands):
@@ -167,4 +176,5 @@ def gex_profile(strikes_data, F, T):
     wall_dn = _wall([(k, g) for k, g in rows if k < F])
 
     return {"gex_total": gex_total, "flip_px": flip_px,
+            "flip_status": flip_status,
             "wall_up": wall_up, "wall_dn": wall_dn}

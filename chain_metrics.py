@@ -301,12 +301,21 @@ class ChainState:
         heaviest = max(tot_oi.values()) if tot_oi else 0.0
         heavy = [k for k, v in tot_oi.items() if heaviest and v >= HEAVY_SH * heaviest]
         gt = prof["gex_total"]
+        in_zone = bool(heavy) and min(heavy) - step <= spot <= max(heavy) + step
+        # The comment above says gex_total alone is a trap, and this function
+        # already knows when spot has walked out of the book -- but the regime
+        # label used to be stamped off gt's sign regardless. On 2026-08-04 that
+        # printed "POSITIVE" (gt +179k, carried by the wings) while the
+        # near-money book the hedgers actually trade against was NEGATIVE
+        # (gex_spot -42k) and the tape sprang a bull trap at 10:13 and a bear
+        # trap at 11:00. A trader reading "positive gamma, fade the move" at
+        # the money was reading the wings. Out of the zone the total says
+        # nothing about here, so say that instead of guessing.
         metrics = {
             "gex_spot": sum(v for k, v in per_gex.items()
                             if v is not None and abs(k - spot) <= step),
             "book_zone": [min(heavy), max(heavy)] if heavy else None,
-            "in_book_zone": bool(heavy) and
-                            min(heavy) - step <= spot <= max(heavy) + step,
+            "in_book_zone": in_zone,
             "mp_dist": round(mp - spot, 1) if mp is not None else None,
             "wall_events": wall_ev,
             "wall_log": self.wall_log[-12:],
@@ -315,8 +324,13 @@ class ChainState:
             "max_pain": mp,
             "gex_total": gt,
             "gex_regime": None if gt is None else
-                          ("POSITIVE" if gt >= 0 else "NEGATIVE"),
+                          ("POSITIVE" if gt >= 0 else "NEGATIVE")
+                          if in_zone else "OUT-OF-ZONE",
             "flip_px": prof["flip_px"],
+            # Why there is no flip level, when there is none. "We looked and
+            # the book never changes sign" and "we could not look" are
+            # different sentences and must not both render as a blank.
+            "flip_status": prof["flip_status"],
             "wall_up": prof["wall_up"],
             "wall_dn": prof["wall_dn"],
             "iv": iv,
