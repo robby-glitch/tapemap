@@ -9,7 +9,7 @@ OI/premium paths, and squeeze quiet-then-fires on the synthetic fixture.
 import json
 from pathlib import Path
 
-from chain_metrics import ChainState, max_pain, pcr
+from chain_metrics import ChainState, _iv_at, _sane_iv, max_pain, pcr
 
 FIXTURE = Path(__file__).parent / "data" / "chain_sample.jsonl"
 
@@ -177,6 +177,42 @@ def test_iv_dropped_when_no_time_value():
     assert m["iv"]["atm_ce"] == 1.33, m["iv"]        # 8.0 of tv: still a fit
     assert m["iv"]["skew"] is None, m["iv"]          # dead leg kills the skew
     print(f"PASS blown-up IV dropped: {m['iv']}")
+
+
+def test_the_iv_gate_is_one_definition_not_two():
+    """D3's root cause. The gate used to live INSIDE `_iv_at`, so it guarded
+    the display path and nothing else. It is a standalone `_sane_iv` now and
+    both callers share it."""
+    good = _row(24000, 1, 1, ce_ltp=80.0, pe_ltp=80.0, iv=0.12)
+    assert _sane_iv(good, "ce", 24000.0) == 0.12
+    assert _iv_at([good], 24000, "ce", 24000.0) == _sane_iv(good, "ce", 24000.0)
+
+    blown = _row(24000, 1, 1, iv=5.0)                 # 500% vol
+    assert _sane_iv(blown, "ce", 24000.0) is None
+    # The old GEX filter was `if v` — this is what it let through.
+    assert bool(blown["ce"]["iv"]) is True
+
+
+def test_a_blown_up_iv_cannot_reach_gex():
+    """D3, the companion to test_iv_dropped_when_no_time_value above.
+
+    That test pins the DISPLAY path. This one pins the computation: the GEX
+    block read `s[side]["iv"]` raw, filtered by nothing but truthiness, so a
+    500% solve priced gamma and flowed into the per-strike bars, gex_total,
+    the flip and both walls. With every IV unusable there is nothing to price,
+    and the honest answer is None — not a number derived from garbage."""
+    st = ChainState()
+    prev = None
+    for i in range(4):
+        strikes = [_row(k, 400_000, 400_000, iv=5.0)   # every solve blown up
+                   for k in (24100, 24300, 24500)]
+        s = snap(34000 + i * 10, 24300.0, strikes)
+        m = st.update(s, 0.004, prev)
+        prev = s
+    assert m["gex_total"] is None, m
+    assert m["flip_px"] is None, m
+    assert m["wall_up"] is None and m["wall_dn"] is None, m
+    print("PASS blown-up IV kept out of GEX entirely")
 
 
 def test_hollow_squeeze_killed():

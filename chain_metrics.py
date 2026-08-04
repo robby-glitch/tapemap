@@ -106,22 +106,35 @@ def pcr(strikes):
             pe_v / ce_v if ce_v else None)
 
 
-def _iv_at(strikes, k, side, spot):
-    """IV only where it was fitted on real time value.
+def _sane_iv(s, side, spot):
+    """THE IV gate. One strike, one side -> a usable IV or None.
 
     An option trading at (or through) intrinsic leaves the solver nothing to
     fit, so it returns garbage — and that garbage propagates: the UI's
     direction bias reads `skew`, so a diverged solve becomes a vote on which
-    side to trade. Returning None makes downstream drop the term instead."""
+    side to trade.
+
+    This used to live inside `_iv_at` and therefore guarded only the DISPLAY
+    path, while the GEX computation a hundred lines below read `s[side]["iv"]`
+    raw with nothing but a truthiness test — so a 500% solve or a 1e-9 one
+    went straight into gamma, per-strike GEX, the flip and the walls (D3).
+    It is a standalone gate now precisely so both callers share it: there is
+    one definition of "an IV we believe", not two.
+    """
+    leg = s[side]
+    iv, ltp = leg["iv"], leg["ltp"]
+    if iv is None or ltp is None or not 0 < iv <= IV_MAX:
+        return None
+    intrinsic = (max(0.0, spot - s["k"]) if side == "ce"
+                 else max(0.0, s["k"] - spot))
+    return iv if ltp - intrinsic >= IV_MIN_TV else None
+
+
+def _iv_at(strikes, k, side, spot):
+    """The gated IV at one strike, or None. Thin lookup around `_sane_iv`."""
     for s in strikes:
-        if s["k"] != k:
-            continue
-        iv, ltp = s[side]["iv"], s[side]["ltp"]
-        if iv is None or ltp is None or not 0 < iv <= IV_MAX:
-            return None
-        intrinsic = (max(0.0, spot - k) if side == "ce"
-                     else max(0.0, k - spot))
-        return iv if ltp - intrinsic >= IV_MIN_TV else None
+        if s["k"] == k:
+            return _sane_iv(s, side, spot)
     return None
 
 
@@ -265,14 +278,23 @@ class ChainState:
         gex_in, per_gex = [], {}
         for s in strikes:
             r = w_by_k[s["k"]]
-            ivs = [v for v in (s["ce"]["iv"], s["pe"]["iv"]) if v]
+            # D3: this read s["ce"]["iv"] / s["pe"]["iv"] RAW, filtered by
+            # nothing but truthiness — so an unsolvable deep-ITM strike's
+            # garbage IV priced its gamma, and flowed on into the per-strike
+            # bars, gex_total, the flip and both walls. The display path had
+            # been guarded since it was written; this one never was. Same gate
+            # now, and gex_profile already documents None as "skip this
+            # strike", so it was always the shape it expected.
+            ce_iv = _sane_iv(s, "ce", spot)
+            pe_iv = _sane_iv(s, "pe", spot)
+            ivs = [v for v in (ce_iv, pe_iv) if v is not None]
             if ivs:
                 g = bs_gamma(spot, s["k"], sum(ivs) / len(ivs), T)
                 per_gex[s["k"]] = g * (s["ce"]["oi"] * r["ce_w"]
                                        + s["pe"]["oi"] * r["pe_w"])
             gex_in.append({"k": s["k"], "ce_oi": s["ce"]["oi"],
-                           "pe_oi": s["pe"]["oi"], "ce_iv": s["ce"]["iv"],
-                           "pe_iv": s["pe"]["iv"], "ce_w": r["ce_w"],
+                           "pe_oi": s["pe"]["oi"], "ce_iv": ce_iv,
+                           "pe_iv": pe_iv, "ce_w": r["ce_w"],
                            "pe_w": r["pe_w"]})
         prof = gex_profile(gex_in, spot, T)
 
