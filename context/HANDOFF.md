@@ -1,6 +1,7 @@
 # TapeMap v2 — handoff
 
-**Point a new session at this file first.** It is the entry point; the deep
+**Point a new session at this file first.** It is the entry point; every
+strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
@@ -93,6 +94,7 @@ just that your new row looks right. That is exactly the check that was skipped.
 | `contract_bars.py` / `contract_pair.py` | premium bars + σ bands; the 09:20 pair picker |
 | `backfill.py` / `squeeze_score.py` | extend `data/backtest/`; score the squeeze hypothesis |
 | `signal_review.py` | the scoring harness — **underused, see §7** |
+| `trigger_log.py` | **live trigger logger (2026-08-04)** — server.py's refresh thread appends every NEW band-rotation record to `data/trigger_log.jsonl` with the bar's gamma/ctx + chain OI strength at that moment (fail-soft: can never stall the tape). `python trigger_log.py` = table, `score` = fill f15/f30 later. **Needs a server restart to activate.** Scores checklist items #17 (gamma regime) and #18 (ΔCE/ΔPE ratio) after ~20-25 live signals. |
 
 **Ops gotchas:**
 - Dhan `toDate` is exclusive for the newest session but INCLUSIVE for older
@@ -121,29 +123,42 @@ just that your new row looks right. That is exactly the check that was skipped.
 | SMC layer | ❌ 4× over-fires vs LuxAlgo; ~⅔ UNKNOWN by construction → default OFF |
 | engine event stream | ❌ `risk` −0.1, `lean` −6.2 vs a +4.1 control → default OFF |
 | squeeze + falling OI = fade | ❌ **tested and REJECTED** — BANKNIFTY inverts the sign |
-| **`band_rotation` — the operator's edge** | ❌ **NEVER SCORED** |
+| d3 reversal on F&O STOCK futures | ❌ **REJECTED 2026-08-04** — pooled 47% hit, med 0.000% (n=47, 7 names + operator's own ADANIGREEN/RELIANCE TV exports). `stock_score.py`. Why, and the σ-scale arithmetic: **`research-findings.md` §3** |
+| overnight gap-fade | ❌ **REJECTED 2026-08-03** — NIFTY fade ≈ 0 and below its own long control; reversion is intraday-only. `gap_score.py`. Detail: **`research-findings.md` §2** |
+| classic 15-min ORB | ❌ **REJECTED 2026-08-03** — NIFTY breakouts *fade* (39% hit, −21.1 to close). `orb_score.py`. Detail: **`research-findings.md` §2** |
+| **`band_rotation` — the operator's edge** | ⚠️ **SCORED — the one surviving edge.** NIFTY d3 buy: 72% hit, med +21 @30m vs +0.3 control (n=18). d2 = noise, selling = dead, compression filter = harmful. Management measured too (`trail_score.py`): **hold the stop until VWAP, never breakeven**. Two-leg confirm scored (`confirm_score.py`): does not help buys. **Full rule + numbers: `research-findings.md` §1** |
 | ZONE READ confluence | ❌ makes no claim by design; unvalidated as a read |
 
 ## 7. Open work, in priority order
 
-1. **Score `band_rotation`.** The gap that matters. The spec's own rule —
-   *"Encode, then score — in that order, and score before trusting"* — was never
-   applied to the detector the whole tool exists to serve. Use
-   `signal_review.py` against `data/backtest/` (NIFTY 65, BANKNIFTY 44,
-   SENSEX 44), with controls, per-index before pooled. Everything else is
-   decoration until this is done.
-2. **Cross-check the leg pivots against Kite** — one session, five minutes.
-3. **The trap filter's premise is broken.** 2026-07-30: tightest band of the day
-   at 12:27, high at 12:33, never exceeded — compression can precede a move that
-   fails. Needs a second condition or a rewrite.
-4. **The `/api/contract` pair chart** — premium-matched pair across different
-   strikes with the two-leg `confirm`. Still unbuilt, still the only place the
-   full rule can reach a screen. Operator wants per-leg pivots there too
-   ("B first, both eventually" — B is done).
-5. **SWEEP/FILL events** in `structure.py`, so the panel can say "pool taken"
-   instead of "pool at".
-6. **SUPPORTS/AGAINST tagging** in ZONE READ — the operator wants it, but the
-   rules belong in the engine and must be scored first.
+**Read `context/research-findings.md` first** — it holds every verdict, the
+surviving rule in full, and the stop-rule below.
+
+1. **Collect live triggers.** `trigger_log.py` is wired into `server.py`'s
+   refresh loop and needs a **server restart** to activate. It records every
+   band-rotation fire with the bar's gamma/ctx and the chain's OI strength —
+   the two conditions the operator watches that the cache cannot test.
+   `python trigger_log.py score` fills outcomes once the day is cached.
+   ~20-25 signals settles both. **This is the only source of new evidence.**
+2. **🛑 STOP re-cutting `data/backtest/`.** Seven consecutive negative or
+   falsified tests outside NIFTY/SENSEX d3 (2026-08-03/04), and two mid-search
+   "findings" that evaporated on the next dataset. More slices will manufacture
+   a false positive. Any new hypothesis must be **pre-registered in
+   `research-findings.md` before the run**. See §5 there.
+3. **The 20-pt stop is a RISK decision owed by the operator** — it sits exactly
+   at the typical adverse swing (−20.7). Deliberately not grid-searched.
+4. **Capture weekly option legs forward.** Expired weeklies vanish from Dhan's
+   scrip master, so this data is unrecoverable later. Needed for the premium
+   sell-side test (the only expression never fairly tested) and for the
+   two-leg confirm on the expiry the operator actually trades.
+5. **Cross-check the leg pivots against Kite** — one session, five minutes.
+6. **The `/api/contract` pair chart** — premium-matched pair across strikes
+   with the two-leg `confirm`. Still unbuilt.
+7. **UI/UX overhaul** (dual review 2026-08-03, consensus 5/10): boot into
+   Trade, delete the 7 fossil tabs, ZONE READ → price ladder on the chart's own
+   axis, real type/spacing system, keyboard. Detail in `ui-v2-dashboard.md`.
+8. **SWEEP/FILL events** in `structure.py`; **SUPPORTS/AGAINST** tagging in
+   ZONE READ (rules belong in the engine and must be scored first).
 
 ## 8. Decisions still owed by the operator — do not guess
 
