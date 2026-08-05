@@ -22,6 +22,37 @@ line, because arguments land in shell history.
 
     python upstox_probe.py
 
+MEASURED 2026-08-05 against the operator's Upstox **Analytics Token** (read-only,
+one-year validity, no static IP configured). One token, four outcomes:
+
+    /v2/historical-candle/intraday/...   200  candles WITH open interest
+    /v2/market-quote/ltp                 401  UDAPI100050
+    /v2/market-quote/quotes              401  UDAPI100050
+    /v3/market-quote/option-greek        401  UDAPI100050
+    /v2/option/chain                     401  UDAPI100050
+    /v2/user/profile                     401  UDAPI100050
+
+So the token covers HISTORY, not LIVE QUOTES or the CHAIN. That is enough for
+the chart, VWAP, the sigma bands and the whole d3 rule -- and not enough for
+GEX, gamma, the flip, the walls or the ZONE READ, all of which need per-strike
+IV.
+
+Two things worth more than the endpoint table:
+
+  * Cloudflare answers Python's default User-Agent with Error 1010 -- a 403
+    that reads exactly like an auth failure and is not one. Same request, same
+    token: 403 without a browser UA, 200 with it. See UA below.
+  * NIFTY weekly options now expire on TUESDAY (2026-08-11, -18, -25 straight
+    from the instrument dump). Anything that assumes Thursday is wrong.
+
+And a bonus the Dhan path never had: Upstox candles carry a real timestamp
+with the IST offset --
+    ['2026-08-05T09:53:00+05:30', 24695.7, 24695.7, 24684.7, 24689.8, 9165, 11768965]
+     ts                            o        h        l        c        vol   OI
+Dhan discards the epoch and keeps only "HH:MM", which is the entire reason
+ui-v2/src/proto/protoTime.ts exists. This shape removes that problem at source.
+Note the candles arrive NEWEST FIRST.
+
 A THROWAWAY probe, not part of the app. Delete it once the answer is recorded.
 """
 
@@ -50,10 +81,21 @@ def _tok():
     return t
 
 
+# Upstox sits behind Cloudflare, which answers Python's default
+# "Python-urllib/3.x" User-Agent with Error 1010 ("blocked based on your
+# browser's signature") -- a 403 that looks exactly like an auth failure and
+# is not one. Measured 2026-08-05: identical request, same token, 403 without
+# this header and 200 with it. Any adapter built against this API must send a
+# real UA or it will spend an afternoon debugging the wrong thing.
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
+
+
 def _get(url, tok):
     """(status, parsed_or_text). Never raises -- a failure IS an answer here."""
     req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {tok}", "Accept": "application/json"})
+        "Authorization": f"Bearer {tok}", "Accept": "application/json",
+        "User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return r.status, json.loads(r.read().decode())
