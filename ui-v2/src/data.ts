@@ -1198,10 +1198,29 @@ export function validateTrade(
   }
 }
 
+/** Why one index has no usable tape this tick.
+ *
+ * `reachable` is the distinction the old `null` return threw away. A backend
+ * answering "no bars yet for 2026-08-06" and a backend that is not running at
+ * all produced the identical banner, and only one of them is fixed by pasting
+ * a token. HANDOFF section 9: "we checked and found nothing" and "we could not
+ * check" must never collapse into one rendering. */
+type IdxResult =
+  | { ok: true; per: PerIndex }
+  | { ok: false; reachable: boolean; why: string }
+
+export type LiveError = 'unreachable' | 'no-data'
+
 export function useLiveData(fallback: Dataset) {
   const [data, setData] = useState<Dataset>(fallback)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<LiveError | null>(null)
+  /** The backend's own sentence for the failure, carried out verbatim rather
+   *  than replaced with a guess about the cause. */
+  const [errorWhy, setErrorWhy] = useState<string | null>(null)
+  /** Which broker the running server is on, from /api/health. `null` means a
+   *  backend too old to answer — which must read as unknown, never as Dhan. */
+  const [broker, setBroker] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const lastGood = useRef<Record<IndexKey, PerIndex>>(perFromFallback(fallback))
   // Raw payloads are kept so replay can re-map any bar without re-fetching.
@@ -1214,39 +1233,62 @@ export function useLiveData(fallback: Dataset) {
 
     const rawSeen: Partial<Record<IndexKey, { D: any; C: any }>> = {}
 
-    async function fetchIdx(k: IndexKey): Promise<PerIndex | null> {
+    async function fetchIdx(k: IndexKey): Promise<IdxResult> {
+      let dr: Response
+      let cr: Response
       try {
-        const [dr, cr] = await Promise.all([
+        ;[dr, cr] = await Promise.all([
           fetch('/api/data?idx=' + k),
           fetch('/api/chain?idx=' + k),
         ])
-        if (!dr.ok || !cr.ok) throw new Error('http ' + dr.status + '/' + cr.status)
-        const [D, C] = await Promise.all([dr.json(), cr.json()])
-        // An index can fail on its own — no tape in this server mode, a bad
-        // instrument, a build error — while the others are perfectly live.
-        // Treat that as a failure for THIS index rather than rendering
-        // whatever happens to be in the fallback under its name.
-        if (D?.live_error || !D?.days?.length) throw new Error(D?.live_error || 'no tape')
-        rawSeen[k] = { D, C }
-        return mapIndex(D, C)
       } catch {
-        return null
+        // fetch() rejects ONLY on a transport failure — nothing listening, or
+        // the dev-server proxy has nothing to forward to. This is the one case
+        // that means "unreachable". Every branch below got an answer.
+        return { ok: false, reachable: false, why: 'no answer on 8765' }
       }
+      if (!dr.ok || !cr.ok)
+        return { ok: false, reachable: true, why: `HTTP ${dr.status}/${cr.status}` }
+      let D: any
+      let C: any
+      try {
+        ;[D, C] = await Promise.all([dr.json(), cr.json()])
+      } catch {
+        return { ok: false, reachable: true, why: 'unreadable response' }
+      }
+      // An index can fail on its own — no tape in this server mode, a bad
+      // instrument, a build error — while the others are perfectly live.
+      // Treat that as a failure for THIS index rather than rendering
+      // whatever happens to be in the fallback under its name. The backend's
+      // own sentence is carried out rather than replaced: "no bars yet for
+      // 2026-08-06" is a market that has not opened, and the banner used to
+      // render exactly that as an unreachable backend with an expired token.
+      if (D?.live_error || !D?.days?.length)
+        return { ok: false, reachable: true, why: D?.live_error || 'no session yet' }
+      rawSeen[k] = { D, C }
+      return { ok: true, per: mapIndex(D, C) }
     }
 
     async function tick() {
-      const results = await Promise.all(KEYS.map(fetchIdx))
+      const [results, health] = await Promise.all([
+        Promise.all(KEYS.map(fetchIdx)),
+        // Cheap, and answers whatever the tape is doing. It is the only route
+        // that can say WHICH broker is serving, which the banner needs so it
+        // stops naming a Dhan token while the tool runs on Upstox.
+        fetch('/api/health').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ])
       if (!alive) return
+      setBroker(health?.broker ?? null)
       const per = {} as Record<IndexKey, PerIndex>
       const down: IndexKey[] = []
-      let failures = 0
+      const fails: Extract<IdxResult, { ok: false }>[] = []
       KEYS.forEach((k, i) => {
         const r = results[i]
-        if (r) per[k] = r
+        if (r.ok) per[k] = r.per
         else {
           per[k] = lastGood.current[k]
           down.push(k)
-          failures++
+          fails.push(r)
         }
       })
       setDead(down)
@@ -1255,7 +1297,17 @@ export function useLiveData(fallback: Dataset) {
       if (Object.keys(rawSeen).length) setRaw((r) => ({ ...r, ...rawSeen }))
       setLoading(false)
       setLastUpdated(new Date())
-      setError(failures === KEYS.length ? 'reconnecting' : null)
+      if (fails.length === KEYS.length) {
+        // Reachability is not per-index: one answer from ANY index — or from
+        // /api/health — proves the backend is up, so the failure is about data
+        // and not about the connection.
+        const reachable = fails.some((f) => f.reachable) || health != null
+        setError(reachable ? 'no-data' : 'unreachable')
+        setErrorWhy(fails[0]?.why ?? null)
+      } else {
+        setError(null)
+        setErrorWhy(null)
+      }
     }
 
     tick()
@@ -1389,5 +1441,5 @@ export function useLiveData(fallback: Dataset) {
     }
   }, [raw])
 
-  return { data, loading, error, lastUpdated, barCount, at, dead, tapeBars }
+  return { data, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars }
 }

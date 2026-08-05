@@ -1910,7 +1910,7 @@ export default function App() {
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
   const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Proto']
-  const { data: liveData, loading, error, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
+  const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
 
   // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
@@ -1983,10 +1983,20 @@ export default function App() {
           display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap',
         }}>
           <span style={{ marginRight: 12 }}>
-            NOT LIVE — the backend is unreachable, so every figure below is placeholder data.
-            An expired Dhan token is the usual cause:
+            {error === 'unreachable'
+              ? 'NOT LIVE — no answer from the backend on 8765, so every figure below is '
+                + 'placeholder data. Run stop.bat, then the TapeMap v2 shortcut again.'
+              : `NOT LIVE — the backend is up${broker ? ` on ${broker}` : ''} but has no `
+                + `session yet${errorWhy ? `: ${errorWhy}` : ''}. Every figure below is `
+                + 'placeholder data.'}
           </span>
-          <TokenCapture tone="loud" />
+          {/* The button only appears where it can actually change something.
+              It cannot reach a backend that is not answering; and on Upstox
+              server.py refuses the write outright, because the running tape
+              and chain read .upstox_token and only `python upstox_auth.py`
+              refreshes it. Offering it anyway is how a screen at 02:50 came
+              to blame an expired Dhan token for a market that had not opened. */}
+          {error === 'no-data' && broker !== 'upstox' && <TokenCapture tone="loud" />}
         </div>
       )}
 
