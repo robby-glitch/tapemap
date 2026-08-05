@@ -21,6 +21,12 @@ __pycache__/
 # local Dhan client id (numeric account id)
 .dhan_client
 
+# local safety copies taken before a destructive run (e.g.
+# trigger_log.jsonl.bak-before-backfill). The point of them is to exist on THIS
+# machine while a rewrite is in flight; committing one would just be a second,
+# staler copy of a file git already versions.
+*.bak-*
+
 # daily runtime caches (rebuilt automatically)
 data/scrip_master.csv
 data/stick_state.json
