@@ -24,4 +24,4 @@ __pycache__/
 # daily runtime caches (rebuilt automatically)
 data/scrip_master.csv
 data/stick_state.json
-data/upstox_nifty.json
+data/upstox_*.json

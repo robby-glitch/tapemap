@@ -57,13 +57,9 @@ class UpstoxChainSource:
         self.resolved, self.prev_oi, keys = {}, {}, []
         for c in configs:
             idx = c["under_sym"]
-            idx_key = upstox_instruments.INDEX_KEY.get(idx)
-            if not idx_key:
-                # Better a named refusal than a chain quietly missing an index.
-                raise RuntimeError(
-                    f"{idx}: no Upstox index key. Only "
-                    f"{sorted(upstox_instruments.INDEX_KEY)} are mapped; "
-                    f"SENSEX lives on the BSE dump, not the NSE one.")
+            # Looked up in the index's own dump rather than hardcoded, and
+            # per index: NIFTY/BANKNIFTY are NSE, SENSEX is BSE.
+            idx_key = upstox_instruments.index_key(idx)
             spot = self._spot(idx_key, tok)
             r = upstox_instruments.resolve(spot, name=idx, each_side=self.each_side)
             self.resolved[idx] = r

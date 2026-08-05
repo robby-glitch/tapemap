@@ -1,12 +1,24 @@
 """Which instrument keys to subscribe to, resolved once a day and cached.
 
-WHY THE CACHE IS THE POINT. Upstox publishes the whole NSE universe as one
-gzipped dump. On 2026-07-27 this tool served a frozen tape for most of a
-session because the equivalent Dhan scrip master (37MB) was being pulled every
-cycle; the fetch, not the logic, was the outage. So the dump is fetched at most
-once per `MAX_AGE_H`, and what is written to disk is the FILTERED slice -- a
-few thousand NIFTY rows instead of the full universe -- so re-reads are cheap
-and a stale cache is obvious from its date.
+WHY THE CACHE IS THE POINT, AND WHY IT IS PER INDEX. Upstox publishes each
+exchange as one gzipped dump. On 2026-07-27 this tool served a frozen tape for
+most of a session because the equivalent Dhan scrip master (37MB) was being
+pulled every cycle; the fetch, not the logic, was the outage.
+
+The first version of this file cached to ONE file for whatever index was asked
+for last. With three indices enabled that thrashes -- NIFTY evicts SENSEX
+evicts BANKNIFTY -- and every rotation re-downloads a dump. That is the same
+outage rebuilt, so the cache is keyed per index and what lands on disk is the
+FILTERED slice: a few thousand rows, not the exchange.
+
+TWO EXCHANGES. SENSEX is not on the NSE dump. NIFTY and BANKNIFTY are NSE_FO;
+SENSEX is BSE_FO and lives in the BSE dump, with its future typed `FUT` where
+NIFTY's is `FUTIDX`. Both spellings are accepted below.
+
+EXPIRY IS READ FROM THE DATA, NEVER COMPUTED FROM A WEEKDAY. Measured
+2026-08-05: NIFTY weeklies expire **Tuesday** (2026-08-11), SENSEX weeklies
+expire **Thursday** (2026-08-06). Any rule that assumes one weekday is wrong
+for the other index, and both have moved before.
 
 `resolve()` returns everything the feed and the adapter need:
 
@@ -16,10 +28,6 @@ and a stale cache is obvious from its date.
     keys      what to subscribe -- index, future and both legs per strike
     meta      {instrument_key: (strike, "ce"|"pe")}, exactly what
               `upstox_adapter.chain_payload` needs to know who each key is
-
-NIFTY WEEKLIES EXPIRE ON **TUESDAY** (2026-08-11, -18, -25, straight from the
-dump). Anything in this repo that still assumes Thursday is wrong; the expiry
-is read from the data here rather than computed from a weekday.
 
 Strikes are chosen by distance from spot, not by a fixed step, because the
 step is not ours to assume -- it is whatever the exchange listed.
@@ -33,55 +41,100 @@ import time
 import urllib.request
 from datetime import datetime
 
-DUMP_URL = ("https://assets.upstox.com/market-quote/instruments/exchange/"
-            "NSE.json.gz")
-CACHE = os.path.join("data", "upstox_nifty.json")
+DUMP_URL = "https://assets.upstox.com/market-quote/instruments/exchange/{}.json.gz"
+CACHE_FMT = os.path.join("data", "upstox_{}.json")
 MAX_AGE_H = 20                     # one trading day; the dump changes overnight
 STRIKES_EACH_SIDE = 8
+FUT_TYPES = ("FUT", "FUTIDX")      # NSE says FUTIDX, BSE says FUT
 
-INDEX_KEY = {"NIFTY": "NSE_INDEX|Nifty 50",
-             "BANKNIFTY": "NSE_INDEX|Nifty Bank"}
+EXCHANGE = {"NIFTY": "NSE", "BANKNIFTY": "NSE", "SENSEX": "BSE"}
+
+# What the index is called in its own dump's *_INDEX segment. Used to LOOK UP
+# the instrument key rather than hardcode it, so a renamed key is a resolution
+# failure with a message instead of a subscription that silently never ticks.
+INDEX_SYMBOL = {"NIFTY": "nifty 50", "BANKNIFTY": "nifty bank",
+                "SENSEX": "sensex"}
 
 
-def _fetch_rows():
-    with urllib.request.urlopen(DUMP_URL, timeout=120) as r:
+def exchange(name):
+    exch = EXCHANGE.get(name.upper())
+    if not exch:
+        raise RuntimeError(
+            f"{name}: no Upstox exchange mapped. Known: {sorted(EXCHANGE)}.")
+    return exch
+
+
+def _fetch_rows(exch):
+    with urllib.request.urlopen(DUMP_URL.format(exch), timeout=120) as r:
         raw = gzip.GzipFile(fileobj=io.BytesIO(r.read())).read()
     return json.loads(raw.decode())
 
 
-def _slice(rows, name):
+def _slice(rows, name, exch):
     """Only what this tool ever subscribes to -- the rest is not cached."""
+    seg = f"{exch}_FO"
     return [{"instrument_key": x.get("instrument_key"),
              "instrument_type": (x.get("instrument_type") or "").upper(),
              "strike_price": x.get("strike_price"),
              "expiry": x.get("expiry"),
              "trading_symbol": x.get("trading_symbol")}
             for x in rows
-            if x.get("segment") == "NSE_FO"
+            if x.get("segment") == seg
             and (x.get("name") or "").upper() == name]
 
 
-def load(name="NIFTY", cache=CACHE, max_age_h=MAX_AGE_H, fetch=None):
-    """Filtered rows for `name`, from disk when fresh enough.
+def _find_index_key(rows, name, exch):
+    """The index's own instrument key, out of the dump's *_INDEX segment."""
+    seg, want = f"{exch}_INDEX", INDEX_SYMBOL.get(name.upper(), name).lower()
+    for x in rows:
+        if x.get("segment") == seg and (
+                (x.get("trading_symbol") or "").strip().lower() == want
+                or (x.get("name") or "").strip().lower() == want):
+            return x.get("instrument_key")
+    raise RuntimeError(
+        f"{name}: no {seg} row matching '{want}'. The dump's naming changed; "
+        f"subscribing to a guessed key would simply never tick.")
+
+
+def _blob(name, max_age_h=MAX_AGE_H, fetch=None):
+    """{'rows': [...], 'index_key': '...'} for `name`, from disk when fresh.
 
     `fetch` is injectable so the cache policy can be tested without the
     network.
     """
+    name = name.upper()
+    cache = CACHE_FMT.format(name.lower())
     if os.path.exists(cache):
         age_h = (time.time() - os.path.getmtime(cache)) / 3600.0
         if age_h < max_age_h:
             try:
                 with open(cache, encoding="utf-8") as f:
                     blob = json.load(f)
-                if blob.get("name") == name and blob.get("rows"):
-                    return blob["rows"]
+                if blob.get("name") == name and blob.get("rows") \
+                        and blob.get("index_key"):
+                    return blob
             except (json.JSONDecodeError, OSError):
                 pass                 # a corrupt cache is a re-fetch, not a crash
-    rows = _slice((fetch or _fetch_rows)(), name)
+    exch = exchange(name)
+    raw = (fetch or _fetch_rows)(exch)
+    blob = {"name": name, "index_key": _find_index_key(raw, name, exch),
+            "rows": _slice(raw, name, exch)}
+    if not blob["rows"]:
+        raise RuntimeError(f"{name}: no {exch}_FO rows in the {exch} dump")
     os.makedirs(os.path.dirname(cache) or ".", exist_ok=True)
     with open(cache, "w", encoding="utf-8") as f:
-        json.dump({"name": name, "rows": rows}, f)
-    return rows
+        json.dump(blob, f)
+    return blob
+
+
+def load(name="NIFTY", fetch=None):
+    """Filtered F&O rows for `name`."""
+    return _blob(name, fetch=fetch)["rows"]
+
+
+def index_key(name="NIFTY", fetch=None):
+    """The index's instrument key -- the chain's spot comes from this."""
+    return _blob(name, fetch=fetch)["index_key"]
 
 
 def live_expiries(rows, now_ms=None):
@@ -101,7 +154,7 @@ def fut_key(name="NIFTY", rows=None):
     from -- while the strike window cannot be chosen without one.
     """
     rows = rows if rows is not None else load(name)
-    futs = sorted((x for x in rows if x["instrument_type"] in ("FUT", "FUTIDX")),
+    futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
                   key=lambda x: x.get("expiry") or 0)
     if not futs:
         raise RuntimeError(f"{name}: no future in the dump")
@@ -139,8 +192,13 @@ def resolve(spot, name="NIFTY", each_side=STRIKES_EACH_SIDE, rows=None,
     is centring on -- the index and the future differ by the basis, and a
     window centred on the wrong one is silently shifted by that much.
     """
-    rows = rows if rows is not None else load(name)
-    futs = sorted((x for x in rows if x["instrument_type"] in ("FUT", "FUTIDX")),
+    name = name.upper()
+    if rows is None:
+        blob = _blob(name)
+        rows, idx_key = blob["rows"], blob["index_key"]
+    else:
+        idx_key = None
+    futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
                   key=lambda x: x.get("expiry") or 0)
     opts = [x for x in rows if x["instrument_type"] in ("CE", "PE")]
     exps = live_expiries(opts, now_ms)
@@ -158,9 +216,8 @@ def resolve(spot, name="NIFTY", each_side=STRIKES_EACH_SIDE, rows=None,
     meta = {x["instrument_key"]: (int(x["strike_price"]),
                                   x["instrument_type"].lower())
             for x in chosen}
-    idx_key = INDEX_KEY.get(name, f"NSE_INDEX|{name}")
-    fut_key = futs[0]["instrument_key"] if futs else None
-    keys = [idx_key] + ([fut_key] if fut_key else []) + list(meta)
-    return {"idx_key": idx_key, "fut_key": fut_key,
+    fkey = futs[0]["instrument_key"] if futs else None
+    keys = ([idx_key] if idx_key else []) + ([fkey] if fkey else []) + list(meta)
+    return {"idx_key": idx_key, "fut_key": fkey,
             "expiry": datetime.fromtimestamp(exp / 1000).strftime("%Y-%m-%d"),
             "strikes": sorted(strikes), "keys": keys, "meta": meta}
