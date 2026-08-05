@@ -9,7 +9,7 @@ import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
 // The overlay owns the cap; the legend below only reports it, so the number the
 // operator reads can never drift from the number actually drawn.
-import { STRUCT_ZONE_LIMIT } from './LevelsOverlay'
+import { STRUCT_ZONE_LIMIT, rotDrawPlan } from './LevelsOverlay'
 import { palette, MONO, useMode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure, Chain, FlowRow, OptPivots } from '../data'
 
@@ -383,14 +383,12 @@ export default function TradeTab({
   // one born past the cursor has not happened yet as far as the chart is
   // concerned, and the overlay's own draw clamps to the same bar — this count
   // must describe the same set, never the whole day's.
+  // Counted through the overlay's OWN predicate (rotWithheld), so the number
+  // the operator reads can never drift from the number actually drawn — the
+  // same contract STRUCT_ZONE_LIMIT is imported under.
   const rotCount = useMemo(() => {
     if (!rotation) return null
-    let fired = 0
-    for (let i = 0; i < rotation.length; i++) {
-      if (cursor != null && i > at) break
-      if (rotation[i]) fired++
-    }
-    return fired
+    return rotDrawPlan(rotation, cursor != null ? at : rotation.length - 1)
   }, [rotation, cursor, at])
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
@@ -803,9 +801,24 @@ export default function TradeTab({
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
         VWAP red · σ bands ±1σ dark red / ±2σ green / ±3σ blue · levels · OI
         {rotCount != null
-          ? ` · ${rotCount} band-rotation setup${rotCount === 1 ? '' : 's'} (triangle on the σ band`
-            + ` it tagged, square pill; faded = the index was not squeezing into it,`
-            + ` dashed = that could not be checked)`
+          ? ` · ${rotCount.drawnCount} d3 BUY setup${rotCount.drawnCount === 1 ? '' : 's'}`
+            + ` (triangle on the σ band it tagged, square pill; faded = the index`
+            + ` was not squeezing into it, dashed = that could not be checked)`
+            // "We are not showing you", split by reason — three withholdings
+            // for three different causes are three sentences, not one number.
+            // The backend still sends every record; the hover callout reads it.
+            + (rotCount.rejectedBand
+              ? ` · ${rotCount.rejectedBand} d2/u3 or SELL not drawn (tested and`
+                + ` rejected, research-findings §2)`
+              : '')
+            + (rotCount.preAnchor
+              ? ` · ${rotCount.preAnchor} pre-09:25 not drawn (σ is still near zero`
+                + ` there, so the band is not a stretch yet)`
+              : '')
+            + (rotCount.repeatInRun
+              ? ` · ${rotCount.repeatInRun} repeat${rotCount.repeatInRun === 1 ? '' : 's'}`
+                + ` inside a run folded into their first fire`
+              : '')
           : ''}
         {smc && structures && structures.length
           ? ` · SMC structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed,`

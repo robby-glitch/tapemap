@@ -171,6 +171,109 @@ const ROT_SUSPECT_ALPHA = 0.55
 const ROT_UNKNOWN_ALPHA = 0.75
 const ROT_DASH: [number, number] = [3, 2]
 
+/**
+ * Which band-rotation records are drawn as a SETUP MARKER. Only `d3`.
+ *
+ * Not a density tweak — a truth one. `band_rotation.detect_index` emits three
+ * bands, and two of them carry scored verdicts AGAINST them in
+ * `context/research-findings.md` §2:
+ *
+ *   d2  "noise everywhere — 180 NIFTY signals ≈ coin flip"          REJECTED
+ *   u3  selling any upper band, "REJECTED on 5 independent datasets,
+ *       every depth"                                                REJECTED
+ *
+ * Drawing a rejected band in the SAME shape as the one surviving edge states
+ * that they are the same kind of claim. They are not — and a session prints
+ * enough of them to bury the d3 marks this tab exists for, which is the
+ * identical failure STRUCT_ZONE_LIMIT was added for and the reason the
+ * operator said they could not see anything.
+ *
+ * Withheld, never silently: `rotWithheld` counts what this drops so the legend
+ * can say so. "We found nothing" and "we are not showing you" are different
+ * statements (HANDOFF §9). Nothing is deleted — the backend still sends every
+ * band, and the hover callout still carries each one's own sentence.
+ */
+/** 09:25 — `band_rotation.ANCHOR_MINUTE`, as minutes past midnight. */
+const ROT_ANCHOR_MINUTE = 9 * 60 + 25
+
+/** Minutes past midnight from a bar's own "HH:MM" label, or null. Read off the
+ *  LABEL rather than counted in bars so the gate lands on 09:25 at any
+ *  interval — the same thing `band_rotation._minute` does. */
+function rotMinute(t: string | null | undefined): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t ?? '')
+  if (!m) return null
+  return Number(m[1]) * 60 + Number(m[2])
+}
+
+export interface RotDrawPlan {
+  /** True at index i when the overlay puts a marker there. */
+  drawn: boolean[]
+  drawnCount: number
+  /** Withheld, split by REASON — three statements, three counts. */
+  rejectedBand: number
+  preAnchor: number
+  repeatInRun: number
+}
+
+/**
+ * Which band-rotation records this chart draws as a SETUP MARKER, and why the
+ * rest are held back.
+ *
+ * **The three filters below are not ours — they are the filters the SCORE was
+ * measured under**, and the chart never applied any of them, so the pills have
+ * been marking a population no published number describes. `run_score.py:73`
+ * says exactly that: the unfiltered column exists to answer "what do the pills
+ * on the chart actually mark".
+ *
+ *   1. `d3` BUY only. §1's 72% and §5c's 68.4% are the **d3 BUY** population.
+ *      d2 is a coin flip across 180 NIFTY signals; selling any upper band was
+ *      rejected on five datasets (`research-findings` §2).
+ *   2. **Post-09:25.** `rotation_score.py:32` — "the trigger itself has no
+ *      clock. Before ~09:25 sigma is near 0 and the bands hug VWAP", so a
+ *      pre-anchor tag is a σ artefact, not a stretch.
+ *   3. **First-of-run.** A run of consecutive same-side fires is ONE setup.
+ *
+ * Filter 3 is computed on the RAW record stream, before filter 1 — exactly as
+ * `run_score.py:88` does (`prev_i == i - 1 and prev_side == r["side"]`), so a
+ * d2 on the previous bar suppresses a d3 on this one. Matching the scorer
+ * bar-for-bar is the point; a "tidier" rule here would silently draw a
+ * different population all over again.
+ *
+ * Nothing is deleted: the backend still sends every record and the hover
+ * callout still reads them. Counts come back split by reason because
+ * "rejected", "too early to mean anything" and "already counted" are three
+ * different statements (`HANDOFF` §9 / `CHECKLIST` A1).
+ */
+export function rotDrawPlan(
+  rotation: (RotationSignal | null)[] | null,
+  lastIdx: number,
+): RotDrawPlan {
+  const plan: RotDrawPlan = {
+    drawn: [], drawnCount: 0, rejectedBand: 0, preAnchor: 0, repeatInRun: 0,
+  }
+  if (!rotation) return plan
+  const n = Math.min(lastIdx, rotation.length - 1)
+  let prevI = -2
+  let prevSide: string | null = null
+  for (let i = 0; i <= n; i++) {
+    plan.drawn[i] = false
+    const s = rotation[i]
+    if (!s) continue
+    const first = !(prevI === i - 1 && prevSide === s.side)
+    prevI = i
+    prevSide = s.side
+    // Only the FIRST reason that applies is counted: a signal is withheld once,
+    // for one stated reason, never tallied under three.
+    if (!first) { plan.repeatInRun++; continue }
+    if (s.band !== 'd3' || s.side !== 'BUY') { plan.rejectedBand++; continue }
+    const min = rotMinute(s.t)
+    if (min == null || min < ROT_ANCHOR_MINUTE) { plan.preAnchor++; continue }
+    plan.drawn[i] = true
+    plan.drawnCount++
+  }
+  return plan
+}
+
 /** Add an alpha channel to a `palette(mode)` colour. The overlay's dashed
  *  lines and chips need translucency the palette itself does not carry; this
  *  is the one place that derives it, always from a palette value passed in —
@@ -708,9 +811,15 @@ function drawRotation(
   // Causality plus the arrays' own bounds — rotation/times are built 1:1 with
   // bars, but a mid-poll render can see them one append apart.
   const n = Math.min(lastIdx, rotation.length - 1, bars.length - 1, times.length - 1)
+  // ONE plan decides what is drawn, and the legend reports the same object —
+  // so the number the operator reads can never drift from what is on screen.
+  // Built over `n`, not `lastIdx`, because a marker past the shorter array is
+  // not drawable and must not be counted as drawn either.
+  const plan = rotDrawPlan(rotation, n)
   for (let i = 0; i <= n; i++) {
     const sig = rotation[i]
     if (!sig) continue
+    if (!plan.drawn[i]) continue
     const buy = sig.side === 'BUY'
     // Direction, so theme.ts puts it on bull/bear. The SHAPE is what tells it
     // apart from an event balloon; the hue is what tells the operator which
