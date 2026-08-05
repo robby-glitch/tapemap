@@ -64,13 +64,25 @@ def _get(url, tok):
 
 
 def q1_auth(tok):
-    print("\n[1] does the token authenticate?")
+    """Informative, NOT a gate.
+
+    Upstox's Analytics Token is read-only and scoped to Market Data + Streaming;
+    Portfolio and Account/Funds are granted only when a static IP is configured.
+    So /user/profile can legitimately refuse while market data works perfectly,
+    and an earlier version of this probe exited there -- reporting a failure
+    that said nothing about the question actually being asked.
+
+    The real authentication test is [3]: if candles come back, the token works
+    for everything this tool needs.
+    """
+    print("\n[1] does the token reach the account endpoints? (informational)")
     st, body = _get(f"{BASE}/user/profile", tok)
     if st == 200:
-        print("    OK — HTTP 200")
-        return True
-    print(f"    FAIL — HTTP {st}: {str(body)[:200]}")
-    return False
+        print("    OK — HTTP 200 (profile readable)")
+    else:
+        print(f"    HTTP {st} — expected for an Analytics Token without a "
+              f"static IP. Not a problem: this tool never reads the account.")
+        print(f"    said: {str(body)[:160]}")
 
 
 def q2_instruments():
@@ -169,8 +181,7 @@ def q4_chain(tok, idx_key):
 def main():
     tok = _tok()
     print("Upstox probe — read-only. The token is never printed.")
-    if not q1_auth(tok):
-        sys.exit("stopping: authentication failed, nothing below would mean anything")
+    q1_auth(tok)
     fut_key, idx_key = q2_instruments()
     q3_candles(tok, fut_key)
     q4_chain(tok, idx_key)
