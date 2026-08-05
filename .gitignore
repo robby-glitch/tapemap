@@ -1,6 +1,9 @@
 # secrets — never commit a broker API token
 .dhan_token
 .upstox_token
+.upstox_token.bak
+# the Upstox app's api_key/api_secret pair, read by upstox_auth.py
+.upstox_app.json
 
 # live-recorded chain snapshots (200MB+/day, over GitHub's file limit)
 data/chain/
