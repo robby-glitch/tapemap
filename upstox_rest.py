@@ -74,6 +74,29 @@ def intraday(key, tok, interval="1minute"):
     return (data.get("data") or {}).get("candles") or []
 
 
+def historical(key, tok, day, interval="1minute"):
+    """Candles for ONE past session, newest first.
+
+    A different endpoint from `intraday`, which only ever serves today. The
+    prior day's high/low/close is what the floor pivots are built from, so
+    this is the pivot path.
+
+    Both dates are `day`, and unlike Dhan that means exactly one session --
+    Dhan's toDate is exclusive for the newest session and inclusive for older
+    ones, which is why `dhan_fetch._one_session` has to exist. Nothing here
+    needs that slice, but do not assume the same of any other endpoint.
+    """
+    url = (f"{BASE}/historical-candle/{urllib.parse.quote(key, safe='')}/"
+           f"{interval}/{day}/{day}")
+    try:
+        data = _get(url, tok)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return []
+        raise
+    return (data.get("data") or {}).get("candles") or []
+
+
 def baselines(meta, tok, on_error=None):
     """{(strike, side): 09:15 open interest} for every leg in `meta`.
 

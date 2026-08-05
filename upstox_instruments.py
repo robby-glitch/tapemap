@@ -93,6 +93,43 @@ def live_expiries(rows, now_ms=None):
                    and x["expiry"] >= now_ms})
 
 
+def fut_key(name="NIFTY", rows=None):
+    """The near-month future's instrument key.
+
+    Separate from `resolve` because the bar path needs the future BEFORE it
+    has a spot -- the future's own last price is what the spot is derived
+    from -- while the strike window cannot be chosen without one.
+    """
+    rows = rows if rows is not None else load(name)
+    futs = sorted((x for x in rows if x["instrument_type"] in ("FUT", "FUTIDX")),
+                  key=lambda x: x.get("expiry") or 0)
+    if not futs:
+        raise RuntimeError(f"{name}: no future in the dump")
+    return futs[0]["instrument_key"]
+
+
+def option_keys(strike, name="NIFTY", rows=None, now_ms=None):
+    """{'CE': key, 'PE': key} at `strike` on the NEAREST LIVE expiry.
+
+    The bar path's answer to Dhan's `_atm_ids`. Raises rather than returning a
+    partial dict: half a pair would chart one leg against nothing, and the
+    caller reads both.
+    """
+    rows = rows if rows is not None else load(name)
+    opts = [x for x in rows if x["instrument_type"] in ("CE", "PE")]
+    exps = live_expiries(opts, now_ms)
+    if not exps:
+        raise RuntimeError(f"{name}: no live option expiry in the dump")
+    want = float(strike)
+    out = {x["instrument_type"]: x["instrument_key"] for x in opts
+           if x["expiry"] == exps[0] and x.get("strike_price") == want}
+    if "CE" not in out or "PE" not in out:
+        raise RuntimeError(
+            f"{name} {want:.0f}: expiry {exps[0]} has {sorted(out) or 'neither leg'}"
+            f" — the strike is not listed on the nearest expiry")
+    return out
+
+
 def resolve(spot, name="NIFTY", each_side=STRIKES_EACH_SIDE, rows=None,
             now_ms=None):
     """-> {idx_key, fut_key, expiry, strikes, keys, meta}.

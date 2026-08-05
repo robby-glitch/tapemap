@@ -101,7 +101,53 @@ def _throttle(min_gap=0.35):
         _gate_t[0] = time.monotonic()
 
 
-def _intraday(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO"):
+def _upstox():
+    """True when the live tape is running on Upstox rather than Dhan.
+
+    Read through `chain_live` so there is ONE definition of which broker is
+    selected -- two would eventually disagree, and the chain and the tape
+    disagreeing about their source is a very quiet way to be wrong. Imported
+    locally to keep the module graph acyclic.
+    """
+    from chain_live import _broker
+    return _broker() == "upstox"
+
+
+def _upstox_bars(sec_id, instrument, day, name=None):
+    """One session of 1-min bars from Upstox, in Dhan's chart-array shape.
+
+    `sec_id` is an UPSTOX INSTRUMENT KEY here, because `_atm_ids` returns keys
+    on this path. The future is the exception: its id arrives from
+    `cfg['fut_id']`, which `instruments.resolve_dynamic` filled from Dhan's
+    scrip master and which means nothing to Upstox. There is exactly one
+    near-month future per index, so it is RESOLVED from the Upstox dump.
+
+    That resolution needs the index name, and `seg` cannot supply it --
+    NIFTY and BANKNIFTY are both NSE_FNO. Rather than defaulting to NIFTY and
+    silently charting the wrong index, `name` is required for the future.
+    """
+    import upstox_adapter
+    import upstox_feed
+    import upstox_instruments
+    import upstox_rest
+
+    if instrument == "FUTIDX":
+        if not name:
+            raise RuntimeError(
+                "upstox bars: the future needs its index name — seg alone "
+                "cannot tell NIFTY from BANKNIFTY, and guessing would chart "
+                "the wrong index without saying so.")
+        key = upstox_instruments.fut_key(name)
+    else:
+        key = sec_id
+    tok = upstox_feed.read_token()
+    today = datetime.now(IST).strftime("%Y-%m-%d")
+    candles = (upstox_rest.intraday(key, tok) if day == today
+               else upstox_rest.historical(key, tok, day))
+    return upstox_adapter.candles_to_arrays(candles)
+
+
+def _intraday(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO", name=None):
     """v1's intraday fetch: ONE session, consumed whole.
 
     The body comes from `dhan_fetch._intraday_body` so there is exactly one
@@ -121,6 +167,8 @@ def _intraday(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO"):
     makes it safe to ignore here is that neither caller PERSISTS these bars;
     anything that does must go through `dhan_fetch._one_session` first.
     """
+    if _upstox():
+        return _upstox_bars(sec_id, instrument, day, name)
     _throttle()
     body = json.dumps(_intraday_body(sec_id, instrument, day, oi, seg,
                                      to_day=day)).encode()
@@ -143,7 +191,14 @@ def _atm_ids(strike, cfg):
     or expiry rolls. Re-downloading the 37 MB master per refresh cycle is what
     froze the tape on 2026-07-27. Both legs must resolve within one strike
     step; anything farther means a stale/truncated master and must fail loudly
-    rather than chart the wrong contract."""
+    rather than chart the wrong contract.
+
+    On the Upstox path the ids are instrument KEYS, resolved from Upstox's own
+    dump. Dhan security ids mean nothing to Upstox, so they are not translated
+    -- they are replaced."""
+    if _upstox():
+        import upstox_instruments
+        return upstox_instruments.option_keys(strike, cfg["under_sym"])
     key = (cfg["under_sym"], cfg["expiry"], strike)
     ids = _ids_cache.get(key)
     if ids:
@@ -178,7 +233,7 @@ def _pivots(tok, cfg):
     if key in _piv_cache:
         return _piv_cache[key]
     d = _intraday(tok, cfg["fut_id"], "FUTIDX", cfg["prev_day"], oi=False,
-                  seg=cfg["fut_seg"])
+                  seg=cfg["fut_seg"], name=cfg["under_sym"])
     piv = _floor_pivots(max(d["high"]), min(d["low"]), d["close"][-1])
     _piv_cache[key] = piv
     return piv
@@ -793,7 +848,8 @@ def build_payload(cfg, spot=None):
     today = datetime.now(IST).strftime("%Y-%m-%d")
     day_lbl = datetime.now(IST).strftime("%b %d")
     seg = cfg["fut_seg"]
-    fut_raw = _intraday(tok, cfg["fut_id"], "FUTIDX", today, seg=seg)
+    fut_raw = _intraday(tok, cfg["fut_id"], "FUTIDX", today, seg=seg,
+                        name=cfg["under_sym"])
     if not fut_raw.get("close"):
         return json.dumps({"index": cfg["under_sym"], "strike": None, "days": [],
                            "built_at": time.time(),
