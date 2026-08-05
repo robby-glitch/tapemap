@@ -179,6 +179,44 @@ def test_no_candles_is_empty_not_an_exception():
 
 
 # --------------------------------------------------------------------------
+# the oi_chg baseline, which comes out of these same candles
+# --------------------------------------------------------------------------
+
+def test_the_baseline_is_the_first_bar_not_the_last():
+    """Measured 2026-08-05: the 24700 CE opened at OI 5,513,235 and was at
+    9,919,000 by 11:54. Taking the newest bar would report no change at all."""
+    assert ua.session_open_oi(NEWEST_FIRST) == 11767000
+
+
+def test_a_missing_baseline_stays_unknown():
+    """None keeps oi_chg at "not known". A 0 baseline would report a change
+    equal to the entire book."""
+    assert ua.session_open_oi([]) is None
+    assert ua.session_open_oi(
+        [["2026-08-05T09:15:00+05:30", 1, 2, 0.5, 1.5, 10, 0]]) is None
+
+
+def test_the_baseline_drives_a_real_change_through_the_normalizer():
+    base = ua.session_open_oi(NEWEST_FIRST)
+    snap = _snap(prev_oi={(24700, "ce"): base, (24700, "pe"): base})
+    assert snap["strikes"][0]["ce"]["oi_chg"] == 8916050 - 11767000
+
+
+def test_the_oi_history_comes_back_oldest_first():
+    """The process does not always start at 09:15; this is what recovers the
+    session before it came up."""
+    series = ua.oi_series(NEWEST_FIRST)
+    assert [oi for _, oi in series] == [11767000, 11768000, 11768965]
+    assert [t for t, _ in series] == sorted(t for t, _ in series)
+
+
+def test_bars_without_oi_are_dropped_from_the_history():
+    """A zero would read as the whole book closing in one minute."""
+    rows = NEWEST_FIRST + [["2026-08-05T09:50:00+05:30", 1, 2, 0.5, 1.5, 10, 0]]
+    assert len(ua.oi_series(rows)) == 3
+
+
+# --------------------------------------------------------------------------
 # the index leg
 # --------------------------------------------------------------------------
 

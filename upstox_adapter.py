@@ -35,16 +35,39 @@ WHY `full` AND NOT `option_greeks`. `option_greeks` omits `atp`, which is the
 chain's `avg`. `full` is a superset -- it adds atp, 5-level depth, tbq/tsq --
 and its subscription cap (2000 keys) is far above the ~40 this tool needs.
 
-**`oi_chg` HAS NO SOURCE AND IS NOT INVENTED HERE.** Dhan ships `previous_oi`
-(the PRIOR SESSION'S CLOSING open interest) and `chain_live._side` derives the
-change from it. Upstox's feed carries current `oi` only. So `prev_oi` is a
-REQUIRED argument: pass the prior close per (strike, side) and `oi_chg` means
-exactly what it always meant. Pass nothing for a strike and this module emits
-`previous_oi = None`, which `_side` reads as a change of 0 -- honestly "not
-known", never a guess. What must NOT happen is silently baselining against the
-session's first snapshot: that would make `oi_chg` mean "since we connected",
-a different quantity wearing the same name, and every writer-score and wall
-reading built on it would be wrong in a way nothing downstream could detect.
+**`oi_chg` HAS NO SOURCE IN THE SOCKET AND IS NOT INVENTED HERE.** Dhan ships
+`previous_oi` (the PRIOR SESSION'S CLOSING open interest) and `chain_live._side`
+derives the change from it. Upstox's *feed* carries current `oi` only. So
+`prev_oi` is an argument: pass a baseline per (strike, side) and `oi_chg` is
+real. Pass nothing and this module emits `previous_oi = None`, which `_side`
+reads as a change of 0 -- honestly "not known", never a guess. What must NOT
+happen is baselining against whatever OI happened to arrive when the process
+started: that makes `oi_chg` mean "since we connected", a different quantity
+wearing the same name, and every writer score and wall built on it would be
+wrong with nothing downstream able to notice.
+
+**Where the baseline comes from: the intraday candles.** Measured 2026-08-05,
+NIFTY 24700 CE 11-Aug -- the option candle series carries open interest on
+160 of 160 bars, back to the 09:15 bar. So `session_open_oi` reads the
+baseline out of the same response the tape already needs; no extra per-strike
+fetch, and no separate cache to go stale.
+
+That baseline is TODAY'S OPEN, not the prior close, and the two are not the
+same number. The 09:15 bar carries the pre-open auction (measured volume
+3,810,885 against ~240,000 on a normal bar), so its OI already includes
+positions built before the continuous session. Consequences, both deliberate:
+
+  * `oi_chg` here means "since today's open" and will NOT match the "OI Chg"
+    column on a broker's option chain, which is measured from the prior close.
+  * It is the better number for this tool anyway -- the writer score is asking
+    what was positioned TODAY, not what was carried overnight.
+
+Anyone who needs the broker-matching figure must fetch the previous session's
+closing OI per strike; that is a real extra call per strike per day and is
+deliberately not done here.
+
+Do not assume OI only rises. Measured the same day, the 24700 PE reached
+4,050,410 and was back at 3,283,735 by 11:54 -- real unwinding, mid-session.
 """
 
 from datetime import datetime
@@ -192,3 +215,34 @@ def candles_to_arrays(candles):
         for name, v in zip(CANDLE_FIELDS, r):
             out[name].append(int(v) if name == "timestamp" else v)
     return out
+
+
+def session_open_oi(candles):
+    """Open interest on the session's FIRST bar -- the `oi_chg` baseline.
+
+    Read from the candles the tape already fetches, so a baseline costs no
+    extra request. Returns None when the series carries no usable OI, which
+    keeps `oi_chg` at "not known" instead of turning a missing baseline into
+    a change equal to the whole book.
+
+    This is TODAY'S OPEN, and it is not the prior close -- the 09:15 bar
+    includes the pre-open auction. See the module docstring; the difference is
+    deliberate and has to stay visible wherever the number is shown.
+    """
+    arrays = candles_to_arrays(candles)
+    ois = arrays["open_interest"]
+    return ois[0] if ois and ois[0] else None
+
+
+def oi_series(candles):
+    """(epoch, oi) per minute, oldest first -- the session's OI history.
+
+    Exists because the process does not always start at 09:15. The writer
+    score classifies per-bar OI deltas, and until now anything before the
+    backend came up was simply absent; this recovers it from the same
+    response. Bars with no OI are dropped rather than carried as zero, since
+    a zero would read as the entire book closing in one minute.
+    """
+    arrays = candles_to_arrays(candles)
+    return [(t, oi) for t, oi in zip(arrays["timestamp"],
+                                     arrays["open_interest"]) if oi]
