@@ -44,6 +44,24 @@ from datetime import datetime
 DUMP_URL = "https://assets.upstox.com/market-quote/instruments/exchange/{}.json.gz"
 CACHE_FMT = os.path.join("data", "upstox_{}.json")
 MAX_AGE_H = 20                     # one trading day; the dump changes overnight
+# Chosen deliberately, and measured 2026-08-05 (NIFTY, spot 24624, 11-Aug
+# weekly) against the same tick recomputed at four widths:
+#
+#   each side   OI share   GEX share   max pain   CE wall   PE wall
+#           8      46.3%       91.4%      24550     25000     24200
+#          10      52.3%       97.4%      24550     25000     24200
+#          15      66.0%       97.5%      24550     25000     24000
+#          30     100.0%      100.0%      24550     25000     24000
+#
+# Max pain does not move at all -- far strikes cancel in the intrinsic-value
+# sum -- and gamma decays fast enough that 8 strikes carry 91% of GEX. The near
+# strikes really are where the positioning is.
+#
+# The one thing this width costs is WALL DISCOVERY. At +/-8 the PE wall reports
+# 24200, which is the edge of the window; the real one is 24000, outside it. A
+# wall sitting exactly on the boundary is usually the boundary, not a wall. The
+# operator reads walls themselves and accepted that trade-off on 2026-08-05;
+# raising this to 15 fixes it at the cost of ~20s more startup.
 STRIKES_EACH_SIDE = 8
 FUT_TYPES = ("FUT", "FUTIDX")      # NSE says FUTIDX, BSE says FUT
 
