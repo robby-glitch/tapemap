@@ -1,0 +1,334 @@
+<!--
+THESIS: After the signal fires the panel's job is not encouragement — it is
+REFERENCE. It answers "am I inside the known shape of a winner", using only
+sourced numbers, at the moment the operator is most likely to exit early.
+OWN-WORLD: v2's own light palette (theme.ts) — brass = structure, bull/bear =
+direction only. Three registers that never blend: MEASURED / OBSERVED / COULD NOT CHECK.
+STORY: told at 0m what is coming; shown where you are against it; warned in a
+DIFFERENT tone the moment you leave the measured envelope.
+FORM: v2 refinement, not a new world. Mockup only — nothing in ui-v2/src touched.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    /* v2's own light tokens — ui-v2/src/theme.ts */
+    --bg:#F7F8FA; --border:#E3E7ED; --muted:#6B7482;
+    --bull:#1B8A38; --bear:#C42B30; --brass:#A9762A;
+    /* two values read off the running app rather than the token file */
+    --ink:#1B2434; --surface:#FFFFFF;
+    --mono:ui-monospace,'Cascadia Mono','Consolas','SF Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+       font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 70px}
+  h1{font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:12.5px;max-width:72ch;margin:0 0 20px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .ctl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .seg{display:flex;border:1px solid var(--border);background:var(--surface);
+       border-radius:4px;overflow:hidden}
+  .seg button{appearance:none;border:0;background:transparent;font:inherit;font-size:11.5px;
+    letter-spacing:.06em;padding:7px 13px;cursor:pointer;color:var(--muted);
+    border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed=true]{background:var(--brass);color:#fff;font-weight:600}
+  .seg button:focus-visible{outline:2px solid var(--brass);outline-offset:-3px}
+  .lab{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+
+  .scrub{display:flex;align-items:center;gap:12px;margin:0 0 18px}
+  input[type=range]{flex:1;accent-color:var(--brass)}
+
+  .cols{display:grid;grid-template-columns:1fr 400px;gap:16px;align-items:start}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px}
+  .cardhead{padding:8px 13px;border-bottom:1px solid var(--border);font-size:10.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  canvas{display:block;width:100%}
+
+  .thead{padding:12px 14px 13px;border-bottom:1px solid var(--border)}
+  .trow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .state{font-size:12px;font-weight:700;letter-spacing:.13em}
+  .state.live{color:var(--brass)} .state.out{color:var(--muted)}
+  .pnl{font-size:30px;font-weight:700;letter-spacing:-.01em}
+  .pnl.up{color:var(--bull)} .pnl.dn{color:var(--bear)} .pnl.flat{color:var(--muted)}
+  .clock{font-size:11.5px;color:var(--muted)}
+  .meta{display:flex;gap:18px;margin-top:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+  .meta b{color:var(--ink);font-weight:600}
+
+  .gauge{padding:12px 14px 14px;border-bottom:1px solid var(--border)}
+  .track{position:relative;height:9px;background:#EDEFF3;border-radius:2px;overflow:hidden}
+  .zone{position:absolute;top:0;bottom:0}
+  .zone.typ{background:rgba(169,118,42,.18)}
+  .zone.deep{background:rgba(196,43,48,.14)}
+  .fill{position:absolute;top:0;bottom:0;left:0;background:var(--bear);opacity:.85}
+  .tick{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink);opacity:.5}
+  .gl{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted)}
+
+  .say{padding:12px 14px}
+  .blk{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start;
+       padding:9px 0;border-top:1px solid var(--border)}
+  .blk:first-child{border-top:0;padding-top:2px}
+  .tag{font-family:var(--mono);font-size:9px;letter-spacing:.08em;padding:3px 6px;
+    border-radius:3px;white-space:nowrap;margin-top:2px}
+  .tag.m{background:var(--brass);color:#fff;font-weight:700}
+  .tag.o{background:transparent;color:var(--brass);border:1px solid var(--brass)}
+  .tag.u{background:transparent;color:var(--muted);border:1px dashed var(--border)}
+  .txt{font-size:12.5px;line-height:1.55}
+  .txt .n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .blk.alarm .txt{color:var(--bear)}
+  .blk.alarm .tag.m{background:var(--bear)}
+  .src{display:block;margin-top:3px;font-size:10.5px;color:var(--muted)}
+
+  .quiet{padding:11px 14px;font-family:var(--mono);font-size:12px;color:var(--muted);
+         border-top:1px solid var(--border)}
+
+  .foot{margin-top:20px;font-size:12px;color:var(--muted);max-width:80ch;line-height:1.65}
+  .foot b{color:var(--ink)}
+  .ms{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brass);
+      margin-right:5px;vertical-align:1px}
+  @media (max-width:900px){ .cols{grid-template-columns:1fr} }
+</style>
+
+<div class="wrap">
+  <h1>Post-signal narration — mockup</h1>
+  <p class="sub">What the panel says from TRIGGER to OUT. Drag the scrubber through the
+     trade. Every number inside a <b>MEASURED</b> block comes from
+     <code>research-findings</code> §1/§5c; nothing else is allowed to carry a verb.
+     Prices are synthetic — the statistics are not.</p>
+
+  <div class="ctl">
+    <span class="lab">Speaks</span>
+    <div class="seg" role="group" aria-label="Narration density">
+      <button data-mode="milestone" aria-pressed="true">Milestones only</button>
+      <button data-mode="every" aria-pressed="false">Every candle</button>
+    </div>
+    <span class="lab" style="margin-left:4px">try both — that is decision #1</span>
+  </div>
+
+  <div class="scrub">
+    <span class="lab" style="min-width:50px">Candle</span>
+    <input type="range" min="0" max="11" value="2" step="1" data-scrub
+           aria-label="Candle since entry">
+    <span class="num" data-clock style="min-width:106px;text-align:right">13:48 · +6m</span>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <div class="cardhead">NIFTY FUT · 3 min · the trade</div>
+      <canvas data-chart height="330"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="thead">
+        <div class="trow">
+          <span class="state live" data-state>IN TRADE</span>
+          <span class="clock num" data-since>+6m · 13:48</span>
+        </div>
+        <div class="trow" style="margin-top:4px">
+          <span class="pnl num dn" data-pnl>−11.20</span>
+          <span class="clock num" data-px>24 603.00</span>
+        </div>
+        <div class="meta">
+          <span>Entry <b class="num">24 614.20</b></span>
+          <span>Stop <b class="num">24 560.00</b></span>
+          <span>VWAP <b class="num">24 643.10</b></span>
+        </div>
+      </div>
+
+      <div class="gauge">
+        <div class="track">
+          <i class="zone typ" data-z-typ></i>
+          <i class="zone deep" data-z-deep></i>
+          <i class="fill" data-fill></i>
+          <i class="tick" data-tick></i>
+        </div>
+        <div class="gl">
+          <span>entry</span><span>−13.90 median worst</span><span>−54.20 stop</span>
+        </div>
+      </div>
+
+      <div class="say" data-say></div>
+      <div class="quiet" data-quiet hidden></div>
+    </div>
+  </div>
+
+  <p class="foot">
+    <span class="ms"></span><b>Milestones only</b> is the recommendation. v2's own STORY
+    layer already proved the alternative: ~83 events a session at equal weight, scored
+    <b>−6.2</b> against a <b>+4.1</b> control, default OFF ever since. Between milestones
+    the panel updates its numbers and says one quiet line — so "nothing is happening"
+    still reads as a stated fact rather than as silence.
+  </p>
+</div>
+
+<script>
+(function(){
+  var ENTRY=24614.20, STOP=24560.00, VWAP=24643.10, D3=24580.00;
+  var MED_MAE=-13.90, STOP_DIST=STOP-ENTRY;
+
+  var T=[
+    {t:'13:42',m:0,px:24614.20,ms:1,state:'TRIGGERED',
+     say:[['m','<b>Do not judge this before +15m.</b> Across 19 measured trades this setup '+
+           'runs <b>negative first</b> — 42.1% hit at +6m, median <span class="n">&minus;2.70</span> '+
+           '&mdash; and only turns at +15m.','research-findings §5c · n=19'],
+          ['m','Stop <span class="n">24 560.00</span> (d3 &minus; 20). <b>Do not move it until '+
+           'VWAP.</b> Moving to breakeven turned <b>6 of 18</b> winners into scratches &mdash; '+
+           'measured cost &asymp; <span class="n">13 pts/trade</span>.','§1 · trail_score.py'],
+          ['u','Gamma regime at trigger &mdash; <b>could not be checked</b>. No per-trigger gamma '+
+           'history exists in the cache, so it is untestable backwards.','§4']]},
+    {t:'13:45',m:3,px:24608.10,ms:0,
+     quiet:'+3m · &minus;6.10 · inside the median envelope · stop 46.1 away'},
+    {t:'13:48',m:6,px:24603.00,ms:1,
+     say:[['m','<b>You are inside the normal shape of a winner.</b> Median at +6m is '+
+           '<span class="n">&minus;2.70</span>; median worst point is '+
+           '<span class="n">&minus;13.90</span>. This is not yet distinguishable from a loser '+
+           '&mdash; and it is not supposed to be. <b>3 of 19</b> were stopped before this point.',
+           '§5c · n=19'],
+          ['o','&Delta;CE <span class="n">+2.41M</span> · &Delta;PE '+
+           '<span class="n">&minus;0.62M</span> · strength <span class="n">+1.40</span> &mdash; '+
+           'call-heavy, which is structurally normal at a d3 low. <b>Not scored.</b> Logged for §5b.',
+           'pre-registered, UNTESTED']]},
+    {t:'13:51',m:9,px:24598.40,ms:1,alarm:1,
+     say:[['m','<b>Past the median worst point.</b> <span class="n">&minus;15.80</span> against a '+
+           'measured median MAE of <span class="n">&minus;13.90</span>. Beyond here the sample is '+
+           'thin and the mean is outlier-driven (<span class="n">&minus;29.97</span>, n=19) &mdash; '+
+           'the median stops being a comfort. <b>The stop is what protects you now, not this panel.</b>',
+           '§5c · deliberately a different tone'],
+          ['u','Whether this one is turning into an outlier &mdash; <b>cannot be known yet</b>. '+
+           'That is precisely what the stop is for.','']]},
+    {t:'13:54',m:12,px:24609.90,ms:0,
+     quiet:'+12m · &minus;4.30 · back inside the envelope · stop 49.9 away'},
+    {t:'13:57',m:15,px:24626.50,ms:1,
+     say:[['m','<b>+15m &mdash; where the measured sample turns.</b> You are at '+
+           '<span class="n">+12.30</span>. Across 19 trades the hit rate rises from 42.1% at +6m '+
+           'to <b>68.4% by +30m</b>, median <span class="n">+12.80</span>.','§5c · n=19'],
+          ['m','Stop still <span class="n">24 560.00</span>. Still <b>do not move it</b> &mdash; '+
+           'VWAP is the first milestone, <span class="n">16.60</span> away.','§1'],
+          ['o','&Delta;CE <span class="n">+2.88M</span> · &Delta;PE <span class="n">+1.94M</span> · '+
+           'strength <span class="n">+0.19</span> &mdash; two-sided now, no longer one-way. '+
+           '<b>Not scored.</b>','§5b prediction 1: |strength| &lt; 1 = ranging']]},
+    {t:'14:00',m:18,px:24634.20,ms:0,
+     quiet:'+18m · +20.00 · VWAP 8.9 away · stop unmoved'},
+    {t:'14:03',m:21,px:24645.80,ms:1,
+     say:[['m','<b>VWAP crossed.</b> Management switches here and only here: trail band-to-band '+
+           'from now, and from +2&sigma; 15 pts under the high. <b>Hold</b> beat every other arm '+
+           '&mdash; 63% hit, median <span class="n">+6.9</span> against ladder&rsquo;s 58% / '+
+           '<span class="n">+3.2</span>.','trail_score.py · n=19 NIFTY'],
+          ['o','strength <span class="n">&minus;0.44</span> &mdash; turned negative after the '+
+           'cross. §5b pre-registered exactly this as a <b>hold/add</b> read. <b>It has never '+
+           'been tested.</b> Shown as a number, never as an instruction.',
+           '§5b prediction 4, UNTESTED']]},
+    {t:'14:12',m:30,px:24658.00,ms:1,
+     say:[['m','<b>+30m &mdash; the scored checkpoint.</b> <span class="n">+43.80</span>. Of 19 '+
+           'measured trades 68.4% were positive here, median <span class="n">+12.80</span>. You '+
+           'are above it. <b>That is a cohort statistic, not a probability for this trade.</b>','§5c'],
+          ['m','Median exit rung under <b>hold</b> was <b>u1</b>, not VWAP &mdash; not touching '+
+           'the stop is what let the runners run.','trail_score.py']]},
+    {t:'14:21',m:39,px:24671.00,ms:0,
+     quiet:'+39m · +56.80 · u1 touched · trail 24 656.00'},
+    {t:'14:24',m:42,px:24678.40,ms:1,
+     say:[['m','<b>+2&sigma; reached.</b> Trail tightens to 15 pts under the high &mdash; '+
+           '<span class="n">24 663.40</span>. The 5 runners that reached u1+ in the sample kept '+
+           '<span class="n">+19</span> to <span class="n">+44</span>.','§1'],
+          ['o','&Delta;CE <span class="n">+1.10M</span> · &Delta;PE <span class="n">+3.42M</span> · '+
+           'strength <span class="n">&minus;1.51</span> &mdash; put writers building under price. '+
+           '<b>Not scored.</b>','§5b, UNTESTED']]},
+    {t:'14:30',m:48,px:24663.00,ms:1,state:'OUT',
+     say:[['m','<b>OUT &mdash; band trail, <span class="n">+48.80</span>.</b> Held 48 min. The '+
+           'stop was never moved. The next setup may not arm until VWAP is touched again.',
+           '§5c re-fire lock'],
+          ['o','This trade&rsquo;s narration is logged with its outcome. <b>19 more like it and '+
+           '§5b stops saying UNTESTED.</b>','the panel scores itself']]}
+  ];
+
+  var mode='milestone', idx=2;
+  var say=document.querySelector('[data-say]'), quiet=document.querySelector('[data-quiet]');
+  function C(n){return getComputedStyle(document.body).getPropertyValue(n).trim()}
+
+  function paintChart(){
+    var cv=document.querySelector('[data-chart]'); if(!cv||!cv.clientWidth) return;
+    var dpr=Math.min(devicePixelRatio||1,2), w=cv.clientWidth, h=+cv.getAttribute('height');
+    cv.width=w*dpr; cv.height=h*dpr; cv.style.height=h+'px';
+    var x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+    x.fillStyle=C('--surface'); x.fillRect(0,0,w,h);
+    var lo=24545, hi=24700, padL=8, padR=70, padT=10, padB=16;
+    var Y=function(p){return padT+(hi-p)/(hi-lo)*(h-padT-padB)};
+    [[VWAP,'VWAP',C('--muted')],[D3,'d3',C('--bear')],[STOP,'STOP',C('--bear')],
+     [ENTRY,'ENTRY',C('--brass')]].forEach(function(L){
+      if(L[1]!=='ENTRY') x.setLineDash([3,3]);
+      x.strokeStyle=L[2]; x.lineWidth=1;
+      x.beginPath(); x.moveTo(0,Y(L[0])+.5); x.lineTo(w-padR,Y(L[0])+.5); x.stroke();
+      x.setLineDash([]);
+      x.fillStyle=L[2]; x.font='9.5px '+C('--mono');
+      x.fillText(L[1]+' '+L[0].toFixed(2), w-padR+5, Y(L[0])+3.5);
+    });
+    var n=T.length, iw=(w-padL-padR)/(n-1);
+    x.strokeStyle=C('--ink'); x.lineWidth=1.6; x.beginPath();
+    for(var i=0;i<=idx;i++){ var px=padL+i*iw, py=Y(T[i].px); i?x.lineTo(px,py):x.moveTo(px,py); }
+    x.stroke();
+    // ahead of the cursor is faint: on a live trade it is not known yet
+    x.strokeStyle=C('--border'); x.lineWidth=1.4; x.setLineDash([2,3]); x.beginPath();
+    for(var j=idx;j<n;j++){ var qx=padL+j*iw, qy=Y(T[j].px); j===idx?x.moveTo(qx,qy):x.lineTo(qx,qy); }
+    x.stroke(); x.setLineDash([]);
+    T.forEach(function(s,i){
+      if(i>idx||!s.ms) return;
+      x.fillStyle=C('--brass');
+      x.beginPath(); x.arc(padL+i*iw, Y(s.px), 3, 0, 6.284); x.fill();
+    });
+    x.fillStyle=T[idx].px>=ENTRY?C('--bull'):C('--bear');
+    x.beginPath(); x.arc(padL+idx*iw, Y(T[idx].px), 4.5, 0, 6.284); x.fill();
+    x.strokeStyle=C('--surface'); x.lineWidth=1.5; x.stroke();
+  }
+
+  function render(){
+    var s=T[idx], pnl=s.px-ENTRY;
+    document.querySelector('[data-clock]').textContent=s.t+' · +'+s.m+'m';
+    document.querySelector('[data-since]').textContent='+'+s.m+'m · '+s.t;
+    document.querySelector('[data-px]').textContent=
+      s.px.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/,' ');
+    var el=document.querySelector('[data-pnl]');
+    el.textContent=(pnl>=0?'+':'−')+Math.abs(pnl).toFixed(2);
+    el.className='pnl num '+(Math.abs(pnl)<0.01?'flat':pnl>0?'up':'dn');
+    var st=document.querySelector('[data-state]');
+    st.textContent=s.state||'IN TRADE';
+    st.className='state '+(s.state==='OUT'?'out':'live');
+
+    var mae=0; for(var i=0;i<=idx;i++) mae=Math.min(mae, T[i].px-ENTRY);
+    var pct=function(v){return Math.max(0,Math.min(100, v/STOP_DIST*100))};
+    document.querySelector('[data-z-typ]').style.cssText='left:0;width:'+pct(MED_MAE)+'%';
+    document.querySelector('[data-z-deep]').style.cssText='left:'+pct(MED_MAE)+'%;right:0';
+    document.querySelector('[data-fill]').style.width=pct(mae)+'%';
+    document.querySelector('[data-tick]').style.left=pct(MED_MAE)+'%';
+
+    if((s.ms || mode==='every') && s.say){
+      say.hidden=false; quiet.hidden=true;
+      say.innerHTML=s.say.map(function(b){
+        var cls=b[0], name=cls==='m'?'MEASURED':cls==='o'?'OBSERVED':'COULD NOT CHECK';
+        return '<div class="blk'+(s.alarm&&cls==='m'?' alarm':'')+'">'+
+          '<span class="tag '+cls+'">'+name+'</span><span class="txt">'+b[1]+
+          (b[2]?'<span class="src">'+b[2]+'</span>':'')+'</span></div>';
+      }).join('');
+    } else if(s.quiet){
+      // the milestone's words stay above; this line is the only thing that ticks
+      say.hidden=true; quiet.hidden=false; quiet.innerHTML=s.quiet;
+    }
+    paintChart();
+  }
+
+  document.querySelector('[data-scrub]').addEventListener('input',function(e){
+    idx=+e.target.value; render();
+  });
+  document.querySelectorAll('[data-mode]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('[data-mode]').forEach(function(o){
+        o.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true'); mode=b.getAttribute('data-mode'); render();
+    });
+  });
+  addEventListener('resize',paintChart);
+  addEventListener('load',render);
+  render(); setTimeout(render,0); setTimeout(render,150);
+})();
+</script>

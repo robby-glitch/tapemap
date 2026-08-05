@@ -1,0 +1,613 @@
+<!--
+THESIS: A trading screen read like a departure board — from across the room, at a
+glance. Refuses the dashboard-of-cards and the Bloomberg black/amber grid.
+OWN-WORLD: Enamel-white ground, cast-iron hairline rules, dark split-flap state
+module, tabular figures. IR signal red/amber/green are STATE ONLY — candles are
+black and white so the signal colours still mean something.
+STORY: The operator glances over, learns in one second whether the signal is on,
+and if it is, which line has to break.
+FIRST VIEWPORT: Enamel header plate; drawing toolbar ABOVE the chart (HANDOFF §4);
+chart dominant; state machine as a signal gantry / board; context always on.
+FORM: Indian Railways signalling + split-flap departure board. Candidate 4 of the
+grounded list. Seed key 36abdc4c.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+review, the verdict, and DESIGN.md
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --enamel:#EFEDE6; --plate:#FBFAF7; --iron:#16181A; --iron2:#5A5F65;
+    --rule:rgba(22,24,26,.16); --hard:#16181A;
+    --red:#C1121F; --amber:#E8A317; --green:#14713A;
+    --flap:#1B1E21; --flapink:#F2F0EA;
+    --sans:'Archivo','Archivo Narrow',ui-sans-serif,system-ui,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--enamel);color:var(--iron);
+       font-family:var(--sans);font-variant-numeric:tabular-nums lining-nums;
+       -webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums lining-nums;letter-spacing:.01em}
+
+  /* ---------- page chrome (frames the comps; not part of the design) ------ */
+  .shell{max-width:1360px;margin:0 auto;padding:28px 24px 72px}
+  .brief{border-top:2px solid var(--hard);border-bottom:1px solid var(--rule);
+         padding:14px 0 18px;margin-bottom:22px}
+  .brief h1{margin:0 0 6px;font-size:15px;font-weight:700;letter-spacing:.14em;
+            text-transform:uppercase}
+  .brief p{margin:0;max-width:68ch;font-size:13.5px;line-height:1.6;color:var(--iron2)}
+  .switch{display:flex;border:1px solid var(--hard);margin:0 0 8px;width:fit-content;
+          flex-wrap:wrap}
+  .switch button{appearance:none;background:transparent;border:0;
+    border-right:1px solid var(--hard);padding:9px 16px;font:inherit;font-size:12px;
+    letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--iron)}
+  .switch button:last-child{border-right:0}
+  .switch button[aria-pressed=true]{background:var(--hard);color:var(--enamel)}
+  .switch button:focus-visible{outline:2px solid var(--amber);outline-offset:-4px}
+  .legend{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;
+          color:var(--iron2);margin:0 0 10px}
+
+  /* ---------- comp frame -------------------------------------------------- */
+  .frame{border:1px solid var(--hard);background:var(--plate);overflow:hidden;
+         box-shadow:0 1px 0 rgba(22,24,26,.06),0 18px 34px -26px rgba(22,24,26,.5)}
+  .comp{display:none}
+  .comp[data-on=true]{display:block}
+
+  .plate{display:flex;border-bottom:1px solid var(--hard);background:var(--plate)}
+  .plate .mark{padding:9px 14px;border-right:1px solid var(--hard);font-size:12px;
+    letter-spacing:.2em;font-weight:700;text-transform:uppercase;display:flex;
+    align-items:center;gap:9px}
+  .plate .idx{padding:9px 14px;border-right:1px solid var(--rule);font-size:12px;
+    letter-spacing:.13em;display:flex;align-items:center;gap:12px}
+  .plate .idx b{font-weight:700}
+  .plate .spacer{flex:1}
+  .plate .clock{padding:9px 14px;border-left:1px solid var(--rule);font-size:12px;
+    letter-spacing:.1em;display:flex;align-items:center;gap:10px;color:var(--iron2)}
+
+  /* drawing toolbar — ABOVE the chart, always (HANDOFF §4) */
+  .tools{display:flex;align-items:center;border-bottom:1px solid var(--rule);
+         background:var(--plate);overflow:hidden}
+  .tools .grp{display:flex;border-right:1px solid var(--rule)}
+  .tools button{appearance:none;background:transparent;border:0;padding:7px 9px;
+    cursor:pointer;color:var(--iron2);display:grid;place-items:center;line-height:0}
+  .tools button:hover{background:rgba(22,24,26,.05);color:var(--iron)}
+  .tools button[aria-pressed=true]{background:var(--hard);color:var(--enamel)}
+  .tools button:focus-visible{outline:2px solid var(--amber);outline-offset:-3px}
+  .tools .lbl{padding:0 12px;font-size:10.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--iron2);white-space:nowrap}
+  .tools .spacer{flex:1}
+  svg.ico{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.4;
+          stroke-linecap:square}
+
+  .chartwrap{position:relative;background:var(--plate)}
+  .chartwrap canvas{display:block;width:100%}
+
+  /* ---------- split-flap state module ------------------------------------- */
+  .flap{background:var(--flap);color:var(--flapink);position:relative;overflow:hidden}
+  .flap .word{display:block;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    line-height:1;padding:14px 16px 15px;position:relative}
+  .flap .word::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;
+    background:rgba(0,0,0,.55);box-shadow:0 1px 0 rgba(255,255,255,.07)}
+  .flap.flipping .word{animation:flip .34s cubic-bezier(.2,.9,.25,1)}
+  @keyframes flip{
+    0%{transform:perspective(320px) rotateX(-62deg);opacity:.25;filter:blur(1px)}
+    60%{transform:perspective(320px) rotateX(6deg);opacity:1;filter:blur(0)}
+    100%{transform:none}
+  }
+  @media (prefers-reduced-motion:reduce){ .flap.flipping .word{animation:none} }
+
+  /* signal post — drawn, one stroke weight, never an emoji */
+  .post{display:flex;align-items:center;gap:10px}
+  .aspect{width:13px;height:13px;border-radius:50%;border:1.2px solid currentColor;
+    opacity:.3;background:transparent}
+  .aspect[data-lit=true]{opacity:1;border-color:transparent}
+  .aspect.r[data-lit=true]{background:var(--red);
+    box-shadow:0 0 0 1px rgba(255,255,255,.25),0 2px 14px 1px rgba(193,18,31,.7)}
+  .aspect.a[data-lit=true]{background:var(--amber);
+    box-shadow:0 0 0 1px rgba(255,255,255,.25),0 2px 14px 1px rgba(232,163,23,.65)}
+  .aspect.g[data-lit=true]{background:var(--green);
+    box-shadow:0 0 0 1px rgba(255,255,255,.25),0 2px 14px 1px rgba(20,113,58,.65)}
+
+  /* hazard chevrons — TRIGGERED only */
+  .chev{height:7px;background-size:16px 7px;background-repeat:repeat-x;
+    background-image:repeating-linear-gradient(115deg,var(--amber) 0 7px,var(--flap) 7px 14px)}
+
+  /* ---------- board rows -------------------------------------------------- */
+  .board{background:var(--plate)}
+  .brow{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:14px;
+    padding:8px 14px;border-bottom:1px solid var(--rule)}
+  .brow .k{font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--iron2)}
+  .brow .v{font-size:16px;font-weight:600}
+  .brow .v small{font-size:11px;font-weight:500;color:var(--iron2);letter-spacing:.06em}
+  .brow.lead{background:#F3F1EA}
+  .brow.lead .v{font-size:21px;font-weight:700}
+  .brow.hot .v{color:var(--red)}
+  .brow.dim .v{color:var(--iron2);font-weight:500;font-size:12.5px;letter-spacing:.04em}
+  .sect{padding:7px 14px 6px;border-bottom:1px solid var(--hard);font-size:10px;
+    letter-spacing:.2em;text-transform:uppercase;background:#EAE7DF}
+
+  /* absence — three different sentences, never one rendering */
+  .absent{padding:9px 14px;border-bottom:1px solid var(--rule);font-size:11.5px;
+    line-height:1.5;color:var(--iron2);max-width:46ch}
+  .absent b{color:var(--iron);font-weight:600}
+  .absent.checked{border-left:1px solid var(--green)}
+  .absent.couldnt{border-left:1px solid var(--amber)}
+  .absent.hidden{border-left:1px solid var(--rule)}
+
+  /* comp A gantry + axis rail */
+  .gantry{display:flex;background:var(--flap);color:var(--flapink);
+    border-bottom:1px solid var(--hard)}
+  .gantry .cell{padding:9px 14px;border-right:1px solid rgba(242,240,234,.16);
+    display:flex;flex-direction:column;gap:4px;justify-content:center}
+  .gantry .cell .k{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:rgba(242,240,234,.55)}
+  .gantry .cell .v{font-size:15px;font-weight:600;letter-spacing:.02em}
+  .gantry .grow{flex:1}
+  .gantry .state{padding:0}
+  .rail{position:absolute;right:0;top:0;bottom:0;width:132px;
+    border-left:1px solid var(--rule);background:rgba(251,250,247,.94)}
+  .rail .r{padding:6px 10px;border-bottom:1px solid var(--rule);display:flex;
+    justify-content:space-between;gap:8px;font-size:11px;align-items:baseline}
+  .rail .r span{color:var(--iron2);letter-spacing:.1em;text-transform:uppercase;font-size:9.5px}
+  .rail .r.d3 b,.rail .r.d3 span{color:var(--red)}
+  .rail .r.d3 b{font-weight:700}
+
+  /* comp C leg boards */
+  .legs{display:grid;grid-template-columns:1fr 1px 1fr;border-top:1px solid var(--hard)}
+  .legs .div{background:var(--hard)}
+  .leghead{display:flex;justify-content:space-between;align-items:baseline;
+    padding:7px 12px;border-bottom:1px solid var(--hard);background:#EAE7DF;
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase}
+  .leghead b{font-size:14px;letter-spacing:.02em}
+
+  .note{font-size:12.5px;line-height:1.65;color:var(--iron2);max-width:74ch;margin:14px 0 0}
+  .note b{color:var(--iron)}
+  .tag{display:inline-block;border:1px solid var(--rule);padding:1px 6px;font-size:10px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--iron2)}
+  @media (max-width:900px){ .shell{padding:20px 14px 56px} .rail{display:none} }
+</style>
+
+<div class="shell">
+
+  <div class="brief">
+    <h1>TapeMap v3 · The Signal Box · three compositions</h1>
+    <p>One visual world, three arrangements. Switch the <b>state</b> to see what each
+       composition does when the setup is asleep versus when it fires — that is the
+       decision, because the setup fires 1–2× a week and WAITING is the honest
+       majority state. All prices, OI and times are synthetic.</p>
+  </div>
+
+  <p class="legend">Composition</p>
+  <div class="switch" role="group" aria-label="Composition">
+    <button data-comp="a" aria-pressed="true">A · Signal gantry</button>
+    <button data-comp="b" aria-pressed="false">B · The board</button>
+    <button data-comp="c" aria-pressed="false">C · Three boards</button>
+  </div>
+
+  <p class="legend" style="margin-top:18px">State</p>
+  <div class="switch" role="group" aria-label="State">
+    <button data-state="WAITING" aria-pressed="true">Waiting</button>
+    <button data-state="ARMED" aria-pressed="false">Armed</button>
+    <button data-state="TRIGGERED" aria-pressed="false">Triggered</button>
+    <button data-state="IN TRADE" aria-pressed="false">In trade</button>
+    <button data-state="OUT" aria-pressed="false">Out</button>
+  </div>
+
+  <div style="height:18px"></div>
+
+  <!-- ============================ COMP A ============================== -->
+  <section class="comp" data-comp="a" data-on="true">
+    <div class="frame">
+      <div class="plate">
+        <div class="mark">
+          <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14V2M2 3h9v4H2"/></svg>
+          TapeMap
+        </div>
+        <div class="idx"><b>NIFTY</b><span style="color:var(--iron2)">3 MIN · 11 AUG WEEKLY</span></div>
+        <div class="spacer"></div>
+        <div class="clock"><span>UPSTOX</span><span class="num">13:42:09</span></div>
+      </div>
+
+      <div class="gantry">
+        <div class="cell state flap" data-flap style="min-width:184px">
+          <span class="word" data-word style="font-size:19px">WAITING</span>
+        </div>
+        <div class="cell" style="min-width:112px">
+          <span class="k">Aspect</span>
+          <span class="post"><i class="aspect r" data-asp="r"></i><i class="aspect a" data-asp="a"></i><i class="aspect g" data-asp="g"></i></span>
+        </div>
+        <div class="cell" style="min-width:158px">
+          <span class="k" data-k1>Distance to d3</span><span class="v num" data-v1>−41.20</span>
+        </div>
+        <div class="cell" style="min-width:186px">
+          <span class="k" data-k2>Reference high</span><span class="v num" data-v2>—</span>
+        </div>
+        <div class="cell" style="min-width:126px">
+          <span class="k" data-k3>Countdown</span><span class="v num" data-v3>—</span>
+        </div>
+        <div class="cell grow">
+          <span class="k">Next thing that has to happen</span>
+          <span class="v" data-next style="font-size:13px;font-weight:500;letter-spacing:.01em">A candle low has to touch d3.</span>
+        </div>
+      </div>
+      <div class="chev" data-chev hidden></div>
+
+      <div class="tools" aria-label="Drawing tools">
+        <span class="lbl">Draw</span>
+        <div class="grp" data-tools></div>
+        <div class="grp">
+          <button title="Magnet" aria-label="Magnet" data-magnet aria-pressed="false">
+            <svg class="ico" viewBox="0 0 16 16"><path d="M4 2v6a4 4 0 0 0 8 0V2M4 6h3M9 6h3"/></svg>
+          </button>
+        </div>
+        <span class="spacer"></span>
+        <span class="lbl">61 tools · drawings persist</span>
+      </div>
+
+      <div class="chartwrap">
+        <canvas data-chart="a" height="430"></canvas>
+        <div class="rail">
+          <div class="r"><span>u3</span><b class="num">24 706</b></div>
+          <div class="r"><span>u1</span><b class="num">24 664</b></div>
+          <div class="r"><span>vwap</span><b class="num">24 643</b></div>
+          <div class="r"><span>d1</span><b class="num">24 622</b></div>
+          <div class="r d3"><span>d3</span><b class="num">24 580</b></div>
+          <div class="r"><span>stop</span><b class="num">24 560</b></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--hard)">
+        <div class="board" style="border-right:1px solid var(--rule)">
+          <div class="sect">Book</div>
+          <div class="brow"><span class="k">CE wall</span><span class="v num">25 000</span></div>
+          <div class="brow"><span class="k">PE wall</span><span class="v num">24 200 <small>window edge</small></span></div>
+        </div>
+        <div class="board" style="border-right:1px solid var(--rule)">
+          <div class="sect">Gamma</div>
+          <div class="brow"><span class="k">Regime</span><span class="v">SHORT</span></div>
+          <div class="brow"><span class="k">Flip</span><span class="v num">24 550</span></div>
+        </div>
+        <div class="board" style="border-right:1px solid var(--rule)">
+          <div class="sect">Writers</div>
+          <div class="brow"><span class="k">CE</span><span class="v num">0.62 <small>18 bars</small></span></div>
+          <div class="brow"><span class="k">PE</span><span class="v num">0.41 <small>18 bars</small></span></div>
+        </div>
+        <div class="board">
+          <div class="sect">Frame</div>
+          <div class="brow"><span class="k">Basis</span><span class="v num">+58.40</span></div>
+          <div class="brow dim"><span class="k">Legs</span><span class="v">11 Aug · 24600</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>A · Signal gantry.</b> The chart is the surface. The state machine
+      spans it like a gantry over the tracks, and every band value is pinned to the
+      chart's own price axis instead of a separate panel — your eye never leaves the
+      tape. Most room for drawing; least room for saying what is <i>missing</i>.</p>
+  </section>
+
+  <!-- ============================ COMP B ============================== -->
+  <section class="comp" data-comp="b">
+    <div class="frame">
+      <div class="plate">
+        <div class="mark">
+          <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14V2M2 3h9v4H2"/></svg>
+          TapeMap
+        </div>
+        <div class="idx"><b>NIFTY</b><span style="color:var(--iron2)">3 MIN · 11 AUG WEEKLY</span></div>
+        <div class="spacer"></div>
+        <div class="clock"><span>UPSTOX</span><span class="num">13:42:09</span></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 302px">
+        <div style="border-right:1px solid var(--hard)">
+          <div class="tools" aria-label="Drawing tools">
+            <span class="lbl">Draw</span>
+            <div class="grp" data-tools></div>
+            <div class="grp">
+              <button title="Magnet" aria-label="Magnet" data-magnet aria-pressed="false">
+                <svg class="ico" viewBox="0 0 16 16"><path d="M4 2v6a4 4 0 0 0 8 0V2M4 6h3M9 6h3"/></svg>
+              </button>
+            </div>
+            <span class="spacer"></span>
+            <span class="lbl">61 tools</span>
+          </div>
+          <div class="chartwrap"><canvas data-chart="b" height="492"></canvas></div>
+        </div>
+
+        <div class="board">
+          <div class="flap" data-flap>
+            <span class="word" data-word style="font-size:26px">WAITING</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0 16px 13px">
+              <span class="post"><i class="aspect r" data-asp="r"></i><i class="aspect a" data-asp="a"></i><i class="aspect g" data-asp="g"></i></span>
+              <span class="num" data-since style="font-size:11px;letter-spacing:.1em;color:rgba(242,240,234,.6)">SINCE 09:15</span>
+            </div>
+            <div class="chev" data-chev hidden></div>
+          </div>
+
+          <div class="brow lead"><span class="k" data-k1>Distance to d3</span><span class="v num" data-v1>−41.20</span></div>
+          <div class="brow"><span class="k" data-k2>Reference high</span><span class="v num" data-v2>—</span></div>
+          <div class="brow"><span class="k" data-k3>Countdown</span><span class="v num" data-v3>—</span></div>
+          <div class="brow hot"><span class="k">d3</span><span class="v num">24 580.00</span></div>
+          <div class="brow"><span class="k">Stop · d3 − 20</span><span class="v num">24 560.00</span></div>
+          <div class="brow"><span class="k">VWAP · first milestone</span><span class="v num">24 643.10</span></div>
+
+          <div class="sect">Book · index frame, basis +58.40</div>
+          <div class="brow"><span class="k">CE wall</span><span class="v num">25 000</span></div>
+          <div class="brow"><span class="k">PE wall</span><span class="v num">24 200 <small>window edge</small></span></div>
+          <div class="brow"><span class="k">Max pain</span><span class="v num">24 550</span></div>
+          <div class="brow"><span class="k">Gamma flip</span><span class="v num">24 550 <small>short</small></span></div>
+
+          <div class="sect">What is not here</div>
+          <div class="absent checked"><b>Checked, nothing found.</b> No SMC structure has completed since 12:51.</div>
+          <div class="absent couldnt"><b>Could not check.</b> Prior-session leg pivots — the 04 Aug weekly is off Upstox's dump.</div>
+          <div class="absent hidden"><b>Not showing you.</b> Engine event stream, off by default: scored −6.2 against a +4.1 control.</div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>B · The board.</b> A real departure board beside the chart: one
+      ruled row per fact, tabular figures, scannable top to bottom without reading.
+      The only composition with room to say <i>what is not here</i> in three distinct
+      voices — the honesty rule rendered as structure instead of prose.</p>
+  </section>
+
+  <!-- ============================ COMP C ============================== -->
+  <section class="comp" data-comp="c">
+    <div class="frame">
+      <div class="plate">
+        <div class="mark">
+          <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14V2M2 3h9v4H2"/></svg>
+          TapeMap
+        </div>
+        <div class="idx"><b>NIFTY</b><span style="color:var(--iron2)">3 MIN · 11 AUG WEEKLY</span></div>
+        <div class="spacer"></div>
+        <div class="clock"><span>UPSTOX</span><span class="num">13:42:09</span></div>
+      </div>
+
+      <div class="gantry">
+        <div class="cell state flap" data-flap style="min-width:168px">
+          <span class="word" data-word style="font-size:17px">WAITING</span>
+        </div>
+        <div class="cell" style="min-width:104px">
+          <span class="k">Aspect</span>
+          <span class="post"><i class="aspect r" data-asp="r"></i><i class="aspect a" data-asp="a"></i><i class="aspect g" data-asp="g"></i></span>
+        </div>
+        <div class="cell" style="min-width:150px">
+          <span class="k" data-k1>Distance to d3</span><span class="v num" data-v1>−41.20</span>
+        </div>
+        <div class="cell" style="min-width:184px">
+          <span class="k" data-k2>Reference high</span><span class="v num" data-v2>—</span>
+        </div>
+        <div class="cell grow">
+          <span class="k">Next thing that has to happen</span>
+          <span class="v" data-next style="font-size:13px;font-weight:500;letter-spacing:.01em">A candle low has to touch d3.</span>
+        </div>
+      </div>
+      <div class="chev" data-chev hidden></div>
+
+      <div class="tools" aria-label="Drawing tools">
+        <span class="lbl">Draw</span>
+        <div class="grp" data-tools></div>
+        <span class="spacer"></span>
+        <span class="lbl">Index tape · futures frame</span>
+      </div>
+      <div class="chartwrap"><canvas data-chart="c" height="292"></canvas></div>
+
+      <div class="legs">
+        <div>
+          <div class="leghead"><span>Call · 24600 CE</span><b class="num">132.95</b></div>
+          <div class="chartwrap"><canvas data-chart="ce" height="152"></canvas></div>
+          <div class="brow"><span class="k">OI</span><span class="v num">7 980 505 <small>+2.1%</small></span></div>
+          <div class="brow"><span class="k">Own d3</span><span class="v num">118.40</span></div>
+        </div>
+        <div class="div"></div>
+        <div>
+          <div class="leghead"><span>Put · 24600 PE</span><b class="num">141.45</b></div>
+          <div class="chartwrap"><canvas data-chart="pe" height="152"></canvas></div>
+          <div class="brow"><span class="k">OI</span><span class="v num">5 125 315 <small>−0.7%</small></span></div>
+          <div class="brow"><span class="k">Own d3</span><span class="v num">126.10</span></div>
+        </div>
+      </div>
+      <div class="brow dim" style="border-top:1px solid var(--hard)">
+        <span class="k">Pair</span>
+        <span class="v">Premium-matched · both &gt; ₹100 · Δ₹8.50, inside ±₹25</span>
+      </div>
+    </div>
+    <p class="note"><b>C · Three boards.</b> Now that <code>/api/contract</code> runs on
+      Upstox, the legs can be first-class: you trade the legs, not the index. The index
+      tape sets the signal; the two premium boards show what you are actually holding.
+      Cost: every chart is smaller, and drawing room shrinks the most.</p>
+  </section>
+
+  <p class="note" style="margin-top:34px">
+    <span class="tag">Comp fidelity</span> Lettering approximates <b>Archivo</b>; the
+    shipped build self-hosts it. Candles are deliberately black and white so signal
+    red / amber / green keep meaning state and nothing else — <b>d3 is the one band
+    drawn in signal red</b>, because it is the one level that matters.
+  </p>
+</div>
+
+<script>
+(function(){
+  function rng(s){return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296}}
+  function session(seed,base,vol,n){
+    var r=rng(seed),bars=[],c=base,cum=0,cumv=0,cumsq=0;
+    for(var i=0;i<n;i++){
+      var o=c; c=o+Math.sin(i/9)*vol*.5+(r()-.5)*vol*1.7;
+      var h=Math.max(o,c)+r()*vol*.8, l=Math.min(o,c)-r()*vol*.8;
+      var v=200+r()*800, tp=(h+l+c)/3;
+      cumv+=v; cum+=tp*v; cumsq+=tp*tp*v;
+      var vw=cum/cumv, sd=Math.sqrt(Math.max(cumsq/cumv-vw*vw,0));
+      bars.push({o:o,h:h,l:l,c:c,vw:vw,sd:sd});
+    }
+    return bars;
+  }
+  function carve(bars,at,depth){
+    for(var i=at;i<at+4&&i<bars.length;i++){
+      var k=1-Math.abs(i-at-1)/3;
+      bars[i].l-=depth*k; bars[i].c-=depth*k*.45; bars[i].o-=depth*k*.3;
+    }
+    return bars;
+  }
+  var MAIN=carve(session(7,24700,9,116),74,34),
+      CE=session(31,150,4.5,116), PE=session(53,128,4,116);
+
+  function draw(cv,bars,opt){
+    opt=opt||{};
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var w=cv.clientWidth, h=parseInt(cv.getAttribute('height'),10);
+    if(!w) return;
+    cv.width=w*dpr; cv.height=h*dpr; cv.style.height=h+'px';
+    var x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,w,h);
+    var padR=opt.railed?140:58, padL=8, padT=10, padB=16;
+    var last=bars[bars.length-1], lo=1e9, hi=-1e9;
+    bars.forEach(function(b){lo=Math.min(lo,b.l,b.vw-3*b.sd);hi=Math.max(hi,b.h,b.vw+3*b.sd)});
+    var pd=(hi-lo)*.06; lo-=pd; hi+=pd;
+    var Y=function(p){return padT+(hi-p)/(hi-lo)*(h-padT-padB)};
+    var iw=(w-padL-padR)/bars.length, bw=Math.max(1.5,Math.min(iw*.62,7));
+
+    [[3,1.1],[2,1],[1,1]].forEach(function(s){
+      [-1,1].forEach(function(sg){
+        x.beginPath();
+        x.strokeStyle = (s[0]===3&&sg<0) ? '#C1121F'
+                      : (s[0]===2 ? 'rgba(22,24,26,.30)'
+                      : (s[0]===3 ? 'rgba(22,24,26,.34)' : 'rgba(22,24,26,.17)'));
+        x.lineWidth=s[1];
+        if(!(s[0]===3&&sg<0)) x.setLineDash([2,3]);
+        bars.forEach(function(b,i){
+          var px=padL+i*iw+iw/2, py=Y(b.vw+sg*s[0]*b.sd);
+          i?x.lineTo(px,py):x.moveTo(px,py);
+        });
+        x.stroke(); x.setLineDash([]);
+      });
+    });
+    x.beginPath(); x.strokeStyle='#16181A'; x.lineWidth=1.5;
+    bars.forEach(function(b,i){var px=padL+i*iw+iw/2,py=Y(b.vw);i?x.lineTo(px,py):x.moveTo(px,py)});
+    x.stroke();
+
+    bars.forEach(function(b,i){
+      var px=Math.round(padL+i*iw+iw/2)+.5, up=b.c>=b.o;
+      x.strokeStyle='#16181A'; x.lineWidth=1;
+      x.beginPath(); x.moveTo(px,Y(b.h)); x.lineTo(px,Y(b.l)); x.stroke();
+      var y1=Y(Math.max(b.o,b.c)), bh=Math.max(1,Y(Math.min(b.o,b.c))-y1);
+      if(up){ x.fillStyle='#FBFAF7'; x.fillRect(px-bw/2,y1,bw,bh); x.strokeRect(px-bw/2,y1,bw,bh); }
+      else  { x.fillStyle='#16181A'; x.fillRect(px-bw/2,y1,bw,bh); }
+    });
+
+    if(!opt.railed){
+      x.font='10px ui-sans-serif,system-ui,sans-serif'; x.textAlign='left';
+      [['U3',last.vw+3*last.sd],['VWAP',last.vw],['D3',last.vw-3*last.sd]].forEach(function(p){
+        x.fillStyle = p[0]==='D3' ? '#C1121F' : '#5A5F65';
+        x.fillText(p[0]+'  '+p[1].toFixed(opt.small?1:0), w-padR+8, Y(p[1])+3.5);
+      });
+    }
+  }
+
+  var TOOLS=[
+    ['Trend line','M2 13L14 3'],['Ray','M2 13L14 3M14 3h-4M14 3v4'],
+    ['Horizontal line','M1 8h14'],['Box','M2 4h12v8H2z'],
+    ['Channel','M2 12L11 3M5 14L14 5'],
+    ['Fib retracement','M2 3h12M2 6.5h12M2 10h12M2 13.5h12'],
+    ['Long position','M2 11h12M2 5h12M2 5v6'],['Brush','M2 13c3 0 3-4 6-4s3 3 6-2']
+  ];
+  document.querySelectorAll('[data-tools]').forEach(function(grp){
+    TOOLS.forEach(function(t){
+      var b=document.createElement('button');
+      b.title=t[0]; b.setAttribute('aria-label',t[0]); b.setAttribute('aria-pressed','false');
+      b.innerHTML='<svg class="ico" viewBox="0 0 16 16"><path d="'+t[1]+'"/></svg>';
+      b.addEventListener('click',function(){
+        var on=b.getAttribute('aria-pressed')==='true';
+        grp.querySelectorAll('button').forEach(function(o){o.setAttribute('aria-pressed','false')});
+        b.setAttribute('aria-pressed',on?'false':'true');
+      });
+      grp.appendChild(b);
+    });
+  });
+  document.querySelectorAll('[data-magnet]').forEach(function(b){
+    b.addEventListener('click',function(){
+      b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');
+    });
+  });
+
+  var S={
+    'WAITING':{asp:'',k1:'Distance to d3',v1:'−41.20',k2:'Reference high',v2:'—',
+      k3:'Countdown',v3:'—',chev:false,since:'SINCE 09:15',
+      next:'A candle low has to touch d3.'},
+    'ARMED':{asp:'a',k1:'Reference low',v1:'24 578.65',k2:'Reference high · break this',
+      v2:'24 611.40',k3:'Countdown',v3:'6 of 10',chev:false,since:'SINCE 13:33',
+      next:'A candle has to CLOSE above 24 611.40.'},
+    'TRIGGERED':{asp:'g',k1:'Entry · that close',v1:'24 614.20',k2:'Stop · d3 − 20',
+      v2:'24 560.00',k3:'Risk',v3:'54.20 pts',chev:true,since:'13:42',
+      next:'Do not touch the stop until VWAP.'},
+    'IN TRADE':{asp:'g',k1:'Open',v1:'+28.90',k2:'VWAP · first milestone',v2:'24 643.10',
+      k3:'Stop · unmoved',v3:'24 560.00',chev:false,since:'IN 18 MIN',
+      next:'VWAP is 28.90 away. The stop stays until it is touched.'},
+    'OUT':{asp:'r',k1:'Result',v1:'+41.05',k2:'Exit · VWAP trail',v2:'24 655.25',
+      k3:'Held',v3:'34 min',chev:false,since:'FLAT 14:16',
+      next:'Flat. The next setup may not arm until VWAP is touched again.'}
+  };
+  var state='WAITING';
+  function apply(){
+    var s=S[state];
+    document.querySelectorAll('[data-flap]').forEach(function(f){
+      var w=f.querySelector('[data-word]');
+      if(w.textContent!==state){
+        f.classList.remove('flipping'); void f.offsetWidth;
+        w.textContent=state; f.classList.add('flipping');
+      }
+    });
+    document.querySelectorAll('[data-asp]').forEach(function(a){
+      a.setAttribute('data-lit', a.getAttribute('data-asp')===s.asp ? 'true':'false');
+    });
+    ['k1','v1','k2','v2','k3','v3'].forEach(function(k){
+      document.querySelectorAll('[data-'+k+']').forEach(function(el){el.textContent=s[k]});
+    });
+    document.querySelectorAll('[data-next]').forEach(function(e){e.textContent=s.next});
+    document.querySelectorAll('[data-since]').forEach(function(e){e.textContent=s.since});
+    document.querySelectorAll('[data-chev]').forEach(function(e){e.hidden=!s.chev});
+  }
+
+  document.querySelectorAll('[data-state]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('[data-state]').forEach(function(o){o.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true'); state=b.getAttribute('data-state'); apply();
+    });
+  });
+  document.querySelectorAll('button[data-comp]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-comp');
+      document.querySelectorAll('button[data-comp]').forEach(function(o){
+        o.setAttribute('aria-pressed', o===b ? 'true':'false')});
+      document.querySelectorAll('section[data-comp]').forEach(function(s){
+        s.setAttribute('data-on', s.getAttribute('data-comp')===id ? 'true':'false')});
+      redraw();
+    });
+  });
+
+  var SERIES={a:[MAIN,{railed:true}],b:[MAIN,{}],c:[MAIN,{}],
+              ce:[CE,{small:true}],pe:[PE,{small:true}]};
+  function redraw(){
+    Object.keys(SERIES).forEach(function(k){
+      var cv=document.querySelector('[data-chart='+k+']');
+      if(cv) draw(cv,SERIES[k][0],SERIES[k][1]);
+    });
+  }
+  // A hidden comp has clientWidth 0, so it cannot be drawn until it is shown.
+  // Observing each canvas is what makes that reliable rather than a race against
+  // layout -- the same reason the real chart owns a ResizeObserver.
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(entries){
+      entries.forEach(function(e){
+        var k=e.target.getAttribute('data-chart');
+        if(e.contentRect.width>0 && SERIES[k]) draw(e.target,SERIES[k][0],SERIES[k][1]);
+      });
+    });
+    Object.keys(SERIES).forEach(function(k){
+      var cv=document.querySelector('[data-chart='+k+']'); if(cv) ro.observe(cv);
+    });
+  }
+  window.addEventListener('resize',redraw);
+  window.addEventListener('load',redraw);
+  // Timers, not rAF: a tab that is not compositing never runs an animation
+  // frame, and the first paint is exactly when that happens.
+  apply(); redraw(); setTimeout(redraw,0); setTimeout(redraw,150);
+})();
+</script>

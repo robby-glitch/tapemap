@@ -1,0 +1,569 @@
+<!--
+THESIS: A trading terminal that answers WHERE TO LOOK before anything else. Refuses
+the dashboard of equal-weight panels: three indices are ranked, not tiled, and the
+ranking states its evidence.
+OWN-WORLD: Terminal. One mono family, hairline rules, bordered modules, no radius,
+no shadow, no gradient. Semantic colour only — long / short / warn / info.
+STORY: Glance -> which index, why, what the makers are doing, what regime it is,
+then the chart in its own box, then the one line that has to break.
+FIRST VIEWPORT: status bar; three index cells + WHERE TO LOOK; market-context band
+(makers / OI strength / regime / gamma); chart box with tools ABOVE it; state rail.
+FORM: User-pinned — "terminal type". A pin beats the roll. Seed key 36abdc4c.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+review, the verdict, and DESIGN.md
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0A0C0D; --panel:#101314; --panel2:#0D1011; --head:#161A1B;
+    --rule:#202628; --rule2:#2D3538;
+    --ink:#CBD3D2; --ink2:#8A9497; --ink3:#5C6669;
+    --long:#3FB950; --short:#F0554E; --warn:#D6A22A; --info:#4C93E8;
+    --mono:'JetBrains Mono','Cascadia Mono',ui-monospace,'Consolas','SF Mono',monospace;
+  }
+  [data-theme=light]{
+    --bg:#E8E6E1; --panel:#F7F6F3; --panel2:#F1EFEB; --head:#E2DFD9;
+    --rule:#CFCBC3; --rule2:#B4AFA5;
+    --ink:#1A1D1E; --ink2:#5A6164; --ink3:#868D90;
+    --long:#127A31; --short:#C02A24; --warn:#8F6405; --info:#1E5FA8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+       font-size:12px;line-height:1.35;font-variant-numeric:tabular-nums;
+       -webkit-font-smoothing:antialiased}
+  .shell{max-width:1400px;margin:0 auto;padding:22px 18px 64px}
+  .lead{border-top:1px solid var(--rule2);border-bottom:1px solid var(--rule);
+        padding:12px 0 14px;margin-bottom:16px}
+  .lead h1{margin:0 0 5px;font-size:12px;font-weight:700;letter-spacing:.22em;
+           text-transform:uppercase}
+  .lead p{margin:0;max-width:76ch;color:var(--ink2);font-size:11.5px;line-height:1.6}
+  .picker{display:flex;flex-wrap:wrap;border:1px solid var(--rule2);width:fit-content;
+          margin:0 0 8px}
+  .picker button{appearance:none;background:transparent;border:0;
+    border-right:1px solid var(--rule2);color:var(--ink2);font:inherit;font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;padding:7px 13px;cursor:pointer}
+  .picker button:last-child{border-right:0}
+  .picker button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+  .picker button:focus-visible{outline:1px solid var(--info);outline-offset:-2px}
+  .cap{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);
+       margin:0 0 8px}
+
+  .term{border:1px solid var(--rule2);background:var(--panel)}
+  .lay{display:none} .lay[data-on=true]{display:block}
+
+  .status{display:flex;background:var(--head);border-bottom:1px solid var(--rule2);
+          font-size:11px}
+  .status .s{padding:6px 11px;border-right:1px solid var(--rule);display:flex;
+             align-items:center;gap:7px;color:var(--ink2);letter-spacing:.08em}
+  .status .s b{color:var(--ink);font-weight:700;letter-spacing:.16em}
+  .status .grow{flex:1;border-right:0}
+  .status .s.r{border-right:0;border-left:1px solid var(--rule)}
+  .dot{width:6px;height:6px;background:var(--long);display:inline-block}
+
+  /* three indices + where to look */
+  .top{display:grid;grid-template-columns:1fr 1fr 1fr 1.55fr;
+       border-bottom:1px solid var(--rule2)}
+  .ix{padding:9px 12px 10px;border-right:1px solid var(--rule);background:var(--panel);
+      position:relative}
+  /* Focus is a TUI box cursor, not a side tab: the whole cell is ringed, the way
+     a terminal shows the row it is on. */
+  .ix[data-focus=true]{background:var(--panel2);box-shadow:inset 0 0 0 1px var(--info)}
+  .ix[data-focus=true] .sym{color:var(--info)}
+  .ix .n{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ix .sym{font-size:11px;letter-spacing:.16em;color:var(--ink2)}
+  .ix .st{font-size:9.5px;letter-spacing:.13em;padding:1px 5px;border:1px solid currentColor;
+          white-space:nowrap}
+  .st.waiting{color:var(--ink3)} .st.armed{color:var(--warn)}
+  .st.triggered,.st.intrade{color:var(--long)} .st.out{color:var(--short)}
+  .st.na{color:var(--ink3);border-style:dashed}
+  .ix .px{font-size:21px;font-weight:700;margin:5px 0 1px}
+  .ix .sub{font-size:10.5px;color:var(--ink2);display:flex;gap:10px;flex-wrap:wrap}
+  .up{color:var(--long)} .dn{color:var(--short)}
+
+  .look{padding:9px 13px 10px;background:var(--panel2)}
+  .look .h{font-size:10px;letter-spacing:.2em;color:var(--ink3);margin-bottom:5px}
+  .look .who{font-size:17px;font-weight:700;letter-spacing:.1em;margin-bottom:3px;
+             display:flex;align-items:center;gap:8px}
+  .look .who svg{width:11px;height:11px;fill:none;stroke:var(--info);stroke-width:2;
+    stroke-linecap:square;flex:none}
+  .look .why{font-size:11px;color:var(--ink2);line-height:1.5}
+  .look .why b{color:var(--ink);font-weight:700}
+
+  /* market context band */
+  .ctx{display:grid;grid-template-columns:1.25fr 1.15fr 1fr .95fr;
+       border-bottom:1px solid var(--rule2);background:var(--panel2)}
+  .cx{padding:8px 12px 9px;border-right:1px solid var(--rule)}
+  .cx:last-child{border-right:0}
+  .cx .k{font-size:9.5px;letter-spacing:.2em;color:var(--ink3);margin-bottom:4px}
+  .cx .v{font-size:13px;font-weight:700;letter-spacing:.07em;margin-bottom:3px}
+  .cx .e{font-size:10.5px;color:var(--ink2)}
+  .bars{display:flex;gap:2px;margin:4px 0 3px}
+  .bars i{width:8px;height:9px;background:var(--rule2)}
+  .bars i[data-on=true]{background:var(--short)}
+
+  /* chart box */
+  .body{display:grid;grid-template-columns:1fr 272px}
+  .col{border-right:1px solid var(--rule2);padding:10px;background:var(--bg)}
+  .box{border:1px solid var(--rule2);background:var(--panel)}
+  .boxhead{display:flex;background:var(--head);border-bottom:1px solid var(--rule);
+           font-size:10.5px;overflow:hidden}
+  .boxhead .t{padding:5px 10px;border-right:1px solid var(--rule);letter-spacing:.16em;
+    font-weight:700;white-space:nowrap}
+  .boxhead .m{padding:5px 10px;border-right:1px solid var(--rule);color:var(--ink2);
+    letter-spacing:.1em;white-space:nowrap}
+  .boxhead .grow{flex:1;border-right:0}
+  .tools{display:flex;border-bottom:1px solid var(--rule);background:var(--panel)}
+  .tools .lbl{padding:0 9px;display:flex;align-items:center;font-size:9.5px;
+    letter-spacing:.18em;color:var(--ink3);border-right:1px solid var(--rule)}
+  .tools .grp{display:flex;border-right:1px solid var(--rule)}
+  .tools button{appearance:none;background:transparent;border:0;padding:5px 8px;
+    cursor:pointer;color:var(--ink3);display:grid;place-items:center;line-height:0}
+  .tools button:hover{background:var(--panel2);color:var(--ink)}
+  .tools button[aria-pressed=true]{background:var(--info);color:var(--bg)}
+  .tools button:focus-visible{outline:1px solid var(--info);outline-offset:-2px}
+  .tools .grow{flex:1}
+  .tools .cnt{padding:0 10px;display:flex;align-items:center;font-size:9.5px;
+    letter-spacing:.14em;color:var(--ink3);white-space:nowrap}
+  svg.ico{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.35;
+          stroke-linecap:square}
+  .chartwrap canvas{display:block;width:100%}
+
+  /* state rail */
+  .rail{background:var(--panel)}
+  /* No accent stripe: the state WORD carries the colour. One signal, one place. */
+  .stbig{padding:10px 12px 11px;border-bottom:1px solid var(--rule2);
+         background:var(--panel2)}
+  .stbig .w{font-size:19px;font-weight:700;letter-spacing:.16em}
+  .stbig[data-s=ARMED] .w{color:var(--warn)}
+  .stbig[data-s=TRIGGERED] .w,.stbig[data-s="IN TRADE"] .w{color:var(--long)}
+  .stbig[data-s=OUT] .w{color:var(--short)}
+  .stbig .since{font-size:10px;letter-spacing:.14em;color:var(--ink3);margin-top:3px}
+  .stbig .nx{font-size:11px;color:var(--ink2);line-height:1.5;margin-top:7px;
+    border-top:1px solid var(--rule);padding-top:7px}
+  .stbig .nx b{color:var(--ink)}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:baseline;
+      padding:5px 12px;border-bottom:1px solid var(--rule)}
+  .kv .k{font-size:9.5px;letter-spacing:.15em;color:var(--ink3)}
+  .kv .v{font-size:13px;font-weight:700}
+  .kv .v small{font-size:10px;font-weight:400;color:var(--ink3)}
+  .kv.hot .v{color:var(--short)}
+  .grp-h{padding:5px 12px;background:var(--head);border-bottom:1px solid var(--rule2);
+    border-top:1px solid var(--rule2);font-size:9.5px;letter-spacing:.2em;color:var(--ink2)}
+  .absent{padding:7px 12px;border-bottom:1px solid var(--rule);font-size:10.5px;
+    line-height:1.5;color:var(--ink3)}
+  /* The three absences are told apart by their WORDS, which is the whole point of
+     the rule — not by three coloured stripes doing the sentence's job. */
+  .absent b{font-weight:700}
+  .absent.c1 b{color:var(--long)}
+  .absent.c2 b{color:var(--warn)}
+  .absent.c3 b{color:var(--ink2)}
+
+  .legs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .leghead{display:flex;justify-content:space-between;align-items:baseline;
+    padding:5px 10px;background:var(--head);border-bottom:1px solid var(--rule);
+    font-size:10px;letter-spacing:.14em;color:var(--ink2)}
+  .leghead b{font-size:13px;color:var(--ink)}
+  .legrow{display:flex;justify-content:space-between;padding:4px 10px;
+    border-top:1px solid var(--rule);font-size:10.5px;color:var(--ink2)}
+  .legrow b{color:var(--ink);font-weight:700}
+
+  .note{font-size:11.5px;line-height:1.65;color:var(--ink2);max-width:78ch;margin:12px 0 0}
+  .note b{color:var(--ink)}
+  @media (max-width:980px){
+    .top{grid-template-columns:1fr 1fr}
+    .ctx{grid-template-columns:1fr 1fr}
+    .body{grid-template-columns:1fr}
+    .col{border-right:0;border-bottom:1px solid var(--rule2)}
+  }
+</style>
+
+<div class="shell">
+  <div class="lead">
+    <h1>TapeMap v3 · terminal · three layouts</h1>
+    <p>One terminal world, three arrangements of the same information. The top answers
+       WHERE TO LOOK before anything else; the context band answers what the makers are
+       doing and whether the market is pinned or volatile; the chart lives in its own
+       box. Switch <b>layout</b>, <b>state</b> and <b>theme</b>. All numbers synthetic.</p>
+  </div>
+
+  <p class="cap">Layout</p>
+  <div class="picker" role="group" aria-label="Layout">
+    <button data-lay="1" aria-pressed="true">1 · Rail right</button>
+    <button data-lay="2" aria-pressed="false">2 · Stacked, wide chart</button>
+    <button data-lay="3" aria-pressed="false">3 · Chart + legs</button>
+  </div>
+
+  <p class="cap" style="margin-top:14px">State</p>
+  <div class="picker" role="group" aria-label="State">
+    <button data-state="WAITING" aria-pressed="true">Waiting</button>
+    <button data-state="ARMED" aria-pressed="false">Armed</button>
+    <button data-state="TRIGGERED" aria-pressed="false">Triggered</button>
+    <button data-state="IN TRADE" aria-pressed="false">In trade</button>
+    <button data-state="OUT" aria-pressed="false">Out</button>
+  </div>
+
+  <p class="cap" style="margin-top:14px">Theme</p>
+  <div class="picker" role="group" aria-label="Theme">
+    <button data-theme="dark" aria-pressed="true">Dark</button>
+    <button data-theme="light" aria-pressed="false">Light</button>
+  </div>
+
+  <div style="height:16px"></div>
+
+  <section class="lay" data-lay="1" data-on="true">
+    <div class="term">
+      <div class="status">
+        <div class="s"><b>TAPEMAP</b><span>v3</span></div>
+        <div class="s"><i class="dot"></i>UPSTOX LIVE</div>
+        <div class="s">3 MIN</div>
+        <div class="s">11 AUG WEEKLY</div>
+        <div class="s grow"></div>
+        <div class="s r">13:42:09 IST</div>
+      </div>
+      <div data-slot="top"></div>
+      <div data-slot="ctx"></div>
+      <div class="body">
+        <div class="col">
+          <div class="box">
+            <div class="boxhead">
+              <span class="t">NIFTY FUT</span>
+              <span class="m">FUTURES FRAME · BASIS +58.40</span>
+              <span class="m grow">O 24 701.05  H 24 728.90  L 24 574.20  C 24 643.10</span>
+            </div>
+            <div class="tools" data-tools></div>
+            <div class="chartwrap"><canvas data-chart="c1" height="404"></canvas></div>
+          </div>
+        </div>
+        <div class="rail" data-slot="rail"></div>
+      </div>
+    </div>
+    <p class="note"><b>1 · Rail right.</b> The chart box gets the width; the state machine
+      and every level sit in one scannable column. Closest to how a terminal is actually
+      read — eyes left for the tape, right for the numbers.</p>
+  </section>
+
+  <section class="lay" data-lay="2">
+    <div class="term">
+      <div class="status">
+        <div class="s"><b>TAPEMAP</b><span>v3</span></div>
+        <div class="s"><i class="dot"></i>UPSTOX LIVE</div>
+        <div class="s">3 MIN</div>
+        <div class="s grow"></div>
+        <div class="s r">13:42:09 IST</div>
+      </div>
+      <div data-slot="top"></div>
+      <div data-slot="ctx"></div>
+      <div data-slot="stateband"></div>
+      <div style="padding:10px;background:var(--bg)">
+        <div class="box">
+          <div class="boxhead">
+            <span class="t">NIFTY FUT</span>
+            <span class="m">FUTURES FRAME · BASIS +58.40</span>
+            <span class="m grow">O 24 701.05  H 24 728.90  L 24 574.20  C 24 643.10</span>
+          </div>
+          <div class="tools" data-tools></div>
+          <div class="chartwrap"><canvas data-chart="c2" height="392"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>2 · Stacked, wide chart.</b> The state machine becomes a full-width
+      band under the context, so the chart box gets the entire width below it. Most
+      drawing room; the levels have to live on the chart's own axis.</p>
+  </section>
+
+  <section class="lay" data-lay="3">
+    <div class="term">
+      <div class="status">
+        <div class="s"><b>TAPEMAP</b><span>v3</span></div>
+        <div class="s"><i class="dot"></i>UPSTOX LIVE</div>
+        <div class="s">3 MIN</div>
+        <div class="s grow"></div>
+        <div class="s r">13:42:09 IST</div>
+      </div>
+      <div data-slot="top"></div>
+      <div data-slot="ctx"></div>
+      <div class="body">
+        <div class="col">
+          <div class="box">
+            <div class="boxhead">
+              <span class="t">NIFTY FUT</span>
+              <span class="m grow">BASIS +58.40 · C 24 643.10</span>
+            </div>
+            <div class="tools" data-tools></div>
+            <div class="chartwrap"><canvas data-chart="c3" height="252"></canvas></div>
+          </div>
+          <div class="legs">
+            <div class="box">
+              <div class="leghead"><span>24600 CE</span><b>132.95</b></div>
+              <div class="chartwrap"><canvas data-chart="ce" height="128"></canvas></div>
+              <div class="legrow"><span>OI</span><b>7 980 505 <span class="up">+2.1%</span></b></div>
+              <div class="legrow"><span>OWN D3</span><b>118.40</b></div>
+            </div>
+            <div class="box">
+              <div class="leghead"><span>24600 PE</span><b>141.45</b></div>
+              <div class="chartwrap"><canvas data-chart="pe" height="128"></canvas></div>
+              <div class="legrow"><span>OI</span><b>5 125 315 <span class="dn">−0.7%</span></b></div>
+              <div class="legrow"><span>OWN D3</span><b>126.10</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="rail" data-slot="rail"></div>
+      </div>
+    </div>
+    <p class="note"><b>3 · Chart + legs.</b> <code>/api/contract</code> runs on Upstox now,
+      so the premium-matched pair can sit under the index tape — you trade the legs, not
+      the index. Cost: the index chart is roughly half height.</p>
+  </section>
+
+  <p class="note" style="margin-top:28px"><b>Fidelity note.</b> Lettering falls back to
+    the platform mono here; the shipped build self-hosts <b>JetBrains Mono</b>. Mono is
+    load-bearing, not costume — every figure on this screen is a measurement and has to
+    align in a column.</p>
+</div>
+
+<script>
+(function(){
+  function rng(s){return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296}}
+  function ses(seed,base,vol,n){
+    var r=rng(seed),b=[],c=base,cum=0,cv=0,cq=0;
+    for(var i=0;i<n;i++){
+      var o=c; c=o+Math.sin(i/9)*vol*.5+(r()-.5)*vol*1.7;
+      var h=Math.max(o,c)+r()*vol*.8,l=Math.min(o,c)-r()*vol*.8;
+      var v=200+r()*800,tp=(h+l+c)/3;
+      cv+=v;cum+=tp*v;cq+=tp*tp*v;
+      var vw=cum/cv,sd=Math.sqrt(Math.max(cq/cv-vw*vw,0));
+      b.push({o:o,h:h,l:l,c:c,vw:vw,sd:sd});
+    } return b;
+  }
+  function carve(b,at,d){
+    for(var i=at;i<at+4&&i<b.length;i++){
+      var k=1-Math.abs(i-at-1)/3; b[i].l-=d*k; b[i].c-=d*k*.45; b[i].o-=d*k*.3;
+    } return b;
+  }
+  var MAIN=carve(ses(7,24700,9,116),74,34), CE=ses(31,150,4.5,116), PE=ses(53,128,4,116);
+  function css(n){return getComputedStyle(document.body).getPropertyValue(n).trim()}
+
+  function draw(cv,bars,opt){
+    opt=opt||{};
+    var w=cv.clientWidth; if(!w) return;
+    var dpr=Math.min(window.devicePixelRatio||1,2),h=parseInt(cv.getAttribute('height'),10);
+    cv.width=w*dpr; cv.height=h*dpr; cv.style.height=h+'px';
+    var x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+    var C={panel:css('--panel'),rule:css('--rule'),ink2:css('--ink2'),ink3:css('--ink3'),
+           up:css('--long'),dn:css('--short')};
+    x.fillStyle=C.panel; x.fillRect(0,0,w,h);
+    var padR=64,padL=6,padT=8,padB=15, lo=1e9,hi=-1e9;
+    bars.forEach(function(b){lo=Math.min(lo,b.l,b.vw-3*b.sd);hi=Math.max(hi,b.h,b.vw+3*b.sd)});
+    var pd=(hi-lo)*.05; lo-=pd; hi+=pd;
+    var Y=function(p){return padT+(hi-p)/(hi-lo)*(h-padT-padB)};
+    var iw=(w-padL-padR)/bars.length, bw=Math.max(1.4,Math.min(iw*.6,6));
+    var last=bars[bars.length-1];
+
+    x.strokeStyle=C.rule; x.lineWidth=1;
+    for(var g=0;g<5;g++){var gy=Math.round(padT+(h-padT-padB)*g/4)+.5;
+      x.beginPath();x.moveTo(0,gy);x.lineTo(w-padR,gy);x.stroke();}
+    x.beginPath();x.moveTo(w-padR+.5,0);x.lineTo(w-padR+.5,h);x.stroke();
+
+    [[1,C.rule],[2,C.ink3],[3,C.ink3]].forEach(function(s){
+      [-1,1].forEach(function(sg){
+        var isD3=(s[0]===3&&sg<0);
+        x.beginPath(); x.strokeStyle=isD3?C.dn:s[1]; x.lineWidth=isD3?1.2:1;
+        if(!isD3)x.setLineDash([2,3]);
+        bars.forEach(function(b,i){var px=padL+i*iw+iw/2,py=Y(b.vw+sg*s[0]*b.sd);
+          i?x.lineTo(px,py):x.moveTo(px,py)});
+        x.stroke(); x.setLineDash([]);
+      });
+    });
+    x.beginPath();x.strokeStyle=C.ink2;x.lineWidth=1.3;
+    bars.forEach(function(b,i){var px=padL+i*iw+iw/2,py=Y(b.vw);i?x.lineTo(px,py):x.moveTo(px,py)});
+    x.stroke();
+
+    bars.forEach(function(b,i){
+      var px=Math.round(padL+i*iw+iw/2)+.5,col=b.c>=b.o?C.up:C.dn;
+      x.strokeStyle=col;x.fillStyle=col;x.lineWidth=1;
+      x.beginPath();x.moveTo(px,Y(b.h));x.lineTo(px,Y(b.l));x.stroke();
+      var y1=Y(Math.max(b.o,b.c)),bh=Math.max(1,Y(Math.min(b.o,b.c))-y1);
+      x.fillRect(px-bw/2,y1,bw,bh);
+    });
+
+    x.font='9.5px '+css('--mono'); x.textAlign='left';
+    [['U3',last.vw+3*last.sd,C.ink3],['VWAP',last.vw,C.ink2],
+     ['D3',last.vw-3*last.sd,C.dn]].forEach(function(p){
+      x.fillStyle=p[2]; x.fillText(p[0]+' '+p[1].toFixed(1), w-padR+6, Y(p[1])+3.5);
+    });
+  }
+
+  var IX=[
+    {sym:'NIFTY',px:'24 643.10',chg:'+0.31%',dir:'up',st:null,d:'12.4 to d3',foc:true},
+    {sym:'BANKNIFTY',px:'55 210.40',chg:'−0.44%',dir:'dn',st:'N/A',d:'regime inverts',foc:false},
+    {sym:'SENSEX',px:'80 512.66',chg:'+0.28%',dir:'up',st:'WAITING',d:'88.1 to d3',foc:false}
+  ];
+  function topHTML(state){
+    var h='<div class="top">';
+    IX.forEach(function(o){
+      var st=o.st===null?state:o.st;
+      var cls=st==='N/A'?'na':st.toLowerCase().replace(/[^a-z]/g,'');
+      h+='<div class="ix" data-focus="'+o.foc+'">'+
+         '<div class="n"><span class="sym">'+o.sym+'</span>'+
+         '<span class="st '+cls+'">'+st+'</span></div>'+
+         '<div class="px">'+o.px+'</div>'+
+         '<div class="sub"><span class="'+o.dir+'">'+o.chg+'</span><span>'+o.d+'</span></div></div>';
+    });
+    h+='<div class="look"><div class="h">WHERE TO LOOK</div>'+
+       '<div class="who"><svg viewBox="0 0 16 16" aria-hidden="true">'+
+       '<path d="M5 2l6 6-6 6"/></svg>NIFTY</div>'+
+       '<div class="why">Only index whose setup can arm. <b>12.4 pts</b> from d3, gamma '+
+       'short. BANKNIFTY excluded — <b>the d3 rule inverts there</b> (37.5% hit, n=8).</div></div>';
+    return h+'</div>';
+  }
+  function ctxHTML(){
+    var bars='<div class="bars">';
+    for(var i=0;i<10;i++)bars+='<i data-on="'+(i<6)+'"></i>';
+    bars+='</div>';
+    return '<div class="ctx">'+
+      '<div class="cx"><div class="k">MARKET MAKERS</div>'+
+        '<div class="v" style="color:var(--short)">CALL WRITERS ADDING</div>'+
+        '<div class="e">&Delta;CE +2.41M · &Delta;PE −0.62M · 3.9&times; one-sided</div>'+
+        '<div class="e" style="margin-top:3px;color:var(--ink3)">ceiling being built at 24 700</div></div>'+
+      '<div class="cx"><div class="k">TRENDING OI STRENGTH</div>'+
+        '<div class="v">62% CE-SIDE</div>'+bars+
+        '<div class="e">since 09:15 baseline, not prior close</div></div>'+
+      '<div class="cx"><div class="k">REGIME</div>'+
+        '<div class="v" style="color:var(--warn)">PINNED</div>'+
+        '<div class="e">spot 3.1 from max pain 24 550</div>'+
+        '<div class="e" style="margin-top:3px;color:var(--ink3)">realized 0.42&times; implied</div></div>'+
+      '<div class="cx"><div class="k">GAMMA</div>'+
+        '<div class="v" style="color:var(--short)">SHORT</div>'+
+        '<div class="e">flip 24 550 · spot above</div>'+
+        '<div class="e" style="margin-top:3px;color:var(--ink3)">moves amplify, not damp</div></div>'+
+    '</div>';
+  }
+  var S={
+    'WAITING':{since:'SINCE 09:15',k1:'DISTANCE TO D3',v1:'−41.20',k2:'REFERENCE HIGH',v2:'—',
+      k3:'COUNTDOWN',v3:'—',nx:'A candle low has to <b>touch d3</b>.'},
+    'ARMED':{since:'ARMED 13:33',k1:'REFERENCE LOW',v1:'24 578.65',k2:'REF HIGH · BREAK THIS',
+      v2:'24 611.40',k3:'COUNTDOWN',v3:'6 of 10',nx:'A candle has to <b>CLOSE above 24 611.40</b>.'},
+    'TRIGGERED':{since:'ENTRY 13:42',k1:'ENTRY · THAT CLOSE',v1:'24 614.20',k2:'STOP · D3 − 20',
+      v2:'24 560.00',k3:'RISK',v3:'54.20 pts',
+      nx:'<b>Do not touch the stop until VWAP.</b> +6m is negative by design.'},
+    'IN TRADE':{since:'IN 18 MIN',k1:'OPEN',v1:'+28.90',k2:'VWAP · FIRST MILESTONE',
+      v2:'24 643.10',k3:'STOP · UNMOVED',v3:'24 560.00',
+      nx:'VWAP is <b>28.90</b> away. The stop stays until it is touched.'},
+    'OUT':{since:'FLAT 14:16',k1:'RESULT',v1:'+41.05',k2:'EXIT · VWAP TRAIL',v2:'24 655.25',
+      k3:'HELD',v3:'34 min',nx:'Flat. The next setup <b>may not arm until VWAP is touched</b>.'}
+  };
+  function railHTML(st){
+    var s=S[st];
+    return '<div class="stbig" data-s="'+st+'"><div class="w">'+st+'</div>'+
+      '<div class="since">'+s.since+'</div><div class="nx">'+s.nx+'</div></div>'+
+      '<div class="kv"><span class="k">'+s.k1+'</span><span class="v">'+s.v1+'</span></div>'+
+      '<div class="kv"><span class="k">'+s.k2+'</span><span class="v">'+s.v2+'</span></div>'+
+      '<div class="kv"><span class="k">'+s.k3+'</span><span class="v">'+s.v3+'</span></div>'+
+      '<div class="grp-h">LEVELS · FUTURES FRAME</div>'+
+      '<div class="kv hot"><span class="k">D3</span><span class="v">24 580.00</span></div>'+
+      '<div class="kv"><span class="k">STOP</span><span class="v">24 560.00</span></div>'+
+      '<div class="kv"><span class="k">VWAP</span><span class="v">24 643.10</span></div>'+
+      '<div class="kv"><span class="k">U1 / U2</span><span class="v">24 664 / 24 685</span></div>'+
+      '<div class="grp-h">BOOK · INDEX FRAME</div>'+
+      '<div class="kv"><span class="k">CE WALL</span><span class="v">25 000</span></div>'+
+      '<div class="kv"><span class="k">PE WALL</span><span class="v">24 200 <small>edge</small></span></div>'+
+      '<div class="kv"><span class="k">MAX PAIN</span><span class="v">24 550</span></div>'+
+      '<div class="grp-h">WHAT IS NOT HERE</div>'+
+      '<div class="absent c1"><b>CHECKED, NOTHING FOUND.</b> No SMC structure since 12:51.</div>'+
+      '<div class="absent c2"><b>COULD NOT CHECK.</b> Prior-session leg pivots — the 04 Aug '+
+        'weekly is off Upstox\'s dump.</div>'+
+      '<div class="absent c3"><b>NOT SHOWING YOU.</b> Engine events, off by default: scored '+
+        '&minus;6.2 against a +4.1 control.</div>';
+  }
+  function bandHTML(st){
+    var s=S[st];
+    return '<div class="ctx" style="grid-template-columns:1.05fr 1fr 1.1fr 1fr 1.6fr">'+
+      '<div class="cx stbig" data-s="'+st+'" style="border-right:1px solid var(--rule);'+
+        'border-bottom:0"><div class="w">'+st+'</div><div class="since">'+s.since+'</div></div>'+
+      '<div class="cx"><div class="k">'+s.k1+'</div><div class="v">'+s.v1+'</div></div>'+
+      '<div class="cx"><div class="k">'+s.k2+'</div><div class="v">'+s.v2+'</div></div>'+
+      '<div class="cx"><div class="k">'+s.k3+'</div><div class="v">'+s.v3+'</div></div>'+
+      '<div class="cx"><div class="k">NEXT</div><div class="e" style="font-size:11.5px;'+
+        'line-height:1.5">'+s.nx+'</div></div></div>';
+  }
+
+  var TOOLS=[['Trend line','M2 13L14 3'],['Ray','M2 13L14 3M14 3h-4M14 3v4'],
+    ['H-line','M1 8h14'],['Box','M2 4h12v8H2z'],['Channel','M2 12L11 3M5 14L14 5'],
+    ['Fib','M2 3h12M2 6.5h12M2 10h12M2 13.5h12'],['Long pos','M2 11h12M2 5h12M2 5v6'],
+    ['Brush','M2 13c3 0 3-4 6-4s3 3 6-2'],['Magnet','M4 2v6a4 4 0 0 0 8 0V2M4 6h3M9 6h3']];
+  function toolsHTML(){
+    var h='<span class="lbl">DRAW</span><span class="grp">';
+    TOOLS.forEach(function(t,i){
+      if(i===8)h+='</span><span class="grp">';
+      h+='<button title="'+t[0]+'" aria-label="'+t[0]+'" aria-pressed="false">'+
+         '<svg class="ico" viewBox="0 0 16 16"><path d="'+t[1]+'"/></svg></button>';
+    });
+    return h+'</span><span class="grow"></span><span class="cnt">61 TOOLS · PERSIST</span>';
+  }
+
+  var state='WAITING';
+  var SER={c1:[MAIN,{}],c2:[MAIN,{}],c3:[MAIN,{}],ce:[CE,{}],pe:[PE,{}]};
+  function redraw(){
+    Object.keys(SER).forEach(function(k){
+      var cv=document.querySelector('[data-chart='+k+']');
+      if(cv)draw(cv,SER[k][0],SER[k][1]);
+    });
+  }
+  function render(){
+    document.querySelectorAll('[data-slot=top]').forEach(function(e){e.innerHTML=topHTML(state)});
+    document.querySelectorAll('[data-slot=ctx]').forEach(function(e){e.innerHTML=ctxHTML()});
+    document.querySelectorAll('[data-slot=rail]').forEach(function(e){e.innerHTML=railHTML(state)});
+    document.querySelectorAll('[data-slot=stateband]').forEach(function(e){e.innerHTML=bandHTML(state)});
+    document.querySelectorAll('[data-tools]').forEach(function(e){
+      if(e.dataset.built)return;
+      e.innerHTML=toolsHTML(); e.dataset.built='1';
+      e.querySelectorAll('button').forEach(function(b){
+        b.addEventListener('click',function(){
+          b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');
+        });
+      });
+    });
+    redraw();
+  }
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(es){es.forEach(function(e){
+      var k=e.target.getAttribute('data-chart');
+      if(e.contentRect.width>0&&SER[k])draw(e.target,SER[k][0],SER[k][1]);
+    })});
+    Object.keys(SER).forEach(function(k){
+      var cv=document.querySelector('[data-chart='+k+']'); if(cv)ro.observe(cv);
+    });
+  }
+  document.querySelectorAll('[data-state]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('[data-state]').forEach(function(o){o.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true'); state=b.getAttribute('data-state'); render();
+    });
+  });
+  document.querySelectorAll('button[data-lay]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-lay');
+      document.querySelectorAll('button[data-lay]').forEach(function(o){
+        o.setAttribute('aria-pressed',o===b?'true':'false')});
+      document.querySelectorAll('section[data-lay]').forEach(function(s){
+        s.setAttribute('data-on',s.getAttribute('data-lay')===id?'true':'false')});
+      // once now, once after layout settles: a canvas revealed this tick can
+      // still report clientWidth 0, and a chart that never drew reads as broken.
+      redraw(); setTimeout(redraw,0);
+    });
+  });
+  document.querySelectorAll('button[data-theme]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('button[data-theme]').forEach(function(o){o.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true');
+      var t=b.getAttribute('data-theme');
+      document.documentElement.setAttribute('data-theme',t);
+      document.body.setAttribute('data-theme',t);
+      redraw();
+    });
+  });
+  window.addEventListener('resize',redraw);
+  window.addEventListener('load',redraw);
+  render(); setTimeout(redraw,0); setTimeout(redraw,150);
+})();
+</script>

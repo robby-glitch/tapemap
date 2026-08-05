@@ -1,0 +1,278 @@
+<!--
+THESIS: The narration belongs ON the price axis, not in a paragraph beside it.
+What stops an early exit is SEEING that the pullback is inside the measured
+envelope — so the envelope is drawn, shaded, on the chart itself.
+FORM: v2 refinement. The chart is the whole surface; words are never more than
+one line. MOCKUP ONLY — nothing in ui-v2/src is touched.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#F7F8FA; --border:#E3E7ED; --muted:#6B7482;
+    --bull:#1B8A38; --bear:#C42B30; --brass:#A9762A;
+    --ink:#1B2434; --surface:#FFFFFF;
+    --mono:ui-monospace,'Cascadia Mono','Consolas','SF Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1500px;margin:0 auto;padding:16px 16px 40px}
+  .bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .lab{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .seg{display:flex;border:1px solid var(--border);background:var(--surface);
+       border-radius:4px;overflow:hidden}
+  .seg button{appearance:none;border:0;background:transparent;font:inherit;font-size:12px;
+    padding:8px 14px;cursor:pointer;color:var(--muted);border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed=true]{background:var(--brass);color:#fff;font-weight:600}
+  .seg button:focus-visible{outline:2px solid var(--brass);outline-offset:-3px}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--brass)}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .frame{background:var(--surface);border:1px solid var(--border);border-radius:6px;
+         overflow:hidden}
+  canvas{display:block;width:100%}
+
+  .line{display:flex;align-items:center;gap:14px;padding:13px 16px;
+        border-top:1px solid var(--border);min-height:58px}
+  .tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:4px 8px;
+       border-radius:3px;white-space:nowrap;flex:none}
+  .tag.m{background:var(--brass);color:#fff;font-weight:700}
+  .tag.o{background:transparent;color:var(--brass);border:1px solid var(--brass)}
+  .tag.u{background:transparent;color:var(--muted);border:1px dashed #C9CFD8}
+  .line .say{font-size:19px;font-weight:600;line-height:1.3}
+  .line.alarm .say{color:var(--bear)}
+  .line.alarm .tag{background:var(--bear)!important;color:#fff!important;border-color:var(--bear)!important}
+  .line .src{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;flex:none;
+             font-family:var(--mono)}
+  .foot{margin-top:14px;font-size:12.5px;color:var(--muted);line-height:1.6;max-width:90ch}
+  .foot b{color:var(--ink)}
+  @media (max-width:760px){ .line .src{display:none} .line .say{font-size:16px} }
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <span class="lab">Candle</span>
+    <input type="range" min="0" max="16" value="4" step="1" data-scrub aria-label="Candle since entry">
+    <span class="num" data-clock style="min-width:118px">13:48 · +12m</span>
+    <div class="seg" role="group" aria-label="Narration density">
+      <button data-mode="milestone" aria-pressed="true">Milestones</button>
+      <button data-mode="every" aria-pressed="false">Every candle</button>
+    </div>
+  </div>
+
+  <div class="frame">
+    <canvas data-chart height="600"></canvas>
+    <div class="line" data-line>
+      <span class="tag m">MEASURED</span>
+      <span class="say">…</span>
+      <span class="src"></span>
+    </div>
+  </div>
+
+  <p class="foot">
+    The shaded band under ENTRY is the <b>measured envelope</b> — the median worst point
+    across the 19 scored trades is <b>−13.90</b>. While the candles stay inside it the
+    pullback is <b>normal, and you can see that it is</b>. When price leaves it, the line
+    below changes colour and says so. Everything on the price axis is futures-frame.
+    Prices are synthetic; the statistics are not.
+  </p>
+</div>
+
+<script>
+(function(){
+  var MED_MAE=13.90, ENTRY_I=70;
+  // ENTRY / D3 / STOP are DERIVED from the series, never hardcoded beside it:
+  // the entry IS the trigger candle's close, and the stop is that bar's own
+  // d3 − 20. Pinning them to constants put the levels off the price scale
+  // entirely and blanked the chart.
+  var ENTRY, D3, STOP;
+
+  function rng(s){return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296}}
+  var BARS=(function(){
+    var r=rng(11), b=[], c=24700, cum=0, cv=0, cq=0;
+    for(var i=0;i<110;i++){
+      var d=Math.sin(i/11)*4+(r()-.5)*13;
+      if(i>=64&&i<70) d-=7;
+      if(i>=70&&i<74) d-=3;
+      if(i>=76&&i<92) d+=6;
+      var o=c; c=o+d;
+      var h=Math.max(o,c)+r()*6, l=Math.min(o,c)-r()*6;
+      var v=400+r()*1200, tp=(h+l+c)/3;
+      cv+=v; cum+=tp*v; cq+=tp*tp*v;
+      var vw=cum/cv, sd=Math.sqrt(Math.max(cq/cv-vw*vw,0));
+      b.push({o:o,h:h,l:l,c:c,vw:vw,sd:sd});
+    }
+    return b;
+  })();
+  ENTRY = BARS[ENTRY_I].c;
+  D3    = BARS[ENTRY_I].vw - 3*BARS[ENTRY_I].sd;
+  STOP  = D3 - 20;
+  function hhmm(i){var m=9*60+15+i*3;
+    return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+
+  var STEP=[
+    {ms:1,r:'m',say:'Runs negative first. Do not judge it before +15m.',
+     src:'42.1% hit at +6m · turns +15m · n=19'},
+    {ms:0,r:'m',say:'Inside the envelope.',src:'stop 49.3 away'},
+    {ms:0,r:'m',say:'Inside the envelope.',src:'stop 46.1 away'},
+    {ms:0,r:'m',say:'Inside the envelope.',src:'stop 43.8 away'},
+    {ms:1,r:'m',say:'Inside the normal shape of a winner.',
+     src:'median worst −13.90 · 3 of 19 stopped before here'},
+    {ms:1,r:'m',alarm:1,say:'Past the median worst point. The stop protects you now.',
+     src:'beyond −13.90 the sample is thin · mean −29.97, n=19'},
+    {ms:0,r:'m',say:'Back inside.',src:'stop 41.6 away'},
+    {ms:0,r:'m',say:'Back inside.',src:'stop 51.0 away'},
+    {ms:1,r:'m',say:'+15m — this is where the measured sample turns.',
+     src:'42.1% at +6m → 68.4% by +30m · median +12.80'},
+    {ms:0,r:'o',say:'ΔCE +2.88M · ΔPE +1.94M · strength +0.19 — two-sided.',
+     src:'§5b · NOT SCORED'},
+    {ms:1,r:'m',say:'VWAP crossed. Trail band-to-band. Stop stays.',
+     src:'hold 63% / +6.9 med vs ladder 58% / +3.2'},
+    {ms:0,r:'o',say:'strength −0.44 — turned negative after the cross.',
+     src:'§5b pre-registered as hold/add · UNTESTED'},
+    {ms:1,r:'m',say:'+30m. Above the measured median.',
+     src:'68.4% positive here, med +12.80 — cohort stat, not this trade'},
+    {ms:0,r:'u',say:'Gamma at trigger — could not be checked.',
+     src:'no per-trigger history in the cache'},
+    {ms:1,r:'m',say:'u1 reached. Trail 15 pts under the high.',
+     src:'the 5 runners that got here kept +19 to +44'},
+    {ms:0,r:'m',say:'Trailing.',src:'stop never moved'},
+    {ms:1,r:'m',say:'OUT — band trail. The stop was never moved.',
+     src:'held 48 min · next setup waits for VWAP'}
+  ];
+
+  var mode='milestone', k=4;
+  function C(n){return getComputedStyle(document.body).getPropertyValue(n).trim()}
+
+  function draw(){
+    var cv=document.querySelector('[data-chart]'); if(!cv||!cv.clientWidth) return;
+    var dpr=Math.min(devicePixelRatio||1,2), w=cv.clientWidth, h=+cv.getAttribute('height');
+    cv.width=w*dpr; cv.height=h*dpr; cv.style.height=h+'px';
+    var x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+    x.fillStyle=C('--surface'); x.fillRect(0,0,w,h);
+
+    // The TRADE is the subject, so the window is pinned around it and does not
+    // move while you scrub — a chart that re-scales every candle is unreadable
+    // exactly when you most need to compare against the envelope.
+    var last=Math.min(ENTRY_I+k, BARS.length-1);
+    var from=Math.max(0,ENTRY_I-30), to=ENTRY_I+18, n=to-from+1;
+    var padL=8, padR=110, padT=14, padB=28;
+    var lo=1e9, hi=-1e9, i;
+    for(i=from;i<=last;i++){
+      lo=Math.min(lo,BARS[i].l,BARS[i].vw-3*BARS[i].sd);
+      hi=Math.max(hi,BARS[i].h,BARS[i].vw+3*BARS[i].sd);
+    }
+    lo=Math.min(lo,STOP-10); hi=Math.max(hi,ENTRY+10);
+    var pd=(hi-lo)*.04; lo-=pd; hi+=pd;
+    var Y=function(p){return padT+(hi-p)/(hi-lo)*(h-padT-padB)};
+    var iw=(w-padL-padR)/n;
+    var X=function(j){return padL+(j-from)*iw+iw/2};
+    var bw=Math.max(2.5,Math.min(iw*.62,10));
+
+    function ribbon(a,b,fill){
+      x.beginPath();
+      for(var p=from;p<=last;p++){var v=BARS[p].vw+a*BARS[p].sd; p===from?x.moveTo(X(p),Y(v)):x.lineTo(X(p),Y(v));}
+      for(var q=last;q>=from;q--){var u=BARS[q].vw+b*BARS[q].sd; x.lineTo(X(q),Y(u));}
+      x.closePath(); x.fillStyle=fill; x.fill();
+    }
+    ribbon(3,2,'rgba(70,130,200,.13)');  ribbon(-2,-3,'rgba(70,130,200,.13)');
+    ribbon(2,1,'rgba(60,150,90,.13)');   ribbon(-1,-2,'rgba(60,150,90,.13)');
+    ribbon(1,0,'rgba(196,43,48,.10)');   ribbon(0,-1,'rgba(196,43,48,.10)');
+
+    x.beginPath(); x.strokeStyle=C('--bear'); x.lineWidth=1.5;
+    for(i=from;i<=last;i++){var vy=Y(BARS[i].vw); i===from?x.moveTo(X(i),vy):x.lineTo(X(i),vy);}
+    x.stroke();
+
+    /* ── the measured envelope: the whole point ───────────────────────── */
+    var ex=X(ENTRY_I)-bw, eTop=Y(ENTRY), eBot=Y(ENTRY-MED_MAE);
+    x.fillStyle='rgba(169,118,42,.17)';
+    x.fillRect(ex,eTop,(w-padR)-ex,eBot-eTop);
+    x.strokeStyle='rgba(169,118,42,.6)'; x.lineWidth=1; x.setLineDash([4,3]);
+    x.beginPath(); x.moveTo(ex,eBot+.5); x.lineTo(w-padR,eBot+.5); x.stroke();
+    x.setLineDash([]);
+    x.font='700 11.5px '+C('--mono'); x.fillStyle=C('--brass');
+    x.fillText('TYPICAL WORST  −13.90  (n=19)', ex+8, eBot-7);
+
+    [[ENTRY,C('--brass'),'ENTRY '+ENTRY.toFixed(2),2],
+     [STOP,C('--bear'),'STOP '+STOP.toFixed(2),1.5]].forEach(function(L){
+      x.strokeStyle=L[1]; x.lineWidth=L[3];
+      x.beginPath(); x.moveTo(ex,Y(L[0])+.5); x.lineTo(w-padR,Y(L[0])+.5); x.stroke();
+      x.fillStyle=L[1]; x.font='700 12px '+C('--mono');
+      x.fillText(L[2], w-padR+7, Y(L[0])+4);
+    });
+    x.fillStyle=C('--muted'); x.font='10.5px '+C('--mono');
+    x.fillText('d3 − 20', w-padR+7, Y(STOP)+17);
+
+    x.strokeStyle='rgba(27,36,52,.28)'; x.lineWidth=1; x.setLineDash([2,3]);
+    x.beginPath(); x.moveTo(X(ENTRY_I),padT); x.lineTo(X(ENTRY_I),h-padB); x.stroke();
+    x.setLineDash([]);
+
+    for(i=from;i<=last;i++){
+      var b=BARS[i], up=b.c>=b.o, col=up?C('--bull'):C('--bear'), px=Math.round(X(i))+.5;
+      x.strokeStyle=col; x.fillStyle=col; x.lineWidth=1.1;
+      x.beginPath(); x.moveTo(px,Y(b.h)); x.lineTo(px,Y(b.l)); x.stroke();
+      var y1=Y(Math.max(b.o,b.c)), bh=Math.max(1.5,Y(Math.min(b.o,b.c))-y1);
+      if(up){x.fillStyle=C('--surface'); x.fillRect(px-bw/2,y1,bw,bh); x.strokeRect(px-bw/2,y1,bw,bh);}
+      else x.fillRect(px-bw/2,y1,bw,bh);
+    }
+
+    /* the entry marker — what today's pill becomes */
+    var mx=X(ENTRY_I), my=Y(BARS[ENTRY_I].l)+14;
+    x.fillStyle=C('--brass');
+    x.beginPath(); x.moveTo(mx,my-10); x.lineTo(mx-6,my-1); x.lineTo(mx+6,my-1); x.closePath(); x.fill();
+    x.font='700 11.5px '+C('--mono');
+    var lbl='ENTRY  '+hhmm(ENTRY_I), lw=x.measureText(lbl).width+14;
+    x.fillRect(mx-lw/2,my,lw,19);
+    x.fillStyle=C('--surface'); x.fillText(lbl,mx-lw/2+7,my+13);
+
+    /* milestone ticks — only where something was actually said */
+    x.strokeStyle=C('--brass'); x.lineWidth=2;
+    STEP.forEach(function(s,j){
+      if(!s.ms||j>k||j===0) return;
+      var tx=X(ENTRY_I+j);
+      x.beginPath(); x.moveTo(tx,h-padB); x.lineTo(tx,h-padB+7); x.stroke();
+    });
+
+    x.fillStyle=C('--muted'); x.font='11px '+C('--mono'); x.textAlign='center';
+    for(i=from;i<=last;i+=10) x.fillText(hhmm(i),X(i),h-9);
+    x.textAlign='left';
+
+    var hb=BARS[last], pnl=hb.c-ENTRY;
+    x.fillStyle=pnl>=0?C('--bull'):C('--bear');
+    x.beginPath(); x.arc(X(last),Y(hb.c),5,0,6.284); x.fill();
+    var tag=(pnl>=0?'+':'−')+Math.abs(pnl).toFixed(2);
+    x.font='700 16px '+C('--mono');
+    var tw=x.measureText(tag).width+16;
+    x.fillRect(w-padR+2,Y(hb.c)-12,tw,24);
+    x.fillStyle=C('--surface'); x.fillText(tag,w-padR+10,Y(hb.c)+6);
+  }
+
+  function render(){
+    document.querySelector('[data-clock]').textContent=hhmm(ENTRY_I+k)+' · +'+(k*3)+'m';
+    var s=STEP[k], shown=s;
+    if(!(s.ms||mode==='every')){
+      for(var j=k;j>=0;j--) if(STEP[j].ms){shown=STEP[j];break;}
+    }
+    var line=document.querySelector('[data-line]');
+    line.className='line'+(shown.alarm?' alarm':'');
+    var t=line.querySelector('.tag');
+    t.className='tag '+shown.r;
+    t.textContent=shown.r==='m'?'MEASURED':shown.r==='o'?'OBSERVED':'COULD NOT CHECK';
+    line.querySelector('.say').textContent=shown.say;
+    line.querySelector('.src').textContent=shown.src;
+    draw();
+  }
+
+  document.querySelector('[data-scrub]').addEventListener('input',function(e){k=+e.target.value;render()});
+  document.querySelectorAll('[data-mode]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('[data-mode]').forEach(function(o){o.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true'); mode=b.getAttribute('data-mode'); render();
+    });
+  });
+  addEventListener('resize',draw); addEventListener('load',render);
+  render(); setTimeout(render,0); setTimeout(render,150);
+})();
+</script>
