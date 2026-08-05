@@ -24,6 +24,39 @@ python server.py live 8765
 corepack pnpm --dir "C:\Users\kaam\Desktop\new tool nifty\ui-v2" dev
 ```
 
+### Running on Upstox instead (2026-08-05)
+
+Dhan's **Data API subscription lapsed** on 2026-08-05 (401 / DH-902) and the
+tape went dark. Upstox drives the whole stack for free, and both the chain and
+the bars are wired behind one switch:
+
+```bash
+python upstox_auth.py          # once each morning; token dies 03:30 IST
+```
+```bash
+TAPEMAP_BROKER=upstox python server.py live 8765
+```
+
+PowerShell: `$env:TAPEMAP_BROKER = "upstox"` on its own line first.
+
+- **Dhan stays the default.** Anything not exactly `upstox` runs Dhan, so a
+  typo fails safe rather than moving the tool to another source while the tape
+  keeps printing plausible numbers (`test_broker_switch.py`).
+- `.upstox_app.json` holds the api key/secret (gitignored); `upstox_auth.py`
+  writes `.upstox_token` and preserves the old one at `.upstox_token.bak`.
+- **`oi_chg` means "since 09:15", not "since prior close"** — it will not match
+  the OI Chg column on a broker chain. Deliberate: the 09:15 bar includes the
+  pre-open auction, and today's positioning is what the writer score wants.
+- Startup costs ~9s (34 throttled baseline fetches + resolve + connect); a poll
+  touches **no network at all**.
+- A connected-but-silent socket **raises** past 30s rather than re-serving its
+  last snapshot — the 2026-07-27 frozen-tape lesson.
+- `UDAPI100050` from Upstox means the WRONG TOKEN CLASS, not an expired one.
+  An Analytics Token opens history only.
+
+Still on Dhan: `build_contract` / `/api/contract` (the leg charts) and
+everything in `dhan_fetch.py` (backtest tooling).
+
 - UI at `http://localhost:5173`; Vite proxies `/api` → `127.0.0.1:8765`.
 - **The Dhan token expires daily** — first click of the day is **⟳ TOKEN**.
 - `corepack pnpm`, never bare `pnpm` (not on PATH).
