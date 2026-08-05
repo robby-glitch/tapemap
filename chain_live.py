@@ -139,6 +139,29 @@ def _client(tok):
     return dhanhq(DhanContext(cid, tok))
 
 
+def _broker():
+    """Which data source the live poller uses. Dhan unless told otherwise.
+
+    `TAPEMAP_BROKER=upstox` switches the chain to the Upstox socket. Default
+    is dhan so that setting nothing keeps the behaviour that has been running,
+    and so a missing or misspelled env var can never silently move the tool
+    onto a different broker mid-session.
+    """
+    return os.environ.get("TAPEMAP_BROKER", "dhan").strip().lower()
+
+
+def _upstox_source(existing=None):
+    """The Upstox chain source, imported only when actually selected.
+
+    A local import so that a Dhan-only run never pays for -- or fails on --
+    the websocket dependency chain.
+    """
+    if existing is not None:
+        return existing
+    from upstox_chain import UpstoxChainSource
+    return UpstoxChainSource()
+
+
 def _inner(resp):
     """SDK wraps as {status, data}; the chain API nests one more 'data'."""
     if not isinstance(resp, dict) or resp.get("status") != "success":
@@ -337,21 +360,37 @@ class ChainPoller(threading.Thread):
             print(f"chain warm-start {idx} skipped:", e)
 
     def _run_live(self):
+        upstox = _broker() == "upstox"
+        src = dhan = None
         while True:                        # outer: token / startup retry
-            tok = read_token()
-            st = token_status(tok)
-            if not st["ok"]:
-                for c in self.configs:
-                    self._fail(c["under_sym"], "live", st["msg"])
-                time.sleep(60)             # user may drop a fresh token in
-                continue
+            if upstox:
+                # The Dhan gate below cannot judge an Upstox token: it parses a
+                # Dhan JWT and would report a perfectly good OAuth token as
+                # expired. UpstoxChainSource reads .upstox_token itself and
+                # raises with its own message, which the startup except-block
+                # already surfaces.
+                st = {"ok": True, "msg": "upstox socket"}
+            else:
+                tok = read_token()
+                st = token_status(tok)
+                if not st["ok"]:
+                    for c in self.configs:
+                        self._fail(c["under_sym"], "live", st["msg"])
+                    time.sleep(60)         # user may drop a fresh token in
+                    continue
             try:
-                dhan = _client(tok)
                 today = datetime.now(IST).strftime("%Y-%m-%d")
-                expiries = {c["under_sym"]:
-                            resolve_expiry(dhan, today, c["under_id"],
-                                           c["under_seg"])
-                            for c in self.configs}
+                if upstox:
+                    src = _upstox_source(src)
+                    # Re-run on every outer pass: a new trading day needs new
+                    # strikes, a new expiry and a fresh 09:15 baseline.
+                    expiries = src.start(self.configs, today)
+                else:
+                    dhan = _client(tok)
+                    expiries = {c["under_sym"]:
+                                resolve_expiry(dhan, today, c["under_id"],
+                                               c["under_seg"])
+                                for c in self.configs}
             except Exception as e:
                 for c in self.configs:
                     self._fail(c["under_sym"], "live",
@@ -389,12 +428,21 @@ class ChainPoller(threading.Thread):
                     t0 = time.time()
                     try:
                         now = datetime.now(IST)
-                        resp = _with_deadline(
-                            lambda: dhan.option_chain(
-                                c["under_id"], c["under_seg"], expiries[idx]),
-                            CHAIN_DEADLINE_S, f"{idx} option_chain")
-                        data = _inner(resp)
-                        snap = normalize(data, now, c.get("window", WINDOW_PTS))
+                        if upstox:
+                            # No network here: the socket already filled the
+                            # mailbox, so a poll is a copy and a translation.
+                            # A stale-but-connected feed raises rather than
+                            # re-serving the last snapshot forever.
+                            snap = src.poll(c, expiries[idx], now,
+                                            c.get("window", WINDOW_PTS))
+                        else:
+                            resp = _with_deadline(
+                                lambda: dhan.option_chain(
+                                    c["under_id"], c["under_seg"], expiries[idx]),
+                                CHAIN_DEADLINE_S, f"{idx} option_chain")
+                            data = _inner(resp)
+                            snap = normalize(data, now,
+                                             c.get("window", WINDOW_PTS))
                         metrics = self.states[idx].update(
                             snap, t_years(expiries[idx], now), self.prevs[idx])
                         self.prevs[idx] = snap
