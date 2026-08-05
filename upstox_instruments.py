@@ -179,6 +179,37 @@ def fut_key(name="NIFTY", rows=None):
     return futs[0]["instrument_key"]
 
 
+def _near_opts(name, rows=None, now_ms=None):
+    """(expiry_ms, the option rows listed on it) for the NEAREST LIVE expiry.
+
+    ONE place decides what "the front weekly" means. `option_keys` and
+    `option_expiry` both come through here, because two answers to that
+    question would eventually disagree and a payload would then NAME an expiry
+    the bars it carries do not belong to -- the 2026-08-04 frame bug wearing a
+    different hat.
+    """
+    rows = rows if rows is not None else load(name)
+    opts = [x for x in rows if x["instrument_type"] in ("CE", "PE")]
+    exps = live_expiries(opts, now_ms)
+    if not exps:
+        raise RuntimeError(f"{name}: no live option expiry in the dump")
+    return exps[0], [x for x in opts if x["expiry"] == exps[0]]
+
+
+def option_expiry(name="NIFTY", rows=None, now_ms=None):
+    """The nearest LIVE option expiry as 'YYYY-MM-DD'.
+
+    The bar path's answer to Dhan's `chain_live.resolve_expiry`, and note what
+    it cannot do: the dump carries LIVE instruments only, so an expired weekly
+    is not merely unresolvable here, it is absent. Backfilling an older session
+    therefore charts the CURRENT front contract -- real data, a different
+    instrument from the one that was front then. The caller owes the reader
+    that sentence; see `live.build_contract`'s `expiry_why`.
+    """
+    exp, _near = _near_opts(name, rows, now_ms)
+    return datetime.fromtimestamp(exp / 1000).strftime("%Y-%m-%d")
+
+
 def option_keys(strike, name="NIFTY", rows=None, now_ms=None):
     """{'CE': key, 'PE': key} at `strike` on the NEAREST LIVE expiry.
 
@@ -186,17 +217,13 @@ def option_keys(strike, name="NIFTY", rows=None, now_ms=None):
     partial dict: half a pair would chart one leg against nothing, and the
     caller reads both.
     """
-    rows = rows if rows is not None else load(name)
-    opts = [x for x in rows if x["instrument_type"] in ("CE", "PE")]
-    exps = live_expiries(opts, now_ms)
-    if not exps:
-        raise RuntimeError(f"{name}: no live option expiry in the dump")
+    exp, near = _near_opts(name, rows, now_ms)
     want = float(strike)
-    out = {x["instrument_type"]: x["instrument_key"] for x in opts
-           if x["expiry"] == exps[0] and x.get("strike_price") == want}
+    out = {x["instrument_type"]: x["instrument_key"] for x in near
+           if x.get("strike_price") == want}
     if "CE" not in out or "PE" not in out:
         raise RuntimeError(
-            f"{name} {want:.0f}: expiry {exps[0]} has {sorted(out) or 'neither leg'}"
+            f"{name} {want:.0f}: expiry {exp} has {sorted(out) or 'neither leg'}"
             f" — the strike is not listed on the nearest expiry")
     return out
 

@@ -61,6 +61,21 @@ _stick = _load_stick()                  # per-index sticky-ATM state: sym -> {..
 
 
 def _token():
+    """The Dhan access token -- and only when Dhan is the broker.
+
+    On the Upstox path this value is never transmitted: `_intraday` routes to
+    `_upstox_bars`, which reads `.upstox_token` itself. Opening `.dhan_token`
+    regardless was a live dependency on a file the Upstox path has no use for
+    -- delete or rename it and the whole tape dies with FileNotFoundError
+    naming a broker it is not running on.
+
+    Returns "" rather than None so callers keep passing a string:
+    `resolve_dynamic` takes `tok` for signature parity and does not use it
+    (the scrip master is a public CSV), which is why server.py already calls
+    it with "".
+    """
+    if _upstox():
+        return ""
     return open(".dhan_token").read().strip()
 
 
@@ -111,6 +126,15 @@ def _upstox():
     """
     from chain_live import _broker
     return _broker() == "upstox"
+
+
+def _broker_name():
+    """What to CALL the source in a sentence a human reads.
+
+    Every "X served nothing" message names a broker, and naming the wrong one
+    sends the reader to the wrong dashboard to find out why. Derived from the
+    same switch rather than written out at each site."""
+    return "Upstox" if _upstox() else "Dhan"
 
 
 def _upstox_bars(sec_id, instrument, day, name=None):
@@ -498,8 +522,8 @@ def _leg_series(fetch, sessions, interval):
         rows = contract_bars.resample(contract_bars.vwap_bands(one), interval)
         if not rows:
             reasons[sess] = (
-                "Dhan served no usable bars for this session (it returned "
-                f"{served or 'nothing at all'} by date). The expired-option "
+                f"{_broker_name()} served no usable bars for this session (it "
+                f"returned {served or 'nothing at all'} by date). The expired-option "
                 "feed is rolling-ATM, so a strike far from spot that day may "
                 "genuinely have no history -- see context/mental-map.md "
                 "caveat 2.")
@@ -642,36 +666,68 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
     day = day or datetime.now(IST).strftime("%Y-%m-%d")
     sessions = _sessions_back(day, days)
 
-    tok = chain_live.read_token()
-    st = chain_live.token_status(tok)
-    if not st["ok"]:
-        raise RuntimeError(st["msg"])
-    dhan = chain_live._client(tok)
+    on_upstox = _upstox()
 
-    # The OPTION expiry, not the futures one build_payload resolves: _atm_ids
-    # matches OPTIDX rows on cfg['expiry'], so this is what decides which
-    # contract's history we are about to chart.
-    expiry = chain_live._with_deadline(
-        lambda: chain_live.resolve_expiry(dhan, day, cfg["under_id"],
-                                          cfg["under_seg"]),
-        chain_live.CHAIN_DEADLINE_S, f"{idx} expiry_list")
+    # The OPTION expiry, not the futures one build_payload resolves. On Dhan
+    # `_atm_ids` matches OPTIDX rows on cfg['expiry']; on Upstox the leg keys
+    # come out of the dump's own nearest-live expiry. Either way this is the
+    # number that decides which contract's history we are about to chart, and
+    # it MUST be the one the leg resolver will use -- which is why the Upstox
+    # side reads it through `option_expiry`, the same `_near_opts` that
+    # `option_keys` goes through, rather than computing a second answer.
+    expiry_why = None
+    if on_upstox:
+        import upstox_feed
+        import upstox_instruments
+
+        tok = upstox_feed.read_token()           # raises with the fix in the message
+        dhan = None
+        expiry = upstox_instruments.option_expiry(cfg["under_sym"])
+        if any(s != datetime.now(IST).strftime("%Y-%m-%d") for s in sessions):
+            expiry_why = (
+                f"these bars are the {expiry} contract. Upstox's instrument "
+                f"dump carries LIVE instruments only -- an expired weekly is "
+                f"absent, not merely unresolvable -- so a backfilled session "
+                f"is charted on the CURRENT front contract, which is not the "
+                f"one that was front on that day. Real bars, different "
+                f"instrument; today is the only faithful reproduction.")
+    else:
+        tok = chain_live.read_token()
+        st = chain_live.token_status(tok)
+        if not st["ok"]:
+            raise RuntimeError(st["msg"])
+        dhan = chain_live._client(tok)
+        expiry = chain_live._with_deadline(
+            lambda: chain_live.resolve_expiry(dhan, day, cfg["under_id"],
+                                              cfg["under_seg"]),
+            chain_live.CHAIN_DEADLINE_S, f"{idx} expiry_list")
     cfg["expiry"] = expiry
 
     pair, why = None, None
     if chain_rows is None and strike is None:
-        try:
-            resp = chain_live._with_deadline(
-                lambda: dhan.option_chain(cfg["under_id"], cfg["under_seg"],
-                                          expiry),
-                chain_live.CHAIN_DEADLINE_S, f"{idx} option_chain")
-            snap = chain_live.normalize(
-                chain_live._inner(resp), datetime.now(IST),
-                cfg.get("window", chain_live.WINDOW_PTS))
-            chain_rows = snap["strikes"]
-            if atm is None:
-                atm = snap.get("atm")
-        except Exception as e:                   # noqa: BLE001 - reported below
-            why = f"no chain snapshot to pick a pair from: {type(e).__name__}: {e}"
+        if on_upstox:
+            # Deliberately not a fetch. On Upstox the chain arrives over the
+            # websocket ChainPoller owns; opening a SECOND socket here would
+            # double the subscription for one chart request, and server.py
+            # already hands this route the snapshot the poller paid for.
+            why = ("no chain snapshot to pick a pair from: on Upstox the chain "
+                   "comes over the poller's websocket and this route will not "
+                   "open a second one. Pass `chain_rows` (server.py does) or "
+                   "name a strike.")
+        else:
+            try:
+                resp = chain_live._with_deadline(
+                    lambda: dhan.option_chain(cfg["under_id"], cfg["under_seg"],
+                                              expiry),
+                    chain_live.CHAIN_DEADLINE_S, f"{idx} option_chain")
+                snap = chain_live.normalize(
+                    chain_live._inner(resp), datetime.now(IST),
+                    cfg.get("window", chain_live.WINDOW_PTS))
+                chain_rows = snap["strikes"]
+                if atm is None:
+                    atm = snap.get("atm")
+            except Exception as e:               # noqa: BLE001 - reported below
+                why = f"no chain snapshot to pick a pair from: {type(e).__name__}: {e}"
     if chain_rows:
         pair, why = pick_pair(chain_rows, idx, atm=atm)
     elif why is None:
@@ -689,6 +745,11 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
         want = [(s, pair[s.lower()]["strike"]) for s in sides]
 
     def _real_fetch(sec_id, sess):
+        if on_upstox:
+            # `sec_id` is an Upstox instrument KEY here (`_atm_ids` returns
+            # keys on this path). upstox_rest carries its own throttle, and
+            # `_upstox_bars` picks intraday vs historical off the session.
+            return _upstox_bars(sec_id, "OPTIDX", sess)
         _throttle()                              # the shared 5-req/s gate
         return chain_live._with_deadline(
             lambda: dhan_fetch.rest_intraday(tok, sec_id, "OPTIDX", sess,
@@ -733,14 +794,26 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
         fut_id, ifetch = None, index_fetch
         if ifetch is None:                       # only then is an id needed
             try:
-                fut_id = instruments.resolve_dynamic(
-                    instruments.get(idx), tok, day)["fut_id"]
+                if on_upstox:
+                    # There is exactly one near-month future per index in the
+                    # dump, so it resolves without a scrip master and without
+                    # `day` -- and a Dhan security id would mean nothing here.
+                    fut_id = upstox_instruments.fut_key(cfg["under_sym"])
+                else:
+                    fut_id = instruments.resolve_dynamic(
+                        instruments.get(idx), tok, day)["fut_id"]
             except Exception as e:               # noqa: BLE001 - reported below
                 index_why = (f"no index series: the futures security id for "
                              f"{idx} on {day} did not resolve "
                              f"({type(e).__name__}: {e}). Compression reads "
                              f"UNKNOWN on every bar.")
-            if fut_id is not None:
+            if fut_id is not None and on_upstox:
+                def ifetch(sess, _n=cfg["under_sym"]):
+                    # `_upstox_bars` re-resolves the future from the same dump;
+                    # the name is what it cannot infer (NIFTY and BANKNIFTY are
+                    # both NSE_FNO), and guessing would chart the wrong index.
+                    return _upstox_bars(None, "FUTIDX", sess, name=_n)
+            elif fut_id is not None:
                 def ifetch(sess, _i=fut_id):
                     _throttle()                  # the same 5-req/s gate
                     return chain_live._with_deadline(
@@ -767,6 +840,10 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
         _align_to_axis(leg, axis)
 
     out = {"ok": True, "index": idx, "expiry": expiry, "interval": interval,
+           # Additive, and disclosed rather than inferred: which source served
+           # these bars, and -- on Upstox backfills -- why the contract they
+           # belong to is not the one that was front on that session.
+           "broker": "upstox" if on_upstox else "dhan", "expiry_why": expiry_why,
            "days": days, "sessions": sessions, "side": side, "strike": strike,
            "pair": pair, "pair_why": why, "legs": legs,
            "axis": [[d, t] for d, t in axis], "axis_rule": AXIS_RULE,

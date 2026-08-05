@@ -29,6 +29,11 @@ from analyze import analyze
 ROOT = Path(__file__).parent
 log = logging.getLogger("tapemap")
 
+# Process start, stamped at import. /api/health reports it so a caller can tell
+# "the server I just started" from "a server that has been up since yesterday
+# afternoon" -- which is exactly what held port 8765 on 2026-08-06.
+_STARTED = time.time()
+
 
 def _setup_logging():
     """Console AND tapemap.log — the 2026-07-27 freeze left its only evidence
@@ -67,7 +72,22 @@ class Handler(SimpleHTTPRequestHandler):
         if not self.path.startswith("/api/token"):
             self.send_error(404)
             return
-        from chain_live import token_status
+        from chain_live import _broker, token_status
+        # On Upstox this button cannot do what it says. The running tape and
+        # chain both read `.upstox_token`; an Upstox token is an opaque OAuth
+        # string, not a Dhan JWT, so token_status would reject it as malformed
+        # even if the operator pasted the right one. Writing `.dhan_token` and
+        # reporting success would be the third sentence in HANDOFF §9 -- "we
+        # are not showing you" dressed up as "accepted". Refuse, and name the
+        # thing that actually refreshes it.
+        if _broker() == "upstox":
+            self._json(json.dumps({
+                "ok": False,
+                "msg": ("running on Upstox — this button only writes the Dhan "
+                        "token, which nothing on this path reads. Re-auth "
+                        "with: python upstox_auth.py"),
+            }).encode())
+            return
         try:
             n = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -90,6 +110,27 @@ class Handler(SimpleHTTPRequestHandler):
         self._json(json.dumps({"ok": True, "msg": st["msg"]}).encode())
 
     def do_GET(self):
+        # Answers whatever the tape is doing, and before any other route, so
+        # "is a TapeMap server there, and on which broker" is always askable.
+        # Every other route conflates two different failures: /api/data returns
+        # a live_error body BOTH when the broker is dead and when the market
+        # simply has not opened, which is how a screen at 02:50 came to read
+        # "the backend is unreachable" while the backend was up and correct.
+        # Two callers need the distinction:
+        #   * start-v2.bat, to refuse to reuse a server on the wrong broker --
+        #     a Dhan server left running from the previous afternoon held 8765
+        #     on 2026-08-06 and the launcher reused it.
+        #   * the UI's NOT LIVE banner, which named an expired Dhan token as
+        #     the usual cause while the tool was running on Upstox.
+        if self.path.startswith("/api/health"):
+            from chain_live import _broker
+            self._json(json.dumps({
+                "ok": True,
+                "broker": _broker(),
+                "started_at": _STARTED,
+                "indices": sorted(self.payloads),
+            }).encode())
+            return
         if self.path.startswith("/api/data"):
             idx = self._idx()
             box = self.payloads.get(idx)
@@ -187,6 +228,7 @@ class Handler(SimpleHTTPRequestHandler):
                 except ValueError:
                     rows = None
             import live                          # local: same style as do_POST
+            from chain_live import _broker       # for the failure body below
             try:
                 body = live.build_contract(idx, strike=strike, side=side,
                                            interval=interval, days=days,
@@ -198,6 +240,11 @@ class Handler(SimpleHTTPRequestHandler):
                 log.exception("contract build failed %s", idx)
                 body = {"ok": False, "index": idx, "strike": strike,
                         "side": side, "interval": interval, "days": days,
+                        # Same "empty, never absent" rule as `rotation` below:
+                        # the broker is knowable even when the build failed,
+                        # and a reader must not have to tell "no field" from
+                        # "no value" to find out which source went down.
+                        "broker": _broker(), "expiry_why": None,
                         "expiry": None, "sessions": [],
                         "pair": None, "pair_why": None,
                         "legs": {}, "bars": None, "vwap": None, "oi": None,
