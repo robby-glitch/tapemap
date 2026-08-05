@@ -1,6 +1,8 @@
 # TapeMap v2 — handoff
 
-**Point a new session at this file first.** It is the entry point; every
+**Point a new session at this file first.** It is the entry point; the rules
+themselves are consolidated in **`context/CHECKLIST.md`** (every rule with its
+source, plus a chart checklist showing what currently passes and fails); every
 strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
@@ -39,6 +41,49 @@ TAPEMAP_BROKER=upstox python server.py live 8765
 
 PowerShell: `$env:TAPEMAP_BROKER = "upstox"` on its own line first.
 
+**The desktop shortcut does all of that now (2026-08-06).** `start-v2.bat` — the
+`TapeMap v2` shortcut — sets `TAPEMAP_BROKER=upstox` itself and runs
+`upstox_auth.py` whenever `.upstox_token` was not written today. Until this it
+set **nothing**, so the shortcut launched both halves on Dhan, and the only
+symptom would have been an empty chart. The commands above remain the manual
+path; the shortcut is the one-click one.
+
+Three things that were still reaching for Dhan on the Upstox path, all closed
+the same day (`test_upstox_only.py`, 5 tests):
+
+- `live._token()` opened `.dhan_token` **unconditionally**, so deleting a file
+  the Upstox path never transmits would have killed the whole tape. It now
+  returns `""` on Upstox — and still raises on Dhan, because a missing Dhan
+  token there is a real misconfiguration, not something to paper over.
+- `POST /api/token` (the **⟳ TOKEN button**) validated a Dhan JWT and wrote
+  `.dhan_token` while the running tape and chain read `.upstox_token` — an
+  "accepted" that changed nothing the operator could see. It now refuses on
+  Upstox and names `upstox_auth.py`. The button itself is Dhan-only; there is
+  no Upstox equivalent to click.
+- A server **already up on 8765** has its broker fixed at *its* startup, not by
+  the launcher. On the very first run of the fixed launcher this fired: a Dhan
+  server from the previous afternoon (started 05-08 14:16) still held 8765, the
+  launcher reused it, and the whole dashboard was placeholder data. Warning
+  about it was not enough, so the launcher now **asks the server** via
+  `GET /api/health` and offers to stop it. Verified against that exact stale
+  process: the probe exits 1 (no such route), both Y and N branches correct.
+
+**`GET /api/health` (2026-08-06).** Answers whatever the tape is doing —
+`{ok, broker, started_at, indices}`. It exists because every other route
+conflates two different failures: `/api/data` returns a `live_error` body BOTH
+when the broker is dead and when the market simply has not opened. Two callers
+need them apart — `start-v2.bat` before reusing a port, and the UI banner.
+
+**The NOT LIVE banner was lying (2026-08-06).** At 02:50 it read *"the backend
+is unreachable… An expired Dhan token is the usual cause"* while the backend
+was up, answering, and correct — it had said `no bars yet for 2026-08-06`,
+because the market had not opened. `data.ts`'s `fetchIdx` collapsed every
+failure into one `null`, so "we checked and found nothing" and "we could not
+check" rendered identically (§9 A1). It now returns `{reachable, why}`: only a
+rejected `fetch` means unreachable; any HTTP answer means reachable, and the
+backend's own sentence is shown verbatim. The ⟳ TOKEN button now appears only
+where it can change something — never on Upstox, never when nothing answers.
+
 - **Dhan stays the default.** Anything not exactly `upstox` runs Dhan, so a
   typo fails safe rather than moving the tool to another source while the tape
   keeps printing plausible numbers (`test_broker_switch.py`).
@@ -54,8 +99,34 @@ PowerShell: `$env:TAPEMAP_BROKER = "upstox"` on its own line first.
 - `UDAPI100050` from Upstox means the WRONG TOKEN CLASS, not an expired one.
   An Analytics Token opens history only.
 
-Still on Dhan: `build_contract` / `/api/contract` (the leg charts) and
-everything in `dhan_fetch.py` (backtest tooling).
+**`/api/contract` moved too, 2026-08-05.** The leg charts were the last thing
+wired to Dhan — `chain_live.read_token`, a `dhanhq` client for the expiry, and
+`dhan_fetch.rest_intraday` per option bar — so with the subscription gone the
+CE/PE panes were a 500, not an empty pane. `build_contract` now branches on the
+same `TAPEMAP_BROKER` switch (`test_contract_upstox.py`, 16 tests, offline).
+Verified live 2026-08-05: NIFTY 24600 both legs, 129 3-min bars, no gaps, OI
+7.98M / 5.13M, index series resolved to `NSE_FO|58072` from the dump.
+
+Three things about that path that are NOT the same as Dhan's, and are disclosed
+rather than smoothed over:
+
+- **The pair needs the poller's snapshot.** On Upstox the chain arrives over
+  the websocket `ChainPoller` owns, and this route will not open a second one.
+  `server.py` already passes `chain_rows`; a direct call without one gets a
+  refusal sentence, not a guessed strike.
+- **Backfill charts the CURRENT front contract.** Upstox's dump carries live
+  instruments only — an expired weekly is *absent*, not merely unresolvable —
+  so `day != today` publishes `expiry_why` saying the bars are real but belong
+  to a different instrument than the one that was front that day. Today is the
+  only faithful reproduction.
+- **The session is 10 minutes longer.** Measured 2026-08-05: Upstox serves
+  **385** 1-min bars (09:15→**15:39**, with real volume — 424,385 on the 15:39
+  CE bar) where Dhan served **375** (09:15→15:29). Nothing is wrong with either;
+  the consequence is that the VWAP/σ tail differs between brokers. The operator
+  is flat by 15:15, so it does not touch the d3 rule — but do not compare a
+  Dhan-era band print against an Upstox one at the close and call it a bug.
+
+Still on Dhan: everything in `dhan_fetch.py` (backtest tooling).
 
 - UI at `http://localhost:5173`; Vite proxies `/api` → `127.0.0.1:8765`.
 - **The Dhan token expires daily** — first click of the day is **⟳ TOKEN**.
@@ -74,7 +145,7 @@ corepack pnpm --dir ui-v2 exec tsc --noEmit
 corepack pnpm --dir ui-v2 build
 python -m pytest -q
 ```
-265 tests as of 2026-08-03. `vite build` does **not** typecheck — run `tsc` too.
+**401 tests as of 2026-08-06.** `vite build` does **not** typecheck — run `tsc` too.
 
 **GateGuard hook:** the first Write/Edit per file, and the first Bash call per
 session, are denied with a request for facts (importers, affected API, data
