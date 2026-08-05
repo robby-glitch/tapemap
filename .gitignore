@@ -1,5 +1,6 @@
-# secrets — never commit the Dhan API token
+# secrets — never commit a broker API token
 .dhan_token
+.upstox_token
 
 # live-recorded chain snapshots (200MB+/day, over GitHub's file limit)
 data/chain/
