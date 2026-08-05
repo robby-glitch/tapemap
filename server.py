@@ -228,6 +228,40 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
 
+def _build_why(e):
+    """Turn a live-build failure into a sentence that names the ACTUAL cause.
+
+    Every exception used to print "waiting for a valid Dhan token", which is
+    the one thing the operator can act on and therefore the one thing they
+    tried. On 2026-08-05 that cost an hour: the token was perfect -- it
+    authenticated against /v2/fundlimit with HTTP 200 -- but the DATA API
+    subscription had lapsed, so every intraday call came back 401 / DH-902.
+    The screen said "click TOKEN", and clicking it could never have helped.
+
+    A wrong diagnosis is worse than none, so anything unrecognised now says so
+    and points at the log instead of blaming the token.
+    """
+    body = ""
+    try:                                   # HTTPError carries Dhan's JSON body
+        body = e.read().decode(errors="replace")[:400]
+    except Exception:                      # noqa: BLE001 - not an HTTPError
+        pass
+    code = getattr(e, "code", None)
+    if "DH-902" in body or "not subscribed to Data APIs" in body:
+        return ("Dhan DATA API subscription is not active (DH-902). The token "
+                "is fine — the historical/intraday plan needs renewing at "
+                "dhan.co. Clicking ⟳ TOKEN will not fix this.")
+    if code == 429:
+        return "Dhan rate-limited the tape (HTTP 429) — backing off, no action needed"
+    if code == 401:
+        return ("Dhan refused the request (HTTP 401). Check the token first, "
+                "then the Data API subscription."
+                + (f" Dhan said: {body}" if body else ""))
+    if code:
+        return f"Dhan returned HTTP {code}" + (f": {body}" if body else "")
+    return f"live build failed ({type(e).__name__}) — see tapemap.log"
+
+
 def _start_chain(mock, configs):
     from chain_live import ChainPoller
     poller = ChainPoller(configs, mock=mock)
@@ -309,11 +343,10 @@ def main():
                     trigger_log.log_new(
                         x, payloads[x]["payload"],
                         poller.states.get(x) if poller else None)
-                except Exception as e:  # keep last good data; else ask for a token
+                except Exception as e:  # keep last good data; else say why
                     log.exception("live build failed %s", x)
                     if not have[x]:
-                        payloads[x]["payload"] = _waiting(x,
-                            "waiting for a valid Dhan token — click ⟳ TOKEN")
+                        payloads[x]["payload"] = _waiting(x, _build_why(e))
                     if "429" in str(e):     # rate-limited: back off, don't hammer
                         log.warning("%s rate-limited, backing off 20s", x)
                         _t.sleep(20)
