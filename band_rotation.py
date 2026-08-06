@@ -892,6 +892,43 @@ def detect_index_run(bars, days=None, stop_pts=None):
     Records carry the same keys `detect_index` emits, so every existing
     consumer reads them unchanged, plus `ref_i` / `ref_high` / `level` /
     `waited` describing the run that produced the entry.
+
+    The loop lives in `run_states`, which emits the same machine as a state PER
+    BAR; this is the entries-only view of it. One implementation, two readings
+    -- see `run_states` for why that is not optional.
+    """
+    return [s["entry"] for s in run_states(bars, days, stop_pts)]
+
+
+def run_states(bars, days=None, stop_pts=None):
+    """The same two-candle setup as a state PER BAR, not only its entries.
+
+    `detect_index_run` answers "where did it fire". A screen also has to answer
+    "where does this stand right now", which is the operator's five-state
+    machine: WAITING -> ARMED -> TRIGGERED -> IN_TRADE -> OUT. Both readings
+    come out of this one loop on purpose. Two implementations of one state
+    machine drift, and the drift is invisible: the chart would mark an entry
+    the scorer never counted, or sit ARMED through a bar the scorer had already
+    triggered on, and nothing anywhere would raise.
+
+    Returns a list the length of `bars`::
+
+        {"i": int, "t": str|None,
+         "state": "WAITING" | "ARMED" | "TRIGGERED" | "IN_TRADE",
+         "ref_i": int|None, "ref_high": float|None, "level": float|None,
+         "candles_left": int|None,        # of RUN_WINDOW, from the live ref
+         "entry": record|None,            # exactly what detect_index_run emits
+         "exit_why": "stop"|"vwap"|None,  # the bar the re-fire lock cleared
+         "readable": bool}                # False: the bar had no usable read
+
+    OUT is deliberately not one of the enum values. A bar can clear the lock
+    AND arm the next setup within the same bar -- the loop falls through rather
+    than continuing -- so collapsing that into one label would silently throw
+    the arming away. `exit_why` carries the exit; a reader renders OUT from it.
+
+    An unreadable bar (`readable: False`) reports the state it is still IN, not
+    WAITING. A missing read is not evidence the setup went away, and rendering
+    it as WAITING would blink a live reference off the screen.
     """
     if not isinstance(bars, (list, tuple)) or not bars:
         return []
@@ -912,62 +949,86 @@ def detect_index_run(bars, days=None, stop_pts=None):
         if day != cur_day:
             # A new session starts clean: a reference never survives the close.
             cur_day, ref, lock = day, None, None
-        if bar is None:
-            continue
-        read = _run_read(bar)
-        if read is None:
-            continue
-        low, high, close, lvl, vwap = read
+        t = bar.get("t") if bar is not None else None
+        entry = exit_why = None
+        read = _run_read(bar) if bar is not None else None
+        readable = read is not None
 
-        # 1. The re-fire lock outranks everything.
-        if lock is not None:
-            if lock["stop"] is not None and low <= lock["stop"]:
-                lock = None
-            elif vwap is not None and high >= vwap:
-                lock = None
-            else:
-                continue
+        if readable:
+            low, high, close, lvl, vwap = read
 
-        # 2. Expire a reference that waited too long.
-        if ref is not None and i - ref["i"] > RUN_WINDOW:
-            ref = None
+            # 1. The re-fire lock outranks everything. Note it does NOT skip the
+            #    bar that CLEARS it -- that bar falls through and may arm the
+            #    next setup, which is why OUT is a flag here and not a state.
+            live = True
+            if lock is not None:
+                if lock["stop"] is not None and low <= lock["stop"]:
+                    lock, exit_why = None, "stop"
+                elif vwap is not None and high >= vwap:
+                    lock, exit_why = None, "vwap"
+                else:
+                    live = False
 
-        # 3. A new lower low MOVES the reference (and restarts its clock).
-        #    Such a bar cannot also trigger -- it would be beating its own high.
-        if ref is not None and low < ref["low"]:
-            ref = {"i": i, "t": bar.get("t"), "low": low, "high": high,
-                   "level": lvl if lvl is not None else ref["level"]}
-            continue
+            if live:
+                # 2. Expire a reference that waited too long.
+                if ref is not None and i - ref["i"] > RUN_WINDOW:
+                    ref = None
 
-        # 4. Arm on a TOUCH of d3, after 09:25. A bar with no readable clock is
-        #    not assumed to be late enough.
-        if ref is None:
-            t = bar.get("t")
-            minute = _minute(t) if isinstance(t, str) else None
-            if (lvl is not None and low <= lvl
-                    and minute is not None and minute >= ANCHOR_MINUTE):
-                ref = {"i": i, "t": t, "low": low, "high": high, "level": lvl}
-            continue
+                # The three branches below are mutually exclusive, which the
+                # original spelled with `continue`. An if/elif chain says the
+                # same thing while still letting every bar emit a state.
+                if ref is not None and low < ref["low"]:
+                    # 3. A new lower low MOVES the reference (and restarts its
+                    #    clock). Such a bar cannot also trigger -- it would be
+                    #    beating its own high.
+                    ref = {"i": i, "t": t, "low": low, "high": high,
+                           "level": lvl if lvl is not None else ref["level"]}
+                elif ref is None:
+                    # 4. Arm on a TOUCH of d3, after 09:25. A bar with no
+                    #    readable clock is not assumed to be late enough.
+                    minute = _minute(t) if isinstance(t, str) else None
+                    if (lvl is not None and low <= lvl
+                            and minute is not None and minute >= ANCHOR_MINUTE):
+                        ref = {"i": i, "t": t, "low": low, "high": high,
+                               "level": lvl}
+                elif close > ref["high"]:
+                    # 5. Trigger: a CLOSE above the reference's high.
+                    trap, trap_why, dwell = _trap(by_day, why_none, day, t)
+                    waited = i - ref["i"]
+                    entry = {"i": i, "t": t if isinstance(t, str) else None,
+                             "side": "BUY", "leg": INDEX_LEG, "band": RUN_BAND,
+                             "trigger": _run_why(ref["t"], ref["high"],
+                                                 ref["level"], close, waited),
+                             "also": None,
+                             "confirm": "UNKNOWN",
+                             "confirm_why": SINGLE_SERIES_CONFIRM_WHY,
+                             "trap": trap, "trap_why": trap_why,
+                             "trap_dwell": dwell,
+                             "ref_i": ref["i"], "ref_high": ref["high"],
+                             "level": ref["level"], "waited": waited}
+                    lock = {"stop": (ref["level"] - stop_pts)
+                            if (stop_pts is not None and ref["level"] is not None)
+                            else None}
+                    ref = None
 
-        # 5. Trigger: a CLOSE above the reference's high.
-        if close > ref["high"]:
-            t = bar.get("t")
-            trap, trap_why, dwell = _trap(by_day, why_none, day, t)
-            waited = i - ref["i"]
-            out[i] = {"i": i, "t": t if isinstance(t, str) else None,
-                      "side": "BUY", "leg": INDEX_LEG, "band": RUN_BAND,
-                      "trigger": _run_why(ref["t"], ref["high"], ref["level"],
-                                          close, waited),
-                      "also": None,
-                      "confirm": "UNKNOWN",
-                      "confirm_why": SINGLE_SERIES_CONFIRM_WHY,
-                      "trap": trap, "trap_why": trap_why, "trap_dwell": dwell,
-                      "ref_i": ref["i"], "ref_high": ref["high"],
-                      "level": ref["level"], "waited": waited}
-            lock = {"stop": (ref["level"] - stop_pts)
-                    if (stop_pts is not None and ref["level"] is not None)
-                    else None}
-            ref = None
+        if entry is not None:
+            state = "TRIGGERED"
+        elif lock is not None:
+            state = "IN_TRADE"
+        elif ref is not None:
+            state = "ARMED"
+        else:
+            state = "WAITING"
+        out[i] = {
+            "i": i, "t": t if isinstance(t, str) else None, "state": state,
+            "ref_i": ref["i"] if ref is not None else None,
+            "ref_high": ref["high"] if ref is not None else None,
+            "level": (entry["level"] if entry is not None
+                      else (ref["level"] if ref is not None else None)),
+            "candles_left": (RUN_WINDOW - (i - ref["i"])
+                             if ref is not None else None),
+            "entry": entry, "exit_why": exit_why, "readable": readable,
+        }
     return out
 
 
