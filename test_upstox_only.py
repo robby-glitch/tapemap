@@ -23,6 +23,37 @@ import pytest
 
 import live
 import server
+import upstox_chain
+
+
+def _down_feed(last_error):
+    """A source whose socket is down, with whatever the feed did or did not
+    record. Built with __new__ so no websocket is created."""
+    src = upstox_chain.UpstoxChainSource.__new__(upstox_chain.UpstoxChainSource)
+    src.resolved = {"NIFTY": {"idx_key": "k", "meta": {}}}
+    src.feed = type("_F", (), {"connected": False,
+                               "last_error": last_error})()
+    return src
+
+
+def test_a_down_feed_with_no_recorded_error_still_gives_a_reason():
+    """`last_error` is None before the first connect finishes, and the raw
+    f-string printed "upstox feed down: None" -- an absence with no reason.
+    On 2026-08-06 NIFTY showed that None while BANKNIFTY and SENSEX carried
+    the real 401, so the watched index was the one hiding the cause."""
+    with pytest.raises(RuntimeError) as e:
+        _down_feed(None).poll({"under_sym": "NIFTY"}, "2026-08-07", None)
+    msg = str(e.value)
+    assert "None" not in msg
+    assert "upstox_auth.py" in msg          # names the thing that fixes it
+
+
+def test_a_real_feed_error_is_passed_through_untouched():
+    """The fallback must not swallow a cause that WAS recorded."""
+    with pytest.raises(RuntimeError) as e:
+        _down_feed("WebSocketBadStatusException: Handshake status 401").poll(
+            {"under_sym": "NIFTY"}, "2026-08-07", None)
+    assert "401" in str(e.value)
 
 
 def _broker(monkeypatch, value):
@@ -120,6 +151,21 @@ def test_health_says_dhan_when_nothing_selected_it(monkeypatch):
     launcher's whole check depends on this being able to say "dhan"."""
     monkeypatch.delenv("TAPEMAP_BROKER", raising=False)
     assert _get("/api/health")["broker"] == "dhan"
+
+
+def test_only_one_server_may_hold_the_port():
+    """Python's HTTPServer sets allow_reuse_address = 1, and on Windows that
+    lets a second process TAKE a port the first is listening on. Two servers
+    came up 2s apart on 2026-08-06 and the loser kept an Upstox socket."""
+    assert server._Server.allow_reuse_address is False
+
+
+def test_the_port_is_claimed_before_the_chain_poller_starts():
+    """The ordering IS the fix. Both lines present in the wrong order is
+    exactly the bug: the poller opened a websocket, and only then did the
+    process find out it had lost the port -- and it kept the socket."""
+    src = inspect.getsource(server.main)
+    assert src.index("_Server((") < src.index("_start_chain(mock_chain")
 
 
 def test_health_answers_with_no_tape_at_all(monkeypatch):

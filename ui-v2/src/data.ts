@@ -1247,6 +1247,13 @@ export function useLiveData(fallback: Dataset) {
         // that means "unreachable". Every branch below got an answer.
         return { ok: false, reachable: false, why: 'no answer on 8765' }
       }
+      // A dev-server proxy answers 502/503/504 ON BEHALF of an upstream it
+      // could not reach, so fetch resolving is NOT proof the backend is there.
+      // Measured 2026-08-06 09:46 with the backend stopped: Vite returned 502
+      // and the banner read "the backend is up but has no session yet" -- the
+      // same collapse this function was written to fix, one layer up.
+      if (dr.status >= 502 && dr.status <= 504)
+        return { ok: false, reachable: false, why: `no answer on 8765 (proxy ${dr.status})` }
       if (!dr.ok || !cr.ok)
         return { ok: false, reachable: true, why: `HTTP ${dr.status}/${cr.status}` }
       let D: any

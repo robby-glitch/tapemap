@@ -15,17 +15,20 @@ REM this environment. A misspelling fails SAFE to Dhan (test_broker_switch),
 REM so the word is spelled once, here, and nowhere else.
 set TAPEMAP_BROKER=upstox
 
-REM --- Upstox token (dies daily at 03:30 IST) --------------------------
-REM upstox_feed.read_token only checks the file is non-empty, so a stale
-REM token reads fine and fails later at the first API call -- surfacing as a
-REM chart with no data rather than as an error. Proxy for "still valid" is
-REM "written today": forfiles /D +0 selects files modified today or later.
-REM Blind spot, stated rather than hidden: a token minted between midnight
-REM and 03:30 passes this check and still dies at 03:30. That is outside the
-REM 09:15-15:30 window this launcher exists for.
-forfiles /P . /M ".upstox_token" /D +0 >nul 2>&1
+REM --- Upstox token ----------------------------------------------------
+REM ASK Upstox whether the token works. Do not infer it from the file date.
+REM A date says "written today"; it never says "still valid", and on
+REM 2026-08-06 that difference cost a morning: the token was minted at 02:48,
+REM Upstox expires tokens at 03:30, so by 09:10 it was six hours dead while
+REM its file still read "today". The chart kept drawing -- the v3 candle
+REM endpoint serves without auth -- and only the chain died, which looks
+REM exactly like a chain bug and is not one.
+REM /v2/user/profile is the cheapest authenticated call there is, and it is
+REM read-only. Any failure at all -- missing file, empty file, 401 -- exits
+REM non-zero and re-auths. The token is never printed.
+python -c "import sys,urllib.request,upstox_feed;t=upstox_feed.read_token();r=urllib.request.Request('https://api.upstox.com/v2/user/profile',headers={'Authorization':'Bearer '+t,'Accept':'application/json','User-Agent':'Mozilla/5.0 Chrome/128.0.0.0 Safari/537.36'});urllib.request.urlopen(r,timeout=15).read();sys.exit(0)" 2>nul
 if errorlevel 1 (
-  echo Upstox token is not from today - opening the login...
+  echo Upstox rejected the saved token - opening the login...
   python upstox_auth.py
   if errorlevel 1 (
     echo.
@@ -36,7 +39,7 @@ if errorlevel 1 (
     exit /b 1
   )
 ) else (
-  echo Upstox token is from today - reusing it.
+  echo Upstox accepted the saved token - reusing it.
 )
 
 REM --- backend (8765) ------------------------------------------------

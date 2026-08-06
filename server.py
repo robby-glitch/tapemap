@@ -45,11 +45,31 @@ def _setup_logging():
                   logging.StreamHandler()])
 
 
+class _Server(ThreadingHTTPServer):
+    """One TapeMap per port, enforced at the socket.
+
+    Python's HTTPServer sets `allow_reuse_address = 1`. On Linux that only
+    shortens TIME_WAIT, but on WINDOWS SO_REUSEADDR lets a second process bind
+    a port another process is already listening on and take it over. That is
+    how two servers came up 2s apart on 2026-08-06: the second stole 8765, and
+    the first stayed alive holding an Upstox websocket slot while serving
+    nothing -- invisible to stop.bat, which kills by port. One token only gets
+    so many sockets, so the survivor's chain poller took 401 after 401.
+    """
+
+    allow_reuse_address = False
+
+
 class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *a, payloads=None, chains=None, poller=None, **kw):
+    def __init__(self, *a, payloads=None, chains=None, poller=None, late=None,
+                 **kw):
         self.payloads = payloads or {}     # idx -> {"payload": bytes} (or bytes)
-        self.chains = chains               # idx -> ChainPoller box, or None
-        self.poller = poller               # ChainPoller object (for hot-reload), or None
+        # Resolved per REQUEST rather than when the factory was built: the
+        # socket is now bound BEFORE the chain poller exists, so the poller is
+        # handed over through `late` once it does. See main() for why the bind
+        # has to come first.
+        self.chains = late["chains"] if late is not None else chains
+        self.poller = late["poller"] if late is not None else poller
         super().__init__(*a, directory=str(ROOT / "ui"), **kw)
 
     def _idx(self):
@@ -345,8 +365,23 @@ def main():
         payloads = {x: {"payload": _waiting(x, "starting up — resolving…")}
                     for x in instruments.ENABLED}
         have = {x: False for x in instruments.ENABLED}
+        # BIND FIRST -- before the chain poller opens a websocket. The poller
+        # used to start here, so a second server that went on to lose the port
+        # had already taken an Upstox socket, and kept it. Claiming the port is
+        # the cheapest thing that can fail, so it goes first: a duplicate now
+        # dies below having taken nothing.
+        late = {"chains": None, "poller": None}
+        try:
+            httpd = _Server(("127.0.0.1", port),
+                            partial(Handler, payloads=payloads, late=late))
+        except OSError as e:
+            log.error("cannot bind 127.0.0.1:%s (%s). Another TapeMap server "
+                      "is already running -- stop it first with stop.bat, "
+                      "then start again.", port, e)
+            sys.exit(1)
         poller = _start_chain(mock_chain, list(cfgs.values()))
         chains = poller.boxes
+        late["chains"], late["poller"] = chains, poller
         log.info("LIVE server up on http://127.0.0.1:%s for %s (refresh %ss). "
                  "Need a token? Click TOKEN in the UI.", port, list(cfgs), REFRESH_S)
 
@@ -401,9 +436,7 @@ def main():
         for n, (x, c) in enumerate(cfgs.items()):
             threading.Thread(target=refresh_one, args=(x, c, n * 5),
                              daemon=True, name=f"refresh-{x}").start()
-        ThreadingHTTPServer(("127.0.0.1", port),
-                            partial(Handler, payloads=payloads,
-                                    chains=chains, poller=poller)).serve_forever()
+        httpd.serve_forever()          # bound above, before anything was taken
         return
     port = int(argv[0]) if argv else 8765
     base = argv[1] if len(argv) > 1 else "data"

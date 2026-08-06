@@ -99,7 +99,17 @@ class UpstoxChainSource:
         if not r or self.feed is None:
             raise RuntimeError(f"{idx}: upstox source polled before start()")
         if not self.feed.connected:
-            raise RuntimeError(f"upstox feed down: {self.feed.last_error}")
+            # `last_error` is None both before the first connect attempt and
+            # after a clean close, so printing it raw yields "upstox feed down:
+            # None" -- an absence with no reason, which is exactly what rule A2
+            # forbids. On 2026-08-06 NIFTY reported that None while BANKNIFTY
+            # and SENSEX carried the real WebSocket 401, so the one index the
+            # operator happened to be watching was the one hiding the cause.
+            why = self.feed.last_error or (
+                "no error recorded -- the socket has not finished a connect "
+                "attempt yet. If this does not clear, check the token first: "
+                "python upstox_auth.py")
+            raise RuntimeError(f"upstox feed down: {why}")
         age = self.feed.age()
         if age is None:
             raise RuntimeError("upstox feed connected but has sent nothing yet")
