@@ -1332,8 +1332,15 @@ export function startLevelsOverlay(
        Distance is measured in σ, not points, so it self-scales: NIFTY's 1σ and
        BANKNIFTY's are different numbers for the same thing, and a hard-coded
        point threshold would have become three constants that drift apart. */
-    const NEAR_FULL = 0.25   // within a quarter-σ: fully lit
-    const NEAR_FADE = 1.00   // beyond one σ: resting weight
+    /* Both widened 2026-08-07 after the first cut did visibly nothing.
+       Operator: *"jb price unko approach kr to line waise he golden kuch change
+       nhi ho rha h"*. Two separate mistakes, both measured on the live tape
+       (px 24651.2, 1σ 21.96):
+         - FADE was 1σ. Levels routinely sit 1-3σ apart, so on most bars NO
+           level was inside the ramp at all and nothing ever lit.
+         - the alpha range was 0.85→1.00, a 15% change. That is invisible. */
+    const NEAR_FULL = 0.35   // within a third of a σ: fully lit
+    const NEAR_FADE = 3.00   // beyond three σ: resting weight
     const lastBar = lastIdx >= 0 ? dBars[lastIdx] : null
     const px = lastBar ? Number(lastBar.c) : NaN
     // One σ from the band pair the chart already draws. Degrades to NaN — and
@@ -1373,9 +1380,10 @@ export function startLevelsOverlay(
         const d = Math.abs(lvl.value - px)
         if (d < best) { best = d; targetIdx = i }
       })
-      // Only if it is actually close. A "next level" 4σ away is not what price
-      // is approaching, and lighting it would point the eye off the screen.
-      if (targetIdx >= 0 && nearness(visible[targetIdx].lvl.value) <= 0) targetIdx = -1
+      // The target is NOT distance-gated. It was, and that was the bug: a
+      // "within 1σ or nothing" rule meant the tint almost never appeared, which
+      // is exactly what the operator reported. Which level is next is worth
+      // knowing at any distance; HOW CLOSE it is, is what the ramp says.
     }
 
     visible.forEach(({ lvl, y }, li) => {
@@ -1387,13 +1395,18 @@ export function startLevelsOverlay(
       // complaint and dimming them would have made that worse.
       const hue = isTarget ? (up ? pal.bull : pal.bear)
         : lvl.kind === 'trap' ? pal.bear : pal.accent
-      const color = withAlpha(hue, 0.85 + 0.15 * near)
+      const color = withAlpha(hue, 0.7 + 0.3 * near)
       ctx.strokeStyle = color
       ctx.fillStyle = color
 
       // Always draw the line — suppressing it would hide a real price level.
-      ctx.lineWidth = 1 + 1.2 * near + (isTarget ? 0.5 : 0)
-      ctx.setLineDash(lvl.kind === 'band' ? [2, 4] : [6, 4])
+      ctx.lineWidth = 1 + 1.6 * near + (isTarget ? 0.8 : 0)
+      // The target draws SOLID where every other level is dashed. Hue alone is
+      // a weak signal on a chart already carrying brass, red and green, and it
+      // is the one signal a colour-blind reader loses entirely; the dash
+      // pattern carries the same fact through a second channel.
+      if (isTarget) ctx.setLineDash([])
+      else ctx.setLineDash(lvl.kind === 'band' ? [2, 4] : [6, 4])
       ctx.beginPath()
       ctx.moveTo(pane.x, y)
       ctx.lineTo(pane.x + pane.width, y)
