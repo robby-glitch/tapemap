@@ -140,7 +140,7 @@ export default function ZoneRead({
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-        <Group pal={pal} title="Where">
+        <Group pal={pal} title="Kahan">
           <div>close {c.toFixed(1)} · VWAP {bar.vwap.toFixed(1)} ({c >= bar.vwap ? 'above' : 'below'}, {pts(c - bar.vwap)})</div>
           <div>nearest band edge {nearest[0]} {nearest[1].toFixed(1)} ({pts(c - nearest[1])} pts)</div>
           {bar.ctx ? (

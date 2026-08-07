@@ -165,11 +165,11 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
       padding: '12px 16px', borderRadius: 6, backgroundColor: pal.card,
       border: `1px solid ${pal.border}`, display: 'flex', flexDirection: 'column', gap: 10,
     }}>
-      <div style={label}>WHAT THE ENGINE SAYS TO WATCH</div>
+      <div style={label}>ENGINE KYA DEKHNE KO KEH RAHA HAI</div>
 
       {!ctx ? (
         <div style={{ fontSize: 11, color: pal.textMuted }}>
-          engine context unavailable for this bar
+          is bar ka engine context nahi mila
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -212,19 +212,19 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
                       40-minute-old LOADING setup and one born this bar look
                       identical. */}
                   <span style={{ fontFamily: MONO, fontSize: 9.5, color: pal.textMuted }}>
-                    since {setup.t0}
+                    {setup.t0} se
                   </span>
                 </div>
                 {setup.conflict && (
                   <span style={{ fontSize: 11, color: pal.caution }}>
-                    direction unresolved — books rotate against this spring
+                    direction tay nahi — books is spring ke ulte ghoom rahi hain
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: pal.textSecondary }}>
                   {setup.level_name} @ {setup.level_px.toFixed(1)}
                 </span>
                 <span style={{ fontSize: 11, color: pal.textMuted }}>
-                  invalid past {setup.ref.toFixed(1)}
+                  {setup.ref.toFixed(1)} ke paar hote hi khatam
                 </span>
                 <span style={{ fontFamily: MONO, fontSize: 10.5, color: pal.textMuted }}>
                   intensity {setup.intensity.toFixed(2)} · comp {setup.comp.toFixed(2)}
@@ -232,14 +232,14 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
               </>
             ) : (
               <span style={{ fontSize: 11, color: pal.textMuted }}>
-                no setup armed — engine has nothing loaded here
+                koi setup taiyaar nahi — engine ne yahan kuch load nahi kiya
               </span>
             )}
           </div>
 
           {/* PLAYS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 220, flex: '2 1 220px' }}>
-            <span style={label}>LOOK FOR — THE ENGINE'S CONDITIONAL PLAYS</span>
+            <span style={label}>YE DEKHO — ENGINE KE SHARTI PLAYS</span>
             {ctx.plays.length ? ctx.plays.map((p, i) => (
               <div key={i} style={{
                 fontFamily: MONO, fontSize: 11, color: pal.textPrimary,
@@ -249,7 +249,7 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
               </div>
             )) : (
               <span style={{ fontSize: 11, color: pal.textMuted }}>
-                no conditional plays on this bar
+                is bar par koi sharti play nahi
               </span>
             )}
           </div>
@@ -276,7 +276,7 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
       )}
 
       <div style={{ fontSize: 10, color: pal.textMuted, borderTop: `1px solid ${pal.border}`, paddingTop: 8 }}>
-        the engine's own read, quoted with its receipts — descriptive, not advice · signals only, orders never
+        engine ka apna read, apni receipts ke saath, jaisa ka taisa — sirf bayaan hai, salaah nahi · sirf signals, order kabhi nahi
       </div>
     </div>
   )
@@ -542,7 +542,7 @@ export default function TradeTab({
             border: `1px solid ${pal.border}`, color: pal.textMuted,
             fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
           }}>
-            Loading {index} tape…
+            {index} ka tape aa raha hai…
           </div>
         </div>
       )
@@ -555,8 +555,9 @@ export default function TradeTab({
           border: `1px solid ${pal.caution}`, color: pal.caution,
           fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
         }}>
-          NO {index} TAPE — the backend has no session for this index, so there is
-          nothing to chart. No candles are drawn rather than placeholder ones.
+          {index} KA TAPE NAHI — backend ke paas is index ka koi session hi nahi,
+          toh chart banane ko kuch nahi hai. Nakli candles dikhane se behtar hai
+          ek bhi na dikhana.
         </div>
       </div>
     )
@@ -609,10 +610,10 @@ export default function TradeTab({
               color={prec === 'exact' ? pal.textPrimary : pal.caution}
               title={prec === 'exact' ? undefined
                 : prec === 'no-year'
-                  ? 'This session key carries no year, so the chart’s date axis infers the current one. The month, day and intraday clock are real.'
-                  : 'This session key carries no parseable date, so the chart’s date axis is synthetic. The intraday clock is real.'} />
+                  ? 'Is session key mein saal likha hi nahi hai, toh chart ka date axis maujuda saal maan leta hai. Mahina, taareekh aur intraday ghadi asli hain.'
+                  : 'Is session key mein koi padhne layak date nahi hai, toh chart ka date axis banawati hai. Intraday ghadi asli hai.'} />
         <Stat pal={pal} label="Bar" value={b.t} />
-        <Stat pal={pal} label="Close" value={b.c.toFixed(1)} color={dir} />
+        <Stat pal={pal} label="Band bhaav" value={b.c.toFixed(1)} color={dir} />
         <Stat pal={pal} label="Open interest" value={`${(b.oi / 1e6).toFixed(2)}M`} />
         <Stat pal={pal} label="Volume" value={b.v.toLocaleString('en-IN')} />
         <Stat pal={pal} label="Bars" value={`${at + 1} / ${bars.length}`} />
@@ -638,7 +639,7 @@ export default function TradeTab({
               Styled like the LIGHT/DARK toggle, palette tokens only. */}
           <button
             onClick={onFocusToggle}
-            title="Hide the glance bar and ANSWER band while on this tab, so the chart gets more height"
+            title="Is tab par glance bar aur ANSWER band chhupa do, taaki chart ko zyada height mile"
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 9px', cursor: 'pointer',
@@ -656,10 +657,10 @@ export default function TradeTab({
           <button
             onClick={toggleSmc}
             title={structCounts
-              ? `Show the backend's structure layer — OB, EQH/EQL, swing pivots and`
-                + ` prior-day levels (${structCounts.drawn} drawn`
-                + `${structCounts.withheld ? ` · ${structCounts.withheld} FVG/BOS/CHoCH withheld` : ''})`
-              : 'Show the structure layer — unavailable for this session, see the note below'}
+              ? `Structure layer dikhao — OB, EQH/EQL, swing pivots aur pichhle din ke`
+                + ` levels (${structCounts.drawn} bane`
+                + `${structCounts.withheld ? ` · ${structCounts.withheld} FVG/BOS/CHoCH roke gaye` : ''})`
+              : 'Structure layer dikhao — is session ke liye mil hi nahi raha, neeche wali line dekho'}
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 9px', cursor: 'pointer',
@@ -676,8 +677,8 @@ export default function TradeTab({
           <button
             onClick={toggleStory}
             title={narrs.length
-              ? `Show the engine's event layers over price — ${eventCount} event${eventCount === 1 ? '' : 's'} and ${zones.length} condition band${zones.length === 1 ? '' : 's'} on this session. Off by default: these were never scored, and the ones that were measured did worse than doing nothing.`
-              : 'Show the engine\'s event layers over price — no events on this session'}
+              ? `Engine ke event layers bhaav ke upar dikhao — is session mein ${eventCount} event aur ${zones.length} condition band. Default OFF hai: inka score kabhi nikla hi nahi, aur jinka nikla wo kuch na karne se bhi bure nikle.`
+              : 'Engine ke event layers bhaav ke upar dikhao — is session mein koi event nahi'}
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 9px', cursor: 'pointer',
@@ -694,10 +695,10 @@ export default function TradeTab({
           <button
             onClick={cycleLegs}
             title={legsView === 'off'
-              ? 'The CE/PE premium panes are hidden, so the index chart has the page to itself. Click to show them side by side.'
+              ? 'CE/PE premium panes chhupe hue hain, toh poora page index chart ka hai. Click karo toh dono saath-saath aa jaayenge.'
               : legsView === 'stacked'
-                ? 'CE and PE panes stacked full-width — more horizontal resolution per pane. Click to hide them.'
-                : 'CE and PE panes side by side — both legs visible at once, which is what the pair rotation read needs. Click to stack them full-width.'}
+                ? 'CE aur PE poori chaudai mein ek ke neeche ek — har pane ko zyada horizontal jagah. Click karo toh chhup jaayenge.'
+                : 'CE aur PE saath-saath — dono legs ek saath dikhti hain, jo pair rotation padhne ke liye chahiye. Click karo toh poori chaudai mein ek ke neeche ek ho jaayenge.'}
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 9px', cursor: 'pointer',
@@ -761,11 +762,11 @@ export default function TradeTab({
           color: (stale || chainStale) ? pal.caution : pal.textMuted,
         }}>
           {[
-            stale && `This index stopped updating — the chart below is the last tape received, not live. Its final bar is ${b.t}.`,
+            stale && `Ye index update hona band ho gaya — neeche ka chart aakhri mila hua tape hai, live nahi. Uska aakhri bar ${b.t} ka hai.`,
             prec !== 'exact' && (prec === 'no-year'
-              ? 'Session key carries no year — the date axis infers the current one; month, day and intraday times are real.'
-              : 'Session key carries no parseable date — the date axis is synthetic; intraday times are real.'),
-            chainStale && `Chain snapshot is stale — MAX PAIN and GEX FLIP below are from ${chainTs || 'an earlier time'}, not now.`,
+              ? 'Session key mein saal nahi hai — date axis maujuda saal maan raha hai; mahina, taareekh aur intraday ghadi asli hain.'
+              : 'Session key mein padhne layak date nahi hai — date axis banawati hai; intraday ghadi asli hai.'),
+            chainStale && `Chain snapshot purana hai — neeche MAX PAIN aur GEX FLIP ${chainTs || 'kisi pichhle waqt'} ke hain, abhi ke nahi.`,
           ].filter(Boolean).join('  ·  ')}
         </div>
       )}
@@ -779,8 +780,8 @@ export default function TradeTab({
           those two must never share this disclosure line. */}
       {smc && day && !structures && (
         <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Structure layer unavailable{structuresWhy ? ` — ${structuresWhy}` : ''}. No boxes are drawn
-          rather than boxes that might sit on the wrong bars.
+          Structure layer nahi mila{structuresWhy ? ` — ${structuresWhy}` : ''}. Galat bars par
+          baithne wale boxes dikhane se behtar hai ek bhi box na dikhana.
         </div>
       )}
 
@@ -790,10 +791,10 @@ export default function TradeTab({
           tab's own initial-load state, already covered by the bail. */}
       {day && !rotationRun && (
         <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Setup markers unavailable{rotationRunWhy ? ` — ${rotationRunWhy}` : ''}. Nothing is
-          drawn rather than markers that might sit on the wrong bars — and the older
-          one-candle layer is deliberately NOT substituted: it marks the d3 touch,
-          not the entry, so it would put every marker on a different bar.
+          Setup ke markers nahi mile{rotationRunWhy ? ` — ${rotationRunWhy}` : ''}. Galat bars par
+          baithne wale markers dikhane se behtar hai kuch na dikhana — aur purani
+          ek-candle wali layer jaan-bujh kar iski jagah NAHI lagayi ja rahi: wo d3 ke
+          touch ko mark karti hai, entry ko nahi, toh har marker doosre bar par chala jaata.
         </div>
       )}
 
@@ -893,13 +894,13 @@ export default function TradeTab({
             )}
             {cursor != null && (
               <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
-                {' · live flow — not aligned to the replay cursor'}
+                {' · live flow — replay cursor ke saath aligned nahi'}
               </span>
             )}
           </>
         ) : (
           <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
-            Trending OI unavailable — {flowWhy}
+            Trending OI nahi mili — {flowWhy}
           </span>
         )}
       </div>
@@ -908,26 +909,26 @@ export default function TradeTab({
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
 
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-        VWAP red · σ bands ±1σ dark red / ±2σ green / ±3σ blue · levels · OI
+        VWAP laal · σ bands ±1σ gehra laal / ±2σ hara / ±3σ neela · levels · OI
         {rotCount != null
-          ? ` · ${rotCount.drawnCount} d3 BUY entr${rotCount.drawnCount === 1 ? 'y' : 'ies'}`
-            + ` — the close that broke the touching bar's high, not the touch`
-            + ` (triangle on the σ band it tagged, square pill; faded = the index`
-            + ` was not squeezing into it, dashed = that could not be checked)`
+          ? ` · ${rotCount.drawnCount} d3 BUY entry`
+            + ` — wo close jisne chhune wale bar ka high toda, touch nahi`
+            + ` (jis σ band ko tag kiya uspar triangle, chaukor pill; halka = index`
+            + ` uske andar sikud nahi raha tha, dashed = ye check hi nahi ho paaya)`
             // Not a filter count any more: arming at 09:25 and folding a run
             // into one reference now happen in band_rotation.run_states, where
             // the rule lives. This says only that the backend sent something
             // that rule cannot emit — which should never print.
             + (rotCount.unexpected
-              ? ` · ${rotCount.unexpected} withheld: the backend sent`
-                + ` ${rotCount.unexpectedWhy}, which §5c's detector cannot produce`
+              ? ` · ${rotCount.unexpected} roke gaye: backend ne`
+                + ` ${rotCount.unexpectedWhy} bheja, jo §5c ka detector bana hi nahi sakta`
               : '')
           : ''}
         {smc && structures && structures.length
-          ? ` · structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed,`
-            + ` faint dashed = unchecked; short unlabelled ticks are swing pivots)`
+          ? ` · structure (peetal; solid = flow se confirmed aur naam ke saath, halka = confirm nahi hua,`
+            + ` halka dashed = check hi nahi ho paaya; chhote bina-naam ke ticks swing pivots hain)`
             + `${structCounts && structCounts.zones > STRUCT_ZONE_LIMIT
-              ? ` · newest ${STRUCT_ZONE_LIMIT} of ${structCounts.zones} OB zones drawn`
+              ? ` · ${structCounts.zones} mein se sabse naye ${STRUCT_ZONE_LIMIT} OB zones bane`
               : ''}`
           : ''}
       </div>
@@ -940,28 +941,28 @@ export default function TradeTab({
           first paint never claims anything is being withheld. */}
       {day && (!story || !smc || !!structCounts?.withheld) && (
         <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2, opacity: 0.85 }}>
-          Hidden:
-          {!story && ` STORY — ${eventCount} event${eventCount === 1 ? '' : 's'}`
-            + ` and ${zones.length} condition band${zones.length === 1 ? '' : 's'} not drawn`}
+          Chhupa hua:
+          {!story && ` STORY — ${eventCount} event`
+            + ` aur ${zones.length} condition band nahi bane`}
           {!story && (!smc || !!structCounts?.withheld) && ' ·'}
           {/* SMC OFF hides EVERYTHING, so the number here must be the whole
               set — drawn + withheld — not just the kinds the layer would have
               rendered had it been on. Reporting only `drawn` would understate
               what the toggle is holding back. */}
           {!smc && (structures
-            ? ` STRUCTURE — ${structCounts ? structCounts.drawn + structCounts.withheld : 0} structure${structCounts && structCounts.drawn + structCounts.withheld === 1 ? '' : 's'} not drawn`
-            : ' STRUCTURE — unavailable for this session, not merely hidden')}
+            ? ` STRUCTURE — ${structCounts ? structCounts.drawn + structCounts.withheld : 0} structure nahi bane`
+            : ' STRUCTURE — is session ke liye mila hi nahi, sirf chhupaya nahi gaya')}
           {/* Withheld REGARDLESS of the toggle, so it is disclosed even with
               the layer on: FVG/BOS/CHoCH still arrive in the payload and the
               overlay no longer draws them (operator's call, 2026-08-07). A
               chart that is quiet because three kinds were dropped must not
               read as a chart that found nothing. */}
           {smc && !!structCounts?.withheld && ` FVG/BOS/CHoCH — ${structCounts.withheld}`
-            + ` not drawn; dropped from the layer, still published by the backend`}
+            + ` nahi bane; layer se hata diye gaye, backend abhi bhi bhej raha hai`}
           {'. '}
-          STORY and STRUCTURE are off by default because they were never scored
-          against what price did next; the buttons above turn them back on.
-          Hover still reads every event on its own bar.
+          STORY aur STRUCTURE default OFF hain kyunki inka score kabhi nikala hi
+          nahi gaya ki aage bhaav ne kya kiya; upar ke buttons se wapas on ho
+          jaayenge. Hover abhi bhi har event apne bar par padh leta hai.
         </div>
       )}
     </div>
