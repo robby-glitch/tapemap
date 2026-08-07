@@ -4,6 +4,7 @@ import ContractChart from './ContractChart'
 import Ribbon from './Ribbon'
 import LegChart from './LegChart'
 import ZoneRead, { crl } from './ZoneRead'
+import SetupCheck from './SetupCheck'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
@@ -23,7 +24,7 @@ type LegsView = 'split' | 'stacked' | 'off'
  *  the panel, absorbs a resize. */
 const CHART_SIDE_W = 260
 import { palette, MONO, useMode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure, Chain, FlowRow, OptPivots } from '../data'
+import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, FlowRow, OptPivots } from '../data'
 
 interface Props {
   index: IndexKey
@@ -76,6 +77,14 @@ interface Props {
   rotationRun: (RotationSignal | null)[] | null
   /** Why `rotationRun` is null. Empty when it isn't. */
   rotationRunWhy: string
+  /** The SAME §5c machine read per BAR rather than per entry — where the setup
+   *  stands right now. `rotationRun` answers "where did it fire"; this answers
+   *  "where does this stand", which is what the SETUP CHECK panel reads. Both
+   *  come out of one loop in `band_rotation.run_states`, so they can never
+   *  disagree. Null on a backend too old to publish it. */
+  runState: RunState[] | null
+  /** Why `runState` is null, in data.ts's own words. Empty when it isn't. */
+  runStateWhy: string
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -277,7 +286,7 @@ export default function TradeTab({
   index, day, bars, levels, events, cursor, chain, strike, optPivots, optExpiry,
   stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange, structures, structuresWhy,
-  rotation, rotationWhy, rotationRun, rotationRunWhy,
+  rotation, rotationWhy, rotationRun, rotationRunWhy, runState, runStateWhy,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
@@ -806,19 +815,26 @@ export default function TradeTab({
         flex: 1, minHeight: 180, overflow: 'hidden',
         display: 'flex', gap: 10,
       }}>
+        {/* The rail, no longer reserved. A watchlist was the original idea
+            (the operator pointed at Kite), and it was dropped because the
+            three indices already render in App's glance bar from this same
+            payload — a second view of one fetch, not new information. The
+            checklist is: it is the only thing on this screen the operator
+            themselves puts in. `display:flex` + the child's `height:100%`
+            resolve against this box's DEFINITE height, which the row's
+            `align-items: stretch` gives it (E1's rule, same as the chart). */}
         <div style={{
           width: CHART_SIDE_W, flexShrink: 0, borderRadius: 6,
           border: `1px solid ${pal.border}`, backgroundColor: pal.card,
           padding: 12, overflow: 'hidden',
+          display: 'flex', flexDirection: 'column', minHeight: 0,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-                        color: pal.textMuted }}>WATCHLIST</div>
-          {/* An empty panel that says nothing reads as one that failed to
-              load. This one says it is empty on purpose. */}
-          <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 8,
-                        lineHeight: 1.5 }}>
-            Reserved — nothing is wired here yet. The space is held, not broken.
-          </div>
+          <SetupCheck
+            pal={pal} day={day} bar={b}
+            runState={runState?.[at] ?? null} runStateWhy={runStateWhy}
+            entry={rotationRun?.[at] ?? null}
+            flow={lastFlow} flowWhy={flowWhy}
+          />
         </div>
         <div style={{
           // minWidth:0, or a flex item refuses to shrink below its content and

@@ -1,0 +1,579 @@
+<!--
+MOCKUP: The Trade tab's left panel — SETUP CHECK.
+Fills the 260px rail beside the chart (CHART_SIDE_W, TradeTab.tsx). Not built yet.
+
+WHY THREE VARIANTS: the operator settled the list (core fixed + gamma/OI context),
+the ticking (hybrid auto/manual) and the reset (daily + manual button), and left
+the confidence display to this mockup. The three differ in exactly that — how the
+tally is expressed — and in nothing else, so the choice is between readings of the
+same content, not between three different panels.
+
+TOKENS: real ones. TL / T from ui-v2/src/theme.ts, verbatim. Colour law honoured:
+green/red are DIRECTION ONLY, so a tick is never green. Brass = structure = "the
+tool measured this"; ink = the operator's own hand; amber = a disclosure.
+
+HONESTY: three tick states, not two — CHECKED, NOT YET, and CANNOT CHECK. That is
+CHECKLIST A1 ("we checked and found nothing" / "we could not check" / "we are not
+showing you" are three sentences) rendered as three marks.
+
+NOT A VETO: C7 measured compression-as-filter as HARMFUL; C11 measured an OI-strength
+entry veto as removing 10 of 12 signals incl. 9 winners. So TRIGGER (scored) and
+CONTEXT (unscored) never merge into one number in variants B and C, and variant A
+labels its combined number as a count, never a probability.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade tab — SETUP CHECK panel</title>
+<style>
+  /* ── tokens: ui-v2/src/theme.ts, TL (light) and T (dark), verbatim ────── */
+  :root{
+    --bg:#F7F8FA; --card:#FFFFFF; --inset:#FBFCFD; --border:#E3E7ED;
+    --tp:#141A22; --ts:#5C6675; --tm:#6B7482;
+    --bull:#1B8A38; --bear:#C42B30; --caution:#B45309; --accent:#A9762A;
+    --ink:#141A22; --strike:#9A7A22;
+    --wash:rgba(20,26,34,0.045); --wash2:rgba(20,26,34,0.09);
+  }
+  [data-mode=dark]{
+    --bg:#0B0E14; --card:#141926; --inset:#1B2130; --border:rgba(255,255,255,0.07);
+    --tp:#E8EDF5; --ts:#9AA7BD; --tm:#5D6B84;
+    --bull:#2EC27E; --bear:#FF5F6B; --caution:#FFBF00; --accent:#E0A852;
+    --ink:#FFFFFF; --strike:#E8C15A;
+    --wash:rgba(255,255,255,0.05); --wash2:rgba(255,255,255,0.10);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--tp);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:13px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  /* The app-wide miss ui-audit filed (Inter/Roboto, no tabular figures). This
+     panel carries receipts that tick; it gets them from the start. */
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+        font-variant-numeric:tabular-nums}
+
+  .page{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+  .lead{border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:18px}
+  .lead h1{margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.14em;
+           text-transform:uppercase}
+  .lead p{margin:0 0 4px;max-width:74ch;color:var(--ts);font-size:12.5px;line-height:1.6}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 14px}
+  .seg{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .seg button{appearance:none;background:var(--card);border:0;
+    border-right:1px solid var(--border);color:var(--ts);font:inherit;font-size:11px;
+    font-weight:600;letter-spacing:.09em;text-transform:uppercase;padding:7px 13px;
+    cursor:pointer}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed=true]{background:var(--tp);color:var(--card)}
+  .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .note{font-size:11.5px;color:var(--tm);max-width:70ch;margin:0 0 14px;line-height:1.6}
+
+  /* ── the stage: the real chart row, rail + chart, at real proportions ─── */
+  .row{display:flex;gap:10px;height:660px}
+  .rail{width:260px;flex-shrink:0;border-radius:6px;border:1px solid var(--border);
+        background:var(--card);padding:12px;overflow:hidden;
+        display:flex;flex-direction:column}
+  .chart{flex:1;min-width:0;border-radius:6px;border:1px solid var(--border);
+         background:var(--card);position:relative;overflow:hidden;
+         display:flex;align-items:center;justify-content:center}
+  .chart svg{position:absolute;inset:0;width:100%;height:100%}
+  .chart span{position:relative;font-size:11px;letter-spacing:.12em;
+              text-transform:uppercase;color:var(--tm);
+              background:var(--card);padding:5px 10px;border:1px solid var(--border);
+              border-radius:4px}
+
+  /* ── panel internals ──────────────────────────────────────────────────── */
+  .phead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .ptitle{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--tm);
+          text-transform:uppercase}
+  .reset{appearance:none;background:transparent;border:1px solid var(--border);
+    border-radius:4px;color:var(--tm);font:inherit;font-size:9.5px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;cursor:pointer}
+  .reset:hover{color:var(--tp);border-color:var(--wash2)}
+  .reset:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .sub{font-size:10.5px;color:var(--tm);margin-top:2px}
+
+  .body{flex:1;overflow-y:auto;margin:0 -12px;padding:0 12px}
+  .body::-webkit-scrollbar{width:6px}
+  .body::-webkit-scrollbar-thumb{background:var(--wash2);border-radius:3px}
+
+  .grp{margin-top:14px}
+  .ghead{display:flex;align-items:baseline;justify-content:space-between;gap:6px;
+         padding-bottom:5px;border-bottom:1px solid var(--border);margin-bottom:7px}
+  .gname{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+         color:var(--ts)}
+  .gcount{font-size:10px;font-weight:700;color:var(--tm)}
+  .gwhy{font-size:10px;color:var(--tm);line-height:1.45;margin:-2px 0 8px}
+
+  /* a row: tick + label, receipt beneath */
+  .it{display:flex;gap:8px;padding:4px 0;align-items:flex-start;
+      background:none;border:0;width:100%;text-align:left;font:inherit;color:inherit}
+  .it.man{cursor:pointer;border-radius:4px;margin:0 -5px;padding:4px 5px;width:calc(100% + 10px)}
+  .it.man:hover{background:var(--wash)}
+  .it.man:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .box{width:14px;height:14px;flex-shrink:0;margin-top:1px;border-radius:3px;
+       border:1px solid var(--wash2);display:flex;align-items:center;
+       justify-content:center;background:var(--inset)}
+  .box svg{width:10px;height:10px;display:block}
+  /* Brass = the tool measured it. Ink = the operator's own hand. Never green:
+     theme.ts reserves green/red for DIRECTION. */
+  .it[data-s=auto-on] .box{border-color:var(--accent);background:var(--accent)}
+  .it[data-s=auto-on] .box svg{stroke:var(--card)}
+  .it[data-s=man-on]  .box{border-color:var(--tp);background:var(--tp)}
+  .it[data-s=man-on]  .box svg{stroke:var(--card)}
+  .it[data-s=unknown] .box{border-color:var(--caution);border-style:dashed;
+                           background:transparent}
+  .it[data-s=unknown] .box svg{stroke:var(--caution)}
+  .lab{min-width:0;flex:1}
+  .ltxt{font-size:11.5px;line-height:1.35;color:var(--tp)}
+  .it[data-s=off] .ltxt,.it[data-s=man-off] .ltxt{color:var(--ts)}
+  .it[data-s=unknown] .ltxt{color:var(--ts)}
+  .rcpt{font-size:10px;color:var(--tm);margin-top:1px;line-height:1.35}
+  .rcpt.warn{color:var(--caution)}
+  .src{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+       color:var(--tm);border:1px solid var(--border);border-radius:3px;
+       padding:0 3px;margin-left:5px;white-space:nowrap;vertical-align:1px}
+
+  /* variant C: receipt right-aligned on the same line */
+  .cpanel .it{align-items:center}
+  .cpanel .lab{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+  .cpanel .rcpt{margin-top:0;text-align:right;white-space:nowrap}
+
+  /* the state block (variant B) */
+  .state{border:1px solid var(--wash2);border-radius:5px;background:var(--inset);
+         padding:9px 10px;margin-top:10px}
+  .sname{font-size:14px;font-weight:700;letter-spacing:.1em;color:var(--accent)}
+  .sline{font-size:10.5px;color:var(--ts);margin-top:3px;line-height:1.5}
+  .sbeat{font-size:10.5px;color:var(--tp);margin-top:5px;padding-top:5px;
+         border-top:1px solid var(--border)}
+
+  /* the tally */
+  .foot{border-top:1px solid var(--border);margin-top:12px;padding-top:10px}
+  .fnum{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--tp)}
+  .fnum em{font-style:normal;color:var(--tm);font-weight:600}
+  .meter{display:flex;gap:3px;margin-top:7px}
+  .meter i{flex:1;height:5px;border-radius:1px;background:var(--wash2)}
+  .meter i[data-on=auto]{background:var(--accent)}
+  .meter i[data-on=man]{background:var(--tp)}
+  .fwhy{font-size:9.5px;color:var(--tm);margin-top:7px;line-height:1.5}
+  .split{display:flex;gap:10px;margin-top:2px}
+  .split div{flex:1}
+  .skey{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+        color:var(--tm)}
+  .sval{font-size:15px;font-weight:700;letter-spacing:-.01em;margin-top:1px}
+  .sval.ok{color:var(--accent)}
+  .sval.part{color:var(--tp)}
+
+  .add{appearance:none;background:transparent;border:1px dashed var(--wash2);
+    border-radius:4px;color:var(--tm);font:inherit;font-size:10px;font-weight:600;
+    letter-spacing:.06em;padding:5px 0;width:100%;margin-top:6px;cursor:pointer}
+  .add:hover{color:var(--tp);border-color:var(--tm)}
+  .add:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  .lay{display:none}
+  .lay[data-on=true]{display:flex}
+  .legend{margin-top:22px;border-top:1px solid var(--border);padding-top:14px;
+          font-size:11.5px;color:var(--ts);line-height:1.7;max-width:74ch}
+  .legend b{color:var(--tp)}
+  .legend code{font-family:ui-monospace,Consolas,monospace;font-size:11px;
+               background:var(--wash);padding:1px 4px;border-radius:3px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<!-- One shared grid pattern. It lived inside variant A's <svg>, which meant B and
+     C referenced a def sitting in a display:none subtree — works in some engines,
+     not a thing to rely on. -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+  <pattern id="g1" width="46" height="46" patternUnits="userSpaceOnUse">
+    <path d="M46 0H0v46" fill="none" stroke="var(--border)" stroke-width="1"/>
+  </pattern></defs></svg>
+
+<div class="page">
+  <div class="lead">
+    <h1>Trade tab — the left panel</h1>
+    <p>The 260px rail beside the chart, currently reading <em>“Reserved — nothing is
+    wired here yet.”</em> Three readings of the same panel. They differ in one thing:
+    how the tally is expressed. Everything else — the items, the auto/manual split,
+    the daily reset — is already settled and identical across all three.</p>
+  </div>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Variant">
+      <button data-v="a" aria-pressed="true">A · Ledger</button>
+      <button data-v="b" aria-pressed="false">B · State-led</button>
+      <button data-v="c" aria-pressed="false">C · Dense</button>
+    </div>
+    <div class="seg" role="group" aria-label="Mode">
+      <button data-m="light" aria-pressed="true">Light</button>
+      <button data-m="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+
+  <p class="note">Manual rows are clickable — tick a few and watch the tally move.
+  Auto rows are not: the tool owns those, and a row the operator can overrule is not
+  an auto row. The chart beside it is a placeholder box, not a design.</p>
+
+  <!-- ═══════════ A · LEDGER ═══════════ -->
+  <div class="row lay" data-lay="a" data-on="true">
+    <div class="rail">
+      <div class="phead">
+        <div>
+          <div class="ptitle">Setup check</div>
+          <div class="sub mono">NIFTY · 07 Aug</div>
+        </div>
+        <button class="reset">Reset</button>
+      </div>
+
+      <div class="body">
+        <div class="grp">
+          <div class="ghead"><span class="gname">Trigger</span>
+            <span class="gcount mono">2 / 4</span></div>
+          <div class="gwhy">§5c. The only scored part — 68.4% at +30m, n=19.</div>
+
+          <div class="it" data-s="auto-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">d3 tagged, then reversed<span class="src">auto</span></span>
+              <span class="rcpt mono">11:03 · low 24582.4 · d3 24584.1</span></span>
+          </div>
+
+          <div class="it" data-s="auto-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">After the 09:25 anchor<span class="src">auto</span></span>
+              <span class="rcpt mono">11:03 · anchor 09:25</span></span>
+          </div>
+
+          <div class="it" data-s="off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Close breaks the reference high<span class="src">auto</span></span>
+              <span class="rcpt mono">needs &gt; 24611.2 · 6 candles left</span></span>
+          </div>
+
+          <div class="it" data-s="off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">First entry of this run<span class="src">auto</span></span>
+              <span class="rcpt">Decided at the break, not before</span></span>
+          </div>
+        </div>
+
+        <div class="grp">
+          <div class="ghead"><span class="gname">Context</span>
+            <span class="gcount mono">1 / 4</span></div>
+          <div class="gwhy">Unscored. Colours the trade — never vetoes it.</div>
+
+          <div class="it" data-s="auto-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">Positive gamma — reversion favoured<span class="src">auto</span></span>
+              <span class="rcpt mono">PINNED · GEX +1.84 near-money</span></span>
+          </div>
+
+          <div class="it" data-s="off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">OI build decelerating, both books<span class="src">auto</span></span>
+              <span class="rcpt mono">CE slope −0.31 → −0.28 · PE +0.44 → +0.51</span></span>
+          </div>
+
+          <div class="it" data-s="unknown">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.4"
+              stroke-linecap="round"><path d="M6 2.6v4.2"/><path d="M6 9.3v.1"/></svg></span>
+            <span class="lab"><span class="ltxt">Index compressed before the move<span class="src">auto</span></span>
+              <span class="rcpt warn">Cannot check — no index series this session</span></span>
+          </div>
+
+          <button class="it man" data-s="man-off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Other leg unwinding off +2σ<span class="src">you</span></span>
+              <span class="rcpt">Premium-matched pair, both ≥ ₹100</span></span>
+          </button>
+        </div>
+
+        <div class="grp">
+          <div class="ghead"><span class="gname">My read</span>
+            <span class="gcount mono">1 / 3</span></div>
+          <button class="it man" data-s="man-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">1-min CHoCH to the upside</span></span>
+          </button>
+          <button class="it man" data-s="man-off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Untested FVG sitting below</span></span>
+          </button>
+          <button class="it man" data-s="man-off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Not into PDH / a round hundred</span></span>
+          </button>
+          <button class="add">+ Add a rule</button>
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="fnum mono">4 <em>of 11 checked</em></div>
+        <div class="meter">
+          <i data-on="auto"></i><i data-on="auto"></i><i data-on="auto"></i>
+          <i data-on="man"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="fwhy">A count of conditions you have confirmed. Not a probability
+        — only the four TRIGGER rows are scored.</div>
+      </div>
+    </div>
+    <div class="chart">
+      <svg aria-hidden="true"><rect width="100%" height="100%" fill="url(#g1)"/></svg>
+      <span>Index chart — placeholder</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ B · STATE-LED ═══════════ -->
+  <div class="row lay" data-lay="b">
+    <div class="rail">
+      <div class="phead">
+        <div>
+          <div class="ptitle">Setup check</div>
+          <div class="sub mono">NIFTY · 07 Aug</div>
+        </div>
+        <button class="reset">Reset</button>
+      </div>
+
+      <div class="state">
+        <div class="sname">ARMED</div>
+        <div class="sline">11:03 candle tagged d3 at 24582.4 and turned. Six candles
+        left for a close to break it.</div>
+        <div class="sbeat mono">Break &gt; 24611.2 &nbsp;·&nbsp; stop 24564.1</div>
+      </div>
+
+      <div class="body">
+        <div class="grp">
+          <div class="ghead"><span class="gname">Trigger · §5c</span>
+            <span class="gcount mono">2 / 4</span></div>
+          <div class="it" data-s="auto-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">d3 tagged, then reversed</span>
+              <span class="rcpt mono">11:03 · low 24582.4</span></span>
+          </div>
+          <div class="it" data-s="auto-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">After the 09:25 anchor</span>
+              <span class="rcpt mono">11:03</span></span>
+          </div>
+          <div class="it" data-s="off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Close breaks the reference high</span>
+              <span class="rcpt mono">needs &gt; 24611.2</span></span>
+          </div>
+          <div class="it" data-s="off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">First entry of this run</span></span>
+          </div>
+        </div>
+
+        <div class="grp">
+          <div class="ghead"><span class="gname">Context agrees</span>
+            <span class="gcount mono">1 / 4</span></div>
+          <div class="gwhy">Unscored. Never a veto — a put-heavy book at a d3 low is
+          normal, and filtering on it would have deleted nine winners.</div>
+          <div class="it" data-s="auto-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">Positive gamma — reversion favoured</span>
+              <span class="rcpt mono">PINNED · GEX +1.84</span></span>
+          </div>
+          <div class="it" data-s="off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">OI build decelerating, both books</span>
+              <span class="rcpt mono">CE −0.31 → −0.28</span></span>
+          </div>
+          <div class="it" data-s="unknown">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.4"
+              stroke-linecap="round"><path d="M6 2.6v4.2"/><path d="M6 9.3v.1"/></svg></span>
+            <span class="lab"><span class="ltxt">Index compressed before the move</span>
+              <span class="rcpt warn">Cannot check — no index series</span></span>
+          </div>
+          <button class="it man" data-s="man-off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Other leg unwinding off +2σ</span></span>
+          </button>
+        </div>
+
+        <div class="grp">
+          <div class="ghead"><span class="gname">My read</span>
+            <span class="gcount mono">1 / 3</span></div>
+          <button class="it man" data-s="man-on">
+            <span class="box"><svg viewBox="0 0 12 12" fill="none" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">1-min CHoCH to the upside</span></span>
+          </button>
+          <button class="it man" data-s="man-off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Untested FVG sitting below</span></span>
+          </button>
+          <button class="it man" data-s="man-off">
+            <span class="box"></span>
+            <span class="lab"><span class="ltxt">Not into PDH / a round hundred</span></span>
+          </button>
+          <button class="add">+ Add a rule</button>
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="split">
+          <div><div class="skey">Trigger</div><div class="sval part mono">2 / 4</div></div>
+          <div><div class="skey">Agreeing</div><div class="sval ok mono">2 / 7</div></div>
+        </div>
+        <div class="fwhy">Kept apart on purpose. The trigger either fires or it does
+        not; the rest is colour, and adding them would make an unscored row worth as
+        much as a scored one.</div>
+      </div>
+    </div>
+    <div class="chart">
+      <svg aria-hidden="true"><rect width="100%" height="100%" fill="url(#g1)"/></svg>
+      <span>Index chart — placeholder</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ C · DENSE ═══════════ -->
+  <div class="row lay" data-lay="c">
+    <div class="rail cpanel">
+      <div class="phead">
+        <div>
+          <div class="ptitle">Setup check</div>
+          <div class="sub mono">NIFTY · 07 Aug · ARMED</div>
+        </div>
+        <button class="reset">Reset</button>
+      </div>
+
+      <div class="body">
+        <div class="grp">
+          <div class="ghead"><span class="gname">Trigger</span>
+            <span class="gcount mono">2 / 4 · scored</span></div>
+          <div class="it" data-s="auto-on"><span class="box"><svg viewBox="0 0 12 12" fill="none"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">d3 tagged + reversed</span><span class="rcpt mono">11:03</span></span></div>
+          <div class="it" data-s="auto-on"><span class="box"><svg viewBox="0 0 12 12" fill="none"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">Past 09:25</span><span class="rcpt mono">11:03</span></span></div>
+          <div class="it" data-s="off"><span class="box"></span>
+            <span class="lab"><span class="ltxt">Breaks ref high</span><span class="rcpt mono">24611.2</span></span></div>
+          <div class="it" data-s="off"><span class="box"></span>
+            <span class="lab"><span class="ltxt">First of run</span><span class="rcpt mono">—</span></span></div>
+        </div>
+
+        <div class="grp">
+          <div class="ghead"><span class="gname">Context</span>
+            <span class="gcount mono">1 / 4 · unscored</span></div>
+          <div class="it" data-s="auto-on"><span class="box"><svg viewBox="0 0 12 12" fill="none"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">Gamma positive</span><span class="rcpt mono">PINNED</span></span></div>
+          <div class="it" data-s="off"><span class="box"></span>
+            <span class="lab"><span class="ltxt">OI decelerating</span><span class="rcpt mono">−0.31→−0.28</span></span></div>
+          <div class="it" data-s="unknown"><span class="box"><svg viewBox="0 0 12 12" fill="none"
+            stroke-width="2.4" stroke-linecap="round"><path d="M6 2.6v4.2"/><path d="M6 9.3v.1"/></svg></span>
+            <span class="lab"><span class="ltxt">Index compressed</span><span class="rcpt warn mono">no data</span></span></div>
+          <button class="it man" data-s="man-off"><span class="box"></span>
+            <span class="lab"><span class="ltxt">Other leg off +2σ</span><span class="rcpt">you</span></span></button>
+        </div>
+
+        <div class="grp">
+          <div class="ghead"><span class="gname">My read</span>
+            <span class="gcount mono">1 / 3</span></div>
+          <button class="it man" data-s="man-on"><span class="box"><svg viewBox="0 0 12 12" fill="none"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg></span>
+            <span class="lab"><span class="ltxt">1-min CHoCH up</span></span></button>
+          <button class="it man" data-s="man-off"><span class="box"></span>
+            <span class="lab"><span class="ltxt">FVG untested below</span></span></button>
+          <button class="it man" data-s="man-off"><span class="box"></span>
+            <span class="lab"><span class="ltxt">Clear of PDH / round 100</span></span></button>
+          <button class="add">+ Add a rule</button>
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="fnum mono">Trigger 2/4 &nbsp;·&nbsp; agreeing 2/7</div>
+        <div class="fwhy">No combined score. Counts live in their group headers, where
+        the reader can see which kind of row they came from.</div>
+      </div>
+    </div>
+    <div class="chart">
+      <svg aria-hidden="true"><rect width="100%" height="100%" fill="url(#g1)"/></svg>
+      <span>Index chart — placeholder</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>Three tick marks, not two.</b> A brass box is <b>the tool measured it</b>
+    (auto). An ink box is <b>your own hand</b> (manual). A dashed amber box is
+    <b>could not be checked</b> — never silently unticked, because “false” and
+    “unknown” are different sentences (A1). Green and red stay reserved for
+    direction, per <code>theme.ts</code>, so a tick is never green.</p>
+    <p><b>Trigger and context never merge in B and C.</b> C7 measured
+    compression-as-a-filter as harmful across three datasets; C11 measured a 40% OI
+    veto as removing ten of twelve signals including nine winners. One combined
+    number would quietly re-encode both mistakes.</p>
+    <p><b>Auto rows are not clickable.</b> If the operator can overrule the tool’s
+    reading, the row is manual — a half-owned tick is a lie about who checked.</p>
+  </div>
+</div>
+
+<script>
+  const $$ = s => Array.from(document.querySelectorAll(s))
+
+  $$('.seg [data-v]').forEach(b => b.onclick = () => {
+    $$('.seg [data-v]').forEach(x => x.setAttribute('aria-pressed', String(x === b)))
+    $$('.lay').forEach(l => l.dataset.on = String(l.dataset.lay === b.dataset.v))
+  })
+  $$('.seg [data-m]').forEach(b => b.onclick = () => {
+    $$('.seg [data-m]').forEach(x => x.setAttribute('aria-pressed', String(x === b)))
+    document.documentElement.dataset.mode = b.dataset.m
+  })
+
+  const TICK = '<svg viewBox="0 0 12 12" fill="none" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.4l2.4 2.4 4.6-5.2"/></svg>'
+
+  // Manual rows toggle, and every tally on that panel recomputes from the rows
+  // themselves — the mockup makes the same promise the build must: the number
+  // the operator reads comes from the rows' own state, never a second count.
+  $$('.it.man').forEach(el => el.onclick = () => {
+    const on = el.dataset.s === 'man-on'
+    el.dataset.s = on ? 'man-off' : 'man-on'
+    el.querySelector('.box').innerHTML = on ? '' : TICK
+    retally(el.closest('.rail'))
+  })
+
+  function retally(rail) {
+    if (!rail) return
+    let done = 0, total = 0, trigDone = 0, trigTotal = 0
+    rail.querySelectorAll('.grp').forEach(g => {
+      const rows = Array.from(g.querySelectorAll('.it'))
+      const on = rows.filter(r => r.dataset.s === 'auto-on' || r.dataset.s === 'man-on').length
+      const c = g.querySelector('.gcount')
+      if (c) c.textContent = c.textContent.replace(/^\s*\d+\s*\/\s*\d+/, on + ' / ' + rows.length)
+      const isTrigger = /trigger/i.test(g.querySelector('.gname').textContent)
+      if (isTrigger) { trigDone = on; trigTotal = rows.length }
+      done += on; total += rows.length
+    })
+    const num = rail.querySelector('.fnum')
+    if (num && /of/.test(num.textContent))
+      num.innerHTML = done + ' <em>of ' + total + ' checked</em>'
+    else if (num)
+      num.textContent = 'Trigger ' + trigDone + '/' + trigTotal +
+        '  ·  agreeing ' + (done - trigDone) + '/' + (total - trigTotal)
+    const sv = rail.querySelectorAll('.sval')
+    if (sv.length === 2) {
+      sv[0].textContent = trigDone + ' / ' + trigTotal
+      sv[1].textContent = (done - trigDone) + ' / ' + (total - trigTotal)
+    }
+    const m = rail.querySelector('.meter')
+    if (m) {
+      m.innerHTML = ''
+      const rows = Array.from(rail.querySelectorAll('.it'))
+      rows.forEach(r => {
+        const i = document.createElement('i')
+        if (r.dataset.s === 'auto-on') i.dataset.on = 'auto'
+        else if (r.dataset.s === 'man-on') i.dataset.on = 'man'
+        m.appendChild(i)
+      })
+    }
+  }
+  $$('.rail').forEach(retally)
+</script>
