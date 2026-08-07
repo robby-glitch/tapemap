@@ -261,6 +261,10 @@ class ChainPoller(threading.Thread):
         self.states = {c["under_sym"]: ChainState() for c in configs}
         self.prevs = {c["under_sym"]: None for c in configs}
         self.reload = False                          # set by /api/token to re-read the token
+        # Indices whose morning has already been rebuilt from REST this
+        # session. One shot each: history does not change, and 34 REST calls
+        # per index is not something to repeat on every poll.
+        self._backfilled = set()
 
     def _publish(self, idx, snap, metrics, expiry, mode, error=None):
         by_k = {r["k"]: r for r in metrics.pop("per_strike", [])}
@@ -327,6 +331,37 @@ class ChainPoller(threading.Thread):
                 time.sleep(MOCK_S)
 
     # ---- live: round-robin poll Dhan per index, persist, publish ----
+
+    def _kick_backfill(self, idx, snap):
+        """Rebuild the part of today the socket was not around for.
+
+        `_warm_start` can only replay what this tool already wrote, so a poller
+        that starts at 12:18 has no morning -- while the chart beside it shows
+        09:15 onward, because bars are re-fetched whole from REST every cycle.
+        The operator's objection on 2026-08-07 was exactly right: when the tool
+        is started should not decide what it knows.
+
+        Fired once per index, after the FIRST successful poll, because that is
+        the first moment the strike window is known. Only marks earlier than
+        anything already recorded are written -- an observation always beats a
+        reconstruction. Upstox only: this needs per-strike option OI history,
+        which Dhan's REST does not serve in this shape.
+        """
+        if _broker() != "upstox":
+            return
+        try:
+            import chain_backfill
+            import upstox_feed
+            state = self.states[idx]
+            recorded = sorted(state.minutes)
+            chain_backfill.start_backfill(
+                state, idx, [s["k"] for s in snap["strikes"]],
+                upstox_feed.read_token(),
+                before=recorded[0] if recorded else None, log=print)
+        except Exception as e:                        # noqa: BLE001
+            # Never fatal: a missing morning is worse than no morning, but
+            # both are far better than a chain poller that will not start.
+            print(f"chain backfill {idx} not started: {e}")
 
     def _warm_start(self, idx, day_file, expiry):
         """Rebuild today's MARKET-HOURS series for `idx` from its persisted
@@ -416,6 +451,9 @@ class ChainPoller(threading.Thread):
                 now = datetime.now(IST)
                 if now.strftime("%Y-%m-%d") != sess_date:
                     print("chain poller: new trading day -> fresh session")
+                    # A new day is a new morning to rebuild, so the one-shot
+                    # guard resets with it.
+                    self._backfilled.clear()
                     break                  # -> outer: new day_file + clean warm-start
                 if not in_session(now):    # closed: don't poll or record
                     for c in self.configs:
@@ -449,6 +487,11 @@ class ChainPoller(threading.Thread):
                         self._publish(idx, snap, metrics, expiries[idx], "live")
                         with day_files[idx].open("a", encoding="utf-8") as f:
                             f.write(json.dumps(snap) + "\n")
+                        # First good poll for this index: now the strike window
+                        # is known, so the morning can be rebuilt behind us.
+                        if idx not in self._backfilled:
+                            self._backfilled.add(idx)
+                            self._kick_backfill(idx, snap)
                     except Exception as e:  # isolate: tag this index, go on
                         self._tag_error(idx, "live", f"poll failed: {e}")
                         if "token" in str(e).lower() or "401" in str(e):
