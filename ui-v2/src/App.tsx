@@ -2145,7 +2145,8 @@ export default function App() {
                                               rotationRunWhy={tape.rotationRunWhy}
                                               rotationRunSell={tape.rotationRunSell}
                                               runState={tape.runState}
-                                              runStateWhy={tape.runStateWhy} />}
+                                              runStateWhy={tape.runStateWhy}
+                                              runStateSell={tape.runStateSell} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

@@ -80,6 +80,12 @@ interface Props {
   runState: RunState | null
   /** Why `runState` is null, in data.ts's own words. Empty when it isn't. */
   runStateWhy: string
+  /** The SELL mirror's state on this bar. The panel shows whichever side is
+   *  live and NAMES which one — sitting on WAITING while the other side is
+   *  armed would misreport the machine outright. */
+  runStateSell: RunState | null
+  /** The SELL mirror's entry record on this bar, for the context receipts. */
+  entrySell: RotationSignal | null
   /** §5c's entry record for this bar, when one exists. `trap` and `confirm`
    *  live here, so before a trigger they are honestly unavailable. */
   entry: RotationSignal | null
@@ -144,8 +150,22 @@ function Tick({ pal, state }: { pal: Pal; state: TickState }) {
 }
 
 export default function SetupCheck({
-  pal, day, bar, runState, runStateWhy, entry, flow, flowWhy,
+  pal, day, bar, runState, runStateWhy, runStateSell, entry, entrySell,
+  flow, flowWhy,
 }: Props) {
+  /* Which side the panel is reading.
+     A state that is not WAITING wins, because that is the side with something
+     happening. If BOTH are live the BUY side wins and the header says the sell
+     side is also armed -- picking silently would hide half the machine, and
+     preferring the SCORED side is the only defensible tie-break.
+     This is a display choice over two published arrays; it decides nothing
+     about the market and computes no rule. */
+  const buyLive = !!runState && runState.state !== 'WAITING'
+  const sellLive = !!runStateSell && runStateSell.state !== 'WAITING'
+  const showSell = sellLive && !buyLive
+  const st = showSell ? runStateSell : runState
+  const sig = showSell ? entrySell : entry
+  const bothLive = buyLive && sellLive
   const [rules, setRules] = useState<string[]>(loadRules)
   const [ticks, setTicks] = useState<Set<string>>(() => loadTicks(day))
   const [adding, setAdding] = useState(false)
@@ -177,34 +197,40 @@ export default function SetupCheck({
 
   // ── TRIGGER: three reads of `run_state`, no rule re-implemented ──────────
   const trigger: Row[] = useMemo(() => {
-    if (!runState) return []
-    const ref = runState.ref_i != null && runState.ref_high != null
-    const fired = runState.state === 'TRIGGERED' || runState.state === 'IN_TRADE'
+    if (!st) return []
+    // A buy's line to beat is a HIGH, a sell's is a LOW. They arrive under
+    // different names precisely so this cannot be got wrong silently.
+    const brk = showSell ? st.ref_low : st.ref_high
+    const ref = st.ref_i != null && brk != null
+    const fired = st.state === 'TRIGGERED' || st.state === 'IN_TRADE'
     return [
       {
-        id: 't.ref', text: 'd3 chhua, reference candle bani',
+        id: 't.ref',
+        text: `${showSell ? 'u3' : 'd3'} chhua, reference candle bani`,
         state: ref ? 'auto-on' : 'auto-off',
-        receipt: ref ? `d3 ${f1(runState.level) ?? '—'}${runState.t ? ` · ${runState.t}` : ''}`
-          : 'abhi kisi candle ne d3 nahi chhua',
+        receipt: ref
+          ? `${showSell ? 'u3' : 'd3'} ${f1(st.level) ?? '—'}${st.t ? ` · ${st.t}` : ''}`
+          : `abhi kisi candle ne ${showSell ? 'u3' : 'd3'} nahi chhua`,
       },
       {
         id: 't.win', text: 'Window abhi khula hai',
-        state: runState.candles_left != null && runState.candles_left > 0 ? 'auto-on'
+        state: st.candles_left != null && st.candles_left > 0 ? 'auto-on'
           : ref ? 'auto-off' : 'auto-unknown',
-        receipt: runState.candles_left != null
-          ? `${runState.candles_left} candle baaki`
+        receipt: st.candles_left != null
+          ? `${st.candles_left} candle baaki`
           : 'koi live reference nahi, toh ginne ko window bhi nahi',
-        warn: runState.candles_left == null && !ref,
+        warn: st.candles_left == null && !ref,
       },
       {
-        id: 't.brk', text: 'Close ne reference high toda',
+        id: 't.brk',
+        text: `Close ne reference ${showSell ? 'low' : 'high'} toda`,
         state: fired ? 'auto-on' : 'auto-off',
-        receipt: runState.ref_high != null
-          ? `todna hai > ${f1(runState.ref_high)}`
-          : 'reference high abhi nahi bana',
+        receipt: brk != null
+          ? `todna hai ${showSell ? '<' : '>'} ${f1(brk)}`
+          : `reference ${showSell ? 'low' : 'high'} abhi nahi bana`,
       },
     ]
-  }, [runState])
+  }, [st, showSell])
 
   // ── CONTEXT: unscored. Two kinds of row, and the difference is deliberate.
   // AUTO rows read a published three-state field. RECEIPT+MANUAL rows print the
@@ -244,28 +270,28 @@ export default function SetupCheck({
     // trap / confirm arrive on the ENTRY record, so before a trigger they are
     // genuinely unavailable — not false. That is the whole reason
     // `auto-unknown` exists as its own mark.
-    out.push(entry ? {
+    out.push(sig ? {
       id: 'c.trap',
-      text: entry.trap === 'CLEAR' ? 'Index pehle sikud raha tha'
-        : entry.trap === 'SUSPECT' ? 'Index pehle se faila hua tha — trap ka shaq'
+      text: sig.trap === 'CLEAR' ? 'Index pehle sikud raha tha'
+        : sig.trap === 'SUSPECT' ? 'Index pehle se faila hua tha — trap ka shaq'
           : 'Compression check nahi ho paaya',
-      state: entry.trap === 'CLEAR' ? 'auto-on'
-        : entry.trap === 'SUSPECT' ? 'auto-off' : 'auto-unknown',
-      receipt: entry.trap_why, warn: entry.trap === 'UNKNOWN',
+      state: sig.trap === 'CLEAR' ? 'auto-on'
+        : sig.trap === 'SUSPECT' ? 'auto-off' : 'auto-unknown',
+      receipt: sig.trap_why, warn: sig.trap === 'UNKNOWN',
     } : {
       id: 'c.trap', text: 'Index pehle sikud raha tha',
       state: 'auto-unknown',
       receipt: 'entry record abhi nahi bana, toh compression verdict bhi nahi', warn: true,
     })
 
-    out.push(entry ? {
+    out.push(sig ? {
       id: 'c.conf',
-      text: entry.confirm === 'CONFIRMED' ? 'Doosri leg ne confirm kiya'
-        : entry.confirm === 'UNCONFIRMED' ? 'Doosri leg ne confirm NAHI kiya'
+      text: sig.confirm === 'CONFIRMED' ? 'Doosri leg ne confirm kiya'
+        : sig.confirm === 'UNCONFIRMED' ? 'Doosri leg ne confirm NAHI kiya'
           : 'Doosri leg check nahi ho payi',
-      state: entry.confirm === 'CONFIRMED' ? 'auto-on'
-        : entry.confirm === 'UNCONFIRMED' ? 'auto-off' : 'auto-unknown',
-      receipt: entry.confirm_why, warn: entry.confirm === 'UNKNOWN',
+      state: sig.confirm === 'CONFIRMED' ? 'auto-on'
+        : sig.confirm === 'UNCONFIRMED' ? 'auto-off' : 'auto-unknown',
+      receipt: sig.confirm_why, warn: sig.confirm === 'UNKNOWN',
     } : {
       id: 'c.conf', text: 'Doosri leg ne confirm kiya',
       state: 'auto-unknown',
@@ -306,7 +332,7 @@ export default function SetupCheck({
       receipt: 'premium-matched jodi, dono ≥ ₹100 — ye chart is payload mein nahi hai',
     })
     return out
-  }, [bar.gamma, entry, flow, flowWhy, ticks])
+  }, [bar.gamma, sig, flow, flowWhy, ticks])
 
   const mine: Row[] = rules.map((text, i) => ({
     id: `m.${i}`, text, custom: true,
@@ -394,9 +420,8 @@ export default function SetupCheck({
     </div>
   )
 
-  const stateWord = runState
-    ? (runState.exit_why ? 'BAAHAR'
-      : runState.state === 'IN_TRADE' ? 'TRADE MEIN' : runState.state)
+  const stateWord = st
+    ? (st.exit_why ? 'BAAHAR' : st.state === 'IN_TRADE' ? 'TRADE MEIN' : st.state)
     : null
 
   return (
@@ -422,36 +447,50 @@ export default function SetupCheck({
 
       {/* The state block. This IS the product — PRODUCT.md's five-state machine
           — so it sits above the list rather than being one row inside it. */}
-      {runState ? (
+      {st ? (
         <div style={{
           border: `1px solid ${pal.border}`, borderRadius: 5, backgroundColor: pal.inset,
           padding: '9px 10px', marginTop: 10,
         }}>
-          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: pal.accent }}>
-            {stateWord}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.1em',
+                           color: pal.accent }}>{stateWord}</span>
+            {/* Which side this is. Never implied by colour alone: a reader who
+                misses the badge would read a SELL state as the scored BUY. */}
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.09em',
+              padding: '1px 5px', borderRadius: 3, fontFamily: MONO,
+              color: pal.textMuted, border: `1px solid ${pal.border}`,
+            }}>{showSell ? 'SELL · u3' : 'BUY · d3'}</span>
           </div>
-          {!runState.readable && (
+          {bothLive && (
+            <div style={{ fontSize: 10, color: pal.caution, marginTop: 3, lineHeight: 1.45 }}>
+              Doosri taraf bhi armed hai. Yahan BUY dikhaya ja raha hai kyunki
+              score sirf usi ka hai — sell ke markers chart par hain.
+            </div>
+          )}
+          {!st.readable && (
             <div style={{ fontSize: 10, color: pal.caution, marginTop: 3, lineHeight: 1.45 }}>
               Is bar ka read nahi mila — upar wali haalat wahi hai jismein setup abhi
               hai, WAITING nahi. Read na milna iska saboot nahi ki setup khatam ho gaya.
             </div>
           )}
           <div style={{ fontSize: 10.5, color: pal.textSecondary, marginTop: 3, lineHeight: 1.5 }}>
-            {runState.ref_i != null && runState.level != null
-              ? `Reference candle ne d3 ${f1(runState.level)} chhua`
-                + (runState.candles_left != null ? ` · ${runState.candles_left} candle baaki` : '')
-              : 'Abhi koi reference candle nahi — d3 chhua hi nahi gaya.'}
+            {st.ref_i != null && st.level != null
+              ? `Reference candle ne ${showSell ? 'u3' : 'd3'} ${f1(st.level)} chhua`
+                + (st.candles_left != null ? ` · ${st.candles_left} candle baaki` : '')
+              : `Abhi koi reference candle nahi — ${showSell ? 'u3' : 'd3'} chhua hi nahi gaya.`}
           </div>
-          {runState.ref_high != null && (
+          {(showSell ? st.ref_low : st.ref_high) != null && (
             <div style={{
               fontSize: 10.5, color: pal.textPrimary, marginTop: 5, paddingTop: 5,
               borderTop: `1px solid ${pal.border}`,
               fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
-            }}>Todna hai &gt; {f1(runState.ref_high)}</div>
+            }}>Todna hai {showSell ? '<' : '>'} {f1(showSell ? st.ref_low : st.ref_high)}</div>
           )}
-          {runState.exit_why && (
+          {st.exit_why && (
             <div style={{ fontSize: 10.5, color: pal.textSecondary, marginTop: 4 }}>
-              Nikal gaye — {runState.exit_why === 'stop' ? 'stop laga' : 'VWAP par'}
+              Nikal gaye — {st.exit_why === 'stop' ? 'stop laga' : 'VWAP par'}
             </div>
           )}
         </div>
@@ -466,7 +505,11 @@ export default function SetupCheck({
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -12px', padding: '0 12px' }}>
         {trigger.length > 0 && (
           <Group name="Trigger" count={`${onOf(trigger)} / ${trigger.length}`}
-                 note="§5c — sirf isi hisse ka score nikla hai: 68.4% hit at +30m, n=19."
+                 note={showSell
+                   ? 'u3 ka ulta aaina. ISKA KOI SCORE NAHI — upper band pe bechna'
+                     + ' paanch datasets pe naapa aur reject hua tha; ye tumhare'
+                     + ' kehne par banaya gaya hai. 68.4% ise haasil nahi hai.'
+                   : '§5c — sirf isi hisse ka score nikla hai: 68.4% hit at +30m, n=19.'}
                  rows={trigger} />
         )}
         <Group name="Saath de raha hai" count={`${onOf(context)} / ${context.length}`}

@@ -10,8 +10,32 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-04, after the frame-bug day. 278 tests.
-Branch: `feature/dashboard-v2`, six commits ahead. **Nothing is pushed.**
+Last updated: 2026-08-08. 434 tests pass, 4 fail (date-rollover, see below).
+Branch: `feature/dashboard-v2`, **pushed to `origin`**.
+
+### 2026-08-08 — the rail is full, and the sell side exists
+
+- **SETUP CHECK panel** fills the 260px rail (`trade/SetupCheck.tsx`). Two
+  tallies that are NEVER summed — TRIGGER (scored) and SAATH (unscored) —
+  because C7 and C11 both measured "more conditions = better" as false. Three
+  tick marks, not two: brass = the tool measured it, ink = the operator's hand,
+  dashed amber = could not be checked. Ticks are keyed by session day, so the
+  daily reset needs no clock.
+- **The structure layer narrowed.** FVG, BOS and CHOCH are no longer drawn;
+  SWING_H/SWING_L are, for the first time. Withheld kinds are COUNTED and
+  disclosed in the `Chhupa hua:` line even with the toggle on.
+- **Levels light up by proximity**, in σ so it self-scales across indices. Only
+  ONE level takes a directional hue — the next one price is moving toward — and
+  trap levels are excluded so their red keeps meaning "trap", not "down".
+- **The u3 SELL mirror ships** (`band_rotation.run_states(..., side="SELL")`),
+  built over C3's rejection at the operator's explicit instruction. `BUY 19 /
+  SELL 18` over the 65-session NIFTY cache; the 19 matches the scored rule's
+  own n exactly, which is the proof the buy path did not move. A `run_score`
+  baseline was taken BEFORE the edit (`md5 50846ca6…`) and is unchanged.
+- **The Trade tab speaks Hinglish** — chrome only. Every string the BACKEND
+  authored and the UI quotes verbatim is deliberately untranslated.
+
+**Read `context/DEFERRED.md`** for what was found, measured and postponed.
 
 ---
 
@@ -213,7 +237,14 @@ instead of guessing one of four directions.
   carries NIFTY's 68.4%.
 - **The hover callout is theirs.** *"dont touch the dynamic call out."*
 
-### Next session starts here — the left panel
+### ~~Next session starts here — the left panel~~ — DONE 2026-08-08
+
+The three questions below were answered: the panel was FILLED (the watchlist
+idea dropped — the three indices already render in App's glance bar off the
+same payload), scroll-snap was not needed once the chart took a screenful, and
+the level labels remain open in `DEFERRED.md §3`. Kept for the reasoning.
+
+### The original note
 
 The Trade tab now has Kite's shape: a 260px panel down the left
 (`CHART_SIDE_W` in `TradeTab.tsx`), the chart owning the rest, leg charts off

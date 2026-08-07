@@ -93,6 +93,10 @@ interface Props {
   runState: RunState[] | null
   /** Why `runState` is null, in data.ts's own words. Empty when it isn't. */
   runStateWhy: string
+  /** The SELL mirror's per-bar state. The panel picks whichever side is live
+   *  and NAMES it — sitting on WAITING while the other side is armed would be
+   *  a plain misreport of the machine. */
+  runStateSell: RunState[] | null
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -295,7 +299,7 @@ export default function TradeTab({
   stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange, structures, structuresWhy,
   rotation, rotationWhy, rotationRun, rotationRunWhy, rotationRunSell,
-  runState, runStateWhy,
+  runState, runStateWhy, runStateSell,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
@@ -863,7 +867,9 @@ export default function TradeTab({
           <SetupCheck
             pal={pal} day={day} bar={b}
             runState={runState?.[at] ?? null} runStateWhy={runStateWhy}
+            runStateSell={runStateSell?.[at] ?? null}
             entry={rotationRun?.[at] ?? null}
+            entrySell={rotationRunSell?.[at] ?? null}
             flow={lastFlow} flowWhy={flowWhy}
           />
         </div>

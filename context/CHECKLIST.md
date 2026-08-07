@@ -47,6 +47,7 @@ Last updated: 2026-08-06.
 | C8 | **SMC layer** — 4× over-fires vs LuxAlgo, ⅔ UNKNOWN by construction | default **OFF** |
 | C9 | **Engine event stream** — `risk` −0.1, `lean` −6.2 vs a +4.1 control | default **OFF** |
 | C10 | The rule that must be drawn is **§5c's two-candle rule**. §1's one-candle rule is **VOID** — correctly measured, wrong trigger | §1 header |
+| C12 | **u3 SELL — the mirror of C1, BUILT OVER C3's REJECTION.** The operator was shown that upper-band selling was measured across five datasets and rejected, and asked for it anyway (2026-08-08: *"sell is reverse from upper band that sit just genrate signal no need backtesting"*). It is drawn. **It carries NO score, and no surface may imply it inherits C1's 68.4%** — the chart legend and the panel's TRIGGER note both say so in words. Same standing as C4/BANKNIFTY: settled, do not re-litigate | operator |
 | C11 | **OI strength ≥40% is NOT an entry veto** — it would have removed 10 of 12 signals including 9 winners. Hold/add past VWAP instead | §4 |
 
 ## D · Management — measured, and counter-intuitive (`trail_score.py`)
@@ -94,7 +95,11 @@ corepack pnpm --dir ui-v2 build
 python -m pytest -q
 ```
 
-`vite build` does **not** typecheck — run `tsc` too. 432 tests as of 2026-08-07.
+`vite build` does **not** typecheck — run `tsc` too. **434 pass as of
+2026-08-08**, plus **4 pre-existing failures** in `test_contract_upstox.py` —
+all four assert on `_today()`, and 2026-08-08 is a day the backend reports
+`no bars yet`. They are a date-rollover artefact, not a regression; fix them by
+freezing the clock in those tests rather than by changing the code under them.
 
 ## H · Decisions owed by the operator — DO NOT GUESS (`HANDOFF` §8)
 

@@ -394,6 +394,10 @@ export interface TapeView {
   rotationRunSellWhy: string
   /** The same machine read per bar rather than per entry. One slot per bar. */
   runState: RunState[] | null
+  /** The SELL mirror's per-bar state. Separate array, never merged: the panel
+   *  must be able to say WHICH side it is showing. */
+  runStateSell: RunState[] | null
+  runStateSellWhy: string
   /** Empty string when `runState` is non-null. */
   runStateWhy: string
 }
@@ -1439,7 +1443,7 @@ export function useLiveData(fallback: Dataset) {
         structures: null, structuresWhy: '', rotation: null, rotationWhy: '',
         rotationRun: null, rotationRunWhy: '',
         rotationRunSell: null, rotationRunSellWhy: '',
-        runState: null, runStateWhy: '',
+        runState: null, runStateWhy: '', runStateSell: null, runStateSellWhy: '',
       }
     }
     const bars: TapeBar[] = []
@@ -1535,6 +1539,9 @@ export function useLiveData(fallback: Dataset) {
                                          skipped, 'two-candle sell entry')
     const [runState, runStateWhy] =
       alignPerBar<RunState>(day.run_state, bars.length, skipped, 'run-state')
+    const [runStateSell, runStateSellWhy] =
+      alignPerBar<RunState>(day.run_state_sell, bars.length, skipped,
+                            'sell-side run-state')
 
     return {
       day: day.day ?? '', bars,
@@ -1544,7 +1551,7 @@ export function useLiveData(fallback: Dataset) {
       optExpiry: typeof day.opt_expiry === 'string' ? day.opt_expiry : null,
       structures, structuresWhy, rotation, rotationWhy,
       rotationRun, rotationRunWhy, rotationRunSell, rotationRunSellWhy,
-      runState, runStateWhy,
+      runState, runStateWhy, runStateSell, runStateSellWhy,
     }
   }, [raw])
 
