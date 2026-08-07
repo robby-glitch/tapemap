@@ -1,7 +1,10 @@
 # TapeMap v2 — handoff
 
-**Point a new session at this file first.** It is the entry point; the rules
-themselves are consolidated in **`context/CHECKLIST.md`** (every rule with its
+**Point a new session at this file first.** It is the entry point; work that was
+found, measured and consciously postponed is in **`context/DEFERRED.md`** — read
+it before starting anything new, it exists so nobody re-derives a finding that
+already has numbers. The rules themselves are consolidated in
+**`context/CHECKLIST.md`** (every rule with its
 source, plus a chart checklist showing what currently passes and fails); every
 strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
