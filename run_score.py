@@ -45,7 +45,9 @@ INDICES = ("NIFTY", "BANKNIFTY", "SENSEX")
 HORIZON_BARS = {"+6m": 2, "+15m": 5, "+30m": 10}
 MFE_BARS = 30 // INTERVAL
 ANCHOR_MIN = br.ANCHOR_MINUTE
-STOP_PTS = 20.0                 # the operator's own stop, not searched
+# The operator's own stop, not searched. Defined next to the rule it belongs
+# to so this scorer and live publishing cannot drift apart on a risk number.
+STOP_PTS = br.OPERATOR_STOP_PTS
 
 
 def _minute(t):

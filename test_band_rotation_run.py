@@ -385,3 +385,33 @@ def test_a_new_session_starts_from_waiting():
 def test_junk_input_never_raises_here_either():
     assert run_states(None) == [] and run_states([]) == []
     assert [s["entry"] for s in run_states([None, 3, "x"])] == [None] * 3
+
+
+# -- 7. wiring: what live.py publishes -------------------------------------
+
+def test_live_publishes_the_new_rule_without_removing_the_old_one():
+    """Additive or not at all. `rotation` marks the TOUCH (section 1's rule,
+    VOID) and `rotation_run` marks the ENTRY -- different bars. Dropping the
+    old key would move every pill on the chart with nothing saying so, and
+    v1's ui/app.js still reads it."""
+    import inspect
+    import live
+    src = inspect.getsource(live.build_payload)
+    for key in ('js["rotation"]', 'js["rotation_run"]', 'js["run_state"]'):
+        assert key in src, key
+
+
+def test_live_uses_the_shared_stop_rather_than_its_own_copy():
+    """A second literal 20.0 in live code would drift from the scorer's, and
+    the drift would be silent: the chart suppressing a re-fire the scorer
+    allowed, or the reverse."""
+    import inspect
+    import live
+    src = inspect.getsource(live.build_payload)
+    assert "OPERATOR_STOP_PTS" in src
+    assert "stop_pts=20" not in src.replace(" ", "")
+
+
+def test_the_scorer_and_the_rule_share_one_stop():
+    import run_score
+    assert run_score.STOP_PTS is band_rotation.OPERATOR_STOP_PTS

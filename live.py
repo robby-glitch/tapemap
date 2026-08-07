@@ -991,6 +991,25 @@ def build_payload(cfg, spot=None):
     # on every record by construction — see band_rotation.detect_index.
     js["rotation"] = band_rotation.detect_index(js["bars"])
     js["rotation_rule"] = band_rotation.INDEX_ROTATION_RULE
+    # The rule the operator ACTUALLY trades -- section 5c's two-candle setup --
+    # published ALONGSIDE the one above, never in place of it. `rotation` is
+    # section 1's one-candle rule, which research-findings marks VOID
+    # ("correctly measured, wrong trigger"): it fires when a bar tags d3 and
+    # reverses inside that same bar, so it marks the TOUCH. This one arms on
+    # the touch and fires when a LATER bar closes above that bar's high, which
+    # is where the entry is. The two mark different moments, so swapping one
+    # for the other silently would move every pill on the chart with nothing
+    # on screen saying it had happened.
+    #
+    # `run_state` is the same machine read per bar rather than per entry --
+    # WAITING / ARMED / TRIGGERED / IN_TRADE, plus `ref_high`, `candles_left`
+    # and `exit_why` -- and is what a state display reads. One call, both
+    # views: `detect_index_run` IS this list comprehension (see band_rotation),
+    # so deriving it here cannot disagree with calling it.
+    _states = band_rotation.run_states(
+        js["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS)
+    js["run_state"] = _states
+    js["rotation_run"] = [s["entry"] for s in _states]
     # Floor pivots of each tracked option leg's OWN prior session, additive
     # (v1 ignores the key). Same formula as the FUT pivots (_floor_pivots),
     # applied to the contract's own H/L/C; a leg with no prior session says

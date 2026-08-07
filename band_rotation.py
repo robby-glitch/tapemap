@@ -847,6 +847,20 @@ RUN_BAND = "d3"
 # way a wall-clock deadline would.
 RUN_WINDOW = 10
 
+# The operator's stop, in points under the arming band. Dictated 2026-08-07:
+# "20 points is good and i ll manage trade my self and target is always +2 and
+# +3 std." Not grid-searched, and not to be -- CHECKLIST D6 recorded it as a
+# RISK decision owed by the operator, and this is that decision arriving.
+#
+# It lives here, next to the rule it belongs to, because the same number is
+# also the re-fire lock's price input in live publishing and in run_score.py.
+# Two copies of a risk parameter drift, and the drift would be silent: the
+# chart would suppress a re-fire the scorer allowed, or the reverse.
+# (trail_score.INIT_BUF is deliberately NOT pointed here -- it is a trailing
+# study's initial buffer, and whether that is the same number is its own
+# question, not an assumption to bake in.)
+OPERATOR_STOP_PTS = 20.0
+
 
 def _run_read(bar):
     """(low, high, close, d3, vwap) as finite floats, or None if the bar's own
