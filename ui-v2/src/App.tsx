@@ -2143,6 +2143,7 @@ export default function App() {
                                               rotationWhy={tape.rotationWhy}
                                               rotationRun={tape.rotationRun}
                                               rotationRunWhy={tape.rotationRunWhy}
+                                              rotationRunSell={tape.rotationRunSell}
                                               runState={tape.runState}
                                               runStateWhy={tape.runStateWhy} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}

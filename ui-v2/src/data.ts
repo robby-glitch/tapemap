@@ -325,8 +325,11 @@ export interface RunState {
   state: 'WAITING' | 'ARMED' | 'TRIGGERED' | 'IN_TRADE'
   /** The live reference candle: the bar whose low touched d3. */
   ref_i: number | null
-  /** The high that has to break for this to trigger. */
-  ref_high: number | null
+  /** The high that has to break for this to trigger. BUY side only. */
+  ref_high?: number | null
+  /** The SELL mirror's line: the low that has to break. Named for what it IS
+   *  -- a low carried under `ref_high` would be a lie a reader cannot catch. */
+  ref_low?: number | null
   /** The band the reference tagged — the stop is `level` minus 20. */
   level: number | null
   /** Bars left of the window before the reference expires. */
@@ -381,6 +384,14 @@ export interface TapeView {
   rotationRun: (RotationSignal | null)[] | null
   /** Empty string when `rotationRun` is non-null. */
   rotationRunWhy: string
+  /** §5c's SELL mirror -- u3 tag, then a close BELOW the reference candle's
+   *  low. Published under its own key and never merged into `rotationRun`:
+   *  merging would change what that array has always meant for every existing
+   *  reader. Built 2026-08-08 on the operator's explicit instruction, over a
+   *  REJECTED verdict (CHECKLIST C3) -- so it may be drawn, and must never be
+   *  presented as carrying the buy rule's measured hit rate. */
+  rotationRunSell: (RotationSignal | null)[] | null
+  rotationRunSellWhy: string
   /** The same machine read per bar rather than per entry. One slot per bar. */
   runState: RunState[] | null
   /** Empty string when `runState` is non-null. */
@@ -1426,7 +1437,9 @@ export function useLiveData(fallback: Dataset) {
       return {
         day: '', bars: [], strike: null, optPivots: null, optExpiry: null,
         structures: null, structuresWhy: '', rotation: null, rotationWhy: '',
-        rotationRun: null, rotationRunWhy: '', runState: null, runStateWhy: '',
+        rotationRun: null, rotationRunWhy: '',
+        rotationRunSell: null, rotationRunSellWhy: '',
+        runState: null, runStateWhy: '',
       }
     }
     const bars: TapeBar[] = []
@@ -1517,6 +1530,9 @@ export function useLiveData(fallback: Dataset) {
     const [rotationRun, rotationRunWhy] =
       alignPerBar<RotationSignal | null>(day.rotation_run, bars.length, skipped,
                                          'two-candle entry')
+    const [rotationRunSell, rotationRunSellWhy] =
+      alignPerBar<RotationSignal | null>(day.rotation_run_sell, bars.length,
+                                         skipped, 'two-candle sell entry')
     const [runState, runStateWhy] =
       alignPerBar<RunState>(day.run_state, bars.length, skipped, 'run-state')
 
@@ -1527,7 +1543,8 @@ export function useLiveData(fallback: Dataset) {
       optPivots: (day.opt_pivots as OptPivots | undefined) ?? null,
       optExpiry: typeof day.opt_expiry === 'string' ? day.opt_expiry : null,
       structures, structuresWhy, rotation, rotationWhy,
-      rotationRun, rotationRunWhy, runState, runStateWhy,
+      rotationRun, rotationRunWhy, rotationRunSell, rotationRunSellWhy,
+      runState, runStateWhy,
     }
   }, [raw])
 

@@ -1010,6 +1010,21 @@ def build_payload(cfg, spot=None):
         js["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS)
     js["run_state"] = _states
     js["rotation_run"] = [s["entry"] for s in _states]
+    # The SELL mirror, published under its OWN keys and never merged into the
+    # two above. Merging would silently change what `rotation_run` has always
+    # meant, and every existing reader of it -- the chart legend's count, the
+    # SETUP CHECK panel, run_score -- would start describing a different
+    # population without a line anywhere saying so.
+    #
+    # Built at the operator's explicit instruction, 2026-08-08: "sell is
+    # reverse from upper band that sit just genrate signal no need
+    # backtesting", after being shown CHECKLIST C3 (upper-band selling
+    # measured across five datasets and REJECTED). It is published; what must
+    # never happen is a screen implying it carries the BUY rule's 68.4%.
+    _states_sell = band_rotation.run_states(
+        js["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL")
+    js["run_state_sell"] = _states_sell
+    js["rotation_run_sell"] = [s["entry"] for s in _states_sell]
     # Floor pivots of each tracked option leg's OWN prior session, additive
     # (v1 ignores the key). Same formula as the FUT pivots (_floor_pivots),
     # applied to the contract's own H/L/C; a leg with no prior session says

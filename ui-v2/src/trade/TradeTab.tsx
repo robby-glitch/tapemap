@@ -77,6 +77,14 @@ interface Props {
   rotationRun: (RotationSignal | null)[] | null
   /** Why `rotationRun` is null. Empty when it isn't. */
   rotationRunWhy: string
+  /** §5c's SELL mirror: a u3 tag, then a close BELOW the reference candle's
+   *  low. Kept a SEPARATE array from `rotationRun` all the way to the draw
+   *  call, and counted separately in the legend, because the two carry very
+   *  different evidence: the buy side is the one scored edge (68.4%, n=19)
+   *  and the sell side was measured across five datasets and REJECTED
+   *  (CHECKLIST C3). The operator asked for it anyway on 2026-08-08 and that
+   *  stands -- what must not happen is the screen implying they are equals. */
+  rotationRunSell: (RotationSignal | null)[] | null
   /** The SAME §5c machine read per BAR rather than per entry — where the setup
    *  stands right now. `rotationRun` answers "where did it fire"; this answers
    *  "where does this stand", which is what the SETUP CHECK panel reads. Both
@@ -286,7 +294,8 @@ export default function TradeTab({
   index, day, bars, levels, events, cursor, chain, strike, optPivots, optExpiry,
   stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange, structures, structuresWhy,
-  rotation, rotationWhy, rotationRun, rotationRunWhy, runState, runStateWhy,
+  rotation, rotationWhy, rotationRun, rotationRunWhy, rotationRunSell,
+  runState, runStateWhy,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
@@ -429,6 +438,27 @@ export default function TradeTab({
     if (!rotationRun) return null
     return runDrawPlan(rotationRun, cursor != null ? at : rotationRun.length - 1)
   }, [rotationRun, cursor, at])
+
+  // What the chart actually draws: both sides in one array, because the
+  // overlay already branches on `sig.side` (LevelsOverlay's `const buy =
+  // sig.side === 'BUY'`) and has since the old rule emitted u3 SELLs. Merged
+  // HERE and nowhere earlier -- `rotationRun` keeps its meaning for every
+  // other reader, and a buy wins a slot outright if both ever land on one bar
+  // rather than one silently replacing the other.
+  const rotationDraw = useMemo(() => {
+    if (!rotationRun && !rotationRunSell) return null
+    const n = bars.length
+    const out: (RotationSignal | null)[] = new Array(n).fill(null)
+    for (let i = 0; i < n; i++) out[i] = rotationRun?.[i] ?? rotationRunSell?.[i] ?? null
+    return out
+  }, [rotationRun, rotationRunSell, bars.length])
+
+  // Counted through the overlay's own predicate, exactly as the buy count is,
+  // so the legend can never claim a number the chart did not draw (A5).
+  const sellCount = useMemo(() => {
+    if (!rotationRunSell) return null
+    return runDrawPlan(rotationRunSell, cursor != null ? at : rotationRunSell.length - 1)
+  }, [rotationRunSell, cursor, at])
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
@@ -850,7 +880,7 @@ export default function TradeTab({
           <ContractChart
             index={index} day={day} bars={bars} levels={levels} cursor={cursor}
             mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
-            structures={structures} smc={smc} rotation={rotationRun} story={story}
+            structures={structures} smc={smc} rotation={rotationDraw} story={story}
           />
         </div>
       </div>
@@ -923,6 +953,12 @@ export default function TradeTab({
               ? ` · ${rotCount.unexpected} roke gaye: backend ne`
                 + ` ${rotCount.unexpectedWhy} bheja, jo §5c ka detector bana hi nahi sakta`
               : '')
+          : ''}
+        {sellCount && sellCount.drawnCount
+          ? ` · ${sellCount.drawnCount} u3 SELL entry — d3 wale rule ka ulta`
+            + ` aaina. ISKA KOI SCORE NAHI HAI: upper band pe bechna paanch`
+            + ` datasets pe naapa aur REJECT hua tha; ye tumhare kehne par`
+            + ` banaya gaya hai, aur d3 BUY wali 68.4% ise HAASIL NAHI hai`
           : ''}
         {smc && structures && structures.length
           ? ` · structure (peetal; solid = flow se confirmed aur naam ke saath, halka = confirm nahi hua,`

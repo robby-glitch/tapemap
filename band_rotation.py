@@ -861,29 +861,47 @@ RUN_WINDOW = 10
 # question, not an assumption to bake in.)
 OPERATOR_STOP_PTS = 20.0
 
+# The SELL mirror of RUN_BAND. u3 only -- never u2 -- and that asymmetry is the
+# operator's own, 2026-07-31: they buy at -2 or -3 sigma but sell only at +3.
+# "Selling is the more selective condition, which fits -- a stretched premium
+# can stretch further."
+#
+# READ THIS BEFORE TRUSTING A SELL RECORD. CHECKLIST C3 records selling an upper
+# band as measured across FIVE datasets and REJECTED. The operator was shown
+# that and asked for the signal anyway, 2026-08-08: "sell is reverse from upper
+# band that sit just genrate signal no need backtesting". So it is built, and
+# built as the MIRROR of the scored rule rather than as a second rule beside it
+# -- but nothing anywhere may present a SELL record as carrying the BUY rule's
+# 68.4%. Same standing as drawing d3 on BANKNIFTY (HANDOFF, "Settled").
+SELL_RUN_BAND = "u3"
 
-def _run_read(bar):
+
+def _run_read(bar, band=RUN_BAND):
     """(low, high, close, d3, vwap) as finite floats, or None if the bar's own
     OHLC cannot be read. `d3` and `vwap` may each be None -- a missing band is
     a fact the caller handles, never a zero."""
     low, high, close = (_num(bar.get(k)) for k in ("l", "h", "c"))
     if low is None or high is None or close is None:
         return None
-    return low, high, close, _num(bar.get(RUN_BAND)), _num(bar.get("vwap"))
+    return low, high, close, _num(bar.get(band)), _num(bar.get("vwap"))
 
 
-def _run_why(ref_t, ref_high, level, close, waited):
+def _run_why(ref_t, ref_high, level, close, waited, sell=False):
     """The receipt. Worded so it can never be confused with `_trigger_why`'s
     sentence -- `trigger_log.py` parses that one, and the two rules must stay
     tellable apart in a log written months from now."""
     at = f" at {ref_t}" if isinstance(ref_t, str) and ref_t else ""
     bars = "bar" if waited == 1 else "bars"
+    if sell:
+        return (f"index high touched {SELL_RUN_BAND} {_f(level)}{at}, then "
+                f"closed {_f(close)} below that candle's low {_f(ref_high)} "
+                f"{waited} {bars} later")
     return (f"index low touched {RUN_BAND} {_f(level)}{at}, then closed "
             f"{_f(close)} above that candle's high {_f(ref_high)} "
             f"{waited} {bars} later")
 
 
-def detect_index_run(bars, days=None, stop_pts=None):
+def detect_index_run(bars, days=None, stop_pts=None, side="BUY"):
     """The operator's own two-candle d3 setup, one slot per bar of `bars`.
 
     ARM      a bar whose low TOUCHES d3 (no close-back needed). That bar is
@@ -911,10 +929,10 @@ def detect_index_run(bars, days=None, stop_pts=None):
     BAR; this is the entries-only view of it. One implementation, two readings
     -- see `run_states` for why that is not optional.
     """
-    return [s["entry"] for s in run_states(bars, days, stop_pts)]
+    return [s["entry"] for s in run_states(bars, days, stop_pts, side)]
 
 
-def run_states(bars, days=None, stop_pts=None):
+def run_states(bars, days=None, stop_pts=None, side="BUY"):
     """The same two-candle setup as a state PER BAR, not only its entries.
 
     `detect_index_run` answers "where did it fire". A screen also has to answer
@@ -946,6 +964,12 @@ def run_states(bars, days=None, stop_pts=None):
     """
     if not isinstance(bars, (list, tuple)) or not bars:
         return []
+    # ONE loop, mirrored -- the operator's own instruction, 2026-07-31:
+    # "build the detector once, symmetric". `sell` flips four comparisons and
+    # nothing else. A second copy of this machine would drift exactly the way
+    # the 09:25 gate did while it lived in the scorer AND the frontend.
+    sell = str(side).upper() == "SELL"
+    band = SELL_RUN_BAND if sell else RUN_BAND
     rows = [_index_bar(b) for b in bars]
     n = len(rows)
     day_list = (list(days) if isinstance(days, (list, tuple)) and len(days) == n
@@ -965,7 +989,7 @@ def run_states(bars, days=None, stop_pts=None):
             cur_day, ref, lock = day, None, None
         t = bar.get("t") if bar is not None else None
         entry = exit_why = None
-        read = _run_read(bar) if bar is not None else None
+        read = _run_read(bar, band) if bar is not None else None
         readable = read is not None
 
         if readable:
@@ -976,9 +1000,16 @@ def run_states(bars, days=None, stop_pts=None):
             #    next setup, which is why OUT is a flag here and not a state.
             live = True
             if lock is not None:
-                if lock["stop"] is not None and low <= lock["stop"]:
+                # A short is stopped by price rising THROUGH the stop, and
+                # reaches VWAP from above -- both tests invert with the side.
+                hit_stop = (lock["stop"] is not None
+                            and (high >= lock["stop"] if sell
+                                 else low <= lock["stop"]))
+                hit_vwap = (vwap is not None
+                            and (low <= vwap if sell else high >= vwap))
+                if hit_stop:
                     lock, exit_why = None, "stop"
-                elif vwap is not None and high >= vwap:
+                elif hit_vwap:
                     lock, exit_why = None, "vwap"
                 else:
                     live = False
@@ -991,7 +1022,9 @@ def run_states(bars, days=None, stop_pts=None):
                 # The three branches below are mutually exclusive, which the
                 # original spelled with `continue`. An if/elif chain says the
                 # same thing while still letting every bar emit a state.
-                if ref is not None and low < ref["low"]:
+                moved = ref is not None and (high > ref["high"] if sell
+                                             else low < ref["low"])
+                if moved:
                     # 3. A new lower low MOVES the reference (and restarts its
                     #    clock). Such a bar cannot also trigger -- it would be
                     #    beating its own high.
@@ -1001,26 +1034,38 @@ def run_states(bars, days=None, stop_pts=None):
                     # 4. Arm on a TOUCH of d3, after 09:25. A bar with no
                     #    readable clock is not assumed to be late enough.
                     minute = _minute(t) if isinstance(t, str) else None
-                    if (lvl is not None and low <= lvl
-                            and minute is not None and minute >= ANCHOR_MINUTE):
+                    tagged = lvl is not None and (high >= lvl if sell
+                                                  else low <= lvl)
+                    if (tagged and minute is not None
+                            and minute >= ANCHOR_MINUTE):
                         ref = {"i": i, "t": t, "low": low, "high": high,
                                "level": lvl}
-                elif close > ref["high"]:
+                elif (close < ref["low"]) if sell else (close > ref["high"]):
                     # 5. Trigger: a CLOSE above the reference's high.
                     trap, trap_why, dwell = _trap(by_day, why_none, day, t)
                     waited = i - ref["i"]
+                    # The line that had to break: the reference's HIGH on a
+                    # buy, its LOW on a sell. Emitted under its true name --
+                    # calling a low "ref_high" would be a lie a reader could
+                    # not catch -- and the BUY record keeps exactly the keys it
+                    # always had, so nothing downstream of it shifts.
+                    brk = ref["low"] if sell else ref["high"]
                     entry = {"i": i, "t": t if isinstance(t, str) else None,
-                             "side": "BUY", "leg": INDEX_LEG, "band": RUN_BAND,
-                             "trigger": _run_why(ref["t"], ref["high"],
-                                                 ref["level"], close, waited),
+                             "side": "SELL" if sell else "BUY",
+                             "leg": INDEX_LEG, "band": band,
+                             "trigger": _run_why(ref["t"], brk, ref["level"],
+                                                 close, waited, sell),
                              "also": None,
                              "confirm": "UNKNOWN",
                              "confirm_why": SINGLE_SERIES_CONFIRM_WHY,
                              "trap": trap, "trap_why": trap_why,
                              "trap_dwell": dwell,
-                             "ref_i": ref["i"], "ref_high": ref["high"],
+                             "ref_i": ref["i"],
+                             ("ref_low" if sell else "ref_high"): brk,
                              "level": ref["level"], "waited": waited}
-                    lock = {"stop": (ref["level"] - stop_pts)
+                    # A short's stop sits ABOVE the band it armed on.
+                    lock = {"stop": ((ref["level"] + stop_pts) if sell
+                                     else ref["level"] - stop_pts)
                             if (stop_pts is not None and ref["level"] is not None)
                             else None}
                     ref = None
@@ -1036,7 +1081,8 @@ def run_states(bars, days=None, stop_pts=None):
         out[i] = {
             "i": i, "t": t if isinstance(t, str) else None, "state": state,
             "ref_i": ref["i"] if ref is not None else None,
-            "ref_high": ref["high"] if ref is not None else None,
+            ("ref_low" if sell else "ref_high"):
+                (ref["low"] if sell else ref["high"]) if ref is not None else None,
             "level": (entry["level"] if entry is not None
                       else (ref["level"] if ref is not None else None)),
             "candles_left": (RUN_WINDOW - (i - ref["i"])
