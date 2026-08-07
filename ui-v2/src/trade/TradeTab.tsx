@@ -712,23 +712,28 @@ export default function TradeTab({
         </div>
       </div>
 
-      {stale && (
-        <div style={{ fontSize: 11, color: pal.caution, paddingLeft: 2 }}>
-          This index stopped updating — the chart below is the last tape received, not live. Its final bar is {b.t}.
-        </div>
-      )}
-
-      {prec !== 'exact' && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          {prec === 'no-year'
-            ? 'Session key carries no year — the date axis infers the current one; month, day and intraday times are real.'
-            : 'Session key carries no parseable date — the date axis is synthetic; intraday times are real.'}
-        </div>
-      )}
-
-      {chainStale && (
-        <div style={{ fontSize: 11, color: pal.caution, paddingLeft: 2 }}>
-          Chain snapshot is stale — MAX PAIN and GEX FLIP below are from {chainTs || 'an earlier time'}, not now.
+      {/* One line, not three stacked ones. These are ABOVE the chart on
+          purpose and stay there: they say the tape stopped, or the date is
+          inferred, or the chain is old, and a warning you meet after you have
+          already read the chart is a warning that arrived late. What changed
+          is only the packing — three conditional 17px blocks plus their gaps
+          cost ~75px of a height budget the chart is starved for, and the
+          operator's own comparison against Kite is exactly that the chart owns
+          too little of the screen. Nothing is dropped or shortened; they are
+          joined. `caution` wins the colour whenever any cautionary one is up,
+          because the quieter grey must never soften a live warning. */}
+      {(stale || prec !== 'exact' || chainStale) && (
+        <div style={{
+          fontSize: 11, paddingLeft: 2, lineHeight: 1.45,
+          color: (stale || chainStale) ? pal.caution : pal.textMuted,
+        }}>
+          {[
+            stale && `This index stopped updating — the chart below is the last tape received, not live. Its final bar is ${b.t}.`,
+            prec !== 'exact' && (prec === 'no-year'
+              ? 'Session key carries no year — the date axis infers the current one; month, day and intraday times are real.'
+              : 'Session key carries no parseable date — the date axis is synthetic; intraday times are real.'),
+            chainStale && `Chain snapshot is stale — MAX PAIN and GEX FLIP below are from ${chainTs || 'an earlier time'}, not now.`,
+          ].filter(Boolean).join('  ·  ')}
         </div>
       )}
 
