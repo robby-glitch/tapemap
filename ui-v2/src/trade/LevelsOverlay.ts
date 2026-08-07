@@ -209,67 +209,68 @@ export interface RotDrawPlan {
   /** True at index i when the overlay puts a marker there. */
   drawn: boolean[]
   drawnCount: number
-  /** Withheld, split by REASON — three statements, three counts. */
-  rejectedBand: number
-  preAnchor: number
-  repeatInRun: number
+  /** Records the backend sent that §5c's detector cannot legally emit.
+   *  Expected to be 0 forever; a non-zero one is a BACKEND disagreement, not
+   *  a filter, and is withheld and named rather than quietly drawn. */
+  unexpected: number
+  unexpectedWhy: string
 }
 
 /**
- * Which band-rotation records this chart draws as a SETUP MARKER, and why the
- * rest are held back.
+ * Which records this chart draws as a SETUP MARKER.
  *
- * **The three filters below are not ours — they are the filters the SCORE was
- * measured under**, and the chart never applied any of them, so the pills have
- * been marking a population no published number describes. `run_score.py:73`
- * says exactly that: the unfiltered column exists to answer "what do the pills
- * on the chart actually mark".
+ * **This used to filter. It now verifies, and the difference matters.**
  *
- *   1. `d3` BUY only. §1's 72% and §5c's 68.4% are the **d3 BUY** population.
- *      d2 is a coin flip across 180 NIFTY signals; selling any upper band was
- *      rejected on five datasets (`research-findings` §2).
- *   2. **Post-09:25.** `rotation_score.py:32` — "the trigger itself has no
- *      clock. Before ~09:25 sigma is near 0 and the bands hug VWAP", so a
- *      pre-anchor tag is a σ artefact, not a stretch.
- *   3. **First-of-run.** A run of consecutive same-side fires is ONE setup.
+ * It was written against `rotation` — §1's one-candle rule — and applied three
+ * filters by hand (d3 BUY only, post-09:25, first-of-run) because the chart
+ * was drawing a population no published number described, while the scorer
+ * applied all three. Duplicating a rule in two languages is exactly how that
+ * gap opened in the first place, so the filters did not stay here: they went
+ * where the rule lives. `band_rotation.run_states` gates arming at 09:25 off
+ * the bar's own clock label, only ever emits `d3`/`BUY` (`RUN_BAND`), and
+ * folds a falling run into one reference by construction.
  *
- * Filter 3 is computed on the RAW record stream, before filter 1 — exactly as
- * `run_score.py:88` does (`prev_i == i - 1 and prev_side == r["side"]`), so a
- * d2 on the previous bar suppresses a d3 on this one. Matching the scorer
- * bar-for-bar is the point; a "tidier" rule here would silently draw a
- * different population all over again.
+ * So this is fed `rotationRun` and draws every record in it. What it still
+ * does is CHECK: anything that is not d3 BUY after 09:25 cannot have come out
+ * of that detector, so it is withheld and counted as a disagreement rather
+ * than drawn. That count should be 0 forever. If it is not, the backend and
+ * this chart disagree about what the rule is, and the operator is told so
+ * instead of being shown an unscored marker (`HANDOFF` §9 / `CHECKLIST` A1).
  *
- * Nothing is deleted: the backend still sends every record and the hover
- * callout still reads them. Counts come back split by reason because
- * "rejected", "too early to mean anything" and "already counted" are three
- * different statements (`HANDOFF` §9 / `CHECKLIST` A1).
+ * Nothing is deleted: the backend still sends `rotation` too, and a caller
+ * that wants the touch rather than the entry can still ask for it.
  */
-export function rotDrawPlan(
+export function runDrawPlan(
   rotation: (RotationSignal | null)[] | null,
   lastIdx: number,
 ): RotDrawPlan {
   const plan: RotDrawPlan = {
-    drawn: [], drawnCount: 0, rejectedBand: 0, preAnchor: 0, repeatInRun: 0,
+    drawn: [], drawnCount: 0, unexpected: 0, unexpectedWhy: '',
   }
   if (!rotation) return plan
   const n = Math.min(lastIdx, rotation.length - 1)
-  let prevI = -2
-  let prevSide: string | null = null
+  const odd: string[] = []
   for (let i = 0; i <= n; i++) {
     plan.drawn[i] = false
     const s = rotation[i]
     if (!s) continue
-    const first = !(prevI === i - 1 && prevSide === s.side)
-    prevI = i
-    prevSide = s.side
-    // Only the FIRST reason that applies is counted: a signal is withheld once,
-    // for one stated reason, never tallied under three.
-    if (!first) { plan.repeatInRun++; continue }
-    if (s.band !== 'd3' || s.side !== 'BUY') { plan.rejectedBand++; continue }
     const min = rotMinute(s.t)
-    if (min == null || min < ROT_ANCHOR_MINUTE) { plan.preAnchor++; continue }
+    if (s.band !== 'd3' || s.side !== 'BUY') {
+      plan.unexpected++
+      if (odd.length < 3) odd.push(`${s.t ?? `bar ${i}`} is ${s.side} ${s.band}`)
+      continue
+    }
+    if (min == null || min < ROT_ANCHOR_MINUTE) {
+      plan.unexpected++
+      if (odd.length < 3) odd.push(`${s.t ?? `bar ${i}`} is before 09:25`)
+      continue
+    }
     plan.drawn[i] = true
     plan.drawnCount++
+  }
+  if (plan.unexpected) {
+    plan.unexpectedWhy = odd.join(', ')
+      + (plan.unexpected > odd.length ? `, +${plan.unexpected - odd.length} more` : '')
   }
   return plan
 }
@@ -815,7 +816,7 @@ function drawRotation(
   // so the number the operator reads can never drift from what is on screen.
   // Built over `n`, not `lastIdx`, because a marker past the shorter array is
   // not drawable and must not be counted as drawn either.
-  const plan = rotDrawPlan(rotation, n)
+  const plan = runDrawPlan(rotation, n)
   for (let i = 0; i <= n; i++) {
     const sig = rotation[i]
     if (!sig) continue

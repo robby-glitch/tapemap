@@ -303,6 +303,43 @@ export interface RotationSignal {
   trap_why: string
   /** Index bars the band held that width, or null where never measured. */
   trap_dwell: number | null
+  /** Only on `rotationRun` records — the bar whose low armed the setup, the
+   *  high that had to break, and how many bars the trigger waited for it.
+   *  Absent on `rotation` records, which have no reference candle at all. */
+  ref_i?: number
+  ref_high?: number
+  level?: number
+  waited?: number
+}
+
+/** Where the operator's two-candle setup stands on ONE bar (`run_state`).
+ *
+ *  `rotationRun` answers "where did it fire"; this answers "where does it
+ *  stand right now", which is what a state display reads. Both come out of one
+ *  loop in `band_rotation.run_states` — see there for why a second
+ *  implementation of this machine is not allowed to exist.
+ */
+export interface RunState {
+  i: number
+  t: string | null
+  state: 'WAITING' | 'ARMED' | 'TRIGGERED' | 'IN_TRADE'
+  /** The live reference candle: the bar whose low touched d3. */
+  ref_i: number | null
+  /** The high that has to break for this to trigger. */
+  ref_high: number | null
+  /** The band the reference tagged — the stop is `level` minus 20. */
+  level: number | null
+  /** Bars left of the window before the reference expires. */
+  candles_left: number | null
+  /** Non-null only on a TRIGGERED bar; identical to `rotationRun[i]`. */
+  entry: RotationSignal | null
+  /** Set on the bar the re-fire lock cleared. OUT is not a state because a
+   *  bar can clear the lock AND arm the next setup — see `run_states`. */
+  exit_why: 'stop' | 'vwap' | null
+  /** False when the bar carried no usable read. The state is then the one it
+   *  is still IN, not WAITING: a missing read is not evidence the setup went
+   *  away, and WAITING would blink a live reference off the screen. */
+  readable: boolean
 }
 
 /**
@@ -336,6 +373,18 @@ export interface TapeView {
   rotation: (RotationSignal | null)[] | null
   /** Empty string when `rotation` is non-null. */
   rotationWhy: string
+  /** §5c's TWO-CANDLE entries — the rule the operator actually trades. Same
+   *  slot-per-bar contract as `rotation`, and the same record shape, but a
+   *  DIFFERENT bar: `rotation` marks the d3 touch, this marks the close that
+   *  breaks the touching bar's high. Null on a backend too old to publish it,
+   *  which is a thing to say out loud rather than fall back from. */
+  rotationRun: (RotationSignal | null)[] | null
+  /** Empty string when `rotationRun` is non-null. */
+  rotationRunWhy: string
+  /** The same machine read per bar rather than per entry. One slot per bar. */
+  runState: RunState[] | null
+  /** Empty string when `runState` is non-null. */
+  runStateWhy: string
 }
 
 // Live Spike Radar — one row per index, one cell per activity/spike column.
@@ -1209,6 +1258,27 @@ type IdxResult =
   | { ok: true; per: PerIndex }
   | { ok: false; reachable: boolean; why: string }
 
+/** A per-bar layer, or null with the reason it could not be trusted.
+ *
+ *  Every layer indexed by bar takes the same guard, because the failure is the
+ *  same one: a marker drawn one bar off claims the operator's setup fired on a
+ *  minute it did not. A length mismatch is a real disagreement about the bar
+ *  list, so it is disclosed rather than papered over by padding or truncating.
+ */
+function alignPerBar<T>(
+  raw: unknown, nBars: number, skipped: number, what: string,
+): [T[] | null, string] {
+  if (!Array.isArray(raw)) return [null, `this backend publishes no ${what}`]
+  if (skipped > 0)
+    return [null, `${skipped} bar${skipped === 1 ? '' : 's'} lacked a FUT leg, so the `
+      + `${what} bar indices no longer line up with the chart`]
+  if (raw.length !== nBars)
+    return [null, `the backend sent ${raw.length} ${what} slot`
+      + `${raw.length === 1 ? '' : 's'} for ${nBars} bars, so they cannot be `
+      + 'lined up 1:1']
+  return [raw as T[], '']
+}
+
 export type LiveError = 'unreachable' | 'no-data'
 
 export function useLiveData(fallback: Dataset) {
@@ -1356,6 +1426,7 @@ export function useLiveData(fallback: Dataset) {
       return {
         day: '', bars: [], strike: null, optPivots: null, optExpiry: null,
         structures: null, structuresWhy: '', rotation: null, rotationWhy: '',
+        rotationRun: null, rotationRunWhy: '', runState: null, runStateWhy: '',
       }
     }
     const bars: TapeBar[] = []
@@ -1438,6 +1509,17 @@ export function useLiveData(fallback: Dataset) {
         }
       })
     }
+    // §5c's two-candle entries and the per-bar state of the same machine.
+    // Same guard as `rotation` above, for the same reason. These are NOT a
+    // fallback for each other: `rotation` marks the d3 touch and `rotationRun`
+    // marks the entry, so quietly substituting one would move every marker on
+    // the chart with nothing on screen saying it had happened.
+    const [rotationRun, rotationRunWhy] =
+      alignPerBar<RotationSignal | null>(day.rotation_run, bars.length, skipped,
+                                         'two-candle entry')
+    const [runState, runStateWhy] =
+      alignPerBar<RunState>(day.run_state, bars.length, skipped, 'run-state')
+
     return {
       day: day.day ?? '', bars,
       strike: typeof day.strike === 'number' && Number.isFinite(day.strike) ? day.strike : null,
@@ -1445,6 +1527,7 @@ export function useLiveData(fallback: Dataset) {
       optPivots: (day.opt_pivots as OptPivots | undefined) ?? null,
       optExpiry: typeof day.opt_expiry === 'string' ? day.opt_expiry : null,
       structures, structuresWhy, rotation, rotationWhy,
+      rotationRun, rotationRunWhy, runState, runStateWhy,
     }
   }, [raw])
 

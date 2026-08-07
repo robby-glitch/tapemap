@@ -2140,7 +2140,9 @@ export default function App() {
                                               structures={tape.structures}
                                               structuresWhy={tape.structuresWhy}
                                               rotation={tape.rotation}
-                                              rotationWhy={tape.rotationWhy} />}
+                                              rotationWhy={tape.rotationWhy}
+                                              rotationRun={tape.rotationRun}
+                                              rotationRunWhy={tape.rotationRunWhy} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}

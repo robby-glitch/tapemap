@@ -9,7 +9,7 @@ import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
 // The overlay owns the cap; the legend below only reports it, so the number the
 // operator reads can never drift from the number actually drawn.
-import { STRUCT_ZONE_LIMIT, rotDrawPlan } from './LevelsOverlay'
+import { STRUCT_ZONE_LIMIT, runDrawPlan } from './LevelsOverlay'
 import { palette, MONO, useMode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure, Chain, FlowRow, OptPivots } from '../data'
 
@@ -58,6 +58,12 @@ interface Props {
   rotation: (RotationSignal | null)[] | null
   /** Why `rotation` is null, in data.ts's own words. Empty when it isn't. */
   rotationWhy: string
+  /** §5c's two-candle ENTRIES — the rule the operator actually trades, and
+   *  what this chart marks. `rotation` above is §1's one-candle rule, which
+   *  marks the d3 TOUCH: a different bar, kept only for the record. */
+  rotationRun: (RotationSignal | null)[] | null
+  /** Why `rotationRun` is null. Empty when it isn't. */
+  rotationRunWhy: string
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
@@ -259,7 +265,7 @@ export default function TradeTab({
   index, day, bars, levels, events, cursor, chain, strike, optPivots, optExpiry,
   stale, loading, chainStale, chainTs,
   focus, onFocusToggle, onIndexChange, structures, structuresWhy,
-  rotation, rotationWhy,
+  rotation, rotationWhy, rotationRun, rotationRunWhy,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
   // Kite on the light theme and reported the dark build unreadable.
@@ -387,9 +393,9 @@ export default function TradeTab({
   // the operator reads can never drift from the number actually drawn — the
   // same contract STRUCT_ZONE_LIMIT is imported under.
   const rotCount = useMemo(() => {
-    if (!rotation) return null
-    return rotDrawPlan(rotation, cursor != null ? at : rotation.length - 1)
-  }, [rotation, cursor, at])
+    if (!rotationRun) return null
+    return runDrawPlan(rotationRun, cursor != null ? at : rotationRun.length - 1)
+  }, [rotationRun, cursor, at])
 
   // Presentation only (spec §6 Phase 2): joins the payload's own event stream
   // to bars, tiers and formats — nothing computed about the market.
@@ -720,10 +726,12 @@ export default function TradeTab({
           must not read as "your setup never printed today". Gated on `day` for
           the same reason the structure line above is: an empty day is the
           tab's own initial-load state, already covered by the bail. */}
-      {day && !rotation && (
+      {day && !rotationRun && (
         <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Band-rotation signals unavailable{rotationWhy ? ` — ${rotationWhy}` : ''}. No setup
-          markers are drawn rather than markers that might sit on the wrong bars.
+          Setup markers unavailable{rotationRunWhy ? ` — ${rotationRunWhy}` : ''}. Nothing is
+          drawn rather than markers that might sit on the wrong bars — and the older
+          one-candle layer is deliberately NOT substituted: it marks the d3 touch,
+          not the entry, so it would put every marker on a different bar.
         </div>
       )}
 
@@ -741,7 +749,7 @@ export default function TradeTab({
         <ContractChart
           index={index} day={day} bars={bars} levels={levels} cursor={cursor}
           mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
-          structures={structures} smc={smc} rotation={rotation} story={story}
+          structures={structures} smc={smc} rotation={rotationRun} story={story}
         />
       </div>
     </div>
@@ -801,23 +809,17 @@ export default function TradeTab({
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
         VWAP red · σ bands ±1σ dark red / ±2σ green / ±3σ blue · levels · OI
         {rotCount != null
-          ? ` · ${rotCount.drawnCount} d3 BUY setup${rotCount.drawnCount === 1 ? '' : 's'}`
+          ? ` · ${rotCount.drawnCount} d3 BUY entr${rotCount.drawnCount === 1 ? 'y' : 'ies'}`
+            + ` — the close that broke the touching bar's high, not the touch`
             + ` (triangle on the σ band it tagged, square pill; faded = the index`
             + ` was not squeezing into it, dashed = that could not be checked)`
-            // "We are not showing you", split by reason — three withholdings
-            // for three different causes are three sentences, not one number.
-            // The backend still sends every record; the hover callout reads it.
-            + (rotCount.rejectedBand
-              ? ` · ${rotCount.rejectedBand} d2/u3 or SELL not drawn (tested and`
-                + ` rejected, research-findings §2)`
-              : '')
-            + (rotCount.preAnchor
-              ? ` · ${rotCount.preAnchor} pre-09:25 not drawn (σ is still near zero`
-                + ` there, so the band is not a stretch yet)`
-              : '')
-            + (rotCount.repeatInRun
-              ? ` · ${rotCount.repeatInRun} repeat${rotCount.repeatInRun === 1 ? '' : 's'}`
-                + ` inside a run folded into their first fire`
+            // Not a filter count any more: arming at 09:25 and folding a run
+            // into one reference now happen in band_rotation.run_states, where
+            // the rule lives. This says only that the backend sent something
+            // that rule cannot emit — which should never print.
+            + (rotCount.unexpected
+              ? ` · ${rotCount.unexpected} withheld: the backend sent`
+                + ` ${rotCount.unexpectedWhy}, which §5c's detector cannot produce`
               : '')
           : ''}
         {smc && structures && structures.length
