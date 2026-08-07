@@ -11,13 +11,17 @@ import { buildZones } from './zones'
 // operator reads can never drift from the number actually drawn.
 import { STRUCT_ZONE_LIMIT, runDrawPlan } from './LevelsOverlay'
 
-/** The reserved rail down the left of the chart, in px.
+type LegsView = 'split' | 'stacked' | 'off'
+
+/** The panel down the left of the chart, in px.
  *
- *  44 rather than a tighter 32: whatever lands here will be buttons, and 44 is
- *  the WCAG touch-target floor the UI audit already flags this app for missing
- *  everywhere else. Sizing the space for it now costs nothing and stops the
- *  rail being rebuilt the day it gets its first control. */
-const CHART_RAIL_W = 44
+ *  260, not the 44 this started as: the operator pointed at Kite, where the
+ *  left of the chart is a WATCHLIST, not a toolbar. 260 is the narrowest width
+ *  that still fits an instrument row -- name, change, last -- without the last
+ *  price wrapping, which is the whole point of a watchlist you read at a
+ *  glance. It stays a fixed basis rather than a percentage so the chart, not
+ *  the panel, absorbs a resize. */
+const CHART_SIDE_W = 260
 import { palette, MONO, useMode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure, Chain, FlowRow, OptPivots } from '../data'
 
@@ -322,11 +326,20 @@ export default function TradeTab({
   // STACK gives each pane the full width instead, which buys horizontal
   // resolution for reading individual candles. Both are tall (LegChart's
   // PANE_H); the page scrolls, so height costs nothing.
-  const [legStack, setLegStack] = useState<boolean>(() => localStorage.getItem('tape.legstack') === 'on')
-  const toggleLegStack = () => {
-    const next = !legStack
-    localStorage.setItem('tape.legstack', next ? 'on' : 'off')
-    setLegStack(next)
+  // Three states now, not two. The operator asked for the Kite shape -- one
+  // big chart, nothing under it -- so OFF is the default and the legs are
+  // opt-in rather than gone: the pair read is still the setup, and a panel you
+  // cannot get back is a feature removed, not a layout choice.
+  // An existing 'on' still means STACKED, so nobody's saved preference is lost.
+  const [legsView, setLegsView] = useState<LegsView>(() => {
+    const v = localStorage.getItem('tape.legstack')
+    return v === 'on' ? 'stacked' : v === 'split' ? 'split' : 'off'
+  })
+  const cycleLegs = () => {
+    const next: LegsView = legsView === 'off' ? 'split'
+      : legsView === 'split' ? 'stacked' : 'off'
+    localStorage.setItem('tape.legstack', next === 'stacked' ? 'on' : next)
+    setLegsView(next)
   }
 
   // Trending OI for the strip + the ZONE READ's flow group. Tab-local and on
@@ -646,17 +659,20 @@ export default function TradeTab({
               it names the CURRENT one, like LIGHT/DARK, so the button reads as
               a state not a command. */}
           <button
-            onClick={toggleLegStack}
-            title={legStack
-              ? 'CE and PE panes stacked full-width — more horizontal resolution per pane. Click for side by side.'
-              : 'CE and PE panes side by side — both legs visible at once, which is what the pair rotation read needs. Click to stack them full-width.'}
+            onClick={cycleLegs}
+            title={legsView === 'off'
+              ? 'The CE/PE premium panes are hidden, so the index chart has the page to itself. Click to show them side by side.'
+              : legsView === 'stacked'
+                ? 'CE and PE panes stacked full-width — more horizontal resolution per pane. Click to hide them.'
+                : 'CE and PE panes side by side — both legs visible at once, which is what the pair rotation read needs. Click to stack them full-width.'}
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 9px', cursor: 'pointer',
               border: `1px solid ${pal.border}`, borderRadius: 4,
               backgroundColor: 'transparent', color: pal.textMuted,
             }}
-          >{legStack ? 'LEGS STACKED' : 'LEGS SPLIT'}</button>
+          >{legsView === 'off' ? 'LEGS OFF'
+            : legsView === 'stacked' ? 'LEGS STACKED' : 'LEGS SPLIT'}</button>
 
           {/* With the glance bar hidden, its index switcher goes with it —
               this is just that switcher, not a duplicate of the whole bar. */}
@@ -761,7 +777,20 @@ export default function TradeTab({
         flex: 1, minHeight: 180, overflow: 'hidden',
         display: 'flex', gap: 10,
       }}>
-        <div style={{ width: CHART_RAIL_W, flexShrink: 0 }} />
+        <div style={{
+          width: CHART_SIDE_W, flexShrink: 0, borderRadius: 6,
+          border: `1px solid ${pal.border}`, backgroundColor: pal.card,
+          padding: 12, overflow: 'hidden',
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                        color: pal.textMuted }}>WATCHLIST</div>
+          {/* An empty panel that says nothing reads as one that failed to
+              load. This one says it is empty on purpose. */}
+          <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 8,
+                        lineHeight: 1.5 }}>
+            Reserved — nothing is wired here yet. The space is held, not broken.
+          </div>
+        </div>
         <div style={{
           // minWidth:0, or a flex item refuses to shrink below its content and
           // the chart shoulders the rail off the left edge on a narrow
@@ -889,14 +918,16 @@ export default function TradeTab({
       padding: '8px 16px 16px', backgroundColor: pal.bg,
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <LegChart day={day} bars={bars} leg="ce" strike={strike} cursor={cursor} mode={mode}
-                  pivots={optPivots?.ce ?? null} pivotsWhy={optPivots?.why?.ce ?? null}
-                  expiry={optExpiry} wide={legStack} />
-        <LegChart day={day} bars={bars} leg="pe" strike={strike} cursor={cursor} mode={mode}
-                  pivots={optPivots?.pe ?? null} pivotsWhy={optPivots?.why?.pe ?? null}
-                  expiry={optExpiry} wide={legStack} />
-      </div>
+      {legsView !== 'off' && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <LegChart day={day} bars={bars} leg="ce" strike={strike} cursor={cursor} mode={mode}
+                    pivots={optPivots?.ce ?? null} pivotsWhy={optPivots?.why?.ce ?? null}
+                    expiry={optExpiry} wide={legsView === 'stacked'} />
+          <LegChart day={day} bars={bars} leg="pe" strike={strike} cursor={cursor} mode={mode}
+                    pivots={optPivots?.pe ?? null} pivotsWhy={optPivots?.why?.pe ?? null}
+                    expiry={optExpiry} wide={legsView === 'stacked'} />
+        </div>
+      )}
       <ZoneRead
         pal={pal} bar={b} chain={chain} levels={levels}
         rot={rotation?.[at] ?? null}

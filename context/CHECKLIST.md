@@ -69,6 +69,8 @@ Last updated: 2026-08-06.
 | E3 | **Drawing toolbar goes ABOVE the chart.** A row under it is exactly what collapsed it. |
 | E4 | After adding any row, **verify the index chart still renders** — not just that the new row looks right. That is the check that was skipped, twice. |
 | E5 | Guards in place: chart `minHeight: 180`, column `overflow: hidden`. |
+| E6 | **`availH` is scroll-dependent and latches — found 2026-08-07, NOT fixed.** It is `max(320, innerHeight − rect.top − 12)`, and `rect.top` goes negative once the page is scrolled, so a measure taken while scrolled sets a huge height. `measure()` only re-runs on window resize or the parent's ResizeObserver, so the bad value then **sticks** — observed at 3446px, chart canvas 3280px tall, and it survived scrolling back to 0. A reload clears it. Hit while editing the layout live; it predates that edit. If the chart is ever absurdly tall, this is why. |
+| E7 | A **side rail is safe where a row below the chart is not.** E2/E3 are about vertical space; a left panel takes none, and the flex row simply inherits the `flex: 1` / `minHeight: 180` the chart box used to carry. Verify by measuring rail width, chart width and canvas height — not by eye (E4). |
 
 ## F · Untouchable
 
