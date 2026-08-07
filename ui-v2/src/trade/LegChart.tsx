@@ -52,7 +52,7 @@ export default function LegChart({
   const engineRef = useRef<IChartEngine | null>(null)
   const prevRef = useRef<{ day: string; n: number }>({ day: '', n: 0 })
 
-  const render = useMemo(() => legRender(day, bars, leg, pivots), [day, bars, leg, pivots])
+  const render = useMemo(() => legRender(day, bars, leg, pivots, strike), [day, bars, leg, pivots, strike])
   const pal = palette(mode)
 
   useEffect(() => {

@@ -145,7 +145,78 @@ corepack pnpm --dir ui-v2 exec tsc --noEmit
 corepack pnpm --dir ui-v2 build
 python -m pytest -q
 ```
-**401 tests as of 2026-08-06.** `vite build` does **not** typecheck — run `tsc` too.
+**432 tests as of 2026-08-07.** `vite build` does **not** typecheck — run `tsc` too.
+
+---
+
+## 2026-08-07 — the chart marks the entry now, and the morning survives a restart
+
+Four things landed. Read this before touching the rotation layer or the chain.
+
+**The chart was marking the wrong bar, and no longer is.** `rotation` is §1's
+one-candle rule, which `research-findings` marks **VOID** — it fires when a bar
+tags d3 and reverses inside that same bar, so every pill sat on the **touch**.
+The operator enters on the **close that breaks the touching bar's high**, one or
+more bars later. `live.py` now publishes, additively:
+
+    rotation_run   §5c's two-candle ENTRIES, 1:1 with bars
+    run_state      the same machine per bar — WAITING / ARMED / TRIGGERED /
+                   IN_TRADE, plus ref_high, candles_left, exit_why
+
+`rotation` is still published and still read by v1's `ui/app.js`. The two mark
+different bars, so **neither is a fallback for the other**; the UI says so when
+`rotation_run` is missing rather than substituting.
+
+`band_rotation.run_states` is the one loop; `detect_index_run` is a one-line
+view of it. The refactor was proven byte-identical over the whole cached corpus
+(152 sessions, 39 signals, same sha256 before and after — the baseline was
+captured BEFORE the edit, which is the only reason it proves anything), and
+`run_score.py` still reproduces every published figure.
+
+**The 09:25 and first-of-run filters left the frontend.** They were in the
+scorer AND hand-written in `LevelsOverlay` — one rule in two languages, which
+is how the original gap opened. Both now live in `run_states`. `rotDrawPlan`
+became `runDrawPlan` and no longer filters: it VERIFIES, counting anything §5c
+cannot legally emit as a *backend disagreement*. That count should never print.
+
+**`chain_backfill` rebuilds the morning.** The chain is only ever recorded live
+— Upstox's socket has no history and `_warm_start` replays only this tool's own
+file — so a poller starting at 12:18 had no morning while the chart beside it
+showed 09:15 onward. It now refills `ChainState.minutes` from REST after the
+first successful poll, on a daemon thread, writing **only marks earlier than
+anything recorded**. Verified against the socket's own file: 122 overlapping
+marks, per-strike `oi_chg` exact on 82% of 4,148 values, aggregate within a
+median 1.45%. **It fills `minutes` and nothing else** — REST candles carry no
+IV or greeks, so GEX and anything gamma-weighted stay honestly absent.
+
+**The OI pane says what happened.** It was one grey line of the LEVEL, which
+answers "how much" — a question nobody asks mid-session, and explicitly not
+what the operator's rule uses (*"oi is lagging so we need to prempt by the
+change"*). The pane label is now a sentence:
+
+    PE 24600 · SHORT COVERING — writers covered 4.57 L · 79.78 L open · -5.37 L today
+
+Four states, and the noun follows the contract: **writers/buyers** on an
+option, **shorts/longs** on the future. A flat close or flat OI says "no read"
+instead of guessing one of four directions.
+
+### Settled — no longer to be asked
+
+- **Stop is 20 points; targets +2σ and +3σ**; the operator manages the exit by
+  hand (this closes CHECKLIST D6). One definition: `OPERATOR_STOP_PTS`.
+- **Draw the setup on BANKNIFTY too.** Told that C4 measures d3 there at 37.5%
+  hit / median −75.90 (n=8), the operator said do it anyway. That stands — do
+  not re-litigate. What must not happen is the screen implying BANKNIFTY d3
+  carries NIFTY's 68.4%.
+- **The hover callout is theirs.** *"dont touch the dynamic call out."*
+
+### Still open
+
+Phase 5 — the state machine ON the pills. `run_state` is published and unread:
+the ARMED countdown, the `ref_high` line to beat, the stop at d3 − 20. Then
+`ui-audit.md`'s P1s (contrast, focus indicators). And the OI Flow header still
+reads "since the open", which is true once the backfill runs and a lie when it
+fails.
 
 **GateGuard hook:** the first Write/Edit per file, and the first Bash call per
 session, are denied with a request for facts (importers, affected API, data

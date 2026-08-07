@@ -13,7 +13,79 @@ import type { TapeBar, BarLeg, OptPivotLeg } from '../data'
 // LevelsOverlay's BAND_RGB. Eyeballed from that legend, so a shade may be off;
 // these two sites are the only places to correct it.
 const VWAP_LINE = '#FF1A1A'
-const OI_LINE = '#7F8EA3' // neutral — OI is a series here, not a direction call
+// The LEVEL stays a plain neutral line: it is context, not a direction call.
+// What the level cannot say — who moved and which way — is said in words by
+// `oiLabel` below, which is the part of this pane that carries the meaning.
+const OI_LINE = '#7F8EA3'
+
+/** Indian market units: OI is spoken in lakh and crore, not millions. */
+function lakh(n: number): string {
+  const a = Math.abs(n)
+  if (a >= 1e7) return `${(n / 1e7).toFixed(2)} Cr`
+  if (a >= 1e5) return `${(n / 1e5).toFixed(2)} L`
+  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`
+  return `${Math.round(n)}`
+}
+
+/** The four states, named AND said in plain language.
+ *
+ * `option` picks the vocabulary. On a futures series the two sides are longs
+ * and shorts; on an OPTION series the short side is the WRITER — the word the
+ * operator uses, and the one that says who is carrying the risk. Same four
+ * states either way; only the noun changes.
+ */
+function oiState(dOi: number, dPx: number, option: boolean) {
+  if (dOi > 0 && dPx > 0)
+    return { name: 'LONG BUILDUP', said: option ? 'buyers added' : 'longs added' }
+  if (dOi > 0 && dPx < 0)
+    return { name: 'SHORT BUILDUP', said: option ? 'writers added' : 'shorts added' }
+  if (dOi < 0 && dPx > 0)
+    return { name: 'SHORT COVERING', said: option ? 'writers covered' : 'shorts covered' }
+  return { name: 'LONG UNWINDING', said: option ? 'buyers exited' : 'longs exited' }
+}
+
+/** The pane's headline: what just happened to open interest on THIS contract.
+ *
+ * The pane used to read "OI 11,203,335.00" — a level, which answers "how
+ * much", and nobody asks that mid-session. The operator's own rule does not
+ * use it either: their dictated condition is explicitly NOT peak OI but the
+ * rate of change — "oi is lagging so we need to prempt by the change".
+ *
+ * So the line reads the CHANGE, names the state, and says in words who moved:
+ *
+ *     PE 24600 · SHORT BUILDUP — writers added 2.41 L · 1.12 Cr open · +8.63 L today
+ *
+ * A bar with nothing to read says so instead of picking a state. Flat OI, a
+ * flat close, and a missing leg are each real answers; guessing one of four
+ * directions out of them would invent a read the tape never gave.
+ */
+function oiLabel(oi: (number | null)[], close: (number | null)[],
+                 contract: string, option: boolean): string {
+  const head = contract ? `${contract} · ` : ''
+  let i = oi.length - 1
+  while (i > 0 && oi[i] == null) i--
+  const now = oi[i]
+  if (now == null) return `${head}OI — not published for this contract`
+
+  const open = oi.find((v) => v != null) ?? null
+  const today = open == null
+    ? '' : ` · ${now >= open ? '+' : ''}${lakh(now - open)} today`
+  const level = `${lakh(now)} open${today}`
+
+  const prev = i > 0 ? oi[i - 1] : null
+  const pa = i > 0 ? close[i - 1] : null
+  const pb = close[i]
+  if (prev == null || pa == null || pb == null)
+    return `${head}OI ${level} — no previous bar to compare`
+  const dOi = now - prev
+  const dPx = pb - pa
+  if (dOi === 0) return `${head}OI unchanged this bar · ${level}`
+  if (dPx === 0)
+    return `${head}OI ${dOi > 0 ? '+' : ''}${lakh(dOi)} on a flat close — no read · ${level}`
+
+  const s = oiState(dOi, dPx, option)
+  return `${head}${s.name} — ${s.said} ${lakh(Math.abs(dOi))} · ${level}`
+}
 
 const MONTHS: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -102,7 +174,8 @@ const PIV_KEYS: (keyof OptPivotLeg)[] = ['P', 'R1', 'S1', 'R2', 'S2', 'R3', 'S3'
  *  indicator values stay aligned 1:1 with the candles even though null-leg
  *  bars are skipped. Purely a reshape of engine-computed fields. */
 export function legRender(day: string, bars: TapeBar[], leg: 'ce' | 'pe',
-                          piv?: OptPivotLeg | null): LegRender {
+                          piv?: OptPivotLeg | null,
+                          strike?: number | null): LegRender {
   const base = dayBase(day)
   const candles: Candle[] = []
   const map: number[] = []
@@ -133,7 +206,9 @@ export function legRender(day: string, bars: TapeBar[], leg: 'ce' | 'pe',
       })),
     },
     {
-      instanceId: `${leg}-oi`, label: 'OI', placement: 'pane',
+      instanceId: `${leg}-oi`, placement: 'pane',
+      label: oiLabel(oi, candles.map((c) => c.close),
+                     `${leg.toUpperCase()}${strike ? ` ${strike}` : ''}`, true),
       outputs: [{ name: 'oi', values: oi, color: OI_LINE }],
     },
   ]
@@ -164,7 +239,11 @@ export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
       ],
     },
     {
-      instanceId: 'oi', label: 'OI', placement: 'pane',
+      instanceId: 'oi', placement: 'pane',
+      // The index pane charts the FUTURE, so the two sides are longs and
+      // shorts rather than buyers and writers.
+      label: oiLabel(series(bars, (b) => b.oi), series(bars, (b) => b.c),
+                     'FUT', false),
       outputs: [{ name: 'oi', values: series(bars, (b) => b.oi), color: OI_LINE }],
     },
   ]
