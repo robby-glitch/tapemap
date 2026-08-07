@@ -210,6 +210,36 @@ instead of guessing one of four directions.
   carries NIFTY's 68.4%.
 - **The hover callout is theirs.** *"dont touch the dynamic call out."*
 
+### Next session starts here — the left panel
+
+The Trade tab now has Kite's shape: a 260px panel down the left
+(`CHART_SIDE_W` in `TradeTab.tsx`), the chart owning the rest, leg charts off
+by default (`LEGS OFF` cycles OFF → SPLIT → STACKED). The chart takes a full
+screenful — 76% of the viewport, measured — and anything above it is one
+scroll up.
+
+**The panel is empty and says so.** That is where the work resumes. The
+operator's words when it was sized: *"left side m watchlist k liye space h."*
+
+Three things to settle there, none of them guessed yet:
+
+1. **Fill it or drop it.** The three indices already render in the glance bar
+   at the top of `App.tsx` — same data, so a watchlist here would be a second
+   view of it, not a new fetch. If it stays empty, 260px of dead space is worse
+   than no panel at all and the chart should take the width back.
+2. **Scroll-snap.** The height is right but the landing is approximate; the
+   operator asked for *"1 scroll k baad"*. CSS `scroll-snap-type: y proximity`
+   would land it exactly. Deliberately NOT added — a snap that feels wrong is
+   worse than none, so it wants trying, not assuming.
+3. **The level labels still overlap** at the chart's left edge — MAX PAIN, ±1σ,
+   S2, S3, TRAP stacked on each other. Open in `ui-audit.md` under Readability,
+   and it is the single ugliest thing next to Kite's clean scale.
+
+Layout rules that now apply: **E6b** — the chart owns a screenful, do not
+"reclaim" it by subtracting the header again. **E7** — a side rail is safe
+where a row below the chart is not, and E4 says verify by measuring the canvas,
+not by eye.
+
 ### Still open
 
 Phase 5 — the state machine ON the pills. `run_state` is published and unread:
