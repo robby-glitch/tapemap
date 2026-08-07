@@ -483,7 +483,26 @@ export default function TradeTab({
       // the operator asked for a bigger chart plus "the page scrollable a
       // little bit" with the suggestion at the bottom of it, and that is
       // precisely a full-height chart followed by one panel's worth of scroll.
-      const next = Math.max(320, window.innerHeight - node.getBoundingClientRect().top - 12)
+      // A FULL screenful, not "whatever is left under the chrome".
+      //
+      // The old formula subtracted this node's own distance from the top of
+      // the viewport, which made the chart fight the glance bar, the ANSWER
+      // band, the tab row and the scrubber for one screen — and lose. Kite
+      // wins that comparison because it is a fixed-viewport app and never has
+      // to share. This page SCROLLS, so it does not have to share either: the
+      // chart owns a screenful of its own, and anything above it is one scroll
+      // up. The operator's call, 2026-08-07.
+      //
+      // Dropping `rect.top` also kills CHECKLIST E6 outright. That term is
+      // scroll-dependent — it goes negative once the page is scrolled, so a
+      // measure taken mid-scroll set a huge height that then latched (3446px
+      // observed). With the height a pure function of the window there is no
+      // position in the formula, so there is nothing to latch.
+      //
+      // `node` stays referenced by the observer below; it is deliberately no
+      // longer read here.
+      void node
+      const next = Math.max(320, window.innerHeight - 12)
       setAvailH((prev) => (prev != null && Math.abs(prev - next) < 2 ? prev : next))
     }
     measure()
