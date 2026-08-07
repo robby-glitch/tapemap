@@ -1316,21 +1316,90 @@ export function startLevelsOverlay(
     ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace'
     ctx.textBaseline = 'bottom'
 
-    const structColor = withAlpha(pal.accent, 0.85)
-    const trapColor = withAlpha(pal.bear, 0.85)
+    /* ── Proximity emphasis ────────────────────────────────────────────────
+       The operator, 2026-08-07, looking at ~20 levels at once: *"lines sahi se
+       nhi dikh rhi kaffi patli h same colors ki koi differenhe nhi h"* — every
+       level drew at one weight and one hue, so none stood out and the eye had
+       nothing to follow. Their fix, in their words: light a line up as price
+       approaches it, and otherwise leave it as it was.
+
+       WHAT THE BRIGHTNESS MEANS, and the whole of it: DISTANCE. It says "price
+       is here", never "this level will hold". Which levels hold has never been
+       scored, and a line that flares as price arrives is one small step from
+       reading as a call. So proximity drives weight and hue only — no level is
+       added, removed, re-ordered, re-labelled or withheld by it.
+
+       Distance is measured in σ, not points, so it self-scales: NIFTY's 1σ and
+       BANKNIFTY's are different numbers for the same thing, and a hard-coded
+       point threshold would have become three constants that drift apart. */
+    const NEAR_FULL = 0.25   // within a quarter-σ: fully lit
+    const NEAR_FADE = 1.00   // beyond one σ: resting weight
+    const lastBar = lastIdx >= 0 ? dBars[lastIdx] : null
+    const px = lastBar ? Number(lastBar.c) : NaN
+    // One σ from the band pair the chart already draws. Degrades to NaN — and
+    // every consumer below falls back to the resting look — rather than
+    // guessing a width, which would light the WRONG lines with full confidence.
+    const sigma1: number = lastBar
+      && Number.isFinite(Number(lastBar.u1)) && Number.isFinite(Number(lastBar.d1))
+      ? (Number(lastBar.u1) - Number(lastBar.d1)) / 2
+      : NaN
+    const usable = Number.isFinite(px) && Number.isFinite(sigma1) && sigma1 > 0
+    /** 0 at NEAR_FADE σ away, 1 within NEAR_FULL σ. */
+    const nearness = (v: number) => {
+      if (!usable) return 0
+      const d = Math.abs(v - px) / sigma1
+      if (d <= NEAR_FULL) return 1
+      if (d >= NEAR_FADE) return 0
+      return (NEAR_FADE - d) / (NEAR_FADE - NEAR_FULL)
+    }
+    // The ONE level price is moving toward — nearest above on an up bar,
+    // nearest below on a down bar. Only this one takes a directional hue, so
+    // green/red stay rare enough to keep meaning direction (theme.ts's rule:
+    // green/red are DIRECTION, brass is STRUCTURE). Tinting every level above
+    // and below would make the hue ambient and it would mean nothing again —
+    // the exact failure that rule was written after.
+    const up = lastBar ? Number(lastBar.c) >= Number(lastBar.o) : true
+    let targetIdx = -1
+    if (usable) {
+      let best = Infinity
+      visible.forEach(({ lvl }, i) => {
+        if (up ? lvl.value <= px : lvl.value >= px) return
+        // A trap level is ALREADY red, and that red means "trap", not "down".
+        // Letting one become the directional target would paint it green on an
+        // up bar — a trap level announcing "up", which is precisely the
+        // collision theme.ts's one-meaning-per-hue rule exists to prevent. It
+        // still thickens with proximity; it just never changes hue.
+        if (lvl.kind === 'trap') return
+        const d = Math.abs(lvl.value - px)
+        if (d < best) { best = d; targetIdx = i }
+      })
+      // Only if it is actually close. A "next level" 4σ away is not what price
+      // is approaching, and lighting it would point the eye off the screen.
+      if (targetIdx >= 0 && nearness(visible[targetIdx].lvl.value) <= 0) targetIdx = -1
+    }
 
     visible.forEach(({ lvl, y }, li) => {
-      const color = lvl.kind === 'trap' ? trapColor : structColor
+      const near = nearness(lvl.value)
+      const isTarget = li === targetIdx
+      // Resting weight is what it always was — the operator asked for the rest
+      // to stay put. Emphasis is bought by the near level GAINING, never by the
+      // far ones losing, because "too faint" was the other half of the
+      // complaint and dimming them would have made that worse.
+      const hue = isTarget ? (up ? pal.bull : pal.bear)
+        : lvl.kind === 'trap' ? pal.bear : pal.accent
+      const color = withAlpha(hue, 0.85 + 0.15 * near)
       ctx.strokeStyle = color
       ctx.fillStyle = color
 
       // Always draw the line — suppressing it would hide a real price level.
+      ctx.lineWidth = 1 + 1.2 * near + (isTarget ? 0.5 : 0)
       ctx.setLineDash(lvl.kind === 'band' ? [2, 4] : [6, 4])
       ctx.beginPath()
       ctx.moveTo(pane.x, y)
       ctx.lineTo(pane.x + pane.width, y)
       ctx.stroke()
       ctx.setLineDash([]) // reset so dash state never leaks into the next stroke/fill
+      ctx.lineWidth = 1   // and neither does width
 
       // Right-axis price chip: filled brass/red rect with panel-coloured text,
       // so the level reads at the axis even when its left label loses the
