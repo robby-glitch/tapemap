@@ -74,6 +74,20 @@ EQH / EQL / PD always named (~35 labels), swings left unlabelled (58 is the
 noise problem), and let confirmation keep doing what it already does through
 opacity and the dashed border.
 
+## 2b · The SETUP CHECK panel is BUY-only · FRONTEND
+
+The SELL mirror ships (2026-08-08) and draws on the chart, but the panel reads
+`run_state` only. While a sell is armed the panel will sit **WAITING**, which
+is wrong on its face — the machine IS armed, just on the other side.
+
+`run_state_sell` is published and unread, the same standing debt `run_state`
+itself had until this week. The panel needs to pick whichever side is live and
+say which one it is showing; its TRIGGER rows read `ref_high`, and a sell state
+carries `ref_low`.
+
+Also owed: the panel's TRIGGER group note quotes 68.4% / n=19. That number is
+the BUY rule's and must not appear while a sell state is displayed.
+
 ## 3 · Left-edge level labels · FRONTEND
 
 **Status:** open in `ui-audit.md` under Readability as **FAILING**; the operator
