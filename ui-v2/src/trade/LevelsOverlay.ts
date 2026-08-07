@@ -99,13 +99,15 @@ const ZONE_EDGE_ALPHA: Record<Mode, number> = { light: 0.16, dark: 0.20 }
 const ZONE_LABEL_PX = 8.5
 
 // SMC structure layer (Phase 3.5). Brass, because theme.ts's rule is that
-// brass IS structure — an FVG is not a direction claim, so it must not borrow
-// green/red even though it carries a `dir`. Dark needs the higher alpha for the
-// same apparent tint against #0B0E14, exactly as the zone bands do; OB reads a
-// touch stronger than FVG because a block is a level, a gap is a void.
-const STRUCT_ALPHA: Record<Mode, Record<'FVG' | 'OB', number>> = {
-  light: { FVG: 0.030, OB: 0.050 },
-  dark: { FVG: 0.055, OB: 0.085 },
+// brass IS structure — an order block is not a direction claim, so it must not
+// borrow green/red even though it carries a `dir`. Dark needs the higher alpha
+// for the same apparent tint against #0B0E14, exactly as the zone bands do.
+//
+// OB is the only BOXED kind left. FVG held the other half of this table until
+// 2026-08-07, when the operator dropped it — see drawStructures' header.
+const STRUCT_ALPHA: Record<Mode, number> = {
+  light: 0.050,
+  dark: 0.085,
 }
 // Lowered from 0.25 with the fills: ~85 boxes overlap on a real session, and
 // each border added a visible brass rule, so the compounded haze read as a
@@ -119,19 +121,25 @@ const STRUCT_BORDER_ALPHA = 0.16
 // label (or a screenshot with the label cropped) still reads which claim it is.
 const STRUCT_FAINT_UNCONFIRMED = 0.55
 const STRUCT_FAINT_UNKNOWN = 0.35
-const STRUCT_TICK_PX = 24        // BOS/CHoCH tick length, ending at x(born)
 const STRUCT_LABEL_PX = 8.5
 const STRUCT_LABEL_GAP = 3       // px between a tick/line end and its label
 const STRUCT_POOL_DASH: [number, number] = [3, 3]
-/** How many FVG/OB zones are drawn, newest first. A real session produces ~85
- *  of them; drawn all at once their translucent fills compound into horizontal
- *  brass banding across the whole chart, which is what the operator was looking
- *  at when they said they could not see anything. Zones are ranked by `born`,
- *  so the ones kept are the most recent — the ones price is still trading
+/** Half-length of a SWING_H/SWING_L tick, centred on x(born). Short on
+ *  purpose: there are ~51 a session and each one is already the endpoint of an
+ *  OB or an EQH/EQL pool, so this marks the pivot without competing with the
+ *  structure that carries the claim. */
+const STRUCT_SWING_PX = 5
+/** How many OB zones are drawn, newest first. Zones are ranked by `born`, so
+ *  the ones kept are the most recent — the ones price is still trading
  *  against. The count dropped is DISCLOSED in the chart's legend line (see
  *  TradeTab), because "we found nothing here" and "we are not showing you what
- *  we found" are different claims. Breaks/pools are never capped: there are
- *  only ~40 of them and they draw as thin lines, not fills. */
+ *  we found" are different claims. Pools are never capped: there are only ~40
+ *  of them and they draw as thin lines, not fills.
+ *
+ *  This capped FVG as well until 2026-08-07. FVG was ~85 of the ~90 boxes a
+ *  session — with it gone the cap rarely binds, and it is kept rather than
+ *  raised because the disclosure it feeds is what makes a thinned chart
+ *  readable as thinned rather than as empty. */
 export const STRUCT_ZONE_LIMIT = 12
 
 // Story balloon geometry. A tier-≥2 narration gets a persistent pill so the
@@ -450,12 +458,27 @@ type LabelBox = { x0: number; y0: number; x1: number; y1: number }
  * the σ ribbons. Every shape here is the BACKEND's — structure.py found it,
  * named it and confirmed it; this function only positions it.
  *
- *   FVG / OB   translucent brass box over [lo, hi], from the structure's own
+ *   OB         translucent brass box over [lo, hi], from the structure's own
  *              first bar and extended right to the last visible bar (or the
  *              replay cursor while scrubbing).
- *   BOS/CHoCH  a short tick at the broken level, ending at x(born), labelled.
  *   EQH / EQL  a dashed line across the pool, from x(i0) to x(born).
- *   SWING_H/L  deliberately not drawn — see the note at the bottom.
+ *   SWING_H/L  a short unlabelled tick at the pivot.
+ *   PD*        prior-session levels across the whole pane, always labelled.
+ *   PREMIUM /  the current range's two halves, named at the right edge.
+ *   DISCOUNT
+ *
+ * THREE KINDS ARE PUBLISHED AND DELIBERATELY NOT DRAWN — FVG, BOS and CHOCH.
+ * The operator dropped them on 2026-08-07 (*"i dont like smc… ob or eqh eql
+ * swing h and l bhi rakh le"*). They are still typed in data.ts and still
+ * arrive in the payload: this function stops rendering them, and structure.py
+ * is untouched. Because that is "we are not showing you" rather than "we found
+ * nothing", TradeTab's `Hidden:` line reports how many were withheld (A1/A5).
+ *
+ * SWING_H/SWING_L are drawn as of the same day. They had been suppressed since
+ * Phase 3.5 because ~51 pivot marks a session buried the structures that carry
+ * a claim — with FVG's ~85 boxes and BOS/CHoCH's ~40 ticks gone, that budget
+ * exists. They stay UNLABELLED and shortest: each is already the endpoint of an
+ * OB or a pool, so the tick locates the pivot without renaming it.
  *
  * Confirmation shows as opacity plus border style plus a label suffix:
  * CONFIRMED at full alpha, solid border, no suffix; UNCONFIRMED at 0.55×
@@ -522,7 +545,7 @@ function drawStructures(
   )
 
   const zoneCut = (() => {
-    const borns = live.filter((s) => s.kind === 'FVG' || s.kind === 'OB').map((s) => s.born)
+    const borns = live.filter((s) => s.kind === 'OB').map((s) => s.born)
     if (borns.length <= STRUCT_ZONE_LIMIT) return -Infinity
     borns.sort((a, b) => b - a)
     return borns[STRUCT_ZONE_LIMIT - 1]
@@ -531,7 +554,7 @@ function drawStructures(
   // Boxes first, so a translucent fill never washes over a tick, a pool line
   // or a label drawn below.
   for (const s of live) {
-    if (s.kind !== 'FVG' && s.kind !== 'OB') continue
+    if (s.kind !== 'OB') continue
     if (s.born < zoneCut) continue
     const t0 = times[s.i0]
     if (t0 == null) continue
@@ -547,7 +570,7 @@ function drawStructures(
     const top = Math.min(yHi, yLo)
     const h = Math.abs(yLo - yHi)
     const sc = scale(s)
-    ctx.fillStyle = withAlpha(brass, STRUCT_ALPHA[mode][s.kind] * sc)
+    ctx.fillStyle = withAlpha(brass, STRUCT_ALPHA[mode] * sc)
     ctx.fillRect(x0, top, cutX - x0, h)
     ctx.lineWidth = 1
     ctx.strokeStyle = withAlpha(brass, STRUCT_BORDER_ALPHA * sc)
@@ -589,13 +612,13 @@ function drawStructures(
     const color = withAlpha(brass, 0.85 * sc)
     // Text is for the FLOW-CONFIRMED few only. A real session carries ~180
     // structures of which ~90% are UNCONFIRMED or UNKNOWN, and labelling them
-    // all buried the candles under "FVG unconfirmed / OB unchecked" — the exact
+    // all buried the candles under "OB unchecked / EQH unconfirmed" — the exact
     // 479-label noise problem spec §7 exists to avoid. The unlabelled ones are
     // NOT hidden: every shape still draws, and its opacity + dashed-vs-solid
     // border still distinguish unconfirmed from unchecked (see the constants).
     const label = s.confirm === 'CONFIRMED' ? s.kind + suffix(s) : ''
 
-    if (s.kind === 'FVG' || s.kind === 'OB') {
+    if (s.kind === 'OB') {
       if (s.born < zoneCut) continue // same newest-N cap the fills above use
       const t0 = times[s.i0]
       if (t0 == null) continue
@@ -672,27 +695,33 @@ function drawStructures(
       continue
     }
 
-    if (s.kind === 'BOS' || s.kind === 'CHOCH') {
+    // SWING_H / SWING_L: a short tick CENTRED on the pivot bar, never
+    // labelled. Suppressed entirely until 2026-08-07 — the note that used to
+    // sit at the bottom of this loop said each is already the endpoint of an
+    // OB or an EQH/EQL pool and that 51 of them a session bury the structures
+    // that carry a claim. Both halves of that are still true, which is exactly
+    // why this draws the pivot and does NOT name it: adding "SWING_H" beside
+    // an OB's own label would print two names for one price. The budget for
+    // the marks themselves came from dropping FVG and BOS/CHoCH.
+    //
+    // `levelOf` is wrong here. It picks hi for a bullish structure, and a
+    // SWING_L's `dir` is -1 while the price that matters is its low — the two
+    // agree by luck on a point structure where hi === lo, and this does not
+    // rely on that.
+    if (s.kind === 'SWING_H' || s.kind === 'SWING_L') {
       const tb = times[s.born]
       if (tb == null) continue
       const xb = Math.min(conv.timeToX(tb), cutX)
-      const y = conv.priceToY(levelOf(s))
+      const y = conv.priceToY(s.kind === 'SWING_H' ? s.hi : s.lo)
       if (!Number.isFinite(xb) || !Number.isFinite(y)) continue
       if (y < pane.y + 1 || y > pane.y + pane.height - 1) continue
-      ctx.strokeStyle = color
+      // Faintest mark in the layer. A pivot is a location, not a claim, so it
+      // sits below every shape that asserts something about flow.
+      ctx.strokeStyle = withAlpha(brass, 0.45 * sc)
       ctx.beginPath()
-      ctx.moveTo(Math.max(pane.x, xb - STRUCT_TICK_PX), y)
-      ctx.lineTo(xb, y)
+      ctx.moveTo(Math.max(pane.x, xb - STRUCT_SWING_PX), y)
+      ctx.lineTo(Math.min(pane.x + pane.width, xb + STRUCT_SWING_PX), y)
       ctx.stroke()
-      // The newest break sits within ~5 bars of the pane's right edge, where
-      // a right-side label cannot fit — fall back to the shape's LEFT rather
-      // than dropping it, so the newest BOS/CHoCH is never the one unlabelled.
-      {
-        const w = ctx.measureText(label).width
-        const rightX = xb + STRUCT_LABEL_GAP
-        const lx = rightX + w > pane.x + pane.width - 2 ? xb - STRUCT_LABEL_GAP - w : rightX
-        placeLabel(label, lx, y, color)
-      }
       continue
     }
 
@@ -723,11 +752,11 @@ function drawStructures(
       continue
     }
 
-    // SWING_H / SWING_L arrive in the payload and are typed in data.ts, but
-    // are deliberately not drawn at this task's scope: each is already the
-    // endpoint of a BOS, an EQH/EQL pool or an OB, and on the live 329-bar
-    // NIFTY session there are 51 of them — enough pivot marks to bury the
-    // structures that actually carry a claim.
+    // Anything reaching here is a kind this layer does not draw — FVG, BOS and
+    // CHOCH as of 2026-08-07, plus any kind structure.py adds later. Falling
+    // through silently is correct for a RENDERER (an unknown shape must never
+    // be guessed at), and it is not silent to the operator: TradeTab counts
+    // exactly this set and says so in the `Hidden:` line.
   }
 }
 

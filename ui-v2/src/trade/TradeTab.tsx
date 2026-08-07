@@ -378,32 +378,35 @@ export default function TradeTab({
     ? bars.length - 1
     : Math.max(0, Math.min(cursor, bars.length - 1))
 
-  // What the SMC toggle's tooltip reports: SWING_H/SWING_L are never drawn
-  // (LevelsOverlay.ts's drawStructures says why — each is already the
-  // endpoint of a BOS, an EQH/EQL pool or an OB), so counting them alongside
-  // the drawn kinds would tell the operator "N structures" when only a
-  // fraction of N puts anything on the chart. Split into what's actually
-  // rendered and what's tracked but not shown.
+  // What the SMC toggle's tooltip and the legend report.
+  //
+  // `withheld` is the load-bearing one. FVG, BOS and CHOCH still arrive in the
+  // payload and are still typed in data.ts — the OVERLAY stopped drawing them
+  // on 2026-08-07 at the operator's call. That makes them "we are not showing
+  // you", which A1 says must never render as "we found nothing", so they are
+  // counted apart and disclosed in the Hidden: line below.
+  //
+  // SWING_H/SWING_L now COUNT AS DRAWN. They were split out while the overlay
+  // suppressed them; it draws them (unlabelled ticks) as of the same day, and a
+  // count still calling them "tracked, not shown" would be a stale lie.
   //
   // Causality: while the replay cursor is set, a structure born past `at` has
   // not happened yet as far as the chart is showing — LevelsOverlay's own
-  // drawStructures filter is `s.born <= cut`, and this tooltip must count the
-  // same set it draws, not the whole day's structures. Live (cursor === null)
-  // counts everything, matching the overlay's unclamped draw there too.
+  // drawStructures filter is `s.born <= cut`, and these counts must describe
+  // the same set it draws, not the whole day's. Live (cursor === null) counts
+  // everything, matching the overlay's unclamped draw there too.
   const structCounts = useMemo(() => {
     if (!structures) return null
-    let drawn = 0, swings = 0, zones = 0
+    let drawn = 0, withheld = 0, zones = 0
     for (const s of structures) {
       if (cursor != null && s.born > at) continue
-      if (s.kind === 'SWING_H' || s.kind === 'SWING_L') swings++
-      else {
-        drawn++
-        // FVG/OB are the only capped kinds (STRUCT_ZONE_LIMIT); counted apart
-        // so the legend can disclose how many of them the chart is holding back.
-        if (s.kind === 'FVG' || s.kind === 'OB') zones++
-      }
+      if (s.kind === 'FVG' || s.kind === 'BOS' || s.kind === 'CHOCH') { withheld++; continue }
+      drawn++
+      // OB is the only capped kind (STRUCT_ZONE_LIMIT); counted apart so the
+      // legend can disclose how many of them the chart is holding back.
+      if (s.kind === 'OB') zones++
     }
-    return { drawn, swings, zones }
+    return { drawn, withheld, zones }
   }, [structures, cursor, at])
 
   // How many band-rotation signals the chart is actually showing. Causality:
@@ -644,8 +647,10 @@ export default function TradeTab({
           <button
             onClick={toggleSmc}
             title={structCounts
-              ? `Show the backend's SMC structure layer (${structCounts.drawn} structures drawn · ${structCounts.swings} swings tracked)`
-              : 'Show the SMC structure layer — unavailable for this session, see the note below'}
+              ? `Show the backend's structure layer — OB, EQH/EQL, swing pivots and`
+                + ` prior-day levels (${structCounts.drawn} drawn`
+                + `${structCounts.withheld ? ` · ${structCounts.withheld} FVG/BOS/CHoCH withheld` : ''})`
+              : 'Show the structure layer — unavailable for this session, see the note below'}
             style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 9px', cursor: 'pointer',
@@ -903,9 +908,10 @@ export default function TradeTab({
               : '')
           : ''}
         {smc && structures && structures.length
-          ? ` · SMC structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed,`
-            + ` faint dashed = unchecked)${structCounts && structCounts.zones > STRUCT_ZONE_LIMIT
-              ? ` · newest ${STRUCT_ZONE_LIMIT} of ${structCounts.zones} FVG/OB zones drawn`
+          ? ` · structure (brass; solid = flow-confirmed and labelled, faint = unconfirmed,`
+            + ` faint dashed = unchecked; short unlabelled ticks are swing pivots)`
+            + `${structCounts && structCounts.zones > STRUCT_ZONE_LIMIT
+              ? ` · newest ${STRUCT_ZONE_LIMIT} of ${structCounts.zones} OB zones drawn`
               : ''}`
           : ''}
       </div>
@@ -916,19 +922,30 @@ export default function TradeTab({
           off has to say so, with its count, or a quiet chart reads as a quiet
           market. Only rendered once the session has loaded (`day`), so an empty
           first paint never claims anything is being withheld. */}
-      {day && (!story || !smc) && (
+      {day && (!story || !smc || !!structCounts?.withheld) && (
         <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2, opacity: 0.85 }}>
           Hidden:
           {!story && ` STORY — ${eventCount} event${eventCount === 1 ? '' : 's'}`
             + ` and ${zones.length} condition band${zones.length === 1 ? '' : 's'} not drawn`}
-          {!story && !smc && ' ·'}
+          {!story && (!smc || !!structCounts?.withheld) && ' ·'}
+          {/* SMC OFF hides EVERYTHING, so the number here must be the whole
+              set — drawn + withheld — not just the kinds the layer would have
+              rendered had it been on. Reporting only `drawn` would understate
+              what the toggle is holding back. */}
           {!smc && (structures
-            ? ` SMC — ${structCounts ? structCounts.drawn : 0} structure${structCounts && structCounts.drawn === 1 ? '' : 's'} not drawn`
-            : ' SMC — unavailable for this session, not merely hidden')}
+            ? ` STRUCTURE — ${structCounts ? structCounts.drawn + structCounts.withheld : 0} structure${structCounts && structCounts.drawn + structCounts.withheld === 1 ? '' : 's'} not drawn`
+            : ' STRUCTURE — unavailable for this session, not merely hidden')}
+          {/* Withheld REGARDLESS of the toggle, so it is disclosed even with
+              the layer on: FVG/BOS/CHoCH still arrive in the payload and the
+              overlay no longer draws them (operator's call, 2026-08-07). A
+              chart that is quiet because three kinds were dropped must not
+              read as a chart that found nothing. */}
+          {smc && !!structCounts?.withheld && ` FVG/BOS/CHoCH — ${structCounts.withheld}`
+            + ` not drawn; dropped from the layer, still published by the backend`}
           {'. '}
-          Both are off by default because they were never scored against what
-          price did next; the buttons above turn them back on. Hover still reads
-          every event on its own bar.
+          STORY and STRUCTURE are off by default because they were never scored
+          against what price did next; the buttons above turn them back on.
+          Hover still reads every event on its own bar.
         </div>
       )}
     </div>
