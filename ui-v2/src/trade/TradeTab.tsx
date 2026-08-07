@@ -10,6 +10,14 @@ import { buildZones } from './zones'
 // The overlay owns the cap; the legend below only reports it, so the number the
 // operator reads can never drift from the number actually drawn.
 import { STRUCT_ZONE_LIMIT, runDrawPlan } from './LevelsOverlay'
+
+/** The reserved rail down the left of the chart, in px.
+ *
+ *  44 rather than a tighter 32: whatever lands here will be buttons, and 44 is
+ *  the WCAG touch-target floor the UI audit already flags this app for missing
+ *  everywhere else. Sizing the space for it now costs nothing and stops the
+ *  rail being rebuilt the day it gets its first control. */
+const CHART_RAIL_W = 44
 import { palette, MONO, useMode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, Structure, Chain, FlowRow, OptPivots } from '../data'
 
@@ -735,6 +743,13 @@ export default function TradeTab({
         </div>
       )}
 
+      {/* Chart row: a reserved rail on the left, the chart boxed beside it.
+          A SIDE rail is safe where a row UNDER the chart was not — E2/E3's
+          warning is about vertical space, and this takes none: the row keeps
+          `flex: 1` and the same minHeight the chart box used to carry, so the
+          column's height budget is untouched. The rail is deliberately empty;
+          candl ships 61 drawing tools and ui-v2 wires zero, and beside the
+          chart is where they belong (E3: above or beside, never below). */}
       <div style={{
         // 180, not 420: the shock absorber for a column whose height is fixed
         // (it must be — ContractChart resolves its height as a percentage of
@@ -743,14 +758,26 @@ export default function TradeTab({
         // on a very short viewport and paints over what follows. Measured at
         // innerHeight 450: a 240 floor overflowed by 30px. 180 fits the worst
         // case; on a real screen flex:1 gives the chart 400+ anyway.
-        flex: 1, minHeight: 180, borderRadius: 6, overflow: 'hidden',
-        border: `1px solid ${pal.border}`, backgroundColor: pal.card,
+        flex: 1, minHeight: 180, overflow: 'hidden',
+        display: 'flex', gap: 10,
       }}>
-        <ContractChart
-          index={index} day={day} bars={bars} levels={levels} cursor={cursor}
-          mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
-          structures={structures} smc={smc} rotation={rotationRun} story={story}
-        />
+        <div style={{ width: CHART_RAIL_W, flexShrink: 0 }} />
+        <div style={{
+          // minWidth:0, or a flex item refuses to shrink below its content and
+          // the chart shoulders the rail off the left edge on a narrow
+          // viewport. Height comes from the row's default `align-items:
+          // stretch` — a DEFINITE height, which is exactly what
+          // ContractChart's `height:100%` needs and what minHeight could not
+          // give it.
+          flex: 1, minWidth: 0, borderRadius: 6, overflow: 'hidden',
+          border: `1px solid ${pal.border}`, backgroundColor: pal.card,
+        }}>
+          <ContractChart
+            index={index} day={day} bars={bars} levels={levels} cursor={cursor}
+            mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
+            structures={structures} smc={smc} rotation={rotationRun} story={story}
+          />
+        </div>
       </div>
     </div>
 
