@@ -267,6 +267,62 @@ and no re-cutting to a different horizon to find a number that passes.
 **INCONCLUSIVE** if n < 15 — the buy side's own verdict rests on n=18/19, and
 anything thinner is not evidence either way.
 
+### RESULT — run 2026-08-08. **FAILED**, and narrowly, which is the point.
+
+NIFTY, 65 sessions, 18 signals. The BUY side was run through the same harness
+in the same pass as a control on the harness itself, and it reproduced the
+record's 68.4% at +30m — so the apparatus was working when it returned this.
+
+| horizon | SELL hit | SELL med | control med | edge |
+|---|---|---|---|---|
+| +6m | 33.3% | −3.10 | −0.00 | −3.10 |
+| +15m | 55.6% | +4.25 | −0.00 | +4.25 |
+| **+30m** | **55.6%** | **+9.35** | −0.00 | **+9.35** |
+
+Against the bar written before the run:
+
+| | required | got | |
+|---|---|---|---|
+| hit @+30m | ≥ 60% | 55.6% | ✗ |
+| median @+30m | ≥ +10 | +9.35 | ✗ |
+| edge over control | ≥ +10 | +9.35 | ✗ |
+
+n=18, so not inconclusive. **All three missed. FAIL.**
+
+Two of them missed by almost nothing — 4.4 points of hit rate and 0.65 of a
+point of median. That is precisely the shape of result the pre-registration
+exists to handle, and the criterion said in advance: no "promising", no
+"directionally right", no re-cutting to another horizon. It fails.
+
+**One honest observation that is NOT a rescue.** The sell curve has the same
+signature as the buy: negative at +6m, positive by +30m. The trade goes against
+you first and then works — the property §1 already records for the buy side.
+That makes the mirror behave like a mirror, which is a statement about the
+DETECTOR being correct, not about the edge existing.
+
+**BANKNIFTY inverts again, and it is still not evidence.** Its SELL ran 60% /
++25.00 at +30m while its BUY ran 37.5% / −75.90, consistent with C4's finding
+that BANKNIFTY runs the other way. n=5. The pre-registration excluded
+BANKNIFTY from the verdict for exactly this reason, and n=5 is under the
+inconclusive line anyway. **Do not act on it and do not re-cut to chase it.**
+
+**SENSEX is unreadable here, not negative.** Every median came back exactly
+0.00 across both sides and all three horizons. That is a data artefact, not a
+result; the SENSEX cache needs looking at before any SENSEX number from this
+harness is quoted.
+
+### What this changes
+
+Nothing about what ships. The operator asked for the sell signal over C3's
+rejection on 2026-08-08 and that stands (C12). It draws, and it is labelled as
+carrying no score — and that label is now backed by a test rather than only by
+an old verdict on a different entry.
+
+**This was the last slice.** §5's stop rule applies with full force now: no
+further re-cutting of `data/backtest/` on the sell side. The only route to a
+different answer is `trigger_log.py` collecting live fires, which needs a
+server restart to activate.
+
 ### What a PASS would and would not mean
 
 It would NOT overturn C3. C3 measured a different entry across five datasets,
