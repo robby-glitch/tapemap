@@ -439,6 +439,69 @@ scoring. Exits will need their own pre-registration.
 
 ---
 
+## 5f. OBSERVATION — both sides under the ADOPTED management (2026-08-08)
+
+**This is an OBSERVATION, not a test.** No pass criterion was set before the
+run; the operator asked to see raw numbers first and was told, in the question
+they answered, that this is the exact shape §5's stop rule exists to guard
+against. It is recorded so nobody later mistakes it for a scored verdict.
+
+Management = `patient="hold"` (hold the stop until VWAP, then trail
+band-to-band) — the adopted arm, not the fixed 30-minute exit C13 refuses.
+`trail_score.simulate` was made side-aware for this; the BUY path was proved
+byte-identical against a baseline captured before the edit (md5
+`4a24a97fcd5fb7d6b1846535e9a65bd1`).
+
+NIFTY, 65 cached sessions:
+
+| | n | mean | median | hit | losers |
+|---|---|---|---|---|---|
+| BUY d3 | 19 | **+0.32** | **+6.90** | 63.2% | 7/19 |
+| SELL u3 | 18 | **+10.18** | **−0.75** | 44.4% | 10/18 |
+
+### The mean is a lie on BOTH sides, and that is the finding
+
+| strip the top… | BUY mean | BUY med | SELL mean | SELL med |
+|---|---|---|---|---|
+| — | +0.32 | +6.90 | +10.18 | −0.75 |
+| 1 | −6.99 | +5.05 | +0.65 | −1.00 |
+| 2 | −10.09 | +3.20 | −6.99 | −1.10 |
+| 3 | −12.72 | +2.05 | −9.37 | −1.20 |
+
+BUY's top 2 trades are +177.5 against a **+6.0 net** — the other 17 sum to
+−171.5. SELL's top 2 are +295.1 against a **+183.3 net** — the other 16 sum to
+−111.8. Neither side's mean survives its own tail at n≈19.
+
+**The two differ in SHAPE, not size, and that is what matters:**
+
+- **BUY has a centre.** 63% of trades win, the median is +6.90 and it HOLDS as
+  winners are stripped (+5.05, +3.20, +2.05). Its mean is eaten by a few large
+  losses (−87.5, −69.3, −63.5). The case for it rests on median and hit rate —
+  **not on the mean**, which is barely above zero.
+- **SELL has no centre.** The median is NEGATIVE and gets worse as winners are
+  stripped (−1.00, −1.10, −1.20), with 44.4% hit. Mostly small losses,
+  occasionally a jackpot (+172.2 on 2026-06-08, +122.9 on 2026-04-29). Reading
+  its higher mean as "better than the buy" is exactly the misread this table
+  exists to prevent.
+
+### What this does NOT establish
+
+n=18/19 is far too small to lean on tail-driven means, and no bar was set
+beforehand, so nothing here passes or fails anything. It does not overturn C3,
+does not promote the sell side, and does not demote the buy side.
+
+**One thing it does flag for the buy side**, and it is new: §1's management
+table (+4.8 mean / 56% hit) was measured on the VOID one-candle trigger. On the
+CURRENT §5c entries under the same adopted management the mean is **+0.32**.
+The scored edge's case is median-and-hit-rate, not mean, and any surface that
+quotes a mean for it is quoting the wrong statistic.
+
+**Nothing was re-cut to reach these numbers** — one run, both sides, all three
+management arms, reported whole. The verdict route remains live collection
+(§5e), where a number cannot be re-cut until it agrees.
+
+---
+
 ## 6. Known gap the code cannot yet see
 
 ## 5c. PRE-REGISTERED — the operator's ACTUAL d3 rule (written 2026-08-05, UNTESTED)

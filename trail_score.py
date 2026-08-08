@@ -44,6 +44,11 @@ INDICES = ("NIFTY", "BANKNIFTY", "SENSEX")
 ARMS = (False, True, "hold")
 ARM_TAG = {False: "ladder", True: "patient", "hold": "hold"}
 LADDER = ("d3", "d2", "d1", "vwap", "u1", "u2", "u3")
+# The SHORT mirror: the same rungs walked the other way. Written 2026-08-08 to
+# measure the u3 SELL side under the management the operator ACTUALLY uses --
+# the first sell run scored a fixed 30-minute exit, which section 1's own table
+# lists as measured and NOT adopted (CHECKLIST C13).
+LADDER_SELL = tuple(reversed(LADDER))
 INIT_BUF = 20.0          # points below the entry band
 TIGHT_BUF = 15.0         # points below the price high once u2 is touched
 TIGHT_FROM = LADDER.index("u2")
@@ -52,8 +57,15 @@ TIGHT_FROM = LADDER.index("u2")
 VWAP_RUNG = LADDER.index("vwap")
 
 
-def simulate(bars, i, band, trace=False, patient=False):
-    """One BUY trade under the ladder. -> dict or None (band missing at entry).
+def simulate(bars, i, band, trace=False, patient=False, side="BUY"):
+    """One trade under the ladder. -> dict or None (band missing at entry).
+
+    `side="SELL"` walks the SAME ladder downward: the stop sits ABOVE the entry
+    band, a rung is taken when the LOW reaches the next rung down, and the
+    tighten tracks the lowest low instead of the highest high. One function,
+    two directions -- a second copy of a manager drifts, and this project has
+    paid for that twice already (the 09:25 gate, and trigger_log reading a
+    different rule from the one the chart draws).
 
     patient=False -- the ladder as first answered: trail one band below the
     rung from the first rung-up onward.
@@ -64,59 +76,73 @@ def simulate(bars, i, band, trace=False, patient=False):
     closer than the risk accepted at entry is the thing the operator refuses to
     do. No new constant is introduced.
     """
+    sell = str(side).upper() == "SELL"
+    ladder = LADDER_SELL if sell else LADDER
+    tight_from = ladder.index("d2" if sell else "u2")
+    vwap_rung = ladder.index("vwap")
     entry_bar = bars[i]
     entry = entry_bar["c"]
     lvl = entry_bar.get(band)
     if lvl is None:
         return None
-    entry_rung = LADDER.index(band)
+    entry_rung = ladder.index(band)
     rung = entry_rung
-    stop = lvl - INIT_BUF
-    risk = entry - stop
-    hh = None                     # highest high since u2 was first touched
+    stop = (lvl + INIT_BUF) if sell else (lvl - INIT_BUF)
+    risk = (stop - entry) if sell else (entry - stop)
+    hh = None                     # extreme since the tighten rung was touched
     if trace:
         print(f"    {entry_bar['t']} ENTER {band} @ {entry:.1f} stop {stop:.1f}")
     for j in range(i + 1, len(bars)):
         b = bars[j]
-        if b["l"] <= stop:
-            px = b["o"] if b["o"] < stop else stop
+        hit = (b["h"] >= stop) if sell else (b["l"] <= stop)
+        if hit:
+            px = b["o"] if ((b["o"] > stop) if sell else (b["o"] < stop)) else stop
             if trace:
-                print(f"    {b['t']} STOP @ {px:.1f} (rung {LADDER[rung]})")
+                print(f"    {b['t']} STOP @ {px:.1f} (rung {ladder[rung]})")
             return {"entry": entry, "exit": px, "risk": risk,
                     "rung": rung, "t": b["t"], "eod": False}
-        while rung + 1 < len(LADDER):
-            nxt = b.get(LADDER[rung + 1])
-            if nxt is None or b["h"] < nxt:
+        while rung + 1 < len(ladder):
+            nxt = b.get(ladder[rung + 1])
+            reached = False if nxt is None else (b["l"] <= nxt if sell else b["h"] >= nxt)
+            if not reached:
                 break
             rung += 1
             if trace:
-                print(f"    {b['t']} rung up -> {LADDER[rung]} (high {b['h']:.1f})")
+                px_ = b["l"] if sell else b["h"]
+                print(f"    {b['t']} rung up -> {ladder[rung]} ({px_:.1f})")
         new_stop = stop
         if rung > entry_rung:
-            u1, vw = b.get("u1"), b.get("vwap")
-            sigma = (u1 - vw) if (u1 is not None and vw is not None) else None
+            # Rung spacing on the side being traded: u1-vwap for a long,
+            # vwap-d1 for a short. Same quantity, measured where the trade is.
+            edge_, vw = b.get("d1" if sell else "u1"), b.get("vwap")
+            sigma = (abs(vw - edge_) if (edge_ is not None and vw is not None)
+                     else None)
             narrow = sigma is not None and sigma < INIT_BUF
-            if patient == "hold" and rung < VWAP_RUNG:
+            if patient == "hold" and rung < vwap_rung:
                 # diagnostic third arm: below VWAP the initial stop is simply
                 # LEFT ALONE -- no breakeven, no band trail. Isolates which
                 # component of the clarified rule bleeds the edge.
                 pass
-            elif patient is True and rung < VWAP_RUNG and narrow:
-                # narrow below VWAP: breakeven and wait, never trail the band
-                new_stop = max(new_stop, entry)
+            elif patient is True and rung < vwap_rung and narrow:
+                # narrow before VWAP: breakeven and wait, never trail the band
+                new_stop = min(new_stop, entry) if sell else max(new_stop, entry)
             else:
-                below = b.get(LADDER[rung - 1])
-                if below is not None:
-                    new_stop = max(new_stop, below)
-        if rung >= TIGHT_FROM:
-            hh = b["h"] if hh is None else max(hh, b["h"])
-            new_stop = max(new_stop, hh - TIGHT_BUF)
-        if trace and new_stop > stop:
+                back = b.get(ladder[rung - 1])
+                if back is not None:
+                    new_stop = min(new_stop, back) if sell else max(new_stop, back)
+        if rung >= tight_from:
+            if sell:
+                hh = b["l"] if hh is None else min(hh, b["l"])
+                new_stop = min(new_stop, hh + TIGHT_BUF)
+            else:
+                hh = b["h"] if hh is None else max(hh, b["h"])
+                new_stop = max(new_stop, hh - TIGHT_BUF)
+        if trace and ((new_stop < stop) if sell else (new_stop > stop)):
             print(f"    {b['t']} stop -> {new_stop:.1f}")
         stop = new_stop
     last = bars[-1]
     if trace:
-        print(f"    {last['t']} EOD exit @ {last['c']:.1f} (rung {LADDER[rung]})")
+        print(f"    {last['t']} EOD exit @ {last['c']:.1f} (rung {ladder[rung]})")
     return {"entry": entry, "exit": last["c"], "risk": risk,
             "rung": rung, "t": last["t"], "eod": True}
 
