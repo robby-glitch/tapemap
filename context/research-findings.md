@@ -210,6 +210,75 @@ Needs ~15 sessions before any number is worth reading.
 
 ---
 
+## 5d. PRE-REGISTERED — the u3 SELL mirror (written 2026-08-08, UNTESTED)
+
+**Written BEFORE the run. Committed before the run. If this section is edited
+after the result is known, the pre-registration is void and the result with
+it.**
+
+### Why this is allowed at all, given §5's stop rule
+
+§5 says stop re-cutting `data/backtest/` and pre-register anything new. This
+qualifies as new for one specific reason: **C3 rejected upper-band selling on
+the OLD one-candle rule.** The §5c two-candle entry is a different trigger, and
+moving from one to two candles is exactly the change that turned the buy side
+from noise into the one surviving edge. So the mirror on the CURRENT entry has
+never been tested.
+
+That is a real distinction, not a loophole. It is also the LAST slice this
+line of work gets without new live evidence: if it fails, the sell side stays
+built (the operator asked for it over C3 and that stands, CHECKLIST C12) but is
+never again presented as anything but a rule they follow.
+
+### The rule under test, exactly
+
+`band_rotation.detect_index_run(bars, side="SELL")` as it shipped 2026-08-08:
+a bar's HIGH tags `u3`; that bar becomes the reference; within `RUN_WINDOW`
+(10) bars a candle CLOSES below the reference candle's LOW; post-09:25;
+first-of-run; stop `level + OPERATOR_STOP_PTS` (20). u3 only, never u2.
+
+**Exits are NOT part of this test.** The operator's short exits were specified
+on 2026-08-08 and are unbuilt, and one of their parameters (the CALL-heavy
+threshold) is deliberately unanswered. So this scores the same way the BUY side
+was scored — a fixed forward horizon with the stop applied — which is what
+makes the two numbers comparable at all.
+
+### Method
+
+`run_score.py`'s existing apparatus, unchanged: `HORIZON_BARS` +6m/+15m/+30m,
+`_stop_exit`, and the same unconditional control the buy side was measured
+against. Favourable for a short means price FELL.
+
+**Primary dataset: NIFTY only** (65 cached sessions, 18 signals emitted).
+SENSEX and BANKNIFTY are reported but do NOT decide the verdict — picking the
+best of three indices after the fact is the multiple-comparison fishing that
+produced the two findings §5 says evaporated.
+
+### The bar, stated before the numbers exist
+
+**PASS** requires ALL THREE at +30m on NIFTY:
+1. hit rate **≥ 60%**
+2. median move **≥ +10 pts** in the trade's favour
+3. median **≥ +10 pts above the unconditional control's median**
+
+**FAIL** is anything else. There is no "promising", no "directionally right",
+and no re-cutting to a different horizon to find a number that passes.
+
+**INCONCLUSIVE** if n < 15 — the buy side's own verdict rests on n=18/19, and
+anything thinner is not evidence either way.
+
+### What a PASS would and would not mean
+
+It would NOT overturn C3. C3 measured a different entry across five datasets,
+and one passing test on 65 NIFTY sessions does not retire that. A PASS means
+"worth collecting live triggers on", which is `trigger_log.py`'s job — not
+"the sell side is now an edge".
+
+A FAIL changes nothing about what ships. The operator asked for the signal
+over a rejection already.
+
+---
+
 ## 6. Known gap the code cannot yet see
 
 ## 5c. PRE-REGISTERED — the operator's ACTUAL d3 rule (written 2026-08-05, UNTESTED)
