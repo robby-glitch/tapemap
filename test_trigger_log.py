@@ -35,7 +35,10 @@ def _payload(rot_t="10:03"):
              "gamma": {"regime": "BALANCE"}, "ctx": {"verdict": "GO"}},
             {"t": forming_t, "fut": {"c": 24618.0}}]
     rot = [None, _rec(rot_t, "24610.00"), _rec(forming_t, "24618.00")]
-    return {"days": [{"bars": bars, "rotation": rot}]}
+    # `rotation_run` since 2026-08-08. The logger deliberately no longer reads
+    # `rotation` -- that is §1's one-candle rule, which marks the d3 TOUCH and
+    # is VOID; see the test below that pins the refusal.
+    return {"days": [{"bars": bars, "rotation_run": rot}]}
 
 
 def _rec(t, close):
@@ -130,7 +133,7 @@ def test_score_quarantines_forming_bar_rows(tmp_path):
     path = _fresh(tmp_path)
     old = {"day": "2026-08-04", "index": "NIFTY", "t": "09:33", "side": "BUY",
            "band": "d3", "px": 24643.0, "trigger": "…closed 24643.00 back above it"}
-    new = dict(old, t="09:44", closed_bar=True)
+    new = dict(old, t="09:44", closed_bar=True, rule="5c")
     with open(path, "w", encoding="utf-8") as f:
         f.write(json.dumps(old) + "\n" + json.dumps(new) + "\n")
     _changed, skipped = trigger_log.score(path)
@@ -142,3 +145,64 @@ def test_fail_soft_on_garbage(tmp_path):
     assert trigger_log.log_new("NIFTY", b"not json at all", None, path=path) == 0
     assert trigger_log.log_new("NIFTY", {"days": []}, None, path=path) == 0
     assert trigger_log.log_new("NIFTY", None, None, path=path) == 0
+
+
+
+# ── 2026-08-08: the logger follows the rule the CHART draws ────────────────
+
+def test_the_old_one_candle_layer_is_not_logged(tmp_path):
+    """`rotation` marks the d3 TOUCH, not the entry, and research-findings
+    marks it VOID. Logging it produced rows describing a different BAR from
+    the one the tool draws -- silently, 2026-08-04 to 2026-08-08. The refusal
+    is pinned here so nobody "fixes" the logger back."""
+    path = _fresh(tmp_path)
+    full = _payload()
+    old_only = {"days": [{"bars": full["days"][0]["bars"],
+                          "rotation": full["days"][0]["rotation_run"]}]}
+    assert trigger_log.log_new("NIFTY", old_only, None, path=path) == 0
+
+
+def test_sell_records_are_logged_too(tmp_path):
+    """Monday's forward score covers BOTH sides. A logger that silently
+    captured only buys would have been found out weeks later."""
+    path = _fresh(tmp_path)
+    full = _payload()
+    bars = full["days"][0]["bars"]
+    sell = [None] * len(bars)
+    sell[1] = dict(_rec("10:03", "24610.00"), side="SELL", band="u3")
+    payload = {"days": [{"bars": bars, "rotation_run": [None] * len(bars),
+                         "rotation_run_sell": sell}]}
+    assert trigger_log.log_new("NIFTY", payload, None, path=path) == 1
+    row = json.loads(open(path).read().strip())
+    assert row["side"] == "SELL" and row["band"] == "u3"
+    assert row["rule"] == "5c"
+
+
+def test_a_buy_wins_the_slot_when_both_sides_land_on_one_bar(tmp_path):
+    """The same tie-break the chart's draw uses, so the log and the screen can
+    never disagree about which record existed on a bar."""
+    path = _fresh(tmp_path)
+    full = _payload()
+    bars = full["days"][0]["bars"]
+    buy = full["days"][0]["rotation_run"]
+    sell = [None] * len(bars)
+    sell[1] = dict(_rec("10:03", "24610.00"), side="SELL", band="u3")
+    payload = {"days": [{"bars": bars, "rotation_run": buy,
+                         "rotation_run_sell": sell}]}
+    assert trigger_log.log_new("NIFTY", payload, None, path=path) == 1
+    assert json.loads(open(path).read().strip())["side"] == "BUY"
+
+
+def test_score_quarantines_rows_from_the_old_rule(tmp_path):
+    """The rows already on disk predate the fix and describe the touch, not
+    the entry. Skipped, not deleted -- their gamma/ctx context is still real,
+    only the rule they belong to is not the one being scored."""
+    path = _fresh(tmp_path)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"day": "2026-08-04", "index": "NIFTY",
+                            "t": "10:03", "side": "BUY", "band": "d3",
+                            "px": 24610.0, "closed_bar": True}) + "\n")
+    trigger_log.score(path=path)
+    # The row must come back UNSCORED -- no outcome written onto it.
+    row = json.loads(open(path).read().strip())
+    assert row.get("f15") is None and row.get("f30") is None

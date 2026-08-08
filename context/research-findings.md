@@ -335,6 +335,74 @@ over a rejection already.
 
 ---
 
+## 5e. PRE-REGISTERED — the LIVE forward test, both sides (written 2026-08-08)
+
+**Written before a single row exists.** The operator: *"lets make it and we
+will score everything from monday onwards buy and sell signal"*.
+
+This is the clean kind of test. §5 closed `data/backtest/` to further slicing;
+forward-collected triggers are the one route it leaves open, and a forward test
+cannot be re-cut until it agrees with you.
+
+### What is being collected
+
+`trigger_log.py`, from the first session after 2026-08-08. Every fire of BOTH
+sides, with the bar's gamma/ctx and the chain's OI strength at that moment.
+
+**It needs a SERVER RESTART to activate.** Until that happens nothing is
+collected and this section is measuring nothing.
+
+### One thing had to be fixed first, and it was load-bearing
+
+Until 2026-08-08 the logger read `rotation` — §1's ONE-CANDLE rule, which marks
+the d3 TOUCH and which this file marks VOID. It never read `rotation_run`, the
+two-candle ENTRY the chart actually draws, because the logger was written
+2026-08-04 and `rotation_run` arrived on the 07th.
+
+So a forward score started before this fix would have measured **a different
+rule from the one on screen**, and nothing would have said so. The 256 rows
+already on disk are from that path: they are **quarantined by `rule != "5c"`,
+not deleted** — their gamma/ctx/OI context is real, only the rule is wrong.
+
+**They do not count toward anything below. The sample starts at zero.**
+
+### The bar, stated before the data exists
+
+Per side, independently, at **+30m**, NIFTY:
+
+| | PASS needs |
+|---|---|
+| hit rate | ≥ 60% |
+| median | ≥ +10 pts in the trade's favour |
+| edge over the session's own control | ≥ +10 pts |
+
+**Do not read the result before n ≥ 15 on that side.** This is the rule that
+matters most in a forward test and the easiest to break: stopping to look the
+moment the number is flattering, and calling that the answer, is how a live
+sample manufactures the same false positive §5 was written about. n < 15 is
+INCONCLUSIVE and gets no verdict, favourable or not.
+
+### What each outcome means
+
+- **BUY passes** — expected; it confirms live what 65 cached sessions already
+  said. It is not new information, it is the control on the whole exercise.
+  If the BUY side FAILS live, that is the most important result this project
+  could produce and the cached verdict has to be re-opened.
+- **SELL passes** — the backtest FAILED it narrowly on 2026-08-08 (55.6% /
+  +9.35 against 60% / +10). A live pass would mean the two disagree, and the
+  answer then is more data, not picking the friendlier one.
+- **SELL fails** — it stays exactly as it ships now: drawn because the operator
+  asked for it over C3, labelled as carrying no score.
+
+### Not covered by this test
+
+The operator's short EXIT rules (`docs/superpowers/specs/2026-08-08-operator-short-exit.md`)
+are unbuilt and two of their parameters are unanswered. This measures ENTRIES
+at a fixed horizon, which is the only thing comparable to the buy side's own
+scoring. Exits will need their own pre-registration.
+
+---
+
 ## 6. Known gap the code cannot yet see
 
 ## 5c. PRE-REGISTERED — the operator's ACTUAL d3 rule (written 2026-08-05, UNTESTED)

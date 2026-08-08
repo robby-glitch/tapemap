@@ -43,8 +43,10 @@ _seen = None            # {(day, index, t, side, band)} already on disk
 
 
 def _key(row):
+    # `rule` is part of the identity: a §1 touch and a §5c entry can land on
+    # the same (day, index, t, side, band) and are not the same event.
     return (row.get("day"), row.get("index"), row.get("t"),
-            row.get("side"), row.get("band"))
+            row.get("side"), row.get("band"), row.get("rule"))
 
 
 def _close(bar):
@@ -92,7 +94,28 @@ def log_new(index, payload, chain_state=None, path=PATH):
         if not day_js:
             return 0
         bars = day_js.get("bars") or []
-        rot = day_js.get("rotation") or []
+        # BOTH sides of §5c's TWO-CANDLE rule -- the entries the chart marks.
+        #
+        # This read `rotation` until 2026-08-08, which is §1's ONE-CANDLE rule:
+        # it marks the d3 TOUCH, not the entry, and research-findings marks it
+        # VOID. So every row this logger wrote described a different bar from
+        # the one the tool draws, and a forward score built on it would have
+        # measured the wrong rule -- silently, and for weeks. The logger was
+        # written 2026-08-04; `rotation_run` arrived 08-07 and nobody moved it.
+        #
+        # `rotation` is deliberately NOT logged any more. It is still published
+        # for v1, and mixing two rules in one file is exactly how a forward
+        # test ends up unreadable.
+        rot = list(day_js.get("rotation_run") or [])
+        sell = list(day_js.get("rotation_run_sell") or [])
+        if len(sell) == len(rot):
+            # One slot per bar on both, so a bar can carry at most one record.
+            # A buy wins the slot if both ever land together -- the same
+            # tie-break the chart's draw uses, so the log and the screen can
+            # never disagree about which record existed.
+            rot = [b if b is not None else s_ for b, s_ in zip(rot, sell)]
+        elif sell and not rot:
+            rot = sell
         if _seen is None:
             _load_seen(path)
         day = time.strftime("%Y-%m-%d")
@@ -129,6 +152,11 @@ def log_new(index, payload, chain_state=None, path=PATH):
             row = {"at": time.time(), "day": day, "index": index,
                    "t": rec.get("t") or bar.get("t"),
                    "side": rec.get("side"), "band": rec.get("band"),
+                   # Which RULE produced this row. Rows written before
+                   # 2026-08-08 carry no `rule` and describe §1's one-candle
+                   # TOUCH; `score` quarantines them rather than pooling two
+                   # different rules into one number.
+                   "rule": "5c",
                    "px": _close(bar), "trigger": rec.get("trigger"),
                    "gamma": bar.get("gamma"), "ctx": bar.get("ctx"),
                    "oi_call": oi_call, "oi_put": oi_put,
@@ -243,6 +271,15 @@ def score(path=PATH):
             # never have existed on the closed bar, and px is a mid-minute
             # tick. Scoring these would pollute the sample with signals the
             # backtested rule would not have produced.
+            skipped += 1
+            continue
+        if r.get("rule") != "5c":
+            # Written before 2026-08-08, when this logger read `rotation` --
+            # §1's ONE-CANDLE rule, which marks the d3 TOUCH and which
+            # research-findings marks VOID. Those rows describe a different
+            # BAR from the entries the tool now draws. Quarantined, not
+            # deleted: the gamma/ctx/OI context in them is still real, only
+            # the rule they belong to is not the one being scored.
             skipped += 1
             continue
         if r.get("f30") is not None or r.get("px") is None:
