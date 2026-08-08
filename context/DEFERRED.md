@@ -15,6 +15,26 @@ restating them.
 
 ---
 
+## 0 · THREE DECISIONS OWED BY THE OPERATOR — nothing waits on code
+
+These block real work and must not be guessed. Two of them were guessed once
+already today and both guesses were wrong (CHECKLIST C13).
+
+1. **The CALL-heavy threshold** for the short's target extension. No percentage
+   given. 40% is the only number in the record and it sits there as a REJECTED
+   entry filter (C11) — borrowing it would borrow a number from a question it
+   was never asked. Best answered by watching the live CALL-heavy % for a
+   session or two rather than picking in the abstract.
+2. **Does an ARMED buy close a short, or only a TRIGGERED one?** ARMED exits
+   sooner and more often; TRIGGERED is the actual signal.
+3. **What "pass" means for the live forward test** (§5e) — per-trade points,
+   hit rate, or a ratio against the 20-point stop. §5f's evidence argues for
+   **median and hit rate, not mean**: at n≈19 the mean is hostage to one or two
+   trades on BOTH sides.
+
+Once 1 and 2 land, the short-exit rules in
+`docs/superpowers/specs/2026-08-08-operator-short-exit.md` can be built.
+
 ## 1 · Premium / discount is measured on the wrong range · BACKEND
 
 **Status:** operator has seen the numbers and deferred the fix. The three

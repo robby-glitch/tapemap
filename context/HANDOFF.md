@@ -10,8 +10,60 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-08. 434 tests pass, 4 fail (date-rollover, see below).
+Last updated: 2026-08-09. 438 tests pass, 4 fail (date-rollover, see below).
 Branch: `feature/dashboard-v2`, **pushed to `origin`**.
+
+### 2026-08-09 — live collection is ARMED, and unverified until Monday
+
+**The server was restarted 03:12 IST.** `/api/health` answers, broker `upstox`,
+all three indices, uptime confirmed at 2.4 min so it is a fresh process on the
+current code.
+
+**What is NOT yet verified, and must not be called verified:** that a live
+payload actually carries `rotation_run_sell`, and that a sell fire reaches the
+log. Both need bars, and 2026-08-09 is a Sunday. A fresh process makes it very
+likely; likely is not measured, and the last `trigger_log` bug lived in exactly
+that gap.
+
+**MONDAY, after 09:15 — run this first:**
+
+```bash
+python -c "import json,urllib.request as u;d=(json.load(u.urlopen('http://127.0.0.1:8765/api/data?idx=NIFTY')).get('days') or [{}])[-1];print({k:(len(d[k]) if isinstance(d.get(k),list) else d.get(k)) for k in ('rotation_run','rotation_run_sell','run_state','run_state_sell')})"
+```
+
+All four keys must return numbers. **`rotation_run_sell` missing = the server
+is on old code and collection is half-blind.** After the close: `python trigger_log.py`.
+
+**An empty table is NOT a failure.** The setup fires 1–2× a week. Whether
+collection works is answered by the key check, never by the row count.
+
+The 256 rows already on disk are quarantined (`rule != "5c"`) — they were
+logged from `rotation`, §1's one-candle TOUCH, not the entry the chart draws.
+The new sample starts at zero.
+
+### The numbers that changed today, and one correction
+
+`trail_score.simulate` is side-aware now (BUY proved byte-identical against a
+pre-edit baseline, md5 `4a24a97f…`). Under the ADOPTED management on the
+current §5c entries, NIFTY:
+
+| | n | mean | median | hit |
+|---|---|---|---|---|
+| BUY d3 | 19 | +0.32 | **+6.90** | **63.2%** |
+| SELL u3 | 18 | +10.18 | **−0.75** | 44.4% |
+
+**Neither mean survives its own tail.** Strip one winner and BUY → −6.99,
+SELL → +0.65. BUY's top two are +177.5 against a +6.0 net. Full table: §5f.
+
+**CORRECTION worth carrying forward:** §1's "+4.8 mean / 56% hit" is from the
+VOID one-candle trigger and was quoted twice today as if current. On the real
+entries the buy's mean is +0.32. **The scored edge's case rests on median and
+hit rate, not mean** — any surface quoting a mean for it quotes the wrong
+statistic.
+
+**C13 (new):** the fixed 30-minute exit is REFUSED. §1's own table measured it
+and did not adopt it; it has no stop, so it is not a trade. It reappeared twice
+today as a scoring bar because the refusal had never been written down.
 
 ### 2026-08-08 — the rail is full, and the sell side exists
 
