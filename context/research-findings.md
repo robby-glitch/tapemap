@@ -267,6 +267,25 @@ and no re-cutting to a different horizon to find a number that passes.
 **INCONCLUSIVE** if n < 15 — the buy side's own verdict rests on n=18/19, and
 anything thinner is not evidence either way.
 
+### ⚠️ MEASURED ON THE MANAGEMENT THE OPERATOR DOES NOT USE (noticed 2026-08-08)
+
+The bar below is written at a **fixed +30m horizon**. §1's own management table
+lists that as *"no stop, fixed 30-min exit"* — one of four managements measured,
+and **not the one adopted**. The adopted management is *"hold the stop until
+VWAP, then trail band-to-band; from +2σ, 15 pts under the high. Flat by 15:15."*
+The operator had refused the 30-minute exit before; it was never written down,
+which is why it came back.
+
+So this result says: **the sell mirror fails under a management the operator
+does not trade.** It is untested under the one they do. Same standing as §1's
+VOID notice — correctly measured, wrong thing measured.
+
+**It is deliberately NOT being re-run.** §5's stop rule forbids re-cutting
+`data/backtest/` until a number agrees with us, and "the criterion was wrong so
+let me try again" is exactly how that starts. The sell side keeps shipping as
+it is — drawn because the operator asked, labelled as carrying no score. The
+real management gets measured on LIVE data (§5e), where it cannot be re-cut.
+
 ### RESULT — run 2026-08-08. **FAILED**, and narrowly, which is the point.
 
 NIFTY, 65 sessions, 18 signals. The BUY side was run through the same harness
@@ -366,15 +385,32 @@ not deleted** — their gamma/ctx/OI context is real, only the rule is wrong.
 
 **They do not count toward anything below. The sample starts at zero.**
 
-### The bar, stated before the data exists
+### How it is measured — NOT on a clock
 
-Per side, independently, at **+30m**, NIFTY:
+**Corrected 2026-08-08 after the operator caught it.** The first draft of this
+section scored at a fixed +30m. That is §1's *"no stop, fixed 30-min exit"* —
+a management that was measured and **not adopted**, and one the operator had
+already refused. Scoring live trades on it would measure a trade they never
+take.
 
-| | PASS needs |
-|---|---|
-| hit rate | ≥ 60% |
-| median | ≥ +10 pts in the trade's favour |
-| edge over the session's own control | ≥ +10 pts |
+The forward score uses the **adopted management**: hold the stop until VWAP,
+then trail band-to-band; from +2σ, 15 pts under the high; flat by 15:15. On the
+sell side, the operator's own exits
+(`docs/superpowers/specs/2026-08-08-operator-short-exit.md`) once their two open
+parameters are answered.
+
+**This is why the logger captures the SIGNAL, not an outcome.** `trigger_log`
+records the fire and its context; the bars afterwards are already cached, so
+the exit can be scored later under whatever the settled rule is — and re-scored
+if it changes, without throwing away a single collected signal. Nothing about
+the exit has to be committed to now, which is the whole point.
+
+### The bar — **OWED BY THE OPERATOR, do not invent it**
+
+The pass criterion must be stated in the terms of the real management —
+points per trade, hit rate, or a ratio against the 20-point stop — and that is
+the operator's call. The previous draft picked "≥60% / ≥+10 pts at +30m"
+without asking, which is the same mistake in a different place.
 
 **Do not read the result before n ≥ 15 on that side.** This is the rule that
 matters most in a forward test and the easiest to break: stopping to look the
