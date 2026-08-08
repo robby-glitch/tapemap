@@ -235,9 +235,54 @@ instead of guessing one of four directions.
   hit / median −75.90 (n=8), the operator said do it anyway. That stands — do
   not re-litigate. What must not happen is the screen implying BANKNIFTY d3
   carries NIFTY's 68.4%.
-- **The hover callout is theirs.** *"dont touch the dynamic call out."*
+- ~~**The hover callout is theirs.**~~ **LIFTED 2026-08-08.** The hands-off was
+  always conditional — *"i am thinking of modifying it in some way but later"* —
+  and the operator has now called that later: *"dusre session m hum apne dynamic
+  callout jo h uspe kaam karunga and the other thing like wall khiski trap
+  sprung band se palta everyhting"*. It is the next session's subject. Do not
+  refuse to touch it on the strength of the old rule.
 
-### ~~Next session starts here — the left panel~~ — DONE 2026-08-08
+### Next session starts here — the callout and the event vocabulary
+
+The operator's own words, 2026-08-08: *"dusre session m hum apne dynamic
+callout jo h uspe kaam karunga and the other thing like wall khiski trap sprung
+band se palta everyhting i m gonna work on it"*. This is a DESIGN session with
+them, not a build-it-and-show-them one — ask before building, three designs
+have been rejected before.
+
+**Where it lives.** `trade/Callout.tsx` renders it; `trade/narration.ts` joins
+the engine's event stream to bars and tiers it; `trade/hinglish.ts` holds every
+gloss (`WALL KHISKI`, `TRAP LAGA`, `BAND SE PALTA`, 25 kinds) plus the
+`call | risk | lean` claim table; `LevelsOverlay.drawBalloons` draws the pills.
+The kinds themselves are emitted by `engine.py` and `chain_metrics.py`.
+
+**Four things that constrain any redesign — none of them are style.**
+
+1. **A gloss describes the KIND only.** It states no number and never infers a
+   direction. Direction comes from `tone`, decided upstream in `data.ts`'s
+   `evDir`; the gloss only puts a Hinglish word on a direction already decided.
+   An unrecognised kind returns null and the UI shows the engine's own string —
+   untranslated, never mistranslated, never silently dropped.
+2. **The three claim strengths are load-bearing, not decoration.** `call` (the
+   market DID something), `risk` (could happen NEXT, explicitly not yet),
+   `lean` (positioning tilts, no prediction). They exist because the direction
+   chip once worded all three identically as "ishaara", and on 2026-07-30 the
+   `call` kinds ran 15/18 at +30m while `lean` and `risk` ran 11/27. A warning
+   dressed as a read is the thing that gets acted on.
+3. **STORY is default OFF on measurement, not taste.** `signal_review.py`
+   scored the engine's directional events at −0.1 pts (`risk`, n=16) and −6.2
+   (`lean`, n=16) at +30m against a +4.1 control — two of three buckets did
+   worse than doing nothing, at ~83 events a session drawn at equal weight.
+   Any redesign that turns the layer back on by default is re-opening that.
+4. **The engine's own sentence is quoted verbatim beside every gloss.** Nothing
+   in the callout may strengthen, soften or re-word a claim the engine made.
+
+**Already fixed, so do not "discover" them again:** wall migrations have
+hysteresis (`WALL_HOLD = 3`, P2) after 12 headlines in one hour on 2026-08-04;
+`GAMMA-PIN`'s gloss is deliberately regime-neutral because the kind fires as
+FLOOR, CEILING and PINNED alike.
+
+### ~~The left panel~~ — DONE 2026-08-08
 
 The three questions below were answered: the panel was FILLED (the watchlist
 idea dropped — the three indices already render in App's glance bar off the
