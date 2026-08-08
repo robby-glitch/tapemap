@@ -294,7 +294,17 @@ instead of guessing one of four directions.
   sprung band se palta everyhting"*. It is the next session's subject. Do not
   refuse to touch it on the strength of the old rule.
 
-### Next session starts here — the callout and the event vocabulary
+### Next session starts here
+
+**FIRST, and only if it is a trading day after 09:15 — the collection check.**
+It takes ten seconds and it is time-boxed in a way the rest of this is not.
+The command and what a failure looks like are in the 2026-08-09 section at the
+top of this file. If `rotation_run_sell` is missing, stop and fix that before
+anything else: collection is half-blind and every session that passes is a
+session of evidence lost. An empty log is fine; a missing key is not.
+
+**Then, the actual subject — the callout and the event vocabulary.**
+
 
 The operator's own words, 2026-08-08: *"dusre session m hum apne dynamic
 callout jo h uspe kaam karunga and the other thing like wall khiski trap sprung
