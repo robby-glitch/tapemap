@@ -1746,6 +1746,20 @@ function OiFlowTab({ index }: { index: IndexKey }) {
             <tbody>
               {[...rows].reverse().map(r => {
                 const bull = r.sentiment === 'BULLISH'
+                const bear = r.sentiment === 'BEARISH'
+                // `baseline` is the ENGINE saying this mark is the session's
+                // zero point rather than a reading (chain_metrics.oi_flow):
+                // call/put are cumulative day OI change, so the first mark is
+                // zero by construction. The UI must not infer that from 0/0 —
+                // mid-session that is a real reading of "nothing was added".
+                //
+                // Muted, never green/red: theme.ts reserves those for
+                // DIRECTION, and the absence of a reading has no direction.
+                // That also fixes NEUTRAL, which fell to the bear branch and
+                // so painted red on a red wash — the one row that means "no
+                // signal" was the one shouting bearish.
+                const sTone = r.baseline || !(bull || bear) ? pal.textMuted
+                  : bull ? pal.bull : pal.bear
                 const sCol = r.diff > 0 ? pal.bull : r.diff < 0 ? pal.bear : pal.textMuted
                 const dCol = (r.chg_dir ?? 0) > 0 ? pal.bull : (r.chg_dir ?? 0) < 0 ? pal.bear : pal.textMuted
                 return (
@@ -1778,12 +1792,17 @@ function OiFlowTab({ index }: { index: IndexKey }) {
                     </td>
                     <td className="mono" style={td}>{r.pcr?.toFixed(2) ?? '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                        padding: '2px 8px', borderRadius: 3,
-                        color: bull ? pal.bull : pal.bear,
-                        background: bull ? wash(pal.bull, 0.12) : wash(pal.bear, 0.12),
-                      }}>{r.sentiment}</span>
+                      <span
+                        title={r.baseline
+                          ? 'The session’s zero point, not a reading — call and put '
+                            + 'are cumulative OI change since the open, so the first mark '
+                            + 'is zero by construction.'
+                          : undefined}
+                        style={{
+                          fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                          padding: '2px 8px', borderRadius: 3,
+                          color: sTone, background: wash(sTone, 0.12),
+                        }}>{r.baseline ? 'BASELINE' : r.sentiment}</span>
                     </td>
                   </tr>
                 )

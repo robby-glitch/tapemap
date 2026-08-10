@@ -181,6 +181,12 @@ export interface FlowRow {
   strength: number; pcr: number | null; chg_dir: number | null
   chg_dir_pct: number | null; sentiment: string
   brk: string | null; brk_px: number | null
+  /** The session's zero point, not a reading: `call`/`put` are cumulative day
+   *  OI change, so the day's first mark is zero by construction. OPTIONAL for
+   *  the same reason `RunState.stop` is — a server on older code omits it, and
+   *  the row must then render exactly as it did before rather than have the UI
+   *  infer a baseline from `0/0`, which mid-session is a real reading. */
+  baseline?: boolean
 }
 export interface BarSetup {
   status: string; dir: 'UP' | 'DOWN'; t0: string; kind: string

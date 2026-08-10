@@ -380,6 +380,47 @@ def test_oi_flow_breaks_and_selection():
     print(f"PASS oi_flow breaks + selection: {brks}")
 
 
+def test_oi_flow_flags_the_opening_baseline():
+    """The day's first mark is zero by construction -- call/put are CUMULATIVE
+    day OI change, so at the opening bell nothing has been added yet. Rendered
+    as bare numbers it is indistinguishable from a failed fetch, which is how
+    the operator read it on 2026-08-10."""
+    st = ChainState()
+    for i in range(30):                    # 09:15..09:44
+        st.minutes["09:%02d" % (15 + i)] = {
+            "spot": 100.0 + i, "k": {24000: (100.0 * i, 10.0 * i)}}
+    rows = st.oi_flow(interval=15, strikes=[24000])
+    at = {r["time"]: r for r in rows}
+    assert at["09:15"]["call"] == 0 and at["09:15"]["put"] == 0, at["09:15"]
+    assert at["09:15"]["baseline"] is True, at["09:15"]
+    assert at["09:30"]["baseline"] is False, at["09:30"]
+    # Additive promise: `sentiment` keeps its existing value domain, so a
+    # consumer that ignores `baseline` behaves exactly as it did before.
+    assert at["09:15"]["sentiment"] == "NEUTRAL", at["09:15"]
+    print("PASS oi_flow flags the opening baseline")
+
+
+def test_oi_flow_baseline_is_only_ever_the_first_mark():
+    """Two ways to get this wrong, both tested here.
+
+    A LATER mark summing to zero is a real reading -- nothing was added on the
+    selected strikes -- so flagging it "baseline" would be its own lie. And a
+    session whose first mark already carries OI (poller started late with no
+    backfill) has no zero point at all, so nothing may be flagged."""
+    st = ChainState()
+    for i in range(30):                    # 09:15..09:44
+        st.minutes["09:%02d" % (15 + i)] = {
+            "spot": 100.0,
+            "k": {24000: ((10.0, 20.0) if i < 15 else (0.0, 0.0))}}
+    rows = st.oi_flow(interval=15, strikes=[24000])
+    at = {r["time"]: r for r in rows}
+    assert at["09:30"]["call"] == 0 and at["09:30"]["put"] == 0, at["09:30"]
+    assert at["09:30"]["baseline"] is False, "a later zero mark is a reading"
+    assert at["09:15"]["baseline"] is False, "first mark carried OI already"
+    assert all(r["baseline"] is False for r in rows), rows
+    print("PASS oi_flow baseline is only ever the first mark")
+
+
 if __name__ == "__main__":
     test_max_pain_symmetric()
     test_writer_score_signs()
@@ -394,4 +435,6 @@ if __name__ == "__main__":
     test_out_of_book_zone_flagged()
     test_oi_flow_samples_at_the_mark()
     test_oi_flow_breaks_and_selection()
+    test_oi_flow_flags_the_opening_baseline()
+    test_oi_flow_baseline_is_only_ever_the_first_mark()
     print("ALL PASS")

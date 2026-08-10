@@ -491,6 +491,22 @@ class ChainState:
                 "sentiment": "BULLISH" if diff > 0 else "BEARISH" if diff < 0 else "NEUTRAL",
                 "brk": brk,
                 "brk_px": brk_px,
+                # The session's zero point, not a reading. call/put are
+                # CUMULATIVE day OI change, so the first mark of the day is
+                # zero by construction -- nothing has been added yet at the
+                # instant we start measuring what gets added. Rendered as
+                # numbers it is indistinguishable from a failed fetch, and on
+                # 2026-08-10 the operator read it as exactly that.
+                #
+                # Deliberately NOT "call == 0 and put == 0" alone: mid-session
+                # that is a real reading (nothing was added on the selected
+                # strikes), and calling it a baseline would be its own lie.
+                # Only the FIRST mark can be the zero point.
+                #
+                # Additive on purpose -- `sentiment` keeps its existing value
+                # domain, so a consumer that ignores this key behaves exactly
+                # as it did before.
+                "baseline": not rows and call == 0 and put == 0,
             })
             prev_diff, prev_mark = diff, mk_min
         return rows
