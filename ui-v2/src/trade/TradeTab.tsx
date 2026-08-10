@@ -368,13 +368,19 @@ export default function TradeTab({
   // the OI Flow tab's own 15s cadence — /api/oiflow aggregates from the chain
   // poller's in-memory minute grid, so this costs no Dhan request. One fetch,
   // two consumers.
+  //
+  // interval=5 matches the OI Flow tab's default. This strip has no selector,
+  // so the operator cannot re-cut it: pinned at 15 it showed a mark up to
+  // fifteen minutes stale, and for the first hour of the session it had one
+  // usable row, the 09:15 baseline being zero by construction. Whatever
+  // bucket the tab defaults to, this must not be coarser.
   const [flowRows, setFlowRows] = useState<FlowRow[] | null>(null)
   const [flowErr, setFlowErr] = useState<string>('')
   useEffect(() => {
     let alive = true
     const load = async () => {
       try {
-        const r = await fetch(`/api/oiflow?idx=${index}&interval=15`)
+        const r = await fetch(`/api/oiflow?idx=${index}&interval=5`)
         const j = await r.json()
         if (!alive) return
         if (!j.ok) { setFlowErr(j.error || 'flow unavailable'); setFlowRows(null); return }

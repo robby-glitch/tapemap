@@ -1622,7 +1622,14 @@ const inr = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 0 
 
 function OiFlowTab({ index }: { index: IndexKey }) {
   const pal = usePalette()
-  const [mins, setMins] = useState(15)
+  // 5, not 15: a bucket only exists once the session has run long enough to
+  // produce it. Measured 2026-08-10 at 09:37 — a 15-minute grid was TWO rows,
+  // and the first of those is the 09:15 baseline, which is zero by
+  // construction (call/put are cumulative day OI CHANGE, so at the opening
+  // bell nothing has changed yet). The table therefore read as empty for the
+  // first hour of every session. Operator request; the selector still offers
+  // 15/30/60 for anyone who wants the coarser read.
+  const [mins, setMins] = useState(5)
   const [rows, setRows] = useState<FlowRow[]>([])
   const [avail, setAvail] = useState<number[]>([])
   const [sel, setSel] = useState<number[] | null>(null)
