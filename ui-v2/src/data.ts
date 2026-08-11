@@ -815,7 +815,14 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
       peIv: s.pe?.iv ?? 0,
       ceSpread: Math.max(0, (s.ce?.ask ?? 0) - (s.ce?.bid ?? 0)),
       peSpread: Math.max(0, (s.pe?.ask ?? 0) - (s.pe?.bid ?? 0)),
-      type: (s.k === atm ? 'atm' : s.k === wallUp ? 'callwall' : s.k === wallDn ? 'putwall' : undefined) as StrikeRow['type'],
+      // Frame check, because this line once mixed them: `s.k` is a raw chain
+      // strike — INDEX frame — and so are `m.wall_up` / `m.wall_dn` and `atm`.
+      // `wallUp`/`wallDn` above are the same walls SHIFTED to the futures tape
+      // (+basis) for drawing, so comparing `s.k` against those could never be
+      // equal while basis was non-zero: the ladder marked no walls at all
+      // (reproduced SENSEX 2026-08-11, wall_up 78500 vs wallUp 78851.85).
+      // Strike-vs-strike compares stay in INDEX frame, always.
+      type: (s.k === atm ? 'atm' : s.k === m.wall_up ? 'callwall' : s.k === m.wall_dn ? 'putwall' : undefined) as StrikeRow['type'],
     }))
     .reverse() // highest strike on top, matching the design ladder
   const chain: Chain = {
