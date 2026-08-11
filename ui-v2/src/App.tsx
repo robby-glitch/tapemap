@@ -5,7 +5,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow, RunState, TapeBar } from './data'
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -459,13 +459,14 @@ function IndexCell({ idx, data, active, onClick }: {
           position: 'absolute',
           top: -7,
           right: 10,
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 700,
           letterSpacing: '0.1em',
           backgroundColor: pal.accent,
-          // White on light brass is 4.4:1 at 9px; ink on it is 6.4:1. Dark
-          // keeps the white it has always had.
-          color: mode === 'light' ? pal.textPrimary : '#fff',
+          // On light brass, ink (#141A22) measures 4.4:1 — just under the
+          // line. The darker page-black is 4.9:1. Dark mode keeps the white
+          // it has always had.
+          color: mode === 'light' ? '#0B0E14' : '#fff',
           padding: '1px 7px',
           borderRadius: 4,
         }}>
@@ -615,7 +616,7 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
         )}
         {error && (
           <span style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 700,
             letterSpacing: '0.06em',
             color: pal.caution,
@@ -992,7 +993,7 @@ function ChainTab({ index }: { index: IndexKey }) {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {[
-          { label: 'Put/Call Ratio', value: chain.pcr, note: chain.pcr < '1' ? 'Bearish lean' : 'Bullish lean' },
+          { label: 'Put/Call Ratio', value: chain.pcr, note: Number(chain.pcr) < 1 ? 'Bearish lean' : 'Bullish lean' },
           { label: 'Max Pain', value: fmt(chain.maxPain), note: 'Expiry magnet' },
           { label: 'GEX', value: chain.gex, note: chain.gex === 'Negative' ? 'Amplifies moves' : chain.gex === 'Positive' ? 'Dampens moves' : 'Balanced' },
           { label: 'Squeeze Fuel', value: chain.squeeze, note: chain.squeeze === 'High' ? 'Large short base' : 'Limited short' },
@@ -1318,8 +1319,9 @@ function ValidateTab({ index }: { index: IndexKey }) {
               </div>
               <div style={{ height: 4, backgroundColor: pal.inset, borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
                 <div style={{
-                  height: '100%', width: `${check.score}%`, backgroundColor: vCol,
-                  borderRadius: 2, transition: 'width 350ms ease',
+                  height: '100%', width: '100%', backgroundColor: vCol,
+                  transform: `scaleX(${check.score / 100})`, transformOrigin: 'left',
+                  borderRadius: 2, transition: 'transform 350ms ease',
                 }} />
               </div>
             </div>
@@ -1664,7 +1666,7 @@ function OiFlowTab({ index }: { index: IndexKey }) {
   }
 
   const th: React.CSSProperties = {
-    textAlign: 'right', padding: '7px 10px', fontSize: 9.5, fontWeight: 600,
+    textAlign: 'right', padding: '7px 10px', fontSize: 10.5, fontWeight: 600,
     letterSpacing: '0.09em', textTransform: 'uppercase', color: pal.textMuted,
     borderBottom: `1px solid ${pal.border}`, whiteSpace: 'nowrap',
   }
@@ -1731,7 +1733,10 @@ function OiFlowTab({ index }: { index: IndexKey }) {
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: 'left' }}>Time</th>
-                <th style={th}>LTP</th>
+                {/* Frame discipline: this LTP is the index print the chain
+                    poller logs, not the futures tape the glance bar shows —
+                    the two can sit 70+ points apart, so the frame is named. */}
+                <th style={th}>LTP · IDX</th>
                 <th style={{ ...th, textAlign: 'center' }}>Break</th>
                 <th style={th}>Call OI added</th>
                 <th style={th}>Put OI added</th>
@@ -1855,13 +1860,22 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
         alignItems: 'center', padding: '14px 24px',
       }}>
         <div>
-          <div className="mono" style={{
-            fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em',
-            // a price you cannot trust must not look like one you can
-            color: stale ? pal.textMuted : pal.textPrimary,
-            textDecoration: stale ? 'line-through' : 'none',
-          }}>
-            {info.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div className="mono" style={{
+              fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em',
+              // a price you cannot trust must not look like one you can
+              color: stale ? pal.textMuted : pal.textPrimary,
+              textDecoration: stale ? 'line-through' : 'none',
+            }}>
+              {info.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            {/* Frame discipline: this is the futures tape, and OI Flow's LTP
+                column is the index print — 70+ points apart some afternoons.
+                Both carry their frame so neither reads as the other. */}
+            <span title="Futures frame — the tape this app draws"
+              style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: pal.textMuted }}>
+              FUT
+            </span>
           </div>
           <div className="mono" style={{ fontSize: 12, color: stale ? pal.textMuted : dirCol, marginTop: 5 }}>
             {stale ? 'placeholder' : `${info.change > 0 ? '+' : ''}${info.change.toFixed(2)} · ${info.pct > 0 ? '+' : ''}${info.pct.toFixed(2)}%`}
@@ -1921,6 +1935,135 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
   )
 }
 
+/* ── Machine strip ──────────────────────────────────────────────────────────
+   PRODUCT.md's five-state machine, surfaced at SHELL level. Until now the
+   machine's current state lived only inside Trade → SetupCheck, so from any
+   other tab — or any other window — an ARM changed nothing glanceable. This
+   strip renders on every tab, under the ANSWER band, and document.title
+   mirrors it (see App) so the browser tab itself announces ARMED.
+
+   It READS `run_state`; it does not run a second copy of the machine — the
+   same contract SetupCheck states at its top. Side pick is SetupCheck's rule
+   verbatim: the side with something happening wins, BUY (the scored side)
+   wins ties, and a shown SELL is named so it can never borrow the buy rule's
+   measured hit rate. All prices here are futures-frame — the same frame as
+   the chart these levels are drawn on. */
+
+/** Last bar's machine state and which side is being shown. One definition,
+ *  used by the strip and the title mirror, so they can never disagree. */
+function liveMachine(runState: RunState[] | null, runStateSell: RunState[] | null) {
+  const buy = runState?.length ? runState[runState.length - 1] : null
+  const sell = runStateSell?.length ? runStateSell[runStateSell.length - 1] : null
+  const buyLive = !!buy && (buy.state !== 'WAITING' || buy.exit_why != null)
+  const sellLive = !!sell && (sell.state !== 'WAITING' || sell.exit_why != null)
+  const showSell = sellLive && !buyLive
+  return { st: showSell ? sell : buy, showSell, bothLive: buyLive && sellLive }
+}
+
+const MACHINE_WORDS = ['WAITING', 'ARMED', 'TRIGGERED', 'TRADE MEIN', 'BAAHAR'] as const
+
+/** SetupCheck's own state word for a bar — exit_why wins, IN_TRADE reads as
+ *  the operator says it. */
+function machineWord(st: RunState): (typeof MACHINE_WORDS)[number] {
+  return st.exit_why ? 'BAAHAR' : st.state === 'IN_TRADE' ? 'TRADE MEIN' : st.state
+}
+
+function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, replaying }: {
+  runState: RunState[] | null
+  runStateWhy: string
+  runStateSell: RunState[] | null
+  lastBar: TapeBar | null
+  stale: boolean
+  replaying: boolean
+}) {
+  const pal = usePalette()
+  const f1 = (n: number | null | undefined) => (n == null ? '—' : n.toFixed(1))
+  const { st, showSell, bothLive } = liveMachine(runState, runStateSell)
+  const current = st ? machineWord(st) : null
+
+  // The one advancing number per state. WAITING's is the number this screen
+  // has never printed: how far price is from d3.
+  let detail: string
+  if (stale) {
+    // Distinct sentence #2: could not check. Placeholder bars must not be
+    // read as a machine state.
+    detail = 'koi live tape nahi — machine padh nahi sakte'
+  } else if (!st) {
+    // SetupCheck's own words for the same absence — one sentence, two panels.
+    detail = `Setup ki haalat nahi aa rahi${runStateWhy ? ` — ${runStateWhy}` : ''}`
+  } else if (current === 'BAAHAR') {
+    detail = `nikal gaye — ${st.exit_why === 'stop' ? 'stop laga' : 'VWAP par'}`
+  } else if (current === 'WAITING') {
+    detail = lastBar
+      ? `d3 ${f1(lastBar.d3)} · price ${f1(lastBar.c)} · gap ${f1(lastBar.c - lastBar.d3)}`
+      : 'd3 — · koi bar nahi'
+  } else if (current === 'ARMED') {
+    detail = `todna ${showSell ? '<' : '>'} ${f1(showSell ? st.ref_low : st.ref_high)}`
+      + ` · ${st.candles_left != null ? `${st.candles_left} candle baaki` : 'window —'}`
+  } else if (current === 'TRIGGERED') {
+    detail = `entry hui · stop ${f1(st.stop)}`
+  } else {
+    // TRADE MEIN — VWAP is the first milestone, then band-to-band.
+    detail = `pehla milestone VWAP ${f1(lastBar?.vwap)} · stop ${f1(st.stop)}`
+  }
+
+  const unreadable = !stale && st != null && !st.readable
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+      padding: '6px 24px', backgroundColor: pal.bg,
+      borderBottom: `1px solid ${pal.border}`,
+    }}>
+      <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Machine</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} aria-live="polite">
+        {MACHINE_WORDS.map((w, i) => {
+          const lit = !stale && w === current
+          return (
+            <span key={w} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {i > 0 && <span aria-hidden="true" style={{ color: pal.textMuted, opacity: 0.45, fontSize: 10 }}>→</span>}
+              <span style={{
+                fontSize: 11, fontWeight: lit ? 700 : 500, letterSpacing: '0.07em',
+                padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap',
+                // Brass, not green/red: a machine state is structure, not a
+                // directional call. WAITING lights quietly — context, not
+                // signal.
+                color: lit ? (w === 'WAITING' ? pal.textPrimary : pal.accent) : pal.textMuted,
+                border: `1px solid ${lit ? (w === 'WAITING' ? wash(pal.ink, 0.18) : wash(pal.accent, 0.55)) : 'transparent'}`,
+                backgroundColor: lit && w !== 'WAITING' ? wash(pal.accent, 0.10) : 'transparent',
+                opacity: lit ? 1 : 0.75,
+              }}>{w}</span>
+            </span>
+          )
+        })}
+      </div>
+      {showSell && st && (
+        <span title="SELL mirror — operator ke kehne par bana, data ne REJECT kiya tha; buy rule ka 68.4% ise haasil nahi hai" style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 7px',
+          borderRadius: 4, border: `1px solid ${pal.border}`, color: pal.textSecondary,
+        }}>SELL · u3</span>
+      )}
+      {bothLive && (
+        <span style={{ fontSize: 10.5, color: pal.textSecondary }}>· SELL side bhi live hai — Trade tab dekho</span>
+      )}
+      <span className="mono" style={{
+        fontSize: 11.5, whiteSpace: 'nowrap',
+        color: stale ? pal.caution : !st ? pal.caution : current === 'WAITING' ? pal.textSecondary : pal.textPrimary,
+      }}>{detail}</span>
+      {unreadable && (
+        <span style={{ fontSize: 10.5, color: pal.caution }}>· is bar ka read nahi mila</span>
+      )}
+      {replaying && (
+        <span title="Replay chal raha hai — ye strip phir bhi LIVE tape padhti hai, scrub nahi" style={{
+          marginLeft: 'auto', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+          padding: '1px 7px', borderRadius: 4,
+          border: `1px solid ${wash(pal.accent, 0.5)}`, color: pal.accent,
+        }}>LIVE</span>
+      )}
+    </div>
+  )
+}
+
 export default function App() {
   // The shell paints from the same mode the chart does — see theme.ts's
   // ModeProvider, mounted in main.tsx above this component.
@@ -1973,6 +2116,27 @@ export default function App() {
   const activeChain = data.CHAIN_DATA[activeIndex]
   const chainAge = chainAgeS(activeChain)
   const chainStale = chainAge != null && chainAge > CHAIN_STALE_S
+
+  // Mirror the machine into the browser tab title, so ARMED is visible from
+  // Kite or TradingView without TapeMap being the front window. Same state
+  // pick as the strip (liveMachine — one definition). A dead tape or a dead
+  // backend must NOT title-flash a placeholder machine, so those fall back to
+  // the plain title.
+  useEffect(() => {
+    let title = 'TapeMap — Live'
+    if (!error && !idxDead) {
+      const { st } = liveMachine(tape.runState, tape.runStateSell)
+      if (st) {
+        const w = machineWord(st)
+        if (w === 'ARMED') title = `● ARMED · ${st.candles_left != null ? `${st.candles_left} baaki` : 'window —'} — TapeMap`
+        else if (w === 'TRIGGERED') title = '●● TRIGGERED — TapeMap'
+        else if (w === 'TRADE MEIN') title = '● TRADE MEIN — TapeMap'
+        else if (w === 'BAAHAR') title = `BAAHAR (${st.exit_why}) — TapeMap`
+      }
+    }
+    document.title = title
+    return () => { document.title = 'TapeMap — Live' }
+  }, [tape, error, idxDead])
 
   useEffect(() => {
     if (!playing || scrub == null) return
@@ -2058,8 +2222,20 @@ export default function App() {
         <AnswerBand index={activeIndex} stale={!!error || idxDead} />
       )}
 
+      {/* The machine strip renders UNCONDITIONALLY — every tab, and even under
+          FOCUS. It is the product's spine, and the one row that must never be
+          traded away for chart pixels. */}
+      <MachineStrip
+        runState={tape.runState}
+        runStateWhy={tape.runStateWhy}
+        runStateSell={tape.runStateSell}
+        lastBar={tape.bars.length ? tape.bars[tape.bars.length - 1] : null}
+        stale={!!error || idxDead}
+        replaying={scrub != null}
+      />
+
       {/* Tab bar */}
-      <div style={{
+      <div role="tablist" aria-label="TapeMap panels" style={{
         display: 'flex',
         alignItems: 'center',
         gap: 2,
@@ -2070,6 +2246,8 @@ export default function App() {
         {tabs.map(tab => (
           <button
             key={tab}
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             style={{
               padding: '12px 16px',

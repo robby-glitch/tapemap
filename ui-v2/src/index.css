@@ -15,7 +15,7 @@
 :root[data-mode='light'] {
   --page-bg: #F7F8FA;
   --page-text: #141A22;
-  --page-muted: #6B7482;
+  --page-muted: #636C7A;
   --page-ink: 20,26,34;
   --page-brass: 169,118,42;
 }
@@ -50,6 +50,21 @@ html, body, #root {
 .live-dot { animation: pulse-live 1.8s ease-in-out infinite; }
 .trending-glow { animation: glow-pulse 2.4s ease-in-out infinite; }
 
+/* The dot and the glow stay visible when motion is off — only the pulse goes.
+   The glow freezes at its brighter keyframe so the marker still reads. */
+@media (prefers-reduced-motion: reduce) {
+  .live-dot, .trending-glow { animation: none; }
+  .trending-glow { box-shadow: 0 0 24px 6px rgba(var(--page-brass), 0.40); }
+}
+
+/* Keyboard focus. Brass, not direction green/red — focus is chrome, and the
+   ring must be the same wherever it lands. :focus-visible so mouse clicks do
+   not paint rings on every tab press-state. */
+:focus-visible {
+  outline: 2px solid rgb(var(--page-brass));
+  outline-offset: 2px;
+}
+
 .mono { font-family: 'Roboto Mono', 'Fira Mono', monospace; font-variant-numeric: tabular-nums; }
 
 .chip {
@@ -65,7 +80,7 @@ html, body, #root {
 }
 
 .micro-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;

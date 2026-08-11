@@ -50,10 +50,12 @@ export const TL = {
   // Deliberate deviation from the mockup, which used '#98A2B0'. Measured in
   // the browser that is 2.6:1 on white, and textMuted is not a garnish here —
   // it carries the inactive tab labels, every micro-label, the column headers
-  // and the ANSWER band's chips, 37 elements on the first screen alone. This
-  // value is 4.7:1 and still ranks below textSecondary's 6.6:1, so the
-  // primary → secondary → muted hierarchy survives.
-  textMuted: '#6B7482',
+  // and the ANSWER band's chips, 37 elements on the first screen alone. The
+  // previous '#6B7482' was 4.7:1 on a white card but only 4.4:1 on the
+  // #F7F8FA page itself, where the tab labels actually sit. This value is
+  // 5.0:1 on the page, 5.3:1 on white, and still ranks below textSecondary's
+  // 6.6:1, so the primary → secondary → muted hierarchy survives.
+  textMuted: '#636C7A',
   bull: '#1B8A38',
   bear: '#C42B30',
   // Was '#B98F45', the mockup's dimmer brass standing in for an amber the

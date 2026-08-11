@@ -373,12 +373,20 @@ export default function SetupCheck({
       </span>
       {r.custom && (
         <span
-          role="button" tabIndex={-1} title="Ye rule hata do"
+          role="button" tabIndex={0} title="Ye rule hata do"
+          aria-label={`Rule hatao: ${r.text}`}
           onClick={(e) => {
             e.stopPropagation()
             saveRules(rules.filter((_, i) => `m.${i}` !== r.id))
           }}
-          style={{ fontSize: 13, lineHeight: 1, color: pal.textMuted, padding: '0 2px' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              saveRules(rules.filter((_, i) => `m.${i}` !== r.id))
+            }
+          }}
+          style={{ fontSize: 13, lineHeight: 1, color: pal.textMuted, padding: '0 2px', cursor: 'pointer' }}
         >×</span>
       )}
     </>
