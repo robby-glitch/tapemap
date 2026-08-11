@@ -951,7 +951,7 @@ export default function TradeTab({
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
 
       <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-        VWAP laal · σ bands ±1σ gehra laal / ±2σ hara / ±3σ neela · levels · OI
+        σ wash ±1σ gulabi / ±2σ hara / ±3σ neela (sirf rang — lines hata di, level chips right mein hain) · levels · OI
         {rotCount != null
           ? ` · ${rotCount.drawnCount} d3 BUY entry`
             + ` — wo close jisne chhune wale bar ka high toda, touch nahi`

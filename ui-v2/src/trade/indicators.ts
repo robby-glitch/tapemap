@@ -229,15 +229,13 @@ export function legRender(day: string, bars: TapeBar[], leg: 'ce' | 'pe',
 
 export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
   return [
-    {
-      // The σ deviations themselves are no longer drawn as lines here — they
-      // are filled ribbons on the overlay canvas (see LevelsOverlay's
-      // startLevelsOverlay), which is why this instance now emits only VWAP.
-      instanceId: 'vwap-bands', label: 'VWAP ±σ', placement: 'overlay',
-      outputs: [
-        { name: 'vwap', values: series(bars, (b) => b.vwap), color: VWAP_LINE },
-      ],
-    },
+    // The FUT chart no longer draws the VWAP polyline either. Operator,
+    // 2026-08-11: the line is redundant next to the level chips on the right
+    // and the VWAP figure the stat strip / Σ BANDS pane already print — one
+    // more line over the tape bought nothing. The σ deviations went the same
+    // way earlier (filled ribbons on the overlay canvas, edges now silent —
+    // see LevelsOverlay). The LEG panes keep their own VWAP: the operator
+    // named only "the chart". VWAP_LINE stays exported for them.
     {
       instanceId: 'oi', placement: 'pane',
       // The index pane charts the FUTURE, so the two sides are longs and

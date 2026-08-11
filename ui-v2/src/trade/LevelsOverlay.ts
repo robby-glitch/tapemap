@@ -51,9 +51,13 @@ const BAND_RGB = {
   outer: '0,168,232',  // 2→3σ — Kite's azure
 } as const
 const BAND_FILL_ALPHA: Record<Mode, number> = { light: 0.10, dark: 0.13 }
-// Higher than the fill so each band's boundary reads as its own line, the way
-// the operator's Kite study draws it.
-const BAND_EDGE_ALPHA: Record<Mode, number> = { light: 0.55, dark: 0.45 }
+// 0 since 2026-08-11, by the operator's instruction: the boundary lines (VWAP
+// and ±1σ named specifically) were clutter next to the level chips on the
+// right — "not required at all". The hued WASHES stay: they are the Kite-band
+// context the operator asked for on 2026-07-30; only the strokes go. Kept as
+// an alpha rather than deleting the edge path so turning a boundary back on
+// is a one-number change.
+const BAND_EDGE_ALPHA: Record<Mode, number> = { light: 0, dark: 0 }
 
 // Minimum vertical gap between two drawn labels, for a 10px font.
 const LABEL_GAP = 11
