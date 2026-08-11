@@ -9,6 +9,7 @@ import type { palette } from '../theme'
 // formatter, so the two surfaces can never disagree about one figure.
 import { crl } from './ZoneRead'
 import type { TapeBar, RotationSignal, RunState, FlowRow } from '../data'
+import { SCORED_INTERVAL } from '../data'
 
 type Pal = ReturnType<typeof palette>
 
@@ -95,6 +96,11 @@ interface Props {
   /** The latest Trending-OI mark. Null when the poller has none. */
   flow: FlowRow | null
   flowWhy: string
+  /** The interval, in minutes, the backend says these bars ARE. §5c's 68.4%
+   *  was measured at SCORED_INTERVAL and nowhere else, so anything but that —
+   *  including `null`, a backend that will not say — makes the trigger group's
+   *  number inapplicable, and the group says so. */
+  publishedInterval?: number | null
 }
 
 const LS_RULES = 'tape.check.rules'
@@ -154,8 +160,12 @@ function Tick({ pal, state }: { pal: Pal; state: TickState }) {
 
 export default function SetupCheck({
   pal, day, bar, runState, runStateWhy, runStateSell, entry, entrySell,
-  flow, flowWhy,
+  flow, flowWhy, publishedInterval = null,
 }: Props) {
+  // The scored interval is a fact about §5c, so it is read from the one place
+  // that owns it rather than typed as a 3 here. At anything else the trigger
+  // group's measured number does not describe what is on screen.
+  const offScore = publishedInterval !== SCORED_INTERVAL
   /* Which side the panel is reading.
      A state that is not WAITING wins, because that is the side with something
      happening. If BOTH are live the BUY side wins and the header says the sell
@@ -536,10 +546,20 @@ export default function SetupCheck({
         {trigger.length > 0 && (
           <Group name="Trigger" count={`${onOf(trigger)} / ${trigger.length}`}
                  note={showSell
+                   // The sell note already says the number does not apply to
+                   // this side at all, so the interval line is not appended
+                   // here: it would be a third statement of one fact.
                    ? 'u3 ka ulta aaina. ISKA KOI SCORE NAHI — upper band pe bechna'
                      + ' paanch datasets pe naapa aur reject hua tha; ye tumhare'
                      + ' kehne par banaya gaya hai. 68.4% ise haasil nahi hai.'
-                   : '§5c — sirf isi hisse ka score nikla hai: 68.4% hit at +30m, n=19.'}
+                   // ONE extra line, and only off the scored interval. §5c was
+                   // measured on 3-minute candles; on any other candle this is
+                   // a different setup carrying no measured number.
+                   : offScore
+                     ? `Ye chart ${publishedInterval ? `${publishedInterval}-minute` : 'anjaan'}`
+                       + ` candles ka hai, ${SCORED_INTERVAL}-minute wala nahi — 68.4% (n=19)`
+                       + ' sirf 3m par naapa gaya tha, is timeframe par laagu nahi hoti.'
+                     : '§5c — sirf isi hisse ka score nikla hai: 68.4% hit at +30m, n=19.'}
                  rows={trigger} />
         )}
         <Group name="Saath de raha hai" count={`${onOf(context)} / ${context.length}`}

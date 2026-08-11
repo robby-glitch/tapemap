@@ -908,8 +908,163 @@ def _basis(fut_last, spot):
     return b, ""
 
 
-def build_payload(cfg, spot=None):
+# The bar intervals /api/data will publish, in minutes. The ENGINE always runs
+# on 1-minute data -- VWAP, bands, ranks, slopes and events are per-minute reads
+# and stay that way; only the PUBLISHED bars and the layers derived from them
+# are aggregated (contract_bars.resample_index, which samples and never
+# recomputes). 3 is the default because it is the only interval §5c was scored
+# at; see band_rotation.SCORED_INTERVAL.
+INTERVALS = (1, 3, 5, 15)
+DEFAULT_INTERVAL = band_rotation.SCORED_INTERVAL
+
+
+def clamp_interval(v, default=DEFAULT_INTERVAL):
+    """Anything a query string can carry -> a supported interval, never raising.
+
+    An unsupported number is not an error worth a 400: the caller asked for a
+    tape and there is a tape to give them. It falls back to the scored default
+    rather than to whatever they typed, because publishing an interval nobody
+    measured is the failure this whole change exists to stop.
+    """
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return default
+    return n if n in INTERVALS else default
+
+
+def _remap_events(events, label_of):
+    """Move each event onto the candle that now contains its minute.
+
+    An event carries a CLOCK (`t`), not a bar index, and a published tape at
+    3 minutes only has bars labelled 09:15 / 09:18 / ... -- so an event at
+    09:16 matches no bar at all, and the UI's `buildNarration` (which keys
+    events by `bar.t`) would silently drop two minutes in every three. The
+    original minute is kept as `t_min`, because "which candle" and "which
+    minute" are different facts and the second one is the one the engine
+    actually observed. An event whose minute has no bar is left exactly as it
+    is: there is no candle to move it to, and inventing one is worse.
+    """
+    out = []
+    for e in events:
+        t = e.get("t")
+        lab = label_of.get(t)
+        out.append(e if lab is None or lab == t else dict(e, t=lab, t_min=t))
+    return out
+
+
+def _at_interval(day, interval):
+    """One 1-minute session -> the same session published at `interval`.
+
+    ORDER OF OPERATIONS IS THE POINT. The bars are aggregated FIRST and every
+    derived layer is then computed against the AGGREGATED bars, so each layer
+    stays 1:1 with what the chart draws and `band_rotation.RUN_WINDOW` = 10
+    means ten of THOSE candles -- §5c's thirty minutes at the scored 3, not the
+    ten minutes it silently meant while this published 1-minute bars. Running
+    a layer on the 1-minute series and then aggregating would put every
+    structure `born`, every rotation `i` and every run-state slot on a bar
+    index that no longer exists.
+
+    The input is not mutated: one session build serves every interval, so this
+    must never write through to it.
+    """
+    out = dict(day)
+    ones = day.get("bars") or []
+    out["bars"] = list(contract_bars.resample_index(ones, interval))
+    # Events are keyed by clock, not index -- see _remap_events. The map comes
+    # off the SAME bucketing the bars did, so an event can never land on a
+    # candle the tape does not have.
+    out["events"] = _remap_events(
+        day.get("events") or [], contract_bars.bucket_labels(ones, interval))
+    # Phase 3.5 SMC/ICT layer, additive: each structure carries the index of
+    # the bar that completed it, so the UI clips by `born` instead of the
+    # backend re-deriving structure per scrub position. v1 ignores the key.
+    # The pivots block goes in too: it is the prior session's H/L/C in reduced
+    # form, and structure.py inverts PDH/PDL/PDC back out of it (refusing, and
+    # emitting nothing, if the numbers do not check out as floor pivots).
+    out["structures"] = structure.compute(out["bars"], pivots=out.get("pivots"))
+    # The operator's own band-rotation setup, run on THIS INDEX's bars — the
+    # same trigger /api/contract applies to the option legs, which is why the
+    # code is shared rather than copied. Additive and 1:1 with `bars`, null
+    # where nothing fired; v1 (ui/app.js) ignores the key. `confirm` is UNKNOWN
+    # on every record by construction — see band_rotation.detect_index.
+    out["rotation"] = band_rotation.detect_index(out["bars"])
+    out["rotation_rule"] = band_rotation.INDEX_ROTATION_RULE
+    # The rule the operator ACTUALLY trades -- section 5c's two-candle setup --
+    # published ALONGSIDE the one above, never in place of it. `rotation` is
+    # section 1's one-candle rule, which research-findings marks VOID
+    # ("correctly measured, wrong trigger"): it fires when a bar tags d3 and
+    # reverses inside that same bar, so it marks the TOUCH. This one arms on
+    # the touch and fires when a LATER bar closes above that bar's high, which
+    # is where the entry is. The two mark different moments, so swapping one
+    # for the other silently would move every pill on the chart with nothing
+    # on screen saying it had happened.
+    #
+    # `run_state` is the same machine read per bar rather than per entry --
+    # WAITING / ARMED / TRIGGERED / IN_TRADE, plus `ref_high`, `candles_left`
+    # and `exit_why` -- and is what a state display reads. One call, both
+    # views: `detect_index_run` IS this list comprehension (see band_rotation),
+    # so deriving it here cannot disagree with calling it.
+    _states = band_rotation.run_states(
+        out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS)
+    out["run_state"] = _states
+    out["rotation_run"] = [s["entry"] for s in _states]
+    # The SELL mirror, published under its OWN keys and never merged into the
+    # two above. Merging would silently change what `rotation_run` has always
+    # meant, and every existing reader of it -- the chart legend's count, the
+    # SETUP CHECK panel, run_score -- would start describing a different
+    # population without a line anywhere saying so.
+    #
+    # Built at the operator's explicit instruction, 2026-08-08: "sell is
+    # reverse from upper band that sit just genrate signal no need
+    # backtesting", after being shown CHECKLIST C3 (upper-band selling
+    # measured across five datasets and REJECTED). It is published; what must
+    # never happen is a screen implying it carries the BUY rule's 68.4%.
+    _states_sell = band_rotation.run_states(
+        out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL")
+    out["run_state_sell"] = _states_sell
+    out["rotation_run_sell"] = [s["entry"] for s in _states_sell]
+    return out
+
+
+def derive_payload(base, interval=DEFAULT_INTERVAL):
+    """One `build_session` result -> the /api/data JSON bytes at `interval`.
+
+    The cheap half. Everything that costs a network round trip or an engine run
+    already happened in `build_session`; this aggregates and re-derives, which
+    is what makes a per-interval cache affordable (server.py holds one session
+    per index and derives a payload per interval on first request).
+    """
+    if base.get("error") is not None:
+        return base["error"]
+    n = clamp_interval(interval)
+    # The interval is PUBLISHED, not assumed: a screen that has to guess which
+    # candles it is drawing cannot honestly say whether the scored number
+    # applies to them. It is the CLAMPED one, so what goes out always names the
+    # bars that went out with it.
+    return json.dumps(dict(base["head"], interval=n,
+                           days=[_at_interval(base["day"], n)])).encode()
+
+
+def build_payload(cfg, spot=None, interval=DEFAULT_INTERVAL):
     """Fetch today, run the engine, return the /api/data JSON bytes for `cfg`.
+
+    Kept as the one-shot form for every caller that wants a payload and nothing
+    else (`python live.py`, the tests). The server splits it in two -- see
+    `build_session` / `derive_payload` -- so three intervals do not cost three
+    downloads.
+    """
+    return derive_payload(build_session(cfg, spot=spot), interval)
+
+
+def build_session(cfg, spot=None):
+    """Fetch today and run the engine ONCE. The expensive half of a refresh.
+
+    Returns ``{"error": bytes}`` when there is nothing to publish, else
+    ``{"head": {...}, "day": {...}, "built_at": float}`` where `day` is the
+    session at ONE MINUTE -- the interval the engine computed on -- and `head`
+    is every scalar the payload carries around it. `built_at` doubles as the
+    build stamp a per-interval cache invalidates on.
 
     `spot` is the chain poller's live INDEX price. The futures tape trades at
     a carry premium to it (59 points on 2026-08-04, more than a strike step),
@@ -928,9 +1083,10 @@ def build_payload(cfg, spot=None):
     fut_raw = _intraday(tok, cfg["fut_id"], "FUTIDX", today, seg=seg,
                         name=cfg["under_sym"])
     if not fut_raw.get("close"):
-        return json.dumps({"index": cfg["under_sym"], "strike": None, "days": [],
-                           "built_at": time.time(),
-                           "live_error": "no bars yet for " + today}).encode()
+        return {"error": json.dumps(
+            {"index": cfg["under_sym"], "strike": None, "days": [],
+             "built_at": time.time(),
+             "live_error": "no bars yet for " + today}).encode()}
     # Basis first: the strike is picked in the OPTION's frame too, or the
     # engine's "ATM" sits a whole 50-point step above the real one.
     basis, basis_why = _basis(fut_raw["close"][-1], spot)
@@ -977,54 +1133,10 @@ def build_payload(cfg, spot=None):
     # close — suppress it so the feed never shows a 15:29 event at 10:30
     if js["bars"] and js["bars"][-1]["t"] < "15:25":
         js["events"] = [e for e in js["events"] if e["kind"] != "CARRY"]
-    # Phase 3.5 SMC/ICT layer, additive: each structure carries the index of
-    # the bar that completed it, so the UI clips by `born` instead of the
-    # backend re-deriving structure per scrub position. v1 ignores the key.
-    # The pivots block goes in too: it is the prior session's H/L/C in reduced
-    # form, and structure.py inverts PDH/PDL/PDC back out of it (refusing, and
-    # emitting nothing, if the numbers do not check out as floor pivots).
-    js["structures"] = structure.compute(js["bars"], pivots=js.get("pivots"))
-    # The operator's own band-rotation setup, run on THIS INDEX's bars — the
-    # same trigger /api/contract applies to the option legs, which is why the
-    # code is shared rather than copied. Additive and 1:1 with `bars`, null
-    # where nothing fired; v1 (ui/app.js) ignores the key. `confirm` is UNKNOWN
-    # on every record by construction — see band_rotation.detect_index.
-    js["rotation"] = band_rotation.detect_index(js["bars"])
-    js["rotation_rule"] = band_rotation.INDEX_ROTATION_RULE
-    # The rule the operator ACTUALLY trades -- section 5c's two-candle setup --
-    # published ALONGSIDE the one above, never in place of it. `rotation` is
-    # section 1's one-candle rule, which research-findings marks VOID
-    # ("correctly measured, wrong trigger"): it fires when a bar tags d3 and
-    # reverses inside that same bar, so it marks the TOUCH. This one arms on
-    # the touch and fires when a LATER bar closes above that bar's high, which
-    # is where the entry is. The two mark different moments, so swapping one
-    # for the other silently would move every pill on the chart with nothing
-    # on screen saying it had happened.
+    # Every layer derived FROM the bars now lives in `_at_interval`, because it
+    # has to be computed against the bars actually published -- see the order-of
+    # -operations note there. What stays here is what an interval cannot move.
     #
-    # `run_state` is the same machine read per bar rather than per entry --
-    # WAITING / ARMED / TRIGGERED / IN_TRADE, plus `ref_high`, `candles_left`
-    # and `exit_why` -- and is what a state display reads. One call, both
-    # views: `detect_index_run` IS this list comprehension (see band_rotation),
-    # so deriving it here cannot disagree with calling it.
-    _states = band_rotation.run_states(
-        js["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS)
-    js["run_state"] = _states
-    js["rotation_run"] = [s["entry"] for s in _states]
-    # The SELL mirror, published under its OWN keys and never merged into the
-    # two above. Merging would silently change what `rotation_run` has always
-    # meant, and every existing reader of it -- the chart legend's count, the
-    # SETUP CHECK panel, run_score -- would start describing a different
-    # population without a line anywhere saying so.
-    #
-    # Built at the operator's explicit instruction, 2026-08-08: "sell is
-    # reverse from upper band that sit just genrate signal no need
-    # backtesting", after being shown CHECKLIST C3 (upper-band selling
-    # measured across five datasets and REJECTED). It is published; what must
-    # never happen is a screen implying it carries the BUY rule's 68.4%.
-    _states_sell = band_rotation.run_states(
-        js["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL")
-    js["run_state_sell"] = _states_sell
-    js["rotation_run_sell"] = [s["entry"] for s in _states_sell]
     # Floor pivots of each tracked option leg's OWN prior session, additive
     # (v1 ignores the key). Same formula as the FUT pivots (_floor_pivots),
     # applied to the contract's own H/L/C; a leg with no prior session says
@@ -1039,16 +1151,20 @@ def build_payload(cfg, spot=None):
     # instead of drawing option levels ~59 points from where they belong.
     # `spot` rides along so the screen can name the number it converted from;
     # both are null when the chain was unavailable -- never guessed.
-    return json.dumps({"index": cfg["under_sym"], "strike": strike, "live": True,
-                       "expiry": cfg["expiry"], "built_at": time.time(),
-                       "basis": round(basis, 2) if basis is not None else None,
-                       # Additive: a consumer that does not know the key ignores
-                       # it. Empty string when basis is fine -- "we checked and
-                       # it is good" and "we could not check" stay different
-                       # sentences.
-                       "basis_why": basis_why,
-                       "spot": float(spot) if spot else None,
-                       "days": [js]}).encode()
+    built_at = time.time()
+    # `built_at` is the SESSION's stamp, so every interval derived from this one
+    # build reports the same instant -- they are one build, and a cache keyed on
+    # it invalidates all of them together.
+    return {"error": None, "built_at": built_at, "day": js,
+            "head": {"index": cfg["under_sym"], "strike": strike, "live": True,
+                     "expiry": cfg["expiry"], "built_at": built_at,
+                     "basis": round(basis, 2) if basis is not None else None,
+                     # Additive: a consumer that does not know the key ignores
+                     # it. Empty string when basis is fine -- "we checked and
+                     # it is good" and "we could not check" stay different
+                     # sentences.
+                     "basis_why": basis_why,
+                     "spot": float(spot) if spot else None}}
 
 
 if __name__ == "__main__":

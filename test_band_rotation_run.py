@@ -457,8 +457,11 @@ def test_live_publishes_the_new_rule_without_removing_the_old_one():
     v1's ui/app.js still reads it."""
     import inspect
     import live
-    src = inspect.getsource(live.build_payload)
-    for key in ('js["rotation"]', 'js["rotation_run"]', 'js["run_state"]'):
+    # `_at_interval`, not `build_payload`: the bar-derived layers moved there
+    # on 2026-08-11 so they are computed against the bars actually PUBLISHED
+    # (which are resampled) rather than the 1-minute series the engine ran on.
+    src = inspect.getsource(live._at_interval)
+    for key in ('out["rotation"]', 'out["rotation_run"]', 'out["run_state"]'):
         assert key in src, key
 
 
@@ -468,7 +471,10 @@ def test_live_uses_the_shared_stop_rather_than_its_own_copy():
     allowed, or the reverse."""
     import inspect
     import live
-    src = inspect.getsource(live.build_payload)
+    # `_at_interval`, not `build_payload`: the bar-derived layers moved there
+    # on 2026-08-11 so they are computed against the bars actually PUBLISHED
+    # (which are resampled) rather than the 1-minute series the engine ran on.
+    src = inspect.getsource(live._at_interval)
     assert "OPERATOR_STOP_PTS" in src
     assert "stop_pts=20" not in src.replace(" ", "")
 

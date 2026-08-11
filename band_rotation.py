@@ -847,6 +847,20 @@ RUN_BAND = "d3"
 # way a wall-clock deadline would.
 RUN_WINDOW = 10
 
+# The BAR INTERVAL the window above was counted in, and the only interval §5c's
+# 68.4% (n=19) was ever measured at. `squeeze_score.INTERVAL` is the backtest
+# path's own name for it and reads this constant, so the scorer and the live
+# tape cannot end up on different candles -- which is exactly what happened
+# until 2026-08-11: `live.build_payload` published 1-minute bars, so RUN_WINDOW
+# = 10 meant TEN MINUTES live against the scored THIRTY, and the arm/trigger
+# tests read 1-minute lows and closes. Live was not running the rule that was
+# scored.
+#
+# Publishing at another interval is allowed and is the operator's call. What is
+# not allowed is a screen implying the 68.4% travels with it: at any interval
+# but this one it is a different setup carrying no measured number.
+SCORED_INTERVAL = 3
+
 # The operator's stop, in points under the arming band. Dictated 2026-08-07:
 # "20 points is good and i ll manage trade my self and target is always +2 and
 # +3 std." Not grid-searched, and not to be -- CHECKLIST D6 recorded it as a

@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react'
 import {
   ComposedChart, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
 import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow, RunState, TapeBar } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow, RunState, TapeBar, Interval } from './data'
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -2079,7 +2079,8 @@ export default function App() {
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
   const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Proto']
-  const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars } = useLiveData(MOCK)
+  const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
+          interval, setInterval: setInterval_ } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
 
   // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
@@ -2087,6 +2088,16 @@ export default function App() {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(8)
   const nBars = barCount(activeIndex)
+  /** Switching interval rebuilds the tape with a different number of bars, so
+   *  a scrub index from the old one names a different minute (bar 200 of 385
+   *  is 12:35; of 129 it does not exist). Drop back to live rather than
+   *  silently re-point it: a replay frame that moved without being asked to is
+   *  the same lie as a marker drawn one bar off. */
+  const changeInterval = useCallback((n: Interval) => {
+    setScrub(null)
+    setPlaying(false)
+    setInterval_(n)
+  }, [setInterval_])
   const data = useMemo(() => at(scrub), [scrub, liveData])
   const tape = useMemo(() => tapeBars(activeIndex), [tapeBars, activeIndex, liveData])
   // MAP levels are bar-derived and causal under replay. MAX PAIN and GEX FLIP
@@ -2341,6 +2352,8 @@ export default function App() {
                                               chainTs={activeChain.ts}
                                               focus={focus} onFocusToggle={() => setFocus(!focus)}
                                               onIndexChange={setActiveIndex}
+                                              interval={interval} publishedInterval={tape.interval}
+                                              onIntervalChange={changeInterval}
                                               structures={tape.structures}
                                               structuresWhy={tape.structuresWhy}
                                               rotation={tape.rotation}

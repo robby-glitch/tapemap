@@ -9,6 +9,11 @@ already-fetched `dhan_fetch.rest_intraday` response.
     payload -> to_bars -> vwap_bands -> resample
                (reshape)  (1-minute)   (samples, never recomputes)
 
+`resample_index` is the same aggregation for `engine.session_json`'s COMPOSITE
+index row (a `t` plus a fut/ce/pe leg each). It lives here, beside the flat
+one, because both must agree about where a candle starts: `_buckets` is the
+only boundary rule in the codebase, the way `vwap_sigma` is the only band.
+
 INPUT. One `rest_intraday` response is parallel arrays, verified against the
 live API on 2026-07-30 (NIFTY security 65852, 375 entries each)::
 
@@ -210,44 +215,68 @@ def _minute_of_day(t):
         return None
 
 
+# The keys `_fold` DERIVES. Everything else on a bar is sampled off the
+# bucket's last 1-minute bar, which is what makes interval invariance
+# structural: the engine computes bands (and its per-minute reads: z, vol_r,
+# oi_slope, ...) on the 1-minute series, and aggregating can only ever SAMPLE
+# them. Recomputing any of them here would move a band the operator has
+# already read. `t` is derived too -- from the bucket's FIRST bar.
+_AGGREGATED = ("t", "o", "h", "l", "c", "v", "oi")
+
+
 def _fold(group):
-    """One bucket of 1-minute bars -> one aggregated bar."""
+    """One bucket of 1-minute bars -> one aggregated bar.
+
+    OHLCV is aggregated; OI is a level so it takes the bucket's last value;
+    every other key -- the bands, and any per-minute read a caller's bar shape
+    carries -- is COPIED off the last bar, never recomputed.
+    """
     first, last = group[0], group[-1]
-    bar = {"t": first["t"], "o": first["o"],
-           "h": max(b["h"] for b in group),
-           "l": min(b["l"] for b in group),
-           "c": last["c"],
-           "v": sum(b["v"] for b in group),
-           "oi": last["oi"]}                 # OI is a level, not a flow
-    for k in BAND_KEYS:                      # SAMPLED off the last 1-min bar
-        if k in last:
-            bar[k] = last[k]
+    bar = {}
+    if "t" in first:                         # the leg dicts of an index bar
+        bar["t"] = first["t"]                # carry no clock of their own
+    bar.update({"o": first.get("o"),
+                "h": max(b["h"] for b in group),
+                "l": min(b["l"] for b in group),
+                "c": last.get("c"),
+                "v": sum(b.get("v") or 0 for b in group),
+                "oi": last.get("oi")})       # OI is a level, not a flow
+    for k, v in last.items():                # SAMPLED off the last 1-min bar
+        if k not in _AGGREGATED:
+            bar[k] = v
     return bar
 
 
-def resample(bars, minutes):
-    """Aggregate a 1-minute series to `minutes` (2 / 3 / 5 / 15).
-
-    Buckets are anchored on the first bar's clock time, the same anchor the
-    session VWAP uses, so a minute the feed never sent leaves a hole rather
-    than shifting every later boundary. Each bucket is labelled by its opening
-    minute. Band values are COPIED from the bucket's last 1-minute bar and are
-    never recomputed -- that is what makes the interval invariance structural
-    rather than a coincidence. Buckets with no real bar are not invented.
-    """
+def _check_minutes(minutes):
     if isinstance(minutes, bool) or not isinstance(minutes, int):
         raise TypeError(f"interval must be a whole number of minutes, "
                         f"got {minutes!r}")
     if minutes < 1:
         raise ValueError(f"interval must be at least 1 minute, got {minutes}")
 
-    out = []
+
+def _buckets(bars, minutes):
+    """Group a 1-minute series into `minutes`-wide buckets. Yields lists.
+
+    THE ONLY BUCKETING IN THIS CODEBASE. `resample` (flat contract bars) and
+    `resample_index` (the composite index row) both come through here, for the
+    same reason `vwap_sigma` is the only band derivation: two implementations
+    of one boundary rule drift, and the drift is silent -- the index tape and
+    the option tape would disagree about which minutes are one candle while
+    both looked right on their own.
+
+    Buckets are anchored on the first readable bar's clock time, the same
+    anchor the session VWAP uses, so a minute the feed never sent leaves a hole
+    rather than shifting every later boundary. A bucket with no real bar is not
+    yielded: it is not invented.
+    """
+    _check_minutes(minutes)
     base = key = None
     group = []
     for b in bars:
-        if b is None:
+        if not isinstance(b, dict):
             continue
-        m = _minute_of_day(b["t"])
+        m = _minute_of_day(b.get("t"))
         if m is None:
             continue
         if base is None:
@@ -256,9 +285,82 @@ def resample(bars, minutes):
         if key is None or k == key:
             group.append(b)
         else:
-            out.append(_fold(group))
+            yield group
             group = [b]
         key = k
     if group:
-        out.append(_fold(group))
-    return _carry(out, bars)
+        yield group
+
+
+def resample(bars, minutes):
+    """Aggregate a 1-minute series to `minutes` (2 / 3 / 5 / 15).
+
+    Each bucket is labelled by its opening minute. Band values are COPIED from
+    the bucket's last 1-minute bar and are never recomputed -- that is what
+    makes the interval invariance structural rather than a coincidence.
+    Bucketing is `_buckets`; see there for the anchor and the no-invented-bucket
+    rule.
+    """
+    return _carry([_fold(g) for g in _buckets(bars, minutes)], bars)
+
+
+# The legs of one composite index row (`engine.session_json`'s `bars`). Each is
+# an OHLCV+bands dict of its own, or None for a minute that leg did not print.
+INDEX_LEGS = ("fut", "ce", "pe")
+
+
+def bucket_labels(rows, minutes):
+    """``{1-minute clock label: the label of the bucket holding it}``.
+
+    For everything keyed by a bar's CLOCK rather than its index -- the engine's
+    events are -- so a caller can move a key onto the candle that now contains
+    it instead of leaving it pointing at a minute the published tape no longer
+    has a bar for. Built from `_buckets`, so it agrees with `resample` and
+    `resample_index` by construction. A minute with no bar simply has no entry;
+    nothing is invented for it.
+    """
+    return {b["t"]: g[0]["t"] for g in _buckets(rows, minutes) for b in g
+            if isinstance(b.get("t"), str)}
+
+
+def resample_index(rows, minutes):
+    """Aggregate `engine.session_json`'s composite index bars to `minutes`.
+
+    An index row is NOT a flat bar -- it is
+    ``{"t": "HH:MM", "fut": {...}, "ce": {...}|None, "pe": {...}|None,
+    "gamma": {...}?, "ctx": {...}?, "setup": {...}?}`` -- so `resample` above
+    cannot be pointed at it. What it can share, and does, is the boundary rule
+    (`_buckets`) and the fold (`_fold`, once per leg). There is exactly one
+    definition of where a 3-minute candle starts.
+
+    ONE SAMPLING RULE, stated once: everything not aggregated takes the LAST
+    REAL value in the bucket.
+
+      * a leg's bands and per-minute reads come off that leg's last bar in the
+        bucket, via `_fold` -- so `resample_index(rows, 3)[j]["fut"]["d3"]` is
+        a number the engine computed on a 1-minute bar, never a re-derivation;
+      * a leg that printed on only some of the bucket's minutes is folded from
+        the minutes it DID print -- real bars, not invented ones -- and a leg
+        absent for the whole bucket stays None, exactly as `session_json`
+        leaves it;
+      * `gamma` / `ctx` / `setup` (and any row-level key a later engine adds)
+        take the last bar in the bucket that actually carried one. A minute
+        with no read is not evidence the read went away.
+
+    The bucket is labelled by its OPENING minute, like `resample`, while its
+    values are the state as of its CLOSE. That asymmetry is `resample`'s and is
+    kept rather than re-argued: a candle is named for when it opened.
+    """
+    out = []
+    for group in _buckets(rows, minutes):
+        row = {"t": group[0]["t"]}
+        for leg in INDEX_LEGS:
+            real = [r[leg] for r in group if isinstance(r.get(leg), dict)]
+            row[leg] = _fold(real) if real else None
+        for r in group:                      # last real value wins
+            for k, v in r.items():
+                if k == "t" or k in INDEX_LEGS or v is None:
+                    continue
+                row[k] = v
+        out.append(row)
+    return _carry(out, rows)

@@ -42,6 +42,7 @@ import os
 import statistics as st
 from datetime import date, timedelta
 
+import band_rotation
 import contract_bars as cb
 import instruments as I
 
@@ -50,7 +51,10 @@ W = 30            # trailing window, in bars, that "narrow" is judged against
 ANCHOR = 5        # no verdict before ~09:27 -- too little session to rank
 SUPPRESS = 10     # bars before the same squeeze may fire again
 MINTAIL = 20      # bars that must remain, or the outcome measures are noise
-INTERVAL = 3      # minutes per bar; the operator reads 3-min charts
+# minutes per bar; the operator reads 3-min charts. Read from band_rotation
+# rather than restated, so the interval this scorer measures on and the one the
+# live tape publishes cannot drift apart -- see SCORED_INTERVAL there.
+INTERVAL = band_rotation.SCORED_INTERVAL
 
 
 def _paths(idx):

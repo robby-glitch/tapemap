@@ -24,7 +24,8 @@ type LegsView = 'split' | 'stacked' | 'off'
  *  the panel, absorbs a resize. */
 const CHART_SIDE_W = 260
 import { palette, MONO, useMode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, FlowRow, OptPivots } from '../data'
+import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, FlowRow, OptPivots, Interval } from '../data'
+import { INTERVALS } from '../data'
 
 interface Props {
   index: IndexKey
@@ -61,6 +62,13 @@ interface Props {
   focus: boolean
   onFocusToggle: () => void
   onIndexChange: (k: IndexKey) => void
+  /** The bar interval being REQUESTED (what the switcher lights up). */
+  interval: Interval
+  /** The interval the backend says these bars ARE. Read, never assumed — and
+   *  it is this, not the request, that decides whether the §5c score applies.
+   *  null on a backend too old to publish it, which reads as unknown. */
+  publishedInterval: number | null
+  onIntervalChange: (n: Interval) => void
   /** The backend's SMC structure layer for this day, or null when it cannot be
    *  drawn honestly. Null is DISCLOSED below, never silently absent. */
   structures: Structure[] | null
@@ -100,6 +108,40 @@ interface Props {
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
+
+/** TIMEFRAME. Defined once because it renders in two places — the chart
+ *  toolbar, and the no-tape state where it is the ONLY control worth keeping
+ *  (it acts on the next fetch, not on candles that do not exist, so the
+ *  operator can set their interval before 09:15). Two copies of a control
+ *  drift in exactly the way this file's other shared pieces warn about.
+ *
+ *  3 is lit no differently from the rest by being the default; the
+ *  scored-interval sentence lives in SETUP CHECK, once, and is not restated
+ *  here. */
+function IntervalSwitch({ pal, interval, onChange }: {
+  pal: ReturnType<typeof palette>
+  interval: Interval
+  onChange: (n: Interval) => void
+}) {
+  return (
+    <div style={{ display: 'flex', border: `1px solid ${pal.border}`, borderRadius: 4, overflow: 'hidden', width: 'fit-content' }}>
+      {INTERVALS.map((n) => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          title={`${n}-minute candles`}
+          aria-pressed={interval === n}
+          style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+            padding: '3px 8px', cursor: 'pointer', border: 'none',
+            backgroundColor: interval === n ? pal.accent : 'transparent',
+            color: interval === n ? pal.card : pal.textMuted,
+          }}
+        >{n}m</button>
+      ))}
+    </div>
+  )
+}
 
 function Stat({ pal, label, value, color, title }: {
   pal: ReturnType<typeof palette>; label: string; value: string; color?: string; title?: string
@@ -297,7 +339,8 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
 export default function TradeTab({
   index, day, bars, levels, events, cursor, chain, strike, optPivots, optExpiry,
   stale, loading, chainStale, chainTs,
-  focus, onFocusToggle, onIndexChange, structures, structuresWhy,
+  focus, onFocusToggle, onIndexChange,
+  interval, publishedInterval, onIntervalChange, structures, structuresWhy,
   rotation, rotationWhy, rotationRun, rotationRunWhy, rotationRunSell,
   runState, runStateWhy, runStateSell,
 }: Props) {
@@ -589,8 +632,14 @@ export default function TradeTab({
     }
     return (
       <div style={{ padding: 16, backgroundColor: pal.bg }}>
+        {/* The ONLY control that survives the no-tape state. It acts on the
+            NEXT fetch rather than on candles that do not exist, so setting the
+            interval before 09:15 is the one useful thing this screen can offer
+            pre-open. It implies no chart: the message below still says there
+            is nothing to draw. */}
+        <IntervalSwitch pal={pal} interval={interval} onChange={onIntervalChange} />
         <div style={{
-          padding: '14px 18px', borderRadius: 6,
+          padding: '14px 18px', borderRadius: 6, marginTop: 10,
           backgroundColor: pal.card,
           border: `1px solid ${pal.caution}`, color: pal.caution,
           fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
@@ -659,6 +708,14 @@ export default function TradeTab({
         <Stat pal={pal} label="Bars" value={`${at + 1} / ${bars.length}`} />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* TIMEFRAME. Same segmented shape as LIGHT/DARK beside it, and in
+              the strip ABOVE the chart — nothing goes between the toolbar and
+              the chart, and this adds no vertical block of its own: it sits in
+              a row that already exists, so the chart's height budget (a
+              DEFINITE height the chart resolves its own percentage against —
+              see the root style) is untouched. */}
+          <IntervalSwitch pal={pal} interval={interval} onChange={onIntervalChange} />
+
           <div style={{ display: 'flex', border: `1px solid ${pal.border}`, borderRadius: 4, overflow: 'hidden' }}>
             {(['light', 'dark'] as const).map((m) => (
               <button
@@ -877,6 +934,7 @@ export default function TradeTab({
             entry={rotationRun?.[at] ?? null}
             entrySell={rotationRunSell?.[at] ?? null}
             flow={lastFlow} flowWhy={flowWhy}
+            publishedInterval={publishedInterval}
           />
         </div>
         <div style={{

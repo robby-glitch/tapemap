@@ -368,9 +368,43 @@ export interface RunState {
  * and the matching `*Why` then says why in the backend's/our own words. A null
  * is a disclosure, not a silent absence — TradeTab prints it.
  */
+/** The bar intervals the backend will publish, in minutes (live.INTERVALS). */
+export const INTERVALS = [1, 3, 5, 15] as const
+export type Interval = (typeof INTERVALS)[number]
+
+/** The default, and the ONLY interval §5c's 68.4% (n=19) was measured at —
+ *  `band_rotation.SCORED_INTERVAL`. At any other interval the operator is
+ *  looking at a different setup that carries no measured number, which is a
+ *  thing the Trade tab says out loud rather than something this constant is
+ *  expected to imply. */
+export const SCORED_INTERVAL: Interval = 3
+
+const INTERVAL_KEY = 'tape.interval'
+
+/** The stored interval, or the scored default. Never throws: a corrupt or
+ *  unknown value is not worth a broken tape, and falling back to 3 is the
+ *  only fallback that cannot publish an unmeasured interval by accident. */
+export function readInterval(): Interval {
+  try {
+    const n = Number(localStorage.getItem(INTERVAL_KEY))
+    return (INTERVALS as readonly number[]).includes(n) ? (n as Interval) : SCORED_INTERVAL
+  } catch {
+    return SCORED_INTERVAL
+  }
+}
+
+function writeInterval(n: Interval) {
+  try { localStorage.setItem(INTERVAL_KEY, String(n)) } catch { /* private mode */ }
+}
+
 export interface TapeView {
   day: string
   bars: TapeBar[]
+  /** The interval the backend says these bars ARE, in minutes (`interval` on
+   *  the wire) — read, never assumed, so a screen can state what it is drawing.
+   *  `null` on a backend too old to publish it, which must read as unknown and
+   *  therefore as NOT the scored 3-minute tape. */
+  interval: number | null
   /** The engine's tracked ATM strike for this session (`day.strike` on the
    *  wire) — the strike the bars' ce/pe legs belong to as of the newest bar.
    *  Sticky but ROLLING: it migrates with spot, so it names where the leg
@@ -1334,6 +1368,14 @@ export function useLiveData(fallback: Dataset) {
   const [raw, setRaw] = useState<Partial<Record<IndexKey, { D: any; C: any }>>>({})
   /** Indices with no usable tape right now — shown as unavailable, not faked. */
   const [dead, setDead] = useState<IndexKey[]>([])
+  /** The bar interval being REQUESTED, persisted across reloads. What the
+   *  backend actually published rides on each TapeView, and is what the screen
+   *  states — see `TapeView.interval`. */
+  const [interval, setIntervalState] = useState<Interval>(readInterval)
+  const setInterval_ = useCallback((n: Interval) => {
+    writeInterval(n)
+    setIntervalState(n)
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -1345,7 +1387,7 @@ export function useLiveData(fallback: Dataset) {
       let cr: Response
       try {
         ;[dr, cr] = await Promise.all([
-          fetch('/api/data?idx=' + k),
+          fetch('/api/data?idx=' + k + '&interval=' + interval),
           fetch('/api/chain?idx=' + k),
         ])
       } catch {
@@ -1425,12 +1467,15 @@ export function useLiveData(fallback: Dataset) {
     }
 
     tick()
-    const id = setInterval(tick, 5000)
+    const id = window.setInterval(tick, 5000)
     return () => {
       alive = false
       clearInterval(id)
     }
-  }, [])
+    // `interval`: changing it changes the URL, so the poller is torn down and
+    // an immediate tick refetches. Without it in the deps the switcher would
+    // move the label and leave the old candles underneath it.
+  }, [interval])
 
   /** Bars available for replay on the active index (0 when not yet loaded). */
   const barCount = (k: IndexKey) => {
@@ -1461,7 +1506,7 @@ export function useLiveData(fallback: Dataset) {
     // its structure disclosure, rather than parsing this string's wording.
     if (!day) {
       return {
-        day: '', bars: [], strike: null, optPivots: null, optExpiry: null,
+        day: '', bars: [], interval: null, strike: null, optPivots: null, optExpiry: null,
         structures: null, structuresWhy: '', rotation: null, rotationWhy: '',
         rotationRun: null, rotationRunWhy: '',
         rotationRunSell: null, rotationRunSellWhy: '',
@@ -1567,6 +1612,11 @@ export function useLiveData(fallback: Dataset) {
 
     return {
       day: day.day ?? '', bars,
+      // The PUBLISHED interval, off the payload — not the one we asked for.
+      // If the two ever disagree the screen must follow the bars it was
+      // actually given, so this is what the scored-interval notice reads.
+      interval: typeof D.interval === 'number' && Number.isFinite(D.interval)
+        ? D.interval : null,
       strike: typeof day.strike === 'number' && Number.isFinite(day.strike) ? day.strike : null,
       // Whole-block pass-through, same rule as ctx/gamma/setup.
       optPivots: (day.opt_pivots as OptPivots | undefined) ?? null,
@@ -1577,5 +1627,6 @@ export function useLiveData(fallback: Dataset) {
     }
   }, [raw])
 
-  return { data, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars }
+  return { data, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
+           interval, setInterval: setInterval_ }
 }

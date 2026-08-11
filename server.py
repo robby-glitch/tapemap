@@ -60,6 +60,42 @@ class _Server(ThreadingHTTPServer):
     allow_reuse_address = False
 
 
+def payload_at(box, interval):
+    """One index's box -> the /api/data bytes at `interval`.
+
+    THE EXPENSIVE HALF HAPPENS ONCE. A refresh cycle costs a token, three
+    intraday downloads and an engine run (`live.build_session`); rebuilding all
+    of that per interval would triple the network load of a tape the operator
+    switches between 1m and 3m on a whim, and would put three different
+    `built_at` stamps on what is one observation of one session. So the poller
+    stores the SESSION and this derives a payload from it per interval, on
+    first ask, cached until the next build.
+
+    The cache is keyed by interval and each entry carries the build stamp it
+    came from, so a payload derived a moment before a refresh landed can never
+    be served as if it belonged to the new build. Two threads can derive the
+    same interval at once -- that wastes a little CPU and cannot produce a
+    wrong answer, which is the right way round.
+
+    A box with no session (starting up, or a build that failed) serves its own
+    error bytes verbatim: an interval cannot make a tape exist.
+    """
+    if not isinstance(box, dict):
+        return box                       # legacy/replay mode: raw bytes
+    base = box.get("session")
+    if base is None:
+        return box.get("payload")
+    stamp = box.get("stamp")
+    cache = box.setdefault("by_interval", {})
+    hit = cache.get(interval)
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
+    from live import derive_payload
+    out = derive_payload(base, interval)
+    cache[interval] = (stamp, out)
+    return out
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, payloads=None, chains=None, poller=None, late=None,
                  **kw):
@@ -165,7 +201,10 @@ class Handler(SimpleHTTPRequestHandler):
                     "live_error": f"no {idx} tape in this server mode — "
                                   f"start with: python server.py live"}).encode())
                 return
-            pl = box["payload"] if isinstance(box, dict) else box
+            from live import clamp_interval
+            q = parse_qs(urlsplit(self.path).query)
+            interval = clamp_interval((q.get("interval") or [None])[0])
+            pl = payload_at(box, interval)
             self._json(pl if pl is not None else b"{}")
         elif self.path.startswith("/api/chain"):
             idx = self._idx()
@@ -346,7 +385,7 @@ def main():
     if argv and argv[0] == "live":
         import threading
         import time as _t
-        from live import REFRESH_S, build_payload
+        from live import DEFAULT_INTERVAL, REFRESH_S, build_session
         port = int(argv[1]) if len(argv) > 1 else 8765
 
         def _waiting(sym, why):
@@ -416,14 +455,35 @@ def main():
                                 spot = pl.get("spot")
                         except ValueError:
                             spot = None
-                    payloads[x]["payload"] = build_payload(c, spot=spot)
+                    # The engine still runs on 1-minute data; what gets
+                    # published is derived per interval by payload_at above.
+                    base = build_session(c, spot=spot)
+                    box = payloads[x]
+                    if base.get("error") is not None:
+                        box["session"] = None
+                        box["payload"] = base["error"]
+                    else:
+                        box["payload"] = None
+                        box["stamp"] = base["built_at"]
+                        # A NEW dict, not a clear(): a reader holding the old
+                        # one keeps serving a coherent older build rather than
+                        # racing an empty cache. Bounds memory at one payload
+                        # per supported interval per index.
+                        box["by_interval"] = {}
+                        box["session"] = base      # last: it is what arms the rest
                     have[x] = True
                     # Log any NEW band-rotation trigger with the gamma/OI
                     # context the operator watches (trigger_log.py). log_new
                     # is fail-soft by contract — the tape must never stall
                     # for the logger's sake (2026-07-27 post-mortem).
+                    #
+                    # Logged at the SCORED interval, not at whatever a browser
+                    # last asked for. The forward test only means something
+                    # against the bars §5c was measured on, and until
+                    # 2026-08-11 this logged 1-minute records — a different
+                    # rule, silently.
                     trigger_log.log_new(
-                        x, payloads[x]["payload"],
+                        x, payload_at(payloads[x], DEFAULT_INTERVAL),
                         poller.states.get(x) if poller else None)
                 except Exception as e:  # keep last good data; else say why
                     log.exception("live build failed %s", x)
