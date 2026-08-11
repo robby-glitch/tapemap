@@ -348,6 +348,67 @@ def test_the_trigger_bar_is_triggered_and_the_rest_is_in_trade():
     assert states[2]["entry"] is None
 
 
+# -- 7. the published stop (DEFERRED §4) -----------------------------------
+#
+# The panel showed `level` and `ref_high` but never the stop, because 20 points
+# lives once in OPERATOR_STOP_PTS and restating it in TypeScript would put one
+# rule in two languages. These pin the field that made that unnecessary.
+
+def test_an_armed_bar_publishes_the_stop_below_the_band():
+    s = run_states([_touch(_t(0))], stop_pts=20.0)[0]
+    assert s["state"] == "ARMED"
+    assert s["level"] == D3
+    assert s["stop"] == D3 - 20.0        # a long's stop sits BELOW the band
+
+
+def test_without_stop_pts_there_is_a_level_but_no_stop():
+    """A caller that named no stop gets None, never a bare level.
+
+    `level` reaching a display as the stop would read as a zero-point stop --
+    the one wrong answer that looks like a real number.
+    """
+    s = run_states([_touch(_t(0))])[0]
+    assert s["level"] == D3
+    assert s["stop"] is None
+
+
+def test_a_waiting_bar_has_no_stop_to_publish():
+    s = run_states([_inert(_t(0))], stop_pts=20.0)[0]
+    assert s["state"] == "WAITING"
+    assert s["level"] is None and s["stop"] is None
+
+
+def test_the_bar_and_its_entry_agree_on_the_stop():
+    """The anti-drift assertion for the stop, mirroring the one at the top of
+    section 6. Two copies of a risk parameter drift silently; a chart drawing
+    one stop while the re-fire lock enforces another is exactly that."""
+    bars = [_touch(_t(0)), _bar(_t(1), 91.0, 97.0, 96.0)]
+    s = run_states(bars, stop_pts=20.0)[1]
+    assert s["state"] == "TRIGGERED"
+    assert s["entry"]["stop"] == s["stop"] == D3 - 20.0
+
+
+def test_the_stop_stays_on_the_band_when_the_reference_moves():
+    """A lower low moves the reference, but the band it armed on is unchanged,
+    so the stop must not move with it."""
+    bars = [_touch(_t(0)), _bar(_t(1), 82.0, 93.0, 83.0)]
+    states = run_states(bars, stop_pts=20.0)
+    assert states[1]["ref_high"] == 93.0     # the reference moved
+    assert states[1]["stop"] == D3 - 20.0    # the stop did not
+
+
+def test_a_sell_stop_sits_above_the_band():
+    """The mirror. A short is wrong when price comes BACK UP through u3."""
+    u3 = BANDS["u3"]
+    bars = [_bar(_t(0), 110.0, 116.0, 114.0),    # high tags u3, arms
+            _bar(_t(1), 105.0, 109.0, 106.0)]    # closes below that bar's low
+    states = run_states(bars, stop_pts=20.0, side="SELL")
+    assert [s["state"] for s in states] == ["ARMED", "TRIGGERED"]
+    assert states[0]["level"] == u3
+    assert states[1]["stop"] == u3 + 20.0
+    assert states[1]["entry"]["stop"] == u3 + 20.0
+
+
 def test_reaching_vwap_says_so_and_ends_the_trade():
     bars = [_touch(_t(0)), _bar(_t(1), 91.0, 97.0, 96.0),
             _bar(_t(2), 95.0, VWAP + 1, 99.0)]     # high reaches VWAP

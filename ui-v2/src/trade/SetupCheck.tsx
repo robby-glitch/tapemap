@@ -42,12 +42,15 @@ type Pal = ReturnType<typeof palette>
  * three-state fields with the backend's own sentence attached. Never green:
  * theme.ts reserves green and red for direction.
  *
- * ── What is deliberately NOT shown ─────────────────────────────────────────
- * The stop. It is settled at 20 points (D6) and defined once, as
- * `band_rotation.OPERATOR_STOP_PTS`. Restating it in TypeScript would put one
- * rule in two languages, which is exactly how the 09:25 gate drifted. The
- * panel shows `level`, which IS published; publishing the stop beside it is a
- * separate, additive backend change (F2).
+ * ── The stop ───────────────────────────────────────────────────────────────
+ * Shown since 2026-08-09, and only because the BACKEND now publishes it
+ * (`run_state.stop`, from `band_rotation._stop_px`). It is settled at 20
+ * points (D6) and defined once, as `band_rotation.OPERATOR_STOP_PTS`.
+ * This panel must never compute it: `level` minus 20 in TypeScript would put
+ * one rule in two languages, which is exactly how the 09:25 gate drifted for
+ * weeks. A payload without the field therefore shows NO stop line at all —
+ * absence is the correct rendering of "the server did not say", and the
+ * operator has their own settled stop to fall back on.
  */
 
 /** What a row's box shows. `auto-*` is the tool's reading, `man-*` the
@@ -489,12 +492,31 @@ export default function SetupCheck({
                 + (st.candles_left != null ? ` · ${st.candles_left} candle baaki` : '')
               : `Abhi koi reference candle nahi — ${showSell ? 'u3' : 'd3'} chhua hi nahi gaya.`}
           </div>
-          {(showSell ? st.ref_low : st.ref_high) != null && (
+          {/* The two prices that bound the trade, in one block because they
+              are one thought: the line that has to break, and the line that
+              says you were wrong. Tabular-nums so they align digit for digit.
+              Either may be absent on its own — a TRIGGERED bar has cleared its
+              reference but still has a stop — so the block renders if EITHER
+              exists rather than hanging both off the first. */}
+          {((showSell ? st.ref_low : st.ref_high) != null || st.stop != null) && (
             <div style={{
-              fontSize: 10.5, color: pal.textPrimary, marginTop: 5, paddingTop: 5,
-              borderTop: `1px solid ${pal.border}`,
-              fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
-            }}>Todna hai {showSell ? '<' : '>'} {f1(showSell ? st.ref_low : st.ref_high)}</div>
+              marginTop: 5, paddingTop: 5, borderTop: `1px solid ${pal.border}`,
+              fontSize: 10.5, fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
+            }}>
+              {(showSell ? st.ref_low : st.ref_high) != null && (
+                <div style={{ color: pal.textPrimary }}>
+                  Todna hai {showSell ? '<' : '>'} {f1(showSell ? st.ref_low : st.ref_high)}
+                </div>
+              )}
+              {/* Muted, not red: theme.ts reserves red for DIRECTION, and a
+                  stop is not a bearish call. Read verbatim off the payload —
+                  never `level` minus 20, which is the rule stated twice. */}
+              {st.stop != null && (
+                <div style={{ color: pal.textMuted, marginTop: 2 }}>
+                  Stop {showSell ? '>' : '<'} {f1(st.stop)}
+                </div>
+              )}
+            </div>
           )}
           {st.exit_why && (
             <div style={{ fontSize: 10.5, color: pal.textSecondary, marginTop: 4 }}>

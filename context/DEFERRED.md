@@ -121,16 +121,30 @@ Three faults in one place:
 Direction proposed, not yet chosen: name on the left in a filled chip, price on
 the right axis only, and de-collide by **nudging** rather than dropping.
 
-## 4 · The stop is not published · BACKEND (small, additive)
+## 4 · ~~The stop is not published~~ · **DONE 2026-08-09**
 
-The SETUP CHECK panel shows `level` and `ref_high` but **not the stop**, because
-20 points is settled (CHECKLIST D6) and defined once as
-`band_rotation.OPERATOR_STOP_PTS`. Restating it in TypeScript would put one rule
-in two languages — which is exactly how the 09:25 gate drifted for weeks.
+Done exactly as specified: one field. `band_rotation._stop_px(level, stop_pts,
+sell)` is now the single expression, called by BOTH the re-fire lock and the
+published field — the file's own warning above `OPERATOR_STOP_PTS` says two
+copies of a risk parameter drift silently, and a stop the chart draws differing
+from the stop the lock enforces is that failure. It is emitted on every
+`run_state` bar beside `level`, and on the entry record.
 
-Fix is one field: publish the stop beside `level` in `run_state` / the entry
-record, and the panel reads it. Until then the panel deliberately shows the
-level and lets the operator apply their own settled stop.
+`RunState.stop` is **optional** in TypeScript on purpose: a server on older code
+omits it, and the panel then shows NO stop line rather than computing `level`
+minus 20. Absence is the correct rendering of "the server did not say".
+
+SETUP CHECK now pairs it with the line to beat (`Todna hai > X` / `Stop < Y`),
+muted rather than red — theme.ts reserves red for direction, and a stop is not
+a bearish call.
+
+Tests: `test_band_rotation_run.py` §7, six of them, including the BUY/SELL
+mirror (a short's stop sits ABOVE the band) and the assertion that a moving
+reference does NOT move the stop.
+
+**Not yet seen on screen.** 2026-08-09 is a Sunday and the session carries no
+bars, so no setup can arm and the line cannot render. First live look is
+Monday, alongside the collection check.
 
 ## 5 · MERA READ ships empty · needs the OPERATOR, not code
 

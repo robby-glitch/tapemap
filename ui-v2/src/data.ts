@@ -315,6 +315,9 @@ export interface RotationSignal {
   ref_i?: number
   ref_high?: number
   level?: number
+  /** The backend's own stop for this entry, from the band it armed on. Same
+   *  field and same source as `RunState.stop` — see there. */
+  stop?: number | null
   waited?: number
 }
 
@@ -336,8 +339,14 @@ export interface RunState {
   /** The SELL mirror's line: the low that has to break. Named for what it IS
    *  -- a low carried under `ref_high` would be a lie a reader cannot catch. */
   ref_low?: number | null
-  /** The band the reference tagged — the stop is `level` minus 20. */
+  /** The band the reference tagged. */
   level: number | null
+  /** Where the trade is wrong, computed by the BACKEND from that band and
+   *  `OPERATOR_STOP_PTS` (band_rotation._stop_px). Optional because a server
+   *  on older code omits it — and when it is missing the display must show NO
+   *  stop rather than deriving one, which would put the 20 in two languages.
+   *  A short's sits above the band, a long's below. */
+  stop?: number | null
   /** Bars left of the window before the reference expires. */
   candles_left: number | null
   /** Non-null only on a TRIGGERED bar; identical to `rotationRun[i]`. */

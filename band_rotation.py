@@ -901,6 +901,23 @@ def _run_why(ref_t, ref_high, level, close, waited, sell=False):
             f"{waited} {bars} later")
 
 
+def _stop_px(level, stop_pts, sell):
+    """Where the trade is wrong, measured from the band it armed on.
+
+    ONE expression, called by both the re-fire lock and the published field.
+    The comment above OPERATOR_STOP_PTS says two copies of a risk parameter
+    drift and that the drift is silent; a stop the chart DRAWS differing from
+    the stop the lock ENFORCES is exactly that failure, so they share this.
+
+    A short's stop sits ABOVE the band, a long's below. Returns None when
+    there is nothing to measure from -- never a bare `level`, which would
+    read as a stop of zero points.
+    """
+    if stop_pts is None or level is None:
+        return None
+    return (level + stop_pts) if sell else (level - stop_pts)
+
+
 def detect_index_run(bars, days=None, stop_pts=None, side="BUY"):
     """The operator's own two-candle d3 setup, one slot per bar of `bars`.
 
@@ -948,6 +965,7 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
         {"i": int, "t": str|None,
          "state": "WAITING" | "ARMED" | "TRIGGERED" | "IN_TRADE",
          "ref_i": int|None, "ref_high": float|None, "level": float|None,
+         "stop": float|None,              # level -/+ stop_pts; None without it
          "candles_left": int|None,        # of RUN_WINDOW, from the live ref
          "entry": record|None,            # exactly what detect_index_run emits
          "exit_why": "stop"|"vwap"|None,  # the bar the re-fire lock cleared
@@ -1062,12 +1080,10 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
                              "trap_dwell": dwell,
                              "ref_i": ref["i"],
                              ("ref_low" if sell else "ref_high"): brk,
-                             "level": ref["level"], "waited": waited}
-                    # A short's stop sits ABOVE the band it armed on.
-                    lock = {"stop": ((ref["level"] + stop_pts) if sell
-                                     else ref["level"] - stop_pts)
-                            if (stop_pts is not None and ref["level"] is not None)
-                            else None}
+                             "level": ref["level"], "waited": waited,
+                             # DEFERRED §4: published, not restated in the UI.
+                             "stop": _stop_px(ref["level"], stop_pts, sell)}
+                    lock = {"stop": _stop_px(ref["level"], stop_pts, sell)}
                     ref = None
 
         if entry is not None:
@@ -1078,13 +1094,23 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
             state = "ARMED"
         else:
             state = "WAITING"
+        # The level this bar is measured against: the entry's on a bar that
+        # triggered, otherwise the live reference's. Named once so `level` and
+        # `stop` can never describe two different bands.
+        level_px = (entry["level"] if entry is not None
+                    else (ref["level"] if ref is not None else None))
         out[i] = {
             "i": i, "t": t if isinstance(t, str) else None, "state": state,
             "ref_i": ref["i"] if ref is not None else None,
             ("ref_low" if sell else "ref_high"):
                 (ref["low"] if sell else ref["high"]) if ref is not None else None,
-            "level": (entry["level"] if entry is not None
-                      else (ref["level"] if ref is not None else None)),
+            "level": level_px,
+            # DEFERRED §4's one field. The stop belonging to THIS bar's level,
+            # published so a display reads it instead of restating 20 points in
+            # TypeScript -- putting one rule in two languages is exactly how
+            # the 09:25 gate drifted for weeks. None on a bar with no level,
+            # and None for any caller that passed no stop_pts.
+            "stop": _stop_px(level_px, stop_pts, sell),
             "candles_left": (RUN_WINDOW - (i - ref["i"])
                              if ref is not None else None),
             "entry": entry, "exit_why": exit_why, "readable": readable,
