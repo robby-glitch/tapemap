@@ -67,6 +67,26 @@ html, body, #root {
 
 .mono { font-family: 'Roboto Mono', 'Fira Mono', monospace; font-variant-numeric: tabular-nums; }
 
+.answer-band {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 26px;
+  align-items: center;
+  padding: 14px 24px;
+}
+.answer-band > * { min-width: 0; }
+@media (max-width: 1080px) {
+  .answer-band {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px 26px;
+    align-items: start;
+  }
+  /* price stays top-left, chips take the far end of the same row, the read
+     spans both columns underneath at full width. */
+  .answer-band > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .answer-band > :nth-child(3) { grid-column: 2; grid-row: 1; }
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

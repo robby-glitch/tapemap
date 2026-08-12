@@ -600,8 +600,9 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
       minHeight: 72,
       flexWrap: 'wrap',
     }}>
-      {/* Brand */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
+      {/* Brand. flexShrink 0 so the wordmark never compresses; the scanner
+          beside it is the thing that gives way. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.12em', color: pal.textPrimary }}>
           TAPEMAP
         </span>
@@ -630,8 +631,23 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
         )}
       </div>
 
-      {/* Index scanner */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* Index scanner.
+          DEFECT FIX — this group had no `flex`/`min-width`, so its min-content
+          was the full 556px of three 180px-min cards and it could not give a
+          pixel. The bar's own `flexWrap:'wrap'` therefore broke the LINE first:
+          below ~850px CSS the whole scanner dropped to a second row at x=24,
+          i.e. the price and change block landed directly under the TAPEMAP
+          wordmark. `flex: 1 1 auto` + `minWidth: 0` lets the group shrink so
+          its OWN inner wrap re-flows the three cards instead — the bar grows a
+          row of cards rather than dumping them beneath the logo.
+
+          The basis is 200px, not `auto`: flexbox chooses LINE BREAKS from each
+          item's hypothetical main size, and with `auto` that is still the
+          group's 556px max-content — so the bar kept wrapping at ~810px no
+          matter how shrinkable the group was afterwards. A 200px basis holds
+          the first line down to ~610px, below which a stacked bar is the right
+          answer anyway. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 200px', minWidth: 0 }}>
         {(Object.entries(INDICES) as [IndexKey, typeof INDICES[IndexKey]][]).map(([k, d]) => (
           <IndexCell key={k} idx={k} data={d} active={active === k} onClick={() => setActive(k)} />
         ))}
@@ -1854,12 +1870,11 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
   )
 
   return (
-    <div style={{ backgroundColor: pal.bg, borderBottom: `1px solid ${pal.border}` }}>
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 26,
-        alignItems: 'center', padding: '14px 24px',
-      }}>
-        <div>
+    <div style={{ backgroundColor: pal.bg, borderBottom: `1px solid ${pal.border}`, flexShrink: 0 }}>
+      {/* Grid lives in index.css (.answer-band) because it needs a breakpoint
+          and an inline style cannot carry one — see the note there. */}
+      <div className="answer-band">
+        <div style={{ whiteSpace: 'nowrap' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <div className="mono" style={{
               fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em',
