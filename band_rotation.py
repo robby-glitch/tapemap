@@ -981,9 +981,30 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
          "ref_i": int|None, "ref_high": float|None, "level": float|None,
          "stop": float|None,              # level -/+ stop_pts; None without it
          "candles_left": int|None,        # of RUN_WINDOW, from the live ref
+         "arm": {...}|None,               # non-None ONLY on the bar that
+                                          # BECAME the reference; see below
          "entry": record|None,            # exactly what detect_index_run emits
          "exit_why": "stop"|"vwap"|None,  # the bar the re-fire lock cleared
          "readable": bool}                # False: the bar had no usable read
+
+    `arm` is the ARMING itself as a fact the machine states rather than one a
+    reader reconstructs. It is non-None on exactly the bars where a reference
+    is CREATED -- branch 4 (a fresh touch of the band) and branch 3 (a new
+    lower low taking the reference over) -- and carries::
+
+        {"rearm": bool,        # False: this bar STARTED the setup
+         "band": "d3"|"u3",    # the band armed on, by NAME
+         "extreme": float,     # the low that touched d3 / high that tagged u3
+         "first_i": int, "first_t": str|None}   # the setup's FIRST arm
+
+    It exists because `ref_i == i` is not the same statement: telling a fresh
+    arm from a re-arm off the state list alone means re-deciding, outside this
+    loop, whether the previous reference had EXPIRED (`i - ref_i > RUN_WINDOW`)
+    or was MOVED -- a second copy of the window rule, in another module, that
+    would drift the moment RUN_WINDOW changed. §5c's re-arm rule ("falling lows
+    collapse into ONE setup; they do not stack") is decided here, once, and
+    `first_i` / `first_t` name the setup a re-arm belongs to so a lossless
+    per-reference record can still be counted per SETUP.
 
     OUT is deliberately not one of the enum values. A bar can clear the lock
     AND arm the next setup within the same bar -- the loop falls through rather
@@ -1020,7 +1041,7 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
             # A new session starts clean: a reference never survives the close.
             cur_day, ref, lock = day, None, None
         t = bar.get("t") if bar is not None else None
-        entry = exit_why = None
+        entry = exit_why = arm = None
         read = _run_read(bar, band) if bar is not None else None
         readable = read is not None
 
@@ -1061,7 +1082,15 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
                     #    clock). Such a bar cannot also trigger -- it would be
                     #    beating its own high.
                     ref = {"i": i, "t": t, "low": low, "high": high,
-                           "level": lvl if lvl is not None else ref["level"]}
+                           "level": lvl if lvl is not None else ref["level"],
+                           # The setup this reference belongs to travels with
+                           # it: a run of falling lows is ONE setup (§5c), so
+                           # every re-arm still points at the arm that started
+                           # it instead of looking like a new one.
+                           "first_i": ref["first_i"], "first_t": ref["first_t"]}
+                    arm = {"rearm": True, "band": band,
+                           "extreme": high if sell else low,
+                           "first_i": ref["first_i"], "first_t": ref["first_t"]}
                 elif ref is None:
                     # 4. Arm on a TOUCH of d3, after 09:25. A bar with no
                     #    readable clock is not assumed to be late enough.
@@ -1071,7 +1100,10 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
                     if (tagged and minute is not None
                             and minute >= ANCHOR_MINUTE):
                         ref = {"i": i, "t": t, "low": low, "high": high,
-                               "level": lvl}
+                               "level": lvl, "first_i": i, "first_t": t}
+                        arm = {"rearm": False, "band": band,
+                               "extreme": high if sell else low,
+                               "first_i": i, "first_t": t}
                 elif (close < ref["low"]) if sell else (close > ref["high"]):
                     # 5. Trigger: a CLOSE above the reference's high.
                     trap, trap_why, dwell = _trap(by_day, why_none, day, t)
@@ -1127,6 +1159,7 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
             "stop": _stop_px(level_px, stop_pts, sell),
             "candles_left": (RUN_WINDOW - (i - ref["i"])
                              if ref is not None else None),
+            "arm": arm,
             "entry": entry, "exit_why": exit_why, "readable": readable,
         }
     return out

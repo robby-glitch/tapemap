@@ -332,6 +332,48 @@ def test_a_lower_low_moves_the_reference_and_restarts_the_countdown():
     assert states[2]["candles_left"] == RUN_WINDOW - 1
 
 
+# -- 6b. `arm`: the arming stated by the machine, not reconstructed ---------
+#
+# trigger_log records ARMS as well as entries (Phase 0, 2026-08-12). Telling a
+# fresh arm from a re-arm off `ref_i` alone means re-deciding, in another
+# module, whether the old reference EXPIRED or was MOVED -- a second copy of
+# the RUN_WINDOW rule. These pin the field that made that unnecessary.
+
+def test_only_the_bar_that_becomes_the_reference_carries_an_arm():
+    bars = [_inert(_t(0)), _touch(_t(1), high=95.0), _inert(_t(2))]
+    arms = [s["arm"] for s in run_states(bars)]
+    assert [a is None for a in arms] == [True, False, True]
+    assert arms[1] == {"rearm": False, "band": "d3", "extreme": 84.0,
+                       "first_i": 1, "first_t": _t(1)}
+
+
+def test_a_moved_reference_is_a_rearm_pointing_at_the_first_arm():
+    """§5c: falling lows collapse into ONE setup; they do not stack."""
+    bars = [_touch(_t(0), high=95.0),
+            _bar(_t(1), 82.0, 93.0, 83.0),          # new lower low
+            _bar(_t(2), 80.0, 92.0, 81.0)]          # and a lower one
+    arms = [s["arm"] for s in run_states(bars)]
+    assert [a["rearm"] for a in arms] == [False, True, True]
+    assert [a["first_i"] for a in arms] == [0, 0, 0]
+    assert [a["extreme"] for a in arms] == [84.0, 82.0, 80.0]
+
+
+def test_a_touch_after_the_window_expired_starts_a_NEW_setup():
+    """The case `ref_i` alone cannot answer: the previous reference is gone,
+    so this is a first arm, not a re-arm."""
+    bars = ([_touch(_t(0))] + [_inert(_t(i)) for i in range(1, RUN_WINDOW + 2)]
+            + [_touch(_t(RUN_WINDOW + 2))])
+    arms = [s["arm"] for s in run_states(bars) if s["arm"] is not None]
+    assert len(arms) == 2 and [a["rearm"] for a in arms] == [False, False]
+    assert arms[1]["first_i"] == RUN_WINDOW + 2
+
+
+def test_a_sell_arm_names_its_own_band_and_extreme():
+    u3 = BANDS["u3"]
+    a = run_states([_bar(_t(0), 96.0, u3, 97.0)], side="SELL")[0]["arm"]
+    assert a["band"] == "u3" and a["extreme"] == u3 and a["rearm"] is False
+
+
 def test_the_window_expiring_returns_it_to_waiting():
     bars = [_touch(_t(0))] + [_inert(_t(i)) for i in range(1, RUN_WINDOW + 3)]
     states = run_states(bars)

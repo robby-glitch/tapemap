@@ -338,6 +338,154 @@ class Handler(SimpleHTTPRequestHandler):
                         "built_at": time.time(),
                         "live_error": f"{type(e).__name__}: {e}"}
             self._json(json.dumps(body).encode())
+        elif self.path.startswith("/api/signals"):
+            # The live trigger record (trigger_log.py) for the SIGNALS tab.
+            #
+            # Read from disk PER REQUEST, never cached: the per-index refresh
+            # threads append to this file while the operator is looking at it,
+            # and a cached copy would show a signal that has already fired as
+            # absent. It is a few hundred KB — the read costs nothing worth
+            # trading a stale answer for.
+            #
+            # ?rule=5c (default) | all, ?idx=NIFTY|BANKNIFTY|SENSEX.
+            # 5c is the DEFAULT because the file holds two different rules:
+            # rows without a `rule` came from §1's one-candle TOUCH, which
+            # research-findings marks VOID, and pooling them into a §5c number
+            # is the exact mistake `score` already refuses to make. So the
+            # counts below are computed per rule and never summed.
+            q = parse_qs(urlsplit(self.path).query)
+            rule = ((q.get("rule") or ["5c"])[0] or "5c").lower()
+            if rule not in ("5c", "all"):
+                rule = "5c"
+            # NOT self._idx(): that clamps an absent/unknown index to NIFTY,
+            # which here would silently filter a log the caller asked to see
+            # whole. Absent means every index; unknown means every index.
+            want = ((q.get("idx") or [""])[0]).upper()
+            if want not in instruments.ENABLED:
+                want = ""
+            # ?kind=all (default) | entry | arm. A THIRD population, not a
+            # third rule: an arm is the setup ARMING (a bar touching d3/u3),
+            # and the entry may never come. It is filterable and counted on
+            # its own and is never summed into an entry total anywhere below —
+            # presenting an arm as a trade signal would inflate what this
+            # strategy has produced by every setup that expired unfired.
+            kind = ((q.get("kind") or ["all"])[0] or "all").lower()
+            if kind not in ("all", "entry", "arm"):
+                kind = "all"
+            src = ROOT / trigger_log.PATH
+            try:
+                rows, unparsed = trigger_log.read(src)
+            except OSError as e:
+                # Explicit, never an empty list. "No signals have fired" and
+                # "the log could not be read" produce the same empty table and
+                # are opposite facts; the caller gets the reason in the OS's
+                # own words so it can say which one this is.
+                self._json(json.dumps({
+                    "ok": False, "path": str(src),
+                    "error": f"{type(e).__name__}: {e.strerror or e}",
+                }).encode())
+                return
+            # Absent `kind` IS "entry" — every row written before 2026-08-12
+            # is one, and none of them was rewritten to say so.
+            entries = [r for r in rows if r.get("kind") != "arm"]
+            arms = [r for r in rows if r.get("kind") == "arm"]
+            five = [r for r in entries if r.get("rule") == "5c"]
+            legacy = [r for r in entries if r.get("rule") != "5c"]
+            sel = rows
+            if kind == "arm":
+                sel = [r for r in sel if r.get("kind") == "arm"]
+            elif kind == "entry":
+                sel = [r for r in sel if r.get("kind") != "arm"]
+            if rule == "5c":
+                # §5c ONLY hides the void one-candle legacy rows. Every arm is
+                # §5c by construction, so this cannot filter one out.
+                sel = [r for r in sel if r.get("rule") == "5c"]
+            if want:
+                sel = [r for r in sel if r.get("index") == want]
+            self._json(json.dumps({
+                "ok": True, "path": str(src), "rule": rule,
+                "idx": want or None, "kind": kind,
+                "total": len(rows), "unparsed": unparsed,
+                # Whole-file counts, per rule, deliberately unaffected by
+                # ?idx= — the screen's headline is "what has this strategy
+                # produced", and a count that moved with a view filter would
+                # answer a different question each time it was read.
+                "five_c": {
+                    "n": len(five),
+                    "buy": sum(1 for r in five if r.get("side") == "BUY"),
+                    "sell": sum(1 for r in five if r.get("side") == "SELL"),
+                    # An outcome exists only where `python trigger_log.py
+                    # score` has filled it. Published as a COUNT, not as any
+                    # kind of average: nothing here has been scored, so any
+                    # aggregate would be a number about zero measurements.
+                    "scored": sum(1 for r in five
+                                  if r.get("f15") is not None
+                                  or r.get("f30") is not None),
+                    # The OPERATOR'S outcome measures (MFE/MAE/stop/bands),
+                    # counted apart from f15/f30: they answer a different
+                    # question, from a named anchor, and a row can carry
+                    # either without the other. Still only a COUNT.
+                    "outcome": sum(1 for r in five if r.get("mfe") is not None),
+                    # How many were CHECKED and could not be measured. "Could
+                    # not score" and "scored, moved nothing" are opposite
+                    # facts; a screen that showed one number for both would
+                    # render a hole in the cache as a flat trade.
+                    "unscored": sum(1 for r in five if r.get("unscored")),
+                },
+                "legacy": {"n": len(legacy)},
+                # The arm population, counted APART from `five_c` and never
+                # added to it. `setups` counts distinct setups (§5c: a run of
+                # falling lows collapses into ONE, so the re-arms are the
+                # remainder), while `n` stays the lossless row count — both
+                # published, so a reader never has to guess which one a single
+                # number meant. No `scored` here: an arm has no entry price,
+                # so it has no outcome to fill, ever.
+                "arms": {
+                    "n": len(arms),
+                    "buy": sum(1 for r in arms if r.get("side") == "BUY"),
+                    "sell": sum(1 for r in arms if r.get("side") == "SELL"),
+                    "setups": sum(1 for r in arms if not r.get("rearm")),
+                    "rearms": sum(1 for r in arms if r.get("rearm")),
+                    # The interval every arm was recorded at, published rather
+                    # than assumed — a screen that has to guess which candles
+                    # it is showing cannot say whether the scored number
+                    # applies. None only if the log holds no arm yet.
+                    "interval": sorted({r.get("interval") for r in arms
+                                        if r.get("interval") is not None}),
+                    # How many arms could NOT be given their minute. The field
+                    # is timing only, so this is not a defect count — it is
+                    # how much of the timing is missing, said out loud instead
+                    # of shown as a blank column.
+                    "no_minute": sum(1 for r in arms
+                                     if r.get("t_1m") is None),
+                    # An arm still has no entry price and never gets f15/f30.
+                    # It CAN carry the outcome measures, anchored on its own
+                    # candle's close and saying so on the row -- that is what
+                    # the arms were started for. Counted here, never added to
+                    # `five_c` above.
+                    "outcome": sum(1 for r in arms if r.get("mfe") is not None),
+                    "unscored": sum(1 for r in arms if r.get("unscored")),
+                    # Did the setup go on to fire? Three states, never two:
+                    # fired, did not, and NOT RE-DERIVED (the cached session
+                    # shows no arm on that bar). The third is not a "no".
+                    "triggered": sum(1 for r in arms if r.get("triggered")),
+                    "not_rederived": sum(1 for r in arms
+                                         if r.get("mfe") is not None
+                                         and r.get("triggered") is None),
+                },
+                # The refusal to print a rate, in trigger_log's own words
+                # rather than restated in TypeScript -- putting one rule in two
+                # languages is exactly how the 09:25 gate drifted for weeks.
+                "no_rate_why": trigger_log.rate_refusal(
+                    sum(1 for r in five if r.get("mfe") is not None)),
+                # Newest first by REVERSAL, not by sorting on `at`: the file is
+                # append-only in the order the tape produced the rows, so its
+                # own order is the record. A sort would quietly re-rank rows
+                # whose `at` collides (three indices log within the same
+                # second — 2026-08-10 has two at 09:38).
+                "rows": list(reversed(sel)),
+                "matched": len(sel),
+            }).encode())
         elif self.path.startswith("/api/gex"):
             # newest gex_YYYY-MM-DD.json (filenames sort chronologically)
             files = sorted((ROOT / "data").glob("gex_*.json"))
@@ -505,9 +653,19 @@ def main():
                     # against the bars §5c was measured on, and until
                     # 2026-08-11 this logged 1-minute records — a different
                     # rule, silently.
+                    #
+                    # The ONE-MINUTE bars go along for TIMING ONLY: each arm
+                    # is a 3-minute record, and `ones` only names which minute
+                    # inside that candle made the extreme. Taken from the
+                    # session the payload was derived from -- the same bars
+                    # `_at_interval` resampled -- so it costs nothing and
+                    # cannot be a different session.
+                    _sess = payloads[x].get("session")
                     trigger_log.log_new(
                         x, payload_at(payloads[x], DEFAULT_INTERVAL),
-                        poller.states.get(x) if poller else None)
+                        poller.states.get(x) if poller else None,
+                        ones=((_sess.get("day") or {}).get("bars")
+                              if isinstance(_sess, dict) else None))
                 except Exception as e:  # keep last good data; else say why
                     log.exception("live build failed %s", x)
                     if not have[x]:
