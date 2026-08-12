@@ -9,8 +9,13 @@ import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
+import GlassBoard from './one/GlassBoard'
 import ProtoTab from './proto/ProtoTab'
 import SignalsTab from './signals/SignalsTab'
+// The five-state machine read, shared with the Glass board's MACHINE widget.
+// It moved out of this file so the board could import it without App.tsx and
+// the board importing each other — see machine.ts.
+import { liveMachine, machineWord, MACHINE_WORDS } from './machine'
 // Same Hinglish layer the Trade tab's balloons and callout use — one source of
 // captions, so a kind cannot read one way on the chart and another in the feed.
 import { glossOf, pillText, dirText } from './trade/hinglish'
@@ -26,12 +31,26 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 // 'Proto' is the throwaway lightweight-charts spike (src/proto/). It is not a
 // feature: it exists to decide v3's charting foundation and gets deleted with
 // its directory once the verdict is recorded. See context/HANDOFF.md §6b.
+// 'Glass' is the glance BOARD (src/one/GlassBoard.tsx): the machine and seven
+// instruments as movable panes of glass, each one a launcher into the tab that
+// owns its evidence. It replaces the one-screen chart trial that used to sit
+// here — that trial answered "what has to happen next" with a bigger chart,
+// which is the thing the operator already has in Kite. OneTab.tsx is left on
+// disk, unmounted, until the board has been judged.
+//
+// It is listed FIRST and is NOT the default tab — the operator judges it
+// against the nine that already exist, and a board that seizes the landing
+// screen would be judging itself.
+//
+// Exported because GlassBoard takes `setActiveTab` and must name the tab each
+// pane opens. A type-only import is erased at compile time, so this does not
+// make the two modules cyclic at runtime.
 // 'Signals' is the accumulating live RECORD — every row trigger_log.py has
 // written, served by /api/signals. It is a log, not a read: it shows what
 // fired and the context it fired in, and deliberately computes nothing from
 // them, because no row has an outcome until `python trigger_log.py score`
 // fills one. See src/signals/SignalsTab.tsx.
-type Tab = 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
+export type Tab = 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -2001,24 +2020,9 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
    measured hit rate. All prices here are futures-frame — the same frame as
    the chart these levels are drawn on. */
 
-/** Last bar's machine state and which side is being shown. One definition,
- *  used by the strip and the title mirror, so they can never disagree. */
-function liveMachine(runState: RunState[] | null, runStateSell: RunState[] | null) {
-  const buy = runState?.length ? runState[runState.length - 1] : null
-  const sell = runStateSell?.length ? runStateSell[runStateSell.length - 1] : null
-  const buyLive = !!buy && (buy.state !== 'WAITING' || buy.exit_why != null)
-  const sellLive = !!sell && (sell.state !== 'WAITING' || sell.exit_why != null)
-  const showSell = sellLive && !buyLive
-  return { st: showSell ? sell : buy, showSell, bothLive: buyLive && sellLive }
-}
-
-const MACHINE_WORDS = ['WAITING', 'ARMED', 'TRIGGERED', 'TRADE MEIN', 'BAAHAR'] as const
-
-/** SetupCheck's own state word for a bar — exit_why wins, IN_TRADE reads as
- *  the operator says it. */
-function machineWord(st: RunState): (typeof MACHINE_WORDS)[number] {
-  return st.exit_why ? 'BAAHAR' : st.state === 'IN_TRADE' ? 'TRADE MEIN' : st.state
-}
+/* `liveMachine`, `MACHINE_WORDS` and `machineWord` moved to ./machine.ts —
+   unchanged — so the Glass board's MACHINE widget can read the machine the
+   same single way this strip does. */
 
 function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, replaying }: {
   runState: RunState[] | null
@@ -2130,7 +2134,7 @@ export default function App() {
   const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
-  const tabs: Tab[] = ['Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
+  const tabs: Tab[] = ['Glass', 'Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
   const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
@@ -2411,6 +2415,22 @@ export default function App() {
 
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* key={activeIndex} for the same reason TradeTab carries one: the
+            chart engine is rebuilt per contract rather than mutated across an
+            index switch. Passed the SAME tape/chain/level props TradeTab gets,
+            from the same memos — one payload, two presentations. */}
+        {/* The board reads the glance-bar's active index all the way down —
+            key={activeIndex} so a switch remounts it rather than letting a
+            pane paint the previous index's figures for one frame. */}
+        {activeTab === 'Glass'    && <GlassBoard key={activeIndex} index={activeIndex}
+                                              chain={activeChain} bars={tape.bars}
+                                              runState={tape.runState}
+                                              runStateWhy={tape.runStateWhy}
+                                              runStateSell={tape.runStateSell}
+                                              publishedInterval={tape.interval}
+                                              stale={idxDead || !!error} loading={loading}
+                                              chainStale={chainStale}
+                                              setActiveTab={setActiveTab} />}
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
                                               chain={activeChain} strike={tape.strike}

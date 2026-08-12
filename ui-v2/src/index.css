@@ -67,6 +67,304 @@ html, body, #root {
 
 .mono { font-family: 'Roboto Mono', 'Fira Mono', monospace; font-variant-numeric: tabular-nums; }
 
+/* ── Liquid glass ───────────────────────────────────────────────────────────
+   The Glass board's material. Real glass, not a grey box at 40% opacity: a
+   translucent fill that lets the ambient field behind it through, a blur that
+   bends what it lets through, a 1px specular line where the light catches the
+   top edge, and a soft ambient shadow that puts the pane ABOVE the page rather
+   than cut into it.
+
+   Same convention as the palette variables above — bare :root is dark, and
+   [data-mode='light'] overrides. The glass is neutral / faintly brass; it is
+   never tinted green or red, because in this app hue is meaning: brass is
+   structure, green and red are direction, and a pane is neither.            */
+:root {
+  /* Retuned against the saturated field below, and measured. The old
+     rgba(30,38,56,0.55) composited to almost exactly the field's own
+     luminance — the pane had no lightness of its own and survived only on its
+     hairline. Dark glass in this material is LIGHTER than the wall behind it:
+     rgba(48,60,84,0.42) lifts the flat base from 0.010 to 0.022 relative
+     luminance (a doubling, plainly visible) while still reading as a darkening
+     over the bright brass forms (0.066 → 0.055). Body text lands at 11.5:1 on
+     the first and 7.9:1 on the second. */
+  --glass-fill:      rgba(48,60,84,0.42);
+  --glass-fill-hi:   rgba(62,76,104,0.52);
+  --glass-edge:      rgba(255,255,255,0.20);  /* specular top edge */
+  --glass-edge-hi:   rgba(255,255,255,0.32);
+  --glass-hair:      rgba(255,255,255,0.13);  /* the pane's own outline */
+  --glass-sheen:     rgba(255,255,255,0.07);
+  --glass-drop:      0 1px 2px rgba(0,0,0,0.40), 0 14px 34px -12px rgba(0,0,0,0.70);
+  --glass-drop-lift: 0 2px 6px rgba(0,0,0,0.46), 0 30px 60px -16px rgba(0,0,0,0.84);
+  --glass-blur:      22px;
+  --glass-blur-hi:   30px;
+}
+:root[data-mode='light'] {
+  /* 0.64 white over a field at 0.73–0.79 relative luminance composites to
+     0.81–0.92 — a frost the eye reads as material (0.12–0.16 above the field
+     it sits on) while carrying #141A22 body text at ~16:1. 0.64 rather than
+     0.60 because the field's warm brass form is its darkest region, and the
+     labels sitting over THAT are what set the floor: see labelInk in glass.tsx
+     for the token that had to step up with it. Higher than this buys contrast
+     nothing needs and spends the only thing that makes this look like glass. */
+  --glass-fill:      rgba(255,255,255,0.64);
+  --glass-fill-hi:   rgba(255,255,255,0.78);
+  --glass-edge:      rgba(255,255,255,0.95);
+  --glass-edge-hi:   rgba(255,255,255,1);
+  /* A white rim, not a grey line. On a coloured field the pane's edge is where
+     light catches, and a dark hairline would read as a printed border. The
+     drop shadow — deepened to match — is what separates it from the field. */
+  --glass-hair:      rgba(255,255,255,0.58);
+  --glass-sheen:     rgba(255,255,255,0.50);
+  --glass-drop:      0 1px 2px rgba(26,34,58,0.10), 0 14px 34px -10px rgba(26,34,58,0.30);
+  --glass-drop-lift: 0 3px 8px rgba(26,34,58,0.14), 0 30px 60px -14px rgba(26,34,58,0.42);
+  --glass-blur:      22px;
+  --glass-blur-hi:   30px;
+}
+
+/* ── The field ───────────────────────────────────────────────────────────────
+   What the glass refracts, and the single reason any of this reads as a
+   material. The previous field was 7–10% washes over a near-white page: a
+   backdrop-filter with nothing to bend, so every pane collapsed into a
+   bordered white box. This one is a real atmosphere — a tinted base plus three
+   large colour forms, saturated enough that white frost visibly SITS on it.
+
+   Light is deliberately NOT white and NOT cream: a cool-warm-cool base around
+   0.78 relative luminance, so a 0.60 white fill lands 0.14 above it. Dark is a
+   deep field around 0.02 with the same three forms at higher alpha.
+
+   Brass and a cool indigo counter — the palette's own two structural hues. No
+   green, no red: this sits under live numbers where those two mean direction,
+   and a field that leaned either way would be making a call. Forms are 900px+
+   and static; nothing here moves, blinks, or competes.                       */
+:root {
+  --field-base: linear-gradient(157deg, #101A2E 0%, #181422 44%, #0B1120 100%);
+  /* 0.18–0.20, not the 0.30 this was first drawn at. Over a near-black base a
+     fifth of a saturated hue is already a plain glow, and at 0.30 the brass
+     core lifted the field to 0.061 luminance — enough to drop the label token
+     sitting on the glass above it to 4.17:1. Measured, not guessed. */
+  --field-brass:  rgba(224,168,82,0.18);
+  --field-cool:   rgba(88,126,216,0.20);
+  --field-brass2: rgba(224,168,82,0.13);
+}
+:root[data-mode='light'] {
+  --field-base: linear-gradient(157deg, #D8E1F3 0%, #EFE5D0 46%, #D5DFF0 100%);
+  --field-brass:  rgba(196,140,44,0.44);
+  --field-cool:   rgba(80,114,206,0.32);
+  --field-brass2: rgba(196,140,44,0.26);
+}
+
+.glass-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(1150px 640px at 6% -14%,  var(--field-brass),  transparent 63%),
+    radial-gradient(980px 600px at 96% 2%,    var(--field-cool),   transparent 61%),
+    radial-gradient(1320px 740px at 42% 118%, var(--field-brass2), transparent 67%),
+    var(--field-base);
+}
+
+.glass-card {
+  position: relative;
+  border-radius: 18px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-hair);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--glass-drop);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  /* The one authored motion moment: the pane THICKENS under the pointer —
+     more blur, brighter edge, deeper shadow, a hair of lift. Everything else
+     on this board is still. */
+  transition: transform 220ms cubic-bezier(0.22,0.61,0.36,1),
+              box-shadow 220ms cubic-bezier(0.22,0.61,0.36,1),
+              background-color 220ms ease,
+              backdrop-filter 220ms ease,
+              border-color 220ms ease;
+  will-change: transform;
+}
+
+/* The diagonal catch of light across the pane. Behind content, never over it. */
+.glass-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(148deg, var(--glass-sheen) 0%, transparent 42%);
+  opacity: 0.9;
+}
+
+.glass-card:hover,
+.glass-card:focus-visible {
+  background: var(--glass-fill-hi);
+  box-shadow: inset 0 1px 0 var(--glass-edge-hi), var(--glass-drop-lift);
+  -webkit-backdrop-filter: blur(var(--glass-blur-hi)) saturate(200%);
+  backdrop-filter: blur(var(--glass-blur-hi)) saturate(200%);
+  transform: translateY(-2px);
+}
+
+/* Lifted out of the grid and carried by the pointer. */
+.glass-card.is-lift {
+  background: var(--glass-fill-hi);
+  box-shadow: inset 0 1px 0 var(--glass-edge-hi), var(--glass-drop-lift);
+  -webkit-backdrop-filter: blur(30px) saturate(210%);
+  backdrop-filter: blur(30px) saturate(210%);
+  transform: scale(1.025) translateY(-3px);
+  z-index: 3;
+}
+
+/* The pane this one would land on. Brass — a drop target is structure. */
+.glass-card.is-over {
+  border-color: rgba(var(--page-brass),0.85);
+  box-shadow: inset 0 1px 0 var(--glass-edge-hi),
+              0 0 0 3px rgba(var(--page-brass),0.20), var(--glass-drop);
+}
+
+/* The grip. Visible enough to find, quiet enough to ignore — dragging is a
+   rearrange-once action, not something the operator does while trading. */
+.glass-grip {
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.42;
+  transition: opacity 160ms ease;
+  line-height: 1;
+}
+.glass-card:hover .glass-grip { opacity: 0.85; }
+.glass-grip:active { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The pane still responds — it just stops moving. Blur, fill, edge and
+     shadow all still change, so hover, lift and drop-target stay legible;
+     only the translate/scale go. Same bargain the .trending-glow makes. */
+  .glass-card { transition: box-shadow 1ms linear, background-color 1ms linear, border-color 1ms linear; }
+  .glass-card:hover,
+  .glass-card:focus-visible { transform: none; }
+  .glass-card.is-lift { transform: none; }
+}
+
+/* backdrop-filter is the whole material. Where it is unsupported the fill
+   alone would be a translucent smear over live numbers, so the pane falls
+   back to an opaque card — legibility first, effect second. The LEAN survives
+   the fallback as an opaque tinted card (--glass-solid), because a direction
+   the operator can glance-read is the point of it and dropping the hue would
+   silently turn a leaning pane into a neutral one. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-card { background: var(--page-bg); }
+  .glass-card.lean-bull,
+  .glass-card.lean-bear { background: var(--glass-solid); }
+  .glass-card::after { opacity: 0.25; }
+}
+
+/* ── Lean: the glass takes a side ────────────────────────────────────────────
+   A pane whose data point leans is TINTED GLASS, not a coloured card. The hue
+   goes where hue actually collects in real glass — the rim, the specular edge
+   and the diagonal sheen — with only a whisper of it in the fill itself. That
+   split is what keeps the body legible: every alpha below was chosen by
+   measuring text on the composited surface over all nine regions of the field,
+   in both modes, and holding ≥4.5:1.
+
+   Green and red are DIRECTION here, which is the one job theme.ts gives them,
+   so this is the only place on the board they are allowed to touch the
+   material. Brass stays structure and is untouched. A pane with no stated
+   lean gets none of this and stays the ordinary glass — the operator's
+   "neutral = white tone".                                                   */
+:root {
+  --lean-bull-hue: 46,194,126;   /* T.bull  — direction only */
+  --lean-bear-hue: 255,95,107;   /* T.bear  — direction only */
+}
+:root[data-mode='light'] {
+  --lean-bull-hue: 27,138,56;    /* TL.bull */
+  --lean-bear-hue: 196,43,48;    /* TL.bear */
+}
+
+/* The RIM carries the reading, not the fill. That is both how real coloured
+   glass behaves — hue collects at the edge and in the specular — and the only
+   way to make the lean glance-readable across a whole board without darkening
+   the surface the numbers sit on. A 1.5px saturated rim costs the body text
+   exactly nothing; pushing the same signal into the fill cost 0.2:1 per step
+   and ran light/bear under the floor at the first try. */
+.glass-card.lean-bull,
+.glass-card.lean-bear {
+  /* 2px, not 1.5: at dpr 1 Chrome floors a fractional border to a whole
+     device pixel, so 1.5 rendered as the same hairline the neutral pane has
+     and the rim stopped being the thing that carries the reading. */
+  border-width: 2px;
+  border-color: rgba(var(--lean-hue), var(--lean-hair-a));
+  background: var(--glass-fill-lean);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 0 0 2px rgba(var(--lean-hue), var(--lean-ring-a)),
+    var(--glass-drop);
+}
+.glass-card.lean-bull::after,
+.glass-card.lean-bear::after {
+  background:
+    linear-gradient(148deg, var(--glass-sheen) 0%, transparent 42%),
+    linear-gradient(148deg, rgba(var(--lean-hue), var(--lean-sheen-a)) 0%, transparent 58%);
+}
+.glass-card.lean-bull:hover,
+.glass-card.lean-bull:focus-visible,
+.glass-card.lean-bear:hover,
+.glass-card.lean-bear:focus-visible {
+  background: var(--glass-fill-lean-hi);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge-hi),
+    inset 0 0 0 1px rgba(var(--lean-hue), var(--lean-ring-a)),
+    var(--glass-drop-lift);
+}
+.glass-card.lean-bull.is-lift,
+.glass-card.lean-bear.is-lift { background: var(--glass-fill-lean-hi); }
+/* The drop target stays brass — where a pane will LAND is structure, and it
+   has to out-rank the pane's own hue or the drag loses its target. */
+.glass-card.lean-bull.is-over,
+.glass-card.lean-bear.is-over { border-color: rgba(var(--page-brass),0.85); }
+
+.glass-card.lean-bull { --lean-hue: var(--lean-bull-hue); }
+.glass-card.lean-bear { --lean-hue: var(--lean-bear-hue); }
+
+/* Dark: the hue rides the rim and the sheen; the fill shifts only enough to
+   read as tinted glass under the blur. */
+:root .glass-card.lean-bull {
+  --glass-fill-lean:    rgba(38,72,62,0.46);
+  --glass-fill-lean-hi: rgba(50,92,78,0.56);
+  --glass-solid:        #16241F;
+}
+:root .glass-card.lean-bear {
+  --glass-fill-lean:    rgba(76,48,58,0.46);
+  --glass-fill-lean-hi: rgba(96,62,74,0.56);
+  --glass-solid:        #241A1E;
+}
+:root {
+  --lean-hair-a:  0.72;
+  --lean-ring-a:  0.24;
+  --lean-sheen-a: 0.13;
+}
+
+/* Light: a white frost with a hue cast. The fill stays overwhelmingly white
+   because it is what body text sits on; the rim carries the reading. */
+:root[data-mode='light'] .glass-card.lean-bull {
+  --glass-fill-lean:    rgba(228,250,236,0.76);
+  --glass-fill-lean-hi: rgba(236,252,242,0.86);
+  --glass-solid:        #E9F8EE;
+}
+:root[data-mode='light'] .glass-card.lean-bear {
+  --glass-fill-lean:    rgba(255,238,240,0.76);
+  --glass-fill-lean-hi: rgba(255,245,246,0.86);
+  --glass-solid:        #FDEEEF;
+}
+:root[data-mode='light'] {
+  --lean-hair-a:  0.85;
+  --lean-ring-a:  0.20;
+  --lean-sheen-a: 0.16;
+}
+
+/* ── ANSWER band layout ──────────────────────────────────────────────────────
+   Was an inline `auto 1fr auto` grid, which cannot carry a breakpoint. Below
+   ~1080px the three rigid tracks squeezed the headline — the one thing on the
+   band worth reading — into a sliver between a 181px price column and a 300px
+   chip column, so it moves to its own full-width row instead. Above that the
+   geometry is exactly what it was.                                          */
 .answer-band {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

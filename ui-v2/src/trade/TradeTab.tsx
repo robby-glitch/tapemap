@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import ContractChart from './ContractChart'
 import Ribbon from './Ribbon'
 import LegChart from './LegChart'
-import ZoneRead, { crl } from './ZoneRead'
+import ZoneRead from './ZoneRead'
 import SetupCheck from './SetupCheck'
+import { useFlow, FlowLine } from './flow'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
@@ -24,7 +25,7 @@ type LegsView = 'split' | 'stacked' | 'off'
  *  the panel, absorbs a resize. */
 const CHART_SIDE_W = 260
 import { palette, MONO, useMode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, FlowRow, OptPivots, Interval } from '../data'
+import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, OptPivots, Interval } from '../data'
 import { INTERVALS } from '../data'
 
 interface Props {
@@ -413,38 +414,11 @@ export default function TradeTab({
     setLegsView(next)
   }
 
-  // Trending OI for the strip + the ZONE READ's flow group. Tab-local and on
-  // the OI Flow tab's own 15s cadence — /api/oiflow aggregates from the chain
-  // poller's in-memory minute grid, so this costs no Dhan request. One fetch,
-  // two consumers.
-  //
-  // interval=5 matches the OI Flow tab's default. This strip has no selector,
-  // so the operator cannot re-cut it: pinned at 15 it showed a mark up to
-  // fifteen minutes stale, and for the first hour of the session it had one
-  // usable row, the 09:15 baseline being zero by construction. Whatever
-  // bucket the tab defaults to, this must not be coarser.
-  const [flowRows, setFlowRows] = useState<FlowRow[] | null>(null)
-  const [flowErr, setFlowErr] = useState<string>('')
-  useEffect(() => {
-    let alive = true
-    const load = async () => {
-      try {
-        const r = await fetch(`/api/oiflow?idx=${index}&interval=5`)
-        const j = await r.json()
-        if (!alive) return
-        if (!j.ok) { setFlowErr(j.error || 'flow unavailable'); setFlowRows(null); return }
-        setFlowErr('')
-        setFlowRows(j.rows || [])
-      } catch { if (alive) { setFlowErr('backend unreachable'); setFlowRows(null) } }
-    }
-    load()
-    const id = setInterval(load, 15000)
-    return () => { alive = false; clearInterval(id) }
-  }, [index])
-  const lastFlow = flowRows && flowRows.length ? flowRows[flowRows.length - 1] : null
-  const flowWhy = flowErr || (flowRows && !flowRows.length
-    ? 'no flow marks yet — the chain poller has not recorded a clock mark this session'
-    : lastFlow ? '' : 'no flow rows yet')
+  // Trending OI for the strip + the ZONE READ's flow group. One fetch, three
+  // consumers. The fetch and the strip's own rendering moved into ./flow on
+  // 2026-08-11 so the One tab mounts the SAME line rather than a second copy
+  // of it — behaviour, cadence and wording are unchanged.
+  const { last: lastFlow, why: flowWhy } = useFlow(index)
 
   // Clamp both ends: a negative cursor would index bars[-1] === undefined and
   // throw on the first field read. Computed here (rather than only after the
@@ -985,38 +959,7 @@ export default function TradeTab({
           explicit ask. The mark time is always shown (the row is the chain AS
           AT that clock mark, not now), and while replaying the strip dims and
           says it is live rather than pretending it scrubbed. */}
-      <div style={{
-        fontFamily: MONO, fontSize: 11, paddingLeft: 2,
-        color: pal.textSecondary, opacity: cursor != null ? 0.55 : 1,
-      }}>
-        {lastFlow ? (
-          <>
-            <span style={{ fontWeight: 700, color: pal.textMuted }}>OI {lastFlow.time}</span>
-            {' · CALL '}{crl(lastFlow.call)}
-            {' · PUT '}{crl(lastFlow.put)}
-            {' · DIFF '}{crl(lastFlow.diff)} {lastFlow.diff >= 0 ? 'PUT' : 'CALL'}-heavy{' '}
-            {Math.abs(lastFlow.strength * 100).toFixed(0)}%
-            {lastFlow.pcr != null && <>{' · PCR '}{lastFlow.pcr.toFixed(2)}</>}
-            {lastFlow.chg_dir != null && (
-              <>{' · Δ '}{lastFlow.chg_dir >= 0 ? '▲' : '▼'}{crl(Math.abs(lastFlow.chg_dir)).slice(1)}</>
-            )}
-            {lastFlow.brk && (
-              <span style={{ color: pal.accent, fontWeight: 700 }}>
-                {' · '}{lastFlow.brk} {lastFlow.brk_px != null ? lastFlow.brk_px.toFixed(1) : ''}
-              </span>
-            )}
-            {cursor != null && (
-              <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
-                {' · live flow — replay cursor ke saath aligned nahi'}
-              </span>
-            )}
-          </>
-        ) : (
-          <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
-            Trending OI nahi mili — {flowWhy}
-          </span>
-        )}
-      </div>
+      <FlowLine pal={pal} flow={lastFlow} flowWhy={flowWhy} replaying={cursor != null} />
 
       {/* The day's shape at a glance, dimmed past the replay cursor. */}
       <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
