@@ -267,7 +267,18 @@ export function runDrawPlan(
     const s = rotation[i]
     if (!s) continue
     const min = rotMinute(s.t)
-    if (s.band !== 'd3' || s.side !== 'BUY') {
+    // §5c emits TWO legal shapes, not one: the scored BUY off d3
+    // (`band_rotation.RUN_BAND`) and its SELL mirror off u3
+    // (`SELL_RUN_BAND`). This gate only ever accepted the buy, so every sell
+    // the backend published was counted as a BACKEND DISAGREEMENT and dropped
+    // before the draw loop — which is why the chart never marked a sell at any
+    // interval, while SETUP CHECK listed it correctly off the same record.
+    // The draw code below already branches on `sig.side`; only this predicate
+    // was behind it. Anything that is neither shape is still genuinely
+    // unexpected and still withheld out loud.
+    const legal = (s.side === 'BUY' && s.band === 'd3')
+      || (s.side === 'SELL' && s.band === 'u3')
+    if (!legal) {
       plan.unexpected++
       if (odd.length < 3) odd.push(`${s.t ?? `bar ${i}`} is ${s.side} ${s.band}`)
       continue

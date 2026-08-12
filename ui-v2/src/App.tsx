@@ -2119,8 +2119,24 @@ export default function App() {
   // come from the chain, which is a live snapshot with no per-strike history
   // (the same reason Chain.aligned goes false while scrubbing) — so they are
   // drawn only when live, never during replay (honesty rule 6).
+  // VWAP and the ±1σ bands are DROPPED from the chart's level list, by the
+  // operator's instruction 2026-08-11 and again 2026-08-12: "there are lines
+  // for vwap and +1 std deviation as well not required at all because i can
+  // see there levels on the right side of chart". Those two arrive as MAP
+  // LEVELS -- horizontal lines with a price chip -- built in data.ts
+  // (`addLvl(f.vwap, 'VWAP', 'vwap' …)`, `addLvl(f.u1, '+1σ', 'band' …)`).
+  // They are a SEPARATE layer from the VWAP polyline and the σ ribbon edges
+  // that came off earlier; removing those left these standing, which is why
+  // the chart still drew them after the first pass.
+  //
+  // Filtered HERE, at the chart's boundary, rather than in data.ts: the Map
+  // tab reads the same array as a table, where a named level with its price
+  // is the entire point and costs no chart ink. Pivots, MAX PAIN, PIN, walls,
+  // CAP/FLR, HI/LO, STK and traps all stay -- the operator named those as
+  // the ones to keep.
   const tradeLevels = useMemo(() => {
     const lv = [...(data.MAP[activeIndex]?.levels ?? [])]
+      .filter((l) => l.kind !== 'vwap' && l.kind !== 'band')
     if (scrub == null) {
       const ch = data.CHAIN_DATA[activeIndex]
       if (ch && Number.isFinite(ch.maxPain) && ch.maxPain > 0)
