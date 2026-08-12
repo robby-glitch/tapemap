@@ -2392,6 +2392,7 @@ export default function App() {
                                               rotationRun={tape.rotationRun}
                                               rotationRunWhy={tape.rotationRunWhy}
                                               rotationRunSell={tape.rotationRunSell}
+                                              rotationRunSellWhy={tape.rotationRunSellWhy}
                                               runState={tape.runState}
                                               runStateWhy={tape.runStateWhy}
                                               runStateSell={tape.runStateSell} />}

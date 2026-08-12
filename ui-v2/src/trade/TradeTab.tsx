@@ -93,6 +93,11 @@ interface Props {
    *  (CHECKLIST C3). The operator asked for it anyway on 2026-08-08 and that
    *  stands -- what must not happen is the screen implying they are equals. */
   rotationRunSell: (RotationSignal | null)[] | null
+  /** Why `rotationRunSell` is null. A SEPARATE string from `rotationRunWhy`
+   *  because one side can arrive while the other cannot, and the setup panel's
+   *  session list must not print "checked, nothing fired" over a side that was
+   *  never checked. Empty when it isn't null. */
+  rotationRunSellWhy: string
   /** The SAME §5c machine read per BAR rather than per entry — where the setup
    *  stands right now. `rotationRun` answers "where did it fire"; this answers
    *  "where does this stand", which is what the SETUP CHECK panel reads. Both
@@ -342,6 +347,7 @@ export default function TradeTab({
   focus, onFocusToggle, onIndexChange,
   interval, publishedInterval, onIntervalChange, structures, structuresWhy,
   rotation, rotationWhy, rotationRun, rotationRunWhy, rotationRunSell,
+  rotationRunSellWhy,
   runState, runStateWhy, runStateSell,
 }: Props) {
   // Persisted per Task 1: defaults to light — the operator reads charts in
@@ -927,6 +933,10 @@ export default function TradeTab({
           padding: 12, overflow: 'hidden',
           display: 'flex', flexDirection: 'column', minHeight: 0,
         }}>
+          {/* The `session*` props below are the WHOLE day, not `[at]`.
+              Every other prop here is the cursor's bar, which is exactly why a
+              finished setup used to vanish off this panel; the session list is
+              the day's record and outlives the machine's current state. */}
           <SetupCheck
             pal={pal} day={day} bar={b}
             runState={runState?.[at] ?? null} runStateWhy={runStateWhy}
@@ -935,6 +945,9 @@ export default function TradeTab({
             entrySell={rotationRunSell?.[at] ?? null}
             flow={lastFlow} flowWhy={flowWhy}
             publishedInterval={publishedInterval}
+            sessionRun={rotationRun} sessionRunWhy={rotationRunWhy}
+            sessionRunSell={rotationRunSell} sessionRunSellWhy={rotationRunSellWhy}
+            sessionStates={runState} sessionStatesSell={runStateSell}
           />
         </div>
         <div style={{

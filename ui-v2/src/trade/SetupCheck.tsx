@@ -72,6 +72,39 @@ interface Row {
   custom?: boolean
 }
 
+/** One line of the session list: an entry the record published, plus the one
+ *  fact about what came after it that this codebase actually holds.
+ *
+ *  There is no P&L field, no exit price and no outcome here, and that is not
+ *  an omission to be filled in later — nothing in the payload knows any of
+ *  them. The operator manages and TRAILS the trade themselves ("my stop is
+ *  never vwap i like to trail"), so the tool has no idea where they left. */
+interface SessionRow {
+  /** Bar index into the day's bars — the sort key, and unique per side. */
+  i: number
+  t: string
+  side: 'BUY' | 'SELL'
+  band: string
+  level: number | null
+  /** The line that broke, under the NAME band_rotation published it as. A low
+   *  carried as `ref_high` is a lie a reader cannot catch, so the two names
+   *  travel all the way to the screen. */
+  brkName: 'ref_high' | 'ref_low'
+  brk: number | null
+  stop: number | null
+  /** `exit_why`, and the bar it landed on. run_states: "the bar the re-fire
+   *  lock cleared". §5c point 7's lock — after an entry the NEXT setup may not
+   *  arm until VWAP is touched (or at once if stopped). It says nothing about
+   *  where this trade ended, and must never be worded as though it does. */
+  lockT: string | null
+  lockWhy: 'stop' | 'vwap' | null
+  /** The states array was there and no bar cleared the lock. */
+  lockOpen: boolean
+  /** No states array reached us, so the lock line stays silent rather than
+   *  reading as "never cleared" — the third sentence again. */
+  lockKnown: boolean
+}
+
 interface Props {
   pal: Pal
   /** The session key. Ticks are stored against it, so a new day starts empty
@@ -101,6 +134,40 @@ interface Props {
    *  including `null`, a backend that will not say — makes the trigger group's
    *  number inapplicable, and the group says so. */
   publishedInterval?: number | null
+  /** ── The day's §5c record ──────────────────────────────────────────────
+   *  Everything above reads the CURSOR'S BAR, so a completed setup leaves the
+   *  panel entirely: the operator had a full SELL sequence 09:25→09:38 and at
+   *  10:12 this panel showed `WAITING · BUY · d3` and nothing else. These four
+   *  arrays are the whole DAY, so an entry stays on screen whatever the
+   *  machine is doing now.
+   *
+   *  `sessionRun` / `sessionRunSell` are the ENTRIES (TradeTab's `rotationRun`
+   *  pair). `sessionStates` / `sessionStatesSell` are read for exactly ONE
+   *  field — `exit_why`, which run_states' own docstring defines as "the bar
+   *  the re-fire lock cleared". It is NOT a trade exit and is never rendered
+   *  as one.
+   *
+   *  All optional: absent, the list does not render at all and OneTab's panel
+   *  is byte-for-byte what it was. */
+  sessionRun?: (RotationSignal | null)[] | null
+  /** Why `sessionRun` is null, in data.ts's own words. Empty when it isn't. */
+  sessionRunWhy?: string
+  sessionRunSell?: (RotationSignal | null)[] | null
+  /** Why `sessionRunSell` is null. Kept SEPARATE from the buy side's: one side
+   *  can arrive while the other cannot, and "checked, nothing fired" must not
+   *  be printed over a side that was never checked. */
+  sessionRunSellWhy?: string
+  sessionStates?: RunState[] | null
+  sessionStatesSell?: RunState[] | null
+  /** ONE-SCREEN rendering (src/one/OneTab.tsx). The state block and the
+   *  TRIGGER group render exactly as they always have; the unscored groups —
+   *  "Saath de raha hai", "Mera read", Reset and the two tallies — move behind
+   *  a closed disclosure. Nothing is dropped: the disclosure's own summary
+   *  carries the agree tally, so a collapsed group can never read as an empty
+   *  one, and one click restores the full panel.
+   *
+   *  ABSENT (the Trade tab) the render is unchanged, byte for byte. */
+  compact?: boolean
 }
 
 const LS_RULES = 'tape.check.rules'
@@ -160,7 +227,9 @@ function Tick({ pal, state }: { pal: Pal; state: TickState }) {
 
 export default function SetupCheck({
   pal, day, bar, runState, runStateWhy, runStateSell, entry, entrySell,
-  flow, flowWhy, publishedInterval = null,
+  flow, flowWhy, publishedInterval = null, compact = false,
+  sessionRun, sessionRunWhy = '', sessionRunSell, sessionRunSellWhy = '',
+  sessionStates, sessionStatesSell,
 }: Props) {
   // The scored interval is a fact about §5c, so it is read from the one place
   // that owns it rather than typed as a 3 here. At anything else the trigger
@@ -207,6 +276,13 @@ export default function SetupCheck({
 
   const f1 = (n: number | null | undefined) =>
     typeof n === 'number' && Number.isFinite(n) ? n.toFixed(1) : null
+
+  // TWO decimals, only in the session list, and only because that list is a
+  // RECORD of what was published. NIFTY ticks at 0.05, so f1 turns a genuine
+  // 24551.25 into 24551.3 — fine for a live read the operator is watching move,
+  // wrong for a row they may check against the log tomorrow.
+  const f2 = (n: number | null | undefined) =>
+    typeof n === 'number' && Number.isFinite(n) ? n.toFixed(2) : null
 
   // ── TRIGGER: three reads of `run_state`, no rule re-implemented ──────────
   const trigger: Row[] = useMemo(() => {
@@ -347,6 +423,56 @@ export default function SetupCheck({
     return out
   }, [bar.gamma, sig, flow, flowWhy, ticks])
 
+  // ── THE DAY'S ENTRIES ────────────────────────────────────────────────────
+  // One pass per side over the published arrays. Nothing is re-derived: every
+  // field below is copied off a record, and where a record has no field the
+  // row carries null and the render says so.
+  const sessionRows: SessionRow[] = useMemo(() => {
+    const out: SessionRow[] = []
+    const collect = (
+      entries: (RotationSignal | null)[] | null | undefined,
+      states: RunState[] | null | undefined,
+    ) => {
+      if (!entries) return
+      entries.forEach((e, i) => {
+        if (!e) return
+        const sell = e.side === 'SELL'
+        // `ref_low` rides on the SELL record only (band_rotation emits
+        // `"ref_low" if sell else "ref_high"`). data.ts is pristine and types
+        // the BUY name, so the sell name is read through a local narrowing
+        // rather than by widening the shared interface.
+        const brk = sell
+          ? (e as { ref_low?: number | null }).ref_low ?? null
+          : e.ref_high ?? null
+        // The first bar AFTER the entry that cleared the lock. The lock is
+        // always cleared before the same side can arm again, so the first hit
+        // is this entry's and cannot belong to a later one.
+        let lockT: string | null = null
+        let lockWhy: 'stop' | 'vwap' | null = null
+        if (states) {
+          for (let j = i + 1; j < states.length; j++) {
+            const s = states[j]
+            if (s && s.exit_why) { lockT = s.t; lockWhy = s.exit_why; break }
+          }
+        }
+        out.push({
+          i, t: e.t || '—', side: sell ? 'SELL' : 'BUY',
+          band: e.band, level: e.level ?? null,
+          brkName: sell ? 'ref_low' : 'ref_high', brk,
+          stop: e.stop ?? null,
+          lockT, lockWhy, lockOpen: !!states && !lockWhy, lockKnown: !!states,
+        })
+      })
+    }
+    collect(sessionRun, sessionStates)
+    collect(sessionRunSell, sessionStatesSell)
+    // Newest first. Sorted on the BAR INDEX, not the "HH:MM" label: both
+    // arrays are aligned 1:1 with the same `bars`, so the index orders the two
+    // sides against each other exactly, and a bar that carried no label still
+    // lands in its true place.
+    return out.sort((a, b) => b.i - a.i)
+  }, [sessionRun, sessionRunSell, sessionStates, sessionStatesSell])
+
   const mine: Row[] = rules.map((text, i) => ({
     id: `m.${i}`, text, custom: true,
     state: ticks.has(`m.${i}`) ? 'man-on' : 'man-off',
@@ -445,6 +571,222 @@ export default function SetupCheck({
     ? (st.exit_why ? 'BAAHAR' : st.state === 'IN_TRADE' ? 'TRADE MEIN' : st.state)
     : null
 
+  /* The three blocks below were inline in the return until 2026-08-11. They
+     are named now ONLY so the compact rendering can re-parent them without a
+     second copy — the JSX is unchanged, so the Trade tab's tree is identical.
+     A forked "compact version" of these rows is exactly how one reading of the
+     machine becomes two. */
+  const resetBtn = (
+    <button
+      onClick={reset}
+      title="Aaj ke saare manual tick hata do. Har naye din ye apne aap saaf ho jaate hain."
+      style={{
+        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+        padding: '3px 7px', borderRadius: 4, cursor: 'pointer',
+        border: `1px solid ${pal.border}`, background: 'transparent', color: pal.textMuted,
+      }}
+    >Reset</button>
+  )
+
+  /* ── AAJ KE SIGNAL ─────────────────────────────────────────────────────
+     The day's entries, which stay put when the machine returns to WAITING.
+     Rendered only when the arrays were PASSED — `undefined` on both means the
+     caller (OneTab) never offered them, and an absent list is not the same
+     claim as an empty one.
+
+     Deliberately NOT inside `compact`'s disclosure: the whole complaint was a
+     signal disappearing, and a fold is a slower way of disappearing. */
+  const sessionOffered = sessionRun !== undefined || sessionRunSell !== undefined
+  const buyGone = !sessionRun
+  const sellGone = !sessionRunSell
+  const sessionWhy = sessionRunWhy || sessionRunSellWhy
+  const anySell = sessionRows.some((r) => r.side === 'SELL')
+
+  const sessionBlock = sessionOffered && (
+    <div style={{ marginTop: 14 }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6,
+        paddingBottom: 5, borderBottom: `1px solid ${pal.border}`, marginBottom: 7,
+      }}>
+        <span style={label}>Aaj ke signal</span>
+        <span style={{
+          fontFamily: MONO, fontSize: 10, fontWeight: 700, color: pal.textMuted,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {publishedInterval ? `${publishedInterval}m · ` : ''}{sessionRows.length}
+        </span>
+      </div>
+
+      {/* A2: which candles this list IS. Read off the published interval, never
+          the requested one. It says only that the list is per-interval — the
+          scored-number question is the TRIGGER group's and is not repeated. */}
+      <div style={{ fontSize: 10, color: pal.textMuted, lineHeight: 1.45, margin: '-2px 0 8px' }}>
+        {publishedInterval
+          ? `Ye list ${publishedInterval}-minute candles ki hai. Upar timeframe`
+            + ' badloge toh list bhi badlegi — har interval par apne alag signal bante hain.'
+          : 'Backend ne interval nahi bataya, toh ye list kis candle ki hai wo pakka'
+            + ' nahi. Timeframe badalne par list badal jaati hai.'}
+      </div>
+
+      {sessionRows.length === 0 ? (
+        // A1's three sentences, and they are three different claims. Collapsing
+        // "dekha, kuch nahi mila" into "dekha hi nahi ja saka" is the failure
+        // this panel exists to avoid.
+        <div style={{
+          fontSize: 10.5, lineHeight: 1.5,
+          color: buyGone || sellGone ? pal.caution : pal.textMuted,
+        }}>
+          {buyGone && sellGone
+            ? `Aaj ke signal check hi nahi kar paye${sessionWhy ? ` — ${sessionWhy}` : ''}.`
+              + ' Ye "koi signal nahi bana" NAHI hai — ye "dekha hi nahi ja saka" hai.'
+            : buyGone
+              ? 'SELL side dekhi — is timeframe par ek bhi entry nahi bani. BUY side'
+                + ` check nahi ho payi${sessionRunWhy ? ` — ${sessionRunWhy}` : ''}.`
+              : sellGone
+                ? 'BUY side dekhi — is timeframe par ek bhi entry nahi bani. SELL side'
+                  + ` check nahi ho payi${sessionRunSellWhy ? ` — ${sessionRunSellWhy}` : ''}.`
+                : 'Aaj is timeframe par ek bhi entry nahi bani — dono taraf dekha gaya,'
+                  + ' record khaali hai.'}
+        </div>
+      ) : (
+        <>
+          {(buyGone || sellGone) && (
+            <div style={{ fontSize: 10, color: pal.caution, lineHeight: 1.45, marginBottom: 7 }}>
+              {buyGone ? 'BUY' : 'SELL'} side ki entries nahi aayin
+              {(buyGone ? sessionRunWhy : sessionRunSellWhy)
+                ? ` — ${buyGone ? sessionRunWhy : sessionRunSellWhy}` : ''}
+              , toh neeche wali list adhoori ho sakti hai.
+            </div>
+          )}
+          {sessionRows.map((r) => {
+            const sell = r.side === 'SELL'
+            return (
+              <div key={`${r.side}.${r.i}`} style={{
+                padding: '6px 0', borderTop: `1px solid ${pal.border}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <span style={{
+                    fontSize: 11.5, fontWeight: 700, color: pal.textPrimary,
+                    fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
+                  }}>{r.t}</span>
+                  {/* theme.ts reserves these two hues for DIRECTION, and a side
+                      is exactly that — the one place a colour here is honest. */}
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, letterSpacing: '0.09em',
+                    fontFamily: MONO, color: sell ? pal.bear : pal.bull,
+                  }}>{r.side} · {r.band}</span>
+                  {/* The sell side's standing disclosure, in one word per row.
+                      Spelled out ONCE below — the measured number belongs to
+                      the TRIGGER group and is not restated a second time. */}
+                  {sell && (
+                    <span style={{
+                      fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em',
+                      marginLeft: 'auto', padding: '1px 4px', borderRadius: 3,
+                      fontFamily: MONO, color: pal.caution,
+                      border: `1px solid ${pal.caution}`,
+                    }}>SCORE NAHI</span>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: 10.5, lineHeight: 1.45, marginTop: 2, color: pal.textSecondary,
+                  fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {r.band} {f2(r.level) ?? '—'} · {r.brkName} {f2(r.brk) ?? '—'}
+                </div>
+                {/* Muted like the state block's: a stop is not a bearish call.
+                    Absent when the payload carried none — never level ∓ 20. */}
+                {r.stop != null && (
+                  <div style={{
+                    fontSize: 10.5, lineHeight: 1.45, color: pal.textMuted,
+                    fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
+                  }}>stop {f2(r.stop)}</div>
+                )}
+                {r.lockKnown && (
+                  <div style={{ fontSize: 10, lineHeight: 1.45, marginTop: 2, color: pal.textMuted }}>
+                    {r.lockWhy
+                      ? `re-fire lock ${r.lockT ?? '—'} par khula — `
+                        + `${r.lockWhy === 'stop' ? 'stop chhua' : 'VWAP chhua'}`
+                      : r.lockOpen ? 're-fire lock ab tak laga hua hai' : ''}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          <div style={{
+            fontSize: 9.5, color: pal.textMuted, lineHeight: 1.5,
+            marginTop: 8, paddingTop: 7, borderTop: `1px solid ${pal.border}`,
+          }}>
+            "re-fire lock" wali line lock ki hai, trade ki NAHI: uske baad agla setup
+            arm ho sakta tha, bas itna. Tum kab nikle ye yahan kahin darj nahi hai —
+            stop tum khud trail karte ho.
+            {anySell && ' SCORE NAHI ka matlab: upper band pe bechna paanch datasets'
+              + ' pe naapa aur reject hua tha; ye tumhare kehne par banaya gaya hai.'}
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  const contextGroup = (
+    <Group name="Saath de raha hai" count={`${onOf(context)} / ${context.length}`}
+           note="Bina score wala hissa. Trade ko rang deta hai — rok kabhi nahi sakta."
+           rows={context} />
+  )
+
+  const mineBlock = (
+    <div style={{ marginTop: 14 }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6,
+        paddingBottom: 5, borderBottom: `1px solid ${pal.border}`, marginBottom: 7,
+      }}>
+        <span style={label}>Mera read</span>
+        <span style={{
+          fontFamily: MONO, fontSize: 10, fontWeight: 700, color: pal.textMuted,
+          fontVariantNumeric: 'tabular-nums',
+        }}>{onOf(mine)} / {mine.length}</span>
+      </div>
+      {mine.length === 0 && !adding && (
+        <div style={{ fontSize: 10, color: pal.textMuted, lineHeight: 1.5, marginBottom: 6 }}>
+          Yahan apne rules likho. Ye tumhare hain — tool inhe kabhi khud tick nahi
+          karega, aur maine yahan koi rule apne se nahi bhara.
+        </div>
+      )}
+      {mine.map((r) => (
+        <button key={r.id} onClick={() => toggle(r.id)} aria-pressed={r.state === 'man-on'}
+                style={rowBtn}><RowBody r={r} /></button>
+      ))}
+      {adding ? (
+        <input
+          autoFocus value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => { setAdding(false); setDraft('') }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && draft.trim()) {
+              saveRules([...rules, draft.trim()]); setDraft(''); setAdding(false)
+            }
+            if (e.key === 'Escape') { setAdding(false); setDraft('') }
+          }}
+          placeholder="Apna rule likho, Enter dabao"
+          style={{
+            width: '100%', marginTop: 6, padding: '5px 7px', borderRadius: 4,
+            border: `1px solid ${pal.accent}`, backgroundColor: pal.inset,
+            color: pal.textPrimary, font: 'inherit', fontSize: 11,
+          }}
+        />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            width: '100%', marginTop: 6, padding: '5px 0', borderRadius: 4,
+            border: `1px dashed ${pal.border}`, background: 'transparent',
+            color: pal.textMuted, font: 'inherit', fontSize: 10, fontWeight: 600,
+            letterSpacing: '0.06em', cursor: 'pointer',
+          }}
+        >+ Rule jodo</button>
+      )}
+    </div>
+  )
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
@@ -455,15 +797,10 @@ export default function SetupCheck({
             fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
           }}>{day || '—'}</div>
         </div>
-        <button
-          onClick={reset}
-          title="Aaj ke saare manual tick hata do. Har naye din ye apne aap saaf ho jaate hain."
-          style={{
-            fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-            padding: '3px 7px', borderRadius: 4, cursor: 'pointer',
-            border: `1px solid ${pal.border}`, background: 'transparent', color: pal.textMuted,
-          }}
-        >Reset</button>
+        {/* In compact this sits with the manual rows it clears, inside the
+            disclosure — a Reset whose targets are all hidden is a button that
+            reads as clearing the trigger. */}
+        {!compact && resetBtn}
       </div>
 
       {/* The state block. This IS the product — PRODUCT.md's five-state machine
@@ -528,9 +865,14 @@ export default function SetupCheck({
               )}
             </div>
           )}
+          {/* NOT "nikal gaye", which this read as until 2026-08-12. `exit_why`
+              is the bar the RE-FIRE LOCK cleared (run_states' own docstring),
+              not a trade exit: the operator trails their own stop and the tool
+              has no idea where they left. Worded here as the lock and nothing
+              more; what the lock IS is explained once, in the session list. */}
           {st.exit_why && (
             <div style={{ fontSize: 10.5, color: pal.textSecondary, marginTop: 4 }}>
-              Nikal gaye — {st.exit_why === 'stop' ? 'stop laga' : 'VWAP par'}
+              Re-fire lock khula — {st.exit_why === 'stop' ? 'stop chhua' : 'VWAP chhua'}
             </div>
           )}
         </div>
@@ -562,65 +904,61 @@ export default function SetupCheck({
                      : '§5c — sirf isi hisse ka score nikla hai: 68.4% hit at +30m, n=19.'}
                  rows={trigger} />
         )}
-        <Group name="Saath de raha hai" count={`${onOf(context)} / ${context.length}`}
-               note="Bina score wala hissa. Trade ko rang deta hai — rok kabhi nahi sakta."
-               rows={context} />
-
-        <div style={{ marginTop: 14 }}>
-          <div style={{
-            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6,
-            paddingBottom: 5, borderBottom: `1px solid ${pal.border}`, marginBottom: 7,
-          }}>
-            <span style={label}>Mera read</span>
-            <span style={{
-              fontFamily: MONO, fontSize: 10, fontWeight: 700, color: pal.textMuted,
-              fontVariantNumeric: 'tabular-nums',
-            }}>{onOf(mine)} / {mine.length}</span>
-          </div>
-          {mine.length === 0 && !adding && (
-            <div style={{ fontSize: 10, color: pal.textMuted, lineHeight: 1.5, marginBottom: 6 }}>
-              Yahan apne rules likho. Ye tumhare hain — tool inhe kabhi khud tick nahi
-              karega, aur maine yahan koi rule apne se nahi bhara.
+        {/* Above the unscored half and outside compact's fold, because it is
+            the §5c record and belongs with §5c's trigger. */}
+        {sessionBlock}
+        {compact ? (
+          /* The unscored half, closed by default. The summary carries its own
+             tally, so "collapsed" can never be misread as "nothing found" —
+             A1's distinction, kept at the one place the rows are hidden. */
+          <details style={{ marginTop: 14 }}>
+            {/* NOT `display:flex` on the summary itself — that suppresses the
+                native disclosure triangle in Chrome, and a fold with no
+                affordance is a fold nobody opens. The row is a child instead,
+                so the marker keeps its own box. */}
+            <summary style={{
+              // fontSize sizes the native marker too. Left at the inherited
+              // 16px the triangle plus a calc(100% - 16px) row overflowed the
+              // rail and wrapped onto a second line box, which is where 20px
+              // of dead space above the label came from.
+              cursor: 'pointer', paddingBottom: 5, lineHeight: 1.2, fontSize: 11,
+              borderBottom: `1px solid ${pal.border}`,
+            }}>
+              <span style={{
+                display: 'inline-flex', width: 'calc(100% - 20px)',
+                alignItems: 'baseline', justifyContent: 'space-between', gap: 6,
+                verticalAlign: 'middle',
+              }}>
+                <span style={label}>Rang, rok nahi</span>
+                <span style={{
+                  fontFamily: MONO, fontSize: 10, fontWeight: 700, color: pal.textMuted,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>{onOf(agree)} / {agree.length}</span>
+              </span>
+            </summary>
+            {contextGroup}
+            {mineBlock}
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+              {resetBtn}
             </div>
-          )}
-          {mine.map((r) => (
-            <button key={r.id} onClick={() => toggle(r.id)} aria-pressed={r.state === 'man-on'}
-                    style={rowBtn}><RowBody r={r} /></button>
-          ))}
-          {adding ? (
-            <input
-              autoFocus value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={() => { setAdding(false); setDraft('') }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && draft.trim()) {
-                  saveRules([...rules, draft.trim()]); setDraft(''); setAdding(false)
-                }
-                if (e.key === 'Escape') { setAdding(false); setDraft('') }
-              }}
-              placeholder="Apna rule likho, Enter dabao"
-              style={{
-                width: '100%', marginTop: 6, padding: '5px 7px', borderRadius: 4,
-                border: `1px solid ${pal.accent}`, backgroundColor: pal.inset,
-                color: pal.textPrimary, font: 'inherit', fontSize: 11,
-              }}
-            />
-          ) : (
-            <button
-              onClick={() => setAdding(true)}
-              style={{
-                width: '100%', marginTop: 6, padding: '5px 0', borderRadius: 4,
-                border: `1px dashed ${pal.border}`, background: 'transparent',
-                color: pal.textMuted, font: 'inherit', fontSize: 10, fontWeight: 600,
-                letterSpacing: '0.06em', cursor: 'pointer',
-              }}
-            >+ Rule jodo</button>
-          )}
-        </div>
+            <div style={{ fontSize: 9.5, color: pal.textMuted, marginTop: 8, lineHeight: 1.5 }}>
+              Jaan-bujh kar alag rakhe hain. Trigger ya to bana hai ya nahi; baaki sirf rang
+              hai. Dono jod dene se ek bina-score wali line ek scored line ke barabar ho jaati.
+            </div>
+          </details>
+        ) : (
+          <>
+            {contextGroup}
+            {mineBlock}
+          </>
+        )}
       </div>
 
       {/* TWO tallies, never one. See the header comment for the measurements
-          that make adding them a mistake rather than a simplification. */}
+          that make adding them a mistake rather than a simplification.
+          In compact the trigger tally is the TRIGGER GROUP's own count and the
+          agree tally is the disclosure's — same two numbers, never summed. */}
+      {!compact && (
       <div style={{ borderTop: `1px solid ${pal.border}`, marginTop: 12, paddingTop: 10 }}>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
@@ -643,6 +981,7 @@ export default function SetupCheck({
           hai. Dono jod dene se ek bina-score wali line ek scored line ke barabar ho jaati.
         </div>
       </div>
+      )}
     </div>
   )
 }
