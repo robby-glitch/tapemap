@@ -243,9 +243,32 @@ class Handler(SimpleHTTPRequestHandler):
                     strikes = None
             rows = st.oi_flow(interval=interval, strikes=strikes)
             avail = sorted({k for m in st.minutes.values() for k in m["k"]})
+            # The CHAIN's own health travels with the rows. Without it an empty
+            # `rows` says only "nothing here", and a reader cannot tell "the
+            # boundary has not arrived yet" from "the feed is down, so no mark
+            # is coming" -- which are A1's first and second sentences and must
+            # never render as one. On 2026-08-12 NIFTY's socket was dead from
+            # the open while this endpoint answered ok:true with an empty list,
+            # so the tab told the operator to wait for a 09:20 row that was
+            # never going to exist. `ok` still describes THIS endpoint; the
+            # chain's state is reported under its own name.
+            chain_ok, chain_why = True, None
+            cbox = self.chains.get(idx) if self.chains else None
+            if cbox is None or cbox.get("payload") is None:
+                chain_ok, chain_why = False, "chain poller warming up"
+            else:
+                try:
+                    cp = json.loads(cbox["payload"])
+                    if not cp.get("ok", True):
+                        chain_ok = False
+                        chain_why = cp.get("error") or "the chain is unavailable"
+                except (ValueError, TypeError):
+                    pass          # unparseable box: say nothing rather than guess
             self._json(json.dumps({"ok": True, "index": idx,
                                    "interval": interval, "strikes": avail,
-                                   "selected": strikes, "rows": rows}).encode())
+                                   "selected": strikes, "rows": rows,
+                                   "chain_ok": chain_ok,
+                                   "chain_why": chain_why}).encode())
         elif self.path.startswith("/api/contract"):
             # Option-premium tape: 1-min bars + their own session VWAP bands,
             # per leg. The heavy lifting is live.build_contract (fetch + the

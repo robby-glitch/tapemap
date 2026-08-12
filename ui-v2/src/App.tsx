@@ -1652,6 +1652,11 @@ function OiFlowTab({ index }: { index: IndexKey }) {
   const [avail, setAvail] = useState<number[]>([])
   const [sel, setSel] = useState<number[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  /** Why the CHAIN cannot be read, in the backend's own words. Null when it is
+   *  healthy. Separate from `err`, which is this endpoint failing: the flow
+   *  endpoint answers fine while the chain behind it is dead, and those are
+   *  two different sentences. */
+  const [chainWhy, setChainWhy] = useState<string | null>(null)
 
   useEffect(() => { setSel(null) }, [index])   // strike sets differ per index
 
@@ -1666,6 +1671,10 @@ function OiFlowTab({ index }: { index: IndexKey }) {
         if (!alive) return
         if (!j.ok) { setErr(j.error || 'unavailable'); setRows([]); return }
         setErr(null)
+        // The chain's own health, published alongside the rows. An empty
+        // `rows` with a DEAD chain is "we could not check", not "nothing
+        // yet" — see the empty state below.
+        setChainWhy(j.chain_ok === false ? (j.chain_why || 'the chain is unavailable') : null)
         setAvail(j.strikes || [])
         setRows(j.rows || [])
       } catch { if (alive) setErr('backend unreachable') }
@@ -1735,7 +1744,29 @@ function OiFlowTab({ index }: { index: IndexKey }) {
           background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
           padding: 20, fontSize: 13, color: pal.caution,
         }}>Trending OI unavailable — {err}. It needs the chain poller running.</div>
+      ) : !rows.length && chainWhy ? (
+        /* COULD NOT CHECK. The rows are empty because the chain feed behind
+           them is down, so no mark is coming at the next boundary or any
+           other. Saying "no marks yet" here is the lie this branch exists to
+           prevent: on 2026-08-12 NIFTY's socket was dead from the open and
+           this tab sent the operator away to wait for a 09:20 row that could
+           never exist. The backend's own sentence is quoted, not paraphrased. */
+        <div style={{
+          background: pal.card, border: `1px solid ${pal.caution}`, borderRadius: 12,
+          padding: 20, fontSize: 13, color: pal.caution,
+        }}>
+          Trending OI padha hi nahi ja saka — {index} ka chain feed neeche hai.
+          <div style={{ marginTop: 6, color: pal.textSecondary, fontSize: 12.5 }}>
+            {chainWhy}
+          </div>
+          <div style={{ marginTop: 6, color: pal.textMuted, fontSize: 12 }}>
+            Ye "abhi tak koi mark nahi" nahi hai — jab tak feed wapas nahi aata,
+            agle boundary par bhi koi row nahi banegi.
+          </div>
+        </div>
       ) : !rows.length ? (
+        /* CHECKED, NOTHING YET. Only reachable with a HEALTHY chain, so the
+           "wait for the boundary" promise is one this screen can keep. */
         <div style={{
           background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
           padding: 20, fontSize: 13, color: pal.textMuted,
