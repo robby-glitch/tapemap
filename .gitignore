@@ -15,8 +15,19 @@ __pycache__/
 .claude-flow/
 .claude/settings.local.json
 
-# server logs
+# server logs. `_srv.log` / `_srv.err` are one debugging run's captured stdout
+# and stderr — the same lines the terminal already showed, stale the moment the
+# next run starts, and different on every machine.
 *.log
+_srv.err
+
+# the design hook's per-machine runtime state: a PID, a port and a session
+# token for a server that has already exited by the time anyone reads the file.
+# The CRITIQUE snapshots under .impeccable/critique/ are the output worth
+# keeping and stay tracked.
+**/.impeccable/live/
+**/.impeccable/hook.cache.json
+**/.impeccable/config.local.json
 
 # local Dhan client id (numeric account id)
 .dhan_client

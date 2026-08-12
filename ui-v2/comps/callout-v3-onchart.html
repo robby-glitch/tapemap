@@ -1,0 +1,297 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Callout v3 — on the chart</title>
+<!--
+  DESIGN COMP. The card in situ, which is the only way to judge whether it
+  covers the candle it describes. MOCKUP ONLY — nothing in ui-v2/src is touched.
+
+  Candles are generated from a seeded LCG, so the picture is identical every
+  time this file is opened. Prices are synthetic. Band colours follow the
+  Trade tab's own legend: VWAP laal, +/-1s gehra laal, +/-2s hara, +/-3s neela.
+  Palette values are theme.ts's T and TL.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#F7F8FA;--card:#FFFFFF;--inset:#FBFCFD;--border:#E3E7ED;
+    --t1:#141A22;--t2:#5C6675;--t3:#6B7482;
+    --bull:#1B8A38;--bear:#C42B30;--accent:#A9762A;--caution:#B45309;
+    --opt:#6D28D9;--info:#1D4ED8;
+    --up:#26a69a;--dn:#ef5350;              /* Kite pair, operator request */
+    --b1:#C0392B;--b2:#1B8A38;--b3:#2D6CDF;--vw:#C42B30;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  [data-mode=dark]{
+    --bg:#0B0E14;--card:#141926;--inset:#1B2130;--border:rgba(255,255,255,.07);
+    --t1:#E8EDF5;--t2:#9AA7BD;--t3:#5D6B84;
+    --bull:#2EC27E;--bear:#FF5F6B;--accent:#E0A852;--caution:#FFBF00;
+    --opt:#A78BFA;--info:#60A5FA;--up:#2EC27E;--dn:#FF5F6B;
+    --b1:#FF7A6B;--b2:#2EC27E;--b3:#5B8DEF;--vw:#FF5F6B;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px;background:var(--bg);color:var(--t1);
+    font:14px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+  h1{font-size:21px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--t2);max-width:74ch;font-size:13px;margin:0 0 18px}
+  h2{font:700 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+    color:var(--t3);margin:34px 0 6px}
+  .note{font-size:12.5px;color:var(--t2);margin:0 0 12px;max-width:80ch;line-height:1.55}
+  .note b{color:var(--t1);font-weight:600}
+  button{font:600 11px/1 var(--mono);letter-spacing:.06em;padding:7px 12px;
+    background:var(--card);color:var(--t2);border:1px solid var(--border);
+    border-radius:6px;cursor:pointer}
+  button:hover{color:var(--t1)}
+  code{font:11px var(--mono);background:var(--inset);padding:1px 5px;border-radius:3px;color:var(--t2)}
+
+  .scroll{overflow-x:auto;max-width:100%}
+  .frame{position:relative;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;overflow:hidden}
+  .frame svg{display:block}
+  .axlab{font:10px var(--mono);fill:var(--t3)}
+  .lvlab{font:9.5px var(--mono);letter-spacing:.04em}
+
+  .cross{position:absolute;top:0;bottom:0;width:1px;background:var(--t3);opacity:.35}
+  .dot{position:absolute;width:7px;height:7px;border-radius:50%;
+    border:2px solid var(--card);transform:translate(-50%,-50%);z-index:6}
+
+  /* ── the card ─────────────────────────────────────────────────────── */
+  .card{width:288px;background:var(--card);
+    border:1px solid var(--border);border-radius:8px;
+    box-shadow:0 8px 26px rgba(20,26,34,.16);overflow:hidden}
+  [data-mode=dark] .card{box-shadow:0 8px 26px rgba(0,0,0,.5)}
+  .sec{padding:9px 11px}
+  .sec+.sec{border-top:1px solid var(--border)}
+  .lead{border-left:3px solid var(--tone,var(--border))}
+  .ohlc{background:var(--inset)}
+  .meta{font:600 9.5px/1.4 var(--mono);letter-spacing:.09em;
+    text-transform:uppercase;color:var(--t3)}
+  .nums{display:grid;grid-template-columns:1fr 1fr;gap:1px 12px;
+    font:11px/1.5 var(--mono);font-variant-numeric:tabular-nums;color:var(--t3)}
+  .nums b{color:var(--t2);font-weight:560}
+  .row{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+  .kind{font:700 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tone)}
+  .dir{font-size:10px;font-weight:600;color:var(--tone)}
+  .head{font-size:15px;line-height:1.3;letter-spacing:-.01em;margin:6px 0 0}
+  .quote{font-size:11.5px;line-height:1.45;color:var(--t2);margin-top:3px}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  .chip{font:600 9.5px/1 var(--mono);letter-spacing:.05em;text-transform:uppercase;
+    padding:4px 7px;border-radius:4px;border:1px solid currentColor;color:var(--t3);white-space:nowrap}
+  .chip.bull{color:var(--bull)}.chip.bear{color:var(--bear)}
+  .chip.str{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .chip.opt{color:var(--opt)}.chip.warn{color:var(--caution)}.chip.info{color:var(--info)}
+  .meter{margin-top:9px}
+  .segs{display:flex;gap:3px}
+  .seg{height:4px;flex:1;border-radius:2px;background:var(--border)}
+  .seg.on{background:var(--tone)}
+  .mlab{display:flex;justify-content:space-between;gap:8px;margin-top:5px;
+    font:9.5px/1.4 var(--mono);color:var(--t3)}
+  .mlab b{color:var(--t2);font-weight:700;font-variant-numeric:tabular-nums}
+  .receipt{background:var(--inset);border-radius:5px;padding:7px 9px;margin-top:9px;
+    font:10.5px/1.5 var(--mono);color:var(--t2);font-variant-numeric:tabular-nums}
+  .receipt .big{font-size:13px;font-weight:700;color:var(--t1)}
+  .dis{color:var(--t3);font-size:9.5px;margin-top:3px;display:block;line-height:1.4}
+  .none{color:var(--t3);font-style:italic}
+  .stamp{position:absolute;right:8px;top:8px;font:9.5px var(--mono);color:var(--t3)}
+</style>
+
+<h1>Callout v3 — on the chart</h1>
+<p class="sub">
+  The same card as the state comp, placed where it would really sit: right of the cursor,
+  vertically centred on it, flipping to the left near the right edge, and never covering the
+  candle it describes. Candles are synthetic and seeded — identical every open.
+</p>
+<button onclick="document.documentElement.setAttribute('data-mode',
+  document.documentElement.getAttribute('data-mode')==='dark'?'light':'dark')">LIGHT / DARK</button>
+
+<div id="out"></div>
+
+<script>
+/* ── deterministic candles ──────────────────────────────────────────────── */
+let _s = 987654321;
+const rnd = () => ((_s = (_s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+
+const VWAP = 24640, SD = 20;
+const L = { d3:VWAP-3*SD, d2:VWAP-2*SD, d1:VWAP-SD,
+            u1:VWAP+SD,   u2:VWAP+2*SD, u3:VWAP+3*SD };
+
+function closes(){
+  const p=[], seg=(a,b,n)=>{for(let i=0;i<n;i++) p.push(a+(b-a)*(i/n));};
+  seg(24662,24606,14);   // drift down
+  seg(24606,24578,7);    // tags d3 24580
+  seg(24578,24620,6);    // the rotation reversal
+  seg(24620,24654,10);
+  seg(24654,24707,10);   // spike through u3 24700
+  seg(24707,24661,8);    // and fails
+  seg(24661,24657,5);
+  return p;
+}
+const BARS = closes().map((c,i,a)=>{
+  const o = i ? a[i-1] : c-2, w = 2.5+rnd()*6.5;
+  const m = 555+i;
+  return { i, o, c,
+    h: Math.max(o,c)+rnd()*w, l: Math.min(o,c)-rnd()*w,
+    t: String(m/60|0).padStart(2,'0')+':'+String(m%60).padStart(2,'0') };
+});
+
+/* ── chart geometry ─────────────────────────────────────────────────────── */
+const W=880, H=380, PADL=8, PADR=64, PADT=14, PADB=22;
+const LO=24558, HI=24724;
+const X = i => PADL + (i+0.5)*((W-PADL-PADR)/BARS.length);
+const Y = p => PADT + (HI-p)*((H-PADT-PADB)/(HI-LO));
+const PITCH = (W-PADL-PADR)/BARS.length;
+
+function band(px,color,label,dash){
+  const y=Y(px).toFixed(1);
+  return `<line x1="${PADL}" x2="${W-PADR}" y1="${y}" y2="${y}"
+      stroke="${color}" stroke-width="1" ${dash?'stroke-dasharray="4 4"':''} opacity=".72"/>
+    <text class="lvlab" x="${W-PADR+5}" y="${(Y(px)+3.4).toFixed(1)}" fill="${color}">${label}</text>`;
+}
+function chart(){
+  const candles = BARS.map(b=>{
+    const up=b.c>=b.o, col=up?'var(--up)':'var(--dn)';
+    const x=X(b.i), bw=Math.max(3,PITCH*0.62);
+    const yo=Y(b.o), yc=Y(b.c), top=Math.min(yo,yc), hgt=Math.max(1.2,Math.abs(yc-yo));
+    return `<g><line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${Y(b.h).toFixed(1)}"
+      y2="${Y(b.l).toFixed(1)}" stroke="${col}" stroke-width="1"/>
+      <rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}"
+      height="${hgt.toFixed(1)}" fill="${col}"/></g>`;
+  }).join('');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <rect width="${W}" height="${H}" fill="var(--card)"/>
+    ${band(L.u3,'var(--b3)','u3 '+L.u3.toFixed(1),1)}
+    ${band(L.u2,'var(--b2)','u2 '+L.u2.toFixed(1),1)}
+    ${band(L.u1,'var(--b1)','u1 '+L.u1.toFixed(1),1)}
+    ${band(VWAP,'var(--vw)','VWAP '+VWAP.toFixed(1),0)}
+    ${band(L.d1,'var(--b1)','d1 '+L.d1.toFixed(1),1)}
+    ${band(L.d2,'var(--b2)','d2 '+L.d2.toFixed(1),1)}
+    ${band(L.d3,'var(--b3)','d3 '+L.d3.toFixed(1),1)}
+    ${candles}
+    <text class="axlab" x="${PADL}" y="${H-6}">09:15</text>
+    <text class="axlab" x="${W-PADR-40}" y="${H-6}">10:14</text>
+  </svg>`;
+}
+
+/* ── the card ───────────────────────────────────────────────────────────── */
+function meter(claim){
+  const on={lean:1,risk:2,call:3}[claim];
+  const num = claim==='call' ? '<b>83%</b> · 15/18' : '<b>41%</b> · 11/27';
+  const w = {call:'CALL — a read',risk:'RISK — not yet',lean:'LEAN — tilt only'}[claim];
+  return `<div class="meter">
+    <div class="segs">${[1,2,3].map(i=>`<div class="seg${i<=on?' on':''}"></div>`).join('')}</div>
+    <div class="mlab"><span>${w}</span><span>${num}</span></div>
+    <div class="mlab" style="margin-top:2px"><span>control +4.1 pts</span><span>signal quality · 2026-07-30</span></div>
+  </div>`;
+}
+function card(b,o){
+  const ohlc = `<div class="sec ohlc">
+    <div class="meta" style="margin-bottom:4px">09/08/2026 · ${b.t}</div>
+    <div class="nums">
+      <div>O <b>${b.o.toFixed(1)}</b></div><div>H <b>${b.h.toFixed(1)}</b></div>
+      <div>C <b>${b.c.toFixed(1)}</b></div><div>L <b>${b.l.toFixed(1)}</b></div>
+    </div></div>`;
+  if(!o) return `<div class="card">${ohlc}
+    <div class="sec"><div class="none" style="font-size:12px">is bar par koi event nahi — sirf OHLC</div></div></div>`;
+  return `<div class="card">${ohlc}
+    <div class="sec lead" style="--tone:${o.tone}">
+      <div class="row"><span class="kind">${o.kind}</span><span class="dir">${o.dir}</span></div>
+      ${o.head?`<div class="head">${o.head}</div>`:''}
+      ${o.chips?`<div class="chips">${o.chips}</div>`:''}
+      ${o.claim?meter(o.claim):''}
+      ${o.receipt||''}
+      ${o.engine?`<div style="margin-top:10px"><div class="meta">engine ke apne shabd — ${o.tag}</div>
+        <div class="quote">${o.engine}</div></div>`:''}
+    </div></div>`;
+}
+
+/* ── scenes ─────────────────────────────────────────────────────────────── */
+const SCENES = [
+{ bar:8, ev:null, title:'1 · A quiet bar — the card gets out of the way',
+  note:'Most bars are this one. The card shrinks to the numbers and says plainly that nothing happened — <b>it never pads itself to look busy.</b> At this height it covers two candles instead of nine.'},
+
+{ bar:20, title:'2 · ARMED — the setup is live, the trigger is not',
+  note:'Reads <code>run_state</code>, which the backend published and nothing read. The <b>stop line is new this session</b>: the backend computes it once from <code>OPERATOR_STOP_PTS</code> and the card renders it verbatim. If the payload omits the field the line disappears rather than being recomputed here — that is what stops the 20 living in two languages.',
+  ev:{tone:'var(--bull)',kind:'TAIYAAR',dir:'▲ UPAR ka RISK — abhi hua nahi',tag:'ARMED',
+    head:'Setup taiyaar hai — trigger abhi baaki hai.',
+    chips:'<span class="chip warn">ARMED — NOT TRIGGERED</span><span class="chip str">d3 24580.0</span>',
+    claim:'risk',
+    receipt:`<div class="receipt">
+      <div>Todna hai &gt; <b class="big">24592.4</b></div>
+      <div style="color:var(--t3)">Stop &lt; 24560.0</div>
+      <span class="dis">3 candle baaki · stop run_state.stop se aaya, yahan gina nahi gaya</span></div>`}},
+
+{ bar:23, title:'3 · The setup fires — your own rule',
+  note:'The claim meter is <b>deliberately absent here.</b> Its numbers ride a fixed 30-minute exit, and C13 refused that as a trading rule — putting it on your own setup is how C13 came back twice. This card carries the setup\'s own receipt instead: median and hit rate, never the mean.',
+  ev:{tone:'var(--bull)',kind:'BUY · d3',dir:'▲ apna setup',tag:'ROTATION',
+    head:'Band se palat — apna setup.',
+    chips:'<span class="chip bull">TRIGGERED</span><span class="chip str">d3 24580.0</span><span class="chip warn">TRAP: SUSPECT</span>',
+    claim:null,
+    engine:'index low touched d3 24580.0 at 09:35, then closed 24592.4 above that candle\'s high 24590.1 three bars later',
+    receipt:`<div class="receipt">
+      <div><b class="big">63.2%</b> hit · median <b class="big">+6.90</b> · n=19</div>
+      <span class="dis">ADOPTED management, NIFTY d3. Mean not shown — strip one winner and it inverts.</span></div>`}},
+
+{ bar:45, title:'4 · Trap sprung near the right edge — the card flips',
+  note:'At 75% across, the card would run off the frame, so it <b>flips to the left of the cursor</b> and is clamped 6px inside every edge. This is the existing <code>computePosition</code> logic. The one change it needs: it must be handed each state\'s own measured size, because the fixed <code>ASSUMED_W/H</code> constants are wrong for two of the three.',
+  ev:{tone:'var(--bear)',kind:'TRAP LAGA',dir:'▼ NEECHE ka ishaara',tag:'TRAP-SPRUNG',
+    head:'Trap chal gaya — jo log ek taraf ghuse the, unke ulta bhaav gaya.',
+    chips:'<span class="chip bear">TRAP SPRUNG</span><span class="chip str">u3 24700.0</span><span class="chip info">TIER 3</span>',
+    claim:'call',
+    engine:'BULL TRAP SPRUNG at 24707: buyers took the high and lost it inside two bars.'}},
+
+{ bar:46, title:'5 · Same neighbourhood, wall migration — structure stays brass',
+  note:'A wall moving is <b>structure, not a call</b>, so it is brass however its side signed — the same hue as the balloon the chart draws over this candle. That agreement between card and chart is the whole point of the colour rule you chose. Only the CE chip, which has no chart counterpart, takes purple.',
+  ev:{tone:'var(--accent)',kind:'WALL KHISKI',dir:'◆ level ki baat — direction nahi',tag:'WALL-MIGRATION',
+    head:'Sabse badi OI wall apni jagah se khisak gayi — writers ne apna level badla.',
+    chips:'<span class="chip str">WALL 24750</span><span class="chip str">WAS 24700</span><span class="chip opt">CE +0.8M</span>',
+    claim:'lean',
+    engine:'Largest CE wall moved 24700 → 24750.'}}
+];
+
+const CW = 288, GAP = 20, EDGE = 6;
+document.getElementById('out').innerHTML = SCENES.map((s,n)=>{
+  const b = BARS[s.bar], cx = X(b.i), cy = Y(b.c);
+  let left = cx + GAP;
+  const flipped = left + CW > W - EDGE;
+  if (flipped) left = cx - CW - GAP;
+  left = Math.max(EDGE, Math.min(left, W - CW - EDGE));
+  return `<h2>${s.title}</h2><p class="note">${s.note}</p>
+    <div class="scroll"><div class="frame" style="width:${W}px">
+      ${chart()}
+      <div class="cross" style="left:${cx.toFixed(1)}px"></div>
+      <div class="dot" style="left:${cx.toFixed(1)}px;top:${cy.toFixed(1)}px;
+        background:${s.ev?s.ev.tone:'var(--t3)'}"></div>
+      <div class="pos" data-cy="${cy.toFixed(1)}"
+        style="position:absolute;left:${left.toFixed(1)}px;top:0">${card(b,s.ev)}</div>
+      <div class="stamp">${flipped?'FLIPPED LEFT':'right of cursor'} · bar ${b.i} · ${b.t}</div>
+    </div></div>`;
+}).join('');
+
+/* Vertically centre each card on its own cursor AFTER layout, then clamp --
+   the same order computePosition runs in, and the only way the top is a
+   measured number rather than an assumed one (E4).
+
+   Re-run on load and once fonts settle: the card's height is content-driven,
+   and a clamp computed before metrics land would bind against a height that
+   no longer exists. Belt and braces -- measured here, the first pass already
+   lands it correctly (scenes 2 and 3 sit exactly on the 374px bottom clamp).
+
+   The real component cannot do this today: its callers pass fixed
+   ASSUMED_W/ASSUMED_H constants, which are wrong for two of the three card
+   sizes. Measure, then place -- never assume, then place (E4). */
+function place(){
+  for (const p of document.querySelectorAll('.pos')) {
+    const cy = parseFloat(p.dataset.cy);
+    const ch = p.getBoundingClientRect().height;
+    p.style.top = Math.max(EDGE, Math.min(cy - ch/2, H - ch - EDGE)).toFixed(1) + 'px';
+  }
+}
+/* Twice, deliberately. Moving the card to a fractional `top` re-lays its text
+   and changes its own measured height by a px or two, so one pass clamps
+   against a height that no longer exists and the bottom edge escapes by ~1px
+   -- measured, not guessed. The second pass sees the settled height and
+   converges; a third never changes anything. */
+function settle(){ place(); requestAnimationFrame(place); }
+settle();
+addEventListener('load', settle);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+</script>

@@ -1,0 +1,379 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Dynamic Callout v3 — adaptive contextual card</title>
+<!--
+  DESIGN COMP, not shipping code. Opened in a browser and measured, per E4.
+
+  Every palette value below is copied from ui-v2/src/theme.ts (T and TL).
+  Every Hinglish gloss is copied from ui-v2/src/trade/hinglish.ts.
+  Every real number is one already published in context/HANDOFF.md.
+  Prices are synthetic. Nothing here reads or writes data.
+
+  Light leads because theme.ts's storedMode() defaults to light and the
+  operator reported the dark build unreadable. The brief asked for dark-first;
+  both are here, but the default matches what actually gets used.
+-->
+<style>
+  :root {
+    --bg:#F7F8FA; --card:#FFFFFF; --inset:#FBFCFD; --border:#E3E7ED;
+    --t1:#141A22; --t2:#5C6675; --t3:#6B7482;
+    --bull:#1B8A38; --bear:#C42B30; --accent:#A9762A; --caution:#B45309;
+    --strike:#9A7A22;
+    /* Card-local hues. Operator decision 2026-08-09: new colours live INSIDE
+       the card only, never on the chart. Chips that mirror a chart object
+       keep the chart's hue (brass) so the two can never disagree. */
+    --opt:#6D28D9; --info:#1D4ED8;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px;
+  }
+  [data-mode="dark"] {
+    --bg:#0B0E14; --card:#141926; --inset:#1B2130; --border:rgba(255,255,255,.07);
+    --t1:#E8EDF5; --t2:#9AA7BD; --t3:#5D6B84;
+    --bull:#2EC27E; --bear:#FF5F6B; --accent:#E0A852; --caution:#FFBF00;
+    --strike:#E8C15A; --opt:#A78BFA; --info:#60A5FA;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:32px; background:var(--bg); color:var(--t1);
+    font:14px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;
+  }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.02em; }
+  h2 {
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--t3); margin:40px 0 12px; font-weight:700;
+    border-bottom:1px solid var(--border); padding-bottom:6px;
+  }
+  .sub { color:var(--t2); max-width:70ch; margin:0 0 20px; font-size:13px; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  button {
+    font:600 11px/1 var(--mono); letter-spacing:.06em; padding:7px 12px;
+    background:var(--card); color:var(--t2); border:1px solid var(--border);
+    border-radius:6px; cursor:pointer;
+  }
+  button:hover { color:var(--t1); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px; }
+  .slot > .why {
+    font-size:11.5px; color:var(--t2); margin-top:8px; padding-left:10px;
+    border-left:2px solid var(--border); line-height:1.5;
+  }
+  .slot > .why b { color:var(--t1); font-weight:600; }
+  .tag {
+    font:700 9px/1 var(--mono); letter-spacing:.1em; color:var(--t3);
+    text-transform:uppercase; margin-bottom:6px; display:block;
+  }
+
+  /* ── the card ───────────────────────────────────────────────────────── */
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:8px;
+    box-shadow:0 8px 26px rgba(20,26,34,.16); overflow:hidden;
+    max-width:312px; min-width:252px;
+  }
+  [data-mode="dark"] .card { box-shadow:0 8px 26px rgba(0,0,0,.45); }
+  .sec { padding:10px 12px; }
+  .sec + .sec { border-top:1px solid var(--border); }
+  .lead { border-left:3px solid var(--tone,var(--border)); }
+
+  /* Type scale — headline 15 / interp 12.5 / numbers 11 / meta 9.5 */
+  .kind {
+    font:700 11px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase;
+    color:var(--tone,var(--t1));
+  }
+  .dir { font-size:10px; font-weight:600; color:var(--tone,var(--t2)); }
+  .head { font-size:15px; line-height:1.3; letter-spacing:-.01em; margin:6px 0 0; }
+  .interp { font-size:12.5px; line-height:1.45; color:var(--t2); margin:5px 0 0; }
+  .meta {
+    font:600 9.5px/1.4 var(--mono); letter-spacing:.09em; text-transform:uppercase;
+    color:var(--t3);
+  }
+  .quote {
+    font-size:11.5px; line-height:1.45; color:var(--t2); margin-top:3px;
+    font-style:normal;
+  }
+  .row { display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
+
+  /* numbers are small and quiet — they never lead */
+  .nums {
+    display:grid; grid-template-columns:1fr 1fr; gap:1px 14px;
+    font:11px/1.5 var(--mono); font-variant-numeric:tabular-nums; color:var(--t3);
+  }
+  .nums b { color:var(--t2); font-weight:560; }
+  .ohlc { background:var(--inset); }
+
+  /* chips */
+  .chips { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+  .chip {
+    font:600 9.5px/1 var(--mono); letter-spacing:.05em; text-transform:uppercase;
+    padding:4px 7px; border-radius:4px; border:1px solid currentColor;
+    color:var(--t3); white-space:nowrap;
+  }
+  .chip.bull{color:var(--bull)} .chip.bear{color:var(--bear)}
+  .chip.str {color:var(--accent)} .chip.opt{color:var(--opt)}
+  .chip.warn{color:var(--caution)} .chip.info{color:var(--info)}
+  /* a chip mirroring a chart object is FILLED brass — same hue as the balloon */
+  .chip.onchart { background:color-mix(in srgb,var(--accent) 12%,transparent); }
+
+  /* claim-strength meter — 3 segments, the measured one */
+  .meter { margin-top:9px; }
+  .segs { display:flex; gap:3px; }
+  .seg { height:4px; flex:1; border-radius:2px; background:var(--border); }
+  .seg.on { background:var(--tone,var(--t2)); }
+  .meterlab {
+    display:flex; justify-content:space-between; gap:8px; margin-top:5px;
+    font:9.5px/1.4 var(--mono); color:var(--t3);
+  }
+  .meterlab b { color:var(--t2); font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* σ position marker */
+  .sig { margin-top:9px; }
+  .sigbar {
+    position:relative; height:3px; border-radius:2px;
+    background:linear-gradient(90deg,var(--accent) 0 2%,var(--border) 2% 98%,var(--accent) 98%);
+  }
+  .sigdot {
+    position:absolute; top:-3px; width:9px; height:9px; border-radius:50%;
+    background:var(--tone,var(--t2)); border:2px solid var(--card); transform:translateX(-50%);
+  }
+  .sigtick { display:flex; justify-content:space-between; font:9.5px/1.4 var(--mono); color:var(--t3); margin-top:4px; }
+
+  /* receipt — the measured number, always with its n */
+  .receipt {
+    background:var(--inset); border-radius:5px; padding:7px 9px; margin-top:9px;
+    font:10.5px/1.5 var(--mono); color:var(--t2);
+  }
+  .receipt .big { font-size:13px; font-weight:700; color:var(--t1); font-variant-numeric:tabular-nums; }
+  .receipt .dis { color:var(--t3); font-size:9.5px; margin-top:3px; display:block; line-height:1.4; }
+  .none { color:var(--t3); font-style:italic; }
+
+  code { font:11px var(--mono); background:var(--inset); padding:1px 5px; border-radius:3px; color:var(--t2); }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  th,td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { font:700 9.5px/1 var(--mono); letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
+  td.n { font:11px var(--mono); color:var(--t2); font-variant-numeric:tabular-nums; }
+</style>
+
+<h1>Dynamic Callout v3</h1>
+<p class="sub">
+  Adaptive contextual card for the Trade tab's hover callout. The card answers
+  <b>why this candle matters</b>, not what its values are. Design comp — measured,
+  not shipping code. Every gloss is <code>hinglish.ts</code>'s; every real number is
+  already published; prices are synthetic.
+</p>
+<div class="bar">
+  <button onclick="document.documentElement.setAttribute('data-mode',
+    document.documentElement.getAttribute('data-mode')==='dark'?'light':'dark')">LIGHT / DARK</button>
+  <span style="font:11px var(--mono);color:var(--t3)">light is the default — theme.ts storedMode()</span>
+</div>
+
+<h2>The four rules the card obeys</h2>
+<table>
+  <tr><th>Rule</th><th>How the card honours it</th></tr>
+  <tr><td class="n">C1</td><td>The <b>headline is the gloss</b>, which names the KIND only. Direction comes from <code>tone</code> (evDir), never inferred from the kind. No gloss states a number.</td></tr>
+  <tr><td class="n">C4</td><td>The engine's own sentence is <b>quoted verbatim</b> under <code>ENGINE KE APNE SHABD</code>. The card promotes it; it never rewords it.</td></tr>
+  <tr><td class="n">C2</td><td>call / risk / lean drive the <b>meter and the priority order</b>. A risk never borrows a read's wording.</td></tr>
+  <tr><td class="n">C13</td><td>The measured % is labelled <b>signal quality, never expectancy</b>, and is <b>excluded entirely</b> from the rotation card — those numbers are scored on the fixed 30-minute clock C13 refused.</td></tr>
+</table>
+
+<h2>Systems</h2>
+<table>
+  <tr><th>System</th><th>Scale</th></tr>
+  <tr><td>Spacing</td><td class="n">4 · 8 · 12 · 16 — card padding 10/12, section gap via 1px rule</td></tr>
+  <tr><td>Type</td><td class="n">headline 15 · interp 12.5 · quote 11.5 · numbers 11 · meta 9.5</td></tr>
+  <tr><td>Weight</td><td class="n">headline 400 · kind 700 · numbers 560 · meta 600</td></tr>
+  <tr><td>Direction</td><td class="n">bull / bear — chart hues, unchanged</td></tr>
+  <tr><td>Structure</td><td class="n">accent brass — walls, pins, levels, σ bands</td></tr>
+  <tr><td>Card-local</td><td class="n">opt purple · info blue · caution amber — never drawn on the chart</td></tr>
+</table>
+<p class="sub" style="margin-top:12px">
+  <b>The colour mitigation.</b> A chip that mirrors an object also drawn on the chart keeps the
+  chart's hue and is shown filled (<span class="chip onchart str">WALL 24700</span>). The new hues
+  apply only to card-local chips with no chart counterpart. That is what stops a purple chip and a
+  brass balloon describing the same object.
+</p>
+
+<h2>The states</h2>
+<div class="grid" id="grid"></div>
+
+<h2>Motion &amp; transitions</h2>
+<table>
+  <tr><th>Event</th><th>Spec</th></tr>
+  <tr><td>Card appears</td><td class="n">opacity 0→1, translateY 3px→0, 90ms ease-out</td></tr>
+  <tr><td>Bar→bar move</td><td class="n">position snaps, content cross-fades 60ms — the card must never lag the cursor</td></tr>
+  <tr><td>Size change (S→L)</td><td class="n">height 120ms ease-out; edge-flip recomputed <b>before</b> paint, never after</td></tr>
+  <tr><td>Meter fill</td><td class="n">none. A measured value must not animate into place — it looks like it is still deciding</td></tr>
+  <tr><td>reduced-motion</td><td class="n">all of the above → 0ms. Card still repositions instantly</td></tr>
+</table>
+
+<h2>Position &amp; responsive</h2>
+<p class="sub">
+  Unchanged from today's <code>computePosition</code> — right of cursor, vertically centred, flips
+  left near the right edge, clamped 6px inside every edge. <b>One change is required:</b> callers
+  pass fixed <code>ASSUMED_W/H</code> constants today, so with three card sizes the flip would
+  misplace S and L. The resolver must pass each state's own measured size.
+</p>
+
+<script>
+const S = {
+  // tone → the CSS custom property the card leads with
+  bull:'var(--bull)', bear:'var(--bear)', str:'var(--accent)', none:'var(--t3)'
+};
+function meter(claim, tone){
+  const on = {lean:1, risk:2, call:3}[claim];
+  const seg = [1,2,3].map(i=>`<div class="seg${i<=on?' on':''}"></div>`).join('');
+  const num = claim==='call'
+    ? `<b>83%</b> · 15/18`
+    : `<b>41%</b> · 11/27`;
+  const word = {call:'CALL — a read', risk:'RISK — not yet', lean:'LEAN — tilt only'}[claim];
+  return `<div class="meter" style="--tone:${tone}">
+    <div class="segs">${seg}</div>
+    <div class="meterlab"><span>${word}</span><span>${num}</span></div>
+    <div class="meterlab" style="margin-top:2px"><span>control +4.1 pts</span><span>2026-07-30</span></div>
+  </div>`;
+}
+function sig(pct,label,tone){
+  return `<div class="sig" style="--tone:${tone}">
+    <div class="sigbar"><div class="sigdot" style="left:${pct}%"></div></div>
+    <div class="sigtick"><span>−3σ</span><span>${label}</span><span>+3σ</span></div>
+  </div>`;
+}
+const OHLC = `<div class="sec ohlc">
+  <div class="meta" style="margin-bottom:4px">09/08/2026 · 11:42</div>
+  <div class="nums">
+    <div>OPEN <b>24598.4</b></div><div>HIGH <b>24611.0</b></div>
+    <div>CLOSE <b>24604.2</b></div><div>LOW <b>24591.8</b></div>
+    <div>VOL <b>1,84,200</b></div><div>OI <b>12.40M (+80k)</b></div>
+  </div></div>`;
+
+// [tag, size, kind, gloss-short, dir text, tone, headline, engine sentence,
+//  claim|null, chips, extra, rationale]
+const STATES = [
+ ['A · QUIET','S','—','','','none','','',null,'',
+  `<div class="sec"><div class="none" style="font-size:12px">is bar par koi event nahi — sirf OHLC</div></div>`,
+  '<b>Why it exists:</b> most bars are this one. A quiet bar must cost the eye nothing, so the card shrinks to the numbers and says plainly that nothing happened rather than padding itself.'],
+
+ ['B · REVERSAL AT A LEVEL','L','TRAP-SPRUNG','TRAP LAGA','▼ NEECHE ka ishaara','bear',
+  'Trap chal gaya — jo log ek taraf ghuse the, unke ulta bhaav gaya.',
+  'BULL TRAP SPRUNG at 24611: buyers took the high and lost it inside two bars.',
+  'call','<span class="chip bear">TRAP SPRUNG</span><span class="chip onchart str">EQH 24611</span><span class="chip info">TIER 3</span>',
+  '', '<b>Why it exists:</b> tier-3 <code>call</code> — the loudest thing the engine says. It gets the largest card, the meter, and the σ marker, because this is the one state where the reader is deciding in the next few seconds.'],
+
+ ['B · BAND SE PALTA','M','BAND-REVERSAL','BAND SE PALTA','◆ level ki baat — direction nahi','str',
+  'Band ke extreme se bhaav wapas mud gaya — fade hua, follow-through nahi.',
+  'Reversal from +2σ 24648.0 — closed back inside.',
+  'call','<span class="chip onchart str">+2σ 24648.0</span><span class="chip str">FADE</span>',
+  '', '<b>Why brass, not red:</b> narration.ts files BAND-REVERSAL as a STRUCTURE kind, so its tone is brass however evDir signed it. The card follows the chart — the balloon over this candle is brass too.'],
+
+ ['C · EFFORT VS RESULT','M','ABSORPTION','MAAL KHAPAYA','▲ UPAR ka ishaara','bull',
+  'Bhaari volume aaya par bhaav hila nahi — koi saara maal khapa raha hai.',
+  'Sellers hitting a wall: 2.4× median volume, range in the bottom quartile.',
+  'call','<span class="chip bull">ABSORPTION</span><span class="chip info">VOL 2.4×</span>',
+  '', '<b>Why the ratio is a number, not a badge:</b> "2.4×" is read off the payload. Calling it a <i>Volume Spike</i> would require a threshold, and choosing thresholds is the operator\'s call (C13) — deferred to a backend commit.'],
+
+ ['C · DUM NAHI','M','DIVERGENCE','DUM NAHI','▼ NEECHE ka ishaara','bear',
+  'Bhaav naya level bana raha hai par flow saath nahi de raha — dum nahi hai.',
+  'New session high on falling OI — the move is not being funded.',
+  'call','<span class="chip bear">DIVERGENCE</span><span class="chip opt">OI −0.4M</span>','',
+  '<b>Why purple here:</b> the OI chip is card-local — no OI object is drawn on the chart, so it may take the options hue without ever contradicting a balloon.'],
+
+ ['D · LEVEL GIVEN UP','M','BAND-BREAK','BAND TOOTA','▲ UPAR ka ishaara','bull',
+  'Bhaav sigma band ke bahar nikal gaya — extension chal raha hai.',
+  'Close above +2σ 24648.0 — extension, not reversion.',
+  'call','<span class="chip onchart str">+2σ 24648.0</span><span class="chip bull">EXTENDED</span>','',
+  '<b>Why it is a call, not a lean:</b> BAND-BREAK sits in hinglish.ts\'s CLAIM table as <code>call</code>. The meter reads that table — it is never re-decided here.'],
+
+ ['E · FORMING, NOT YET','M','SQUEEZE-RISK','SQUEEZE RISK','▲ UPAR ka RISK — abhi hua nahi','bull',
+  'Ek taraf itni position phansi hai ki nikalne ki bhagdad ho sakti hai.',
+  'Upside squeeze RISK BUILDING — CE writers 38% off peak.',
+  'risk','<span class="chip warn">RISK — NOT YET</span><span class="chip opt">CE −38% OFF PEAK</span>','',
+  '<b>Why the wording differs:</b> "RISK — abhi hua nahi", never "ishaara". On 2026-07-30 <code>call</code> ran 15/18 while risk+lean ran 11/27. A warning dressed as a read is the thing that gets acted on.'],
+
+ ['F · POSITIONING TILT','M','SQUEEZE-RELEASE','SQUEEZE KHULA','— direction saaf nahi','none',
+  'Dabi hui position chhoot gayi — jo phase the wo bhaag rahe hain.',
+  'Squeeze release: CE OI down 0.9M off the session peak.',
+  'lean','<span class="chip">NO DIRECTION CALLED</span><span class="chip opt">CE −0.9M</span>',
+  `<div class="receipt"><span class="none">is kind par engine koi direction nahi kehta — isliye koi score nahi</span></div>`,
+  '<b>The corrected state.</b> The brief called this "Short Covering" and led it as a directional call. It is not: SQUEEZE-RELEASE is absent from hinglish.ts\'s CLAIM table (so <code>claimOf</code> returns <code>lean</code>) and absent from evDir (so tone is neutral) — while sitting in narration.ts\'s TIER3. It gets top billing on the chart and calls no direction. Filed to DEFERRED §0b as an operator decision; the card does not paper over it.'],
+
+ ['F · KHARIDDAR BADHE','M','BUYER-BUILD','KHARIDDAR BADHE','▲ jhukaav UPAR — ishaara nahi','bull',
+  'Naye khariddar position bana rahe hain, premium bhi saath de raha hai.',
+  'Fresh longs: OI and price advancing together → BULLISH.',
+  'lean','<span class="chip bull">FRESH LONGS</span><span class="chip opt">OI +0.6M</span>','',
+  '<b>Why "jhukaav … ishaara nahi":</b> a lean states positioning, not a prediction. The wording is the only thing separating it from the read above, and 11/27 is why that separation is load-bearing.'],
+
+ ['G · STRUCTURE AT A STRIKE','M','WALL-MIGRATION','WALL KHISKI','◆ level ki baat — direction nahi','str',
+  'Sabse badi OI wall apni jagah se khisak gayi — writers ne apna level badla.',
+  'Largest CE wall moved 24700 → 24750.',
+  'lean','<span class="chip onchart str">WALL 24750</span><span class="chip str">WAS 24700</span>','',
+  '<b>Why brass and why it is quiet:</b> a wall moving is structure, not a call. It also has hysteresis upstream (<code>WALL_HOLD = 3</code>) after 12 headlines in one hour on 2026-08-04 — the card inherits that calm rather than re-inventing it.'],
+
+ ['H · OPTIONS REGIME','M','GAMMA-PIN','PIN — CHIPKA','▲ jhukaav UPAR — ishaara nahi','str',
+  'Dealer hedging bhaav ko strike ke aas-paas rok rahi hai — kis taraf, wo aage ki line batati hai.',
+  'FLOOR at 24600: put wall below, dips into the strike get absorbed; upside is NOT capped.',
+  'lean','<span class="chip onchart str">PIN 24600</span><span class="chip opt">GEX +</span>','',
+  '<b>The resolved colour question.</b> PIN <i>is</i> drawn on the chart as a level, so under the mitigation its chip stays brass and filled. Only the GEX chip — which has no chart counterpart — takes purple. The gloss stays regime-neutral because this kind fires as FLOOR, CEILING and PINNED alike.'],
+
+ ['I · SESSION STATE','S','CHOP','CHOP — RUKO','— direction saaf nahi','none',
+  'Bekaar aage-peeche — is mein haath dalne ka faayda nahi.',
+  '','lean','<span class="chip warn">STAND DOWN</span>','',
+  '<b>Why it is small:</b> a regime note is context, not an event. It gets the S card so it can never out-shout a tier-3 call two bars away. Six kinds share this shape — STATE, TREND-UP, TREND-DOWN, BALANCE, COILING, CHOP.'],
+
+ ['J · END OF DAY','M','CARRY','RAAT BHAR KA CARRY','▲ jhukaav UPAR — ishaara nahi','bull',
+  'Din bhar bana OI band hone tak kitna tika — yeh agli session ka jhukaav batata hai.',
+  'PE book retained 68% of the day\'s build into the close.',
+  'lean','<span class="chip opt">PE KEPT 68%</span><span class="chip info">NEXT SESSION</span>','',
+  '<b>Why it needed its own state:</b> CARRY fires every session at 15:29 and had no card in the first draft. It is a next-session note, not an intraday event, so it says so instead of borrowing a live event\'s urgency.'],
+
+ ['R1 · SETUP ARMED','L','ARMED','TAIYAAR','▲ UPAR ka RISK — abhi hua nahi','bull',
+  'Setup taiyaar hai — trigger abhi baaki hai.','',
+  'risk','<span class="chip warn">ARMED — NOT TRIGGERED</span><span class="chip onchart str">d3 24601.5</span>',
+  `<div class="receipt" style="font-variant-numeric:tabular-nums">
+     <div>Todna hai &gt; <b class="big">24614.0</b></div>
+     <div style="color:var(--t3)">Stop &lt; 24581.5</div>
+     <span class="dis">3 candle baaki · stop backend se aaya (run_state.stop), yahan gina nahi gaya</span>
+   </div>`,
+  '<b>Reads <code>run_state</code>, which was published and unread.</b> The stop shipped this session (DEFERRED §4): the backend computes it once from <code>OPERATOR_STOP_PTS</code> and the card renders it verbatim. If the payload omits it the line disappears — it is never <code>level</code> minus 20 in TypeScript, which is how the 09:25 gate drifted for weeks.'],
+
+ ['R2 · SETUP FIRED — BUY','L','ROTATION','BUY · d3','▲ apna setup','bull',
+  'Band se palat — apna setup.',
+  'index low touched d3 24601.5 at 11:38, then closed 24614.0 above that candle\'s high 24612.5 two bars later',
+  null,'<span class="chip bull">TRIGGERED</span><span class="chip onchart str">d3 24601.5</span><span class="chip warn">TRAP: SUSPECT</span>',
+  `<div class="receipt">
+     <div><b class="big">63.2%</b> hit · median <b class="big">+6.90</b> · n=19</div>
+     <span class="dis">ADOPTED management, NIFTY d3. Mean deliberately not shown — strip one winner and it inverts.</span>
+   </div>`,
+  '<b>Why the confidence meter is absent here.</b> The meter\'s numbers are scored on a fixed 30-minute exit, and C13 refused that as a trading rule. Putting it on the operator\'s own setup is exactly how C13 came back twice. This card carries the setup\'s OWN receipt instead — median and hit rate, never the mean.'],
+
+ ['R2 · SETUP FIRED — SELL','L','ROTATION','SELL · u3','▼ apna setup','bear',
+  'Band se palat — apna setup.',
+  'index high touched u3 24698.0 at 13:04, then closed 24685.0 below that candle\'s low 24687.5 one bar later',
+  null,'<span class="chip bear">TRIGGERED</span><span class="chip onchart str">u3 24698.0</span>',
+  `<div class="receipt"><span class="none">is side ka koi score nahi — u3 SELL kabhi score nahi hua</span>
+     <span class="dis">BUY ka 63.2% is card par nahi aa sakta. Ek rule ka number doosre ke saath nahi chalta.</span>
+   </div>`,
+  '<b>Why the empty receipt is the point.</b> The sell mirror ships over C3\'s rejection at the operator\'s explicit instruction. What must never happen is this screen implying the sell side carries the buy rule\'s number — so the slot stays, and says so.'],
+
+ ['Z · UNKNOWN KIND','M','LIQUIDITY-SWEEP','LIQUIDITY-SWEEP','— direction saaf nahi','none',
+  '','A new kind the engine emitted and this build has no gloss for.',
+  'lean','<span class="chip">UNGLOSSED</span>','',
+  '<b>Why untranslated beats mistranslated.</b> <code>glossOf</code> returns null and the card shows the engine\'s own kind string. A future event type therefore appears raw — never renamed into something it is not, and never silently dropped.']
+];
+
+document.getElementById('grid').innerHTML = STATES.map(
+ ([tag,size,kind,short,dir,tone,gloss,engine,claim,chips,extra,why])=>{
+  const t = S[tone];
+  const body = extra || `
+    ${gloss?`<div class="head">${gloss}</div>`:''}
+    ${chips?`<div class="chips">${chips}</div>`:''}
+    ${claim?meter(claim,t):''}
+    ${size==='L'?sig(tone==='bear'?82:18,'bhaav',t):''}
+    ${engine?`<div style="margin-top:10px"><div class="meta">engine ke apne shabd — ${kind}</div>
+      <div class="quote">${engine}</div></div>`:''}`;
+  const lead = kind==='—' ? '' : `
+    <div class="sec lead" style="--tone:${t}">
+      <div class="row"><span class="kind">${short}</span><span class="dir">${dir}</span></div>
+      ${body}
+    </div>`;
+  return `<div class="slot"><span class="tag">${tag} · ${size}</span>
+    <div class="card">${OHLC}${lead}${kind==='—'?extra:''}</div>
+    <div class="why">${why}</div></div>`;
+ }).join('');
+</script>
