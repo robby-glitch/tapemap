@@ -35,6 +35,49 @@ already today and both guesses were wrong (CHECKLIST C13).
 Once 1 and 2 land, the short-exit rules in
 `docs/superpowers/specs/2026-08-08-operator-short-exit.md` can be built.
 
+## 0b · Callout v3 — five findings from the 2026-08-09 design review
+
+Found by adversarial review of the callout redesign plan and **verified against
+source**. None is a bug today; each is a trap the redesign would have walked
+into. Plan: `~/.claude/plans/elegant-frolicking-pebble.md`.
+
+1. **SQUEEZE-RELEASE is filed inconsistently.** It sits in `narration.ts:20`'s
+   TIER3 (top billing on the chart) but is absent from `hinglish.ts`'s CLAIM
+   table — so `claimOf` returns the `lean` default — and absent from `evDir`
+   (`data.ts:517-548`), so its tone is neutral. A pill can therefore shout
+   while its direction chip says "direction saaf nahi". Whether it should gain
+   a CLAIM entry is a **vocabulary** decision needing its own reasoned commit;
+   it is not the card's call. **Operator decision owed.**
+2. **`ceW`/`peW` is the live chain ladder** — no per-strike history,
+   `aligned=false` while scrubbing. Any per-bar surface must use
+   `BarGamma.w_ce`/`w_pe` (`data.ts:137`) instead. The callout plan originally
+   named the wrong field, which would have attributed live positioning to a
+   past bar.
+3. **CONFLICT is unreachable.** `buildNarration` returns `titleCase(best.tag)`
+   and never synthesises it; CONFLICT exists only inside `buildFocusFeed`,
+   which TradeTab does not consume (it passes the raw stream). Two costed
+   options: repoint narration at the focus feed (also changes pills and
+   ribbon), or detect it in the UI (violates "UI renders, engine decides").
+   Neither taken.
+4. **`hinglish.ts` holds 31 glosses, not 25.** HANDOFF's count is stale. The
+   eight with no callout state were TRAP, TRAP-SETTING, BREAK, FLIP-TEST,
+   OI-PEAK-LAG, CARRY, CHOP, STATE — and the "unknown kind" fallback does not
+   catch them, because they *have* glosses. CARRY fires every session at 15:29.
+   Also unfiled in CLAIM: BREAK and FLIP-TEST, which default to `lean` though
+   BREAK is tier-2 and reads like a call.
+5. **Per-kind hit rates must not be rendered.** `signal_review.py` prints them,
+   but per-kind n runs 1–5 on one session; "100% · 2/2" reads as a measurement
+   at any type size. The `--json` export therefore emits **claim buckets only**
+   (n≈16–18) plus the control, and `test_signal_snapshot.py` pins that
+   exclusion. Per-kind waits on multi-session live logging — the stop-rule on
+   backtest slicing means re-slicing will not supply it.
+
+**Still open from the same plan:** publish the 20-point stop beside `level` in
+`run_state` (§4's one-field fix — until then the callout shows no stop line
+rather than restating 20 in TypeScript), and reconcile SetupCheck's **68.4%**
+against `trail_score`'s **63.2%** for the same rule, naming which exit each
+assumes. Two "measured" hit rates for one rule on one screen is an A1 failure.
+
 ## 1 · Premium / discount is measured on the wrong range · BACKEND
 
 **Status:** operator has seen the numbers and deferred the fix. The three

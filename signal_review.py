@@ -37,12 +37,28 @@ FUTURES, not option premium, so theta and IV are absent. Treat any number here
 as a question worth asking of the ~55 cached days in data/backtest/, never as
 an answer.
 """
+import datetime
 import json
 import sys
 import urllib.request
 
 HORIZONS = (5, 15, 30)
 MFE_WINDOW = 30
+
+# Where --json writes when no path is given. The Trade tab's callout reads this
+# snapshot as a static import, so the UI still computes nothing about the
+# market -- it renders a number this script measured, on the date it says.
+DEFAULT_JSON = "ui-v2/src/trade/signalScore.json"
+
+# The two sentences the snapshot carries with it, lifted VERBATIM from this
+# module's own docstring so the file and its export can never drift into
+# claiming different things. Every surface that renders a number from the
+# snapshot must render these beside it.
+DISCLOSURE = ("One session. Events cluster, so these are not independent "
+              "samples. Futures, not premium. No costs. Treat as a question, "
+              "not an answer.")
+METHOD = ("Entry at bar close with a fixed 30-minute exit is not a trading "
+          "rule. This scores SIGNAL QUALITY, never expectancy.")
 
 # Claim strength, mirroring ui-v2/src/trade/hinglish.ts CLAIM. Taken from each
 # kind's own emit text in engine.py: a read, a warning, or a positional tilt.
@@ -112,9 +128,83 @@ def score(day):
     return bars, close, high, low, scored, undirected
 
 
+def summary(sym, day, bars, close, scored):
+    """The claim-strength table above, in machine-readable form.
+
+    CLAIM LEVEL ONLY, and deliberately so. The per-kind table this script
+    prints runs n=1-5 per kind on a single session; rendered on a card as
+    "100% - 2/2" that reads as a measurement, and no amount of styling or
+    small-print fixes it. A human reading the printed table has the rest of
+    the table for context; a hover card has none. So the export carries the
+    claim buckets (n~16-18) and the control, and nothing finer. Per-kind
+    numbers stay something you read here, with your eyes, in context.
+
+    The control is not optional. Without it a hit rate means nothing: on a day
+    that trends +67 pts a random long "wins" too, so any surface showing
+    `claim` must be able to show what doing nothing scored over the same bars.
+    """
+    def agg(rows):
+        v = [r["f30"] for r in rows if r["f30"] is not None]
+        if not v:
+            return None
+        return {"n": len(v), "hit": sum(1 for x in v if x > 0),
+                "avg30": round(sum(v) / len(v), 1)}
+
+    claim = {}
+    for name, group in (("call", CALL), ("risk", RISK), ("lean", LEAN)):
+        a = agg([r for r in scored if r["kind"] in group])
+        if a:
+            claim[name] = a
+
+    # The unconditional +30m move over every bar -- computed the same way the
+    # printed control is, so the report and the snapshot cannot disagree.
+    mv = [close[i + 30] - close[i] for i in range(len(close) - 30)]
+    control = ({"n": len(mv), "hit": sum(1 for x in mv if x > 0),
+                "avg30": round(sum(mv) / len(mv), 1)} if mv else None)
+
+    return {
+        "generated": datetime.date.today().isoformat(),
+        "session": day["day"],
+        "index": sym,
+        "bars": len(bars),
+        "events": len(day["events"]),
+        "scored": len(scored),
+        "horizon_min": 30,
+        "claim": claim,
+        "control": control,
+        "disclosure": DISCLOSURE,
+        "method": METHOD,
+    }
+
+
+def parse_args(argv):
+    """(sym, port, json_out) from the bare argument list.
+
+    --json [path] may appear anywhere; everything else stays positional, so
+    the existing `signal_review.py BANKNIFTY 8765` invocation keeps working
+    exactly as it did. Its own function so that promise is testable rather
+    than merely asserted in a comment.
+    """
+    argv = list(argv)
+    json_out = None
+    if "--json" in argv:
+        i = argv.index("--json")
+        tail = argv[i + 1:]
+        # A path may follow --json. Anything starting with "-" is the next
+        # flag, not a filename, so --json falls back to its default there.
+        if tail and not tail[0].startswith("-"):
+            json_out = tail[0]
+            del argv[i:i + 2]
+        else:
+            json_out = DEFAULT_JSON
+            del argv[i]
+    sym = argv[0] if argv else "NIFTY"
+    port = argv[1] if len(argv) > 1 else "8765"
+    return sym, port, json_out
+
+
 def main():
-    sym = sys.argv[1] if len(sys.argv) > 1 else "NIFTY"
-    port = sys.argv[2] if len(sys.argv) > 2 else "8765"
+    sym, port, json_out = parse_args(sys.argv[1:])
     url = f"http://127.0.0.1:{port}/api/data?idx={sym}"
     D = json.loads(urllib.request.urlopen(url, timeout=20).read())
     if not D.get("days"):
@@ -125,6 +215,20 @@ def main():
     if not scored:
         print(f"{sym} {day['day']}: no directional events")
         return
+
+    # Written BEFORE the report so a snapshot survives a broken pipe, and only
+    # once there is something to write -- a session with no directional events
+    # produces no file rather than an empty-but-official-looking one.
+    if json_out:
+        snap = summary(sym, day, bars, close, scored)
+        with open(json_out, "w", encoding="utf-8") as fh:
+            json.dump(snap, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        buckets = " · ".join(
+            "{} n={} hit {}/{}".format(k, c["n"], c["hit"], c["n"])
+            for k, c in snap["claim"].items()) or "none"
+        print(f"wrote {json_out} — session {snap['session']}, "
+              f"{snap['scored']} directional events · {buckets}\n")
 
     print(f"{sym} · session {day['day']} · {len(bars)} bars · "
           f"{len(day['events'])} events · {len(scored)} carried a direction\n")
