@@ -15,7 +15,7 @@ import SignalsTab from './signals/SignalsTab'
 // The five-state machine read, shared with the Glass board's MACHINE widget.
 // It moved out of this file so the board could import it without App.tsx and
 // the board importing each other — see machine.ts.
-import { liveMachine, machineWord, MACHINE_WORDS } from './machine'
+import { liveMachine, machineWord, MACHINE_WORDS, lockNote } from './machine'
 // Same Hinglish layer the Trade tab's balloons and callout use — one source of
 // captions, so a kind cannot read one way on the chart and another in the feed.
 import { glossOf, pillText, dirText } from './trade/hinglish'
@@ -2048,7 +2048,8 @@ function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, rep
     // SetupCheck's own words for the same absence — one sentence, two panels.
     detail = `Setup ki haalat nahi aa rahi${runStateWhy ? ` — ${runStateWhy}` : ''}`
   } else if (current === 'BAAHAR') {
-    detail = `nikal gaye — ${st.exit_why === 'stop' ? 'stop laga' : 'VWAP par'}`
+    // The LOCK opened, not a trade. See machine.ts's lockNote.
+    detail = `re-fire lock khula — ${lockNote(st)} · agla setup arm ho sakta hai`
   } else if (current === 'WAITING') {
     detail = lastBar
       ? `d3 ${f1(lastBar.d3)} · price ${f1(lastBar.c)} · gap ${f1(lastBar.c - lastBar.d3)}`
@@ -2214,7 +2215,9 @@ export default function App() {
         if (w === 'ARMED') title = `● ARMED · ${st.candles_left != null ? `${st.candles_left} baaki` : 'window —'} — TapeMap`
         else if (w === 'TRIGGERED') title = '●● TRIGGERED — TapeMap'
         else if (w === 'TRADE MEIN') title = '● TRADE MEIN — TapeMap'
-        else if (w === 'BAAHAR') title = `BAAHAR (${st.exit_why}) — TapeMap`
+        // Not "BAAHAR (vwap)" — from a browser tab that read as "you are out
+        // at VWAP". The lock opening is the fact; the exit is the operator's.
+        else if (w === 'BAAHAR') title = `LOCK OPEN · ${st.exit_why} — TapeMap`
       }
     }
     document.title = title

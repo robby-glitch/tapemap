@@ -2,7 +2,7 @@ import { Fragment, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { palette, useMode } from '../theme'
 import type { Palette } from '../theme'
-import { liveMachine, machineWord, MACHINE_WORDS } from '../machine'
+import { liveMachine, machineWord, MACHINE_WORDS, lockNote } from '../machine'
 import { useFlow } from '../trade/flow'
 import { crl } from '../trade/ZoneRead'
 import { useChainWire, flipReason } from './wire'
@@ -229,9 +229,12 @@ function MachinePane({ pal, dark, stale, st, showSell, bothLive, why, lastBar,
   let heroCap = ''
   let heroTone: string | undefined
   if (current === 'BAAHAR') {
-    heroV = st.exit_why === 'stop' ? 'STOP' : 'VWAP'
-    heroUnit = 'par nikle'
-    heroCap = 'the run is closed — nothing to do on this side'
+    // The lock, not the trade — see machine.ts's lockNote. This pane used to
+    // hero "VWAP / par nikle / the run is closed", which told the operator
+    // they were out at a price the tool never knew they took.
+    heroV = 'LOCK'
+    heroUnit = 'khula'
+    heroCap = `${lockNote(st)} — agla setup arm ho sakta hai; trade tum khud chalate ho`
     heroTone = pal.accent
   } else if (current === 'WAITING') {
     heroV = lastBar ? signed(lastBar.c - lastBar.d3) : '—'

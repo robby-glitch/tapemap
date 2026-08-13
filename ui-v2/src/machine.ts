@@ -29,6 +29,21 @@ export function liveMachine(runState: RunState[] | null, runStateSell: RunState[
 
 export const MACHINE_WORDS = ['WAITING', 'ARMED', 'TRIGGERED', 'TRADE MEIN', 'BAAHAR'] as const
 
+/** What `exit_why` MEANS, written once because three screens render it.
+ *
+ *  It is the RE-FIRE LOCK clearing -- §5c point 7: after an entry the next
+ *  setup may not arm until VWAP is touched, or immediately if stopped out.
+ *  It is NOT the operator's exit. They manage the trade and TRAIL their own
+ *  stop ("my stop is never vwap i like to trail", 2026-08-13), and nothing in
+ *  this app knows when they actually got out.
+ *
+ *  Every caller said "nikal gaye" / "par nikle" / "the run is closed" until
+ *  2026-08-13, which claimed an exit the tool cannot see. One sentence here
+ *  so a fourth screen cannot invent a fifth wording. */
+export function lockNote(st: RunState): string {
+  return st.exit_why === 'stop' ? 'stop chhua' : 'VWAP chhua'
+}
+
 export type MachineWord = (typeof MACHINE_WORDS)[number]
 
 /** SetupCheck's own state word for a bar — exit_why wins, IN_TRADE reads as
