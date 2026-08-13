@@ -9,16 +9,43 @@ session as a state/event stream, the way a tape reader would narrate it.
 ```
 python engine.py data 24200 2026-07-21     # replay: folder, strike, weekly expiry
 python server.py 8765 data 24200 --mock-chain   # UI at http://127.0.0.1:8765 (offline demo)
-python server.py live                       # live mode (needs a Dhan token)
+TAPEMAP_BROKER=upstox python server.py live # live mode — see the broker note below
+python eod_capture.py                       # after the close: save the session tape
+python trigger_log.py show | score          # the live §5c signal log, and its outcomes
 python band_backtest.py [--cost 1.5]        # BAND-REVERSAL backtest on cached days
 python test_chain_metrics.py                # chain-layer unit checks
 python -m pytest test_instruments.py        # instrument-resolver unit checks
 ```
 
+**`eod_capture.py` is not optional if you care about scoring.** Signals are
+logged forward by `trigger_log.py`, but the bars they are scored against live
+only in the running server until it rolls at midnight. The capture writes each
+session to `data/backtest/` so `score` can measure it afterwards; it runs
+automatically Mon–Fri 15:35 IST via the `TapeMap EOD capture` scheduled task
+(`eod_capture.bat`, logging to `data/eod_capture.log`). It needs the live server
+up when it fires, and it **refuses rather than writing** anything it cannot
+vouch for.
+
 - `data` — folder containing `FUT_3day.csv`, `CE_3day.csv`, `PE_3day.csv`
 - `24200` — the option strike (instrument metadata; enables spring location-gating)
 - `2026-07-21` — weekly expiry the day is priced against (optional; the CSV year
   is read so expiry math is month/year-boundary safe)
+
+### Which broker serves the live tape (updated 2026-08-14)
+
+**The Dhan DATA API lapsed 2026-08-05.** `chain_live._broker` still defaults to
+`"dhan"` — deliberately, so a misspelled env var can never silently move the
+tool onto a different broker mid-session — which means a bare
+`python server.py live` falls back to a dead source. **Always set
+`TAPEMAP_BROKER=upstox`.**
+
+Upstox needs a **daily OAuth token**: run `python upstox_auth.py`. The Analytics
+Token does not work for this — its `UDAPI100050` is a token-class refusal, not
+an expiry.
+
+The lapse also leaves `backfill.py` inoperative for any date after 2026-08-05,
+since it fetches through `dhan_fetch`. That is why `eod_capture.py` exists; see
+`context/DEFERRED.md §0d`.
 
 ### Secrets (all gitignored)
 
@@ -27,6 +54,8 @@ python -m pytest test_instruments.py        # instrument-resolver unit checks
   TapeMap header: it captures from the clipboard, validates, saves `.dhan_token`,
   and hot-reloads the pollers (a `type=password` paste field appears if the
   browser blocks clipboard access). The token is never logged or displayed.
+  **Kept because the Dhan path is still wired and still used for cached/replay
+  work; the LIVE data feed is Upstox.** This tool places no orders.
 - Dhan **client id**: env `DHAN_CLIENT_ID` or a `.dhan_client` file (never in
   source).
 

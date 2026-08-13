@@ -10,10 +10,91 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-13. **576 tests pass, none fail** (`pytest -q`, run
-2026-08-13 — the four date-rollover failures noted on 2026-08-09 are gone).
-Branch: `feature/dashboard-v2`, **pushed to `origin`** at `daa2d51`; four files
-sit uncommitted, listed at the end of the 2026-08-13 entry.
+Last updated: 2026-08-14 02:15 IST. **584 tests pass, none fail** (`pytest -q`,
+run 2026-08-14 — 576 plus the eight `test_eod_capture.py` adds). Branch:
+`feature/dashboard-v2`, **pushed to `origin`** at `6274246`; **the tree is
+clean** — nothing uncommitted.
+
+### 2026-08-14 — the tape stops evaporating, and NIFTY finally fires
+
+**NIFTY produced its FIRST §5c entry, 2026-08-13 12:09, SELL u3 @ 24485.0**
+(level 24514.38, trigger *"index high touched u3 24514.38 at 12:03, then closed
+24485.00 below that candle's low 24488.60 2 bars later"*). It also armed three
+times that session — 11:57, 12:00, 12:03, all `rearm` chains off `first_t
+11:57`. **This falsifies two claims in the 2026-08-13 entry below**, which read
+*"not one NIFTY row exists"* and *"it is NIFTY that has never armed"*. Both were
+true when written and are not true now. NIFTY's live §5c record is no longer an
+empty set; it is one entry and three arms.
+
+**The record as counted 2026-08-14 02:00 from `data/trigger_log.jsonl`:**
+
+| | |
+|---|---|
+| rows on disk | **276** |
+| carrying `rule: "5c"` | **20** — 9 entries, 11 arms |
+| by index | SENSEX 7 entries + 8 arms · NIFTY 1 entry + 3 arms · BANKNIFTY 1 entry |
+| §5c days | 2026-08-10 · 2026-08-13 (17 rows, the busiest session on record) |
+| carrying `unscored` | **20** — every §5c row |
+
+**Still nothing is scored, and the reason is now named on every row.** All 20
+carry the `unscored` sentence — *"no cached … session in `data/backtest/`, so no
+bar after this row could be read — this row is UNMEASURED, not flat"*. The cache
+still ends **2026-07-31**, because `backfill.py` fetches through `dhan_fetch`
+and **the Dhan data API lapsed 2026-08-05**. No August session has ever been
+materialised.
+
+**Two 2026-08-13 rows WERE scored, off the live tape before it rolled** — by
+feeding `trigger_log._outcome` the running server's bars rather than the cache.
+Same function, same measures, full window to `FLAT_BY` 15:15:
+
+| row | MFE | MAE | stop | opposite side |
+|---|---|---|---|---|
+| NIFTY 12:09 SELL u3 entry @ 24485 | **+34.5** @ 13:30 | −14.0 @ 13:54 | 24534.38, **never hit** | **none** — best −0.38σ |
+| SENSEX 12:12 SELL u3 **arm** (level 78318.62) | +55.0 @ 13:24 | −91.15 @ 13:54 | 78338.62, **hit 12:15** | **none** — best −0.88σ |
+
+The NIFTY short closed at 24472.9, **+12.1 from entry**, having peaked at +34.5
+and given two-thirds back. The SENSEX arm **never triggered** — a new setup
+armed at 12:45 before any candle closed below its reference low — and that is
+the arm log earning its keep: price broke the stop level three minutes after
+arming and ran to −91. **Stopped-out and would-have-worked are both recorded and
+both true**, which is exactly what the operator's spec asked for.
+
+**Not one signal reached the opposite side all day.** Both scored rows show
+`d1`/`d2`/`d3` untouched, best excursion −0.88σ. The operator's exit plan trails
+toward −2σ/−3σ when OI supports it; on 2026-08-13 that target never printed. One
+session is not evidence — but if it repeats, the hold-for-target premise and the
+tape are disagreeing and that is worth a pre-registered question.
+
+**THE GAP THAT COST FIVE ROWS, and the fix.** The remaining five SENSEX entries
+(09:36, 11:09, 12:09, 12:48, 14:03) are **permanently unmeasurable**. The live
+tape is reachable only until the server rolls at midnight; `data/backtest/` had
+nothing; and the chain snapshots that do survive
+(`data/chain/chain_SENSEX_2026-08-13.jsonl`, 2047 rows) hold only `spot` and
+per-strike OI — no futures OHLC, no volume, so the VWAP-banded bars the rule
+runs on cannot be rebuilt from them. **`eod_capture.py` (`2499a12`) closes
+this**: it reads the running server's `interval=1` tape and writes the RAW
+`rest_intraday` shape — seven parallel arrays plus `_meta` — because
+`squeeze_score.load` re-derives every session itself, and storing the served
+3-minute banded bars would band them a second time on load. It **refuses rather
+than writes** on a rolled server, a missing `built_at`, or a session under 60
+bars, because `load` swallows bad files with a bare `continue` and a malformed
+capture is indistinguishable from one that never happened. A broker-fetched
+session still outranks a capture and is never clobbered without `--force`.
+Scheduled **Mon–Fri 15:35 IST** as the `TapeMap EOD capture` task via
+`eod_capture.bat`, which carries an absolute interpreter because a scheduled
+task's PATH is not a shell's; verified by firing it once (`LastTaskResult 1`,
+the correct refusal, logged to `data\eod_capture.log`).
+
+**`exit_why` is now fully corrected** (`654d17c`). The 2026-08-13 entry below
+records this as half-landed and **owed**; that debt is paid. `machine.ts`
+exports `lockNote`, and `App.tsx`, `GlassBoard.tsx` and `SetupCheck.tsx` all
+render the re-fire lock through it, so no screen claims an exit the tool never
+saw.
+
+**Operational note:** the live server listens on **8765**.
+`ui-v2/.impeccable/live/server.json` records a dead PID and port **8400** — a
+stale artifact of the design harness that nothing in the app reads. Do not
+diagnose a "dead server" from that file; check `netstat` for 8765.
 
 ### 2026-08-13 — 3-minute is canonical, and the live record is seven rows
 

@@ -405,6 +405,38 @@ the exit can be scored later under whatever the settled rule is — and re-score
 if it changes, without throwing away a single collected signal. Nothing about
 the exit has to be committed to now, which is the whole point.
 
+> **⚠️ CORRECTED 2026-08-14 — "the bars afterwards are already cached" was
+> FALSE, and it was load-bearing.** This section's central design bet assumed
+> the tape would be waiting whenever the exit rule settled. It stopped being
+> true on **2026-08-05**, when the Dhan data API lapsed: `backfill.py` fetches
+> through `dhan_fetch`, so `data/backtest/` still ends **2026-07-31** and **no
+> August session was ever materialised**. Every §5c row on disk therefore
+> carries `unscored` — *"UNMEASURED, not flat"* — and a live session was
+> scoreable only between the close and the server's midnight roll.
+>
+> **On 2026-08-13 that cost five rows permanently** (SENSEX 09:36, 11:09,
+> 12:09, 12:48, 14:03): the API had rolled, the cache was empty, and the
+> surviving chain snapshots carry only `spot` and OI — no futures OHLC, no
+> volume — so the banded bars cannot be rebuilt. See `DEFERRED.md §0d`.
+>
+> **The property is restored, forward only.** `eod_capture.py` (`2499a12`)
+> writes each session's raw 1-minute tape to `data/backtest/` after the close,
+> scheduled Mon–Fri 15:35 IST. From 2026-08-14 the re-score-later guarantee
+> above holds again. It does not reach backwards.
+
+### Sample status — counted 2026-08-14, nothing scored yet
+
+| | |
+|---|---|
+| §5c rows collected | **20** — 9 entries, 11 arms |
+| across | 2026-08-10 · 2026-08-13 |
+| by index | SENSEX 7 entries + 8 arms · NIFTY 1 entry + 3 arms · BANKNIFTY 1 |
+| scored | **0 on disk.** Two 2026-08-13 rows were measured off the live tape before it rolled (HANDOFF 2026-08-14) |
+| quarantined §1 rows | 256, `rule != "5c"`, counting toward nothing |
+
+**No rate is to be quoted from this.** `trigger_log.rate_refusal` withholds one
+below the floor, and 9 entries is nowhere near it. The bar below is still owed.
+
 ### The bar — **OWED BY THE OPERATOR, do not invent it**
 
 The pass criterion must be stated in the terms of the real management —

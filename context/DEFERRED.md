@@ -15,6 +15,67 @@ restating them.
 
 ---
 
+## Reconciled 2026-08-14 — what has since shipped
+
+Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
+
+- **Test count is now 584** (`pytest -q`, 2026-08-14) — 576 plus the eight
+  `test_eod_capture.py` adds. The §1 figure and the 2026-08-13 note below are
+  both superseded.
+- **The session tape is now preserved.** `eod_capture.py` + `eod_capture.bat`
+  (`2499a12`), scheduled Mon–Fri 15:35 IST. The gap it closes is described in
+  §0d below, which is what made it necessary.
+- **`exit_why`'s half-landed correction is CLOSED** (`654d17c`): `machine.ts`
+  exports `lockNote` and all three screens render the re-fire lock through it.
+
+## 0d · THE TAPE EVAPORATES AT MIDNIGHT — closed forward, five rows lost
+
+**Evidence, 2026-08-13/14.** Signals are logged forward correctly, but the bars
+they are scored against arrived only through `backfill.py` → `dhan_fetch`, and
+**the Dhan data API lapsed 2026-08-05**. So `data/backtest/` ends 2026-07-31,
+every one of the 20 live §5c rows carries `unscored`, and a running session is
+scoreable only between the close and the server's midnight roll.
+
+On 2026-08-13 that window passed mid-conversation. **Five SENSEX entries —
+09:36, 11:09, 12:09, 12:48, 14:03 — are permanently unmeasurable.** Verified
+against every surviving source: the API had rolled (`days: []`), the cache had
+nothing, and `data/chain/chain_SENSEX_2026-08-13.jsonl` (2047 rows) holds only
+`spot` and per-strike OI — **no futures OHLC and no volume**, so the VWAP-banded
+bars the rule runs on cannot be rebuilt from it. Two rows from that session were
+scored in time and are recorded in HANDOFF's 2026-08-14 entry.
+
+**Closed forward, not backward.** `eod_capture.py` preserves every session from
+2026-08-14 on. It does **not** recover 2026-08-13.
+
+**Still open, and both are cheap:**
+
+1. **Recovering 2026-08-13 (and 2026-08-10).** Kite MCP exposes
+   `get_historical_data`, which could supply SENSEX 3-minute futures for those
+   days and materialise the missing `fut_<day>.json`. It needs an interactive
+   OAuth login that a non-interactive session cannot perform. **Operator action,
+   not code.** Note this does NOT cross §5's stop rule: filling outcomes on rows
+   logged FORWARD is the route `trigger_log._session_bars`' own docstring names
+   as allowed; what is forbidden is searching a new hypothesis out of the cache.
+2. **`backfill.py` has no working data source.** It still imports `dhan_fetch`.
+   Re-pointing it at Upstox historical (daily OAuth token — see the
+   `upstox-data-source` memory) or at Kite would restore bulk backfill. Until
+   then it is dead code for any date after 2026-08-05.
+
+## 0e · CANDIDATE QUESTION — the target side never printed (observed 2026-08-13)
+
+**Not a finding. One session, two scored rows.** Both showed the OPPOSITE side's
+`d1`/`d2`/`d3` **untouched**, best excursions −0.38σ and −0.88σ — price never
+crossed VWAP on either. The operator's exit plan trails toward −2σ/−3σ when OI
+is heavy that side, so a session where that target never prints is worth
+counting.
+
+**Do not act on this yet, and do not go looking for it in `data/backtest/`** —
+§5's stop rule forbids exactly that search. The legitimate route is the one
+already running: `bands` is recorded on every scored row, so after n rows the
+question answers itself from forward data. **If it is to be tested, pre-register
+it in `research-findings.md` §5e first**, with the bar stated before the count
+is read.
+
 ## Reconciled 2026-08-13 — what has since shipped
 
 Checked against `git log` and the source, not against memory.

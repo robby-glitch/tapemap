@@ -58,9 +58,10 @@ re-fire lock cleared* (§5c point 7): after an entry the next setup may arm
 immediately if stopped out, otherwise not until VWAP is touched. **The operator
 manages the trade themselves and TRAILS. The tool records the entry and the stop
 and nothing after.** Rendering that field as "exited at VWAP" states an exit
-nobody observed — it was corrected in SETUP CHECK on 2026-08-12 and, as of
-2026-08-13, is still wrong in the machine strip and the Glass board (HANDOFF,
-2026-08-13 entry).
+nobody observed — it was corrected in SETUP CHECK on 2026-08-12 and **fully
+landed 2026-08-13 in `654d17c`**: `machine.ts` exports `lockNote`, and
+`App.tsx`, `GlassBoard.tsx` and `SetupCheck.tsx` all render the lock through
+that one function, so no screen can invent a fifth wording.
 
 Full rule and its score: `research-findings.md §5c`. Measured on 65 NIFTY
 sessions: 19 trades, 68.4% hit at +30m against a 49.5% control, stopped out half
@@ -68,6 +69,14 @@ as often as the old rule. **+6m is negative** — the trade goes against you fir
 and then works, which is why the stop is not moved early. **That number belongs
 to 3-minute bars and to no other interval** (`band_rotation.SCORED_INTERVAL`);
 the live tape only started publishing them on 2026-08-12.
+
+**The LIVE record is 20 rows and none of it is scored** (counted 2026-08-14):
+9 entries and 11 arms across 2026-08-10 and 2026-08-13, every one carrying
+`unscored` because `data/backtest/` ends 2026-07-31. NIFTY's first-ever §5c
+entry landed 2026-08-13 12:09. **Do not present any live hit rate** — the
+scorer itself refuses one below n=15 (research-findings §5e), and the forward
+test is nowhere near it. `eod_capture.py` now preserves each session so the
+count can start moving.
 
 ## Non-negotiable product rules
 
