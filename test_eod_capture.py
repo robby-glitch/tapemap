@@ -138,6 +138,22 @@ def test_a_bar_missing_a_field_is_dropped_whole(tmp_path):
     assert "09:20" not in [b["t"] for b in cb.to_bars(payload) if b]
 
 
+def test_min_bars_still_matches_the_loader_that_drops_them():
+    """MIN_BARS mirrors a constant in ANOTHER file, and drift is silent.
+
+    `squeeze_score.load` skips a session with `len(bars) < 60` using a bare
+    `continue`. If that number ever rises, `eod_capture` keeps happily writing
+    sessions between the two thresholds and every one of them is dropped on
+    load -- reported to the operator as "captured", read by the scorer as
+    "never existed". Nothing else in the suite would notice.
+    """
+    src = open("squeeze_score.py", encoding="utf-8").read()
+    assert f"len(bars) < {EC.MIN_BARS}" in src, (
+        f"eod_capture.MIN_BARS is {EC.MIN_BARS} but squeeze_score.load no "
+        f"longer drops at that count -- captures between the two thresholds "
+        f"would be written and then silently ignored")
+
+
 def test_capture_reports_a_dead_server_as_a_reason(tmp_path):
     def boom(_idx):
         raise OSError("connection refused")

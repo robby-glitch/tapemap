@@ -12,8 +12,10 @@ specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`
 
 Last updated: 2026-08-14 02:15 IST. **584 tests pass, none fail** (`pytest -q`,
 run 2026-08-14 — 576 plus the eight `test_eod_capture.py` adds). Branch:
-`feature/dashboard-v2`, **pushed to `origin`** at `6274246`; **the tree is
-clean** — nothing uncommitted.
+`feature/dashboard-v2`, **pushed to `origin`, tree clean** at the time of
+writing. *No commit hash here on purpose: any hash this line names is stale the
+moment this file is committed. `git log --oneline -1` and
+`git status --short` are the live answer.*
 
 ### 2026-08-14 — the tape stops evaporating, and NIFTY finally fires
 
@@ -86,10 +88,15 @@ task's PATH is not a shell's; verified by firing it once (`LastTaskResult 1`,
 the correct refusal, logged to `data\eod_capture.log`).
 
 **`exit_why` is now fully corrected** (`654d17c`). The 2026-08-13 entry below
-records this as half-landed and **owed**; that debt is paid. `machine.ts`
-exports `lockNote`, and `App.tsx`, `GlassBoard.tsx` and `SetupCheck.tsx` all
-render the re-fire lock through it, so no screen claims an exit the tool never
-saw.
+records this as half-landed and **owed**; that debt is paid. No screen claims
+an exit the tool never saw. **Precisely: `machine.ts` exports `lockNote`, and
+`App.tsx` and `GlassBoard.tsx` render through it. `SetupCheck.tsx` does NOT
+import it** — it was fixed separately on 2026-08-12 and renders from its own
+`lockWhy: 'stop' | 'vwap' | null` prop. The wording is correct in all three;
+the *shared helper* covers two. `lockNote`'s own docstring says it exists "so a
+fourth screen cannot invent a fifth wording", and SetupCheck is a standing
+exception to that guarantee — worth routing through `lockNote` next time
+SetupCheck is opened, but it is not wrong today.
 
 **Operational note:** the live server listens on **8765**.
 `ui-v2/.impeccable/live/server.json` records a dead PID and port **8400** — a

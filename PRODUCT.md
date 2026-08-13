@@ -59,9 +59,10 @@ immediately if stopped out, otherwise not until VWAP is touched. **The operator
 manages the trade themselves and TRAILS. The tool records the entry and the stop
 and nothing after.** Rendering that field as "exited at VWAP" states an exit
 nobody observed — it was corrected in SETUP CHECK on 2026-08-12 and **fully
-landed 2026-08-13 in `654d17c`**: `machine.ts` exports `lockNote`, and
-`App.tsx`, `GlassBoard.tsx` and `SetupCheck.tsx` all render the lock through
-that one function, so no screen can invent a fifth wording.
+landed 2026-08-13 in `654d17c`**. All three screens now word it correctly.
+Two of them share one definition: `machine.ts` exports `lockNote`, used by
+`App.tsx` and `GlassBoard.tsx`. `SetupCheck.tsx` renders from its own
+`lockWhy` prop instead — correct, but not covered by that shared guarantee.
 
 Full rule and its score: `research-findings.md §5c`. Measured on 65 NIFTY
 sessions: 19 trades, 68.4% hit at +30m against a 49.5% control, stopped out half
