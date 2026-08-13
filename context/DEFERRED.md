@@ -19,7 +19,7 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 584** (`pytest -q`, 2026-08-14) — 576 plus the eight
+- **Test count is now 585** (`pytest -q`, 2026-08-14) — 576 plus the nine
   `test_eod_capture.py` adds. The §1 figure and the 2026-08-13 note below are
   both superseded.
 - **The session tape is now preserved.** `eod_capture.py` + `eod_capture.bat`

@@ -10,8 +10,8 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-14 02:15 IST. **584 tests pass, none fail** (`pytest -q`,
-run 2026-08-14 — 576 plus the eight `test_eod_capture.py` adds). Branch:
+Last updated: 2026-08-14 02:15 IST. **585 tests pass, none fail** (`pytest -q`,
+run 2026-08-14 — 576 plus the nine `test_eod_capture.py` adds). Branch:
 `feature/dashboard-v2`, **pushed to `origin`, tree clean** at the time of
 writing. *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
