@@ -361,6 +361,7 @@ function drawRibbon(
   dKey: BandKey,
   fillStyle: string,
   edgeStyle?: string,
+  edgeWidth = 1,
 ) {
   ctx.fillStyle = fillStyle
   let i = 0
@@ -382,7 +383,7 @@ function drawRibbon(
         // would draw two vertical joins across the band, which Kite's study
         // does not have.
         ctx.strokeStyle = edgeStyle
-        ctx.lineWidth = 1
+        ctx.lineWidth = edgeWidth
         for (const key of [uKey, dKey]) {
           ctx.beginPath()
           ctx.moveTo(conv.timeToX(times[i]), conv.priceToY(bars[i][key]))
@@ -1325,6 +1326,50 @@ export function startLevelsOverlay(
       ring('u2', 'u1', BAND_RGB.mid)
       ring('d1', 'd2', BAND_RGB.mid)
       ring('u1', 'd1', BAND_RGB.core)
+
+      /* THE ARMING LINES, and only these two.
+         d3 and u3 are the sole bands §5c reads (`band_rotation.RUN_BAND` /
+         `SELL_RUN_BAND`); every other edge is context. On a Kite-style study
+         all six edges look alike, and the outer WASH spans d2->d3, so a candle
+         dipping into the blue reads as "touched the extreme" when it has only
+         reached d2. The operator called this a missed signal twice off
+         screenshots -- 2026-08-11 and 2026-08-13 -- and both times the low was
+         6-10 pts short of d3 with d2 tagged. So the two lines the rule
+         actually tests get drawn and NAMED; the rest stay silent, which is
+         what the 2026-08-11 "lines hata di" instruction asked for.
+         Dashed and brass: structure, never direction (theme.ts's rule). */
+      /* SOLID and 2.5px, deliberately unlike everything else on this canvas.
+         The first cut drew these as 1px brass dashes -- identical to the CAP,
+         PIN, HI and S1 level lines already on screen -- so it became the fifth
+         indistinguishable dashed line and the operator could not find it. A
+         marker that looks like its neighbours is not a marker. */
+      const arming = withAlpha(pal.accent, 0.95)
+      ctx.save()
+      ctx.setLineDash([])        // explicit: earlier layers leave a dash set
+      for (const key of ['d3', 'u3'] as const) {
+        // uKey === dKey degenerates the ribbon to its own edge: zero-area
+        // fill, one stroked polyline, and the gap handling comes for free.
+        drawRibbon(ctx, conv, dBars, dTimes, lastIdx, key, key,
+                   'rgba(0,0,0,0)', arming, 2.5)
+      }
+      // A FILLED chip, not bare text: the level lines label themselves with
+      // outlined chips on the right, so a solid one on the left reads as a
+      // different kind of thing at a glance.
+      ctx.font = 'bold 10px ui-monospace, SFMono-Regular, Menlo, monospace'
+      ctx.textBaseline = 'middle'
+      const nameAt = (key: 'd3' | 'u3', label: string) => {
+        const v = lastIdx >= 0 ? Number(dBars[lastIdx][key]) : NaN
+        if (!Number.isFinite(v)) return          // no band, no label
+        const y = conv.priceToY(v)
+        const w = ctx.measureText(label).width + 12
+        ctx.fillStyle = arming
+        ctx.fillRect(pane.x + 6, y - 8, w, 16)
+        ctx.fillStyle = pal.card
+        ctx.fillText(label, pane.x + 12, y + 1)
+      }
+      nameAt('d3', 'd3 · ARMS THE BUY')
+      nameAt('u3', 'u3 · ARMS THE SELL')
+      ctx.restore()
       ctx.restore()
     }
 
