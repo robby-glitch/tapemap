@@ -162,6 +162,30 @@ def _upstox_source(existing=None):
     return UpstoxChainSource()
 
 
+def is_auth_error(e):
+    """Is this poll failure an AUTH failure -- i.e. worth rebuilding the socket?
+
+    Match the FAILURE, never the ADVICE. This was `"token" in str(e).lower()`,
+    and the source's warming-up error ends with "check the token first: python
+    upstox_auth.py" -- so a socket that had merely not finished connecting
+    matched, forced a reload, and the outer loop tore the socket down and
+    rebuilt it. The poller is a ROUND-ROBIN, so the first index in the list
+    polled straight into the next connect and tripped it again: NIFTY was dead
+    the whole of 2026-08-12 while BANKNIFTY and SENSEX, polled 3.5s and 7s
+    later, were fine on the same socket. Rebuilding is expensive and the only
+    thing it fixes is credentials, so it takes a credential signal.
+
+    A real auth failure arrives as a WebSocket 401 (see the 2026-08-06 note by
+    the feed-down raise); Dhan token expiry is caught by `token_status` at the
+    top of the outer loop and never reaches here.
+
+    (Deliberately below `_broker` -- test_broker_switch reads the source above
+    it to prove nothing imports the upstox path at module scope.)
+    """
+    s = str(e).lower()
+    return "401" in s or "unauthorized" in s or "invalid token" in s
+
+
 def _inner(resp):
     """SDK wraps as {status, data}; the chain API nests one more 'data'."""
     if not isinstance(resp, dict) or resp.get("status") != "success":
@@ -494,6 +518,6 @@ class ChainPoller(threading.Thread):
                             self._kick_backfill(idx, snap)
                     except Exception as e:  # isolate: tag this index, go on
                         self._tag_error(idx, "live", f"poll failed: {e}")
-                        if "token" in str(e).lower() or "401" in str(e):
+                        if is_auth_error(e):
                             self.reload = True   # force outer retry -> proper EXPIRED
                     time.sleep(max(0.5, RR_GAP_S - (time.time() - t0)))

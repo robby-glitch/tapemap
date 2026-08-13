@@ -29,8 +29,15 @@ the operator sees a stalled chain instead of a frozen one that looks alive --
 which is precisely the distinction that outage turned on.
 """
 
+import time
+
 import chain_live
 import upstox_adapter
+# How long `start` waits for the websocket before returning. Generous because
+# the cost of waiting is a slower startup and the cost of NOT waiting was a
+# dead index every morning; `poll` still reports an unconnected feed with its
+# own reason if the socket needs longer than this.
+CONNECT_WAIT_S = 10.0
 import upstox_feed
 import upstox_instruments
 import upstox_rest
@@ -73,6 +80,25 @@ class UpstoxChainSource:
 
         self.feed = upstox_feed.UpstoxFeed(keys, token=tok)
         self.feed.start()
+        # WAIT FOR THE SOCKET rather than handing back a feed still dialling.
+        # `UpstoxFeed.start()` only spawns the reader thread, so without this
+        # the caller's first poll lands on `connected == False` and raises --
+        # and the chain poller is a ROUND-ROBIN, so that cost fell on the same
+        # index every single morning (NIFTY, first in the list). Returning
+        # early is what made a transient warm-up look like a per-index outage.
+        #
+        # ponytail: polled, not an Event -- `connected` is a plain bool the
+        # reader thread flips, and a condition variable is more surface than
+        # this needs. A real failure breaks out immediately instead of burning
+        # the whole deadline.
+        deadline = time.time() + CONNECT_WAIT_S
+        while not self.feed.connected and time.time() < deadline:
+            if self.feed.last_error:
+                break
+            time.sleep(0.1)
+        # Deliberately NOT raising on timeout: `poll` already reports an
+        # unconnected feed with its own reason, and a socket that connects a
+        # second late must not take the session down with it.
         return {idx: r["expiry"] for idx, r in self.resolved.items()}
 
     def _spot(self, idx_key, tok):
