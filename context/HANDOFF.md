@@ -10,8 +10,121 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-09. 438 tests pass, 4 fail (date-rollover, see below).
-Branch: `feature/dashboard-v2`, **pushed to `origin`**.
+Last updated: 2026-08-13. **576 tests pass, none fail** (`pytest -q`, run
+2026-08-13 — the four date-rollover failures noted on 2026-08-09 are gone).
+Branch: `feature/dashboard-v2`, **pushed to `origin`** at `daa2d51`; four files
+sit uncommitted, listed at the end of the 2026-08-13 entry.
+
+### 2026-08-13 — 3-minute is canonical, and the live record is seven rows
+
+**THE TAPE PUBLISHES 3-MINUTE CANDLES, and until 2026-08-12 it did not.**
+`1002d52` splits `live.build_session` from `live.derive_payload`, `/api/data`
+takes `?interval=`, `band_rotation.SCORED_INTERVAL = 3` names the one interval
+§5c's 68.4% was ever measured at, and the Trade tab carries a switcher. Before
+that the tape published 1-minute bars — so `RUN_WINDOW = 10` meant **ten
+minutes live against the thirty the backtest measured**, and the arm and
+trigger tests read 1-minute lows and closes. *Live was not running the rule
+that was scored.* `band_rotation.py:850-862` states the standing rule: at any
+other interval it is a different setup carrying no measured number.
+
+**Signals differ by interval — asserted, NOT verifiable here.** The claim
+carried into this session is that NIFTY on 2026-08-12 produced one SELL entry
+at 1-minute (09:29, u3 24551.25, ref_low 24540.00, stop 24571.25) and none at
+3m/5m/15m. Nothing in the repo holds it: `trigger_log.jsonl` has no NIFTY §5c
+row at all, and `data/backtest/` has no August bars to re-derive from. Treat it
+as an observation from a screen, not a record.
+
+**What the live §5c record actually is** — counted 2026-08-13 from
+`data/trigger_log.jsonl`:
+
+| | |
+|---|---|
+| rows on disk | **263** |
+| carrying `rule: "5c"` | **7** — 5 entries, 2 arms (`kind: "arm"`) |
+| quarantined §1 one-candle rows | **256**, days 2026-08-04/05/06/07 |
+| §5c days | 2026-08-10 (3 entries) · 2026-08-13 (2 entries, 2 arms) |
+| §5c indices | SENSEX ×6, BANKNIFTY ×1 — **not one NIFTY row exists** |
+
+**Nothing is scored.** `f15`/`f30` were never filled, and neither were the
+outcome measures `69d3da0` added. The three 2026-08-10 rows carry their own
+`unscored` sentence — *"no cached … session for 2026-08-10 in `data/backtest/`,
+so no bar after this row could be read — this row is UNMEASURED, not flat"* —
+and it is correct: the cache ends **2026-07-31** (NIFTY `fut_`/`opt_`
+2026-04-01→2026-07-31; BANKNIFTY and SENSEX `fut_` 2026-06-01→2026-07-31). The
+two 2026-08-13 entries carry no measure either.
+
+**The operator's scoring spec, given 2026-08-13, is built** (`trigger_log.py`,
+`score`): `anchor`/`anchor_px`/`anchor_t` name which price everything is
+measured from; `mfe`/`mae` with their clocks are the max favourable and adverse
+moves; `stop_px`/`stop_hit`/`stop_t` record whether the 20-point stop broke —
+**recorded, not obeyed**, measurement continues past it; `bands` says how far
+the OPPOSITE side's u1/u2/u3 (or d1/d2/d3) was reached, **read LIVE off each
+arriving bar, never off the anchor bar's frozen numbers**, window to 15:15. The
+rationale is the operator's: they hold when OI is heavy that side.
+
+**`exit_why` is the RE-FIRE LOCK clearing — not a trade exit.** §5c point 7:
+after an entry the next setup may arm immediately if stopped out, otherwise not
+until VWAP is touched. `run_states` implements it as `lock` and its own
+docstring calls `exit_why` "the bar the re-fire lock cleared". The operator
+manages the trade and TRAILS; the tool records entry and stop only and has no
+idea where they left. **This correction is only half landed:**
+`trade/SetupCheck.tsx:868-877` was fixed on 2026-08-12 and now reads *"Re-fire
+lock khula"* — but `App.tsx:2051` still renders `nikal gaye — VWAP par`,
+`App.tsx:2217` puts `BAAHAR` in `document.title`, `GlassBoard.tsx:232-234`
+still heroes `VWAP / par nikle / "the run is closed"`, and `machine.ts:37` is
+the shared word that feeds both. **Owed: BAAHAR out of the machine strip and
+the Glass board.**
+
+**Arms are logged, and only since 2026-08-12** (`69d3da0`). `_arm_rows` writes
+BOTH sides, d3 BUY and u3 SELL, at `interval: 3` **and no other interval**,
+never off a forming bar, with `t_1m`/`extreme_1m` naming the minute inside the
+bucket that made the extreme (`t_1m: null` plus `t_1m_why` on any doubt) and
+`rearm` separating a moved reference from a fresh one. Earlier sessions hold no
+arms by construction. **On disk: two arms, both 2026-08-13, both SENSEX d3 BUY,
+both `rearm: false` — 09:33 (level 78072.89) and 11:06 (level 78061.59).**
+*Correction to what was believed going in:* 2026-08-13 was **not** armless. It
+is **NIFTY** that has never armed — zero NIFTY arm rows exist, and 2026-08-11
+and 2026-08-12 have no arms of any kind because the logger did not exist yet.
+
+**The NIFTY chain outage of 2026-08-12 — root cause found, fixed, uncommitted.**
+`chain_live`'s reload trigger matched the substring `"token"`, and
+`upstox_chain.poll`'s warming-up error ends with *"check the token first: python
+upstox_auth.py"*. A socket that had merely not finished connecting therefore
+forced a reload, the outer loop tore the socket down and rebuilt it, and
+because the poller is a **round-robin** the FIRST index polled straight into the
+next connect and tripped it again. **NIFTY was dead all session while BANKNIFTY
+and SENSEX, polled 3.5s and 7s later, were fine on the same socket.** Fixed at
+both ends: `chain_live.is_auth_error` matches 401 / unauthorized / invalid token
+— the failure, never the advice — and `UpstoxChainSource.start` now waits up to
+`upstox_chain.CONNECT_WAIT_S` (10.0s) for the socket instead of handing back a
+feed still dialling. Covered by `test_chain_auth_error.py`.
+
+**⚠️ THE d2/d3 READING TRAP — it cost two rounds of argument, 2026-08-11 and
+2026-08-13.** The outer σ wash spans d2→d3, so a candle entering the blue reads
+as touching the extreme when it has only reached **d2**; both times the low was
+6–10 pts short of d3 with d2 tagged, and both times it was called a missed
+signal. The chart now draws **d3 and u3 only** as solid 2.5px brass lines with
+filled chips (`d3 · ARMS THE BUY` / `u3 · ARMS THE SELL`) — deliberately unlike
+the 1px dashes every other level uses, because the first cut drew them as dashes
+and they became the fifth indistinguishable dashed line. No other band edge is
+drawn: `ba76dab` took the VWAP polyline and σ band edge strokes off, `12bae52`
+dropped VWAP/±1σ from the chart's level list.
+
+**Also landed 2026-08-11/12:** `8d85b7e` machine strip at shell level with a
+`document.title` mirror · `ae76a05` a wall strike is compared in its own frame,
+so call/put wall marks draw again (they never had) · `8760d15` the stop travels
+with the level (`band_rotation._stop_px`) · `3dd9977` glance-bar scanner shrink
+· `12bae52` the §5c SELL finally draws (`runDrawPlan` had rejected SELL/u3 as
+"unexpected") · `f2c6c46` the day's §5c signals stay on the setup panel ·
+`aedbd51` `/api/oiflow` publishes `chain_ok`/`chain_why` · `b2bf31d`
+signal_review JSON snapshot · `69d3da0` Signals tab, `/api/signals`, ARM logging
+and the scorer · `ba4be66` the Glass board · `daa2d51` critique and comps
+committed, run logs gitignored.
+
+**Uncommitted in the working tree** (`git status`, 2026-08-13): `chain_live.py`,
+`upstox_chain.py`, `test_chain_auth_error.py` (the chain fix above) and
+`ui-v2/src/trade/LevelsOverlay.ts` (the d3/u3 arming lines). `data/trigger_log.jsonl`
+is also dirty — that is the live log appending, not an edit.
 
 ### 2026-08-09 — live collection is ARMED, and unverified until Monday
 
@@ -611,11 +724,27 @@ surviving rule in full, and the stop-rule below.
 
 ## 8. Decisions still owed by the operator — do not guess
 
-09:25 trigger gate · re-fire suppression on the same level · compression as
-context vs co-condition (`CONFIRMED`+`CLEAR` = 0 of 64; they describe different
-phases of a move) · the expiry-day rule · a seller's stop and decay target ·
-Setup B's expression · whether the ±1σ interior is no-trade with the edges as
-the working zones.
+**Still owed:** compression as context vs co-condition (`CONFIRMED`+`CLEAR` = 0
+of 64; they describe different phases of a move) · the expiry-day rule · a
+seller's stop and decay target · Setup B's expression · whether the ±1σ interior
+is no-trade with the edges as the working zones. Three more sit in
+`DEFERRED.md §0`.
+
+**SETTLED 2026-08-05, corrected here 2026-08-13** — this list carried both of
+these as open for eight days after they were answered, and `PRODUCT.md` copied
+the stale version:
+
+- **The 09:25 trigger gate.** `research-findings.md §5c` specifies "after
+  **09:25**"; `band_rotation.ANCHOR_MINUTE` (line 228) is that minute and
+  `run_states` branch 4 refuses to arm before it — and refuses to assume a bar
+  with no readable clock is late enough.
+- **Re-fire suppression on the same level.** §5c point 7: after an entry, if
+  stopped out the next setup may arm immediately, otherwise not until VWAP is
+  touched. `run_states` implements it as `lock`, cleared by stop or VWAP, and
+  the bar that clears it may still arm the next setup within the same bar —
+  which is why OUT is not one of the state words. `exit_why` is that clearing
+  and **nothing else**; see the 2026-08-13 entry for where the UI still reads it
+  as a trade exit.
 
 ## 9. Working agreement that has held up
 

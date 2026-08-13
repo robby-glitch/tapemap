@@ -49,12 +49,25 @@ tolerated.
 | ARMED | a candle's low touched d3; that candle is the reference | the reference candle live, a 10-candle countdown, and `ref_high` — the line that has to break |
 | TRIGGERED | a candle closed above `ref_high` | entry at that close; stop at d3 − 20 |
 | IN TRADE | position open | VWAP is the first milestone, then band-to-band trail |
-| OUT | stop / VWAP-trail exit / 15:15 flat | what happened, and why |
+| OUT | **the re-fire lock cleared** — price hit the stop or reached VWAP | that the next setup may arm again, and which of the two freed it |
+
+**CORRECTED 2026-08-13 — the OUT row above used to read "stop / VWAP-trail exit
+/ 15:15 flat · what happened, and why".** That is a claim the tool cannot make.
+`run_states` emits `exit_why` and its own docstring defines it as *the bar the
+re-fire lock cleared* (§5c point 7): after an entry the next setup may arm
+immediately if stopped out, otherwise not until VWAP is touched. **The operator
+manages the trade themselves and TRAILS. The tool records the entry and the stop
+and nothing after.** Rendering that field as "exited at VWAP" states an exit
+nobody observed — it was corrected in SETUP CHECK on 2026-08-12 and, as of
+2026-08-13, is still wrong in the machine strip and the Glass board (HANDOFF,
+2026-08-13 entry).
 
 Full rule and its score: `research-findings.md §5c`. Measured on 65 NIFTY
 sessions: 19 trades, 68.4% hit at +30m against a 49.5% control, stopped out half
 as often as the old rule. **+6m is negative** — the trade goes against you first
-and then works, which is why the stop is not moved early.
+and then works, which is why the stop is not moved early. **That number belongs
+to 3-minute bars and to no other interval** (`band_rotation.SCORED_INTERVAL`);
+the live tape only started publishing them on 2026-08-12.
 
 ## Non-negotiable product rules
 
@@ -103,10 +116,17 @@ they finally saw was unreadable."**
 
 ## OPEN — not to be guessed by the designer
 
-Recorded in HANDOFF §8, still owed by the operator: the 09:25 trigger gate,
-re-fire suppression on the same level, compression as context vs co-condition,
-the expiry-day rule, a seller's stop and decay target, Setup B's expression, and
-whether the ±1σ interior is no-trade with the edges as the working zones.
+Recorded in HANDOFF §8, still owed by the operator: compression as context vs
+co-condition, the expiry-day rule, a seller's stop and decay target, Setup B's
+expression, and whether the ±1σ interior is no-trade with the edges as the
+working zones. Three more are in `DEFERRED.md §0`.
+
+**CORRECTED 2026-08-13.** This list also carried the **09:25 trigger gate** and
+**re-fire suppression on the same level** as open. Both were settled on
+2026-08-05 in `research-findings.md §5c` (the rule text, and point 7) and both
+are implemented — `band_rotation.ANCHOR_MINUTE` gates the arm in `run_states`,
+and the re-fire lock is `run_states`' own `lock`, cleared by stop or VWAP. A
+designer reading them as unanswered was reading a list eight days stale.
 
 ## Brand commitments
 

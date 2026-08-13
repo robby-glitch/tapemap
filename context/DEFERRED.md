@@ -15,6 +15,30 @@ restating them.
 
 ---
 
+## Reconciled 2026-08-13 — what has since shipped
+
+Checked against `git log` and the source, not against memory.
+
+- **§4, the published stop — actually shipped 2026-08-12, not 2026-08-09.** The
+  heading below carried the wrong date for three days. `_stop_px` and the
+  per-bar `stop` field first exist in `8760d15` (`git log -S'"stop": _stop_px'`
+  returns that commit and no other); on 2026-08-09 the entry was a
+  specification, not a shipped field. Date corrected in place below.
+- **§0b's "still open" stop item is CLOSED** by the same commit — the 20-point
+  stop is published beside `level` on every `run_state` bar and on the entry
+  record. The **68.4% vs 63.2%** reconciliation is **still open**, though not
+  currently visible: `grep -rn "63.2" ui-v2/src` returns nothing, so no screen
+  shows two hit rates for one rule today. The written reconciliation naming
+  which exit each assumes is still owed.
+- **§0's three operator decisions are all still owed** — nothing in the log
+  answers them.
+- **Not from this file, but it corrects it:** the tape published 1-minute bars
+  until 2026-08-12 while §5c was scored on 3-minute
+  (`band_rotation.SCORED_INTERVAL = 3`). Any measurement in this file taken off
+  a LIVE payload before that date was taken at the wrong interval. The
+  backtest-derived numbers here are unaffected — the scorer always used 3.
+- Test count in §1 was 432; it is **576** as of 2026-08-13 (`pytest -q`).
+
 ## 0 · THREE DECISIONS OWED BY THE OPERATOR — nothing waits on code
 
 These block real work and must not be guessed. Two of them were guessed once
@@ -72,11 +96,11 @@ into. Plan: `~/.claude/plans/elegant-frolicking-pebble.md`.
    exclusion. Per-kind waits on multi-session live logging — the stop-rule on
    backtest slicing means re-slicing will not supply it.
 
-**Still open from the same plan:** publish the 20-point stop beside `level` in
-`run_state` (§4's one-field fix — until then the callout shows no stop line
-rather than restating 20 in TypeScript), and reconcile SetupCheck's **68.4%**
-against `trail_score`'s **63.2%** for the same rule, naming which exit each
-assumes. Two "measured" hit rates for one rule on one screen is an A1 failure.
+**Still open from the same plan:** reconcile SetupCheck's **68.4%** against
+`trail_score`'s **63.2%** for the same rule, naming which exit each assumes. Two
+"measured" hit rates for one rule on one screen is an A1 failure. *(The other
+item here — publish the 20-point stop beside `level` in `run_state` — SHIPPED
+2026-08-12, `8760d15`; see the reconciliation section at the top.)*
 
 ## 1 · Premium / discount is measured on the wrong range · BACKEND
 
@@ -114,7 +138,8 @@ Options as put to the operator:
 3. **Leave it** — then the 16-point band keeps claiming to be a premium/discount
    zone, which is the thing that looked wrong.
 
-Needs: the change, tests (432 now), and a note in `CHECKLIST.md`.
+Needs: the change, tests (**576** as of 2026-08-13; the 432 here was stale), and
+a note in `CHECKLIST.md`.
 
 ## 2 · Structure lines carry no text · FRONTEND
 
@@ -164,7 +189,18 @@ Three faults in one place:
 Direction proposed, not yet chosen: name on the left in a filled chip, price on
 the right axis only, and de-collide by **nudging** rather than dropping.
 
-## 4 · ~~The stop is not published~~ · **DONE 2026-08-09**
+**2026-08-13 — taken for TWO lines only, uncommitted.** `LevelsOverlay` now
+draws `d3 · ARMS THE BUY` and `u3 · ARMS THE SELL` as left-edge **filled** chips
+against solid 2.5px brass lines, deliberately unlike the 1px dashes every other
+level uses. That is this entry's proposed treatment, applied to the two bands
+§5c actually reads and to nothing else — the reason is the d2/d3 reading trap
+(HANDOFF, 2026-08-13), not this entry. The three faults above still hold for
+every other level.
+
+## 4 · ~~The stop is not published~~ · **DONE 2026-08-12** (`8760d15`)
+
+*Dated 2026-08-09 until 2026-08-13; that was the day it was specified. The field
+did not exist until `8760d15`.*
 
 Done exactly as specified: one field. `band_rotation._stop_px(level, stop_pts,
 sell)` is now the single expression, called by BOTH the re-fire lock and the
@@ -185,9 +221,12 @@ Tests: `test_band_rotation_run.py` §7, six of them, including the BUY/SELL
 mirror (a short's stop sits ABOVE the band) and the assertion that a moving
 reference does NOT move the stop.
 
-**Not yet seen on screen.** 2026-08-09 is a Sunday and the session carries no
-bars, so no setup can arm and the line cannot render. First live look is
-Monday, alongside the collection check.
+~~**Not yet seen on screen.** 2026-08-09 is a Sunday and the session carries no
+bars, so no setup can arm and the line cannot render.~~ **2026-08-13:** the
+field ships and two SENSEX setups armed on 2026-08-13 (`trigger_log.jsonl`,
+09:33 and 11:06), so a `level` and its stop have existed live. Whether the
+operator has *looked* at the rendered line is not recorded here and is not
+claimed.
 
 ## 5 · MERA READ ships empty · needs the OPERATOR, not code
 
