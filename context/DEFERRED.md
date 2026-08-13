@@ -19,9 +19,11 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 585** (`pytest -q`, 2026-08-14) — 576 plus the nine
-  `test_eod_capture.py` adds. The §1 figure and the 2026-08-13 note below are
-  both superseded.
+- **Test count is now 588** (`pytest -q`, 2026-08-14) — 576, plus nine in
+  `test_eod_capture.py` and three in `test_docs_claims.py`. The §1 figure and
+  the 2026-08-13 note below are both superseded. **This number is now pinned by
+  a test**: `test_stated_test_count_matches_reality` compares every stated
+  count against what pytest actually collected, so it cannot go stale quietly.
 - **The session tape is now preserved.** `eod_capture.py` + `eod_capture.bat`
   (`2499a12`), scheduled Mon–Fri 15:35 IST. The gap it closes is described in
   §0d below, which is what made it necessary.
