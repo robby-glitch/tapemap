@@ -14,8 +14,8 @@ Last updated: 2026-08-14 16:00 IST. **589 tests pass, none fail** (`pytest -q`,
 run 2026-08-14 — 576, plus nine in `test_eod_capture.py`, three in
 `test_docs_claims.py` which pins this very number against the run, and one
 added 2026-08-14 for the `carry_verdict` empty-book crash). Branch:
-`feature/dashboard-v2`, **pushed to `origin`, tree clean** at the time of
-writing. *No commit hash here on purpose: any hash this line names is stale the
+`feature/dashboard-v2`, **tree clean but 3 commits AHEAD of `origin`** at the
+time of writing (the 2026-08-14 zone/band work — not yet pushed). *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
 `git status --short` are the live answer.*
 
