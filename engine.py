@@ -1215,6 +1215,13 @@ class Session:
     # -------------------------------------------------------------- end of day
 
     def carry_verdict(self):
+        # At the open the chain poller has not filled the option books yet, so
+        # a live build reaches here with bars == []. There is no carry to read
+        # from an empty book: say nothing rather than raise, or the exception
+        # kills the whole refresh cycle and the tape skips a beat
+        # (2026-08-14 09:16, NIFTY + BANKNIFTY).
+        if not self.fut_bars or not all(self.books[nm].bars for nm in ("CE", "PE")):
+            return
         out = []
         for nm in ("CE", "PE"):
             bars = self.books[nm].bars

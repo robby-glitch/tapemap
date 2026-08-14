@@ -18,6 +18,19 @@ def _sess(**kw):
                           strike=24700.0, t_days=0.25, **kw)
 
 
+# --- the empty-book guard (2026-08-14) -----------------------------------
+# Not a frame test; it lives here because `_sess()` IS the crash condition --
+# a Session with no bars at all. At 09:16 on 2026-08-14 the live build reached
+# carry_verdict before the chain poller had filled the option books, and
+# bars[0] raised IndexError, killing that refresh for NIFTY and BANKNIFTY.
+
+
+def test_carry_verdict_on_an_empty_book_says_nothing_instead_of_raising():
+    s = _sess()
+    s.carry_verdict()
+    assert not [e for e in s.events if e[1] == "CARRY"]
+
+
 # --- the basis plausibility guard (2026-08-05) ---------------------------
 # `basis` is what moves every chain-derived level (walls, PIN, STK, max pain,
 # GEX flip) from the INDEX frame onto the futures tape. A wrong one does not
