@@ -19,7 +19,10 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 588** (`pytest -q`, 2026-08-14) — 576, plus nine in
+- **Test count is now 589** (`pytest -q`, 2026-08-14 16:00) — one added that
+  afternoon pinning the `carry_verdict` empty-book guard in
+  `test_option_frame.py`. The earlier reconciliation, still accurate as
+  history: **588** — 576, plus nine in
   `test_eod_capture.py` and three in `test_docs_claims.py`. The §1 figure and
   the 2026-08-13 note below are both superseded. **This number is now pinned by
   a test**: `test_stated_test_count_matches_reality` compares every stated
@@ -62,6 +65,35 @@ scored in time and are recorded in HANDOFF's 2026-08-14 entry.
    Re-pointing it at Upstox historical (daily OAuth token — see the
    `upstox-data-source` memory) or at Kite would restore bulk backfill. Until
    then it is dead code for any date after 2026-08-05.
+
+## 0f · THE σ BANDS ARE WIDER THAN THE OPERATOR'S — cause unproven (2026-08-14)
+
+**Highest-value open item in this file.** It is upstream of every signal the
+repo produces, and it makes the tool miss setups the operator can see.
+
+**The measurement** (full detail: `research-findings.md` §1c). Against the
+operator's own Kite CSV export of `NIFTY AUG FUT`, 3-min, 2026-08-14:
+TapeMap σ / Kite σ ran **1.023 at 10:30 → 1.084 at 13:45 → 1.048 at 14:06**,
+with the VWAP itself off by up to **1.70**. Wider σ = every band further from
+price = **false negatives only**. Two confirmed misses that day: the **14:00**
+u3 tag-and-reject the operator circled on their chart (high 24477.00 cleared
+Kite's u3 24476.88 and closed back below; TapeMap's u3 was 24482.10, so the
+high fell 5.10 short) and an **11:36** d2 entry missed by 0.25.
+
+**The lead, explicitly NOT the answer yet.** On the 09:15 bar Kite has σ = 0
+(all bands = VWAP 24416.67); TapeMap already has σ = 8.75. A seeding
+difference is the obvious suspect but does not explain the ratio *rising* to
+1.084 and then falling back. **Do not "fix" the seed and declare victory** —
+measure the whole curve before and after.
+
+**Everything needed is already on disk**, so this needs no live session:
+- `data/backtest/fut_2026-08-14.json` — 379 RAW 1-minute bars, captured 15:35
+- the operator's Kite CSV (`VWAP`, `SDVWAP1±`, `SDVWAP2±`, `SDVWAP3±` columns)
+- `vwap_bands` in the engine is the code under suspicion
+
+**When it is fixed**, HANDOFF §6's σ-bands row goes back to ✅ *with the new
+ratio stated*, and §1b's 2026-08-14 signal counts must be re-derived — they
+are currently a floor, not a total.
 
 ## 0e · CANDIDATE QUESTION — the target side never printed (observed 2026-08-13)
 

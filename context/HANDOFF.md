@@ -10,9 +10,10 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-14 02:15 IST. **588 tests pass, none fail** (`pytest -q`,
-run 2026-08-14 — 576, plus nine in `test_eod_capture.py` and three in
-`test_docs_claims.py`, which pins this very number against the run). Branch:
+Last updated: 2026-08-14 16:00 IST. **589 tests pass, none fail** (`pytest -q`,
+run 2026-08-14 — 576, plus nine in `test_eod_capture.py`, three in
+`test_docs_claims.py` which pins this very number against the run, and one
+added 2026-08-14 for the `carry_verdict` empty-book crash). Branch:
 `feature/dashboard-v2`, **pushed to `origin`, tree clean** at the time of
 writing. *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
@@ -663,7 +664,7 @@ just that your new row looks right. That is exactly the check that was skipped.
 
 | claim | status |
 |---|---|
-| σ bands match the operator's Kite export | ✅ VWAP 0.078 pts median, ±3σ ratio 0.981 |
+| σ bands match the operator's Kite export | ❌ **DOWNGRADED 2026-08-14 — was ✅ (VWAP 0.078 median, ±3σ ratio 0.981); that no longer holds.** Measured against the operator's own Kite CSV the same day: TapeMap σ is **WIDER**, ratio **1.023 → 1.084** through the session, VWAP gap up to **1.70**. Wider σ pushes every band further from price, so the error yields **false negatives only** — two confirmed misses on 2026-08-14 (a 14:00 u3 tag-and-reject the operator saw and the tool did not; an 11:36 d2 entry). **This is upstream of every signal in the repo.** Detail, the unproven seeding lead, and the re-measure recipe: **`research-findings.md` §1c** |
 | backfilled Dhan == operator's Kite CSV | ✅ close diff 0.00, OI ratio 1.0000 |
 | band pipeline order (`vwap_bands` → `resample`) | ✅ 0.972; reversed order 0.948 |
 | option legs on the current weekly expiry | ✅ live 2026-08-03, held through a 24600→24700 strike hop |
@@ -674,7 +675,8 @@ just that your new row looks right. That is exactly the check that was skipped.
 | d3 reversal on F&O STOCK futures | ❌ **REJECTED 2026-08-04** — pooled 47% hit, med 0.000% (n=47, 7 names + operator's own ADANIGREEN/RELIANCE TV exports). `stock_score.py`. Why, and the σ-scale arithmetic: **`research-findings.md` §3** |
 | overnight gap-fade | ❌ **REJECTED 2026-08-03** — NIFTY fade ≈ 0 and below its own long control; reversion is intraday-only. `gap_score.py`. Detail: **`research-findings.md` §2** |
 | classic 15-min ORB | ❌ **REJECTED 2026-08-03** — NIFTY breakouts *fade* (39% hit, −21.1 to close). `orb_score.py`. Detail: **`research-findings.md` §2** |
-| **`band_rotation` — the operator's edge** | ⚠️ **SCORED — the one surviving edge.** NIFTY d3 buy: 72% hit, med +21 @30m vs +0.3 control (n=18). d2 = noise, selling = dead, compression filter = harmful. Management measured too (`trail_score.py`): **hold the stop until VWAP, never breakeven**. Two-leg confirm scored (`confirm_score.py`): does not help buys. **Full rule + numbers: `research-findings.md` §1** |
+| **the setup is a ZONE, not a line** | ⚠️ **STATED BY THE OPERATOR 2026-08-14 — read before the row below.** The sky-blue 2σ→3σ shading *is* the setup: **d2→d3 = buy zone, u2→u3 = sell zone**. Reaching **d2 IS the event**; d3 is only the far edge. Every pre-registration in the repo (§5c "d3 only", §5d "u3 only, never u2", §5e/§5f) therefore tests an instrument nobody trades — **unmeasured, not disproven**, same failure as §1. **`research-findings.md` §1b** |
+| **`band_rotation` — the operator's edge** | ⚠️ **SCORED, but on the LINE — see the ZONE row above.** NIFTY d3 buy: 72% hit, med +21 @30m vs +0.3 control (n=18). ~~d2 = noise~~ — **that verdict is void**: d2 was measured as a d3 substitute, never as the near edge of the traded zone. Selling = dead and compression filter = harmful carry the same caveat. Management measured too (`trail_score.py`): **hold the stop until VWAP, never breakeven**. Two-leg confirm scored (`confirm_score.py`): does not help buys. **Full rule + numbers: `research-findings.md` §1** |
 | ZONE READ confluence | ❌ makes no claim by design; unvalidated as a read |
 
 ## 6b. 2026-08-04 — the frame-bug day, and where v3 starts

@@ -68,6 +68,271 @@ by the operator** — deliberately not grid-searched.
 
 ---
 
+## 1b. THE ZONE — what the operator has always traded (stated 2026-08-14)
+
+**Read this before §5c, §5d or §5e. All three register a LINE. The operator
+trades a ZONE. They are testing the wrong instrument — the same failure that
+made §1 VOID, and it is repo-wide, not a detail.**
+
+### The rule, in the operator's words
+
+> "it was always a zone as you can see the shadings between the vwap bands the
+> upper sky blue and the lower sky blue is the zones if we looking for. and
+> thats my rule"
+>
+> "the lower band is my zone to look for buy signals and the upper band is
+> where i look for sell if market condition is right"
+
+### What the zone is, read off the code that draws it
+
+`ui-v2/src/proto/protoRibbon.ts:210-211` (verbatim from
+`LevelsOverlay.ts:1169-1173`) fills exactly two azure rings —
+`BAND_RGB.outer = '0,168,232'`, Kite's azure, the "sky blue":
+
+```
+ring('u3', 'u2', BAND_RGB.outer)   // UPPER zone = u2 -> u3   SELL side
+ring('d2', 'd3', BAND_RGB.outer)   // LOWER zone = d3 -> d2   BUY  side
+```
+
+So the zone is the **2σ→3σ ring on each side**, and nothing else:
+
+| zone | span | side | colour |
+|---|---|---|---|
+| lower azure | **d2 → d3** | BUY | `0,168,232` |
+| upper azure | **u2 → u3** | SELL | `0,168,232` |
+| 1σ→2σ ring | d1→d2 / u1→u2 | *not a zone* | sage `143,188,143` |
+| ±1σ core | d1→u1 | *not a zone* | dark red `139,26,26` |
+
+**Entering the zone means the bar reached d2 (or u2), not d3 (or u3).** d3 is
+the far edge of the zone, not the trigger.
+
+### The correction this forces — the tool was wrong twice, on the record
+
+Sessions on **2026-08-11 and 2026-08-13** each spent a round of argument
+treating "price entered the blue but the low was 6–10 pts short of d3" as an
+operator misreading. It was not. The operator was reading their own zone
+correctly; the tool was measuring a line nobody trades. That mistake was then
+written into memory as "the d2/d3 reading trap" **and acted on**: the chart was
+changed to draw d3/u3 as solid 2.5px brass lines with "no other band edge
+drawn", which removes the near edge of the very zone being traded.
+
+**Do not repeat this.** A low that reaches d2 and turns is a zone event. It is
+not a near-miss, and it is not the operator being imprecise.
+
+### What this invalidates, and what it does not
+
+- **§5c** ("d3 only", post-09:25 two-candle) — wrong instrument. Not disproven;
+  **unmeasured**, exactly like §1.
+- **§5d** ("u3 only, never u2") — same, on the sell side.
+- **§5e / §5f** — inherit it, being the live forward test of the above.
+- **`trigger_log.py`** logs `rule: "5c"` rows on the d3/u3 line. Every row is
+  still a true record of *that* trigger; none of them is a record of the zone
+  rule. The 20 rows at 2026-08-14 do not begin a zone dataset.
+- **`band_rotation.detect_index_run`** is the line detector. The `rotation`
+  layer the proto tab draws already fires on **d2, d3 and u3** — which is why
+  the proto tab showed a good 09:30 d2 BUY on 2026-08-14 that `trigger_log`
+  could not see (0 rows that day).
+
+**Their bodies are deliberately NOT edited.** §5d voids itself if edited after
+a result is known; the pre-registrations stay byte-identical and this section
+carries the correction instead.
+
+### PRE-REGISTERED — the zone rule, UNTESTED
+
+Registered per §5, **before** any scoring run. **Nothing here is a result.**
+
+1. **ARM** — a bar whose **low enters the lower azure** (low ≤ **d2**) arms a
+   BUY; a bar whose **high enters the upper azure** (high ≥ **u2**) arms a
+   SELL. That bar is the reference.
+2. **RE-ARM** — a later bar printing a new lower low (BUY) / higher high
+   (SELL) replaces the reference. Falling lows collapse into one setup.
+3. **TRIGGER, STOP, MANAGE, RE-FIRE, EXPIRY** — carried over from §5c
+   unchanged, pending the operator's answer below.
+4. **GATE** — 09:25, carried over from §5c, pending the same.
+
+**Open — the operator's to answer, not to be assumed:**
+
+- **a.** Is the trigger the §5c two-candle close-beyond-the-reference, or the
+  one-candle reclaim the proto tab currently draws?
+- **b.** Where is the stop, now that the arm is at d2? `d3 − 20` (far edge, as
+  §5c) or `d2 − 20` (the arming edge)? These are ~11 pts apart on NIFTY.
+- **c.** What is *"if market condition is right"* — the compression/trap test
+  `band_rotation` already computes, or a separate read?
+- **d.** Does the 09:25 gate survive? It exists because σ needs ~10 readings to
+  rank a width; the 2026-08-14 09:30 signal passed the clock gate and still
+  failed the width test ("only 5 index band readings").
+
+**Falsifier (committed in advance):** hit rate at the operator's horizon at or
+below the unconditional control, **or** the zone result collapsing to the line
+result once entries that reached d3 anyway are removed — which would mean the
+zone adds nothing over §5c and the extra fires are noise.
+
+**Hazard:** the zone fires **more often** than the line by construction. More
+signals is not evidence; it is the thing that must be paid for in hit rate.
+
+### OBSERVATION — 2026-08-14, the first live day after registering it (n=1, UNSCORED)
+
+**This is not a result.** One session, ten signals, no outcome scored, and the
+pattern below was spotted *after* the fact. Recorded now only so the day is not
+reconstructed from memory later — §5's stop rule still binds.
+
+**The line rule saw nothing. The zone rule saw the whole day.**
+
+NIFTY's lowest low was **24370.0** (11:36); d3 sat at **~24357** and was
+**never touched on the BUY side**, so §5c logged **zero BUY signals** all day
+while the zone produced six.
+
+> **Corrected at 15:00.** An earlier draft of this section said
+> `trigger_log.jsonl` wrote **0 rows** for 2026-08-14. That was checked at
+> 09:57 and is **false for the full day**: the file gained **7 rows** in the
+> afternoon — 5 arms and 2 entries, **all SELL u3** (NIFTY arms 13:45/13:57/
+> 14:00 and entry 14:06 @ 24457.2; SENSEX arm 13:45/14:00 and entry 14:06 @
+> 78300.5). The buy-side claim stands; the "0 rows" claim did not survive the
+> session. **Do not quote a same-day log count as final before the close** —
+> `eod_capture` exists precisely because the record is still being written.
+>
+> Unresolved: the NIFTY 14:00 arm logs `level 24482.1`, but that bar's high was
+> **24477.0** — below its own u3. Either the arm was written off a forming bar
+> or the logged `level` is not the level that armed it. **Check before any of
+> these rows is scored.**
+
+Over the same hour the zone produced six entries:
+
+| bar | low | d2 | close | vs d2 |
+|---|---|---|---|---|
+| 10:30 | 24376.1 | 24378.7 | 24377.9 | −0.8 |
+| 10:33 | 24375.0 | 24376.8 | 24383.9 | +7.1 |
+| 11:00 | 24374.4 | 24374.8 | 24380.4 | +5.6 |
+| 11:09 | 24372.0 | 24373.5 | 24385.1 | +11.6 |
+| 11:12 | 24371.7 | 24372.6 | 24379.0 | +6.4 |
+| 11:30 | 24370.2 | 24370.6 | 24376.0 | +5.4 |
+
+All six reclaimed. Price then broke up and reached **24416.5** at 12:21 —
+**+40.5** from the last entry's close, +31 to +40 from every one of the six.
+
+**The afternoon inverted the result on the same rule.** Between 13:42 and 14:03
+the upper zone was tagged four times (u2 at 13:42/13:54, u3 at 13:45/13:48/13:51)
+and **none rejected**; price walked up the outside of the band, closing at or
+near its high repeatedly, and the band outran it (u3 24467.3 → 24486.0). It
+ended not as a band rejection but as an engine-flagged **BULL TRAP at 14:04,
+24470.6**, after which price closed back under u2 at 14:06.
+
+**The split — a HYPOTHESIS, to be pre-registered before it is tested:**
+
+| half | 30m range pctile | tags | outcome |
+|---|---|---|---|
+| morning, d2 | p22 → p62 (**compressed**) | 6 | all rejected, +40 into the break |
+| afternoon, u2/u3 | p94 → p100 (**expanding**) | 4 | none rejected, walked through |
+
+`trap` returned **SUSPECT on all ten** and discriminated nothing. `rng_r` —
+already in the payload — separated the two halves cleanly. That is a candidate
+mechanical answer to open question **(c)**, *"if market condition is right"*,
+and it is the same thing §7 names as unmeasured: rejecting the band vs walking
+along it. **Do not encode it from this day.** Register it, then score it.
+
+**Hazards on this observation, recorded before anyone quotes it:**
+
+- Post-hoc. The compression/expansion split was noticed after both halves were
+  known — exactly the move §5 exists to stop.
+- The six morning entries may be **one** setup, not six: §1b's re-arm clause
+  collapses falling lows into a single reference, and they came inside 60
+  minutes on a descending d2.
+- Gamma was `AMPLIFIED-DOWN` across all six morning entries and they worked
+  anyway; it was `AMPLIFIED-UP` in the afternoon and the fade failed. Read
+  literally, the gamma regime was **anti-predictive** both times. n=1.
+
+**Tooling lesson, cost two wrong reads on the day:** the backend computes
+`rotation` on the **forming** bar, and a forming bar's close moves. 10:33
+reported a reclaim that evaporated; 13:51 reported a close 9.6 below u3 that
+finished 2.9 below. Only judge a closed bar.
+
+**VERIFIED against Kite** (2026-08-14 14:38, via Kite MCP —
+`NFO:NIFTY26AUGFUT` token 14866434 and `NSE:NIFTY 50` token 256265, both
+stamped `14:37:59+05:30`). This is the leg-pivot cross-check HANDOFF §6 lists
+as never done, run on the FUT tape rather than the option legs:
+
+| | TapeMap | Kite | diff |
+|---|---|---|---|
+| index | 24368.75 | 24367.80 | 0.95 |
+| basis | 81.25 | 82.20 | 0.95 |
+| **implied future** | **24450.00** | **24450.00** | **0.00** |
+| day fut O/H/L | 24452.0 / 24477.0 / 24370.0 | identical | 0.00 |
+
+All six zone entries match Kite exactly on close; five of six exactly on low
+(11:12 differs 0.1, both sides of d2, signal unaffected). **The basis moved
+54.6 → 81.25 intraday and TapeMap tracked it** — the drift was real, not an
+error, and the levels are placed correctly.
+
+**One data-quality note, unresolved.** Of 22 bars compared (10:27–11:30), 17
+matched exactly and 5 differed — **four of the five with TapeMap printing the
+LOWER low** (10:39 −3.0, 11:27 −1.4, 11:06 −0.3, 11:12 −0.1; 11:18 +0.4).
+None changed a signal today. The direction is the concerning one: a too-low low
+is precisely what manufactures a **false BUY zone entry**. n=5 is not enough to
+call it systematic, and tick-aggregation vs exchange-consolidated bars is the
+likely cause. **Re-check this on the next cross-check before trusting a
+marginal d2 tag** — a 0.1-point entry like 11:12 is inside this error bar.
+
+---
+
+## 1c. THE BANDS DO NOT MATCH THE OPERATOR'S CHART (measured 2026-08-14)
+
+**Upstream of everything else in this file.** Every signal, every backtest and
+every §1b entry is derived from σ bands. Measured against the operator's own
+Kite export today, **TapeMap's σ is systematically WIDER than the σ on their
+screen**, and the gap grows through the session.
+
+Source: operator's Kite CSV export of `NIFTY AUG FUT`, 3-min, 2026-08-14
+(columns `VWAP`, `SDVWAP2±`, `SDVWAP3±`), against the live `/api/data` payload
+for the same bars.
+
+| bar | σ Kite | σ TapeMap | TapeMap/Kite | u3 gap |
+|---|---|---|---|---|
+| 10:30 | 10.780 | 11.027 | 1.023 | −0.03 |
+| 11:30 | 12.037 | 12.683 | 1.054 | +2.28 |
+| 13:45 | 17.610 | 19.087 | **1.084** | +5.79 |
+| 14:00 | 23.673 | 24.847 | 1.050 | +5.22 |
+| 14:06 | 24.623 | 25.797 | 1.048 | +5.30 |
+
+VWAP diverges too — Kite 24405.86 vs TapeMap 24407.56 at 14:00 (**+1.70**).
+
+### Why this matters: the error can only ever produce FALSE NEGATIVES
+
+A wider σ pushes u2/u3 **up** and d2/d3 **down** — both **further from price**.
+So TapeMap can never fire a signal the operator's chart does not show; it can
+only **fail to fire ones it does**. Two confirmed misses on 2026-08-14:
+
+- **14:00 SELL.** High 24477.00 vs Kite u3 **24476.88** → poked through by 0.12
+  and closed 24475.00 back below: a textbook tag-and-reject on the operator's
+  screen. TapeMap's u3 was **24482.10** — the high fell **5.10 short**, so
+  nothing fired. *This is the bar the operator circled and asked about.*
+- **11:36 BUY.** Low 24370.00 vs Kite d2 **24370.81** → inside the blue, closed
+  24379.40 back above. TapeMap's d2 was **24369.75** — 0.25 short, no signal.
+
+### The lead, NOT yet proven — do not write this up as the cause
+
+On the **09:15** bar the Kite export has VWAP 24416.67 with *every* band equal
+to it (**σ = 0** at n=1). TapeMap's 09:15 bar already carries u1 24422.22 /
+d1 24404.71 — **σ = 8.75**. TapeMap starts the session with variance Kite does
+not have. That is a seeding difference and it is the obvious suspect, but the
+mechanism is **unverified**: it does not by itself explain why the ratio grows
+to 1.084 by 13:45 and then falls back to 1.048. **Measure before concluding.**
+The raw material now exists — `data/backtest/fut_2026-08-14.json` (379 raw
+1-minute bars, captured 15:35) plus the operator's CSV.
+
+### What this downgrades
+
+**HANDOFF §6's "σ bands match the operator's Kite export — ✅ VWAP 0.078 pts
+median, ±3σ ratio 0.981" no longer holds.** Today measures ratio **1.023–1.084**
+and a VWAP gap up to **1.70**. Whatever session that ✅ was earned on, it is not
+today's. The row is downgraded there.
+
+**§1b's six morning entries survive but the count is a FLOOR, not a total.**
+They cleared the *wider* band, so they clear the operator's narrower one too —
+but there were at least seven on the operator's chart (11:36 is the known
+extra). Any frequency claim from 2026-08-14 is a lower bound.
+
+---
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |
