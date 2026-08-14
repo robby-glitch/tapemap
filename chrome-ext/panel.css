@@ -1,0 +1,81 @@
+/* Every rule is namespaced .tm-* and the panel sets its own font and colour.
+   It is injected into someone else's page, so it must inherit NOTHING from
+   Kite and leak nothing back. */
+
+.tm-panel {
+  position: fixed;
+  top: 96px;
+  right: 16px;
+  width: 262px;
+  z-index: 2147483000;
+  background: #fff;
+  border: 0.5px solid #c9c9c9;
+  border-radius: 10px;
+  overflow: hidden;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #1a1a1a;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+.tm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 9px;
+  background: #fafafa;
+  border-bottom: 0.5px solid #e6e6e6;
+  cursor: move;
+  user-select: none;
+}
+.tm-brand { font-weight: 500; letter-spacing: 0.04em; }
+.tm-right { display: flex; align-items: center; gap: 7px; color: #5f5e5a; }
+.tm-idx {
+  font: inherit;
+  border: 0.5px solid #d5d5d5;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a1a1a;
+  padding: 1px 3px;
+}
+.tm-verdict {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  padding: 8px 9px;
+  border-bottom: 0.5px solid #e6e6e6;
+}
+.tm-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: #f1efe8;
+  color: #2c2c2a;
+}
+.tm-go { background: #eaf3de; color: #3b6d11; }
+.tm-caution, .tm-wait { background: #faeeda; color: #854f0b; }
+.tm-stand { background: #f1efe8; color: #5f5e5a; }
+.tm-why { color: #5f5e5a; font-size: 10px; line-height: 1.35; }
+.tm-line { padding: 7px 9px; border-bottom: 0.5px solid #e6e6e6; color: #444; }
+.tm-grid { display: flex; border-bottom: 0.5px solid #e6e6e6; }
+.tm-cell { flex: 1; padding: 6px 9px; }
+.tm-cell + .tm-cell { border-left: 0.5px solid #e6e6e6; }
+.tm-k { color: #888780; font-size: 10px; }
+.tm-v { font-weight: 500; }
+.tm-zone { padding: 8px 9px; border-bottom: 0.5px solid #e6e6e6; }
+.tm-buy { background: #eaf3de; }
+.tm-sell { background: #fcebeb; }
+.tm-none { background: #fff; color: #888780; }
+.tm-zhead {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+.tm-tag { padding: 1px 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.07); }
+.tm-trig { font-size: 10px; line-height: 1.45; }
+.tm-flags { font-size: 10px; color: #791f1f; margin-top: 2px; }
+.tm-levels { padding: 6px 9px; border-bottom: 0.5px solid #e6e6e6; }
+.tm-row { white-space: pre; }
+.tm-oi { padding: 6px 9px; color: #444; }
+.tm-msg { padding: 8px 9px; color: #5f5e5a; }
+.tm-bad { color: #a32d2d; }

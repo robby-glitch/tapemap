@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "TapeMap v2 — Kite panel",
+  "version": "0.1.0",
+  "description": "Shows the TapeMap read (verdict, dealer regime, pin, zone signals, OI) beside the Kite chart. Read-only: it never places an order.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://kite.zerodha.com/*"],
+      "js": ["content.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
