@@ -66,10 +66,30 @@ scored in time and are recorded in HANDOFF's 2026-08-14 entry.
    `upstox-data-source` memory) or at Kite would restore bulk backfill. Until
    then it is dead code for any date after 2026-08-05.
 
-## 0f · THE σ BANDS ARE WIDER THAN THE OPERATOR'S — cause unproven (2026-08-14)
+## 0f · ~~THE σ BANDS ARE WIDER THAN THE OPERATOR'S~~ · **CAUSE FOUND, NOT FIXED — the operator's decision (2026-08-15)**
 
-**Highest-value open item in this file.** It is upstream of every signal the
-repo produces, and it makes the tool miss setups the operator can see.
+**Do not reopen this as a bug.** The cause is proven and the operator chose to
+live with it: *"thats not required the difference is small we can manage with
+out it."*
+
+**Cause: granularity.** Bands are computed on the 1-minute series and only
+SAMPLED into the display bucket (`contract_bars.py:218`, deliberate); Kite
+computes SDVWAP on the 3-minute series. Recomputing on 3-minute bars matches
+Kite to 0.1–0.3% after 13:45 and reproduces its σ = 0 first bar exactly. The
+seeding theory was WRONG, and the variance recurrence is NOT at fault — full
+experiment and table in `research-findings.md` §1c.
+
+**Standing consequence, quote it wherever counts appear:** the bands stay wider
+than the operator's chart, the error is **false-negative-only**, and therefore
+**every TapeMap signal count is a FLOOR, not a total.** A touch that fires on
+their screen and not in the tool is expected, not a new bug.
+
+**Two residuals still genuinely unexplained** (small, nobody is waiting on
+them): the 3-minute rebuild is 8.6% off at 10:30 though near-exact after 13:45,
+and VWAP is 1.83 out even on 3-minute bars — granularity cannot explain that,
+suspect volume.
+
+The rest of this entry is kept as the measurement record.
 
 **The measurement** (full detail: `research-findings.md` §1c). Against the
 operator's own Kite CSV export of `NIFTY AUG FUT`, 3-min, 2026-08-14:

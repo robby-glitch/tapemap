@@ -308,16 +308,60 @@ only **fail to fire ones it does**. Two confirmed misses on 2026-08-14:
 - **11:36 BUY.** Low 24370.00 vs Kite d2 **24370.81** → inside the blue, closed
   24379.40 back above. TapeMap's d2 was **24369.75** — 0.25 short, no signal.
 
-### The lead, NOT yet proven — do not write this up as the cause
+### CAUSE PROVEN 2026-08-15 — granularity, and the operator has ACCEPTED it
 
-On the **09:15** bar the Kite export has VWAP 24416.67 with *every* band equal
-to it (**σ = 0** at n=1). TapeMap's 09:15 bar already carries u1 24422.22 /
-d1 24404.71 — **σ = 8.75**. TapeMap starts the session with variance Kite does
-not have. That is a seeding difference and it is the obvious suspect, but the
-mechanism is **unverified**: it does not by itself explain why the ratio grows
-to 1.084 by 13:45 and then falls back to 1.048. **Measure before concluding.**
-The raw material now exists — `data/backtest/fut_2026-08-14.json` (379 raw
-1-minute bars, captured 15:35) plus the operator's CSV.
+**The "seeding difference" guess is WRONG.** It was the obvious suspect and it
+was not the cause. Kept as a caution: the plausible mechanism was not the real
+one, and only the measurement separated them.
+
+Experiment: rebuild σ four ways from `data/backtest/fut_2026-08-14.json`
+(379 raw 1-minute bars) and score each against the operator's Kite CSV.
+
+| bar | Kite σ | **A** 1m + running | **B** 3m + running | **C** 3m + true var | A/K | B/K |
+|---|---|---|---|---|---|---|
+| 09:15 | 0.000 | 8.752 | **0.000** | 0.000 | — | — |
+| 10:30 | 10.780 | 11.025 | 9.857 | 11.039 | 1.023 | 0.914 |
+| 13:45 | 17.610 | 19.088 | **17.633** | 18.371 | 1.084 | **1.001** |
+| 14:00 | 23.673 | 24.849 | **23.731** | 24.348 | 1.050 | **1.002** |
+| 14:06 | 24.623 | 25.797 | **24.685** | 25.278 | 1.048 | **1.003** |
+
+**A reproduces the shipped ratios exactly** (1.023 / 1.084 / 1.050 / 1.048 —
+the same numbers measured above), which validates the harness.
+
+**The cause is GRANULARITY.** `contract_bars` computes bands on the **1-minute**
+series and `_fold` only SAMPLES them into the display bucket — deliberate; the
+comment at `contract_bars.py:218` calls it interval invariance. Kite computes
+SDVWAP on the **3-minute** series. The extra intrabar observations carry
+variance the 3-minute bars smooth away.
+
+**The variance recurrence is NOT at fault.** Column C — the "true" weighted
+variance around the final VWAP instead of `_Vwap`'s running one — is *worse*
+(1.011–1.043). `cvar += v*(tp-vwap_running)**2` at `contract_bars.py:173` is
+right. **Do not "fix" it.**
+
+**Residuals granularity does NOT explain**, left open:
+- B is off **8.6% at 10:30** and 2.7% at 11:30 while near-exact after 13:45.
+- **VWAP is still 1.83 out** on 3-minute bars (Kite 24405.86 vs 24407.69).
+  Granularity cannot explain this at all — suspect a volume mismatch.
+
+### DECIDED 2026-08-15 — not fixing it
+
+The operator's call, verbatim: *"thats not required the difference is small we
+can manage with out it."* What supports it: the error is
+**false-negative-only**, bounded at ~5 pts at 3σ, and the fix would make bands
+**shift when the interval changes** — Kite's behaviour, but not what
+`contract_bars.py:218` currently guarantees.
+
+**So the bands stay wider than the chart, knowingly.** The consequence is
+permanent and must be repeated wherever counts are quoted: **every TapeMap
+signal count is a FLOOR, not a total.** If the operator says a touch fired on
+their screen and not in the tool, that is expected behaviour, not a new bug.
+
+**A fix, if it is ever wanted**, is one line: `live.py:522` reads
+`resample(vwap_bands(one), interval)`; column B is `vwap_bands(resample(one,
+interval))`. It **contradicts HANDOFF §6's** recorded "band pipeline order
+✅ 0.972; reversed order 0.948" — one of those two measurements is wrong, and
+that must be settled before the swap is trusted.
 
 ### What this downgrades
 
