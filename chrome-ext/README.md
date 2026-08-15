@@ -46,6 +46,14 @@ option. Until then it would be drawing a falsehood.
   than the data is.
 - A stale payload says **"frozen, not quiet"** and a dead server names itself.
   Silence must never be mistaken for a calm market.
+- **The broker is in the header on every poll.** `start.bat` does not set
+  `TAPEMAP_BROKER`, so it brings the server up on Dhan — whose Data API lapsed
+  2026-08-05 — and the only symptom is an empty chart, indistinguishable from a
+  quiet market. Anything other than `upstox` turns red and the panel says to
+  restart with `start-v2.bat`. It is re-read every 15s rather than cached,
+  because the case worth catching is a server restarted onto another broker
+  mid-session. A server too old to serve `/api/health` shows `?` rather than a
+  guess.
 
 ## Files
 

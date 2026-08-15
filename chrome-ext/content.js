@@ -42,6 +42,7 @@ function build() {
     tick()
   })
   right.appendChild(sel)
+  right.appendChild($('span', 'tm-broker', '--'))
   right.appendChild($('span', 'tm-age', '--'))
   head.appendChild(right)
 
@@ -174,10 +175,13 @@ function tick() {
   const panel = document.querySelector('.tm-panel') || build()
   const body = panel.querySelector('.tm-body')
   const age = panel.querySelector('.tm-age')
+  const brok = panel.querySelector('.tm-broker')
   chrome.runtime.sendMessage({ kind: 'tape', idx: idx }, (res) => {
     if (chrome.runtime.lastError || !res) {
       body.textContent = ''
       body.appendChild($('div', 'tm-msg tm-bad', 'could not reach the extension worker'))
+      brok.textContent = '--'
+      brok.className = 'tm-broker'
       return
     }
     if (!res.ok) {
@@ -187,12 +191,30 @@ function tick() {
       body.appendChild($('div', 'tm-msg', 'is the TapeMap server up on 127.0.0.1:8765?'))
       age.textContent = '--'
       age.className = 'tm-age tm-bad'
+      brok.textContent = '--'
+      brok.className = 'tm-broker'
       return
     }
     const secs = Math.round(Date.now() / 1000 - (res.data.built_at || 0))
     render(panel, res.data)
     age.textContent = secs + 's'
     age.className = 'tm-age' + (secs > STALE_S ? ' tm-bad' : '')
+
+    // WHICH BROKER SERVED THIS. start.bat does not set TAPEMAP_BROKER, so it
+    // brings the server up on Dhan -- whose Data API lapsed 2026-08-05 -- and
+    // the only symptom is an empty chart. That is indistinguishable from a
+    // quiet market, which is precisely why it gets said out loud here.
+    // An older server with no /api/health reports nothing rather than lying.
+    const broker = res.health && res.health.broker
+    const dead = broker && broker !== 'upstox'
+    brok.textContent = broker || '?'
+    brok.className = 'tm-broker' + (dead ? ' tm-bad' : '')
+    if (dead) {
+      body.prepend(
+        $('div', 'tm-msg tm-bad', 'server is on ' + broker + ' - that source is dead; restart with start-v2.bat')
+      )
+    }
+
     if (secs > STALE_S) {
       body.prepend($('div', 'tm-msg tm-bad', 'tape is ' + secs + 's old - frozen, not quiet'))
     }

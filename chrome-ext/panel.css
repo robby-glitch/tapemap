@@ -36,6 +36,7 @@
   color: #1a1a1a;
   padding: 1px 3px;
 }
+.tm-broker { color: #5f5e5a; }
 .tm-verdict {
   display: flex;
   gap: 7px;
