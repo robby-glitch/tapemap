@@ -100,10 +100,6 @@ class Rank:
         insort(self.sorted, x)
         return r
 
-    @property
-    def n(self):
-        return len(self.sorted)
-
 
 # ---------------------------------------------------------------- one session
 
@@ -116,14 +112,12 @@ class Book:
     """Per-instrument session state: ranks, slopes, swing extremes."""
 
     def __init__(self, name):
-        self.name = name
         self.vol = Rank()
         self.rng = Rank()
         self.oi_slope = Rank()   # ranks |OI slope|
         self.bw = Rank()
         self.bars = []
         self.max_c = -1e18
-        self.min_c = 1e18
 
     def update(self, bar):
         self.bars.append(bar)
@@ -144,7 +138,6 @@ class Book:
         f["oi_slope_r"] = self.oi_slope.rank(abs(slope))
         f["prem_d"] = prem
         self.max_c = max(self.max_c, bar["C"])
-        self.min_c = min(self.min_c, bar["C"])
         bar["f"] = f
         return f
 
@@ -192,8 +185,6 @@ class GammaLayer:
         self.t_floored = (self.t_real is not None
                           and self.t_real < GAMMA_T_FLOOR)
         self.w = {"CE": 0.0, "PE": 0.0}          # writer score in [-1, 1]
-        self.oi0 = None                          # session-open OI/premium refs
-        self.px0 = None
         # Writer/buyer flow, accumulated from PER-BAR classifications the way
         # chain_metrics accumulates from per-bucket ones. `w_bars` counts the
         # bars that actually carried a classifiable move and is the score's
@@ -205,7 +196,6 @@ class GammaLayer:
         self.prev_oi = {"CE": None, "PE": None}
         self.prev_px = {"CE": None, "PE": None}
         self.peak_oi = {"CE": 0.0, "PE": 0.0}
-        self.oi_rank = {"CE": Rank(), "PE": Rank()}
         self.pv_rank = {"CE": Rank(), "PE": Rank()}   # |premium velocity|
         self.unwind = {"CE": 0, "PE": 0}         # accelerating-unwind minutes
         self.last_slope = {"CE": 0.0, "PE": 0.0}
@@ -226,10 +216,6 @@ class GammaLayer:
         dist = (F - self.k) / (self.WIDTH * self.k)
         near = abs(dist) < 1.2   # within ~1.2 bell widths of the strike
         proxy = math.exp(-0.5 * dist * dist) / math.sqrt(self.t)
-
-        if self.oi0 is None:
-            self.oi0 = {"CE": cb["OI"], "PE": pb["OI"]}
-            self.px0 = {"CE": cb["C"], "PE": pb["C"]}
 
         feats = {}
         self.peak_oi["CE"] = max(self.peak_oi["CE"], cb["OI"])
@@ -441,6 +427,7 @@ class Session:
         self.flipped = {}              # pivot -> (lvl, dir, t) after FLIP-TEST
         self.level_hits = defaultdict(list)   # pivot -> touch minutes (fights)
         self.trap_last = None          # (i, side, px) of last TRAP-SPRUNG
+        self._ev_rep = {}              # (kind, template) -> [idx, i, n, times]
 
     # ------------------------------------------------------------- utilities
 
@@ -451,8 +438,6 @@ class Session:
         collapse into the prior line as a ×N counter (within a 20m window)
         instead of spamming near-duplicate rows — killing the morning
         'two-sided writing, fade risk' TRAP/DIVERGENCE clusters."""
-        if not hasattr(self, "_ev_rep"):
-            self._ev_rep = {}                 # (kind, template) -> [idx, i, n, times]
         merge = kind in ("TRAP", "DIVERGENCE")
         tmpl = None
         if merge:
@@ -561,6 +546,7 @@ class Session:
     def minute(self, i, fb, cb, pb, ff, cf, pf):
         mature = i >= MATURITY
         ranks_ok = i >= WARMUP
+        med60 = median(self.med_rng[-60:])   # every tolerance below scales this
 
         # --- TRAP: option stretched >2-sigma inside immature bands,
         #     both books' OI building (two-sided writing sells the spike)
@@ -593,7 +579,7 @@ class Session:
 
         # --- DIVERGENCE: FUT new extreme, confirming option can't better its own best
         if mature:
-            tol = 2 * median(self.med_rng[-60:])
+            tol = 2 * med60
             if fb["C"] > self.fut_hi:
                 self.fut_hi = fb["C"]
                 self.trap_ref["UP"] = {"i": i, "px": fb["L"], "ext": fb["C"]}
@@ -629,7 +615,7 @@ class Session:
             if ff["z"] < -0.5 and pf["oi_slope"] > 0 and pf["prem_d"] < 0 \
                     and pf["oi_slope_r"] > 0.6:
                 self.trap_ev["DN"]["writers"] = i      # puts sold into the low
-            tol3t = 3 * median(self.med_rng[-60:])
+            tol3t = 3 * med60
             for side, word, who in (("UP", "BULL", "longs"),
                                     ("DN", "BEAR", "shorts")):
                 ref = self.trap_ref[side]
@@ -731,11 +717,11 @@ class Session:
         #     signature is an evacuation (PRESS), not disbelief.
         if ranks_ok and mature:
             lvl_name, lvl = self.nearest_level(fb["C"])
-            tol3 = 3 * median(self.med_rng[-60:])
+            tol3 = 3 * med60
             near_lvl = abs(fb["C"] - lvl) < tol3
             compressing = ff["bw_r"] < 0.45
-            pe_peak = max(b["OI"] for b in self.books["PE"].bars)
-            ce_peak = max(b["OI"] for b in self.books["CE"].bars)
+            pe_peak = self.oi_peak["PE"][0]
+            ce_peak = self.oi_peak["CE"][0]
             bull_loc = self.strike is None or (
                 fb["C"] >= self.strike - tol3 and pb["OI"] > 0.6 * pe_peak)
             bear_loc = self.strike is None or (
@@ -829,7 +815,7 @@ class Session:
         if ranks_ok and ff["vol_r"] > 0.95 and ff["rng_r"] < 0.55:
             side = "sellers" if fb["C"] < fb["O"] else "buyers"
             self.trap_ev["UP" if side == "buyers" else "DN"]["absorption"] = i
-            tolm = 2 * median(self.med_rng[-60:])
+            tolm = 2 * med60
             if not any(k == "ABS" and abs(p - fb["C"]) <= tolm
                        for k, p, *_ in self.marks[-4:]):
                 self.marks.append(("ABS", fb["C"], fb["T"],
@@ -842,7 +828,7 @@ class Session:
         # --- pivot breaks and FLIP-TESTs
         if mature:
             b0 = self.fut_bars[0]
-            tol = median(self.med_rng[-60:])
+            tol = med60
             for nm in ("R1", "R2", "R3", "S1", "S2", "P"):
                 lvl = b0[nm]
                 prev_c = self.fut_bars[i - 1]["C"] if i else fb["O"]

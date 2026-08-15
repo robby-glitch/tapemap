@@ -22,7 +22,6 @@ import struct
 # The proto's own enums, spelled out so a log line says NORMAL_OPEN rather
 # than 2.
 TYPE_NAME = {0: "initial_feed", 1: "live_feed", 2: "market_info"}
-MODE_NAME = {0: "ltpc", 1: "full_d5", 2: "option_greeks", 3: "full_d30"}
 STATUS_NAME = {0: "PRE_OPEN_START", 1: "PRE_OPEN_END", 2: "NORMAL_OPEN",
                3: "NORMAL_CLOSE", 4: "CLOSING_START", 5: "CLOSING_END"}
 

@@ -247,8 +247,6 @@ def main():
     save(token)
     print(f"\n    valid until 03:30 IST. user_type={data.get('user_type')} "
           f"exchanges={data.get('exchanges')}")
-    print("\nNow re-run the probe — same measurement, new token class:")
-    print("    python upstox_ws_probe.py")
 
 
 if __name__ == "__main__":

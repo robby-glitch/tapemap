@@ -25,10 +25,7 @@ STRIKE = 24700.0
 
 
 def _layer():
-    g = engine.GammaLayer(None, STRIKE, 0.25)
-    g.oi0 = {"CE": 1_000_000, "PE": 1_000_000}
-    g.px0 = {"CE": 100.0, "PE": 100.0}
-    return g
+    return engine.GammaLayer(None, STRIKE, 0.25)
 
 
 def _feed(g, side, path):

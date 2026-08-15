@@ -178,6 +178,8 @@ FVG (as opposed to its creation). Both need a second birth -- a structure born
 on the sweep/fill bar -- which the current `kind` enum has no member for. They
 are left for a later phase rather than answered dishonestly at birth.
 """
+import math
+
 
 SWING_N = 3            # bars each side of a fractal pivot
 EQ_FRAC = 0.05         # EQH/EQL equality, as a fraction of realised range
@@ -209,10 +211,10 @@ _NO_CHAIN = "/api/data carries no per-strike option chain"
 # ------------------------------------------------------------------ helpers
 
 def _num(x):
-    """x as a float when it is a real number, else None (NaN is not a price)."""
+    """x as a float when it is a real number, else None (NaN/inf is not a price)."""
     if isinstance(x, bool) or not isinstance(x, (int, float)):
         return None
-    return None if x != x else float(x)
+    return float(x) if math.isfinite(x) else None
 
 
 def _rank(vals, v):

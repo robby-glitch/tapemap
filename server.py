@@ -617,15 +617,10 @@ def main():
                     # put a 59-point carry into the option maths on
                     # 2026-08-04 (every CE unsolvable, PE IV 2.3x the
                     # chain's). Absent chain -> None -> old behaviour.
-                    spot = None
+                    # The poller publishes it beside the bytes; one dict read
+                    # replaces a full-payload json.loads per cycle.
                     box = chains.get(x)
-                    if box and box.get("payload"):
-                        try:
-                            pl = json.loads(box["payload"])
-                            if pl.get("ok"):
-                                spot = pl.get("spot")
-                        except ValueError:
-                            spot = None
+                    spot = box.get("spot") if box else None
                     # The engine still runs on 1-minute data; what gets
                     # published is derived per interval by payload_at above.
                     base = build_session(c, spot=spot)

@@ -202,20 +202,6 @@ def test_the_baseline_drives_a_real_change_through_the_normalizer():
     assert snap["strikes"][0]["ce"]["oi_chg"] == 8916050 - 11767000
 
 
-def test_the_oi_history_comes_back_oldest_first():
-    """The process does not always start at 09:15; this is what recovers the
-    session before it came up."""
-    series = ua.oi_series(NEWEST_FIRST)
-    assert [oi for _, oi in series] == [11767000, 11768000, 11768965]
-    assert [t for t, _ in series] == sorted(t for t, _ in series)
-
-
-def test_bars_without_oi_are_dropped_from_the_history():
-    """A zero would read as the whole book closing in one minute."""
-    rows = NEWEST_FIRST + [["2026-08-05T09:50:00+05:30", 1, 2, 0.5, 1.5, 10, 0]]
-    assert len(ua.oi_series(rows)) == 3
-
-
 # --------------------------------------------------------------------------
 # the index leg
 # --------------------------------------------------------------------------

@@ -423,11 +423,10 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
 def read(path=PATH):
     """(rows oldest-first, count of lines that would not parse).
 
-    `show`, `score` and `backfill` each spell `[json.loads(x) for x in f]`
-    inline, which was fine while every reader lived in this file. /api/signals
-    is a reader in ANOTHER module, and a row shape re-implemented there is a
-    row shape that can drift from the one `log_new` writes — so the parse
-    lives here, once, and the server calls it.
+    Every reader goes through here — `show`, `score` and `backfill` in this
+    file, /api/signals over in server.py — because a row shape re-implemented
+    elsewhere is a row shape that can drift from the one `log_new` writes. So
+    the parse lives here, once.
 
     OSError is deliberately NOT swallowed. A caller that cannot tell "the log
     is missing" from "the log is empty" will render one as the other, and on a
@@ -467,8 +466,7 @@ def backfill(path=PATH):
     could go missing for other reasons and the sentence always survives.
     """
     try:
-        with open(path, encoding="utf-8") as f:
-            rows = [json.loads(x) for x in f if x.strip()]
+        rows, _ = read(path)
     except OSError:
         print(f"no log at {path}")
         return 0
@@ -500,12 +498,7 @@ def backfill(path=PATH):
 
 # ── scoring: fill f15/f30 by clock label, never at log time ────────────────
 
-def _mins(t):
-    try:
-        hh, mm = t.split(":")
-        return int(hh) * 60 + int(mm)
-    except (AttributeError, ValueError):
-        return None
+_mins = band_rotation._minute      # same job, and its validation is stricter
 
 
 # ── the session tape a row is scored against ──────────────────────────────
@@ -886,8 +879,7 @@ def score(path=PATH, quiet=False):
     one the first run left.
     """
     try:
-        with open(path, encoding="utf-8") as f:
-            rows = [json.loads(x) for x in f if x.strip()]
+        rows, _ = read(path)
     except OSError:
         print(f"no log at {path}")
         return
@@ -1013,8 +1005,7 @@ def _line(r):
 
 def show(path=PATH):
     try:
-        with open(path, encoding="utf-8") as f:
-            rows = [json.loads(x) for x in f if x.strip()]
+        rows, _ = read(path)
     except OSError:
         print(f"no log yet at {path} — it appears after the first live trigger")
         return

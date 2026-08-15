@@ -19,7 +19,11 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 589** (`pytest -q`, 2026-08-14 16:00) — one added that
+- **Test count is now 569** (`pytest -q`, 2026-08-15) — the ponytail cleanup
+  removed 20 tests along with the code they covered (the dead research
+  scorers' `test_continuation.py` / `test_measure.py`, `oi_series`'s two, and
+  the four weekend-broken contract tests were rewritten, not removed), after
+  589 on 2026-08-14 16:00: one added that
   afternoon pinning the `carry_verdict` empty-book guard in
   `test_option_frame.py`. The earlier reconciliation, still accurate as
   history: **588** — 576, plus nine in

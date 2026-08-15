@@ -602,7 +602,7 @@ class ChainState:
                 # built to its day high) and the afternoon PE one was real
                 # (every put strike shed at once) — same shape, opposite truth.
                 fl = self.flow[(s["k"], side)]
-                oi_then, _lt = fl.window()
+                oi_then, ltp_then = fl.window()
                 if oi_then is not None:
                     net_flow += oi_then - s[side]["oi"]
                 w = w_by_k[s["k"]][side + "_w"]
@@ -618,7 +618,6 @@ class ChainState:
                 under = itm or (bpx is not None and ltp > UW_PREM * bpx)
                 if not under or uw_oi <= 0:
                     continue
-                _ot, ltp_then = fl.window()
                 unwound = max(0.0, (oi_then - s[side]["oi"])) \
                     if oi_then is not None else 0.0
                 pv = (ltp / ltp_then - 1.0) \

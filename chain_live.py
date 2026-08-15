@@ -308,19 +308,29 @@ class ChainPoller(threading.Thread):
             "strikes": strikes, "metrics": metrics,
             "series": thin_series(self.states[idx].series),
         }).encode()
+        # The spot rides OUTSIDE the bytes too: the tape refresher needs only
+        # this one float, and parsing the whole payload every cycle to get it
+        # was thousands of large json.loads per session for one number.
+        self.boxes[idx]["spot"] = snap["spot"]
+        self.boxes[idx]["err_tag"] = None
 
     def _fail(self, idx, mode, msg):
         self.boxes[idx]["payload"] = json.dumps(
             {"ok": False, "mode": mode, "index": idx, "error": msg}).encode()
+        self.boxes[idx]["spot"] = None
+        self.boxes[idx]["err_tag"] = None
 
     def _tag_error(self, idx, mode, msg):
         """Keep the last good payload for `idx` but tag it with the error."""
         box = self.boxes[idx]
         if box["payload"]:
+            if box.get("err_tag") == msg:
+                return          # already carries exactly this tag; nothing to redo
             try:
                 pl = json.loads(box["payload"])
                 pl["error"] = msg
                 box["payload"] = json.dumps(pl).encode()
+                box["err_tag"] = msg
             except Exception:
                 pass
         else:

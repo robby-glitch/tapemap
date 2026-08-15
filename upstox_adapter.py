@@ -234,15 +234,3 @@ def session_open_oi(candles):
     return ois[0] if ois and ois[0] else None
 
 
-def oi_series(candles):
-    """(epoch, oi) per minute, oldest first -- the session's OI history.
-
-    Exists because the process does not always start at 09:15. The writer
-    score classifies per-bar OI deltas, and until now anything before the
-    backend came up was simply absent; this recovers it from the same
-    response. Bars with no OI are dropped rather than carried as zero, since
-    a zero would read as the entire book closing in one minute.
-    """
-    arrays = candles_to_arrays(candles)
-    return [(t, oi) for t, oi in zip(arrays["timestamp"],
-                                     arrays["open_interest"]) if oi]

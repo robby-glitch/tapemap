@@ -91,13 +91,15 @@ def _pick_strike(F, cfg):
         st["strike"], st["drift"] = cand, 0
         _save_stick()
         return cand
+    old = (st["strike"], st["drift"])
     if cand != st["strike"] and abs(F - st["strike"]) > 0.6 * step:
         st["drift"] += 1
     else:
         st["drift"] = 0
     if st["drift"] >= 5:
         st["strike"], st["drift"] = cand, 0
-    _save_stick()
+    if (st["strike"], st["drift"]) != old:   # unchanged state earns no disk write
+        _save_stick()
     return st["strike"]
 
 

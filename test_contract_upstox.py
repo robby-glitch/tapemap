@@ -84,8 +84,7 @@ class _Rest:
 
     def intraday(self, key, tok, interval="1minute"):
         self.intraday_calls.append((key, tok))
-        today = datetime.now(IST).strftime("%Y-%m-%d")
-        return [] if key in self.empty else _candles(today, self.n)
+        return [] if key in self.empty else _candles(_today(), self.n)
 
     def historical(self, key, tok, day, interval="1minute"):
         self.historical_calls.append((key, tok, day))
@@ -100,6 +99,10 @@ def upstox(monkeypatch):
     documented switch is what these tests exercise.
     """
     monkeypatch.setenv("TAPEMAP_BROKER", "upstox")
+    # Weekends only change WHICH endpoint serves the newest session, and that
+    # is not what these tests are about -- so live's clock is pinned to the
+    # session day (2026-08-15, first weekend run caught the drift).
+    monkeypatch.setattr(live, "datetime", _SessionClock)
     import upstox_feed
     import upstox_rest
 
@@ -134,7 +137,33 @@ def no_dhan(monkeypatch):
 
 
 def _today():
-    return datetime.now(IST).strftime("%Y-%m-%d")
+    """The session `build_contract` will treat as "today" -- NOT the calendar
+    date. `_sessions_back` rolls a Sat/Sun request to Friday, and `live` then
+    compares every session against its own wall clock to pick intraday vs
+    historical and to decide the backfill caveat. On the first weekend run
+    (Sat 2026-08-15) the calendar date and the session disagreed and four
+    tests here failed -- a suite that cries every weekend gets ignored, so
+    the tests anchor to the session, and the `upstox` fixture freezes
+    `live`'s clock to the same day (see `_SessionClock`)."""
+    d = datetime.now(IST)
+    while d.weekday() >= 5:                      # same rule as _sessions_back
+        d -= timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
+
+class _SessionClock(datetime):
+    """`datetime` with `now` pinned to the last session day (time-of-day
+    kept). Swapped in for `live.datetime` so that on a weekend `live` agrees
+    with `_today()` that Friday's session "is" today -- the exact agreement
+    the market provides for free Mon-Fri. Everything else (`strptime`,
+    arithmetic) is inherited untouched."""
+
+    @classmethod
+    def now(cls, tz=None):
+        d = datetime.now(tz)
+        while d.weekday() >= 5:
+            d -= timedelta(days=1)
+        return d
 
 
 # ---- 1. the expiry the legs are actually resolved against ------------------

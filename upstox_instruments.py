@@ -114,22 +114,32 @@ def _find_index_key(rows, name, exch):
         f"subscribing to a guessed key would simply never tick.")
 
 
+_mem = {}   # name -> (cache path, mtime, blob): the disk cache minus the re-parse
+
+
 def _blob(name, max_age_h=MAX_AGE_H, fetch=None):
     """{'rows': [...], 'index_key': '...'} for `name`, from disk when fresh.
 
     `fetch` is injectable so the cache policy can be tested without the
-    network.
+    network. The in-memory memo is keyed on the cache file's path AND mtime,
+    so a rewritten or swapped cache file is a miss, never a stale hit — the
+    refresh loop was re-reading and re-parsing this file 3-4 times per cycle.
     """
     name = name.upper()
     cache = CACHE_FMT.format(name.lower())
     if os.path.exists(cache):
-        age_h = (time.time() - os.path.getmtime(cache)) / 3600.0
+        mt = os.path.getmtime(cache)
+        age_h = (time.time() - mt) / 3600.0
         if age_h < max_age_h:
+            hit = _mem.get(name)
+            if hit and hit[0] == cache and hit[1] == mt:
+                return hit[2]
             try:
                 with open(cache, encoding="utf-8") as f:
                     blob = json.load(f)
                 if blob.get("name") == name and blob.get("rows") \
                         and blob.get("index_key"):
+                    _mem[name] = (cache, mt, blob)
                     return blob
             except (json.JSONDecodeError, OSError):
                 pass                 # a corrupt cache is a re-fetch, not a crash

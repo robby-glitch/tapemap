@@ -10,14 +10,63 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-14 16:00 IST. **589 tests pass, none fail** (`pytest -q`,
-run 2026-08-14 — 576, plus nine in `test_eod_capture.py`, three in
-`test_docs_claims.py` which pins this very number against the run, and one
-added 2026-08-14 for the `carry_verdict` empty-book crash). Branch:
-`feature/dashboard-v2`, **pushed to `origin`, tree clean** at the time of
-writing (the 2026-08-14 zone/band work and the Kite panel extension). *No commit hash here on purpose: any hash this line names is stale the
+Last updated: 2026-08-15. **569 tests pass, none fail** (`pytest -q`,
+run 2026-08-15 after the ponytail cleanup below — 589 minus the 20 that
+covered deleted code; `test_docs_claims.py` pins this very number against
+the run). Branch:
+`feature/dashboard-v2`, uncommitted cleanup in the tree at the time of
+writing (see the 2026-08-15 entry). *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
 `git status --short` are the live answer.*
+
+### 2026-08-15 — the ponytail cleanup: ~4,300 lines gone, nothing live touched
+
+A repo-wide lean pass (four parallel audits + verification). What left, and
+why it was safe:
+
+* **19 dead scripts deleted** (~4,000 lines): `upstox_probe.py` /
+  `upstox_ws_probe.py` (self-declared throwaways whose measurements are
+  recorded in `upstox_auth.py` / `upstox_feed.py` docstrings), `backfill.py`
+  (fetches from Dhan's Data API, which lapsed 2026-08-05 — `eod_capture.py`
+  is the living replacement), and the research-phase scorers whose verdicts
+  are on the record in `research-findings.md` §2 (`orb_score`, `gap_score`,
+  `stock_score`, `rotation_score`, `trail_score`, `confirm_score`,
+  `band_backtest`, `expression_backtest`, `cross_*`, `continuation`,
+  `contrarian`, `measure`, `gex_run`, `make_chain_fixture`) plus their two
+  orphaned test files. §5's stop rule means they will not be re-run; git
+  history keeps them if new evidence ever reopens one. **Kept on purpose:**
+  `squeeze_score.py` (trigger_log imports it), `run_score.py`
+  (test_band_rotation_run pins its constants), `signal_review.py` (live
+  post-mortem CLI), `backtest.py` (test fixture loader).
+* **Dead attributes/functions cut**: `GammaLayer.oi0/px0/oi_rank`, `Rank.n`,
+  `Book.name/min_c`, `upstox_adapter.oi_series`, `upstox_proto.MODE_NAME` —
+  each verified written-but-never-read across the whole tree.
+* **Per-cycle waste removed** (the "fast" half): the refresh loop no longer
+  `json.loads`es the full chain payload to read one spot float (the poller
+  now publishes `box["spot"]` beside the bytes); `_tag_error` no longer
+  re-parses/re-dumps the same "market closed" tag every 30s all night;
+  `stick_state.json` is written only when the strike/drift actually changed
+  (was ~4,500 unchanged writes a session); `upstox_instruments._blob` memoizes
+  the parsed cache on (path, mtime); `engine.minute()` computes its
+  60-bar median tolerance once per bar instead of five times, and the SPRING
+  block reads the tracked `oi_peak` instead of rescanning every bar's OI.
+* **Weekend-proof tests**: the four `test_contract_upstox.py` tests that
+  failed every Sat/Sun (calendar-today vs session-day, caught on the first
+  weekend run 2026-08-15) now pin their clock to the session day the code
+  under test actually resolves. Suite went 589-with-4-weekend-failures →
+  **569, all green any day of the week**.
+* **Small consolidations**: trigger_log's `show`/`score`/`backfill` now parse
+  through `read()` (one row-shape authority, as its docstring always wanted),
+  `_mins` is `band_rotation._minute`, `structure._num` now rejects ±inf, and
+  `chain_metrics._squeeze` calls `fl.window()` once per row.
+
+Flagged but **not** touched — operator decisions, not cleanups:
+`/api/contract` + the two-leg `detect` stack (~850 lines, fully tested, zero
+UI consumers since 2026-07-31 — ship the pair chart or delete it), the v1
+`ui/` + `/api/gex` (still what 8765 serves at root; retiring them needs
+server.py to serve ui-v2's build first), `dhan_fetch`'s CLI half (welded to
+expired July-2026 ids), and `trigger_log.backfill` (completed one-time
+repair, kept as cheap insurance).
 
 ### 2026-08-14 — the tape stops evaporating, and NIFTY finally fires
 
