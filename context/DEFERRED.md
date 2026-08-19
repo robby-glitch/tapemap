@@ -39,7 +39,33 @@ Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 - **`exit_why`'s half-landed correction is CLOSED** (`654d17c`): `machine.ts`
   exports `lockNote` and all three screens render the re-fire lock through it.
 
-## 0d · THE TAPE EVAPORATES AT MIDNIGHT — closed forward, five rows lost
+## 0d · ~~THE TAPE EVAPORATES AT MIDNIGHT~~ · **CLOSED 2026-08-20 — the five "permanently unmeasurable" rows ARE measured**
+
+**The claim below is FALSE and is kept as the record of how it was wrong.**
+On 2026-08-20 `upstox_auth.py` was re-run and `recover_tape.py` pulled
+1-minute futures candles for the four missing sessions — SENSEX 08-10 (370
+bars), SENSEX 08-13 (385), NIFTY 08-13 (385), BANKNIFTY 08-10 (385) — from
+Upstox historical, on the same August contracts the live captures used. Every
+logged price falls inside its recovered session's range, which is the check
+that says the contract is right. `score` then filled **20 rows**, including
+all five SENSEX 2026-08-13 entries this entry called permanently lost.
+§5c's scored population went 8 → **17**.
+
+**What was actually wrong with the reasoning:** "verified against every
+surviving source" surveyed the sources the tool already used (its own API
+cache, its own chain log) and concluded from their emptiness that the data
+did not exist. It existed at the broker the whole time. A session is not
+unrecoverable because *our* copies of it are gone.
+
+**Both items below are now closed:** item 1 by `recover_tape.py` (Upstox, not
+Kite — Kite MCP's login completed but every API-hitting endpoint failed);
+item 2 by the same file, which is what `backfill.py` should have become
+before it was deleted. The only unscored rows left are the CURRENT day's,
+which `eod_capture` fills at 15:35.
+
+The rest of this entry is the original, preserved:
+
+## 0d (original) · THE TAPE EVAPORATES AT MIDNIGHT — closed forward, five rows lost
 
 **Evidence, 2026-08-13/14.** Signals are logged forward correctly, but the bars
 they are scored against arrived only through `backfill.py` → `dhan_fetch`, and
