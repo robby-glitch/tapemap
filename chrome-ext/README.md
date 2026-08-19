@@ -1,5 +1,12 @@
 # TapeMap v2 — Kite panel
 
+> **SUPERSEDED (2026-08-15).** The TapeMap read now lives inside PaperDesk
+> (the operator's own extension) painted directly on the Kite chart — zone
+> state, WHY ribbon, absorption/fuel marks, premium-chart strips — via the
+> same 127.0.0.1:8765 server. This panel still works and stays until the
+> hybrid is verified on a live session; then this folder goes. Do not add
+> features here.
+
 A read-only Chrome extension that puts the TapeMap read beside the Kite chart,
 so the options layer sits where the operator's eyes already are.
 
@@ -9,7 +16,9 @@ no write path of any kind. The only network call it can make is a GET to
 
 ## Load it
 
-1. TapeMap server must be running (`start.bat`, port **8765**).
+1. TapeMap server must be running (**`start-v2.bat`**, port **8765** — not
+   `start.bat`, which brings it up on Dhan, the dead source the panel's own
+   broker banner warns about).
 2. Chrome → `chrome://extensions` → turn on **Developer mode** (top right).
 3. **Load unpacked** → pick this `chrome-ext/` folder.
 4. Open `kite.zerodha.com`. The panel appears top-right; drag it by its header

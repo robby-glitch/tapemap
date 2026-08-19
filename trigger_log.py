@@ -213,7 +213,9 @@ def _minute_extreme(ones, t, sell, interval, extreme):
     return best_t, best_v, None
 
 
-def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now):
+def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now,
+              keys=(("run_state", False), ("run_state_sell", True)),
+              rule="5c"):
     """Every ARM on this session's state lists, as rows ready to append.
 
     BOTH sides, on the operator's decision: BUY off d3 (`run_state`) and SELL
@@ -228,7 +230,7 @@ def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now):
     lives in the state machine. See `run_states` for why it is stated there.
     """
     out = []
-    for key, sell in (("run_state", False), ("run_state_sell", True)):
+    for key, sell in keys:
         for st in day_js.get(key) or []:
             if not isinstance(st, dict):
                 continue
@@ -253,7 +255,7 @@ def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now):
                    # carrying no measured number.
                    "interval": interval, "t": t,
                    "side": "SELL" if sell else "BUY", "band": arm.get("band"),
-                   "rule": "5c",
+                   "rule": rule,
                    "level": st.get("level"),
                    # The reference bar's line to beat, under its TRUE name.
                    # `run_states` emits `ref_low` on a sell and `ref_high` on a
@@ -373,8 +375,39 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
         except Exception:
             pass
 
-        for i, rec in enumerate(rot):
-            if rec is None or i >= last or bars[i] is None:
+        # THE ZONE's arms (§1b, rule "zone") — its own try for the same reason
+        # the 5c arms have theirs: a zone bug must never cost a §5c row, and
+        # the two populations are never pooled. `_key` carries `rule`, so the
+        # dedupe cannot collide them either.
+        try:
+            interval = payload.get("interval")
+            if interval == band_rotation.SCORED_INTERVAL:
+                out.extend(json.dumps(r) for r in
+                           _dedupe(_arm_rows(
+                               index, day_js, bars, last, day,
+                               (oi_call, oi_put, oi_strength),
+                               ones, interval, time.time(),
+                               keys=(("zone_state", False),
+                                     ("zone_state_sell", True)),
+                               rule="zone")))
+                wrote = len(out)
+        except Exception:
+            pass
+
+        # Zone ENTRIES ride the same loop as §5c's under their own tag —
+        # one row shape, two populations. Same slot rule per list: buy wins.
+        zrot = [s.get("entry") if isinstance(s, dict) else None
+                for s in day_js.get("zone_state") or []]
+        zsell = [s.get("entry") if isinstance(s, dict) else None
+                 for s in day_js.get("zone_state_sell") or []]
+        if len(zsell) == len(zrot):
+            zrot = [b if b is not None else s_ for b, s_ in zip(zrot, zsell)]
+        elif zsell and not zrot:
+            zrot = zsell
+
+        for rule_tag, rec_list in (("5c", rot), ("zone", zrot)):
+          for i, rec in enumerate(rec_list):
+            if rec is None or i >= last or i >= len(bars) or bars[i] is None:
                 continue
             bar = bars[i]
             row = {"at": time.time(), "day": day, "index": index,
@@ -383,8 +416,9 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                    # Which RULE produced this row. Rows written before
                    # 2026-08-08 carry no `rule` and describe §1's one-candle
                    # TOUCH; `score` quarantines them rather than pooling two
-                   # different rules into one number.
-                   "rule": "5c",
+                   # different rules into one number. "zone" rows are §1b's
+                   # pre-registered rule and are counted apart from both.
+                   "rule": rule_tag,
                    "px": _close(bar), "trigger": rec.get("trigger"),
                    # The band price the setup armed on. The scorer needs it to
                    # place the operator's stop (`band_rotation._stop_px`), and
@@ -898,13 +932,18 @@ def score(path=PATH, quiet=False):
             # them -- there is nothing about them a fuller cache would fix.
             skipped += 1
             continue
-        if r.get("rule") != "5c":
+        if r.get("rule") not in ("5c", "zone"):
             # Written before 2026-08-08, when this logger read `rotation` --
             # §1's ONE-CANDLE rule, which marks the d3 TOUCH and which
             # research-findings marks VOID. Those rows describe a different
             # BAR from the entries the tool now draws. Quarantined, not
             # deleted: the gamma/ctx/OI context in them is still real, only
             # the rule they belong to is not the one being scored.
+            #
+            # "zone" (§1b, logged since 2026-08-17) is admitted here because
+            # outcome-filling is the LIVE forward test's own machinery -- but
+            # it is a SEPARATE population: every count, table and refusal
+            # downstream reads the rule tag and never pools it with 5c.
             skipped += 1
             continue
 
@@ -1040,6 +1079,13 @@ def show(path=PATH):
             print(f"{'':<2}  not scored — {r['unscored']}")
     print("\n" + rate_refusal(sum(1 for r in rows if r.get("rule") == "5c"
                                   and r.get("mfe") is not None)))
+    zn = sum(1 for r in rows if r.get("rule") == "zone"
+             and r.get("mfe") is not None)
+    if zn:
+        print(f"ZONE (§1b, separate population, never pooled with 5c): {zn} "
+              f"scored row{'' if zn == 1 else 's'}. Same refusal applies — "
+              f"under 15 per side is INCONCLUSIVE and the bar is the "
+              f"operator's to state BEFORE reading these.")
     if not arms:
         return
     setups = sum(1 for r in arms if not r.get("rearm"))

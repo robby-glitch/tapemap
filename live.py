@@ -1026,6 +1026,15 @@ def _at_interval(day, interval):
         out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL")
     out["run_state_sell"] = _states_sell
     out["rotation_run_sell"] = [s["entry"] for s in _states_sell]
+    # THE ZONE (§1b, pre-registered, UNSCORED): the same machine armed at the
+    # NEAR edge of the shading -- d2/u2 -- because reaching d2 IS the event.
+    # Published under its OWN keys: `run_state`/`rotation_run` keep meaning
+    # §5c forever, and no surface may quote the d3 rule's 68.4% next to these.
+    out["zone_state"] = band_rotation.run_states(
+        out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, band="d2")
+    out["zone_state_sell"] = band_rotation.run_states(
+        out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL",
+        band="u2")
     return out
 
 

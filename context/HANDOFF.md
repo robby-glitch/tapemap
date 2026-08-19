@@ -10,14 +10,54 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-15. **569 tests pass, none fail** (`pytest -q`,
-run 2026-08-15 after the ponytail cleanup below — 589 minus the 20 that
-covered deleted code; `test_docs_claims.py` pins this very number against
-the run). Branch:
+Last updated: 2026-08-15. **581 tests pass, none fail** (`pytest -q`,
+run 2026-08-15: 569 after the ponytail cleanup below, plus six in
+`test_zone_state.py` pinning the §1b zone machine; `test_docs_claims.py`
+pins this very number against the run). Branch:
 `feature/dashboard-v2`, uncommitted cleanup in the tree at the time of
 writing (see the 2026-08-15 entry). *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
 `git status --short` are the live answer.*
+
+### 2026-08-15 — the hybrid: TapeMap paints on the Kite chart through PaperDesk
+
+The operator's own PaperDesk extension (Downloads/paperdeskextension (2))
+became the canvas; this server stays the brain. Design + phases:
+`~/.claude/plans/look-at-this-chart-agile-hammock.md` (discussed with Opus 5,
+operator-approved after mockups).
+
+**Server changes (this repo, all tested):**
+* `band_rotation.run_states(band=)` — THE ZONE (§1b, UNSCORED) runs on the
+  SAME machine armed at d2/u2; receipts name the band they armed on; the
+  default path stays byte-identical to §5c (pinned by `test_zone_state.py`).
+* `live._at_interval` publishes `zone_state`/`zone_state_sell` beside
+  `run_state` — additive keys, live mode only (the legacy replay payload
+  never carried `run_state` either).
+* `trigger_log.log_new` writes the zone population under `rule:"zone"` —
+  arms via the SAME `_arm_rows` (parameterized), entries via the same loop,
+  never pooled with `5c` (the dedupe key already carries `rule`). §5e's
+  operator-side record now builds itself.
+* `POST /api/paper_fill` → `data/paper_fills.jsonl` (SEPARATE from
+  trigger_log by design; join on index/day/t). Verified live on the mock.
+
+**PaperDesk changes (outside this repo):** two Phase-0 correctness fixes
+(short-option margin was ~24× understated from the order pad — now strike-
+based via `PD.strikeOf`; `tryFill` refuses quotes >30s old), a `tape.js`
+poller (leader-tab only, 15s, worker-fetched for CORS) reducing the payload
+to `pd_tape_v1`, and `chart-draw.js` renderers: zone carets/REF/countdown/
+stop on index+FUT charts (price-anchored lines FUT-only — the ~80-pt basis),
+WHY ribbon (squeeze verbatim-receipted, buildup quadrant, GEX/pin), the two
+mechanics marks (ABSORPTION, OI-PEAK-LAG), premium-chart zone strips +
+per-leg quadrant ticks + strike wall chips, and 17 opt-in narrative kinds
+gated behind their scored verdict. Fills carry a `ctx` tape stamp and mirror
+to `/api/paper_fill`. Checks: `node tests/phase0.js` + `tests/phase1.js`.
+
+**Not done on purpose:** `chrome-ext/` is banner-superseded, not deleted —
+it is the panel currently loaded in the operator's Chrome, and it stays
+until the hybrid survives a live session. The server on 8765 was left
+running old code; it needs one restart (`start-v2.bat`) to serve
+`zone_state`, and the operator must reload PaperDesk in
+`chrome://extensions` to pick up the new files.
 
 ### 2026-08-15 — the ponytail cleanup: ~4,300 lines gone, nothing live touched
 

@@ -900,17 +900,20 @@ def _run_read(bar, band=RUN_BAND):
     return low, high, close, _num(bar.get(band)), _num(bar.get("vwap"))
 
 
-def _run_why(ref_t, ref_high, level, close, waited, sell=False):
+def _run_why(ref_t, ref_high, level, close, waited, sell=False, band=None):
     """The receipt. Worded so it can never be confused with `_trigger_why`'s
     sentence -- `trigger_log.py` parses that one, and the two rules must stay
-    tellable apart in a log written months from now."""
+    tellable apart in a log written months from now. `band` names the band the
+    setup actually armed on (the zone rule arms at d2/u2); the default keeps
+    every existing sentence byte-identical."""
+    bname = band or (SELL_RUN_BAND if sell else RUN_BAND)
     at = f" at {ref_t}" if isinstance(ref_t, str) and ref_t else ""
     bars = "bar" if waited == 1 else "bars"
     if sell:
-        return (f"index high touched {SELL_RUN_BAND} {_f(level)}{at}, then "
+        return (f"index high touched {bname} {_f(level)}{at}, then "
                 f"closed {_f(close)} below that candle's low {_f(ref_high)} "
                 f"{waited} {bars} later")
-    return (f"index low touched {RUN_BAND} {_f(level)}{at}, then closed "
+    return (f"index low touched {bname} {_f(level)}{at}, then closed "
             f"{_f(close)} above that candle's high {_f(ref_high)} "
             f"{waited} {bars} later")
 
@@ -963,7 +966,7 @@ def detect_index_run(bars, days=None, stop_pts=None, side="BUY"):
     return [s["entry"] for s in run_states(bars, days, stop_pts, side)]
 
 
-def run_states(bars, days=None, stop_pts=None, side="BUY"):
+def run_states(bars, days=None, stop_pts=None, side="BUY", band=None):
     """The same two-candle setup as a state PER BAR, not only its entries.
 
     `detect_index_run` answers "where did it fire". A screen also has to answer
@@ -1022,7 +1025,11 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
     # nothing else. A second copy of this machine would drift exactly the way
     # the 09:25 gate did while it lived in the scorer AND the frontend.
     sell = str(side).upper() == "SELL"
-    band = SELL_RUN_BAND if sell else RUN_BAND
+    # `band` overrides which band ARMS the machine -- the zone rule (§1b,
+    # pre-registered, UNSCORED) arms at the NEAR edge, d2/u2, because reaching
+    # d2 IS the event. Same machine, same window, same lock: a second copy
+    # would drift exactly the way the 09:25 gate did.
+    band = band or (SELL_RUN_BAND if sell else RUN_BAND)
     rows = [_index_bar(b) for b in bars]
     n = len(rows)
     day_list = (list(days) if isinstance(days, (list, tuple)) and len(days) == n
@@ -1118,7 +1125,7 @@ def run_states(bars, days=None, stop_pts=None, side="BUY"):
                              "side": "SELL" if sell else "BUY",
                              "leg": INDEX_LEG, "band": band,
                              "trigger": _run_why(ref["t"], brk, ref["level"],
-                                                 close, waited, sell),
+                                                 close, waited, sell, band),
                              "also": None,
                              "confirm": "UNKNOWN",
                              "confirm_why": SINGLE_SERIES_CONFIRM_WHY,

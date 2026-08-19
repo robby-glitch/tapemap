@@ -19,7 +19,9 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 569** (`pytest -q`, 2026-08-15) — the ponytail cleanup
+- **Test count is now 581** (`pytest -q`, 2026-08-20 — 575 plus the zone-scorer pin in `test_zone_state.py` and five in `test_recover_tape.py`; before that 575, 2026-08-15 evening — 569 plus six
+  in `test_zone_state.py` for the §1b zone machine behind the PaperDesk
+  chart overlay). Earlier the same day: **569** — the ponytail cleanup
   removed 20 tests along with the code they covered (the dead research
   scorers' `test_continuation.py` / `test_measure.py`, `oi_series`'s two, and
   the four weekend-broken contract tests were rewritten, not removed), after

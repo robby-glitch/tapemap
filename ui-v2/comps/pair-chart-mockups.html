@@ -1,0 +1,274 @@
+<!--
+PAIR CHART MOCKUPS — three ways to put /api/contract on a screen.
+Every pixel is labeled with the payload key that would feed it. Mock data is a
+plausible NIFTY morning: pair = 24500CE / 24400PE (different strikes on
+purpose — that IS pick_pair's output), 3-minute bars, one BUY rotation record
+at 10:42 with its receipt sentence.
+Tokens are ui-v2/src/theme.ts verbatim: brass = structure, green/red =
+direction only.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pair chart — 3 mockups</title>
+<style>
+  :root{
+    --bg:#0B0E14; --card:#141926; --inset:#1B2130;
+    --border:rgba(255,255,255,.07);
+    --t1:#E8EDF5; --t2:#9AA7BD; --t3:#5D6B84;
+    --bull:#2EC27E; --bear:#FF5F6B; --brass:#E0A852; --strike:#E8C15A;
+    --ce:#E0A852; --pe:#6FA8DC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--t1);
+       font:13px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;
+       font-variant-numeric:tabular-nums;padding:28px 20px 80px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:15px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 6px}
+  .sub{color:var(--t2);font-size:12.5px;max-width:78ch;margin:0 0 26px}
+  .variant{border:1px solid var(--border);background:var(--card);
+           border-radius:10px;padding:18px 18px 14px;margin:0 0 34px}
+  .vhead{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+  .vtag{background:var(--inset);border:1px solid var(--border);border-radius:5px;
+        padding:2px 9px;font-size:11px;letter-spacing:.14em;color:var(--brass)}
+  .vname{font-weight:600}
+  .vnote{color:var(--t2);font-size:12px;margin:2px 0 14px;max-width:80ch}
+  .vnote b{color:var(--t1);font-weight:600}
+  svg{display:block;width:100%;height:auto}
+  .verdict{border-top:1px solid var(--border);margin-top:12px;padding-top:10px;
+           color:var(--t3);font-size:12px}
+  .verdict b{color:var(--t2)}
+  .plan{border:1px solid var(--border);background:var(--card);border-radius:10px;
+        padding:16px 18px;font-size:12.5px;color:var(--t2)}
+  .plan h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+           color:var(--t1);margin:0 0 8px}
+  .plan li{margin:0 0 6px}
+  code{background:var(--inset);border-radius:4px;padding:1px 5px;
+       font-family:'Cascadia Mono',ui-monospace,Consolas,monospace;font-size:11.5px;
+       color:var(--strike)}
+</style>
+<div class="wrap">
+  <h1>The pair chart — three mockups</h1>
+  <p class="sub">All three draw the same payload. Legend everywhere:
+  <span style="color:var(--ce)">■ CE 24500</span> &nbsp;
+  <span style="color:var(--pe)">■ PE 24400</span> &nbsp;
+  <span style="color:var(--bull)">■ BUY rotation</span> &nbsp;
+  <span style="color:var(--brass)">■ structure (VWAP/σ)</span>.
+  Gaps in a leg stay gaps — the axis join rule says a missing bar is never
+  faked from a neighbour, so the mockups show one (PE, 11:00–11:06).</p>
+
+  <div class="variant">
+    <div class="vhead"><span class="vtag">A</span><span class="vname">Stacked legs, shared clock</span></div>
+    <p class="vnote">CE premium tape above, PE below, one time axis
+    (<b>axis</b>). Each leg carries its own VWAP + 1σ/2σ shading
+    (<b>legs.*.vwap</b>, bands from the same <code>contract_bars.vwap_sigma</code>
+    the tape already uses). Rotation records (<b>rotation[i]</b>) land as chips in the
+    spine between the panes — they belong to the PAIR, not to a leg. Right rail:
+    the two verbatim receipts (<b>pair_why</b>, <b>rotation[i].trigger</b>) plus live OI.</p>
+    <svg viewBox="0 0 1040 430" id="vA"></svg>
+    <p class="verdict"><b>Trade-off:</b> most honest to the data (nothing overlaps, gaps are visible),
+    costs the most vertical space. Closest to what LegChart.tsx already renders — cheapest to build.</p>
+  </div>
+
+  <div class="variant">
+    <div class="vhead"><span class="vtag">B</span><span class="vname">Mirror — PE grows downward</span></div>
+    <p class="vnote">Same two legs, but PE's premium axis is flipped so both legs grow
+    <b>outward</b> from a central spine. The whole point of the pair is <i>divergence</i> —
+    one book paying up while the other bleeds — and here divergence is literal asymmetry
+    you can see across the spine. Rotation chips sit ON the spine. σ bands drawn per leg, mirrored.</p>
+    <svg viewBox="0 0 1040 360" id="vB"></svg>
+    <p class="verdict"><b>Trade-off:</b> the divergence read is instant, but premium LEVELS are harder
+    to read on the flipped leg, and a mirrored chart is a new idiom to learn. Same build cost as A plus a flipped scale.</p>
+  </div>
+
+  <div class="variant">
+    <div class="vhead"><span class="vtag">C</span><span class="vname">Overlay + OI ribbons</span></div>
+    <p class="vnote">Both legs as close-lines in ONE pane, each normalised to its session open
+    (premium %, since a 24500CE and 24400PE never share a rupee scale). Below: each leg's
+    OI slope as a ribbon (<b>legs.*.oi</b> deltas) — writers adding / evacuating is exactly what the
+    two-leg confirm reads. Under that, the index compression strip (<b>index_series</b> bandwidth,
+    deliberately un-aligned per <b>INDEX_SERIES_RULE</b>).</p>
+    <svg viewBox="0 0 1040 400" id="vC"></svg>
+    <p class="verdict"><b>Trade-off:</b> most information per pixel and the OI story is explicit —
+    but normalised % hides absolute premium (your stop is in rupees), and candles are gone.
+    Highest build cost: new ribbon component + normalisation logic.</p>
+  </div>
+
+  <div class="plan">
+    <h2>If one of these gets a yes, the build is</h2>
+    <ul>
+      <li>A <code>PairChart.tsx</code> panel inside the existing TradeTab, reusing
+          <code>LegChart.tsx</code>'s candle/band machinery — no new chart engine.</li>
+      <li>One fetch of <code>/api/contract?idx=…&amp;interval=3</code> per refresh cycle,
+          same cadence as the tape; <code>pair</code> is chosen server-side by
+          <code>pick_pair</code>, no strike UI needed on day one.</li>
+      <li>Receipts rendered VERBATIM (house rule: quoted so they can be checked
+          against the candle, not trusted).</li>
+      <li>The already-written but unreachable ~850-line backend stack finally gets its
+          consumer; nothing in live.py changes.</li>
+    </ul>
+  </div>
+</div>
+<script>
+// ---- one shared mock dataset -----------------------------------------------
+const N = 60;                                  // 3m bars, 09:15 -> 12:12
+const t0 = 9*60+15;
+const lbl = i => { const m=t0+i*3; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+function series(seed, open, drift, vol){
+  let x = 12345 + seed, v = open; const out=[];
+  const rnd = () => (x = (x*1103515245+12345) & 0x7fffffff) / 0x7fffffff - .5;
+  for(let i=0;i<N;i++){
+    const o=v, c=Math.max(3, o + drift(i) + rnd()*vol);
+    const h=Math.max(o,c)+Math.abs(rnd())*vol*.7, l=Math.max(2,Math.min(o,c)-Math.abs(rnd())*vol*.7);
+    out.push({o,h,l,c}); v=c;
+  }
+  return out;
+}
+// CE sells off all morning then turns at the 10:42 rotation; PE bleeds after it.
+const ROT = 29;                                // index of the 10:42 record
+const ce = series(7, 148, i => i<ROT ? -1.1 : 0.9, 4.2);
+const pe = series(3, 122, i => i<ROT ?  0.55 : -1.0, 3.8);
+const peGap = [35,36,37];                      // 11:00-11:06 missing -> null slots
+function vwapBands(s){
+  let pv=0, vv=0, pv2=0; const out=[];
+  s.forEach((b,i)=>{ const tp=(b.h+b.l+b.c)/3, w=1+ (i%7)/10;
+    pv+=tp*w; vv+=w; pv2+=tp*tp*w;
+    const m=pv/vv, sd=Math.sqrt(Math.max(0,pv2/vv-m*m));
+    out.push({m, u1:m+sd, d1:m-sd, u2:m+2*sd, d2:m-2*sd});
+  });
+  return out;
+}
+const ceB=vwapBands(ce), peB=vwapBands(pe);
+
+// ---- tiny svg helpers ------------------------------------------------------
+const S=(tag,attrs,parent)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const k in attrs)e.setAttribute(k,attrs[k]); parent.appendChild(e); return e;};
+const path=(pts)=>pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+
+function drawLeg(svg, s, bands, gap, X, Y0, H, col, name, flip){
+  const lo=Math.min(...s.map(b=>b.l), ...bands.map(b=>b.d2)),
+        hi=Math.max(...s.map(b=>b.h), ...bands.map(b=>b.u2));
+  const y = v => flip ? Y0 + (v-lo)/(hi-lo)*H : Y0 + H - (v-lo)/(hi-lo)*H;
+  // sigma shading (1σ..2σ both sides — the structure read)
+  const up = bands.map((b,i)=>[X(i),y(b.u2)]), u1=bands.map((b,i)=>[X(i),y(b.u1)]);
+  const d1 = bands.map((b,i)=>[X(i),y(b.d1)]), dn=bands.map((b,i)=>[X(i),y(b.d2)]);
+  S('path',{d:path(up)+path(u1.slice().reverse()).replace('M','L')+'Z',fill:col,opacity:.10},svg);
+  S('path',{d:path(d1)+path(dn.slice().reverse()).replace('M','L')+'Z',fill:col,opacity:.10},svg);
+  S('path',{d:path(bands.map((b,i)=>[X(i),y(b.m)])),stroke:'#E0A852',fill:'none',
+            'stroke-width':1,'stroke-dasharray':'1 3',opacity:.85},svg);
+  s.forEach((b,i)=>{
+    if(gap.includes(i)) return;                          // null slot stays empty
+    const up = flip ? b.c<b.o : b.c>=b.o;
+    const c = up ? '#2EC27E' : '#FF5F6B';
+    S('line',{x1:X(i),x2:X(i),y1:y(b.h),y2:y(b.l),stroke:c,'stroke-width':1,opacity:.9},svg);
+    S('rect',{x:X(i)-2.4,y:Math.min(y(b.o),y(b.c)),width:4.8,
+              height:Math.max(1,Math.abs(y(b.o)-y(b.c))),fill:c},svg);
+  });
+  gap.length && S('text',{x:X(gap[1]),y:flip?Y0+14:Y0+H-6,fill:'#5D6B84','font-size':9,
+    'text-anchor':'middle'},svg).append('no bar — axis gap');
+  S('text',{x:8,y:Y0+16,fill:col,'font-size':11,'font-weight':600},svg).append(name);
+  return y;
+}
+function timeAxis(svg,X,y){
+  for(let i=0;i<N;i+=10){
+    S('text',{x:X(i),y:y,fill:'#5D6B84','font-size':9,'text-anchor':'middle'},svg).append(lbl(i));
+  }
+}
+function rotChip(svg,x,y){
+  const g=S('g',{},svg);
+  S('rect',{x:x-34,y:y-9,width:68,height:18,rx:4,fill:'#10241C',stroke:'#2EC27E','stroke-width':1},g);
+  S('text',{x:x,y:y+3.5,fill:'#2EC27E','font-size':9.5,'font-weight':700,
+            'text-anchor':'middle','letter-spacing':'.08em'},g).append('BUY 10:42');
+}
+
+// ---- Variant A -------------------------------------------------------------
+{
+  const svg=document.getElementById('vA'), W=780;
+  const X=i=>34+i*(W-50)/(N-1);
+  drawLeg(svg,ce,ceB,[],X,10,168,'#E0A852','CE 24500 — legs.CE',false);
+  drawLeg(svg,pe,peB,peGap,X,240,168,'#6FA8DC','PE 24400 — legs.PE',false);
+  // spine with rotation chip
+  S('line',{x1:34,x2:W-16,y1:209,y2:209,stroke:'rgba(255,255,255,.07)'},svg);
+  rotChip(svg,X(ROT),209);
+  S('line',{x1:X(ROT),x2:X(ROT),y1:10,y2:408,stroke:'#2EC27E','stroke-width':1,
+            'stroke-dasharray':'2 4',opacity:.5},svg);
+  timeAxis(svg,X,424);
+  // right rail: receipts
+  const rx=800;
+  S('rect',{x:rx,y:10,width:230,height:398,rx:8,fill:'#1B2130',
+            stroke:'rgba(255,255,255,.07)'},svg);
+  const line=(y,txt,c='#9AA7BD',s=10.5,w=400)=>S('text',{x:rx+12,y,fill:c,'font-size':s,'font-weight':w},svg).append(txt);
+  line(32,'PAIR — pair / pair_why','#E8EDF5',11,600);
+  line(52,'CE 24500 · PE 24400 · exp 21 AUG');
+  line(70,'"CE ranked by |Δoi| within 2','#5D6B84',9.5);
+  line(83,' strikes of atm 24463; PE the','#5D6B84',9.5);
+  line(96,' mirror on the put book"','#5D6B84',9.5);
+  line(126,'ROTATION — rotation[29]','#E8EDF5',11,600);
+  line(146,'BUY · 10:42 · confirm OK','#2EC27E',10.5,600);
+  line(164,'"PE 24400 closed 121.4 back','#5D6B84',9.5);
+  line(177,' above d2 118.9 while CE OI','#5D6B84',9.5);
+  line(190,' fell 3 of last 4 bars"','#5D6B84',9.5);
+  line(220,'OI — legs.*.oi (last)','#E8EDF5',11,600);
+  line(240,'CE 4.81M  −212k / 12m','#E0A852');
+  line(258,'PE 6.02M  +148k / 12m','#6FA8DC');
+  line(288,'INDEX — index_series','#E8EDF5',11,600);
+  line(308,'bw rank 0.31 — compressing');
+  line(326,'(own clock, not axis-joined)','#5D6B84',9.5);
+}
+
+// ---- Variant B -------------------------------------------------------------
+{
+  const svg=document.getElementById('vB'), W=1024;
+  const X=i=>34+i*(W-50)/(N-1);
+  drawLeg(svg,ce,ceB,[],X,10,140,'#E0A852','CE 24500 ↑',false);
+  drawLeg(svg,pe,peB,peGap,X,178,140,'#6FA8DC','PE 24400 ↓ (mirrored)',true);
+  S('line',{x1:34,x2:W-16,y1:159,y2:159,stroke:'rgba(255,255,255,.14)'},svg);
+  rotChip(svg,X(ROT),159);
+  S('line',{x1:X(ROT),x2:X(ROT),y1:10,y2:318,stroke:'#2EC27E','stroke-width':1,
+            'stroke-dasharray':'2 4',opacity:.5},svg);
+  S('text',{x:W-16,y:156,fill:'#5D6B84','font-size':9,'text-anchor':'end'},svg)
+    .append('spine — growth is outward, divergence is asymmetry');
+  timeAxis(svg,X,344);
+}
+
+// ---- Variant C -------------------------------------------------------------
+{
+  const svg=document.getElementById('vC'), W=1024;
+  const X=i=>34+i*(W-50)/(N-1);
+  // normalized close lines
+  const norm=s=>s.map(b=>b.c/s[0].o*100-100);
+  const nc=norm(ce), np=norm(pe);
+  const lo=Math.min(...nc,...np)-2, hi=Math.max(...nc,...np)+2;
+  const y=v=>16+(hi-v)/(hi-lo)*180;
+  S('line',{x1:34,x2:W-16,y1:y(0),y2:y(0),stroke:'rgba(255,255,255,.12)','stroke-dasharray':'2 4'},svg);
+  S('text',{x:W-16,y:y(0)-4,fill:'#5D6B84','font-size':9,'text-anchor':'end'},svg).append('session open = 0%');
+  S('path',{d:path(nc.map((v,i)=>[X(i),y(v)])),stroke:'#E0A852',fill:'none','stroke-width':1.6},svg);
+  S('path',{d:path(np.map((v,i)=>[X(i),y(v)])),stroke:'#6FA8DC',
+            fill:'none','stroke-width':1.6},svg);
+  S('text',{x:40,y:30,fill:'#E0A852','font-size':11,'font-weight':600},svg).append('CE % — legs.CE');
+  S('text',{x:40,y:46,fill:'#6FA8DC','font-size':11,'font-weight':600},svg).append('PE % — legs.PE');
+  rotChip(svg,X(ROT),y(np[ROT])-16);
+  S('line',{x1:X(ROT),x2:X(ROT),y1:16,y2:380,stroke:'#2EC27E','stroke-width':1,
+            'stroke-dasharray':'2 4',opacity:.5},svg);
+  // OI ribbons
+  const ribbon=(s,Y0,col,name)=>{
+    S('text',{x:8,y:Y0+4,fill:col,'font-size':10},svg).append(name);
+    for(let i=1;i<N;i++){
+      const d=(s[i].c-s[i-1].c)*( name.startsWith('CE')?-1:1 );  // mock oi slope
+      const a=Math.min(.85,Math.abs(d)/6+.08);
+      S('rect',{x:X(i)-4,y:Y0-7,width:8,height:14,
+        fill:d>0?'#2EC27E':'#FF5F6B',opacity:a},svg);
+    }
+  };
+  ribbon(ce,228,'#E0A852','CE OI Δ — writers add / evacuate');
+  ribbon(pe,262,'#6FA8DC','PE OI Δ');
+  // index compression strip
+  S('text',{x:8,y:300,fill:'#9AA7BD','font-size':10},svg).append('index bandwidth rank — index_series (own clock)');
+  for(let i=0;i<N;i++){
+    const bw=.85 - i/N*.6 + Math.sin(i/5)*.08;
+    S('rect',{x:X(i)-4,y:310,width:8,height:26,fill:'#E0A852',opacity:Math.max(.06,1-bw)},svg);
+  }
+  S('text',{x:X(N-8),y:352,fill:'#5D6B84','font-size':9,'text-anchor':'end'},svg)
+    .append('darker = tighter bands = compressed');
+  timeAxis(svg,X,384);
+}
+</script>

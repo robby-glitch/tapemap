@@ -115,7 +115,9 @@ function render(panel, payload) {
   const day = days[days.length - 1]
   const bars = (day && day.bars) || []
   if (!bars.length) {
-    body.appendChild($('div', 'tm-msg', 'no bars in the payload yet'))
+    // The server says WHY (e.g. "no bars yet for 2026-08-15" on a weekend or
+    // pre-open); quote it rather than guessing with a generic line.
+    body.appendChild($('div', 'tm-msg', payload.live_error || 'no bars in the payload yet'))
     return
   }
 

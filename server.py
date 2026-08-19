@@ -122,6 +122,35 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        # PaperDesk's paper fills, tagged with the tape context they were
+        # taken in. A SEPARATE file from trigger_log.jsonl on purpose:
+        # trigger_log counts rule populations under a quarantine discipline,
+        # and operator-taken fills mixed into it would corrupt every count the
+        # server publishes. The two join on (index, day, t) when §5e asks
+        # "of the zone arms, which did I actually take". Fire-and-forget on
+        # the extension side — a failure here must never block a fill.
+        if self.path.startswith("/api/paper_fill"):
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                n = 0
+            if not 0 < n < 16384:
+                self._json(b'{"ok":false,"msg":"bad request"}', 400)
+                return
+            try:
+                row = json.loads(self.rfile.read(n))
+                if not isinstance(row, dict):
+                    raise ValueError("not an object")
+            except ValueError:
+                self._json(b'{"ok":false,"msg":"malformed request body"}', 400)
+                return
+            row["received_at"] = time.time()
+            dst = ROOT / "data" / "paper_fills.jsonl"
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            with open(dst, "a", encoding="utf-8") as f:
+                f.write(json.dumps(row) + "\n")
+            self._json(b'{"ok":true}')
+            return
         # One-click token capture: validate a pasted/clipboard Dhan token, save
         # it to .dhan_token, and kick the poller. The token is never logged or
         # echoed — only the validity message from token_status goes back.
