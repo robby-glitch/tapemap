@@ -1,3 +1,10 @@
+> **New here? Read [START-HERE.md](START-HERE.md) first.** It is the single
+> current-state document for this project (verified 2026-08-20): what the tool
+> is today, what data source it actually uses (**Upstox**, not Dhan), which
+> strategy questions are already settled and must not be re-run, and where the
+> live record stands. This README describes the engine's mechanics and is
+> older than that file.
+
 # Tape Engine — FUT + CE + PE 3D replay
 
 Reads three synchronized 1-minute CSVs (futures, call, put — Zerodha export
