@@ -1,0 +1,235 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>operator console</title>
+<!--
+  The operator console. Static, no build step, no pnpm, no ui-v2 -- served by
+  the Python server that already serves this directory, so it works the moment
+  the backend is up and cannot be broken by a frontend toolchain.
+
+  THE DESIGN RULE, AND IT DRIVES EVERY COLOUR HERE: most of the day the answer
+  is NO. A screen whose default state looks like an alarm teaches you to ignore
+  alarms. So standing aside is grey and unremarkable; amber means something is
+  loaded; green appears only when forced flow is actually confirmed, which is
+  rare enough to be worth looking at. Red is reserved for exactly one thing --
+  a dead feed -- because a stalled reader must never look like a quiet market.
+
+  EVERY NUMBER CARRIES ITS PROVENANCE. [M] came off the wire; [I] is inferred
+  and its cutoffs rest on one afternoon. The 14:25 mistake on 2026-08-19 was an
+  [I] delivered with [M] confidence, and this layout is built so that is hard
+  to do by accident.
+
+  NOTHING HERE CAN PLACE AN ORDER. There is no order path in the stack behind
+  it either.
+-->
+<style>
+  :root {
+    --bg:#0e1013; --panel:#16191e; --line:#242931; --ink:#d7dce3;
+    --dim:#7d8794; --grey:#8a94a3; --amber:#d99a2b; --green:#3fa66a;
+    --red:#c8503f; --blue:#5b8fc7;
+    font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-size:13px; }
+  header { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+           padding:10px 14px; border-bottom:1px solid var(--line); }
+  h1 { font-size:13px; margin:0; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--dim); font-weight:600; }
+  .health { margin-left:auto; display:flex; gap:14px; flex-wrap:wrap;
+            color:var(--dim); font-size:11px; }
+  .bad { color:var(--red); font-weight:700; }
+  main { display:grid; gap:12px; padding:12px 14px;
+         grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); }
+  section { background:var(--panel); border:1px solid var(--line);
+            border-radius:5px; padding:10px 12px; }
+  h2 { font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+       color:var(--dim); margin:0 0 8px; font-weight:600; }
+  .gear { display:inline-block; padding:2px 9px; border-radius:3px;
+          font-weight:700; letter-spacing:.09em; font-size:12px; }
+  .g-UNKNOWN,.g-PIN { background:#20252c; color:var(--grey); }
+  .g-TRANSITION { background:#3a2e14; color:var(--amber); }
+  .g-CASCADE { background:#123322; color:var(--green); }
+  .inst { font-weight:600; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:2px 6px 2px 0; vertical-align:top; }
+  td.k { color:var(--dim); width:8.5em; }
+  .tag { font-size:9px; padding:0 4px; border-radius:2px; margin-left:5px;
+         vertical-align:1px; }
+  .tag-M { background:#16302a; color:var(--green); }
+  .tag-I { background:#332a14; color:var(--amber); }
+  .why { color:var(--dim); font-size:11px; margin-top:6px; line-height:1.5; }
+  .shadow { color:var(--amber); font-size:10px; letter-spacing:.06em; }
+  .rows { font-size:11px; max-height:230px; overflow:auto; }
+  .rows td { white-space:nowrap; padding-right:9px; }
+  .buy { color:var(--green); } .sell { color:var(--red); }
+  .muted { color:var(--dim); }
+  .wall { color:var(--blue); } .cluster { color:var(--amber); }
+  footer { padding:10px 14px; color:var(--dim); font-size:10px;
+           border-top:1px solid var(--line); line-height:1.7; }
+</style>
+
+<header>
+  <h1>operator console</h1>
+  <span class="shadow" id="mode">shadow &middot; gates nothing &middot; no order path</span>
+  <div class="health" id="health">connecting&hellip;</div>
+</header>
+
+<main id="main"></main>
+
+<footer>
+  <b>[M]</b> measured off the wire &nbsp;&middot;&nbsp; <b>[I]</b> inferred, cutoffs rest on one session
+  &nbsp;&middot;&nbsp; grey = stand aside, the normal state &nbsp;&middot;&nbsp; red = dead feed, never a quiet market<br>
+  <span id="foot"></span>
+</footer>
+
+<script>
+"use strict";
+var esc = function (s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g,
+    function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]; });
+};
+var tag = function (t) { return '<span class="tag tag-' + (t==="M"?"M":"I") + '">' + (t||"I") + '</span>'; };
+var num = function (v, d) { return v == null ? '<span class="muted">&mdash;</span>' : (+v).toFixed(d == null ? 2 : d); };
+
+function healthLine(d) {
+  var bits = [];
+  // A stalled reader must never look like a quiet market -- so the error and
+  // the poll count come first, and go red rather than disappearing.
+  if (!d.ok) bits.push('<span class="bad">FEED: ' + esc(d.error || "down") + '</span>');
+  else bits.push("feed ok &middot; " + d.polls + " polls &middot; " + (d.up_s|0) + "s");
+  bits.push("logged " + d.written + (d.failed ? ' <span class="bad">/ ' + d.failed + " failed</span>" : ""));
+  var ob = d.orders_bridge || {};
+  bits.push(ob.books
+    ? "kite bridge: " + ob.books + " books, " + num(ob.age_s, 1) + "s old"
+    : '<span class="muted">kite bridge: not running &mdash; wall vs cluster stays open</span>');
+  return bits.join(" &nbsp;|&nbsp; ");
+}
+
+function evidenceRows(e, c) {
+  var r = [];
+  r.push(["book", (e.ignition ? "<b>IGNITION</b>" : "no ignition")
+    + " &middot; rank " + num(e.ign_rank) + (e.ign_at ? " at " + esc(e.ign_at) : "")
+    + (e.warm ? "" : ' <span class="muted">(not warm)</span>') + tag("M")]);
+  r.push(["sweeps", e.sweeps + " in window &middot; <span class='buy'>" + e.buys
+    + " buy</span> / <span class='sell'>" + e.sells + " sell</span>"
+    + (e.one_sided_book ? " &middot; <b>one-sided</b>" : "") + tag("M")]);
+  r.push(["absorb/pull", e.absorptions + " absorbed &middot; " + e.pulls + " pulled" + tag("M")]);
+  if (c && Object.keys(c).length) {
+    r.push(["fuel", (c.fuel_rank == null ? '<span class="muted">not ranked yet</span>'
+      : "rank " + num(c.fuel_rank)) + (c.worst_leg ? " &middot; worst " + esc(c.worst_leg)
+      + " " + num(c.worst_pain) + " pts" : "") + tag("I")]);
+    r.push(["drain", (c.drain ? "<b>DRAINING</b>" : "no drain")
+      + (c.drain_rank == null ? "" : " &middot; rank " + num(c.drain_rank))
+      + (c.trapped_side ? " &middot; pain on " + esc(c.trapped_side).toUpperCase() : "") + tag("I")]);
+  } else {
+    r.push(["chain", '<span class="muted">no chain read &mdash; fuel and drain unknown, '
+      + 'so CASCADE is unreachable</span>' + tag("I")]);
+  }
+  return r.map(function (x) {
+    return "<tr><td class='k'>" + x[0] + "</td><td>" + x[1] + "</td></tr>";
+  }).join("");
+}
+
+function poolsBlock(p) {
+  if (!p) return "";
+  var out = "<h2>terrain</h2><table>";
+  out += "<tr><td class='k'>shelves</td><td>" + p.shelves
+    + (p.orders_known ? " &middot; <span class='wall'>" + p.walls + " wall</span> / <span class='cluster'>"
+       + p.clusters + " cluster</span>"
+       : ' <span class="muted">(wall vs cluster needs the kite bridge)</span>') + tag("M") + "</td></tr>";
+  out += "<tr><td class='k'>vacuums</td><td>" + p.vacuums
+    + (p.widest_vacuum ? " &middot; widest " + num(p.widest_vacuum, 1) + "x typical gap" : "") + tag("M") + "</td></tr>";
+  if (p.blind_past) {
+    out += "<tr><td class='k'>blind past</td><td class='muted'>" + num(p.blind_past[0], 1)
+      + " &ndash; " + num(p.blind_past[1], 1) + " &mdash; five levels a side is a keyhole</td></tr>";
+  }
+  return out + "</table>";
+}
+
+function render(d) {
+  document.getElementById("health").innerHTML = healthLine(d);
+  var read = d.read || {}, pools = d.pools || {};
+  // The UNION, not just `read`. A closed or quiet market produces terrain
+  // (the ladder is still there) with no book events at all, and rendering
+  // only instruments that have fired would show an empty screen while the
+  // server was perfectly healthy -- a reader would reasonably conclude the
+  // feed was dead. Measured 2026-08-20 15:49, after the bell.
+  var names = Object.keys(read);
+  Object.keys(pools).forEach(function (k) {
+    if (names.indexOf(k) < 0) names.push(k);
+  });
+  // Futures first: the zone rule is measured on them and a cascade runs
+  // through their ladder.
+  names.sort(function (a, b) {
+    var fa = /-FUT$/.test(a) ? 0 : 1, fb = /-FUT$/.test(b) ? 0 : 1;
+    return fa - fb || a.localeCompare(b);
+  });
+
+  var html = "";
+  names.forEach(function (n) {
+    var r = read[n] || { gear: "UNKNOWN", tag: "I", why: [], evidence: null,
+                        why_none: true };
+    html += "<section><h2><span class='inst'>" + esc(n) + "</span></h2>";
+    html += "<div><span class='gear g-" + esc(r.gear) + "'>" + esc(r.gear) + "</span>"
+      + tag(r.tag)
+      + (r.would_block && r.would_block.length
+         ? " <span class='muted'>would block " + esc(r.would_block.join(", "))
+           + " &mdash; but does not</span>" : "")
+      + "</div>";
+    if (r.evidence) {
+      html += "<table style='margin-top:8px'>" + evidenceRows(r.evidence, r.chain) + "</table>";
+    } else {
+      html += "<div class='why'>No book event yet on this instrument, so there "
+        + "is nothing to rank. The terrain below is still measured.</div>";
+    }
+    (r.why || []).forEach(function (w) { html += "<div class='why'>" + esc(w) + "</div>"; });
+    html += poolsBlock(pools[n]);
+    html += "</section>";
+  });
+
+  if (!names.length) {
+    html = "<section><h2>waiting</h2><div class='muted'>Nothing is arriving at all "
+      + "&mdash; no book events and no terrain. Outside 09:15&ndash;15:30 IST that is "
+      + "simply a closed market; inside it, check the header, because a healthy "
+      + "feed and a dead one must not look the same.</div></section>";
+  }
+
+  // The raw rows, last. Measurements, not signals.
+  var rows = (d.rows || []).slice(-40).reverse();
+  if (rows.length) {
+    var t = "<section style='grid-column:1/-1'><h2>book events &mdash; measurements, not signals" + tag("M") + "</h2>"
+      + "<div class='rows'><table>";
+    rows.forEach(function (x) {
+      var extra = x.det === "sweep"
+        ? "<span class='" + (x.side === "buy" ? "buy" : "sell") + "'>" + esc(x.side) + "</span> "
+          + esc(x.kind) + " &middot; " + x.levels + " lv &middot; qty " + num(x.qty, 0)
+          + " &middot; traded " + num(x.traded, 0)
+        : x.det === "absorption"
+        ? "ratio " + num(x.ratio, 1) + "x &middot; shown " + num(x.shown, 0)
+          + " &middot; spread " + num(x.spread)
+        : "<span class='" + (x.side === "bid" ? "buy" : "sell") + "'>" + esc(x.side) + "</span> gone "
+          + num(x.gone, 0) + " (" + num(100 * (x.frac || 0), 0) + "%)";
+      t += "<tr><td class='muted'>" + esc(x.t) + "</td><td>" + esc(x.inst)
+        + "</td><td><b>" + esc(x.det) + "</b></td><td>" + extra + "</td></tr>";
+    });
+    html += t + "</table></div></section>";
+  }
+  document.getElementById("main").innerHTML = html;
+  document.getElementById("foot").textContent =
+    "log: " + (d.log || "?") + "  |  refreshed " + new Date().toLocaleTimeString();
+}
+
+function tick() {
+  fetch("/api/senses?n=200", { cache: "no-store" })
+    .then(function (r) { return r.json(); })
+    .then(render)
+    .catch(function (e) {
+      // The fetch itself failed: the server is gone. Say so in the one colour
+      // reserved for it rather than leaving the last good screen up, which
+      // would be a dead reader wearing a live one's face.
+      document.getElementById("health").innerHTML =
+        '<span class="bad">CONSOLE CANNOT REACH THE SERVER &mdash; ' + esc(e) + '</span>';
+    });
+}
+tick();
+setInterval(tick, 2000);
+</script>

@@ -285,6 +285,10 @@ class ChainPoller(threading.Thread):
         self.states = {c["under_sym"]: ChainState() for c in configs}
         self.prevs = {c["under_sym"]: None for c in configs}
         self.reload = False                          # set by /api/token to re-read the token
+        # The live Upstox source, published by _run_live so a reader outside
+        # this thread can reach the already-open socket. None until the first
+        # successful start, and replaced on a new trading day.
+        self.src = None
         # Indices whose morning has already been rebuilt from REST this
         # session. One shot each: history does not change, and 34 REST calls
         # per index is not something to repeat on every poll.
@@ -451,6 +455,14 @@ class ChainPoller(threading.Thread):
                 today = datetime.now(IST).strftime("%Y-%m-%d")
                 if upstox:
                     src = _upstox_source(src)
+                    # Published so a reader outside this loop can reach the
+                    # ALREADY-OPEN socket. Upstox allows two connections per
+                    # user and this tool deliberately spends one; a second
+                    # consumer opening its own would take the last slot and
+                    # leave none for a manual probe. Nothing in this file
+                    # reads it back, and a reader must treat it as possibly
+                    # None or mid-restart -- see `server`'s senses thread.
+                    self.src = src
                     # Re-run on every outer pass: a new trading day needs new
                     # strikes, a new expiry and a fresh 09:15 baseline.
                     expiries = src.start(self.configs, today)

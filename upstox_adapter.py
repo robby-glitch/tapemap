@@ -27,13 +27,33 @@ FIELD MAP, measured 2026-08-05 against the live v3 feed:
     iv              <- iv          (already a FRACTION: 0.1154 for ~11.5% vol)
     vol             <- vtt
     bid / ask       <- firstDepth.bidP / .askP   (or marketLevel[0] in full)
+    the FULL book   <- marketLevel.bidAskQuote[] + tbq / tsq, via
+                       `depth_ladder` -- full mode only, and deliberately NOT
+                       in the chain payload: `chain_live._side` builds its
+                       result key by key, so a `depth` field added to the
+                       payload would be dropped there in silence. A ladder
+                       consumer reads `depth_ladder(feed)` off
+                       `upstox_feed.snapshot()` directly, which is also the
+                       only way to reach the FUTURE's book -- its key is
+                       subscribed but `upstox_chain.poll` reads only the
+                       index's ltp from that frame.
     gamma / delta   <- optionGreeks.gamma / .delta
     avg             <- atp         ** full mode only **
     oi_chg          <- NOTHING. See below.
 
 WHY `full` AND NOT `option_greeks`. `option_greeks` omits `atp`, which is the
-chain's `avg`. `full` is a superset -- it adds atp, 5-level depth, tbq/tsq --
-and its subscription cap (2000 keys) is far above the ~40 this tool needs.
+chain's `avg`. `full` is a superset -- it adds atp, tbq/tsq and the depth
+book -- and its subscription cap (2000 keys) is far above the ~40 this tool
+needs.
+
+HOW DEEP, AND WHY THE NUMBER LOOKS DIFFERENT DEPENDING ON WHO IS COUNTING.
+`full` sends FIVE `Quote` structs, and each one carries a bid AND an ask -- so
+it is five levels a side, TEN PRICE LEVELS in total. Upstox's docs count the
+structs and say "5 market level quotes"; Kite's packet counts the prices and
+says "10 depth entries". Same book, two conventions, and NSE market-by-price
+is five deep per side either way. Measured 2026-08-20 on NIFTY AUG FUT: five
+entries, ten prices, nothing truncated. `full_d30` (Upstox Plus, 50 keys) is
+the only mode that goes deeper -- thirty structs, sixty prices.
 
 **`oi_chg` HAS NO SOURCE IN THE SOCKET AND IS NOT INVENTED HERE.** Dhan ships
 `previous_oi` (the PRIOR SESSION'S CLOSING open interest) and `chain_live._side`
@@ -110,13 +130,89 @@ def ltp_of(feed):
     return _num((core.get("ltpc") or {}).get("ltp"))
 
 
-def _depth(core):
-    """(bid, ask) from firstDepth (option_greeks) or marketLevel (full)."""
+def _levels(core):
+    """The bid/ask ladder as the socket sent it, best level first.
+
+    `option_greeks` carries one level as `firstDepth`; `full` carries five
+    (a side) as `marketLevel.bidAskQuote`. Index 0 is the top of book in both,
+    an
+    assumption `_depth` has always rested on, written down now that it has a
+    second caller.
+    """
+    if not isinstance(core, dict):
+        return []
     q = core.get("firstDepth")
-    if not q:
-        levels = (core.get("marketLevel") or {}).get("bidAskQuote") or []
-        q = levels[0] if levels else {}
+    if q:
+        return [q]
+    return (core.get("marketLevel") or {}).get("bidAskQuote") or []
+
+
+def _depth(core):
+    """(bid, ask) at the top of book, whichever mode produced the feed."""
+    levels = _levels(core)
+    q = levels[0] if levels else {}
     return _num(q.get("bidP")), _num(q.get("askP"))
+
+
+def depth_ladder(feed):
+    """One `full` Feed -> the whole order book it was already carrying.
+
+    WHY THIS EXISTS. `full` mode ships five levels a side -- ten price levels,
+    as five Quote structs each holding one bid and one ask -- plus the
+    session's total buy and sell quantity. `upstox_proto` decodes all of it,
+    and until now `_depth` kept the top level and dropped the rest. The
+    microstructure
+    reads this tool wants -- one aggressive order taking out several levels at
+    once, a level refilling after it is consumed, one side's book being pulled
+    before a move -- are differences between consecutive snapshots of exactly
+    those levels. The data was already arriving; only the discard was in the
+    way. Nothing new is subscribed and no extra request is made.
+
+        {"bid": [{"price": .., "qty": ..}, ...],   # best first
+         "ask": [ ... ],                           # best first
+         "bid_qty": total DISPLAYED bid quantity,
+         "ask_qty": total DISPLAYED ask quantity,
+         "tbq":     exchange-wide total buy qty,  or None,
+         "tsq":     exchange-wide total sell qty, or None}
+
+    EMPTY LEVELS ARE DROPPED, NOT ZEROED. A thin book pads its unused levels
+    with zeros. Counting those keeps `bid_qty` honest but makes the ladder a
+    lie -- a zero-priced level reads downstream as size resting at 0, which is
+    a price the instrument can never trade at. A level is kept only when its
+    price is a real non-zero number, so `len(bid)` counts real levels and a
+    book genuinely thinning out shows up as that count falling.
+
+    `tbq`/`tsq` exist in `full` ONLY, and come back None under
+    `option_greeks` -- never 0, because "not subscribed" and "nobody is
+    bidding" must not render the same. The rule `oi_chg` already follows.
+
+    Returns None when the feed carries no book at all, which is what an index
+    feed looks like, so a caller can tell "no depth here" from "an empty
+    book". Do not read None as a flat market.
+
+    Pure: a function of one decoded frame. No socket, no token, no clock --
+    the feed's staleness is `upstox_feed.age()`'s job, and a ladder built from
+    a frozen frame looks exactly like a calm one.
+    """
+    core = _core(feed)
+    if not core:
+        return None
+    levels = _levels(core)
+    if not levels:
+        return None
+    bid, ask = [], []
+    for q in levels:
+        if not isinstance(q, dict):
+            continue
+        bp, ap = _num(q.get("bidP")), _num(q.get("askP"))
+        if bp:
+            bid.append({"price": bp, "qty": _num(q.get("bidQ")) or 0.0})
+        if ap:
+            ask.append({"price": ap, "qty": _num(q.get("askQ")) or 0.0})
+    return {"bid": bid, "ask": ask,
+            "bid_qty": sum(l["qty"] for l in bid),
+            "ask_qty": sum(l["qty"] for l in ask),
+            "tbq": _num(core.get("tbq")), "tsq": _num(core.get("tsq"))}
 
 
 def side_payload(feed, prev_oi=None):

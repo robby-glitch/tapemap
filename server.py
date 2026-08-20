@@ -22,7 +22,11 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+import chainside as chain_mod
+import fuse as fuse_mod
 import instruments
+import pools as pools_mod
+import senses as senses_mod
 import trigger_log
 from analyze import analyze
 
@@ -33,6 +37,128 @@ log = logging.getLogger("tapemap")
 # "the server I just started" from "a server that has been up since yesterday
 # afternoon" -- which is exactly what held port 8765 on 2026-08-06.
 _STARTED = time.time()
+
+# The book detectors' output, newest last. A ring, not a list: this runs for a
+# whole session and /api/senses only ever renders the tail. The forward RECORD
+# is the file `senses_mod.Senses` appends to -- this is a window onto it, and
+# losing the oldest entries here costs nothing.
+_SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
+           "fuse": None, "pools": {}, "chain": {},
+           # Kite order counts, POSTed by PaperDesk's bridge. token -> book.
+           # The ONE field Upstox does not send, and the only thing that tells
+           # a defended wall from a crowd on a round number.
+           "orders": {}, "orders_at": None, "orders_n": 0}
+
+
+# Strikes either side of spot the book detectors watch. The first live run
+# watched every subscribed leg -- 101 instruments -- and the loudest were deep
+# OTM SENSEX strikes 700+ points from spot, where the book is thin, the tick is
+# wide and every flicker reads as a five-level sweep. That is noise with a
+# timestamp. The cascade this stack is built to catch happens in the FUTURE and
+# in the strikes near the money, so that is what is watched.
+SENSES_EACH_SIDE = 3
+
+
+def _senses_loop(poller, period=0.5):
+    """Drive the book detectors off the chain poller's ALREADY-OPEN socket.
+
+    WHY A SEPARATE THREAD. The refresh loop runs at bar cadence, which is the
+    right rate for the tape and far too slow for a book: a sweep lives for one
+    frame. This reads the feed's mailbox directly at `period`, which costs no
+    network -- `snapshot()` is a dict copy -- and no second Upstox connection,
+    which matters because there are only two and one is a manual probe.
+
+    EVERYTHING HERE IS FAIL-SOFT AND NOTHING HERE CAN STOP THE TAPE. The
+    poller may not have a source yet, may be restarting for a new day, or may
+    have a dead socket; all of those are "no rows this tick", never an
+    exception that ends the thread. The last error is published on
+    /api/senses so a silent stall cannot masquerade as a quiet market -- the
+    2026-07-27 lesson, applied to this loop too.
+    """
+    from collections import deque
+    _SENSES["rows"] = deque(maxlen=2000)
+    _SENSES["started"] = time.time()
+    obj = _SENSES["obj"] = senses_mod.Senses()
+    book = _SENSES["fuse"] = fuse_mod.Book()
+    chains = chain_mod.Chains()
+    seen_payload = {}          # idx -> id() of the last payload already read
+    while True:
+        try:
+            src = getattr(poller, "src", None)
+            feed = getattr(src, "feed", None)
+            if feed is None or not feed.connected:
+                _SENSES["err"] = "feed not connected"
+                time.sleep(2)
+                continue
+            snap = feed.snapshot()
+            stamp = time.strftime("%H:%M:%S")
+            boxes = getattr(poller, "boxes", None) or {}
+            # FUEL AND DRAIN, from the chain -- the half the book cannot see.
+            # Parsed only when the poller has actually published something new:
+            # the chain refreshes about every ten seconds per index and this
+            # loop runs twice a second, so re-parsing every pass would be
+            # twenty wasted json.loads for one new snapshot.
+            for idx, box in boxes.items():
+                pl = (box or {}).get("payload")
+                if not pl or seen_payload.get(idx) == id(pl):
+                    continue
+                seen_payload[idx] = id(pl)
+                try:
+                    doc = json.loads(pl)
+                except (TypeError, ValueError):
+                    continue
+                if doc.get("ok"):
+                    rd = chains.on_snapshot(idx, time.strftime("%H:%M:%S"),
+                                            doc.get("strikes"))
+                    _SENSES["chain"][idx] = rd.__dict__
+
+            for idx, r in (getattr(src, "resolved", None) or {}).items():
+                # Near-ATM legs only, chosen against the poller's own spot. If
+                # spot is not known yet the FUTURE is watched alone rather than
+                # everything -- "which strikes are near" is unanswerable
+                # without it, and guessing would reinstate the noise.
+                spot = (boxes.get(idx) or {}).get("spot")
+                meta = list((r.get("meta") or {}).items())
+                if spot:
+                    near = sorted({k_[0] for _, k_ in meta},
+                                  key=lambda x: abs(x - spot))[:SENSES_EACH_SIDE * 2 + 1]
+                    meta = [(k, v) for k, v in meta if v[0] in set(near)]
+                else:
+                    meta = []
+                # The FUTURE first: it is the instrument the zone rule is
+                # measured on, and its book is the one a cascade runs through.
+                # Option legs follow, named by strike so a row says which.
+                for name, key in ([(f"{idx}-FUT", r.get("fut_key"))]
+                                  + [(f"{idx}-{s}{sd.upper()}", k)
+                                     for k, (s, sd) in meta]):
+                    if not key:
+                        continue
+                    frame = snap.get(key)
+                    rows = obj.observe(name, stamp, frame, key)
+                    if rows:
+                        _SENSES["rows"].extend(rows)
+                        book.on_rows(rows)
+                    # Terrain for the FUTURE only. Mapping every leg would
+                    # triple the work to describe books nobody trades through,
+                    # and the cascade this stack watches for runs through the
+                    # future's ladder.
+                    if name.endswith("-FUT"):
+                        lad, _v = senses_mod.ladder_of(frame)
+                        if lad:
+                            # Kite's order counts, if PaperDesk's bridge is
+                            # running. Matched on the touch rather than by
+                            # symbol table -- both feeds watch the same
+                            # exchange, so the same instrument has the same two
+                            # prices. Absent -> wall-vs-cluster stays open.
+                            oc = pools_mod.orders_for(lad, _SENSES["orders"])
+                            _SENSES["pools"][name] = pools_mod.summary(lad, oc)
+            _SENSES["polls"] += 1
+            _SENSES["err"] = None
+        except Exception as e:            # never take the tape down
+            _SENSES["err"] = f"{type(e).__name__}: {e}"
+            log.exception("senses loop")
+            time.sleep(2)
+        time.sleep(period)
 
 
 def _setup_logging():
@@ -114,9 +240,39 @@ class Handler(SimpleHTTPRequestHandler):
         idx = (q.get("idx") or [instruments.DEFAULT])[0]
         return idx if idx in instruments.ENABLED else instruments.DEFAULT
 
+    # PaperDesk's bridge posts from a CONTENT SCRIPT, so the request carries
+    # kite.zerodha.com as its origin and CORS applies -- the extension's
+    # host_permissions do not exempt it, which is the trap: the manifest looks
+    # correct and every POST still fails. Measured 2026-08-20, a wall of
+    # "blocked by CORS policy" in the Kite console.
+    #
+    # Exactly one origin is allowed. A wildcard would let ANY page the browser
+    # visits POST into this server, and this one accepts market data that
+    # feeds a reading -- an open door for a page to hand it fabricated depth.
+    # Localhost-only binding is not protection from that; the browser is the
+    # one making the request.
+    ALLOW_ORIGIN = "https://kite.zerodha.com"
+
+    def _cors(self):
+        origin = self.headers.get("Origin")
+        if origin == self.ALLOW_ORIGIN:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+
+    def do_OPTIONS(self):
+        """Preflight. A JSON content-type makes the browser ask first."""
+        self.send_response(204)
+        self._cors()
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def _json(self, body, code=200):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        self._cors()
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -129,6 +285,25 @@ class Handler(SimpleHTTPRequestHandler):
         # server publishes. The two join on (index, day, t) when §5e asks
         # "of the zone arms, which did I actually take". Fire-and-forget on
         # the extension side — a failure here must never block a fill.
+        if self.path.startswith("/api/orderbook"):
+            # PaperDesk's Kite tap, shipping per-level ORDER COUNTS. Read-only
+            # and additive: nothing in the tape or the chain depends on it, so
+            # a bridge that is not running costs exactly the wall-vs-cluster
+            # answer and nothing else.
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                doc = json.loads(self.rfile.read(n) or b"{}")
+                books = doc.get("books") or {}
+                if isinstance(books, dict):
+                    _SENSES["orders"] = books
+                    _SENSES["orders_at"] = time.time()
+                    _SENSES["orders_n"] = len(books)
+                self._json(json.dumps({"ok": True, "books": len(books)}).encode())
+            except Exception as e:      # never 500 at a browser extension
+                self._json(json.dumps({"ok": False,
+                                       "error": str(e)}).encode(), 200)
+            return
+
         if self.path.startswith("/api/paper_fill"):
             try:
                 n = int(self.headers.get("Content-Length") or 0)
@@ -527,6 +702,62 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(json.dumps(pl).encode())
             except (OSError, ValueError):
                 self._json(files[-1].read_bytes())
+        elif self.path.startswith("/api/senses"):
+            # A WINDOW, NOT THE RECORD. The forward record is
+            # data/senses_log.jsonl; this renders the tail of the ring so a
+            # panel can show what the book just did. `err` and `polls` are
+            # here for the same reason /api/health names the broker: a thread
+            # that has quietly stopped must not look like a quiet market.
+            q = parse_qs(urlsplit(self.path).query)
+            n = min(int((q.get("n") or ["100"])[0] or 100), 2000)
+            inst = (q.get("inst") or [None])[0]
+            rows = list(_SENSES["rows"] or ())
+            if inst:
+                rows = [r for r in rows if r.get("inst") == inst]
+            obj = _SENSES["obj"]
+            # The READING, kept separate from the rows. `gear` is [I] and
+            # SHADOW -- `would_block` is what it WOULD refuse, and nothing in
+            # this stack enforces it. A panel that renders this as a block is
+            # reading it wrong.
+            book = _SENSES["fuse"]
+            read = {}
+            if book is not None:
+                for i, f in sorted(book._by.items()):
+                    if inst and i != inst:
+                        continue
+                    # The chain half, matched to this instrument's index. All
+                    # three conditions finally meet here: fuel and drain from
+                    # the chain, ignition from the book. Absent chain -> the
+                    # gate simply cannot reach CASCADE, which is correct.
+                    c = _SENSES["chain"].get(i.split("-")[0]) or {}
+                    v = f.verdict(fuel_rank=c.get("fuel_rank"),
+                                  drain=bool(c.get("drain")),
+                                  one_sided=c.get("one_sided"))
+                    read[i] = {"gear": v.gear, "why": v.why, "chain": c,
+                               "would_block": v.would_block, "shadow": v.shadow,
+                               "tag": v.tag, "evidence": f.ev.__dict__}
+            self._json(json.dumps({
+                "ok": _SENSES["err"] is None,
+                "error": _SENSES["err"],
+                "polls": _SENSES["polls"],
+                "up_s": (round(time.time() - _SENSES["started"], 1)
+                         if _SENSES["started"] else None),
+                "written": getattr(obj, "written", 0),
+                "failed": getattr(obj, "failed", 0),
+                "log": getattr(obj, "path", None) or senses_mod.day_path(),
+                "pending": obj.pending() if obj else {},
+                # Is the Kite bridge alive? A dead bridge costs exactly the
+                # wall-vs-cluster answer, and must say so rather than letting
+                # every shelf read as "unknowable" for a silent reason.
+                "orders_bridge": {
+                    "books": _SENSES["orders_n"],
+                    "age_s": (round(time.time() - _SENSES["orders_at"], 1)
+                              if _SENSES["orders_at"] else None),
+                },
+                "read": read,
+                "pools": _SENSES["pools"],
+                "rows": rows[-n:],
+            }).encode())
         else:
             super().do_GET()
 
@@ -701,6 +932,12 @@ def main():
         for n, (x, c) in enumerate(cfgs.items()):
             threading.Thread(target=refresh_one, args=(x, c, n * 5),
                              daemon=True, name=f"refresh-{x}").start()
+        # The book detectors, on their own clock. Daemon like the rest: it
+        # must not hold the process open, and it must not be waited on.
+        if poller is not None and not mock_chain:
+            threading.Thread(target=_senses_loop, args=(poller,),
+                             daemon=True, name="senses").start()
+            log.info("senses thread started -> %s", senses_mod.day_path())
         httpd.serve_forever()          # bound above, before anything was taken
         return
     port = int(argv[0]) if argv else 8765

@@ -10,7 +10,7 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-15. **581 tests pass, none fail** (`pytest -q`,
+Last updated: 2026-08-20. **707 tests pass, none fail** (`pytest -q`,
 run 2026-08-15: 569 after the ponytail cleanup below, plus six in
 `test_zone_state.py` pinning the §1b zone machine; `test_docs_claims.py`
 pins this very number against the run). Branch:

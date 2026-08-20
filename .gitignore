@@ -7,6 +7,8 @@
 
 # live-recorded chain snapshots (200MB+/day, over GitHub's file limit)
 data/chain/
+# book-detector rows (measured ~170MB/day at full scope, same problem)
+data/senses/
 
 # caches / local tooling state
 __pycache__/

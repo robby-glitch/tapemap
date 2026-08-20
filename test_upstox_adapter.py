@@ -10,7 +10,9 @@ The option numbers are the ones measured live on 2026-08-05 11:27 IST
 existed rather than as a plausible-looking round number.
 """
 
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import chain_live
 import upstox_adapter as ua
@@ -218,3 +220,152 @@ def test_the_index_feed_yields_a_spot():
 def test_ltp_of_tolerates_junk():
     for junk in (None, {}, {"fullFeed": {}}, "nope"):
         assert ua.ltp_of(junk) is None
+
+
+# --------------------------------------------------------------------------
+# the depth ladder -- five levels that were arriving and being thrown away
+# --------------------------------------------------------------------------
+
+def _book(levels, tbq=None, tsq=None):
+    """A `full` option Feed carrying an explicit ladder.
+
+    `levels` is [(bidQ, bidP, askQ, askP), ...], best first, exactly the order
+    the socket sends. A pair of zeros is how a thin book pads a level it has
+    nothing to put in.
+    """
+    core = {"ltpc": {"ltp": 114.10, "ltt": 1, "ltq": 50, "cp": 113.0},
+            "vtt": 123456, "oi": 8916050, "iv": 0.1112,
+            "marketLevel": {"bidAskQuote": [
+                {"bidQ": b_q, "bidP": b_p, "askQ": a_q, "askP": a_p}
+                for b_q, b_p, a_q, a_p in levels]}}
+    if tbq is not None:
+        core["tbq"] = tbq
+    if tsq is not None:
+        core["tsq"] = tsq
+    return {"fullFeed": {"marketFF": core}}
+
+
+FIVE = [(75, 113.6, 50, 114.5), (150, 113.5, 100, 114.6),
+        (225, 113.4, 300, 114.7), (75, 113.3, 125, 114.8),
+        (600, 113.2, 25, 114.9)]
+
+
+def test_every_level_survives_not_just_the_top():
+    """The whole point: `_depth` kept one level, this keeps all five."""
+    lad = ua.depth_ladder(_book(FIVE))
+    assert [l["price"] for l in lad["bid"]] == [113.6, 113.5, 113.4, 113.3, 113.2]
+    assert [l["qty"] for l in lad["ask"]] == [50, 100, 300, 125, 25]
+    assert lad["bid_qty"] == 1125 and lad["ask_qty"] == 600
+
+
+def test_padded_empty_levels_are_dropped_rather_than_counted_as_size():
+    """A zero-priced level is padding, not resting size at a price of 0."""
+    lad = ua.depth_ladder(_book(FIVE[:2] + [(0, 0, 0, 0)] * 3))
+    assert len(lad["bid"]) == 2 and len(lad["ask"]) == 2
+    assert lad["bid_qty"] == 225                 # 75 + 150, not 75 + 150 + 0s
+    assert all(l["price"] for l in lad["bid"] + lad["ask"])
+
+
+def test_a_one_sided_level_keeps_the_side_that_is_real():
+    """Bid present, ask padded: the ladders end up different lengths."""
+    lad = ua.depth_ladder(_book([(75, 113.6, 50, 114.5), (150, 113.5, 0, 0)]))
+    assert len(lad["bid"]) == 2 and len(lad["ask"]) == 1
+
+
+def test_totals_ride_along_when_full_mode_supplies_them():
+    lad = ua.depth_ladder(_book(FIVE, tbq=372450, tsq=193600))
+    assert lad["tbq"] == 372450 and lad["tsq"] == 193600
+
+
+def test_missing_totals_are_unknown_not_zero():
+    """`option_greeks` has no tbq/tsq. None, so 'not subscribed' and 'nobody
+    is bidding' cannot render the same."""
+    lad = ua.depth_ladder(_feeds()[CE_KEY])              # greeks mode
+    assert lad["tbq"] is None and lad["tsq"] is None
+    assert len(lad["bid"]) == 1                          # firstDepth only
+
+
+def test_a_feed_with_no_book_is_none_not_an_empty_ladder():
+    """An index feed carries no depth. None means 'no book here'; an empty
+    ladder would read as a market with nobody in it."""
+    idx = {"fullFeed": {"indexFF": {"ltpc": {"ltp": 24613.45}}}}
+    assert ua.depth_ladder(idx) is None
+    for junk in (None, {}, {"fullFeed": {}}, "nope"):
+        assert ua.depth_ladder(junk) is None
+
+
+def test_the_chain_payload_still_reads_the_top_of_that_same_book():
+    """The extension must not move the chain's bid/ask by a paisa: the
+    payload's top-of-book is the ladder's first level, still."""
+    feed = _book(FIVE)
+    lad = ua.depth_ladder(feed)
+    side = ua.side_payload(feed)
+    assert side["top_bid_price"] == lad["bid"][0]["price"] == 113.6
+    assert side["top_ask_price"] == lad["ask"][0]["price"] == 114.5
+
+
+def test_the_normalizer_output_is_byte_for_byte_what_it_was():
+    """The real regression guard: push the unchanged fixtures through the real
+    normalizer and assert the snapshot contract did not move."""
+    snap = _snap(mode="full", atp=113.9)
+    ce = snap["strikes"][0]["ce"]
+    assert ce["bid"] == 114.10 - 0.5 and ce["ask"] == 114.10 + 0.5
+
+
+# --------------------------------------------------------------------------
+# the ladder against real bytes
+# --------------------------------------------------------------------------
+
+REAL_FRAME = Path(__file__).parent / "data" / "feed_frame_2026-08-20.json"
+
+
+def _real():
+    return json.loads(REAL_FRAME.read_text(encoding="utf-8"))
+
+
+def test_a_captured_live_frame_still_yields_five_levels():
+    """Captured 2026-08-20 09:56 IST off the live v3 socket, NIFTY 25-Aug.
+
+    Everything above builds its own frames, which only proves the parse agrees
+    with the test's idea of the wire format. This one is real bytes, so it
+    fails if Upstox changes the shape under us -- the only way that stops being
+    a surprise mid-session.
+    """
+    d = _real()
+    lad = ua.depth_ladder(d["frames"][d["fut_key"]])
+    assert len(lad["bid"]) == 5 and len(lad["ask"]) == 5
+    assert lad["tbq"] and lad["tsq"]
+
+
+def test_the_real_book_is_ordered_best_first():
+    """`_levels` promises index 0 is top of book. This is where that stops
+    being an assumption: bids must fall away from the touch, asks must rise.
+    A feed that ever sends them reversed would put the sweep detector's
+    'levels consumed' count on the wrong side of the book."""
+    d = _real()
+    for key, feed in d["frames"].items():
+        lad = ua.depth_ladder(feed)
+        if not lad:
+            continue
+        bids = [l["price"] for l in lad["bid"]]
+        asks = [l["price"] for l in lad["ask"]]
+        assert bids == sorted(bids, reverse=True), f"{key} bids not best-first"
+        assert asks == sorted(asks), f"{key} asks not best-first"
+        assert not bids or not asks or bids[0] < asks[0], f"{key} book crossed"
+
+
+def test_the_real_index_leg_has_no_book_at_all():
+    """An index is not traded, so it carries no depth. None, not an empty
+    ladder -- the distinction the docstring promises, on real data."""
+    d = _real()
+    assert ua.depth_ladder(d["frames"][d["idx_key"]]) is None
+
+
+def test_every_real_option_leg_carries_a_full_book():
+    """11 of the 12 captured frames are tradeable legs; all of them had five
+    levels a side. If this ever drops, the feed mode changed."""
+    d = _real()
+    ladders = [ua.depth_ladder(f) for f in d["frames"].values()]
+    books = [l for l in ladders if l]
+    assert len(books) == len(d["frames"]) - 1        # all but the index
+    assert all(len(l["bid"]) == 5 and len(l["ask"]) == 5 for l in books)
