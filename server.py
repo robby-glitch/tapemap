@@ -26,6 +26,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import chainside as chain_mod
 import desk as desk_mod
+import direction as direction_mod
+import drag as drag_mod
 import fuse as fuse_mod
 import instruments
 import pools as pools_mod
@@ -52,7 +54,14 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # Kite order counts, POSTed by PaperDesk's bridge. token -> book.
            # The ONE field Upstox does not send, and the only thing that tells
            # a defended wall from a crowd on a round number.
-           "orders": {}, "orders_at": None, "orders_n": 0}
+           "orders": {}, "orders_at": None, "orders_n": 0,
+           # THE BUYER'S TAX, one Board per index, session-anchored.
+           # `drag.py` was written earlier, tested, and never called by
+           # anything -- both handoffs say so. This is its first caller. It
+           # answers the question the whole seller pivot rests on: even with
+           # the direction exactly right, what fraction of the move did a
+           # buyer actually collect?
+           "drag": {}}
 
 # ONE lock over _SENSES and every object it points at.
 #
@@ -232,9 +241,19 @@ def _senses_loop(poller, period=0.5):
                     except (TypeError, ValueError):
                         continue
                     if doc.get("ok"):
-                        rd = chains.on_snapshot(idx, time.strftime("%H:%M:%S"),
+                        stamp = time.strftime("%H:%M:%S")
+                        rd = chains.on_snapshot(idx, stamp,
                                                 doc.get("strikes"))
                         _SENSES["chain"][idx] = rd.__dict__
+                        # Same snapshot, same lock, one more reading. The
+                        # Board anchors itself on its first call and only
+                        # watches after that, so there is nothing to
+                        # initialise and nothing to reset at the open.
+                        board = _SENSES["drag"].get(idx)
+                        if board is None:
+                            board = _SENSES["drag"][idx] = drag_mod.Board()
+                        board.on_snapshot(doc.get("spot"),
+                                          doc.get("strikes"), stamp)
 
                 for idx, r in (getattr(src, "resolved", None) or {}).items():
                     # Near-ATM legs only, chosen against the poller's own spot. If
@@ -867,7 +886,8 @@ class Handler(SimpleHTTPRequestHandler):
                     # contract-value band.
                     out[idx] = asdict(desk_mod.decide(
                         surf, reg, capital,
-                        strikes=(_chain_doc(self.poller, idx) or {}).get("strikes")))
+                        strikes=(_chain_doc(self.poller, idx) or {}).get("strikes"),
+                        view=_view_for(idx)))
                 except Exception as e:
                     out[idx] = {"index": idx, "fit_ok": False, "best": None,
                                 "candidates": [],
@@ -904,6 +924,33 @@ class Handler(SimpleHTTPRequestHandler):
                 "note": ("ranked by ATM vol, which is a LEVEL not a richness. "
                          "Ranking by richness needs multi-day history that "
                          "does not exist yet."),
+            }).encode())
+        elif self.path.startswith("/api/drag"):
+            # THE BUYER'S TAX, PER INDEX. Not a signal and not a gate: a
+            # meter. It says whether being right is even payable today, which
+            # is the question that turned this stack from a buyer's alarm into
+            # a seller's desk.
+            #
+            # EVERY FIELD IS ALLOWED TO BE None AND USUALLY IS. Before the
+            # anchor exists, on an index that has not moved, and on the leg
+            # the move went AGAINST, there is no honest number -- `drag.py`
+            # refuses rather than reporting an enormous meaningless percentage
+            # on a trade that simply lost. A reader that renders those as zero
+            # is reading it wrong.
+            q = parse_qs(urlsplit(self.path).query)
+            only = (q.get("idx") or [None])[0]
+            with _SENSES_LOCK:
+                boards = dict(_SENSES["drag"] or {})
+            out = {i: b.read() for i, b in boards.items()
+                   if not only or i == only}
+            self._json(json.dumps({
+                "ok": bool(out),
+                "indices": out,
+                "note": ("owed = delta x the underlying's move; paid = what "
+                         "the premium actually did; drag = owed - paid, and "
+                         "frac is that as a RATE. Deltas are real, off the "
+                         "chain -- there is no assumed 0.5 here, and that "
+                         "assumption is why this module exists."),
             }).encode())
         elif self.path.startswith("/api/senses"):
             # A WINDOW, NOT THE RECORD. The forward record is
@@ -967,6 +1014,51 @@ class Handler(SimpleHTTPRequestHandler):
 
     def log_message(self, *a):
         pass
+
+
+def _view_for(idx):
+    """The direction view for one index, or None if the tape cannot form one.
+
+    NONE IS A RESULT, NOT A FAILURE. `desk.decide` blocks the flow half of the
+    catalog with its reason named when this returns None, exactly as it did
+    before a direction view existed at all -- so a cold server, a market that
+    is shut, or a chain that has not warmed produces a readable screen rather
+    than an error.
+
+    It assembles the same two halves `/api/senses` already assembles, and for
+    the same reason: ignition is a BOOK quantity and fuel/drain are CHAIN
+    quantities, so neither source can answer alone. `fuse` supplies the gear
+    with ignition folded in; `chainside` supplies the trapped side.
+    """
+    with _SENSES_LOCK:
+        book = _SENSES["fuse"]
+        chain = (_SENSES["chain"] or {}).get(idx)
+        if book is None or not chain:
+            return None
+        # One index can carry several instruments (the future plus the strikes
+        # around it). The FUTURE is the tape that matters for ignition -- a
+        # single deep-OTM leg's book is thin enough that every flicker reads
+        # extreme, which is the volume-scoping trap from HANDOFF-OPERATOR §2.6.
+        #
+        # MATCH THE SUFFIX, NOT THE HYPHEN COUNT. This read
+        # `p[0].count("-") <= 1` until 2026-08-22, on the belief that a strike
+        # leg carried an extra hyphen. It does not: keys are minted as
+        # f"{idx}-FUT" and f"{idx}-{strike}{CE|PE}" (see the senses thread
+        # below), so BOTH have exactly one hyphen, the filter matched
+        # everything, and `next` returned the first item of a sorted list --
+        # in which "NIFTY-24450CE" precedes "NIFTY-FUT" because digits sort
+        # before letters. Ignition was therefore read off whichever near
+        # strike happened to sort first, never the future: the exact trap the
+        # paragraph above warns about, two lines under the warning.
+        fuses = [(i, f) for i, f in sorted(book._by.items())
+                 if i.split("-")[0] == idx]
+        if not fuses:
+            return None
+        inst, f = next((p for p in fuses if p[0].endswith("-FUT")), fuses[0])
+        v = f.verdict(fuel_rank=chain.get("fuel_rank"),
+                      drain=bool(chain.get("drain")),
+                      one_sided=chain.get("one_sided"))
+    return direction_mod.read(chain, v.gear)
 
 
 def _build_why(e):

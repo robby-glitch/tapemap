@@ -67,8 +67,27 @@ class ChainRead:
     worst_leg: Optional[str] = None         # e.g. "24100CE"
     trapped_side: Optional[str] = None      # ce | pe -- where the pain sits
     one_sided: Optional[bool] = None        # chain pain lopsided?
-    drain: bool = False
-    drain_rank: Optional[float] = None
+    # DRAIN IS ATTRIBUTED TO A SIDE, AND THAT IS THE WHOLE POINT OF THE FIELD.
+    #
+    # Until 2026-08-22 `drain` was a CHAIN-WIDE aggregate: `drained` summed
+    # forced-exit flow across every strike and BOTH sides, while
+    # `trapped_side` was computed separately from worst pain. The two were
+    # never checked against each other, so `drain=True` meant only "something
+    # somewhere is leaving". `direction.py` then read the pair together and
+    # printed "the trapped side is actually leaving" -- a receipt sentence the
+    # data did not support, on a stack whose contract is that receipts can be
+    # checked. A far PE covering heavily while the worst-pain CE sat untouched
+    # produced FORCED BULL, which licenses buying convexity.
+    #
+    # `drain` now means: THE SIDE NAMED IN `trapped_side` IS LEAVING. The
+    # per-side ranks are kept so a reader can see both, and `drain_other` is
+    # published because the opposite side draining is a real and different
+    # event -- one that argues against the trade, not for it.
+    drain: bool = False                     # the TRAPPED side is leaving
+    drain_rank: Optional[float] = None      # rank of the trapped side's flow
+    drain_other: bool = False               # the OTHER side is leaving
+    drain_rank_ce: Optional[float] = None
+    drain_rank_pe: Optional[float] = None
     warm: bool = False
     notes: List[str] = field(default_factory=list)
     tag: str = "I"
@@ -85,7 +104,10 @@ class ChainSide:
     def __init__(self):
         self._led: Dict[Tuple[float, str], trapped_inventory.Ledger] = {}
         self._pain_rank = Rank()
-        self._drain_rank = Rank()
+        # One rank PER SIDE. A single pooled rank cannot answer "is the
+        # trapped side leaving" no matter how it is thresholded, because the
+        # quantity it ranks has already had both sides added together.
+        self._drain_rank = {"ce": Rank(), "pe": Rank()}
         self.read = ChainRead()
 
     def _ledger(self, strike: float, side: str) -> trapped_inventory.Ledger:
@@ -112,7 +134,7 @@ class ChainSide:
 
         pains: Dict[str, float] = {}
         worst, worst_leg, worst_side = 0.0, None, None
-        drained = 0.0
+        drained: Dict[str, float] = {"ce": 0.0, "pe": 0.0}
         for row in strikes:
             k = row.get("k")
             if k is None:
@@ -130,18 +152,52 @@ class ChainSide:
                     if pain > worst:
                         worst, worst_leg, worst_side = (
                             pain, f"{k:.0f}{side.upper()}", side)
-                drained += trapped_inventory.drain_rate(led.events)
+                drained[side] += trapped_inventory.drain_rate(led.events)
 
         warm = len(self._pain_rank) >= MIN_HIST
         fuel_rank = self._pain_rank.rank(worst)
-        d_rank = self._drain_rank.rank(drained) if drained > 0 else 0.0
+        # EVERY SIDE IS RANKED EVERY SNAPSHOT, AND SO IS EVERY ZERO.
+        #
+        # The old code read `rank(drained) if drained > 0 else 0.0`, which
+        # never fed a quiet snapshot to the Rank at all -- so the Rank only
+        # ever observed non-zero values, and the FIRST real drain of a session
+        # was ranked against an empty history. `Rank.rank` returns 0.5 on an
+        # empty series, so that first covering burst scored 0.5, sat under
+        # DRAIN_P, and reported no drain. Found 2026-08-22; it survived
+        # because no test in this suite ever asserted `drain is True` -- only
+        # that a quiet chain does NOT drain, which passes either way.
+        #
+        # Feeding the zeros is safe precisely because `drain_rate` is
+        # WINDOWED (last 5 events), not cumulative: it falls back to zero when
+        # covering stops, so the series is a real distribution rather than the
+        # monotonic one HANDOFF-OPERATOR sec.2.4 warns scores every new
+        # maximum at 1.00 forever.
+        ranks = {s: self._drain_rank[s].rank(drained[s]) for s in ("ce", "pe")}
+        other = {"ce": "pe", "pe": "ce"}.get(worst_side)
+
+        def _leaving(side):
+            return bool(side and warm and drained[side] > 0
+                        and ranks[side] >= DRAIN_P)
 
         r = ChainRead(
             fuel_rank=round(fuel_rank, 3) if warm else None,
             worst_pain=round(worst, 2) if worst else None,
             worst_leg=worst_leg, trapped_side=worst_side,
-            drain=bool(warm and drained > 0 and d_rank >= DRAIN_P),
-            drain_rank=round(d_rank, 3) if warm else None,
+            drain=_leaving(worst_side),
+            drain_rank=(round(ranks[worst_side], 3)
+                        if warm and worst_side and drained[worst_side] > 0
+                        else None),
+            drain_other=_leaving(other),
+            # NONE WHEN THERE WAS NOTHING TO RANK. With no forced-exit flow
+            # the ranked value is 0.0, and the percentile of 0.0 in a series
+            # of zeros is 1.00 -- which would render on screen as "drain rank
+            # 1.00" on a chain where nobody is leaving at all. "No forced-exit
+            # flow" and "flow at the session's extreme" are different
+            # sentences and must not share a number.
+            drain_rank_ce=(round(ranks["ce"], 3)
+                           if warm and drained["ce"] > 0 else None),
+            drain_rank_pe=(round(ranks["pe"], 3)
+                           if warm and drained["pe"] > 0 else None),
             warm=warm)
         total = sum(pains.values())
         if total > 0:

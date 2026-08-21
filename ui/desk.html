@@ -3,347 +3,904 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>surface desk</title>
+<title>the desk</title>
 <style>
-  /* EVERY NUMBER ON THIS PAGE COMES FROM /api/desk OR /api/surface.
-     Nothing is typed in except the capital control, which is an INPUT to the
-     next request, not a value rendered back without a round trip. A missing
-     value renders as a stated absence, never a placeholder. */
+  /* EVERY NUMBER ON THIS PAGE COMES FROM /api/desk, /api/surface OR
+     /api/health. Nothing is typed in except the two controls -- capital and
+     test lots -- which are INPUTS to the next request or to the payoff math,
+     never values rendered back without a round trip. A missing value renders
+     as a stated absence with its reason, never as a placeholder or a zero.
+
+     COSTS ARE ZERO ON THIS DESK and the payoff curve says so out loud. The
+     broker charges no brokerage and rebates statutory charges on any position
+     closing at least Rs 1 positive, so nothing is subtracted anywhere on this
+     screen. If that arrangement ends, desk.STATUTORY_PCT is the one number to
+     restore and every figure here corrects itself. */
   :root{
-    --ground:#0B100F; --panel:#131B1A; --sunk:#0F1716;
+    --ground:#0B100F; --panel:#131B1A; --sunk:#0F1716; --raise:#182220;
     --ink:#E6ECEA; --ink2:#AEBDB9; --muted:#7E908C; --rule:#26312F;
     --sell:#54BCB6; --buy:#D9A44A; --risk:#D9706A; --grid:#1E2827;
-    --naked:#C77DD1;
+    --naked:#C77DD1; --bull:#5FC98A; --bear:#E0705F; --flat:#8A9B97;
   }
+  /* LIGHT IS A REAL PALETTE AGAIN. The rebuild left a
+     @media (prefers-color-scheme: dark) block re-declaring the DARK values
+     already on :root, so the page stayed dark under every setting while
+     carrying the whole apparatus of theme support -- a :root default, a media
+     query, a data-theme guard -- that changed nothing. The operator reads
+     Kite in light theme; a permanently dark desk beside it is a regression,
+     not a choice. Dark remains the :root default so an unstated preference
+     keeps the terminal look. */
   @media (prefers-color-scheme: light){
     :root:not([data-theme="dark"]){
-      --ground:#F4F6F5; --panel:#FFFFFF; --sunk:#E1E7E5;
-      --ink:#0E1A19; --ink2:#41534F; --muted:#71827E; --rule:#D2DAD8;
-      --sell:#0E5A5B; --buy:#7A4E15; --risk:#8E2B2B; --grid:#DCE3E1;
-      --naked:#7A2E82;
+    --ground:#F4F6F5; --panel:#FFFFFF; --sunk:#E9EEEC; --raise:#DFE6E4;
+    --ink:#0E1A19; --ink2:#41534F; --muted:#6C7D79; --rule:#D2DAD8;
+    --sell:#0E5A5B; --buy:#7A4E15; --risk:#8E2B2B; --grid:#DCE3E1;
+    --naked:#7A2E82; --bull:#136B3E; --bear:#9B2F20; --flat:#5C6D69;
+    --rich:#8A6D0B;
     }
+  }
+  :root[data-theme="light"]{
+    --ground:#F4F6F5; --panel:#FFFFFF; --sunk:#E9EEEC; --raise:#DFE6E4;
+    --ink:#0E1A19; --ink2:#41534F; --muted:#6C7D79; --rule:#D2DAD8;
+    --sell:#0E5A5B; --buy:#7A4E15; --risk:#8E2B2B; --grid:#DCE3E1;
+    --naked:#7A2E82; --bull:#136B3E; --bear:#9B2F20; --flat:#5C6D69;
+    --rich:#8A6D0B;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--ground);color:var(--ink);
     font:14px/1.5 "Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-  .mono,.num{font-family:"Consolas","IBM Plex Mono",ui-monospace,monospace;
+  .mono,.num,td,th,input{font-family:"Consolas","IBM Plex Mono",ui-monospace,monospace;
     font-variant-numeric:tabular-nums}
-  .wrap{max-width:1280px;margin:0 auto;padding:14px 18px 60px;
-    display:flex;flex-direction:column;gap:12px}
-  .lbl{font-family:"Consolas",monospace;font-size:.66rem;letter-spacing:.13em;
+  .wrap{max-width:1680px;margin:0 auto;padding:12px 16px 60px;
+    display:flex;flex-direction:column;gap:10px}
+  .lbl{font-family:Consolas,monospace;font-size:.63rem;letter-spacing:.14em;
     text-transform:uppercase;color:var(--muted)}
-  .strip{display:flex;flex-wrap:wrap;gap:9px 20px;align-items:center;
-    background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:10px 15px}
+  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:6px;
+    padding:12px 14px;display:flex;flex-direction:column;gap:9px;min-width:0}
+
+  /* -- top strip ---------------------------------------------------- */
+  .strip{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;
+    background:var(--panel);border:1px solid var(--rule);border-radius:6px;
+    padding:8px 14px}
   .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
   .ok{background:var(--sell)} .bad{background:var(--risk)}
   .grow{flex:1}
-  .capctl{display:flex;align-items:center;gap:6px}
-  .capctl input{width:110px;background:var(--sunk);border:1px solid var(--rule);
+  .ctl{display:flex;align-items:center;gap:6px}
+  .ctl input{width:86px;background:var(--sunk);border:1px solid var(--rule);
     color:var(--ink);border-radius:4px;padding:4px 7px;font:inherit;
-    font-family:Consolas,monospace}
-  .capctl input:focus{outline:1px solid var(--sell)}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-  .card{background:var(--panel);border:1px solid var(--rule);border-radius:5px;
-    padding:11px 14px;cursor:pointer;text-align:left;color:inherit;font:inherit;
-    display:flex;flex-direction:column;gap:3px}
+    font-family:Consolas,monospace;font-size:.85rem}
+  .ctl input:focus{outline:1px solid var(--sell)}
+  .free{color:var(--sell);font-family:Consolas,monospace;font-size:.66rem;
+    letter-spacing:.1em;text-transform:uppercase}
+
+  /* -- the gear: the overall market view ---------------------------- */
+  .gear{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;
+    overflow:hidden}
+  .gear .cell{background:var(--panel);padding:11px 14px;display:flex;
+    flex-direction:column;gap:2px;min-width:0}
+  .gear .big{font-size:1.32rem;font-weight:700;letter-spacing:.01em;
+    font-family:Consolas,monospace;line-height:1.2}
+  .gear .sub{font-size:.74rem;color:var(--ink2)}
+  .BULL{color:var(--bull)} .BEAR{color:var(--bear)}
+  .NEUTRAL,.UNKNOWN{color:var(--flat)}
+  .CASCADE{color:var(--bear)} .PIN{color:var(--sell)} .TRANSITION{color:var(--buy)}
+  .FORCED{color:var(--bull)} .LEANING{color:var(--buy)} .NONE{color:var(--flat)}
+  .gearwhy{font-size:.78rem;color:var(--ink2);display:flex;flex-direction:column;gap:3px}
+
+  /* -- scanner ------------------------------------------------------ */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px}
+  .card{background:var(--panel);border:1px solid var(--rule);border-radius:6px;
+    padding:10px 13px;cursor:pointer;text-align:left;color:inherit;font:inherit;
+    display:flex;flex-direction:column;gap:4px}
   .card:hover{border-color:var(--sell)}
   .card[aria-selected=true]{border-color:var(--sell);box-shadow:inset 0 0 0 1px var(--sell)}
-  .card .nm{font-weight:600}
-  .card .st{font-size:.72rem;color:var(--muted)}
-  .pill{display:inline-block;font-family:Consolas,monospace;font-size:.6rem;font-weight:700;
-    letter-spacing:.08em;padding:2px 6px;border-radius:3px;white-space:nowrap}
-  .DAMPING{background:rgba(84,188,182,.16);color:var(--sell)}
-  .AMPLIFYING{background:rgba(217,112,106,.16);color:var(--risk)}
-  .UNKNOWN{background:rgba(126,144,140,.16);color:var(--muted)}
-  .DEPLOYABLE{background:rgba(84,188,182,.16);color:var(--sell)}
-  .STAND_ASIDE{background:rgba(217,164,74,.16);color:var(--buy)}
-  .BLOCKED{background:rgba(126,144,140,.16);color:var(--muted)}
-  .DEFINED{background:rgba(84,188,182,.14);color:var(--sell)}
-  .UNDEFINED{background:rgba(199,125,209,.16);color:var(--naked)}
-  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:5px;
-    padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
-  .row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:12px}
-  @media (max-width:880px){.row{grid-template-columns:1fr}}
-  .cand{background:var(--sunk);border-radius:4px;padding:10px 12px;
-    display:flex;flex-direction:column;gap:7px;border-left:2px solid var(--sell)}
-  .cand.na{border-left-color:var(--rule);opacity:.75}
-  .cand .hd{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
-  .cand .nm{font-weight:600}
-  .legs{display:flex;flex-wrap:wrap;gap:6px}
-  .leg{font-family:Consolas,monospace;font-size:.8rem;padding:2px 7px;border-radius:3px}
-  .leg.S{background:rgba(84,188,182,.15);color:var(--sell)}
-  .leg.B{background:rgba(217,164,74,.15);color:var(--buy)}
-  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-    gap:6px 14px;font-size:.78rem}
-  .metrics .m{display:flex;flex-direction:column;gap:1px}
-  .metrics .m .v{font-family:Consolas,monospace;color:var(--ink)}
-  .metrics .m .l{font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;
+  .card .top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .card .nm{font-weight:700;font-size:1rem}
+  .card .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px;
+    font-size:.75rem;margin-top:2px}
+  .card .grid .v{font-family:Consolas,monospace}
+  .card .grid .l{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;
     color:var(--muted)}
-  .why{font-size:.79rem;color:var(--ink2)}
+  .card .hd{font-size:.76rem;color:var(--ink2);min-height:1.2em}
+
+  /* -- main: chart + rail ------------------------------------------- */
+  .main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr);gap:10px}
+  @media (max-width:1100px){.main{grid-template-columns:1fr}}
+  .tabs{display:flex;gap:2px;background:var(--sunk);border-radius:5px;padding:2px;
+    align-self:flex-start}
+  .tabs button{background:none;border:0;color:var(--muted);font:inherit;
+    font-family:Consolas,monospace;font-size:.72rem;letter-spacing:.08em;
+    text-transform:uppercase;padding:5px 11px;border-radius:4px;cursor:pointer}
+  .tabs button[aria-selected=true]{background:var(--panel);color:var(--ink)}
+  /* The chart keeps a DEFINITE pixel height. A percentage against an
+     auto-height flex parent collapses it to zero -- PRODUCT.md's layout trap,
+     which has cost two bad edits and collapsed the chart twice. */
+  .plot{height:330px;position:relative}
+  .plot svg{width:100%;height:100%;display:block}
+  .axis{stroke:var(--grid);stroke-width:1}
+  .axtx{fill:var(--muted);font-family:Consolas,monospace;font-size:9px}
+
+  /* -- rail --------------------------------------------------------- */
+  .rail{display:flex;flex-direction:column;gap:6px;max-height:660px;overflow-y:auto}
+  .row{background:var(--sunk);border:1px solid transparent;border-radius:5px;
+    padding:8px 11px;cursor:pointer;text-align:left;color:inherit;font:inherit;
+    display:flex;flex-direction:column;gap:3px;border-left:2px solid var(--sell);
+    width:100%}
+  .row:hover{border-color:var(--rule)}
+  .row[aria-selected=true]{background:var(--raise);box-shadow:inset 0 0 0 1px var(--sell)}
+  .row.na{border-left-color:var(--rule);opacity:.72}
+  .row .t{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap}
+  .row .nm{font-weight:600;font-size:.88rem}
+  .row .sub{font-size:.72rem;color:var(--muted);white-space:normal}
+  .crown{color:var(--buy);font-size:.62rem;font-family:Consolas,monospace;
+    letter-spacing:.1em}
+
+  /* -- pills -------------------------------------------------------- */
+  .pill{display:inline-block;font-family:Consolas,monospace;font-size:.58rem;
+    font-weight:700;letter-spacing:.09em;padding:2px 6px;border-radius:3px;
+    white-space:nowrap}
+  .p-DEPLOYABLE,.p-DEFINED{background:rgba(84,188,182,.16);color:var(--sell)}
+  .p-STAND_ASIDE{background:rgba(217,164,74,.16);color:var(--buy)}
+  .p-BLOCKED,.p-UNKNOWN{background:rgba(126,144,140,.16);color:var(--muted)}
+  .p-UNDEFINED{background:rgba(199,125,209,.18);color:var(--naked)}
+  .p-FLOW{background:rgba(95,201,138,.16);color:var(--bull)}
+  .p-MISPRICING{background:rgba(84,188,182,.13);color:var(--sell)}
+  .p-REGIME{background:rgba(217,164,74,.14);color:var(--buy)}
+  /* RICH IS NOT A WARNING HERE. It shared --risk with BEAR, the loss region
+     and the error box, so the smile painted every harvestable point in the
+     page's one "something is wrong" colour. On a desk that SELLS premium,
+     rich is the opportunity. */
+  :root{--rich:#C9A227}
+
+  /* -- detail ------------------------------------------------------- */
+  .legs{display:flex;flex-wrap:wrap;gap:5px}
+  .leg{font-family:Consolas,monospace;font-size:.8rem;padding:3px 8px;border-radius:3px}
+  .leg.S{background:rgba(84,188,182,.16);color:var(--sell)}
+  .leg.B{background:rgba(217,164,74,.16);color:var(--buy)}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));
+    gap:7px 14px;font-size:.79rem}
+  .metrics .m{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .metrics .m .v{font-family:Consolas,monospace;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis}
+  .metrics .m .v.hi{font-size:1.02rem;font-weight:700}
+  .metrics .m .l{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted)}
+  .why{font-size:.79rem;color:var(--ink2);display:flex;flex-direction:column;gap:4px}
   .why div:before{content:"\00b7 ";color:var(--muted)}
-  .dir{color:var(--naked);font-weight:600}
   .hedge{font-size:.77rem;color:var(--naked);background:rgba(199,125,209,.08);
     border-left:2px solid var(--naked);border-radius:0 3px 3px 0;padding:6px 9px}
-  .liq{font-size:.76rem;color:var(--naked)}
-  .liq:before{content:"\26a0 "}
-  .tw{overflow-x:auto}
-  table{border-collapse:collapse;width:100%;font-size:.8rem}
-  th,td{padding:5px 7px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
-  th:first-child,td:first-child{text-align:left}
-  th{font-family:Consolas,monospace;font-size:.6rem;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--muted);font-weight:500}
-  tbody td{font-family:Consolas,monospace}
-  .pos{color:var(--sell)} .neg{color:var(--buy)}
-  svg{width:100%;height:auto;display:block}
-  .note{font-size:.76rem;color:var(--muted);border-left:2px solid var(--rule);padding-left:9px}
+  .warn{font-size:.77rem;color:var(--buy);background:rgba(217,164,74,.08);
+    border-left:2px solid var(--buy);border-radius:0 3px 3px 0;padding:6px 9px}
+  .note{font-size:.75rem;color:var(--muted);border-left:2px solid var(--rule);
+    padding-left:9px}
   .err{background:rgba(217,112,106,.12);border:1px solid var(--risk);color:var(--ink);
-    border-radius:5px;padding:11px 14px}
+    border-radius:6px;padding:11px 14px}
+  details summary{cursor:pointer;color:var(--muted);font-family:Consolas,monospace;
+    font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+    padding:4px 0;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary:before{content:"\25b8 ";}
+  details[open] summary:before{content:"\25be ";}
+  details .row{margin-top:5px}
+  table{border-collapse:collapse;width:100%;font-size:.79rem}
+  th,td{padding:4px 7px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{font-size:.59rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);font-weight:500}
+  .pos{color:var(--sell)} .neg{color:var(--risk)}
+  .tw{overflow-x:auto}
+  h2{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:0;font-family:Consolas,monospace;font-weight:500}
 </style>
 </head>
 <body>
 <div class="wrap">
+
   <div class="strip">
     <span><span class="dot" id="dot"></span> <span class="lbl">feed</span>
       <span class="num" id="feed">connecting</span></span>
     <span><span class="lbl">ist</span> <span class="num" id="clock">--:--:--</span></span>
     <span><span class="lbl">refreshed</span> <span class="num" id="age">-</span></span>
     <span class="grow"></span>
-    <span class="capctl">
-      <span class="lbl">capital, Rs cr</span>
-      <input id="capital" type="number" min="0.01" step="0.5" value="5">
-    </span>
-    <span class="lbl">advisory only &middot; no order path</span>
+    <span class="ctl"><span class="lbl">test lots</span>
+      <input id="testlots" type="number" min="1" step="1" value="5"></span>
+    <span class="ctl"><span class="lbl">capital, rs cr</span>
+      <input id="capital" type="number" min="0.01" step="0.5" value="5"></span>
+    <span class="free">zero cost &middot; advisory only &middot; no order path</span>
   </div>
 
+  <h2>the gear &mdash; what the machine is doing, before any trade</h2>
+  <div class="gear" id="gear"></div>
+  <div class="panel" id="gearwhy" style="display:none"></div>
+
+  <h2>the buyer&rsquo;s tax &mdash; what a correct direction actually collected</h2>
+  <div class="gear" id="drag"></div>
+
+  <h2>which instrument</h2>
   <div class="cards" id="cards"></div>
-  <div id="main"></div>
+
+  <div id="err"></div>
+
+  <div class="main">
+    <div class="panel">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="tabs" id="tabs">
+          <button data-t="payoff" aria-selected="true">payoff at expiry</button>
+          <button data-t="smile" aria-selected="false">vol smile</button>
+        </div>
+        <span class="grow"></span>
+        <span class="lbl" id="plothint"></span>
+      </div>
+      <div class="plot" id="plot"></div>
+      <div id="plotfoot"></div>
+    </div>
+    <div class="panel">
+      <h2>structures, ranked</h2>
+      <div class="rail" id="rail"></div>
+    </div>
+  </div>
+
+  <div id="detail"></div>
+
   <div class="note">
-    Status, not confidence. <b>edge</b> is the mispricing being harvested in
-    rupees per unit &mdash; it describes what is there and forecasts nothing.
-    <b>margin</b> is a documented [I] floor, never the broker's own SPAN
-    number. Nothing on this page has a track record.
+    Every figure is computed from the live chain by <code>surface.py</code>,
+    <code>desk.py</code> and <code>direction.py</code>. <b>[M]</b> is measured,
+    <b>[I]</b> is inferred. Status is never a confidence score: nothing here has
+    a track record, and <code>edge</code> describes the mispricing being
+    harvested without forecasting what it pays. Costs are modelled at
+    <b>zero</b> throughout &mdash; no brokerage, statutory charges rebated on
+    any position closing at least Rs 1 positive.
   </div>
 </div>
 
 <script>
-var sel = null, desk = null, surf = null, lastOk = 0;
-var capitalCr = 5;
+"use strict";
+var S = {desk:null, surf:null, health:null, drag:null, idx:null, pick:null,
+         userPick:false, tab:"payoff", at:0, err:null, raw:""};
 
-function esc(s){ return String(s == null ? "" : s)
-  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-  .replace(/"/g,"&quot;"); }
-function n(v, d){ return (v == null || isNaN(v)) ? "&ndash;"
-  : Number(v).toFixed(d == null ? 2 : d); }
-function k(v){ return v == null ? "&ndash;"
-  : Number(v).toLocaleString("en-IN", {maximumFractionDigits: 0}); }
-function rs(v){ return v == null ? "&ndash;" : "Rs " + k(v); }
-function pct(v, d){ return v == null ? "&ndash;" : n(v * 100, d == null ? 2 : d) + "%"; }
+function $(id){ return document.getElementById(id); }
 
-function cards(){
-  var ix = (desk && desk.indices) || {};
-  var names = Object.keys(ix);
-  if (!sel && names.length) sel = names[0];
-  document.getElementById("cards").innerHTML = names.map(function(nm){
-    var v = ix[nm], r = v.regime || {}, st = r.state || "UNKNOWN";
-    var live = (v.candidates || []).filter(function(c){ return c.status === "DEPLOYABLE"; });
-    var top = live.length ? live[0] : null;
-    return '<button class="card" aria-selected="' + (nm === sel) + '" data-i="' + esc(nm) + '">'
-      + '<span class="nm">' + esc(nm) + ' <span class="pill ' + st + '">' + st + '</span></span>'
-      + '<span class="num">' + (v.best ? esc(v.best.replace(/_/g, " ")) : "no structure") + '</span>'
-      + '<span class="st">spot ' + k(r.spot) + ' &middot; ' + live.length + ' deployable'
-      + (top && top.edge_per_margin != null
-          ? ' &middot; ' + pct(top.edge_per_margin, 1) + '/margin' : '') + '</span></button>';
-  }).join("");
-  Array.prototype.forEach.call(document.querySelectorAll(".card"), function(b){
-    b.onclick = function(){ sel = b.dataset.i; render(); };
-  });
+/* -- formatting. An absent value is a STATED absence, never a zero. -- */
+function n(v, d){ return (v===null||v===undefined||!isFinite(v)) ? null
+                        : Number(v).toLocaleString("en-IN",
+                            {minimumFractionDigits:d===undefined?0:d,
+                             maximumFractionDigits:d===undefined?0:d}); }
+function num(v, d, dash){ var s = n(v,d); return s===null ? (dash||"—") : s; }
+// MINUS BEFORE THE SYMBOL, matching shortRs. The two disagreed, putting
+// "₹-17.07" beside "-₹10.0k" on the same panel.
+function rs(v, d){
+  if(v===null||v===undefined||!isFinite(v)) return "—";
+  return (v<0?"-₹":"₹") + n(Math.abs(v), d===undefined?2:d);
+}
+function pct(v, d){ return (v===null||v===undefined||!isFinite(v)) ? "—"
+                          : (v*100).toFixed(d===undefined?2:d)+"%"; }
+function esc(s){ return String(s===null||s===undefined?"":s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function pill(v){ return v ? '<span class="pill p-'+esc(v)+'">'+esc(v)+'</span>' : ""; }
+function lines(a){ return (a&&a.length)
+  ? '<div class="why">'+a.map(function(w){return "<div>"+esc(w)+"</div>";}).join("")+"</div>"
+  : ""; }
+function title(s){ return String(s||"").replace(/_/g," "); }
+function m2(l,v,hi){ return '<div class="m"><div class="l">'+esc(l)+'</div>'
+  + '<div class="v'+(hi?" hi":"")+'">'+v+'</div></div>'; }
+function shortRs(v){
+  if(v===null||v===undefined||!isFinite(v)) return "—";
+  var a = Math.abs(v), s = v<0?"-₹":"₹";
+  if(a>=1e7) return s+(a/1e7).toFixed(2)+"cr";
+  if(a>=1e5) return s+(a/1e5).toFixed(2)+"L";
+  if(a>=1e3) return s+(a/1e3).toFixed(1)+"k";
+  return s+a.toFixed(0);
 }
 
-function smile(v){
-  var pts = (v && v.points) || [], f = v && v.fit;
-  if (!pts.length || !f || !f.ok) return '<div class="note">no fitted surface yet</div>';
-  var W = 700, H = 250, L = 48, R = 12, T = 12, B = 26;
-  var xs = pts.map(function(p){ return p.x; });
-  var ys = pts.map(function(p){ return p.iv; }).concat(pts.map(function(p){ return p.fit_iv; }));
-  var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
-  var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-  var pad = (y1 - y0) * 0.2 || 0.002; y0 -= pad; y1 += pad;
-  var px = function(x){ return L + (x - x0) / (x1 - x0 || 1) * (W - L - R); };
-  var py = function(y){ return T + (1 - (y - y0) / (y1 - y0 || 1)) * (H - T - B); };
-  var s = "";
-  for (var i = 0; i <= 4; i++){
-    var vv = y0 + (y1 - y0) * i / 4, yy = py(vv);
-    s += '<line x1="' + L + '" y1="' + yy + '" x2="' + (W - R) + '" y2="' + yy
-       + '" stroke="var(--grid)"/>'
-       + '<text x="' + (L - 6) + '" y="' + (yy + 4) + '" text-anchor="end" font-size="10"'
-       + ' font-family="Consolas,monospace" fill="var(--muted)">' + n(vv * 100) + '%</text>';
-  }
-  s += '<line x1="' + px(0) + '" y1="' + T + '" x2="' + px(0) + '" y2="' + (H - B)
-     + '" stroke="var(--rule)" stroke-dasharray="3 3"/>';
-  var sorted = pts.slice().sort(function(a, b){ return a.x - b.x; });
-  var d = sorted.map(function(p, i){
-    return (i ? "L" : "M") + px(p.x).toFixed(1) + " " + py(p.fit_iv).toFixed(1); }).join(" ");
-  s += '<path d="' + d + '" fill="none" stroke="var(--sell)" stroke-width="2" opacity=".8"/>';
-  sorted.forEach(function(p){
-    var big = Math.abs(p.z) >= 1.5, col = p.resid > 0 ? "var(--sell)" : "var(--buy)";
-    if (big) s += '<line x1="' + px(p.x) + '" y1="' + py(p.fit_iv) + '" x2="' + px(p.x)
-                + '" y2="' + py(p.iv) + '" stroke="' + col + '" stroke-width="1.5"/>';
-    s += '<circle cx="' + px(p.x) + '" cy="' + py(p.iv) + '" r="' + (big ? 4 : 2.6)
-       + '" fill="' + (big ? col : "var(--panel)") + '" stroke="' + (big ? col : "var(--ink2)")
-       + '" stroke-width="1.4"/>';
-    if (big) s += '<text x="' + px(p.x) + '" y="' + (py(p.iv) + (p.resid > 0 ? -9 : 15))
-                + '" text-anchor="middle" font-size="9" font-family="Consolas,monospace" fill="'
-                + col + '">' + k(p.k) + '</text>';
-  });
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="fitted smile">'
-       + s + '</svg>';
-}
-
-function metric(label, val){
-  return '<div class="m"><span class="v">' + val + '</span><span class="l">' + esc(label)
-       + '</span></div>';
-}
-
-function cand(c, lotSize){
-  var live = c.status === "DEPLOYABLE";
-  var legs = (c.legs || []).map(function(l){
-    return '<span class="leg ' + esc(l.side[0]) + '">' + esc(l.side) + " " + k(l.strike)
-         + " " + esc(l.right)
-         + (l.delta != null ? ' <span style="opacity:.65">' + n(l.delta) + '&Delta;</span>' : '')
-         + '</span>'; }).join("");
-  var lines = live ? (c.why || []) : ((c.missing && c.missing.length) ? c.missing : (c.why || []));
-
-  var metrics = "";
-  if (live){
-    metrics += metric("edge/unit", c.edge != null
-      ? '<span class="' + (c.edge >= 0 ? "pos" : "neg") + '">Rs ' + n(c.edge) + '</span>' : "&ndash;");
-    metrics += metric("risk", c.risk
-      ? '<span class="pill ' + esc(c.risk) + '">' + esc(c.risk) + '</span>' : "&ndash;");
-    metrics += metric("max loss/lot", c.risk === "UNDEFINED"
-      ? '<span class="pill UNDEFINED">UNBOUNDED</span>'
-      : (c.max_loss != null && lotSize ? rs(c.max_loss * lotSize) : "&ndash;"));
-    metrics += metric("margin/lot [I]", rs(c.margin_per_lot));
-    metrics += metric("edge/margin", pct(c.edge_per_margin));
-    metrics += metric("edge/max loss", c.edge_per_max_loss != null ? pct(c.edge_per_max_loss) : "&ndash;");
-    metrics += metric("lots (this capital)", c.lots != null ? k(c.lots) : "&ndash;");
-    metrics += metric("lots / Rs 1cr", c.lots_per_cr != null ? k(c.lots_per_cr) : "&ndash;");
-    metrics += metric("breakeven" + ((c.breakevens || []).length > 1 ? "s" : ""),
-      (c.breakevens || []).length ? c.breakevens.map(function(b){ return k(b); }).join(" / ") : "&ndash;");
-    metrics += metric("thinnest leg OI", c.thinnest_oi != null ? k(c.thinnest_oi) : "&ndash;");
-    // DIRECTION IS A HEADLINE, NOT A FOOTNOTE. A vol trade carries delta
-    // whether it meant to or not, and a reader handed the legs without this
-    // number is handed a directional bet by omission.
-    metrics += metric("net delta/unit", c.net_delta != null
-      ? '<span class="' + (Math.abs(c.net_delta) < 0.05 ? "" : "dir") + '">'
-        + (c.net_delta > 0 ? "+" : "") + n(c.net_delta, 3) + "</span>" : "&ndash;");
-    metrics += metric("hedge, futures units", c.hedge_units != null
-      ? '<span class="dir">' + (c.hedge_units > 0 ? "BUY " : "SELL ")
-        + k(Math.abs(c.hedge_units)) + "</span>" : "&ndash;");
-  }
-
-  return '<div class="cand' + (live ? "" : " na") + '">'
-    + '<div class="hd"><span class="nm">' + esc(c.name.replace(/_/g, " ")) + '</span>'
-    + '<span class="pill ' + esc(c.status) + '">' + esc(c.status) + '</span>'
-    + '</div>'
-    + (legs ? '<div class="legs">' + legs + '</div>' : "")
-    + (metrics ? '<div class="metrics">' + metrics + '</div>' : "")
-    + (c.margin_model ? '<div class="note" style="border:none;padding:0;font-size:.7rem">'
-        + esc(c.margin_model) + '</div>' : "")
-    + (live && c.hedge_note ? '<div class="hedge">' + esc(c.hedge_note) + '</div>' : "")
-    + (c.liquidity_note ? '<div class="liq">' + esc(c.liquidity_note) + '</div>' : "")
-    + '<div class="why">' + lines.map(function(w){ return "<div>" + esc(w) + "</div>"; }).join("")
-    + '</div></div>';
-}
-
-function render(){
-  cards();
-  var v = desk && desk.indices && desk.indices[sel];
-  var sv = surf && surf.indices && surf.indices[sel];
-  if (!v){ document.getElementById("main").innerHTML =
-    '<div class="err">No reading for ' + esc(sel) + ' yet.</div>'; return; }
-  var r = v.regime || {}, f = (sv && sv.fit) || {};
-  var cs = v.candidates || [];
-  var live = cs.filter(function(c){ return c.status === "DEPLOYABLE"; });
-  var aside = cs.filter(function(c){ return c.status === "STAND_ASIDE"; });
-  var blocked = cs.filter(function(c){ return c.status === "BLOCKED"; });
-  var off = ((sv && (sv.richest || []).concat(sv.cheapest || [])) || [])
-    .sort(function(a, b){ return Math.abs(b.z) - Math.abs(a.z); }).slice(0, 8);
-
-  document.getElementById("main").innerHTML =
-    '<div class="row">'
-    + '<div class="panel"><span class="lbl">the surface &mdash; ' + esc(sel) + " "
-      + esc(sv ? sv.expiry : "") + '</span>' + smile(sv)
-      + '<div class="note">' + (f.ok
-        ? "atm " + n(f.atm_iv * 100) + "% &middot; skew " + n(f.skew * 100)
-          + " &middot; conv " + n(f.convexity) + " &middot; rmse " + n(f.rmse * 100, 3)
-          + " vol pts &middot; " + f.n + " pts, " + f.excluded + " outside the window"
-          + (sv && sv.parity_gap != null ? " &middot; parity " + n(sv.parity_gap * 100) : "")
-        : esc(f.why || "no fit")) + '</div></div>'
-    + '<div class="panel"><span class="lbl">off the curve</span><div class="tw">'
-      + '<table><thead><tr><th>strike</th><th>iv</th><th>fit</th><th>resid</th><th>z</th></tr></thead><tbody>'
-      + (off.length ? off.map(function(p){ var cl = p.resid > 0 ? "pos" : "neg";
-          return "<tr><td>" + k(p.k) + " " + esc(p.right) + "</td><td>" + n(p.iv * 100)
-            + "</td><td>" + n(p.fit_iv * 100) + '</td><td class="' + cl + '">'
-            + (p.resid > 0 ? "+" : "") + n(p.resid * 100) + '</td><td class="' + cl + '">'
-            + (p.z > 0 ? "+" : "") + n(p.z) + "</td></tr>"; }).join("")
-         : '<tr><td colspan="5" style="text-align:left;color:var(--muted)">nothing off the curve</td></tr>')
-      + '</tbody></table></div>'
-      + '<div class="note">Positive residual is rich &mdash; sell it. Negative is cheap &mdash; own it.</div>'
-    + '</div></div>'
-
-    + '<div class="panel" style="margin-top:12px"><span class="lbl">regime</span>'
-      + '<div><span class="pill ' + esc(r.state || "UNKNOWN") + '">' + esc(r.state || "UNKNOWN")
-      + '</span> <span class="num">spot ' + k(r.spot) + ' &middot; flip '
-      + (r.flip_px ? k(r.flip_px) : "no crossing in range") + ' &middot; max pain '
-      + k(r.max_pain) + ' &middot; expected move ' + k(r.expected_move) + '</span></div>'
-      + '<div class="why">' + (r.why || []).map(function(w){
-          return "<div>" + esc(w) + "</div>"; }).join("") + '</div></div>'
-
-    + '<div class="panel" style="margin-top:12px"><span class="lbl">deployable &mdash; '
-      + 'ranked by edge per rupee of margin, sized against '
-      + (v.capital != null ? "Rs " + n(v.capital / 1e7, 2) + " cr" : "no stated capital")
-      + (v.lot_size != null ? " &middot; lot size " + k(v.lot_size) + " [I]" : "") + '</span>'
-      + (live.length ? live.map(function(c){ return cand(c, v.lot_size); }).join("")
-         : '<div class="note">Nothing deployable. The surface and the regime do not '
-           + 'currently agree on any structure this stack can build.</div>') + '</div>'
-    + (aside.length ? '<div class="panel" style="margin-top:12px">'
-        + '<span class="lbl">stand aside</span>'
-        + aside.map(function(c){ return cand(c, v.lot_size); }).join("") + '</div>' : "")
-    + '<div class="panel" style="margin-top:12px">'
-      + '<span class="lbl">blocked &mdash; and what is missing</span>'
-      + blocked.map(function(c){ return cand(c, v.lot_size); }).join("") + '</div>';
-}
-
-function poll(){
-  var cap = Math.round(capitalCr * 1e7);
-  Promise.all([
-    fetch("/api/desk?capital=" + cap).then(function(r){ return r.json(); }),
-    fetch("/api/surface").then(function(r){ return r.json(); })
-  ]).then(function(a){
-    desk = a[0]; surf = a[1]; lastOk = Date.now();
-    document.getElementById("dot").className = "dot ok";
-    document.getElementById("feed").textContent = "live";
-    render();
-  })["catch"](function(){
-    document.getElementById("dot").className = "dot bad";
-    document.getElementById("feed").textContent = "cannot reach the server";
-  });
-}
-
-var capInput = document.getElementById("capital");
-capInput.addEventListener("change", function(){
-  var v = parseFloat(capInput.value);
-  capitalCr = (isFinite(v) && v > 0) ? v : 5;
-  poll();
-});
-
-setInterval(poll, 4000); poll();
+/* -- the clock. The machine's local time IS IST on this desk. -------- */
 setInterval(function(){
-  var d = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000);
-  document.getElementById("clock").textContent = d.toTimeString().slice(0, 8);
-  document.getElementById("age").textContent =
-    lastOk ? Math.round((Date.now() - lastOk) / 1000) + "s ago" : "-";
+  $("clock").textContent = new Date().toLocaleTimeString("en-GB");
+  if(S.at) $("age").textContent = Math.round((Date.now()-S.at)/1000)+"s ago";
 }, 1000);
+
+/* -- fetch ----------------------------------------------------------- */
+function capital(){ return Math.max(0.01, parseFloat($("capital").value)||5) * 1e7; }
+function testLots(){ return Math.max(1, parseInt($("testlots").value,10)||5); }
+
+function pull(){
+  var q = "?capital=" + Math.round(capital());
+  Promise.all([
+    fetch("/api/desk"+q).then(function(r){return r.json();}),
+    fetch("/api/surface").then(function(r){return r.json();}),
+    fetch("/api/health").then(function(r){return r.json();}).catch(function(){return null;})
+    ,fetch("/api/drag").then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(a){
+    S.desk = a[0]; S.surf = a[1]; S.health = a[2]; S.drag = a[3];
+    S.at = Date.now(); S.err = null;
+    // DO NOT REBUILD THE DOM WHEN NOTHING CHANGED. render() replaces the rail
+    // and the detail panel wholesale, and run unconditionally every 5s it
+    // destroyed, every cycle: keyboard focus (activeElement reverted to
+    // <body>), the rail's scroll position, and -- worst -- an OPENED
+    // "blocked, considered not omitted" disclosure, which is the single
+    // interaction this screen most needs to support. The chain refreshes
+    // about every ten seconds, so most polls change nothing at all.
+    var raw = JSON.stringify([a[0], a[1], a[3]]);
+    if(raw === S.raw) return;
+    S.raw = raw;
+    render();
+  }).catch(function(e){ S.err = e; S.raw = ""; render(); });
+}
+
+/* -- the gear -------------------------------------------------------- */
+function cell(label, big, cls, sub){
+  return '<div class="cell"><div class="lbl">'+esc(label)+'</div>'
+       + '<div class="big '+esc(cls||"")+'">'+esc(big)+'</div>'
+       + '<div class="sub">'+esc(sub||"")+'</div></div>';
+}
+function renderGear(d){
+  var g = $("gear");
+  if(!d){ g.innerHTML = cell("gear","NO INDEX","UNKNOWN",
+      "the desk has not published an index yet");
+    $("gearwhy").style.display="none"; return; }
+  var v = d.view || {}, r = d.regime || {};
+  var bias = v.bias || "UNKNOWN", gear = v.gear || "UNKNOWN";
+  var conv = v.conviction || "NONE";
+  var cells = [];
+
+  cells.push(cell("gear", gear, gear,
+    gear==="PIN"       ? "hedging DAMPS every excursion — sell premium"
+  : gear==="CASCADE"   ? "hedging AMPLIFIES — forced flow pays a buyer"
+  : gear==="TRANSITION"? "loaded, no ignition — both games lose here"
+  : "the inputs do not evidence any gear"));
+
+  cells.push(cell("direction", bias, bias,
+    v.worst_leg ? ("pain sits on "+v.worst_leg)
+    : bias==="NEUTRAL" ? "no side forced — both wings carry the pain"
+    : (v.missing && v.missing.length) ? v.missing[0] : "—"));
+
+  cells.push(cell("conviction", conv, conv,
+    conv==="FORCED"  ? "the trapped side is LEAVING — directional legal"
+  : conv==="LEANING" ? "named to watch. Licenses nothing."
+  : "direction is not the question being asked"));
+
+  cells.push(cell("game", title(d.game||"NO GAME").toUpperCase(), gear,
+    "what this gear permits"));
+
+  cells.push(cell("expected move", num(r.expected_move,0), "",
+    (r.spot!==null&&r.spot!==undefined)
+      ? ("spot "+num(r.spot,0)+" — the ATM straddle's own forecast")
+      : "no spot published"));
+
+  // NO CROSSING IS INFORMATION, NOT IGNORANCE. GEX never changing sign means
+  // the whole chain sits on one side of the gear — a STRONGER statement than
+  // a flip, not a weaker one. Rendered as a dash it read as a missing number
+  // beside a confident "spot is ABOVE", which is two claims that do not fit.
+  var noflip = (r.flip_px===null||r.flip_px===undefined);
+  cells.push(cell("gamma flip",
+    noflip ? ((r.above_flip===null||r.above_flip===undefined) ? "UNKNOWN"
+                                                              : "NO CROSSING")
+           : num(r.flip_px,0), "",
+    (r.above_flip===null||r.above_flip===undefined) ? "no chain to read it from"
+      : noflip
+        ? ("dealer GEX never changes sign — the whole chain is "
+           + (r.above_flip ? "damping" : "amplifying"))
+        : (r.above_flip ? "spot is ABOVE — damping"
+                        : "spot is BELOW — amplifying")));
+
+  g.innerHTML = cells.join("");
+
+  var why = (v.why||[]).concat(v.missing||[]).concat(r.why||[]).concat(d.why||[]);
+  $("gearwhy").style.display = why.length ? "" : "none";
+  $("gearwhy").innerHTML = why.length ? '<h2>why</h2>'+lines(why) : "";
+}
+
+/* -- the buyer's tax --------------------------------------------------
+   `drag.py`, finally on a screen. owed = delta x the move; paid = what the
+   premium did; frac is the tax RATE. Every field may legitimately be absent:
+   before the anchor exists, on an index that has not moved, and on the leg
+   the move went AGAINST -- where "what fraction of the payoff was eaten" has
+   no answer, because there was no payoff. None of those render as zero. */
+function renderDrag(){
+  var el = $("drag");
+  var d = (S.drag && S.drag.indices && S.idx) ? S.drag.indices[S.idx] : null;
+  if(!d){
+    el.innerHTML = cell("the buyer's tax", "NO READING", "UNKNOWN",
+      S.drag ? ("no drag board for " + esc(S.idx || "this index") + " yet")
+             : "/api/drag is not answering — an older server does not serve it");
+    return;
+  }
+  var side = d.right_side;
+  var pc = (d.frac===null||d.frac===undefined) ? null : d.frac*100;
+  var cells = [];
+  cells.push(cell("the tax on being right",
+    pc===null ? "—" : pc.toFixed(0)+"%",
+    pc===null ? "UNKNOWN" : (pc>=50 ? "BEAR" : pc>=25 ? "LEANING" : "BULL"),
+    pc===null
+      ? (side ? "no reading yet"
+              : "the index has not moved — nothing was owed, so there is no "
+                + "tax to measure")
+      : "of what the move owed, this much never arrived"));
+  cells.push(cell("right side", side ? side.toUpperCase() : "NEITHER", "",
+    side ? ("the " + (side==="ce"?"call":"put") + " buyer had the direction "
+            + "correct — this is their result")
+         : "the move favoured neither leg"));
+  cells.push(cell("owed", (d.owed===null||d.owed===undefined)?"—":num(d.owed,2),
+    "", "delta x the underlying's move, in premium points"));
+  cells.push(cell("collected",
+    (d.paid===null||d.paid===undefined)?"—":num(d.paid,2), "",
+    "what the premium actually did"));
+  cells.push(cell("anchored", d.strike?num(d.strike,0):"—", "",
+    d.anchored_at ? ("nearest spot at "+esc(d.anchored_at)+", held all session")
+                  : "not anchored yet"));
+  cells.push(cell("delta used",
+    (d.delta===null||d.delta===undefined)?"—":num(d.delta,3), "",
+    "real, off the chain — never an assumed 0.5"));
+  el.innerHTML = cells.join("");
+}
+
+
+/* -- scanner: which instrument is paying ----------------------------- */
+function met(l,v){ return '<div><div class="l">'+esc(l)+'</div><div class="v">'+v+'</div></div>'; }
+function renderCards(){
+  var ind = (S.desk&&S.desk.indices)||{}, keys = Object.keys(ind).sort();
+  if(!keys.length){ $("cards").innerHTML = ""; return; }
+  if(!S.idx || !ind[S.idx]) S.idx = keys[0];
+  $("cards").innerHTML = keys.map(function(k){
+    var d = ind[k], v = d.view||{};
+    var f = (S.surf&&S.surf.indices&&S.surf.indices[k])||{};
+    var fit = f.fit||{};
+    var best = null;
+    if(d.best) best = (d.candidates||[]).filter(function(c){return c.name===d.best;})[0];
+    return '<button class="card" data-k="'+esc(k)+'" aria-selected="'+(k===S.idx)+'">'
+      + '<div class="top"><span class="nm">'+esc(k)+'</span>'
+      +   pill(v.gear||"UNKNOWN")
+      +   '<span class="'+esc(v.bias||"UNKNOWN")+'" style="font-family:Consolas,monospace;'
+      +     'font-size:.74rem;font-weight:700">'+esc(v.bias||"UNKNOWN")+'</span>'
+      +   '<span class="grow"></span><span class="lbl">'+esc(d.expiry||"")+'</span></div>'
+      + '<div class="grid">'
+      +   met("atm vol", fit.ok?pct(fit.atm_iv,1):"—")
+      +   met("fit rmse", fit.ok?(fit.rmse*100).toFixed(2):"—")
+      +   met("lot", num(d.lot_size)+(d.lot_size_src==="assumed"?" [I]":""))
+      + '</div>'
+      + '<div class="hd">'+(best
+          ? ('best: <b>'+esc(title(best.name))+'</b> · '
+             + (best.case==="FLOW" ? "the flow" : rs(best.edge)+"/unit"))
+          : esc(d.fit_ok ? "nothing deployable" : "no fitted surface"))+'</div>'
+      + '</button>';
+  }).join("");
+  Array.prototype.forEach.call($("cards").children, function(b){
+    b.onclick = function(){
+      S.idx = b.getAttribute("data-k"); S.pick = null; S.userPick = false; render();
+    };
+  });
+}
+
+/* -- the rail: every structure, blocked ones kept visible ------------ */
+function railRow(c, d){
+  var na = c.status!=="DEPLOYABLE", sub;
+  if(c.status==="BLOCKED")
+    sub = "needs " + ((c.missing&&c.missing[0]) || "an input not named");
+  else if(c.status==="STAND_ASIDE")
+    sub = (c.why&&c.why[0]) || "the inputs exist and say don't";
+  else if(c.case==="FLOW")
+    sub = "the flow · " + num(c.lots) + " lots at capital · margin "
+        + shortRs(c.margin_per_lot) + "/lot";
+  else
+    sub = rs(c.edge)+"/unit · "+num(c.lots)+" lots · "
+        + ((c.edge_per_margin===null||c.edge_per_margin===undefined)
+            ? "—" : (c.edge_per_margin*100).toFixed(2)+"% of margin");
+  return '<button class="row'+(na?" na":"")+'" data-n="'+esc(c.name)+'" '
+    + 'aria-selected="'+(c.name===S.pick)+'">'
+    + '<div class="t"><span class="nm">'+esc(title(c.name))+'</span>'
+    +   (d.best===c.name?'<span class="crown">BEST</span>':"")
+    +   '<span class="grow"></span>'+pill(c.case)+pill(c.status)+'</div>'
+    + '<div class="sub">'+esc(sub)+'</div></button>';
+}
+function renderRail(d){
+  var rail = $("rail");
+  if(!d){ rail.innerHTML = '<div class="note">No index selected.</div>'; return; }
+  var cs = d.candidates||[];
+  var live = cs.filter(function(c){ return c.status!=="BLOCKED"; });
+  var dead = cs.filter(function(c){ return c.status==="BLOCKED"; });
+  // DEPLOYABLE, not merely not-blocked. `live` includes STAND_ASIDE, so on an
+  // index with four stand-asides and nothing deployable -- the honest majority
+  // state -- live.length was 4 and the "nothing is deployable" note never
+  // rendered. The screen's one piece of empty-state copy was gated so that it
+  // could not appear in the empty state.
+  var go = cs.filter(function(c){ return c.status==="DEPLOYABLE"; });
+
+  // THE SELECTION FOLLOWS THE DESK UNTIL SHE OVERRIDES IT.
+  //
+  // Guarding only on "does this name still exist" is not enough, and the way
+  // it fails is silent: on a cold start nothing is deployable, so the default
+  // lands on `calendar` -- an UNSUPPORTED structure that is present in every
+  // payload by design. When the chain warms and a real trade appears, the
+  // name `calendar` still exists, the guard passes, and the screen sits on a
+  // blocked row indefinitely with the actual recommendation one click away
+  // and no indication anything changed.
+  //
+  // So an automatic pick is re-derived on every payload, and only an explicit
+  // click pins it. Changing index clears the pin, because a structure chosen
+  // on one index means nothing on another.
+  var has = false, i;
+  for(i=0;i<cs.length;i++) if(cs[i].name===S.pick) has = true;
+  // PREFER SOMETHING ACTIONABLE, THEN SOMETHING WITH LEGS, THEN ANYTHING.
+  // Falling straight to live[0] spotlighted a STAND_ASIDE row with no legs as
+  // though it were the recommendation -- on exactly the indices where there is
+  // nothing to recommend.
+  if(!has || !S.userPick){
+    var withLegs = live.filter(function(c){ return c.legs && c.legs.length; });
+    S.pick = d.best || (go[0]&&go[0].name) || (withLegs[0]&&withLegs[0].name)
+             || (live[0]&&live[0].name) || (cs[0]&&cs[0].name) || null;
+  }
+
+  var html = "";
+  if(!go.length) html += '<div class="note">Nothing is deployable on '
+    + esc(S.idx||"this index") + ' right now'
+    + (live.length ? ' — the rows below were considered and declined, and each '
+                     + 'says why.' : '.')
+    + ' This is the ordinary state of this screen: the setup it waits for '
+    + 'fires once or twice a week.</div>';
+  html += live.map(function(c){ return railRow(c, d); }).join("");
+  html += '<details'+(live.length?"":" open")+'><summary>'+dead.length
+       +  ' blocked &mdash; considered, not omitted</summary>'
+       +  dead.map(function(c){ return railRow(c, d); }).join("")+'</details>';
+  rail.innerHTML = html;
+  Array.prototype.forEach.call(rail.querySelectorAll("[data-n]"), function(b){
+    b.onclick = function(){
+      S.pick = b.getAttribute("data-n"); S.userPick = true; render();
+    };
+  });
+}
+
+/* == PAYOFF ==========================================================
+   At expiry, in rupees, at the TEST LOT COUNT. No costs are subtracted
+   anywhere: on this desk there are none, and pretending otherwise would
+   understate every structure by a charge that never lands.            */
+function legPayoff(l, s){
+  var p = l.ltp || 0, sgn = (l.side==="SELL") ? -1 : 1;
+  if(l.right==="FUT") return sgn * (s - l.strike);
+  var intr = (l.right==="CE") ? Math.max(s-l.strike,0) : Math.max(l.strike-s,0);
+  return sgn * (intr - p);
+}
+function payoffAt(c, s){
+  var t = 0, i;
+  for(i=0;i<c.legs.length;i++) t += legPayoff(c.legs[i], s);
+  return t;
+}
+function drawPayoff(c, d){
+  var plot = $("plot"), foot = $("plotfoot");
+  if(!c || !c.legs || !c.legs.length){
+    plot.innerHTML = "";
+    foot.innerHTML = '<div class="note">'
+      + (c ? ("No legs to draw: <b>"+esc(title(c.name))+"</b> is "
+              + esc(String(c.status).toLowerCase().replace("_"," "))
+              + ", and the reason is in the panel below.")
+           : "Select a structure from the rail.") + '</div>';
+    return;
+  }
+  var r = d.regime||{}, spot = r.spot || c.legs[0].strike;
+  var em = r.expected_move || Math.max(spot*0.015, 100);
+  var lo = spot - 2.6*em, hi = spot + 2.6*em;
+  var lots = testLots(), mult = lots * (d.lot_size||1);
+
+  var N=240, xs=[], ys=[], i, s, y, ymin=Infinity, ymax=-Infinity;
+  for(i=0;i<=N;i++){
+    s = lo + (hi-lo)*i/N; y = payoffAt(c,s)*mult;
+    xs.push(s); ys.push(y);
+    if(y<ymin) ymin=y;
+    if(y>ymax) ymax=y;
+  }
+  var trueMin=ymin, trueMax=ymax;
+  if(ymin===ymax){ ymin-=1; ymax+=1; }
+  var pad=(ymax-ymin)*0.12; ymin-=pad; ymax+=pad;
+
+  var W=1000,H=330,L=64,R=14,T=14,B=26;
+  function px(v){ return L + (v-lo)/(hi-lo)*(W-L-R); }
+  function py(v){ return T + (ymax-v)/(ymax-ymin)*(H-T-B); }
+
+  var path="";
+  for(i=0;i<xs.length;i++) path += (i?"L":"M")+px(xs[i]).toFixed(1)+" "+py(ys[i]).toFixed(1)+" ";
+  var zero = py(0);
+  function poly(sign){
+    var d2="", open=false, v, inR;
+    for(i=0;i<xs.length;i++){
+      v = ys[i]; inR = (sign>0 ? v>0 : v<0);
+      if(inR && !open){ d2 += "M"+px(xs[i]).toFixed(1)+" "+zero.toFixed(1)+" "; open=true; }
+      if(inR) d2 += "L"+px(xs[i]).toFixed(1)+" "+py(v).toFixed(1)+" ";
+      if(!inR && open){ d2 += "L"+px(xs[i]).toFixed(1)+" "+zero.toFixed(1)+" Z "; open=false; }
+    }
+    if(open) d2 += "L"+px(xs[xs.length-1]).toFixed(1)+" "+zero.toFixed(1)+" Z ";
+    return d2;
+  }
+
+  var g=[], k, yv, xv;
+  g.push('<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">');
+  for(k=0;k<=5;k++){
+    yv = ymin + (ymax-ymin)*k/5;
+    g.push('<line class="axis" x1="'+L+'" y1="'+py(yv).toFixed(1)+'" x2="'+(W-R)+'" y2="'+py(yv).toFixed(1)+'"/>');
+    g.push('<text class="axtx" x="'+(L-6)+'" y="'+(py(yv)+3).toFixed(1)+'" text-anchor="end">'+esc(shortRs(yv))+'</text>');
+  }
+  g.push('<path d="'+poly(1)+'" fill="var(--sell)" opacity=".16"/>');
+  g.push('<path d="'+poly(-1)+'" fill="var(--risk)" opacity=".16"/>');
+  g.push('<line x1="'+L+'" y1="'+zero.toFixed(1)+'" x2="'+(W-R)+'" y2="'+zero.toFixed(1)+'" stroke="var(--muted)" stroke-width="1"/>');
+  g.push('<path d="'+path+'" fill="none" stroke="var(--ink)" stroke-width="2"/>');
+  g.push('<line x1="'+px(spot).toFixed(1)+'" y1="'+T+'" x2="'+px(spot).toFixed(1)+'" y2="'+(H-B)+'" stroke="var(--buy)" stroke-width="1" stroke-dasharray="3 3"/>');
+  g.push('<text class="axtx" x="'+(px(spot)+4).toFixed(1)+'" y="'+(T+10)+'" fill="var(--buy)">spot '+esc(num(spot,0))+'</text>');
+  (c.breakevens||[]).forEach(function(b){
+    if(b<lo||b>hi) return;
+    g.push('<line x1="'+px(b).toFixed(1)+'" y1="'+T+'" x2="'+px(b).toFixed(1)+'" y2="'+(H-B)+'" stroke="var(--sell)" stroke-width="1" stroke-dasharray="2 4"/>');
+    g.push('<text class="axtx" x="'+(px(b)+4).toFixed(1)+'" y="'+(H-B-4)+'" fill="var(--sell)">be '+esc(num(b,0))+'</text>');
+  });
+  c.legs.forEach(function(l){
+    if(l.right==="FUT" || l.strike<lo || l.strike>hi) return;
+    g.push('<line x1="'+px(l.strike).toFixed(1)+'" y1="'+(H-B)+'" x2="'+px(l.strike).toFixed(1)
+         + '" y2="'+(H-B-8)+'" stroke="'+(l.side==="SELL"?"var(--sell)":"var(--buy)")+'" stroke-width="2"/>');
+  });
+  for(k=0;k<=4;k++){
+    xv = lo + (hi-lo)*k/4;
+    g.push('<text class="axtx" x="'+px(xv).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+esc(num(xv,0))+'</text>');
+  }
+  g.push('</svg>');
+  plot.innerHTML = g.join("");
+
+  var atSpot = payoffAt(c,spot)*mult;
+  foot.innerHTML = '<div class="metrics" style="margin-top:8px">'
+    + m2("at spot, "+lots+" lots", shortRs(atSpot), true)
+    + m2("best on this range", shortRs(trueMax))
+    + m2("worst on this range", shortRs(trueMin))
+    + m2("risk", esc(c.risk||"—"))
+    + m2("max loss, "+lots+" lots",
+        (c.max_loss!==null&&c.max_loss!==undefined)
+          ? shortRs(-Math.abs(c.max_loss)*mult)
+          : (c.risk==="UNDEFINED" ? "UNBOUNDED" : "not priced"))
+    + '</div>'
+    + '<div class="note" style="margin-top:6px">At expiry, '+lots+' lot'
+    + (lots===1?"":"s")+' of '+esc(num(d.lot_size))+' units. Nothing is '
+    + 'subtracted for costs because nothing is charged. '
+    // ONLY CLAIM CONTINUATION WHERE THE PAYOFF ACTUALLY CONTINUES. This read
+    // "the curve continues in the same direction" for EVERY structure --
+    // including a long call, whose downside is flat at the premium, which the
+    // RISK and MAX LOSS cells two lines above already say. A footer that
+    // contradicts the risk panel above it is the one error this screen cannot
+    // afford.
+    + (c.risk==="UNDEFINED"
+        ? 'Risk here is UNBOUNDED: beyond the drawn range the curve keeps '
+          + 'going, and does not stop.'
+        : 'Outside the drawn range the payoff is FLAT — capped both ways, '
+          + 'which is what DEFINED risk means.')
+    + '</div>';
+}
+
+/* == VOL SMILE =======================================================
+   The desk's own edge, drawn: every OTM point against the fitted curve.
+   This is what `edge` is measured from.                              */
+function drawSmile(idx, c){
+  var plot=$("plot"), foot=$("plotfoot");
+  var f = (S.surf&&S.surf.indices&&S.surf.indices[idx])||null;
+  if(!f || !f.fit || !f.fit.ok){
+    plot.innerHTML="";
+    foot.innerHTML='<div class="note">No fitted surface for '+esc(idx||"?")+'. '
+      + esc((f&&f.fit&&f.fit.why) || (f&&f.why&&f.why[0]) || "reason not published")
+      + '</div>';
+    return;
+  }
+  var pts = (f.points||[]).filter(function(p){ return p.iv && isFinite(p.iv); });
+  if(!pts.length){
+    plot.innerHTML="";
+    foot.innerHTML='<div class="note">The fit succeeded but published no points.</div>';
+    return;
+  }
+  var ks = pts.map(function(p){return p.k;});
+  var lo=Math.min.apply(null,ks), hi=Math.max.apply(null,ks);
+  var ivs = pts.map(function(p){return p.iv;});
+  pts.forEach(function(p){ if(p.fit_iv) ivs.push(p.fit_iv); });
+  var ymin=Math.min.apply(null,ivs), ymax=Math.max.apply(null,ivs);
+  var pad=(ymax-ymin)*0.15||0.01; ymin-=pad; ymax+=pad;
+
+  var W=1000,H=330,L=54,R=14,T=14,B=26;
+  function px(v){ return L+(v-lo)/((hi-lo)||1)*(W-L-R); }
+  function py(v){ return T+(ymax-v)/((ymax-ymin)||1)*(H-T-B); }
+
+  var g=[], k, yv, xv;
+  g.push('<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">');
+  for(k=0;k<=4;k++){
+    yv=ymin+(ymax-ymin)*k/4;
+    g.push('<line class="axis" x1="'+L+'" y1="'+py(yv).toFixed(1)+'" x2="'+(W-R)+'" y2="'+py(yv).toFixed(1)+'"/>');
+    g.push('<text class="axtx" x="'+(L-6)+'" y="'+(py(yv)+3).toFixed(1)+'" text-anchor="end">'+(yv*100).toFixed(1)+'</text>');
+  }
+  var fitted = pts.filter(function(p){return p.fit_iv;})
+                  .sort(function(a,b){return a.k-b.k;});
+  if(fitted.length){
+    var d2=""; fitted.forEach(function(p,i){ d2+=(i?"L":"M")+px(p.k).toFixed(1)+" "+py(p.fit_iv).toFixed(1)+" "; });
+    g.push('<path d="'+d2+'" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>');
+  }
+  var picked = {};
+  if(c && c.legs) c.legs.forEach(function(l){ picked[l.strike+l.right]=l.side; });
+  pts.forEach(function(p){
+    var rich = (p.resid||0) > 0;
+    var mine = picked[p.k+p.right];
+    var rad = mine ? 5.5 : (Math.abs(p.z||0) >= 1.5 ? 4 : 2.6);
+    var col = mine ? (mine==="SELL"?"var(--sell)":"var(--buy)")
+                   : (rich ? "var(--rich)" : "var(--flat)");
+    g.push('<circle cx="'+px(p.k).toFixed(1)+'" cy="'+py(p.iv).toFixed(1)+'" r="'+rad
+         + '" fill="'+col+'" opacity="'+(mine?1:0.6)+'"/>');
+    if(mine) g.push('<text class="axtx" x="'+px(p.k).toFixed(1)+'" y="'+(py(p.iv)-9).toFixed(1)
+         + '" text-anchor="middle" fill="'+col+'">'+esc(mine)+' '+esc(p.right)+'</text>');
+  });
+  for(k=0;k<=4;k++){
+    xv=lo+(hi-lo)*k/4;
+    g.push('<text class="axtx" x="'+px(xv).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+esc(num(xv,0))+'</text>');
+  }
+  g.push('</svg>');
+  plot.innerHTML=g.join("");
+
+  var fit=f.fit;
+  foot.innerHTML='<div class="metrics" style="margin-top:8px">'
+    + m2("atm vol (a)", pct(fit.atm_iv,2), true)
+    + m2("skew (b)", (fit.skew===null||fit.skew===undefined)?"—":(fit.skew*100).toFixed(2)+" vol")
+    + m2("convexity (c)", num(fit.convexity,2))
+    + m2("rmse", (fit.rmse*100).toFixed(3)+" vol")
+    + m2("points fitted", num(fit.n)+(fit.excluded?(" ("+fit.excluded+" outside)"):""))
+    + '</div>'
+    + '<div class="note" style="margin-top:6px">Dashed line is the fitted curve. '
+    + 'A point above it trades rich, below it cheap; the larger dots are '
+    + '|z| ≥ 1.5. Highlighted points are the legs of the selected structure. '
+    + 'This is a CROSS-SECTIONAL read — a point against its own curve today, '
+    + 'never &ldquo;the surface is rich&rdquo;, which needs multi-day history '
+    + 'this stack has not accumulated.</div>';
+}
+
+/* -- detail ---------------------------------------------------------- */
+function renderDetail(c, d){
+  var el = $("detail");
+  if(!c){ el.innerHTML=""; return; }
+  // `mult`, NOT `lots`. desk.py returns max_loss per UNIT of the underlying
+  // (like `edge`) while margin_per_lot is per LOT -- a mix its own comment
+  // used to get wrong. Multiplying max loss by lots alone renders it 65x too
+  // small beside a correctly-sized margin, which is what the first live
+  // render of this screen did: a long call showed Rs 32.4k of margin against
+  // Rs 498 of max loss, for a structure whose max loss IS the premium.
+  var lots = testLots(), mult = lots*(d.lot_size||1);
+
+  var legs = (c.legs&&c.legs.length)
+    ? '<div class="legs">'+c.legs.map(function(l){
+        return '<span class="leg '+(l.side==="SELL"?"S":"B")+'">'+esc(l.side)+' '
+          + (l.right==="FUT" ? ("FUT @ "+esc(num(l.strike,2)))
+                             : (esc(num(l.strike,0))+" "+esc(l.right)))
+          + ' @ '+esc(num(l.ltp,2))+'</span>';
+      }).join("")+'</div>'
+    : "";
+
+  var anyIv = false, i;
+  if(c.legs) for(i=0;i<c.legs.length;i++) if(c.legs[i].iv) anyIv = true;
+  var greeks = anyIv
+    ? '<div class="tw"><table><thead><tr><th>leg</th><th>iv</th><th>z</th>'
+      + '<th>delta</th><th>ltp</th><th>oi</th><th>bid / ask</th></tr></thead><tbody>'
+      + c.legs.map(function(l){
+          return '<tr><td>'+esc(l.side)+' '
+            + (l.right==="FUT"?"FUT":esc(num(l.strike,0))+" "+esc(l.right))+'</td>'
+            + '<td>'+(l.iv?pct(l.iv,2):"—")+'</td>'
+            + '<td class="'+(((l.z||0)>0)?"neg":"pos")+'">'
+            +   ((l.z===null||l.z===undefined)?"—":l.z.toFixed(2))+'</td>'
+            + '<td>'+((l.delta===null||l.delta===undefined)?"—":l.delta.toFixed(3))+'</td>'
+            + '<td>'+esc(num(l.ltp,2))+'</td>'
+            + '<td>'+esc(num(l.oi))+'</td>'
+            + '<td>'+((l.bid&&l.ask)?(esc(num(l.bid,2))+" / "+esc(num(l.ask,2)))
+                                    :"not published")+'</td></tr>';
+        }).join("")+'</tbody></table></div>'
+    : "";
+
+  el.innerHTML = '<div class="panel">'
+    + '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'
+    +   '<span style="font-size:1.05rem;font-weight:700">'+esc(title(c.name))+'</span>'
+    +   pill(c.case)+pill(c.status)+pill(c.risk)
+    +   (d.best===c.name?'<span class="crown">BEST FOR THIS GEAR</span>':"")
+    + '</div>'
+    + legs
+    + '<div class="metrics">'
+    +   m2("test size", lots+" lots", true)
+    +   m2("units", esc(num(mult)))
+    // `||0` RENDERED A MISSING MARGIN AS A BOLD "₹0" -- which reads as "this
+    // costs nothing to hold" rather than "we never priced it", in the loudest
+    // cell on the panel, breaking the rule stated at the top of this file.
+    +   m2("margin, test size",
+          (c.margin_per_lot===null||c.margin_per_lot===undefined)
+            ? "not priced" : shortRs(c.margin_per_lot*lots), true)
+    // AND "UNDEFINED" MEANT TWO THINGS. A naked structure has max_loss null
+    // because the risk genuinely is unbounded; a never-priced one has it null
+    // because nothing computed it. One word for both is the collapse the
+    // house rules forbid.
+    +   m2("max loss, test size",
+          (c.max_loss!==null&&c.max_loss!==undefined)
+            ? shortRs(-Math.abs(c.max_loss)*mult)
+            : (c.risk==="UNDEFINED" ? "UNBOUNDED" : "not priced"))
+    +   m2("edge", (c.case==="FLOW" && (c.edge===null||c.edge===undefined))
+          ? "n/a — the case is the flow" : rs(c.edge)+"/unit")
+    +   m2("edge / margin", (c.edge_per_margin===null||c.edge_per_margin===undefined)
+          ? "—" : (c.edge_per_margin*100).toFixed(2)+"%")
+    +   m2("net delta", (c.net_delta===null||c.net_delta===undefined)
+          ? "—" : c.net_delta.toFixed(3)+"/unit")
+    +   m2("breakeven", (c.breakevens&&c.breakevens.length)
+          ? c.breakevens.map(function(b){return num(b,0);}).join(" / ") : "—")
+    +   m2("full size at capital", esc(num(c.lots))+" lots")
+    +   m2("thinnest leg oi", esc(num(c.thinnest_oi)))
+    + '</div>'
+    + (c.hedge_note ? '<div class="hedge">'+esc(c.hedge_note)+'</div>' : "")
+    + (c.liquidity_note ? '<div class="warn">'+esc(c.liquidity_note)+'</div>' : "")
+    + greeks
+    + ((c.why&&c.why.length) ? '<h2>why</h2>'+lines(c.why) : "")
+    + ((c.missing&&c.missing.length)
+        ? '<h2>what it is waiting for</h2>'+lines(c.missing) : "")
+    + (c.margin_model ? '<div class="note">'+esc(c.margin_model)+'</div>' : "")
+    + '</div>';
+}
+
+/* -- render ---------------------------------------------------------- */
+function render(){
+  // SNAPSHOT WHAT THE REBUILD WOULD OTHERWISE THROW AWAY: focus, scroll
+  // offset, and every <details> open state. The payload diff in pull() means
+  // this usually does not run at all; when it does, the session survives it.
+  var keep = {
+    focus: (document.activeElement &&
+            (document.activeElement.getAttribute("data-n") ||
+             document.activeElement.getAttribute("data-k") ||
+             document.activeElement.getAttribute("data-t"))) || null,
+    scroll: ($("rail") ? $("rail").scrollTop : 0),
+    open: Array.prototype.map.call(document.querySelectorAll("#rail details"),
+                                   function(x){ return x.open; })
+  };
+
+  $("err").innerHTML = S.err
+    ? ('<div class="err"><b>The desk is not answering.</b> '
+       + esc(String(S.err.message||S.err))
+       + ' &mdash; is the server up on 8765? Run <code>.\\stop.bat</code> then '
+       + '<code>.\\start-v2.bat</code>.</div>')
+    : "";
+
+  var h = S.health;
+  $("dot").className = "dot " + ((h&&h.ok) ? "ok" : "bad");
+  $("feed").textContent = h ? (h.broker||"unknown") : "no /api/health";
+
+  var ind = (S.desk&&S.desk.indices)||{};
+  var d = S.idx ? ind[S.idx] : null;
+  renderGear(d);
+  renderDrag();
+  renderCards();
+  d = S.idx ? ind[S.idx] : null;      // renderCards may have chosen the index
+  renderRail(d);
+
+  var c = null, i;
+  if(d && S.pick){
+    var cs = d.candidates||[];
+    for(i=0;i<cs.length;i++) if(cs[i].name===S.pick) c = cs[i];
+  }
+
+  Array.prototype.forEach.call($("tabs").children, function(b){
+    b.setAttribute("aria-selected", String(b.getAttribute("data-t")===S.tab));
+  });
+  $("plothint").textContent = (S.tab==="payoff")
+    ? (c ? (title(c.name)+" · "+testLots()+" lots") : "")
+    : (S.idx||"");
+  if(S.tab==="payoff") drawPayoff(c, d||{}); else drawSmile(S.idx, c);
+  renderDetail(c, d||{});
+
+  // ...and put it back.
+  Array.prototype.forEach.call(document.querySelectorAll("#rail details"),
+    function(x, i){ if(keep.open[i] !== undefined) x.open = keep.open[i]; });
+  if($("rail")) $("rail").scrollTop = keep.scroll;
+  if(keep.focus){
+    var again = document.querySelector('[data-n="'+keep.focus+'"], '
+                                     + '[data-k="'+keep.focus+'"], '
+                                     + '[data-t="'+keep.focus+'"]');
+    if(again) again.focus();
+  }
+}
+
+/* -- wiring ---------------------------------------------------------- */
+Array.prototype.forEach.call($("tabs").children, function(b){
+  b.onclick = function(){ S.tab = b.getAttribute("data-t"); render(); };
+});
+$("capital").onchange = pull;
+$("testlots").onchange = render;   // pure display math, no round trip needed
+pull();
+setInterval(pull, 5000);
 </script>
 </body>
 </html>

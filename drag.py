@@ -124,3 +124,90 @@ class DragMeter:
             return None
         return between(self._under0, under, self._prem0, prem,
                        self._delta0, delta)
+
+
+class Board:
+    """Session drag for one index, on the two legs a buyer would have used.
+
+    THE QUESTION THIS ANSWERS, IN THE OPERATOR'S OWN WORDS: *even getting the
+    right side, the buyer could not make money.* So it anchors ONE call and
+    ONE put -- the strikes nearest spot at the session's first snapshot -- and
+    then just watches. Whichever way the index goes, one of the two was RIGHT,
+    and `between` refuses to speak for the other (a leg the move went against
+    has no payoff to tax). The reading that survives is therefore always the
+    correct-side one, which is the only version of the number worth showing.
+
+    ANCHORED ONCE, NOT RE-ANCHORED ON DRIFT. Following spot to a new strike
+    every time it crosses one would restart the meter mid-session and report
+    the tax on the last few minutes rather than on the day -- and the tax is
+    cumulative, which is the whole point. The leg stays where it started and
+    `strike` is published so a reader can see it drifted.
+
+    Pure computation, stdlib only, no I/O. Feed it what `/api/chain` already
+    publishes.
+    """
+
+    def __init__(self):
+        self.strike = None          # the anchored strike, once chosen
+        self.at = None              # the snapshot it was anchored on
+        self._ce = DragMeter()
+        self._pe = DragMeter()
+        self.ce: Optional[Drag] = None
+        self.pe: Optional[Drag] = None
+
+    @staticmethod
+    def _leg(strikes, k, side):
+        for row in strikes or []:
+            if row.get("k") == k:
+                return row.get(side) or {}
+        return {}
+
+    def on_snapshot(self, spot, strikes, t=None):
+        """One chain snapshot -> the drag on each anchored leg, or None each.
+
+        None is a real answer here and appears constantly: before the anchor
+        exists, when the index has not moved, and -- most often -- on the leg
+        the move went against. Do not render it as zero.
+        """
+        if not spot or not strikes:
+            return self
+        if self.strike is None:
+            ks = [r.get("k") for r in strikes if r.get("k")]
+            if not ks:
+                return self
+            self.strike, self.at = min(ks, key=lambda k: abs(k - spot)), t
+        ce = self._leg(strikes, self.strike, "ce")
+        pe = self._leg(strikes, self.strike, "pe")
+        self.ce = self._ce.update(spot, ce.get("ltp"), ce.get("delta"))
+        self.pe = self._pe.update(spot, pe.get("ltp"), pe.get("delta"))
+        return self
+
+    def right_side(self) -> Optional[str]:
+        """"ce" or "pe" -- whichever leg the move actually favoured, or None.
+
+        Both being present at once is possible only if the underlying both
+        rose and fell, which it cannot; `between` returns None on `owed <= 0`.
+        """
+        if self.ce and not self.pe:
+            return "ce"
+        if self.pe and not self.ce:
+            return "pe"
+        return None
+
+    def read(self) -> dict:
+        """A publishable dict. Every absence stays an absence."""
+        side = self.right_side()
+        d = self.ce if side == "ce" else self.pe if side == "pe" else None
+        return {
+            "strike": self.strike, "anchored_at": self.at,
+            "right_side": side,
+            "ce": self.ce.__dict__ if self.ce else None,
+            "pe": self.pe.__dict__ if self.pe else None,
+            "owed": d.owed if d else None,
+            "paid": d.paid if d else None,
+            "drag": d.drag if d else None,
+            "frac": d.frac if d else None,
+            "d_under": d.d_under if d else None,
+            "delta": d.delta if d else None,
+            "tag": "M",
+        }

@@ -19,7 +19,9 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 805** (`pytest -q`, 2026-08-21 - 775 plus eighteen in
+- **Test count is now 842** (`pytest -q`, 2026-08-21 - 805 plus thirteen in
+  `test_direction.py` and eight added to `test_desk.py` for the flow half of
+  the catalog; previously 775 plus eighteen in
   `test_desk.py` for the desk.py risk/margin/sizing rebuild -- legal
   structure shapes, max loss and breakevens, a documented [I] margin floor,
   edge-per-margin scoring, and capital/liquidity-capped sizing; before that

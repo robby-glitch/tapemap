@@ -128,3 +128,65 @@ def test_one_indexs_pain_never_ranks_against_anothers():
                       _snap([(77400, 100_000, 200.0, 90_000, 150.0)]))
     assert not r.warm                      # its own session is still empty
     assert c.for_index("NIFTY").read.warm
+
+
+# --------------------------------------------------------------------------
+# DRAIN IS ATTRIBUTED TO A SIDE.
+#
+# Found 2026-08-22 by an adversarial read, not by this suite. `drained` used
+# to sum forced-exit flow across every strike and BOTH sides while
+# `trapped_side` was computed separately, so `drain=True` meant only
+# "something somewhere is leaving" -- and `direction.py` printed it as "the
+# trapped side is actually leaving", which licenses buying convexity.
+# --------------------------------------------------------------------------
+
+def test_the_other_side_covering_does_not_read_as_the_trapped_side_leaving():
+    """CE is the trapped side and is sitting still; the PE side unwinds hard.
+
+    The old pooled counter reported drain=True here, and direction.py turned
+    that into FORCED BULL -- a directional licence issued off the wrong leg.
+    """
+    cs = chainside.ChainSide()
+    for i in range(10):                      # warm both ranks, nothing moving
+        cs.on_snapshot(f"09:{i:02d}",
+                       _snap([(24100, 1_000_000 + i * 100_000, 100.0,
+                               2_000_000, 80.0)]))
+    # CE trapped (premium 130 vs a wall built at 100) and NOT leaving;
+    # PE open interest collapses -- that is the other side covering.
+    r = cs.on_snapshot("10:00",
+                       _snap([(24100, 2_000_000, 130.0, 200_000, 80.0)]))
+    assert r.trapped_side == "ce"
+    assert r.drain is False, "the trapped side is not the side that left"
+    # AND `drain_other` IS ALSO FALSE, WHICH IS THE SUBTLER HALF. The PE side
+    # here is comfortable -- its premium never moved against it -- so its
+    # unwind is not classified `forced_exit` at all. A side leaving BECAUSE IT
+    # WANTS TO is not drain in this stack's sense, and the old pooled counter
+    # could not tell those apart either.
+    assert r.drain_other is False
+    assert r.drain_rank_ce is None, "no forced-exit flow on CE: nothing to rank"
+
+
+def test_the_trapped_side_covering_still_reads_as_drain():
+    """The mechanism must survive the fix, not just the false positive."""
+    cs = chainside.ChainSide()
+    for i in range(10):
+        cs.on_snapshot(f"09:{i:02d}",
+                       _snap([(24100, 1_000_000 + i * 100_000, 100.0,
+                               500_000, 80.0)]))
+    r = cs.on_snapshot("10:00", _snap([(24100, 300_000, 130.0, 500_000, 80.0)]))
+    assert r.trapped_side == "ce"
+    assert r.drain is True
+    assert r.drain_other is False
+
+
+def test_a_rank_is_published_only_where_there_was_flow_to_rank():
+    """The percentile of 0.0 within a series of zeros is 1.00, which would
+    render as "drain rank 1.00" on a chain where nobody is leaving."""
+    cs = chainside.ChainSide()
+    for i in range(10):
+        cs.on_snapshot(f"09:{i:02d}",
+                       _snap([(24100, 1_000_000 + i * 100_000, 100.0,
+                               500_000, 80.0)]))
+    r = cs.on_snapshot("10:00", _snap([(24100, 300_000, 130.0, 500_000, 80.0)]))
+    assert r.drain_rank_ce is not None, "CE covered: that is rankable"
+    assert r.drain_rank_pe is None, "PE did nothing: there is no rank for it"

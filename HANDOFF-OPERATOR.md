@@ -137,7 +137,7 @@ Restore with `cd "new tool nifty" && start-v2.bat`.
   09:15. Until then every shelf reads "wall vs cluster needs the kite bridge".
 - **`chainside` has never seen a live chain** — built after close, when
   `/api/chain` returns "market closed".
-- **`drag` is not wired into anything.** It works and is tested; no caller.
+- ~~**`drag` is not wired into anything.**~~ **WIRED 2026-08-22.** `drag.Board` is fed by the senses loop and published at `/api/drag`; the desk screen carries it as "the tax on being right".
 - **The §5e pass bar is still owed by the operator.** 22 `5c` and 39 `zone`
   scored rows sit unread because nobody has stated the bar. **Never print a
   hit rate.**

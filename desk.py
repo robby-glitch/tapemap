@@ -25,10 +25,13 @@ RELATIVE-VALUE spread (sell the rich point, buy the cheap one) needs no level
 view at all, while an outright strangle is a bet the level is high. The former
 is deployable on the surface alone; the latter needs the regime to vouch.
 
-THERE IS NO DIRECTION VIEW IN THIS STACK. Nothing computes bullish or bearish,
-so every directional structure is BLOCKED rather than guessed. The gamma flip
-is a REGIME read -- does hedging damp or amplify -- and max pain is a pin
-target. Neither is a direction.
+THE DIRECTION VIEW ARRIVES FROM `direction.py`, AND ONLY FROM THERE. This
+module still computes nothing bullish or bearish itself: pass a `View` to
+`decide` and the directional half of the catalog unblocks, pass None and it
+blocks with its reason named. The gamma flip remains a REGIME read -- does
+hedging damp or amplify -- and max pain remains a pin target. NEITHER IS EVER
+READ AS A DIRECTION. That was the standing warning here before a direction
+view existed, and it is still the rule now that one does.
 
 Pure computation, stdlib only, no I/O. Emits `[I]`: a structure choice is a
 judgement built on measurements, and says so.
@@ -58,7 +61,15 @@ Z_EDGE = 1.5
 # So a structure must also clear a floor in RUPEES PER UNIT of the underlying
 # quantity. Deliberately absolute rather than ranked: what a rupee is worth
 # does not rescale with how tidy today's curve happens to be.
-MIN_EDGE_RS = 1.0
+#
+# LOWERED 1.00 -> 0.25 on 2026-08-21 at the operator's instruction, when the
+# desk moved to a zero-cost broker (see STATUTORY_PCT below). The floor was
+# never really a COST floor -- it is a SIGNIFICANCE floor and it stays -- but
+# with nothing subtracted on the way in, the smallest edge worth looking at is
+# genuinely smaller. 0.25 is a judgement, not a derivation: roughly the tick
+# scale of the quantities being harvested. It is the first number to move if
+# the desk shows too many or too few candidates.
+MIN_EDGE_RS = 0.25
 
 # ATM means within this fraction of the forward, in log-moneyness.
 ATM_X = 0.004
@@ -96,12 +107,31 @@ DELTA_BALANCE_TOL = 0.15
 # ── risk, margin, sizing ──────────────────────────────────────────────────
 #
 # COSTS. She posts rather than crosses -- the spread is revenue, not cost --
-# so the only real cost to sell is statutory: STT 0.1% + exchange 0.03503% +
-# GST (18%) on the exchange leg, all on the option PREMIUM. Applied only to
-# legs SOLD (buying to open carries no STT on options). This is a fixed
-# statutory rate, not a judgement call, but it is not a live-fetched number
-# either -- tagged [M] alongside everything else priced off the chain.
-STATUTORY_PCT = 0.0014
+# so the only real cost to sell WAS statutory: STT 0.1% + exchange 0.03503% +
+# GST (18%) on the exchange leg, all on the option PREMIUM, applied only to
+# legs SOLD (buying to open carries no STT on options).
+#
+# SET TO ZERO 2026-08-21. The operator moved to a broker on a two-year
+# arrangement with no brokerage, which rebates the remaining statutory charges
+# on any position that closes at least Rs 1 positive. On this desk, trading is
+# free. Anything this module subtracts on the way in is therefore a phantom
+# cost that suppresses real candidates -- which is exactly what she asked to
+# have removed.
+#
+# KEPT AS A CONSTANT RATHER THAN DELETED, DELIBERATELY. The rebate is an
+# ARRANGEMENT, not a law: it has a term, and it is conditional on the position
+# finishing positive. If either changes, this is the one number to restore
+# (0.0014) and every reading downstream corrects itself. Deleting the code
+# path would make that a rewrite instead of an edit.
+#
+# NOTE THE ASYMMETRY THE REBATE CARRIES AND THIS MODEL DOES NOT: charges come
+# back on winners, not on losers. So zero is exactly right for pricing an
+# edge, and slightly optimistic for pricing a loss. The desk prices edges.
+STATUTORY_PCT = 0.0
+STATUTORY_PCT_IF_CHARGED = 0.0014   # what it would be without the rebate
+COST_NOTE = ("[M] costs modelled at ZERO: no brokerage, statutory charges "
+             "rebated on any position closing >= Rs 1 positive. Restore "
+             "STATUTORY_PCT = 0.0014 if that arrangement ends.")
 
 # MARGIN IS OPAQUE; THIS IS A DOCUMENTED FLOOR, NEVER THE BROKER'S NUMBER.
 # Defined-risk structures: the max loss IS a reasonable margin floor -- a
@@ -252,6 +282,16 @@ class Candidate:
     # ── score: edge per rupee at risk, not raw edge ──
     edge_per_margin: Optional[float] = None      # Rs earned / Rs of margin
     edge_per_max_loss: Optional[float] = None    # only when risk is DEFINED
+    # ── the FLOW ruler, which is a different quantity entirely ────────────
+    # Net gamma per rupee of margin. A cascade pays for CONVEXITY -- that is
+    # regime.py's whole claim about the gear -- so this is what ranks a flow
+    # structure. Ranking them on residual edge instead put a FUTURE top of the
+    # list on live NIFTY data (2026-08-21), because a future has no vol
+    # residual at all and therefore scored zero while every option scored
+    # negative. A delta-1 instrument is the LEAST convex thing on the board
+    # and cannot be a cascade's best expression; this ruler puts it last by
+    # measuring the thing that actually matters rather than by decree.
+    convexity_per_margin: Optional[float] = None
     # ── sizing -- follows from stated capital, capped by liquidity ──
     lots: int = 0
     lots_per_cr: int = 0
@@ -266,6 +306,22 @@ class Candidate:
     net_delta: Optional[float] = None      # per unit of the underlying
     hedge_units: Optional[float] = None    # futures units that flatten it
     hedge_note: str = ""
+    # ── WHAT THE TRADE'S CASE ACTUALLY RESTS ON ──────────────────────────
+    # Two different rulers, and measuring one with the other is how a desk
+    # ends up ranking a forced-flow trade last because it happens to be
+    # buying a slightly rich option.
+    #
+    #   MISPRICING  the case is the RESIDUAL. `edge` is the case. The
+    #               economic floor applies, and edge-per-margin ranks it.
+    #   FLOW        the case is the forced flow (see direction.py). `edge`
+    #               is still reported -- it says whether the surface is
+    #               helping or fighting you -- but it is DESCRIPTION, not
+    #               the case, so the floor does not apply and a negative
+    #               reading is a caveat rather than a disqualification.
+    #   REGIME      the case is the gear (the pin straddle). Pre-existing
+    #               behaviour, named here so the exemption stops being a
+    #               special case hidden inside `_finish`.
+    case: str = "MISPRICING"
 
 
 @dataclass
@@ -278,6 +334,14 @@ class Decision:
                                        # when derived off the wire, an
                                        # [I] only when falling back
     regime: Regime = field(default_factory=Regime)
+    # THE DIRECTION VIEW, WHOLE. Carried rather than flattened to a string so
+    # a reader can see the bias, the gear, the conviction and the reasons that
+    # produced them together -- the four collapse into a lie separately.
+    # `directional` is lifted out because `View.directional` is a property and
+    # would vanish through `asdict` on its way to the API.
+    view: Optional[object] = None       # direction.View | None
+    directional: bool = False
+    game: str = "NO_GAME"
     fit_ok: bool = False
     fit_rmse: Optional[float] = None
     fit_n: int = 0
@@ -435,26 +499,49 @@ def _finish(c: Candidate, points) -> Candidate:
         return c
     c.edge = _edge(c.legs, points)
     c.thinnest_oi = _thin(c.legs)
-    if c.name == "short_straddle_pin":
-        # EXEMPT FROM THE FLOOR IS NOT LICENCE TO BE NEGATIVE. The pin's case
-        # is the REGIME, so it may earn nothing from the surface and still
-        # stand. But a NEGATIVE edge is the surface saying both legs trade
-        # CHEAP to the curve -- the market is not paying for this straddle, it
-        # is offering it. Selling below fair value on a pin hypothesis is an
-        # argument for BUYING the straddle, not selling it.
+    if c.case == "FLOW":
+        # THE FLOOR IS A MISPRICING TEST AND THIS IS NOT A MISPRICING TRADE.
+        # A forced-flow structure's case is that someone is compelled to
+        # transact; whether the option it uses happens to sit above or below
+        # its own fitted curve is a SEPARATE and much smaller question. Held
+        # to the residual floor, every one of these would block -- a long
+        # call bought into a cascade is usually rich, and correctly so.
+        #
+        # `edge` is still computed and still shown, because "the surface is
+        # fighting this purchase" is worth a reader knowing. It is a caveat
+        # on a trade whose case stands elsewhere, not the case itself.
+        if c.edge is not None and c.edge < 0:
+            c.why.append(f"note: the surface is against this leg by "
+                         f"Rs {abs(c.edge):.2f}/unit -- you are paying up to "
+                         f"express the flow, which is normal in a cascade and "
+                         f"is the cost of being early rather than a red flag")
+        return c
+    if c.case == "REGIME":
+        # EXEMPT FROM THE FLOOR IS NOT LICENCE TO BE NEGATIVE. A regime trade
+        # may earn nothing from the surface and still stand, because its case
+        # is the gear. But a NEGATIVE edge is the surface saying the legs being
+        # SOLD trade CHEAP to the curve -- the market is not paying for this
+        # premium, it is offering it. Selling under fair value on a regime
+        # hypothesis is an argument for BUYING, not selling.
         #
         # Shipped without this guard, the pin ranked BEST on two of three
         # indices at 11:11 IST on 2026-08-21, at Rs -0.90 and Rs -4.62 a unit.
+        #
+        # KEYED ON THE CASE, NOT THE NAME, since 2026-08-22. It read
+        # `if c.name == "short_straddle_pin"` while the docstring on
+        # `Candidate.case` claimed this special case had been lifted out --
+        # a comment asserting a refactor that had never happened. The
+        # directional credit spreads are regime trades too and need this guard.
         if c.edge is not None and c.edge < 0:
             c.status = "STAND_ASIDE"
-            c.why = [f"both legs trade cheap to the curve "
+            c.why = [f"the legs being sold trade cheap to the curve "
                      f"(Rs {c.edge:.2f}/unit): the market is offering this "
-                     f"straddle, not paying for it -- a pin hypothesis does "
-                     f"not justify selling under fair value"]
+                     f"premium, not paying for it -- a regime read does not "
+                     f"justify selling under fair value"]
             # LEGS KEPT ON PURPOSE. Showing what it would have sold, beside
             # the reason it is not being sold, is more use to a reader than an
             # empty row -- and it lets the risk classifier still label the
-            # structure honestly as UNDEFINED.
+            # structure honestly.
         return c
     if c.edge is None or c.edge < MIN_EDGE_RS:
         got = "unpriceable" if c.edge is None else f"Rs {c.edge:.2f}/unit"
@@ -607,7 +694,7 @@ def _iron_condor(surf, reg, points):
 
 
 def _pin_straddle(surf, reg, points):
-    c = Candidate("short_straddle_pin", "BLOCKED")
+    c = Candidate("short_straddle_pin", "BLOCKED", case="REGIME")
     if reg.above_flip is None:
         c.missing = ["gamma flip unknown"]
         return c
@@ -705,17 +792,292 @@ def _jade_lizard(surf, reg, points):
     return c
 
 
+# ── the directional half of the catalog ───────────────────────────────────
+#
+# ADDED 2026-08-21. Until now every one of these returned BLOCKED on "a
+# direction view -- nothing in this stack computes bullish or bearish". That
+# is no longer true: `direction.py` reads which side of the book is trapped
+# and whether it is actually leaving, which is a statement about who is FORCED
+# to transact rather than a forecast. See that module for the mechanism and
+# for its declared kill condition.
+#
+# THE GEAR DECIDES WHICH OF THESE IS EVEN ASKED, AND THAT IS THE WHOLE
+# DISCIPLINE. `regime.py` is explicit that the market is one machine in two
+# gears, and the two gears want opposite trades:
+#
+#   CASCADE + FORCED bias  ->  BUY convexity in the direction of the flow
+#                              (long option, debit vertical, the future)
+#   PIN + any named bias   ->  SELL premium on the SAFE wing
+#                              (credit vertical away from the pain)
+#   TRANSITION             ->  nothing. A full tank with no ignition; both
+#                              games lose here and regime.py says so.
+#
+# Reading "BULL" as "buy calls" while the gear says hedging damps every
+# excursion is precisely the error this split exists to prevent. A bull view
+# in PIN is the market paying you to SELL PUTS, not to buy calls.
+
+
+def _nearest(points, right, target):
+    """The point on `right` closest to `target` in strike. Strike selection
+    is not a ranking problem -- 'the ATM call' is a location, and picking it
+    by z-score is how a wing twelve points from spot got called a wing."""
+    xs = [p for p in points if p.right == right and p.ltp]
+    return min(xs, key=lambda p: abs(p.k - target)) if xs else None
+
+
+def _otm_beyond(points, right, spot, dist):
+    """The NEAREST point on `right` at least `dist` away from spot on the OTM
+    side. Nearest rather than furthest: a spread's short leg wants to be as
+    close as it is allowed to be, because that is where the premium is."""
+    if spot is None or not dist:
+        return None
+    xs = [p for p in points if p.right == right and p.ltp
+          and ((p.k - spot) >= dist if right == "CE" else (spot - p.k) >= dist)]
+    return min(xs, key=lambda p: abs(p.k - spot)) if xs else None
+
+
+def _flow_block(view, need_forced: bool):
+    """Why a flow structure cannot be built, or None if it can.
+
+    Kept in one place because the four builders below must refuse for exactly
+    the same reasons, worded the same way -- a reader comparing two blocked
+    rows should be able to tell whether the gap is the same gap.
+    """
+    if view is None:
+        return ["a direction view -- pass one from direction.read()"]
+    if view.bias in ("UNKNOWN",):
+        return (view.missing or ["a readable direction"])
+    if view.bias == "NEUTRAL":
+        return ["a side: pain is not one-sided, so nothing is forced"]
+    if need_forced and not view.directional:
+        return [f"forced flow: the view is {view.conviction} {view.bias} in "
+                f"gear {view.gear}, and only FORCED-in-CASCADE licenses "
+                f"buying convexity. A loaded tank is not a move."]
+    return None
+
+
+def _long_option(surf, reg, points, view):
+    """CASCADE only: buy the convexity the forced flow is about to pay for.
+
+    The single cleanest expression of the thesis -- when the trapped side is
+    actually leaving, hedging flips from stabiliser to accelerant and a long
+    option is paid in minutes rather than days. Undefined upside, and the
+    premium is the whole risk, which is why it needs the strongest view the
+    stack can form and gets BLOCKED on anything weaker.
+    """
+    name = "long_call" if (view and view.bias == "BULL") else "long_put"
+    c = Candidate(name, "BLOCKED", case="FLOW")
+    miss = _flow_block(view, need_forced=True)
+    if miss:
+        c.missing = miss
+        return c
+    if reg.spot is None:
+        c.missing = ["spot"]
+        return c
+    right = "CE" if view.bias == "BULL" else "PE"
+    # Prefer a point the surface says is CHEAP -- the flow is the case, but
+    # there is no reason to pay up for it when the curve offers a discount on
+    # the same side. Falls back to ATM when nothing on that wing is cheap.
+    p = _cheap(points, right) or _nearest(points, right, reg.spot)
+    if p is None:
+        c.missing = [f"a priced {right} to buy"]
+        return c
+    c.status = "DEPLOYABLE"
+    c.legs = [_leg(p, "BUY", surf.f, surf.t)]
+    c.why = [direction_line(view),
+             f"buy {p.k:,.0f}{right} at {p.ltp:,.2f} -- max loss is the "
+             f"premium, upside is the flow",
+             "the case is the FLOW, not the residual: `edge` below says only "
+             "whether the surface is helping or fighting this purchase"]
+    return c
+
+
+def _debit_vertical(surf, reg, points, view):
+    """CASCADE only: the same view, with the tail sold off to cheapen it.
+
+    A long option pays for a tail the forced-flow thesis does not actually
+    claim -- the claim is a move to where the trapped side stops hurting, not
+    an unbounded one. Selling the strike beyond that turns the trade from a
+    lottery ticket into a range bet and roughly halves what it costs to hold.
+    """
+    name = ("bull_call_spread" if (view and view.bias == "BULL")
+            else "bear_put_spread")
+    c = Candidate(name, "BLOCKED", case="FLOW")
+    miss = _flow_block(view, need_forced=True)
+    if miss:
+        c.missing = miss
+        return c
+    if reg.spot is None or not reg.expected_move:
+        c.missing = ["spot and the expected move (the ATM straddle)"]
+        return c
+    right = "CE" if view.bias == "BULL" else "PE"
+    near = _nearest(points, right, reg.spot)
+    far = _otm_beyond(points, right, reg.spot, reg.expected_move)
+    if near is None or far is None or near.k == far.k:
+        c.missing = [f"two {right} strikes with the short leg at least one "
+                     f"expected move ({reg.expected_move:,.0f} pts) away"]
+        return c
+    c.status = "DEPLOYABLE"
+    c.legs = [_leg(near, "BUY", surf.f, surf.t),
+              _leg(far, "SELL", surf.f, surf.t)]
+    debit = (near.ltp or 0) - (far.ltp or 0)
+    c.why = [direction_line(view),
+             f"buy {near.k:,.0f}{right}, sell {far.k:,.0f}{right} for about "
+             f"Rs {debit:,.2f}/unit -- the short leg sits one expected move "
+             f"out, which is where this thesis stops claiming anything",
+             "the case is the FLOW, not the residual"]
+    return c
+
+
+def _credit_vertical_directional(surf, reg, points, view):
+    """PIN only: sell premium on the wing the pain is NOT sitting on.
+
+    This is the trade a bull view actually justifies when hedging damps every
+    excursion -- not buying calls, but selling the put wing that the trapped
+    side's covering is moving away from. It needs only a NAMED side, not
+    forced flow, because it is a premium-selling trade whose case is the gear:
+    the bias picks the wing, the gear supplies the edge.
+    """
+    name = ("bull_put_spread" if (view and view.bias == "BULL")
+            else "bear_call_spread")
+    # CASE IS **REGIME**, NOT FLOW. This structure collects a credit because
+    # the GEAR says hedging damps; the direction view only picks which wing.
+    # Tagged FLOW it was ranked on convexity per rupee of margin -- and a
+    # credit spread is deliberately SHORT gamma, so that number is negative
+    # and "more short gamma" scored BETTER. It also inherited FLOW's caveat
+    # text, which tells the reader they are "paying up to express the flow"
+    # about a trade that only ever collects. Both wrong, for the same reason.
+    c = Candidate(name, "BLOCKED", case="REGIME")
+    miss = _flow_block(view, need_forced=False)
+    if miss:
+        c.missing = miss
+        return c
+    # THE GEAR, NOT JUST THE FLIP. Checked live on 2026-08-21 against a real
+    # NIFTY chain: the view read FORCED BULL in CASCADE, and this structure
+    # deployed anyway at 10,586 lots -- because `above_flip` was True (a
+    # NO_CROSSING chain reads as damping everywhere) while the gear said the
+    # opposite. Selling premium into a cascade because one of the two regime
+    # reads happened to be permissive is the exact mistake the two-field split
+    # exists to prevent, and the docstring above already claimed PIN only.
+    if view.game != "SELL_PREMIUM":
+        c.status = "STAND_ASIDE"
+        c.why = [f"gear is {view.gear}, not PIN -- this structure sells "
+                 f"premium, and only PIN pays for that. Direction does not "
+                 f"override the gear; it only picks the wing once the gear "
+                 f"has said premium is the game."]
+        return c
+    if reg.above_flip is None:
+        c.missing = ["gamma flip unknown -- a premium sale needs to know "
+                     "whether hedging damps or amplifies"]
+        return c
+    if not reg.above_flip:
+        c.status = "STAND_ASIDE"
+        c.why = ["below the flip, hedging AMPLIFIES -- selling premium here "
+                 "is the wrong side of the gear whatever the direction says"]
+        return c
+    if reg.spot is None or not reg.expected_move:
+        c.missing = ["spot and the expected move"]
+        return c
+    # BULL -> sell the PUT wing (below spot). BEAR -> sell the CALL wing.
+    right = "PE" if view.bias == "BULL" else "CE"
+    short = _otm_beyond(points, right, reg.spot,
+                        STRANGLE_MIN_MOVES * reg.expected_move)
+    if short is None:
+        c.missing = [f"a {right} at least {STRANGLE_MIN_MOVES:g} expected "
+                     f"moves out to sell"]
+        return c
+    # THE WING IS WHATEVER THE CHAIN ACTUALLY OFFERS BEYOND THE SHORT, not a
+    # strike computed from the expected move and then demanded. Asking for the
+    # short strike plus a full expected move put the wing past the end of the
+    # chain on every live NIFTY board (spot +/- 500 with a ~350 move), so the
+    # structure blocked on "no further PE" while three perfectly good wings
+    # sat in the list. Target a third of a move out and take the nearest
+    # strike to it that exists.
+    further = [p for p in points if p.right == right and p.ltp
+               and (p.k > short.k if right == "CE" else p.k < short.k)]
+    if not further:
+        c.missing = [f"a further {right} beyond {short.k:,.0f} to buy as the "
+                     f"wing -- this stack does not sell a naked leg on a "
+                     f"direction view"]
+        return c
+    target = short.k + (0.3 * reg.expected_move
+                        * (1.0 if right == "CE" else -1.0))
+    long_ = min(further, key=lambda p: abs(p.k - target))
+    c.status = "DEPLOYABLE"
+    c.legs = [_leg(short, "SELL", surf.f, surf.t),
+              _leg(long_, "BUY", surf.f, surf.t)]
+    credit = (short.ltp or 0) - (long_.ltp or 0)
+    c.why = [direction_line(view),
+             f"gear is PIN: hedging damps, so the market is paying to SELL "
+             f"the wing the pain is moving away from -- not to buy the other "
+             f"one",
+             f"sell {short.k:,.0f}{right}, buy {long_.k:,.0f}{right} for "
+             f"about Rs {credit:,.2f}/unit credit"]
+    return c
+
+
+def _futures(surf, reg, points, view):
+    """CASCADE only: the flow itself, with no premium and no decay.
+
+    The purest expression and the least forgiving -- delta 1, undefined risk
+    both ways, and nothing between the entry and being wrong. Named because
+    the operator asked for it explicitly and because a desk that can express a
+    view in options should be able to express it in the underlying.
+    """
+    name = "long_future" if (view and view.bias == "BULL") else "short_future"
+    c = Candidate(name, "BLOCKED", case="FLOW")
+    miss = _flow_block(view, need_forced=True)
+    if miss:
+        c.missing = miss
+        return c
+    if not surf.f:
+        c.missing = ["the forward"]
+        return c
+    side = "BUY" if view.bias == "BULL" else "SELL"
+    c.status = "DEPLOYABLE"
+    # A FUT leg carries no strike, no IV and no OI. `right="FUT"` is how every
+    # downstream reader tells it apart; each of them handles it explicitly
+    # rather than falling through an option branch by accident.
+    c.legs = [Leg(side=side, strike=surf.f, right="FUT", ltp=surf.f,
+                  delta=(1.0 if side == "BUY" else -1.0))]
+    c.why = [direction_line(view),
+             f"{side} the future at {surf.f:,.2f} -- delta 1, no premium, no "
+             f"decay, and no floor under being wrong",
+             "risk is UNDEFINED in both directions: this is the one structure "
+             "here whose stop is the whole risk model"]
+    return c
+
+
+def direction_line(view) -> str:
+    """The one sentence every flow structure leads with, worded once."""
+    leg = f" ({view.worst_leg})" if getattr(view, "worst_leg", None) else ""
+    return (f"{view.conviction} {view.bias}: {view.trapped_side.upper()} "
+            f"writers are the trapped side{leg} and the gear is {view.gear}"
+            + (" -- the flow is happening, not pending"
+               if view.directional else " -- named, not yet forced"))
+
+
+# The four flow builders each name themselves after ONE direction, so each has
+# a mirror image that never gets built. `decide` emits the mirror as a BLOCKED
+# row rather than letting it go missing -- see the comment there.
+_SIBLINGS = [
+    ("long_call", "long_put"),
+    ("bull_call_spread", "bear_put_spread"),
+    ("bull_put_spread", "bear_call_spread"),
+    ("long_future", "short_future"),
+]
+
+
 # Structures whose inputs this stack does not produce. Named explicitly rather
 # than omitted: a missing row reads as "not considered", while a BLOCKED row
 # with a reason reads as "considered, and here is the gap".
 _UNSUPPORTED = [
     ("calendar", ["a second expiry: surface.read fits ONE expiry at a time"]),
     ("diagonal", ["a second expiry"]),
-    ("bull_put_spread", ["a direction view -- nothing in this stack computes "
-                         "bullish or bearish"]),
-    ("bear_call_spread", ["a direction view"]),
-    ("risk_reversal", ["a direction view"]),
-    ("strip_strap", ["a direction view"]),
+    ("risk_reversal", ["a margin model for a naked leg financed by another -- "
+                       "the direction view now exists, the margin shape does "
+                       "not"]),
+    ("strip_strap", ["a ratio margin model"]),
     ("ratio_backspread", ["a margin model for undefined-risk leg ratios"]),
     ("box", ["execution certainty across four legs; parity_gap exists but "
              "nothing prices the trade"]),
@@ -728,8 +1090,25 @@ _ORDER = {"DEPLOYABLE": 0, "STAND_ASIDE": 1, "BLOCKED": 2}
 #
 # Each function prices ONE known leg layout (the catalog above builds exactly
 # these shapes, in exactly this leg order) into (max_loss, risk, breakevens,
-# margin_per_lot, margin_model). `max_loss` and `margin_per_lot` are Rs per
-# LOT; everything upstream of here is Rs per unit.
+# margin_per_lot, margin_model).
+#
+# THE UNITS ARE MIXED AND THE COMMENT HERE USED TO GET THEM WRONG. Corrected
+# 2026-08-21, with the error named because it cost a real defect: this said
+# "`max_loss` and `margin_per_lot` are Rs per LOT", and only the second half
+# was true.
+#
+#     max_loss        Rs per UNIT of the underlying, like `edge`. Every model
+#                     below computes it from strike widths and premiums, all
+#                     of which are per-unit quantities, and `_score` divides
+#                     `edge` (Rs/unit) straight into it -- which is only
+#                     dimensionally sound because both are per unit.
+#     margin_per_lot  Rs per LOT, as the name says. Each model reaches it by
+#                     multiplying its per-unit figure by `lot_size`.
+#
+# A reader who trusts the old sentence renders max loss 65x too small next to
+# a correctly-sized margin. That is exactly what the desk screen did on the
+# first live render: a long call showed margin Rs 32.4k against a max loss of
+# Rs 498, for a structure whose max loss IS the premium.
 
 def _costs(legs: List[Leg]) -> float:
     """Statutory-only cost of the legs SOLD, Rs/unit. She posts rather than
@@ -813,12 +1192,60 @@ def _risk_jade_lizard(legs, f, lot_size):
     return None, "UNDEFINED", sorted(be), margin, model
 
 
+def _risk_long_option(legs, f, lot_size):
+    """One leg BOUGHT: the premium is the entire risk, and it is defined.
+
+    The margin IS the premium -- a long option is paid for in full, there is
+    nothing to margin -- which makes this the one structure here whose margin
+    number is not a model at all. It is the price.
+    """
+    l = legs[0]
+    debit = l.ltp or 0.0
+    be = ([l.strike + debit] if l.right == "CE" else [l.strike - debit])
+    return (debit, "DEFINED", be, debit * lot_size,
+            "[M] margin IS the premium: a long option is paid for in full, so "
+            "this is a price and not a model")
+
+
+def _risk_debit_vertical(legs, f, lot_size):
+    """BUY near / SELL far, same right: risk is the debit, capped upside."""
+    buy, sell = legs
+    debit = (buy.ltp or 0.0) - (sell.ltp or 0.0) + _costs(legs)
+    be = [buy.strike + debit if buy.right == "CE" else buy.strike - debit]
+    return (max(debit, 0.0), "DEFINED", be, max(debit, 0.0) * lot_size,
+            "[M] margin IS the net debit: both legs are paid for on entry")
+
+
+def _risk_future(legs, f, lot_size):
+    """One futures leg: undefined both ways, and no breakeven but the entry.
+
+    NO max_loss IS THE POINT, not an omission. Every other structure here has
+    either a premium or a spread width capping it; a future has neither, and
+    printing a number in that field would invent a floor that does not exist.
+    Margin is the same [I] notional model the naked option legs use, because
+    it is the same question -- what does the exchange want to carry an
+    unhedged unit of index exposure -- and this stack still cannot run SPAN.
+    """
+    return (None, "UNDEFINED", [f] if f else [],
+            _naked_margin(f, lot_size, 1),
+            "[I] futures margin: " + _NAKED_MODEL_NOTE.split(": ", 1)[-1])
+
+
 _RISK_MODEL = {
     "vertical_relative_value": _risk_vertical,
     "short_strangle": _risk_naked_pair,
     "iron_condor": _risk_condor,
     "short_straddle_pin": _risk_naked_pair,
     "jade_lizard": _risk_jade_lizard,
+    # the flow half -- see the directional catalog above
+    "long_call": _risk_long_option,
+    "long_put": _risk_long_option,
+    "bull_call_spread": _risk_debit_vertical,
+    "bear_put_spread": _risk_debit_vertical,
+    "bull_put_spread": _risk_vertical,      # SELL near / BUY far: a credit
+    "bear_call_spread": _risk_vertical,     # vertical, same leg order
+    "long_future": _risk_future,
+    "short_future": _risk_future,
 }
 
 
@@ -835,6 +1262,12 @@ def _delta_book(c: Candidate, f: float, t: float, lot_size: int) -> None:
         return
     net = 0.0
     for l in c.legs:
+        if l.right == "FUT":
+            # A future's delta is 1 by definition -- there is nothing to
+            # price and no IV to be missing. Handled before the IV guard so a
+            # futures leg is not mistaken for an unpriceable option.
+            net += 1.0 * (-1.0 if l.side == "SELL" else 1.0)
+            continue
         if l.iv is None:
             return                      # one unpriceable leg makes the sum a lie
         d = gamma.delta(f, l.strike, l.iv, t, "C" if l.right == "CE" else "P")
@@ -854,14 +1287,35 @@ def _delta_book(c: Candidate, f: float, t: float, lot_size: int) -> None:
             f"vol and drop the direction.")
 
 
-def _score(c: Candidate, lot_size: int) -> None:
-    """Edge per rupee AT RISK, not raw edge -- the real score. `edge` is
-    Rs/unit; margin and max loss are Rs/lot, so edge is scaled by lot size to
-    match before dividing."""
+def _score(c: Candidate, lot_size: int, f: float = None, t: float = None
+           ) -> None:
+    """Two rulers, because the catalog holds two kinds of trade.
+
+    MISPRICING: edge per rupee AT RISK, not raw edge. `edge` is Rs/unit while
+    margin and max loss are Rs/lot, so edge is scaled by lot size to match
+    before dividing.
+
+    FLOW: net gamma per rupee of margin. A cascade pays for convexity, so that
+    is what ranks these -- see `Candidate.convexity_per_margin` for the live
+    failure that made the distinction necessary.
+    """
     if c.margin_per_lot:
         c.edge_per_margin = ((c.edge or 0.0) * lot_size) / c.margin_per_lot
     if c.risk == "DEFINED" and c.max_loss:
         c.edge_per_max_loss = (c.edge or 0.0) / c.max_loss
+    if c.case == "FLOW" and c.margin_per_lot and f and t and t > 0:
+        g = 0.0
+        for l in c.legs:
+            if l.right == "FUT":
+                continue                    # delta 1, gamma 0, by definition
+            if l.iv is None:
+                return                      # one unpriceable leg is not a sum
+            g += (gamma.gamma(f, l.strike, l.iv, t)
+                  * (-1.0 if l.side == "SELL" else 1.0))
+        # Scaled by lot size for the same reason `edge` is: gamma is per unit,
+        # margin is per lot. The absolute magnitude is meaningless on its own
+        # and is never shown as one -- it exists to order a list.
+        c.convexity_per_margin = (g * lot_size) / c.margin_per_lot
 
 
 def _size(c: Candidate, capital: float, lot_size: int) -> None:
@@ -871,16 +1325,52 @@ def _size(c: Candidate, capital: float, lot_size: int) -> None:
         return
     c.lots_per_cr = int(ONE_CRORE // c.margin_per_lot)
     by_capital = int(capital // c.margin_per_lot)
-    by_liquidity = (int((LIQUIDITY_OI_FRAC * c.thinnest_oi) // lot_size)
-                    if c.thinnest_oi else 0)
+    if c.thinnest_oi:
+        by_liquidity = int((LIQUIDITY_OI_FRAC * c.thinnest_oi) // lot_size)
+    elif not all(l.right == "FUT" for l in c.legs):
+        # AN OPTION MISSING ITS OI IS A DATA GAP, NOT A DEEP BOOK. Scoped to
+        # futures-only on 2026-08-22: the fallback below was written for the
+        # future (which structurally HAS no OI) but applied to anything with a
+        # missing figure, so a transient hole in the chain's OI reporting would
+        # silently remove the liquidity cap from an ordinary option structure
+        # and size it on capital alone. Two different absences; two answers.
+        by_liquidity = 0
+        c.liquidity_note = ("at least one option leg published no OI, so the "
+                            "liquidity cap could not be applied and this is "
+                            "NOT sized. Absence of an OI figure is not "
+                            "evidence of a thin book -- it is evidence of a "
+                            "gap in the feed.")
+    else:
+        # SILENCE IS NOT EVIDENCE OF ILLIQUIDITY -- the same principle
+        # `_liquidity_block` already applies to a missing bid/ask. An absent
+        # OI figure used to size the structure to ZERO, which reads on screen
+        # as "too illiquid to trade" when the truth is "we were not told".
+        # A futures leg carries no OI at all, so every futures recommendation
+        # would have sized to nothing for a reason that was never real.
+        by_liquidity = by_capital
+        c.liquidity_note = ("no OI on at least one leg, so the liquidity cap "
+                            "could not be applied -- sized on capital alone. "
+                            "Absence of an OI figure is not evidence of a "
+                            "thin book, but it is not evidence of a deep one "
+                            "either.")
     c.lots = max(0, min(by_capital, by_liquidity))
-    if c.lots == 0:
+    if c.lots == 0 and not c.liquidity_note:
+        # NOT IF A MORE SPECIFIC REASON WAS ALREADY GIVEN. The branch above
+        # sets a note naming a FEED GAP, and this one would overwrite it with
+        # "the thinnest leg's own liquidity is the binding constraint" -- a
+        # sentence that reads as "we looked and the book is thin" when the
+        # truth is "no OI was published at all". Two different absences again,
+        # and the generic one must not bury the specific one.
         binding = "capital" if by_capital <= by_liquidity else \
                   "the thinnest leg's own liquidity"
         c.liquidity_note = (f"sized to 0 lots -- {binding} is the binding "
                              f"constraint (capital allows {by_capital}, "
                              f"liquidity allows {by_liquidity})")
-    elif by_liquidity < by_capital:
+    elif by_liquidity < by_capital and c.thinnest_oi:
+        # `and c.thinnest_oi` GUARDS A REAL CRASH, not a style preference:
+        # this branch formats it with `:,.0f`, which raises TypeError on None.
+        # Unreachable while a missing OI always sized to zero and returned
+        # early; reachable the moment that stopped being true.
         c.liquidity_note = (f"capped by the thinnest leg's liquidity: "
                              f"{LIQUIDITY_OI_FRAC:.0%} of {c.thinnest_oi:,.0f} "
                              f"OI allows {by_liquidity} lots vs {by_capital} "
@@ -906,17 +1396,30 @@ def _price(c: Candidate, f: float, t: float, lot_size: int,
         model(c.legs, f, lot_size)
     if c.status != "DEPLOYABLE":
         return c
-    # PIN STRADDLE IS EXEMPT HERE TOO: its edge is allowed near zero (its case
-    # is the regime), so the liquidity check is exempted the same way the
-    # economic floor is -- checking a near-zero edge against ANY spread would
-    # block it on noise, not on a real problem.
-    note = _liquidity_block(
-        c.legs, None if c.name == "short_straddle_pin" else c.edge)
+    # THE CHECK NEEDS THE RIGHT DENOMINATOR, WHICH IS NOT ALWAYS THE EDGE.
+    #
+    # A MISPRICING trade is measured against its EDGE, because the edge is the
+    # trade. FLOW and REGIME trades are measured against their own PREMIUM --
+    # what the structure actually pays or collects, which is what a wide quote
+    # actually eats. This replaces an outright exemption for the pin straddle
+    # (whose near-zero edge made any spread look fatal): premium is a real
+    # denominator, so the check now runs rather than being skipped. Live on
+    # 2026-08-21 a BANKNIFTY bear call spread blocked because a 65-paise quote
+    # spread was compared against its 2-paise vol RESIDUAL -- a quantity that
+    # is not the trade's case and not what the spread is eating. Against the
+    # ~Rs 40 of credit the structure actually collects, 65 paise is noise. The
+    # concern behind the check is real for these too; only the ruler was wrong.
+    if c.case in ("FLOW", "REGIME"):
+        ref = abs(sum((l.ltp or 0.0) * (-1.0 if l.side == "SELL" else 1.0)
+                      for l in c.legs if l.right != "FUT")) or None
+    else:
+        ref = c.edge
+    note = _liquidity_block(c.legs, ref)
     if note:
         c.status, c.missing = "BLOCKED", [note]
         c.legs, c.why = [], []
         return c
-    _score(c, lot_size)
+    _score(c, lot_size, f, t)
     _size(c, capital, lot_size)
     # LAST, because the hedge is quoted at the size actually recommended.
     _delta_book(c, f, t, lot_size)
@@ -924,12 +1427,19 @@ def _price(c: Candidate, f: float, t: float, lot_size: int,
 
 
 def decide(surf, reg: Regime, capital: float = DEFAULT_CAPITAL,
-           lot_size: Optional[int] = None, strikes=None) -> Decision:
-    """One surface + one regime -> every structure, with a status each.
+           lot_size: Optional[int] = None, strikes=None,
+           view=None) -> Decision:
+    """One surface + one regime + one direction view -> every structure.
 
     `capital` is the Rs of margin capital the sizing is built against
     (default Rs 5cr). `lot_size` defaults from LOT_SIZE by index -- see its
     caveat above; pass it explicitly once the live contract note is checked.
+
+    `view` is a `direction.View` or None. NONE IS A SUPPORTED ANSWER, not a
+    degraded one: without it the flow half of the catalog blocks with its
+    reason named, exactly as the whole catalog used to, and the vol half is
+    untouched. That is what keeps this parameter addable without rewriting
+    the caller or the tests.
     """
     # MEASURE IT, DO NOT ASSUME IT. The GCD of the chain's own oi/vol is
     # the lot size exactly; the table is only a fallback for a chain too
@@ -961,25 +1471,99 @@ def decide(surf, reg: Regime, capital: float = DEFAULT_CAPITAL,
     pts = [p for p in surf.points if p.z is not None]
     built = [_relative_value(surf, reg, pts), _short_strangle(surf, reg, pts),
              _iron_condor(surf, reg, pts), _pin_straddle(surf, reg, pts),
-             _jade_lizard(surf, reg, pts)]
+             _jade_lizard(surf, reg, pts),
+             # the flow half -- each blocks with its reason named when `view`
+             # is absent or weaker than the structure requires
+             _long_option(surf, reg, pts, view),
+             _debit_vertical(surf, reg, pts, view),
+             _credit_vertical_directional(surf, reg, pts, view),
+             _futures(surf, reg, pts, view)]
     d.candidates = [_price(_finish(c, surf.points), surf.f, surf.t,
                            lot_size, capital)
                     for c in built]
+    # THE SIDE NOT TAKEN, SAID OUT LOUD. Each flow builder names itself after
+    # the direction it expresses -- `long_call` or `long_put`, never both --
+    # so the opposite structure would simply be ABSENT from the list. Absence
+    # reads as "not considered", which is the one thing the catalog is built
+    # not to say. Emitting the sibling as a BLOCKED row with the view's own
+    # reason turns that silence into "considered, and here is why not".
+    have = {c.name for c in d.candidates}
+    for a, b in _SIBLINGS:
+        for name, other in ((a, b), (b, a)):
+            if name in have or other not in have:
+                continue
+            src = next(c for c in d.candidates if c.name == other)
+            d.candidates.append(Candidate(
+                name, "BLOCKED", case="FLOW",
+                missing=(src.missing or
+                         [f"the direction view names the other side "
+                          f"({getattr(view, 'bias', 'unknown')}), so this is "
+                          f"the trade against the forced flow, not with it"])))
     d.candidates += [Candidate(n, "BLOCKED", missing=m)
                      for n, m in _UNSUPPORTED]
 
-    live = [c for c in d.candidates
-            if c.status == "DEPLOYABLE" and c.edge is not None]
-    live.sort(key=lambda c: -(c.edge_per_margin
-                              if c.edge_per_margin is not None else
-                              float("-inf")))
-    # A BELT AGAINST THE BRACES. `best` is the one field a reader acts on, so
-    # it never names a structure that earns nothing: even if some future
-    # candidate slips past its own floor, a non-positive edge cannot be "best".
-    d.best = next((c.name for c in live
-                   if (c.edge_per_margin or 0.0) > 0), None)
-    d.candidates.sort(key=lambda c: (_ORDER[c.status],
-                                     -(c.edge_per_margin or 0.0)))
+    # ── WHICH CASE THE GEAR IS ACTUALLY LICENSING ────────────────────────
+    #
+    # `best` used to be simply the highest edge-per-margin, which worked while
+    # every structure was a mispricing trade measured on one ruler. It stops
+    # working the moment a FLOW structure is in the list: a long call bought
+    # into a cascade is usually rich to its own curve, so ranking it beside a
+    # relative-value spread on residual edge buries the trade the gear is
+    # actually asking for, underneath one it is not.
+    #
+    # So the gear picks the case first, and edge-per-margin ranks WITHIN it.
+    # In CASCADE the desk wants the flow; in PIN it wants the premium; in
+    # TRANSITION regime.py says it wants neither, and `best` stays None even
+    # if something happens to price.
+    # SELL_PREMIUM MAPS TO REGIME, NOT TO None. Written as None it meant "no
+    # preference", which dropped through to ranking the whole deployable list
+    # on one key -- and `_rank` reads edge-per-margin for MISPRICING but
+    # convexity-per-margin for FLOW, quantities three orders of magnitude
+    # apart. Measured on a live NIFTY chain 2026-08-22: in PIN the pin straddle
+    # (edge/margin 0.00087) out-ranked a perfectly good bull_put_spread purely
+    # because a money ratio is numerically larger than a gamma ratio. The
+    # direction-aware credit spread could never be `best` in the one gear it
+    # exists for.
+    want = {"BUY_CONVEXITY": "FLOW", "SELL_PREMIUM": "REGIME",
+            "STAND_ASIDE": "NONE", "NO_GAME": None}
+    d.game = getattr(view, "game", "NO_GAME") if view else "NO_GAME"
+    d.view, d.directional = view, bool(view and view.directional)
+    prefer = want.get(d.game)
+
+    # EACH CASE IS SORTED BY ITS OWN RULER. Sorting the whole list by
+    # edge-per-margin ranked a FUTURE first on live NIFTY (2026-08-21): it
+    # has no vol residual, so it scored a clean zero while every option in
+    # the cascade scored negative for being correctly rich.
+    def _rank(c):
+        v = (c.convexity_per_margin if c.case == "FLOW" else c.edge_per_margin)
+        return -(v if v is not None else float("-inf"))
+
+    live = [c for c in d.candidates if c.status == "DEPLOYABLE"]
+    live.sort(key=_rank)
+
+    def _pick(pool):
+        # A BELT AGAINST THE BRACES, KEPT. A MISPRICING structure never
+        # becomes `best` on a non-positive edge -- that was the original
+        # guard and the reason for it has not changed. A FLOW structure is
+        # exempt because its case is not the residual (see `_finish`), and
+        # holding it to a residual test would re-impose the floor the case
+        # exists to sit outside of.
+        return next((c.name for c in pool
+                     if c.case == "FLOW" or (c.edge_per_margin or 0.0) > 0),
+                    None)
+
+    if prefer == "NONE":
+        d.best = None
+        d.why.append("gear is TRANSITION: a full tank with no ignition. "
+                     "regime.py's own reading is that BOTH games lose here, "
+                     "so nothing is named best however well it prices.")
+    elif prefer:
+        d.best = _pick([c for c in live if c.case == prefer]) or _pick(live)
+    else:
+        d.best = _pick(live)
+    # The DISPLAY order, which uses the same per-case ruler so the rail on
+    # screen agrees with `best` instead of contradicting it two rows down.
+    d.candidates.sort(key=lambda c: (_ORDER[c.status], _rank(c)))
     if not live:
         d.why.append("nothing deployable: the surface and the regime do not "
                      "currently agree on any structure this stack can build")

@@ -1,6 +1,6 @@
 # TapeMap — start here
 
-**Last verified: 2026-08-20.** Every number below was measured on that date, not
+**Last verified: 2026-08-22.** Every number below was measured on that date, not
 remembered. If you are an AI or a person picking this project up, read this file
 to the end before touching anything. It exists because handovers kept starting
 from stale assumptions and re-doing work that is finished, dead, or forbidden.
@@ -46,6 +46,25 @@ Read these first. Each one has cost real time.
 A local, single-operator trading instrument for **intraday index options** on
 NSE/BSE (NIFTY, BANKNIFTY, SENSEX). It is not a product, has no users but one,
 and places **no orders** anywhere.
+
+**IT IS NOW TWO INSTRUMENTS SHARING ONE SERVER, and confusing them is the
+fastest way to waste a session.** They were built months apart, for opposite
+sides of the same trade, and neither supersedes the other:
+
+| | THE TAPE (older) | THE DESK (newer) |
+|---|---|---|
+| question | *when is a move coming* | *which instrument, and which structure* |
+| side | a BUYER's question | a SELLER's desk |
+| screen | `/console.html`, the Kite overlay | `/desk.html` |
+| entry point | `engine.py` / `band_rotation.py` | `desk.py` / `surface.py` |
+| record | `data/trigger_log.jsonl` | forward-only, none yet |
+| read | this file, then §5 | **`HANDOFF-DESK.md` in full** |
+
+If your task says *structure*, *strategy*, *vol*, *surface*, *margin*, *sizing*
+or *recommendation*, you are working on THE DESK — read `HANDOFF-DESK.md`
+before this file's §2, which is about the tape. If it says *zone*, *d2/d3*,
+*arm*, *trigger*, *setup* or *the forward record*, you are on THE TAPE and this
+file is the right one.
 
 It does three things:
 
@@ -129,7 +148,25 @@ Upstox REST ─► contract_bars.py ─► live.py ─► engine.py ──► /a
                                       └─ trigger_log.py     (the forward record)
                                                    │
 server.py :8765 ───────────────────────────────────┴──► Chrome extension overlay
-                                                   └──► ui-v2/ (React, legacy-ish)
+                                                   └──► ui-v2/ (React, ABANDONED)
+
+── THE DESK, a separate stack on the same server ─────────────────────────
+
+Upstox chain ─► surface.py ──────────┐   (vega-weighted quadratic smile;
+                (fits ONE expiry)    │    a=ATM vol, b=skew, c=convexity,
+                                     │    per-point residual and z)
+                                     ▼
+chain_metrics.py ─► regime_from_chain ─► desk.py ──► /api/desk
+(flip_px, gex, max_pain)                    ▲         (every structure,
+                                            │          one STATUS each)
+chainside.py ─► fuel / drain / trapped side │
+     +         ──► direction.py ────────────┘
+fuse.py + regime.py (the gear)  (BULL/BEAR/NEUTRAL + FORCED/LEANING/NONE)
+
+drag.py     ──► /api/drag     (the buyer's tax, session-anchored)
+surface.py  ──► /api/surface  (the fitted smile, per index)
+                    │
+                    └──► ui/desk.html  (THE screen. Plain HTML, no build step)
 ```
 
 **Live path, by size:** `engine.py` (1339) · `band_rotation.py` (1274) ·
@@ -164,7 +201,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 707 tests, all green as of 2026-08-20
+python -m pytest -q       # 842 tests, all green as of 2026-08-22
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a
@@ -236,11 +273,65 @@ Each of these cost a session. They are guarded in code; do not remove the guards
 
 ---
 
+## 6b. THE DESK, in one screen — and the trap that keeps catching it
+
+Full detail is in `HANDOFF-DESK.md`; this is the minimum a new agent needs so
+it does not re-derive the wrong model.
+
+**The catalog is 13 structures with a STATUS each**, never a confidence score:
+`DEPLOYABLE` / `STAND_ASIDE` / `BLOCKED` with the missing input named. Blocked
+rows are always rendered — an absent row reads as "not considered".
+
+**Every candidate carries a `case`, and the case decides which ruler ranks it.**
+Getting this wrong is the single most repeated bug in this stack:
+
+| case | the trade's argument is | ranked by | the floor |
+|---|---|---|---|
+| `MISPRICING` | the RESIDUAL — a point off its own curve | edge per rupee of margin | `MIN_EDGE_RS` applies |
+| `FLOW` | forced flow — someone must transact | **convexity** per rupee of margin | exempt; `edge` is only a caveat |
+| `REGIME` | the GEAR — hedging damps, so sell premium | edge per rupee of margin | exempt, but a NEGATIVE edge stands aside |
+
+**The gear picks the case before anything is ranked.** CASCADE wants `FLOW`,
+PIN wants `REGIME`, TRANSITION wants nothing at all. Ranking across cases mixes
+quantities three orders of magnitude apart, and has twice produced a
+confidently wrong "best".
+
+**The direction view is `direction.py`, and it measures nothing new.** A short
+call is in pain when price rises, so a trapped CE side relieves UPWARD:
+`ce -> BULL`, `pe -> BEAR`. `FORCED` — the trapped side actually draining,
+inside CASCADE — is the ONLY state that licenses a directional structure;
+`LEANING` names a side and licenses nothing. **Bias and gear are two fields and
+must never collapse into one**: a bull view in PIN is the market paying you to
+SELL PUTS, not to buy calls.
+
+**Costs are ZERO and that is deliberate.** `desk.STATUTORY_PCT = 0.0` — the
+operator's broker charges no brokerage and rebates statutory charges on any
+position closing at least ₹1 positive. `STATUTORY_PCT_IF_CHARGED` holds the old
+0.0014 for the day that arrangement ends. Do not "fix" this back.
+
+**THE TRAP, stated once because it has now caught three sessions running: a
+passing test suite is not evidence the model is right.** Every serious defect
+in the desk has been found by live data or an adversarial reader, never by
+pytest — which passed at 707, at 829, and at every stage between, over a future
+out-ranking convexity, a credit spread deploying in the wrong gear, a drain
+counter that summed both sides, a rank that could never fire, and a margin
+rendered as a bold ₹0. Before reporting that anything works, ask the only
+question that matters: **would a desk take this trade?**
+
 ## 7. What is open
 
 - **The forward test needs more rows.** NIFTY BUY is the biggest zone cell at
   n=9. There is nothing to do but let it run — `eod_capture` and the logger are
   automatic.
+- **The desk has NO track record at all.** `direction.py`, the flow catalog and
+  the drag meter were built 2026-08-21/22 and have never run through a live
+  session end to end. `direction.py` carries a kill condition in its docstring:
+  if after ~30 scored sessions `FORCED` views do not resolve in the named
+  direction more often than `LEANING` ones, it is rewritten; if neither beats
+  naming no direction at all, it is deleted rather than tuned.
+- **Multi-day surface history** is the biggest unlock left. Until it exists,
+  richness is CROSS-SECTIONAL only — a point against today's curve, never "the
+  surface is rich". `HANDOFF-DESK.md` §8 lists the rest in dependency order.
 - **The operator owes §5e's pass bar**, stated before the numbers are read.
 - **Port the tape layer into PaperDesk 1.21.1** (§5), and fix that line's five
   open bugs.
@@ -264,7 +355,7 @@ Each of these cost a session. They are guarded in code; do not remove the guards
 - **Keep the populations apart.** `5c`, `zone` and legacy rows are three
   different things. Pooling them is the single easiest way to destroy months of
   record.
-- **Tests are the house style.** `pytest -q` stays green (707), and non-trivial
+- **Tests are the house style.** `pytest -q` stays green (842), and non-trivial
   logic leaves one runnable check behind. Doc claims about test counts are pinned
   by `test_docs_claims.py` — update the docs when the count moves, or the suite
   fails on purpose.

@@ -107,14 +107,31 @@ def test_only_the_defined_risk_spread_survives_an_amplifying_regime():
 
 
 def test_a_structure_this_stack_cannot_build_says_what_is_missing():
+    """A blocked row must name ITS OWN gap, not a generic one.
+
+    UPDATED 2026-08-21. `bull_put_spread`, `bear_call_spread` and their two
+    siblings used to sit in `_UNSUPPORTED` blocking on "a direction view --
+    nothing in this stack computes bullish or bearish". `direction.py` now
+    computes one, so they are BUILT, and with no view passed they block on the
+    view being ABSENT rather than impossible -- a different sentence for a
+    different situation. `risk_reversal` and `strip_strap` stayed unsupported,
+    but their reason changed with them: what they lack now is a margin model
+    for a naked leg financed by another, not a direction.
+    """
     d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()))
     by = {c.name: c for c in d.candidates}
     assert by["calendar"].status == "BLOCKED"
     assert any("second expiry" in m for m in by["calendar"].missing)
-    for n in ("bull_put_spread", "bear_call_spread", "risk_reversal",
-              "strip_strap"):
-        assert by[n].status == "BLOCKED"
+    # built, but with no view supplied -- blocks on the view being absent
+    for n in ("bull_put_spread", "bear_call_spread", "long_call", "long_put",
+              "bull_call_spread", "bear_put_spread",
+              "long_future", "short_future"):
+        assert by[n].status == "BLOCKED", n
         assert any("direction view" in m for m in by[n].missing), n
+    # still genuinely unsupported, and no longer for want of a direction
+    for n in ("risk_reversal", "strip_strap", "ratio_backspread"):
+        assert by[n].status == "BLOCKED", n
+        assert any("margin" in m for m in by[n].missing), n
 
 
 def test_an_unfitted_surface_blocks_everything():
@@ -332,10 +349,18 @@ def test_no_crossing_with_no_gex_stays_unknown():
 def test_a_statistically_extreme_but_worthless_residual_is_refused():
     """Live NIFTY had rmse 0.080 vol pts, so z >= 1.5 needed only 0.12 vol
     points -- and the 'best' trade was a deep-OTM put spread worth 23 paise a
-    unit with net edge ZERO. A z-score says how UNUSUAL, never how much."""
+    unit with net edge ZERO. A z-score says how UNUSUAL, never how much.
+
+    THE FLOOR MOVED 1.00 -> 0.25 on 2026-08-21 when the desk went zero-cost,
+    and this fixture moved with it. The live 23-paise example that motivated
+    the test is STILL refused (0.23 < 0.25) -- what changed is how much
+    headroom the fixture has, not what it asserts. The floor was never a cost
+    floor; it is a significance floor, and it survives the rebate.
+    """
     # deep-OTM strikes carry little vega, so a residual that clears z on a
-    # tight fit is still worth almost nothing in rupees
-    tiny = {23900: 0.0005, 23950: -0.0005}
+    # tight fit is still worth almost nothing in rupees. z here is ~3.6 --
+    # emphatically significant -- and the pair is worth 16 paise a unit.
+    tiny = {23900: 0.0001, 23950: -0.0001}
     d = desk.decide(_surf(tiny), desk.regime_from_chain(_doc()))
     rv = {c.name: c for c in d.candidates}["vertical_relative_value"]
     assert rv.status == "BLOCKED"
@@ -689,3 +714,206 @@ def test_an_assumed_lot_size_says_so_out_loud():
 
 def test_the_fallback_table_matches_the_real_sizes():
     assert desk.LOT_SIZE == {"NIFTY": 65, "BANKNIFTY": 30, "SENSEX": 20}
+
+
+# --------------------------------------------------------------------------
+# the FLOW half -- added 2026-08-21 with direction.py
+#
+# These test the DISCIPLINE, not the plumbing. The plumbing (does a long call
+# have one leg) is uninteresting; what matters is that the gear decides which
+# structure is even asked for, because reading "BULL" as "buy calls" while
+# hedging damps every excursion is the exact error the split exists to stop.
+# --------------------------------------------------------------------------
+
+def _view(bias="BULL", gear="CASCADE", drain=True, side="ce"):
+    import direction
+    return direction.read(
+        {"fuel_rank": 0.9, "worst_pain": 40.0, "worst_leg": "24700CE",
+         "trapped_side": side, "one_sided": True, "drain": drain,
+         "warm": True, "notes": [], "tag": "I"}, gear)
+
+
+def test_forced_bull_in_cascade_deploys_the_convexity_structures():
+    v = _view()
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=v, lot_size=65)
+    by = {c.name: c for c in d.candidates}
+    assert by["long_call"].status == "DEPLOYABLE"
+    assert by["bull_call_spread"].status == "DEPLOYABLE"
+    assert by["long_future"].status == "DEPLOYABLE"
+    # and the mirror image is BLOCKED, not missing
+    assert by["long_put"].status == "BLOCKED"
+    assert by["short_future"].status == "BLOCKED"
+
+
+def test_the_gear_picks_the_case_so_a_cascade_names_a_flow_trade_best():
+    """The reason `best` is not simply the highest edge-per-margin any more.
+    A long call bought into a cascade is usually RICH to its own curve, so on
+    residual edge alone the gear's own trade ranks below a vol spread."""
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(), lot_size=65)
+    best = {c.name: c for c in d.candidates}[d.best]
+    assert best.case == "FLOW", d.best
+
+
+# short leg rich, bought wing cheap -- what a credit spread actually wants
+GOOD_PUT_CREDIT = {24200: 0.020, 24100: -0.018}
+GOOD_CALL_CREDIT = {24600: 0.020, 24700: -0.018}
+
+
+def test_a_bull_view_in_PIN_sells_puts_and_refuses_to_buy_calls():
+    """The error this stack exists to prevent, asserted directly."""
+    d = desk.decide(_surf(GOOD_PUT_CREDIT), desk.regime_from_chain(_doc()),
+                    view=_view(gear="PIN"), lot_size=65)
+    by = {c.name: c for c in d.candidates}
+    assert by["long_call"].status == "BLOCKED"
+    assert any("FORCED" in m or "forced" in m for m in by["long_call"].missing)
+    assert by["bull_put_spread"].status == "DEPLOYABLE"
+    assert by["bull_put_spread"].legs[0].side == "SELL"
+    assert by["bull_put_spread"].legs[0].right == "PE"
+
+
+def test_transition_names_nothing_best_however_well_it_prices():
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(gear="TRANSITION", drain=False), lot_size=65)
+    assert d.best is None
+    assert any("TRANSITION" in w for w in d.why)
+
+
+def test_a_futures_leg_carries_delta_one_and_undefined_risk():
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(), lot_size=65)
+    fut = {c.name: c for c in d.candidates}["long_future"]
+    assert fut.risk == "UNDEFINED" and fut.max_loss is None
+    assert fut.net_delta == 1.0
+    assert fut.lots > 0, "a futures leg has no OI and must not size to zero"
+
+
+def test_a_flow_structure_is_not_held_to_the_mispricing_floor():
+    """Its case is the flow, not the residual. Held to the residual floor
+    every one of these would block -- correctly rich, and refused for it."""
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(), lot_size=65)
+    lc = {c.name: c for c in d.candidates}["long_call"]
+    assert lc.status == "DEPLOYABLE"
+    assert lc.case == "FLOW"
+
+
+def test_no_view_blocks_the_whole_flow_half_and_leaves_the_vol_half_alone():
+    """None is a supported answer, not a degraded one."""
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()))
+    by = {c.name: c for c in d.candidates}
+    assert all(by[n].status == "BLOCKED"
+               for n in ("long_call", "long_put", "bull_call_spread",
+                         "bear_put_spread", "long_future", "short_future"))
+    assert by["vertical_relative_value"].status == "DEPLOYABLE"
+
+
+def test_costs_are_zero_because_the_broker_rebates_them():
+    assert desk.STATUTORY_PCT == 0.0
+    assert desk.STATUTORY_PCT_IF_CHARGED == 0.0014
+    legs = [desk.Leg(side="SELL", strike=24_400, right="CE", ltp=200.0)]
+    assert desk._costs(legs) == 0.0
+
+
+# --------------------------------------------------------------------------
+# Both of these were found by LIVE DATA on 2026-08-21, not by this suite --
+# which passed at every stage. They are pinned here so the next reader does
+# not have to rediscover them on a real chain.
+# --------------------------------------------------------------------------
+
+def test_a_cascade_never_names_a_future_best_over_convexity():
+    """RANKED BY THE WRONG RULER, A FUTURE WON. Sorting FLOW candidates by
+    residual edge put `long_future` top of a live NIFTY cascade: a future has
+    no vol residual, so it scored a clean ZERO while every option scored
+    negative for being correctly rich. A delta-1 instrument is the least
+    convex thing on the board and cannot be a cascade's best expression."""
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(), lot_size=65)
+    by = {c.name: c for c in d.candidates}
+    assert by["long_future"].status == "DEPLOYABLE"      # still offered...
+    assert d.best != "long_future"                        # ...never the pick
+    assert by["long_future"].convexity_per_margin == 0.0
+    assert by["long_call"].convexity_per_margin > 0
+    assert by["long_call"].convexity_per_margin > \
+        by["bull_call_spread"].convexity_per_margin, \
+        "a spread sells gamma back; the outright must out-rank it"
+
+
+def test_a_credit_spread_needs_the_PIN_gear_not_merely_the_flip():
+    """Live NIFTY read FORCED BULL in CASCADE while `above_flip` was True (a
+    NO_CROSSING chain damps everywhere), and the bull put spread deployed at
+    10,586 lots -- selling premium into a cascade because one of the two
+    regime reads happened to be permissive."""
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(gear="CASCADE"), lot_size=65)
+    bps = {c.name: c for c in d.candidates}["bull_put_spread"]
+    assert bps.status == "STAND_ASIDE"
+    assert any("not PIN" in w for w in bps.why)
+
+
+def test_a_flow_structure_is_measured_against_its_premium_not_its_residual():
+    """A 65-paise quote spread blocked a live BANKNIFTY bear call spread by
+    being compared against its 2-paise vol residual -- a quantity that is
+    neither the trade's case nor what the spread is eating."""
+    quotes = {24600: {"ce": {"bid": 154.00, "ask": 154.65}}}
+    d = desk.decide(_surf(GOOD_CALL_CREDIT, quotes),
+                    desk.regime_from_chain(_doc()),
+                    view=_view(gear="PIN", side="pe"), lot_size=65)
+    bcs = {c.name: c for c in d.candidates}["bear_call_spread"]
+    assert bcs.status == "DEPLOYABLE", bcs.missing
+
+
+def test_a_credit_spread_that_sells_under_fair_value_stands_aside():
+    """The REGIME guard, which used to protect only the pin straddle.
+
+    On RICH_BOTH the bought wing is the rich one, so a bear call spread there
+    sells an on-curve strike to buy an expensive one -- measured at
+    Rs -23.26/unit. That is the surface saying the market is OFFERING this
+    premium rather than paying for it, which argues for buying the spread, not
+    selling it. Before 2026-08-22 the credit verticals were tagged FLOW and
+    skipped this check entirely.
+    """
+    d = desk.decide(_surf(RICH_BOTH), desk.regime_from_chain(_doc()),
+                    view=_view(gear="PIN", side="pe"), lot_size=65)
+    bcs = {c.name: c for c in d.candidates}["bear_call_spread"]
+    assert bcs.status == "STAND_ASIDE"
+    assert bcs.edge < 0
+    assert any("cheap to the curve" in w for w in bcs.why)
+    assert bcs.legs, "the legs stay visible beside the reason they are refused"
+
+
+def test_in_PIN_the_direction_aware_credit_spread_can_actually_be_best():
+    """It could not, before 2026-08-22.
+
+    `want` mapped SELL_PREMIUM to None, so PIN ranked the whole deployable
+    list on one key -- edge-per-margin for MISPRICING against
+    convexity-per-margin for FLOW, three orders of magnitude apart. The pin
+    straddle won on units, not on merit.
+    """
+    d = desk.decide(_surf(GOOD_PUT_CREDIT), desk.regime_from_chain(_doc()),
+                    view=_view(gear="PIN"), lot_size=65)
+    by = {c.name: c for c in d.candidates}
+    assert by["bull_put_spread"].status == "DEPLOYABLE"
+    assert by["bull_put_spread"].case == "REGIME"
+    assert d.best == "bull_put_spread", d.best
+
+
+def test_the_pin_straddle_is_a_REGIME_trade_and_says_so_in_its_case():
+    """The docstring on Candidate.case promised this and the code did not do
+    it -- the exemption was still keyed on the structure's NAME."""
+    d = desk.decide(_surf(), desk.regime_from_chain(_doc()))
+    pin = {c.name: c for c in d.candidates}["short_straddle_pin"]
+    assert pin.case == "REGIME"
+
+
+def test_an_option_leg_with_no_OI_is_not_sized_on_capital_alone():
+    """A futures leg structurally has no OI; an option missing it is a feed
+    gap. Sizing both on capital alone treats two different absences alike."""
+    c = desk.Candidate("x", "DEPLOYABLE", case="MISPRICING",
+                       legs=[desk.Leg(side="SELL", strike=24_400, right="CE",
+                                      ltp=100.0)])
+    c.margin_per_lot = 10_000.0
+    desk._size(c, 5e7, 65)
+    assert c.lots == 0
+    assert "gap in the feed" in c.liquidity_note
