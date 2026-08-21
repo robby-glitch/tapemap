@@ -136,3 +136,47 @@ def test_a_gap_in_the_feed_does_not_join_the_frames_either_side_of_it():
     assert det.on_snapshot("09:57", None, None) is None          # feed gap
     assert det.on_snapshot("09:58", _drop(was, "ask", 3), 101_250) is None
     assert det.events == []
+
+
+# --------------------------------------------------------------------------
+# `side` is inferred, and the row now says so
+# --------------------------------------------------------------------------
+
+def _lad(bids, asks):
+    b = [{"price": p, "qty": q} for p, q in bids]
+    a = [{"price": p, "qty": q} for p, q in asks]
+    return {"bid": b, "ask": a,
+            "bid_qty": sum(x["qty"] for x in b),
+            "ask_qty": sum(x["qty"] for x in a),
+            "tbq": None, "tsq": None}
+
+
+def test_the_measured_fields_and_the_inferred_one_carry_different_tags():
+    """`traded` comes from vtt, an INSTRUMENT TOTAL with no direction, so the
+    side is read off the ladder instead. That is an assumption about the book,
+    not an observation of the trades, and shipping it as [M] was the project's
+    own named original sin: an [I] delivered with [M] confidence."""
+    ev = sweep.between(_real_fut(), _drop(_real_fut(), "ask", 3), "10:00",
+                       1000.0, 1500.0)
+    assert ev.tag == "M"            # levels, qty, traded, prices
+    assert ev.side_tag == "I"       # side alone
+
+
+def test_the_side_that_lost_is_kept_instead_of_thrown_away():
+    """Both sides collapsing and one side being swept produce the SAME `side`.
+    Only the opposite side's loss tells them apart, so it is no longer
+    discarded -- this is the two-sided collapse of the Upstox bidAskQuote
+    pairing, which slicing a fixture used to simulate by accident."""
+    both = sweep.between(
+        _lad([(100.0, 10), (99.0, 10), (98.0, 10), (97.0, 10)],
+             [(101.0, 10), (102.0, 10), (103.0, 10), (104.0, 10)]),
+        _lad([(97.0, 10)], [(104.0, 10)]), "10:00", 0.0, 50.0)
+    assert both.opp_levels >= sweep.MIN_LEVELS
+    assert both.opp_qty > 0
+
+
+def test_a_clean_one_sided_sweep_reports_no_opposite_loss():
+    ev = sweep.between(_real_fut(), _drop(_real_fut(), "ask", 3), "10:00",
+                       1000.0, 1500.0)
+    assert ev.side == "buy"
+    assert ev.opp_levels == 0 and ev.opp_qty == 0.0

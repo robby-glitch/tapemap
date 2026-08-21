@@ -10,7 +10,17 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-20. **707 tests pass, none fail** (`pytest -q`,
+Last updated: 2026-08-21. **805 tests pass, none fail** (`pytest -q`,
+2026-08-21 — 775 plus eighteen in `test_desk.py` for `desk.py`'s risk/margin/
+sizing rebuild: legal structure shapes (a strangle wing must sit outside the
+expected move AND be delta-balanced against its partner -- the exact live bug
+where a 12-point-from-spot PE was named a wing), max loss and breakevens per
+structure (naked structures report UNDEFINED risk, never a fake ceiling), a
+documented [I] margin floor (defined-risk = max loss; naked legs = a
+percentage-of-notional model, explicitly never SPAN), the real score (edge
+per rupee of margin, ranked on that instead of raw edge), and sizing that
+follows from stated capital and is capped by the thinnest leg's own OI and
+by a bid/ask spread wide enough to swallow the edge; before that 775 after the
 run 2026-08-15: 569 after the ponytail cleanup below, plus six in
 `test_zone_state.py` pinning the §1b zone machine; `test_docs_claims.py`
 pins this very number against the run). Branch:

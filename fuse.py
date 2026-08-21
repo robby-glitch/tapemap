@@ -82,6 +82,10 @@ class Evidence:
     buys: int = 0
     sells: int = 0
     one_sided_book: Optional[bool] = None
+    # The share of vanished size sitting on the dominant side, 0.5..1.0. This
+    # is the number `one_sided_book` is a threshold on -- published so a reader
+    # can see 0.51 (a coin flip that happened to clear nothing) apart from 0.99.
+    one_sided_qty: Optional[float] = None
     pulls: int = 0
     absorptions: int = 0
     warm: bool = False
@@ -150,7 +154,28 @@ class Fuse:
             absorptions=sum(1 for r in win if r.get("det") == "absorption"),
             warm=warm)
         if sweeps:
-            ev.one_sided_book = max(buys, sells) / len(sweeps) >= ONE_SIDED
+            # WEIGHTED BY SIZE, NOT BY ROW COUNT. `side` is [I] -- it is picked
+            # from whichever ladder lost more, so a two-sided collapse produces
+            # a row whose side is close to a coin flip. Counting rows let such
+            # a row vote at full strength beside a clean one-sided sweep.
+            # Weighting by the size that actually vanished lets a row which
+            # contradicts itself count for less, using `opp_qty` -- the losing
+            # side sweep.py now keeps instead of discarding.
+            #
+            # Rows written before opp_qty existed default to 0.0, which reads
+            # as perfectly one-sided -- the OLD behaviour exactly. A window
+            # mixing old and new rows therefore degrades toward the row count
+            # rather than to something arbitrary.
+            wb = sum((r.get("qty") or 0.0) for r in sweeps
+                     if r.get("side") == "buy")
+            ws = sum((r.get("qty") or 0.0) for r in sweeps
+                     if r.get("side") != "buy")
+            opp = sum((r.get("opp_qty") or 0.0) for r in sweeps)
+            tot = wb + ws + opp
+            ev.one_sided_qty = round(max(wb, ws) / tot, 3) if tot > 0 else None
+            ev.one_sided_book = (
+                ev.one_sided_qty >= ONE_SIDED if ev.one_sided_qty is not None
+                else max(buys, sells) / len(sweeps) >= ONE_SIDED)
         if not warm:
             ev.notes.append(f"only {len(self._sweep_rank)} sweeps ranked so far; "
                             f"percentiles are not trusted below {MIN_HIST}")

@@ -172,3 +172,45 @@ def test_a_percentile_so_far_scores_every_new_maximum_at_one():
     for x in range(1, 30):
         last = r.rank(x * 10)
     assert last == 1.0
+
+
+# --------------------------------------------------------------------------
+# one-sidedness weighted by size, not by row count
+# --------------------------------------------------------------------------
+
+def test_a_row_that_contradicts_itself_no_longer_votes_at_full_strength():
+    """`side` is [I]: it is whichever ladder lost MORE, so a two-sided collapse
+    yields a row whose side is close to a coin flip. Counting rows let three
+    such rows read as a decisively one-sided book. Weighting by the size that
+    actually vanished -- including the losing side's `opp_qty` -- lets a
+    self-contradicting row count for less."""
+    b = fuse.Fuse()
+    rows = [dict(_sweep(1000, "buy"), opp_qty=950.0) for _ in range(3)]
+    ev = b.on_rows(rows)
+    assert ev.sweeps == 3 and ev.buys == 3     # every row says "buy"
+    # ... but half the size that vanished was on the other side
+    assert ev.one_sided_qty is not None and ev.one_sided_qty < fuse.ONE_SIDED
+    assert ev.one_sided_book is False
+
+
+def test_a_genuinely_one_sided_book_still_reads_one_sided():
+    b = fuse.Fuse()
+    ev = b.on_rows([dict(_sweep(1000, "buy"), opp_qty=0.0) for _ in range(3)])
+    assert ev.one_sided_qty == 1.0 and ev.one_sided_book is True
+
+
+def test_rows_written_before_opp_qty_existed_keep_the_old_reading():
+    """A forward log cannot be rewritten, so old rows must not change meaning.
+    Absent `opp_qty` defaults to 0.0, which is exactly the old behaviour."""
+    b = fuse.Fuse()
+    ev = b.on_rows([_sweep(1000, "buy") for _ in range(3)])   # no opp_qty key
+    assert ev.one_sided_book is True
+
+
+def test_the_share_is_published_not_just_the_verdict():
+    """0.51 and 0.99 both clear or fail one threshold; a reader must be able to
+    tell a knife-edge from a landslide."""
+    b = fuse.Fuse()
+    ev = b.on_rows([dict(_sweep(1000, "buy"), opp_qty=0.0),
+                    dict(_sweep(1000, "sell"), opp_qty=0.0)])
+    assert ev.one_sided_qty == 0.5 and ev.one_sided_book is False

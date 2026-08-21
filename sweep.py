@@ -101,16 +101,43 @@ MIN_LEVELS = 2
 
 @dataclass
 class Sweep:
-    """One interval's worth of book consumed, or withdrawn."""
+    """One interval's worth of book consumed, or withdrawn.
+
+    **`side` IS INFERRED AND THE REST IS NOT, WHICH IS WHY THERE ARE TWO TAGS.**
+    `levels`, `qty`, `from_px`, `to_px` and `traded` are differences taken off
+    the wire -- levels that stopped being there, the size that had stood on
+    them, the volume across the interval. Those are `[M]`.
+
+    `side` is not. `traded` comes from `vtt`, which is an INSTRUMENT TOTAL and
+    carries no direction at all, so the side is picked from whichever ladder
+    lost more -- a reading of the book, not a reading of the trades. Cancel the
+    asks while sell aggression hits the bid and this reports `buy`. It is
+    therefore `[I]`, and `side_tag` says so on every row.
+
+    Why not infer it properly from `ltp` (the quote rule): attributing a whole
+    interval to the side implied by its LAST print scores p^2+(1-p)^2 of the
+    volume correctly -- 50% on a balanced interval, a coin flip, and better
+    than chance only when the interval is already lopsided, which is exactly
+    when the ladder already says so. It would carry information only where it
+    is redundant. Worse, a per-side VOLUME is a magnitude, and this project's
+    footprint rule permits shape and sequence and never magnitude.
+
+    `opp_levels`/`opp_qty` are the other side's loss, kept rather than thrown
+    away, so a reader can see how one-sided the interval actually was instead
+    of taking `side` on trust.
+    """
     t: str
-    side: str                  # buy  = offers lifted | sell = bids hit
+    side: str                  # buy  = offers lifted | sell = bids hit  [I]
     kind: str                  # swept | pulled | unknown
     levels: int                # resting levels that stopped being there
     qty: float                 # displayed size that had been standing on them
     traded: Optional[float]    # volume across the interval, None if unknown
     from_px: float             # best price on that side before
     to_px: float               # best price on that side after
-    tag: str = "M"
+    opp_levels: int = 0        # levels the OTHER side lost in the same interval
+    opp_qty: float = 0.0       # and the size that had stood on them
+    tag: str = "M"             # levels / qty / traded / prices
+    side_tag: str = "I"        # `side` alone -- see the class docstring
 
 
 def _gone(levels: List[dict], edge: float, above: bool) -> tuple:
@@ -154,9 +181,17 @@ def between(prev: Optional[dict], now: Optional[dict], t: str = "",
     if not best:
         return None
     # A genuine aggressor is one-sided; if both moved, the larger side is the
-    # one that was consumed and the other is the book following it.
+    # one that was consumed and the other is the book following it. That is an
+    # ASSUMPTION about the book, not an observation of the trades -- hence
+    # side_tag "I" on the result.
     side = max(best, key=lambda s: (best[s][0], best[s][1]))
     n, qty, from_px, to_px = best[side]
+    # The loser is KEPT, not discarded. A two-sided collapse and a clean
+    # one-sided sweep produce the same `side` today, and only these two fields
+    # tell them apart -- which is what `fuse` needs to stop counting a
+    # coin-flip row at full strength.
+    opp = [v for s, v in best.items() if s != side]
+    opp_levels, opp_qty = (opp[0][0], opp[0][1]) if opp else (0, 0.0)
 
     if traded is None:
         kind = "unknown"
@@ -165,7 +200,8 @@ def between(prev: Optional[dict], now: Optional[dict], t: str = "",
     else:
         kind = "pulled"
     return Sweep(t=t, side=side, kind=kind, levels=n, qty=qty, traded=traded,
-                 from_px=from_px, to_px=to_px)
+                 from_px=from_px, to_px=to_px,
+                 opp_levels=opp_levels, opp_qty=opp_qty)
 
 
 class SweepDetector:

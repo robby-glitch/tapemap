@@ -60,6 +60,20 @@ def gamma(F, K, iv, T):
     return math.exp(-R * T) * _pdf(_d1(F, K, iv, T)) / (F * iv * math.sqrt(T))
 
 
+def delta(F, K, iv, T, kind="C"):
+    """Black-76 delta: dPrice/dF. Call in (0, e^-rT); put in (-e^-rT, 0).
+
+    Used by desk.py to judge whether a pair of legs is "roughly delta-balanced"
+    -- a legality check on structure SHAPE, not a pricing input.
+    """
+    if T <= 0.0 or iv is None or iv <= 0.0:
+        intrinsic_up = 1.0 if kind == "C" else 0.0
+        return intrinsic_up if F > K else (0.0 if kind == "C" else -1.0)
+    df = math.exp(-R * T)
+    d1 = _d1(F, K, iv, T)
+    return df * _cdf(d1) if kind == "C" else df * (_cdf(d1) - 1.0)
+
+
 IV_LO, IV_HI = 0.01, 2.0    # bisection bracket: 1% to 200% annualized vol
 
 

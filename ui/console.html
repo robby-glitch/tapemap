@@ -109,9 +109,19 @@ function evidenceRows(e, c) {
   r.push(["book", (e.ignition ? "<b>IGNITION</b>" : "no ignition")
     + " &middot; rank " + num(e.ign_rank) + (e.ign_at ? " at " + esc(e.ign_at) : "")
     + (e.warm ? "" : ' <span class="muted">(not warm)</span>') + tag("M")]);
+  // COUNTS ARE MEASURED; THE SIDES THEY COUNT ARE NOT. `side` is picked from
+  // whichever ladder lost more -- an assumption about the book, never an
+  // observation of the trades, because vtt carries no direction. Stamping this
+  // row [M] put an [I] on screen wearing a measurement's tag, which is the one
+  // error this console exists to avoid. The share rides beside the verdict so
+  // 0.51 and 0.99 cannot read alike.
   r.push(["sweeps", e.sweeps + " in window &middot; <span class='buy'>" + e.buys
     + " buy</span> / <span class='sell'>" + e.sells + " sell</span>"
-    + (e.one_sided_book ? " &middot; <b>one-sided</b>" : "") + tag("M")]);
+    + (e.one_sided_book ? " &middot; <b>one-sided</b>" : "")
+    + (e.one_sided_qty == null ? ""
+       : " <span class='muted'>" + num(100 * e.one_sided_qty, 0)
+         + "% of size one way</span>")
+    + tag("I")]);
   r.push(["absorb/pull", e.absorptions + " absorbed &middot; " + e.pulls + " pulled" + tag("M")]);
   if (c && Object.keys(c).length) {
     r.push(["fuel", (c.fuel_rank == null ? '<span class="muted">not ranked yet</span>'
