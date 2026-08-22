@@ -10,8 +10,17 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-21. **842 tests pass, none fail** (`pytest -q`,
-2026-08-21 — 775 plus eighteen in `test_desk.py` for `desk.py`'s risk/margin/
+Last updated: 2026-08-22. **845 tests pass, none fail** (`pytest -q`,
+2026-08-22 — 842 minus 3 (`forcing.py` deleted, superseded by
+`fuse.py`/`regime.py`, see the 2026-08-22 entry below, taking its coverage
+in `test_operator_objects.py` with it) plus 6 new in `test_senses_api.py`:
+a composed-path test proving PIN and TRANSITION are now reachable through
+`server._view_for`, two guarding the new inputs stay honest (None, not a
+fabricated 0/False) below the engine's own warm-up and without Kite's
+order-count bridge, and three on routing (`/` redirects to `/desk.html`,
+`/api/health.feed` is null with a reason off the Upstox path and published
+verbatim when wired); before that 2026-08-21 — 775 plus eighteen in
+`test_desk.py` for `desk.py`'s risk/margin/
 sizing rebuild: legal structure shapes (a strangle wing must sit outside the
 expected move AND be delta-balanced against its partner -- the exact live bug
 where a 12-point-from-spot PE was named a wing), max loss and breakevens per
@@ -28,6 +37,34 @@ pins this very number against the run). Branch:
 writing (see the 2026-08-15 entry). *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
 `git status --short` are the live answer.*
+
+### 2026-08-22 — Phase 0: wire the three dead gears, kill the orphans
+
+`fuse.verdict()` (server.py, both call sites) never received `sigma_pctl`,
+`vwap_flips_per_hr` or `walls_holding`, so `regime.decide()` could only ever
+answer CASCADE or UNKNOWN and `direction.GAME` could never surface
+SELL_PREMIUM (PIN) or STAND_ASIDE (TRANSITION) — 12 unit tests on
+`regime.decide()` passed the whole time because nothing drove the composed
+path. Fixed by wiring real, already-computed inputs: `sigma_pctl` and
+`vwap_flips_per_hr` from the engine's own published session (`engine.Book.bw`
+band-width rank and a flip-count over `z`, both gated on `engine.MATURITY`);
+`walls_holding` from `pools.summary()`'s own `walls`/`orders_known` fields,
+None (not False) when the Kite order-count bridge is not running. New
+composed-path test in `test_senses_api.py` proves both gears reachable.
+
+Also this session: `/api/health` now publishes the Upstox feed's own status
+dict (`upstox_feed.UpstoxFeed.status()` had zero callers); `ui/desk.html`
+gained a 30s-amber/90s-red staleness tier on the age readout and feed dot,
+red reserved for a dead feed; `/` now redirects to `/desk.html` (302);
+`start-v2.bat` opens the desk directly instead of the abandoned `ui-v2`
+Vite app on :5173 (that section existed only to serve `ui-v2` and is gone,
+not just skipped); `/api/gex` and its `ui/app.js` fetch are removed (dead,
+zero other callers); `gamma.py`'s "never imported by engine.py" claim was
+false (`engine.py:36` imports `implied_vol`) and is corrected; **`forcing.py`
+is deleted** — see the operator-layer table update in `HANDOFF-OPERATOR.md`
+for why it is safe (`fuse.py`/`regime.py` already do the same job, replayably
+and wired live, which `forcing.py` never was); `_setup_logging` now rotates
+(5 MB x 3 backups) instead of growing `tapemap.log` forever.
 
 ### 2026-08-15 — the hybrid: TapeMap paints on the Kite chart through PaperDesk
 

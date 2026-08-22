@@ -1,8 +1,11 @@
 @echo off
-REM TapeMap v2 launcher (portable): runs from this file's own folder.
-REM v2 needs BOTH halves — the Python backend on 8765 and the Vite dev
-REM server on 5173, which proxies /api to it. Each gets its own window,
-REM so closing this launcher does not kill them.
+REM TapeMap launcher (portable): runs from this file's own folder.
+REM The desk (ui/desk.html) is served directly by the Python backend on
+REM 8765 -- plain HTML, no build step. The Vite dev server on 5173 (ui-v2,
+REM the abandoned React app) is NOT started here any more (2026-08-22): it
+REM existed only to serve ui-v2, nothing the desk needs proxies through it,
+REM and opening it left the operator staring at a dashboard with no data
+REM while this window said everything was fine.
 title TapeMap v2 Launcher
 cd /d "%~dp0"
 
@@ -76,22 +79,13 @@ echo Starting TapeMap live server on 8765...
 start "TapeMap server" cmd /k python server.py live
 
 :frontend
-REM --- v2 frontend (Vite, 5173) ---------------------------------------
-netstat -aon | findstr ":5173" | findstr "LISTENING" >nul
-if errorlevel 1 (
-  echo Starting the v2 dashboard ^(Vite^)...
-  start "TapeMap v2 UI" cmd /k corepack pnpm --dir ui-v2 dev
-) else (
-  echo v2 UI already up on 5173 - reusing it.
-)
-
-REM --- wait for Vite, then open the browser ----------------------------
-REM Poll instead of a fixed sleep: a cold start pays for dependency
-REM optimisation and can take far longer than the backend does.
-echo Waiting for the UI to answer on 5173...
+REM --- wait for the backend, then open the desk directly ---------------
+REM Poll instead of a fixed sleep: the tape/chain resolve on first request
+REM and a cold start can take a few seconds longer than a warm one.
+echo Waiting for the server to answer on 8765...
 set _try=0
 :wait
-netstat -aon | findstr ":5173" | findstr "LISTENING" >nul
+netstat -aon | findstr ":8765" | findstr "LISTENING" >nul
 if not errorlevel 1 goto ready
 set /a _try+=1
 if %_try% geq 45 goto slow
@@ -99,9 +93,9 @@ timeout /t 1 /nobreak >nul
 goto wait
 
 :ready
-start "" http://localhost:5173
+start "" http://127.0.0.1:8765/desk.html
 echo.
-echo Keep BOTH windows open: "TapeMap server" and "TapeMap v2 UI".
+echo Keep the "TapeMap server" window open.
 echo.
 echo Running on UPSTOX. Today's token was handled above - there is nothing
 echo to click. The TOKEN button in the dashboard is Dhan-only and cannot
@@ -111,7 +105,6 @@ exit /b
 
 :slow
 echo.
-echo 5173 never answered. Look at the "TapeMap v2 UI" window - a first
-echo run may still be installing packages, or corepack/pnpm may have
-echo failed there. The backend on 8765 is unaffected.
+echo 8765 never answered. Look at the "TapeMap server" window for the
+echo actual error.
 timeout /t 15 /nobreak >nul

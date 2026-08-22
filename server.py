@@ -191,6 +191,74 @@ def _surface_read(poller, idx):
                             surface_mod.years_to_expiry(expiry), f_src=f_src)
 
 
+def _regime_engine_read(payloads, idx):
+    """sigma_pctl, vwap_flips_per_hr for one index -- from the engine's OWN
+    published session, not invented here. Returns (sigma_pctl,
+    vwap_flips_per_hr, why); why is None on success, else a reason and both
+    values are None.
+
+    `fuse.verdict()`'s two chain-blind inputs sat dead since the gate was
+    wired: nothing ever passed `sigma_pctl` or `vwap_flips_per_hr`, so
+    `regime.decide` could only ever answer CASCADE or UNKNOWN. Both are
+    already computed by the tape engine, per 1-minute bar:
+
+      sigma_pctl -- `engine.Book.bw` (engine.py:118,130-131) ranks VWAP band
+      WIDTH percentile-so-far against this session's own distribution. The
+      latest bar's `bw_r` IS "how tight is sigma against this session" --
+      exactly what `regime.decide`'s TRANSITION check reads.
+
+      vwap_flips_per_hr -- not published directly, but `f["z"]`
+      (engine.py:129, close position relative to the VWAP band) is, per bar.
+      Counting z's sign changes across consecutive published bars and rating
+      it per hour is the same VWAP-interaction reading `regime.py`'s PIN
+      check wants, built from a quantity the engine already carries rather
+      than a new one invented here.
+
+    GATED ON THE ENGINE'S OWN MATURITY, not a threshold picked here:
+    engine.py:918 (`if i >= MATURITY`) is where the tape's own state machine
+    starts trusting `bw_r`; fewer bars than that and both values are None
+    with a reason, per constraint 3 -- never a number from noise.
+    """
+    from engine import MATURITY
+    box = (payloads or {}).get(idx)
+    sess = box.get("session") if isinstance(box, dict) else None
+    bars = ((sess or {}).get("day") or {}).get("bars") if sess else None
+    if not bars:
+        return None, None, f"no live engine session yet for {idx}"
+    fut = [b["fut"] for b in bars if b.get("fut")]
+    if len(fut) < MATURITY:
+        return None, None, (f"only {len(fut)} bar(s) this session; the "
+                            f"engine's own bands need {MATURITY} before "
+                            "they carry statistical weight (engine.MATURITY)")
+    sigma_pctl = fut[-1].get("bw_r")
+    window = fut[-60:]                 # "last hour" -- engine.py:919's own look
+    flips = sum(1 for a, b in zip(window, window[1:])
+               if (a.get("z") or 0) * (b.get("z") or 0) < 0)
+    span_hr = (len(window) - 1) / 60.0
+    vwap_flips_per_hr = round(flips / span_hr, 1) if span_hr > 0 else None
+    return sigma_pctl, vwap_flips_per_hr, None
+
+
+def _walls_holding(pools_summary):
+    """walls_holding for `regime.decide`, from `pools.summary()`'s own
+    fields -- the third dead gear. Returns (walls_holding, why).
+
+    A shelf becomes a WALL only when the order count says a few hands hold
+    it (`pools.WALL_ORDERS`, pools.py:75,103-117); without Kite's order-count
+    bridge `orders_known` is False and `walls` is always 0 by construction --
+    reporting that as "no walls holding" would be exactly the invented zero
+    constraint 3 forbids. None with pools.py's own reason in that case;
+    otherwise walls_holding is simply whether this instrument's book has any
+    shelf classified as a wall right now.
+    """
+    if not pools_summary:
+        return None, "no book terrain mapped yet for this instrument"
+    if not pools_summary.get("orders_known"):
+        return None, ("order counts absent from this feed; wall vs cluster "
+                      "unknowable (pools.py)")
+    return pools_summary.get("walls", 0) > 0, None
+
+
 def _senses_loop(poller, period=0.5):
     """Drive the book detectors off the chain poller's ALREADY-OPEN socket.
 
@@ -306,11 +374,19 @@ def _senses_loop(poller, period=0.5):
 
 def _setup_logging():
     """Console AND tapemap.log — the 2026-07-27 freeze left its only evidence
-    in a closed console window; the log file survives."""
+    in a closed console window; the log file survives.
+
+    ROTATING, not a plain FileHandler: this server runs for a whole session
+    (or many, across days, if never stopped) and an unbounded log is a slow
+    leak that only shows up as "disk is full" months later. 5 MB x 3 backups
+    keeps a session or two of history without growing forever.
+    """
+    from logging.handlers import RotatingFileHandler
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.FileHandler(ROOT / "tapemap.log", encoding="utf-8"),
+        handlers=[RotatingFileHandler(ROOT / "tapemap.log", maxBytes=5 * 1024 * 1024,
+                                      backupCount=3, encoding="utf-8"),
                   logging.StreamHandler()])
 
 
@@ -539,13 +615,41 @@ class Handler(SimpleHTTPRequestHandler):
         #     on 2026-08-06 and the launcher reused it.
         #   * the UI's NOT LIVE banner, which named an expired Dhan token as
         #     the usual cause while the tool was running on Upstox.
+        if urlsplit(self.path).path == "/":
+            # The site root IS the desk now -- start-v2.bat opens it directly
+            # and a bookmark to "/" should land there too. /index.html (the
+            # legacy landing page) stays reachable by its own name; only the
+            # bare root redirects.
+            self.send_response(302)
+            self.send_header("Location", "/desk.html")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if self.path.startswith("/api/health"):
             from chain_live import _broker
+            # UpstoxFeed.status() / UpstoxChainSource.status() (upstox_feed.py:
+            # 116-123) existed with zero callers -- a dead socket had nowhere
+            # to say so except the senses loop's own /api/senses error, which
+            # only runs live. `feed` is None with a reason on the Dhan/mock
+            # path or before the chain source has connected, per constraint 3
+            # -- never a fabricated "healthy".
+            feed, feed_why = None, None
+            src = getattr(self.poller, "src", None) if self.poller else None
+            status_fn = getattr(src, "status", None)
+            if callable(status_fn):
+                feed = status_fn() or None
+                if feed is None:
+                    feed_why = "chain source has no feed yet (starting up)"
+            else:
+                feed_why = ("no Upstox chain source in this server mode -- "
+                            "Dhan broker, --mock-chain, or replay mode")
             self._json(json.dumps({
                 "ok": True,
                 "broker": _broker(),
                 "started_at": _STARTED,
                 "indices": sorted(self.payloads),
+                "feed": feed,
+                "feed_why": feed_why,
             }).encode())
             return
         if self.path.startswith("/api/data"):
@@ -847,18 +951,6 @@ class Handler(SimpleHTTPRequestHandler):
                 "rows": list(reversed(sel)),
                 "matched": len(sel),
             }).encode())
-        elif self.path.startswith("/api/gex"):
-            # newest gex_YYYY-MM-DD.json (filenames sort chronologically)
-            files = sorted((ROOT / "data").glob("gex_*.json"))
-            if not files:
-                self.send_error(404)
-                return
-            try:
-                pl = json.loads(files[-1].read_text(encoding="utf-8"))
-                pl["as_of"] = files[-1].stem[len("gex_"):]
-                self._json(json.dumps(pl).encode())
-            except (OSError, ValueError):
-                self._json(files[-1].read_bytes())
         elif self.path.startswith("/api/desk"):
             # Every structure, with a STATUS each -- deployable, stand aside,
             # or blocked with the missing input named. Never a confidence
@@ -887,7 +979,7 @@ class Handler(SimpleHTTPRequestHandler):
                     out[idx] = asdict(desk_mod.decide(
                         surf, reg, capital,
                         strikes=(_chain_doc(self.poller, idx) or {}).get("strikes"),
-                        view=_view_for(idx)))
+                        view=_view_for(idx, self.payloads)))
                 except Exception as e:
                     out[idx] = {"index": idx, "fit_ok": False, "best": None,
                                 "candidates": [],
@@ -976,17 +1068,34 @@ class Handler(SimpleHTTPRequestHandler):
                     for i, f in sorted(book._by.items()):
                         if inst and i != inst:
                             continue
+                        idx_i = i.split("-")[0]
                         # The chain half, matched to this instrument's index. All
                         # three conditions finally meet here: fuel and drain from
                         # the chain, ignition from the book. Absent chain -> the
                         # gate simply cannot reach CASCADE, which is correct.
-                        c = _SENSES["chain"].get(i.split("-")[0]) or {}
+                        c = _SENSES["chain"].get(idx_i) or {}
+                        # The other two dead gears -- see _regime_engine_read
+                        # and _walls_holding for why these were None until
+                        # 2026-08-22 and where each value actually comes from.
+                        sigma_pctl, vwap_flips_per_hr, eng_why = \
+                            _regime_engine_read(self.payloads, idx_i)
+                        walls_holding, walls_why = _walls_holding(
+                            _SENSES["pools"].get(i))
                         v = f.verdict(fuel_rank=c.get("fuel_rank"),
                                       drain=bool(c.get("drain")),
-                                      one_sided=c.get("one_sided"))
+                                      one_sided=c.get("one_sided"),
+                                      sigma_pctl=sigma_pctl,
+                                      vwap_flips_per_hr=vwap_flips_per_hr,
+                                      walls_holding=walls_holding)
                         read[i] = {"gear": v.gear, "why": v.why, "chain": c,
                                    "would_block": v.would_block, "shadow": v.shadow,
-                                   "tag": v.tag, "evidence": f.ev.__dict__}
+                                   "tag": v.tag, "evidence": f.ev.__dict__,
+                                   "regime_inputs": {
+                                       "sigma_pctl": sigma_pctl,
+                                       "vwap_flips_per_hr": vwap_flips_per_hr,
+                                       "walls_holding": walls_holding,
+                                       "why": [w for w in (eng_why, walls_why) if w],
+                                   }}
                 self._json(json.dumps({
                     "ok": _SENSES["err"] is None,
                     "error": _SENSES["err"],
@@ -1016,7 +1125,7 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
 
-def _view_for(idx):
+def _view_for(idx, payloads):
     """The direction view for one index, or None if the tape cannot form one.
 
     NONE IS A RESULT, NOT A FAILURE. `desk.decide` blocks the flow half of the
@@ -1055,9 +1164,14 @@ def _view_for(idx):
         if not fuses:
             return None
         inst, f = next((p for p in fuses if p[0].endswith("-FUT")), fuses[0])
+        sigma_pctl, vwap_flips_per_hr, _eng_why = _regime_engine_read(payloads, idx)
+        walls_holding, _walls_why = _walls_holding(_SENSES["pools"].get(inst))
         v = f.verdict(fuel_rank=chain.get("fuel_rank"),
                       drain=bool(chain.get("drain")),
-                      one_sided=chain.get("one_sided"))
+                      one_sided=chain.get("one_sided"),
+                      sigma_pctl=sigma_pctl,
+                      vwap_flips_per_hr=vwap_flips_per_hr,
+                      walls_holding=walls_holding)
     return direction_mod.read(chain, v.gear)
 
 

@@ -64,6 +64,13 @@
     padding:8px 14px}
   .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
   .ok{background:var(--sell)} .bad{background:var(--risk)}
+  /* Staleness tiers on the feed dot and the "Ns ago" readout. Red stays
+     reserved for a DEAD feed (constraint: red = dead feed only, never mere
+     lateness) -- amber is the "still alive, getting old" reading in between,
+     mirroring ui/app.js's staleCheck (90s) plus the earlier 30s warning this
+     screen did not have. */
+  .amber{background:var(--buy)}
+  .age-amber{color:var(--buy)} .age-red{color:var(--risk)}
   .grow{flex:1}
   .ctl{display:flex;align-items:center;gap:6px}
   .ctl input{width:86px;background:var(--sunk);border:1px solid var(--rule);
@@ -221,6 +228,7 @@
   <div class="cards" id="cards"></div>
 
   <div id="err"></div>
+  <div id="staleBanner" class="err" style="display:none"></div>
 
   <div class="main">
     <div class="panel">
@@ -294,9 +302,50 @@ function shortRs(v){
 }
 
 /* -- the clock. The machine's local time IS IST on this desk. -------- */
+/* -- feed health: dead vs stale, and how stale. -----------------------
+   RED IS RESERVED FOR A DEAD FEED, never mere lateness -- a health fetch
+   that fails outright, `ok:false`, or (when /api/health publishes it)
+   `feed.healthy===false` all count as dead. Otherwise this reads the worse
+   of two ages: this display's own last successful poll (S.at, what the
+   pre-1c "Ns ago" showed with no threshold) and the Upstox feed's own
+   age_s when /api/health has it -- a fresh desk poll can still be sitting
+   on a feed that stopped sending frames a minute ago, and that must not
+   read as healthy. */
+function feedRead(){
+  var h = S.health, feed = h && h.feed;
+  if(h === undefined) return {dead:false, age:null, why:""};   // before first poll
+  var dead = !h || h.ok === false || (feed && !feed.healthy);
+  var ages = [];
+  if(S.at) ages.push((Date.now() - S.at) / 1000);
+  if(feed && typeof feed.age_s === "number") ages.push(feed.age_s);
+  var why = !h ? "no /api/health -- is the server up on 8765?"
+    : h.ok === false ? "server reports not ok"
+    : (feed && !feed.healthy) ? ("Upstox feed unhealthy" +
+        (feed.error ? ": " + feed.error : "" ))
+    : (h.feed_why || "");
+  return {dead: dead, age: ages.length ? Math.max.apply(null, ages) : null, why: why};
+}
 setInterval(function(){
   $("clock").textContent = new Date().toLocaleTimeString("en-GB");
-  if(S.at) $("age").textContent = Math.round((Date.now()-S.at)/1000)+"s ago";
+  var fr = feedRead();
+  $("age").textContent = S.at ? Math.round((Date.now()-S.at)/1000)+"s ago" : "-";
+  $("age").className = "num" + (
+    (fr.dead || (fr.age!==null && fr.age>90)) ? " age-red"
+    : (fr.age!==null && fr.age>30) ? " age-amber" : "");
+  $("dot").className = "dot " + (fr.dead ? "bad"
+    : (fr.age!==null && fr.age>30) ? "amber" : "ok");
+  var sb = $("staleBanner");
+  if(fr.dead){
+    sb.style.display = "block";
+    sb.innerHTML = "<b>FEED DEAD.</b> " + esc(fr.why || "the feed is not healthy")
+      + " &mdash; every reading on this screen may be stale.";
+  } else if(fr.age !== null && fr.age > 90){
+    sb.style.display = "block";
+    sb.innerHTML = "<b>STALE.</b> Last update " + Math.round(fr.age)
+      + "s ago &mdash; check the server window / tapemap.log.";
+  } else {
+    sb.style.display = "none";
+  }
 }, 1000);
 
 /* -- fetch ----------------------------------------------------------- */
@@ -851,11 +900,14 @@ function render(){
     ? ('<div class="err"><b>The desk is not answering.</b> '
        + esc(String(S.err.message||S.err))
        + ' &mdash; is the server up on 8765? Run <code>.\\stop.bat</code> then '
-       + '<code>.\\start-v2.bat</code>.</div>')
+       + '<code>.\\start-v2.bat</code>, which reopens this page once the '
+       + 'server on 8765 answers.</div>')
     : "";
 
   var h = S.health;
-  $("dot").className = "dot " + ((h&&h.ok) ? "ok" : "bad");
+  // The dot/age classes are driven by feedRead() in the 1s ticker, not here
+  // -- staleness must keep advancing between 5s polls, and payload-diff can
+  // skip this render() for many ticks in a row while nothing else changed.
   $("feed").textContent = h ? (h.broker||"unknown") : "no /api/health";
 
   var ind = (S.desk&&S.desk.indices)||{};

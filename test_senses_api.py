@@ -141,3 +141,144 @@ def test_clean_books_output_is_json_serialisable():
     json.dumps(server._clean_books(
         {"1": {"depth": {"bid": [{"price": 1.0, "orders": 2}],
                          "ask": [{"price": 2.0, "orders": 3}]}}}))
+
+
+# --------------------------------------------------------------------------
+# the three dead gears -- fuse.verdict() never received sigma_pctl,
+# vwap_flips_per_hr or walls_holding, so regime.decide() could only ever
+# answer CASCADE or UNKNOWN (see regime.LEGAL) and direction.GAME could
+# never surface SELL_PREMIUM (PIN) or STAND_ASIDE (TRANSITION). 12 unit
+# tests on regime.decide() in isolation passed the whole time; nothing drove
+# the COMPOSED path -- _view_for, the function server.py actually calls --
+# with inputs able to reach either gear. This does.
+# --------------------------------------------------------------------------
+
+def _fut_bars(n, z_of, bw_r_last):
+    """Synthetic `payloads[idx]["session"]["day"]["bars"]`, engine-shaped."""
+    return [{"t": f"{9 + i // 60:02d}:{(15 + i) % 60:02d}",
+             "fut": {"z": z_of(i), "bw_r": (bw_r_last if i == n - 1 else 0.5)}}
+            for i in range(n)]
+
+
+def test_composed_path_reaches_pin_and_transition():
+    import fuse
+    import regime
+
+    saved = {k: server._SENSES.get(k) for k in ("fuse", "chain", "pools")}
+    try:
+        # --- PIN: VWAP magnetism (flips/hr >= regime.MAGNET_FLIPS) with
+        # walls holding, no ignition/drain (else CASCADE would win) and no
+        # TRANSITION reading (fuel_rank is None, so that branch cannot fire).
+        server._SENSES["fuse"] = fuse.Book()
+        server._SENSES["fuse"].for_inst("NIFTY-FUT")
+        server._SENSES["chain"] = {"NIFTY": {"fuel_rank": None, "drain": False,
+                                             "one_sided": None}}
+        server._SENSES["pools"] = {"NIFTY-FUT": {"orders_known": True, "walls": 1}}
+        payloads = {"NIFTY": {"session": {"day": {"bars":
+            _fut_bars(20, lambda i: 1.0 if i % 2 == 0 else -1.0, 0.5)}}}}
+        v = server._view_for("NIFTY", payloads)
+        assert v is not None and v.gear == regime.PIN, v
+
+        # --- TRANSITION: tight sigma + one-sided loaded fuel, no ignition/
+        # drain (else CASCADE would win) and no VWAP flips (z held at 0, so
+        # PIN cannot fire either).
+        server._SENSES["fuse"] = fuse.Book()
+        server._SENSES["fuse"].for_inst("NIFTY-FUT")
+        server._SENSES["chain"] = {"NIFTY": {"fuel_rank": 0.9, "drain": False,
+                                             "one_sided": True}}
+        server._SENSES["pools"] = {"NIFTY-FUT": {"orders_known": True, "walls": 0}}
+        payloads = {"NIFTY": {"session": {"day": {"bars":
+            _fut_bars(20, lambda i: 0.0, 0.1)}}}}
+        v = server._view_for("NIFTY", payloads)
+        assert v is not None and v.gear == regime.TRANSITION, v
+    finally:
+        server._SENSES.update(saved)
+
+
+def test_regime_engine_read_refuses_before_maturity():
+    """Fewer bars than engine.MATURITY -> None with a reason, never a number
+    computed off noise (constraint: absence gets a reason, never a fabricated
+    value)."""
+    from engine import MATURITY
+    payloads = {"NIFTY": {"session": {"day": {"bars":
+        _fut_bars(MATURITY - 1, lambda i: 1.0, 0.1)}}}}
+    sigma_pctl, vwap_flips_per_hr, why = server._regime_engine_read(payloads, "NIFTY")
+    assert sigma_pctl is None and vwap_flips_per_hr is None and why
+
+
+def test_walls_holding_is_none_not_false_without_order_counts():
+    """`walls` is always 0 when `orders_known` is False (pools.py cannot
+    classify wall vs cluster without Kite's order counts) -- reporting that
+    as walls_holding=False would be the invented zero constraint 3
+    forbids."""
+    holding, why = server._walls_holding(
+        {"orders_known": False, "walls": 0, "shelves": 2})
+    assert holding is None and why
+
+
+# --------------------------------------------------------------------------
+# root redirect + /api/health's feed dict -- routing exercised the same way
+# test_upstox_only.py drives do_GET: no socket, no real request.
+# --------------------------------------------------------------------------
+
+class _Cap:
+    """A Handler with the socket machinery removed."""
+
+    def __init__(self, path, payloads=None, poller=None):
+        self.path = path
+        self.payloads = payloads or {}
+        self.chains = None
+        self.poller = poller
+        self.sent = None
+        self.status = None
+        self.headers = []
+
+    def _json(self, body, code=200):
+        self.sent = json.loads(body.decode())
+
+    def send_response(self, code):
+        self.status = code
+
+    def send_header(self, k, v):
+        self.headers.append((k, v))
+
+    def end_headers(self):
+        pass
+
+
+def test_root_redirects_to_the_desk():
+    """start-v2.bat now opens `/`; the site root must land on the desk, not
+    a directory listing or the legacy index."""
+    cap = _Cap("/")
+    server.Handler.do_GET(cap)
+    assert cap.status == 302
+    assert ("Location", "/desk.html") in cap.headers
+
+
+def test_health_feed_is_none_with_a_reason_off_the_upstox_path():
+    """Dhan, --mock-chain and replay mode all leave poller.src unset (or
+    poller itself None) -- feed must be null with a reason, never a
+    fabricated 'healthy', per constraint 3."""
+    cap = _Cap("/api/health", payloads={"NIFTY": {}})
+    server.Handler.do_GET(cap)
+    assert cap.sent["feed"] is None
+    assert cap.sent["feed_why"]
+
+
+def test_health_publishes_the_wired_feed_status_verbatim():
+    """upstox_feed.UpstoxFeed.status() / UpstoxChainSource.status()
+    (upstox_feed.py:116-123) had zero callers; this is the first one."""
+    class _Src:
+        def status(self):
+            return {"connected": True, "healthy": True, "age_s": 1.2,
+                    "frames": 900, "reconnects": 0, "error": None}
+
+    class _Poller:
+        src = _Src()
+
+    cap = _Cap("/api/health", payloads={"NIFTY": {}}, poller=_Poller())
+    server.Handler.do_GET(cap)
+    assert cap.sent["feed"] == {"connected": True, "healthy": True,
+                                "age_s": 1.2, "frames": 900,
+                                "reconnects": 0, "error": None}
+    assert cap.sent["feed_why"] is None

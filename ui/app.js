@@ -120,13 +120,10 @@ function tokenPastePrompt(){
 }
 
 async function boot(){
-  try{                                   // Stage-2 GEX overlay (optional file)
-    const r = await fetch("/api/gex");
-    if(r.ok){
-      S.gex = await r.json();
-      S.gexIdx = Object.fromEntries(S.gex.t.map((t,i)=>[t,i]));
-    }
-  }catch(e){ /* no GEX data — ladder simply omits FLIP/WALL rungs */ }
+  // Stage-2 GEX overlay used to fetch /api/gex here; the route is gone
+  // (2026-08-22, dead code -- zero callers besides this one). S.gex stays
+  // unset, which every reader below already treats as "ladder simply omits
+  // FLIP/WALL rungs" -- the same fail-soft path a missing fixture file took.
   $("playBtn").onclick = togglePlay;
   $("scrub").oninput = e => { seek(+e.target.value); };
   $("tokBtn").onclick = captureToken;

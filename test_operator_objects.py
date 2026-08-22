@@ -1,20 +1,24 @@
-"""test_operator_objects.py -- both modules born against the Aug-19 fixture.
+"""test_operator_objects.py -- trapped_inventory, born against the Aug-19 fixture.
+
+`forcing.py` (the S2 checklist -- FUEL+IGNITION arm a window, DRAIN inside it
+FIREs) was deleted 2026-08-22: superseded by `fuse.py` + `regime.py`, which
+turn the same three conditions into a gear (`fuse.verdict()` ->
+`regime.decide()`), replay against any session and are wired into the live
+server. Its coverage here (the cascade-fires / 1106-flush-is-silent / arming-
+carries-no-direction tests) went with it; see `test_fuse.py` and
+`test_regime.py` for the equivalent behaviour on the surviving modules.
 
 The fixture's known answers, established live during the session:
   * morning futures build concentrated 09:15-09:44 at ~24135-24160
   * by ~10:40 those longs were underwater; 10:15-10:44 OI fell into a falling
     price -- loss-side exits, not shorting (the aggregate-OI lie of the day)
-  * the 11:06 flush must NOT fire the forcing detector (no drain, vol not extreme)
   * CE covering 14:25->14:38: OI -1.85M while ltp rose 117.4->130.8 -- forced
-  * futures: ignition bar 14:33 (vol 104,195 ~= session max), drain print 14:36
-    (-29,835) -> detector must FIRE long by 14:36, and not before 14:30
 Run: python test_operator_objects.py   (or pytest)
 """
 import json
 from pathlib import Path
 
 from trapped_inventory import Ledger
-from forcing import ForcingDetector
 
 # House convention (see test_chain_metrics.py): fixtures live in data/ and are
 # located relative to this file, so the suite runs from any working directory.
@@ -74,38 +78,6 @@ def test_ce_covering_is_forced_exit_without_needing_basis_history():
     ev = led.feed("14:38", s2["oi"], s2["ltp"])
     assert ev.kind == "forced_exit" and ev.trapped_side == "short", ev
     assert ev.d_oi < -1_800_000
-
-
-# ── Forcing detector: fires on the real cascade, silent on the fake ──────
-def _run_detector():
-    led = Ledger(side="both", min_flow=0)
-    det = ForcingDetector(led)
-    verdicts = {}
-    for t, oi, c, v in _fut_stream():
-        verdicts[t] = det.on_bar(t, oi, c, v)
-    return verdicts
-
-
-def test_fires_on_cascade_and_only_there():
-    v = _run_detector()
-    fired = [t for t, vd in v.items() if vd.state == "FIRE"]
-    assert "14:36" in fired, f"must fire on the drain print; fired={fired}"
-    assert all(t >= "14:33" for t in fired), f"no fire before ignition; fired={fired}"
-    assert v["14:36"].direction == "long"
-
-
-def test_silent_on_the_1106_flush():
-    v = _run_detector()
-    for t in ("11:06", "11:07", "11:08"):
-        if t in v:
-            assert v[t].state != "FIRE", f"{t}: flush must not fire (no drain)"
-
-
-def test_arming_is_not_a_signal():
-    v = _run_detector()
-    arming = [t for t, vd in v.items() if vd.state == "ARMING"]
-    for t in arming:
-        assert v[t].direction is None, "ARMING must never carry a direction"
 
 
 if __name__ == "__main__":

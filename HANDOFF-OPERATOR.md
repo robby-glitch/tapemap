@@ -37,7 +37,6 @@ them, deliberately.
 | module | answers |
 |---|---|
 | `trapped_inventory.py` | is the inventory behind this OI comfortable or in pain? |
-| `forcing.py` | fuel+ignition ARM a window; drain confirming inside it FIRES |
 | `sweep.py` | levels consumed — `swept` / `pulled` / `unknown` |
 | `absorption.py` | a level that ate more than it ever showed |
 | `depth_pull.py` | size leaving a side with nothing traded against it |
@@ -50,6 +49,12 @@ them, deliberately.
 
 Plus `upstox_adapter.depth_ladder()` (the full book, previously discarded) and
 `ui/console.html`.
+
+**`forcing.py` was deleted 2026-08-22** (Phase 0, `feature/operator-objects`):
+the same FUEL+IGNITION-arms/DRAIN-fires sequence it checked is what
+`fuse.verdict()` -> `regime.decide()` now does, replayable and wired into the
+live server, which `forcing.py` never was. Its fixture coverage in
+`test_operator_objects.py` went with it; see `test_fuse.py` / `test_regime.py`.
 
 ---
 

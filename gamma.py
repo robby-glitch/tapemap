@@ -1,7 +1,8 @@
 """Black-Scholes pricing, implied volatility and dealer GEX profile.
 
 TapeMap gamma layer, Stage 2 (architecture boundary: gamma.py = pure math,
-stdlib only, no I/O). Consumed by gex_run.py; never imported by engine.py.
+stdlib only, no I/O). Consumed by gex_run.py, and by engine.py (`implied_vol`
+only, for the tape's own IV rank -- see engine.py:36).
 
 Model: Black-76 (the correct form for a futures underlying): no r-drift in
 d1 — the future already embeds carry — and BOTH legs discounted at

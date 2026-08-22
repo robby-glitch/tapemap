@@ -19,7 +19,14 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 842** (`pytest -q`, 2026-08-21 - 805 plus thirteen in
+- **Test count is now 845** (`pytest -q`, 2026-08-22 - Phase 0 deleted
+  `forcing.py` (superseded by `fuse.py`/`regime.py`, wired live where
+  `forcing.py` never was) and its 3 tests in `test_operator_objects.py`
+  (842-3=839), and added 6 to `test_senses_api.py` (839+6=845): a
+  composed-path test proving PIN/TRANSITION now reachable through
+  `server._view_for`, two honesty guards on the new inputs, and three on
+  routing (root redirect to `/desk.html`, `/api/health`'s new `feed` dict);
+  before that 842, 2026-08-21 - 805 plus thirteen in
   `test_direction.py` and eight added to `test_desk.py` for the flow half of
   the catalog; previously 775 plus eighteen in
   `test_desk.py` for the desk.py risk/margin/sizing rebuild -- legal
