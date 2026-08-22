@@ -37,6 +37,10 @@
   .health { margin-left:auto; display:flex; gap:14px; flex-wrap:wrap;
             color:var(--dim); font-size:11px; }
   .bad { color:var(--red); font-weight:700; }
+  /* Red is reserved solely for a dead feed (the LAW) -- failed writes are a
+     problem worth flagging but not a feed-death claim, so this borrows
+     theme.css's --risk (the desk's own risk tone) instead of red. */
+  .warnrisk { color:var(--risk); font-weight:700; }
   main { display:grid; gap:12px; padding:12px 14px;
          grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); }
   section { background:var(--panel); border:1px solid var(--line);
@@ -69,13 +73,17 @@
      standalone meaning of its own (the a11y floor's named exception). */
   .tag { font-size:9px; padding:0 4px; border-radius:2px; margin-left:5px;
          vertical-align:1px; }
-  /* Measured used to share --green with CASCADE (the gear grammar), which is
-     exactly the collapse the LAW forbids -- "measured" is a provenance claim,
-     not a forced-flow one. Grey fits the page's own idiom better anyway:
-     measured is the unremarkable, trustworthy case; inferred (amber) is the
-     one worth a second look. */
+  /* Measured used to share --green with CASCADE (the gear grammar), and
+     inferred used to share --amber with TRANSITION -- both are provenance
+     claims, not market-state ones, and reusing the grammar's own hues for
+     them is exactly the collapse the LAW forbids. Grey/muted fits the
+     page's own idiom better anyway: measured is the unremarkable,
+     trustworthy case (--grey, same tone as g-UNKNOWN/PIN); inferred is the
+     one worth a second look, so it gets a distinct but still muted tone
+     (--muted) -- neither borrows a hue the gear grammar or the sweep-side
+     buy/sell axis already owns. */
   .tag-M { background:rgba(138,148,163,.16); color:var(--grey); }
-  .tag-I { background:rgba(217,154,43,.18); color:var(--amber); }
+  .tag-I { background:rgba(126,144,140,.18); color:var(--muted); }
   .why { color:var(--dim); font-size:11px; margin-top:6px; line-height:1.5; }
   .shadow { color:var(--amber); font-size:11px; letter-spacing:.06em; }
   .rows { font-size:11px; max-height:230px; overflow:auto; }
@@ -226,7 +234,7 @@ function healthLine(d) {
   // the poll count come first, and go red rather than disappearing.
   if (!d.ok) bits.push('<span class="bad">FEED: ' + esc(d.error || "down") + '</span>');
   else bits.push("feed ok &middot; " + d.polls + " polls &middot; " + (d.up_s|0) + "s");
-  bits.push("logged " + d.written + (d.failed ? ' <span class="bad">/ ' + d.failed + " failed</span>" : ""));
+  bits.push("logged " + d.written + (d.failed ? ' <span class="warnrisk">/ ' + d.failed + " failed</span>" : ""));
   var ob = d.orders_bridge || {};
   bits.push(ob.books
     ? "kite bridge: " + ob.books + " books, " + num(ob.age_s, 1) + "s old"

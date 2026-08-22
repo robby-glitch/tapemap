@@ -118,6 +118,12 @@
     display:flex;flex-direction:column;gap:4px}
   .card:hover{border-color:var(--sell)}
   .card[aria-selected=true]{border-color:var(--sell);box-shadow:inset 0 0 0 1px var(--sell)}
+  /* 4c (desk mirror): CASCADE cards lead -- same visual treatment as
+     console.html's own section.lead (grid-column: span 2), collapsing back
+     to span 1 under ~740px so a narrow window never gets a card wider than
+     the viewport. */
+  .card.lead{grid-column:span 2}
+  @media (max-width:740px){.card.lead{grid-column:span 1}}
   .card .top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .card .nm{font-weight:700;font-size:1rem}
   .card .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px;
@@ -676,8 +682,25 @@ function renderDrag(){
 
 /* -- scanner: which instrument is paying ----------------------------- */
 function met(l,v){ return '<div><div class="l">'+esc(l)+'</div><div class="v">'+v+'</div></div>'; }
+// 4c (desk mirror): CASCADE leads, then TRANSITION/PIN, then UNKNOWN (or
+// anything else) -- mirrors console.html's own gearRank verbatim (kept
+// separate per file: no shared script, no build step). Same three tiers as
+// the .CASCADE/.TRANSITION/.PIN grammar classes above.
+function gearRank(g){
+  return g==="CASCADE" ? 0 : (g==="TRANSITION"||g==="PIN") ? 1 : 2;
+}
 function renderCards(){
-  var ind = (S.desk&&S.desk.indices)||{}, keys = Object.keys(ind).sort();
+  var ind = (S.desk&&S.desk.indices)||{}, keys = Object.keys(ind);
+  // 4c: weight by gear state, not the alphabet -- a live CASCADE instrument
+  // is the one thing on this row worth leading with. Within a tier the tie
+  // -break is the name alone, so a card never jumps around tick to tick the
+  // way sorting by a live numeric field would (same reasoning as
+  // console.html's own names.sort()).
+  keys.sort(function(a,b){
+    var ra = gearRank((ind[a].view||{}).gear||"UNKNOWN");
+    var rb = gearRank((ind[b].view||{}).gear||"UNKNOWN");
+    return ra-rb || a.localeCompare(b);
+  });
   if(!keys.length){ $("cards").innerHTML = ""; return; }
   if(!S.idx || !ind[S.idx]) S.idx = keys[0];
   $("cards").innerHTML = keys.map(function(k){
@@ -686,7 +709,8 @@ function renderCards(){
     var fit = f.fit||{};
     var best = null;
     if(d.best) best = (d.candidates||[]).filter(function(c){return c.name===d.best;})[0];
-    return '<button class="card" data-k="'+esc(k)+'" aria-selected="'+(k===S.idx)+'">'
+    // 4c: CASCADE cards get the "lead" class (theme's grid-column:span 2).
+    return '<button class="card'+(v.gear==="CASCADE"?" lead":"")+'" data-k="'+esc(k)+'" aria-selected="'+(k===S.idx)+'">'
       + '<div class="top"><span class="nm">'+esc(k)+'</span>'
       +   pill(v.gear||"UNKNOWN")
       +   '<span class="'+esc(v.bias||"UNKNOWN")+'" style="font-family:Consolas,monospace;'
