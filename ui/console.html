@@ -1,6 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>operator console</title>
+<link rel="stylesheet" href="theme.css">
 <!--
   The operator console. Static, no build step, no pnpm, no ui-v2 -- served by
   the Python server that already serves this directory, so it works the moment
@@ -12,6 +13,8 @@
   loaded; green appears only when forced flow is actually confirmed, which is
   rare enough to be worth looking at. Red is reserved for exactly one thing --
   a dead feed -- because a stalled reader must never look like a quiet market.
+  The grammar itself now lives in theme.css's head comment, shared verbatim
+  with desk.html -- one palette, not two that happen to agree.
 
   EVERY NUMBER CARRIES ITS PROVENANCE. [M] came off the wire; [I] is inferred
   and its cutoffs rest on one afternoon. The 14:25 mistake on 2026-08-19 was an
@@ -23,9 +26,6 @@
 -->
 <style>
   :root {
-    --bg:#0e1013; --panel:#16191e; --line:#242931; --ink:#d7dce3;
-    --dim:#7d8794; --grey:#8a94a3; --amber:#d99a2b; --green:#3fa66a;
-    --red:#c8503f; --blue:#5b8fc7;
     font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing:border-box; }
@@ -41,35 +41,64 @@
          grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); }
   section { background:var(--panel); border:1px solid var(--line);
             border-radius:5px; padding:10px 12px; }
-  h2 { font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  /* 4c: CASCADE leads. A live, confirmed-forced-flow instrument is the one
+     thing on this screen worth more room -- span 2 of the auto-fit columns
+     when the grid is wide enough for two, collapse back to 1 under ~740px so
+     a narrow window never gets a card wider than the viewport. */
+  section.lead { grid-column: span 2; }
+  @media (max-width: 740px) { section.lead { grid-column: span 1; } }
+  h2 { font-size:11px; letter-spacing:.16em; text-transform:uppercase;
        color:var(--dim); margin:0 0 8px; font-weight:600; }
   .gear { display:inline-block; padding:2px 9px; border-radius:3px;
           font-weight:700; letter-spacing:.09em; font-size:12px; }
-  .g-UNKNOWN,.g-PIN { background:#20252c; color:var(--grey); }
-  .g-TRANSITION { background:#3a2e14; color:var(--amber); }
-  .g-CASCADE { background:#123322; color:var(--green); }
+  /* Solid dark chip backgrounds (#20252c etc.) were a dark-theme-only
+     assumption -- opaque near-black under light-colored text, which reads
+     fine at night but sits as a black box on a white light-theme panel.
+     Translucent overlays at the state hue (same pattern as desk.html's own
+     .p-* pills) hold up in both themes. */
+  .g-UNKNOWN,.g-PIN { background:rgba(138,148,163,.16); color:var(--grey); }
+  .g-TRANSITION { background:rgba(217,154,43,.16); color:var(--amber); }
+  .g-CASCADE { background:rgba(63,166,106,.18); color:var(--green); }
   .inst { font-weight:600; }
   table { width:100%; border-collapse:collapse; }
   td { padding:2px 6px 2px 0; vertical-align:top; }
   td.k { color:var(--dim); width:8.5em; }
+  /* .tag stays under 11px deliberately -- the single M/I letter it shows
+     duplicates the footer's own "[M] measured / [I] inferred" legend and the
+     bracketed tag text used elsewhere on this page, so it carries no
+     standalone meaning of its own (the a11y floor's named exception). */
   .tag { font-size:9px; padding:0 4px; border-radius:2px; margin-left:5px;
          vertical-align:1px; }
-  .tag-M { background:#16302a; color:var(--green); }
-  .tag-I { background:#332a14; color:var(--amber); }
+  /* Measured used to share --green with CASCADE (the gear grammar), which is
+     exactly the collapse the LAW forbids -- "measured" is a provenance claim,
+     not a forced-flow one. Grey fits the page's own idiom better anyway:
+     measured is the unremarkable, trustworthy case; inferred (amber) is the
+     one worth a second look. */
+  .tag-M { background:rgba(138,148,163,.16); color:var(--grey); }
+  .tag-I { background:rgba(217,154,43,.18); color:var(--amber); }
   .why { color:var(--dim); font-size:11px; margin-top:6px; line-height:1.5; }
-  .shadow { color:var(--amber); font-size:10px; letter-spacing:.06em; }
+  .shadow { color:var(--amber); font-size:11px; letter-spacing:.06em; }
   .rows { font-size:11px; max-height:230px; overflow:auto; }
   .rows td { white-space:nowrap; padding-right:9px; }
-  .buy { color:var(--green); } .sell { color:var(--red); }
+  /* Sweep-side coloring used to borrow --green/--red from the gear/feed
+     grammar for an unrelated axis (which side a sweep traded through) --
+     the exact ambiguity the LAW exists to prevent (a red sweep looked like
+     it might mean the same thing as a dead feed). teal/brass is the shared
+     sell/buy convention (theme.css's head comment), same as desk.html's
+     legs and pills. */
+  .buy { color:var(--buy); } .sell { color:var(--sell); }
   .muted { color:var(--dim); }
   .wall { color:var(--blue); } .cluster { color:var(--amber); }
-  footer { padding:10px 14px; color:var(--dim); font-size:10px;
+  footer { padding:10px 14px; color:var(--dim); font-size:11px;
            border-top:1px solid var(--line); line-height:1.7; }
   /* -- alert controls (Phase 1) --------------------------------------- */
   .tglbtn { background:var(--panel); border:1px solid var(--line); color:var(--dim);
-            border-radius:3px; padding:2px 8px; font:inherit; font-size:10px;
+            border-radius:3px; padding:2px 8px; font:inherit; font-size:11px;
             letter-spacing:.08em; text-transform:uppercase; cursor:pointer; }
-  .tglbtn.on { color:var(--green); border-color:var(--green); }
+  /* Matches desk.html's own .tglbtn.on (var(--sell)) -- "on" is not a
+     confirmed-forced-flow claim, and now both pages agree on what an active
+     toggle looks like. */
+  .tglbtn.on { color:var(--sell); border-color:var(--sell); }
   .lastalert { color:var(--dim); font-size:11px; max-width:320px; overflow:hidden;
                text-overflow:ellipsis; white-space:nowrap; }
 </style>
@@ -81,11 +110,11 @@
     <button id="soundToggle" type="button" class="tglbtn">sound</button>
     <button id="notifyToggle" type="button" class="tglbtn">notify</button>
   </span>
-  <span class="lastalert" id="lastAlert">no alerts yet</span>
+  <span class="lastalert" id="lastAlert" aria-live="polite">no alerts yet</span>
   <div class="health" id="health">connecting&hellip;</div>
 </header>
 
-<main id="main"></main>
+<main id="main" aria-live="polite"></main>
 
 <footer>
   <b>[M]</b> measured off the wire &nbsp;&middot;&nbsp; <b>[I]</b> inferred, cutoffs rest on one session
@@ -126,6 +155,9 @@ var AL = {
   soundOn: localStorage.getItem("tapemap.console.sound") !== "0",   // default ON
   notifyOn: localStorage.getItem("tapemap.console.notify") === "1" // opt-in, default OFF
 };
+// 4b: payload-hash skip, mirroring desk.html's S.raw -- the last substantive
+// poll signature, so an unchanged tick never rebuilds #main.
+var S = { raw: "" };
 
 // Machine clock IS IST. Outside 09:15-15:30 Mon-Fri: no sound, no OS
 // notification -- title/favicon chrome is still allowed.
@@ -253,45 +285,47 @@ function poolsBlock(p) {
   return out + "</table>";
 }
 
-function render(d) {
-  document.getElementById("health").innerHTML = healthLine(d);
-  var read = d.read || {}, pools = d.pools || {};
-  // The UNION, not just `read`. A closed or quiet market produces terrain
-  // (the ladder is still there) with no book events at all, and rendering
-  // only instruments that have fired would show an empty screen while the
-  // server was perfectly healthy -- a reader would reasonably conclude the
-  // feed was dead. Measured 2026-08-20 15:49, after the bell.
-  var names = Object.keys(read);
-  Object.keys(pools).forEach(function (k) {
-    if (names.indexOf(k) < 0) names.push(k);
-  });
-  // Futures first: the zone rule is measured on them and a cascade runs
-  // through their ladder.
-  names.sort(function (a, b) {
-    var fa = /-FUT$/.test(a) ? 0 : 1, fb = /-FUT$/.test(b) ? 0 : 1;
-    return fa - fb || a.localeCompare(b);
-  });
+// 4c: live CASCADE leads, then TRANSITION/PIN, then UNKNOWN (or anything
+// else). Same three tiers as the g-* grammar classes.
+function gearRank(g) {
+  return g === "CASCADE" ? 0 : (g === "TRANSITION" || g === "PIN") ? 1 : 2;
+}
 
-  // ALERT BOOKKEEPING runs on every render (this page has no diff-skip, so
-  // every poll gets here) -- first poll is baseline only, gated on AL.seen.
-  // AL.gear is REBUILT from this pass's names every time, not mutated in
-  // place -- an instrument that drops out of `read`/`pools` entirely must
-  // drop out of the map too, or its last-known CASCADE would keep winning
-  // recomputeActive() forever. A name not in the OLD map (never seen, or
-  // pruned by an earlier absence) is itself a baseline for that name, same
-  // reasoning as AL.seen for the very first poll: its reappearance seeds
-  // silently and never claims a transition, even if it comes back already
-  // CASCADE.
+// ALERT BOOKKEEPING. Split out from the html-building loop it used to live
+// inside, and called from render() BEFORE the hash-skip below can return
+// early (constraint 6, mirroring desk.html's checkDeskAlerts()) -- a
+// transition must never be missed just because the rebuild it would have
+// caused was skipped. First poll is baseline only, gated on AL.seen.
+// AL.gear is REBUILT from this pass's names every time, not mutated in
+// place -- an instrument that drops out of `read`/`pools` entirely must
+// drop out of the map too, or its last-known CASCADE would keep winning
+// recomputeActive() forever. A name not in the OLD map (never seen, or
+// pruned by an earlier absence) is itself a baseline for that name, same
+// reasoning as AL.seen for the very first poll: its reappearance seeds
+// silently and never claims a transition, even if it comes back already
+// CASCADE.
+function checkConsoleAlerts(names, read) {
   var alertBaseline = !AL.seen;
   var nextGear = {};
+  names.forEach(function (n) {
+    var r = read[n] || { gear: "UNKNOWN" };
+    if (!alertBaseline && AL.gear.hasOwnProperty(n) && r.gear === "CASCADE" && AL.gear[n] !== "CASCADE")
+      fireAlert(n + " CASCADE", 220, .3, "sawtooth");
+    nextGear[n] = r.gear;
+  });
+  AL.gear = nextGear;
+  AL.seen = true;
+  recomputeActive();
+}
+
+function buildMainHTML(names, read, pools, rows) {
   var html = "";
   names.forEach(function (n) {
     var r = read[n] || { gear: "UNKNOWN", tag: "I", why: [], evidence: null,
                         why_none: true };
-    if (!alertBaseline && AL.gear.hasOwnProperty(n) && r.gear === "CASCADE" && AL.gear[n] !== "CASCADE")
-      fireAlert(n + " CASCADE", 220, .3, "sawtooth");
-    nextGear[n] = r.gear;
-    html += "<section><h2><span class='inst'>" + esc(n) + "</span></h2>";
+    // 4c: CASCADE cards get the "lead" class (theme's grid-column:span 2).
+    html += "<section" + (r.gear === "CASCADE" ? " class='lead'" : "") + ">"
+      + "<h2><span class='inst'>" + esc(n) + "</span></h2>";
     html += "<div><span class='gear g-" + esc(r.gear) + "'>" + esc(r.gear) + "</span>"
       + tag(r.tag)
       + (r.would_block && r.would_block.length
@@ -308,9 +342,6 @@ function render(d) {
     html += poolsBlock(pools[n]);
     html += "</section>";
   });
-  AL.gear = nextGear;
-  AL.seen = true;
-  recomputeActive();
 
   if (!names.length) {
     html = "<section><h2>waiting</h2><div class='muted'>Nothing is arriving at all "
@@ -320,7 +351,6 @@ function render(d) {
   }
 
   // The raw rows, last. Measurements, not signals.
-  var rows = (d.rows || []).slice(-40).reverse();
   if (rows.length) {
     var t = "<section style='grid-column:1/-1'><h2>book events &mdash; measurements, not signals" + tag("M") + "</h2>"
       + "<div class='rows'><table>";
@@ -339,9 +369,87 @@ function render(d) {
     });
     html += t + "</table></div></section>";
   }
-  document.getElementById("main").innerHTML = html;
+  return html;
+}
+
+// 4b: the payload-diff skip. Excludes the ever-advancing counters (up_s,
+// polls, written, orders_bridge.age_s) the same way desk.html's own hash
+// excludes /api/health (its a[2]) from the diff -- those change every tick
+// regardless of content and would defeat the skip entirely. healthLine()
+// and the "refreshed" clock still run unconditionally in render() below.
+function payloadKey(d) {
+  return JSON.stringify({ read: d.read, pools: d.pools, rows: d.rows, log: d.log });
+}
+
+// 4b: DO NOT REBUILD THE DOM WHEN NOTHING SUBSTANTIVE CHANGED. When it does
+// change, snapshot/restore what a blind innerHTML swap would otherwise throw
+// away: window scroll, each section's own .rows scroll (the book-events
+// log), and any open <details> -- mirroring desk.html's render() (its own
+// keep/restore sits at ~:1086-1097 and ~:1137-1146). No <details> exists on
+// this page yet; the snapshot is empty and harmless until one does.
+function renderMain(names, read, pools, rows) {
+  var main = document.getElementById("main");
+  var keep = {
+    scroll: window.scrollY || document.documentElement.scrollTop || 0,
+    rowsScroll: {},
+    open: Array.prototype.map.call(main.querySelectorAll("details"), function (x) { return x.open; })
+  };
+  Array.prototype.forEach.call(main.querySelectorAll(".rows"), function (el) {
+    var sec = el.closest("section"), inst = sec && sec.querySelector(".inst");
+    if (inst) keep.rowsScroll[inst.textContent] = el.scrollTop;
+  });
+
+  main.innerHTML = buildMainHTML(names, read, pools, rows);
+
+  window.scrollTo(0, keep.scroll);
+  Array.prototype.forEach.call(main.querySelectorAll(".rows"), function (el) {
+    var sec = el.closest("section"), inst = sec && sec.querySelector(".inst");
+    if (inst && keep.rowsScroll.hasOwnProperty(inst.textContent)) el.scrollTop = keep.rowsScroll[inst.textContent];
+  });
+  Array.prototype.forEach.call(main.querySelectorAll("details"),
+    function (x, i) { if (keep.open[i] !== undefined) x.open = keep.open[i]; });
+}
+
+function render(d) {
+  // Health and the "refreshed" clock advance every poll regardless of the
+  // hash-skip below -- same split as desk.html's 1s ticker running outside
+  // its own 5s payload-diff.
+  document.getElementById("health").innerHTML = healthLine(d);
   document.getElementById("foot").textContent =
     "log: " + (d.log || "?") + "  |  refreshed " + new Date().toLocaleTimeString();
+
+  var read = d.read || {}, pools = d.pools || {};
+  // The UNION, not just `read`. A closed or quiet market produces terrain
+  // (the ladder is still there) with no book events at all, and rendering
+  // only instruments that have fired would show an empty screen while the
+  // server was perfectly healthy -- a reader would reasonably conclude the
+  // feed was dead. Measured 2026-08-20 15:49, after the bell.
+  var names = Object.keys(read);
+  Object.keys(pools).forEach(function (k) {
+    if (names.indexOf(k) < 0) names.push(k);
+  });
+  // 4c: gear tier first (CASCADE, then TRANSITION/PIN, then UNKNOWN); within
+  // a tier the tie-break is futures-first-then-alphabetical, same as before
+  // -- a name never changes tick to tick, so cards do not jump around
+  // within their own tier the way sorting by a live numeric field would.
+  names.sort(function (a, b) {
+    var ra = gearRank((read[a] || {}).gear || "UNKNOWN");
+    var rb = gearRank((read[b] || {}).gear || "UNKNOWN");
+    if (ra !== rb) return ra - rb;
+    var fa = /-FUT$/.test(a) ? 0 : 1, fb = /-FUT$/.test(b) ? 0 : 1;
+    return fa - fb || a.localeCompare(b);
+  });
+
+  // ALERT BOOKKEEPING RUNS ON EVERY POLL, before the hash-skip immediately
+  // below can return early.
+  checkConsoleAlerts(names, read);
+
+  var rows = (d.rows || []).slice(-40).reverse();
+  var key = payloadKey(d);
+  if (key === S.raw) return;   // nothing substantive changed -- keep the DOM,
+                                // keep scroll, keep whatever is open.
+  S.raw = key;
+  renderMain(names, read, pools, rows);
 }
 
 function tick() {
