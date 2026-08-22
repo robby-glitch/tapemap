@@ -10,8 +10,10 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-22. **871 tests pass, none fail** (`pytest -q`,
-2026-08-22 — 845 plus 26: two in `test_pools.py` for the two `pools.orders_for`
+Last updated: 2026-08-22. **873 tests pass, none fail** (`pytest -q`,
+2026-08-22 — 871 plus 2 in `test_desk_log.py` for the restart-baseline marker
+on `desk_log.log_transition` (reviewer fix for commit b71f991, Finding 1);
+before that 871 — 845 plus 26: two in `test_pools.py` for the two `pools.orders_for`
 defects the Kite-bridge audit found (a touch-only price coincidence accepted as
 a match when the true twin was absent; counts misattributed by list position
 instead of by price) and a new `desk_log.py` (Phase 4 — the surface forward

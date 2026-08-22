@@ -19,7 +19,10 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 871** (`pytest -q`, 2026-08-22 - Phase 4 (the record a
+- **Test count is now 873** (`pytest -q`, 2026-08-22 - reviewer fix on commit
+  b71f991 (Finding 1): `desk_log.log_transition` gained a `baseline` marker
+  for restart pseudo-transitions, plus 2 tests in `test_desk_log.py`
+  (871+2=873); before that 871 - Phase 4 (the record a
   desk keeps + instrumentation): new `desk_log.py` (surface forward log,
   desk verdict-transition log, market-hours gate, latency ring buffers) plus
   the two `pools.orders_for` fixes below (845+26=871); before that 845 -

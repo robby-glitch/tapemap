@@ -306,13 +306,20 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
     """5a/5b: fit the surface and compute the desk view ONCE per new chain
     payload for `idx`, and forward-log a surface line plus any transition.
 
-    WHY HERE, AND WHY THIS COSTS NOTHING EXTRA. This runs from inside the
-    per-idx "new payload" block `_senses_loop` already has -- the same place
-    that already re-parses the chain once per ~10s refresh, never per poll.
-    `desk.decide` is real work (fits a whole candidate catalog); gating it on
-    the same trigger, rather than the 0.5s loop tick, is what keeps it off
-    the loop's own budget -- it already only runs at chain pace, which IS
+    WHY HERE, AND WHY THIS COSTS NOTHING EXTRA. This is called once per new
+    chain payload for `idx` -- the same trigger `_senses_loop` already uses
+    to re-parse the chain, which happens once per ~10s refresh, never per
+    poll. `desk.decide` is real work (fits a whole candidate catalog); gating
+    it on the same trigger, rather than the 0.5s loop tick, is what keeps it
+    off the loop's own budget -- it already only runs at chain pace, which IS
     the requirement, not a separate throttle bolted on.
+
+    CALLED WITHOUT `_SENSES_LOCK` HELD. `_senses_loop` queues `(idx, doc)`
+    pairs while it holds the lock and calls this function only after
+    releasing it, so `desk.decide`'s real work never blocks `/api/senses`,
+    `/api/drag` or `POST /api/orderbook`, all three of which also take
+    `_SENSES_LOCK`. `_view_for` still needs a couple of `_SENSES` fields and
+    re-acquires the lock itself, briefly, for that read alone.
 
     NEVER NEEDS THE BOOK FEED. `_surface_read` falls back to spot when the
     future is unavailable, `desk_mod.regime_from_chain` reads the chain
@@ -322,7 +329,15 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
     --mock-chain, where `poller.src` never exists at all.
 
     `desk_state` is the caller's idx -> {gear, conviction, deployable} cache;
-    mutated in place so the next tick has something to diff against.
+    mutated in place so the next tick has something to diff against. It
+    resets to empty on every process start (the server is bounced routinely),
+    so the FIRST reading for an index in a process diffs against `{}` and
+    every field reports "changed from None" -- a restart pseudo-transition,
+    not an observed one, but with the identical row shape unless marked.
+    That first-reading call is logged with `baseline=True` (desk_log.py); any
+    later call for the same index, including one where a field moves from
+    None to a real value for the first time mid-session, is a plain
+    transition with no marker -- see desk_log.py's module docstring.
     """
     surf = _surface_read(poller, idx)
     if surf.fit.ok:
@@ -341,9 +356,12 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
                 "conviction": getattr(view, "conviction", None),
                 "deployable": decision.best}
     prev_state = desk_state.get(idx, {})
+    is_baseline = not prev_state          # {} only on this index's first
+                                           # reading since process start
     for field, frm, to in desk_log.diff_transitions(prev_state, new_state):
         desk_log.log_transition(idx, field, frm, to,
-                                detail=f"{idx} {field}: {frm} -> {to}")
+                                detail=f"{idx} {field}: {frm} -> {to}",
+                                baseline=is_baseline)
     desk_state[idx] = new_state
 
 
@@ -391,6 +409,9 @@ def _senses_loop(poller, payloads, period=0.5):
             snap = feed.snapshot() if feed_ok else {}
             stamp = time.strftime("%H:%M:%S")
             boxes = getattr(poller, "boxes", None) or {}
+            # (idx, doc) pairs due for 5a/5b, queued under the lock below and
+            # run AFTER it is released -- see the note past the `with` block.
+            chain_pace_due = []
             with _SENSES_LOCK:
                 # FUEL AND DRAIN, from the chain -- the half the book cannot see,
                 # and needs no feed either. Parsed only when the poller has
@@ -421,14 +442,15 @@ def _senses_loop(poller, payloads, period=0.5):
                             board = _SENSES["drag"][idx] = drag_mod.Board()
                         board.on_snapshot(doc.get("spot"),
                                           doc.get("strikes"), stamp)
-                        # 5a/5b -- own try/except so a bad fit or a desk
-                        # exception on ONE index cannot cost the others their
-                        # chain/drag processing this same tick.
-                        try:
-                            _log_chain_pace(poller, payloads, idx, doc,
-                                            desk_state)
-                        except Exception:
-                            log.exception("desk_log at chain pace (%s)", idx)
+                        # 5a/5b is queued, NOT run here -- `desk.decide` fits a
+                        # whole candidate catalog and must not run while this
+                        # lock is held: /api/senses, /api/drag and
+                        # POST /api/orderbook all block on the same
+                        # `_SENSES_LOCK`, and one slow decide would stall every
+                        # one of them. `doc` is a local dict already parsed
+                        # from this snapshot, so queuing it costs nothing the
+                        # lock needs to protect.
+                        chain_pace_due.append((idx, doc))
 
                 if feed_ok:
                     for idx, r in (getattr(src, "resolved", None) or {}).items():
@@ -475,9 +497,27 @@ def _senses_loop(poller, payloads, period=0.5):
                     _SENSES["err"] = None
                 else:
                     _SENSES["err"] = "feed not connected"
+
+            # 5a/5b, OUTSIDE _SENSES_LOCK. `_view_for` (called inside
+            # `_log_chain_pace`) re-acquires the lock itself for its own
+            # short read of `_SENSES["fuse"]`/`["chain"]`/`["pools"]`, which
+            # is safe -- `_SENSES_LOCK` is an RLock and this thread does not
+            # hold it here -- and it never touches `feed._lock`, so the
+            # documented order (`_SENSES_LOCK` -> `feed._lock`, never
+            # inverted) cannot be crossed from this path. `desk_state`
+            # belongs only to this thread (no other thread reads or writes
+            # it), so updating it needs no lock either. Own try/except per
+            # index so a bad fit or a desk exception on ONE index cannot cost
+            # the others their chain-pace log.
+            for idx, doc in chain_pace_due:
+                try:
+                    _log_chain_pace(poller, payloads, idx, doc, desk_state)
+                except Exception:
+                    log.exception("desk_log at chain pace (%s)", idx)
         except Exception as e:            # never take the tape down
             _SENSES["err"] = f"{type(e).__name__}: {e}"
             log.exception("senses loop")
+            time.sleep(2)                 # extra backoff on a sustained fault
         finally:
             _record_latency("senses_ms", (time.perf_counter() - t0) * 1000.0)
         time.sleep(period)

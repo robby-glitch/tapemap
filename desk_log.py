@@ -18,6 +18,21 @@ WHAT GOES HERE, AND WHAT NEVER DOES. Two files:
                                       kill condition needs to be judged
                                       against; today it has nothing.
 
+A RESTART IS NOT A TRANSITION, AND MUST NOT LOOK LIKE ONE. The caller's
+in-memory previous-state cache (`desk_state` in server.py's `_senses_loop`)
+resets to empty on every process start, which the server is bounced
+routinely. Without a marker, the first reading for an index after a restart
+diffs against `{}` and every field reports "changed from None" -- a row with
+the identical shape as a genuine mid-session change, silently inflating the
+30-session ledger with restart noise it was never meant to count. The fix:
+the caller passes `baseline=True` to `log_transition` for the first reading
+of an index in a process (and only then); that row carries one extra key,
+`"baseline": true`, alongside the usual six. Every later, genuinely-observed
+change -- including a None -> value change on a field that simply had not
+moved yet -- is a plain transition with no `baseline` key at all. A reader
+that wants the true ledger filters `baseline` rows out; a reader that wants
+"what does this index look like right now" keeps them.
+
 NEVER A HIT RATE, NEVER AN OUTCOME. A transition says the state changed, not
 whether it paid. Pooling this against `data/trigger_log.jsonl` or scoring it
 here would be exactly the mistake that file's own quarantine discipline
@@ -107,15 +122,24 @@ def log_surface(idx: str, a, b, c, rmse, f_src: str, expiry: str, n_points: int,
 
 def log_transition(idx: str, field: str, frm, to, detail: str = "",
                    *, now: Optional[datetime] = None,
-                   path: Optional[str] = None) -> bool:
+                   path: Optional[str] = None,
+                   baseline: bool = False) -> bool:
     """One TRANSITION line. The caller decides a change happened; this only
     writes it -- see `diff_transitions` for the comparison itself. `path`
-    overrides `DESK_LOG_PATH` -- a test seam, never used by the live loop."""
+    overrides `DESK_LOG_PATH` -- a test seam, never used by the live loop.
+
+    `baseline=True` marks a row as the first reading for this index in this
+    process -- a restart pseudo-transition, not an observed change -- and
+    adds the one extra key `"baseline": true`. Never set it for a genuine
+    mid-session change, including a None -> value move on a field that
+    simply had not fired yet; see the module docstring."""
     if not market_hours(now):
         return False
     row = {"ts": (now or datetime.now()).isoformat(timespec="seconds"),
            "idx": idx, "field": field, "from": frm, "to": to,
            "detail": detail}
+    if baseline:
+        row["baseline"] = True
     return _append(path or DESK_LOG_PATH, row)
 
 
@@ -127,8 +151,14 @@ def diff_transitions(prev: Dict[str, object], curr: Dict[str, object],
     decides whether to write what this returns.
 
     A field absent from `prev` (first reading for this index) counts as a
-    change FROM None -- the first observed state is itself a transition worth
-    keeping, not a value to suppress."""
+    change FROM None -- the first observed state is itself worth keeping,
+    not a value to suppress. That does NOT by itself make the row a genuine
+    transition, though: `prev == {}` is exactly the shape a fresh process
+    start hands in (`desk_state` resets on every restart), so it is the
+    CALLER's job -- not this pure diff -- to notice `not prev` and log what
+    comes back here with `log_transition(..., baseline=True)` instead of as
+    a plain transition. See the module docstring and server.py's
+    `_log_chain_pace`."""
     out = []
     for field in fields:
         p, c = prev.get(field), curr.get(field)

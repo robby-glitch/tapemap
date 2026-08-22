@@ -98,6 +98,32 @@ def test_log_transition_row_shape(tmp_path):
     assert "outcome" not in row and "hit" not in row and "won" not in row
 
 
+def test_log_transition_baseline_row_carries_the_marker(tmp_path):
+    """A restart-baseline row (the caller's first reading for this index in
+    this process) is written with `baseline=True` and carries the one extra
+    key -- distinguishing it from a genuine mid-session transition with the
+    same {from: None, to: value} shape."""
+    path = str(tmp_path / "desk_log.jsonl")
+    assert DL.log_transition("NIFTY", "gear", None, "PIN",
+                             detail="NIFTY gear: None -> PIN",
+                             now=IN_HOURS, path=path, baseline=True)
+    row = json.loads((tmp_path / "desk_log.jsonl").read_text().strip())
+    assert set(row) == {"ts", "idx", "field", "from", "to", "detail",
+                        "baseline"}
+    assert row["baseline"] is True
+
+
+def test_log_transition_plain_row_has_no_baseline_key(tmp_path):
+    """The default (`baseline` omitted, i.e. a genuine mid-session change)
+    writes the plain six-key row -- no `baseline` key at all, not even a
+    False value."""
+    path = str(tmp_path / "desk_log.jsonl")
+    assert DL.log_transition("NIFTY", "gear", "PIN", "CASCADE",
+                             now=IN_HOURS, path=path)
+    row = json.loads((tmp_path / "desk_log.jsonl").read_text().strip())
+    assert "baseline" not in row
+
+
 def test_appended_lines_accumulate_one_json_object_per_line(tmp_path):
     path = str(tmp_path / "desk_log.jsonl")
     DL.log_transition("NIFTY", "gear", None, "PIN", now=IN_HOURS, path=path)
@@ -141,7 +167,12 @@ def test_diff_transitions_reports_only_changed_fields():
 
 def test_diff_transitions_first_reading_is_a_transition_from_none():
     """No prior state at all -- the first observed reading still counts,
-    from None, rather than being suppressed as 'nothing to compare against'."""
+    from None, rather than being suppressed as 'nothing to compare against'.
+    This is the raw diff only: `prev == {}` is what a fresh process start
+    hands in, so it is the CALLER (server.py's `_log_chain_pace`) that must
+    treat what comes back here as a `baseline=True` row rather than a plain
+    transition -- see test_log_transition_baseline_row_carries_the_marker
+    below and the module docstring."""
     out = DL.diff_transitions({}, {"gear": "PIN", "conviction": "NONE",
                                    "deployable": None})
     assert ("gear", None, "PIN") in out
