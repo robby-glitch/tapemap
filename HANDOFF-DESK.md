@@ -96,10 +96,11 @@ cd "C:\Users\kaam\Desktop\operator mode\tapemap"; .\stop.bat; .\start-v2.bat
 | `desk.py` | The selector: structure legality, risk, margin, score, sizing, net delta. |
 | `desk_log.py` | **New 2026-08-22.** The record: a surface forward log (`data/surface/surface_<day>.jsonl`, one line per successful fit) and a desk verdict-TRANSITION log (`data/desk_log.jsonl` — gear/conviction/deployable, only on change). Both gated to 09:15-15:30 IST, both fail-soft like `senses.py`. This is §8's item 7 — direction.py's own 30-session kill condition finally has something to be judged against. |
 
-### The tape layer — 11 detectors, built earlier
+### The tape layer — 10 detectors, built earlier
 
 `sweep`, `absorption`, `depth_pull`, `pools`, `fuse`, `regime`, `chainside`,
-`trapped_inventory`, `forcing`, `drag`, `senses`.
+`trapped_inventory`, `drag`, `senses`. (`forcing.py` was deleted Phase 0 —
+see HANDOFF-OPERATOR.md §1 for why.)
 
 Built to answer *when is a move coming* — a buyer's question. They are natively
 an **adverse-selection layer** for a desk that posts size: a sweep through your

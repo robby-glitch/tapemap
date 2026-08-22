@@ -393,27 +393,27 @@ function payloadKey(d) {
 // change, snapshot/restore what a blind innerHTML swap would otherwise throw
 // away: window scroll, each section's own .rows scroll (the book-events
 // log), and any open <details> -- mirroring desk.html's render() (its own
-// keep/restore sits at ~:1086-1097 and ~:1137-1146). No <details> exists on
-// this page yet; the snapshot is empty and harmless until one does.
+// keep/restore sits at ~:1086-1097 and ~:1137-1146). Keyed by POSITION, not
+// by a `.inst` lookup: the one `.rows` scroller this page has (book events,
+// buildMainHTML's final section) sits under a plain "book events" <h2> with
+// no `.inst` span -- that class only exists on the per-instrument section
+// headers above it, which have no `.rows` div of their own -- so a lookup
+// keyed by `.inst` text never matched and the scroll position was silently
+// lost on every substantive tick. Position is stable because
+// buildMainHTML() always emits `.rows` scrollers in the same order.
 function renderMain(names, read, pools, rows) {
   var main = document.getElementById("main");
   var keep = {
     scroll: window.scrollY || document.documentElement.scrollTop || 0,
-    rowsScroll: {},
+    rowsScroll: Array.prototype.map.call(main.querySelectorAll(".rows"), function (el) { return el.scrollTop; }),
     open: Array.prototype.map.call(main.querySelectorAll("details"), function (x) { return x.open; })
   };
-  Array.prototype.forEach.call(main.querySelectorAll(".rows"), function (el) {
-    var sec = el.closest("section"), inst = sec && sec.querySelector(".inst");
-    if (inst) keep.rowsScroll[inst.textContent] = el.scrollTop;
-  });
 
   main.innerHTML = buildMainHTML(names, read, pools, rows);
 
   window.scrollTo(0, keep.scroll);
-  Array.prototype.forEach.call(main.querySelectorAll(".rows"), function (el) {
-    var sec = el.closest("section"), inst = sec && sec.querySelector(".inst");
-    if (inst && keep.rowsScroll.hasOwnProperty(inst.textContent)) el.scrollTop = keep.rowsScroll[inst.textContent];
-  });
+  Array.prototype.forEach.call(main.querySelectorAll(".rows"),
+    function (el, i) { if (keep.rowsScroll[i] !== undefined) el.scrollTop = keep.rowsScroll[i]; });
   Array.prototype.forEach.call(main.querySelectorAll("details"),
     function (x, i) { if (keep.open[i] !== undefined) x.open = keep.open[i]; });
 }

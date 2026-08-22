@@ -52,9 +52,15 @@
      reserved for a DEAD feed (constraint: red = dead feed only, never mere
      lateness) -- amber is the "still alive, getting old" reading in between,
      mirroring ui/app.js's staleCheck (90s) plus the earlier 30s warning this
-     screen did not have. */
-  .amber{background:var(--buy)}
-  .age-amber{color:var(--buy)} .age-red{color:var(--red)}
+     screen did not have. theme.css's STATE token --amber, not --buy (brass
+     is the buy-side leg color, a different axis -- see theme.css's head
+     comment). */
+  .amber{background:var(--amber)}
+  .age-amber{color:var(--amber)} .age-red{color:var(--red)}
+  /* Grey: "not yet checked" -- before the very first /api/health poll has
+     either succeeded or failed. Distinct from .ok/.bad/.amber, all three of
+     which are readings ABOUT a poll that already happened. See feedRead(). */
+  .unk{background:var(--grey)}
   .grow{flex:1}
   .ctl{display:flex;align-items:center;gap:6px}
   .ctl input{width:86px;background:var(--sunk);border:1px solid var(--rule);
@@ -453,7 +459,14 @@ function m2(l,v,hi){ return '<div class="m"><div class="l">'+esc(l)+'</div>'
    read as healthy. */
 function feedRead(){
   var h = S.health, feed = h && h.feed;
-  if(h === undefined) return {dead:false, age:null, why:""};   // before first poll
+  // NOT YET CHECKED, not dead: `S.health` starts `null` (same falsy shape a
+  // failed poll leaves it in) and the 1s ticker below runs from page load,
+  // long before pull()'s first /api/health round trip can land. Gate on
+  // `!S.at` too (no poll has EVER succeeded) so this only covers that brief
+  // startup window -- once a poll has completed, a still-null S.health means
+  // the health fetch itself failed, which IS a genuinely dead feed and must
+  // fall through to the dead computation below, not stay neutral forever.
+  if(h == null && !S.at) return {dead:false, age:null, why:"", checked:false};
   var dead = !h || h.ok === false || (feed && !feed.healthy);
   var ages = [];
   if(S.at) ages.push((Date.now() - S.at) / 1000);
@@ -463,19 +476,22 @@ function feedRead(){
     : (feed && !feed.healthy) ? ("Upstox feed unhealthy" +
         (feed.error ? ": " + feed.error : "" ))
     : (h.feed_why || "");
-  return {dead: dead, age: ages.length ? Math.max.apply(null, ages) : null, why: why};
+  return {dead: dead, age: ages.length ? Math.max.apply(null, ages) : null, why: why, checked:true};
 }
 setInterval(function(){
   $("clock").textContent = new Date().toLocaleTimeString("en-GB");
   var fr = feedRead();
   $("age").textContent = S.at ? Math.round((Date.now()-S.at)/1000)+"s ago" : "-";
-  $("age").className = "num" + (
-    (fr.dead || (fr.age!==null && fr.age>90)) ? " age-red"
+  $("age").className = "num" + (!fr.checked ? ""
+    : (fr.dead || (fr.age!==null && fr.age>90)) ? " age-red"
     : (fr.age!==null && fr.age>30) ? " age-amber" : "");
-  $("dot").className = "dot " + (fr.dead ? "bad"
+  $("dot").className = "dot " + (!fr.checked ? "unk"
+    : fr.dead ? "bad"
     : (fr.age!==null && fr.age>30) ? "amber" : "ok");
   var sb = $("staleBanner");
-  if(fr.dead){
+  if(!fr.checked){
+    sb.style.display = "none";
+  } else if(fr.dead){
     sb.style.display = "block";
     sb.innerHTML = "<b>FEED DEAD.</b> " + esc(fr.why || "the feed is not healthy")
       + " &mdash; every reading on this screen may be stale.";
@@ -1234,6 +1250,15 @@ document.addEventListener("keydown", function(e){
     if(i<0) i = 0;
     else i = (k==="ArrowUp") ? Math.max(0,i-1) : Math.min(order.length-1,i+1);
     S.pick = order[i].name; S.userPick = true;
+    // Selection may land in the blocked list, whose rows live inside a
+    // closed <details> -- focusing a button inside inert (collapsed)
+    // content is a no-op, so open it first when that is where we are
+    // headed. render()'s own keep/restore (~:1109-1110,1152-1153) then
+    // preserves this open state across the rebuild.
+    if(order[i].status==="BLOCKED"){
+      var det0 = $("rail") && $("rail").querySelector("details");
+      if(det0) det0.open = true;
+    }
     render();
     focusRowByName(S.pick);
     e.preventDefault();

@@ -259,8 +259,10 @@ def _regime_engine_read(payloads, idx):
 
     GATED ON THE ENGINE'S OWN MATURITY, not a threshold picked here:
     engine.py:918 (`if i >= MATURITY`) is where the tape's own state machine
-    starts trusting `bw_r`; fewer bars than that and both values are None
-    with a reason, per constraint 3 -- never a number from noise.
+    starts trusting `bw_r` -- `i` is a 0-indexed bar count, so that first
+    fires on the (MATURITY+1)-th bar, and `len(fut) > MATURITY` mirrors it
+    exactly rather than one bar early. Fewer bars than that and both values
+    are None with a reason, per constraint 3 -- never a number from noise.
     """
     from engine import MATURITY
     box = (payloads or {}).get(idx)
@@ -269,9 +271,9 @@ def _regime_engine_read(payloads, idx):
     if not bars:
         return None, None, f"no live engine session yet for {idx}"
     fut = [b["fut"] for b in bars if b.get("fut")]
-    if len(fut) < MATURITY:
+    if len(fut) <= MATURITY:
         return None, None, (f"only {len(fut)} bar(s) this session; the "
-                            f"engine's own bands need {MATURITY} before "
+                            f"engine's own bands need {MATURITY + 1} before "
                             "they carry statistical weight (engine.MATURITY)")
     sigma_pctl = fut[-1].get("bw_r")
     window = fut[-60:]                 # "last hour" -- engine.py:919's own look
@@ -362,6 +364,13 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
         desk_log.log_transition(idx, field, frm, to,
                                 detail=f"{idx} {field}: {frm} -> {to}",
                                 baseline=is_baseline)
+    # `desk_state[idx]` advances to `new_state` even when `log_transition`
+    # just refused the write (outside 09:15-15:30 IST, desk_log.py's
+    # `market_hours` gate) -- an off-hours change is consumed, not deferred
+    # to the next in-hours call. Left as is: the routine daily bounce means
+    # the first in-hours reading is a `baseline=True` row anyway (desk_state
+    # resets to {} on restart), so there is no accumulated backlog of unlogged
+    # transitions to lose, only the (rare) off-hours flip itself.
     desk_state[idx] = new_state
 
 
@@ -517,8 +526,12 @@ def _senses_loop(poller, payloads, period=0.5):
         except Exception as e:            # never take the tape down
             _SENSES["err"] = f"{type(e).__name__}: {e}"
             log.exception("senses loop")
+            # Recorded BEFORE the backoff sleep, not in a shared `finally` --
+            # otherwise the 2s fault-recovery sleep below bleeds into
+            # senses_ms and a faulting loop reads as merely a slow one.
+            _record_latency("senses_ms", (time.perf_counter() - t0) * 1000.0)
             time.sleep(2)                 # extra backoff on a sustained fault
-        finally:
+        else:
             _record_latency("senses_ms", (time.perf_counter() - t0) * 1000.0)
         time.sleep(period)
 

@@ -174,8 +174,10 @@ def test_composed_path_reaches_pin_and_transition():
         server._SENSES["chain"] = {"NIFTY": {"fuel_rank": None, "drain": False,
                                              "one_sided": None}}
         server._SENSES["pools"] = {"NIFTY-FUT": {"orders_known": True, "walls": 1}}
+        # 21 bars, not 20: server._regime_engine_read mirrors engine.py:918's
+        # `i >= MATURITY` (0-indexed) exactly, which needs MATURITY+1 bars.
         payloads = {"NIFTY": {"session": {"day": {"bars":
-            _fut_bars(20, lambda i: 1.0 if i % 2 == 0 else -1.0, 0.5)}}}}
+            _fut_bars(21, lambda i: 1.0 if i % 2 == 0 else -1.0, 0.5)}}}}
         v = server._view_for("NIFTY", payloads)
         assert v is not None and v.gear == regime.PIN, v
 
@@ -188,7 +190,7 @@ def test_composed_path_reaches_pin_and_transition():
                                              "one_sided": True}}
         server._SENSES["pools"] = {"NIFTY-FUT": {"orders_known": True, "walls": 0}}
         payloads = {"NIFTY": {"session": {"day": {"bars":
-            _fut_bars(20, lambda i: 0.0, 0.1)}}}}
+            _fut_bars(21, lambda i: 0.0, 0.1)}}}}
         v = server._view_for("NIFTY", payloads)
         assert v is not None and v.gear == regime.TRANSITION, v
     finally:
@@ -364,11 +366,14 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
                         lambda doc: desk_mod.Regime())
     monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision)
 
-    surfaces, transitions = [], []
+    surfaces, transitions, transition_kw = [], [], []
     monkeypatch.setattr(desk_log, "log_surface",
                         lambda *a, **kw: surfaces.append(a))
-    monkeypatch.setattr(desk_log, "log_transition",
-                        lambda *a, **kw: transitions.append(a))
+
+    def _capture_transition(*a, **kw):
+        transitions.append(a)
+        transition_kw.append(kw)
+    monkeypatch.setattr(desk_log, "log_transition", _capture_transition)
 
     desk_state = {}
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
@@ -378,17 +383,23 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
     # State cached for the next diff.
     assert desk_state["NIFTY"] == {"gear": "CASCADE", "conviction": "FORCED",
                                    "deployable": "long_call"}
-    # First reading -- all three fields transition FROM None.
+    # First reading -- all three fields transition FROM None, and every row
+    # is marked baseline=True (the restart pseudo-transition, not an
+    # observed one -- see desk_log.py's module docstring / _log_chain_pace's
+    # own docstring above).
     fields = {t[1] for t in transitions}
     assert fields == {"gear", "conviction", "deployable"}
     assert all(t[2] is None for t in transitions)
+    assert all(kw.get("baseline") is True for kw in transition_kw)
 
     # Second call, nothing changed -- no new transitions (TRANSITIONS ONLY).
     transitions.clear()
+    transition_kw.clear()
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
     assert transitions == []
 
-    # A real change -- only the ONE changed field is logged.
+    # A real change -- only the ONE changed field is logged, and it is a
+    # genuine transition, not a baseline row.
     decision2 = desk_mod.Decision(index="NIFTY", expiry="2026-08-27",
                                   best="short_strangle")
     monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision2)
@@ -396,6 +407,7 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
     assert len(transitions) == 1
     _idx, field, frm, to = transitions[0]
     assert field == "deployable" and frm == "long_call" and to == "short_strangle"
+    assert transition_kw[0].get("baseline") is not True
 
 
 def test_log_chain_pace_skips_the_surface_log_on_a_failed_fit(monkeypatch):
