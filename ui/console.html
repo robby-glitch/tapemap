@@ -267,14 +267,23 @@ function render(d) {
 
   // ALERT BOOKKEEPING runs on every render (this page has no diff-skip, so
   // every poll gets here) -- first poll is baseline only, gated on AL.seen.
+  // AL.gear is REBUILT from this pass's names every time, not mutated in
+  // place -- an instrument that drops out of `read`/`pools` entirely must
+  // drop out of the map too, or its last-known CASCADE would keep winning
+  // recomputeActive() forever. A name not in the OLD map (never seen, or
+  // pruned by an earlier absence) is itself a baseline for that name, same
+  // reasoning as AL.seen for the very first poll: its reappearance seeds
+  // silently and never claims a transition, even if it comes back already
+  // CASCADE.
   var alertBaseline = !AL.seen;
+  var nextGear = {};
   var html = "";
   names.forEach(function (n) {
     var r = read[n] || { gear: "UNKNOWN", tag: "I", why: [], evidence: null,
                         why_none: true };
-    if (!alertBaseline && r.gear === "CASCADE" && AL.gear[n] !== "CASCADE")
+    if (!alertBaseline && AL.gear.hasOwnProperty(n) && r.gear === "CASCADE" && AL.gear[n] !== "CASCADE")
       fireAlert(n + " CASCADE", 220, .3, "sawtooth");
-    AL.gear[n] = r.gear;
+    nextGear[n] = r.gear;
     html += "<section><h2><span class='inst'>" + esc(n) + "</span></h2>";
     html += "<div><span class='gear g-" + esc(r.gear) + "'>" + esc(r.gear) + "</span>"
       + tag(r.tag)
@@ -292,6 +301,7 @@ function render(d) {
     html += poolsBlock(pools[n]);
     html += "</section>";
   });
+  AL.gear = nextGear;
   AL.seen = true;
   recomputeActive();
 

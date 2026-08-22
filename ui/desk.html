@@ -365,26 +365,37 @@ function recomputeActive(){
 // message ends up on the "last alert" line when several fire at once:
 // DEPLOYABLE is checked last so it is the one left showing, matching the
 // brief's "highest priority".
+// AL.conv/AL.gear/AL.status are REBUILT from this pass's keys every time,
+// not mutated in place -- an index or candidate that drops out of the
+// payload must drop out of the map too, or its last-known FORCED/CASCADE/
+// DEPLOYABLE value would keep winning recomputeActive() forever. A key
+// that is not in the OLD map (never seen, or seen once and then pruned by
+// an earlier absence) is itself a baseline for that key, same reasoning as
+// AL.seen for the very first poll: we do not know what it was doing while
+// it was missing, so its reappearance seeds silently and never claims a
+// transition, even if it reappears already FORCED/CASCADE/DEPLOYABLE.
 function checkDeskAlerts(){
   var idxs = (S.desk && S.desk.indices) || {}, keys = Object.keys(idxs).sort();
   var baseline = !AL.seen;
+  var nextConv = {}, nextGear = {}, nextStatus = {};
   keys.forEach(function(k){
     var d = idxs[k], v = d.view || {};
     var gear = v.gear || "UNKNOWN", conv = v.conviction || "NONE";
     if(!baseline){
-      if(conv==="FORCED" && AL.conv[k]!=="FORCED")
+      if(conv==="FORCED" && AL.conv.hasOwnProperty(k) && AL.conv[k]!=="FORCED")
         fireAlert("FORCED conviction on "+k, 660, .18, "square");
-      if(gear==="CASCADE" && AL.gear[k]!=="CASCADE")
+      if(gear==="CASCADE" && AL.gear.hasOwnProperty(k) && AL.gear[k]!=="CASCADE")
         fireAlert("CASCADE gear on "+k, 220, .3, "sawtooth");
     }
-    AL.conv[k] = conv; AL.gear[k] = gear;
+    nextConv[k] = conv; nextGear[k] = gear;
     (d.candidates||[]).forEach(function(c){
       var key = k+"|"+c.name, prev = AL.status[key];
-      if(!baseline && c.status==="DEPLOYABLE" && prev!=="DEPLOYABLE")
+      if(!baseline && AL.status.hasOwnProperty(key) && c.status==="DEPLOYABLE" && prev!=="DEPLOYABLE")
         fireAlert(title(c.name)+" DEPLOYABLE on "+k, 880, .35, "sine");
-      AL.status[key] = c.status;
+      nextStatus[key] = c.status;
     });
   });
+  AL.conv = nextConv; AL.gear = nextGear; AL.status = nextStatus;
   AL.seen = true;
   recomputeActive();
 }
