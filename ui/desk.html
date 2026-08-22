@@ -51,7 +51,10 @@
     font:14px/1.5 "Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
   .mono,.num,td,th,input{font-family:"Consolas","IBM Plex Mono",ui-monospace,monospace;
     font-variant-numeric:tabular-nums}
-  .wrap{max-width:1680px;margin:0 auto;padding:12px 16px 60px;
+  /* Fluid width instead of a fixed 1680px cap -- an ultrawide monitor was
+     paying gutters on both sides for nothing. Still bounded so lines of text
+     don't run edge-to-edge on a 49" screen. */
+  .wrap{max-width:min(96vw,2200px);margin:0 auto;padding:12px 16px 60px;
     display:flex;flex-direction:column;gap:10px}
   .lbl{font-family:Consolas,monospace;font-size:.63rem;letter-spacing:.14em;
     text-transform:uppercase;color:var(--muted)}
@@ -86,6 +89,24 @@
   .tglbtn.on{color:var(--sell);border-color:var(--sell)}
   .lastalert{font-size:.7rem;color:var(--ink2);max-width:360px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
+
+  /* -- the answer: THE largest type on the page ---------------------
+     3a. Everything below (the gear's 6 cells, the buyer's-tax 6 cells) was
+     already this size or smaller before this row existed -- re-weighting,
+     not deletion. Nothing here is a new number: it restates the same
+     gear/direction/conviction/best-structure fields the panels below already
+     show, just first and biggest. */
+  .answer{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+    padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+  .answer .big{font-size:clamp(1.5rem,1rem + 2.2vw,2.3rem);font-weight:700;
+    font-family:Consolas,monospace;line-height:1.2;display:flex;flex-wrap:wrap;
+    column-gap:26px;row-gap:6px;align-items:baseline}
+  .answer .idle{font-size:clamp(1.25rem,1rem + 1.4vw,1.8rem);font-weight:600;
+    color:var(--ink2);font-family:Consolas,monospace;line-height:1.3}
+  .answer .part{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .answer .part .l{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:500}
+  .answer .sub{font-size:.83rem;color:var(--ink2)}
 
   /* -- the gear: the overall market view ---------------------------- */
   .gear{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
@@ -127,16 +148,21 @@
     font-family:Consolas,monospace;font-size:.72rem;letter-spacing:.08em;
     text-transform:uppercase;padding:5px 11px;border-radius:4px;cursor:pointer}
   .tabs button[aria-selected=true]{background:var(--panel);color:var(--ink)}
-  /* The chart keeps a DEFINITE pixel height. A percentage against an
-     auto-height flex parent collapses it to zero -- PRODUCT.md's layout trap,
-     which has cost two bad edits and collapsed the chart twice. */
-  .plot{height:330px;position:relative}
+  /* The chart keeps a DEFINITE height -- a percentage against an auto-height
+     flex parent collapses it to zero, PRODUCT.md's layout trap, which has
+     cost two bad edits and collapsed the chart twice. clamp() is still
+     definite (it resolves to one px value at layout time, same as the 330px
+     it replaces) -- it just derives that value from the viewport instead of
+     a constant, so the chart doesn't stay postage-stamp-sized on a tall
+     monitor or overflow a short laptop screen. */
+  .plot{height:clamp(280px,38vh,460px);position:relative}
   .plot svg{width:100%;height:100%;display:block}
   .axis{stroke:var(--grid);stroke-width:1}
   .axtx{fill:var(--muted);font-family:Consolas,monospace;font-size:9px}
 
   /* -- rail --------------------------------------------------------- */
-  .rail{display:flex;flex-direction:column;gap:6px;max-height:660px;overflow-y:auto}
+  .rail{display:flex;flex-direction:column;gap:6px;
+    max-height:clamp(420px,62vh,780px);overflow-y:auto}
   .row{background:var(--sunk);border:1px solid transparent;border-radius:5px;
     padding:8px 11px;cursor:pointer;text-align:left;color:inherit;font:inherit;
     display:flex;flex-direction:column;gap:3px;border-left:2px solid var(--sell);
@@ -227,6 +253,8 @@
     <span class="free">zero cost &middot; advisory only &middot; no order path</span>
   </div>
 
+  <div class="answer" id="answer"></div>
+
   <h2>the gear &mdash; what the machine is doing, before any trade</h2>
   <div class="gear" id="gear"></div>
   <div class="panel" id="gearwhy" style="display:none"></div>
@@ -270,8 +298,14 @@
     <b>zero</b> throughout &mdash; no brokerage, statutory charges rebated on
     any position closing at least Rs 1 positive.
   </div>
+  <div class="note" id="keyhint">
+    Keyboard (ignored while typing in a field): <b>1/2/3</b> BANKNIFTY/NIFTY/SENSEX
+    &middot; <b>&uarr;/&darr;</b> move structure &middot; <b>p/s</b> payoff/smile
+    &middot; <b>b</b> toggle blocked list &middot; <b>m</b> mute.
+  </div>
 </div>
 
+<script src="fmt.js"></script>
 <script>
 "use strict";
 var S = {desk:null, surf:null, health:null, drag:null, idx:null, pick:null,
@@ -400,22 +434,9 @@ function checkDeskAlerts(){
   recomputeActive();
 }
 
-/* -- formatting. An absent value is a STATED absence, never a zero. -- */
-function n(v, d){ return (v===null||v===undefined||!isFinite(v)) ? null
-                        : Number(v).toLocaleString("en-IN",
-                            {minimumFractionDigits:d===undefined?0:d,
-                             maximumFractionDigits:d===undefined?0:d}); }
-function num(v, d, dash){ var s = n(v,d); return s===null ? (dash||"—") : s; }
-// MINUS BEFORE THE SYMBOL, matching shortRs. The two disagreed, putting
-// "₹-17.07" beside "-₹10.0k" on the same panel.
-function rs(v, d){
-  if(v===null||v===undefined||!isFinite(v)) return "—";
-  return (v<0?"-₹":"₹") + n(Math.abs(v), d===undefined?2:d);
-}
-function pct(v, d){ return (v===null||v===undefined||!isFinite(v)) ? "—"
-                          : (v*100).toFixed(d===undefined?2:d)+"%"; }
-function esc(s){ return String(s===null||s===undefined?"":s)
-  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+/* -- formatting. rs/shortRs/num/pct/esc/n now live in fmt.js, shared with
+   console.html -- an absent value is still a STATED absence, never a zero,
+   that file's job unchanged. */
 function pill(v){ return v ? '<span class="pill p-'+esc(v)+'">'+esc(v)+'</span>' : ""; }
 function lines(a){ return (a&&a.length)
   ? '<div class="why">'+a.map(function(w){return "<div>"+esc(w)+"</div>";}).join("")+"</div>"
@@ -423,14 +444,6 @@ function lines(a){ return (a&&a.length)
 function title(s){ return String(s||"").replace(/_/g," "); }
 function m2(l,v,hi){ return '<div class="m"><div class="l">'+esc(l)+'</div>'
   + '<div class="v'+(hi?" hi":"")+'">'+v+'</div></div>'; }
-function shortRs(v){
-  if(v===null||v===undefined||!isFinite(v)) return "—";
-  var a = Math.abs(v), s = v<0?"-₹":"₹";
-  if(a>=1e7) return s+(a/1e7).toFixed(2)+"cr";
-  if(a>=1e5) return s+(a/1e5).toFixed(2)+"L";
-  if(a>=1e3) return s+(a/1e3).toFixed(1)+"k";
-  return s+a.toFixed(0);
-}
 
 /* -- the clock. The machine's local time IS IST on this desk. -------- */
 /* -- feed health: dead vs stale, and how stale. -----------------------
@@ -520,6 +533,40 @@ function pull(){
   }).catch(function(e){ S.err = e; S.raw = ""; render(); });
 }
 
+/* -- the answer -------------------------------------------------------
+   3a. The top row restates three fields the panels below already carry --
+   gear, direction+conviction, best structure -- in the largest type on the
+   page, or the honest idle sentence when there is nothing deployable. No
+   new number is computed here; this is re-weighting, not a new claim. */
+function renderAnswer(d){
+  var el = $("answer");
+  var IDLE = "nothing deployable — the ordinary state of this desk";
+  if(!d){
+    el.innerHTML = '<div class="idle">'+esc(IDLE)+'</div>'
+      + '<div class="sub">the desk has not published an index yet</div>';
+    return;
+  }
+  var v = d.view || {}, gear = v.gear || "UNKNOWN", bias = v.bias || "UNKNOWN";
+  var conv = v.conviction || "NONE";
+  var best = d.best ? (d.candidates||[]).filter(function(c){return c.name===d.best;})[0] : null;
+  if(!best){
+    el.innerHTML = '<div class="idle">'+esc(IDLE)+'</div>'
+      + '<div class="sub">'+esc(S.idx||"this index")+' &middot; gear '
+      + esc(gear)+' &middot; direction '+esc(bias)+'</div>';
+    return;
+  }
+  el.innerHTML = '<div class="big">'
+    + '<span class="part"><span class="l">gear</span><span class="'
+    +   esc(gear)+'">'+esc(gear)+'</span></span>'
+    + '<span class="part"><span class="l">direction</span><span class="'
+    +   esc(bias)+'">'+esc(bias)+' &middot; '+esc(conv)+'</span></span>'
+    + '<span class="part"><span class="l">best structure</span><span>'
+    +   esc(title(best.name))+' '+pill(best.status)+'</span></span>'
+    + '</div>'
+    + '<div class="sub">'+esc(S.idx||"")+' &middot; '
+    + (best.case==="FLOW" ? "the flow" : (rs(best.edge)+"/unit"))+'</div>';
+}
+
 /* -- the gear -------------------------------------------------------- */
 function cell(label, big, cls, sub){
   return '<div class="cell"><div class="lbl">'+esc(label)+'</div>'
@@ -542,7 +589,9 @@ function renderGear(d){
   : gear==="TRANSITION"? "loaded, no ignition — both games lose here"
   : "the inputs do not evidence any gear"));
 
-  cells.push(cell("direction", bias, bias,
+  // DIRECTION IS THE INFERENCE, not a measurement -- direction.py's own
+  // docstring says nothing here has a track record yet (HANDOFF-DESK §6).
+  cells.push(cell("direction", bias + (bias&&bias!=="UNKNOWN" ? " [I]" : ""), bias,
     v.worst_leg ? ("pain sits on "+v.worst_leg)
     : bias==="NEUTRAL" ? "no side forced — both wings carry the pain"
     : (v.missing && v.missing.length) ? v.missing[0] : "—"));
@@ -555,7 +604,10 @@ function renderGear(d){
   cells.push(cell("game", title(d.game||"NO GAME").toUpperCase(), gear,
     "what this gear permits"));
 
-  cells.push(cell("expected move", num(r.expected_move,0), "",
+  // EXPECTED MOVE IS A MODEL OUTPUT (the ATM straddle read as a forecast),
+  // not something the chain states directly -- [I].
+  cells.push(cell("expected move",
+    num(r.expected_move,0) + (r.expected_move!=null ? " [I]" : ""), "",
     (r.spot!==null&&r.spot!==undefined)
       ? ("spot "+num(r.spot,0)+" — the ATM straddle's own forecast")
       : "no spot published"));
@@ -564,12 +616,14 @@ function renderGear(d){
   // the whole chain sits on one side of the gear — a STRONGER statement than
   // a flip, not a weaker one. Rendered as a dash it read as a missing number
   // beside a confident "spot is ABOVE", which is two claims that do not fit.
+  // The flip itself is a dealer-hedging INFERENCE off the chain, not a wire
+  // print -- [I], same reasoning as expected move.
   var noflip = (r.flip_px===null||r.flip_px===undefined);
+  var flipKnown = !(r.above_flip===null||r.above_flip===undefined);
   cells.push(cell("gamma flip",
-    noflip ? ((r.above_flip===null||r.above_flip===undefined) ? "UNKNOWN"
-                                                              : "NO CROSSING")
-           : num(r.flip_px,0), "",
-    (r.above_flip===null||r.above_flip===undefined) ? "no chain to read it from"
+    noflip ? (flipKnown ? "NO CROSSING [I]" : "UNKNOWN")
+           : (num(r.flip_px,0) + " [I]"), "",
+    !flipKnown ? "no chain to read it from"
       : noflip
         ? ("dealer GEX never changes sign — the whole chain is "
            + (r.above_flip ? "damping" : "amplifying"))
@@ -621,8 +675,10 @@ function renderDrag(){
   cells.push(cell("anchored", d.strike?num(d.strike,0):"—", "",
     d.anchored_at ? ("nearest spot at "+esc(d.anchored_at)+", held all session")
                   : "not anchored yet"));
+  // DRAG LEGS ARE MEASURED off the chain, not modelled -- [M], same reasoning
+  // as lot_size_src's existing tag.
   cells.push(cell("delta used",
-    (d.delta===null||d.delta===undefined)?"—":num(d.delta,3), "",
+    (d.delta===null||d.delta===undefined)?"—":(num(d.delta,3)+" [M]"), "",
     "real, off the chain — never an assumed 0.5"));
   el.innerHTML = cells.join("");
 }
@@ -647,7 +703,7 @@ function renderCards(){
       +     'font-size:.74rem;font-weight:700">'+esc(v.bias||"UNKNOWN")+'</span>'
       +   '<span class="grow"></span><span class="lbl">'+esc(d.expiry||"")+'</span></div>'
       + '<div class="grid">'
-      +   met("atm vol", fit.ok?pct(fit.atm_iv,1):"—")
+      +   met("atm vol", fit.ok?(pct(fit.atm_iv,1)+" [M]"):"—")
       +   met("fit rmse", fit.ok?(fit.rmse*100).toFixed(2):"—")
       +   met("lot", num(d.lot_size)+(d.lot_size_src==="assumed"?" [I]":""))
       + '</div>'
@@ -926,7 +982,7 @@ function drawSmile(idx, c){
 
   var fit=f.fit;
   foot.innerHTML='<div class="metrics" style="margin-top:8px">'
-    + m2("atm vol (a)", pct(fit.atm_iv,2), true)
+    + m2("atm vol (a)", pct(fit.atm_iv,2)+" [M]", true)
     + m2("skew (b)", (fit.skew===null||fit.skew===undefined)?"—":(fit.skew*100).toFixed(2)+" vol")
     + m2("convexity (c)", num(fit.convexity,2))
     + m2("rmse", (fit.rmse*100).toFixed(3)+" vol")
@@ -1060,6 +1116,7 @@ function render(){
   renderDrag();
   renderCards();
   d = S.idx ? ind[S.idx] : null;      // renderCards may have chosen the index
+  renderAnswer(d);
   renderRail(d);
 
   var c = null, i;
@@ -1120,6 +1177,66 @@ $("notifyToggle").onclick = function(){
   refreshAlertToggles();
 };
 refreshAlertToggles();
+
+/* -- keyboard: 3c. Ignored whenever focus sits in an input -- this strip
+   has two number fields (capital, test lots), and typing a digit into
+   either must never also jump the index. */
+function inInput(){
+  var a = document.activeElement;
+  return !!(a && (a.tagName==="INPUT" || a.tagName==="TEXTAREA" || a.isContentEditable));
+}
+var IDX_KEYS = {"1":"BANKNIFTY","2":"NIFTY","3":"SENSEX"};
+// Same order the rail actually draws: live rows (including STAND_ASIDE),
+// then blocked ones -- so up/down walks the screen top to bottom.
+function railOrder(){
+  var d = S.idx ? ((S.desk&&S.desk.indices)||{})[S.idx] : null;
+  var cs = (d&&d.candidates)||[];
+  var live = cs.filter(function(c){ return c.status!=="BLOCKED"; });
+  var dead = cs.filter(function(c){ return c.status==="BLOCKED"; });
+  return live.concat(dead);
+}
+function focusRowByName(name){
+  if(!name || !$("rail")) return;
+  var btns = $("rail").querySelectorAll("[data-n]"), i;
+  for(i=0;i<btns.length;i++){
+    if(btns[i].getAttribute("data-n")===name){ btns[i].focus(); return; }
+  }
+}
+document.addEventListener("keydown", function(e){
+  if(inInput()) return;
+  var k = e.key;
+  if(IDX_KEYS.hasOwnProperty(k)){
+    var ind = (S.desk&&S.desk.indices)||{};
+    if(ind[IDX_KEYS[k]]){
+      S.idx = IDX_KEYS[k]; S.pick = null; S.userPick = false; render();
+    }
+    return;
+  }
+  if(k==="ArrowUp" || k==="ArrowDown"){
+    var order = railOrder();
+    if(!order.length) return;
+    var i = -1, j;
+    for(j=0;j<order.length;j++) if(order[j].name===S.pick) i = j;
+    if(i<0) i = 0;
+    else i = (k==="ArrowUp") ? Math.max(0,i-1) : Math.min(order.length-1,i+1);
+    S.pick = order[i].name; S.userPick = true;
+    render();
+    focusRowByName(S.pick);
+    e.preventDefault();
+    return;
+  }
+  if(k==="p" || k==="P"){ S.tab = "payoff"; render(); return; }
+  if(k==="s" || k==="S"){ S.tab = "smile"; render(); return; }
+  if(k==="b" || k==="B"){
+    var det = $("rail") && $("rail").querySelector("details");
+    if(det) det.open = !det.open;
+    return;
+  }
+  // m mutes/unmutes by reusing the existing sound toggle's own click handler
+  // -- that handler already persists to localStorage and hosts the
+  // Notification permission request, so this does not duplicate either.
+  if(k==="m" || k==="M"){ $("soundToggle").click(); return; }
+});
 
 pull();
 setInterval(pull, 5000);

@@ -93,14 +93,21 @@
   <span id="foot"></span>
 </footer>
 
+<script src="fmt.js"></script>
 <script>
 "use strict";
-var esc = function (s) {
-  return String(s == null ? "" : s).replace(/[&<>"]/g,
-    function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]; });
-};
+// esc() is shared from fmt.js verbatim (it never escaped quotes and none of
+// this page's esc() calls sit inside an HTML attribute, so nothing changes).
+// num() stays a thin console-specific wrapper: this page's convention is
+// 2 decimals by default and a muted dash for an absent value, which differs
+// from desk.html's convention (0 decimals, plain dash) -- so rather than
+// force one page's display defaults onto the other, only the actual
+// number-to-string logic (fmt.js's n()) is shared.
 var tag = function (t) { return '<span class="tag tag-' + (t==="M"?"M":"I") + '">' + (t||"I") + '</span>'; };
-var num = function (v, d) { return v == null ? '<span class="muted">&mdash;</span>' : (+v).toFixed(d == null ? 2 : d); };
+var num = function (v, d) {
+  var s = n(v, d == null ? 2 : d);
+  return s === null ? '<span class="muted">&mdash;</span>' : s;
+};
 
 /* ===================================================================
    PHASE 1 ALERTS -- mirrors ui/desk.html's alert engine (kept separate
