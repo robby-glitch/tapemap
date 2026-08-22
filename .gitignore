@@ -50,3 +50,4 @@ _srv.err
 data/scrip_master.csv
 data/stick_state.json
 data/upstox_*.json
+tapemap.log*
