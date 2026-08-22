@@ -79,6 +79,13 @@
   .ctl input:focus{outline:1px solid var(--sell)}
   .free{color:var(--sell);font-family:Consolas,monospace;font-size:.66rem;
     letter-spacing:.1em;text-transform:uppercase}
+  /* -- alert controls (Phase 1) -------------------------------------- */
+  .tglbtn{background:var(--sunk);border:1px solid var(--rule);color:var(--ink2);
+    border-radius:4px;padding:3px 9px;font:inherit;font-family:Consolas,monospace;
+    font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+  .tglbtn.on{color:var(--sell);border-color:var(--sell)}
+  .lastalert{font-size:.7rem;color:var(--ink2);max-width:360px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
 
   /* -- the gear: the overall market view ---------------------------- */
   .gear{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
@@ -214,6 +221,9 @@
       <input id="testlots" type="number" min="1" step="1" value="5"></span>
     <span class="ctl"><span class="lbl">capital, rs cr</span>
       <input id="capital" type="number" min="0.01" step="0.5" value="5"></span>
+    <span class="ctl"><button id="soundToggle" type="button" class="tglbtn">sound</button>
+      <button id="notifyToggle" type="button" class="tglbtn">notify</button></span>
+    <span class="lastalert" id="lastAlert">no alerts yet</span>
     <span class="free">zero cost &middot; advisory only &middot; no order path</span>
   </div>
 
@@ -268,6 +278,116 @@ var S = {desk:null, surf:null, health:null, drag:null, idx:null, pick:null,
          userPick:false, tab:"payoff", at:0, err:null, raw:""};
 
 function $(id){ return document.getElementById(id); }
+
+/* ===================================================================
+   PHASE 1 ALERTS -- never miss the fire. Client-side transition
+   detection on the existing polls: an alert class fires ONCE per
+   transition (edge-triggered) via fireAlert(); document.title/favicon
+   reflect whatever alert condition is CURRENTLY true (level-triggered,
+   via recomputeActive()) so a buried tab still shows a live signal
+   after the tone already played once and cleared. The first successful
+   poll is baseline only -- it seeds every map below and never fires a
+   tone (guarded by AL.seen / AL.feedSeen below).
+   =================================================================== */
+var ORIG_TITLE = document.title;
+var FAVICON = document.querySelector('link[rel~="icon"]');
+if(!FAVICON){ FAVICON = document.createElement("link"); FAVICON.rel = "icon";
+  document.head.appendChild(FAVICON); }
+
+var AL = {
+  seen:false, feedSeen:false, feedDead:false, active:null, lastAlert:null,
+  gear:{}, conv:{}, status:{},
+  soundOn: localStorage.getItem("tapemap.desk.sound") !== "0",   // default ON
+  notifyOn: localStorage.getItem("tapemap.desk.notify") === "1"  // opt-in, default OFF
+};
+
+// Machine clock IS IST (house rule). Outside 09:15-15:30 Mon-Fri: no sound,
+// no OS notification -- title/favicon chrome is still allowed (constraint 7).
+function marketOpenNow(){
+  var d = new Date(), day = d.getDay();
+  if(day===0 || day===6) return false;
+  var mins = d.getHours()*60 + d.getMinutes();
+  return mins >= 555 && mins <= 930;   // 09:15 .. 15:30
+}
+
+var AL_ctx = null;
+function beep(freq, dur, kind){
+  if(!AL.soundOn || !marketOpenNow()) return;
+  try{
+    if(!AL_ctx) AL_ctx = new (window.AudioContext||window.webkitAudioContext)();
+    if(AL_ctx.state === "suspended") AL_ctx.resume();
+    var o = AL_ctx.createOscillator(), g = AL_ctx.createGain();
+    o.type = kind || "sine"; o.frequency.value = freq;
+    g.gain.value = 0.16;
+    o.connect(g); g.connect(AL_ctx.destination);
+    g.gain.exponentialRampToValueAtTime(0.0001, AL_ctx.currentTime + dur);
+    o.start(); o.stop(AL_ctx.currentTime + dur + 0.02);
+  }catch(e){}
+}
+function notifyOS(msg){
+  if(!AL.notifyOn || !marketOpenNow()) return;
+  if(typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try{ new Notification("the desk", {body: msg}); }catch(e){}
+}
+function setLastAlert(msg){
+  // Recorded regardless of market hours / mute -- this is the recall line for
+  // a heard-but-missed tone, not the tone itself.
+  AL.lastAlert = new Date().toLocaleTimeString("en-GB") + " " + msg;
+  if($("lastAlert")) $("lastAlert").textContent = AL.lastAlert;
+}
+function fireAlert(msg, freq, dur, kind){
+  setLastAlert(msg);
+  beep(freq, dur, kind);
+  notifyOS(msg);
+}
+function applyAlertChrome(){
+  var a = AL.active;
+  document.title = a ? ("● " + a + " — " + ORIG_TITLE) : ORIG_TITLE;
+  if(a) FAVICON.setAttribute("href", "stop.ico"); else FAVICON.removeAttribute("href");
+}
+// LEVEL-TRIGGERED, recomputed from the same state maps the edge-triggered
+// tones use -- always "what is true right now", not "what last fired".
+// A dead feed invalidates every other reading (constraint 3: red is
+// reserved solely for a dead feed), so it wins the title even over a live
+// DEPLOYABLE.
+function recomputeActive(){
+  var dep=null, forced=null, cascade=null, k;
+  for(k in AL.status){ if(AL.status[k]==="DEPLOYABLE"){
+    var p = k.split("|"); dep = "DEPLOYABLE " + title(p[1]) + " " + p[0]; break; } }
+  for(k in AL.conv){ if(AL.conv[k]==="FORCED"){ forced = "FORCED conviction " + k; break; } }
+  for(k in AL.gear){ if(AL.gear[k]==="CASCADE"){ cascade = "CASCADE gear " + k; break; } }
+  AL.active = AL.feedDead ? "FEED DEAD" : (dep || forced || cascade || null);
+  applyAlertChrome();
+}
+// EDGE-TRIGGERED bookkeeping. Called from pull() BEFORE the payload-diff
+// skip (constraint 6) so a transition is never missed just because the
+// rail didn't need to redraw. Order within an index matters only for which
+// message ends up on the "last alert" line when several fire at once:
+// DEPLOYABLE is checked last so it is the one left showing, matching the
+// brief's "highest priority".
+function checkDeskAlerts(){
+  var idxs = (S.desk && S.desk.indices) || {}, keys = Object.keys(idxs).sort();
+  var baseline = !AL.seen;
+  keys.forEach(function(k){
+    var d = idxs[k], v = d.view || {};
+    var gear = v.gear || "UNKNOWN", conv = v.conviction || "NONE";
+    if(!baseline){
+      if(conv==="FORCED" && AL.conv[k]!=="FORCED")
+        fireAlert("FORCED conviction on "+k, 660, .18, "square");
+      if(gear==="CASCADE" && AL.gear[k]!=="CASCADE")
+        fireAlert("CASCADE gear on "+k, 220, .3, "sawtooth");
+    }
+    AL.conv[k] = conv; AL.gear[k] = gear;
+    (d.candidates||[]).forEach(function(c){
+      var key = k+"|"+c.name, prev = AL.status[key];
+      if(!baseline && c.status==="DEPLOYABLE" && prev!=="DEPLOYABLE")
+        fireAlert(title(c.name)+" DEPLOYABLE on "+k, 880, .35, "sine");
+      AL.status[key] = c.status;
+    });
+  });
+  AL.seen = true;
+  recomputeActive();
+}
 
 /* -- formatting. An absent value is a STATED absence, never a zero. -- */
 function n(v, d){ return (v===null||v===undefined||!isFinite(v)) ? null
@@ -346,6 +466,15 @@ setInterval(function(){
   } else {
     sb.style.display = "none";
   }
+  // FEED->DEAD ALERT, built on the fr.dead this ticker already computed --
+  // not re-derived. Baseline-gated on S.at (no successful poll yet) so a
+  // page load that happens to start dead does not fire immediately.
+  if(S.at){
+    if(!AL.feedSeen){ AL.feedSeen = true; AL.feedDead = fr.dead; }
+    else if(fr.dead && !AL.feedDead) fireAlert("FEED DEAD", 180, .5, "square");
+    AL.feedDead = fr.dead;
+  }
+  recomputeActive();
 }, 1000);
 
 /* -- fetch ----------------------------------------------------------- */
@@ -362,6 +491,10 @@ function pull(){
   ]).then(function(a){
     S.desk = a[0]; S.surf = a[1]; S.health = a[2]; S.drag = a[3];
     S.at = Date.now(); S.err = null;
+    // ALERT BOOKKEEPING RUNS ON EVERY POLL, before the payload-diff skip
+    // below can return early (constraint 6) -- a transition must never be
+    // missed just because the render it would have caused was skipped.
+    checkDeskAlerts();
     // DO NOT REBUILD THE DOM WHEN NOTHING CHANGED. render() replaces the rail
     // and the detail panel wholesale, and run unconditionally every 5s it
     // destroyed, every cycle: keyboard focus (activeElement reverted to
@@ -951,6 +1084,32 @@ Array.prototype.forEach.call($("tabs").children, function(b){
 });
 $("capital").onchange = pull;
 $("testlots").onchange = render;   // pure display math, no round trip needed
+
+function refreshAlertToggles(){
+  var sb = $("soundToggle"), nb = $("notifyToggle");
+  sb.textContent = "sound " + (AL.soundOn ? "on" : "off");
+  sb.className = "tglbtn" + (AL.soundOn ? " on" : "");
+  nb.textContent = "notify " + (AL.notifyOn ? "on" : "off");
+  nb.className = "tglbtn" + (AL.notifyOn ? " on" : "");
+}
+$("soundToggle").onclick = function(){
+  AL.soundOn = !AL.soundOn;
+  localStorage.setItem("tapemap.desk.sound", AL.soundOn ? "1" : "0");
+  // Permission prompts need a gesture -- this click is the one we spend it
+  // on. Degrades silently: if denied, notifyOS() just no-ops forever.
+  if(typeof Notification !== "undefined" && Notification.permission === "default")
+    Notification.requestPermission();
+  if(!AL_ctx){ try{ AL_ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  else if(AL_ctx.state === "suspended") AL_ctx.resume();
+  refreshAlertToggles();
+};
+$("notifyToggle").onclick = function(){
+  AL.notifyOn = !AL.notifyOn;
+  localStorage.setItem("tapemap.desk.notify", AL.notifyOn ? "1" : "0");
+  refreshAlertToggles();
+};
+refreshAlertToggles();
+
 pull();
 setInterval(pull, 5000);
 </script>

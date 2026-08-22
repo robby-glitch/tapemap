@@ -65,11 +65,23 @@
   .wall { color:var(--blue); } .cluster { color:var(--amber); }
   footer { padding:10px 14px; color:var(--dim); font-size:10px;
            border-top:1px solid var(--line); line-height:1.7; }
+  /* -- alert controls (Phase 1) --------------------------------------- */
+  .tglbtn { background:var(--panel); border:1px solid var(--line); color:var(--dim);
+            border-radius:3px; padding:2px 8px; font:inherit; font-size:10px;
+            letter-spacing:.08em; text-transform:uppercase; cursor:pointer; }
+  .tglbtn.on { color:var(--green); border-color:var(--green); }
+  .lastalert { color:var(--dim); font-size:11px; max-width:320px; overflow:hidden;
+               text-overflow:ellipsis; white-space:nowrap; }
 </style>
 
 <header>
   <h1>operator console</h1>
   <span class="shadow" id="mode">shadow &middot; gates nothing &middot; no order path</span>
+  <span style="display:flex;gap:6px;align-items:center">
+    <button id="soundToggle" type="button" class="tglbtn">sound</button>
+    <button id="notifyToggle" type="button" class="tglbtn">notify</button>
+  </span>
+  <span class="lastalert" id="lastAlert">no alerts yet</span>
   <div class="health" id="health">connecting&hellip;</div>
 </header>
 
@@ -89,6 +101,85 @@ var esc = function (s) {
 };
 var tag = function (t) { return '<span class="tag tag-' + (t==="M"?"M":"I") + '">' + (t||"I") + '</span>'; };
 var num = function (v, d) { return v == null ? '<span class="muted">&mdash;</span>' : (+v).toFixed(d == null ? 2 : d); };
+
+/* ===================================================================
+   PHASE 1 ALERTS -- mirrors ui/desk.html's alert engine (kept separate
+   per file: no shared script, no build step). Edge-triggered tones fire
+   once per transition (first poll is baseline only); title/favicon are
+   level-triggered off the same state, so a buried tab still shows a
+   live signal after the tone already played once and cleared.
+   =================================================================== */
+var ORIG_TITLE = document.title;
+var FAVICON = document.querySelector('link[rel~="icon"]');
+if (!FAVICON) { FAVICON = document.createElement("link"); FAVICON.rel = "icon";
+  document.head.appendChild(FAVICON); }
+
+var AL = {
+  seen:false, feedSeen:false, feedDead:false, active:null, lastAlert:null, gear:{},
+  soundOn: localStorage.getItem("tapemap.console.sound") !== "0",   // default ON
+  notifyOn: localStorage.getItem("tapemap.console.notify") === "1" // opt-in, default OFF
+};
+
+// Machine clock IS IST. Outside 09:15-15:30 Mon-Fri: no sound, no OS
+// notification -- title/favicon chrome is still allowed.
+function marketOpenNow() {
+  var d = new Date(), day = d.getDay();
+  if (day === 0 || day === 6) return false;
+  var mins = d.getHours() * 60 + d.getMinutes();
+  return mins >= 555 && mins <= 930;   // 09:15 .. 15:30
+}
+
+var AL_ctx = null;
+function beep(freq, dur, kind) {
+  if (!AL.soundOn || !marketOpenNow()) return;
+  try {
+    if (!AL_ctx) AL_ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (AL_ctx.state === "suspended") AL_ctx.resume();
+    var o = AL_ctx.createOscillator(), g = AL_ctx.createGain();
+    o.type = kind || "sine"; o.frequency.value = freq;
+    g.gain.value = 0.16;
+    o.connect(g); g.connect(AL_ctx.destination);
+    g.gain.exponentialRampToValueAtTime(0.0001, AL_ctx.currentTime + dur);
+    o.start(); o.stop(AL_ctx.currentTime + dur + 0.02);
+  } catch (e) {}
+}
+function notifyOS(msg) {
+  if (!AL.notifyOn || !marketOpenNow()) return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try { new Notification("operator console", { body: msg }); } catch (e) {}
+}
+function setLastAlert(msg) {
+  AL.lastAlert = new Date().toLocaleTimeString("en-GB") + " " + msg;
+  var el = document.getElementById("lastAlert");
+  if (el) el.textContent = AL.lastAlert;
+}
+function fireAlert(msg, freq, dur, kind) {
+  setLastAlert(msg);
+  beep(freq, dur, kind);
+  notifyOS(msg);
+}
+function applyAlertChrome() {
+  var a = AL.active;
+  document.title = a ? ("● " + a + " — " + ORIG_TITLE) : ORIG_TITLE;
+  if (a) FAVICON.setAttribute("href", "stop.ico"); else FAVICON.removeAttribute("href");
+}
+// A dead feed wins the title over a live CASCADE -- red is reserved solely
+// for a dead feed, and a dead feed invalidates every other reading anyway.
+function recomputeActive() {
+  var cascade = null, k;
+  for (k in AL.gear) { if (AL.gear[k] === "CASCADE") { cascade = "CASCADE " + k; break; } }
+  AL.active = AL.feedDead ? "FEED DEAD" : (cascade || null);
+  applyAlertChrome();
+}
+// `dead` is !d.ok (what healthLine() itself reads as FEED: down) or an
+// outright fetch failure from tick()'s catch. First observation, from
+// either path, is baseline only.
+function checkConsoleFeed(dead) {
+  if (!AL.feedSeen) { AL.feedSeen = true; }
+  else if (dead && !AL.feedDead) fireAlert("FEED DEAD", 180, .5, "square");
+  AL.feedDead = dead;
+  recomputeActive();
+}
 
 function healthLine(d) {
   var bits = [];
@@ -174,10 +265,16 @@ function render(d) {
     return fa - fb || a.localeCompare(b);
   });
 
+  // ALERT BOOKKEEPING runs on every render (this page has no diff-skip, so
+  // every poll gets here) -- first poll is baseline only, gated on AL.seen.
+  var alertBaseline = !AL.seen;
   var html = "";
   names.forEach(function (n) {
     var r = read[n] || { gear: "UNKNOWN", tag: "I", why: [], evidence: null,
                         why_none: true };
+    if (!alertBaseline && r.gear === "CASCADE" && AL.gear[n] !== "CASCADE")
+      fireAlert(n + " CASCADE", 220, .3, "sawtooth");
+    AL.gear[n] = r.gear;
     html += "<section><h2><span class='inst'>" + esc(n) + "</span></h2>";
     html += "<div><span class='gear g-" + esc(r.gear) + "'>" + esc(r.gear) + "</span>"
       + tag(r.tag)
@@ -195,6 +292,8 @@ function render(d) {
     html += poolsBlock(pools[n]);
     html += "</section>";
   });
+  AL.seen = true;
+  recomputeActive();
 
   if (!names.length) {
     html = "<section><h2>waiting</h2><div class='muted'>Nothing is arriving at all "
@@ -231,15 +330,42 @@ function render(d) {
 function tick() {
   fetch("/api/senses?n=200", { cache: "no-store" })
     .then(function (r) { return r.json(); })
-    .then(render)
+    .then(function (d) { render(d); checkConsoleFeed(!d.ok); })
     .catch(function (e) {
       // The fetch itself failed: the server is gone. Say so in the one colour
       // reserved for it rather than leaving the last good screen up, which
       // would be a dead reader wearing a live one's face.
       document.getElementById("health").innerHTML =
         '<span class="bad">CONSOLE CANNOT REACH THE SERVER &mdash; ' + esc(e) + '</span>';
+      checkConsoleFeed(true);
     });
 }
+
+function refreshAlertToggles() {
+  var sb = document.getElementById("soundToggle"), nb = document.getElementById("notifyToggle");
+  sb.textContent = "sound " + (AL.soundOn ? "on" : "off");
+  sb.className = "tglbtn" + (AL.soundOn ? " on" : "");
+  nb.textContent = "notify " + (AL.notifyOn ? "on" : "off");
+  nb.className = "tglbtn" + (AL.notifyOn ? " on" : "");
+}
+document.getElementById("soundToggle").onclick = function () {
+  AL.soundOn = !AL.soundOn;
+  localStorage.setItem("tapemap.console.sound", AL.soundOn ? "1" : "0");
+  // Permission prompts need a gesture -- this click is the one we spend it
+  // on. Degrades silently: if denied, notifyOS() just no-ops forever.
+  if (typeof Notification !== "undefined" && Notification.permission === "default")
+    Notification.requestPermission();
+  if (!AL_ctx) { try { AL_ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  else if (AL_ctx.state === "suspended") AL_ctx.resume();
+  refreshAlertToggles();
+};
+document.getElementById("notifyToggle").onclick = function () {
+  AL.notifyOn = !AL.notifyOn;
+  localStorage.setItem("tapemap.console.notify", AL.notifyOn ? "1" : "0");
+  refreshAlertToggles();
+};
+refreshAlertToggles();
+
 tick();
 setInterval(tick, 2000);
 </script>
