@@ -12,6 +12,7 @@ through `to_bars -> vwap_bands -> resample` exactly as `squeeze_score.load`
 does, and assert the clock survived.
 """
 import json
+import os
 
 import contract_bars as cb
 import eod_capture as EC
@@ -161,3 +162,71 @@ def test_capture_reports_a_dead_server_as_a_reason(tmp_path):
     path, n, why = EC.capture("SENSEX", fetch=boom, root=str(tmp_path))
     assert path is None and n == 0
     assert "could not read the live tape" in why and "server" in why
+
+
+# --------------------------------------------------------------------------
+# 5c -- preserving the day's surface fit log and desk_log snapshot alongside
+# the OHLC bars above. Neither is broker-sourced, so neither can be refetched
+# once a machine's local copy is gone -- unlike the bars `capture` writes.
+# --------------------------------------------------------------------------
+
+def test_capture_desk_record_copies_both_files(tmp_path, monkeypatch):
+    src_surf_dir = tmp_path / "src_surface"
+    src_surf_dir.mkdir()
+    src_surf = src_surf_dir / "surface_2026-08-24.jsonl"
+    src_surf.write_text('{"idx": "NIFTY", "a": 0.15}\n', encoding="utf-8")
+    src_desk = tmp_path / "src_desk_log.jsonl"
+    src_desk.write_text('{"idx": "NIFTY", "field": "gear"}\n',
+                        encoding="utf-8")
+
+    monkeypatch.setattr(EC, "SURF_SRC_DIR", str(src_surf_dir))
+    monkeypatch.setattr(EC, "DESK_LOG_SRC", str(src_desk))
+
+    root = str(tmp_path / "backtest")
+    out = EC.capture_desk_record("2026-08-24", root=root)
+
+    surf_path, surf_why = out["surface"]
+    desk_path, desk_why = out["desk_log"]
+    assert surf_why is None and desk_why is None
+    assert surf_path == os.path.join(root, "surface_2026-08-24.jsonl")
+    assert desk_path == os.path.join(root, "desk_log_2026-08-24.jsonl")
+    assert open(surf_path, encoding="utf-8").read() == src_surf.read_text(
+        encoding="utf-8")
+    assert open(desk_path, encoding="utf-8").read() == src_desk.read_text(
+        encoding="utf-8")
+
+
+def test_capture_desk_record_reports_a_missing_source_as_a_reason(tmp_path,
+                                                                   monkeypatch):
+    """No surface fit and no desk_log yet -- e.g. a day the market never
+    opened -- is a NAMED reason, never a silent no-op or a fabricated empty
+    file."""
+    monkeypatch.setattr(EC, "SURF_SRC_DIR", str(tmp_path / "no_such_dir"))
+    monkeypatch.setattr(EC, "DESK_LOG_SRC", str(tmp_path / "no_such_file"))
+    out = EC.capture_desk_record("2026-08-24", root=str(tmp_path / "bt"))
+    assert out["surface"][0] is None and "does not exist" in out["surface"][1]
+    assert out["desk_log"][0] is None and "does not exist" in out["desk_log"][1]
+
+
+def test_capture_desk_record_does_not_clobber_without_force(tmp_path,
+                                                              monkeypatch):
+    src_desk = tmp_path / "src_desk_log.jsonl"
+    src_desk.write_text('{"a": 1}\n', encoding="utf-8")
+    monkeypatch.setattr(EC, "SURF_SRC_DIR", str(tmp_path / "no_such_dir"))
+    monkeypatch.setattr(EC, "DESK_LOG_SRC", str(src_desk))
+
+    root = str(tmp_path / "backtest")
+    first = EC.capture_desk_record("2026-08-24", root=root)
+    assert first["desk_log"][1] is None
+
+    src_desk.write_text('{"a": 1}\n{"a": 2}\n', encoding="utf-8")
+    second = EC.capture_desk_record("2026-08-24", root=root)
+    assert second["desk_log"][0] is None
+    assert "already exists" in second["desk_log"][1]
+    # The first, shorter capture is still the one on disk.
+    dst = os.path.join(root, "desk_log_2026-08-24.jsonl")
+    assert open(dst, encoding="utf-8").read() == '{"a": 1}\n'
+
+    third = EC.capture_desk_record("2026-08-24", root=root, force=True)
+    assert third["desk_log"][1] is None
+    assert open(dst, encoding="utf-8").read() == '{"a": 1}\n{"a": 2}\n'

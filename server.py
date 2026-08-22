@@ -26,6 +26,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import chainside as chain_mod
 import desk as desk_mod
+import desk_log
 import direction as direction_mod
 import drag as drag_mod
 import fuse as fuse_mod
@@ -131,6 +132,48 @@ def _clean_books(books):
             side_out[side] = clean
         if side_out.get("bid") and side_out.get("ask"):
             out[str(tok)] = {"depth": side_out}
+    return out
+
+
+# 5d -- LATENCY INSTRUMENTATION. Two ring buffers (last 500 samples each), one
+# per `perf_counter` seam: a senses-loop PASS, and an HTTP handler's SERVICE
+# TIME. `deque(maxlen=500)` drops the oldest sample on overflow by itself, so
+# this never grows -- no log spam, no unbounded memory, just what /api/health
+# needs to publish p50/p99.
+from collections import deque as _deque
+
+_LAT_LOCK = threading.Lock()
+_LAT = {"senses_ms": _deque(maxlen=500), "http_ms": _deque(maxlen=500)}
+
+# Below this many samples a percentile is noise, not a measurement -- constraint
+# 9 says /api/health must publish ABSENT with a reason rather than a number
+# computed off too little, and never a fabricated zero.
+MIN_LAT_SAMPLES = 5
+
+
+def _record_latency(bucket, ms):
+    with _LAT_LOCK:
+        _LAT[bucket].append(ms)
+
+
+def _percentile(xs, p):
+    s = sorted(xs)
+    k = max(0, min(len(s) - 1, int(round(p / 100.0 * (len(s) - 1)))))
+    return round(s[k], 2)
+
+
+def _latency_summary():
+    """{senses_ms: {...}, http_ms: {...}}, each either p50/p99/n or a reason."""
+    with _LAT_LOCK:
+        snaps = {k: list(v) for k, v in _LAT.items()}
+    out = {}
+    for k, xs in snaps.items():
+        if len(xs) < MIN_LAT_SAMPLES:
+            out[k] = {"p50": None, "p99": None, "n": len(xs),
+                      "why": f"only {len(xs)} sample(s); need {MIN_LAT_SAMPLES}"}
+        else:
+            out[k] = {"p50": _percentile(xs, 50), "p99": _percentile(xs, 99),
+                      "n": len(xs)}
     return out
 
 
@@ -259,14 +302,70 @@ def _walls_holding(pools_summary):
     return pools_summary.get("walls", 0) > 0, None
 
 
-def _senses_loop(poller, period=0.5):
-    """Drive the book detectors off the chain poller's ALREADY-OPEN socket.
+def _log_chain_pace(poller, payloads, idx, doc, desk_state):
+    """5a/5b: fit the surface and compute the desk view ONCE per new chain
+    payload for `idx`, and forward-log a surface line plus any transition.
+
+    WHY HERE, AND WHY THIS COSTS NOTHING EXTRA. This runs from inside the
+    per-idx "new payload" block `_senses_loop` already has -- the same place
+    that already re-parses the chain once per ~10s refresh, never per poll.
+    `desk.decide` is real work (fits a whole candidate catalog); gating it on
+    the same trigger, rather than the 0.5s loop tick, is what keeps it off
+    the loop's own budget -- it already only runs at chain pace, which IS
+    the requirement, not a separate throttle bolted on.
+
+    NEVER NEEDS THE BOOK FEED. `_surface_read` falls back to spot when the
+    future is unavailable, `desk_mod.regime_from_chain` reads the chain
+    payload directly, and `_view_for` returns None gracefully when the book
+    (fuse) or chain half is not ready -- exactly the same tolerance
+    `/api/desk` already relies on. That is what lets this run under
+    --mock-chain, where `poller.src` never exists at all.
+
+    `desk_state` is the caller's idx -> {gear, conviction, deployable} cache;
+    mutated in place so the next tick has something to diff against.
+    """
+    surf = _surface_read(poller, idx)
+    if surf.fit.ok:
+        skew_x = surface_mod.SKEW_X
+        b = -(surf.fit.skew / (2.0 * skew_x)) if surf.fit.skew is not None else None
+        desk_log.log_surface(idx, surf.fit.atm_iv, b, surf.fit.convexity,
+                             surf.fit.rmse, surf.f_src, surf.expiry,
+                             surf.fit.n)
+
+    reg = desk_mod.regime_from_chain(doc)
+    view = _view_for(idx, payloads)
+    decision = desk_mod.decide(surf, reg, desk_mod.DEFAULT_CAPITAL,
+                               strikes=doc.get("strikes"), view=view)
+
+    new_state = {"gear": getattr(view, "gear", None),
+                "conviction": getattr(view, "conviction", None),
+                "deployable": decision.best}
+    prev_state = desk_state.get(idx, {})
+    for field, frm, to in desk_log.diff_transitions(prev_state, new_state):
+        desk_log.log_transition(idx, field, frm, to,
+                                detail=f"{idx} {field}: {frm} -> {to}")
+    desk_state[idx] = new_state
+
+
+def _senses_loop(poller, payloads, period=0.5):
+    """Drive the book detectors off the chain poller's ALREADY-OPEN socket,
+    and forward-log the surface fit + desk verdict transitions (5a/5b) at the
+    same chain-payload cadence.
 
     WHY A SEPARATE THREAD. The refresh loop runs at bar cadence, which is the
     right rate for the tape and far too slow for a book: a sweep lives for one
     frame. This reads the feed's mailbox directly at `period`, which costs no
     network -- `snapshot()` is a dict copy -- and no second Upstox connection,
     which matters because there are only two and one is a manual probe.
+
+    THE FEED GATE ONLY GUARDS THE BOOK HALF, NOT THE CHAIN HALF. Until
+    2026-08-22 a missing/disconnected feed skipped the WHOLE tick, including
+    the "new chain payload" block that feeds `chains.on_snapshot`, the drag
+    board and (now) the surface/desk forward log -- none of which need the
+    book feed at all. That made the chain half stall on a dead book socket
+    for no reason, and made --mock-chain (which never opens a feed) unable to
+    exercise 5a/5b even though nothing it does depends on one. The feed check
+    now only gates the near-ATM book-detector pass below it.
 
     EVERYTHING HERE IS FAIL-SOFT AND NOTHING HERE CAN STOP THE TAPE. The
     poller may not have a source yet, may be restarting for a new day, or may
@@ -282,23 +381,23 @@ def _senses_loop(poller, period=0.5):
     book = _SENSES["fuse"] = fuse_mod.Book()
     chains = chain_mod.Chains()
     seen_payload = {}          # idx -> id() of the last payload already read
+    desk_state = {}            # idx -> {gear, conviction, deployable}, 5b's diff base
     while True:
+        t0 = time.perf_counter()
         try:
             src = getattr(poller, "src", None)
             feed = getattr(src, "feed", None)
-            if feed is None or not feed.connected:
-                _SENSES["err"] = "feed not connected"
-                time.sleep(2)
-                continue
-            snap = feed.snapshot()
+            feed_ok = feed is not None and feed.connected
+            snap = feed.snapshot() if feed_ok else {}
             stamp = time.strftime("%H:%M:%S")
             boxes = getattr(poller, "boxes", None) or {}
             with _SENSES_LOCK:
-                # FUEL AND DRAIN, from the chain -- the half the book cannot see.
-                # Parsed only when the poller has actually published something new:
-                # the chain refreshes about every ten seconds per index and this
-                # loop runs twice a second, so re-parsing every pass would be
-                # twenty wasted json.loads for one new snapshot.
+                # FUEL AND DRAIN, from the chain -- the half the book cannot see,
+                # and needs no feed either. Parsed only when the poller has
+                # actually published something new: the chain refreshes about
+                # every ten seconds per index and this loop runs twice a second,
+                # so re-parsing every pass would be twenty wasted json.loads for
+                # one new snapshot.
                 for idx, box in boxes.items():
                     pl = (box or {}).get("payload")
                     if not pl or seen_payload.get(idx) == id(pl):
@@ -322,53 +421,65 @@ def _senses_loop(poller, period=0.5):
                             board = _SENSES["drag"][idx] = drag_mod.Board()
                         board.on_snapshot(doc.get("spot"),
                                           doc.get("strikes"), stamp)
+                        # 5a/5b -- own try/except so a bad fit or a desk
+                        # exception on ONE index cannot cost the others their
+                        # chain/drag processing this same tick.
+                        try:
+                            _log_chain_pace(poller, payloads, idx, doc,
+                                            desk_state)
+                        except Exception:
+                            log.exception("desk_log at chain pace (%s)", idx)
 
-                for idx, r in (getattr(src, "resolved", None) or {}).items():
-                    # Near-ATM legs only, chosen against the poller's own spot. If
-                    # spot is not known yet the FUTURE is watched alone rather than
-                    # everything -- "which strikes are near" is unanswerable
-                    # without it, and guessing would reinstate the noise.
-                    spot = (boxes.get(idx) or {}).get("spot")
-                    meta = list((r.get("meta") or {}).items())
-                    if spot:
-                        near = sorted({k_[0] for _, k_ in meta},
-                                      key=lambda x: abs(x - spot))[:SENSES_EACH_SIDE * 2 + 1]
-                        meta = [(k, v) for k, v in meta if v[0] in set(near)]
-                    else:
-                        meta = []
-                    # The FUTURE first: it is the instrument the zone rule is
-                    # measured on, and its book is the one a cascade runs through.
-                    # Option legs follow, named by strike so a row says which.
-                    for name, key in ([(f"{idx}-FUT", r.get("fut_key"))]
-                                      + [(f"{idx}-{s}{sd.upper()}", k)
-                                         for k, (s, sd) in meta]):
-                        if not key:
-                            continue
-                        frame = snap.get(key)
-                        rows = obj.observe(name, stamp, frame, key)
-                        if rows:
-                            _SENSES["rows"].extend(rows)
-                            book.on_rows(rows)
-                        # Terrain for the FUTURE only. Mapping every leg would
-                        # triple the work to describe books nobody trades through,
-                        # and the cascade this stack watches for runs through the
-                        # future's ladder.
-                        if name.endswith("-FUT"):
-                            lad, _v = senses_mod.ladder_of(frame)
-                            if lad:
-                                # Kite's order counts, if PaperDesk's bridge is
-                                # running. Matched on the touch rather than by
-                                # symbol table -- both feeds watch the same
-                                # exchange, so the same instrument has the same two
-                                # prices. Absent -> wall-vs-cluster stays open.
-                                oc = pools_mod.orders_for(lad, _SENSES["orders"])
-                                _SENSES["pools"][name] = pools_mod.summary(lad, oc)
-                _SENSES["polls"] += 1
-                _SENSES["err"] = None
+                if feed_ok:
+                    for idx, r in (getattr(src, "resolved", None) or {}).items():
+                        # Near-ATM legs only, chosen against the poller's own spot. If
+                        # spot is not known yet the FUTURE is watched alone rather than
+                        # everything -- "which strikes are near" is unanswerable
+                        # without it, and guessing would reinstate the noise.
+                        spot = (boxes.get(idx) or {}).get("spot")
+                        meta = list((r.get("meta") or {}).items())
+                        if spot:
+                            near = sorted({k_[0] for _, k_ in meta},
+                                          key=lambda x: abs(x - spot))[:SENSES_EACH_SIDE * 2 + 1]
+                            meta = [(k, v) for k, v in meta if v[0] in set(near)]
+                        else:
+                            meta = []
+                        # The FUTURE first: it is the instrument the zone rule is
+                        # measured on, and its book is the one a cascade runs through.
+                        # Option legs follow, named by strike so a row says which.
+                        for name, key in ([(f"{idx}-FUT", r.get("fut_key"))]
+                                          + [(f"{idx}-{s}{sd.upper()}", k)
+                                             for k, (s, sd) in meta]):
+                            if not key:
+                                continue
+                            frame = snap.get(key)
+                            rows = obj.observe(name, stamp, frame, key)
+                            if rows:
+                                _SENSES["rows"].extend(rows)
+                                book.on_rows(rows)
+                            # Terrain for the FUTURE only. Mapping every leg would
+                            # triple the work to describe books nobody trades through,
+                            # and the cascade this stack watches for runs through the
+                            # future's ladder.
+                            if name.endswith("-FUT"):
+                                lad, _v = senses_mod.ladder_of(frame)
+                                if lad:
+                                    # Kite's order counts, if PaperDesk's bridge is
+                                    # running. Matched on the touch rather than by
+                                    # symbol table -- both feeds watch the same
+                                    # exchange, so the same instrument has the same two
+                                    # prices. Absent -> wall-vs-cluster stays open.
+                                    oc = pools_mod.orders_for(lad, _SENSES["orders"])
+                                    _SENSES["pools"][name] = pools_mod.summary(lad, oc)
+                    _SENSES["polls"] += 1
+                    _SENSES["err"] = None
+                else:
+                    _SENSES["err"] = "feed not connected"
         except Exception as e:            # never take the tape down
             _SENSES["err"] = f"{type(e).__name__}: {e}"
             log.exception("senses loop")
-            time.sleep(2)
+        finally:
+            _record_latency("senses_ms", (time.perf_counter() - t0) * 1000.0)
         time.sleep(period)
 
 
@@ -650,6 +761,10 @@ class Handler(SimpleHTTPRequestHandler):
                 "indices": sorted(self.payloads),
                 "feed": feed,
                 "feed_why": feed_why,
+                # 5d -- p50/p99 off the last <=500 samples of each seam.
+                # Absent (with a reason) rather than zero until there are
+                # enough samples to mean anything -- constraint 9.
+                "latency": _latency_summary(),
             }).encode())
             return
         if self.path.startswith("/api/data"):
@@ -1121,6 +1236,25 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+    def handle_one_request(self):
+        """5d -- the ONE seam every GET/POST/OPTIONS passes through, timed
+        into `http_ms` without touching `do_GET`/`do_POST` themselves.
+
+        Overriding here rather than decorating `do_GET`/`do_POST` directly
+        was deliberate: `test_upstox_only.py` introspects
+        `inspect.getsource(server.Handler.do_POST)` to verify an ordering
+        invariant, and a decorator without the original method's own source
+        would have broken that test for a reason having nothing to do with
+        what it checks. `BaseHTTPRequestHandler.handle_one_request` is the one
+        place `http.server` already routes every method through, so timing it
+        here catches all three without touching either handler's body.
+        """
+        t0 = time.perf_counter()
+        try:
+            super().handle_one_request()
+        finally:
+            _record_latency("http_ms", (time.perf_counter() - t0) * 1000.0)
+
     def log_message(self, *a):
         pass
 
@@ -1344,8 +1478,17 @@ def main():
                              daemon=True, name=f"refresh-{x}").start()
         # The book detectors, on their own clock. Daemon like the rest: it
         # must not hold the process open, and it must not be waited on.
-        if poller is not None and not mock_chain:
-            threading.Thread(target=_senses_loop, args=(poller,),
+        #
+        # RUNS UNDER --mock-chain TOO, as of 2026-08-22. The near-ATM book
+        # detectors still need a real feed and stay silent without one (see
+        # `_senses_loop`'s `feed_ok` gate), but 5a/5b's chain-payload trigger
+        # -- the surface forward log and the desk transition log -- needs
+        # only `poller.boxes`, which the mock poller publishes into just like
+        # the live one. Skipping this thread under mock used to mean
+        # --mock-chain could not exercise 5a/5b at all; it now can, which is
+        # the acceptance criterion this task was built against.
+        if poller is not None:
+            threading.Thread(target=_senses_loop, args=(poller, payloads),
                              daemon=True, name="senses").start()
             log.info("senses thread started -> %s", senses_mod.day_path())
         httpd.serve_forever()          # bound above, before anything was taken

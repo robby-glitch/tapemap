@@ -201,7 +201,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 845 tests, all green as of 2026-08-22
+python -m pytest -q       # 871 tests, all green as of 2026-08-22
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a
@@ -355,7 +355,7 @@ question that matters: **would a desk take this trade?**
 - **Keep the populations apart.** `5c`, `zone` and legacy rows are three
   different things. Pooling them is the single easiest way to destroy months of
   record.
-- **Tests are the house style.** `pytest -q` stays green (845), and non-trivial
+- **Tests are the house style.** `pytest -q` stays green (871), and non-trivial
   logic leaves one runnable check behind. Doc claims about test counts are pinned
   by `test_docs_claims.py` — update the docs when the count moves, or the suite
   fails on purpose.

@@ -94,6 +94,7 @@ cd "C:\Users\kaam\Desktop\operator mode\tapemap"; .\stop.bat; .\start-v2.bat
 | `chain_metrics.py` | Publishes `flip_px`, `flip_status`, `gex_total`, `gex_regime`, `max_pain` under a **`metrics`** key. |
 | `direction.py` | **New 2026-08-21.** Which way the forced flow points, and how hard. Composition only — no new measurement. Turns `chainside.trapped_side` plus the gear into `BULL`/`BEAR`/`NEUTRAL`/`UNKNOWN`, with a conviction of `FORCED`/`LEANING`/`NONE`. |
 | `desk.py` | The selector: structure legality, risk, margin, score, sizing, net delta. |
+| `desk_log.py` | **New 2026-08-22.** The record: a surface forward log (`data/surface/surface_<day>.jsonl`, one line per successful fit) and a desk verdict-TRANSITION log (`data/desk_log.jsonl` — gear/conviction/deployable, only on change). Both gated to 09:15-15:30 IST, both fail-soft like `senses.py`. This is §8's item 7 — direction.py's own 30-session kill condition finally has something to be judged against. |
 
 ### The tape layer — 11 detectors, built earlier
 
@@ -302,6 +303,89 @@ Also fixed: light theme was unreachable (a dark-in-dark media block), the
 payoff footer claimed the curve "continues" for DEFINED-risk structures whose
 own panel said the loss was capped, and two money formatters disagreed on sign
 placement.
+
+## 8c. Phase 4 — the record a desk keeps + instrumentation (2026-08-22)
+
+New module `desk_log.py`, pure stdlib, no operator-layer imports of its own —
+it only formats and writes what `server.py` already computed, same division
+of labour as `senses.py`. Two forward logs, both TRANSITIONS/FITS ONLY, never
+an outcome or a hit rate:
+
+- **The surface log** (`data/surface/surface_<day>.jsonl`) — `{ts, idx, a, b,
+  c, rmse, f_src, expiry, n_points}`, one line per successful fit. A failed
+  fit logs nothing, never a fabricated coefficient.
+- **The desk verdict-transition log** (`data/desk_log.jsonl`, one running
+  file, not per-day) — `{ts, idx, field, from, to, detail}` for `gear`,
+  `conviction` and `deployable` (the desk's own `best` candidate name),
+  written ONLY when the value actually changes from the previous reading.
+  This is **§8 item 7**: `direction.py`'s own declared 30-session kill
+  condition had nothing to be judged against until this existed.
+
+Both gated to 09:15-15:30 IST Mon-Fri, and the gate is an injectable `now`
+parameter rather than a wall-clock read baked into the function — a test (or
+a --mock-chain run at any hour) can drive the real write path with a fixed
+in-hours timestamp.
+
+**Where it hooks in.** The trigger is the senses loop's own "new chain
+payload per index" detection — the same point that already feeds
+`chainside.on_snapshot` and `drag.Board`. `_log_chain_pace` (server.py) runs
+there: fits the surface, computes the desk decision + direction view exactly
+as `/api/desk` does, diffs the result against a per-index state cache, and
+writes only what changed. Because the trigger is the chain refresh (~10s per
+index), `desk.decide` — real work, a whole candidate catalog — never runs
+against the loop's 0.5s tick budget.
+
+**The feed gate moved.** Until this task, a missing/disconnected book feed
+skipped the WHOLE senses-loop tick, including the chain-payload half that
+needs no feed at all (`chainside`, `drag.Board`, and now `desk_log`). That
+also meant `--mock-chain` — which never opens a feed — could not exercise
+5a/5b even though nothing they do depends on one. The feed check now only
+gates the near-ATM book-detector pass; the chain half, and the senses thread
+itself, run under `--mock-chain` too. Verified live on a throwaway port
+(8877, not the sandbox on 8765): the loop ran clean, `/api/health.latency`
+accumulated real samples, and — correctly, since it was a Saturday —
+`data/surface/` and `data/desk_log.jsonl` stayed empty, the market-hours gate
+doing exactly what it should.
+
+**5d — latency.** Two `deque(maxlen=500)` ring buffers, `senses_ms` (timed
+around each senses-loop pass) and `http_ms` (timed by overriding
+`Handler.handle_one_request` — the one seam every GET/POST/OPTIONS already
+passes through in `http.server`, chosen specifically so `do_GET`/`do_POST`
+themselves stay un-decorated: `test_upstox_only.py` introspects
+`inspect.getsource(server.Handler.do_POST)`, which a decorator would have
+broken for a reason having nothing to do with what that test checks).
+`/api/health.latency` publishes `{p50, p99, n}` per bucket once
+`MIN_LAT_SAMPLES` (5) exist, else `{p50: None, p99: None, n, why}` — never a
+zero standing in for "not enough data yet."
+
+**5e — the two `pools.orders_for` defects that gate the Kite bridge**, both
+reproduced against the old code first, then fixed:
+
+1. **Touch-only coincidence.** A single candidate book whose ONLY agreement
+   with the Upstox ladder was the touch price used to be accepted once it
+   was the sole match — but deep OTM books routinely sit at the exchange's
+   minimum tick (0.05/0.10) by coincidence, not because they are the same
+   instrument. Being the sole candidate handed over is not the same as being
+   confirmed. A match with more levels to check must now be confirmed on at
+   least one level beyond the touch, or it is refused as a coincidence.
+2. **Index-carry misalignment.** `orders_for` used to return Kite's own
+   list, in Kite's own order — `map_book` then paired `counts[i]` with
+   `ladder[i]` by POSITION, which silently misattributes a count the moment
+   the two books disagree by even one level (a stale Kite quote, a level
+   Upstox has that Kite does not). `orders_for` now aligns every count to
+   the UPSTOX ladder's own levels BY PRICE (`pools._by_price`, greedy
+   nearest-first, each Kite level claimed once) before returning it, so
+   `map_book`'s existing `counts[i]` already means "this ladder level," with
+   no coordination required on `map_book`'s side.
+
+Files touched: `desk_log.py` (new), `server.py` (`_senses_loop` restructured,
+`_log_chain_pace` new, latency ring buffers + `Handler.handle_one_request`,
+`/api/health.latency`), `eod_capture.py` (`capture_desk_record`, 5c),
+`pools.py` (`_by_price`, `orders_for` rewritten), `.gitignore`
+(`data/surface/`, `data/desk_log.jsonl`). New tests: `test_desk_log.py`
+(16), plus additions to `test_senses_api.py` (5), `test_pools.py` (2 new +
+4 rewritten for price-based alignment) and `test_eod_capture.py` (3). No
+order path touched; no backtest; no hit rate anywhere in either new log.
 
 ## 9. How this went wrong, so it does not again
 

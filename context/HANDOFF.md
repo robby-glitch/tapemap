@@ -10,8 +10,22 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-22. **845 tests pass, none fail** (`pytest -q`,
-2026-08-22 — 842 minus 3 (`forcing.py` deleted, superseded by
+Last updated: 2026-08-22. **871 tests pass, none fail** (`pytest -q`,
+2026-08-22 — 845 plus 26: two in `test_pools.py` for the two `pools.orders_for`
+defects the Kite-bridge audit found (a touch-only price coincidence accepted as
+a match when the true twin was absent; counts misattributed by list position
+instead of by price) and a new `desk_log.py` (Phase 4 — the surface forward
+log at `data/surface/`, the desk verdict-transition log at
+`data/desk_log.jsonl`, the 09:15-15:30 IST market-hours gate, and latency
+ring buffers published under `/api/health.latency`), sixteen in
+`test_desk_log.py`, five more in `test_senses_api.py` (the latency ring
+buffers honest-when-empty and once populated, `/api/health` publishing them,
+and `server._log_chain_pace`'s orchestration — writes the surface line on a
+successful fit only, diffs gear/conviction/deployable and writes ONLY the
+changed field), and three in `test_eod_capture.py` for `capture_desk_record`
+(5c — preserving the day's surface log and a desk_log snapshot alongside the
+OHLC bars, same never-clobber-without-force discipline as the bars capture);
+before that 2026-08-22 — 842 minus 3 (`forcing.py` deleted, superseded by
 `fuse.py`/`regime.py`, see the 2026-08-22 entry below, taking its coverage
 in `test_operator_objects.py` with it) plus 6 new in `test_senses_api.py`:
 a composed-path test proving PIN and TRANSITION are now reachable through

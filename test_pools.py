@@ -131,13 +131,14 @@ def test_the_real_captured_book_is_describable():
 # wall vs cluster, once Kite's order counts arrive
 # --------------------------------------------------------------------------
 
-def _kite(bid_px, ask_px, bid_orders, ask_orders, qty=100):
-    """A book as PaperDesk's bridge POSTs it."""
+def _kite(bid, ask, qty=100):
+    """A book as PaperDesk's bridge POSTs it. `bid`/`ask` are each a list of
+    (price, orders) pairs, one per depth level -- explicit prices, not an
+    arithmetic offset from the touch, so a test can put a level exactly where
+    it wants it (or deliberately NOT where the Upstox ladder has one)."""
     return {"depth": {
-        "bid": [{"qty": qty, "price": bid_px - i, "orders": n}
-                for i, n in enumerate(bid_orders)],
-        "ask": [{"qty": qty, "price": ask_px + i, "orders": n}
-                for i, n in enumerate(ask_orders)]}}
+        "bid": [{"qty": qty, "price": p, "orders": n} for p, n in bid],
+        "ask": [{"qty": qty, "price": p, "orders": n} for p, n in ask]}}
 
 
 def test_few_orders_holding_size_is_a_wall():
@@ -182,34 +183,85 @@ def test_without_counts_the_question_stays_open():
 # --------------------------------------------------------------------------
 
 def test_the_matching_book_is_found_by_its_top_of_book():
-    """Both feeds watch the same exchange, so the same instrument has the same
-    two prices at the touch. No symbol table, nothing to drift at expiry."""
-    lad = _real_fut()
-    b0, a0 = lad["bid"][0]["price"], lad["ask"][0]["price"]
-    books = {"111": _kite(99999.0, 99999.5, [1], [1]),
-             "222": _kite(b0, a0, [2, 3, 4, 5, 6], [7, 8, 9, 10, 11])}
+    """Both feeds watch the same exchange, so the same instrument has the
+    same prices at MULTIPLE levels. Matched -- and aligned -- by PRICE,
+    never by list position (see the 5e section below for why that carries a
+    real cost)."""
+    lad = _ladder([(100.00, 10), (99.95, 10), (99.90, 10)],
+                  [(100.05, 10), (100.10, 10), (100.15, 10)])
+    books = {"111": _kite([(50.0, 1)], [(50.5, 1)]),
+             "222": _kite([(100.00, 2), (99.95, 3), (99.90, 4)],
+                          [(100.05, 7), (100.10, 8), (100.15, 9)])}
     got = pools.orders_for(lad, books)
-    assert got == {"bid": [2, 3, 4, 5, 6], "ask": [7, 8, 9, 10, 11]}
+    assert got == {"bid": [2, 3, 4], "ask": [7, 8, 9]}
 
 
 def test_no_matching_book_leaves_the_question_open():
-    lad = _real_fut()
-    assert pools.orders_for(lad, {"1": _kite(1.0, 2.0, [1], [1])}) is None
+    lad = _ladder([(100.0, 10)], [(101.0, 10)])
+    assert pools.orders_for(lad, {"1": _kite([(1.0, 1)], [(2.0, 1)])}) is None
     assert pools.orders_for(lad, None) is None
-    assert pools.orders_for(None, {"1": _kite(1.0, 2.0, [1], [1])}) is None
+    assert pools.orders_for(None, {"1": _kite([(1.0, 1)], [(2.0, 1)])}) is None
 
 
 def test_an_ambiguous_match_is_refused_not_guessed():
-    """Two books at the same touch. Attributing one instrument's order counts
-    to another is worse than having none."""
-    lad = _real_fut()
-    b0, a0 = lad["bid"][0]["price"], lad["ask"][0]["price"]
-    books = {"1": _kite(b0, a0, [1], [1]), "2": _kite(b0, a0, [99], [99])}
+    """Two books, BOTH genuinely confirmed across every level at the same
+    prices. Attributing one instrument's order counts to another is worse
+    than having none."""
+    lad = _ladder([(100.00, 10), (99.00, 10)], [(101.00, 10), (102.00, 10)])
+    books = {"1": _kite([(100.00, 1), (99.00, 1)], [(101.00, 1), (102.00, 1)]),
+             "2": _kite([(100.00, 99), (99.00, 99)],
+                       [(101.00, 99), (102.00, 99)])}
     assert pools.orders_for(lad, books) is None
 
 
 def test_a_book_that_moved_a_tick_still_matches():
-    lad = _real_fut()
-    b0, a0 = lad["bid"][0]["price"], lad["ask"][0]["price"]
-    got = pools.orders_for(lad, {"1": _kite(b0 + 0.05, a0 - 0.05, [5], [6])})
-    assert got == {"bid": [5], "ask": [6]}
+    """Two snapshots taken a moment apart can drift by a few paise; the
+    tolerance applies per level, not only at the touch."""
+    lad = _ladder([(100.00, 10), (99.00, 10)], [(101.00, 10), (102.00, 10)])
+    got = pools.orders_for(lad, {"1": _kite([(100.03, 5), (99.02, 6)],
+                                            [(101.04, 7), (102.03, 9)])})
+    assert got == {"bid": [5, 6], "ask": [7, 9]}
+
+
+# --------------------------------------------------------------------------
+# 5e -- the two defects the Kite-bridge audit found. Both reproduced against
+# the OLD `orders_for` first (see the note in each docstring), then fixed.
+# --------------------------------------------------------------------------
+
+def test_a_touch_only_coincidence_without_the_true_twin_is_refused():
+    """Deep OTM options routinely sit at the exchange's minimum tick -- 0.05
+    bid, 0.10 ask -- by coincidence, not because they are the same
+    instrument. If the TRUE twin is not in the handed dict, one unrelated
+    book quoting that same floor price must not be accepted just because it
+    is the only book that happens to be there: being the sole candidate is
+    not the same as being confirmed. Every deeper level here belongs to a
+    completely different instrument -- proof, not just absence of proof.
+
+    Against the OLD `orders_for` (touch-uniqueness only, no per-level
+    confirmation) this returned {"bid": [40, ...], "ask": [41, ...]} -- a
+    confident wrong match. A confident wrong wall is worse than an honest
+    unknowable."""
+    lad = _ladder([(0.05, 500), (1.05, 500), (2.05, 500)],
+                  [(0.10, 500), (1.10, 500), (2.10, 500)])
+    coincidence = {"999": _kite([(0.05, 40), (12.30, 1)],
+                                [(0.10, 41), (18.75, 1)])}
+    assert pools.orders_for(lad, coincidence) is None
+
+
+def test_counts_are_aligned_by_price_not_by_list_position():
+    """Kite's book is missing the level Upstox has at 99.00 (a stale quote
+    that has not refreshed there yet). Zipping the two lists index-for-index
+    -- the OLD behaviour -- would attribute Kite's SECOND entry (meant for
+    98.00) to Upstox's 99.00 level instead, one level too high. Aligning by
+    PRICE instead gives 99.00 None (honestly unmatched) and still hands
+    98.00 its own, correct, count.
+
+    Against the OLD `orders_for` this returned {"bid": [2, 4], "ask": [7, 8,
+    9]} -- Kite's own list, unaligned to Upstox's ladder length or prices at
+    all, let alone correctly."""
+    lad = _ladder([(100.00, 10), (99.00, 10), (98.00, 10)],
+                  [(101.00, 10), (102.00, 10), (103.00, 10)])
+    books = {"1": _kite([(100.00, 2), (98.00, 4)],       # 99.00 missing
+                        [(101.00, 7), (102.00, 8), (103.00, 9)])}
+    got = pools.orders_for(lad, books)
+    assert got == {"bid": [2, None, 4], "ask": [7, 8, 9]}

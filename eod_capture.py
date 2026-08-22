@@ -50,6 +50,54 @@ FIELDS = (("open", "o"), ("high", "h"), ("low", "l"),
           ("close", "c"), ("volume", "v"), ("open_interest", "oi"))
 
 
+# 5c -- where the desk's own forward logs live, and where this capture
+# preserves them. Both are gitignored (constraint: keep the new data
+# dirs/files out of git) and, unlike the broker-sourced bars above, neither
+# is refetchable from anywhere else -- once this machine's copy is gone
+# there is no second source for that day.
+SURF_SRC_DIR = os.path.join("data", "surface")
+DESK_LOG_SRC = os.path.join("data", "desk_log.jsonl")
+
+
+def _copy_if_new(src, dst, force=False):
+    """(path, None) on a copy, (None, why) otherwise -- same discipline as
+    `capture` below: an existing file is never clobbered without --force,
+    and the write is atomic so a reader globbing the directory mid-write
+    never sees a half-written file."""
+    if not os.path.exists(src):
+        return None, f"{src} does not exist -- nothing to capture"
+    if os.path.exists(dst) and not force:
+        return None, f"{dst} already exists -- leaving it alone"
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    tmp = dst + ".tmp"
+    with open(src, "rb") as rf, open(tmp, "wb") as wf:
+        wf.write(rf.read())
+    os.replace(tmp, dst)
+    return dst, None
+
+
+def capture_desk_record(day, root=BT, force=False):
+    """Preserve the day's surface fit log and a desk_log snapshot alongside
+    the OHLC bars `capture` writes below -- 5c.
+
+    Index-agnostic, unlike `capture`: one surface file already covers all
+    three indices for `day` (see `desk_log.py`'s `surface_path`), and
+    `data/desk_log.jsonl` is a single running file across every index and
+    day, never one file per index. So this runs once, not per index.
+
+    Returns {"surface": (path, why), "desk_log": (path, why)}, each a
+    `_copy_if_new` result -- "not there yet" and "already captured" are
+    different facts and neither is an error worth failing the run over.
+    """
+    return {
+        "surface": _copy_if_new(
+            os.path.join(SURF_SRC_DIR, f"surface_{day}.jsonl"),
+            os.path.join(root, f"surface_{day}.jsonl"), force),
+        "desk_log": _copy_if_new(
+            DESK_LOG_SRC, os.path.join(root, f"desk_log_{day}.jsonl"), force),
+    }
+
+
 def path_for(idx, day, root=BT):
     """Where one session lives. NIFTY sits flat, others in a subdirectory --
     `squeeze_score._paths`' layout, which `backfill.py`'s LAYOUT note pins."""
@@ -185,6 +233,14 @@ def main(argv):
             print(f"{idx:10} NOT CAPTURED -- {why}")
         else:
             print(f"{idx:10} {n} bars -> {path}")
+
+    # 5c -- the desk's own forward logs, once per run (not per index).
+    day = datetime.fromtimestamp(time.time(), IST).strftime("%Y-%m-%d")
+    for name, (path, why) in capture_desk_record(day, force=force).items():
+        if why:
+            print(f"{name:10} NOT CAPTURED -- {why}")
+        else:
+            print(f"{name:10} -> {path}")
     return 1 if bad else 0
 
 

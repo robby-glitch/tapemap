@@ -52,7 +52,7 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 845 tests, green as of 2026-08-22
+python -m pytest -q            # 871 tests, green as of 2026-08-22
 ```
 
 Screens: `/desk.html` (the desk) · `/console.html` (the tape detectors).

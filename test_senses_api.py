@@ -282,3 +282,139 @@ def test_health_publishes_the_wired_feed_status_verbatim():
                                 "age_s": 1.2, "frames": 900,
                                 "reconnects": 0, "error": None}
     assert cap.sent["feed_why"] is None
+
+
+# --------------------------------------------------------------------------
+# 5d -- latency ring buffers. Honest when empty (constraint 9: absent with a
+# reason, never a fabricated zero), real once there is enough to measure.
+# --------------------------------------------------------------------------
+
+def _snapshot_lat():
+    return {k: list(v) for k, v in server._LAT.items()}
+
+
+def _restore_lat(saved):
+    for k, v in saved.items():
+        server._LAT[k].clear()
+        server._LAT[k].extend(v)
+
+
+def test_latency_summary_is_honest_when_empty():
+    saved = _snapshot_lat()
+    try:
+        for v in server._LAT.values():
+            v.clear()
+        out = server._latency_summary()
+        for bucket in ("senses_ms", "http_ms"):
+            assert out[bucket]["p50"] is None
+            assert out[bucket]["p99"] is None
+            assert out[bucket]["n"] == 0
+            assert out[bucket]["why"]           # a reason, not silence
+    finally:
+        _restore_lat(saved)
+
+
+def test_latency_summary_reports_percentiles_once_there_are_enough_samples():
+    saved = _snapshot_lat()
+    try:
+        server._LAT["senses_ms"].clear()
+        for ms in [1.0, 2.0, 3.0, 4.0, 100.0]:      # == MIN_LAT_SAMPLES
+            server._record_latency("senses_ms", ms)
+        out = server._latency_summary()
+        assert out["senses_ms"]["n"] == 5
+        assert out["senses_ms"]["p50"] is not None
+        assert out["senses_ms"]["p99"] == 100.0     # the worst sample, honest
+        assert "why" not in out["senses_ms"]
+    finally:
+        _restore_lat(saved)
+
+
+def test_health_publishes_latency_percentiles():
+    cap = _Cap("/api/health", payloads={"NIFTY": {}})
+    server.Handler.do_GET(cap)
+    assert "latency" in cap.sent
+    assert set(cap.sent["latency"]) == {"senses_ms", "http_ms"}
+
+
+# --------------------------------------------------------------------------
+# 5a/5b -- the chain-pace hook. Collaborators (`_surface_read`, `_view_for`,
+# `desk_mod.regime_from_chain`/`decide`, `desk_log`'s two writers) are each
+# tested on their own elsewhere; this tests the ORCHESTRATION -- that
+# `_log_chain_pace` computes the state, diffs it against the previous
+# reading, and writes only what actually changed.
+# --------------------------------------------------------------------------
+
+def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
+    import desk as desk_mod
+    import desk_log
+    import direction as direction_mod
+    import surface as surface_mod
+
+    fit = surface_mod.Fit(atm_iv=0.15, skew=-0.02, convexity=0.4, rmse=0.01,
+                          n=12, ok=True)
+    surf = surface_mod.SurfaceRead(index="NIFTY", expiry="2026-08-27",
+                                   f=24000.0, f_src="future", t=0.01, fit=fit)
+    view = direction_mod.View(gear="CASCADE", conviction="FORCED")
+    decision = desk_mod.Decision(index="NIFTY", expiry="2026-08-27",
+                                 best="long_call")
+
+    monkeypatch.setattr(server, "_surface_read", lambda poller, idx: surf)
+    monkeypatch.setattr(server, "_view_for", lambda idx, payloads: view)
+    monkeypatch.setattr(desk_mod, "regime_from_chain",
+                        lambda doc: desk_mod.Regime())
+    monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision)
+
+    surfaces, transitions = [], []
+    monkeypatch.setattr(desk_log, "log_surface",
+                        lambda *a, **kw: surfaces.append(a))
+    monkeypatch.setattr(desk_log, "log_transition",
+                        lambda *a, **kw: transitions.append(a))
+
+    desk_state = {}
+    server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
+
+    # The surface line: a successful fit, always logged.
+    assert surfaces and surfaces[0][0] == "NIFTY"
+    # State cached for the next diff.
+    assert desk_state["NIFTY"] == {"gear": "CASCADE", "conviction": "FORCED",
+                                   "deployable": "long_call"}
+    # First reading -- all three fields transition FROM None.
+    fields = {t[1] for t in transitions}
+    assert fields == {"gear", "conviction", "deployable"}
+    assert all(t[2] is None for t in transitions)
+
+    # Second call, nothing changed -- no new transitions (TRANSITIONS ONLY).
+    transitions.clear()
+    server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
+    assert transitions == []
+
+    # A real change -- only the ONE changed field is logged.
+    decision2 = desk_mod.Decision(index="NIFTY", expiry="2026-08-27",
+                                  best="short_strangle")
+    monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision2)
+    server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
+    assert len(transitions) == 1
+    _idx, field, frm, to = transitions[0]
+    assert field == "deployable" and frm == "long_call" and to == "short_strangle"
+
+
+def test_log_chain_pace_skips_the_surface_log_on_a_failed_fit(monkeypatch):
+    """Constraint 3: a failed fit logs nothing rather than a fabricated
+    coefficient."""
+    import desk as desk_mod
+    import desk_log
+    import surface as surface_mod
+
+    surf = surface_mod.SurfaceRead(index="NIFTY", expiry="")   # fit.ok False
+    monkeypatch.setattr(server, "_surface_read", lambda poller, idx: surf)
+    monkeypatch.setattr(server, "_view_for", lambda idx, payloads: None)
+    monkeypatch.setattr(desk_mod, "regime_from_chain",
+                        lambda doc: desk_mod.Regime())
+    monkeypatch.setattr(desk_mod, "decide",
+                        lambda *a, **kw: desk_mod.Decision(index="NIFTY",
+                                                           expiry=""))
+    calls = []
+    monkeypatch.setattr(desk_log, "log_surface",
+                        lambda *a, **kw: calls.append(a))
+    server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, {})
+    assert calls == []

@@ -19,7 +19,11 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 845** (`pytest -q`, 2026-08-22 - Phase 0 deleted
+- **Test count is now 871** (`pytest -q`, 2026-08-22 - Phase 4 (the record a
+  desk keeps + instrumentation): new `desk_log.py` (surface forward log,
+  desk verdict-transition log, market-hours gate, latency ring buffers) plus
+  the two `pools.orders_for` fixes below (845+26=871); before that 845 -
+  Phase 0 deleted
   `forcing.py` (superseded by `fuse.py`/`regime.py`, wired live where
   `forcing.py` never was) and its 3 tests in `test_operator_objects.py`
   (842-3=839), and added 6 to `test_senses_api.py` (839+6=845): a

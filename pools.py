@@ -190,9 +190,49 @@ def summary(ladder: Optional[dict], orders: Optional[dict] = None) -> dict:
             "pools": [p.__dict__ for p in pools]}
 
 
+def _by_price(upstox_levels: list, kite_levels: list, tol: float) -> List[Optional[int]]:
+    """Kite's order count for each UPSTOX level, matched -- and aligned -- by
+    PRICE. Never by list position: the two feeds are not guaranteed to carry
+    the same number of levels or line up level-for-level, so pairing index i
+    in Kite's list with index i in Upstox's ladder silently misattributes a
+    count to the wrong price the instant the two disagree, even by one level
+    (a stale Kite quote, a level Upstox has that Kite does not yet).
+
+    GREEDY, NEAREST FIRST, EACH KITE LEVEL USED ONCE. Not a general
+    assignment solver -- deliberately: Upstox levels are walked best-to-worst
+    exactly as the ladder already orders them, and each level takes the
+    closest still-unclaimed Kite level within `tol`, which is enough to keep
+    two adjacent Upstox levels from both claiming the same Kite entry. None
+    where nothing unclaimed is close enough -- unknown, never a fabricated
+    zero.
+    """
+    used = [False] * len(kite_levels)
+    out: List[Optional[int]] = []
+    for lvl in upstox_levels:
+        px = lvl.get("price")
+        best_i, best_d = None, None
+        if px is not None:
+            for i, kl in enumerate(kite_levels):
+                if used[i]:
+                    continue
+                kp = kl.get("price")
+                if kp is None:
+                    continue
+                d = abs(kp - px)
+                if d <= tol and (best_d is None or d < best_d):
+                    best_i, best_d = i, d
+        if best_i is None:
+            out.append(None)
+        else:
+            used[best_i] = True
+            out.append(int(kite_levels[best_i].get("orders") or 0))
+    return out
+
+
 def orders_for(ladder: Optional[dict], books: Optional[dict],
                tol: float = 0.051) -> Optional[dict]:
-    """Find the Kite book that IS this Upstox ladder, and return its counts.
+    """Find the Kite book that IS this Upstox ladder, and return its counts,
+    ALIGNED TO THE UPSTOX LADDER'S OWN LEVELS.
 
     THE MATCHING PROBLEM, AND WHY IT IS SOLVED THIS WAY. Kite identifies
     instruments by numeric token; Upstox by an instrument key. Mapping one to
@@ -205,16 +245,33 @@ def orders_for(ladder: Optional[dict], books: Optional[dict],
     needs no symbol table, no expiry logic, and cannot drift out of date: if
     the prices agree it is the same instrument, and if they do not it is not.
 
-    Returns {"bid": [n, ...], "ask": [n, ...]} for the matching book, or None.
-    None means "no Kite book matched" -- the bridge is not running, or that
-    instrument is not subscribed there -- and `map_book` then leaves
-    wall-vs-cluster unanswered, which is the honest result.
+    Returns {"bid": [n or None, ...], "ask": [...]} for the matching book, or
+    None. The lists are exactly as long as `ladder`'s own bid/ask -- position
+    i is `ladder["bid"][i]`'s count, always, never Kite's own list order (see
+    `_by_price`) -- so `map_book`'s `counts[i]` already lines up with
+    `levels[i]` without either module having to know how the other counts.
+    None means "no Kite book matched" -- the bridge is not running, that
+    instrument is not subscribed there, or nothing survived the checks below
+    -- and `map_book` then leaves wall-vs-cluster unanswered, which is the
+    honest result.
 
     `tol` defaults to just over a five-paisa tick, so a book that moved
-    between the two feeds' snapshots still matches while a genuinely different
-    strike cannot. AMBIGUITY IS REFUSED: if two books both match, None is
-    returned rather than a coin flip -- attributing one instrument's order
-    counts to another would be worse than having none.
+    between the two feeds' snapshots still matches while a genuinely
+    different strike cannot.
+
+    TWO REFUSALS, NOT ONE:
+
+    AMBIGUITY. If two OR MORE books' touches both match, None is returned
+    rather than a coin flip -- attributing one instrument's order counts to
+    another would be worse than having none.
+
+    A TOUCH ALONE IS NOT IDENTITY. Deep OTM books commonly sit at the
+    exchange's minimum tick (0.05/0.10) by coincidence, not because they are
+    the same instrument -- so a single candidate whose ONLY agreement with
+    `ladder` is the touch, while `ladder` itself carries more levels to
+    check, is a coincidence and not a match. It must be confirmed on at
+    least one further level (see `_by_price`) before it counts as a hit. A
+    confident wrong wall is worse than the honest 'unknowable'.
     """
     if not ladder or not books:
         return None
@@ -229,10 +286,17 @@ def orders_for(ladder: Optional[dict], books: Optional[dict],
         kb, ka = d.get("bid") or [], d.get("ask") or []
         if not kb or not ka:
             continue
-        if abs(kb[0].get("price", 0) - b0) <= tol and            abs(ka[0].get("price", 0) - a0) <= tol:
-            hits.append((kb, ka))
+        if not (abs(kb[0].get("price", 0) - b0) <= tol and
+                abs(ka[0].get("price", 0) - a0) <= tol):
+            continue
+        bid_n = _by_price(bid, kb, tol)
+        ask_n = _by_price(ask, ka, tol)
+        deeper = len(bid) > 1 or len(ask) > 1
+        confirmed = any(n is not None for n in bid_n[1:] + ask_n[1:])
+        if deeper and not confirmed:
+            continue                # touch-only coincidence -- not a hit
+        hits.append((bid_n, ask_n))
     if len(hits) != 1:
         return None                 # nothing matched, or too much did
-    kb, ka = hits[0]
-    return {"bid": [int(l.get("orders") or 0) for l in kb],
-            "ask": [int(l.get("orders") or 0) for l in ka]}
+    bid_n, ask_n = hits[0]
+    return {"bid": bid_n, "ask": ask_n}
