@@ -291,6 +291,9 @@
 
   <div id="detail"></div>
 
+  <h2>trending oi &mdash; <span id="oiflowIdx">&mdash;</span></h2>
+  <div class="panel" id="oiflow"></div>
+
   <div class="note">
     Every figure is computed from the live chain by <code>surface.py</code>,
     <code>desk.py</code> and <code>direction.py</code>. <b>[M]</b> is measured,
@@ -310,8 +313,8 @@
 <script src="fmt.js"></script>
 <script>
 "use strict";
-var S = {desk:null, surf:null, health:null, drag:null, idx:null, pick:null,
-         userPick:false, tab:"payoff", at:0, err:null, raw:""};
+var S = {desk:null, surf:null, health:null, drag:null, oiflow:null, idx:null,
+         pick:null, userPick:false, tab:"payoff", at:0, err:null, raw:""};
 
 function $(id){ return document.getElementById(id); }
 
@@ -519,13 +522,18 @@ function testLots(){ return Math.max(1, parseInt($("testlots").value,10)||5); }
 
 function pull(){
   var q = "?capital=" + Math.round(capital());
+  // interval=5, not the coarser default: a 15-minute grid is empty for most
+  // of the first hour of the session (the 09:15 baseline is zero by
+  // construction). Matches ui-v2's OI Flow tab, same reasoning, verbatim.
+  var oiq = "?idx=" + encodeURIComponent(S.idx||"") + "&interval=5";
   Promise.all([
     fetch("/api/desk"+q).then(function(r){return r.json();}),
     fetch("/api/surface").then(function(r){return r.json();}),
     fetch("/api/health").then(function(r){return r.json();}).catch(function(){return null;})
     ,fetch("/api/drag").then(function(r){return r.json();}).catch(function(){return null;})
+    ,fetch("/api/oiflow"+oiq).then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(a){
-    S.desk = a[0]; S.surf = a[1]; S.health = a[2]; S.drag = a[3];
+    S.desk = a[0]; S.surf = a[1]; S.health = a[2]; S.drag = a[3]; S.oiflow = a[4];
     S.at = Date.now(); S.err = null;
     // ALERT BOOKKEEPING RUNS ON EVERY POLL, before the payload-diff skip
     // below can return early (constraint 6) -- a transition must never be
@@ -538,7 +546,7 @@ function pull(){
     // "blocked, considered not omitted" disclosure, which is the single
     // interaction this screen most needs to support. The chain refreshes
     // about every ten seconds, so most polls change nothing at all.
-    var raw = JSON.stringify([a[0], a[1], a[3]]);
+    var raw = JSON.stringify([a[0], a[1], a[3], a[4]]);
     if(raw === S.raw) return;
     S.raw = raw;
     render();
@@ -746,6 +754,10 @@ function renderCards(){
   Array.prototype.forEach.call($("cards").children, function(b){
     b.onclick = function(){
       S.idx = b.getAttribute("data-k"); S.pick = null; S.userPick = false; render();
+      // /api/oiflow is single-index -- render() alone leaves the OI panel on
+      // whichever index it last fetched. pull() fires the round trip that
+      // panel needs immediately instead of waiting up to 5s.
+      pull();
     };
   });
 }
@@ -1026,6 +1038,114 @@ function drawSmile(idx, c){
     + 'this stack has not accumulated.</div>';
 }
 
+/* -- trending oi: context, not the hero. -------------------------------
+   /api/oiflow is single-index (unlike /api/desk, /api/surface, /api/drag,
+   which all carry every enabled index in one payload) -- so a fresh index
+   needs its own round trip. The three "switch index" sites below call
+   pull() right after render() so this panel catches up promptly instead of
+   sitting on the OLD index's rows under the NEW index's label for up to 5s.
+
+   Columns and reading order (most recent mark first) mirror ui-v2's OI Flow
+   tab (App.tsx OiFlowTab, ~:1728) verbatim -- the same table she already
+   reads, translated into this page's plain-HTML/table idiom. Three honest
+   states before any row is drawn, same three-sentence discipline as the
+   rest of this desk: the endpoint itself failing (`ok:false`, e.g. no chain
+   poller), the CHAIN behind it being unhealthy (`chain_ok:false` +
+   `chain_why` -- "no marks are coming at the next boundary either", not
+   merely "none yet"), and the chain being healthy with no marks yet
+   (waiting for the next interval boundary). A missing table is never blank.
+
+   SENTIMENT (BULLISH/BEARISH/NEUTRAL) IS A DIRECTION READ ON OI BUILD, not a
+   buy/sell trade side -- the same axis the gear panel's own .BULL/.BEAR
+   classes already color (bias, ~:606 above), so this reuses them rather
+   than reaching for the teal(sell)/brass(buy) grammar, which does not
+   apply here (grammar is law; where the semantics don't genuinely match,
+   no color -- house rule, restated in this file's own head comment). */
+function oiSentClass(s){ return s==="BULLISH" ? "BULL" : s==="BEARISH" ? "BEAR" : "NEUTRAL"; }
+function renderOiFlow(){
+  var el = $("oiflow");
+  if(!el) return;
+  $("oiflowIdx").textContent = S.idx || "—";
+  if(!S.idx){
+    el.innerHTML = '<div class="note">the desk has not published an index yet</div>';
+    return;
+  }
+  var f = S.oiflow;
+  if(!f){
+    el.innerHTML = '<div class="note">/api/oiflow is not answering — an older '
+      + 'server does not serve it</div>';
+    return;
+  }
+  // The fetch for this payload was fired for whichever index was selected
+  // AT THAT TIME -- if the operator has since switched (1/2/3), the rows in
+  // hand belong to the OLD index. Showing them under the new label would be
+  // exactly the wrong-index reading constraint 4 forbids; say so instead
+  // and wait for the pull() the switch already triggered.
+  if(f.index !== S.idx){
+    el.innerHTML = '<div class="note">switching to '+esc(S.idx)
+      + ' — refreshing trending OI</div>';
+    return;
+  }
+  if(!f.ok){
+    el.innerHTML = '<div class="note">'+esc(f.error||"trending OI unavailable")+'</div>';
+    return;
+  }
+  if(f.chain_ok === false){
+    el.innerHTML = '<div class="note">'+esc(f.chain_why || "the chain is unavailable")
+      + ' — this is not "no marks yet": until the feed returns, no boundary '
+      + 'will produce one either.</div>';
+    return;
+  }
+  var rows = f.rows||[];
+  if(!rows.length){
+    el.innerHTML = '<div class="note">no marks yet — the first row appears at '
+      + 'the next '+esc(num(f.interval))+'-minute boundary</div>';
+    return;
+  }
+  var out = ['<div class="tw"><table><thead><tr>'
+    + '<th style="text-align:left">time</th><th>ltp &middot; idx</th>'
+    + '<th style="text-align:center">break</th>'
+    + '<th>call oi &Delta; [M]</th><th>put oi &Delta; [M]</th><th>diff</th>'
+    + '<th style="text-align:center">strength</th><th>chg in dir</th>'
+    + '<th>dir %</th><th>pcr</th><th style="text-align:center">sentiment</th>'
+    + '</tr></thead><tbody>'];
+  rows.slice().reverse().forEach(function(r){
+    var sc = r.baseline ? "" : oiSentClass(r.sentiment);
+    var dc = r.chg_dir>0 ? "BULL" : r.chg_dir<0 ? "BEAR" : "";
+    out.push('<tr>'
+      + '<td style="text-align:left">'+esc(r.time)+'</td>'
+      + '<td>'+(r.ltp==null?"—":num(r.ltp,2))+'</td>'
+      + '<td style="text-align:center">'+(r.brk
+          ? '<span class="'+(r.brk==="DHB"?"BULL":"BEAR")+'">'+esc(r.brk)
+            +' '+num(r.brk_px,0)+'</span>'
+          : '&middot;')+'</td>'
+      + '<td>'+num(r.call)+'</td>'
+      + '<td>'+num(r.put)+'</td>'
+      + '<td class="'+sc+'">'+num(r.diff)+'</td>'
+      + '<td style="text-align:center" class="'+sc+'">'
+          +(r.strength>0?"+":"")+Math.round((r.strength||0)*100)+'%</td>'
+      + '<td class="'+dc+'">'+(r.chg_dir==null?"—"
+          :((r.chg_dir>0?"▲ ":"▼ ")+num(Math.abs(r.chg_dir))))+'</td>'
+      + '<td class="'+dc+'">'+(r.chg_dir_pct==null?"—":pct(r.chg_dir_pct,1))+'</td>'
+      + '<td>'+(r.pcr==null?"—":r.pcr.toFixed(2))+'</td>'
+      + '<td style="text-align:center">'+(r.baseline
+          ? '<span style="color:var(--muted)" title="the session’s zero '
+            + 'point, not a reading — call/put are cumulative OI change since '
+            + 'the open, so the first mark is zero by construction">BASELINE</span>'
+          : '<span class="'+esc(oiSentClass(r.sentiment))+'">'+esc(r.sentiment)+'</span>')
+        + '</td>'
+      + '</tr>');
+  });
+  out.push('</tbody></table></div>'
+    + '<div class="note" style="margin-top:6px">Each row is the chain AS AT that '
+    + 'mark, not an average over the interval after it. Diff = put minus call; '
+    + 'strength divides it by the larger leg; chg in dir is how far diff moved '
+    + 'since the previous mark. Summed over '
+    + esc((f.selected&&f.selected.length) ? f.selected.length : (f.strikes||[]).length)
+    + ' strikes.</div>');
+  el.innerHTML = out.join("");
+}
+
 /* -- detail ---------------------------------------------------------- */
 function renderDetail(c, d){
   var el = $("detail");
@@ -1163,6 +1283,7 @@ function render(){
     : (S.idx||"");
   if(S.tab==="payoff") drawPayoff(c, d||{}); else drawSmile(S.idx, c);
   renderDetail(c, d||{});
+  renderOiFlow();
 
   // ...and put it back.
   Array.prototype.forEach.call(document.querySelectorAll("#rail details"),
@@ -1239,6 +1360,7 @@ document.addEventListener("keydown", function(e){
     var ind = (S.desk&&S.desk.indices)||{};
     if(ind[IDX_KEYS[k]]){
       S.idx = IDX_KEYS[k]; S.pick = null; S.userPick = false; render();
+      pull();   // same reasoning as the card onclick above -- OI is single-index
     }
     return;
   }
