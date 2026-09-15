@@ -5,16 +5,17 @@ COMPOSITION ONLY, the warmap.py precedent: nothing here measures anything
 new. The tape (bars, bands, walls, events, taps) arrives from the GoCharting
 extension; the book (war map, chain minutes, zone state, VPIN, senses)
 arrives from the modules TapeMap already runs. This file only decides what
-sits in which block, tags it M or I, names its source, and states every
-absence with its own reason. A block that quietly measured would be the one
-defect the composition test exists to catch.
+sits in which object, tags it M or I, and states every absence with its own
+reason. An object that quietly measured would be the one defect the
+composition test exists to catch.
 
-BLOCK SHAPE, uniform so the face never learns block semantics:
-    {"title", "kind": "chips"|"rows"|"lines", "items": [{"k","v","tag","cls","why"}],
-     "src": [module names], "falsifies": str}
-
-PATA NAHI is a value, never a hole: a book that did not answer yields one
-PATA NAHI item per block with THAT block's reason.
+FRAME SHAPE (spec §C amended by §E): the nine uniform blocks are gone. The
+frame answers five questions -- where, who is trapped, where the walls are,
+what the tape just did, what I am waiting for -- as `where`, `trapped`,
+`walls`, `tape`, `setup`, plus `head` (session/expiry/gate) and `record`
+(the server's write receipt). Every field that can be null carries a sibling
+`*_why` that is non-null exactly when the field is null; `tag` appears only
+on the five inferred objects. The face formats and computes nothing.
 
 KILL CONDITIONS (spec §8), declared here before the first row is logged:
   taps: at n=30, converged (>=2 ladder rows in the zone) must exceed bare by
@@ -32,27 +33,30 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 import gate as gate_mod
+import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
 
 BASIS_WHY = "index and strike levels shifted by the live basis"
 TAP_Z = 1.85                # the extension's own tap threshold (taps.js)
 WARM_HHMM = "09:25"         # band_rotation.ANCHOR_HHMM; sigma is not trusted before it
-
-
-def _item(k, v, tag=None, cls=None, why=None):
-    return {"k": k, "v": v, "tag": tag, "cls": cls, "why": why}
-
-
-def _absent(k, why):
-    return _item(k, "PATA NAHI", None, "hole", why)
-
-
-def _block(title, kind, items, src, falsifies):
-    return {"title": title, "kind": kind, "items": items, "src": src, "falsifies": falsifies}
+WALL_CAP = 3                # nearest walls shown each side (spec §E default 3); every row is still on the wire
+CONFIRMS = ("absorption", "exhaustion", "trap")
 
 
 def _hhmm(t_ms: int) -> str:
     s = (t_ms // 1000 + 19800) % 86400
     return f"{s // 3600:02d}:{(s % 3600) // 60:02d}"
+
+
+def _why(s: Optional[str], n: int = 48) -> Optional[str]:
+    """One clause on the face. The long form, where one exists, rides in a *_full sibling."""
+    if s is None:
+        return None
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def _mins(hhmm: str) -> int:
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
 
 
 def window_change(minutes: Optional[dict], t0: str, t1: str) -> Dict[int, Tuple[float, float]]:
@@ -73,60 +77,6 @@ def window_change(minutes: Optional[dict], t0: str, t1: str) -> Dict[int, Tuple[
 def basis(tape: dict, book: dict) -> Optional[float]:
     fut, spot = tape.get("futPx"), book.get("spot")
     return round(fut - spot, 1) if fut is not None and spot is not None else None
-
-
-def ladder(tape: dict, book: dict) -> dict:
-    """One axis, futures frame. A ROW EXISTS IFF IT CARRIES STATE THE CHART
-    CANNOT DRAW: OI with day change and pain, tape walls with lean counts,
-    a level with sequence-machine state. Sigma lines are the ZONE header,
-    not rows. Max pain is not a row."""
-    items: List[dict] = []
-    src = ["board.js walls", "warmap.heat", "warmap.sequence", "warmap.dwell"]
-    b = basis(tape, book)
-    wm = book.get("warmap") or {}
-    fut = tape.get("futPx")
-    lot = tape.get("lot")
-    for w in tape.get("walls") or []:
-        size = (f"{w['size'] * lot / 1000:.1f}K contracts" if lot else f"{w['size']:.0f} lots")
-        items.append(dict(_item(f"{'S' if w['side'] < 0 else 'B'} {w['price']:.0f}",
-                                f"wall since {w.get('since')} · {size} · leaned {w.get('hits', 0)}×",
-                                "M", "wall"),
-                          p=float(w["price"]), kind="S" if w["side"] < 0 else "B", side=w["side"], state="held",
-                          snapshot=bool(w.get("snapshot"))))
-    if not wm:
-        items.append(dict(_absent("book rows", "tapemap did not answer: no OI walls, no level state"), p=None))
-    else:
-        if b is None:
-            items.append(dict(_absent("basis", "no index spot from the chain; strike rows cannot be placed"), p=None))
-        else:
-            for h in wm.get("heat") or []:
-                for side in ("ce", "pe"):
-                    oi = h.get(f"{side}_oi")
-                    if oi is None:
-                        continue
-                    pain = h.get(f"{side}_pain")
-                    items.append(dict(_item(f"{side.upper()} {h['k']:.0f}",
-                                            f"{oi / 1e6:.0f}M · {(h.get(f'{side}_chg') or 0) / 1e6:+.0f}M today"
-                                            + (f" · {pain:.0f} under" if pain else ""),
-                                            "M", side, BASIS_WHY),
-                                      p=float(h["k"]) + b, kind=side.upper(), oi=oi, pain=pain,
-                                      pain_tag="I", conf=h.get(f"{side}_conf"), state="held"))
-            for L in wm.get("levels") or []:
-                st = (wm.get("sequence") or {}).get(f"{L['kind']}@{L['px']}")
-                if not st:
-                    continue                 # no machine state: the chart draws the line; not a row
-                px = float(L["px"]) + (b if L.get("frame") == "index" else 0.0)
-                items.append(dict(_item(f"{L['kind']} {L['px']:.0f}",
-                                        f"{st['state']} · tested {st['tests']}× · last {st.get('last_outcome') or '—'}",
-                                        L.get("tag", "M"), "level", BASIS_WHY if L.get("frame") == "index" else None),
-                                  p=px, kind=L["kind"], state=st["state"]))
-    if fut is not None:
-        items.append(dict(_item("price", f"{fut:.1f}", "M", "px"), p=float(fut), kind="PX", state="now"))
-    items.sort(key=lambda r: -(r["p"] if r.get("p") is not None else -1e18))
-    for r in items:
-        r["d"] = round(r["p"] - fut, 1) if r.get("p") is not None and fut is not None else None
-    return {**_block("Ladder", "rows", items, src, "a held row is taken (re-read at +30/+60m)"),
-            "rows": [r for r in items if r.get("p") is not None], "basis": b}
 
 
 def _bands_now(tape: dict) -> Optional[dict]:
@@ -157,313 +107,304 @@ def _pick_side(in_buy: bool, in_sell: bool, buy_last: Optional[dict], sell_last:
     return "sell" if sell_active else "buy"
 
 
-def zone(tape: dict, book: dict, now_hhmm: str) -> dict:
-    """The one verb. Location from the 5-minute bands; state from the one
-    zone machine (book['zone_state'], run_states at SCORED_INTERVAL); flow
-    confirmation from the tape's own events at the zone price and the
-    chain's confirm. FIRE only when both agree, once per zone visit.
-    Flow anchors on the band at this instant, or on the machine's level
-    once armed."""
-    src = ["market.js vwapSeries", "band_rotation.run_states", "board.js events", "taps.js"]
-    bn = _bands_now(tape)
-    if not bn or not bn.get("sigma"):
-        return {**_block("Zone", "chips", [_absent("zone", "no bands on the tape yet")], src, "—"),
-                "state": "PATA NAHI", "reached": False, "confirmed": False, "fire": False, "visit": None, "z": None, "flow": []}
-    if now_hhmm < WARM_HHMM:
-        return {**_block("Zone", "chips", [_item("zone", f"σ not yet trusted, {WARM_HHMM}", "M", "warm")], src, "—"),
-                "state": "WARMUP", "reached": False, "confirmed": False, "fire": False, "visit": None, "z": None, "flow": []}
-    fut = tape.get("futPx")
-    z = (fut - bn["vwap"]) / bn["sigma"] if fut is not None else None
-    buy_lo, buy_hi = bn["d3"], bn["d2"]
-    sell_lo, sell_hi = bn["u2"], bn["u3"]
-    in_buy = fut is not None and buy_lo <= fut <= buy_hi
-    in_sell = fut is not None and sell_lo <= fut <= sell_hi
-    items = [_item("buy zone", f"{buy_lo:.0f}–{buy_hi:.0f} (−3σ..−2σ)", "M", "sig"),
-             _item("sell line", f"{sell_hi:.0f} (+3σ)", "M", "sig"),
-             _item("z", f"{z:+.2f}" if z is not None else "—", "M", "big")]
+def _safe(fn, empty: dict) -> dict:
+    """One object of the frame built in isolation (spec §2 isolation): a raising object becomes its own `why`
+    over the empty shape; the other objects still print."""
+    try:
+        return fn()
+    except Exception as e:  # noqa: BLE001 -- the reason is the value
+        return {**empty, "why": f"{type(e).__name__}: {e}"}
 
-    def _last(zs):
-        if not zs:
-            return None
-        return zs[-1] if isinstance(zs, list) else zs
 
-    zs_buy, zs_sell = book.get("zone_state"), book.get("zone_state_sell")
-    last_buy, last_sell = _last(zs_buy), _last(zs_sell)
-    machine_buy = last_buy.get("state", "PATA NAHI") if last_buy else "PATA NAHI"
-    machine_sell = last_sell.get("state", "PATA NAHI") if last_sell else "PATA NAHI"
-    ACTIVE = _ZONE_ACTIVE
-    # see _pick_side: price in a pocket wins outright; with neither touched,
-    # the more recently armed of the two active machines is the live setup,
-    # sell on a tie -- see spec §6, defect C2
-    use_sell = _pick_side(in_buy, in_sell, last_buy, last_sell) == "sell"
-    machine = machine_sell if use_sell else machine_buy
-    last = last_sell if use_sell else last_buy
-    side_label = "sell" if use_sell else "buy"
-    if last:
-        items.append(_item(f"setup ({side_label})", machine, "M", "setup",
-                           f"ref {last.get('ref_high')} · {last.get('candles_left')} candles left" if last.get("ref_high") else None))
+def _head(tape: dict, book: dict, g: dict) -> dict:
+    sess = (tape.get("session") or "").split("|")
+    symbol, day = (sess[0] or None), (sess[-1] if len(sess) >= 3 else None)
+    expiry = book.get("expiry")
+    dte = None
+    if expiry and day:
+        try:
+            from datetime import date
+            dte = (date.fromisoformat(expiry) - date.fromisoformat(day)).days
+        except ValueError:
+            dte = None
+    cov = book.get("coverage") or {}
+    return {"symbol": symbol or "—", "expiry": expiry, "expiry_why": None if expiry else "chain expiry not answered", "dte": dte,
+            "started": cov.get("server_up"), "late_min": cov.get("late_min"),
+            "gate": {"level": g["level"], "reason": _why(g["reason"]), "reason_full": g["reason"],
+                     "would_be": g.get("would_be"), "would_be_reason": g.get("would_be_reason"), "tag": "I"}}
+
+
+def _where(tape: dict, closed: list, now_hhmm: str) -> dict:
+    bn, fut = _bands_now(tape), tape.get("futPx")
+    have_sigma = bool(bn and bn.get("sigma"))
+    warm = have_sigma and now_hhmm >= WARM_HHMM
+    w = {"px": fut, "vwap": bn["vwap"] if have_sigma else None, "sigma": bn["sigma"] if have_sigma else None, "z": None,
+         "warm": warm, "warm_at": WARM_HHMM, "buy_zone": None, "sell_line": None, "edge": None,
+         "zone_why": None if warm else (f"σ not trusted until {WARM_HHMM}" if have_sigma else "no bands on the tape yet"),
+         "open": None, "high": None, "low": None, "from_open": None, "off_extreme": None, "hour": None, "bars_why": None}
+    if warm:
+        w["buy_zone"], w["sell_line"] = [bn["d3"], bn["d2"]], bn["u3"]
+        if fut is not None:
+            w["z"] = round((fut - bn["vwap"]) / bn["sigma"], 3)
+            # signed points to the nearer zone edge: buy edge is d2 (positive = zone still below price),
+            # sell edge is u2 (positive = zone still above price); negative means price is past that edge
+            db, ds = round(fut - bn["d2"], 1), round(bn["u2"] - fut, 1)
+            w["edge"] = {"side": "buy", "d": db} if abs(db) <= abs(ds) else {"side": "sell", "d": ds}
+    if closed and closed[0].get("o") is not None and closed[-1].get("c") is not None:
+        o, c = closed[0]["o"], closed[-1]["c"]
+        bh, bl = max(closed, key=lambda b: b["h"]), min(closed, key=lambda b: b["l"])
+        px = fut if fut is not None else c
+        w.update(open=o, high={"p": bh["h"], "t": _hhmm(bh["t"])}, low={"p": bl["l"], "t": _hhmm(bl["t"])}, from_open=round(px - o, 1))
+        dl, dh = px - bl["l"], bh["h"] - px
+        w["off_extreme"] = {"which": "low", "d": round(dl, 1)} if dl <= dh else {"which": "high", "d": round(dh, 1)}
+        wnd = closed[-12:]
+        w["hour"] = {"bars": len(wnd), "net": round(float(wnd[-1]["c"] - wnd[0]["o"]), 1),
+                     "travel": round(float(sum(abs(wnd[i]["c"] - (wnd[i - 1]["c"] if i else wnd[0]["o"])) for i in range(len(wnd)))), 1)}
     else:
-        items.append(_absent(f"setup ({side_label})", "zone machine not answering (band_rotation.run_states)"))
-    row = float(tape.get("rowSize") or 5)
-    # the flow check anchors on the band price at this instant, or, once the
-    # machine has armed, on the machine's own level: the touch already
-    # happened, and a close a hair past d3/u3 is only the falsification
-    # region if it holds three bars (see `falsifies` below)
-    m_level = last.get("level") if last else None
-    near_edge = sell_lo if use_sell else buy_hi
-    in_pocket = in_sell if use_sell else in_buy
-    edge = near_edge if in_pocket else (m_level if machine in ACTIVE and m_level is not None else None)
-    flow = [e for e in tape.get("events") or [] if edge is not None and e.get("p") is not None
-            and abs(e["p"] - edge) <= 3 * row and e.get("kind") in ("absorption", "exhaustion", "trap")]
-    for e in flow:
-        items.append(_item(e["kind"], f"{_hhmm(e['t'])} at {e['p']:.0f}", "M", "flow"))
+        w["bars_why"] = "no closed bars posted" if not closed else "the first/last bar has no joined OHLC yet"
+    return w
+
+
+def _trapped(book: dict, closed: list, mins: dict, marks: list) -> dict:
+    wm = book.get("warmap") or {}
+    heat = wm.get("heat") or []
+    t = {"writers": None, "writers_why": None, "window": None, "window_why": None, "pace": None, "pace_why": None,
+         "fut_oi": None, "fut_oi_why": None, "gear": None, "gear_why": None, "gear_tag": "I"}
+    if heat:
+        legs = [(h["k"], s, h.get(f"{s}_pain") or 0, h.get(f"{s}_conf")) for h in heat for s in ("ce", "pe")]
+        k, s, pain, conf = max(legs, key=lambda x: x[2])
+        t["writers"] = {"side": s.upper() if pain > 0 else "none", "worst": {"k": k, "pain": round(pain, 1), "conf": conf} if pain > 0 else None,
+                        "ce_chg": sum(h.get("ce_chg") or 0 for h in heat), "pe_chg": sum(h.get("pe_chg") or 0 for h in heat), "tag": "I"}
+    else:
+        t["writers_why"] = "tapemap heat not answered" if not wm else "no heat rows yet"
+    if len(marks) >= 2:
+        t0, t1 = (marks[-4] if len(marks) >= 4 else marks[0]), marks[-1]
+        ch = window_change(mins, t0, t1)
+        t["window"] = {"t0": t0, "t1": t1, "minutes": _mins(t1) - _mins(t0), "ce": sum(v[0] for v in ch.values()), "pe": sum(v[1] for v in ch.values())}
+    else:
+        t["window_why"] = "chain minutes not answered" if not mins else "fewer than 2 chain minutes"
+    if len(marks) >= 4:
+        paces = [window_change(mins, marks[i - 1], marks[i]) for i in range(1, len(marks))]
+        ce_p = [sum(v[0] for v in p.values()) for p in paces]
+        pe_p = [sum(v[1] for v in p.values()) for p in paces]
+
+        def rank(xs):
+            return round(sum(1 for x in xs if x <= xs[-1]) / len(xs), 2)
+        t["pace"] = {"ce": rank(ce_p), "pe": rank(pe_p)}
+    else:
+        t["pace_why"] = "fewer than 4 chain minutes; nothing to rank"
+    if closed and closed[0].get("o") is not None and closed[-1].get("c") is not None:
+        t["fut_oi"] = {"d_oi": (closed[-1].get("oi") or 0) - (closed[0].get("oi") or 0), "d_px": round(closed[-1]["c"] - closed[0]["o"], 1)}
+    else:
+        t["fut_oi_why"] = "no joined OHLC yet"
+    sn = book.get("senses") or {}
+    if sn.get("gear"):
+        t["gear"] = sn["gear"]
+    else:
+        t["gear_why"] = "senses not answered"
+    return t
+
+
+def _row(kind, p, **kw) -> dict:
+    r = {"kind": kind, "p": float(p), "d": None, "size": None, "since": None, "leaned": None, "snapshot": False,
+         "oi": None, "chg": None, "pain": None, "pain_tag": "I", "conf": None, "state": None, "tests": None, "last_outcome": None, "agree": None}
+    r.update(kw)
+    return r
+
+
+def _walls(tape: dict, book: dict, broke: list) -> dict:
+    """One axis, futures frame. Tape walls with lean counts, OI strikes with pain (basis-shifted), levels with
+    sequence-machine state, the prior session's H/L/C. A tape wall and an OI strike within one row of each other
+    are one level and name each other (`agree`). Every row is on the wire; the face shows the nearest `cap` each side."""
+    fut, lot, row = tape.get("futPx"), tape.get("lot"), float(tape.get("rowSize") or 5)
+    wm, b = book.get("warmap") or {}, basis(tape, book)
+    rows: List[dict] = []
+    for w in tape.get("walls") or []:
+        rows.append(_row("S" if w["side"] < 0 else "B", w["price"], size=(w["size"] * lot) if lot else None, since=w.get("since"),
+                         leaned=int(w.get("hits") or 0), snapshot=bool(w.get("snapshot")), state="held"))
+    oi_why = None
+    if not wm:
+        oi_why = "tapemap did not answer"
+    elif b is None:
+        oi_why = "no index spot from the chain; strikes cannot be placed"
+    else:
+        for h in wm.get("heat") or []:
+            for side in ("ce", "pe"):
+                if h.get(f"{side}_oi") is None:
+                    continue
+                rows.append(_row(side.upper(), float(h["k"]) + b, oi=h[f"{side}_oi"], chg=h.get(f"{side}_chg"), pain=h.get(f"{side}_pain"),
+                                 conf=h.get(f"{side}_conf"), state="held", strike=float(h["k"])))
+        for L in wm.get("levels") or []:
+            st = (wm.get("sequence") or {}).get(f"{L['kind']}@{L['px']}")
+            if not st:
+                continue                       # no machine state: the chart draws the line; not a row
+            rows.append(_row(L["kind"], float(L["px"]) + (b if L.get("frame") == "index" else 0.0),
+                             state=st["state"], tests=st.get("tests"), last_outcome=st.get("last_outcome")))
+    hlc = structure.prior_day_hlc(book["pivots"]) if book.get("pivots") else None
+    prior_why = None
+    if hlc:
+        for kind, p in zip(("PDH", "PDL", "PDC"), hlc):
+            rows.append(_row(kind, p))
+    else:
+        prior_why = "prior session H/L/C not answered (live._pivots)"
+    for tr in (r for r in rows if r["kind"] in ("S", "B")):
+        for orow in (r for r in rows if r["kind"] in ("CE", "PE")):
+            if abs(tr["p"] - orow["p"]) < row:
+                tr["agree"], orow["agree"] = f"{orow['kind']} {orow['strike']:.0f}", f"{tr['kind']} {tr['p']:.0f}"
+    for r in rows:
+        r["d"] = round(r["p"] - fut, 1) if fut is not None else None
+    rows.sort(key=lambda r: -r["p"])
+    return {"rows": rows, "cap": WALL_CAP, "floors_taken": sum(1 for x in broke if x.get("side") == 1),
+            "oi_why": oi_why, "prior_why": prior_why, "basis": b}
+
+
+def _place(p: float, bn: Optional[dict], walls_rows: list, row: float) -> Optional[dict]:
+    """Where an event happened, in words: within one row of a held wall or an OI strike (the NEAREST one), else
+    inside a zone."""
+    candidates = [r for r in walls_rows if r["kind"] in ("S", "B", "CE", "PE") and abs(r["p"] - p) <= row]
+    if candidates:
+        r = min(candidates, key=lambda r: abs(r["p"] - p))
+        return {"kind": "wall", "label": f"at {r['kind']} {r['p']:.0f}"}
+    if bn and bn.get("sigma"):
+        if bn["d3"] <= p <= bn["d2"]:
+            return {"kind": "zone", "label": "in the buy zone"}
+        if bn["u2"] <= p <= bn["u3"]:
+            return {"kind": "zone", "label": "in the sell zone"}
+    return None
+
+
+def _tape(tape: dict, closed: list, walls_rows: list) -> dict:
+    bn, row = _bands_now(tape), float(tape.get("rowSize") or 5)
+    # sorted newest-first by timestamp (never assume the feed's own append order)
+    evs = sorted((e for e in (tape.get("events") or []) if e.get("p") is not None), key=lambda e: e["t"], reverse=True)[:4]
+    out = {"events": [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"]), "at": _place(float(e["p"]), bn, walls_rows, row)} for e in evs],
+           "aggressor": None, "aggressor_why": None}
+    if closed:
+        d = sum(b.get("delta", 0) or 0 for b in closed)
+        # sign only: shape and sequence, never magnitude (stack doctrine); rank stays None until a within-session rank is defined
+        out["aggressor"] = {"side": "sellers" if d < 0 else "buyers" if d > 0 else "flat", "rank": None}
+    else:
+        out["aggressor_why"] = "no closed bars; no sign to report"
+    return out
+
+
+def _tells(book: dict, closed: list, b: Optional[float], bn: Optional[dict]) -> list:
+    tells = []
+    heat = (book.get("warmap") or {}).get("heat") or []
+    if heat and b is not None and closed and bn:
+        px = closed[-1]["c"]
+        below = sorted((h for h in heat if h.get("pe_oi") and h["k"] + b < px), key=lambda h: -h["pe_oi"])
+        if below:
+            k = below[0]["k"]
+            tells.append({"name": "DOWN", "predicate": f"close < {k + b:.0f} AND PE {k:.0f} OI falling",
+                          "target": f"{bn['d3']:.0f}", "negation": f"close back above {k + b:.0f}", "tag": "I"})
+        above = sorted((h for h in heat if h.get("ce_oi") and h["k"] + b > px), key=lambda h: h["k"])
+        if above:
+            k = above[0]["k"]
+            tells.append({"name": "PIN", "predicate": f"PE writing continues AND CE {k:.0f} OI falling",
+                          "target": f"{k + b:.0f}", "negation": f"CE {k:.0f} OI still building", "tag": "I"})
+    return tells
+
+
+def _setup(tape: dict, book: dict, now_hhmm: str, walls: dict) -> dict:
+    """The one verb: location from the 5-minute bands; state from the zone machine (book['zone_state'] /
+    ['zone_state_sell'], run_states at SCORED_INTERVAL); flow from the tape's own events within three rows of the
+    edge; the chain's confirm. FIRE only when both agree, once per zone visit keyed on the machine's reference bar."""
+    bn, fut, closed = _bands_now(tape), tape.get("futPx"), tape.get("closed") or []
     senses = book.get("senses")
     if senses is None:
-        chain_confirm, confirm_why = "not wired", "the /api/senses assembly is not factored out yet; the beep is tape-only"
+        confirm = {"value": "not wired", "why": "the /api/senses assembly is not factored out yet; the beep is tape-only", "tag": "I"}
     else:
-        chain_confirm = senses.get("confirm")
-        confirm_why = None if chain_confirm else "pair rotation and OI deceleration not read"
-        chain_confirm = chain_confirm or "UNKNOWN"
-    items.append(_item("chain confirm", chain_confirm, "I", "flow", confirm_why))
-    reached = in_buy or in_sell or machine in ACTIVE
-    confirmed = bool(flow) and chain_confirm != "UNCONFIRMED"
-    fire = reached and confirmed
-    # visit must be STABLE for the life of a visit (one beep, not one per bar):
-    # anchor on the machine's own reference bar while it holds one, else on the
-    # earliest bar of the contiguous band-touch run, else fall back to today's
-    # last-bar behaviour (frame.py stays stateless -- these are all read off
-    # fields already on the tape/machine, nothing is remembered here).
-    visit = None
-    if reached and tape.get("closed"):
-        closed = tape["closed"]
-        side = side_label
-        ref_i = last.get("ref_i") if last and machine in ACTIVE else None
+        cv = senses.get("confirm")
+        confirm = {"value": cv or "UNKNOWN", "why": None if cv else "pair rotation and OI deceleration not read", "tag": "I"}
+    S = {"side": "buy", "state": "PATA NAHI", "state_why": None, "ref_high": None, "candles_left": None, "level": None,
+         "reached": False, "in_pocket": False, "flow": [], "confirm": confirm, "fire": False, "visit": None,
+         "tells": _tells(book, closed, walls.get("basis"), bn), "falsifies": "nothing to falsify before σ exists"}
+    if not bn or not bn.get("sigma"):
+        S["state_why"] = "no bands on the tape yet"
+        return S
+    if now_hhmm < WARM_HHMM:
+        S["state"], S["state_why"] = "WARMUP", f"σ not trusted until {WARM_HHMM}"
+        return S
+    in_buy = fut is not None and bn["d3"] <= fut <= bn["d2"]
+    in_sell = fut is not None and bn["u2"] <= fut <= bn["u3"]
+
+    def _last(zs):
+        return (zs[-1] if isinstance(zs, list) else zs) if zs else None
+    last_buy, last_sell = _last(book.get("zone_state")), _last(book.get("zone_state_sell"))
+    use_sell = _pick_side(in_buy, in_sell, last_buy, last_sell) == "sell"
+    last = last_sell if use_sell else last_buy
+    side = "sell" if use_sell else "buy"
+    S["side"] = side
+    S["falsifies"] = f"a close past {bn['u3']:.0f} (+3σ) held for 3 bars" if use_sell else f"a close past {bn['d3']:.0f} (−3σ) held for 3 bars"
+    if last:
+        S.update(state=last.get("state", "PATA NAHI"), ref_high=last.get("ref_high"), candles_left=last.get("candles_left"), level=last.get("level"))
+    else:
+        S["state_why"] = "zone machine not answering (band_rotation.run_states)"
+    machine = S["state"]
+    row = float(tape.get("rowSize") or 5)
+    in_pocket = in_sell if use_sell else in_buy
+    near_edge = bn["u2"] if use_sell else bn["d2"]
+    # flow anchors on the band at this instant, or on the machine's own level once armed (the touch already happened)
+    edge = near_edge if in_pocket else (S["level"] if machine in _ZONE_ACTIVE and S["level"] is not None else None)
+    flow = [e for e in tape.get("events") or [] if edge is not None and e.get("p") is not None
+            and abs(e["p"] - edge) <= 3 * row and e.get("kind") in CONFIRMS]
+    S["flow"] = [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"])} for e in flow]
+    S["reached"], S["in_pocket"] = bool(in_buy or in_sell or machine in _ZONE_ACTIVE), bool(in_pocket)
+    S["fire"] = S["reached"] and bool(flow) and confirm["value"] != "UNCONFIRMED"
+    # visit is stable for the life of a visit: the machine's reference bar while it holds one, else the earliest bar
+    # of the contiguous band-touch run, else today's last bar (frame.py stays stateless)
+    if S["reached"] and closed:
+        ref_i = last.get("ref_i") if last and machine in _ZONE_ACTIVE else None
+        visit = None
         if ref_i is not None and 0 <= ref_i < len(closed):
             visit = f"{side}@{_hhmm(closed[ref_i]['t'])}"
         elif in_buy or in_sell:
-            bands_list = tape.get("bands") or []
-            key = "d2" if in_buy else "u2"
+            bands_list, key = tape.get("bands") or [], ("d2" if in_buy else "u2")
 
-            def _touches(idx):
-                lvl = bands_list[idx].get(key)
-                if lvl is None:
-                    return False
-                bar = closed[idx]
-                return bar["l"] <= lvl if in_buy else bar["h"] >= lvl
-
+            def _touches(i):
+                lvl = bands_list[i].get(key) if i < len(bands_list) else None
+                return lvl is not None and (closed[i]["l"] <= lvl if in_buy else closed[i]["h"] >= lvl)
             i = len(closed) - 1
-            if i < len(bands_list) and _touches(i):
+            if _touches(i):
                 while i > 0 and _touches(i - 1):
                     i -= 1
                 visit = f"{side}@{_hhmm(closed[i]['t'])}"
-        if visit is None:
-            visit = f"{side}@{_hhmm(closed[-1]['t'])}"
-    items.append(_item("signal", "ZONE + FLOW" if fire else "zone reached, flow not confirmed" if reached else "not in zone",
-                       "I", "fire" if fire else None))
-    return {**_block("Zone", "chips", items, src, "price closes past 3σ and holds 3 bars"),
-            "state": machine, "reached": reached, "confirmed": confirmed, "fire": fire, "visit": visit, "z": z,
-            "flow": [e["kind"] for e in flow]}
-
-
-def _safe(title, fn, fallback_extra=None):
-    """Run one block's construction in isolation (I1): a raising block does
-    not take the other blocks down with it. `fn` returns the full block dict
-    (or, for ladder/zone, that dict plus the extra keys those two functions
-    attach) on success; on failure the block becomes its own PATA NAHI,
-    merged with whatever safe defaults the caller needs downstream."""
-    try:
-        return fn()
-    except Exception as e:
-        blk = _block(title, "chips", [_absent(title.lower(), f"{type(e).__name__}: {e}")], ["frame.build"], "—")
-        return {**blk, **(fallback_extra or {})}
+        S["visit"] = visit or f"{side}@{_hhmm(closed[-1]['t'])}"
+    return S
 
 
 def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     book = book or {}
-    wm = book.get("warmap") or {}
-    closed = tape.get("closed") or []
-    walls = tape.get("walls") or []
-    broke = tape.get("broke") or []
+    closed, walls_in, broke = tape.get("closed") or [], tape.get("walls") or [], tape.get("broke") or []
     mins = book.get("minutes") or {}
     marks = sorted(mins)
     missing: List[str] = []
-    if not wm:
+    if not book.get("warmap"):
         missing.append("warmap")
-    if not book.get("minutes"):
+    if not mins:
         missing.append("chain minutes")
-
-    # squeeze is never measured here (I3): None is the honest absence, not a
-    # fabricated "not a squeeze day"
-    g = gate_mod.state(book.get("ivrv"), book.get("expiry"), (tape.get("session") or "").split("|")[-1],
-                       book.get("vpin_pct"), None)
-
-    def _header():
-        return _block("Header", "chips", [
-            _item("session", tape.get("session") or "—", "M"),
-            _item("legs", f"expiry {book['expiry']}", "M") if book.get("expiry") else _absent("legs", "chain expiry not answered"),
-            _item("gate", g["level"], "I", "gate", f"{g['reason']} — would be {g['would_be']} ({g['would_be_reason']})"),
-        ], ["chain expiry", "gate.py"], "—")
-    header = _safe("Header", _header)
-
-    def _session():
-        items = []
-        if closed:
-            o, c = closed[0]["o"], closed[-1]["c"]
-            if o is None or c is None:
-                items.append(_absent("bars", "the first/last bar has no joined OHLC yet"))
-            else:
-                bh, bl = max(closed, key=lambda b: b["h"]), min(closed, key=lambda b: b["l"])
-                items.extend([_item("open", f"{o:.1f}", "M"), _item("high", f"{bh['h']:.1f} at {_hhmm(bh['t'])}", "M"),
-                              _item("low", f"{bl['l']:.1f} at {_hhmm(bl['t'])}", "M"), _item("now", f"{c:.1f}", "M")])
-                w = closed[-12:]
-                net = abs(w[-1]["c"] - w[0]["o"])
-                travel = sum(abs(w[i]["c"] - (w[i - 1]["c"] if i else w[0]["o"])) for i in range(len(w)))
-                items.extend([_item("last 60m net", f"{net:.0f}", "M"), _item("last 60m travel", f"{travel:.0f}", "M")])
-        else:
-            items.append(_absent("bars", "no closed bars posted"))
-        if len(marks) >= 2:
-            t0, t1 = (marks[-4] if len(marks) >= 4 else marks[0]), marks[-1]
-            ch = window_change(mins, t0, t1)
-            ce = sum(v[0] for v in ch.values()); pe = sum(v[1] for v in ch.values())
-            items.append(_item(f"OI {t0}–{t1}", f"CE {ce / 1e6:+.0f}M · PE {pe / 1e6:+.0f}M", "M", None,
-                               "arithmetic on per-strike change; who wrote it is not visible"))
-        else:
-            items.append(_absent("OI window", "chain minutes not answered"))
-        return _block("Session", "rows", items, ["bars", "ChainState.minutes"], "a leg whose window carries the opposite OI sign")
-    session = _safe("Session", _session)
-
-    def _paid():
-        items = []
-        items.append(_item("floors taken", str(sum(1 for x in broke if x.get("side") == 1)), "M"))
-
-        def _wall(x):
-            hits = x.get("hits", 0)
-            return f"{'S' if x['side'] < 0 else 'B'} {x['price']:.0f}×{hits if hits else '0 (untested)'}"
-        items.append(_item("walls held", ", ".join(_wall(x) for x in walls) or "none", "M"))
-        if wm.get("heat"):
-            ce_w = sum(h.get("ce_chg") or 0 for h in wm["heat"]); pe_w = sum(h.get("pe_chg") or 0 for h in wm["heat"])
-            items.append(_item("writing today", f"CE {ce_w / 1e6:+.0f}M · PE {pe_w / 1e6:+.0f}M", "M"))
-            pain = [(h["k"], s, h.get(f"{s}_pain")) for h in wm["heat"] for s in ("ce", "pe") if (h.get(f"{s}_pain") or 0) > 0]
-            items.append(_item("writers under", ", ".join(f"{s.upper()} {k:.0f} −{p:.0f}" for k, s, p in pain) or "none", "I",
-                               None, "writer-dominated assumed (trapped_inventory)"))
-        else:
-            items.append(_absent("writing today", "tapemap heat not answered"))
-        if closed:
-            d = sum(b.get("delta", 0) for b in closed)
-            items.append(_item("tape aggression", f"{'sellers' if d < 0 else 'buyers' if d > 0 else 'flat'} · sign only", "M", None,
-                               "shape and sequence, never magnitude; the 8% floor is gone"))
-            o0, c1 = closed[0].get("o"), closed[-1].get("c")
-            if o0 is None or c1 is None:
-                items.append(_absent("fut OI vs price", "the first/last bar has no joined OHLC yet"))
-            else:
-                items.append(_item("fut OI vs price", f"{(closed[-1].get('oi') or 0) - (closed[0].get('oi') or 0):+.0f} on {c1 - o0:+.0f} pts", "M"))
-        return _block("Paid", "rows", items, ["board.js walls", "warmap.heat", "trapped_inventory", "bars"], "the named side loses its last held shelf")
-    paid = _safe("Paid", _paid)
-
-    def _failing():
-        items = []
-        if len(marks) >= 4:
-            paces = [window_change(mins, marks[i - 1], marks[i]) for i in range(1, len(marks))]
-            ce_p = [sum(v[0] for v in p.values()) for p in paces]; pe_p = [sum(v[1] for v in p.values()) for p in paces]
-
-            def rank(xs):
-                return sum(1 for x in xs if x <= xs[-1]) / len(xs)
-            items.append(_item("CE writing pace", f"rank {rank(ce_p):.2f} of session", "M"))
-            items.append(_item("PE writing pace", f"rank {rank(pe_p):.2f} of session", "M"))
-        else:
-            items.append(_absent("writing pace", "fewer than 4 chain minutes; nothing to rank"))
-        for e in [e for e in (tape.get("events") or []) if e.get("kind") == "absorption"][-3:]:
-            items.append(_item("absorption", f"{_hhmm(e['t'])} at {e['p']:.0f}", "M"))
-        return _block("Failing", "chips", items, ["ChainState.minutes", "board.js events"], "price follows the aggressor within 2 bars")
-    failing = _safe("Failing", _failing)
-
-    def _fuel():
-        items = []
-        if wm.get("heat"):
-            worst = max(((h["k"], s, h.get(f"{s}_pain") or 0, h.get(f"{s}_conf")) for h in wm["heat"] for s in ("ce", "pe")),
-                        key=lambda x: x[2])
-            items.append(_item("trapped side", worst[1].upper() if worst[2] > 0 else "none", "I"))
-            items.append(_item("worst leg", f"{worst[1].upper()} {worst[0]:.0f} −{worst[2]:.0f} · conf {worst[3]}", "I", None,
-                               "basis is an estimate in expiry week"))
-        else:
-            items.append(_absent("fuel", "tapemap heat not answered: no trapped side to name"))
-        sn = book.get("senses") or {}
-        items.append(_item("gear", sn.get("gear"), "I") if sn.get("gear") else _absent("gear", "senses not answered"))
-        return _block("Fuel", "chips", items, ["trapped_inventory", "chainside", "senses"], "pain rises while that side's OI keeps building")
-    fuel = _safe("Fuel", _fuel)
-
-    lad = _safe("Ladder", lambda: ladder(tape, book), {"rows": [], "basis": None})
-    zn = _safe("Zone", lambda: zone(tape, book, now_hhmm),
-               {"state": "PATA NAHI", "reached": False, "confirmed": False, "fire": False, "visit": None, "z": None, "flow": []})
-
-    def _watch():
-        tells = []
-        heat = wm.get("heat") or []
-        b = lad.get("basis")
-        if heat and b is not None and closed:
-            px = closed[-1]["c"]
-            below = sorted((h for h in heat if h.get("pe_oi") and h["k"] + b < px), key=lambda h: -h["pe_oi"])
-            if below:
-                k = below[0]["k"]
-                tells.append({"name": "DOWN", "predicate": f"close < {k + b:.0f} AND PE {k:.0f} OI falling",
-                              "target": f"{zn['items'][0]['v'].split(' ')[0].split('–')[0]}" if zn.get("items") and zn["items"][0]["k"] == "buy zone" else "zone",
-                              "negation": f"close back above {k + b:.0f}"})
-            above = sorted((h for h in heat if h.get("ce_oi") and h["k"] + b > px), key=lambda h: h["k"])
-            if above:
-                k = above[0]["k"]
-                tells.append({"name": "PIN", "predicate": f"PE writing continues AND CE {k:.0f} OI falling",
-                              "target": f"{k + b:.0f}", "negation": f"CE {k:.0f} OI still building"})
-        tells.append({"name": "ELSE", "predicate": "neither tell printed", "target": "flat", "negation": "—"})
-        return {**_block("Watch", "lines", [_item(t["name"], f"{t['predicate']} → {t['target']} · falsified by {t['negation']}", "I")
-                                             for t in tells], ["warmap.heat", "frame.zone"], "each tell prints its own negation"),
-                "tells": tells}
-    watch = _safe("Watch", _watch, {"tells": []})
-
-    def _footer():
-        cov = book.get("coverage") or {}
-        late = cov.get("late_min")
-        cov_str = (f"server_up {cov.get('server_up') or '—'} · late {late if late is not None else 0} min · "
-                   f"reconstructed {len(cov.get('reconstructed') or [])} · not_reconstructable {len(cov.get('not_reconstructable') or [])}")
-        return _block("Not known", "lines", [
-            _item("OI", "unsigned, always", None),
-            _item("VPIN", f"pct {book['vpin_pct']:.2f}", "I") if book.get("vpin_pct") is not None else _absent("VPIN", "vpin not answered"),
-            _item("coverage", cov_str, None),
-            _item("missing", ", ".join(missing) or "nothing", None),
-        ], ["coverage"], "—")
-    footer = _safe("Not known", _footer)
-
-    bn = _bands_now(tape)
-    fut = tape.get("futPx")
-    confirm_it = next((it for it in zn.get("items") or [] if it["k"] == "chain confirm"), None)
-    trap_it = next((it for it in zn.get("items") or [] if it["k"] == "trap"), None)
-    fuel_it = next((it for it in fuel.get("items") or [] if it["k"] == "trapped side"), None)
-    strip = {"z": zn.get("z"),
-             "zone_edge_d": round(min(abs(fut - bn["d2"]), abs(fut - bn["u2"])), 1) if bn and fut is not None else None,
-             "setup": zn.get("state"), "fire": zn.get("fire"),
-             "confirm": confirm_it["v"] if confirm_it else "PATA NAHI",
-             "trap": trap_it["v"] if trap_it else "PATA NAHI",
-             "fuel_side": fuel_it["v"] if fuel_it else "PATA NAHI",
-             "level_under": next((r for r in lad["rows"] if r.get("d") is not None and r["d"] < 0 and r.get("kind") in ("B", "S")), None),
-             "gate": g["level"], "gate_would_be": g["would_be"], "missing": missing}
-
-    # armed events come off whichever machine bar states the book carries
-    # (buy and/or sell); `arm` is non-None only on the bar a reference is
-    # created (band_rotation.run_states docstring)
+    sess = (tape.get("session") or "").split("|")
+    day = sess[-1] if len(sess) >= 3 else None
+    # squeeze is never measured here: None is the honest absence
+    g = gate_mod.state(book.get("ivrv"), book.get("expiry"), day or "", book.get("vpin_pct"), None)
+    head = _safe(lambda: _head(tape, book, g), {"symbol": "—", "expiry": None, "dte": None, "gate": {"level": "PATA NAHI", "tag": "I"}})
+    where = _safe(lambda: _where(tape, closed, now_hhmm), {"px": None, "z": None, "warm": False, "warm_at": WARM_HHMM, "buy_zone": None, "sell_line": None, "edge": None})
+    trapped = _safe(lambda: _trapped(book, closed, mins, marks), {"writers": None, "window": None, "pace": None, "fut_oi": None, "gear": None})
+    walls = _safe(lambda: _walls(tape, book, broke), {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, "prior_why": None, "basis": None})
+    tape_o = _safe(lambda: _tape(tape, closed, walls["rows"]), {"events": [], "aggressor": None})
+    setup = _safe(lambda: _setup(tape, book, now_hhmm, walls),
+                  {"side": "buy", "state": "PATA NAHI", "reached": False, "in_pocket": False, "flow": [], "fire": False, "visit": None, "tells": [],
+                   "confirm": {"value": "UNKNOWN", "why": "setup did not build", "tag": "I"}, "falsifies": "—"})
     armed = []
     for zs_list in (book.get("zone_state"), book.get("zone_state_sell")):
-        if not isinstance(zs_list, list):
-            continue
-        for i, s in enumerate(zs_list):
-            if isinstance(s, dict) and s.get("arm") is not None and i < len(closed):
-                armed.append({"t": _hhmm(closed[i]["t"]), "kind": "armed"})
+        if isinstance(zs_list, list):
+            armed += [{"t": _hhmm(closed[i]["t"]), "kind": "armed"} for i, s in enumerate(zs_list) if isinstance(s, dict) and s.get("arm") is not None and i < len(closed)]
     events = ([{"t": _hhmm(e["t"]), "kind": e["kind"]} for e in (tape.get("events") or [])]
               + [{"t": _hhmm(t["t"]), "kind": "tap"} for t in (tape.get("taps") or [])]
-              + [{"t": w["since"], "kind": "wall"} for w in walls if w.get("since")]
-              + [{"t": _hhmm(b["brokenT"]), "kind": "lost"} for b in broke if b.get("brokenT")]
-              + armed)
-
-    return {"ok": True, "idx": tape.get("idx") or "NIFTY", "ts": now_hhmm, "have_bars": len(closed),
-            "strip": strip, "header": header, "session": session, "paid": paid, "failing": failing,
-            "ladder": lad, "fuel": fuel, "zone": zn, "watch": watch, "footer": footer,
-            "events": events, "taps": tape.get("taps") or [], "lot": tape.get("lot"),
-            "missing": missing, "coverage": book.get("coverage") or {}}
+              + [{"t": w["since"], "kind": "wall"} for w in walls_in if w.get("since")]
+              + [{"t": _hhmm(b["brokenT"]), "kind": "lost"} for b in broke if b.get("brokenT")] + armed)
+    return {"ok": True, "idx": tape.get("idx") or "NIFTY", "ts": now_hhmm, "day": day, "interval": sess[1] if len(sess) >= 3 else None,
+            "have_bars": len(closed), "lot": tape.get("lot"), "missing": missing, "coverage": book.get("coverage") or {},
+            "events": events, "taps": tape.get("taps") or [], "head": head, "record": {"written": False},
+            "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup}

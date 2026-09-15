@@ -6,7 +6,8 @@ detector lives in the extension (board.js, tested in test/engine.mjs), not
 in this repo. 2026-09-09 14:10 (the mid-range long that lost 85 points) must
 read WAITING and never fire, flow present or not. Regression fixtures, not
 targets: nothing here is tuned; the assertions follow from the rule as
-written."""
+written. Pinned against frame.build(...)["setup"] (spec §C + §E) -- the old
+zone() block is gone, but every case it protected still must hold."""
 import json
 import os
 
@@ -56,7 +57,7 @@ def _machine_sell(tape):
 
 def _with_absorption(tape):
     """The flow half, supplied: the tape's absorption detector lives in the
-    extension (board.js, tested in test/engine.mjs). zone() only asks whether
+    extension (board.js, tested in test/engine.mjs). setup() only asks whether
     an absorption/exhaustion/trap event sits within 3 rows of the zone edge."""
     last = tape["closed"][-1]
     return dict(tape, events=[{"t": last["t"], "kind": "absorption", "side": 1, "p": last["l"], "size": None}])
@@ -64,23 +65,36 @@ def _with_absorption(tape):
 
 def test_0911_0945_is_armed_at_the_tap_by_the_rule():
     tape = _tape("2026-09-11", "09:45")
-    z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")
-    assert z["state"] in ("ARMED", "TRIGGERED"), z["state"]
-    assert z["reached"] is True and z["fire"] is False and z["flow"] == []   # zone alone never fires
+    S = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")["setup"]
+    assert S["state"] in ("ARMED", "TRIGGERED"), S["state"]
+    assert S["reached"] is True and S["fire"] is False and S["flow"] == []   # zone alone never fires
 
 
 def test_0911_0945_fires_only_when_flow_is_supplied_at_the_zone():
     tape = _with_absorption(_tape("2026-09-11", "09:45"))
-    z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")
-    assert z["reached"] and "absorption" in z["flow"] and z["fire"] is True and z["visit"]
-    z2 = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNCONFIRMED"}}, "09:45")
-    assert z2["fire"] is False, "a chain UNCONFIRMED vetoes the beep even with tape flow present"
+    S = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")["setup"]
+    assert S["reached"] and any(f["kind"] == "absorption" for f in S["flow"]) and S["fire"] is True and S["visit"]
+    S2 = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNCONFIRMED"}}, "09:45")["setup"]
+    assert S2["fire"] is False, "a chain UNCONFIRMED vetoes the beep even with tape flow present"
+
+
+def test_0911_0945_a_flow_event_four_rows_away_is_not_flow():
+    """The flow check is 3 rows either side of the edge (rowSize=5 here): an
+    absorption print 4 rows (20 pts) off the armed level must not count, so
+    the zone reads ARMED with no flow rather than firing."""
+    tape = _tape("2026-09-11", "09:45")
+    book = {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}
+    level = frame.build(tape, book, "09:45")["setup"]["level"]
+    last = tape["closed"][-1]
+    far = dict(tape, events=[{"t": last["t"], "kind": "absorption", "side": 1, "p": level + 4 * tape["rowSize"], "size": None}])
+    S = frame.build(far, book, "09:45")["setup"]
+    assert S["flow"] == [] and S["fire"] is False
 
 
 def test_0909_1410_is_waiting_and_never_fires_even_with_flow():
     tape = _with_absorption(_tape("2026-09-09", "14:10"))
-    z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "14:10")
-    assert z["state"] == "WAITING" and z["reached"] is False and z["fire"] is False
+    S = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "14:10")["setup"]
+    assert S["state"] == "WAITING" and S["reached"] is False and S["fire"] is False
 
 
 def test_0911_1345_the_sell_machine_is_chosen_and_active_by_the_rule():
@@ -107,11 +121,11 @@ def test_0911_1345_the_sell_machine_is_chosen_and_active_by_the_rule():
     that rule as written, not a nudge to force ARMED."""
     tape = _tape("2026-09-11", "13:45")
     book = {"zone_state": _machine(tape), "zone_state_sell": _machine_sell(tape), "senses": {"confirm": "UNKNOWN"}}
-    z = frame.zone(tape, book, "13:45")
-    assert z["state"] == "IN_TRADE"
-    assert z["state"] in ("ARMED", "TRIGGERED", "IN_TRADE")   # C2's own "active" set
-    assert z["reached"] is True
-    assert any(it["k"] == "setup (sell)" for it in z["items"]), "the sell machine, not the buy one, must be chosen"
+    S = frame.build(tape, book, "13:45")["setup"]
+    assert S["state"] == "IN_TRADE"
+    assert S["state"] in ("ARMED", "TRIGGERED", "IN_TRADE")   # C2's own "active" set
+    assert S["reached"] is True
+    assert S["side"] == "sell", "the sell machine, not the buy one, must be chosen"
 
 
 def test_0911_visit_id_is_stable_across_bars_of_the_same_armed_reference():
@@ -126,19 +140,39 @@ def test_0911_visit_id_is_stable_across_bars_of_the_same_armed_reference():
     only asserts the equality, as the task allows."""
     t945 = _tape("2026-09-11", "09:45")
     t950 = _tape("2026-09-11", "09:50")
-    z945 = frame.zone(t945, {"zone_state": _machine(t945), "senses": {"confirm": "UNKNOWN"}}, "09:45")
-    z950 = frame.zone(t950, {"zone_state": _machine(t950), "senses": {"confirm": "UNKNOWN"}}, "09:50")
-    assert z945["state"] == "ARMED" and z950["state"] == "ARMED"
-    assert z945["visit"] == z950["visit"]
+    S945 = frame.build(t945, {"zone_state": _machine(t945), "senses": {"confirm": "UNKNOWN"}}, "09:45")["setup"]
+    S950 = frame.build(t950, {"zone_state": _machine(t950), "senses": {"confirm": "UNKNOWN"}}, "09:50")["setup"]
+    assert S945["state"] == "ARMED" and S950["state"] == "ARMED"
+    assert S945["visit"] == S950["visit"]
+
+
+def test_0911_visit_is_the_earliest_bar_of_a_contiguous_d2_touch_run_before_arming():
+    """Before the machine has armed a reference (state PATA NAHI / not yet
+    active), a live d2 touch still needs a stable visit id: it anchors on the
+    EARLIEST bar of the contiguous run of bars touching d2, not the latest,
+    so the id does not drift bar to bar while the touch is still running.
+    Built directly off the bands rather than the real machine, since this
+    exercises the pre-arm fallback path specifically (no zone_state at all)."""
+    tape = _tape("2026-09-11", "09:45")
+    closed, bands = tape["closed"], tape["bands"]
+    lvl = bands[-1]["d2"]
+    # force the last two bars to be touching d2 (a contiguous run), the ones before not
+    for i in (-2, -1):
+        closed[i] = dict(closed[i], l=lvl - 1.0)
+        bands[i] = dict(bands[i], d2=lvl)
+    closed[-3] = dict(closed[-3], l=lvl + 50.0)
+    tape = dict(tape, futPx=lvl, closed=closed, bands=bands)
+    S = frame.build(tape, {"senses": {"confirm": "UNKNOWN"}}, "09:45")["setup"]
+    assert S["reached"] is True and S["visit"] == f"buy@{frame._hhmm(closed[-2]['t'])}"
 
 
 def test_when_both_machines_are_active_the_more_recent_arm_is_the_setup_and_sell_wins_ties():
     tape = _tape("2026-09-11", "13:45")
     buy = [{"state": "ARMED", "ref_i": 10, "ref_high": 23400.0, "level": 23390.0, "candles_left": 5}]
     sell = [{"state": "ARMED", "ref_i": 40, "ref_high": 23520.0, "level": 23530.0, "candles_left": 5}]
-    z = frame.zone(tape, {"zone_state": buy, "zone_state_sell": sell, "senses": None}, "13:45")
-    assert any(it["k"] == "setup (sell)" for it in z["items"]), z["items"]
-    z2 = frame.zone(tape, {"zone_state": [dict(buy[0], ref_i=50)], "zone_state_sell": sell, "senses": None}, "13:45")
-    assert any(it["k"] == "setup (buy)" for it in z2["items"]), z2["items"]
-    z3 = frame.zone(tape, {"zone_state": [dict(buy[0], ref_i=40)], "zone_state_sell": sell, "senses": None}, "13:45")
-    assert any(it["k"] == "setup (sell)" for it in z3["items"]), "exact tie goes to sell"
+    S = frame.build(tape, {"zone_state": buy, "zone_state_sell": sell, "senses": None}, "13:45")["setup"]
+    assert S["side"] == "sell"
+    S2 = frame.build(tape, {"zone_state": [dict(buy[0], ref_i=50)], "zone_state_sell": sell, "senses": None}, "13:45")["setup"]
+    assert S2["side"] == "buy"
+    S3 = frame.build(tape, {"zone_state": [dict(buy[0], ref_i=40)], "zone_state_sell": sell, "senses": None}, "13:45")["setup"]
+    assert S3["side"] == "sell", "exact tie goes to sell"
