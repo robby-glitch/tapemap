@@ -41,6 +41,7 @@ import frame_log
 import instruments
 import oi_dwell
 import pools as pools_mod
+import score_frame
 import senses as senses_mod
 import surface as surface_mod
 import trader as trader_mod
@@ -973,7 +974,7 @@ def _book_for(handler, idx):
     _day0 = (pj.get("days") or [{}])[0] if isinstance(pj, dict) else {}
     return {"warmap": wm, "minutes": getattr(st, "minutes", None),
             "spot": box.get("spot") if box else None,
-            "expiry": (box or {}).get("expiry") or pj.get("expiry"),
+            "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
             "vpin_pct": vpin_pct, "senses": senses, "ivrv": None,
             "coverage": _coverage()}
@@ -1128,6 +1129,14 @@ class Handler(SimpleHTTPRequestHandler):
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
                     _SENSES["frame"][idx] = fr
                 self._json(json.dumps({"ok": True, **fr}, default=str).encode())
+                # forward-fills the day's log rows (taps, tells, control) so
+                # the §8 kill conditions have something to execute against;
+                # its own try/except -- a scoring failure must never touch
+                # a reply that has already gone out
+                try:
+                    score_frame.write(day, doc.get("closed") or [])
+                except Exception:
+                    log.exception("score_frame write")
             except Exception as e:               # never 500 at a browser extension
                 self._json(json.dumps({"ok": False, "why": str(e)}).encode(), 200)
             return

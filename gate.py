@@ -18,12 +18,11 @@ RANK = {"TRADE": 0, "HALF SIZE": 1, "NO NEW RISK": 2}
 
 def state(ivrv: Optional[float], expiry_iso: Optional[str], today_iso: str,
           vpin_pct: Optional[float], squeeze: Optional[bool]) -> dict:
-    reasons, holes = [], []
+    holes = []
     level, lead = "TRADE", None
 
     def worse(l, why):
         nonlocal level, lead
-        reasons.append(why)
         if RANK[l] > RANK[level]:
             level, lead = l, why
 

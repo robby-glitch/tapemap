@@ -44,6 +44,16 @@ def _machine(tape):
     return band_rotation.run_states(bars, stop_pts=band_rotation.OPERATOR_STOP_PTS, band="d2")
 
 
+def _machine_sell(tape):
+    """The mirror of `_machine`: same flat-bar shape, the SELL side, armed at
+    the near edge (u2) per C2 / spec §6."""
+    bars = [{"T": frame._hhmm(b["t"]), "O": b["o"], "H": b["h"], "L": b["l"], "C": b["c"], "V": b["vol"],
+             **{k.upper(): v for k, v in bd.items() if k != "t"},
+             "t": frame._hhmm(b["t"]), "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"], "vol": b["vol"],
+             **{k: v for k, v in bd.items() if k != "t"}} for b, bd in zip(tape["closed"], tape["bands"])]
+    return band_rotation.run_states(bars, stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL", band="u2")
+
+
 def _with_absorption(tape):
     """The flow half, supplied: the tape's absorption detector lives in the
     extension (board.js, tested in test/engine.mjs). zone() only asks whether
@@ -71,6 +81,37 @@ def test_0909_1410_is_waiting_and_never_fires_even_with_flow():
     tape = _with_absorption(_tape("2026-09-09", "14:10"))
     z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "14:10")
     assert z["state"] == "WAITING" and z["reached"] is False and z["fire"] is False
+
+
+def test_0911_1345_the_sell_machine_is_chosen_and_active_by_the_rule():
+    """C2's mirror of test_0911_0945_is_armed_at_the_tap_by_the_rule. The
+    handoff's trigger_log records a SELL rearm at 14:03 on the 3-minute feed
+    (extreme 23517.4); on this 5-minute fixture the same leg reads ARMED at
+    11:10, TRIGGERED at 12:00, IN_TRADE from 12:05 -- and by the rule it is
+    still IN_TRADE straight through the bar the task named (13:45) and the
+    whole 13:35-13:55 window (the next rearm is 14:00, just outside it):
+
+        13:35 IN_TRADE
+        13:40 IN_TRADE
+        13:45 IN_TRADE
+        13:50 IN_TRADE
+        13:55 IN_TRADE
+
+    So the bar the task expected either WAITING or ARMED/TRIGGERED is
+    actually the third state C2's own selection rule treats as "the sell
+    machine is active" (ARMED/TRIGGERED/IN_TRADE). The buy machine (d2)
+    reads WAITING for the same window (verified directly), so C2's tie-break
+    -- "sell if in_sell or the sell machine is ARMED/TRIGGERED/IN_TRADE and
+    the buy machine is not" -- picks sell on that clause alone; in_sell is
+    False at 13:45 (fut is nowhere near u2). The assertion below follows
+    that rule as written, not a nudge to force ARMED."""
+    tape = _tape("2026-09-11", "13:45")
+    book = {"zone_state": _machine(tape), "zone_state_sell": _machine_sell(tape), "senses": {"confirm": "UNKNOWN"}}
+    z = frame.zone(tape, book, "13:45")
+    assert z["state"] == "IN_TRADE"
+    assert z["state"] in ("ARMED", "TRIGGERED", "IN_TRADE")   # C2's own "active" set
+    assert z["reached"] is True
+    assert any(it["k"] == "setup (sell)" for it in z["items"]), "the sell machine, not the buy one, must be chosen"
 
 
 def test_0911_visit_id_is_stable_across_bars_of_the_same_armed_reference():

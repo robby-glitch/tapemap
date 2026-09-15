@@ -2,6 +2,7 @@
 """frame.py is composition only: every field carries src and tag, every
 absence a reason, and a chain that did not answer yields PATA NAHI per block
 with a distinct why -- never undefined, never a number."""
+import copy
 import json
 import frame
 
@@ -38,10 +39,25 @@ def _every_item(fr):
             yield name, it
 
 
+# M13: every item must carry M or I -- a hole is the one legitimate exception,
+# and only where THIS fixture actually produces one (verified against
+# frame.build(TAPE, BOOK, ...) directly, not assumed): the footer block is
+# wholesale exempt (its items are meta, never M/I by design), the header's
+# "session" item is allowed None defensively (it is "M" today but is a raw
+# tape passthrough with no measurement behind it), and three specific holes
+# this fixture is known to produce -- FAILING has fewer than 4 chain minutes,
+# FUEL's senses is None, and ZONE's chosen machine (sell, since futPx sits in
+# the fixture's u2-u3 pocket) has no zone_state_sell to read.
+ALLOWED_NONE_TAG = {("header", "session"), ("failing", "writing pace"), ("fuel", "gear"), ("zone", "setup (sell)")}
+
+
 def test_every_item_is_tagged_and_sourced():
     fr = frame.build(TAPE, BOOK, "10:20")
     for name, it in _every_item(fr):
-        assert it["tag"] in ("M", "I", None), (name, it)
+        if name == "footer" or (name, it["k"]) in ALLOWED_NONE_TAG:
+            assert it["tag"] in ("M", "I", None), (name, it)
+        else:
+            assert it["tag"] in ("M", "I"), (name, it)
         assert fr[name]["src"], name
     assert fr["have_bars"] == 14 and "PATA NAHI" not in json.dumps(fr["paid"])
 
@@ -54,6 +70,20 @@ def test_chain_removed_yields_pata_nahi_per_block_with_distinct_reasons():
     assert all(it["v"] not in (None, "None") for _, it in _every_item(fr))
     # the tape half still reads
     assert any(it["k"].startswith("S ") for it in fr["ladder"]["items"])
+
+
+def test_one_unjoined_bar_refuses_only_its_own_block():
+    """I1: an unjoined first bar (o is None, as the adapter emits before the
+    OHLC message has joined) must not take the whole frame down -- only
+    SESSION should refuse, with its own reason, while ZONE (which never
+    reads o/c) still ships its items."""
+    tape = copy.deepcopy(TAPE)
+    tape["closed"][0]["o"] = None
+    fr = frame.build(tape, BOOK, "10:20")
+    assert fr["ok"] is True
+    assert any(it["v"] == "PATA NAHI" and it["why"] == "the first/last bar has no joined OHLC yet"
+               for it in fr["session"]["items"])
+    assert fr["zone"]["items"]
 
 
 def test_window_change_is_a_difference_of_cumulative_marks():
