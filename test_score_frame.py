@@ -17,3 +17,20 @@ def test_cells_fill_once_and_a_second_pass_changes_nothing():
     assert one[0]["watch"]["control"] and all("resolved" in c for c in one[0]["watch"]["control"])
     two = score_frame.score(copy.deepcopy(one), BARS)
     assert two == one
+
+
+def test_tell_stays_unresolved_not_frozen_none_until_bars_exist_past_ts():
+    """A tell whose row.ts is after every bar we currently have can't be
+    answered yet (px0 is None). Under write-once semantics setting
+    resolved=None there would freeze it there forever -- so the key must be
+    left ABSENT instead, letting a later pass (once bars exist) fill it."""
+    row = {"day": "2026-09-11", "idx": "NIFTY", "ts": "13:00", "taps": [],
+           "ladder": {"rows": []},
+           "watch": {"tells": [{"name": "PIN", "target": "110", "negation": "close under 100"}]}}
+    one = score_frame.score([copy.deepcopy(row)], BARS)  # BARS ends 12:50 -- nothing after 13:00 yet
+    assert "resolved" not in one[0]["watch"]["tells"][0]
+
+    later_bars = BARS + [{"t": BARS[-1]["t"] + (i + 1) * 300000, "o": 105 + i, "h": 106 + i,
+                           "l": 104 + i, "c": 105 + i, "vol": 1} for i in range(6)]
+    two = score_frame.score(one, later_bars)
+    assert "resolved" in two[0]["watch"]["tells"][0]

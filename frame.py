@@ -181,7 +181,39 @@ def zone(tape: dict, book: dict, now_hhmm: str) -> dict:
     reached = in_buy or at_sell or machine in ("ARMED", "TRIGGERED", "IN_TRADE")
     confirmed = bool(flow) and chain_confirm != "UNCONFIRMED"
     fire = reached and confirmed
-    visit = f"{'sell' if at_sell else 'buy'}@{_hhmm(tape['closed'][-1]['t'])}" if reached and tape.get("closed") else None
+    # visit must be STABLE for the life of a visit (one beep, not one per bar):
+    # anchor on the machine's own reference bar while it holds one, else on the
+    # earliest bar of the contiguous band-touch run, else fall back to today's
+    # last-bar behaviour (frame.py stays stateless -- these are all read off
+    # fields already on the tape/machine, nothing is remembered here).
+    visit = None
+    if reached and tape.get("closed"):
+        closed = tape["closed"]
+        side = "sell" if at_sell else "buy"
+        ref_i = None
+        if zs and machine in ("ARMED", "TRIGGERED", "IN_TRADE"):
+            last = zs[-1] if isinstance(zs, list) else zs
+            ref_i = last.get("ref_i")
+        if ref_i is not None and 0 <= ref_i < len(closed):
+            visit = f"{side}@{_hhmm(closed[ref_i]['t'])}"
+        elif in_buy or at_sell:
+            bands_list = tape.get("bands") or []
+            key = "d2" if in_buy else "u3"
+
+            def _touches(idx):
+                lvl = bands_list[idx].get(key)
+                if lvl is None:
+                    return False
+                bar = closed[idx]
+                return bar["l"] <= lvl if in_buy else bar["h"] >= lvl
+
+            i = len(closed) - 1
+            if i < len(bands_list) and _touches(i):
+                while i > 0 and _touches(i - 1):
+                    i -= 1
+                visit = f"{side}@{_hhmm(closed[i]['t'])}"
+        if visit is None:
+            visit = f"{side}@{_hhmm(closed[-1]['t'])}"
     items.append(_item("signal", "ZONE + FLOW" if fire else "zone reached, flow not confirmed" if reached else "not in zone",
                        "I", "fire" if fire else None))
     return {**_block("Zone", "chips", items, src, "price closes past 3σ and holds 3 bars"),

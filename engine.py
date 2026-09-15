@@ -1057,7 +1057,7 @@ class Session:
             for nm, hits in self.level_hits.items():
                 h = [j for j in hits if i - j <= 35]
                 if len(h) >= 3:
-                    episode = (f"FIGHT AT {nm} {self.fut_bars[0][nm]:.0f} — "
+                    episode = (f"FIGHT AT {nm} {self.fut_bars[0].get(nm):.0f} — "
                                f"{len(h)} crossings in {i - h[0]}m")
                     break
 

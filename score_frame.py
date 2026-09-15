@@ -64,8 +64,10 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
             if "resolved" in tell:
                 continue
             tgt, neg = _num(tell.get("target")), _num(tell.get("negation"))
-            if tgt is None or px0 is None:
-                tell["resolved"] = None
+            if px0 is None:
+                continue  # no bars after this row's time yet -- leave the key ABSENT (not None) so a later pass can still fill it
+            if tgt is None:
+                tell["resolved"] = None  # no parsable target -- terminal, write-once
                 continue
             up = tgt > px0
             tell["resolved"] = _resolve(tgt, neg, after, up)
@@ -75,6 +77,7 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
                                  "same_distance": abs(abs(lr["p"] - px0) - dist) <= dist * 0.25,
                                  "resolved": _resolve(lr["p"], None, after, lr["p"] > px0)}
                                 for lr in (r.get("ladder") or {}).get("rows") or []
+                                # exact float equality on purpose: tgt and lr["p"] are both prices the ladder itself emitted
                                 if lr.get("p") is not None and lr["p"] != tgt]
     return rows
 

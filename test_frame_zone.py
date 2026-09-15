@@ -71,3 +71,21 @@ def test_0909_1410_is_waiting_and_never_fires_even_with_flow():
     tape = _with_absorption(_tape("2026-09-09", "14:10"))
     z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "14:10")
     assert z["state"] == "WAITING" and z["reached"] is False and z["fire"] is False
+
+
+def test_0911_visit_id_is_stable_across_bars_of_the_same_armed_reference():
+    """visit must not change every bar just because the last-closed-bar time
+    moved -- the extension beeps once per distinct visit. 09:45 and 09:50 are
+    both ARMED off the SAME reference bar (ref_i=6, the 09:25 setup's latest
+    rearm; verified directly against band_rotation.run_states), so their
+    visit ids must be equal. The 2026-09-11 fixture only ever arms one setup
+    all day (one rearming reference from 09:25 to the 09:55 TRIGGERED, then
+    WAITING for the rest of the session) -- there is no second, separately
+    armed touch in this fixture to assert a difference against, so this test
+    only asserts the equality, as the task allows."""
+    t945 = _tape("2026-09-11", "09:45")
+    t950 = _tape("2026-09-11", "09:50")
+    z945 = frame.zone(t945, {"zone_state": _machine(t945), "senses": {"confirm": "UNKNOWN"}}, "09:45")
+    z950 = frame.zone(t950, {"zone_state": _machine(t950), "senses": {"confirm": "UNKNOWN"}}, "09:50")
+    assert z945["state"] == "ARMED" and z950["state"] == "ARMED"
+    assert z945["visit"] == z950["visit"]
