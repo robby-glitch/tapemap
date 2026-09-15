@@ -35,6 +35,7 @@ import drag as drag_mod
 import driver as driver_mod
 import warmap as warmap_mod
 import fuse as fuse_mod
+import frame_log
 import instruments
 import oi_dwell
 import pools as pools_mod
@@ -94,7 +95,16 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # to end: nothing downstream reads it. Fed in the senses loop from
            # the same frame the ladder comes from; completed buckets go to
            # VPIN_LOG, the reading to /api/senses. inst -> Gauge.
-           "vpin": {}}
+           "vpin": {},
+           # THE TAPE, POSTed whole-day by the Chrome extension at
+           # /api/frame -- idx -> {"doc": <the tape>, "at": time.time()}.
+           # frame.py (Task 2) reads this; frame.py does not exist yet, so
+           # today's handler only stores it and answers have_bars.
+           "tape": {},
+           # THE FRAME the tape most recently produced, idx -> the dict also
+           # appended to frame_log when its signature changes. Placeholder
+           # until frame.py lands.
+           "frame": {}}
 
 # The toxicity forward record. Reassigned by _isolate_mock_writers so a
 # fixture replay can never write into the live record (the 2026-08-24 leak).
@@ -1046,6 +1056,37 @@ class Handler(SimpleHTTPRequestHandler):
                 f.write(json.dumps(row) + "\n")
             self._json(b'{"ok":true}')
             return
+        if self.path.startswith("/api/frame"):
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                n = 0
+            if not 0 < n < 4194304:              # a whole 5m day with ladders is ~1 MB
+                self._json(b'{"ok":false,"why":"bad request"}', 400)
+                return
+            try:
+                doc = json.loads(self.rfile.read(n) or b"{}")
+                idx = str(doc.get("idx") or "NIFTY")
+                if int(doc.get("interval") or 0) != 5:
+                    self._json(json.dumps({"ok": False, "why": "interval must be 5 minutes; got "
+                                           f"{doc.get('interval')!r}. The band machine's windows are "
+                                           "counted in bars, so another interval is a different tool "
+                                           "(band_rotation.py:850-861)."}).encode())
+                    return
+                day = str(doc.get("session") or "").split("|")[-1] or time.strftime("%Y-%m-%d")
+                with _SENSES_LOCK:
+                    _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
+                fr = {"idx": idx, "ts": time.strftime("%H:%M:%S"), "day": day,
+                      "ladder": {"rows": []}, "zone": {"state": "PATA NAHI", "fire": False,
+                      "why": "frame.py not wired yet"}, "watch": {"tells": []},
+                      "missing": ["frame.py"], "have_bars": len(doc.get("closed") or [])}
+                with _SENSES_LOCK:
+                    _SENSES["frame"][idx] = fr
+                fr["log_row_written"] = frame_log.append_if_changed(fr, day)
+                self._json(json.dumps({"ok": True, **fr}, default=str).encode())
+            except Exception as e:               # never 500 at a browser extension
+                self._json(json.dumps({"ok": False, "why": str(e)}).encode(), 200)
+            return
         # One-click token capture: validate a pasted/clipboard Dhan token, save
         # it to .dhan_token, and kick the poller. The token is never logged or
         # echoed — only the validity message from token_status goes back.
@@ -1809,6 +1850,21 @@ class Handler(SimpleHTTPRequestHandler):
                              for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
+        elif self.path.startswith("/api/frame/bars"):
+            q = parse_qs(urlsplit(self.path).query)
+            day, idx = (q.get("day") or [time.strftime("%Y-%m-%d")])[0], (q.get("idx") or ["NIFTY"])[0]
+            with _SENSES_LOCK:
+                t = (_SENSES["tape"].get(idx) or {}).get("doc") or {}
+            bars = (t.get("closed") or []) if str(t.get("session", "")).endswith(day) else []
+            self._json(json.dumps({"ok": bool(bars), "day": day, "idx": idx, "bars": bars,
+                                   "why": None if bars else "no tape held for that day in this process"}).encode())
+        elif self.path.startswith("/api/frame"):
+            q = parse_qs(urlsplit(self.path).query)
+            idx = (q.get("idx") or ["NIFTY"])[0]
+            with _SENSES_LOCK:
+                fr = _SENSES["frame"].get(idx)
+            self._json(json.dumps(fr or {"ok": False, "why": "no frame yet: the extension has not posted"},
+                                  default=str).encode())
         else:
             super().do_GET()
 
