@@ -952,6 +952,9 @@ def _book_for(handler, idx):
     is not an attribute of it either -- it is assembled in the GET
     /api/senses handler from `_SENSES["fuse"]` plus `_regime_engine_read`/
     `_walls_holding`, which this composer must not re-derive.
+
+    zone_state/zone_state_sell live under the payload's days[0], not at top
+    level (live.derive_payload).
     """
     with _SENSES_LOCK:
         wb = _SENSES.get("warmap")
@@ -967,10 +970,11 @@ def _book_for(handler, idx):
         pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
     except Exception:
         pj = {}
+    _day0 = (pj.get("days") or [{}])[0] if isinstance(pj, dict) else {}
     return {"warmap": wm, "minutes": getattr(st, "minutes", None),
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or pj.get("expiry"),
-            "zone_state": pj.get("zone_state"), "zone_state_sell": pj.get("zone_state_sell"),
+            "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
             "vpin_pct": vpin_pct, "senses": senses, "ivrv": None,
             "coverage": _coverage()}
 

@@ -39,3 +39,13 @@ def test_frame_post_refuses_a_non_5m_interval_with_a_reason(tmp_path):
     server.Handler.do_POST(req)
     code, j = req.out[-1]
     assert code == 200 and j["ok"] is False and "5" in j["why"] and "interval" in j["why"]
+
+
+def test_book_for_reads_zone_state_from_days0(monkeypatch):
+    """derive_payload nests zone_state under days[0]; the book must read it there."""
+    req = _Req("/api/frame", _tape())
+    req.payloads = {"NIFTY": {"payload": None}}
+    monkeypatch.setattr(server, "payload_at", lambda box, iv: json.dumps(
+        {"expiry": "2026-09-16", "days": [{"zone_state": [{"state": "ARMED"}], "zone_state_sell": []}]}).encode())
+    book = server._book_for(req, "NIFTY")
+    assert book["zone_state"] == [{"state": "ARMED"}] and book["zone_state_sell"] == []
