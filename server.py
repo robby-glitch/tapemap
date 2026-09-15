@@ -976,6 +976,7 @@ def _book_for(handler, idx):
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
+            "pivots": _day0.get("pivots"),      # the prior session's floor pivots; frame._walls inverts them to PDH/PDL/PDC
             "vpin_pct": vpin_pct, "senses": senses, "ivrv": None,
             "coverage": _coverage()}
 
@@ -1124,7 +1125,7 @@ class Handler(SimpleHTTPRequestHandler):
                 # is a race with that serialization.
                 fr = frame.build(doc, _book_for(self, idx), time.strftime("%H:%M"))
                 fr["day"] = day
-                fr["log_row_written"] = frame_log.append_if_changed(fr, day, idx)
+                fr["record"] = {"written": frame_log.append_if_changed(fr, day, idx)}
                 with _SENSES_LOCK:
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
                     _SENSES["frame"][idx] = fr

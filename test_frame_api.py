@@ -32,6 +32,10 @@ def test_frame_post_stores_the_tape_and_answers_have_bars(tmp_path, monkeypatch)
     assert code == 200 and j["ok"] is True and j["have_bars"] == 3
     assert server._SENSES["tape"]["NIFTY"]["doc"]["session"] == "NIFTY-I|5m|2026-09-11"
     assert "coverage" in j          # frame.build's own coverage rides the reply
+    # the five-question frame, not the nine blocks: every object is on the wire and the record flag is a bool
+    for k in ("head", "where", "trapped", "walls", "tape", "setup"):
+        assert isinstance(j[k], dict), k
+    assert isinstance(j["record"]["written"], bool) and "log_row_written" not in j and "strip" not in j
 
 
 def test_frame_post_refuses_a_non_5m_interval_with_a_reason(tmp_path):
@@ -46,6 +50,8 @@ def test_book_for_reads_zone_state_from_days0(monkeypatch):
     req = _Req("/api/frame", _tape())
     req.payloads = {"NIFTY": {"payload": None}}
     monkeypatch.setattr(server, "payload_at", lambda box, iv: json.dumps(
-        {"expiry": "2026-09-16", "days": [{"zone_state": [{"state": "ARMED"}], "zone_state_sell": []}]}).encode())
+        {"expiry": "2026-09-16", "days": [{"zone_state": [{"state": "ARMED"}], "zone_state_sell": [],
+                                             "pivots": {"P": 23400.0, "R1": 23500.0, "S1": 23300.0}}]}).encode())
     book = server._book_for(req, "NIFTY")
     assert book["zone_state"] == [{"state": "ARMED"}] and book["zone_state_sell"] == []
+    assert book["pivots"] == {"P": 23400.0, "R1": 23500.0, "S1": 23300.0}     # the prior session's floor pivots ride the book

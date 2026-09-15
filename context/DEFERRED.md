@@ -19,7 +19,7 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1099** (`pytest -q`, 2026-09-15 - the paper day read
+- **Test count is now 1118** (`pytest -q`, 2026-09-16 - the five-question frame; 2026-09-15 - the paper day read
   back from the LOG: 21 in `test_day_trades.py` (pairing math, partial fills
   averaged quantity-weighted, restart-survives-via-log, the why join, and no
   rate printed) (1041+21=1062); before that 1041 - the three numbers the
