@@ -35,11 +35,27 @@ from typing import Dict, List, Optional, Tuple
 import gate as gate_mod
 import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
 
-BASIS_WHY = "index and strike levels shifted by the live basis"
-TAP_Z = 1.85                # the extension's own tap threshold (taps.js)
 WARM_HHMM = "09:25"         # band_rotation.ANCHOR_HHMM; sigma is not trusted before it
 WALL_CAP = 3                # nearest walls shown each side (spec §E default 3); every row is still on the wire
 CONFIRMS = ("absorption", "exhaustion", "trap")
+_WALL_KINDS = ("S", "B", "CE", "PE")
+_LEVEL_KINDS = ("PDH", "PDL", "PDC", "ROUND", "FLIP")
+
+# Module-level empty shapes, every §C key of the object, null (spec ruling: "the empty shapes are module
+# constants used by the happy path too, so they cannot drift"). Enum/flag fields the contract never nulls
+# (state's "PATA NAHI" hole value, tag literals, warm=False, cap, floors_taken) keep their real default.
+_EMPTY_HEAD = {"symbol": None, "expiry": None, "expiry_why": None, "dte": None, "started": None, "late_min": None,
+               "gate": {"level": "PATA NAHI", "reason": None, "reason_full": None, "would_be": None, "would_be_reason": None, "tag": "I"}}
+_EMPTY_WHERE = {"px": None, "px_why": None, "vwap": None, "sigma": None, "z": None, "warm": False, "warm_at": WARM_HHMM,
+                "buy_zone": None, "sell_line": None, "sell_zone": None, "edge": None, "zone_why": None,
+                "open": None, "high": None, "low": None, "from_open": None, "off_extreme": None, "hour": None, "bars_why": None}
+_EMPTY_TRAPPED = {"writers": None, "writers_why": None, "window": None, "window_why": None, "pace": None, "pace_why": None,
+                   "fut_oi": None, "fut_oi_why": None, "gear": None, "gear_why": None, "gear_tag": "I"}
+_EMPTY_WALLS = {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, "prior_why": None, "basis": None}
+_EMPTY_TAPE = {"events": [], "aggressor": None, "aggressor_why": None}
+_EMPTY_SETUP = {"side": "buy", "state": "PATA NAHI", "state_why": None, "ref": None, "candles_left": None, "level": None,
+                 "reached": False, "in_pocket": False, "flow": [], "fire": False, "visit": None, "tells": [],
+                 "confirm": {"value": "UNKNOWN", "why": "setup did not build", "why_full": None, "tag": "I"}, "falsifies": "—"}
 
 
 def _hhmm(t_ms: int) -> str:
@@ -116,7 +132,16 @@ def _safe(fn, empty: dict) -> dict:
         return {**empty, "why": f"{type(e).__name__}: {e}"}
 
 
-def _head(tape: dict, book: dict, g: dict) -> dict:
+def _safe_list(fn) -> Tuple[list, Optional[str]]:
+    """The `_safe` pattern for a list-shaped section (not one of the six named objects, so there is no dict
+    to merge a `why` into): a raising section becomes an empty list plus its own reason, never killing `build()`."""
+    try:
+        return fn(), None
+    except Exception as e:  # noqa: BLE001 -- the reason is the value
+        return [], f"{type(e).__name__}: {e}"
+
+
+def _head(tape: dict, book: dict) -> dict:
     sess = (tape.get("session") or "").split("|")
     symbol, day = (sess[0] or None), (sess[-1] if len(sess) >= 3 else None)
     expiry = book.get("expiry")
@@ -128,7 +153,9 @@ def _head(tape: dict, book: dict, g: dict) -> dict:
         except ValueError:
             dte = None
     cov = book.get("coverage") or {}
-    return {"symbol": symbol or "—", "expiry": expiry, "expiry_why": None if expiry else "chain expiry not answered", "dte": dte,
+    # squeeze is never measured here: None is the honest absence
+    g = gate_mod.state(book.get("ivrv"), book.get("expiry"), day or "", book.get("vpin_pct"), None)
+    return {**_EMPTY_HEAD, "symbol": symbol or "—", "expiry": expiry, "expiry_why": _why(None if expiry else "chain expiry not answered"), "dte": dte,
             "started": cov.get("server_up"), "late_min": cov.get("late_min"),
             "gate": {"level": g["level"], "reason": _why(g["reason"]), "reason_full": g["reason"],
                      "would_be": g.get("would_be"), "would_be_reason": g.get("would_be_reason"), "tag": "I"}}
@@ -138,51 +165,49 @@ def _where(tape: dict, closed: list, now_hhmm: str) -> dict:
     bn, fut = _bands_now(tape), tape.get("futPx")
     have_sigma = bool(bn and bn.get("sigma"))
     warm = have_sigma and now_hhmm >= WARM_HHMM
-    w = {"px": fut, "vwap": bn["vwap"] if have_sigma else None, "sigma": bn["sigma"] if have_sigma else None, "z": None,
-         "warm": warm, "warm_at": WARM_HHMM, "buy_zone": None, "sell_line": None, "edge": None,
-         "zone_why": None if warm else (f"σ not trusted until {WARM_HHMM}" if have_sigma else "no bands on the tape yet"),
-         "open": None, "high": None, "low": None, "from_open": None, "off_extreme": None, "hour": None, "bars_why": None}
+    w = {**_EMPTY_WHERE, "px": fut, "px_why": _why(None if fut is not None else "no futures price on the tape"),
+         "vwap": bn["vwap"] if have_sigma else None, "sigma": bn["sigma"] if have_sigma else None, "warm": warm,
+         "zone_why": _why(None if warm else (f"σ not trusted until {WARM_HHMM}" if have_sigma else "no bands on the tape yet"))}
     if warm:
-        w["buy_zone"], w["sell_line"] = [bn["d3"], bn["d2"]], bn["u3"]
+        w["buy_zone"], w["sell_line"], w["sell_zone"] = [bn["d3"], bn["d2"]], bn["u3"], [bn["u2"], bn["u3"]]
         if fut is not None:
             w["z"] = round((fut - bn["vwap"]) / bn["sigma"], 3)
             # signed points to the nearer zone edge: buy edge is d2 (positive = zone still below price),
             # sell edge is u2 (positive = zone still above price); negative means price is past that edge
-            db, ds = round(fut - bn["d2"], 1), round(bn["u2"] - fut, 1)
+            db, ds = round(float(fut - bn["d2"]), 1), round(float(bn["u2"] - fut), 1)
             w["edge"] = {"side": "buy", "d": db} if abs(db) <= abs(ds) else {"side": "sell", "d": ds}
     if closed and closed[0].get("o") is not None and closed[-1].get("c") is not None:
         o, c = closed[0]["o"], closed[-1]["c"]
         bh, bl = max(closed, key=lambda b: b["h"]), min(closed, key=lambda b: b["l"])
         px = fut if fut is not None else c
-        w.update(open=o, high={"p": bh["h"], "t": _hhmm(bh["t"])}, low={"p": bl["l"], "t": _hhmm(bl["t"])}, from_open=round(px - o, 1))
+        w.update(open=o, high={"p": bh["h"], "t": _hhmm(bh["t"])}, low={"p": bl["l"], "t": _hhmm(bl["t"])}, from_open=round(float(px - o), 1))
         dl, dh = px - bl["l"], bh["h"] - px
-        w["off_extreme"] = {"which": "low", "d": round(dl, 1)} if dl <= dh else {"which": "high", "d": round(dh, 1)}
+        w["off_extreme"] = {"which": "low", "d": round(float(dl), 1)} if dl <= dh else {"which": "high", "d": round(float(dh), 1)}
         wnd = closed[-12:]
         w["hour"] = {"bars": len(wnd), "net": round(float(wnd[-1]["c"] - wnd[0]["o"]), 1),
                      "travel": round(float(sum(abs(wnd[i]["c"] - (wnd[i - 1]["c"] if i else wnd[0]["o"])) for i in range(len(wnd)))), 1)}
     else:
-        w["bars_why"] = "no closed bars posted" if not closed else "the first/last bar has no joined OHLC yet"
+        w["bars_why"] = _why("no closed bars posted" if not closed else "the first/last bar has no joined OHLC yet")
     return w
 
 
 def _trapped(book: dict, closed: list, mins: dict, marks: list) -> dict:
     wm = book.get("warmap") or {}
     heat = wm.get("heat") or []
-    t = {"writers": None, "writers_why": None, "window": None, "window_why": None, "pace": None, "pace_why": None,
-         "fut_oi": None, "fut_oi_why": None, "gear": None, "gear_why": None, "gear_tag": "I"}
+    t = {**_EMPTY_TRAPPED}
     if heat:
         legs = [(h["k"], s, h.get(f"{s}_pain") or 0, h.get(f"{s}_conf")) for h in heat for s in ("ce", "pe")]
         k, s, pain, conf = max(legs, key=lambda x: x[2])
         t["writers"] = {"side": s.upper() if pain > 0 else "none", "worst": {"k": k, "pain": round(pain, 1), "conf": conf} if pain > 0 else None,
                         "ce_chg": sum(h.get("ce_chg") or 0 for h in heat), "pe_chg": sum(h.get("pe_chg") or 0 for h in heat), "tag": "I"}
     else:
-        t["writers_why"] = "tapemap heat not answered" if not wm else "no heat rows yet"
+        t["writers_why"] = _why("tapemap heat not answered" if not wm else "no heat rows yet")
     if len(marks) >= 2:
         t0, t1 = (marks[-4] if len(marks) >= 4 else marks[0]), marks[-1]
         ch = window_change(mins, t0, t1)
         t["window"] = {"t0": t0, "t1": t1, "minutes": _mins(t1) - _mins(t0), "ce": sum(v[0] for v in ch.values()), "pe": sum(v[1] for v in ch.values())}
     else:
-        t["window_why"] = "chain minutes not answered" if not mins else "fewer than 2 chain minutes"
+        t["window_why"] = _why("chain minutes not answered" if not mins else "fewer than 2 chain minutes")
     if len(marks) >= 4:
         paces = [window_change(mins, marks[i - 1], marks[i]) for i in range(1, len(marks))]
         ce_p = [sum(v[0] for v in p.values()) for p in paces]
@@ -192,22 +217,25 @@ def _trapped(book: dict, closed: list, mins: dict, marks: list) -> dict:
             return round(sum(1 for x in xs if x <= xs[-1]) / len(xs), 2)
         t["pace"] = {"ce": rank(ce_p), "pe": rank(pe_p)}
     else:
-        t["pace_why"] = "fewer than 4 chain minutes; nothing to rank"
+        t["pace_why"] = _why("fewer than 4 chain minutes; nothing to rank")
     if closed and closed[0].get("o") is not None and closed[-1].get("c") is not None:
-        t["fut_oi"] = {"d_oi": (closed[-1].get("oi") or 0) - (closed[0].get("oi") or 0), "d_px": round(closed[-1]["c"] - closed[0]["o"], 1)}
+        t["fut_oi"] = {"d_oi": (closed[-1].get("oi") or 0) - (closed[0].get("oi") or 0), "d_px": round(float(closed[-1]["c"] - closed[0]["o"]), 1)}
     else:
-        t["fut_oi_why"] = "no joined OHLC yet"
-    sn = book.get("senses") or {}
-    if sn.get("gear"):
+        t["fut_oi_why"] = _why("no joined OHLC yet")
+    sn = book.get("senses")
+    if sn is None:
+        t["gear_why"] = _why("senses not answered")
+    elif sn.get("gear"):
         t["gear"] = sn["gear"]
     else:
-        t["gear_why"] = "senses not answered"
+        t["gear_why"] = _why("senses answered, no gear")
     return t
 
 
 def _row(kind, p, **kw) -> dict:
     r = {"kind": kind, "p": float(p), "d": None, "size": None, "since": None, "leaned": None, "snapshot": False,
-         "oi": None, "chg": None, "pain": None, "pain_tag": "I", "conf": None, "state": None, "tests": None, "last_outcome": None, "agree": None}
+         "oi": None, "chg": None, "pain": None, "pain_tag": None, "conf": None, "state": None, "tests": None,
+         "last_outcome": None, "strike": None, "agree": None}
     r.update(kw)
     return r
 
@@ -224,16 +252,16 @@ def _walls(tape: dict, book: dict, broke: list) -> dict:
                          leaned=int(w.get("hits") or 0), snapshot=bool(w.get("snapshot")), state="held"))
     oi_why = None
     if not wm:
-        oi_why = "tapemap did not answer"
+        oi_why = _why("tapemap did not answer")
     elif b is None:
-        oi_why = "no index spot from the chain; strikes cannot be placed"
+        oi_why = _why("no index spot; strikes cannot be placed")
     else:
         for h in wm.get("heat") or []:
             for side in ("ce", "pe"):
                 if h.get(f"{side}_oi") is None:
                     continue
                 rows.append(_row(side.upper(), float(h["k"]) + b, oi=h[f"{side}_oi"], chg=h.get(f"{side}_chg"), pain=h.get(f"{side}_pain"),
-                                 conf=h.get(f"{side}_conf"), state="held", strike=float(h["k"])))
+                                 pain_tag="I", conf=h.get(f"{side}_conf"), state="held", strike=float(h["k"])))
         for L in wm.get("levels") or []:
             st = (wm.get("sequence") or {}).get(f"{L['kind']}@{L['px']}")
             if not st:
@@ -246,25 +274,29 @@ def _walls(tape: dict, book: dict, broke: list) -> dict:
         for kind, p in zip(("PDH", "PDL", "PDC"), hlc):
             rows.append(_row(kind, p))
     else:
-        prior_why = "prior session H/L/C not answered (live._pivots)"
+        prior_why = _why("prior session H/L/C not answered (live._pivots)")
+    # "within one row" is inclusive; when more than one OI strike qualifies for a tape wall the nearest wins
+    # (a CE/PE pair at the same strike ties on distance -- the later one in heat order wins, as it always has)
+    oi_rows = [r for r in rows if r["kind"] in ("CE", "PE")]
     for tr in (r for r in rows if r["kind"] in ("S", "B")):
-        for orow in (r for r in rows if r["kind"] in ("CE", "PE")):
-            if abs(tr["p"] - orow["p"]) < row:
-                tr["agree"], orow["agree"] = f"{orow['kind']} {orow['strike']:.0f}", f"{tr['kind']} {tr['p']:.0f}"
+        cands = [o for o in oi_rows if abs(tr["p"] - o["p"]) <= row]
+        if cands:
+            o = min(reversed(cands), key=lambda o: abs(tr["p"] - o["p"]))
+            tr["agree"], o["agree"] = f"{o['kind']} {o['strike']:.0f}", f"{tr['kind']} {tr['p']:.0f}"
     for r in rows:
-        r["d"] = round(r["p"] - fut, 1) if fut is not None else None
+        r["d"] = round(float(r["p"] - fut), 1) if fut is not None else None
     rows.sort(key=lambda r: -r["p"])
     return {"rows": rows, "cap": WALL_CAP, "floors_taken": sum(1 for x in broke if x.get("side") == 1),
             "oi_why": oi_why, "prior_why": prior_why, "basis": b}
 
 
 def _place(p: float, bn: Optional[dict], walls_rows: list, row: float) -> Optional[dict]:
-    """Where an event happened, in words: within one row of a held wall or an OI strike (the NEAREST one), else
-    inside a zone."""
-    candidates = [r for r in walls_rows if r["kind"] in ("S", "B", "CE", "PE") and abs(r["p"] - p) <= row]
+    """Where an event happened, in words: within one row (inclusive) of a held wall, an OI strike, or a level
+    row (the NEAREST one; a wall wins a tie against a level), else inside a zone."""
+    candidates = [r for r in walls_rows if r["kind"] in _WALL_KINDS + _LEVEL_KINDS and abs(r["p"] - p) <= row]
     if candidates:
-        r = min(candidates, key=lambda r: abs(r["p"] - p))
-        return {"kind": "wall", "label": f"at {r['kind']} {r['p']:.0f}"}
+        r = min(candidates, key=lambda r: (abs(r["p"] - p), 0 if r["kind"] in _WALL_KINDS else 1))
+        return {"kind": "wall" if r["kind"] in _WALL_KINDS else "level", "label": f"at {r['kind']} {r['p']:.0f}"}
     if bn and bn.get("sigma"):
         if bn["d3"] <= p <= bn["d2"]:
             return {"kind": "zone", "label": "in the buy zone"}
@@ -277,14 +309,13 @@ def _tape(tape: dict, closed: list, walls_rows: list) -> dict:
     bn, row = _bands_now(tape), float(tape.get("rowSize") or 5)
     # sorted newest-first by timestamp (never assume the feed's own append order)
     evs = sorted((e for e in (tape.get("events") or []) if e.get("p") is not None), key=lambda e: e["t"], reverse=True)[:4]
-    out = {"events": [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"]), "at": _place(float(e["p"]), bn, walls_rows, row)} for e in evs],
-           "aggressor": None, "aggressor_why": None}
+    out = {**_EMPTY_TAPE, "events": [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"]), "at": _place(float(e["p"]), bn, walls_rows, row)} for e in evs]}
     if closed:
         d = sum(b.get("delta", 0) or 0 for b in closed)
         # sign only: shape and sequence, never magnitude (stack doctrine); rank stays None until a within-session rank is defined
         out["aggressor"] = {"side": "sellers" if d < 0 else "buyers" if d > 0 else "flat", "rank": None}
     else:
-        out["aggressor_why"] = "no closed bars; no sign to report"
+        out["aggressor_why"] = _why("no closed bars; no sign to report")
     return out
 
 
@@ -313,18 +344,19 @@ def _setup(tape: dict, book: dict, now_hhmm: str, walls: dict) -> dict:
     bn, fut, closed = _bands_now(tape), tape.get("futPx"), tape.get("closed") or []
     senses = book.get("senses")
     if senses is None:
-        confirm = {"value": "not wired", "why": "the /api/senses assembly is not factored out yet; the beep is tape-only", "tag": "I"}
+        confirm = {"value": "not wired", "why": _why("senses assembly not factored out; tape-only beep"),
+                   "why_full": "the /api/senses assembly is not factored out yet; the beep is tape-only", "tag": "I"}
     else:
         cv = senses.get("confirm")
-        confirm = {"value": cv or "UNKNOWN", "why": None if cv else "pair rotation and OI deceleration not read", "tag": "I"}
-    S = {"side": "buy", "state": "PATA NAHI", "state_why": None, "ref_high": None, "candles_left": None, "level": None,
-         "reached": False, "in_pocket": False, "flow": [], "confirm": confirm, "fire": False, "visit": None,
+        confirm = {"value": cv or "UNKNOWN", "why": _why(None if cv else "pair rotation and OI deceleration not read"),
+                   "why_full": None, "tag": "I"}
+    S = {**_EMPTY_SETUP, "confirm": confirm,
          "tells": _tells(book, closed, walls.get("basis"), bn), "falsifies": "nothing to falsify before σ exists"}
     if not bn or not bn.get("sigma"):
-        S["state_why"] = "no bands on the tape yet"
+        S["state_why"] = _why("no bands on the tape yet")
         return S
     if now_hhmm < WARM_HHMM:
-        S["state"], S["state_why"] = "WARMUP", f"σ not trusted until {WARM_HHMM}"
+        S["state"], S["state_why"] = "WARMUP", _why(f"σ not trusted until {WARM_HHMM}")
         return S
     in_buy = fut is not None and bn["d3"] <= fut <= bn["d2"]
     in_sell = fut is not None and bn["u2"] <= fut <= bn["u3"]
@@ -338,9 +370,11 @@ def _setup(tape: dict, book: dict, now_hhmm: str, walls: dict) -> dict:
     S["side"] = side
     S["falsifies"] = f"a close past {bn['u3']:.0f} (+3σ) held for 3 bars" if use_sell else f"a close past {bn['d3']:.0f} (−3σ) held for 3 bars"
     if last:
-        S.update(state=last.get("state", "PATA NAHI"), ref_high=last.get("ref_high"), candles_left=last.get("candles_left"), level=last.get("level"))
+        # band_rotation.run_states emits ref_low on the SELL side, ref_high on BUY
+        ref = last.get("ref_low") if use_sell else last.get("ref_high")
+        S.update(state=last.get("state", "PATA NAHI"), ref=ref, candles_left=last.get("candles_left"), level=last.get("level"))
     else:
-        S["state_why"] = "zone machine not answering (band_rotation.run_states)"
+        S["state_why"] = _why("zone machine not answering (run_states)")
     machine = S["state"]
     row = float(tape.get("rowSize") or 5)
     in_pocket = in_sell if use_sell else in_buy
@@ -386,25 +420,24 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
         missing.append("chain minutes")
     sess = (tape.get("session") or "").split("|")
     day = sess[-1] if len(sess) >= 3 else None
-    # squeeze is never measured here: None is the honest absence
-    g = gate_mod.state(book.get("ivrv"), book.get("expiry"), day or "", book.get("vpin_pct"), None)
-    head = _safe(lambda: _head(tape, book, g), {"symbol": "—", "expiry": None, "dte": None, "gate": {"level": "PATA NAHI", "tag": "I"}})
-    where = _safe(lambda: _where(tape, closed, now_hhmm), {"px": None, "z": None, "warm": False, "warm_at": WARM_HHMM, "buy_zone": None, "sell_line": None, "edge": None})
-    trapped = _safe(lambda: _trapped(book, closed, mins, marks), {"writers": None, "window": None, "pace": None, "fut_oi": None, "gear": None})
-    walls = _safe(lambda: _walls(tape, book, broke), {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, "prior_why": None, "basis": None})
-    tape_o = _safe(lambda: _tape(tape, closed, walls["rows"]), {"events": [], "aggressor": None})
-    setup = _safe(lambda: _setup(tape, book, now_hhmm, walls),
-                  {"side": "buy", "state": "PATA NAHI", "reached": False, "in_pocket": False, "flow": [], "fire": False, "visit": None, "tells": [],
-                   "confirm": {"value": "UNKNOWN", "why": "setup did not build", "tag": "I"}, "falsifies": "—"})
-    armed = []
-    for zs_list in (book.get("zone_state"), book.get("zone_state_sell")):
-        if isinstance(zs_list, list):
-            armed += [{"t": _hhmm(closed[i]["t"]), "kind": "armed"} for i, s in enumerate(zs_list) if isinstance(s, dict) and s.get("arm") is not None and i < len(closed)]
-    events = ([{"t": _hhmm(e["t"]), "kind": e["kind"]} for e in (tape.get("events") or [])]
-              + [{"t": _hhmm(t["t"]), "kind": "tap"} for t in (tape.get("taps") or [])]
-              + [{"t": w["since"], "kind": "wall"} for w in walls_in if w.get("since")]
-              + [{"t": _hhmm(b["brokenT"]), "kind": "lost"} for b in broke if b.get("brokenT")] + armed)
+    head = _safe(lambda: _head(tape, book), _EMPTY_HEAD)
+    where = _safe(lambda: _where(tape, closed, now_hhmm), _EMPTY_WHERE)
+    trapped = _safe(lambda: _trapped(book, closed, mins, marks), _EMPTY_TRAPPED)
+    walls = _safe(lambda: _walls(tape, book, broke), _EMPTY_WALLS)
+    tape_o = _safe(lambda: _tape(tape, closed, walls["rows"]), _EMPTY_TAPE)
+    setup = _safe(lambda: _setup(tape, book, now_hhmm, walls), _EMPTY_SETUP)
+
+    def _events_and_armed():
+        armed = []
+        for zs_list in (book.get("zone_state"), book.get("zone_state_sell")):
+            if isinstance(zs_list, list):
+                armed += [{"t": _hhmm(closed[i]["t"]), "kind": "armed"} for i, s in enumerate(zs_list) if isinstance(s, dict) and s.get("arm") is not None and i < len(closed)]
+        return ([{"t": _hhmm(e["t"]), "kind": e["kind"]} for e in (tape.get("events") or [])]
+                + [{"t": _hhmm(t["t"]), "kind": "tap"} for t in (tape.get("taps") or [])]
+                + [{"t": w["since"], "kind": "wall"} for w in walls_in if w.get("since")]
+                + [{"t": _hhmm(b["brokenT"]), "kind": "lost"} for b in broke if b.get("brokenT")] + armed)
+    events, events_why = _safe_list(_events_and_armed)
     return {"ok": True, "idx": tape.get("idx") or "NIFTY", "ts": now_hhmm, "day": day, "interval": sess[1] if len(sess) >= 3 else None,
             "have_bars": len(closed), "lot": tape.get("lot"), "missing": missing, "coverage": book.get("coverage") or {},
-            "events": events, "taps": tape.get("taps") or [], "head": head, "record": {"written": False},
+            "events": events, "events_why": events_why, "taps": tape.get("taps") or [], "head": head, "record": {"written": False},
             "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup}

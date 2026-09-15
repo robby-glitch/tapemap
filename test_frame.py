@@ -14,11 +14,15 @@ def _tape(n=14):
             "walls": [{"price": 23230.0, "side": -1, "size": 600, "hits": 1, "since": "15:20", "snapshot": False},
                       {"price": 23195.0, "side": 1, "size": 280, "hits": 3, "since": "09:20", "snapshot": True}],
             "broke": [{"side": 1, "brokenT": closed[3]["t"]}], "taps": [],
-            "events": [{"t": closed[-1]["t"], "kind": "absorption", "p": 23230.0}, {"t": closed[-2]["t"], "kind": "initiative", "p": 23300.0}]}
+            # 23260.0, not 23300.0: inside the buy zone but more than one row from every wall/OI/prior-day row,
+            # so it exercises the zone fallback in _place rather than colliding with the PDL level at 23300.0.
+            "events": [{"t": closed[-1]["t"], "kind": "absorption", "p": 23230.0}, {"t": closed[-2]["t"], "kind": "initiative", "p": 23260.0}]}
 
 
 def _book():
-    return {"warmap": {"heat": [{"k": 23200, "ce_oi": 3e6, "ce_chg": 1e6, "ce_pain": 0, "ce_conf": 0.5, "pe_oi": 5e6, "pe_chg": 2e6, "pe_pain": 40.0, "pe_conf": 0.8}],
+    # k=23100 (not 23200): placed at 23100+35=23135 in the futures frame, more than one row (5) from either
+    # tape wall (S 23230, B 23195) -- the agreement tests set their own k when they want a match.
+    return {"warmap": {"heat": [{"k": 23100, "ce_oi": 3e6, "ce_chg": 1e6, "ce_pain": 0, "ce_conf": 0.5, "pe_oi": 5e6, "pe_chg": 2e6, "pe_pain": 40.0, "pe_conf": 0.8}],
                        "levels": [], "sequence": {}},
             "minutes": {"15:26": {"k": {"23200": (1e6, 2e6)}}, "15:27": {"k": {"23200": (1.5e6, 2.1e6)}}, "15:28": {"k": {"23200": (2e6, 2.2e6)}}, "15:29": {"k": {"23200": (3e6, 2.5e6)}}},
             "spot": 23187.0, "expiry": "2026-09-29", "zone_state": None, "zone_state_sell": None, "vpin_pct": 0.3, "senses": None, "ivrv": None,
@@ -32,20 +36,29 @@ def test_shape_and_head():
     assert f["day"] == "2026-09-15" and f["interval"] == "5m" and f["have_bars"] == 14
     assert f["head"]["symbol"] == "NIFTY-I" and f["head"]["expiry"] == "2026-09-29" and f["head"]["dte"] == 14
     assert f["head"]["gate"]["level"] == "PATA NAHI" and f["head"]["gate"]["tag"] == "I"
-    assert f["record"] == {"written": False}
+    assert f["record"]["written"] is False
     for blk in ("head", "where", "trapped", "walls", "tape", "setup"):
         assert "title" not in f[blk] and "items" not in f[blk], "no block chrome on the wire"
 
 
 def test_where_numbers_and_edge_sign():
     w = frame.build(_tape(), _book(), "15:30")["where"]
-    assert w["warm"] and w["px"] == 23222.0 and w["vwap"] == 23400.0 and w["sigma"] == 50.0
+    assert w["warm"] and w["px"] == 23222.0 and w["px_why"] is None and w["vwap"] == 23400.0 and w["sigma"] == 50.0
     assert abs(w["z"] - (-3.56)) < 0.01
-    assert w["buy_zone"] == [23250.0, 23300.0] and w["sell_line"] == 23550.0
+    assert w["buy_zone"] == [23250.0, 23300.0] and w["sell_line"] == 23550.0 and w["sell_zone"] == [23500.0, 23550.0]
     assert w["edge"]["side"] == "buy" and w["edge"]["d"] == 23222.0 - 23300.0     # negative: price is past the −2σ edge
+    assert isinstance(w["edge"]["d"], float)
     assert w["open"] == 23500 and w["high"]["p"] == 23510 and w["low"]["p"] == 23480 - 20 * 13
-    assert w["from_open"] == 23222.0 - 23500 and w["off_extreme"]["which"] == "low"
+    assert w["from_open"] == 23222.0 - 23500 and isinstance(w["from_open"], float)
+    assert w["off_extreme"]["which"] == "low" and isinstance(w["off_extreme"]["d"], float)
     assert w["hour"]["bars"] == 12 and w["hour"]["travel"] > 0 and isinstance(w["hour"]["net"], float)
+
+
+def test_where_px_why_when_no_futures_price():
+    t = _tape(); t["futPx"] = None
+    w = frame.build(t, _book(), "15:30")["where"]
+    assert w["px"] is None and w["px_why"] == "no futures price on the tape"
+    assert w["z"] is None and w["edge"] is None      # covered by px_why, no separate why (spec ruling)
 
 
 def test_where_before_warm_and_without_bands():
@@ -62,8 +75,9 @@ def test_walls_rows_prior_day_and_agreement():
     tape_rows = {r["kind"]: r for r in W["rows"] if r["kind"] in ("S", "B")}
     assert tape_rows["S"]["size"] == 600 * 65 and tape_rows["S"]["leaned"] == 1 and tape_rows["B"]["snapshot"] is True
     assert tape_rows["S"]["agree"] is None
+    assert tape_rows["S"]["pain_tag"] is None and tape_rows["S"]["strike"] is None    # CE/PE only (spec ruling)
     oi = [r for r in W["rows"] if r["kind"] == "PE"][0]
-    assert oi["p"] == 23200 + (23222.0 - 23187.0) and oi["pain"] == 40.0 and oi["pain_tag"] == "I" and oi["agree"] is None
+    assert oi["p"] == 23100 + (23222.0 - 23187.0) and oi["pain"] == 40.0 and oi["pain_tag"] == "I" and oi["agree"] is None
     prior = {r["kind"]: r["p"] for r in W["rows"] if r["kind"] in ("PDH", "PDL", "PDC")}
     assert prior == {"PDH": 23500.0, "PDL": 23300.0, "PDC": 23400.0}     # H = 2P − S1, L = 2P − R1, C = 3P − H − L
     assert W["prior_why"] is None and W["basis"] == 35.0 and W["cap"] == 3 and W["floors_taken"] == 1
@@ -79,6 +93,18 @@ def test_walls_agreement_within_one_row():
     assert bw["agree"] == f"PE {23195.0 - 35.0 + 3:.0f}" and pe["agree"] == "B 23195"
 
 
+def test_walls_agreement_exactly_one_row_is_inclusive():
+    """Spec ruling: "within one row" is inclusive, not exclusive -- a strike exactly one rowSize (5 here) from
+    a wall agrees with it. (An earlier plan fixture put a strike exactly one row away and asserted NO
+    agreement; that fixture was wrong, not the rule.)"""
+    t, b = _tape(), _book()
+    b["spot"] = 23222.0 - 35.0
+    b["warmap"]["heat"][0]["k"] = 23195.0 - 35.0 + 5      # exactly one row (5 pts) from the B wall
+    W = frame.build(t, b, "15:30")["walls"]
+    bw = [r for r in W["rows"] if r["kind"] == "B"][0]; pe = [r for r in W["rows"] if r["kind"] == "PE"][0]
+    assert bw["agree"] == f"PE {23195.0 - 35.0 + 5:.0f}" and pe["agree"] == "B 23195"
+
+
 def test_walls_absences():
     t, b = _tape(), _book()
     b["warmap"] = None; b["pivots"] = None
@@ -90,7 +116,7 @@ def test_walls_absences():
 
 def test_trapped():
     T = frame.build(_tape(), _book(), "15:30")["trapped"]
-    assert T["writers"]["side"] == "PE" and T["writers"]["worst"] == {"k": 23200, "pain": 40.0, "conf": 0.8} and T["writers"]["tag"] == "I"
+    assert T["writers"]["side"] == "PE" and T["writers"]["worst"] == {"k": 23100, "pain": 40.0, "conf": 0.8} and T["writers"]["tag"] == "I"
     assert T["writers"]["ce_chg"] == 1e6 and T["writers"]["pe_chg"] == 2e6
     assert T["window"]["t0"] == "15:26" and T["window"]["t1"] == "15:29" and T["window"]["minutes"] == 3 and T["window"]["ce"] == 2e6
     assert T["pace"]["ce"] == 1.0 and 0 < T["pace"]["pe"] <= 1
@@ -111,15 +137,40 @@ def test_tape_events_named_by_place():
     assert Tp["events"] == [] and Tp["aggressor"] is None and Tp["aggressor_why"]
 
 
+def test_tape_event_at_a_prior_day_level_is_a_level_not_a_wall():
+    """spec ruling: tape.events[].at.kind is "level" (not "wall") for PDH/PDL/PDC/ROUND/FLIP rows, label
+    "at PDH 23500"; a wall wins a tie against a level at the same distance."""
+    t = _tape()
+    t["events"] = [{"t": t["closed"][-1]["t"], "kind": "initiative", "p": 23300.0}]      # exactly the PDL row
+    Tp = frame.build(t, _book(), "15:30")["tape"]
+    assert Tp["events"][0]["at"] == {"kind": "level", "label": "at PDL 23300"}
+
+
 def test_setup_falsifier_carries_the_number_and_no_else_tell():
     S = frame.build(_tape(), _book(), "15:30")["setup"]
     assert S["side"] == "buy" and S["state"] == "PATA NAHI" and "run_states" in S["state_why"]
+    assert len(S["state_why"]) <= 48
     assert S["falsifies"] == "a close past 23250 (−3σ) held for 3 bars"
-    assert S["confirm"] == {"value": "not wired", "why": "the /api/senses assembly is not factored out yet; the beep is tape-only", "tag": "I"}
+    assert S["confirm"] == {"value": "not wired", "why": "senses assembly not factored out; tape-only beep",
+                             "why_full": "the /api/senses assembly is not factored out yet; the beep is tape-only", "tag": "I"}
+    assert len(S["confirm"]["why"]) <= 48
     assert all(t["name"] != "ELSE" for t in S["tells"]) and all(t["tag"] == "I" for t in S["tells"])
     assert "trap" not in S
     S = frame.build(_tape(), _book(), "09:20")["setup"]
     assert S["state"] == "WARMUP" and S["falsifies"] == "nothing to falsify before σ exists"
+
+
+def test_setup_ref_is_ref_high_on_buy_and_ref_low_on_sell():
+    """spec ruling (Task 4 review): setup.ref replaces setup.ref_high, reading ref_high off the buy machine
+    and ref_low off the sell machine (band_rotation.run_states emits ref_low for SELL)."""
+    t = _tape()
+    buy_last = {"state": "ARMED", "ref_i": 5, "ref_high": 23310.0, "level": 23300.0, "candles_left": 4}
+    S = frame.build(t, dict(_book(), zone_state=[buy_last]), "15:30")["setup"]
+    assert S["side"] == "buy" and S["ref"] == 23310.0 and "ref_high" not in S
+    sell_last = {"state": "ARMED", "ref_i": 5, "ref_low": 23540.0, "level": 23550.0, "candles_left": 4}
+    b = dict(_book(), zone_state=None, zone_state_sell=[sell_last])
+    S = frame.build(t, b, "15:30")["setup"]
+    assert S["side"] == "sell" and S["ref"] == 23540.0
 
 
 def test_each_object_fails_alone():
@@ -132,3 +183,53 @@ def test_missing_and_events_strip():
     f = frame.build(_tape(), {"coverage": {}}, "15:30")
     assert set(f["missing"]) == {"warmap", "chain minutes"}
     assert {e["kind"] for e in f["events"]} >= {"absorption", "initiative", "wall", "lost"}
+    assert f["events_why"] is None
+
+
+def test_window_change_is_a_difference_of_cumulative_marks():
+    minutes = {"09:16": {"k": {"23300": (10e6, 5e6)}}, "09:31": {"k": {"23300": (15e6, 3e6)}}}
+    assert frame.window_change(minutes, "09:16", "09:31") == {23300: (5e6, -2e6)}
+    assert frame.window_change(minutes, "09:16", "09:20") == {}      # a mark missing on either end is an empty answer
+
+
+def test_a_level_with_no_machine_state_is_not_a_row():
+    """A warmap level with no sequence-machine state is not a row (the chart draws the line); one with state
+    is, carrying state/tests/last_outcome."""
+    t, b = _tape(), _book()
+    b["warmap"]["levels"] = [{"kind": "ROUND", "px": 23300.0, "frame": "index"}]
+    W = frame.build(t, b, "15:30")["walls"]
+    assert "ROUND" not in {r["kind"] for r in W["rows"]}
+    b["warmap"]["sequence"] = {"ROUND@23300.0": {"state": "held", "tests": 2, "last_outcome": "bounce"}}
+    W = frame.build(t, b, "15:30")["walls"]
+    row = next(r for r in W["rows"] if r["kind"] == "ROUND")
+    assert row["state"] == "held" and row["tests"] == 2 and row["last_outcome"] == "bounce"
+
+
+def _why_pairs(node, skip=("state",)):
+    """Every (dict, key, value, why) where `key` has a sibling `f'{key}_why'` in the same dict, except `state`
+    (setup.state's hole value is the string "PATA NAHI", not None, and state_why also annotates the non-hole
+    WARMUP state -- a different, documented pattern, so it is the one field this sweep does not check)."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k not in skip and not k.endswith("_why") and f"{k}_why" in node:
+                yield node, k, v, node[f"{k}_why"]
+        for v in node.values():
+            yield from _why_pairs(v, skip)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _why_pairs(item, skip)
+
+
+def test_every_why_is_non_null_exactly_when_its_field_is_null():
+    """The contract's own rule: every field that can be null carries a sibling `*_why` that is non-null exactly
+    when the field is null. Walked recursively over build()'s whole output, on three inputs: the full fixture,
+    an empty book, and a tape with no futures price."""
+    frames = [frame.build(_tape(), _book(), "15:30"),
+              frame.build(_tape(), {}, "15:30"),
+              frame.build(dict(_tape(), futPx=None), _book(), "15:30")]
+    checked = 0
+    for f in frames:
+        for _, k, v, why in _why_pairs(f):
+            assert (v is None) == (why is not None), f"{k}: value={v!r} why={why!r}"
+            checked += 1
+    assert checked > 0, "the sweep found no x/x_why pairs at all -- it is not walking the frame"

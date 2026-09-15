@@ -68,6 +68,8 @@ def test_0911_0945_is_armed_at_the_tap_by_the_rule():
     S = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")["setup"]
     assert S["state"] in ("ARMED", "TRIGGERED"), S["state"]
     assert S["reached"] is True and S["fire"] is False and S["flow"] == []   # zone alone never fires
+    # setup.ref (was ref_high pre-Task-1-review): the arming bar's high, live off the real machine
+    assert S["ref"] == 23314.0 and S["candles_left"] == 10
 
 
 def test_0911_0945_fires_only_when_flow_is_supplied_at_the_zone():
