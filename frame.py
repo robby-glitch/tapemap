@@ -134,6 +134,29 @@ def _bands_now(tape: dict) -> Optional[dict]:
     return bands[-1] if bands else None
 
 
+_ZONE_ACTIVE = ("ARMED", "TRIGGERED", "IN_TRADE")
+
+
+def _pick_side(in_buy: bool, in_sell: bool, buy_last: Optional[dict], sell_last: Optional[dict]) -> str:
+    """Which machine is the live setup. Price in a pocket wins outright --
+    in_sell picks sell, in_buy picks buy, and if somehow both are true (bands
+    crossed) sell wins, the seller's tool. With neither pocket touched: if
+    only one machine is active (ARMED/TRIGGERED/IN_TRADE) it wins outright; if
+    both are active the more recent reference bar is the live setup (larger
+    ref_i wins), sell on an exact tie or when either ref_i is missing; if
+    neither is active, buy is the default read. See spec §6, defect C2."""
+    if in_sell:
+        return "sell"
+    if in_buy:
+        return "buy"
+    buy_active = bool(buy_last) and buy_last.get("state") in _ZONE_ACTIVE
+    sell_active = bool(sell_last) and sell_last.get("state") in _ZONE_ACTIVE
+    if buy_active and sell_active:
+        bi, si = buy_last.get("ref_i"), sell_last.get("ref_i")
+        return "buy" if (bi is not None and si is not None and bi > si) else "sell"
+    return "sell" if sell_active else "buy"
+
+
 def zone(tape: dict, book: dict, now_hhmm: str) -> dict:
     """The one verb. Location from the 5-minute bands; state from the one
     zone machine (book['zone_state'], run_states at SCORED_INTERVAL); flow
@@ -168,13 +191,11 @@ def zone(tape: dict, book: dict, now_hhmm: str) -> dict:
     last_buy, last_sell = _last(zs_buy), _last(zs_sell)
     machine_buy = last_buy.get("state", "PATA NAHI") if last_buy else "PATA NAHI"
     machine_sell = last_sell.get("state", "PATA NAHI") if last_sell else "PATA NAHI"
-    ACTIVE = ("ARMED", "TRIGGERED", "IN_TRADE")
-    buy_active, sell_active = machine_buy in ACTIVE, machine_sell in ACTIVE
-    # the seller's desk reads both machines and picks the one whose side
-    # matches where price is; a tie (neither pocket touched) goes to
-    # whichever machine is already active, sell first since this is a
-    # seller's tool -- see spec §6
-    use_sell = in_sell or (sell_active and not buy_active)
+    ACTIVE = _ZONE_ACTIVE
+    # see _pick_side: price in a pocket wins outright; with neither touched,
+    # the more recently armed of the two active machines is the live setup,
+    # sell on a tie -- see spec §6, defect C2
+    use_sell = _pick_side(in_buy, in_sell, last_buy, last_sell) == "sell"
     machine = machine_sell if use_sell else machine_buy
     last = last_sell if use_sell else last_buy
     side_label = "sell" if use_sell else "buy"

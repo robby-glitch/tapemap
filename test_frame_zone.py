@@ -130,3 +130,15 @@ def test_0911_visit_id_is_stable_across_bars_of_the_same_armed_reference():
     z950 = frame.zone(t950, {"zone_state": _machine(t950), "senses": {"confirm": "UNKNOWN"}}, "09:50")
     assert z945["state"] == "ARMED" and z950["state"] == "ARMED"
     assert z945["visit"] == z950["visit"]
+
+
+def test_when_both_machines_are_active_the_more_recent_arm_is_the_setup_and_sell_wins_ties():
+    tape = _tape("2026-09-11", "13:45")
+    buy = [{"state": "ARMED", "ref_i": 10, "ref_high": 23400.0, "level": 23390.0, "candles_left": 5}]
+    sell = [{"state": "ARMED", "ref_i": 40, "ref_high": 23520.0, "level": 23530.0, "candles_left": 5}]
+    z = frame.zone(tape, {"zone_state": buy, "zone_state_sell": sell, "senses": None}, "13:45")
+    assert any(it["k"] == "setup (sell)" for it in z["items"]), z["items"]
+    z2 = frame.zone(tape, {"zone_state": [dict(buy[0], ref_i=50)], "zone_state_sell": sell, "senses": None}, "13:45")
+    assert any(it["k"] == "setup (buy)" for it in z2["items"]), z2["items"]
+    z3 = frame.zone(tape, {"zone_state": [dict(buy[0], ref_i=40)], "zone_state_sell": sell, "senses": None}, "13:45")
+    assert any(it["k"] == "setup (sell)" for it in z3["items"]), "exact tie goes to sell"
