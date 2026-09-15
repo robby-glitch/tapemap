@@ -516,9 +516,8 @@ class Session:
 
     def nearest_level(self, price):
         b = self.fut_bars[0]
-        levels = {k: v for k, v in
-                  ((k, b.get(k)) for k in ("P", "R1", "R2", "R3", "S1", "S2", "S3"))
-                  if v is not None}
+        levels = {k: b[k] for k in ("P", "R1", "R2", "R3", "S1", "S2", "S3")
+                  if b.get(k) is not None}
         if not levels:
             return None, None          # prior session absent -- no pivot to be near
         name = min(levels, key=lambda k: abs(levels[k] - price))
@@ -840,7 +839,9 @@ class Session:
             b0 = self.fut_bars[0]
             tol = med60
             for nm in ("R1", "R2", "R3", "S1", "S2", "P"):
-                lvl = b0[nm]
+                lvl = b0.get(nm)
+                if lvl is None:
+                    continue        # prior session absent -- no pivot to break
                 prev_c = self.fut_bars[i - 1]["C"] if i else fb["O"]
                 if prev_c < lvl <= fb["C"] and nm not in self.broken:
                     self.broken[nm] = (lvl, i, +1)
@@ -1282,7 +1283,7 @@ def session_json(sess):
     b0 = sess.fut_bars[0]
     out = {
         "day": sess.day,
-        "pivots": {k: b0[k] for k in ("P", "R1", "R2", "R3", "S1", "S2", "S3")},
+        "pivots": {k: b0.get(k) for k in ("P", "R1", "R2", "R3", "S1", "S2", "S3")},
         "strike": sess.strike,
         "bars": [],
         "events": [dict(t=t, kind=k, msg=m, **({"data": d} if d else {}))
