@@ -55,7 +55,7 @@ _EMPTY_WALLS = {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, 
 _EMPTY_TAPE = {"events": [], "aggressor": None, "aggressor_why": None}
 _EMPTY_SETUP = {"side": "buy", "state": "PATA NAHI", "state_why": None, "ref": None, "candles_left": None, "level": None,
                  "reached": False, "in_pocket": False, "flow": [], "fire": False, "visit": None, "tells": [],
-                 "confirm": {"value": "UNKNOWN", "why": "setup did not build", "why_full": None, "tag": "I"}, "falsifies": "—"}
+                 "confirm": {"value": "UNKNOWN", "why": "setup did not build", "why_full": None, "tag": "I"}, "falsifies": None}
 
 
 def _hhmm(t_ms: int) -> str:
