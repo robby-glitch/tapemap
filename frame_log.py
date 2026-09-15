@@ -1,8 +1,8 @@
 # tapemap/frame_log.py
 """frame_log.py -- THE ONE DECISION RECORD. `data/frame/frame_<day>.jsonl`.
 
-Appended when the frame's SIGNATURE changes -- ladder rows and their state,
-zone state, tells, the missing list -- never on a raw counter or a tick of
+Appended when the frame's SIGNATURE changes -- walls rows and their state,
+setup state, tells, the missing list -- never on a raw counter or a tick of
 OI. The categorical-signature idea is receive.mjs's `sig()` (the extension's
 retired sink), moved into the process that survives the browser, so a
 morning like 2026-09-11 (tool right all day, record empty) cannot recur.
@@ -26,12 +26,10 @@ def day_path(day: str) -> str:
 
 
 def sig(fr: dict) -> str:
-    rows = [(r.get("p"), r.get("kind"), r.get("state"), r.get("side"))
-            for r in (fr.get("ladder") or {}).get("rows") or []]
-    z = fr.get("zone") or {}
-    tells = [(t.get("name"), t.get("target")) for t in (fr.get("watch") or {}).get("tells") or []]
-    return json.dumps([fr.get("idx"), rows, z.get("state"), z.get("fire"), tells,
-                       sorted(fr.get("missing") or [])], default=str)
+    rows = [(r.get("p"), r.get("kind"), r.get("state")) for r in (fr.get("walls") or {}).get("rows") or []]
+    s = fr.get("setup") or {}
+    tells = [(t.get("name"), t.get("target")) for t in s.get("tells") or []]
+    return json.dumps([fr.get("idx"), rows, s.get("state"), s.get("fire"), tells, sorted(fr.get("missing") or [])], default=str)
 
 
 def append_if_changed(fr: dict, day: str, idx: str = "NIFTY", path: Optional[str] = None) -> bool:

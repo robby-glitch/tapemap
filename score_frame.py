@@ -3,7 +3,7 @@
 Taps: favourable excursion from the tap bar's close at +1/+3/+6 bars and
 +90/+180 minutes, filled only where those bars exist. Tells: resolved as
 target (a close at/through the target), falsified (a close through the
-negation price), expired (session ended). CONTROL: every ladder row that was
+negation price), expired (session ended). CONTROL: every walls row that was
 not the target, resolved the same way -- logged with the tell from day one
 so the kill condition (spec §8.4) can execute. A cell that exists is never
 rewritten; a second pass is byte-identical. `write` is the one I/O function."""
@@ -57,7 +57,7 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
     for r in rows:
         for tp in r.get("taps") or []:
             _fill_tap(tp, bars)
-        w = r.get("watch") or {}
+        w = r.get("setup") or {}
         after = [b for b in bars if _hhmm(b["t"]) > (r.get("ts") or "00:00")]
         px0 = after[0]["o"] if after else None
         for tell in w.get("tells") or []:
@@ -76,8 +76,8 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
                 w["control"] = [{"p": lr["p"], "kind": lr.get("kind"), "dist": round(abs(lr["p"] - px0), 1),
                                  "same_distance": abs(abs(lr["p"] - px0) - dist) <= dist * 0.25,
                                  "resolved": _resolve(lr["p"], None, after, lr["p"] > px0)}
-                                for lr in (r.get("ladder") or {}).get("rows") or []
-                                # exact float equality on purpose: tgt and lr["p"] are both prices the ladder itself emitted
+                                for lr in (r.get("walls") or {}).get("rows") or []
+                                # exact float equality on purpose: tgt and lr["p"] are both prices walls itself emitted
                                 if lr.get("p") is not None and lr["p"] != tgt]
     return rows
 
