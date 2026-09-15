@@ -59,3 +59,23 @@ def test_chain_removed_yields_pata_nahi_per_block_with_distinct_reasons():
 def test_window_change_is_a_difference_of_cumulative_marks():
     assert frame.window_change(BOOK["minutes"], "09:16", "09:31") == {23300: (5e6, -2e6)}
     assert frame.window_change(BOOK["minutes"], "09:16", "09:20") == {}
+
+
+def test_a_strike_row_moves_with_the_basis_and_says_so():
+    b35 = frame.ladder(TAPE, dict(BOOK, spot=23315.0))["rows"]
+    b118 = frame.ladder(dict(TAPE, futPx=23433.0), dict(BOOK, spot=23315.0))["rows"]
+    pe35 = next(r for r in b35 if r["kind"] == "PE"); pe118 = next(r for r in b118 if r["kind"] == "PE")
+    assert pe35["p"] == 23335.0 and pe118["p"] == 23418.0
+    assert pe35["why"] == frame.BASIS_WHY and pe118["why"] == frame.BASIS_WHY
+
+
+def test_a_level_with_no_machine_state_is_not_a_row():
+    book = dict(BOOK, warmap=dict(BOOK["warmap"], sequence={}))
+    kinds = [r["kind"] for r in frame.ladder(TAPE, book)["rows"]]
+    assert "PDH" not in kinds and "ROUND" not in kinds and "S" in kinds and "PE" in kinds
+
+
+def test_rows_are_sorted_and_carry_distance():
+    rows = frame.ladder(TAPE, BOOK)["rows"]
+    assert [r["p"] for r in rows] == sorted((r["p"] for r in rows), reverse=True)
+    assert all(r["d"] is not None for r in rows) and next(r for r in rows if r["kind"] == "PX")["d"] == 0.0
