@@ -13,8 +13,11 @@ them is the fastest way to waste a session.
   `band_rotation.py`, the zone machine, `data/trigger_log.jsonl`,
   `/console.html`. START-HERE.md is its document.
 - **THE DESK** — *which instrument, and which structure*, a seller's desk.
-  `surface.py`, `desk.py`, `direction.py`, `drag.py`, `/desk.html`.
-  HANDOFF-DESK.md is its document.
+  `surface.py`, `desk.py`, `direction.py`, `drag.py`, the war map
+  (`warmap.py` + friends), the paper desk (`book.py`, `quoting.py`,
+  `trader.py`) and its short-variance hedger (`hedge.py`), `/desk.html`
+  today and `/toolb.html` pending approval. HANDOFF-DESK.md is its document —
+  **§8g is its current shape**, read that first.
 
 ## The rules that survive even if you read nothing else
 
@@ -52,12 +55,26 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 873 tests, green as of 2026-08-22
+python -m pytest -q            # 1062 tests, green as of 2026-08-26
 ```
 
-Screens: `/desk.html` (the desk) · `/console.html` (the tape detectors).
+**Launch the server DETACHED, never as a child of an assistant/terminal
+session** (2026-08-25: a host-process restart killed a child server mid-market
+and cost 30 minutes of every forward log):
+`Start-Process -FilePath '...\start-v2.bat' -WorkingDirectory '...\tapemap' -WindowStyle Minimized`
+
+Screens: `/desk.html` (the OLD desk — rejected 2026-08-25, do not invest) ·
+`/toolb.html` (the NEW tool, pending the operator's final approval — see
+HANDOFF.md "STATE OF THE APP") · `/console.html` (the tape detectors).
 APIs: `/api/desk?capital=<rupees>` · `/api/surface` · `/api/drag` ·
-`/api/chain` · `/api/senses` · `/api/health`.
+`/api/chain` · `/api/senses` · `/api/vpin` · `/api/oiflow` · `/api/warmap` ·
+`/api/paperdesk` · `/api/health` (its `coverage` says what this process can
+and cannot know about today — render it, never paper over it).
+
+**The anytime-start rule (operator, 2026-08-25, standing):** every module must
+be correct no matter WHEN the server or UI is started — backfill exactly
+(tagged, never blended with observed), persist day state across restarts, and
+whatever genuinely cannot be reconstructed must say so with the reason.
 
 **`data/trigger_log.jsonl` is the one irreplaceable artefact in this repo** and
 is deliberately NOT committed on this branch — see HANDOFF-OPERATOR.md §6

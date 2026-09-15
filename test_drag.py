@@ -180,3 +180,11 @@ def test_the_88_percent_reading_reproduces():
     assert r["owed"] == 9.5
     assert r["paid"] == 1.15
     assert round(r["frac"], 2) == 0.88
+
+
+def test_a_hairline_owed_refuses_to_price_a_rate():
+    """Expiry day 2026-08-25: an OTM leg owed ~0.1 points printed a 15,543%
+    tax on the board. A rate against under half a premium point is noise."""
+    assert drag.between(24_200, 24_204, 2.0, 1.8, delta_from=0.02) is None
+    d = drag.between(24_200, 24_204, 2.0, 1.8, delta_from=0.2)
+    assert d is not None and d.owed == 0.8

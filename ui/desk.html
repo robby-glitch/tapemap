@@ -232,6 +232,17 @@
     color:var(--muted);font-weight:500}
   .pos{color:var(--sell)} .neg{color:var(--risk)}
   .tw{overflow-x:auto}
+  /* -- the oi war map ---------------------------------------------- */
+  .wmwrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.8fr);gap:12px}
+  @media (max-width:1100px){.wmwrap{grid-template-columns:1fr}}
+  .wmplot{height:clamp(420px,58vh,720px);position:relative}
+  .wmplot svg{width:100%;height:100%;display:block}
+  .wmside{display:flex;flex-direction:column;gap:8px;font-size:.8rem}
+  .wmside .blk{background:var(--sunk);border-radius:5px;padding:8px 11px;
+    display:flex;flex-direction:column;gap:3px}
+  .wmside .blk .l{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted)}
+  .wmside .blk .v{font-family:Consolas,monospace}
   h2{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
     color:var(--muted);margin:0;font-family:Consolas,monospace;font-weight:500}
 </style>
@@ -244,6 +255,7 @@
       <span class="num" id="feed">connecting</span></span>
     <span><span class="lbl">ist</span> <span class="num" id="clock">--:--:--</span></span>
     <span><span class="lbl">refreshed</span> <span class="num" id="age">-</span></span>
+    <span title="NIFTY FUT order-flow toxicity, shadow [I]"><span class="lbl">vpin</span> <span class="num" id="vpin">&mdash;</span></span>
     <span class="grow"></span>
     <span class="ctl"><span class="lbl">test lots</span>
       <input id="testlots" type="number" min="1" step="1" value="5"></span>
@@ -291,6 +303,12 @@
 
   <div id="detail"></div>
 
+  <h2>the paper desk &mdash; the tool trading itself (paper only, no order path)</h2>
+  <div class="panel" id="paperdesk"></div>
+
+  <h2>the oi war map &mdash; <span id="wmIdx">&mdash;</span></h2>
+  <div class="panel" id="warmap"></div>
+
   <h2>trending oi &mdash; <span id="oiflowIdx">&mdash;</span></h2>
   <div class="panel" id="oiflow"></div>
 
@@ -313,8 +331,19 @@
 <script src="fmt.js"></script>
 <script>
 "use strict";
-var S = {desk:null, surf:null, health:null, drag:null, oiflow:null, idx:null,
-         pick:null, userPick:false, tab:"payoff", at:0, err:null, raw:""};
+var S = {desk:null, surf:null, health:null, drag:null, oiflow:null, warmap:null,
+         idx:null, pick:null, userPick:false, tab:"payoff", at:0, err:null,
+         raw:"", rawWm:""};
+
+// A DOM rebuild must never move the operator's reading position. Chrome's
+// scroll anchoring gives up when large subtrees are replaced wholesale
+// (render() swaps several panels' innerHTML), so the position is kept by
+// hand: record, run, put back.
+function keepWindowScroll(fn){
+  var x = window.scrollX, y = window.scrollY;
+  fn();
+  window.scrollTo(x, y);
+}
 
 function $(id){ return document.getElementById(id); }
 
@@ -336,6 +365,9 @@ if(!FAVICON){ FAVICON = document.createElement("link"); FAVICON.rel = "icon";
 var AL = {
   seen:false, feedSeen:false, feedDead:false, active:null, lastAlert:null,
   gear:{}, conv:{}, status:{},
+  // war-map sequence states, idx|LEVEL@px -> state. Same rebuild-not-mutate
+  // + baseline-seeding discipline as gear/conv/status below.
+  wm:{}, wmSeen:false,
   soundOn: localStorage.getItem("tapemap.desk.sound") !== "0",   // default ON
   notifyOn: localStorage.getItem("tapemap.desk.notify") === "1"  // opt-in, default OFF
 };
@@ -532,13 +564,34 @@ function pull(){
     fetch("/api/health").then(function(r){return r.json();}).catch(function(){return null;})
     ,fetch("/api/drag").then(function(r){return r.json();}).catch(function(){return null;})
     ,fetch("/api/oiflow"+oiq).then(function(r){return r.json();}).catch(function(){return null;})
+    ,fetch("/api/warmap").then(function(r){return r.json();}).catch(function(){return null;})
+    ,fetch("/api/paperdesk").then(function(r){return r.json();}).catch(function(){return null;})
+    ,fetch("/api/senses?n=1").then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(a){
     S.desk = a[0]; S.surf = a[1]; S.health = a[2]; S.drag = a[3]; S.oiflow = a[4];
+    S.warmap = a[5]; S.paper = a[6];
     S.at = Date.now(); S.err = null;
+    // VPIN strip cell: written imperatively HERE, outside render() and outside
+    // the payload diff on purpose -- `fill` moves every frame, and folding it
+    // into the diff would rebuild the whole page every poll (the war-map
+    // regression all over again). Three renderings, never collapsed: a reading,
+    // a warm-up with its count, or an em-dash when the gauge is absent.
+    (function(){
+      var el = $("vpin"); if(!el) return;
+      var g = a[7] && a[7].vpin && a[7].vpin["NIFTY-FUT"];
+      if(!g){ el.textContent = "—"; el.style.color = ""; return; }
+      if(g.pct == null){
+        el.textContent = g.buckets + " bkt warmup"; el.style.color = ""; return;
+      }
+      var p = Math.round(g.pct * 100);
+      el.textContent = p + "% · " + g.buckets + " bkt [I]";
+      el.style.color = p >= 90 ? "#c62828" : (p >= 75 ? "#b26a00" : "");
+    })();
     // ALERT BOOKKEEPING RUNS ON EVERY POLL, before the payload-diff skip
     // below can return early (constraint 6) -- a transition must never be
     // missed just because the render it would have caused was skipped.
     checkDeskAlerts();
+    checkWarmapAlerts();
     // DO NOT REBUILD THE DOM WHEN NOTHING CHANGED. render() replaces the rail
     // and the detail panel wholesale, and run unconditionally every 5s it
     // destroyed, every cycle: keyboard focus (activeElement reverted to
@@ -546,8 +599,22 @@ function pull(){
     // "blocked, considered not omitted" disclosure, which is the single
     // interaction this screen most needs to support. The chain refreshes
     // about every ten seconds, so most polls change nothing at all.
+    // THE WAR MAP IS DIFFED APART FROM THE REST, because its payload can
+    // never sit still: held_s and the sequence clocks tick on every chain
+    // snapshot. Folding a[5] into the main diff (as first shipped) made
+    // "something changed" true on EVERY 5s poll, so the whole page rebuilt
+    // every cycle and the operator's scroll position was kicked back up
+    // while she was reading the trending-OI table -- the exact regression
+    // the diff exists to prevent. A war-map-only change redraws ONLY the
+    // war-map panel, inside a window-scroll keep.
     var raw = JSON.stringify([a[0], a[1], a[3], a[4]]);
-    if(raw === S.raw) return;
+    var rawWm = JSON.stringify([a[5], a[6]]);
+    var wmChanged = rawWm !== S.rawWm;
+    S.rawWm = rawWm;
+    if(raw === S.raw){
+      if(wmChanged) keepWindowScroll(function(){ renderWarMap(); renderPaperDesk(); });
+      return;
+    }
     S.raw = raw;
     render();
   }).catch(function(e){ S.err = e; S.raw = ""; render(); });
@@ -700,7 +767,38 @@ function renderDrag(){
   cells.push(cell("delta used",
     (d.delta===null||d.delta===undefined)?"—":(num(d.delta,3)+" [M]"), "",
     "real, off the chain — never an assumed 0.5"));
-  el.innerHTML = cells.join("");
+  /* TAX KA DIN -- the trace, not just the meter. Gaps in the sparkline are
+     the Nones drag.py refused to invent; they stay gaps. In-memory since
+     server start, and the strip says nothing when there is no trace. */
+  var dayHtml='';
+  var dd=d.day;
+  if(dd && dd.n>1){
+    var fr=(dd.series||[]).filter(function(r){return r.frac!==null&&r.frac!==undefined;});
+    if(fr.length>1){
+      var W=220,H=26,N=dd.series.length;
+      var segs=[],cur=[];
+      dd.series.forEach(function(r,i){
+        if(r.frac===null||r.frac===undefined){ if(cur.length>1)segs.push(cur); cur=[]; return; }
+        cur.push((i*(W-2)/Math.max(N-1,1)+1).toFixed(1)+','
+          +(H-2-Math.min(Math.max(r.frac,0),1)*(H-4)).toFixed(1));
+      });
+      if(cur.length>1)segs.push(cur);
+      var sv='<svg width="'+W+'" height="'+H+'" style="vertical-align:middle;margin-left:8px">'
+        + segs.map(function(s){return '<polyline points="'+s.join(' ')
+          +'" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.7"/>';}).join('')
+        + '</svg>';
+      var nowF=fr[fr.length-1].frac*100;
+      var verdict = nowF>=50 ? 'aaj sahi hone par bhi bhaari tax — buyer ka din nahi'
+        : nowF>=25 ? 'tax lean kar raha hai — premium poora nahi de raha'
+        : 'buyer ko move ka hissa mil raha hai';
+      dayHtml='<div class="note" style="margin-bottom:8px"><b>tax ka din</b>: '
+        + (dd.hi ? ('worst '+(dd.hi.frac*100).toFixed(0)+'% @ '+esc(dd.hi.t)
+             +(dd.hi.side?(' ('+esc(dd.hi.side.toUpperCase())+' side)'):'')) : 'no reading')
+        + ' · abhi '+nowF.toFixed(0)+'%' + sv
+        + '<br>'+esc(verdict)+'</div>';
+    }
+  }
+  el.innerHTML = dayHtml + cells.join("");
 }
 
 
@@ -1023,7 +1121,42 @@ function drawSmile(idx, c){
   plot.innerHTML=g.join("");
 
   var fit=f.fit;
-  foot.innerHTML='<div class="metrics" style="margin-top:8px">'
+  /* THE DAY STRIP -- the story the forward log always had and the panel
+     never told: vol aayi ya nikli, skew ka unwind, aur kab. Absent file ->
+     absent strip, never a fabricated flat day. */
+  var dayHtml='';
+  var day=f.day;
+  if(day && day.n>1){
+    var dA=(day.now.a-day.open.a)*100;
+    var verdict = dA>=0.5 ? 'vol aayi — buyer ko IV tailwind, seller savdhan'
+      : dA<=-0.5 ? 'vol nikli — crush/drag din, seller ka din'
+      : 'vol flat — IV ki koi kahani nahi';
+    var dB=day.now.b-day.open.b;
+    var skewTxt = Math.abs(dB)<0.3 ? ''
+      : (dB>0 ? ' · skew unwind '+day.open.b.toFixed(2)+'→'+day.now.b.toFixed(2)+' (darr kharch hua)'
+              : ' · put-skew steep '+day.open.b.toFixed(2)+'→'+day.now.b.toFixed(2)+' (girawat ka darr badha)');
+    var sv='';
+    if(day.series && day.series.length>2){
+      var as=day.series.map(function(p){return p.a;});
+      var mn=Math.min.apply(null,as), mx=Math.max.apply(null,as), sp=(mx-mn)||1;
+      var W=220,H=26;
+      var ptsStr=day.series.map(function(p,i){
+        return (i*(W-2)/(day.series.length-1)+1).toFixed(1)+','
+             + (H-2-(p.a-mn)/sp*(H-4)).toFixed(1);
+      }).join(' ');
+      sv='<svg width="'+W+'" height="'+H+'" style="vertical-align:middle;margin-left:8px">'
+        +'<polyline points="'+ptsStr+'" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.7"/></svg>';
+    }
+    dayHtml='<div class="note" style="margin-top:8px"><b>IV din</b>: '
+      + (day.open.a*100).toFixed(2)+'% ('+esc(day.open.t)+') → '
+      + (day.now.a*100).toFixed(2)+'% ('+esc(day.now.t)+') = '
+      + (dA>=0?'+':'')+dA.toFixed(2)+' vol pts'
+      + ' · high '+(day.hi.a*100).toFixed(2)+'% @ '+esc(day.hi.t)
+      + ' · low '+(day.lo.a*100).toFixed(2)+'% @ '+esc(day.lo.t)
+      + sv
+      + '<br>'+esc(verdict)+esc(skewTxt)+'</div>';
+  }
+  foot.innerHTML=dayHtml+'<div class="metrics" style="margin-top:8px">'
     + m2("atm vol (a)", pct(fit.atm_iv,2)+" [M]", true)
     + m2("skew (b)", (fit.skew===null||fit.skew===undefined)?"—":(fit.skew*100).toFixed(2)+" vol")
     + m2("convexity (c)", num(fit.convexity,2))
@@ -1036,6 +1169,319 @@ function drawSmile(idx, c){
     + 'This is a CROSS-SECTIONAL read — a point against its own curve today, '
     + 'never &ldquo;the surface is rich&rdquo;, which needs multi-day history '
     + 'this stack has not accumulated.</div>';
+}
+
+/* == THE PAPER DESK ==================================================
+   /api/paperdesk: the tool trading its own readings, both sides, 2 lots,
+   PAPER ONLY. This panel is the daily review surface: book P&L, the
+   distance-to-forced ratio, open positions with their rule-9 sentence,
+   resting quotes, and the decision tail INCLUDING refusals -- the trades
+   not taken are data too. Maker fills assume front-of-queue at ~10s
+   sampling, so maker P&L is an UPPER bound; the note below repeats it
+   because the caveat must travel with the numbers. */
+function renderPaperDesk(){
+  var el = $("paperdesk");
+  if(!el) return;
+  var pd = S.paper && S.paper.desk;
+  if(!S.paper){
+    el.innerHTML = '<div class="note">/api/paperdesk is not answering — an '
+      + 'older server does not serve it</div>';
+    return;
+  }
+  if(!pd){
+    el.innerHTML = '<div class="note">'+esc(S.paper.why||"no paper desk in "
+      + "this server mode")+'</div>';
+    return;
+  }
+  var risk = pd.risk || {};
+  var fr = risk.forced_ratio;
+  var cells = [];
+  cells.push(cell("day p&l (paper)",
+    (pd.day_pnl>=0?"+":"")+shortRs(pd.day_pnl),
+    pd.day_pnl>0?"BULL":pd.day_pnl<0?"BEAR":"NEUTRAL",
+    pd.day_stopped ? "DAY-LOSS STOP is on — flat until tomorrow"
+                   : "realized + open, this session"));
+  cells.push(cell("total realized", shortRs(pd.realized_total), "",
+    pd.lots+" lots per position · Rs "+shortRs(pd.capital)+" paper capital"));
+  cells.push(cell("distance to forced",
+    fr==null ? "—" : fr+"x",
+    fr==null ? "UNKNOWN" : fr>=1.5 ? "BULL" : fr>=1 ? "LEANING" : "BEAR",
+    fr==null ? (risk.forced_why||"no reading")
+      : fr>=1.5 ? "the declared stress leaves room — rule 5 holds"
+      : "stress would force this book — no new risk is legal"));
+  cells.push(cell("margin used", shortRs(risk.margin_used||0)+" [I]", "",
+    "desk model: 11% notional per naked leg — not SPAN, and says so"));
+  var html = '<div class="gear">'+cells.join("")+'</div>';
+
+  var opens = pd.open||[], marks = pd.marks||[];
+  if(opens.length){
+    var mby = {}; marks.forEach(function(m){ mby[m.pid]=m; });
+    html += '<div class="tw" style="margin-top:9px"><table><thead><tr>'
+      + '<th style="text-align:left">pos</th><th>legs</th><th>entry</th>'
+      + '<th>unreal</th><th>Δ</th><th style="text-align:left">who is forced</th>'
+      + '</tr></thead><tbody>'
+      + opens.map(function(p){
+          var m = mby[p.pid]||{};
+          var legs = (p.legs||[]).map(function(l){
+            return l.side+" "+Math.round(l.strike)+l.right+" x"+l.qty
+              +" ["+l.mode+"]"; }).join(", ");
+          var e = (p.legs||[]).map(function(l){return num(l.entry_px,2);}).join(", ");
+          var u = m.unrealized;
+          return '<tr><td style="text-align:left">'+esc(p.pid)+' '
+            + esc(title(p.strategy))+'</td>'
+            + '<td>'+esc(legs)+'</td><td>'+esc(e)+'</td>'
+            + '<td class="'+(u>0?"pos":u<0?"neg":"")+'">'
+            +   (u==null?"—":shortRs(u))+'</td>'
+            + '<td>'+(m.net_delta==null?"—":num(m.net_delta,1))+'</td>'
+            + '<td style="text-align:left">'+esc(p.forced_who||"—")+'</td></tr>';
+        }).join("")
+      + '</tbody></table></div>';
+  } else {
+    html += '<div class="note" style="margin-top:8px">Flat. The ordinary '
+      + 'state of this desk too — the refusals below are the work.</div>';
+  }
+
+  var qs = (pd.quotes&&pd.quotes.resting)||[];
+  if(qs.length){
+    html += '<div class="note" style="margin-top:6px">resting: '
+      + qs.map(function(q){ return q.strategy+" "+q.side+" "
+          +Math.round(q.strike)+q.right+" @ "+num(q.px,2); }).join(" · ")
+      + '</div>';
+  }
+
+  var dec = (pd.decisions||[]).slice(-10).reverse();
+  if(dec.length){
+    html += '<div class="why" style="margin-top:8px">'
+      + dec.map(function(d){
+          var c = d.kind==="entry" ? "BULL" : d.kind==="exit" ? "BEAR" : "";
+          return '<div><span class="'+c+'">'+esc(d.kind.toUpperCase())
+            + '</span> '+esc(d.idx)+' '+esc(title(d.strategy))+' — '
+            + esc(d.detail)+'</div>';
+        }).join("")+'</div>';
+  }
+  html += '<div class="note" style="margin-top:8px">PAPER ONLY — no order '
+    + 'path exists or ever will. Maker P&L is an UPPER bound (front-of-queue '
+    + 'fill model at ~10s sampling). Kill condition: ~30 sessions doing no '
+    + 'better than the flat book and the brain is rewritten or deleted. '
+    + 'Deployment of real capital is the operator&rsquo;s decision, made '
+    + 'outside this code.</div>';
+  el.innerHTML = html;
+}
+
+/* == THE OI WAR MAP ==================================================
+   /api/warmap, drawn: a vertical price ladder with every known level at
+   its price, OI heat per strike (CE left, PE right, fresh build brighter),
+   pain-marked books, inferred stop zones [I], spot, and the two runways.
+   One glance answers: where are we on the board, who is loaded where, and
+   which side does the dealer get paid to run. SHADOW end to end -- the
+   panel describes and never recommends; every inferred figure says [I]. */
+
+// EDGE-TRIGGERED, the two moments the plan says she wants to be pulled
+// back to the screen for: a DWELL forming at a named level, and a BREAK
+// running with a named target. Same rebuild/baseline discipline as
+// checkDeskAlerts -- a key never seen before seeds silently.
+function checkWarmapAlerts(){
+  var ind = (S.warmap && S.warmap.indices) || {};
+  var baseline = !AL.wmSeen, next = {};
+  Object.keys(ind).forEach(function(k){
+    var seq = ind[k].sequence || {};
+    Object.keys(seq).forEach(function(lk){
+      var key = k + "|" + lk, st = seq[lk].state;
+      if(!baseline && AL.wm.hasOwnProperty(key)){
+        if(st === "DWELL" && AL.wm[key] !== "DWELL")
+          fireAlert("DWELL forming at " + lk + " on " + k, 520, .25, "sine");
+        if(st === "RUN" && AL.wm[key] !== "RUN"){
+          var t = seq[lk].target;
+          fireAlert("BREAK at " + lk + " on " + k
+            + (t ? " — running to " + t.kind + " " + Math.round(t.px) : ""),
+            300, .35, "sawtooth");
+        }
+      }
+      next[key] = st;
+    });
+  });
+  AL.wm = next; AL.wmSeen = true;
+}
+
+function wmBlock(label, html){
+  return '<div class="blk"><div class="l">'+esc(label)+'</div>'+html+'</div>';
+}
+function wmRunwayLine(r, name, richer){
+  if(!r || !r.target)
+    return '<div>'+esc(name)+': '+esc((r && r.why) || "no target")+'</div>';
+  var hot = richer === name.toUpperCase();
+  return '<div'+(hot?' style="font-weight:700"':'')+'>'+esc(name)+' &rarr; '
+    + esc(r.target.kind)+' '+esc(num(r.target.px,0))
+    + ' &middot; fuel '+esc(num(r.fuel))+' ('+esc(num(r.per_point))+'/pt) [I]'
+    + (hot ? ' &middot; RICHER' : '')+'</div>';
+}
+function renderWarMap(){
+  var el = $("warmap");
+  if(!el) return;
+  $("wmIdx").textContent = S.idx || "—";
+  var w = (S.warmap && S.warmap.indices && S.idx)
+    ? S.warmap.indices[S.idx] : null;
+  if(!S.warmap){
+    el.innerHTML = '<div class="note">/api/warmap is not answering — an '
+      + 'older server does not serve it</div>';
+    return;
+  }
+  if(!w || !w.ok){
+    el.innerHTML = '<div class="note">'
+      + esc((w && w.why) || S.warmap.why || "no war map for this index yet")
+      + '</div>';
+    return;
+  }
+  var spot = w.spot;
+  if(spot == null){
+    el.innerHTML = '<div class="note">no spot in the last chain snapshot</div>';
+    return;
+  }
+  // -- the ladder ----------------------------------------------------
+  var lo = spot * 0.988, hi = spot * 1.012;
+  var lvAll = w.levels || [], lv = lvAll.filter(function(l){
+    return l.px >= lo && l.px <= hi; });
+  var beyond = lvAll.length - lv.length;
+  var heat = (w.heat || []).filter(function(r){ return r.k >= lo && r.k <= hi; });
+  var maxOi = 1;
+  heat.forEach(function(r){
+    maxOi = Math.max(maxOi, r.ce_oi || 0, r.pe_oi || 0); });
+  var W = 1000, H = 640, T = 12, B = 12, CX = 500, HALF = 330;
+  function py(p){ return T + (hi - p) / (hi - lo) * (H - T - B); }
+  var g = ['<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'];
+
+  // inferred stop zones, drawn first so everything sits on top of them
+  ["up", "down"].forEach(function(dname){
+    var r = (w.runways || {})[dname], z = r && r.stop_zone;
+    if(!z || z.lo == null) return;
+    var a = Math.min(z.lo, z.hi), b = Math.max(z.lo, z.hi);
+    if(b < lo || a > hi) return;
+    var y1 = py(Math.min(b, hi)), y2 = py(Math.max(a, lo));
+    g.push('<rect x="60" y="'+y1.toFixed(1)+'" width="'+(W-120)
+      + '" height="'+(y2-y1).toFixed(1)+'" fill="var(--risk)" opacity=".07"/>');
+    g.push('<text class="axtx" x="'+(W-66)+'" y="'+(y1+11).toFixed(1)
+      + '" text-anchor="end" fill="var(--risk)" opacity=".8">inferred stop zone [I]</text>');
+  });
+
+  // OI heat: CE left, PE right; fresh build brighter; pain outlined
+  heat.forEach(function(r){
+    var y = py(r.k);
+    [["ce", -1], ["pe", 1]].forEach(function(sd){
+      var side = sd[0], dir = sd[1];
+      var oi = r[side+"_oi"] || 0, chg = r[side+"_chg"] || 0;
+      if(!oi) return;
+      var len = HALF * oi / maxOi;
+      var fresh = oi > 0 && Math.abs(chg) / oi > 0.10;
+      var pain = r[side+"_pain"];
+      var x = dir < 0 ? CX - 8 - len : CX + 8;
+      g.push('<rect x="'+x.toFixed(1)+'" y="'+(y-4).toFixed(1)
+        + '" width="'+len.toFixed(1)+'" height="8" rx="1.5"'
+        + ' fill="'+(dir < 0 ? "var(--sell)" : "var(--buy)")+'"'
+        + ' opacity="'+(fresh ? ".85" : ".32")+'"'
+        + (pain > 0 ? ' stroke="var(--risk)" stroke-width="1.5"' : "")
+        + '><title>'+esc(num(r.k,0))+' '+side.toUpperCase()
+        + ' oi '+esc(num(oi))+' · day chg '+esc(num(chg))
+        + (pain > 0 ? ' · writers underwater '+esc(num(pain,1))+' pts [I]'
+                    : "")+'</title></rect>');
+    });
+  });
+
+  // the levels, labeled with kind + tests from the sequence machines
+  var seq = w.sequence || {};
+  lv.forEach(function(l){
+    var y = py(l.px);
+    var m = seq[l.kind + "@" + l.px.toFixed(1)];
+    var minor = l.kind === "ROUND" && !l.major;
+    var col = l.kind === "PDH" || l.kind === "PDL" ? "var(--ink)"
+            : l.stable ? "var(--muted)" : "var(--grid)";
+    var dwellHere = (w.dwell && w.dwell.holding && w.dwell.level
+                     && w.dwell.level.kind === l.kind
+                     && Math.abs(w.dwell.level.px - l.px) < 0.01);
+    if(dwellHere)
+      g.push('<rect x="60" y="'+(y-7).toFixed(1)+'" width="'+(W-120)
+        + '" height="14" fill="var(--amber)" opacity=".12"/>');
+    g.push('<line x1="60" y1="'+y.toFixed(1)+'" x2="'+(W-60)+'" y2="'+y.toFixed(1)
+      + '" stroke="'+col+'" stroke-width="'+(minor ? .6 : 1)+'"'
+      + (l.stable ? "" : ' stroke-dasharray="4 4"')+' opacity=".8"/>');
+    if(!minor){
+      g.push('<text class="axtx" x="4" y="'+(y+3.5).toFixed(1)+'" fill="'+col+'">'
+        + esc(l.kind)+' '+esc(num(l.px,0))
+        + (m && m.tests ? ' ·'+m.tests+'t' : "")
+        + (m && m.state !== "IDLE" ? ' ·'+esc(m.state) : "")
+        + (l.tag === "I" ? ' [I]' : "")+'</text>');
+    }
+  });
+
+  // spot, on top of everything
+  var ys = py(spot);
+  g.push('<line x1="40" y1="'+ys.toFixed(1)+'" x2="'+(W-40)+'" y2="'+ys.toFixed(1)
+    + '" stroke="var(--bull)" stroke-width="2"/>');
+  g.push('<text class="axtx" x="'+(W-44)+'" y="'+(ys-6).toFixed(1)
+    + '" text-anchor="end" fill="var(--bull)" font-weight="700">spot '
+    + esc(num(spot,1))+'</text>');
+  g.push('</svg>');
+
+  // -- the side readout ---------------------------------------------
+  var run = w.runways || {}, dw = w.dwell || {}, dr = w.driver || {};
+  var side = [];
+  side.push(wmBlock("which side pays to run",
+    '<div class="v">'+wmRunwayLine(run.up, "up", run.richer)
+    + wmRunwayLine(run.down, "down", run.richer)+'</div>'
+    + (run.ok === false ? '<div>'+esc(run.why||"")+'</div>' : "")));
+  side.push(wmBlock("the dwell — the trap being set",
+    '<div class="v">'+esc(dw.why || "no reading")
+    + (dw.holding && dw.oi_added_ce != null
+        ? '<br>loaded: CE '+esc(num(dw.oi_added_ce))+' · PE '
+          + esc(num(dw.oi_added_pe))
+          + (dw.buyers_crossing != null
+              ? ' · '+Math.round(dw.buyers_crossing*100)
+                + '% trading at/above mid [I]' : "")
+        : "")+'</div>'));
+  side.push(wmBlock("who is driving [I]",
+    '<div class="v">'+esc(dr.lean || "—")+'</div><div>'+esc(dr.why || "")+'</div>'));
+  var part = S.warmap.participant || {};
+  var ptxt;
+  if(part.status === "done" && part.data){
+    var c = part.data.Client || {}, p = part.data.Pro || {};
+    function net(a, b){ return (a == null || b == null) ? null : a - b; }
+    function fmtN(v){ return v == null ? "?" : (v > 0 ? "+" : "") + num(v); }
+    ptxt = 'Client net '+fmtN(net(c.call_long, c.call_short))+' calls, '
+      + fmtN(net(c.put_long, c.put_short))+' puts · Pro net '
+      + fmtN(net(p.call_long, p.call_short))+' calls, '
+      + fmtN(net(p.put_long, p.put_short))+' puts — as of '
+      + esc(part.day || "?")+', one day lagged [M]';
+  } else if(part.status === "fetching"){
+    ptxt = "fetching the NSE participant file…";
+  } else {
+    ptxt = part.why || "no participant context";
+  }
+  side.push(wmBlock("client vs pro (NSE EOD)", '<div>'+esc(ptxt)+'</div>'));
+  var act = Object.keys(seq).filter(function(k){
+    return seq[k].state !== "IDLE"; });
+  side.push(wmBlock("the playbook (shadow — gates nothing)",
+    '<div class="v">'+(act.length
+      ? act.map(function(k){
+          var m = seq[k];
+          return esc(k)+' &rarr; '+esc(m.state)
+            + (m.target ? ' (target '+esc(m.target.kind)+' '
+               + esc(num(m.target.px,0))+')' : "");
+        }).join("<br>")
+      : "every level idle — no approach in progress")+'</div>'
+    + '<div>log: '+esc(num((w.seq_log||{}).written))+' transition(s) today'
+    + ((w.seq_log||{}).failed ? ' · '+esc(num(w.seq_log.failed))+' FAILED writes'
+                              : "")+'</div>'));
+  if(w.daily_why)
+    side.push(wmBlock("levels missing", '<div>'+esc(w.daily_why)+'</div>'));
+
+  el.innerHTML = '<div class="wmwrap">'
+    + '<div class="wmplot">'+g.join("")+'</div>'
+    + '<div class="wmside">'+side.join("")+'</div></div>'
+    + '<div class="note" style="margin-top:6px">CE books left (teal), PE books '
+    + 'right (brass); a brighter bar built more than 10% of itself today; a '
+    + 'red outline is a book whose writers are underwater [I]. Band '
+    + (w.band != null ? esc(num(w.band,1))+' pts (self-calibrated)' : "not calibrated")
+    + (beyond > 0 ? ' · '+beyond+' level(s) beyond this window' : "")
+    + '. Stop zones and retail attribution are inferences, forever.</div>';
 }
 
 /* -- trending oi: context, not the hero. -------------------------------
@@ -1242,6 +1688,11 @@ function render(){
              document.activeElement.getAttribute("data-k") ||
              document.activeElement.getAttribute("data-t"))) || null,
     scroll: ($("rail") ? $("rail").scrollTop : 0),
+    // The PAGE position too, not just the rail's: replacing several panels'
+    // innerHTML defeats the browser's own scroll anchoring, and the reader
+    // is usually parked further down (the trending-OI table) than any of
+    // the panels being rebuilt.
+    winX: window.scrollX, winY: window.scrollY,
     open: Array.prototype.map.call(document.querySelectorAll("#rail details"),
                                    function(x){ return x.open; })
   };
@@ -1283,6 +1734,8 @@ function render(){
     : (S.idx||"");
   if(S.tab==="payoff") drawPayoff(c, d||{}); else drawSmile(S.idx, c);
   renderDetail(c, d||{});
+  renderPaperDesk();
+  renderWarMap();
   renderOiFlow();
 
   // ...and put it back.
@@ -1293,8 +1746,12 @@ function render(){
     var again = document.querySelector('[data-n="'+keep.focus+'"], '
                                      + '[data-k="'+keep.focus+'"], '
                                      + '[data-t="'+keep.focus+'"]');
-    if(again) again.focus();
+    // preventScroll: re-focusing a card near the top of the page must not
+    // yank the viewport up to it -- that is the "moves the page up" the
+    // operator reported while reading the tables below.
+    if(again) try{ again.focus({preventScroll:true}); }catch(e){ again.focus(); }
   }
+  window.scrollTo(keep.winX, keep.winY);
 }
 
 /* -- wiring ---------------------------------------------------------- */

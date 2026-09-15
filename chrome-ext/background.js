@@ -22,8 +22,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   // when it matters. Two localhost GETs per 15s is not a cost worth saving.
   // Health failing alone must NOT blank the panel, hence the inner catch:
   // an older server with no /api/health still serves a perfectly good tape.
-  Promise.all([get(`/data?idx=${idx}`), get('/health').catch(() => null)])
-    .then(([data, health]) => reply({ ok: true, data, health }))
+  // /api/senses rides along for ONE reading: the shadow VPIN gauge. n=1 --
+  // the panel wants the toxicity number, not the row ring. Failing alone
+  // must not blank the panel either: an older server has no vpin field.
+  Promise.all([
+    get(`/data?idx=${idx}`),
+    get('/health').catch(() => null),
+    get('/senses?n=1').catch(() => null),
+  ])
+    .then(([data, health, senses]) =>
+      reply({ ok: true, data, health, vpin: (senses && senses.vpin) || null })
+    )
     // The panel must be able to say WHY it is blank. A silent failure here
     // looks identical to a quiet market, which is the one thing it must never
     // look like.

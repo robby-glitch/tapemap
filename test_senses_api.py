@@ -375,19 +375,30 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
         transition_kw.append(kw)
     monkeypatch.setattr(desk_log, "log_transition", _capture_transition)
 
+    # `_DESK_GATE` is module-level (it shares `desk_state`'s lifetime in the
+    # live server); give this test its own so it cannot inherit another
+    # test's confirmations.
+    import oi_dwell
+    monkeypatch.setattr(server, "_DESK_GATE", oi_dwell.StateGate())
+
     desk_state = {}
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
 
     # The surface line: a successful fit, always logged.
     assert surfaces and surfaces[0][0] == "NIFTY"
     # State cached for the next diff.
+    # `oi_dir` is HOLD here (strikes=None -> no OI base), which the gate
+    # publishes as None: "no view yet", not a direction.
     assert desk_state["NIFTY"] == {"gear": "CASCADE", "conviction": "FORCED",
-                                   "deployable": "long_call"}
+                                   "deployable": "long_call",
+                                   "oi_dir": None}
     # First reading -- all three fields transition FROM None, and every row
     # is marked baseline=True (the restart pseudo-transition, not an
     # observed one -- see desk_log.py's module docstring / _log_chain_pace's
     # own docstring above).
     fields = {t[1] for t in transitions}
+    # `oi_dir` is absent: it read HOLD (no OI base) and published None, and
+    # None -> None is not a transition. Three rows, not four.
     assert fields == {"gear", "conviction", "deployable"}
     assert all(t[2] is None for t in transitions)
     assert all(kw.get("baseline") is True for kw in transition_kw)
@@ -398,11 +409,17 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
     assert transitions == []
 
-    # A real change -- only the ONE changed field is logged, and it is a
-    # genuine transition, not a baseline row.
+    # A real change -- but ONE snapshot no longer moves the desk. oi_dwell's
+    # gate needs CONFIRM consecutive readings before a field flips. This is
+    # the defect measured 2026-08-24 (1,126 `deployable` transitions in a
+    # session, median life eleven seconds) pinned as fixed: the desk may now
+    # only say something it has said CONFIRM times running.
     decision2 = desk_mod.Decision(index="NIFTY", expiry="2026-08-27",
                                   best="short_strangle")
     monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision2)
+    for _ in range(oi_dwell.CONFIRM - 1):
+        server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
+    assert transitions == [], "an unconfirmed change must not be published"
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
     assert len(transitions) == 1
     _idx, field, frm, to = transitions[0]

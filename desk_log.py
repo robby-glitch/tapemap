@@ -77,7 +77,7 @@ MARKET_CLOSE = (15, 30)
 # The three fields a transition can fire on, in the order a reader expects
 # them named -- gear (the regime), conviction (the direction view's
 # strength), deployable (the desk's own best-structure name, or None).
-TRANSITION_FIELDS = ("gear", "conviction", "deployable")
+TRANSITION_FIELDS = ("gear", "conviction", "deployable", "oi_dir")
 
 
 def market_hours(now: Optional[datetime] = None) -> bool:

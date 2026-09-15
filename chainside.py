@@ -50,6 +50,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+import threading
+
 import trapped_inventory
 from fuse import Rank
 
@@ -103,6 +105,12 @@ class ChainSide:
 
     def __init__(self):
         self._led: Dict[Tuple[float, str], trapped_inventory.Ledger] = {}
+        # THE MORNING SEED (see seed_from_rest). `idx` is stamped by Chains;
+        # a ChainSide built directly (tests, fixtures) has none and never seeds.
+        self.idx: Optional[str] = None
+        self.seed = "off"          # off | running | done | failed:<why>
+        self._buf: List[tuple] = []   # live obs while the seed is in flight
+        self._lock = threading.Lock()
         self._pain_rank = Rank()
         # One rank PER SIDE. A single pooled rank cannot answer "is the
         # trapped side leaving" no matter how it is thresholded, because the
@@ -118,6 +126,82 @@ class ChainSide:
             # here unchanged rather than quietly re-decided.
             self._led[key] = trapped_inventory.Ledger(side="short")
         return self._led[key]
+
+    # ---------------------------------------------------------------- seed
+    def maybe_seed(self, strikes: Optional[List[dict]]) -> None:
+        """Kick the morning seed once, on a daemon thread. Upstox only."""
+        if self.seed != "off" or not strikes or not self.idx:
+            return
+        # ONE definition of which broker is live, not a fourth copy of the
+        # rule. chain_live._broker defaults to dhan on purpose: a missing or
+        # misspelled env var must never move the tool onto another source.
+        import chain_live
+        if chain_live._broker() != "upstox":
+            self.seed = "off: not upstox"
+            return
+        ks = [s["k"] for s in strikes if s.get("k") is not None]
+        if not ks:
+            return
+        self.seed = "running"
+        threading.Thread(target=self._seed_worker, args=(ks,),
+                         daemon=True).start()
+
+    def _seed_worker(self, ks: List[float]) -> None:
+        try:
+            import chain_backfill
+            import upstox_feed
+            legs = chain_backfill.leg_grid(self.idx, ks,
+                                           upstox_feed.read_token())
+            self.seed_from_rest(legs)
+        except Exception as e:                        # noqa: BLE001
+            # Never fatal. A ledger with no morning still reports, and says
+            # `low` coverage while it does -- which is the honest degradation
+            # the anytime-start rule asks for, not a failure.
+            self.seed = f"failed: {e}"
+            self._buf = []
+
+    def seed_from_rest(self, legs: dict) -> int:
+        """Rebuild every ledger from the REST morning, then replay whatever the
+        live path saw while the fetch was in flight.
+
+        WHY REBUILD RATHER THAN TOP UP. `Ledger.feed`'s FIRST observation writes
+        `unwatched = oi` -- everything standing at that moment is permanently
+        outside `basis`. A ledger the live path already touched has therefore
+        already written off the morning, and feeding 09:15 rows into it after
+        the fact would hand it a huge negative dOI. So the seed builds FRESH
+        ledgers, replays the morning into them, replays the buffer, and swaps.
+
+        Returns the number of legs seeded.
+        """
+        fresh: Dict[Tuple[float, str], trapped_inventory.Ledger] = {}
+        n = 0
+        for k, pair in (legs or {}).items():
+            for side in ("ce", "pe"):
+                oi_by_min, _base, px_by_min = (pair or {}).get(
+                    side) or ({}, None, {})
+                if not oi_by_min or not px_by_min:
+                    continue
+                led = trapped_inventory.Ledger(side="short")
+                for m in sorted(oi_by_min):
+                    oi, px = oi_by_min.get(m), px_by_min.get(m)
+                    if oi is None or px is None:
+                        continue          # the ledger waits; it never interpolates
+                    led.feed(m, float(oi), float(px))
+                fresh[(float(k), side)] = led
+                n += 1
+        with self._lock:
+            for (t, k, side, oi, ltp) in self._buf:
+                key = (float(k), side)
+                if key in fresh:
+                    fresh[key].feed(t, oi, ltp)
+            # Legs the seed never covered keep the ledger they already had --
+            # a partial morning beats dropping a leg the live path was watching.
+            for key, led in self._led.items():
+                fresh.setdefault(key, led)
+            self._led = fresh
+            self._buf = []
+            self.seed = "done"
+        return n
 
     def on_snapshot(self, t: str, strikes: Optional[List[dict]]) -> ChainRead:
         """One normalized chain snapshot -> the fuel and drain reading.
@@ -146,6 +230,11 @@ class ChainSide:
                     continue
                 led = self._ledger(k, side)
                 led.feed(t, float(oi), float(ltp))
+                if self.seed == "running":
+                    # Buffered, not dropped: when the seed lands it rebuilds
+                    # each ledger from 09:15 and must then replay everything
+                    # the live path saw in the meantime, in order.
+                    self._buf.append((t, k, side, float(oi), float(ltp)))
                 _s, pain = led.trapped(float(ltp))
                 if pain > 0:
                     pains[side] = pains.get(side, 0.0) + pain
@@ -221,8 +310,11 @@ class Chains:
     def for_index(self, idx: str) -> ChainSide:
         if idx not in self._by:
             self._by[idx] = ChainSide()
+            self._by[idx].idx = idx      # the seed needs to know whose chain it is
         return self._by[idx]
 
     def on_snapshot(self, idx: str, t: str,
                     strikes: Optional[List[dict]]) -> ChainRead:
-        return self.for_index(idx).on_snapshot(t, strikes)
+        side = self.for_index(idx)
+        side.maybe_seed(strikes)
+        return side.on_snapshot(t, strikes)

@@ -97,6 +97,25 @@ def historical(key, tok, day, interval="1minute"):
     return (data.get("data") or {}).get("candles") or []
 
 
+def daily_range(key, tok, frm, to, interval="day"):
+    """Completed daily candles for `frm`..`to` inclusive, newest first.
+
+    The reaction-point map's path (levels.py): PDH/PDL and the prior week's
+    H/L come from here, in ONE request per index per day -- not a loop over
+    `historical`, which would spend a throttled call per session for data
+    this endpoint serves in a single range.
+    """
+    url = (f"{BASE}/historical-candle/{urllib.parse.quote(key, safe='')}/"
+           f"{interval}/{to}/{frm}")
+    try:
+        data = _get(url, tok)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return []
+        raise
+    return (data.get("data") or {}).get("candles") or []
+
+
 def baselines(meta, tok, on_error=None):
     """{(strike, side): 09:15 open interest} for every leg in `meta`.
 

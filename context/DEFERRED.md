@@ -19,7 +19,35 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 873** (`pytest -q`, 2026-08-22 - reviewer fix on commit
+- **Test count is now 1072** (`pytest -q`, 2026-09-09 - the paper day read
+  back from the LOG: 21 in `test_day_trades.py` (pairing math, partial fills
+  averaged quantity-weighted, restart-survives-via-log, the why join, and no
+  rate printed) (1041+21=1062); before that 1041 - the three numbers the
+  rebuilt desk screen had to declare missing: 20 in `test_desk_numbers.py`
+  (Black-76 theta against finite differences of the existing pricer, RV(5d)
+  from the bar cache, margin at shifted spot) (1021+20=1041); before that
+  1021 - the short-variance
+  paper module: 33 in `test_hedge.py` (band math, the brake, the average-cost
+  futures inventory, ledger rows, and nine integration cases through the real
+  `trader.on_chain` tick) (988+33=1021); before that 988 - the anytime-start
+  audit repairs: 7 in `test_warmap.py` constructing each `confidence()` state
+  through real feed sequences, after the arithmetic was found dead
+  (981+7=988); before that 981 - the late-start
+  follow-ups: per-strike PREMIUM riding the same candles as the OI backfill
+  (7 in `test_chain_backfill.py`) and `trapped_inventory.confidence()` on the
+  warmap heat rows (2 in `test_warmap.py`) (972+9=981); before that 972 -
+  startup backfill and
+  the day that survives the evening: 31 across `test_vpin_backfill.py` (13),
+  `test_day_state.py` (15) and `test_chain_backfill.py` (+3, the backfill tag
+  reaching the trending-OI rows) (941+31=972); before that 941 - the
+  cascade-flicker
+  debounce guard: 1 - the mock-isolation
+  guard after the replay leak: 1 - the paper desk:
+  22 tests across `test_book.py` / `test_quoting.py` / `test_trader.py`
+  (900+22=922); before that 900 - the OI war map: 27
+  tests across `test_levels.py` / `test_dwell.py` / `test_hunt.py` /
+  `test_sequence.py` / `test_driver.py` / `test_warmap.py` (873+27=900);
+  before that 873 - reviewer fix on commit
   b71f991 (Finding 1): `desk_log.log_transition` gained a `baseline` marker
   for restart pseudo-transitions, plus 2 tests in `test_desk_log.py`
   (871+2=873); before that 871 - Phase 4 (the record a
@@ -58,6 +86,100 @@ Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
   §0d below, which is what made it necessary.
 - **`exit_why`'s half-landed correction is CLOSED** (`654d17c`): `machine.ts`
   exports `lockNote` and all three screens render the re-fire lock through it.
+
+## 0g · DIVERGENCE HAS AN AFTERNOON THETA-BIAS — found 2026-08-25, deliberately not fixed
+
+`engine.py`'s DIVERGENCE ("FUT new extreme, confirming option can't better its
+own best") thresholds the option's gap from its OWN session peak at
+`2·med60 × (prem/FUT) × 8` ≈ 0.6 premium points on NIFTY. Theta alone drags
+an option that far below its morning peak by early afternoon, so late-day new
+FUT extremes fire DIVERGENCE (and cast a trap_ev vote) with no real
+divergence present. The honest fix needs the expected premium move — delta
+(and theta) from `surface.py`, which already computes both — not a price
+ratio and a magic 8. Until then: discount afternoon DIVERGENCE votes when
+reading TRAP-SETTING. Not fixed same-day because it changes a scored stream's
+behaviour mid-forward-log and deserves its own measured change.
+
+## 0h · ~~THE AUG-24 CACHE IS ~44% SHORT~~ — DISPROVED 2026-08-25. The defect was the PATH, and it is fixed. Captures are ~1% short by design.
+
+**The original claim, kept because being wrong in writing is worth more than a
+tidy file:** *"TV export of NIFTY AUG FUT 2026-08-24 totals 4,224,415 units;
+cached `data/backtest/fut_2026-08-24.json` totals 2,374,190 ... truncated
+sessions sit inside any ADV computed from the cache (VPIN's BUCKET_V median ate
+at least this one)."*
+
+**The reasoning error:** a disagreement between our cache and a TradingView
+export was read as OUR file being truncated, without ever asking the SOURCE.
+Two numbers differing tells you they differ; it does not tell you which one is
+wrong. The check that settles it costs one REST call.
+
+**Measured 2026-08-25, against Upstox itself:**
+
+| session | Upstox REST | our cache | verdict |
+|---|---|---|---|
+| 2026-08-24 | 385 bars, **2,374,190** | 385 bars, **2,374,190** | **exact match** |
+| 2026-08-25 | 385 bars, 3,786,835 (09:15–15:39) | 379 bars, 3,746,860 (09:15–15:33) | **1.06% short** |
+
+The Aug-24 capture is byte-for-byte what the broker serves. **The 4,224,415 TV
+figure is the outlier, not our file** — a different contract, unit convention
+or aggregation; it was never reconciled before being used to indict the cache.
+Nothing truncated ate the BUCKET_V median, and `vpin.BUCKET_V = 60_000` needs
+no recalibration on this account.
+
+**The real defect, found the same night:** the "TapeMap EOD capture" scheduled
+task executed
+`C:\Users\kaam\Desktop\new tool nifty\eod_capture.bat` — the OTHER repo. Both
+repos' `.bat` files are identical and correctly portable (`cd /d "%~dp0"`), so
+each ran fine and wrote into its own folder; the live repo simply never
+received them. Last run 2026-08-25 15:35, result 0 — a clean success into the
+wrong tree. `data/backtest/fut_2026-08-25.json` was missing here and present
+there.
+
+**Recovered:** the three orphaned 2026-08-25 captures (NIFTY, `BANKNIFTY/`,
+`SENSEX/`) were verified for day, shape and `_meta.source` and copied into this
+repo's cache, never clobbering an existing file. A directory diff showed those
+three were the ONLY files missing — 08-24 and earlier had been backfilled here
+by manual runs (this repo's 08-24 carries `captured_at 19:02` and is the FULLER
+385-bar version).
+
+**DONE 2026-08-25 night, on the operator's word ("chala de tu he"):** the
+scheduled task was repointed with the schtasks line below and VERIFIED via
+`schtasks /Query /V`: Task To Run = the live repo's eod_capture.bat, Status
+Ready, Logon Mode "Interactive only" (no run-as password needed — she just
+has to be logged in at 15:35), Next Run 26-08-2026 15:35. First capture
+into the right repo is tomorrow's.
+
+```
+schtasks /Change /TN "TapeMap EOD capture" /TR "C:\Users\kaam\Desktop\operator mode\tapemap\eod_capture.bat"
+```
+
+**The residual ~1% is BY DESIGN, not a bug:** the task fires at 15:35 and the
+exchange's last bars land 15:34–15:39, so a capture always misses a ~6-bar
+tail. `recover_tape.py` pulls the full 385-bar session from Upstox when the
+tail matters. Worth knowing before anyone reads a 1% gap as a new truncation.
+
+## 0i · THE DESK ANSWER OSCILLATES — measured 2026-08-25, hysteresis owed, hold-time is the operator's call
+
+Measured live, twice, independently of any UI: `/api/desk`'s answer changed
+4 times in 35 seconds (~14:00: SENSEX NEUTRAL→BULL→NEUTRAL→BEAR in 20s,
+BANKNIFTY gear TRANSITION→UNKNOWN), and a client counting confirmed flips saw
+42 in 60 minutes. The answer is recomputed per chain snapshot with no memory,
+so inputs sitting on a boundary flicker the headline. This is the operator's
+single loudest complaint about the old desk ("baar baar change hota rehta h").
+
+Sketch, deliberately not built on the night shift: hold the published answer
+per index; a NEW answer must persist N consecutive snapshots (or T seconds)
+before it replaces the held one; publish BOTH `answer` (held) and `raw`
+(this snapshot) so nothing is hidden; every promotion is a dated line the
+UIs can log. N/T changes what the desk SAYS, so the operator picks it with
+the flip evidence in front of her — both replacement UIs already count and
+display the raw churn client-side (tool.html / toolb.html), which covers the
+reading until then. Related same-day findings from the clean-room builds:
+`best` is a string inconsistent with `candidates[]` and can name a
+non-deployable structure; top-level `ok:false` while all indices are valid;
+`/api/data` leaks ±1e18 sentinels into narrative text; warmap `seq_log` is
+write-stats, not the event log its name implies; paperdesk restart
+durability is asymmetric (decisions reset, closed_today survives).
 
 ## 0d · ~~THE TAPE EVAPORATES AT MIDNIGHT~~ · **CLOSED 2026-08-20 — the five "permanently unmeasurable" rows ARE measured**
 

@@ -1,9 +1,18 @@
 # TapeMap — start here
 
-**Last verified: 2026-08-22.** Every number below was measured on that date, not
-remembered. If you are an AI or a person picking this project up, read this file
-to the end before touching anything. It exists because handovers kept starting
-from stale assumptions and re-doing work that is finished, dead, or forbidden.
+**Last verified: 2026-08-22**, with §0.6 added 2026-08-25. Every number below
+was measured on its date, not remembered. If you are an AI or a person picking
+this project up, read this file to the end before touching anything. It exists
+because handovers kept starting from stale assumptions and re-doing work that
+is finished, dead, or forbidden.
+
+**For anything newer than 2026-08-22 — and a lot is newer — the current
+picture lives in `context/HANDOFF.md`'s "STATE OF THE APP" section** (the
+VPIN shadow module and its first validated live day, the rejected desk and
+its clean-room replacement `ui/toolb.html`, startup backfill, the
+short-variance paper hedger, and what is pending the operator's word). This
+file's §1–§8 remain true about the TAPE; the desk half moved fastest and
+`HANDOFF-DESK.md` §8g is its current shape.
 
 ---
 
@@ -38,6 +47,24 @@ Read these first. Each one has cost real time.
 5. **`exit_why` is a re-fire lock, not a trade exit.** It marks when the
    detector may arm again. The operator trails their own stop; the tool does not
    model their exit.
+6. **START THE SERVER DETACHED, and never assume "when it started" is
+   harmless.** Two rules were bought with real data loss on 2026-08-25:
+   - The server must be launched as its OWN process
+     (`Start-Process -FilePath '...\start-v2.bat' -WorkingDirectory
+     '...\tapemap' -WindowStyle Minimized`), never as a child of an assistant
+     or terminal session — a host restart at 12:05 that day killed it
+     mid-market and cost ~30 minutes out of **every** forward log.
+   - **The anytime-start rule** (the operator's standing instruction): every
+     module must be correct no matter WHEN it is started — 09:20, 11:00 or
+     19:30. That means backfill the morning exactly and TAG it (`backfill:
+     true` / `src`, never blended with observed rows), persist day state
+     across restarts, and where a thing genuinely cannot be reconstructed,
+     SAY so with the reason (`/api/health.coverage`). A number that is
+     silently wrong because you started late is worse than a missing one —
+     it looks right. An audit of 77 session-anchored pieces on 2026-08-25
+     found 20 that were silently wrong; the tape path itself passed (bars,
+     zones, session ranks and events replay from 09:15 even on a 375-minute
+     late start — proven live, not assumed).
 
 ---
 
@@ -201,7 +228,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 873 tests, all green as of 2026-08-22
+python -m pytest -q       # 924 tests, all green as of 2026-08-24
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a
@@ -235,9 +262,28 @@ Two diverged copies exist:
   chart* and so solves §0.4's σ-mismatch by construction. It does **not** contain
   the hybrid.
 
-**Decision pending: port the tape layer INTO 1.21.1** (~300 lines, 7 isolated
-touch points, zero key collisions) rather than the reverse. Open bugs in the
-1.21.1 line, worst first: blast entries have no time cutoff (the gate returns
+**DONE 2026-08-24: the tape layer was ported INTO the 1.21.1 line**, which
+now lives as **`paperdeskextension1.22.0/`** in `~/Downloads/` (1.21.1 itself
+is untouched and remains the fallback). 9 touch points, zero key collisions,
+1003 assertions green, safety audit clean. Two adaptations are recorded in its
+`CHANGES-1.21.1-to-1.22.0.md`: chart plates now take 1.21.1's sampled theme
+(the hybrid hardcoded white, invisible on a dark chart), and `/api/data`'s
+`day` turned out to be a DISPLAY label ("Aug 24 LIVE") that `istMs` cannot
+parse -- every mark reduced to ts 0 and painted at 1970, off-chart and
+silent. `PD.T.dayIso` resolves it from `built_at` without inventing a date.
+**LOADED AND LIVE since 2026-08-25**, and now at **v1.22.5** (its own
+changelog in that tree is `CHANGES-1.22.0-to-1.22.4.md`, with the 1.22.5
+entry appended). What landed on top of the port: VPIN computed natively from
+the same ws-tap tick stream CVD uses (NIFTY FUT only, drawn on the chart), a
+TAPE cell in the minimized bar (VPIN · IV · tax · trending OI), every live
+read ending in a `[VPIN x% · IV +y · tax z% · OI ±w%]` context suffix with a
+pre-open/post-close gate, and 1.22.5 turning the big-print reads OFF (the
+8×-EWMA bar fired on ~900-qty prints — noise at 2.9M ADV; re-enable only
+with an absolute qty floor). **The version lives in TWO places —
+`manifest.json` AND `src/core.js` PD.VERSION — bumping one alone trips the
+stale-files self-check on load.** v1.22.5 is on disk but the operator still
+has to reload it at `chrome://extensions` and refresh the Kite tab. Its five open bugs were deliberately NOT fixed as part of that port (one
+change at a time) and still stand, worst first: blast entries have no time cutoff (the gate returns
 early), the background inject list omits `auto.js`/`diag.js`, pad short-option
 margin still falls back to 10× premium, MIS square-off uses the machine clock
 instead of IST, and `instFor` caches `null` permanently. Its recovered 1.17.0
@@ -323,6 +369,16 @@ question that matters: **would a desk take this trade?**
 - **The forward test needs more rows.** NIFTY BUY is the biggest zone cell at
   n=9. There is nothing to do but let it run — `eod_capture` and the logger are
   automatic.
+- **The paper desk (built 2026-08-23) has never seen a live session.**
+  `book.py` / `quoting.py` / `trader.py`, `/api/paperdesk`, the review panel
+  on `/desk.html` — HANDOFF-DESK.md §8f. The tool trades its own readings,
+  both sides, 2 lots, PAPER ONLY, and logs decisions + refusals to
+  `data/paper_desk/`. Daily review with the operator; deployment is hers.
+- **The OI war map (built 2026-08-22) has never seen a live session.**
+  `levels` / `dwell` / `hunt` / `sequence` / `driver` / `warmap`,
+  `/api/warmap`, the ladder on `/desk.html` — HANDOFF-DESK.md §8d. All
+  shadow; the sequence machine forward-logs to `data/warmap/` and its
+  30-session kill clock starts at the next open.
 - **The desk has NO track record at all.** `direction.py`, the flow catalog and
   the drag meter were built 2026-08-21/22 and have never run through a live
   session end to end. `direction.py` carries a kill condition in its docstring:
@@ -333,8 +389,20 @@ question that matters: **would a desk take this trade?**
   richness is CROSS-SECTIONAL only — a point against today's curve, never "the
   surface is rich". `HANDOFF-DESK.md` §8 lists the rest in dependency order.
 - **The operator owes §5e's pass bar**, stated before the numbers are read.
-- **Port the tape layer into PaperDesk 1.21.1** (§5), and fix that line's five
-  open bugs.
+- ~~**Port the tape layer into PaperDesk 1.21.1**~~ — DONE 2026-08-24, and
+  that line is live at v1.22.5 (§5). Its five open bugs still stand.
+- **UPDATE 2026-08-25 — three of the bullets above have moved.** The war map
+  and the desk both had their first live sessions that day, and the VPIN
+  shadow module (`vpin.py`, NIFTY FUT only, `/api/vpin`) had its first and
+  passed it loudly: wall-unwind alerts at 11:56 and 13:55, then three
+  one-second imb-1.0 buckets at 14:39 reading 100th percentile, and the
+  expiry box broke UP at 14:41 — about 45 minutes of warning, in the order
+  the design intended (fuel from the percentile, side from the walls). ONE
+  day is not a record; its 30-session kill clock is running. Also new and
+  never live yet: **`hedge.py`**, the short-variance paper module
+  (HANDOFF-DESK.md §8g). The whole current picture, including what is
+  waiting on the operator's word, is in `context/HANDOFF.md`'s "STATE OF THE
+  APP" section — read that before planning anything.
 - **`/api/contract` and the two-leg confirm stack** (~850 lines, fully tested)
   still have no UI consumer. Ship the pair chart or delete the stack — mockups
   are at `ui-v2/comps/pair-chart-mockups.html`; the operator has seen them and
@@ -355,7 +423,7 @@ question that matters: **would a desk take this trade?**
 - **Keep the populations apart.** `5c`, `zone` and legacy rows are three
   different things. Pooling them is the single easiest way to destroy months of
   record.
-- **Tests are the house style.** `pytest -q` stays green (873), and non-trivial
+- **Tests are the house style.** `pytest -q` stays green (924), and non-trivial
   logic leaves one runnable check behind. Doc claims about test counts are pinned
   by `test_docs_claims.py` — update the docs when the count moves, or the suite
   fails on purpose.

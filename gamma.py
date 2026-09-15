@@ -75,6 +75,48 @@ def delta(F, K, iv, T, kind="C"):
     return df * _cdf(d1) if kind == "C" else df * (_cdf(d1) - 1.0)
 
 
+DAYS_PER_YEAR = 365.0
+"""CALENDAR, not trading, and it must stay that way: `surface.years_to_expiry`
+and `chain_live.t_years` both divide by 365*86400, so T here is a calendar
+year-fraction. Dividing an annual theta by 252 while T was built on 365 would
+silently inflate daily decay by ~45%. Time also genuinely passes on a
+weekend -- a Friday short collects three days of decay by Monday."""
+
+
+def theta(F, K, iv, T, kind="C"):
+    """Black-76 theta: dPrice/dt, PER YEAR. Same sign convention as price --
+    negative for a long option, because time passing costs the holder.
+
+    Derivation, written down because a wrong sign here reads as free money:
+
+        C  = e^{-rT} (F N(d1) - K N(d2))
+        dC/dT = -r C + e^{-rT} F n(d1) * sigma / (2 sqrt(T))
+
+    using the identity F n(d1) = K n(d2), which collapses the two density
+    terms into one. Theta is -dC/dT, so
+
+        theta = r * price - e^{-rT} F n(d1) sigma / (2 sqrt(T))
+
+    The SAME expression serves puts: the density term is identical (that
+    identity again) and the r*price term carries the put's own price. This is
+    why there is no `kind` branch below except through `bs_price`.
+
+    Note this is theta with respect to CALENDAR time, matching T's basis.
+    `theta_day` divides by 365 for the same reason.
+    """
+    if T <= 0.0 or iv is None or iv <= 0.0:
+        return 0.0
+    df = math.exp(-R * T)
+    d1 = _d1(F, K, iv, T)
+    return (R * bs_price(F, K, iv, T, kind)
+            - df * F * _pdf(d1) * iv / (2.0 * math.sqrt(T)))
+
+
+def theta_day(F, K, iv, T, kind="C"):
+    """One calendar day of decay, in price units. Negative for a long option."""
+    return theta(F, K, iv, T, kind) / DAYS_PER_YEAR
+
+
 IV_LO, IV_HI = 0.01, 2.0    # bisection bracket: 1% to 200% annualized vol
 
 

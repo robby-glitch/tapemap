@@ -1,7 +1,12 @@
 # The desk — handoff
 
-**Written 2026-08-21, after the first live session.** Branch
-`feature/operator-objects`. 842 tests pass.
+**Written 2026-08-21, after the first live session** (842 tests then; the
+suite is **1041** as of 2026-08-25 — `context/HANDOFF.md` holds the running
+count and the day-by-day history). **Sections are appended, not rewritten:
+§8d the war map, §8f the paper desk, §8g the seller pivot + the
+short-variance book — read §8g first if you are picking this up cold, it is
+the current shape of the screen and the newest module.** Branch
+`feature/operator-objects`.
 
 This describes what exists, why it is the way it is, and what comes next. Where
 a decision has a reason, the reason is written down — so you can weigh it and
@@ -387,6 +392,168 @@ Files touched: `desk_log.py` (new), `server.py` (`_senses_loop` restructured,
 (16), plus additions to `test_senses_api.py` (5), `test_pools.py` (2 new +
 4 rewritten for price-based alignment) and `test_eod_capture.py` (3). No
 order path touched; no backtest; no hit rate anywhere in either new log.
+
+## 8d. The OI war map (2026-08-22)
+
+Born from the operator's own thesis, stated 2026-08-22 (memory note
+`oi-liquidity-hunt-thesis`; plan in the "OI War Map" artifact): smart money
+walks price to a retail reaction point, lets positions load during the dwell,
+uses the stops beyond it as liquidity, and runs the move to the next point.
+The gap it closes, exactly: nothing in this stack knew what PDH was, nothing
+remembered a dwell, nothing attributed the driver, and no screen drew the
+battlefield. Everything below is SHADOW, forward-logged, gates nothing.
+
+**Six objects, five new modules plus an orchestrator:**
+
+| module | answers | tag |
+|---|---|---|
+| `levels.py` | where are the reaction points (PDH/PDL/PWH/PWL/OPEN/rounds/max-pain/flip/walls), each with FRAME (index vs chain) and stable-vs-drifting | [M] mostly |
+| `dwell.py` | is price parked at a level while positions load -- OI added per side, buyers paying up | [M] arithmetic, [I] attribution |
+| `hunt.py` | which side pays more to run: fuel (OI x pain added) itemized per runway to the next level, plus inferred stop zones | [I] end to end |
+| `sequence.py` | the playbook per stable level: APPROACH -> DWELL -> BREAK/REJECT -> RUN -> HIT/FAILED, forward-logged | [I] |
+| `driver.py` | futures-led vs option-led intraday [I]; NSE participant-wise OI EOD (the only true Client/Pro split, one day lagged) | [I] / [M] |
+| `warmap.py` | composition only, one board per index; `state()` serves the last chain-pace assembly | -- |
+
+**Wiring:** fed in `_senses_loop`'s chain-payload block (same lock, same
+snapshot as `chainside`/`drag`), served at `/api/warmap`. The ladder screen
+sits on `/desk.html` above the trending-OI table: levels + OI heat (CE left,
+PE right, fresh brighter, underwater outlined) + stop zones + spot + the two
+runways, with the dwell/driver/participant/playbook readout beside it. Two
+new alerts ride the existing tone layer: DWELL forming at a named level, and
+BREAK running with a named target.
+
+**Forward log:** `data/warmap/warmap_<day>.jsonl` -- its OWN population,
+never pooled with trigger_log/desk_log/senses. Market-hours gated,
+injectable clock, fail-soft (the desk_log pattern). Kill conditions are in
+each module's docstring, declared at birth; the 30-session clocks start at
+the next open.
+
+**Traps found while building, so they are not rediscovered:** the published
+chain payload carries `ts` but NOT `sec` (that field dies inside
+`chain_live._publish`), so the dwell clock must derive from `ts` --
+found because the first mock run showed `dwell: snapshot carries no clock`.
+And the percentile-of-zero-in-zeros trap struck twice more: a flat chain's
+d_oi=0 ranks 1.00, which would have read "OPTION-LED extreme" on a dead
+tape (`driver.py` requires real flow before "hot", and publishes None rather
+than a rank when the window held nothing -- chainside's drain_rank rule).
+
+**Not proven yet:** no live session has run through it. The dwell detector,
+sequence machines and runway ranking have unit tests plus one mock-server
+pass (levels fetched real candles, participant CSV fetched and parsed real
+NSE data for 2026-08-21, ladder rendered with zero console errors) -- but
+would-a-desk-take-this-trade is Monday's question, not pytest's.
+
+## 8f. The paper desk -- risk core, quoting layer, the tool trading itself (2026-08-23)
+
+Built on the operator's instruction after the "my vision" review: the missing
+HALF of the desk (hands, not more eyes), plus a judge -- the tool paper-trades
+its own readings at 2 lots, both sides, manages its book, and logs every
+decision AND every refusal, so the record decides whether the readings ever
+deserve real capital. PAPER FOREVER; deployment is the operator's decision,
+made outside the code; the no-order-path law binds it doubly.
+
+**Three modules:**
+
+| module | what it is |
+|---|---|
+| `book.py` | the risk core: positions, marks (mid-else-ltp, source stated), margin (desk.py's naked-floor model, reused), first-order P&L attribution (delta / vega / theta+gamma residual, [I], refuses partial answers), and **distance-to-forced** -- capital over stressed need (margin x2 + one adverse expected-move on net delta/gamma) as the book's headline number |
+| `quoting.py` | the quoting layer: resting orders matched against chain quotes; maker fills only on a real cross, AT our price; taker at the touch; TTL kills stale intent; every fill records maker/taker. **Fill model is [I] and optimistic (front-of-queue), so maker P&L is an UPPER bound -- the caveat travels with every number** |
+| `trader.py` | the brain, BOTH sides by the operator's explicit correction: SELL_PIN (post wings beyond the expected move), BUY_CASCADE (take the short-covering scalp while the trapped side drains), DIR_AFTER_GRAB (take the break direction when a dwell resolves BREAK->RUN with a named target), SELL_CREST (post into post-squeeze inflated premium). Single-leg positions only, on purpose. Every entry carries its rule-9 sentence: who is forced, and why |
+
+**Risk before signals:** no new risk when forced_ratio < 1.5 (rule 5 as
+software); one position per (strategy, index); MAX_OPEN 2; day-loss cap
+flattens the book; no entries after 15:00, square-off 15:18; a strategy
+closed on a snapshot cannot re-enter on the same snapshot (the churn guard --
+found by a test, a target-exit while the trigger was still live re-bought at
+a worse price in the same breath). EVERY refusal is logged with its reason.
+
+**Wiring:** fed at chain pace in `_senses_loop`, outside `_SENSES_LOCK`
+(it touches disk), after the war map so it reads this tick's own sequence
+state. Served at `/api/paperdesk`; the review panel sits on `/desk.html`
+above the war map. Files: `data/paper_desk/state.json` (the book, atomic
+rewrite), `trades.jsonl`, `decisions_<day>.jsonl` -- own populations, never
+pooled, gitignored.
+
+**Kill condition (declared at birth):** ~30 paper sessions doing no better
+than the flat book -- the S5 skip -- and the brain is rewritten or deleted,
+not tuned. Its numbers are accounting, never an expectancy claim; the daily
+review is the operator's and the reviewer's, not the module's.
+
+**Not proven:** zero live sessions. The strategy thresholds (scalp +25/-15%,
+short decay 40%, crest TTL) are the [I] layer -- one build's judgement,
+awaiting the record.
+
+## 8g. The seller pivot and the short-variance book (2026-08-25 night)
+
+Two changes on one night, and the second follows from the first.
+
+**The screen stopped leading with an opinion.** The operator rejected the old
+desk outright ("data ki boilerplate... sab kuch UNKNOWN... baar baar change
+hota rehta h"), and a measurement backed her: `/api/desk`'s answer changed
+**4 times in 35 seconds**, 42 times in an hour (DEFERRED 0i). So she ran an
+independent-design exercise — two models, no app context, one question:
+*what does a zero-cost NIFTY seller actually need on screen every day?* Both
+converged, and neither put a BULL/BEAR headline on it. The new screen
+(`ui/toolb.html`, pending her final approval to replace `desk.html`) is the
+seller's five questions in decision order:
+
+| tile | the question | source |
+|---|---|---|
+| GATE | am I allowed to sell today at all | IV/RV ratio, expiry flag, VPIN burst, day-type |
+| SURVIVAL | how much does a gap hurt, and where is the margin call | paper book greeks + `margin_shift` at ±1/2% + square-off distance |
+| AM I BEING PAID | is the insurance expensive right now | `fit.atm_iv` vs `fit.rv5` [M] |
+| WHERE AM I | how close is price, in units that mean the same on Monday and Thursday | strike distance in σ of the expected move, delta lamps |
+| MONEY GREEKS | what does each risk cost in RUPEES | book greeks, `theta_day_est`, gamma as "the second 100 points" |
+| HISAAB | what did today actually pay | fills, refusals, net variance |
+
+Direction, gear, conviction and the 19-structure catalog still exist and are
+still honest — they are one collapsed drill-down, "MACHINE KI RAAY [I]",
+with their own flip history. **The machinery was never the problem; the
+machinery as the headline was.**
+
+**`hedge.py` — the paper book becomes short variance.** Zero cost is not a
+discount, it is a different game: a normal retail seller cannot delta-hedge
+a strangle (the charges eat the theta), so he prays for a range. She can
+hedge for free, which converts the position from *"I hope it stays in the
+range"* into **IV sold − RV realized**, where the hedge round-trips ARE the
+realized-vol bill. The module hedges the paper option book with PAPER
+futures and keeps the ledger that proves or kills the premise.
+
+- **Band 1.0 lot-equivalent** — the hedge instrument is a whole lot, so a
+  correction under one lot cannot be expressed; a tighter band churns
+  round trips that reduce no risk.
+- **Brake 8 hedges/day/index** — deliberately not the human "4"; a
+  systematic brake exists to cap a whipsawed loop, not decision fatigue.
+  Hitting it stops hedging and logs the refusal loudly.
+- **The hedge inventory is kept OUT of `book.Book`** (test-pinned): inside
+  it, hedge legs would move `risk()` → `forced_ratio` → the entry gate, and
+  a shadow module would be silently steering the live paper desk.
+- **EOD flattens the hedge and that flatten does not consume a brake slot** —
+  refusing to CLOSE because a counter is full is the worst reading of a risk
+  limit; an unflattened hedge is an outright overnight futures position.
+- **The ledger** (`data/paper_desk/hedge_<day>.jsonl`, hedge/refusal/daily
+  rows, `/api/paperdesk.hedge`): `theta_collected − hedge_cost =
+  net_variance`, with the **unhedged overnight gap exposure written into
+  every daily row** — hedging does not cover gaps and the record must not
+  imply it does.
+- **Both optimisms are named, not hidden:** fills assume no slippage and no
+  spread, so **hedge cost is a LOWER bound and net_variance an UPPER one**;
+  and `theta_collected` sums the marks' `theta_gamma_resid`, which bundles
+  gamma — the field says so rather than claiming clean decay. (The separate
+  `theta_day_est` is the model number: new Black-76 theta in `gamma.py`,
+  derived in its docstring and **verified against finite differences of
+  `bs_price`** — a sign error there reads as free money on screen.)
+
+Found on the way in, and worth more than the feature: `book.mark_position`
+silently skipped legs whose delta had not arrived, so `net_delta` came back
+smaller with no hint it was partial. Harmless while nothing acted on it —
+not harmless the moment a futures trade is sized from it. It now publishes
+`delta_why`, and **the hedger refuses to hedge while that is non-empty.**
+
+**Not proven:** zero live sessions for any of it. The first is 2026-08-26.
+The premise at least has a measured foot to stand on — NIFTY `rv5` read
+**8.53%** against an ATM IV of 11–14% the same night, which is the shape the
+module needs to be true. One reading is not a record.
 
 ## 9. How this went wrong, so it does not again
 

@@ -340,6 +340,16 @@ class ChainState:
             "spot": spot,
             "k": {s["k"]: ((s["ce"].get("oi_chg") or 0.0),
                            (s["pe"].get("oi_chg") or 0.0)) for s in strikes},
+            # THE OTHER AXIS. OI alone says a wall grew; it cannot say whether
+            # the people who built it paid up or got paid, which is the whole
+            # of the OI x premium read. Stored as a LEVEL (not a change from
+            # the open, the way `k` is) because there is no house convention
+            # for premium change and baking one window in here would fix the
+            # caller's choice forever. `chain_backfill` fills this same key
+            # from the same candles, so a rebuilt morning and a watched
+            # afternoon are the same shape.
+            "px": {s["k"]: (s["ce"].get("ltp"), s["pe"].get("ltp"))
+                   for s in strikes},
         }
 
         wall_ev = self._wall_events(strikes, prof, spot, snap.get("ts") or "")
@@ -507,6 +517,29 @@ class ChainState:
                 # domain, so a consumer that ignores this key behaves exactly
                 # as it did before.
                 "baseline": not rows and call == 0 and put == 0,
+                # Was the mark this row reports REBUILT from REST candles
+                # (chain_backfill) or seen by the socket? A morning
+                # reconstructed after an 11:00 start is worth having and is
+                # NOT the same evidence as an observation -- IV, greeks and
+                # everything gamma-weighted are absent from the candles it was
+                # rebuilt from. The row says which so a screen can draw it
+                # differently instead of a reader assuming the socket was up.
+                # Covers `px` below too: both axes of this row come from the
+                # same mark, so they are always the same population.
+                "backfill": rec.get("src") == "backfill",
+                # PER-STRIKE PREMIUM AS AT THIS MARK, `{strike: (ce, pe)}`.
+                # The caller joins on strike + `time` and differences the level
+                # across rows to get premium change per window -- the second
+                # axis of the OI x premium paint.
+                #
+                # SELECTED STRIKES ONLY, and never summed. A premium total
+                # across strikes is not a quantity (adding a 24,200 CE to a
+                # 23,000 PE means nothing), and shipping all ~61 strikes on
+                # every book-wide poll would be ~180KB of JSON for a table
+                # that does not read it. With no selection this is `{}` and
+                # the endpoint says why.
+                "px": {k: v for k, v in (rec.get("px") or {}).items()
+                       if ks is not None and k in ks},
             })
             prev_diff, prev_mark = diff, mk_min
         return rows

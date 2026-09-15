@@ -15,6 +15,8 @@ tab works with an expired token and outside market hours.
 
 import json
 import logging
+import math
+import os
 import sys
 import threading
 import time
@@ -25,17 +27,23 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import chainside as chain_mod
+import day_state
 import desk as desk_mod
 import desk_log
 import direction as direction_mod
 import drag as drag_mod
+import driver as driver_mod
+import warmap as warmap_mod
 import fuse as fuse_mod
 import instruments
+import oi_dwell
 import pools as pools_mod
 import senses as senses_mod
 import surface as surface_mod
+import trader as trader_mod
 import trigger_log
 import upstox_adapter
+import vpin as vpin_mod
 from analyze import analyze
 
 ROOT = Path(__file__).parent
@@ -56,13 +64,90 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # The ONE field Upstox does not send, and the only thing that tells
            # a defended wall from a crowd on a round number.
            "orders": {}, "orders_at": None, "orders_n": 0,
+           # THE PAPER DESK (trader.Trader): the tool trading itself, both
+           # sides, 2 lots, PAPER ONLY -- no order path exists or ever
+           # will. Fed at chain pace outside the lock; /api/paperdesk.
+           "ptrader": None,
+           # THE OI WAR MAP, one board per index (warmap.Boards). Fed at
+           # chain pace in the senses loop, served at /api/warmap. Shadow
+           # end to end: it describes the battlefield and gates nothing.
+           "warmap": None,
            # THE BUYER'S TAX, one Board per index, session-anchored.
            # `drag.py` was written earlier, tested, and never called by
            # anything -- both handoffs say so. This is its first caller. It
            # answers the question the whole seller pivot rests on: even with
            # the direction exactly right, what fraction of the move did a
            # buyer actually collect?
-           "drag": {}}
+           "drag": {},
+           # THE TAX'S DAY TRACE, idx -> deque of {t, frac, side} sampled at
+           # chain pace. In-memory like the boards themselves (resets with
+           # the server, honestly "since start"), so /api/drag can say what
+           # the day DID and not only where the meter stands.
+           "drag_day": {},
+           # How many drag samples `_load_day_state` put back from
+           # data/day_state/ at startup -- 0 on a cold day. Published so a
+           # reading can say "restored" rather than let a reader assume this
+           # process watched the whole session. NOT a backfill flag: those
+           # rows were observed, by an earlier process on the same day.
+           "day_restored": 0,
+           # ORDER-FLOW TOXICITY (vpin.Gauge), NIFTY future only, SHADOW end
+           # to end: nothing downstream reads it. Fed in the senses loop from
+           # the same frame the ladder comes from; completed buckets go to
+           # VPIN_LOG, the reading to /api/senses. inst -> Gauge.
+           "vpin": {}}
+
+# The toxicity forward record. Reassigned by _isolate_mock_writers so a
+# fixture replay can never write into the live record (the 2026-08-24 leak).
+VPIN_LOG = str(ROOT / "data" / "vpin_log.jsonl")
+
+# THE MORNING NOBODY WATCHED, and why it is a DIFFERENT FILE.
+#
+# `VPIN_LOG` is the promotion evidence for a shadow module on a declared
+# 30-session kill clock (vpin.py's docstring: "pct >= 0.90 must precede range
+# expansion at better than base rate, or this module dies"). Rows rebuilt from
+# 1-minute bars are a coarser measurement of the same tape -- BVC, one sign per
+# minute instead of per frame -- and a row is only evidence if you can still
+# tell, months later, whether the socket saw it. Written into the same file
+# they would be indistinguishable the moment they landed, and the clock would
+# be counting minutes the tool was not running for. Separate file, every row
+# additionally tagged `backfill: true`, and /api/vpin republishes the tag.
+VPIN_BACKFILL_LOG = str(ROOT / "data" / "vpin_backfill.jsonl")
+
+# OPEN OPERATOR DECISION, parked OFF until she rules on it.
+#
+# The live gauge's percentile is percentile-of-THIS-SESSION (the cross-day
+# reference was built and rejected on 2026-08-25 -- see vpin.Gauge.seed). So a
+# server started at 11:00 is mute until MIN_HIST live buckets complete, around
+# lunch, and the morning's backfilled buckets are sitting right there and could
+# fill that window instead.
+#
+# THE ARGUMENT AGAINST, which is why the default is False: a percentile is only
+# honest over ONE population, and backfilled buckets are a different
+# measurement of the same tape, not more of the same measurement. BVC's
+# one-sign-per-minute is smoother than the live frame path, so seeding would
+# push the reference distribution DOWN and make the first live burst rank
+# higher than it deserves -- alarming on exactly the mornings this is turned on
+# for. The mute morning is the honest price, the same price the module already
+# pays every day.
+#
+# THE ARGUMENT FOR: a mute gauge on a late start is the failure the operator
+# named, and a slightly-wrong percentile may beat no percentile at all.
+#
+# Flip to True and `_seed_vpin` feeds the backfilled rows in ahead of the live
+# ones. /api/vpin publishes this flag either way, so a reading never hides
+# which population it was ranked against.
+SEED_LIVE_GAUGE_FROM_BACKFILL = False
+
+# What `_backfill_vpin` found, for /api/vpin to explain itself with. `why` is
+# never None and never empty: "we could not check", "we checked and found
+# nothing" and "there was no gap to fill" are three different sentences.
+_VPIN_BF = {"n": 0, "why": "not attempted yet"}
+
+# How often the day's RAM-only series is written down. A crash costs at most
+# this much of the trace, and the whole ring is rewritten each time (~500KB for
+# three indices at full length), so a minute is the balance between losing work
+# and rewriting a file for nothing.
+DAY_STATE_EVERY_S = 60
 
 # ONE lock over _SENSES and every object it points at.
 #
@@ -185,6 +270,12 @@ def _latency_summary():
 # in the strikes near the money, so that is what is watched.
 SENSES_EACH_SIDE = 3
 
+# Hysteresis for the desk's published state (oi_dwell.py). Module-level so it
+# shares `desk_state`'s lifetime exactly: both reset on process start, so a
+# bounce re-confirms every field from scratch rather than resuming a gate
+# whose evidence is gone. Held across indices -- one Gate per (idx, field).
+_DESK_GATE = oi_dwell.StateGate()
+
 
 def _chain_doc(poller, idx):
     """The poller's own published chain payload for one index, or None.
@@ -232,6 +323,119 @@ def _surface_read(poller, idx):
             pass
     return surface_mod.read(idx, expiry, doc.get("strikes"), f,
                             surface_mod.years_to_expiry(expiry), f_src=f_src)
+
+
+# (idx, day, file size) -> the parsed day. The log only ever APPENDS, so an
+# unchanged size means an unchanged answer and the file is not re-read on
+# every desk poll.
+_SURF_DAY_CACHE = {}
+
+
+RV_SESSIONS = 6      # closes read -> up to 5 close-to-close returns
+RV_MIN_RETURNS = 4   # below this the stdev is noise, and says so
+RV_ANNUALIZE = 252.0
+
+
+def _rv5(idx):
+    """Realized vol over the last cached sessions. [M] -- measured from bars.
+
+    `(rv5, why)`, exactly one of them not None. The closes come from
+    `data/backtest/fut_*.json`, which `eod_capture` writes and
+    `recover_tape.py` can refill -- so this is the tool's own captured record,
+    not a live fetch, and it is only as complete as that cache. NIFTY sits at
+    the top level; the other indices under their own subdirectory.
+
+    METHOD, stated because an unlabelled vol number is unusable: the LAST
+    close of each session, close-to-close LOG returns, SAMPLE standard
+    deviation (n-1), annualized by sqrt(252).
+
+    THE 252-vs-365 BASIS, named rather than buried. Variance accumulates only
+    on days the market trades, so sqrt(252) is the right annualizer for a
+    realized number. But `gamma.DAYS_PER_YEAR` and `surface.years_to_expiry`
+    put IV's T on a 365 CALENDAR basis. The two are therefore not directly
+    subtractable without care -- comparing RV to IV is the whole point of
+    having this, so the convention travels with the number instead of a reader
+    assuming they match.
+    """
+    base = ROOT / "data" / "backtest"
+    d = base if idx == "NIFTY" else base / idx
+    try:
+        files = sorted(p for p in d.glob("fut_*.json"))[-RV_SESSIONS:]
+    except OSError:
+        return None, f"could not read {d}"
+    closes = []
+    for p in files:
+        try:
+            with open(p, encoding="utf-8") as fh:
+                c = (json.load(fh) or {}).get("close") or []
+            if c and c[-1]:
+                closes.append(float(c[-1]))
+        except (OSError, ValueError, TypeError):
+            continue          # a corrupt capture is skipped, never zero-filled
+    rets = [math.log(b / a) for a, b in zip(closes, closes[1:])
+            if a > 0 and b > 0]
+    if len(rets) < RV_MIN_RETURNS:
+        return None, (f"only {len(closes)} usable cached session(s) for {idx} "
+                      f"({len(rets)} return(s)); need at least "
+                      f"{RV_MIN_RETURNS + 1} sessions. eod_capture fills this "
+                      f"daily and recover_tape.py can backfill a missing one")
+    mean = sum(rets) / len(rets)
+    var = sum((r - mean) ** 2 for r in rets) / (len(rets) - 1)
+    return {"rv": round(math.sqrt(var) * math.sqrt(RV_ANNUALIZE), 4),
+            "sessions": len(closes), "n_returns": len(rets),
+            "method": ("close-to-close log returns on the last close of each "
+                       "cached session, sample stdev (n-1), annualized "
+                       "sqrt(252)"),
+            "basis_note": ("annualized on 252 TRADING days; IV's T in this "
+                           "repo is 365 CALENDAR (gamma.DAYS_PER_YEAR) -- do "
+                           "not subtract them without accounting for that"),
+            "tag": "M"}, None
+
+
+def _surface_day(idx):
+    """Today's a/b/c story for one index, read back from the forward log.
+
+    Returns None when today has no file or no fits for this index -- a
+    stated absence the panel renders as such, never a fabricated flat day.
+    `desk_log.surface_path()` is called at request time so --mock-chain's
+    writer isolation carries over automatically.
+    """
+    path = desk_log.surface_path()
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return None
+    key = (idx, path, size)
+    hit = _SURF_DAY_CACHE.get(key)
+    if hit is not None:
+        return hit
+    rows = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            if r.get("idx") == idx and r.get("a") is not None:
+                rows.append(r)
+    if not rows:
+        return None
+    hi = max(rows, key=lambda r: r["a"])
+    lo = min(rows, key=lambda r: r["a"])
+    step = max(1, len(rows) // 60)      # ~60 points is plenty for a sparkline
+    out = {
+        "n": len(rows),
+        "open": {"t": rows[0]["ts"][11:16], "a": rows[0]["a"], "b": rows[0]["b"]},
+        "now": {"t": rows[-1]["ts"][11:16], "a": rows[-1]["a"], "b": rows[-1]["b"]},
+        "hi": {"t": hi["ts"][11:16], "a": hi["a"]},
+        "lo": {"t": lo["ts"][11:16], "a": lo["a"]},
+        "series": [{"t": r["ts"][11:16], "a": round(r["a"], 5)}
+                   for r in rows[::step]],
+    }
+    for k in [k for k in _SURF_DAY_CACHE if k[0] == idx]:
+        del _SURF_DAY_CACHE[k]          # one live key per index is enough
+    _SURF_DAY_CACHE[key] = out
+    return out
 
 
 def _regime_engine_read(payloads, idx):
@@ -354,9 +558,30 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
     decision = desk_mod.decide(surf, reg, desk_mod.DEFAULT_CAPITAL,
                                strikes=doc.get("strikes"), view=view)
 
-    new_state = {"gear": getattr(view, "gear", None),
+    # The RAW per-snapshot reading -- correct, and by itself unreadable.
+    # Measured 2026-08-24: published straight through, these three fields
+    # produced 1,807 transitions in one session, `deployable` alone 1,126 of
+    # them at a median life of ELEVEN SECONDS (one chain snapshot). Nothing
+    # downstream -- not the screen, not the operator -- can act on a
+    # recommendation that is gone before it can be read.
+    #
+    # `oi_dir` is the fourth field and the one that was missing entirely:
+    # chain_metrics.oi_flow has computed this divergence all along, but its
+    # only consumers were a display table and a passive stamp on trigger
+    # rows, so on 2026-08-24 the desk watched CE/PE OI diverge one way for
+    # four hours (+1.7M -> +88.7M while spot fell 24299 -> 24150) and never
+    # once let it change a decision.
+    raw_state = {"gear": getattr(view, "gear", None),
                 "conviction": getattr(view, "conviction", None),
-                "deployable": decision.best}
+                "deployable": decision.best,
+                "oi_dir": oi_dwell.direction(doc.get("strikes") or [])[0]}
+    # `_DESK_GATE` can only hold a field at a value the desk itself published
+    # earlier -- it never invents one -- so the worst case is a reading stale
+    # by CONFIRM snapshots, never a fabricated state. What gets logged and
+    # published from here on is the GATED state; the raw read is not kept,
+    # because two versions of "what the desk thinks" is how the screen and
+    # the log start disagreeing.
+    new_state = _DESK_GATE.filter(idx, raw_state)
     prev_state = desk_state.get(idx, {})
     is_baseline = not prev_state          # {} only on this index's first
                                            # reading since process start
@@ -407,8 +632,11 @@ def _senses_loop(poller, payloads, period=0.5):
     obj = _SENSES["obj"] = senses_mod.Senses()
     book = _SENSES["fuse"] = fuse_mod.Book()
     chains = chain_mod.Chains()
+    wboards = _SENSES["warmap"] = warmap_mod.Boards()
+    ptrader = _SENSES["ptrader"] = trader_mod.Trader()
     seen_payload = {}          # idx -> id() of the last payload already read
     desk_state = {}            # idx -> {gear, conviction, deployable}, 5b's diff base
+    last_day_save = 0.0        # the RAM-only day series' last write to disk
     while True:
         t0 = time.perf_counter()
         try:
@@ -421,6 +649,10 @@ def _senses_loop(poller, payloads, period=0.5):
             # (idx, doc) pairs due for 5a/5b, queued under the lock below and
             # run AFTER it is released -- see the note past the `with` block.
             chain_pace_due = []
+            # Completed VPIN buckets, queued the same way for the same
+            # reason: their append touches disk, and disk never runs under
+            # _SENSES_LOCK.
+            vpin_due = []
             with _SENSES_LOCK:
                 # FUEL AND DRAIN, from the chain -- the half the book cannot see,
                 # and needs no feed either. Parsed only when the poller has
@@ -449,8 +681,47 @@ def _senses_loop(poller, payloads, period=0.5):
                         board = _SENSES["drag"].get(idx)
                         if board is None:
                             board = _SENSES["drag"][idx] = drag_mod.Board()
+                        # The backfilled minute grid rides along so a late
+                        # start anchors on 09:15's premiums, not this one's
+                        # (drag.Board._anchor_from_grid); the war map below
+                        # replays the same grid. None until the poller has
+                        # a state for this index.
+                        _cst = (getattr(poller, "states", None) or {}).get(idx)
+                        _grid = getattr(_cst, "minutes", None)
                         board.on_snapshot(doc.get("spot"),
-                                          doc.get("strikes"), stamp)
+                                          doc.get("strikes"), stamp, grid=_grid)
+                        # The day trace, one sample per snapshot. `frac` is
+                        # usually None (drag.py refuses to invent a rate) and
+                        # None is KEPT -- a gap in the trace is a fact.
+                        try:
+                            dr = board.read()
+                            ring = _SENSES["drag_day"].setdefault(
+                                idx, deque(maxlen=3000))
+                            ring.append({"t": stamp[:5],
+                                         "frac": dr.get("frac"),
+                                         "side": dr.get("right_side")})
+                        except Exception:
+                            pass        # the trace must never stall the tape
+                        # THE WAR MAP, same snapshot, same lock. All its
+                        # sub-modules are O(strikes + levels) per call --
+                        # comparable to chains.on_snapshot above -- and the
+                        # ChainSide whose ledgers hunt.py projects from is
+                        # mutated only by THIS thread, so feeding here keeps
+                        # /api/warmap's read (which takes this same lock)
+                        # from ever iterating a half-updated machine dict.
+                        # The future's session volume rides along when the
+                        # feed has it; None is a stated absence downstream.
+                        try:
+                            fvtt = None
+                            _res = (getattr(src, "resolved", None) or {}).get(idx) or {}
+                            _fkey = _res.get("fut_key")
+                            if _fkey and snap.get(_fkey):
+                                _lad, fvtt = senses_mod.ladder_of(snap.get(_fkey))
+                            wboards.for_index(idx).on_snapshot(
+                                doc, chains.for_index(idx), fut_vtt=fvtt,
+                                grid=_grid)
+                        except Exception:   # the map must never stall the tape
+                            log.exception("warmap at chain pace (%s)", idx)
                         # 5a/5b is queued, NOT run here -- `desk.decide` fits a
                         # whole candidate catalog and must not run while this
                         # lock is held: /api/senses, /api/drag and
@@ -494,6 +765,22 @@ def _senses_loop(poller, payloads, period=0.5):
                             # future's ladder.
                             if name.endswith("-FUT"):
                                 lad, _v = senses_mod.ladder_of(frame)
+                                # TOXICITY, NIFTY future only -- the one
+                                # instrument the bucket size was measured on
+                                # (vpin.py docstring). SHADOW: fed, logged,
+                                # displayed, read by nothing. ltp and vtt come
+                                # from the SAME frame as the ladder, the
+                                # discipline ladder_of states.
+                                if name == "NIFTY-FUT":
+                                    gv = _SENSES["vpin"].get(name)
+                                    if gv is None:
+                                        gv = _SENSES["vpin"][name] = vpin_mod.Gauge()
+                                    for ev in gv.on_frame(
+                                            upstox_adapter.ltp_of(frame),
+                                            _v, stamp):
+                                        vpin_due.append(
+                                            dict(ev, inst=name,
+                                                 day=time.strftime("%Y-%m-%d")))
                                 if lad:
                                     # Kite's order counts, if PaperDesk's bridge is
                                     # running. Matched on the touch rather than by
@@ -518,11 +805,47 @@ def _senses_loop(poller, payloads, period=0.5):
             # it), so updating it needs no lock either. Own try/except per
             # index so a bad fit or a desk exception on ONE index cannot cost
             # the others their chain-pace log.
+            # The toxicity record, outside the lock with the other writers.
+            # Fail-soft: a full disk costs the row, never the tape.
+            if vpin_due:
+                try:
+                    with open(VPIN_LOG, "a", encoding="utf-8") as fh:
+                        for ev in vpin_due:
+                            fh.write(json.dumps(ev) + "\n")
+                except OSError:
+                    log.exception("vpin log append")
+            # THE DAY'S RAM-ONLY SERIES, written down so a post-close restart
+            # does not blank the screen ("abhi to ui he khali ho jaata"). Out
+            # here with the other disk writers, never under _SENSES_LOCK.
+            # Unconditional on market hours ON PURPOSE, unlike desk_log and
+            # sequence: those are forward RECORDS and a row outside the session
+            # would corrupt one, while this is a snapshot of state that is
+            # already what it is -- and 15:35 is exactly when it most needs to
+            # be on disk.
+            if time.time() - last_day_save >= DAY_STATE_EVERY_S:
+                last_day_save = time.time()
+                _save_day_state()
             for idx, doc in chain_pace_due:
                 try:
                     _log_chain_pace(poller, payloads, idx, doc, desk_state)
                 except Exception:
                     log.exception("desk_log at chain pace (%s)", idx)
+                # THE PAPER DESK, same cadence, same isolation: it reads the
+                # view and the war map's already-assembled state (this tick's
+                # own -- the boards were fed under the lock above), decides,
+                # and writes its own files. Outside _SENSES_LOCK because it
+                # touches disk; a defect here costs the paper book its tick,
+                # never the tape.
+                try:
+                    view = _view_for(idx, payloads)
+                    with _SENSES_LOCK:
+                        cr = (_SENSES["chain"] or {}).get(idx)
+                        wb = _SENSES.get("warmap")
+                        wst = (wb.for_index(idx).state()
+                               if wb is not None else None)
+                    ptrader.on_chain(idx, doc, view, cr, wst)
+                except Exception:
+                    log.exception("paper trader at chain pace (%s)", idx)
         except Exception as e:            # never take the tape down
             _SENSES["err"] = f"{type(e).__name__}: {e}"
             log.exception("senses loop")
@@ -818,6 +1141,17 @@ class Handler(SimpleHTTPRequestHandler):
                 # Absent (with a reason) rather than zero until there are
                 # enough samples to mean anything -- constraint 9.
                 "latency": _latency_summary(),
+                # WHAT THIS PROCESS COULD AND COULD NOT KNOW ABOUT TODAY. A
+                # server started at 11:02 has a reconstructed morning for some
+                # panels and no morning at all for others, and the difference
+                # has to be readable from one place rather than inferred from
+                # an empty chart. Names both lists and, when the start was
+                # late, the sentence that says so.
+                "coverage": _coverage(),
+                # The RAM-only day series, restored from data/day_state/ so a
+                # 19:30 cold open still shows the finished session. Observed
+                # rows, not reconstructed ones -- see day_state.py.
+                "day_restored": _SENSES.get("day_restored") or 0,
             }).encode())
             return
         if self.path.startswith("/api/data"):
@@ -897,11 +1231,30 @@ class Handler(SimpleHTTPRequestHandler):
                         chain_why = cp.get("error") or "the chain is unavailable"
                 except (ValueError, TypeError):
                     pass          # unparseable box: say nothing rather than guess
+            # How much of this grid was REBUILT rather than seen. Every row
+            # already carries its own `backfill` flag; this is the one-line
+            # version a header can render without walking the rows.
+            bf_marks = sum(1 for m in st.minutes.values()
+                           if m.get("src") == "backfill")
             self._json(json.dumps({"ok": True, "index": idx,
                                    "interval": interval, "strikes": avail,
                                    "selected": strikes, "rows": rows,
                                    "chain_ok": chain_ok,
-                                   "chain_why": chain_why}).encode())
+                                   "chain_why": chain_why,
+                                   "backfill_marks": bf_marks,
+                                   "marks": len(st.minutes),
+                                   # Per-strike premium rides on each row under
+                                   # `px`, for the SELECTED strikes only. An
+                                   # empty `px` with no reason would read as
+                                   # "no premium moved" -- house rule 6.
+                                   "px_why": (None if strikes else
+                                              "px is served for a named "
+                                              "selection only -- add "
+                                              "&strikes=<k,...>. A premium "
+                                              "sum across strikes is not a "
+                                              "quantity, and the whole chain "
+                                              "would be ~180KB per poll"),
+                                   "coverage": _coverage()}).encode())
         elif self.path.startswith("/api/contract"):
             # Option-premium tape: 1-min bars + their own session VWAP bands,
             # per leg. The heavy lifting is live.build_contract (fetch + the
@@ -1148,6 +1501,23 @@ class Handler(SimpleHTTPRequestHandler):
                         surf, reg, capital,
                         strikes=(_chain_doc(self.poller, idx) or {}).get("strikes"),
                         view=_view_for(idx, self.payloads)))
+                    # THE SCREEN MUST SHOW WHAT THE LOG RECORDS. `decide` is
+                    # a fresh per-request computation, so without this the
+                    # browser got the RAW state -- the eleven-second
+                    # `deployable` -- while `desk_log.jsonl` recorded the
+                    # gated one, and the two disagreed by construction.
+                    # Landed 2026-08-24 with the gate and missed for an hour:
+                    # a fix for "computed but never consumed" that was itself
+                    # computed and never consumed.
+                    #
+                    # PEEK, DO NOT FILTER. `_log_chain_pace` advances the gate
+                    # once per chain snapshot; a browser poll must not feed it
+                    # a second stream on its own clock.
+                    held = _DESK_GATE.held_for(idx)
+                    if "deployable" in held:
+                        out[idx]["best"] = held["deployable"]
+                    if held.get("oi_dir") is not None:
+                        out[idx]["oi_dir"] = held["oi_dir"]
                 except Exception as e:
                     out[idx] = {"index": idx, "fit_ok": False, "best": None,
                                 "candidates": [],
@@ -1158,6 +1528,11 @@ class Handler(SimpleHTTPRequestHandler):
                 "indices": out,
             }).encode())
         elif self.path.startswith("/api/surface"):
+            # THE DAY, not just the snapshot (2026-08-25). The a/b/c story --
+            # "vol aayi ya nikli, skew kab unwind hua" -- lived only in the
+            # forward log, readable by grep and nobody else. `day` below is
+            # that file read back at request time, so the panel can say what
+            # the session DID and not only where it stands.
             # The fitted vol surface per index, and which points sit off the
             # curve. All three by default, because "which instrument is paying
             # best" is a first-class question and cannot be answered one index
@@ -1171,6 +1546,23 @@ class Handler(SimpleHTTPRequestHandler):
                 except Exception as e:   # a bad chain must not 500 the panel
                     out[idx] = {"index": idx, "fit": {"ok": False},
                                 "why": [f"{type(e).__name__}: {e}"]}
+                try:
+                    # REALIZED vol beside the IMPLIED one. The desk sells IV
+                    # and pays RV, so a fitted smile with no realized number
+                    # next to it is half the trade. [M], from captured bars.
+                    rv, rv_why = _rv5(idx)
+                    fit = out[idx].get("fit")
+                    if isinstance(fit, dict):
+                        fit["rv5"], fit["rv5_why"] = rv, rv_why
+                except Exception as e:      # never 500 the panel over history
+                    fit = out[idx].get("fit")
+                    if isinstance(fit, dict):
+                        fit["rv5"] = None
+                        fit["rv5_why"] = f"{type(e).__name__}: {e}"
+                try:
+                    out[idx]["day"] = _surface_day(idx)
+                except Exception:        # the day story is additive, never fatal
+                    out[idx]["day"] = None
             # Ranked by ATM vol only when a fit succeeded. This is NOT yet the
             # richness ranking the selector needs -- that wants multi-day
             # history the forward log has not accumulated -- and says so.
@@ -1201,17 +1593,144 @@ class Handler(SimpleHTTPRequestHandler):
             only = (q.get("idx") or [None])[0]
             with _SENSES_LOCK:
                 boards = dict(_SENSES["drag"] or {})
+                traces = {i: list(r) for i, r in
+                          (_SENSES["drag_day"] or {}).items()}
             out = {i: b.read() for i, b in boards.items()
                    if not only or i == only}
+            # The day trace rides along, downsampled to ~60 points. `hi` is
+            # the worst tax the day showed with its clock; None when no
+            # readable frac ever appeared (an index that never moved).
+            for i in out:
+                rows = traces.get(i) or []
+                fr = [r for r in rows if r["frac"] is not None]
+                step = max(1, len(rows) // 60)
+                out[i]["day"] = {
+                    "n": len(rows),
+                    "hi": (max(fr, key=lambda r: r["frac"]) if fr else None),
+                    "series": rows[::step],
+                    # Part of this trace may have been read back from
+                    # data/day_state/ rather than gathered by this process --
+                    # which is why 19:30 shows the day at all. It is NOT
+                    # backfilled: every row was observed, just by an earlier
+                    # process on the same day. A reader needs this only so
+                    # "since start" means the SESSION's start, not this
+                    # process's.
+                    "restored": bool(_SENSES.get("day_restored")),
+                } if rows else None
+                # An empty trace with no reason reads as "the tax was zero".
+                # WIRED 2026-09-15: the ANCHOR now comes from the backfilled
+                # grid on a late start (drag.Board._anchor_from_grid, see
+                # `anchor_src` above). The TRACE before this start still
+                # cannot be rebuilt: the grid has no delta and drag.between
+                # refuses an assumed one.
+                out[i]["day_why"] = None if rows else (
+                    "no samples: the trace fills at chain pace (~10s per "
+                    "index). On a late start the anchor is rebuilt from the "
+                    "backfilled grid (anchor_src says which), but the trace "
+                    "between 09:15 and this start is not -- the grid carries "
+                    "no delta and no rate is invented without one. If an "
+                    "earlier process today wrote a trace, it is restored from "
+                    "data/day_state/ instead.")
             self._json(json.dumps({
                 "ok": bool(out),
                 "indices": out,
+                "coverage": _coverage(),
                 "note": ("owed = delta x the underlying's move; paid = what "
                          "the premium actually did; drag = owed - paid, and "
                          "frac is that as a RATE. Deltas are real, off the "
                          "chain -- there is no assumed 0.5 here, and that "
                          "assumption is why this module exists."),
             }).encode())
+        elif self.path.startswith("/api/paperdesk"):
+            # THE PAPER DESK's review surface: book, marks, risk, quotes,
+            # the decision tail (entries, exits, REFUSALS). PAPER ONLY --
+            # its own note says so on every response, and the maker-fill
+            # optimism caveat travels with the numbers.
+            with _SENSES_LOCK:
+                pt = _SENSES.get("ptrader")
+            if pt is None:
+                self._json(json.dumps({
+                    "ok": False,
+                    "why": "no paper trader in this server mode"}).encode())
+                return
+            docs = {}
+            for idx in (self.chains or {}):
+                cbox = self.chains.get(idx) or {}
+                try:
+                    d = json.loads(cbox.get("payload") or "null")
+                    if d and d.get("ok"):
+                        docs[idx] = d
+                except (TypeError, ValueError):
+                    pass
+            self._json(json.dumps({"ok": True,
+                                   "desk": pt.state(docs)}).encode())
+        elif self.path.startswith("/api/warmap"):
+            # THE OI WAR MAP, per index: levels + dwell + runways + sequence
+            # + driver, assembled at chain pace by warmap.py and served from
+            # its last reading. SHADOW: nothing here gates a setup, and no
+            # field is ever a hit rate. `participant` is market-wide (the
+            # NSE EOD file does not split by index) and one day lagged,
+            # which its own `lag` field says.
+            q = parse_qs(urlsplit(self.path).query)
+            only = (q.get("idx") or [None])[0]
+            with _SENSES_LOCK:
+                boards = _SENSES.get("warmap")
+                out = boards.states() if boards is not None else {}
+            if only:
+                out = {k: v for k, v in out.items() if k == only}
+            prev_day = instruments._prev_trading_day(
+                time.strftime("%Y-%m-%d"))
+            self._json(json.dumps({
+                "ok": bool(out),
+                "why": None if out else ("no war map yet -- the senses loop "
+                                         "builds one per index at chain pace"),
+                "indices": out,
+                "participant": driver_mod.participant_context(prev_day),
+                "note": ("stop zones and retail attribution are [I] forever; "
+                         "the forward log is data/warmap/ and is never "
+                         "pooled with any other record"),
+            }).encode())
+        elif self.path.startswith("/api/vpin"):
+            # THE DAY'S TOXICITY SERIES, straight from the forward log -- the
+            # log IS the record, this is today's slice of it plus the live
+            # state. Reads the file per request (~70 rows a session; the
+            # size-keyed caching _surface_day needs would buy nothing here).
+            # series null = log unreadable, [] = no completed buckets yet --
+            # two different sentences, never collapsed.
+            today = time.strftime("%Y-%m-%d")
+            # `series` stays None when the LIVE log is unreadable: "we could
+            # not check" and "there are no buckets yet" are two sentences and
+            # an empty list would say the wrong one.
+            live = None
+            try:
+                with open(VPIN_LOG, encoding="utf-8"):
+                    pass
+            except OSError:
+                pass
+            else:
+                live = [r for r in _read_jsonl(VPIN_LOG)
+                        if r.get("day") == today and r.get("inst") == "NIFTY-FUT"]
+            bf = [r for r in _read_jsonl(VPIN_BACKFILL_LOG)
+                  if r.get("day") == today and r.get("inst") == "NIFTY-FUT"]
+            series = None if live is None else _vpin_series(live, bf)
+            with _SENSES_LOCK:
+                st = {i: g.state()
+                      for i, g in sorted(_SENSES["vpin"].items())}
+            self._json(json.dumps(
+                {"ok": True, "day": today, "inst": "NIFTY-FUT",
+                 "series": series, "state": st, "tag": "[I]",
+                 "shadow": True,
+                 # The live gauge's percentile is ranked against ONE
+                 # population. This says which, so a reading is never read
+                 # against a distribution it was not measured in.
+                 "seeded_from_backfill": SEED_LIVE_GAUGE_FROM_BACKFILL,
+                 "backfill": {"n": _VPIN_BF["n"], "why": _VPIN_BF["why"],
+                              "method": "BVC on 1-minute FUT bars",
+                              "note": ("coarser than the live frame path and "
+                                       "generally lower; a separate file, "
+                                       "never written into data/vpin_log."
+                                       "jsonl, which is the promotion record")},
+                 "coverage": _coverage()}).encode())
         elif self.path.startswith("/api/senses"):
             # A WINDOW, NOT THE RECORD. The forward record is
             # data/senses_log.jsonl; this renders the tail of the ring so a
@@ -1284,6 +1803,10 @@ class Handler(SimpleHTTPRequestHandler):
                     },
                     "read": read,
                     "pools": _SENSES["pools"],
+                    # SHADOW, [I]: percentile-so-far of flow toxicity on the
+                    # NIFTY future. A panel renders it; nothing acts on it.
+                    "vpin": {i: g.state()
+                             for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
         else:
@@ -1406,10 +1929,325 @@ def _start_chain(mock, configs):
     return poller
 
 
+def _isolate_mock_writers():
+    """Point every forward-log writer under data/mock/ for a --mock-chain run.
+
+    THE REPLAY LEAK (2026-08-24): a --mock-chain server left running after a
+    build night looped the fixture for 33 hours and wrote fixture trades,
+    fixture levels and fixture fits into the LIVE forward record --
+    data/paper_desk/, data/warmap/, data/surface/, data/desk_log.jsonl --
+    costing the paper desk and the war map their clean day 1. A replay must
+    never share a path with the record it exists to rehearse for. All four
+    writers read these constants at call time (trader.Trader binds them in
+    __init__ for the same reason).
+    """
+    import os
+    import hedge as hedge_mod
+    import sequence as sequence_mod
+    mock = os.path.join("data", "mock")
+    hedge_mod.LEDGER_DIR = os.path.join(mock, "paper_desk")
+    trader_mod.DIR_ = os.path.join(mock, "paper_desk")
+    trader_mod.STATE = os.path.join(trader_mod.DIR_, "state.json")
+    trader_mod.TRADES = os.path.join(trader_mod.DIR_, "trades.jsonl")
+    sequence_mod.DIR = os.path.join(mock, "warmap")
+    desk_log.SURF_DIR = os.path.join(mock, "surface")
+    desk_log.DESK_LOG_PATH = os.path.join(mock, "desk_log.jsonl")
+    day_state.DIR = os.path.join(mock, "day_state")
+    global VPIN_LOG, VPIN_BACKFILL_LOG
+    VPIN_LOG = os.path.join(mock, "vpin_log.jsonl")
+    VPIN_BACKFILL_LOG = os.path.join(mock, "vpin_backfill.jsonl")
+
+
+def _session_bars(index="NIFTY"):
+    """Today's 1-minute FUTURE bars as `(stamp, close, volume)`, oldest first.
+
+    ONE REST call. Deliberately not routed through `live._upstox_bars`: that
+    path carries the Dhan branch and the whole `live` import graph for a
+    three-field read, and it returns Dhan's chart-array shape which this would
+    only have to unpack again.
+    """
+    import upstox_adapter as ua
+    import upstox_feed
+    import upstox_instruments
+    import upstox_rest
+    arr = ua.candles_to_arrays(
+        upstox_rest.intraday(upstox_instruments.fut_key(index),
+                             upstox_feed.read_token()))
+    ts = arr.get("timestamp") or []
+    close = arr.get("close") or []
+    vol = arr.get("volume") or []
+    return [(time.strftime("%H:%M", time.localtime(t)), c, v)
+            for t, c, v in zip(ts, close, vol)]
+
+
+def _backfill_vpin():
+    """Rebuild the toxicity buckets for the part of today the socket missed.
+
+    THE GAP THIS CLOSES, in the operator's words: *"i open my laptop at 11 to
+    pta chle morning ki koi info nhi h phir to reliable he nhi hoga"*. The
+    frames are gone but the BARS are not, so the morning's volume is
+    recoverable -- coarsely, and `vpin.from_bars` documents exactly how
+    coarsely.
+
+    ONLY WHEN THE GAP IS REAL. If the live log already starts at the open there
+    is nothing to rebuild and this does nothing but say so. The reconstruction
+    is cut off at the first LIVE bucket's clock, because an observation always
+    beats a reconstruction -- the same rule `chain_backfill` states -- and
+    because volume-time buckets from the two paths do not align and must never
+    be stitched into one running series.
+
+    The file is REWRITTEN, not appended. It is derived, regenerable from the
+    same bars any time, and appending would duplicate the morning on every
+    restart. Nothing about a forward record applies to it: that is `VPIN_LOG`,
+    which this function never opens for writing.
+    """
+    _VPIN_BF["n"], _VPIN_BF["rows"] = 0, []
+    today = time.strftime("%Y-%m-%d")
+    if os.environ.get("TAPEMAP_BROKER", "dhan").strip().lower() != "upstox":
+        _VPIN_BF["why"] = ("not attempted: bars come from Upstox and this "
+                           "server is not on the Upstox path")
+        return
+    if time.localtime().tm_wday >= 5:
+        _VPIN_BF["why"] = "not attempted: not a weekday session"
+        return
+    first_live = None
+    for r in _read_jsonl(VPIN_LOG):
+        if r.get("day") == today and r.get("inst") == "NIFTY-FUT" and r.get("at"):
+            first_live = min(first_live or r["at"], r["at"])
+    if first_live is not None and first_live[:5] <= "09:20":
+        _VPIN_BF["why"] = (f"no gap to fill: the live record already starts at "
+                           f"{first_live}, which is the open")
+        return
+    try:
+        bars = _session_bars("NIFTY")
+    except Exception as e:                            # noqa: BLE001
+        _VPIN_BF["why"] = (f"could not check: the 1-minute bars did not load "
+                           f"({type(e).__name__}: {e})")
+        log.exception("vpin backfill: bars")
+        return
+    if first_live is not None:
+        bars = [b for b in bars if b[0] < first_live[:5]]
+    if not bars:
+        _VPIN_BF["why"] = ("checked and found nothing: no bars before the "
+                           "first live bucket -- there was no unwatched "
+                           "morning to rebuild")
+        return
+    rows = [dict(r, inst="NIFTY-FUT", day=today)
+            for r in vpin_mod.from_bars(bars)]
+    try:
+        os.makedirs(os.path.dirname(VPIN_BACKFILL_LOG) or ".", exist_ok=True)
+        with open(VPIN_BACKFILL_LOG, "w", encoding="utf-8") as fh:
+            for r in rows:
+                fh.write(json.dumps(r) + "\n")
+    except OSError as e:                              # noqa: BLE001
+        log.exception("vpin backfill write")
+        _VPIN_BF["why"] = f"rebuilt but could not be written ({e})"
+    _VPIN_BF["n"], _VPIN_BF["rows"] = len(rows), rows
+    _VPIN_BF["why"] = (
+        f"{len(rows)} bucket(s) rebuilt from {len(bars)} 1-minute bars "
+        f"[I-backfill, BVC], covering "
+        + (f"the open to {first_live}" if first_live else "the session so far")
+        + "; coarser than the live path and never pooled with it")
+    log.info("vpin backfill: %s", _VPIN_BF["why"])
+
+
+def _vpin_series(live, backfill):
+    """One day's toxicity series, every row saying which population it is from.
+
+    THE REBUILT MORNING GOES IN FRONT, and is CUT OFF at the first live bucket.
+    An observation always beats a reconstruction -- `chain_backfill` states the
+    same rule for the OI grid -- and here there is a second reason the two must
+    not overlap: these are VOLUME-time buckets, and buckets counted off
+    1-minute bars do not align with buckets counted off 0.5s frames. Stitching
+    them would produce a series whose boundaries mean two different things.
+
+    Nothing is summed, averaged or ranked ACROSS the join. The join is a
+    concatenation and the tag on each row is what makes it readable as one.
+    """
+    def row(r, is_bf):
+        return {"t": r.get("at"), "imb": r.get("imb"), "vpin": r.get("vpin"),
+                "pct": r.get("pct"), "backfill": is_bf,
+                "src": r.get("src") if is_bf else "live_frames"}
+
+    first_live = min((r.get("at") for r in live if r.get("at")), default=None)
+    kept = [r for r in backfill
+            if first_live is None or (r.get("at") or "") < first_live]
+    return [row(r, True) for r in kept] + [row(r, False) for r in live]
+
+
+def _read_jsonl(path):
+    """Every parseable object in `path`; `[]` when the file will not open.
+
+    A line that will not parse is skipped rather than ending the read: these
+    files are appended to by a running process, so the last line can be a
+    partial write, and one torn line must not cost the whole day.
+    """
+    out = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    out.append(json.loads(line))
+                except ValueError:
+                    continue
+    except OSError:
+        return []
+    return out
+
+
+def _load_day_state():
+    """Put back the day's RAM-only series, so 19:30 can see 09:15.
+
+    The operator, verbatim: *"7:30pm ko bhi kholu to dekh paaoun kya hua"*.
+    Everything else this stack learns is already on disk in a forward log; the
+    drag day trace was the one series that died with the process.
+
+    TODAY'S FILE ONLY -- `day_state.load` enforces that, so tomorrow starts
+    cold rather than opening on yesterday's tax. Runs before any thread starts,
+    so no lock is needed, and BEFORE the senses loop can save over it.
+    """
+    from collections import deque
+    doc = day_state.load(time.strftime("%Y-%m-%d"))
+    n = 0
+    for idx, rows in (doc.get("drag_day") or {}).items():
+        if not isinstance(rows, list):
+            continue
+        _SENSES["drag_day"][idx] = deque(rows, maxlen=3000)
+        n += len(rows)
+    # Not a `backfill` tag: every one of these rows was OBSERVED, by an earlier
+    # process on the same day. This says only that the running process did not
+    # gather them itself, so "since start" is read correctly.
+    _SENSES["day_restored"] = n
+    if n:
+        log.info("day state: restored %s drag sample(s) across %s index(es)",
+                 n, len(doc.get("drag_day") or {}))
+
+
+def _save_day_state():
+    """Write the day's RAM-only series down. Fail-soft: a full disk costs the
+    save, never the tape."""
+    try:
+        with _SENSES_LOCK:
+            snap = {i: list(r) for i, r in (_SENSES["drag_day"] or {}).items()}
+        if snap:
+            day_state.save(time.strftime("%Y-%m-%d"), {"drag_day": snap})
+    except OSError:
+        log.exception("day state save")
+
+
+def _coverage():
+    """What this process could and could not know about today.
+
+    A late start is not a failure to hide, it is a fact to publish. Rule 6 of
+    the house rules: "we checked and found nothing", "we could not check" and
+    "we are not showing you" must never collapse into one rendering -- so a
+    screen opened at 11:02 gets a sentence naming which panels have a
+    reconstructed morning, which have none and never will, and why.
+
+    The machine clock IS IST here (HANDOFF-DESK section 7: `TZ=Asia/Kolkata`
+    silently returns UTC in this Git Bash, and local time is already IST), so
+    `localtime` is the right read and an explicit offset would double-count.
+    """
+    up = time.localtime(_STARTED)
+    started = time.strftime("%H:%M", up)
+    late = (up.tm_hour * 60 + up.tm_min) - (9 * 60 + 15)
+    gap = None if (up.tm_wday >= 5 or late <= 0) else min(late, 375)
+    return {
+        "server_up": started,
+        "session_open": "09:15",
+        "late_min": gap,
+        "reconstructed": [
+            "the tape's 1-minute FUT bars (live.build_session re-fetches the "
+            "whole session from REST every cycle -- never lost)",
+            # CORRECTED 2026-08-25: this used to claim the war map's time
+            # dimension was reconstructed too. It is not, and the payload
+            # said so four lines below -- `chain_backfill` fills
+            # `ChainState.minutes`, which only /api/oiflow reads. warmap.py
+            # builds its boards from chain snapshots at chain pace and never
+            # touches that grid, so its history starts at process start.
+            "the per-strike OI and premium minute grid behind /api/oiflow "
+            "(chain_backfill, rows tagged backfill:true)",
+            "the toxicity buckets, coarsely, from those same bars "
+            "(/api/vpin, rows tagged backfill:true) [I]",
+            "the buyer's-tax day trace, if an earlier process today wrote it "
+            "down (data/day_state/, observed not reconstructed)",
+            # WIRED 2026-09-15: warmap.py replays that same grid through fresh
+            # dwell / sequence / driver machines on the first chain snapshot
+            # after the grid and the daily levels land. Its rows go to
+            # warmap_<day>_backfill.jsonl, never the observed log.
+            "the drag meter's anchor -- on a late start drag.Board anchors on "
+            "the grid's earliest backfilled mark (09:15's strike and premiums), "
+            "not on the first live snapshot; /api/drag.<idx>.anchor_src says "
+            "which, and the rate then uses the live delta alone",
+            "the war map's boards -- levels, dwell, the sequence machines and "
+            "the driver's OI rank -- replayed at 1-minute pace from the same "
+            "minute grid (data/warmap/warmap_<day>_backfill.jsonl, rows tagged "
+            "backfill:true; /api/warmap.<idx>.backfill says what landed)",
+        ],
+        "not_reconstructable": [
+            "IV, greeks, GEX, the gamma flip and the fitted surface before "
+            "this start -- REST candles carry no IV and no greeks",
+            # CORRECTED 2026-08-25: this used to say no REST endpoint serves
+            # the drag anchor. That was false -- `chain_backfill` already
+            # fetches per-strike OI AND (since tonight) premium from 09:15,
+            # which is exactly what anchoring needs. Nothing feeds drag.Board
+            # from that grid, so this is a WIRING gap, not an impossibility,
+            # and it must not be filed under "never will".
+            "the drag meter's day TRACE before this start -- the grid carries "
+            "no delta, and drag.between refuses an assumed one, so the samples "
+            "between 09:15 and this start cannot be rebuilt (the ANCHOR can, "
+            "and is: see `reconstructed`)",
+            "the war map's dwell crossing evidence, hunt fuel and futures-led "
+            "driver rank before this start -- the minute grid carries no "
+            "bid/ask, no ledger basis and no futures volume",
+            "the paper desk's decisions and refusals before this start",
+        ],
+        "why": (None if gap is None else
+                f"could not check — server started {started}, {gap} min after "
+                f"the open. The fields under not_reconstructable have no "
+                f"morning and never will; the ones under reconstructed do, "
+                f"and say so row by row."),
+    }
+
+
+def _seed_vpin():
+    """Rebuild the NIFTY-FUT toxicity gauge from its forward log, at startup.
+
+    Runs BEFORE any thread starts (so no lock is needed) and AFTER
+    `_isolate_mock_writers` (so a --mock-chain run seeds from its own
+    isolated log, never the live record -- the 2026-08-24 replay-leak rule).
+    TODAY's rows only -- prior sessions are deliberately ignored, see the
+    operator's rejection recorded in vpin.Gauge.seed. A missing or empty
+    log just starts the gauge cold, which is day one."""
+    today = time.strftime("%Y-%m-%d")
+    rows = _read_jsonl(VPIN_LOG)
+    g = vpin_mod.Gauge()
+    # The OPEN DECISION, exercised here and nowhere else. Backfilled buckets go
+    # in FIRST when it is on -- they are the earlier part of the session, and
+    # a percentile built out of chronological order is not a percentile-so-far.
+    # See SEED_LIVE_GAUGE_FROM_BACKFILL for both sides of the argument.
+    seeded_bf = 0
+    if SEED_LIVE_GAUGE_FROM_BACKFILL and _VPIN_BF.get("rows"):
+        seeded_bf = g.seed(_VPIN_BF["rows"], today=today)["today_buckets"]
+    r = g.seed([x for x in rows if x.get("inst") == "NIFTY-FUT"], today=today)
+    _SENSES["vpin"]["NIFTY-FUT"] = g
+    log.info("vpin seeded: %s (of which %s backfilled, seeding %s)",
+             r, seeded_bf, "ON" if SEED_LIVE_GAUGE_FROM_BACKFILL else "OFF")
+
+
 def main():
     _setup_logging()
     argv = [a for a in sys.argv[1:] if a != "--mock-chain"]
     mock_chain = "--mock-chain" in sys.argv[1:]
+    if mock_chain:
+        _isolate_mock_writers()
+    # ORDER MATTERS, all three before any thread starts. Isolation first (a
+    # replay must not read OR write the live record), then the morning is
+    # rebuilt so `_seed_vpin` can decide whether to rank against it, then the
+    # day state is restored BEFORE the senses loop exists to save over it.
+    _backfill_vpin()
+    _seed_vpin()
+    _load_day_state()
     if argv and argv[0] == "live":
         import threading
         import time as _t

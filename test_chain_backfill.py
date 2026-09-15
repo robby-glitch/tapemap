@@ -40,14 +40,26 @@ def test_the_baseline_is_the_days_first_candle():
     fetch = _fetch_of({"K": _candles([("09:15", 100.0, 1000),
                                       ("09:16", 101.0, 1500),
                                       ("09:17", 102.0, 1200)])})
-    hist, base = cb._minute_oi("K", "tok", fetch)
+    hist, base, _px = cb._minute_leg("K", "tok", fetch)
     assert base == 1000
     assert hist == {"09:15": 1000.0, "09:16": 1500.0, "09:17": 1200.0}
 
 
+def test_premium_rides_off_the_same_candle_as_the_oi():
+    """The UI's OI x premium paint needs both axes, and the candle already
+    carries both -- so the premium half costs no extra request and no extra
+    rate-limit budget. A LEVEL, not a change from the open: `k` is a change
+    because the live chain publishes `oi_chg`, and there is no such convention
+    for premium."""
+    fetch = _fetch_of({"K": _candles([("09:15", 41.25, 1000),
+                                      ("09:16", 55.80, 1500)])})
+    _hist, _base, px = cb._minute_leg("K", "tok", fetch)
+    assert px == {"09:15": 41.25, "09:16": 55.80}
+
+
 def test_an_instrument_that_served_nothing_is_not_an_error():
     """A strike that never traded is a real answer, not a failure."""
-    assert cb._minute_oi("K", "tok", _fetch_of({})) == ({}, None)
+    assert cb._minute_leg("K", "tok", _fetch_of({})) == ({}, None, {})
 
 
 # ---- the grid ---------------------------------------------------------------
@@ -78,6 +90,64 @@ def test_change_is_measured_from_the_open_not_the_previous_mark(monkeypatch):
 
 def test_spot_rides_along(monkeypatch):
     assert _grid(monkeypatch, _both_sides())["09:16"]["spot"] == 24010.0
+
+
+def test_the_rebuilt_grid_carries_premium_per_strike(monkeypatch):
+    """The point of the whole follow-up: after a late start the UI can compute
+    OI-change AND premium-change per window for the morning, so the 4-state
+    paint fills instead of staying half-blind."""
+    g = _grid(monkeypatch, _both_sides())
+    assert g["09:15"]["px"][24000] == (10.0, 20.0)
+    assert g["09:16"]["px"][24000] == (11.0, 21.0)
+
+
+def test_premium_and_oi_always_cover_the_same_marks(monkeypatch):
+    """They come off the SAME candle, and `candles_to_arrays` drops any row
+    whose OHLC will not parse -- so a row cannot contribute OI without also
+    contributing a close. That is why premium does not gate the mark: it
+    cannot be the thing that is missing.
+
+    Pinned because the alternative was believed and tested for on the way
+    here: a fixture with a null close looks like "OI but no premium" and is
+    actually a row that never reaches either series. The `.get(m)` in
+    `minute_grid` stays as the honest shape if that ever changes -- a None
+    there would mean "not observed", never a zero premium.
+    """
+    g = _grid(monkeypatch, _both_sides())
+    for m, rec in g.items():
+        assert set(rec["px"]) == set(rec["k"]), m
+        assert all(None not in pair for pair in rec["px"].values()), m
+
+
+def test_a_leg_that_serves_nothing_still_drops_the_whole_mark(monkeypatch):
+    """The OI rule is unchanged by premium riding along: `oi_flow` SUMS the
+    row, so a mark missing one strike shows a dip that never happened."""
+    fetch = _fetch_of({
+        "24000CE": _candles([("09:15", 10.0, 1000), ("09:16", 11.0, 1600)]),
+        "24000PE": _candles([("09:15", 20.0, 2000)]),          # no 09:16
+    })
+    g = _grid(monkeypatch, fetch)
+    assert "09:16" not in g
+
+
+def test_every_rebuilt_mark_says_it_was_rebuilt(monkeypatch):
+    """The non-negotiable: backfilled data stays distinguishable from
+    live-observed data end to end. `src` travels WITH the mark rather than in
+    a parallel structure, because a parallel structure is somewhere for two
+    truths to drift apart."""
+    g = _grid(monkeypatch, _both_sides())
+    assert all(rec["src"] == "backfill" for rec in g.values())
+
+
+def test_the_live_writer_sets_no_src_so_absent_means_observed():
+    """`ChainState.update` is the socket's own path. If it ever started
+    writing a `src`, "absent means observed" would quietly stop being true and
+    every backfilled row would read as live."""
+    import inspect
+
+    from chain_metrics import ChainState
+    body = inspect.getsource(ChainState.update)
+    assert '"src"' not in body and "'src'" not in body
 
 
 def test_a_mark_missing_one_side_is_dropped_not_zero_filled(monkeypatch):
@@ -150,6 +220,71 @@ def test_the_poller_does_not_backfill_on_dhan(monkeypatch):
     p.states = {"NIFTY": _State()}
     p._kick_backfill("NIFTY", {"strikes": [{"k": 1}]})
     assert called == []
+
+
+def test_the_flag_reaches_the_trending_oi_rows(monkeypatch):
+    """End to end: a mark rebuilt from candles must be readable AS rebuilt on
+    the row a screen renders. The morning of a server started at 11:00 is
+    worth having and is not the same evidence as an observation -- REST
+    candles carry no IV, no greeks and nothing gamma-weighted."""
+    from chain_metrics import ChainState
+    st = ChainState()
+    st.minutes = {
+        "09:15": {"spot": 24000.0, "k": {24000: (0.0, 0.0)}, "src": "backfill"},
+        "09:30": {"spot": 24050.0, "k": {24000: (500.0, -200.0)},
+                  "src": "backfill"},
+        "11:00": {"spot": 24100.0, "k": {24000: (900.0, -100.0)}},
+    }
+    rows = {r["time"]: r for r in st.oi_flow(interval=15)}
+    assert rows["09:30"]["backfill"] is True
+    assert rows["11:00"]["backfill"] is False
+
+
+def test_premium_reaches_the_rows_for_the_selected_strikes():
+    """What the UI joins on: `row.time` + `row.px[strike]`, differenced across
+    rows for premium change per window -- the same rows that already carry
+    `backfill`, so both axes of a mark are always one population."""
+    from chain_metrics import ChainState
+    st = ChainState()
+    st.minutes = {
+        "09:15": {"spot": 24000.0, "k": {24000: (0.0, 0.0), 24200: (0.0, 0.0)},
+                  "px": {24000: (41.25, 88.6), 24200: (12.0, 150.0)},
+                  "src": "backfill"},
+        "09:30": {"spot": 24050.0, "k": {24000: (500.0, -200.0),
+                                         24200: (900.0, -50.0)},
+                  "px": {24000: (55.8, 70.1), 24200: (18.4, 132.0)},
+                  "src": "backfill"},
+    }
+    rows = {r["time"]: r for r in st.oi_flow(interval=15, strikes=[24000])}
+    assert rows["09:30"]["px"] == {24000: (55.8, 70.1)}   # selection only
+    assert rows["09:30"]["backfill"] is True
+    # premium CHANGE is the caller's subtraction over its own window
+    assert round(rows["09:30"]["px"][24000][0]
+                 - rows["09:15"]["px"][24000][0], 2) == 14.55
+
+
+def test_a_book_wide_call_ships_no_per_strike_premium():
+    """A premium sum across strikes is not a quantity, and the whole chain
+    would be ~180KB per poll. Empty, and the endpoint says why."""
+    from chain_metrics import ChainState
+    st = ChainState()
+    st.minutes = {"09:15": {"spot": 24000.0, "k": {24000: (0.0, 0.0)},
+                            "px": {24000: (41.25, 88.6)}},
+                  "09:30": {"spot": 24050.0, "k": {24000: (500.0, -200.0)},
+                            "px": {24000: (55.8, 70.1)}}}
+    assert all(r["px"] == {} for r in st.oi_flow(interval=15))
+
+
+def test_a_mark_written_before_premium_existed_does_not_raise():
+    """`_warm_start` replays this tool's own persisted snapshots, and a
+    restart mid-upgrade can hand `oi_flow` a mark with no `px` key at all.
+    Absent must read as empty, never as a KeyError that takes the table
+    down."""
+    from chain_metrics import ChainState
+    st = ChainState()
+    st.minutes = {"09:15": {"spot": 24000.0, "k": {24000: (0.0, 0.0)}},
+                  "09:30": {"spot": 24050.0, "k": {24000: (500.0, -200.0)}}}
+    assert [r["px"] for r in st.oi_flow(interval=15, strikes=[24000])] == [{}, {}]
 
 
 def test_a_broken_backfill_never_takes_the_poller_down(monkeypatch):

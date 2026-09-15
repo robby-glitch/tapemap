@@ -107,7 +107,7 @@ function cell(label, value) {
   return c
 }
 
-function render(panel, payload) {
+function render(panel, payload, vpin) {
   const body = panel.querySelector('.tm-body')
   body.textContent = ''
 
@@ -138,6 +138,19 @@ function render(panel, payload) {
     ? ctx.pin.k + ' ' + (ctx.pin.dist > 0 ? '+' : '') + ctx.pin.dist
     : '--'
   grid.appendChild(cell('pin', pin))
+  // TOXICITY -- the shadow VPIN gauge, NIFTY future only. Percentile-so-far,
+  // never the raw number (vpin.py's docstring says why). SHADOW: it warns of
+  // expansion risk, it is not a signal, and the [~] warmup / '--' absence
+  // states say so rather than showing a confident 0.
+  const g = vpin && vpin['NIFTY-FUT']
+  let tox = '--'
+  if (g && idx === 'NIFTY') {
+    if (g.pct == null) tox = g.buckets + ' bkt ~'
+    else tox = Math.round(g.pct * 100) + '% ' + (g.pct >= 0.9 ? 'BURST' : g.pct >= 0.75 ? 'elevated' : 'quiet')
+  }
+  const tc = cell('toxicity [I]', tox)
+  if (g && g.pct >= 0.9 && idx === 'NIFTY') tc.querySelector('.tm-v').classList.add('tm-bad')
+  grid.appendChild(tc)
   body.appendChild(grid)
 
   // The zone. Newest signal wins; the backend's own trigger text is quoted
@@ -198,7 +211,7 @@ function tick() {
       return
     }
     const secs = Math.round(Date.now() / 1000 - (res.data.built_at || 0))
-    render(panel, res.data)
+    render(panel, res.data, res.vpin)
     age.textContent = secs + 's'
     age.className = 'tm-age' + (secs > STALE_S ? ' tm-bad' : '')
 

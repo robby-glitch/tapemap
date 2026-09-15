@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>OPERATOR — prop desk</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="tapemap.ico">
+<link rel="stylesheet" href="toolb.css?v=21">
+</head>
+<body>
+
+<!-- ===================================================================== -->
+<!-- The answer rides the header. Whatever screen she is on, the gear, the  -->
+<!-- direction, how old that answer is and whether it is stable are never   -->
+<!-- more than a glance away.                                               -->
+<!-- ===================================================================== -->
+<header>
+  <div id="brand">OPER<span>ATOR</span></div>
+
+  <nav id="idxTabs">
+    <button data-idx="NIFTY" class="active">NIFTY</button>
+    <button data-idx="BANKNIFTY">BANKNIFTY</button>
+    <button data-idx="SENSEX">SENSEX</button>
+  </nav>
+
+  <div id="answerChip">
+    <span id="acDir">—</span>
+    <span id="acGear">—</span>
+    <span id="acAge">—</span>
+    <span id="acStab" class="s0">—</span>
+  </div>
+
+  <div id="hdrRight">
+    <div id="spotBox"><i>SPOT</i><b id="spotVal">—</b></div>
+    <div id="sessChip" class="live">LIVE</div>
+    <div id="feedDot"><i></i><span id="feedTxt">feed —</span></div>
+    <div id="clock"><span id="clockT">--:--:--</span><small>IST</small></div>
+  </div>
+</header>
+
+<!-- server se sampark toota to yeh dikhta hai; data mitta NAHI hai -->
+<div id="offline" hidden>
+  <span id="offTxt">server se sampark nahi</span>
+  <span id="offAge"></span>
+</div>
+
+<!-- The server's own late-start / restore honesty. Its sentences are rendered
+     verbatim: paraphrasing them would soften a claim we did not make. -->
+<div id="coverage" hidden>
+  <span id="covHd"></span>
+  <span id="covWhy"></span>
+  <button id="covToggle">DETAIL</button>
+  <div id="covDetail"></div>
+</div>
+
+<!-- KAISA DIN HAI: the day's character, one glance, evidence one click away -->
+<div id="dayTile">
+  <div id="dtLeft">
+    <i id="dtLabel">KAISA DIN HAI</i>
+    <b id="dtType">—</b>
+    <span id="dtAge"></span>
+  </div>
+  <div id="dtMid">
+    <div id="dtHi">—</div>
+    <div id="dtSub"></div>
+  </div>
+  <button id="dtToggle" title="evidence dikhao / chhupao">EVIDENCE</button>
+</div>
+
+<nav id="tabs">
+  <button data-scr="desk" class="active">DESK<em>asli jawab</em></button>
+  <button data-scr="war">WAR MAP<em>maidan</em></button>
+  <button data-scr="tape">TAPE<em>flow aur zeher</em></button>
+  <button data-scr="surface">SURFACE<em>vol aur tax</em></button>
+  <button data-scr="paper">PAPER<em>paper book</em></button>
+</nav>
+
+<main>
+
+  <!-- ================================================== DESK: the answer -->
+  <section class="screen active" id="scr-desk">
+
+    <!-- 1. THE GATE: naya risk lena bhi chahiye? -->
+    <div id="gateStrip">
+      <div id="gateLeft">
+        <i>GATE</i>
+        <b id="gateLevel">—</b>
+      </div>
+      <div id="gateMid">
+        <span id="gateReason"></span>
+        <span id="gateMore"></span>
+      </div>
+      <div id="gateHoles"></div>
+    </div>
+
+    <!-- 2. SURVIVAL: sabse bada tile -->
+    <div class="panel" id="survival">
+      <div class="ph">ZINDA RAHUNGI? — GAP TABLE <em id="svLabel"></em></div>
+      <div class="pb" id="svBody"></div>
+      <div id="svBig"></div>
+    </div>
+
+    <!-- 3 + 4 -->
+    <div id="deskCol">
+      <div class="panel" id="paidTile">
+        <div class="ph">PAISA MIL RAHA HAI? — IV vs REALIZED</div>
+        <div class="pb">
+          <div id="paidTop"><b id="paidRatio">—</b><span id="paidVerdict"></span></div>
+          <div id="paidDetail"></div>
+          <div id="vegaAlert" hidden><span id="vegaTxt"></span></div>
+        </div>
+      </div>
+
+      <div class="panel" id="whereTile">
+        <div class="ph">MAIN KAHAN KHADI HOON <em id="whLabel"></em></div>
+        <div class="pb" id="whBody"></div>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="panel" id="moneyTile">
+      <div class="ph">PAISE ME GREEKS <em id="mgLabel"></em></div>
+      <div class="pb" id="mgBody"></div>
+      <div class="pb" id="mgHoles" style="padding-top:0"></div>
+    </div>
+
+    <!-- 6 -->
+    <div class="panel" id="hisaabTile">
+      <div class="ph">AAJ KA HISAAB</div>
+      <div class="pb" id="hsBody"></div>
+      <div class="pb" id="hsNote" style="padding-top:0"></div>
+    </div>
+
+    <!-- the machinery, demoted -->
+    <details id="machine">
+      <summary>MACHINE KI RAAY [I] — direction, gear, structures aur inka flip history</summary>
+      <div class="dd" id="machineBody">
+<div id="answerCard">
+      <div id="acTop">
+        <div id="acHuge">—</div>
+        <div id="acSub">
+          <div class="kv"><i>GEAR</i><b id="dGear">—</b></div>
+          <div class="kv"><i>CONVICTION</i><b id="dConv">—</b></div>
+          <div class="kv"><i>REGIME</i><b id="dRegime">—</b></div>
+          <div class="kv"><i>GAME</i><b id="dGame">—</b></div>
+        </div>
+        <div id="acSub2" class="kv-col">
+          <div class="kv"><i>TRAPPED</i><b id="dTrapped">—</b></div>
+          <div class="kv"><i>WORST LEG</i><b id="dWorst">—</b></div>
+          <div class="kv"><i>FUEL RANK</i><b id="dFuel">—</b></div>
+          <div class="kv"><i>EXP MOVE</i><b id="dEM">—</b></div>
+        </div>
+        <div id="acMeta">
+          <div id="dSince">—</div>
+          <div id="dExpiry" class="quiet">—</div>
+          <div id="dCap" class="quiet">—</div>
+        </div>
+      </div>
+      <div id="acWhy" class="why"></div>
+      <div id="otherIdx"></div>
+    </div>
+
+    <div id="structWrap" class="panel">
+      <div class="ph">DESK KYA BANATA <em id="structCount"></em></div>
+      <div class="pb" id="structVerdict"></div>
+      <div class="pb" id="structBody" style="padding-top:0"></div>
+    </div>
+
+    <div id="deskRail">
+      <div class="panel" id="stabPanel">
+        <div class="ph">BHAROSA / STABILITY <em id="stabCount"></em></div>
+        <div id="stabBar"><span></span><span></span><span></span><span></span><span></span></div>
+        <div id="stabNote">—</div>
+        <div id="stabTrans" class="quiet" style="padding:0 12px 10px">—</div>
+      </div>
+      <div class="panel" id="logPanel">
+        <div class="ph">AAJ KYA BADLA <em id="logMeta"></em></div>
+        <div class="pb" id="flipLog" style="padding:0"></div>
+      </div>
+    </div>
+        </div>
+    </details>
+  </section>
+
+  <!-- ============================================== WAR MAP: battlefield -->
+  <section class="screen" id="scr-war">
+    <div id="warTop">
+      <div class="wcell"><i>KAUN CHALA RAHA</i><b id="wDriver">—</b><span class="s" id="wDriverWhy"></span></div>
+      <div class="wcell"><i>ZYADA FUEL KIS TARAF</i><b id="wRicher">—</b><span class="s" id="wRicherS"></span></div>
+      <div class="wcell"><i>MAX PAIN / FLIP</i><b id="wPain">—</b><span class="s" id="wFlip"></span></div>
+      <div class="wcell"><i>SEQUENCE CHALA</i><b id="wSeq">—</b><span class="s" id="wSeqS"></span></div>
+    </div>
+
+    <div id="fuelTank">
+      <div class="ft-hd">
+        <i>FUEL TANK — KAHAN SABSE ZYADA PAISA JALEGA</i>
+        <span id="ftRicher"></span>
+        <button id="ftToggle">METHOD</button>
+      </div>
+      <div id="ftBody"></div>
+      <div id="ftConf"></div>
+      <div id="ftMethod"></div>
+    </div>
+
+    <div id="siege">
+      <div id="siegeRing">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#151D28" stroke-width="6"></circle>
+          <circle id="siegeArc" cx="26" cy="26" r="22" fill="none" stroke="#E0A32E"
+                  stroke-width="6" stroke-linecap="round"
+                  stroke-dasharray="138.2" stroke-dashoffset="138.2"></circle>
+        </svg>
+        <div class="t" id="siegeSec">—</div>
+      </div>
+      <div id="siegeMain">
+        <div class="hd">GHERAABANDI — RUKA AUR LOAD HUA</div>
+        <div class="lv" id="siegeLevel">—</div>
+        <div class="wy" id="siegeWhy"></div>
+      </div>
+      <div id="siegeLoad">
+        <div class="loadbar">
+          <div class="lb-t"><span>YAHAN OI LADA</span><span id="siegeShare"></span></div>
+          <div class="lb-b"><i class="ce" id="siegeCE"></i><i class="pe" id="siegePE"></i></div>
+          <div class="lb-t" style="margin-top:3px">
+            <span id="siegeCEv" style="color:var(--ce)">CE —</span>
+            <span id="siegePEv" style="color:var(--pe)">PE —</span>
+          </div>
+        </div>
+        <div class="loadbar">
+          <div class="lb-t"><span>KHARIDDAR CROSS KAR RAHE</span><span id="siegeXv"></span></div>
+          <div class="lb-b"><i id="siegeX" style="background:var(--accent)"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wmWrap">
+      <div id="wmLadderWrap">
+        <div class="clegend" id="paintNote"></div>
+        <svg id="migLayer" aria-hidden="true"></svg>
+        <div id="wmLadder"></div>
+      </div>
+      <div id="wmSide">
+        <div class="ph">RUNWAYS — FUEL KAHAN HAI</div>
+        <div class="runway" id="rwUp">
+          <div class="hd">UP TO <b id="rwUpT">—</b><span id="rwUpD"></span></div>
+          <div class="fuelbar"><i id="rwUpBar"></i></div>
+          <div class="wy" id="rwUpWhy"></div>
+          <div class="fuelitems" id="rwUpItems"></div>
+          <div class="mz" id="rwUpMine"></div>
+        </div>
+        <div class="runway" id="rwDn">
+          <div class="hd">DOWN TO <b id="rwDnT">—</b><span id="rwDnD"></span></div>
+          <div class="fuelbar"><i id="rwDnBar"></i></div>
+          <div class="wy" id="rwDnWhy"></div>
+          <div class="fuelitems" id="rwDnItems"></div>
+          <div class="mz" id="rwDnMine"></div>
+        </div>
+
+        <div class="ph">AAJ KA BOOK FLOW <em id="bfMeta"></em></div>
+        <div class="chartbox" id="bfChart"></div>
+        <div class="clegend" id="bfLegend"></div>
+        <div class="ph">FUT PATTI — DOOSRI FAUJ <em id="fpMeta"></em></div>
+        <div id="fpBody"></div>
+
+        <div class="ph">FRONT SARAK RAHA? <em>pichhle 15m</em></div>
+        <div id="migBody"></div>
+
+        <div class="ph">PAIN CURVE — EXPIRY PE KAUN DETA HAI</div>
+        <div class="chartbox" id="pcChart"></div>
+        <div class="clegend" id="pcLegend"></div>
+
+        <div class="ph">DEEWAREIN — PEAK AUR UTRAAV <em id="peakMeta"></em></div>
+        <div id="peakList"></div>
+      </div>
+    </div>
+
+    <div id="campaign">
+      <div class="ph">CAMPAIGN — AAJ KA POORA DIN, BAAYE SE DAAYE <em id="cmpMeta"></em></div>
+      <div id="cmpChart"></div>
+      <div class="clegend" id="cmpLegend">
+        <span><i class="sw p-write"></i> deewar bani</span>
+        <span><i class="sw p-cover"></i> deewar utri</span>
+        <span><i class="sw" style="background:#DCE5F2"></i> spot</span>
+        <span><i class="sw" style="background:#E0A32E"></i> event flag</span>
+        <span class="quiet">dashed border = backfilled [I], observed nahi</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================ TAPE: flow & VPIN -->
+  <section class="screen" id="scr-tape">
+    <div class="grid2">
+      <div class="panel">
+        <div class="ph">ORDER-FLOW ZEHER — VPIN <em id="vpMeta"></em></div>
+        <div class="gauge">
+          <div class="gaugeVal" id="vpPct">—<small>pct of day</small></div>
+          <div class="gmeter">
+            <div class="track"><i id="vpBar"></i></div>
+            <div class="ticks"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1.0</span></div>
+          </div>
+        </div>
+        <div class="pillrow" id="vpPills"></div>
+        <div id="vpRead"></div>
+        <div class="chartbox" id="vpChart"></div>
+        <div class="clegend" id="vpLegend"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">PADHAI — THE READ <em id="tpMeta"></em></div>
+        <div class="pb" id="tpRead"></div>
+        <div class="ph">SETUP</div>
+        <div class="pb" id="tpSetup"></div>
+      </div>
+
+      <div class="panel span2" style="min-height:280px">
+        <div class="ph">KAHANI — TAPE NE AAJ KYA KIYA <em id="evMeta"></em></div>
+        <div class="pb" id="evList" style="padding:0"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================= SURFACE: vol day + the tax -->
+  <section class="screen" id="scr-surface">
+    <div class="grid2">
+      <div class="panel">
+        <div class="ph">DIN BHAR ATM VOL <em id="ivMeta"></em></div>
+        <div class="chartbox" id="ivChart"></div>
+        <div class="clegend" id="ivLegend"></div>
+        <div class="ph" style="border-top:1px solid var(--line)">SKEW — AAJ</div>
+        <div class="pb" id="skewBody"></div>
+      </div>
+      <div class="panel">
+        <div class="ph">DELTA DRAG — KHARIDDAR KA TAX <em id="dgMeta"></em></div>
+        <div class="chartbox" id="dgChart"></div>
+        <div class="clegend" id="dgLegend"></div>
+        <div class="pb" id="dgNow" style="padding-top:0"></div>
+      </div>
+      <div class="panel">
+        <div class="ph">SURFACE FIT <em id="fitMeta"></em></div>
+        <div class="pb" id="fitBody"></div>
+      </div>
+      <div class="panel">
+        <div class="ph">MEHNGE / SASTE POINTS</div>
+        <div class="pb" id="rcBody" style="padding:0"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================== PAPER: book -->
+  <section class="screen" id="scr-paper">
+    <div class="grid3">
+      <div class="panel span2">
+        <div class="ph">KHULI — PAPER BOOK <em id="pbMeta"></em></div>
+        <div class="pb" id="pbOpen" style="padding:0"></div>
+      </div>
+      <div class="panel">
+        <div class="ph">RISK</div>
+        <div class="pb" id="pbRisk"></div>
+      </div>
+      <div class="panel span2" id="dayTradesTile">
+        <div class="ph">AAJ KI TRADES — KYA / KAB / KYU / KITNA <em id="pdMeta"></em></div>
+        <div class="pb" id="pdSrcNote" style="padding-bottom:4px"></div>
+        <div class="pb" id="pdSummary" style="padding-top:0"></div>
+        <div id="pdTimeline"></div>
+        <div class="trhead"><span>KYA</span><span>KAB</span><span>KYU</span><span>KITNA</span></div>
+        <div id="pdTrades"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">STRATEGY KA HISAAB</div>
+        <div class="pb" id="pdAcct"></div>
+      </div>
+
+      <div class="panel span2">
+        <div class="ph">AAJ MANA KIYA — REFUSALS HI PRODUCT HAIN <em id="pdRefMeta"></em></div>
+        <div class="pb" id="pdRefs" style="padding:0"></div>
+      </div>
+      <div class="panel span2" id="hedgeTile">
+        <div class="ph">HEDGE LEDGER — SHORT VARIANCE <em id="hgMeta"></em></div>
+        <div class="pb" id="hgBody"></div>
+        <div class="ph">AAJ KE HEDGE FILLS</div>
+        <div class="pb" id="hgFills" style="padding:0"></div>
+        <div class="pb" id="hgNote" style="padding-top:6px"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">MANA KIYA <em id="pbRefMeta"></em></div>
+        <div class="pb" id="pbRef" style="padding:0"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>zero cost · advisory only · no order path</span>
+  <span class="sep" id="footMeta">—</span>
+</footer>
+
+<script src="toolb.js?v=21"></script>
+</body>
+</html>

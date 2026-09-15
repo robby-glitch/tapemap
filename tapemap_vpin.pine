@@ -1,0 +1,82 @@
+// VPIN Shadow [I] — the same gauge tapemap/vpin.py runs, in Pine, so it can
+// sit under the NIFTY futures chart on TradingView.
+//
+// SAME LOGIC, COARSER CLOCK. vpin.py signs volume with the tick rule on
+// 0.5s feed frames; here the finest clock is the chart bar (use 1-min), so
+// one sign covers a whole bar's volume. Same compromise as BVC, stated, not
+// hidden. The two readings will differ in detail; the SERVER's forward log
+// (data/vpin_log.jsonl) is the record, this is the picture.
+//
+// READ THE PERCENTILE, NOT THE NUMBER (vpin.py's docstring says why). The
+// pane plots percentile-so-far of VPIN vs THIS session, 0-100. Verified on
+// Aug-24 replay: warmup done ~10:07, the 11:03-11:24 one-sided run read
+// 83->100% and the next 30 min ranged 2.2x base. It also stays loud at a
+// climax (13:52 flush) — expansion-risk gauge, NEVER an entry. SHADOW.
+//@version=6
+indicator("VPIN Shadow [I]", overlay = false)
+
+V    = input.int(60000, "Bucket size (units)", tooltip = "ADV/50, ADV = median of last 30 sessions, measured 2026-08-25. Recalibrate if the future's volume regime shifts.")
+N    = input.int(50,    "Window (buckets)")
+MINH = input.int(10,    "Buckets before percentile is trusted")
+
+var float buyAcc  = 0.0
+var float sellAcc = 0.0
+var int   sign    = 0
+var float[] imbs  = array.new_float()   // last N bucket imbalances
+var float[] hist  = array.new_float()   // this session's VPIN readings
+var float vpinV   = na
+var float pctV    = na
+
+// A new session starts a new gauge — percentile-so-far is per-session.
+if session.isfirstbar
+    buyAcc  := 0.0
+    sellAcc := 0.0
+    sign    := 0
+    array.clear(imbs)
+    array.clear(hist)
+    vpinV   := na
+    pctV    := na
+
+// Tick rule at bar grain: up-close = buy, down-close = sell, flat carries.
+if close > close[1]
+    sign := 1
+else if close < close[1]
+    sign := -1
+
+// Fill volume buckets; a heavy bar can close several (the 13:52 flush on
+// Aug-24 closed three inside one minute).
+float dv = nz(volume)
+while dv > 0
+    float room = V - (buyAcc + sellAcc)
+    float take = math.min(dv, room)
+    if sign > 0
+        buyAcc += take
+    else if sign < 0
+        sellAcc += take
+    else                     // no sign yet this session: honest neutral
+        buyAcc  += take / 2
+        sellAcc += take / 2
+    dv -= take
+    if buyAcc + sellAcc >= V
+        float imb = math.abs(buyAcc - sellAcc) / V
+        array.push(imbs, imb)
+        if array.size(imbs) > N
+            array.shift(imbs)
+        vpinV := array.avg(imbs)
+        int below = 0
+        if array.size(hist) > 0
+            for i = 0 to array.size(hist) - 1
+                if array.get(hist, i) <= vpinV
+                    below += 1
+        int nHist = array.size(hist)
+        array.push(hist, vpinV)
+        pctV := nHist + 1 >= MINH ? 100.0 * below / math.max(nHist, 1) : na
+        buyAcc  := 0.0
+        sellAcc := 0.0
+
+color band = pctV >= 90 ? color.red : pctV >= 75 ? color.orange : color.teal
+plot(pctV, "toxicity pctile", color = band, linewidth = 2)
+hline(90, "burst",    color = color.new(color.red, 50))
+hline(75, "elevated", color = color.new(color.orange, 60))
+bgcolor(pctV >= 90 ? color.new(color.red, 85) : na)
+plot(vpinV * 100, "raw VPIN x100", color = color.new(color.gray, 60))

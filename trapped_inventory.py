@@ -65,6 +65,12 @@ class Ledger:
         self.size: float = 0.0            # inventory the ledger has SEEN built
         self.basis: Optional[float] = None
         self.seen_build: float = 0.0      # cumulative builds (for confidence)
+        # The book that ALREADY EXISTED when this ledger started watching --
+        # the first observation's OI, before any delta could be attributed.
+        # This is the inventory whose basis we can never know: built on an
+        # earlier day, or this morning before a late start. It is the
+        # denominator `confidence()` was always missing.
+        self.unwatched: Optional[float] = None
         self.events: List[FlowEvent] = []
         self._last: Optional[tuple] = None  # (t, oi, price)
 
@@ -87,10 +93,51 @@ class Ledger:
         return ("long", pl) if pl > 0 else ("short", ps) if ps > 0 else ("none", 0.0)
 
     def confidence(self) -> str:
-        """How much of the current book the ledger actually watched build."""
+        """How much of the book the ledger actually watched build.
+
+        "none"    -- no basis, or the tracked inventory has fully drained.
+        "low"     -- under half the book was watched being built; `basis` and
+                     therefore `pain` describe a minority of the position.
+        "session" -- at least half was watched.
+
+        THE ARITHMETIC WAS DEAD UNTIL 2026-08-25 and this is the fix, recorded
+        because the field it feeds shipped wrong for a few hours. It read
+        `seen_build < self.size * 0.5`. But `seen_build` only ever GROWS
+        (`feed` adds every build to it) while `size` is REDUCED on every exit,
+        so `seen_build >= size` is an invariant and `seen_build < size * 0.5`
+        could not be true unless size were negative. `"low"` was unreachable:
+        every ledger with a basis reported `"session"`, so the warmap's
+        `ce_conf`/`pe_conf` always claimed full coverage -- exactly the
+        overstatement the field was added to prevent.
+
+        THE REAL DENOMINATOR is the whole book, not the part we tracked.
+        `size` was never a measure of ignorance -- it is our own bookkeeping,
+        so comparing our observations against it could only ever say
+        "we saw what we saw". What we do NOT know is the inventory that was
+        already sitting there on the first observation: built on an earlier
+        day, or this morning before an 11:00 start. That is `unwatched`, and
+        the honest ratio is watched / (watched + unwatched).
+
+        Worked, with the operator's own case: an 11:00 start on a 9.0M CE wall
+        that adds 0.5M by the close reads 0.5 / 9.5 = 5% -> "low", and the
+        basis is correctly flagged as describing a twentieth of the wall. The
+        same wall watched from 09:15, listed fresh that morning, reads
+        1.0 / 1.0 = 100% -> "session".
+
+        Deliberately cautious on churn: a book that builds and unwinds
+        repeatedly accumulates `seen_build` without the pre-existing tranche
+        ever becoming knowable, so it stays "low" until watched flow genuinely
+        outweighs the opening book. Overstating coverage is the failure that
+        just happened; understating it costs nothing but a caveat.
+        """
         if self.basis is None or self.size <= 0:
             return "none"
-        return "low" if self.seen_build < self.size * 0.5 else "session"
+        if self.unwatched is None:
+            return "none"          # never saw a first observation: nothing to divide by
+        total = self.unwatched + self.seen_build
+        if total <= 0:
+            return "none"
+        return "low" if self.seen_build < total * 0.5 else "session"
 
     # ── feed ────────────────────────────────────────────────────────────
     def feed(self, t: str, oi: Optional[float], price: Optional[float]) -> Optional[FlowEvent]:
@@ -99,6 +146,11 @@ class Ledger:
         if oi is None or price is None:
             return None
         if self._last is None:
+            # The book as it stood before we could attribute anything to it.
+            # Whatever is here was built at prices this ledger never saw, so
+            # it is permanently outside `basis` -- which is precisely what
+            # `confidence()` needs to weigh its own coverage against.
+            self.unwatched = float(oi)
             self._last = (t, oi, price)
             return None
         _, oi0, px0 = self._last

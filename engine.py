@@ -813,7 +813,14 @@ class Session:
 
         # --- ABSORPTION: extreme effort, no result
         if ranks_ok and ff["vol_r"] > 0.95 and ff["rng_r"] < 0.55:
-            side = "sellers" if fb["C"] < fb["O"] else "buyers"
+            # WHO got absorbed = who was WINNING on the way in. The bar's own
+            # colour cannot say: this bar's range is, by selection, near zero,
+            # so open-vs-close inside it is a coin flip -- and that flip also
+            # cast the trap vote below. The approach leg has an actual sign;
+            # the colour survives only as fallback when the approach is flat.
+            appr = fb["C"] - self.fut_bars[max(0, i - 5)]["C"]
+            side = (("sellers" if appr < 0 else "buyers") if abs(appr) > med60
+                    else ("sellers" if fb["C"] < fb["O"] else "buyers"))
             self.trap_ev["UP" if side == "buyers" else "DN"]["absorption"] = i
             tolm = 2 * med60
             if not any(k == "ABS" and abs(p - fb["C"]) <= tolm

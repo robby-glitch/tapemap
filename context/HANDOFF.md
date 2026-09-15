@@ -10,8 +10,33 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-08-22. **873 tests pass, none fail** (`pytest -q`,
-2026-08-22 — 871 plus 2 in `test_desk_log.py` for the restart-baseline marker
+Last updated: 2026-09-09. **1066 collected; 1063 pass, 3 fail** (`pytest -q`,
+2026-08-26 — 1041 plus 21 in `test_day_trades.py` for the paper day read back
+from the trade log;
+before that 1041 — 1021 plus 20 in `test_desk_numbers.py` for RV(5d), forward daily
+theta and margin-at-shifted-spot;
+before that 1021 — 988 plus 33 in `test_hedge.py` for the short-variance paper
+module (band math, brake, average-cost futures inventory, ledger rows, and
+nine integration cases through the real `trader.on_chain` tick);
+before that 988 — 981 plus 7 in `test_warmap.py` for the anytime-start audit
+repairs (each `confidence()` state constructed through a real feed sequence,
+after the arithmetic was found dead);
+before that 981 — 972 plus 9 for the late-start follow-ups: per-strike PREMIUM off
+the same candles the OI backfill already fetches (7 in
+`test_chain_backfill.py`) and `trapped_inventory.confidence()` on the warmap
+heat rows (2 in `test_warmap.py`);
+before that 972 — 941 plus 31 for startup backfill + day persistence:
+`test_vpin_backfill.py` (13), `test_day_state.py` (15) and three more in
+`test_chain_backfill.py` (the backfill tag reaching `/api/oiflow`'s rows);
+before that 941 —
+2026-08-23 — 900 plus 22 across `test_book.py` / `test_quoting.py` /
+`test_trader.py`, the paper desk (HANDOFF-DESK.md §8f: risk core, quoting
+layer, the self-trading paper book at `/api/paperdesk`);
+before that 900 — 873 plus 27 across `test_levels.py` / `test_dwell.py` /
+`test_hunt.py` / `test_sequence.py` / `test_driver.py` / `test_warmap.py`,
+the OI war map (HANDOFF-DESK.md §8d: levels / dwell / hunt / sequence /
+driver / warmap, `/api/warmap`, the ladder on desk.html);
+before that 873 — 871 plus 2 in `test_desk_log.py` for the restart-baseline marker
 on `desk_log.log_transition` (reviewer fix for commit b71f991, Finding 1);
 before that 871 — 845 plus 26: two in `test_pools.py` for the two `pools.orders_for`
 defects the Kite-bridge audit found (a touch-only price coincidence accepted as
@@ -53,6 +78,546 @@ pins this very number against the run). Branch:
 writing (see the 2026-08-15 entry). *No commit hash here on purpose: any hash this line names is stale the
 moment this file is committed. `git log --oneline -1` and
 `git status --short` are the live answer.*
+
+### STATE OF THE APP — end of 2026-08-25, read this before anything else
+
+Written for whoever picks this up cold (operator's order: "any body else work
+so they exact know where we are"). Every claim below is verifiable — the
+command or file that proves it is named.
+
+**What this system is now.** One Python server (port 8765, Upstox feed,
+`start-v2.bat`, ALWAYS launched detached — a 12:05 crash today killed it as a
+child process and cost 30 min of every forward log) + two frontends + one
+Chrome extension:
+
+- **`ui/toolb.html`** (+ toolb.js/css) — THE NEW TOOL, built clean-room by a
+  model that never saw the old design, through 5 reviewed rounds in one day.
+  Five screens (asli jawab / maidan / flow aur zeher / vol aur tax / paper
+  book), Hinglish voice, the OI battlefield (4-state OI×premium paint at
+  5m/15m/day, fuel tank off the server's own trapped-inventory ledger with
+  its confidence, migration arrows, acceleration with the NEW-wall sentence,
+  pain curve, FUT patti, campaign timeline), a "kaisa din hai" day-type tile
+  (5 rules, MIXED handled honestly), answer flip-changelog + 60-min stability
+  meter + answer age, full persistence (localStorage per date+index,
+  high-water snapshots, server-wins reconcile — survives refresh, server
+  death, and a server that lost the day), and the server's coverage honesty
+  rendered verbatim. **PENDING: the operator's "final kar" after one live
+  morning — on her word, toolb.* replaces desk.html.** Old `ui/tool.html`
+  (the parallel build that lost the judged comparison) is deleted; its best
+  ideas were absorbed into toolb during cross-critique.
+- **`ui/desk.html`** — the OLD desk, still the default screen, rejected
+  wholesale by the operator 2026-08-25 ("data ki boilerplate") but left live
+  until she approves the replacement. Do not invest in it.
+- **PaperDesk extension** at `C:\Users\kaam\Downloads\paperdeskextension1.22.0`
+  — v1.22.5 on disk (big-print reads OFF; its changelog file is
+  `CHANGES-1.22.0-to-1.22.4.md` in that tree). NOT yet reloaded in Chrome —
+  the operator still has to reload at chrome://extensions + refresh Kite.
+
+**What happened today (the detailed entries below have the full accounts):**
+VPIN shadow module's first live day validated its designed combo on the
+expiry squeeze (wall-unwind alerts 11:56/13:55 → burst 14:39, three
+one-second imb-1.0 buckets, pct 100% → box break 14:41; ~45 min of warning).
+Post-close batch: drag OWED_FLOOR (tax-blowup dead), vpin same-day
+seed/restore + `/api/vpin` (cross-day seeding was built, then REJECTED by
+the operator the same evening — expiry/vol regimes reshape the distribution
+daily; the mute morning is the honest price). Then the anytime-start rule
+("start anytime, backfill gives exact info") produced: startup backfill
+(FUT bars were already whole; per-strike OI+premium minute grid via
+`chain_backfill` with `backfill` tags end-to-end; VPIN morning BVC from
+1-min bars into `data/vpin_backfill.jsonl`, NEVER the promotion log,
+display-only — `SEED_LIVE_GAUGE_FROM_BACKFILL=False` is the operator's
+confirmed decision), `day_state.py` (drag ring survives restarts), and a
+77-piece audit (35 safe / 22 fixable / 24 lost) whose repairs landed the
+same night: `Ledger.confidence()` arithmetic was dead (could never say
+"low" — now weighed against `unwatched`), EOD capture had been writing into
+`Desktop\new tool nifty` for 4 sessions (scheduled task repointed via
+schtasks, orphaned captures recovered, and the "44% truncation" theory in
+old 0h DISPROVED — the 08-24 cache matches Upstox exactly), and two false
+`_coverage()` sentences corrected.
+
+**Later the same night (after this section was first written) — the seller
+pivot completed the build.** The operator ran an independent-design exercise
+(two models, no app context, "what would YOU want on a zero-cost seller's
+desk") and the convergence rewrote the DESK screen: it is now the seller's
+five questions in decision order — GATE (trade/half/no-new-risk) · SURVIVAL
+(gap table with real shifted margins + square-off distance) · AM I BEING
+PAID (ATM IV vs RV(5d) [M], 252-vs-365 basis warning shown verbatim) ·
+WHERE AM I (strike distance in σ, delta lamps) · MONEY GREEKS (rupees only)
+· HISAAB — with direction/gear/structures demoted to a collapsed "MACHINE
+KI RAAY [I]" drill-down (flip history intact, never the headline again).
+And the short-variance paper module shipped: `hedge.py` delta-hedges the
+paper book with paper futures (band 1.0 lot, brake 8/day/index, inventory
+kept OUT of book.Book), forward hedge ledger (theta − hedge bill = net
+variance, overnight gap exposure named daily), `/api/paperdesk.hedge`,
+rendered on the PAPER screen. Server also gained `fit.rv5` [M],
+`theta_day_est` (new Black-76 theta in gamma.py, verified against finite
+differences), and `margin_shift`. Suite: **1041**. The EOD scheduled task
+was repointed AND verified (see 0h — done, next run 26-08 15:35). First
+live day for all of it: 2026-08-26.
+
+**The pipeline, in order:**
+1. **Operator's morning review** → "final kar" → rename toolb.* over
+   desk.html (nothing renames before her word).
+2. **Desk answer hysteresis** (DEFERRED 0i) — measured 42 flips/60m; the
+   hold-time is HER call, sketch is in 0i. The UIs' client-side confirmation
+   gates cover the reading meanwhile.
+3. **Warm-start the state machines** (dwell/sequences/narrative) from their
+   own logs — `data/senses/` (~784k rows/day) and `data/warmap/` are
+   replayable; scope WITH the operator, it is the last big anytime-start gap.
+4. **DEFERRED 0g** — DIVERGENCE afternoon theta-bias (discount afternoon
+   trap votes until fixed).
+5. **PaperDesk 1.22.5 reload** (operator, 2 minutes).
+6. VPIN 30-session kill clock runs; day 1 recorded. BANKNIFTY VPIN only
+   after NIFTY survives it.
+
+**Where the truth lives:** this file (history), `context/DEFERRED.md`
+(postponed with evidence), `data/*` forward logs (the record),
+`/api/health.coverage` (what this process actually knows today), and the
+operator's memory files in the assistant workspace. The anytime-start audit
+report: https://claude.ai/code/artifact/4b30ccb2-f146-4414-a7ec-be8abcfb5981
+
+### 2026-08-25 night — when the tool is started stops deciding what it knows
+
+Two halves of one complaint, both in the operator's words: *"i have to start
+everything before 09:15 and by any chance if i m late let say i open my laptop
+at 11 — pta chle morning ki koi info nhi h, phir to reliable he nhi hoga"*, and
+*"7:30pm ko bhi kholu to dekh paaoun kya hua ... abhi to ui he khali ho
+jaata"*.
+
+**What was ALREADY solved, verified before writing anything** (the honest half
+of this entry — two of the four asks needed no code):
+
+- **FUT 1-minute bars.** `live.build_session` re-fetches the WHOLE session from
+  REST on every refresh cycle (`_intraday` → `_upstox_bars` →
+  `upstox_rest.intraday`). The tape has never had a late-start hole and does
+  not need one built.
+- **The per-strike OI timeline.** `chain_backfill.py` has existed since
+  2026-08-07, born from this exact objection, and is wired at
+  `ChainPoller._kick_backfill` — fired once per index after the first
+  successful poll, on a daemon thread, rebuilding `ChainState.minutes` from
+  per-leg intraday candles and never overwriting a mark the socket recorded.
+  `/api/oiflow` and the war map's time dimension were already reconstructing.
+  It was missing only its TAG (below).
+
+**Rate limits: the throttle already is the compliance.** A full NIFTY window is
+~61 strikes → 122 REST calls, ×3 indices ≈ 366 at startup, but every call goes
+through `upstox_rest._throttle` (`MIN_GAP` 0.25s, one module-level lock shared
+by every thread) — a hard ceiling of 240 req/min against Upstox's 250/min.
+**The strike list was deliberately NOT capped to ~30.** `oi_flow` SUMS the row,
+so a morning rebuilt on 30 strikes next to an afternoon observed on 61 produces
+a step in call/put totals that reads as a real OI event — the same
+"a partial sum is not a sum" rule `chain_backfill` already enforces per mark.
+Fewer calls would have bought a plausible, wrong table.
+
+**What was actually built:**
+
+- **The tag, end to end.** `chain_backfill` writes `"src": "backfill"` into
+  each rebuilt mark; `ChainState.oi_flow` republishes it as `backfill` on every
+  row; `/api/oiflow` adds `backfill_marks` / `marks` for a header. The live
+  writer sets no `src`, so ABSENT MEANS OBSERVED — pinned by a test that reads
+  `ChainState.update`'s source.
+- **`vpin.from_bars`** — the morning's toxicity buckets rebuilt BVC-style from
+  1-minute FUT bars, reusing `Gauge` whole (same bucket size, same imb, same
+  window mean, same Rank), primed at zero so 09:15's volume is not swallowed as
+  the vtt baseline. Ceiling stated and TESTED: one sign per minute is smoother
+  than the live frame path, so a backfilled reading is generally LOWER on the
+  same tape. **Rows go to `data/vpin_backfill.jsonl`, never
+  `data/vpin_log.jsonl`** — that file is the promotion evidence for a shadow
+  module on a declared 30-session kill clock, and a reconstruction written into
+  it is indistinguishable from an observation the moment it lands.
+  `server._backfill_vpin` runs at startup, only when the gap is real, cut off
+  at the first live bucket; `/api/vpin.series` concatenates the two with a
+  per-row `backfill` + `src`, never summing or ranking across the join.
+- **OPEN OPERATOR DECISION, parked OFF:** `server.SEED_LIVE_GAUGE_FROM_BACKFILL
+  = False`. Seeding the live gauge's same-day percentile from backfilled
+  buckets would end the mute morning a late start currently pays for — but a
+  percentile is only honest over ONE population, and BVC's smoother
+  distribution would push the reference DOWN and make the first live burst rank
+  higher than it deserves, on exactly the mornings this would be switched on
+  for. `/api/vpin` publishes the flag either way. Hers to flip.
+- **`day_state.py`** — the day's RAM-only series written down, atomic rewrite,
+  one file per day under `data/day_state/`, reloaded at startup for the SAME
+  day only (`vpin.Gauge.seed`'s rule, same reasoning: a stale series that
+  renders beats nothing only until tomorrow morning). `_SENSES["drag_day"]` was
+  the one day series with no forward log behind it. Saved every 60s from the
+  senses loop beside the other disk writers, and NOT market-hours gated —
+  unlike `desk_log`/`sequence`, which are forward records where an out-of-hours
+  row would corrupt the population; this is a snapshot of state, and 15:35 is
+  when it most needs to be on disk.
+  **Restored rows carry NO `backfill` tag**: they were observed, by an earlier
+  process on the same day. `/api/drag`'s `day.restored` says only that this
+  process did not gather them, so "since start" reads as the session's start.
+- **`/api/health.coverage`** (also on `/api/vpin`, `/api/drag`, `/api/oiflow`)
+  — `server_up`, `late_min`, and two named lists: what has a reconstructed
+  morning and what has none and never will (IV/greeks/GEX/the fitted surface,
+  the drag anchor, dwell + the sequence machines + every war-map narrative
+  event, the paper desk's decisions). Rule 6 in one place: a screen opened at
+  11:02 gets *"could not check — server started 11:02, 107 min after the
+  open"*, not an empty chart. `/api/drag` also grew `day_why` so an empty trace
+  cannot read as a zero tax.
+- **`_isolate_mock_writers` grew two lines** (`day_state.DIR`,
+  `VPIN_BACKFILL_LOG`), and a test now pins the whole list by reading that
+  function's source — a writer added without a line there leaks silently and is
+  found 33 hours later, which is exactly how 2026-08-24 went.
+
+**IV surface morning: deliberately NOT attempted.** REST candles carry no IV
+and no greeks, so a reconstructed smile would be a fit to inputs that do not
+exist. `chain_backfill`'s docstring already drew that line in 2026-08-07 and it
+still holds; the coverage list names it instead.
+
+**Not proven:** zero live sessions. `_backfill_vpin` has run only against
+synthetic bars; the first real test is a deliberate late start.
+
+**Two follow-ups, same night** (operator: *"ye to kabhi start karu ye bhr lega
+apne ap haina"*):
+
+- **Per-strike PREMIUM now rides the OI backfill.** The option candles
+  `chain_backfill` already fetches carry closes, and only OI was being kept —
+  so a late start rebuilt one axis of the UI's OI×premium paint and left the
+  other blind. `_minute_oi` → **`_minute_leg`**, returning a third element (the
+  close series) from the SAME call: no extra request, no extra rate-limit
+  budget. Marks gain `px: {strike: (ce, pe)}` on BOTH paths — `chain_backfill`
+  and `ChainState.update` — so a rebuilt morning and a watched afternoon are
+  one shape. `oi_flow` rows republish `px` for the **selected strikes only**
+  (`/api/oiflow?strikes=…`), with `px_why` on the response when there is no
+  selection: a premium sum across strikes is not a quantity, and the whole
+  chain would be ~180KB per poll.
+  **Premium is a LEVEL, OI is a CHANGE**, deliberately: the live chain
+  publishes `oi_chg` so the grid matches it, but there is no house convention
+  for premium change and baking one window in would fix the caller's choice
+  forever. The UI joins on `row.time` + `row.px[strike]` and differences it.
+  The existing `backfill` flag covers both axes — they come off the same mark,
+  so they are always the same population.
+  *Corrected on the way here:* a test was written asserting "OI present,
+  premium missing" is possible. It is not — `candles_to_arrays` drops any row
+  whose OHLC will not parse, so such a row reaches NEITHER series. The fixture
+  that "proved" it was lying about the wire format. The test now pins the real
+  invariant (`set(rec["px"]) == set(rec["k"])`); the defensive `.get(m)` stays
+  as the honest shape if that ever changes.
+- **`confidence()` on the warmap heat rows.** `heat[]` exposed `ce_pain` /
+  `pe_pain` but not the ledger's own coverage, so the fuel tank could not tell
+  a basis built watching 90% of a wall from one that saw 10% after an 11:00
+  start — the two produce the same-looking number and the second is nearly
+  worthless. One field per strike-side: `ce_conf` / `pe_conf`, straight from
+  `trapped_inventory.Ledger.confidence()` (`none`/`low`/`session`).
+  **`None` and `"none"` are two different answers** and a test pins both:
+  `None` = there is no ledger for this leg; `"none"` = the ledger exists and
+  has not seen a build yet. This is NOT a confidence score under house rule 4 —
+  it is a coverage statement about the ledger's own observation, the same
+  string `Ledger.snapshot()` has always published, carrying no claim about
+  whether the read is right.
+
+### 2026-08-26 — the paper day, read from the log; and the why that was not durably logged
+
+Operator reviewed the paper desk's first full day and approved it (*"acha kaam
+kiya h isne"*); the PAPER screen is being redesigned and needed a real source.
+Her bar: *"isko bhi redesign kr pta chlna chaiye kya liya kb kyu liye"*.
+
+**The durability asymmetry, biting a screen she reads.** `closed_today` comes
+off the IN-MEMORY book, so the 23:32 restart truncated it to 20 rows while
+`trades.jsonl` held all **62** round trips for 2026-08-25. Same class as the
+drag-trace hole. `/api/paperdesk` now serves `day_trades` built from the LOG.
+Measured after the fix: `closed_today` 20, `day_trades` 62, refusals 84.
+
+**A WRITER DEFECT, found by checking rather than assuming — and it was real.**
+The why was NOT durably joinable per trade:
+
+- `trades.jsonl` open rows carried `pid` and **no why**.
+- `decisions_<day>.jsonl` carried the rule-9 sentence (`detail` +
+  `evidence.forced_why`) and **no pid**.
+
+Two files, no join key. So "why did it take this trade" was unanswerable per
+trade from the durable record the moment the process restarted. **Fixed at the
+writer:** `_open_from_fill` now stamps `forced_who` / `forced_why` / `gear`
+onto the trade row itself (one file answers it), and `_log` gained `pid` so
+entries, exits and refusals are cross-referenceable. Both pinned by tests that
+read the writers' source, not just the readers' output.
+
+**Historical rows get a best-effort join, tagged as one.** For the 62 trades
+already written, the why is recovered from the decisions log on
+(idx, strategy, timestamp) and every recovered row says
+`why_src: "decisions-log join [I] on idx+strategy+timestamp"`. **36 of 62
+matched**; the rest are `why: null` with `why_missing` naming the reason. The
+gap is honest: the decisions `ts` is wall-clock while the trade `ts` is the
+CHAIN's, so they differ by a second or two. **The join was deliberately kept
+EXACT rather than given a tolerance** — BUY_CASCADE fires repeatedly on the
+same index, and a *wrong* why attached to a trade is worse than a null.
+
+**Which day is served: the latest session PRESENT IN THE LOG, not the calendar
+date** — she reviews after the close, often past midnight, and a calendar read
+would blank the screen at 00:00 on the session she is still looking at. `day`
+and `day_is_calendar_today` are always published so nothing is ambiguous.
+
+**Accounting is rupees and counts only** — `by_index`, `by_strategy`, each
+`{net, trades, open}`. A running position is counted under `open` rather than
+summing as a zero-P&L trade. No hit rate, win rate or expectancy anywhere; a
+test asserts the banned words never appear in `day_accounting`'s source, so a
+helpful future edit fails loudly. Measured for 08-25: NIFTY +8,300.5 (30),
+BANKNIFTY +6,795.0 (25), SENSEX −2,008.0 (7).
+
+### 2026-08-25 night — the three numbers the desk screen had to declare missing
+
+Closed server-side so tomorrow's screen is whole. Operator's standing bar:
+*"proper tool k tarah chle... backfill to give exact info"*.
+
+- **RV(5d) on `/api/surface`**, per index, as `fit.rv5` / `fit.rv5_why`. [M] —
+  measured from `data/backtest/fut_*.json`, the tool's own captures (NIFTY at
+  the top level, the others in their own subdirectory; reading the wrong one
+  would report NIFTY's vol under another index's name, so a test pins it).
+  Method stated in the payload: last close of each session, close-to-close LOG
+  returns, SAMPLE stdev (n-1), annualized sqrt(252). Under 5 usable sessions
+  it returns a REASON, not a number — a vol printed off two sessions is noise
+  wearing a number's clothes. A corrupt capture is skipped, never zero-filled.
+  **The 252-vs-365 basis is published, not buried** (`basis_note`): variance
+  accrues on trading days, but IV's T here is 365 calendar
+  (`gamma.DAYS_PER_YEAR`), and comparing RV to IV is the entire point of
+  having this — so the mismatch travels with the number.
+- **`gamma.theta()` / `theta_day()` — new, and the only real math in the
+  batch.** Black-76 theta did not exist in the repo. Derived in the docstring:
+  `theta = r*price - e^{-rT} F n(d1) sigma / (2 sqrt(T))`, one expression for
+  both calls and puts because `F n(d1) = K n(d2)` collapses the density terms.
+  **Verified against finite differences of the existing `bs_price`** rather
+  than a remembered formula — a sign error here reads as free money. Daily
+  decay divides by 365 CALENDAR, matching the basis `surface.years_to_expiry`
+  and `chain_live.t_years` already use; dividing by 252 would have inflated
+  daily decay ~45% and shown it as income.
+- **`/api/paperdesk.theta_day_est`** — the forward answer to *"ek din nikal
+  jaye = +Rs Z"*. Deliberately a SECOND theta number and the method says why:
+  marks' `theta_gamma_resid` is a measured RESIDUAL with gamma fused in (what
+  happened); this is a model estimate of one day ahead. Legs with no IV are
+  NAMED and excluded — a partial theta shown as the whole book's understates
+  income exactly when a leg is unquoted.
+- **`/api/paperdesk.margin_shift`** — margin at spot ±1%/±2% on the current
+  paper book, same `desk._naked_margin` model reused rather than a second one
+  that could disagree. The survival table's "free margin" row had been
+  assuming margin CONSTANT while spot moves; it is a percentage of NOTIONAL,
+  so a short book's margin rises with the index — the mechanism the crowd
+  doctrine (rule 5) turns on. Its could-not-check note can go.
+  **Named ceiling:** spot shifts, IV does not. A real SPAN run raises both, so
+  these are a FLOOR on the squeeze, and the payload says so.
+
+### 2026-08-25 night — SHORT VARIANCE: the paper delta-hedger and its ledger
+
+Operator approved (*"haan bna de"*). The premise is her broker arrangement, not
+a model: at zero cost (rule 8) hedging becomes viable, because hedging is a
+high-frequency low-edge activity that retail friction normally eats alive. With
+the friction gone a strangle stops being a range bet and becomes **short
+variance** — `IV sold − RV realized`, the identity HANDOFF-DESK §1 already
+writes down, with the hedge as the mechanism that converts it to cash.
+
+**New `hedge.py` + wiring in `trader.py`. PAPER ONLY** — paper futures against
+a paper option book. A test asserts by source inspection that the module
+contains no order path at all; rule 10 gets an assertion, not a comment.
+
+**Two structural decisions, both about correctness rather than convenience:**
+
+- **The hedge inventory is deliberately NOT in `book.Book`.** Hedge positions
+  there would move `book.risk()` → `forced_ratio` → trader's `FORCED_MIN` entry
+  gate — a *shadow* module silently steering the live paper desk. It reads net
+  delta and never writes it. Pinned by a test that asserts no `FUT` leg ever
+  appears in `book.positions` while a hedge is on.
+- **Hedging is PER INDEX with that index's own future**, not NIFTY FUT against
+  everything. Hedging BANKNIFTY delta with NIFTY futures would be wrong and it
+  is the same code. Separate inventories, separate brakes.
+
+**Constants, all [I], all with their starting rationale in the docstrings:**
+`BAND_LOTS = 1.0` (the hedge instrument is a whole futures lot, so a
+correction under one lot cannot be expressed — a tighter band would churn on
+deltas the instrument cannot answer); `MAX_HEDGES_DAY = 8` (deliberately NOT
+the manual-discipline 4, which is a human attention limit; a systematic
+hedger's brake exists to cap a malfunctioning or whipsawed loop — 8 is ~one
+rebalance per 45 min, loose enough not to bind on a trending day, tight enough
+to stop a runaway inside an hour); `GAP_MOVE_EM = 1.0` (same value and shape as
+`book.STRESS_MOVE_EM`, reused so the two readings cannot drift).
+
+**A real defect found on the way in.** `book.mark_position` silently skipped
+legs whose delta had not arrived, so `net_delta` came back a smaller number
+with no hint it was partial. Harmless while nothing acted on it; **not**
+harmless once a futures trade is sized from it. `mark_position` now publishes
+`delta_why` naming the legs, and the hedger REFUSES to hedge while it is
+non-empty rather than hedging a confidently understated delta.
+
+**The brake is never silent.** On binding it logs a refusal once per index per
+day (`BRAKE ... net delta N lots is now RUNNING UNHEDGED`), writes a refusal
+row to the ledger, and `/api/paperdesk.hedge` carries `brake_hit` + `brake_why`
+continuously. An unhedged book that looks hedged is the worst reading this
+module could produce.
+
+**EOD flattens the hedge, and the flatten does not consume a brake slot.** The
+paper desk squares off options at 15:18; a hedge left on would become an
+outright overnight futures position at that instant. Refusing to *close* because
+a counter is full would be the worst possible reading of a risk limit. The
+daily summary is taken BEFORE the square-off, on the book as it actually stood
+— afterwards the gap number would read zero for a reason unrelated to hedging.
+
+**Honest ceilings, all carried in the API note and the ledger rows:** fills
+assume no spread paid (front-of-queue, so hedge cost is a LOWER bound and
+`net_variance` an UPPER one), and the INDEX stands in for the future — carry
+cancels on a round trip, only carry *drift* is unmodelled (`book.py` already
+marks FUT legs this way). `theta_collected` is the sum of
+`attribution.theta_gamma_resid`, which **bundles theta with gamma and
+higher-order** and says so; isolating pure decay needs a per-snapshot greek
+path that is not built.
+
+**Gap risk stays unhedged by construction** and the daily row says so: the
+short-variance identity holds for *continuous* rehedging, and overnight is the
+discontinuity — which research-findings already calls informed repricing with
+no edge to lean on.
+
+**Evaluation is the ledger, over sessions, by the operator.** No rate, no win
+count anywhere — a test asserts the banned key names never appear in a row.
+Zero live sessions: every number here is arithmetic over synthetic ticks.
+
+### 2026-08-25 night — the audit that checked the thing just built
+
+The operator asked for exactly this: *"ek baar check bhi kr lena jo abhi tak
+banaya h wo sb bhi... other wise it will be always wrong"*. Three findings,
+all confirmed by tracing before anything was changed. Two of the three were
+defects in code shipped HOURS earlier, which is the §9 lesson landing again:
+the suite was green through all of it.
+
+- **`Ledger.confidence()` was arithmetically dead — it could never return
+  "low".** `seen_build` only grows (`feed` adds every build); `size` shrinks on
+  every exit. So `seen_build >= size` is an invariant and the old test
+  `seen_build < size * 0.5` was unsatisfiable. Every ledger with a basis
+  reported `"session"`, so the `ce_conf`/`pe_conf` field shipped that evening
+  **always claimed full coverage** — the precise overstatement it was added to
+  prevent. Root cause: `size` is our own bookkeeping, so measuring our
+  observations against it can only ever say "we saw what we saw". The missing
+  denominator is what we did NOT watch: `Ledger.unwatched`, the OI already
+  standing at the first observation, built on an earlier day or before a late
+  start. Now `seen_build / (unwatched + seen_build)`. The operator's own case —
+  11:00 start, 9.0M wall, +0.5M by the close — reads 5% → `"low"`; a strike
+  watched from scratch reads 100% → `"session"`. Deliberately cautious on
+  churn. **The old test asserted set membership** (`conf in (None,"none",
+  "low","session")`), which passed happily while one member was unreachable;
+  replaced by 7 tests that CONSTRUCT each state through real `feed` sequences,
+  plus a source-level guard against the dead comparison returning.
+- **EOD capture had been writing into the WRONG REPO.** The "TapeMap EOD
+  capture" scheduled task executed `Desktop\new tool nifty\eod_capture.bat`.
+  Both repos' `.bat` files are identical and correctly portable
+  (`cd /d "%~dp0"`), so each ran fine into its own folder — last run
+  2026-08-25 15:35, **result 0, a clean success into the wrong tree**. A
+  directory diff found exactly THREE orphans (NIFTY, `BANKNIFTY/`, `SENSEX/`
+  for 2026-08-25); everything older had been backfilled here by manual runs.
+  All three were verified for day, shape and `_meta.source`, then copied in
+  without clobbering. **Repointing the task was deliberately NOT done** — it is
+  persistent machine configuration and an agent's request is not the
+  operator's consent; the one-line `schtasks` command is in DEFERRED 0h.
+- **DEFERRED 0h's "44% short" was DISPROVED** — see the rewritten entry. Upstox
+  REST for 2026-08-24 returns 385 bars totalling **2,374,190**, which is
+  EXACTLY what our cache holds. The TV export's 4,224,415 was the outlier and
+  was never reconciled before being used to indict our file. Nothing truncated
+  ate VPIN's BUCKET_V median. The real residual is ~1% and structural: the task
+  fires at 15:35 while the last bars land 15:34–15:39.
+- **Two false sentences in `_coverage()`, both mine from earlier that night.**
+  It listed "the war map's time dimension" as RECONSTRUCTED while the same
+  payload said four lines later that dwell and the sequence machines are not —
+  `chain_backfill` fills `ChainState.minutes`, which only `/api/oiflow` reads;
+  `warmap.py` never touches that grid and its boards start at process start.
+  And it said no REST endpoint serves the drag anchor, which stopped being true
+  the moment premium backfill landed: the 09:15 strikes and premiums are
+  already fetched, nothing is wired to `drag.Board`. A wiring gap must not be
+  filed under "never will". Both corrected, in `_coverage()` and in
+  `/api/drag`'s `day_why`.
+
+**NOT taken on:** warm-starting the dwell/sequence machines from
+`data/senses/` and `data/warmap/` logs. That is the real remaining hole behind
+an anytime start, and it is being scoped with the operator rather than guessed
+at on a night shift.
+
+### 2026-08-25 evening — the burst that validated the gauge, and the post-close batch
+
+The first live day ended with the module's designed combination firing for
+real: CE-wall unwind alerts at 11:56 and 13:55 (-7.7M, then -7.1M off the
+24,200 wall), then at 14:39 THREE 60k buckets completed in one second, all
+imb 1.0 buy-side, VPIN pct 100% — and the 24,100-24,200 expiry box broke UP
+at 14:41 (spot 24,205.3). Max pain walked 24,150→24,200, the PE wall chased
+to 24,150. Fuel (percentile) + side (the wall story) told it in order, ~45
+minutes of warning first. One forward day proves nothing — the 30-session
+clock runs — but day 1 is on the board.
+
+Post-close batch shipped (942 tests, none fail):
+- **drag.OWED_FLOOR = 0.5** premium points: `between()` refuses a rate when
+  owed is a hair's width (expiry OTM legs printed "tax 15,543%" — arithmetic,
+  not information). `/api/drag` frac now goes None instead.
+- **vpin.Gauge.seed(rows, today)**: same-day replay ONLY — a mid-session
+  restart resumes the gauge instead of going blind (the 12:36 crash-restart
+  sat it out until 13:2x). server.py `_seed_vpin()` runs at startup, after
+  `_isolate_mock_writers` so replays seed only from their isolated log.
+  A cross-day percentile reference (trailing 30 sessions) was built first
+  and REJECTED by the operator the same evening, correctly: expiry
+  character and the vol regime reshape the imbalance distribution daily —
+  this day WAS an expiry full of imb-1.0 buckets, and as a reference it
+  would mark every normal morning "quiet" forever (the Andersen-Bondarenko
+  critique, applied to ourselves). The percentile stays
+  percentile-of-THIS-session; the mute morning is the honest price.
+- **GET /api/vpin**: today's bucket series straight from the forward log
+  (t/imb/vpin/pct) + live state. NOTE `_json()` takes BYTES — pass
+  `json.dumps(...).encode()`, a dict dies after headers with an empty body.
+- **The server must be launched DETACHED** (Start-Process, not a child of
+  any assistant/terminal session): the 12:05 Claude-process restart killed
+  the server with it and cost ~30 min of every forward log.
+
+NOT done on purpose: /api/desk answer hysteresis (measured: 42 flips/60m,
+4 flips in 35s — see DEFERRED 0i; the hold-time is the operator's call, not
+a night-shift guess). eod_capture (0h) still open — tonight's capture is
+equally suspect until fixed. The desk UI was rejected wholesale and two
+clean-room replacements built and cross-critiqued (ui/tool.html by Sonnet,
+ui/toolb.html by Opus — toolb judged the better base); desk.html stays live
+until the operator picks.
+
+### 2026-08-25 — VPIN shadow, the day strips, and one absorbed coin flip
+
+**VPIN (order-flow toxicity), SHADOW, NIFTY FUT only.** `vpin.py` (pure,
+stdlib, 9 tests): vtt-delta volume signed by tick rule, 60k-unit volume
+buckets, |buy−sell|/V, mean of last 50, read as percentile-so-far.
+BUCKET_V = 60,000 is ADV/50 with ADV the MEDIAN of the last 30 cached
+sessions (2,936,408) — the first cut, 100k off the single session 07-17,
+turned out to be one of the heaviest days in the cache and pushed warm-up
+(MIN_HIST 10 buckets) to lunch. Wired in the senses loop (frame-paired ltp+vtt
+via `ladder_of`), forward log `data/vpin_log.jsonl` (queued under the lock,
+written outside it; --mock-chain redirects it), served on `/api/senses.vpin`.
+Nothing downstream reads it. **Kill condition: 30 sessions from 2026-08-25's
+open, pct ≥ 0.90 must precede range expansion at better than base rate.**
+First live bucket 09:19:58 (imb 0.27). Replay check on the Aug-24 TV export:
+warm-up done 10:07, the 11:03–11:24 one-sided run read 83→100% and the next
+30 min ranged 2.2× base; the 13:52 flush (three buckets in one minute) was a
+climax, not a warning — Andersen's critique, observed live.
+
+**The day strips — first repair of the write-only-logs audit finding.**
+`/api/surface` now carries per-index `day` (open/now/hi/lo of a, b at open vs
+now, ~60-pt series; `_surface_day` reads the forward log back, size-keyed
+cache, 3 tests in `test_surface_day.py`) and desk.html renders an "IV din"
+strip with a verdict (vol aayi/nikli/flat + skew unwind vs steepening).
+`/api/drag` grew the same: a chain-pace in-memory ring (`_SENSES["drag_day"]`,
+Nones KEPT — a gap is a fact) and a "tax ka din" strip with worst-tax @ time.
+Aug-24's story, now on screen: a 10.59→11.82% (+1.24), high 12.44 @ 11:32 —
+the same minutes VPIN burst; skew −0.86→0.04, fear spent by close.
+
+**engine.py ABSORPTION side was a coin flip, and it voted.** The event fires
+only when the bar's range is near zero, so open-vs-close inside that bar is
+noise — and that noise fed `trap_ev` as a TRAP-SETTING vote. Side now comes
+from the 5-bar approach leg (who was winning INTO the wall got absorbed),
+colour only as fallback when the approach is under one med60. The DIVERGENCE
+afternoon theta-bias was found in the same audit and deliberately NOT fixed
+(see DEFERRED). Thresholds untouched: they are [I], and the only legal tuner
+in this house is a forward record, not a hand on a constant.
+
+**The Aug-24 cache is ~44% short.** TV export total 4,224,415 vs cached
+fut_2026-08-24.json 2,374,190 — the eod_capture gap does not just cost a
+snapshot, it corrupts calibration inputs (the 30-session median above ate at
+least one truncated session). Fixing eod_capture is now worth more than it
+looked.
+
+**PaperDesk went 1.22.1→1.22.4** (live tree `Downloads/paperdeskextension1.22.0`,
+its own CHANGES-1.22.0-to-1.22.4.md): native VPIN in flow.js off the ws-tap
+(bid/ask aggressor), TAPE cell in the mini bar (VPIN·IV·tax·trending-OI),
+IV/tax chips on the chart's VPIN line, MARKET READS precision pass — every
+read carries a [VPIN · IV · tax · OI] context suffix, a 09:15–15:30 gate
+killed the 06:40 OI-noise reads, and a vpin burst read fires on the 90th-pct
+crossing with the CVD lean. Version bumps are TWO places there: manifest.json
+AND core.js PD.VERSION — one without the other trips its stale-files check.
 
 ### 2026-08-22 — Phase 0: wire the three dead gears, kill the orphans
 

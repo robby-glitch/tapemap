@@ -54,6 +54,9 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+OWED_FLOOR = 0.5   # premium points; below this a tax RATE is not measurable
+
+
 @dataclass
 class Drag:
     """The tax on being right, over one interval, for one leg."""
@@ -75,7 +78,9 @@ def between(under_from: Optional[float], under_to: Optional[float],
     None whenever the question does not apply or cannot be answered honestly:
     a missing price, a missing delta (there is no assumed 0.5 here -- that
     assumption is the reason this module exists), an underlying that did not
-    move, or a move that went AGAINST the leg so there was no payoff to tax.
+    move, a move that went AGAINST the leg so there was no payoff to tax, or
+    an owed payoff under OWED_FLOOR -- a rate against a hair's width of owed
+    is arithmetic, not information.
     """
     if None in (under_from, under_to, prem_from, prem_to):
         return None
@@ -89,6 +94,12 @@ def between(under_from: Optional[float], under_to: Optional[float],
         return None
     owed = delta * d_under
     if owed <= 0:                       # the move went against this leg
+        return None
+    # OWED_FLOOR: a rate needs a denominator worth measuring. On expiry day
+    # 2026-08-25 an OTM leg was "owed" ~0.1 points and the board printed a
+    # 15,543% tax -- arithmetic, not information. Below half a premium point
+    # the honest answer is the same as a missing delta: no rate.
+    if owed < OWED_FLOOR:
         return None
     paid = prem_to - prem_from
     drag = owed - paid
@@ -147,13 +158,58 @@ class Board:
     publishes.
     """
 
+    # THE ANCHOR ON A LATE START (the anytime-start rule). "Since I could have
+    # entered" means the session's first minutes, not the process's. When the
+    # backfilled minute grid (chain_backfill -> ChainState.minutes, rows with
+    # src=backfill and a `px` premium per strike) is offered, the board
+    # anchors on its EARLIEST mark instead of the first live snapshot. The
+    # grid carries no delta, so the anchor's delta is None and `between`
+    # averages the live end alone -- stated in `anchor_src`, never faked.
+    # Waits up to SEED_WAIT_S for the grid to land; a start by 09:17 has no
+    # morning to rebuild and anchors live at once.
+    SEED_OPEN_S = 9 * 3600 + 17 * 60
+    SEED_OPEN_M = "09:20"       # a grid whose first mark is by here has its open
+    SEED_WAIT_S = 600
+
     def __init__(self):
         self.strike = None          # the anchored strike, once chosen
         self.at = None              # the snapshot it was anchored on
+        self.anchor_src = None      # "live" | "backfill" | None
+        self.anchor_why = "no snapshot yet"
+        self._first_sec = None
         self._ce = DragMeter()
         self._pe = DragMeter()
         self.ce: Optional[Drag] = None
         self.pe: Optional[Drag] = None
+
+    @staticmethod
+    def _sec(t) -> Optional[int]:
+        t = str(t or "")
+        if len(t) >= 5 and t[2] == ":":
+            return int(t[:2]) * 3600 + int(t[3:5]) * 60 + (int(t[6:8]) if len(t) >= 8 else 0)
+        return None
+
+    def _anchor_from_grid(self, grid) -> bool:
+        """Anchor on the EARLIEST grid mark that prices a strike both sides --
+        a REST-rebuilt row (src=backfill) or one an earlier process today
+        observed (no src). True when it did; False when no mark qualifies."""
+        rows = sorted((m, r) for m, r in dict(grid or {}).items()
+                      if r.get("spot") and r.get("px"))
+        for m, r in rows:
+            ks = [k for k, p in r["px"].items()
+                  if p and p[0] is not None and p[1] is not None]
+            if not ks:
+                continue
+            k = min(ks, key=lambda x: abs(x - r["spot"]))
+            src = "backfill" if r.get("src") == "backfill" else "restored"
+            self.strike, self.at, self.anchor_src = k, m, src
+            self.anchor_why = (f"anchored on the {m} mark ({'rebuilt from REST candles' if src == 'backfill' else 'observed by an earlier process today'}), "
+                               f"strike {k}; the grid carries no delta, so the rate "
+                               f"uses the live delta alone")
+            self._ce.reset(r["spot"], r["px"][k][0], None)
+            self._pe.reset(r["spot"], r["px"][k][1], None)
+            return True
+        return False
 
     @staticmethod
     def _leg(strikes, k, side):
@@ -162,7 +218,7 @@ class Board:
                 return row.get(side) or {}
         return {}
 
-    def on_snapshot(self, spot, strikes, t=None):
+    def on_snapshot(self, spot, strikes, t=None, grid=None):
         """One chain snapshot -> the drag on each anchored leg, or None each.
 
         None is a real answer here and appears constantly: before the anchor
@@ -172,10 +228,36 @@ class Board:
         if not spot or not strikes:
             return self
         if self.strike is None:
-            ks = [r.get("k") for r in strikes if r.get("k")]
-            if not ks:
-                return self
-            self.strike, self.at = min(ks, key=lambda k: abs(k - spot)), t
+            sec = self._sec(t)
+            if self._first_sec is None:
+                self._first_sec = sec
+            late = sec is not None and self._first_sec is not None \
+                and self._first_sec > self.SEED_OPEN_S
+            if late and grid is not None:
+                g = {m: r for m, r in dict(grid).items() if r.get("spot") and r.get("px")}
+                first = min(g) if g else None
+                # ready once the grid reaches the open; else wait for the REST
+                # walk, then anchor on what there is and name the gap
+                if (first is None or first > self.SEED_OPEN_M) \
+                        and sec - self._first_sec <= self.SEED_WAIT_S:
+                    self.anchor_why = ("waiting for the backfilled minute grid to anchor on"
+                                       if first is None else
+                                       f"grid starts {first}; waiting for the REST walk to fill the open")
+                    return self
+                if not self._anchor_from_grid(g):
+                    self.anchor_why = ("no grid mark prices a strike both sides; anchored "
+                                       f"live at {t}, {(sec - 9 * 3600 - 15 * 60) // 60} min after the open")
+                elif first > self.SEED_OPEN_M:
+                    self.anchor_why += (f"; NOTHING before {first} -- the REST walk did not "
+                                        f"land, the open's owed is not in this number")
+            if self.strike is None:
+                ks = [r.get("k") for r in strikes if r.get("k")]
+                if not ks:
+                    return self
+                self.strike, self.at = min(ks, key=lambda k: abs(k - spot)), t
+                self.anchor_src = "live"
+                if not late:
+                    self.anchor_why = "anchored live at the open"
         ce = self._leg(strikes, self.strike, "ce")
         pe = self._leg(strikes, self.strike, "pe")
         self.ce = self._ce.update(spot, ce.get("ltp"), ce.get("delta"))
@@ -200,6 +282,7 @@ class Board:
         d = self.ce if side == "ce" else self.pe if side == "pe" else None
         return {
             "strike": self.strike, "anchored_at": self.at,
+            "anchor_src": self.anchor_src, "anchor_why": self.anchor_why,
             "right_side": side,
             "ce": self.ce.__dict__ if self.ce else None,
             "pe": self.pe.__dict__ if self.pe else None,

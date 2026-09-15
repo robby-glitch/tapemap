@@ -15,6 +15,23 @@ data/senses/
 # capture_desk_record preserves each day's copy into data/backtest/ instead.
 data/surface/
 data/desk_log.jsonl
+# war-map sequence transitions (sequence.py) -- its OWN forward population,
+# one file per day, never pooled with any of the above
+data/warmap/
+# NSE participant-wise OI EOD files (driver.py) -- refetchable public CSVs
+data/participant/
+# the paper desk's book, trades and decision journal (trader.py) -- runtime
+# state + its own forward populations, never pooled with any other record
+data/paper_desk/
+# the day's RAM-only series, written down so a post-close restart still shows
+# the session (day_state.py). Per-day runtime state, same class as
+# data/paper_desk/state.json -- NOT a forward record and never scored.
+data/day_state/
+# the toxicity morning REBUILT from 1-minute bars (vpin.from_bars). Derived,
+# regenerable from the same bars any time, and rewritten on every start.
+# data/vpin_log.jsonl -- the forward record it must never be confused with --
+# stays tracked on purpose.
+data/vpin_backfill.jsonl
 
 # caches / local tooling state
 __pycache__/
@@ -51,3 +68,6 @@ data/scrip_master.csv
 data/stick_state.json
 data/upstox_*.json
 tapemap.log*
+graphify-out/
+.impeccable/
+tape_desktop.png
