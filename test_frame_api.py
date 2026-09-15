@@ -31,6 +31,7 @@ def test_frame_post_stores_the_tape_and_answers_have_bars(tmp_path, monkeypatch)
     code, j = req.out[-1]
     assert code == 200 and j["ok"] is True and j["have_bars"] == 3
     assert server._SENSES["tape"]["NIFTY"]["doc"]["session"] == "NIFTY-I|5m|2026-09-11"
+    assert "coverage" in j          # frame.build's own coverage rides the reply
 
 
 def test_frame_post_refuses_a_non_5m_interval_with_a_reason(tmp_path):

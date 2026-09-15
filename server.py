@@ -26,6 +26,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+import band_rotation
 import chainside as chain_mod
 import day_state
 import desk as desk_mod
@@ -35,6 +36,7 @@ import drag as drag_mod
 import driver as driver_mod
 import warmap as warmap_mod
 import fuse as fuse_mod
+import frame
 import frame_log
 import instruments
 import oi_dwell
@@ -938,6 +940,41 @@ def payload_at(box, interval):
     return out
 
 
+def _book_for(handler, idx):
+    """Everything the frame composes from, gathered under the lock. Each
+    field is None when its module has not answered; frame.py turns None into
+    that block's own PATA NAHI. Nothing is computed here.
+
+    `vpin_pct` reads the gauge through `Gauge.state()["pct"]` -- vpin.py has
+    no bare `.pct` attribute, only that reading method (server.py's own
+    /api/vpin and /api/senses handlers read it the same way). `senses` is
+    passed as None: the per-instrument reading a `Senses` object could offer
+    is not an attribute of it either -- it is assembled in the GET
+    /api/senses handler from `_SENSES["fuse"]` plus `_regime_engine_read`/
+    `_walls_holding`, which this composer must not re-derive.
+    """
+    with _SENSES_LOCK:
+        wb = _SENSES.get("warmap")
+        wm = wb.for_index(idx).state() if wb else None
+        g = (_SENSES.get("vpin") or {}).get(f"{idx}-FUT")
+        vpin_pct = g.state().get("pct") if g else None
+        senses = None
+    st = (getattr(handler.poller, "states", None) or {}).get(idx) if handler.poller else None
+    box = handler.chains.get(idx) if handler.chains else None
+    pj = {}
+    try:
+        pl = payload_at(handler.payloads.get(idx), band_rotation.SCORED_INTERVAL) if handler.payloads else None
+        pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
+    except Exception:
+        pj = {}
+    return {"warmap": wm, "minutes": getattr(st, "minutes", None),
+            "spot": box.get("spot") if box else None,
+            "expiry": (box or {}).get("expiry") or pj.get("expiry"),
+            "zone_state": pj.get("zone_state"), "zone_state_sell": pj.get("zone_state_sell"),
+            "vpin_pct": vpin_pct, "senses": senses, "ivrv": None,
+            "coverage": _coverage()}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, payloads=None, chains=None, poller=None, late=None,
                  **kw):
@@ -1074,15 +1111,18 @@ class Handler(SimpleHTTPRequestHandler):
                                            "(band_rotation.py:850-861)."}).encode())
                     return
                 day = str(doc.get("session") or "").split("|")[-1] or time.strftime("%Y-%m-%d")
+                # `fr` is fully built -- including the log-write decision --
+                # BEFORE the lock is taken, and never mutated again once
+                # published: GET /api/frame json.dumps()s this same object
+                # under the lock, and mutating it outside the lock (the
+                # earlier placeholder set log_row_written after publishing)
+                # is a race with that serialization.
+                fr = frame.build(doc, _book_for(self, idx), time.strftime("%H:%M"))
+                fr["day"] = day
+                fr["log_row_written"] = frame_log.append_if_changed(fr, day, idx)
                 with _SENSES_LOCK:
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
-                fr = {"idx": idx, "ts": time.strftime("%H:%M:%S"), "day": day,
-                      "ladder": {"rows": []}, "zone": {"state": "PATA NAHI", "fire": False,
-                      "why": "frame.py not wired yet"}, "watch": {"tells": []},
-                      "missing": ["frame.py"], "have_bars": len(doc.get("closed") or [])}
-                with _SENSES_LOCK:
                     _SENSES["frame"][idx] = fr
-                fr["log_row_written"] = frame_log.append_if_changed(fr, day)
                 self._json(json.dumps({"ok": True, **fr}, default=str).encode())
             except Exception as e:               # never 500 at a browser extension
                 self._json(json.dumps({"ok": False, "why": str(e)}).encode(), 200)

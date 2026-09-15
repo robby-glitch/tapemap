@@ -18,7 +18,7 @@ import os
 from typing import Optional
 
 DIR = os.path.join("data", "frame")
-_last_sig: dict = {}      # day -> last signature written
+_last_sig: dict = {}      # (day, idx) -> last signature written
 
 
 def day_path(day: str) -> str:
@@ -34,9 +34,10 @@ def sig(fr: dict) -> str:
                        sorted(fr.get("missing") or [])], default=str)
 
 
-def append_if_changed(fr: dict, day: str, path: Optional[str] = None) -> bool:
+def append_if_changed(fr: dict, day: str, idx: str = "NIFTY", path: Optional[str] = None) -> bool:
     s = sig(fr)
-    if _last_sig.get(day) == s:
+    key = (day, idx)
+    if _last_sig.get(key) == s:
         return False
     p = path or day_path(day)
     try:
@@ -45,5 +46,5 @@ def append_if_changed(fr: dict, day: str, path: Optional[str] = None) -> bool:
             f.write(json.dumps({"day": day, **fr}, default=str) + "\n")
     except OSError:
         return False          # never drop the feed for a disk error
-    _last_sig[day] = s
+    _last_sig[key] = s
     return True
