@@ -1,0 +1,73 @@
+# tapemap/test_frame_zone.py
+"""2026-09-11 09:45: the tape's −3.19σ tap on the futures, pinned against the
+real machine only -- the flow half (absorption/exhaustion/trap) is supplied
+explicitly here rather than re-derived, because the tape's own absorption
+detector lives in the extension (board.js, tested in test/engine.mjs), not
+in this repo. 2026-09-09 14:10 (the mid-range long that lost 85 points) must
+read WAITING and never fire, flow present or not. Regression fixtures, not
+targets: nothing here is tuned; the assertions follow from the rule as
+written."""
+import json
+import os
+
+import band_rotation
+import frame
+
+FIX = r"C:\Users\kaam\Desktop\Go charting\orderflow-desk\test"
+
+
+def _tape(day, upto_hhmm):
+    j = json.load(open(os.path.join(FIX, f"session-{day}.ofd.json"), encoding="utf-8"))
+    bars = sorted(j["bars"], key=lambda b: b["t"])
+    bars = [b for b in bars if frame._hhmm(b["t"]) <= upto_hhmm]
+    pv = pv2 = vv = 0.0; bands = []
+    for b in bars:
+        tp = (b["h"] + b["l"] + b["c"]) / 3; pv += tp * b["vol"]; pv2 += tp * tp * b["vol"]; vv += b["vol"]
+        m = pv / vv; s = max(0.0, pv2 / vv - m * m) ** 0.5
+        bands.append({"t": b["t"], "vwap": m, "sigma": s, "u1": m + s, "d1": m - s, "u2": m + 2 * s, "d2": m - 2 * s, "u3": m + 3 * s, "d3": m - 3 * s})
+    return {"kind": "frame", "session": f"NIFTY-I|5m|{day}", "idx": "NIFTY", "interval": 5, "rowSize": 5,
+            "futPx": bars[-1]["c"], "closed": bars, "forming": None, "bands": bands, "walls": [], "broke": [],
+            "events": [], "taps": []}
+
+
+def _machine(tape):
+    # `_index_bar` (band_rotation.py:731) passes a flat bar through unchanged,
+    # and `run_states`/`_run_read` (band_rotation.py:893-900, 1050) key off
+    # LOWERCASE t/l/h/c/vwap plus the band by its own lowercase name ("d2") --
+    # the brief's upper-case keys are what `_index_bar`'s DAY-ROW `fut` shape
+    # documents, not what a FLAT row is read as. Extending, not replacing: the
+    # upper-case keys still ride along for any reader that wants them.
+    bars = [{"T": frame._hhmm(b["t"]), "O": b["o"], "H": b["h"], "L": b["l"], "C": b["c"], "V": b["vol"],
+             **{k.upper(): v for k, v in bd.items() if k != "t"},
+             "t": frame._hhmm(b["t"]), "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"], "vol": b["vol"],
+             **{k: v for k, v in bd.items() if k != "t"}} for b, bd in zip(tape["closed"], tape["bands"])]
+    return band_rotation.run_states(bars, stop_pts=band_rotation.OPERATOR_STOP_PTS, band="d2")
+
+
+def _with_absorption(tape):
+    """The flow half, supplied: the tape's absorption detector lives in the
+    extension (board.js, tested in test/engine.mjs). zone() only asks whether
+    an absorption/exhaustion/trap event sits within 3 rows of the zone edge."""
+    last = tape["closed"][-1]
+    return dict(tape, events=[{"t": last["t"], "kind": "absorption", "side": 1, "p": last["l"], "size": None}])
+
+
+def test_0911_0945_is_armed_at_the_tap_by_the_rule():
+    tape = _tape("2026-09-11", "09:45")
+    z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")
+    assert z["state"] in ("ARMED", "TRIGGERED"), z["state"]
+    assert z["reached"] is True and z["fire"] is False and z["flow"] == []   # zone alone never fires
+
+
+def test_0911_0945_fires_only_when_flow_is_supplied_at_the_zone():
+    tape = _with_absorption(_tape("2026-09-11", "09:45"))
+    z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")
+    assert z["reached"] and "absorption" in z["flow"] and z["fire"] is True and z["visit"]
+    z2 = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNCONFIRMED"}}, "09:45")
+    assert z2["fire"] is False, "a chain UNCONFIRMED vetoes the beep even with tape flow present"
+
+
+def test_0909_1410_is_waiting_and_never_fires_even_with_flow():
+    tape = _with_absorption(_tape("2026-09-09", "14:10"))
+    z = frame.zone(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "14:10")
+    assert z["state"] == "WAITING" and z["reached"] is False and z["fire"] is False

@@ -136,7 +136,9 @@ def zone(tape: dict, book: dict, now_hhmm: str) -> dict:
     """The one verb. Location from the 5-minute bands; state from the one
     zone machine (book['zone_state'], run_states at SCORED_INTERVAL); flow
     confirmation from the tape's own events at the zone price and the
-    chain's confirm. FIRE only when both agree, once per zone visit."""
+    chain's confirm. FIRE only when both agree, once per zone visit.
+    Flow anchors on the band at this instant, or on the machine's level
+    once armed."""
     src = ["market.js vwapSeries", "band_rotation.run_states", "board.js events", "taps.js"]
     bn = _bands_now(tape)
     if not bn or not bn.get("sigma"):
@@ -163,7 +165,12 @@ def zone(tape: dict, book: dict, now_hhmm: str) -> dict:
     else:
         items.append(_absent("setup", "zone machine not answering (band_rotation.run_states)"))
     row = float(tape.get("rowSize") or 5)
-    edge = buy_hi if in_buy else sell if at_sell else None
+    # the flow check anchors on the band price at this instant, or, once the
+    # machine has armed, on the machine's own level: the touch already
+    # happened, and a close a hair past d3 is only the falsification region
+    # if it holds three bars (see `falsifies` below)
+    m_level = (zs[-1] if isinstance(zs, list) else zs).get("level") if zs else None
+    edge = buy_hi if in_buy else sell if at_sell else (m_level if machine in ("ARMED", "TRIGGERED", "IN_TRADE") and m_level is not None else None)
     flow = [e for e in tape.get("events") or [] if edge is not None and e.get("p") is not None
             and abs(e["p"] - edge) <= 3 * row and e.get("kind") in ("absorption", "exhaustion", "trap")]
     for e in flow:
