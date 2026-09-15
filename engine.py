@@ -516,8 +516,11 @@ class Session:
 
     def nearest_level(self, price):
         b = self.fut_bars[0]
-        levels = {"P": b["P"], "R1": b["R1"], "R2": b["R2"], "R3": b["R3"],
-                  "S1": b["S1"], "S2": b["S2"], "S3": b["S3"]}
+        levels = {k: v for k, v in
+                  ((k, b.get(k)) for k in ("P", "R1", "R2", "R3", "S1", "S2", "S3"))
+                  if v is not None}
+        if not levels:
+            return None, None          # prior session absent -- no pivot to be near
         name = min(levels, key=lambda k: abs(levels[k] - price))
         return name, levels[name]
 
@@ -718,7 +721,7 @@ class Session:
         if ranks_ok and mature:
             lvl_name, lvl = self.nearest_level(fb["C"])
             tol3 = 3 * med60
-            near_lvl = abs(fb["C"] - lvl) < tol3
+            near_lvl = lvl is not None and abs(fb["C"] - lvl) < tol3
             compressing = ff["bw_r"] < 0.45
             pe_peak = self.oi_peak["PE"][0]
             ce_peak = self.oi_peak["CE"][0]

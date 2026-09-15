@@ -12,6 +12,7 @@ Serving:           python server.py live  (refreshes every REFRESH_S)
 """
 
 import json
+import logging
 import math
 import threading
 import time
@@ -25,6 +26,8 @@ import instruments
 import structure
 from dhan_fetch import _intraday_body, _one_session
 from engine import Session, session_json
+
+log = logging.getLogger(__name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
 REFRESH_S = 15
@@ -253,13 +256,23 @@ def _atm_ids(strike, cfg):
 
 
 def _pivots(tok, cfg):
-    """Standard pivots off the prior session's FUT H/L/C — fetched once per
-    (index, prior day); yesterday's bars cannot change intraday."""
+    """Standard pivots off the prior session's FUT H/L/C -- fetched once per
+    (index, prior day); yesterday's bars cannot change intraday.
+
+    ISOLATION (2026-09-15): an empty prior session returns None, uncached,
+    instead of raising. From 09-07 to 09-15 the raise here propagated out of
+    build_session BEFORE _bars ran, so both zone machines, trigger_log and the
+    gear reading were dark for eight sessions with nothing on screen saying so.
+    Every object fetches its own inputs and fails alone; this one now does."""
     key = (cfg["under_sym"], cfg["prev_day"])
     if key in _piv_cache:
         return _piv_cache[key]
     d = _intraday(tok, cfg["fut_id"], "FUTIDX", cfg["prev_day"], oi=False,
                   seg=cfg["fut_seg"], name=cfg["under_sym"])
+    if not (d and d.get("high") and d.get("low") and d.get("close")):
+        log.warning("pivots: no prior-session bars for %s %s -- pivot levels "
+                    "absent, stated; not cached", cfg["under_sym"], cfg["prev_day"])
+        return None
     piv = _floor_pivots(max(d["high"]), min(d["low"]), d["close"][-1])
     _piv_cache[key] = piv
     return piv
@@ -379,7 +392,7 @@ def _bars(d, piv):
                "U2": b["u2"], "D2": b["d2"],
                "U3": b["u3"], "D3": b["d3"],
                "OI": oi[i], "V": d["volume"][i]}
-        bar.update(piv)
+        bar.update(piv or {})
         bars.append(bar)
     return bars
 
