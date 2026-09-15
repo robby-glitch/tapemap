@@ -4,7 +4,8 @@ import frame
 
 
 def _bar(i, o, h, l, c, delta=0, oi=100000):
-    return {"t": (1000 * 60 * 5 * i) + 1_780_000_000_000, "o": o, "h": h, "l": l, "c": c, "delta": delta, "oi": oi}
+    # bars start at 09:15 IST (frame._hhmm(1_780_026_340_000) == "09:15"): the warm-up rule is judged on the tape's own clock
+    return {"t": (1000 * 60 * 5 * i) + 1_780_026_340_000, "o": o, "h": h, "l": l, "c": c, "delta": delta, "oi": oi}
 
 
 def _tape(n=14):
@@ -62,7 +63,8 @@ def test_where_px_why_when_no_futures_price():
 
 
 def test_where_before_warm_and_without_bands():
-    w = frame.build(_tape(), _book(), "09:20")["where"]
+    t1 = _tape(); t1["closed"], t1["bands"] = t1["closed"][:1], t1["bands"][:1]   # one bar, 09:15, closes 09:20: the tape's clock is before 09:25 whatever the wall clock says
+    w = frame.build(t1, _book(), "15:30")["where"]
     assert not w["warm"] and w["z"] is None and w["buy_zone"] is None and "09:25" in w["zone_why"]
     t = _tape(); t["bands"] = []
     w = frame.build(t, _book(), "15:30")["where"]
@@ -156,7 +158,8 @@ def test_setup_falsifier_carries_the_number_and_no_else_tell():
     assert len(S["confirm"]["why"]) <= 48
     assert all(t["name"] != "ELSE" for t in S["tells"]) and all(t["tag"] == "I" for t in S["tells"])
     assert "trap" not in S
-    S = frame.build(_tape(), _book(), "09:20")["setup"]
+    t1 = _tape(); t1["closed"], t1["bands"] = t1["closed"][:1], t1["bands"][:1]   # one bar closed at 09:20: WARMUP on the tape's clock, not the wall clock
+    S = frame.build(t1, _book(), "15:30")["setup"]
     assert S["state"] == "WARMUP" and S["falsifies"] == "nothing to falsify before σ exists"
 
 

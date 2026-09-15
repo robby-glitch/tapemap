@@ -421,11 +421,16 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     sess = (tape.get("session") or "").split("|")
     day = sess[-1] if len(sess) >= 3 else None
     head = _safe(lambda: _head(tape, book), _EMPTY_HEAD)
-    where = _safe(lambda: _where(tape, closed, now_hhmm), _EMPTY_WHERE)
+    # the warm-up rule (σ trusted from WARM_HHMM) is judged on the TAPE's clock -- the close time of the last
+    # closed bar -- not the wall clock: a session replayed at night, or a late start, carries its own time.
+    # The wall clock is the fallback only when no bar has closed.
+    iv_ms = int(tape.get("interval") or 5) * 60000
+    clock = _hhmm(closed[-1]["t"] + iv_ms) if closed and closed[-1].get("t") is not None else now_hhmm
+    where = _safe(lambda: _where(tape, closed, clock), _EMPTY_WHERE)
     trapped = _safe(lambda: _trapped(book, closed, mins, marks), _EMPTY_TRAPPED)
     walls = _safe(lambda: _walls(tape, book, broke), _EMPTY_WALLS)
     tape_o = _safe(lambda: _tape(tape, closed, walls["rows"]), _EMPTY_TAPE)
-    setup = _safe(lambda: _setup(tape, book, now_hhmm, walls), _EMPTY_SETUP)
+    setup = _safe(lambda: _setup(tape, book, clock, walls), _EMPTY_SETUP)
 
     def _events_and_armed():
         armed = []
