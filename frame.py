@@ -40,6 +40,17 @@ import visit as visit_mod   # the latched reach and the visit key; frame.py comp
 import watch as watch_mod       # the ladder rows worth watching; none of them is an entry
 
 WARM_HHMM = "09:25"         # band_rotation.ANCHOR_HHMM; sigma is not trusted before it
+# A TIME GATE IS NOT A QUALITY GATE. On 2026-09-17 the posted band carried sigma = 1.41 points
+# against a 23,300 price at 09:32 -- past WARM_HHMM, so `warm` was True and z printed +31. The
+# "sell zone" then sat thirty points BELOW price and every bar read as deep inside it. With the
+# reach latched (visit.py) that phantom visit would consume sell ordinal 1 and silence the real
+# visit later in the window, which is the one she trades. So sigma must also be wide enough that
+# 2 sigma names a zone rather than noise: 0.025% of price is ~5.8 pts on NIFTY, ~14 on BANKNIFTY,
+# ~19 on SENSEX -- below any real session band and far above a degenerate one.
+# ponytail: a fraction of price, not a fitted floor. JUDGEMENT CALL -- kill condition: if over 30
+# sessions any row is held un-warm after 09:45 while the day's later sigma stays within 2x this
+# floor, the floor is too high and comes out.
+SIGMA_FLOOR_PCT = 0.00025
 WALL_CAP = 3                # nearest walls shown each side (spec §E default 3); every row is still on the wire
 CONFIRMS = ("absorption", "exhaustion", "trap")
 _WALL_KINDS = ("S", "B", "CE", "PE")
@@ -181,10 +192,14 @@ def _head(tape: dict, book: dict) -> dict:
 def _where(tape: dict, closed: list, now_hhmm: str) -> dict:
     bn, fut = _bands_now(tape), tape.get("futPx")
     have_sigma = bool(bn and bn.get("sigma"))
-    warm = have_sigma and now_hhmm >= WARM_HHMM
+    floor = (fut or (bn or {}).get("vwap") or 0) * SIGMA_FLOOR_PCT
+    wide = have_sigma and bn["sigma"] >= floor
+    warm = have_sigma and wide and now_hhmm >= WARM_HHMM
     w = {**_EMPTY_WHERE, "px": fut, "px_why": _why(None if fut is not None else "no futures price on the tape"),
          "vwap": bn["vwap"] if have_sigma else None, "sigma": bn["sigma"] if have_sigma else None, "warm": warm,
-         "zone_why": _why(None if warm else (f"σ not trusted until {WARM_HHMM}" if have_sigma else "no bands on the tape yet"))}
+         "zone_why": _why(None if warm else ("no bands on the tape yet" if not have_sigma
+                          else f"σ {bn['sigma']:.1f} too narrow to name a zone" if not wide
+                          else f"σ not trusted until {WARM_HHMM}"))}
     if warm:
         w["buy_zone"], w["sell_line"], w["sell_zone"] = [bn["d3"], bn["d2"]], bn["u3"], [bn["u2"], bn["u3"]]
         if fut is not None:

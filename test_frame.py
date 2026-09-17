@@ -292,3 +292,25 @@ def test_the_ballot_never_sees_a_level_row():
     f = frame.build(_tape(), _book(), "15:30")
     assert "why" not in f["setup"], f["setup"].get("why")
     assert "why" not in f["walls"], f["walls"].get("why")
+
+
+def test_a_degenerate_sigma_is_not_warm_even_after_the_anchor():
+    """2026-09-17 09:32: sigma 1.41 against a 23,300 price, past 09:25, so `warm` was True and z
+    printed +31 with the sell zone thirty points BELOW price. A time gate is not a quality gate.
+    With the reach latched that phantom visit consumes the side's first ordinal and silences the
+    real one. The band must be wide enough that 2 sigma names a zone."""
+    v = 23286.0
+    narrow = {"vwap": v, "sigma": 1.41, "d2": v - 2.82, "d3": v - 4.23, "u2": v + 2.82, "u3": v + 4.23}
+    tape = {"bands": [narrow], "futPx": 23320.0, "rowSize": 5}
+    w = frame._where(tape, [], "09:32")
+    assert w["warm"] is False
+    assert w["z"] is None
+    assert w["buy_zone"] is None and w["sell_zone"] is None
+    assert "too narrow" in w["zone_why"]
+
+    # the same minute with a real session band stays warm and still measures z
+    real = {"vwap": v, "sigma": 18.0, "d2": v - 36, "d3": v - 54, "u2": v + 36, "u3": v + 54}
+    w2 = frame._where({**tape, "bands": [real]}, [], "09:32")
+    assert w2["warm"] is True
+    assert w2["z"] is not None
+    assert w2["zone_why"] is None
