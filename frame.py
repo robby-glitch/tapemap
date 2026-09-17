@@ -393,7 +393,15 @@ def _setup(tape: dict, book: dict, now_hhmm: str, walls: dict) -> dict:
     zs = book.get("zone_state_sell") if use_sell else book.get("zone_state")
     v = visit_mod.current(tape, zs if isinstance(zs, list) else [], side)
     S["reached"], S["in_pocket"] = v is not None, bool(in_pocket)
-    S["fire"] = S["reached"] and bool(flow) and confirm["value"] != "UNCONFIRMED"
+    # THE CHAIN-CONFIRM TERM IS DELETED, NOT REPAIRED (spec §A.5). `_book_for`
+    # passes `senses: None` on every request, so `confirm` is permanently
+    # "not wired" and this term was a no-op wearing a gate's clothes. The
+    # pair-rotation confirm belongs on the contract chart where both legs
+    # exist; on a single index series it is structurally UNKNOWN
+    # (band_rotation.SINGLE_SERIES_CONFIRM_WHY) and always will be. `confirm`
+    # stays on the frame as a printed field with its reason; it stops
+    # pretending to gate.
+    S["fire"] = S["reached"] and bool(flow)
     if v is not None:
         S["visit"] = v["visit_key"]
     elif closed:

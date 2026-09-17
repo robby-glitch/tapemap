@@ -76,8 +76,15 @@ def test_0911_0945_fires_only_when_flow_is_supplied_at_the_zone():
     tape = _with_absorption(_tape("2026-09-11", "09:45"))
     S = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNKNOWN"}}, "09:45")["setup"]
     assert S["reached"] and any(f["kind"] == "absorption" for f in S["flow"]) and S["fire"] is True and S["visit"]
+    # THE CONFIRM TERM IS GONE FROM `fire` (spec §A.5, 2026-09-18). It read as
+    # a veto and vetoed nothing: `_book_for` passes `senses: None` on every
+    # request, so `confirm` was permanently "not wired", and on a single index
+    # series the pair-rotation confirm is structurally UNKNOWN
+    # (band_rotation.SINGLE_SERIES_CONFIRM_WHY). It is still PRINTED on the
+    # frame with its reason; it no longer gates, and this asserts both halves.
     S2 = frame.build(tape, {"zone_state": _machine(tape), "senses": {"confirm": "UNCONFIRMED"}}, "09:45")["setup"]
-    assert S2["fire"] is False, "a chain UNCONFIRMED vetoes the beep even with tape flow present"
+    assert S2["confirm"]["value"] == "UNCONFIRMED", "still printed"
+    assert S2["fire"] is True, "and no longer a gate"
 
 
 def test_0911_0945_a_flow_event_four_rows_away_is_not_flow():

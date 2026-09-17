@@ -30,7 +30,9 @@ watched happen rings a bell.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
+import visit as visit_mod
 
 # JUDGEMENT CALL (spec §F): chosen off the six-day bucket table, not off taste.
 # KILL: at n = 30 fired signals -- sides reported separately, never merged --
@@ -263,3 +265,250 @@ def votes(tape: dict, oi_rows, sweeps, side: str, v: dict,
             "measurable": sum(1 for i in items if i["ok"] is not None),
             "threshold": THRESHOLD, "passed": passed, "passed_why": why,
             "items": items}
+
+
+# JUDGEMENT CALL (spec §F, inherited from the operator's own rule): the number
+# of consecutive closes past the frozen price that count as falsified. KILL:
+# it is her rule, not this module's, and it goes when she says so.
+FALSIFIER_BARS = 3
+
+# JUDGEMENT CALL (spec §A.6): how far the live band may walk from the frozen
+# one before the card must print both numbers. KILL: if the card never prints
+# two numbers across 30 sessions, the drift test is doing nothing and goes.
+DRIFT_SIGMA = 0.25
+
+_ACTIVE = ("ARMED", "TRIGGERED", "IN_TRADE")
+
+EMPTY_VOTES = {"n": 0, "of": 4, "measurable": 0, "threshold": THRESHOLD,
+               "passed": False, "passed_why": "the ballot did not build",
+               "items": []}
+
+EMPTY_SIGNAL = {
+    "state": "PATA NAHI", "state_why": "the signal did not build",
+    "side": "buy", "intent": "fade to VWAP", "not_a": None,
+    "reached_at": None, "reached_at_why": "no visit to this pocket",
+    "reached_provisional": False,
+    "visit_key": None, "visit_ordinal": None, "in_window": False, "is_edge": False,
+    "window": list(visit_mod.WINDOW),
+    "armed_at": None, "ref_px": None, "candles_left": None,
+    "candles_blind": False, "blind_since": None,
+    "fired_at": None, "seen_at": None, "trigger_px": None,
+    "target": None, "target_why": "no VWAP on the tape",
+    "falsifier": None, "falsifier_why": "nothing to falsify before σ exists",
+    "sound": None, "mute_why": "no visit to sound for",
+    "out_of_method": True, "tag": "M"}
+
+
+def _labels(tape) -> List[str]:
+    return [lbl for lbl, _b, _bn in visit_mod._bars(tape)]
+
+
+def _bar_at(tape, label) -> Optional[tuple]:
+    """The tape bar carrying `label`, else the last one before it -- the two
+    series do not share an axis, so this joins on the clock (see the module
+    docstring of visit.py)."""
+    hit = None
+    for r in visit_mod._bars(tape):
+        if r[0] <= label:
+            hit = r
+        else:
+            break
+    return hit
+
+
+def _blind(tape, since_label, now_hhmm):
+    """(blind, first_missing_minute). A hole in the tape's OWN timestamp
+    series between `since_label` and the last closed bar means the close of a
+    bar was never seen; a last close more than one interval behind the clock
+    means the current bar is overdue. Spec §A.7 names `health.gaps` for this;
+    no such field exists -- live.py's `gaps` is a list of missing session DAYS
+    -- so the measurable equivalent is the tape itself."""
+    closed = [b for b in (tape.get("closed") or [])
+              if isinstance(b, dict) and b.get("t") is not None]
+    if len(closed) < 2:
+        return False, None
+    iv = int(tape.get("interval") or 5) * 60000
+    for a, b in zip(closed, closed[1:]):
+        if visit_mod._hhmm(int(a["t"])) < since_label:
+            continue
+        if int(b["t"]) - int(a["t"]) > iv:
+            return True, visit_mod._hhmm(int(a["t"]) + iv)
+    last_close = visit_mod._hhmm(int(closed[-1]["t"]) + iv)
+    if now_hhmm and now_hhmm > last_close:
+        h1, m1 = (int(x) for x in last_close.split(":"))
+        h2, m2 = (int(x) for x in now_hhmm.split(":"))
+        if (h2 * 60 + m2) - (h1 * 60 + m1) > iv // 60000:
+            return True, last_close
+    return False, None
+
+
+def _rows_in(zone_states, v) -> List[dict]:
+    """The machine's rows belonging to this visit, joined on the clock."""
+    out = []
+    for zs in zone_states or []:
+        if not isinstance(zs, dict):
+            continue
+        t = zs.get("t")
+        if isinstance(t, str) and _within(v, t):
+            out.append(zs)
+    return out
+
+
+def _falsifier(tape, side, v, interval):
+    """FROZEN AT THE ARM BAR (spec §A.6). `setup.falsifies` was a string
+    rebuilt from the CURRENT band every frame, so the number she was shown at
+    the arm was not the number being checked an hour later -- the band moves
+    with VWAP all session. This freezes the arm bar's own d3 / u3 and prints
+    when the live band has walked more than DRIFT_SIGMA away from it."""
+    hit = _bar_at(tape, v["reached_at"])
+    if hit is None or not hit[2]:
+        return None, "no band under the arm bar"
+    bn0 = hit[2]
+    px = bn0.get("u3") if side == "sell" else bn0.get("d3")
+    if px is None:
+        return None, "the arm bar's band has no 3σ edge"
+    bands = tape.get("bands") or []
+    live = bands[-1] if bands else {}
+    now = live.get("u3") if side == "sell" else live.get("d3")
+    s = live.get("sigma") or bn0.get("sigma")
+    drifted = bool(now is not None and s and abs(float(now) - float(px)) > DRIFT_SIGMA * float(s))
+    mins = interval // 60000
+    return {"px": round(float(px), 1),
+            "rule": f"a {mins}-minute close past {float(px):,.0f} held for "
+                    f"{FALSIFIER_BARS} bars",
+            "frozen_at": v["reached_at"], "drifted": drifted,
+            "live_px": None if now is None else round(float(now), 1)}, None
+
+
+def _state(tape, zone_states, side, v, passed):
+    """WATCHING -> REACHED -> ARMED -> LIVE -> SPENT | STOPPED, with VOID off
+    ARMED. Every transition is read off run_states or off a printed bar; none
+    is invented here. BLIND holds the state rather than advancing it."""
+    rows = _rows_in(zone_states, v)
+    armed = [r for r in rows if r.get("ref_i") is not None or r.get("arm")]
+    fired = next((r for r in rows if r.get("entry")), None)
+    if fired is not None and passed:
+        return "LIVE", fired, armed
+    if armed:
+        last = rows[-1] if rows else None
+        if last is not None and last.get("state") == "WAITING" and fired is None:
+            return "VOID", None, armed
+        return "ARMED", fired, armed
+    return "REACHED", None, armed
+
+
+def _after_fire(tape, side, fired_label, vwap, fpx):
+    """SPENT when a bar touches VWAP; STOPPED when the frozen falsifier is hit
+    on FALSIFIER_BARS consecutive closes. Both read off printed bars."""
+    run = 0
+    for label, bar, _bn in visit_mod._bars(tape):
+        if label <= fired_label:
+            continue
+        if vwap is not None and bar.get("h") is not None and bar.get("l") is not None:
+            if float(bar["l"]) <= float(vwap) <= float(bar["h"]):
+                return "SPENT", label
+        c = bar.get("c")
+        if fpx is not None and c is not None:
+            past = float(c) > float(fpx) if side == "sell" else float(c) < float(fpx)
+            run = run + 1 if past else 0
+            if run >= FALSIFIER_BARS:
+                return "STOPPED", label
+    return None, None
+
+
+def build(tape: dict, zone_states, side: str, oi_rows, sweeps, now_hhmm: str,
+          oi_backfill: bool = False) -> Tuple[dict, dict]:
+    """(signal, votes) for the visit in play. Pure; `now_hhmm` is passed in.
+
+    THE `fire` CHAIN-CONFIRM TERM IS GONE (spec §A.5). `_book_for` passes
+    `senses: None` on every request, so `confirm` was permanently "not wired"
+    and the term was a no-op wearing a gate's clothes. On a single index series
+    the pair-rotation confirm is structurally UNKNOWN
+    (band_rotation.SINGLE_SERIES_CONFIRM_WHY) and always will be. It stays on
+    the frame as a printed field with its reason; it stops pretending to gate.
+    """
+    bands = tape.get("bands") or []
+    bn = bands[-1] if bands else None
+    v = visit_mod.current(tape, zone_states if isinstance(zone_states, list) else [], side)
+    if v is None or not bn or not bn.get("sigma"):
+        why = ("no bands on the tape yet" if not bn or not bn.get("sigma")
+               else "no visit to this pocket")
+        return dict(EMPTY_SIGNAL, side=side, state_why=why[:48],
+                    not_a="outright short" if side == "sell" else None), dict(EMPTY_VOTES)
+
+    o = votes(tape, oi_rows, sweeps, side, v, oi_backfill)
+    state, fired, armed = _state(tape, zone_states, side, v, o["passed"])
+    interval = int(tape.get("interval") or 5) * 60000
+    fal, fal_why = _falsifier(tape, side, v, interval)
+
+    fired_at = fired.get("t") if fired else None
+    trigger_px = None
+    if fired is not None:
+        hit = _bar_at(tape, fired_at) if isinstance(fired_at, str) else None
+        trigger_px = None if hit is None else hit[1].get("c")
+    if state == "LIVE" and fired_at:
+        after, _at = _after_fire(tape, side, fired_at, bn.get("vwap"),
+                                 None if fal is None else fal["px"])
+        state = after or state
+
+    blind, blind_since = _blind(tape, v["reached_at"], now_hhmm)
+    left = None
+    for r in _rows_in(zone_states, v):
+        if r.get("candles_left") is not None:
+            if blind and blind_since is not None and isinstance(r.get("t"), str) \
+                    and r["t"] >= blind_since:
+                break          # candles are not counted blind (spec §A.7)
+            left = r["candles_left"]
+
+    # `seen_at` is `fired_at` unless the trigger bar sat inside a hole, in
+    # which case the brain first saw it on the next bar that actually printed.
+    seen_at = fired_at
+    if fired_at and blind and blind_since is not None and blind_since <= fired_at:
+        later = [l for l in _labels(tape) if l > fired_at]
+        seen_at = later[0] if later else now_hhmm
+
+    sound, mute = _sound(v, o, state, fired_at, seen_at)
+    armed_at = armed[0].get("t") if armed else None
+    ref_px = next((r.get("ref_low" if side == "sell" else "ref_high")
+                   for r in armed if r.get("ref_low" if side == "sell" else "ref_high")
+                   is not None), None)
+    vwap = bn.get("vwap")
+    s = {"state": state, "state_why": None,
+         "side": side, "intent": "fade to VWAP",
+         "not_a": "outright short" if side == "sell" else None,
+         "reached_at": v["reached_at"], "reached_at_why": None,
+         "reached_provisional": v["reached_provisional"],
+         "visit_key": v["visit_key"], "visit_ordinal": v["visit_ordinal"],
+         "in_window": v["in_window"], "is_edge": v["is_edge"],
+         "window": v["window"],
+         "armed_at": armed_at, "ref_px": ref_px,
+         "candles_left": left, "candles_blind": blind, "blind_since": blind_since,
+         "fired_at": fired_at, "seen_at": seen_at, "trigger_px": trigger_px,
+         "target": None if vwap is None else round(float(vwap), 1),
+         "target_why": None if vwap is not None else "no VWAP on the tape",
+         "falsifier": fal, "falsifier_why": fal_why,
+         "sound": sound, "mute_why": mute,
+         "out_of_method": not v["is_edge"], "tag": "M"}
+    return s, o
+
+
+def _sound(v, o, state, fired_at, seen_at):
+    """TWO SOUNDS, AND NOTHING ELSE (spec §A.8). The mute is on `is_edge`, not
+    on the ballot -- which is what actually bounds frequency: at most two
+    signals per index per session can sound, by construction, whatever the
+    threshold is. The threshold controls what is DRAWN; the window controls
+    what is HEARD."""
+    if not v["in_window"]:
+        return None, f"{v['reached_at']} - outside "\
+                     f"{visit_mod.WINDOW[0]}-{visit_mod.WINDOW[1]}"
+    if not v["is_edge"]:
+        return None, f"visit {v['visit_ordinal']} - not your edge"
+    if state == "LIVE":
+        if not o["passed"]:
+            return None, o["passed_why"]
+        if fired_at and seen_at and seen_at != fired_at:
+            return "soft", None      # rebuilt from REST; the brain did not see it
+        return "firm", None
+    if state in ("REACHED", "ARMED"):
+        return "soft", None
+    return None, f"{state.lower()} - nothing left to ring"

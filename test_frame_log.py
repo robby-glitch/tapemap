@@ -47,3 +47,21 @@ def test_append_only_when_the_signature_changes(tmp_path):
     assert ("2026-09-11", "NIFTY") in frame_log._last_sig
     p2 = str(tmp_path / "frame_2026-09-11_bn.jsonl")
     assert frame_log.append_if_changed(_fr(), "2026-09-11", idx="BANKNIFTY", path=p2) is True
+
+
+def test_a_signal_transition_is_its_own_record_row(tmp_path):
+    """A visit going ARMED -> LIVE with the ladder unchanged used to write no
+    row at all, so the scorer had nothing to fill forward cells against."""
+    a = _fr()
+    a["setup"]["signal"] = {"state": "ARMED", "visit_key": "buy@09:45", "sound": "soft"}
+    a["setup"]["votes"] = {"n": 0, "passed": False}
+    b = _fr()
+    b["setup"]["signal"] = {"state": "LIVE", "visit_key": "buy@09:45", "sound": "firm"}
+    b["setup"]["votes"] = {"n": 1, "passed": True}
+    assert frame_log.sig(a) != frame_log.sig(b)
+    p = str(tmp_path / "frame_2026-09-18.jsonl")
+    frame_log._last_sig.clear()
+    assert frame_log.append_if_changed(a, "2026-09-18", path=p) is True
+    assert frame_log.append_if_changed(b, "2026-09-18", path=p) is True
+    assert frame_log.append_if_changed(b, "2026-09-18", path=p) is False
+    assert sum(1 for _ in open(p, encoding="utf-8")) == 2

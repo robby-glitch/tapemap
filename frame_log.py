@@ -29,7 +29,18 @@ def sig(fr: dict) -> str:
     rows = [(r.get("p"), r.get("kind"), r.get("state")) for r in (fr.get("walls") or {}).get("rows") or []]
     s = fr.get("setup") or {}
     tells = [(t.get("name"), t.get("target")) for t in s.get("tells") or []]
-    return json.dumps([fr.get("idx"), rows, s.get("state"), s.get("fire"), tells, sorted(fr.get("missing") or [])], default=str)
+    # THE SIGNAL IS PART OF THE SIGNATURE (spec §A.10). Without this a visit
+    # could go REACHED -> ARMED -> LIVE with the ladder unchanged and the
+    # record would hold one row for the whole thing -- the scorer fills
+    # forward cells per row, so a transition nobody appended is a transition
+    # nobody can score. No new file and no new scorer: `signal{}` and
+    # `votes{}` ride inside the frame this function already writes whole.
+    sg = s.get("signal") or {}
+    vo = s.get("votes") or {}
+    return json.dumps([fr.get("idx"), rows, s.get("state"), s.get("fire"), tells,
+                       sg.get("state"), sg.get("visit_key"), sg.get("sound"),
+                       vo.get("n"), vo.get("passed"),
+                       sorted(fr.get("missing") or [])], default=str)
 
 
 def append_if_changed(fr: dict, day: str, idx: str = "NIFTY", path: Optional[str] = None) -> bool:
