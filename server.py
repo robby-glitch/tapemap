@@ -36,6 +36,7 @@ import drag as drag_mod
 import driver as driver_mod
 import warmap as warmap_mod
 import fuse as fuse_mod
+import breadth as breadth_mod
 import frame
 import frame_log
 import instruments
@@ -1567,6 +1568,38 @@ class Handler(SimpleHTTPRequestHandler):
                 "rows": list(reversed(sel)),
                 "matched": len(sel),
             }).encode())
+        elif self.path.startswith("/api/oihist"):
+            # THE PER-STRIKE MINUTE GRID AS IT SITS IN MEMORY. GET only.
+            # `ChainState.minutes` has had exactly one reader (/api/oiflow,
+            # which aggregates it away) and `ChainState.peak` has had none
+            # over HTTP, so the breadth counts and the Field's fronts could
+            # not be checked against the same numbers the brain used. Without
+            # this the fronts are drawn from one ~10-second snapshot and the
+            # ghost outlines cannot exist at all.
+            #
+            # `peak` is keyed by a (strike, side) TUPLE in memory, which JSON
+            # has no key for, so it goes out as a LIST of rows rather than
+            # being silently string-joined into something a reader has to
+            # parse back apart.
+            idx = self._idx()
+            st = (getattr(self.poller, "states", None) or {}).get(idx) if self.poller else None
+            mins = getattr(st, "minutes", None)
+            peak = getattr(st, "peak", None)
+            self._json(json.dumps({
+                "ok": mins is not None,
+                "idx": idx,
+                "why": None if mins is not None else
+                       "the chain poller has no state for this index yet",
+                "minutes": mins or {},
+                "peak": [{"k": k, "side": s, "oi": v}
+                         for (k, s), v in sorted((peak or {}).items())],
+                # Which marks were REBUILT from REST candles rather than seen
+                # by the socket (chain_backfill stamps `src` on the mark
+                # itself). A reconstructed morning is worth having and is not
+                # the same evidence as an observation.
+                "backfill_marks": sorted(m for m, rec in (mins or {}).items()
+                                         if (rec or {}).get("src") == "backfill"),
+            }, default=str).encode())
         elif self.path.startswith("/api/desk"):
             # Every structure, with a STATUS each -- deployable, stand aside,
             # or blocked with the missing input named. Never a confidence
