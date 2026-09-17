@@ -154,7 +154,10 @@ def test_0911_visit_is_the_earliest_bar_of_a_contiguous_d2_touch_run_before_armi
     EARLIEST bar of the contiguous run of bars touching d2, not the latest,
     so the id does not drift bar to bar while the touch is still running.
     Built directly off the bands rather than the real machine, since this
-    exercises the pre-arm fallback path specifically (no zone_state at all)."""
+    exercises the pre-arm fallback path specifically (no zone_state at all).
+
+    The rule lives in visit._touch_starts now (spec §A.2) rather than inline
+    in frame._setup; the assertion is unchanged because the rule is."""
     tape = _tape("2026-09-11", "09:45")
     closed, bands = tape["closed"], tape["bands"]
     lvl = bands[-1]["d2"]

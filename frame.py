@@ -34,6 +34,7 @@ from typing import Dict, List, Optional, Tuple
 
 import gate as gate_mod
 import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
+import visit as visit_mod   # the latched reach and the visit key; frame.py composes, visit.py measures
 
 WARM_HHMM = "09:25"         # band_rotation.ANCHOR_HHMM; sigma is not trusted before it
 WALL_CAP = 3                # nearest walls shown each side (spec §E default 3); every row is still on the wire
@@ -384,27 +385,19 @@ def _setup(tape: dict, book: dict, now_hhmm: str, walls: dict) -> dict:
     flow = [e for e in tape.get("events") or [] if edge is not None and e.get("p") is not None
             and abs(e["p"] - edge) <= 3 * row and e.get("kind") in CONFIRMS]
     S["flow"] = [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"])} for e in flow]
-    S["reached"], S["in_pocket"] = bool(in_buy or in_sell or machine in _ZONE_ACTIVE), bool(in_pocket)
+    # THE REACH IS LATCHED AND THE KEY IS `arm.first_t` (spec §A.2, §A.3, §A.9.4).
+    # `reached` was a live-price test that went false the moment price left the pocket -- the
+    # arm, not the reach -- and the key was `ref_i`, which branch 3 of run_states moves on
+    # every new lower low, so one setup wrote two record rows. visit.py owns both rules now;
+    # frame.py places the answer and measures nothing.
+    zs = book.get("zone_state_sell") if use_sell else book.get("zone_state")
+    v = visit_mod.current(tape, zs if isinstance(zs, list) else [], side)
+    S["reached"], S["in_pocket"] = v is not None, bool(in_pocket)
     S["fire"] = S["reached"] and bool(flow) and confirm["value"] != "UNCONFIRMED"
-    # visit is stable for the life of a visit: the machine's reference bar while it holds one, else the earliest bar
-    # of the contiguous band-touch run, else today's last bar (frame.py stays stateless)
-    if S["reached"] and closed:
-        ref_i = last.get("ref_i") if last and machine in _ZONE_ACTIVE else None
-        visit = None
-        if ref_i is not None and 0 <= ref_i < len(closed):
-            visit = f"{side}@{_hhmm(closed[ref_i]['t'])}"
-        elif in_buy or in_sell:
-            bands_list, key = tape.get("bands") or [], ("d2" if in_buy else "u2")
-
-            def _touches(i):
-                lvl = bands_list[i].get(key) if i < len(bands_list) else None
-                return lvl is not None and (closed[i]["l"] <= lvl if in_buy else closed[i]["h"] >= lvl)
-            i = len(closed) - 1
-            if _touches(i):
-                while i > 0 and _touches(i - 1):
-                    i -= 1
-                visit = f"{side}@{_hhmm(closed[i]['t'])}"
-        S["visit"] = visit or f"{side}@{_hhmm(closed[-1]['t'])}"
+    if v is not None:
+        S["visit"] = v["visit_key"]
+    elif closed:
+        S["visit"] = None
     return S
 
 
