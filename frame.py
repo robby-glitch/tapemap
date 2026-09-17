@@ -32,9 +32,12 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
+import breadth as breadth_mod   # positioning breadth; no direction field exists in that object by construction
 import gate as gate_mod
+import signals as signal_mod     # the ballot and the state machine; frame.py never measures a vote
 import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
 import visit as visit_mod   # the latched reach and the visit key; frame.py composes, visit.py measures
+import watch as watch_mod       # the ladder rows worth watching; none of them is an entry
 
 WARM_HHMM = "09:25"         # band_rotation.ANCHOR_HHMM; sigma is not trusted before it
 WALL_CAP = 3                # nearest walls shown each side (spec §E default 3); every row is still on the wire
@@ -52,11 +55,24 @@ _EMPTY_WHERE = {"px": None, "px_why": None, "vwap": None, "sigma": None, "z": No
                 "open": None, "high": None, "low": None, "from_open": None, "off_extreme": None, "hour": None, "bars_why": None}
 _EMPTY_TRAPPED = {"writers": None, "writers_why": None, "window": None, "window_why": None, "pace": None, "pace_why": None,
                    "fut_oi": None, "fut_oi_why": None, "gear": None, "gear_why": None, "gear_tag": "I"}
-_EMPTY_WALLS = {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, "prior_why": None, "basis": None}
+_EMPTY_WALLS = {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, "prior_why": None, "basis": None,
+                "watch": {"rows": [], "broken": [], "cap": watch_mod.CAP, "shown": 0,
+                          "why": "the watch list did not build", "note": watch_mod.NOTE}}
+_EMPTY_BREADTH = {"window_min": breadth_mod.WINDOW_MIN, "t0": None, "t1": None,
+                  "written_ce": None, "unwound_ce": None, "written_pe": None, "unwound_pe": None,
+                  "strikes_seen": 0, "counts_why": "breadth did not build",
+                  "concentration_top1": None, "concentration_top3": None, "concentration_why": "breadth did not build",
+                  "advancing": None, "retreating": None, "fronts_seen": 0, "fronts_why": "breadth did not build",
+                  "pressed": None, "bought": None, "premium_why": "breadth did not build",
+                  "fut_oi_day": None, "fut_px_day": None, "fut_oi_window": None, "fut_px_window": None,
+                  "fut_why": "breadth did not build", "regime": None, "pinned": None, "regime_tag": "I",
+                  "regime_why": "breadth did not build", "backfill_minutes": 0, "tag": "M",
+                  "note": breadth_mod.NOTE}
 _EMPTY_TAPE = {"events": [], "aggressor": None, "aggressor_why": None}
 _EMPTY_SETUP = {"side": "buy", "state": "PATA NAHI", "state_why": None, "ref": None, "candles_left": None, "level": None,
                  "reached": False, "in_pocket": False, "flow": [], "fire": False, "visit": None, "tells": [],
-                 "confirm": {"value": "UNKNOWN", "why": "setup did not build", "why_full": None, "tag": "I"}, "falsifies": None}
+                 "confirm": {"value": "UNKNOWN", "why": "setup did not build", "why_full": None, "tag": "I"}, "falsifies": None,
+                 "signal": dict(signal_mod.EMPTY_SIGNAL), "votes": dict(signal_mod.EMPTY_VOTES)}
 
 
 def _hhmm(t_ms: int) -> str:
@@ -287,8 +303,16 @@ def _walls(tape: dict, book: dict, broke: list) -> dict:
     for r in rows:
         r["d"] = round(float(r["p"] - fut), 1) if fut is not None else None
     rows.sort(key=lambda r: -r["p"])
+    bn = _bands_now(tape)
+    # THE WATCH LIST (spec §B). `prior` is the previous frame's own watch
+    # object, handed over by the server so a broken level is remembered for
+    # the rest of the session while this module stays pure and stateless.
+    wt = watch_mod.build(
+        rows, fut, (bn or {}).get("sigma"), b,
+        wm.get("dwell"), wm.get("sequence"), wm.get("seq_fired"), wm.get("runways"),
+        book.get("minutes") or {}, book.get("peaks") or {}, book.get("watch_prior"))
     return {"rows": rows, "cap": WALL_CAP, "floors_taken": sum(1 for x in broke if x.get("side") == 1),
-            "oi_why": oi_why, "prior_why": prior_why, "basis": b}
+            "oi_why": oi_why, "prior_why": prior_why, "basis": b, "watch": wt}
 
 
 def _place(p: float, bn: Optional[dict], walls_rows: list, row: float) -> Optional[dict]:
@@ -391,7 +415,16 @@ def _setup(tape: dict, book: dict, now_hhmm: str, walls: dict) -> dict:
     # every new lower low, so one setup wrote two record rows. visit.py owns both rules now;
     # frame.py places the answer and measures nothing.
     zs = book.get("zone_state_sell") if use_sell else book.get("zone_state")
-    v = visit_mod.current(tape, zs if isinstance(zs, list) else [], side)
+    zs = zs if isinstance(zs, list) else []
+    # THE BALLOT AND THE STATE MACHINE (spec §A). Composed, never measured
+    # here: signals.py owns every comparison. Only the CE/PE rows are handed
+    # over -- `walls.rows` never enters signals.py (spec §B.1, §H.1) -- and the
+    # OI vote's `src` is "backfill" when the war map replayed a rebuilt grid.
+    oi_rows = [r for r in (walls.get("rows") or []) if r.get("kind") in ("CE", "PE")]
+    S["signal"], S["votes"] = signal_mod.build(
+        tape, zs, side, oi_rows, book.get("sweeps") or [], now_hhmm,
+        oi_backfill=bool((book.get("warmap") or {}).get("backfill")))
+    v = visit_mod.current(tape, zs, side)
     S["reached"], S["in_pocket"] = v is not None, bool(in_pocket)
     # THE CHAIN-CONFIRM TERM IS DELETED, NOT REPAIRED (spec §A.5). `_book_for`
     # passes `senses: None` on every request, so `confirm` is permanently
@@ -443,7 +476,17 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
                 + [{"t": w["since"], "kind": "wall"} for w in walls_in if w.get("since")]
                 + [{"t": _hhmm(b["brokenT"]), "kind": "lost"} for b in broke if b.get("brokenT")] + armed)
     events, events_why = _safe_list(_events_and_armed)
+    # POSITIONING BREADTH (spec §C.2), a TOP-LEVEL object because it is a
+    # property of the session and not of the setup in play. The watched
+    # strikes are the ladder's own OI rows, so breadth and the war map are
+    # always describing the same fronts.
+    watched = [(int(r["strike"]), r["kind"].lower())
+               for r in (walls.get("rows") or [])
+               if r.get("kind") in ("CE", "PE") and r.get("strike") is not None]
+    breadth_o = _safe(lambda: breadth_mod.build(
+        mins, closed, watched, book.get("regime"), book.get("pinned"), clock),
+        _EMPTY_BREADTH)
     return {"ok": True, "idx": tape.get("idx") or "NIFTY", "ts": now_hhmm, "day": day, "interval": sess[1] if len(sess) >= 3 else None,
             "have_bars": len(closed), "lot": tape.get("lot"), "missing": missing, "coverage": book.get("coverage") or {},
             "events": events, "events_why": events_why, "taps": tape.get("taps") or [], "head": head, "record": {"written": False},
-            "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup}
+            "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup, "breadth": breadth_o}

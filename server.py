@@ -964,6 +964,19 @@ def _book_for(handler, idx):
         g = (_SENSES.get("vpin") or {}).get(f"{idx}-FUT")
         vpin_pct = g.state().get("pct") if g else None
         senses = None
+        # THE DEPTH VOTE'S ONLY INPUT (spec §A.4). `senses` stays None above
+        # for the reason this function's docstring gives -- the /api/senses
+        # READING is assembled in that handler and must not be re-derived
+        # here. The vote never wanted the reading; it wants the raw sweep
+        # rows, which are the ring filtered by instrument and nothing more.
+        # Until this key existed the DEPTH vote was structurally unmeasurable.
+        sweeps = [r for r in (_SENSES.get("rows") or ())
+                  if r.get("inst") == f"{idx}-FUT" and r.get("det") == "sweep"]
+        # The previous frame's watch list, so a level that broke this morning
+        # is still on screen this afternoon. watch.py is pure; the memory
+        # lives here, in the object this process already keeps.
+        watch_prior = (((_SENSES.get("frame") or {}).get(idx) or {})
+                       .get("walls") or {}).get("watch")
     st = (getattr(handler.poller, "states", None) or {}).get(idx) if handler.poller else None
     box = handler.chains.get(idx) if handler.chains else None
     pj = {}
@@ -973,13 +986,26 @@ def _book_for(handler, idx):
     except Exception:
         pj = {}
     _day0 = (pj.get("days") or [{}])[0] if isinstance(pj, dict) else {}
+    # The engine's OWN regime, off the last published bar's ctx (engine.py:1200
+    # writes `pin.regime`; contract_bars.resample_index carries `ctx` through
+    # the 3-minute fold). Two named facts, not the STRONG BULL / STRONG BEAR
+    # verdict beside them -- that verdict is not ported at any size (spec §C.1).
+    regime = None
+    try:
+        _bars = _day0.get("bars") or []
+        regime = ((_bars[-1].get("ctx") or {}).get("pin") or {}).get("regime")
+    except (AttributeError, IndexError, TypeError):
+        regime = None
     return {"warmap": wm, "minutes": getattr(st, "minutes", None),
+            "peaks": getattr(st, "peak", None),
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
             "pivots": _day0.get("pivots"),      # the prior session's floor pivots; frame._walls inverts them to PDH/PDL/PDC
-            "vpin_pct": vpin_pct, "senses": senses, "ivrv": None,
-            "coverage": _coverage()}
+            "vpin_pct": vpin_pct, "senses": senses, "sweeps": sweeps,
+            "watch_prior": watch_prior,
+            "regime": regime, "pinned": None if regime is None else regime == "PINNED",
+            "ivrv": None, "coverage": _coverage()}
 
 
 class Handler(SimpleHTTPRequestHandler):

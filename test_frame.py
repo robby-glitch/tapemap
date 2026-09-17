@@ -236,3 +236,59 @@ def test_every_why_is_non_null_exactly_when_its_field_is_null():
             assert (v is None) == (why is not None), f"{k}: value={v!r} why={why!r}"
             checked += 1
     assert checked > 0, "the sweep found no x/x_why pairs at all -- it is not walking the frame"
+
+
+def test_the_signal_and_the_ballot_ride_on_the_setup():
+    f = frame.build(_tape(), _book(), "15:30")
+    S = f["setup"]
+    assert "signal" in S and "votes" in S
+    assert S["signal"]["visit_key"] == S["visit"], "one visit key, not two"
+    assert S["signal"]["intent"] == "fade to VWAP"
+    assert S["votes"]["of"] == 4 and S["votes"]["threshold"] == 1
+    assert len(S["votes"]["items"]) == 4
+
+
+def test_breadth_says_it_could_not_check_when_the_chain_has_no_two_marks():
+    b = _book(); b["minutes"] = {}
+    B = frame.build(_tape(), b, "15:30")["breadth"]
+    assert B["t0"] is None and B["written_ce"] is None
+    assert B["counts_why"] and len(B["counts_why"]) <= 48
+    assert B["strikes_seen"] == 0, "a count of nothing, not a missing count"
+
+
+def test_the_watch_list_rides_under_walls_and_carries_its_permanent_header():
+    import watch
+    f = frame.build(_tape(), _book(), "15:30")
+    W = f["walls"]["watch"]
+    assert W["cap"] == 8 and W["note"] == watch.NOTE
+    assert (W["why"] is not None) == (W["rows"] == [])
+
+
+def test_breadth_is_a_top_level_object_with_no_direction_in_it():
+    import breadth as br
+    import json as _json
+    f = frame.build(_tape(), _book(), "15:30")
+    B = f["breadth"]
+    assert B["window_min"] == 15 and B["note"] == br.NOTE
+    blob = _json.dumps(B).upper()
+    for banned in br.BANNED_WORDS:
+        assert banned not in blob
+
+
+def test_the_depth_vote_is_measurable_once_sweeps_are_on_the_book():
+    b = _book()
+    b["sweeps"] = [{"det": "sweep", "kind": "swept", "side": "buy", "qty": 100.0,
+                    "t": "10:05:10", "inst": "NIFTY-FUT"}] * 6
+    f = frame.build(_tape(), b, "15:30")
+    d = next(i for i in f["setup"]["votes"]["items"] if i["key"] == "depth")
+    assert d["ok"] is not None, "with rows on the book DEPTH is no longer unknowable"
+
+
+def test_the_ballot_never_sees_a_level_row():
+    """§H.1 by construction: only CE/PE rows are handed over, so a PDH or a
+    tape wall cannot originate anything. If the composer ever hands the whole
+    ladder across, signals._only_oi raises, _safe turns the whole setup into
+    its own `why`, and this assertion is what catches it."""
+    f = frame.build(_tape(), _book(), "15:30")
+    assert "why" not in f["setup"], f["setup"].get("why")
+    assert "why" not in f["walls"], f["walls"].get("why")
