@@ -1,6 +1,11 @@
 # Prints — GoCharting's ladder, recorded and drawn in ui-v2
 
-**Date:** 2026-09-19 · **Status:** specification, nothing built yet · **Branch:** `feature/operator-objects`
+**Date:** 2026-09-19 · **Status:** **SUPERSEDED the same day by `2026-09-19-orderflow-levels-design.md`** — the
+operator, shown a mockup of this cells chart built from the real 18-Sep session, ruled: *"i dont want this
+oderflow chart type but i want other thing from oder flow like absorption exhausation lvn hvn etc … marked on my
+candle chart"*. §B–§E (the wire, the record, `prints.py`) carry over unchanged into the successor; §F (the Prints
+tab) is dropped, not deferred. Kept in place, per START-HERE.md §8 — the reasoning error was mine: the ask was
+*order flow*, and I built the chart type rather than the reads. · **Branch:** `feature/operator-objects`
 **Sources:** the operator's ruling of 2026-09-19 ("GoCharting is ~₹1500/month; replace it eventually, keep it until
 the replacement is complete"), the four research briefs of 2026-09-19 (Upstox API, feed architecture, rendering,
 order-flow algorithms), and the two codebases read in full on 2026-09-19. Every claim about existing code carries a
