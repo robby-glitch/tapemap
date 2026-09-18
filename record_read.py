@@ -83,6 +83,9 @@ def read(day: str, idx: str = "NIFTY", path: Optional[str] = None):
                     seen[(t, e.get("kind"), e.get("p"))] = {
                         "t": t, "kind": e.get("kind"), "p": e.get("p"),
                         "at": (e.get("at") or {}).get("label"),
+                        # colour on her chart is the SIDE; without it a screen
+                        # draws neutral or invents one, and invented is a verdict
+                        "side": e.get("side"),
                         # Which kinds count as CONFIRMING evidence, decided
                         # HERE so no screen carries a second copy of the list.
                         # `signals.CONFIRMS` is the one vocabulary; a UI that

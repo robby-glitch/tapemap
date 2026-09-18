@@ -354,7 +354,13 @@ def _tape(tape: dict, closed: list, walls_rows: list) -> dict:
     bn, row = _bands_now(tape), float(tape.get("rowSize") or 5)
     # sorted newest-first by timestamp (never assume the feed's own append order)
     evs = sorted((e for e in (tape.get("events") or []) if e.get("p") is not None), key=lambda e: e["t"], reverse=True)[:4]
-    out = {**_EMPTY_TAPE, "events": [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"]), "at": _place(float(e["p"]), bn, walls_rows, row)} for e in evs]}
+    # SIDE TRAVELS WITH THE EVENT. The extension already decides it per mark
+    # (main.js: a trap carries the INVERTED side, because the trapped party is
+    # the one that matters) and it was being dropped here. Colour on her chart
+    # IS the side, so a screen without it can only draw a neutral mark or
+    # invent one -- and an invented side is a direction verdict. -1 sell / +1
+    # buy / 0 or None when the extension did not say.
+    out = {**_EMPTY_TAPE, "events": [{"t": _hhmm(e["t"]), "kind": e["kind"], "p": float(e["p"]), "side": e.get("side"), "at": _place(float(e["p"]), bn, walls_rows, row)} for e in evs]}
     if closed:
         d = sum(b.get("delta", 0) or 0 for b in closed)
         # sign only: shape and sequence, never magnitude (stack doctrine); rank stays None until a within-session rank is defined
