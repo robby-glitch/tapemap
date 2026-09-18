@@ -21,8 +21,12 @@ THE LOG. data/trigger_log.jsonl, one JSON object per line:
     trigger     the detector's own receipt sentence
     gamma, ctx  the SAME bar's engine reads (absent -> null, never invented)
     oi_call, oi_put, oi_strength  the chain's cumulative day OI change at the
-                latest oi_flow mark (chain_metrics semantics: change, not
-                outstanding), and diff/max(call,put) signed
+                oi_flow mark covering THIS ROW'S OWN minute (chain_metrics
+                semantics: change, not outstanding), and diff/max(call,put)
+                signed. Null when no mark covers that minute -- see `_oi_at`.
+    oi_why      present ONLY when the three above are null, naming why. Absent
+                is the normal case, so a row with real OI is written exactly as
+                it always was and the population is not split down the middle.
     f15, f30    filled by `score` only: forward move in points, signed by
                 side, by CLOCK label (+15/+30 minutes), so 1-min live bars
                 and 3-min cached bars score identically
@@ -213,7 +217,38 @@ def _minute_extreme(ones, t, sell, interval, extreme):
     return best_t, best_v, None
 
 
-def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now,
+def _oi_at(marks, t, why_none):
+    """(call, put, strength, why) as at `t` — never as at some later minute.
+
+    `oi_flow` rows are the chain sampled AS AT each clock mark, so the context
+    for a row at 09:50 is the last mark at or before 09:50. Until 2026-09-18
+    this took `rows[-1]` once per call and stamped it on every row written in
+    that batch. Live that is nearly always the same mark; on a RESTART it is
+    not. A start at 13:00 re-derives the morning's arms and entries correctly
+    from re-fetched bars and then wrote 13:00's OI divergence onto a 09:50 row
+    with nothing saying so — silent corruption of the one irreplaceable
+    artefact in this repo, undetectable afterwards because the wrong number is
+    a perfectly plausible one.
+
+    A LATER mark is never a fallback. Where nothing covers the minute the three
+    fields are null and `why` says which of the three absences it is: no marks
+    at all, no minute to place the row at, or a row earlier than the first mark.
+    """
+    if not marks:
+        return None, None, None, why_none or "no OI marks for this day"
+    if not isinstance(t, str) or not t:
+        return None, None, None, "row has no minute to place OI at"
+    # HH:MM is zero-padded, so string order IS clock order within the day.
+    prev = [r for r in marks
+            if isinstance(r, dict) and isinstance(r.get("time"), str)
+            and r["time"] <= t]
+    if not prev:
+        return None, None, None, f"no OI mark at or before {t}"
+    m = max(prev, key=lambda r: r["time"])
+    return m.get("call"), m.get("put"), m.get("strength"), None
+
+
+def _arm_rows(index, day_js, bars, last, day, oi_at, ones, interval, now,
               keys=(("run_state", False), ("run_state_sell", True)),
               rule="5c"):
     """Every ARM on this session's state lists, as rows ready to append.
@@ -249,6 +284,7 @@ def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now,
             t = st.get("t")
             t1m, x1m, why = _minute_extreme(ones, t, sell, interval,
                                             arm.get("extreme"))
+            oi_c, oi_p, oi_s, oi_why = oi_at(t)
             row = {"kind": "arm", "at": now, "day": day, "index": index,
                    # The interval is part of the record, not context: an arm
                    # logged at any other interval would be a different setup
@@ -275,8 +311,10 @@ def _arm_rows(index, day_js, bars, last, day, oi, ones, interval, now,
                    # The same context capture the entry rows have, off the same
                    # bar. Absent is null, never invented.
                    "gamma": bar.get("gamma"), "ctx": bar.get("ctx"),
-                   "oi_call": oi[0], "oi_put": oi[1], "oi_strength": oi[2],
+                   "oi_call": oi_c, "oi_put": oi_p, "oi_strength": oi_s,
                    "closed_bar": True}
+            if oi_why:                  # appended only when the OI is null,
+                row["oi_why"] = oi_why  # so a normal row is byte-identical
             out.append(row)
     return out
 
@@ -325,17 +363,20 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
             _load_seen(path)
         day = time.strftime("%Y-%m-%d")
 
-        oi_call = oi_put = oi_strength = None
-        if chain_state is not None:
+        # The WHOLE mark series, not its last row: every row written below
+        # looks its own minute up in it (`_oi_at`). One fetch per call, as
+        # before — the per-row cost is a scan of a handful of marks.
+        oi_marks, oi_marks_why = [], None
+        if chain_state is None:
+            oi_marks_why = "no chain state when this row was written"
+        else:
             try:
-                rows = chain_state.oi_flow(interval=15)
-                if rows:
-                    last = rows[-1]
-                    oi_call = last.get("call")
-                    oi_put = last.get("put")
-                    oi_strength = last.get("strength")
+                oi_marks = list(chain_state.oi_flow(interval=15) or [])
+                if not oi_marks:
+                    oi_marks_why = "chain served no OI marks for this day"
             except Exception:
-                pass                      # chain down != no trigger log
+                oi_marks_why = "chain unreadable when this row was written"
+        oi_at = lambda t: _oi_at(oi_marks, t, oi_marks_why)
 
         # NEVER log the last bar: during a live refresh it is still FORMING,
         # and a trigger read off a forming bar can UN-FIRE when the minute
@@ -369,7 +410,7 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
             if interval == band_rotation.SCORED_INTERVAL:
                 out.extend(json.dumps(r) for r in
                            _dedupe(_arm_rows(index, day_js, bars, last, day,
-                                             (oi_call, oi_put, oi_strength),
+                                             oi_at,
                                              ones, interval, time.time())))
                 wrote = len(out)
         except Exception:
@@ -385,7 +426,7 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                 out.extend(json.dumps(r) for r in
                            _dedupe(_arm_rows(
                                index, day_js, bars, last, day,
-                               (oi_call, oi_put, oi_strength),
+                               oi_at,
                                ones, interval, time.time(),
                                keys=(("zone_state", False),
                                      ("zone_state_sell", True)),
@@ -410,8 +451,10 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
             if rec is None or i >= last or i >= len(bars) or bars[i] is None:
                 continue
             bar = bars[i]
+            row_t = rec.get("t") or bar.get("t")
+            oi_c, oi_p, oi_s, oi_why = oi_at(row_t)
             row = {"at": time.time(), "day": day, "index": index,
-                   "t": rec.get("t") or bar.get("t"),
+                   "t": row_t,
                    "side": rec.get("side"), "band": rec.get("band"),
                    # Which RULE produced this row. Rows written before
                    # 2026-08-08 carry no `rule` and describe §1's one-candle
@@ -429,14 +472,16 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                    # receipt, which `_level_of` marks as such.
                    "level": rec.get("level"),
                    "gamma": bar.get("gamma"), "ctx": bar.get("ctx"),
-                   "oi_call": oi_call, "oi_put": oi_put,
-                   "oi_strength": oi_strength,
+                   "oi_call": oi_c, "oi_put": oi_p,
+                   "oi_strength": oi_s,
                    # Provenance, not decoration: rows written before the
                    # forming-bar fix lack this key, and `score` refuses them.
                    # That quarantines the 2026-08-04 morning batch without
                    # deleting it -- the context in those rows is still real,
                    # only the trigger and the price are not trustworthy.
                    "closed_bar": True}
+            if oi_why:                  # appended only when the OI is null,
+                row["oi_why"] = oi_why  # so a normal row is byte-identical
             k = _key(row)
             if k in _seen:
                 continue

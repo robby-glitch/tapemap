@@ -6,8 +6,21 @@ import trigger_log
 
 
 class FakeChain:
+    # `time` is not decoration: every real `oi_flow` row carries the clock mark
+    # it was sampled at, and since 2026-09-18 that is what a trigger row is
+    # matched against. A fixture without it would be testing a shape the chain
+    # never serves. 10:03 is `_payload`'s record, so this is its own mark.
     def oi_flow(self, interval=15):
-        return [{"call": 1_000_000, "put": 2_000_000, "strength": 0.5}]
+        return [{"time": "10:03",
+                 "call": 1_000_000, "put": 2_000_000, "strength": 0.5}]
+
+
+class DayChain:
+    """What a 13:00 restart sees: the whole morning, the newest mark last."""
+
+    def oi_flow(self, interval=15):
+        return [{"time": "09:50", "call": 10, "put": 20, "strength": 0.1},
+                {"time": "13:00", "call": 30, "put": 40, "strength": 0.9}]
 
 
 class BrokenChain:
@@ -78,6 +91,42 @@ def test_broken_chain_still_logs(tmp_path):
     assert trigger_log.log_new("NIFTY", _payload(), BrokenChain(), path=path) == 1
     row = json.loads(open(path, encoding="utf-8").read())
     assert row["oi_strength"] is None   # absent, never invented
+    assert row["oi_why"]                # and the absence says which absence
+
+
+def test_a_recovered_row_carries_its_own_minutes_oi(tmp_path):
+    """A 13:00 restart must not stamp 13:00's OI on the morning's rows.
+
+    The bars come back from REST whole, so the morning's records are re-derived
+    correctly; the OI series is the part that only ever has a NOW. Taking its
+    last mark wrote a 13:00 divergence onto a 09:50 row with nothing saying so
+    — and `data/trigger_log.jsonl` is the record the edge is judged against, so
+    nothing downstream could ever have caught it.
+    """
+    path = _fresh(tmp_path)
+    bars = [{"t": "09:20", "fut": {"c": 24600.0}},
+            {"t": "09:50", "fut": {"c": 24610.0}},
+            {"t": "09:53", "fut": {"c": 24615.0}},
+            {"t": "13:00", "fut": {"c": 24700.0}}]     # forming, never logged
+    rot = [_rec("09:20", "24600.00"), _rec("09:50", "24610.00"),
+           _rec("09:53", "24615.00"), _rec("13:00", "24700.00")]
+    pl = {"days": [{"bars": bars, "rotation_run": rot}]}
+    assert trigger_log.log_new("NIFTY", pl, DayChain(), path=path) == 3
+    rows = {r["t"]: r for r in
+            (json.loads(x) for x in open(path, encoding="utf-8"))}
+
+    # 09:50 takes 09:50's mark. The newest one is 13:00's and is not it.
+    r = rows["09:50"]
+    assert (r["oi_call"], r["oi_put"], r["oi_strength"]) == (10, 20, 0.1)
+    assert "oi_why" not in r            # a real reading carries no excuse
+    # 09:53 sits between marks: the chain AS AT 09:53 is the 09:50 sample,
+    # never the 13:00 one — a mark is a reading, not a forecast.
+    assert rows["09:53"]["oi_strength"] == 0.1
+    # 09:20 is earlier than every mark. Null plus a reason, never the newest.
+    r = rows["09:20"]
+    assert r["oi_call"] is None and r["oi_put"] is None
+    assert r["oi_strength"] is None
+    assert "09:20" in r["oi_why"] and len(r["oi_why"]) <= 48
 
 
 def test_px_from_flat_bars(tmp_path):

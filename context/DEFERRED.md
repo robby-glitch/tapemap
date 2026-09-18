@@ -19,7 +19,11 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1197** (`pytest -q`, 2026-09-18 - the anytime-start rule
+- **Test count is now 1198** (`pytest -q`, 2026-09-18 - the anytime-start rule
+  at the trigger record: 1 in `test_trigger_log.py` pinning that a row written
+  after a restart carries the OI mark covering ITS OWN minute, and a null plus
+  an `oi_why` where no mark covers it, never the newest mark (1197+1=1198);
+  before that 1197, 2026-09-18 - the anytime-start rule
   at the depth vote: 2 in `test_senses.py` pinning that the senses log reads
   back sweep rows only, each tagged `src: "restored"`, and that a day-sized
   file is streamed so the seed costs the rows it keeps and not the rows it
