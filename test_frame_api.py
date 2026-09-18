@@ -55,3 +55,32 @@ def test_book_for_reads_zone_state_from_days0(monkeypatch):
     book = server._book_for(req, "NIFTY")
     assert book["zone_state"] == [{"state": "ARMED"}] and book["zone_state_sell"] == []
     assert book["pivots"] == {"P": 23400.0, "R1": 23500.0, "S1": 23300.0}     # the prior session's floor pivots ride the book
+
+
+def test_the_record_is_rescored_once_per_closed_bar_not_once_per_post(monkeypatch):
+    """2026-09-18: `score_frame.write` reads, parses, rescores and rewrites the
+    WHOLE day file. At 55 MB across 2,026 rows, with the extension posting every
+    few seconds, each request held a 55 MB parse; the process reached 2.2 GB with
+    ~70 sockets in CLOSE_WAIT and stopped accepting connections, twice, without
+    raising. Nothing the scorer fills can change until a bar closes."""
+    import server
+    calls = []
+    monkeypatch.setattr(server.score_frame, "write",
+                        lambda day, bars, **k: calls.append(len(bars)))
+    server._SCORED_BARS.clear()
+
+    def post(idx, nbars):
+        # the guard exactly as the POST handler applies it
+        if nbars != server._SCORED_BARS.get(idx):
+            server._SCORED_BARS[idx] = nbars
+            server.score_frame.write("2026-09-18", [{}] * nbars)
+
+    for _ in range(40):          # forty posts inside one five-minute bar
+        post("NIFTY", 12)
+    assert calls == [12], "a post that closed no new bar must not rewrite the file"
+
+    post("NIFTY", 13)            # the bar closes
+    assert calls == [12, 13]
+
+    post("BANKNIFTY", 13)        # a different index keeps its own count
+    assert calls == [12, 13, 13]

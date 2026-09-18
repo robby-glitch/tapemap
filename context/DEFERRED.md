@@ -19,7 +19,7 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1191** (`pytest -q`, 2026-09-18 - the anytime-start rule
+- **Test count is now 1192** (`pytest -q`, 2026-09-18 - the anytime-start rule
   at the chain poller: 4 in `test_chain_live.py` pinning that a warm start
   publishes the last replayed snapshot exactly once as `mode="restored"`, that
   a live payload replaces it rather than merging, and that an absent day file

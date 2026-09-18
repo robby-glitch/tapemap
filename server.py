@@ -43,6 +43,9 @@ import instruments
 import oi_dwell
 import pools as pools_mod
 import score_frame
+
+# idx -> the closed-bar count the record was last scored against.
+_SCORED_BARS = {}
 import senses as senses_mod
 import surface as surface_mod
 import trader as trader_mod
@@ -1175,10 +1178,28 @@ class Handler(SimpleHTTPRequestHandler):
                 # the §8 kill conditions have something to execute against;
                 # its own try/except -- a scoring failure must never touch
                 # a reply that has already gone out
-                try:
-                    score_frame.write(day, doc.get("closed") or [])
-                except Exception:
-                    log.exception("score_frame write")
+                # ONCE PER CLOSED BAR, NOT ONCE PER POST. `score_frame.write`
+                # reads the WHOLE day file, parses every row, rescores and
+                # writes it all back. On 2026-09-18 that file was 55 MB across
+                # 2,026 rows and the extension posts every few seconds, so each
+                # request held a 55 MB parse; ThreadingHTTPServer gave each one
+                # a thread, the process reached 2.2 GB with ~70 sockets in
+                # CLOSE_WAIT, and it stopped accepting connections without ever
+                # raising -- twice today, which is exactly where the chain log
+                # goes silent (10:59 and 13:34). Nothing the scorer fills can
+                # change until a BAR CLOSES: every horizon it writes is measured
+                # in bars or in minutes off a bar's close. So it runs when the
+                # bar count moves, which is once per five minutes per index.
+                # ponytail: a whole-file rewrite, now rare enough to survive.
+                # Make it incremental if the record ever outgrows one bar's
+                # worth of time.
+                nbars = len(doc.get("closed") or [])
+                if nbars != _SCORED_BARS.get(idx):
+                    _SCORED_BARS[idx] = nbars
+                    try:
+                        score_frame.write(day, doc.get("closed") or [])
+                    except Exception:
+                        log.exception("score_frame write")
             except Exception as e:               # never 500 at a browser extension
                 self._json(json.dumps({"ok": False, "why": str(e)}).encode(), 200)
             return
