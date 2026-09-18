@@ -42,6 +42,7 @@ import frame_log
 import instruments
 import oi_dwell
 import pools as pools_mod
+import record_read
 import score_frame
 
 # idx -> the closed-bar count the record was last scored against.
@@ -1678,6 +1679,22 @@ class Handler(SimpleHTTPRequestHandler):
                 # the same evidence as an observation.
                 "backfill_marks": sorted(m for m, rec in (mins or {}).items()
                                          if (rec or {}).get("src") == "backfill"),
+            }, default=str).encode())
+        elif self.path.startswith("/api/day/record"):
+            # The record has never had a reader. The day's ORDER FLOW lives in
+            # it — the extension replays GoCharting's loaded footprint, so a
+            # file whose first frame landed at 09:50 still carries events
+            # stamped 09:15 (measured 2026-09-18). Streamed, never loaded.
+            q = parse_qs(urlsplit(self.path).query)
+            day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
+            idx = self._idx()
+            rows, events = record_read.read(day, idx)
+            self._json(json.dumps({
+                "ok": True, "day": day, "idx": idx,
+                "rows": rows, "events": events,
+                "rows_why": None if rows else "no record for that day",
+                "events_why": None if events else (
+                    "no tape events recorded" if rows else "no record for that day"),
             }, default=str).encode())
         elif self.path.startswith("/api/desk"):
             # Every structure, with a STATUS each -- deployable, stand aside,
