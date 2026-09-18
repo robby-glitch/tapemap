@@ -644,7 +644,25 @@ def _senses_loop(poller, payloads, period=0.5):
     2026-07-27 lesson, applied to this loop too.
     """
     from collections import deque
-    _SENSES["rows"] = deque(maxlen=2000)
+    ring = _SENSES["rows"] = deque(maxlen=2000)
+    # THE RING PICKS UP WHERE TODAY LEFT OFF. `senses_mod.Senses` has been
+    # writing every one of these rows to data/senses/senses_<day>.jsonl since
+    # day one and nothing ever read them back, so a 13:00 start scored every
+    # morning visit's DEPTH vote `ok: None` with the answer already on disk --
+    # and the ring covers only ~15 minutes of a busy tape even mid-session.
+    # Restored rows carry `src: "restored"` and _depth_vote counts them like
+    # any other; the seeder streams the file, which at 94-220 MB a day is not
+    # optional. Measured on a 100 MB synthetic log: 2.6 MB peak, ~10 s, so the
+    # cost of a late start is ten seconds of THIS thread -- it runs after the
+    # port is bound and blocks nothing else -- against the whole morning. On a
+    # 09:15 start there is no file yet and it costs nothing. Published empty
+    # FIRST, so a reader mid-seed sees an empty ring rather than a missing key.
+    restored = senses_mod.restore_sweeps(limit=ring.maxlen)
+    if restored:
+        with _SENSES_LOCK:
+            ring.extend(restored)
+        log.info("senses: restored %s sweep row(s) from today's log",
+                 len(restored))
     _SENSES["started"] = time.time()
     obj = _SENSES["obj"] = senses_mod.Senses()
     book = _SENSES["fuse"] = fuse_mod.Book()

@@ -19,7 +19,11 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1195** (`pytest -q`, 2026-09-18 - the anytime-start rule
+- **Test count is now 1197** (`pytest -q`, 2026-09-18 - the anytime-start rule
+  at the depth vote: 2 in `test_senses.py` pinning that the senses log reads
+  back sweep rows only, each tagged `src: "restored"`, and that a day-sized
+  file is streamed so the seed costs the rows it keeps and not the rows it
+  reads past (1195+2=1197); before that 1195, 2026-09-18 - the anytime-start rule
   at the watch list: 3 in `test_watch.py` pinning that a level broken before
   this process started comes back from the war map replay tagged
   `src: "restored"`, that a live break is never restated as a reconstruction

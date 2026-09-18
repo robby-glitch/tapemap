@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import deque
 from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -69,6 +70,49 @@ def day_path(day=None):
     than appending tomorrow's rows to today's."""
     day = day or datetime.now().strftime("%Y-%m-%d")
     return os.path.join(DIR, f"senses_{day}.jsonl")
+
+
+def restore_sweeps(day=None, path=None, limit=2000):
+    """Today's sweep rows read back off disk, so a late start can still see
+    the morning's book.
+
+    Nothing in this repo read this log back until now. The DEPTH vote takes
+    its sweeps from a 2000-row RAM ring, so a server started at 13:00 scored
+    every morning visit `ok: None` -- "no sweep rows for 09:45-10:05" -- while
+    the rows sat in the file this module had written itself.
+
+    OBSERVED, NOT RECONSTRUCTED -- the `day_state` precedent, not the backfill
+    one. Every row here was measured off a real ladder by this tool earlier
+    today; the only thing missing is the process that watched it. So a
+    restored row carries `src: "restored"` rather than a `backfill` flag and
+    is counted like any other, while still being told apart from rows the
+    RUNNING process gathered -- those carry no `src` at all.
+
+    STREAMED, NEVER READ WHOLE, and that is the whole shape of this function.
+    The file runs 94-220 MB a session. A `read()` here would be the same
+    mistake as the 55 MB whole-file parse that stalled this server on
+    2026-09-18 (server.py:1183), only worse, because it would land before the
+    port is even useful. The handle is iterated line by line and only sweep
+    rows are kept, so peak memory is `limit` rows plus one line no matter what
+    the file weighs -- the newest `limit`, which is what a ring wants.
+
+    Fail-soft like `_append`: no file yet, an unreadable one, or a last line
+    half-written by a process still running costs the seed, never the start.
+    """
+    keep = deque(maxlen=limit)
+    try:
+        with open(path or day_path(day), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(row, dict) and row.get("det") == "sweep":
+                    row["src"] = "restored"
+                    keep.append(row)
+    except OSError:
+        return []
+    return list(keep)
 
 
 def ladder_of(feed):

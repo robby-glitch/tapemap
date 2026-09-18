@@ -184,3 +184,46 @@ def test_the_day_is_resolved_at_write_time_not_at_construction(tmp_path):
     s = senses.Senses(day="2026-08-20")
     s.day = "2026-08-21"                       # midnight, mid-process
     assert os.path.basename(senses.day_path(s.day)) == "senses_2026-08-21.jsonl"
+
+
+# --------------------------------------------------------------------------
+# reading the log back -- the seed for a process that started after the open
+# --------------------------------------------------------------------------
+
+def test_only_sweeps_come_back_and_every_one_says_it_was_restored(tmp_path):
+    """The ring is read by the DEPTH vote, which wants sweeps and nothing
+    else, so absorption and pull rows must not ride along. And a row this
+    process did not watch has to say so: `src: "restored"` is what keeps a
+    rebuilt morning from being read as something the socket saw."""
+    log = tmp_path / "senses.jsonl"
+    log.write_text("".join(json.dumps(r) + "\n" for r in (
+        {"det": "sweep", "kind": "swept", "t": "09:45:01", "inst": "NIFTY-FUT"},
+        {"det": "absorption", "t": "09:46:02", "inst": "NIFTY-FUT"},
+        {"det": "sweep", "kind": "swept", "t": "09:47:03", "inst": "NIFTY-FUT"},
+    )), encoding="utf-8")
+
+    rows = senses.restore_sweeps(path=str(log))
+    assert [r["t"] for r in rows] == ["09:45:01", "09:47:03"]
+    assert all(r["det"] == "sweep" and r["src"] == "restored" for r in rows)
+    # Fail-soft, like the write half: a day with no log yet is an empty seed,
+    # never an exception that takes the senses thread down with it.
+    assert senses.restore_sweeps(path=str(tmp_path / "never-written")) == []
+
+
+def test_a_days_log_is_streamed_and_only_the_kept_rows_are_held(tmp_path):
+    """This file runs 94-220 MB a session, so the seed's cost must be the
+    rows it KEEPS, never the rows it reads past. That is why the assertion
+    below is on the length of the retained list: it is `limit`, whatever the
+    file's own row count is, and the newest rows at that -- which is what a
+    ring is for."""
+    log = tmp_path / "senses.jsonl"
+    with open(log, "w", encoding="utf-8") as f:
+        for i in range(5000):
+            f.write(json.dumps({"det": "sweep" if i % 2 else "pull",
+                                "kind": "swept", "t": "09:45:01",
+                                "inst": "NIFTY-FUT", "n": i}) + "\n")
+
+    rows = senses.restore_sweeps(path=str(log), limit=100)
+    assert len(rows) == 100                    # bounded by limit, not by file
+    assert all(r["det"] == "sweep" and r["src"] == "restored" for r in rows)
+    assert rows[-1]["n"] == 4999               # the newest, not the first 100
