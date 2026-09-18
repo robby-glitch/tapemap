@@ -436,6 +436,17 @@ class ChainPoller(threading.Thread):
                 kept += 1
             print(f"chain warm-start {idx}: replayed {kept}/{len(prior)} "
                   f"market-hours snapshots from {day_file.name}")
+            # Backfill HERE, not only after the first poll. The poller does not
+            # poll outside 09:15-15:30, so a restart after the close never
+            # reached the post-poll trigger and every hole in the day stayed
+            # empty -- 2026-09-18, down 10:59-13:13 and 13:34-14:27, restarted
+            # 15:54, nothing rebuilt. The replayed snapshot carries the strike
+            # window, which is the only thing the first poll was ever needed
+            # for. The `_backfilled` guard is shared, so the post-poll path
+            # will not run it a second time.
+            if kept and self.prevs[idx] and idx not in self._backfilled:
+                self._backfilled.add(idx)
+                self._kick_backfill(idx, self.prevs[idx])
         except Exception as e:
             print(f"chain warm-start {idx} skipped:", e)
 

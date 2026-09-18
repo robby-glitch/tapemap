@@ -1,3 +1,4 @@
+import json
 """Rebuilding a morning must not invent one.
 
 Every case injects `fetch`, so nothing here touches the network or a token.
@@ -319,3 +320,30 @@ def test_a_hole_in_the_middle_of_the_day_is_filled(monkeypatch):
     assert sorted(st.minutes) == ["09:50", "11:00", "12:00", "13:13"]
     assert st.minutes["09:50"]["spot"] == 1.5      # observation untouched
     assert st.minutes["13:13"]["spot"] == 4.5
+
+
+def test_a_restart_backfills_without_waiting_for_a_poll(tmp_path, monkeypatch):
+    """The poller does not poll outside market hours, so a restart after the
+    close never reached the post-poll backfill trigger and the day's holes
+    stayed empty (2026-09-18). The warm start has the strike window already —
+    it is in the snapshot it just replayed — so it fires the backfill itself."""
+    import chain_live
+    day = tmp_path / "chain_NIFTY_2026-09-18.jsonl"
+    snap = {"ts": "10:30:00", "strikes": [{"k": 23000}, {"k": 23100}]}
+    day.write_text(json.dumps(snap) + "\n", encoding="utf-8")
+
+    called = []
+
+    class Poller:
+        states, prevs = {}, {}
+        _backfilled = set()
+        _kick_backfill = lambda self, idx, s: called.append((idx, s))
+
+    p = Poller()
+    monkeypatch.setattr(chain_live, "t_years", lambda *a, **k: 0.01)
+    monkeypatch.setattr(chain_live.ChainState, "update", lambda *a, **k: None)
+    chain_live.ChainPoller._warm_start(p, "NIFTY", day, "2026-09-25")
+
+    assert called and called[0][0] == "NIFTY"
+    assert called[0][1]["strikes"][0]["k"] == 23000   # the replayed snapshot
+    assert "NIFTY" in p._backfilled                   # post-poll path won't repeat
