@@ -731,9 +731,17 @@ def _senses_loop(poller, payloads, period=0.5):
                             _fkey = _res.get("fut_key")
                             if _fkey and snap.get(_fkey):
                                 _lad, fvtt = senses_mod.ladder_of(snap.get(_fkey))
-                            wboards.for_index(idx).on_snapshot(
-                                doc, chains.for_index(idx), fut_vtt=fvtt,
-                                grid=_grid)
+                            _wb = wboards.for_index(idx)
+                            _wb.on_snapshot(doc, chains.for_index(idx),
+                                            fut_vtt=fvtt, grid=_grid)
+                            # A restored publish repeats on the poller's 30s
+                            # closed-market tick, because _try_seed is a
+                            # one-shot that needs the daily levels and the REST
+                            # grid first. This is its stop signal: the board
+                            # has actually seeded.
+                            if (doc.get("mode") == "restored"
+                                    and _wb.backfill.get("done")):
+                                getattr(poller, "restored_acked", set()).add(idx)
                         except Exception:   # the map must never stall the tape
                             log.exception("warmap at chain pace (%s)", idx)
                         # 5a/5b is queued, NOT run here -- `desk.decide` fits a
@@ -857,7 +865,13 @@ def _senses_loop(poller, payloads, period=0.5):
                         wb = _SENSES.get("warmap")
                         wst = (wb.for_index(idx).state()
                                if wb is not None else None)
-                    ptrader.on_chain(idx, doc, view, cr, wst)
+                    # NOT on a restored snapshot. The boards above are STATE
+                    # and are rebuilt; a paper decision is an EVENT, and one
+                    # taken at 22:00 off a 15:29 snapshot never happened.
+                    # Decisions during the absence are on the un-rebuildable
+                    # list and must stay there.
+                    if doc.get("mode") != "restored":
+                        ptrader.on_chain(idx, doc, view, cr, wst)
                 except Exception:
                     log.exception("paper trader at chain pace (%s)", idx)
         except Exception as e:            # never take the tape down

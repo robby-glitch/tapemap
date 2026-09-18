@@ -293,6 +293,20 @@ class ChainPoller(threading.Thread):
         # session. One shot each: history does not change, and 34 REST calls
         # per index is not something to repeat on every poll.
         self._backfilled = set()
+        # THE WARM START PUBLISHES. server.py:677-686 gates the war map, the
+        # drag board, the OI ladder, trapped writers and the paper tick on a
+        # payload with ok:true, and this poller never publishes outside
+        # 09:15-15:30 -- so every post-close, weekend or post-crash start left
+        # all of them dead while /api/oiflow served the same day from the same
+        # process. `_restored` holds the last replayed snapshot per index so
+        # the closed-market tick can re-publish it: warmap._try_seed fires
+        # exactly ONCE and needs the daily levels and the REST grid first, so
+        # a single publish can land before the boards are able to use it.
+        # `restored_acked` is the stop signal, written by the senses loop when
+        # a board reports backfill.done.
+        self._restored = {}                  # idx -> (snap, metrics, expiry)
+        self.restored_acked = set()
+        self._restored_ticks = {}            # idx -> closed-market re-publishes
 
     def _publish(self, idx, snap, metrics, expiry, mode, error=None):
         by_k = {r["k"]: r for r in metrics.pop("per_strike", [])}
@@ -317,12 +331,18 @@ class ChainPoller(threading.Thread):
         # was thousands of large json.loads per session for one number.
         self.boxes[idx]["spot"] = snap["spot"]
         self.boxes[idx]["err_tag"] = None
+        # Rides outside the bytes for the same reason `spot` does: the
+        # closed-market tick must tell a restored payload from a live one
+        # without parsing, so that a reconstruction can never overwrite an
+        # observation.
+        self.boxes[idx]["mode"] = mode
 
     def _fail(self, idx, mode, msg):
         self.boxes[idx]["payload"] = json.dumps(
             {"ok": False, "mode": mode, "index": idx, "error": msg}).encode()
         self.boxes[idx]["spot"] = None
         self.boxes[idx]["err_tag"] = None
+        self.boxes[idx]["mode"] = mode
 
     def _tag_error(self, idx, mode, msg):
         """Keep the last good payload for `idx` but tag it with the error."""
@@ -425,13 +445,14 @@ class ChainPoller(threading.Thread):
                      day_file.read_text(encoding="utf-8").splitlines()
                      if x.strip()]
             kept = 0
+            metrics = None                            # the last replay's; republished below
             for s in prior:
                 hh, mm, ss = (int(x) for x in s["ts"].split(":"))
                 if not (SESS_OPEN <= hh * 3600 + mm * 60 + ss <= SESS_CLOSE):
                     continue                          # skip closed-market snapshots
                 snap_now = base.replace(hour=hh, minute=mm, second=ss)
-                self.states[idx].update(s, t_years(expiry, snap_now),
-                                        self.prevs[idx])
+                metrics = self.states[idx].update(s, t_years(expiry, snap_now),
+                                                  self.prevs[idx])
                 self.prevs[idx] = s
                 kept += 1
             print(f"chain warm-start {idx}: replayed {kept}/{len(prior)} "
@@ -447,8 +468,42 @@ class ChainPoller(threading.Thread):
             if kept and self.prevs[idx] and idx not in self._backfilled:
                 self._backfilled.add(idx)
                 self._kick_backfill(idx, self.prevs[idx])
+            # Then PUBLISH what was replayed, so everything downstream of the
+            # ok:true gate comes alive at any hour. This is a RECONSTRUCTION
+            # and says so in both fields every consumer already parses -- it is
+            # never laundered into looking live. It invents nothing: this
+            # snapshot's IV, greeks and GEX were OBSERVED by an earlier process
+            # today, minutes nothing recorded stay absent with their own
+            # reasons, and no depth, order count or drag rate rides along.
+            if kept and metrics is not None:
+                self._restored[idx] = (self.prevs[idx], metrics, expiry)
+                self.restored_acked.discard(idx)
+                self._restored_ticks[idx] = 0
+                self._publish_restored(idx)
         except Exception as e:
             print(f"chain warm-start {idx} skipped:", e)
+
+    # One publish gives the boards exactly one tick, and warmap._try_seed is a
+    # one-shot that waits for the daily levels and the REST walk -- so run
+    # before those land, that single tick IS the day. The closed-market branch
+    # repeats this until the senses loop acks a seeded board, capped at the
+    # boards' own SEED_WAIT_S so a board that never seeds cannot spin forever.
+    RESTORE_TICKS_MAX = 20                   # x 30s = the 600s the boards wait
+
+    def _publish_restored(self, idx):
+        """(Re)publish the last replayed snapshot as a stated reconstruction."""
+        got = self._restored.get(idx)
+        if not got:
+            return
+        snap, metrics, expiry = got
+        why = ("market closed - rebuilt from persisted snapshots"
+               if not in_session(datetime.now(IST))
+               else "rebuilt from persisted snapshots - awaiting live poll")
+        # A shallow copy, because _publish pops "per_strike" off the dict it is
+        # handed and this same metrics is republished on the next closed tick.
+        # Without it every repeat would drop ce_w/pe_w/gex/ce_pk/pe_pk to None
+        # and the war map's heat would go blank on the second pass.
+        self._publish(idx, snap, dict(metrics), expiry, "restored", why)
 
     def _run_live(self):
         upstox = _broker() == "upstox"
@@ -521,8 +576,19 @@ class ChainPoller(threading.Thread):
                     break                  # -> outer: new day_file + clean warm-start
                 if not in_session(now):    # closed: don't poll or record
                     for c in self.configs:
-                        self._tag_error(c["under_sym"], "live",
-                                        "market closed - polling resumes 09:15 IST")
+                        cidx = c["under_sym"]
+                        if (self.boxes[cidx] or {}).get("mode") == "restored":
+                            # Its own error already says the market is closed
+                            # AND that this was rebuilt; _tag_error would
+                            # replace that sentence with half of it.
+                            n = self._restored_ticks.get(cidx, 0)
+                            if (cidx not in self.restored_acked
+                                    and n < self.RESTORE_TICKS_MAX):
+                                self._restored_ticks[cidx] = n + 1
+                                self._publish_restored(cidx)
+                        else:
+                            self._tag_error(cidx, "live",
+                                            "market closed - polling resumes 09:15 IST")
                     time.sleep(30)
                     continue
                 for c in self.configs:
