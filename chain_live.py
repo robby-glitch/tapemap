@@ -391,11 +391,18 @@ class ChainPoller(threading.Thread):
             import chain_backfill
             import upstox_feed
             state = self.states[idx]
-            recorded = sorted(state.minutes)
+            # `before` is a cutoff and it was pointed at the wrong end. Passing
+            # the FIRST recorded mark meant a day with a hole in the middle --
+            # the server was down 10:59-13:13 on 2026-09-18 -- had that hole
+            # skipped as "at or after the first recorded mark", though REST held
+            # the minutes and `backfill_minutes` had already fetched them. The
+            # only race worth guarding is the poller writing the minute now in
+            # progress; every earlier hole is safe, because a mark already in
+            # `state.minutes` is never clobbered. So the cutoff is NOW.
             chain_backfill.start_backfill(
                 state, idx, [s["k"] for s in snap["strikes"]],
                 upstox_feed.read_token(),
-                before=recorded[0] if recorded else None, log=print)
+                before=time.strftime("%H:%M"), log=print)
         except Exception as e:                        # noqa: BLE001
             # Never fatal: a missing morning is worse than no morning, but
             # both are far better than a chain poller that will not start.

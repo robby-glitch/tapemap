@@ -297,3 +297,25 @@ def test_a_broken_backfill_never_takes_the_poller_down(monkeypatch):
     p = chain_live.ChainPoller.__new__(chain_live.ChainPoller)
     p.states = {"NIFTY": _State()}
     p._kick_backfill("NIFTY", {"strikes": [{"k": 1}]})   # must not raise
+
+
+def test_a_hole_in_the_middle_of_the_day_is_filled(monkeypatch):
+    """2026-09-18: the server was down 10:59-13:13, so the poller recorded
+    09:50 and 13:13 with nothing between. The caller passed the FIRST recorded
+    mark as the cutoff, so every REST minute at or after 09:50 was skipped and
+    the hole stayed empty. With the cutoff at NOW instead, the hole fills and
+    the two observations are still not clobbered."""
+    monkeypatch.setattr(cb, "minute_grid", lambda *a, **k: {
+        "09:50": {"spot": 1.0, "k": {1: (9, 9)}},     # observed - must not move
+        "11:00": {"spot": 2.0, "k": {1: (2, 2)}},     # the hole
+        "12:00": {"spot": 3.0, "k": {1: (3, 3)}},     # the hole
+        "13:13": {"spot": 4.0, "k": {1: (9, 9)}},     # observed - must not move
+        "14:30": {"spot": 5.0, "k": {1: (5, 5)}},     # at/after now - left alone
+    })
+    st = _State()
+    st.minutes["09:50"] = {"spot": 1.5, "k": {1: (1, 1)}}
+    st.minutes["13:13"] = {"spot": 4.5, "k": {1: (4, 4)}}
+    assert cb.backfill_minutes(st, "NIFTY", [1], "tok", before="14:30") == 2
+    assert sorted(st.minutes) == ["09:50", "11:00", "12:00", "13:13"]
+    assert st.minutes["09:50"]["spot"] == 1.5      # observation untouched
+    assert st.minutes["13:13"]["spot"] == 4.5
