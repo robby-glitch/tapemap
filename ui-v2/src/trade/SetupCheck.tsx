@@ -8,6 +8,11 @@ import type { palette } from '../theme'
 // rendering of a number the strip was already showing as +65.45L. One
 // formatter, so the two surfaces can never disagree about one figure.
 import { crl } from './ZoneRead'
+// The day's footprint record, and the pure read of it. The FILTER lives there
+// so this panel keeps its own contract: every AUTO row reads one published
+// field or one published rule, and re-derives nothing.
+import { lookUnder } from './footprint'
+import type { Footprint } from './footprint'
 import type { TapeBar, RotationSignal, RunState, FlowRow } from '../data'
 import { SCORED_INTERVAL } from '../data'
 
@@ -128,6 +133,10 @@ interface Props {
   entry: RotationSignal | null
   /** The latest Trending-OI mark. Null when the poller has none. */
   flow: FlowRow | null
+  /** The day's footprint record for THIS index (`useFootprint`). Optional: a
+   *  mount that does not pass it renders exactly as it always has, and the row
+   *  it feeds is absent rather than empty. */
+  footprint?: Footprint | null
   flowWhy: string
   /** The interval, in minutes, the backend says these bars ARE. §5c's 68.4%
    *  was measured at SCORED_INTERVAL and nowhere else, so anything but that —
@@ -227,7 +236,7 @@ function Tick({ pal, state }: { pal: Pal; state: TickState }) {
 
 export default function SetupCheck({
   pal, day, bar, runState, runStateWhy, runStateSell, entry, entrySell,
-  flow, flowWhy, publishedInterval = null, compact = false,
+  flow, flowWhy, footprint = null, publishedInterval = null, compact = false,
   sessionRun, sessionRunWhy = '', sessionRunSell, sessionRunSellWhy = '',
   sessionStates, sessionStatesSell,
 }: Props) {
@@ -328,6 +337,28 @@ export default function SetupCheck({
   // OI *deceleration* is a second derivative nothing publishes.
   const context: Row[] = useMemo(() => {
     const out: Row[] = []
+
+    // ── Is anything absorbing under the live reference candle? ─────────────
+    // CONTEXT and not TRIGGER, deliberately: the trigger group prints 0 / 3 and
+    // its measured note describes exactly those three rows, so a fourth would
+    // fold an unscored row into a scored tally.
+    //
+    // The whole rule is in `lookUnder`, whose bounds are two numbers run_states
+    // already publishes — no new constant, and no second copy of the CONFIRMS
+    // vocabulary, which record_read.py stamps on each event from signals.py.
+    //
+    // THE INDEX MATTERS. The extension records one index at a time; an index
+    // its record never covered reads COULD NOT LOOK with the reason, never
+    // "found nothing". Those are different statements.
+    if (footprint) {
+      const look = lookUnder(footprint, st, showSell)
+      out.push({
+        id: 'c.foot',
+        text: `Reference ke ${showSell ? 'oopar' : 'neeche'} koi khapa raha hai`,
+        state: look.state, receipt: look.receipt, warn: look.warn,
+      })
+    }
+
     const g = bar.gamma
     // The operator's own reading, 2026-08-07: positive gamma damps the move so
     // a mean-reversion entry is favoured; negative gamma amplifies it. Their
@@ -421,7 +452,7 @@ export default function SetupCheck({
       receipt: 'premium-matched jodi, dono ≥ ₹100 — ye chart is payload mein nahi hai',
     })
     return out
-  }, [bar.gamma, sig, flow, flowWhy, ticks])
+  }, [bar.gamma, sig, flow, flowWhy, ticks, footprint, st, showSell])
 
   // ── THE DAY'S ENTRIES ────────────────────────────────────────────────────
   // One pass per side over the published arrays. Nothing is re-derived: every

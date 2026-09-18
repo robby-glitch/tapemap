@@ -20,6 +20,7 @@ import os
 from typing import Optional
 
 import frame_log
+import signals
 
 _cache = {}          # path -> (key, rows, events)
 
@@ -82,6 +83,13 @@ def read(day: str, idx: str = "NIFTY", path: Optional[str] = None):
                     seen[(t, e.get("kind"), e.get("p"))] = {
                         "t": t, "kind": e.get("kind"), "p": e.get("p"),
                         "at": (e.get("at") or {}).get("label"),
+                        # Which kinds count as CONFIRMING evidence, decided
+                        # HERE so no screen carries a second copy of the list.
+                        # `signals.CONFIRMS` is the one vocabulary; a UI that
+                        # spelled out absorption/exhaustion/trap for itself is
+                        # the same rule in two languages, which is how the
+                        # 09:25 gate drifted for weeks.
+                        "confirm": e.get("kind") in signals.CONFIRMS,
                     }
     except OSError:
         return [], []
@@ -100,7 +108,8 @@ def demo():
                    "signal": {"state": "ARMED"}},
          "head": {"gate": {"level": "PATA NAHI"}}, "missing": [],
          "tape": {"events": [{"t": "09:15", "kind": "absorption", "p": 99.0,
-                              "at": {"label": "at PDL 99"}}]}}
+                              "at": {"label": "at PDL 99"}},
+                             {"t": "09:20", "kind": "initiative", "p": 101.0}]}}
     b = dict(a, ts="09:55")                       # the same event again -> one row
     c = dict(a, idx="BANKNIFTY", ts="09:56")      # another index -> filtered out
     with tempfile.TemporaryDirectory() as d:
@@ -113,7 +122,12 @@ def demo():
         assert len(rows) == 2, rows
         assert rows[0]["t"] == "09:50" and rows[0]["signal"] == "ARMED"
         assert rows[0]["gate"] == "PATA NAHI"
-        assert len(events) == 1, events           # de-duplicated
+        assert len(events) == 2, events           # de-duplicated
+        # The CONFIRMS vocabulary lives in signals.py and only there: an
+        # absorption confirms, an initiative does not, and a screen reads the
+        # flag rather than keeping its own list of kinds.
+        assert events[0]["confirm"] is True, events
+        assert events[1]["kind"] == "initiative" and events[1]["confirm"] is False
         assert events[0]["t"] == "09:15", events  # BEFORE the first frame: the replay
         assert events[0]["at"] == "at PDL 99"
         again, _ = read(day, "NIFTY", path=p)

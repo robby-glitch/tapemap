@@ -6,6 +6,7 @@ import LegChart from './LegChart'
 import ZoneRead from './ZoneRead'
 import SetupCheck from './SetupCheck'
 import { useFlow, FlowLine } from './flow'
+import { useFootprint } from './footprint'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
@@ -419,6 +420,12 @@ export default function TradeTab({
   // 2026-08-11 so the One tab mounts the SAME line rather than a second copy
   // of it — behaviour, cadence and wording are unchanged.
   const { last: lastFlow, why: flowWhy } = useFlow(index)
+
+  // The day's footprint record, for SETUP CHECK's one order-flow row. Per
+  // INDEX, because the extension records one at a time and an index it never
+  // covered must read "could not look", never "nothing there". Text only — the
+  // record is 5-minute and this chart is 3-minute, so none of it is drawn.
+  const footprint = useFootprint(index)
 
   // Clamp both ends: a negative cursor would index bars[-1] === undefined and
   // throw on the first field read. Computed here (rather than only after the
@@ -918,6 +925,7 @@ export default function TradeTab({
             entry={rotationRun?.[at] ?? null}
             entrySell={rotationRunSell?.[at] ?? null}
             flow={lastFlow} flowWhy={flowWhy}
+            footprint={footprint}
             publishedInterval={publishedInterval}
             sessionRun={rotationRun} sessionRunWhy={rotationRunWhy}
             sessionRunSell={rotationRunSell} sessionRunSellWhy={rotationRunSellWhy}
