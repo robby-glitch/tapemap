@@ -65,6 +65,15 @@ MIN_HIST = 8        # ranks below this much history are not trusted
 class ChainRead:
     """What the chain says about fuel and drain, right now."""
     fuel_rank: Optional[float] = None       # percentile-so-far of worst pain
+    # HOW MANY OF THE RANKED MARKS ARE RECONSTRUCTED RATHER THAN OBSERVED.
+    # `seed_from_rest` feeds the REST morning into the pain rank, so after a
+    # 13:00 start `fuel_rank` is ranked against the whole session instead of
+    # against the afternoon -- but the seeded half is 1-minute candle closes
+    # rebuilt from REST, not socket snapshots at chain cadence. Published as a
+    # COUNT, not a flag, so 40 restored marks against 800 live ones reads
+    # differently from the reverse. Zero means the whole distribution was
+    # observed. The drain ranks are never seeded -- see `seed_from_rest`.
+    fuel_hist_restored: int = 0
     worst_pain: Optional[float] = None      # points underwater, worst leg
     worst_leg: Optional[str] = None         # e.g. "24100CE"
     trapped_side: Optional[str] = None      # ce | pe -- where the pain sits
@@ -112,6 +121,7 @@ class ChainSide:
         self._buf: List[tuple] = []   # live obs while the seed is in flight
         self._lock = threading.Lock()
         self._pain_rank = Rank()
+        self._pain_seeded = 0      # reconstructed marks inside _pain_rank
         # One rank PER SIDE. A single pooled rank cannot answer "is the
         # trapped side leaving" no matter how it is thresholded, because the
         # quantity it ranks has already had both sides added together.
@@ -174,6 +184,7 @@ class ChainSide:
         Returns the number of legs seeded.
         """
         fresh: Dict[Tuple[float, str], trapped_inventory.Ledger] = {}
+        worst_by_min: Dict[str, float] = {}
         n = 0
         for k, pair in (legs or {}).items():
             for side in ("ce", "pe"):
@@ -187,9 +198,37 @@ class ChainSide:
                     if oi is None or px is None:
                         continue          # the ledger waits; it never interpolates
                     led.feed(m, float(oi), float(px))
+                    # The same read `on_snapshot` takes after its own feed:
+                    # worst pain ACROSS the chain at that mark. A minute where
+                    # nothing is underwater contributes 0.0 and is kept, for
+                    # the reason the drain ranks already carry -- a rank fed
+                    # only its non-zero values scores the session's first real
+                    # reading against an empty series.
+                    _s, pain = led.trapped(float(px))
+                    worst_by_min[m] = max(worst_by_min.get(m, 0.0), pain)
                 fresh[(float(k), side)] = led
                 n += 1
         with self._lock:
+            # THE MORNING JOINS THE FUEL RANK, AND ONLY THE FUEL RANK.
+            #
+            # Pain is a LEVEL -- points underwater -- so a mark read once a
+            # minute off REST and a mark read every ten seconds off the socket
+            # are samples of the same quantity in the same units, and pooling
+            # them costs only sampling density, which the morning currently
+            # has at zero. Ranked in mark order under the lock because
+            # `on_snapshot` inserts into the same list from the senses thread.
+            #
+            # `_drain_rank` is deliberately left cold. `trapped_inventory
+            # .drain_rate` sums forced-exit OI over the last FIVE EVENTS, not
+            # over a fixed span, and one event is one `feed`: five minutes on
+            # this 1-minute seed, about fifty seconds on the live cadence. The
+            # seeded values are several times larger for the same real flow,
+            # so pooling would push every live drain down the percentile and
+            # DRAIN_P would stop firing for the rest of the day. That is a
+            # wrong rank, which is worse than a None with a reason.
+            for m in sorted(worst_by_min):
+                self._pain_rank.rank(worst_by_min[m])
+            self._pain_seeded += len(worst_by_min)
             for (t, k, side, oi, ltp) in self._buf:
                 key = (float(k), side)
                 if key in fresh:
@@ -244,6 +283,14 @@ class ChainSide:
                 drained[side] += trapped_inventory.drain_rate(led.events)
 
         warm = len(self._pain_rank) >= MIN_HIST
+        # THE TWO RANKS NO LONGER WARM TOGETHER, because the seed fills one of
+        # them. A seeded session can rank fuel on its very first live snapshot
+        # while `_drain_rank` still holds nothing, and judging drain off
+        # `warm` would then score the session's first covering burst against a
+        # one-element series -- the 2026-08-22 bug walking back in through the
+        # front door. Each drain side warms on its own history, measured
+        # BEFORE this snapshot is ranked into it.
+        dwarm = {s: len(self._drain_rank[s]) >= MIN_HIST for s in ("ce", "pe")}
         fuel_rank = self._pain_rank.rank(worst)
         # EVERY SIDE IS RANKED EVERY SNAPSHOT, AND SO IS EVERY ZERO.
         #
@@ -265,7 +312,7 @@ class ChainSide:
         other = {"ce": "pe", "pe": "ce"}.get(worst_side)
 
         def _leaving(side):
-            return bool(side and warm and drained[side] > 0
+            return bool(side and dwarm.get(side) and drained[side] > 0
                         and ranks[side] >= DRAIN_P)
 
         r = ChainRead(
@@ -274,8 +321,8 @@ class ChainSide:
             worst_leg=worst_leg, trapped_side=worst_side,
             drain=_leaving(worst_side),
             drain_rank=(round(ranks[worst_side], 3)
-                        if warm and worst_side and drained[worst_side] > 0
-                        else None),
+                        if worst_side and dwarm.get(worst_side)
+                        and drained[worst_side] > 0 else None),
             drain_other=_leaving(other),
             # NONE WHEN THERE WAS NOTHING TO RANK. With no forced-exit flow
             # the ranked value is 0.0, and the percentile of 0.0 in a series
@@ -284,9 +331,10 @@ class ChainSide:
             # flow" and "flow at the session's extreme" are different
             # sentences and must not share a number.
             drain_rank_ce=(round(ranks["ce"], 3)
-                           if warm and drained["ce"] > 0 else None),
+                           if dwarm["ce"] and drained["ce"] > 0 else None),
             drain_rank_pe=(round(ranks["pe"], 3)
-                           if warm and drained["pe"] > 0 else None),
+                           if dwarm["pe"] and drained["pe"] > 0 else None),
+            fuel_hist_restored=self._pain_seeded,
             warm=warm)
         total = sum(pains.values())
         if total > 0:
@@ -294,6 +342,13 @@ class ChainSide:
         if not warm:
             r.notes.append(f"only {len(self._pain_rank)} chain snapshots ranked; "
                            f"fuel and drain are not trusted below {MIN_HIST}")
+        if self._pain_seeded:
+            # SAID WHERE THE RANK IS PUBLISHED, not only in the seeder. The
+            # pooling is legitimate (pain is a level, see seed_from_rest) but
+            # it is still two populations, and the reader is told so rather
+            # than left to assume the whole distribution was watched live.
+            r.notes.append(f"fuel rank spans the session: "
+                           f"{self._pain_seeded} restored 1-min marks [I]")
         if r.worst_leg:
             r.notes.append(f"worst leg {r.worst_leg} underwater "
                            f"{r.worst_pain} pts [I: writer-dominated assumed]")

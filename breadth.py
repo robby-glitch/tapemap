@@ -209,7 +209,15 @@ def build(minutes, fut_bars, watched_strikes, regime, pinned, now_hhmm,
         if seen:
             out["advancing"], out["retreating"] = adv, ret
         else:
-            out["fronts_why"] = "no watched strike has a peak to measure from"
+            # THE CAUSE, NOT THE SYMPTOM. "No strike has a peak" is what
+            # the loop above observed; a reader needs to know WHY. Either the
+            # OI ladder placed no rows -- there was nothing to watch, an
+            # upstream absence -- or its rows carry no OI change on any mark
+            # of the chain grid up to t1, which is this grid's own gap. Two
+            # different failures must not share one sentence.
+            out["fronts_why"] = ("the OI ladder placed no rows to watch"
+                                 if not watched_strikes else
+                                 "ladder rows have no OI change in the grid")
 
         out["backfill_minutes"] = sum(
             1 for m in sorted(minutes) if t0 <= m <= t1

@@ -190,3 +190,63 @@ def test_a_rank_is_published_only_where_there_was_flow_to_rank():
     r = cs.on_snapshot("10:00", _snap([(24100, 300_000, 130.0, 500_000, 80.0)]))
     assert r.drain_rank_ce is not None, "CE covered: that is rankable"
     assert r.drain_rank_pe is None, "PE did nothing: there is no rank for it"
+
+
+# --------------------------------------------------------------------------
+# the morning seed and the rank
+# --------------------------------------------------------------------------
+
+def _morning(k=23500.0, n=106):
+    """09:15-11:00 of writers building 23500CE while the premium rises AGAINST
+    them -- a morning with a real spread of pain, 0 to ~26 points, which is the
+    distribution an afternoon reading has to be ranked inside.
+
+    Shaped as `chain_backfill.leg_grid` returns it: `{strike: {side: (oi_by_min,
+    baseline, px_by_min)}}`, one mark a minute.
+    """
+    oi = {f"{9 + (m // 60):02d}:{m % 60:02d}": 1_000_000 + (m - 15) * 10_000
+          for m in range(15, 15 + n)}
+    px = {t: 100.0 + i * 0.5 for i, t in enumerate(sorted(oi))}
+    return {k: {"ce": (oi, 1_000_000, px), "pe": ({}, None, {})}}
+
+
+def test_a_seeded_session_ranks_fuel_against_the_whole_day():
+    """A 13:00 start already fetched the morning to rebuild its ledgers. Until
+    now it threw that history away, so `fuel_rank` was None for the first
+    MIN_HIST snapshots and then ranked the afternoon against the afternoon."""
+    cs = chainside.ChainSide()
+    cs.seed_from_rest(_morning())
+
+    r = cs.on_snapshot("13:00:05", _snap([(23500, 2_100_000, 130.0,
+                                           500_000, 80.0)]))
+    assert r.warm is True, "MIN_HIST is met by the seed, not waited out"
+    assert r.fuel_rank is not None, r.notes
+
+    # The substance: 3 points underwater at 13:00 is a MILD reading for a day
+    # that reached 26, and only the morning can say so. A rank strictly inside
+    # (0, 1) is one that has marks both below and above this snapshot -- an
+    # afternoon-only distribution starting here would have put it at 0.5.
+    assert 0.0 < r.fuel_rank < 0.5, r.fuel_rank
+    assert len(cs._pain_rank) == 107, "106 seeded marks + this snapshot"
+
+    # Tagged, not blended: the count of reconstructed marks rides on the read.
+    assert r.fuel_hist_restored == 106
+    assert any("restored" in n for n in r.notes), r.notes
+
+
+def test_the_seeded_morning_does_not_warm_the_drain_rank():
+    """Pain is a level and pools. `drain_rate` sums forced-exit OI over the last
+    FIVE EVENTS, so a 1-minute seed and a 10-second socket measure different
+    spans and must not share a distribution -- and `drain` must therefore stop
+    keying off the fuel rank's warmth, or the session's first covering burst is
+    ranked against a one-element series (the 2026-08-22 bug, by the front door).
+    """
+    cs = chainside.ChainSide()
+    cs.seed_from_rest(_morning())
+    assert not len(cs._drain_rank["ce"]), "the seed feeds pain only"
+
+    cs.on_snapshot("13:00:05", _snap([(23500, 2_100_000, 130.0, 500_000, 80.0)]))
+    r = cs.on_snapshot("13:00:15", _snap([(23500, 300_000, 130.0, 500_000, 80.0)]))
+    assert r.trapped_side == "ce" and r.fuel_rank is not None
+    assert r.drain is False, "one prior drain observation is not a session"
+    assert r.drain_rank_ce is None, "nothing to rank it against yet"

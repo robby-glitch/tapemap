@@ -19,7 +19,14 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1198** (`pytest -q`, 2026-09-18 - the anytime-start rule
+- **Test count is now 1200** (`pytest -q`, 2026-09-18 - the anytime-start rule
+  at the fuel rank: 2 in `test_chainside.py` pinning that the REST morning the
+  ledger seed already fetched is ranked too, so `fuel_rank` is a number on the
+  first snapshot after a late start and sits inside a distribution that spans
+  the session, tagged with its count of reconstructed marks; and that the same
+  seed does NOT warm the drain ranks, whose `drain_rate` window is five EVENTS
+  and so measures a different span at seed cadence than at socket cadence
+  (1198+2=1200); before that 1198, 2026-09-18 - the anytime-start rule
   at the trigger record: 1 in `test_trigger_log.py` pinning that a row written
   after a restart carries the OI mark covering ITS OWN minute, and a null plus
   an `oi_why` where no mark covers it, never the newest mark (1197+1=1198);
