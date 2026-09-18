@@ -67,8 +67,10 @@ _EMPTY_WHERE = {"px": None, "px_why": None, "vwap": None, "sigma": None, "z": No
 _EMPTY_TRAPPED = {"writers": None, "writers_why": None, "window": None, "window_why": None, "pace": None, "pace_why": None,
                    "fut_oi": None, "fut_oi_why": None, "gear": None, "gear_why": None, "gear_tag": "I"}
 _EMPTY_WALLS = {"rows": [], "cap": WALL_CAP, "floors_taken": 0, "oi_why": None, "prior_why": None, "basis": None,
-                "watch": {"rows": [], "broken": [], "cap": watch_mod.CAP, "shown": 0,
-                          "why": "the watch list did not build", "note": watch_mod.NOTE}}
+                "watch": {"rows": [], "broken": None, "cap": watch_mod.CAP, "shown": 0,
+                          "why": "the watch list did not build",
+                          "broken_why": "the watch list did not build",
+                          "note": watch_mod.NOTE}}
 _EMPTY_BREADTH = {"window_min": breadth_mod.WINDOW_MIN, "t0": None, "t1": None,
                   "written_ce": None, "unwound_ce": None, "written_pe": None, "unwound_pe": None,
                   "strikes_seen": 0, "counts_why": "breadth did not build",
@@ -322,10 +324,13 @@ def _walls(tape: dict, book: dict, broke: list) -> dict:
     # THE WATCH LIST (spec §B). `prior` is the previous frame's own watch
     # object, handed over by the server so a broken level is remembered for
     # the rest of the session while this module stays pure and stateless.
+    # `seq_fired_backfill` is the war map replay's own transitions, so a level
+    # that broke before this process started still says so after a restart.
     wt = watch_mod.build(
         rows, fut, (bn or {}).get("sigma"), b,
         wm.get("dwell"), wm.get("sequence"), wm.get("seq_fired"), wm.get("runways"),
-        book.get("minutes") or {}, book.get("peaks") or {}, book.get("watch_prior"))
+        book.get("minutes") or {}, book.get("peaks") or {}, book.get("watch_prior"),
+        seq_fired_backfill=wm.get("seq_fired_backfill"))
     return {"rows": rows, "cap": WALL_CAP, "floors_taken": sum(1 for x in broke if x.get("side") == 1),
             "oi_why": oi_why, "prior_why": prior_why, "basis": b, "watch": wt}
 

@@ -174,7 +174,7 @@ def _chg_now(minutes, k, side):
     return None
 
 
-def _broken_row(ev, target, minutes, peaks) -> dict:
+def _broken_row(ev, target, minutes, peaks, src="live") -> dict:
     ts = ev.get("ts") or ""
     kind = ev.get("level")
     k = side = None
@@ -204,16 +204,23 @@ def _broken_row(ev, target, minutes, peaks) -> dict:
             "target_named": (target or {}).get("px"),
             "target_named_why": None if (target or {}).get("px") is not None
                                 else "the run was unaimed; no level ahead",
-            "role": None, "tag": "M"}
+            "role": None, "src": src, "tag": "M"}
 
 
 def build(walls_rows, spot, sigma, basis, dwell, sequence, seq_fired, runways,
-          minutes, peaks, prior=None) -> dict:
+          minutes, peaks, prior=None, seq_fired_backfill=None) -> dict:
     """The §D `walls.watch` object.
 
     `prior` is the previous frame's own `walls.watch`; the caller carries the
     memory so this module stays pure. `walls_rows` IS the ladder and belongs
-    here -- §H.1's rule is about `signals.py`, which never sees it."""
+    here -- §H.1's rule is about `signals.py`, which never sees it.
+
+    `seq_fired_backfill` is the war map replay's own transitions (warmap.py's
+    `_try_seed`): the morning re-run through fresh machines after a late
+    start. `None` means no replay has settled; `[]` means one did and fired
+    nothing. Those breaks land in `broken` tagged `src: "restored"` and are
+    appended AFTER the live ones, so an observation is never overwritten by a
+    reconstruction of the same level."""
     near = _near(walls_rows, spot, sigma)
     big_oi = _top3(near, "oi", _OI_KINDS)
     big_sz = _top3(near, "size", _TAPE_KINDS)
@@ -276,16 +283,20 @@ def build(walls_rows, spot, sigma, basis, dwell, sequence, seq_fired, runways,
 
     broken = [dict(b) for b in ((prior or {}).get("broken") or [])]
     have = {b["p"] for b in broken}
-    fired = list(seq_fired or [])
-    for i, ev in enumerate(fired):
-        if ev.get("to") != "BREAK" or ev.get("px") is None:
-            continue
-        if float(ev["px"]) in have:
-            continue
-        run = next((f for f in fired[i + 1:]
-                    if f.get("to") == "RUN" and f.get("px") == ev.get("px")), None)
-        broken.append(_broken_row(ev, (run or {}).get("target"), minutes, peaks))
-        have.add(float(ev["px"]))
+    # Live first, the replay second, and `have` keeps the first writer: a break
+    # this process watched is never restated as a reconstruction of itself.
+    for src, fired in (("live", list(seq_fired or [])),
+                       ("restored", list(seq_fired_backfill or []))):
+        for i, ev in enumerate(fired):
+            if ev.get("to") != "BREAK" or ev.get("px") is None:
+                continue
+            if float(ev["px"]) in have:
+                continue
+            run = next((f for f in fired[i + 1:]
+                        if f.get("to") == "RUN" and f.get("px") == ev.get("px")), None)
+            broken.append(_broken_row(ev, (run or {}).get("target"),
+                                      minutes, peaks, src))
+            have.add(float(ev["px"]))
     for b in broken:
         st = _seq_of(sequence, b)
         if st.get("state") in ("APPROACH", "DWELL"):
@@ -296,5 +307,17 @@ def build(walls_rows, spot, sigma, basis, dwell, sequence, seq_fired, runways,
     if not rows:
         why = ("the war map did not answer" if not (walls_rows or [])
                else f"no ladder row within {RADIUS_SIGMA}\u03c3 of spot")
+    # \u00a7B.6 + the anytime-start rule: an empty `broken` was the silent zero the
+    # audit named -- "nothing broke" and "this process never saw the morning"
+    # rendered identically. Nothing to list is None with its own sentence, the
+    # `series null vs []` precedent (server.py:1887) and the contract's rule
+    # that a `*_why` is non-null exactly when its field is; two silences,
+    # never one.
+    broken_why = None
+    if not broken:
+        broken, broken_why = None, (
+            "no level broke today, live or in the replay"
+            if seq_fired_backfill is not None
+            else "no break yet; the morning is not rebuilt")
     return {"rows": rows, "broken": broken, "cap": CAP, "shown": len(rows),
-            "why": why, "note": NOTE}
+            "why": why, "broken_why": broken_why, "note": NOTE}

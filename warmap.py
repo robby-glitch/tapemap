@@ -65,6 +65,12 @@ class WarMap:
         self._daily_failed = False
         self._first_sec: Optional[int] = None
         self.backfill: dict = {"done": False, "why": "no chain snapshot yet"}
+        # The replay's transitions, KEPT rather than counted and thrown away:
+        # `watch.build` seeds the morning's broken levels from these, and each
+        # row carries the `src` the sequencer stamped on it. Read through
+        # state(), which reports None until the replay has settled -- None is
+        # "the morning is not rebuilt", [] is "it was, and nothing fired".
+        self.seq_fired_backfill: List[dict] = []
 
     # -- the daily fetch, off-thread ----------------------------------------
     def _kick_daily(self):
@@ -197,7 +203,7 @@ class WarMap:
         self.seq = sequence_mod.Sequencer(self.idx, path=bf_path)
         self.driver = driver_mod.Driver()
         day = now or datetime.now()
-        fired = 0
+        fired: List[dict] = []
         for m in marks:
             r = bf[m]
             self.seq.extra = {"backfill": True,
@@ -213,17 +219,18 @@ class WarMap:
             lv = self.levels.read(r["spot"], None, rows)
             dw = self.dwell.on_snapshot(hh * 3600 + mm * 60, r["spot"], rows, lv["levels"])
             band = self.dwell.band(r["spot"])
-            fired += len(self.seq.on_snapshot(
+            fired.extend(self.seq.on_snapshot(
                 r["spot"], band, lv["levels"], dw,
                 now=day.replace(hour=hh, minute=mm, second=0, microsecond=0)))
             self.driver.on_snapshot(None, rows)   # no futures volume in the grid: stated, not faked
         self.seq.path, self.seq.extra = live_path, {}
+        self.seq_fired_backfill = fired
         nb = sum(1 for m in marks if bf[m].get("src") == "backfill")
         gap = first if first > self.SEED_OPEN_M else None
         self.backfill = {"done": True, "from": marks[0], "to": marks[-1],
                          "minutes": len(marks), "backfilled": nb,
                          "observed": len(marks) - nb, "missing_before": gap,
-                         "transitions": fired, "log": bf_path, "tag": "backfill",
+                         "transitions": len(fired), "log": bf_path, "tag": "backfill",
                          "why": (f"replayed {len(marks)} minute(s) {marks[0]}-{marks[-1]} "
                                  f"({nb} rebuilt from REST candles, {len(marks) - nb} "
                                  f"observed by an earlier process today) through fresh "
@@ -288,6 +295,10 @@ class WarMap:
                           "failed": self.seq.failed,
                           "path": self.seq.path or sequence_mod.day_path()}
         out["backfill"] = self.backfill
+        # None until the replay has settled, so the consumer can tell "the
+        # morning is not rebuilt" from "it was, and no level broke".
+        out["seq_fired_backfill"] = (self.seq_fired_backfill
+                                     if self.backfill.get("done") else None)
         return out
 
 

@@ -86,7 +86,7 @@ def test_the_header_is_permanent_and_says_it_is_not_an_entry():
 
 def test_no_row_carries_a_side_a_direction_or_a_target():
     w = _build()
-    for r in w["rows"] + w["broken"]:
+    for r in w["rows"] + (w["broken"] or []):
         for banned in ("side", "direction", "dir", "target", "entry", "stop_px"):
             assert banned not in r, f"{banned} on a watched row is §H.1 broken"
 
@@ -184,6 +184,52 @@ def test_a_broken_level_is_never_deleted_mid_session_and_re_enters_as_flipped():
                                               "target": None}})
     w3 = _build(seq_fired=[], prior=w2, sequence=seq)
     assert next(b for b in w3["broken"] if b["p"] == 23250.0)["role"] == "flipped"
+
+
+def test_a_level_that_broke_before_this_process_started_is_restored_and_tagged():
+    # warmap._try_seed replays the morning through fresh machines and hands
+    # its transitions over; a 13:00 start must still show the 11:03 break.
+    replayed = [{"level": "PE", "px": 23250.0, "from": "DWELL", "to": "BREAK",
+                 "spot": 23241.0, "band": 12.5, "direction": "DOWN",
+                 "ts": "2026-09-18T11:03:07", "backfill": True, "src": "rest_1m"},
+                {"level": "PE", "px": 23250.0, "from": "BREAK", "to": "RUN",
+                 "spot": 23241.0, "band": 12.5,
+                 "target": {"kind": "ROUND", "px": 23150.0},
+                 "ts": "2026-09-18T11:03:07", "backfill": True, "src": "rest_1m"}]
+    w = _build(seq_fired=[], seq_fired_backfill=replayed)
+    b = next(b for b in w["broken"] if b["p"] == 23250.0)
+    assert b["src"] == "restored", "a rebuilt break must never look live"
+    assert b["broke_at"] == "11:03" and b["target_named"] == 23150.0
+    assert w["broken_why"] is None, "a listed break needs no sentence"
+
+
+def test_a_live_break_is_never_restated_as_a_reconstruction_of_itself():
+    live = [{"level": "PE", "px": 23250.0, "from": "DWELL", "to": "BREAK",
+             "spot": 23241.0, "band": 12.5, "ts": "2026-09-18T13:20:05"}]
+    replayed = [{"level": "PE", "px": 23250.0, "from": "DWELL", "to": "BREAK",
+                 "spot": 23244.0, "band": 12.5, "ts": "2026-09-18T11:03:07",
+                 "backfill": True, "src": "rest_1m"}]
+    w = _build(seq_fired=live, seq_fired_backfill=replayed)
+    got = [b for b in w["broken"] if b["p"] == 23250.0]
+    assert len(got) == 1 and got[0]["src"] == "live"
+    assert got[0]["broke_at"] == "13:20", "the observation stands, not the rebuild"
+
+
+def test_nothing_broken_is_never_a_silent_zero_and_says_which_silence_it_is():
+    none = _build(seq_fired=[])                       # no replay has settled
+    replayed = _build(seq_fired=[], seq_fired_backfill=[])   # one did, nothing fired
+    for w in (none, replayed):
+        assert not w["broken"], "nothing broke on either input"
+        assert w["broken"] is None, "an empty list would read as a measured zero"
+        assert w["broken_why"] and len(w["broken_why"]) <= 48
+    assert none["broken_why"] != replayed["broken_why"], \
+        "two silences, never one sentence"
+    assert "not rebuilt" in none["broken_why"]
+    # the contract's own rule, on this pair: why non-null exactly when null
+    listed = _build(seq_fired=[{"level": "PE", "px": 23250.0, "from": "DWELL",
+                                "to": "BREAK", "spot": 23241.0, "band": 12.5,
+                                "ts": "2026-09-18T11:03:07"}])
+    assert listed["broken"] and listed["broken_why"] is None
 
 
 def test_a_row_that_grows_a_side_raises_rather_than_reaching_the_screen():
