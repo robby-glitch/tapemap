@@ -12,6 +12,7 @@ import TradeTab from './trade/TradeTab'
 import GlassBoard from './one/GlassBoard'
 import ProtoTab from './proto/ProtoTab'
 import SignalsTab from './signals/SignalsTab'
+import FlowTab from './flow/FlowTab'
 // The five-state machine read, shared with the Glass board's MACHINE widget.
 // It moved out of this file so the board could import it without App.tsx and
 // the board importing each other — see machine.ts.
@@ -50,7 +51,14 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 // fired and the context it fired in, and deliberately computes nothing from
 // them, because no row has an outcome until `python trigger_log.py score`
 // fills one. See src/signals/SignalsTab.tsx.
-export type Tab = 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
+// 'Flow' draws the day's ORDER FLOW on a time axis — the tape events at their
+// own time and price, from /api/day/record. It sits beside Tape because it
+// answers the same question from the other end: Tape is what is happening now,
+// Flow is the shape of what already happened. Its axis is the SESSION
+// (09:15–15:30), not the record's first row: the extension replays the chart's
+// loaded footprint, so events reach back before the server started.
+// See src/flow/FlowTab.tsx.
+export type Tab = 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'Chain' | 'OI Flow' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -2135,7 +2143,7 @@ export default function App() {
   const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
-  const tabs: Tab[] = ['Glass', 'Heat', 'Trade', 'Tape', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
+  const tabs: Tab[] = ['Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'Chain', 'OI Flow', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
   const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
@@ -2457,6 +2465,9 @@ export default function App() {
                                               runStateWhy={tape.runStateWhy}
                                               runStateSell={tape.runStateSell} />}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
+        {/* Mounted only while active, which is also what stops its 30s poll:
+            the tab unmounts and the interval is cleared with it. */}
+        {activeTab === 'Flow'     && <FlowTab index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
