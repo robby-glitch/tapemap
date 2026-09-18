@@ -12,7 +12,7 @@ import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
 // The overlay owns the cap; the legend below only reports it, so the number the
 // operator reads can never drift from the number actually drawn.
-import { STRUCT_ZONE_LIMIT, runDrawPlan } from './LevelsOverlay'
+import { STRUCT_ZONE_LIMIT, markCounts, runDrawPlan } from './LevelsOverlay'
 
 type LegsView = 'split' | 'stacked' | 'off'
 
@@ -517,6 +517,10 @@ export default function TradeTab({
     return n
   }, [narrs, cursor, at])
 
+  // What the mark layer actually draws, counted by the SAME function the
+  // overlay uses, so the legend below can never disagree with the chart.
+  const markCount = useMemo(() => markCounts(footprint.events), [footprint.events])
+
   // Causality (binding, Task 2 review): a zone's label/why embed the run's
   // FULL length, so while the replay cursor is set, buildZones must never
   // see bars past it — otherwise a band would announce how long a regime
@@ -946,6 +950,7 @@ export default function TradeTab({
             index={index} day={day} bars={bars} levels={levels} cursor={cursor}
             mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
             structures={structures} smc={smc} rotation={rotationDraw} story={story}
+            marks={footprint.events}
           />
         </div>
       </div>
@@ -1002,6 +1007,30 @@ export default function TradeTab({
               : ''}`
           : ''}
       </div>
+
+      {/* The extension's own marks, and what this chart can and cannot say
+          with them. Only rendered once the session has loaded, so an empty
+          first paint never claims anything either way. */}
+      {day && (
+        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
+          Order-flow marks (wahi jo extension GoCharting par banata hai):
+          {' '}P = trap (bhara gola) · C = climax (heera) · A = absorption (shelf)
+          {' '}· E = exhaustion (chevron). Gehra + halo = kisi NAAM WALE level par hua,
+          {' '}halka = level par nahi. Har mark apne khud ke time aur apne khud ke
+          {' '}bhaav par hai — 5-min record hai, yahan 3-min candle hai, isliye mark
+          {' '}kisi candle par chipkaya NAHI gaya.
+          {footprint.events == null
+            ? ` Abhi kuch nahi bana — ${footprint.why}.`
+            : markCount.drawn
+              ? ` ${markCount.drawn} bane, unme ${markCount.heavy} level par.`
+              : ` Ek bhi nahi bana — ${footprint.why || 'is index ke record mein koi aisa event nahi'}.`}
+          {markCount.skipped
+            ? ` ${markCount.skipped} initiative/vacuum chhode gaye: is family mein in dono ka koi shape hi nahi hai (extension bhi inhe nahi banata).`
+            : ''}
+          {' '}Rang SIDE ka hota hai, par record mein side aata hi nahi, isliye sab
+          {' '}neutral hain — side yahan bataya jaata to wo bana hua hota.
+        </div>
+      )}
 
       {/* What the chart is NOT drawing, and how much of it there is.
           Honesty rule: "we are not showing you" must never be indistinguishable

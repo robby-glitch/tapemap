@@ -16,10 +16,14 @@ import type { IndexKey, RunState } from '../data'
  * the same record would be reported two ways.
  *
  * ── What this must never do ───────────────────────────────────────────────
- * The record is written on 5-MINUTE frames; this tab draws 3-minute bars. Times
- * and prices cross that boundary and are printed as TEXT. Geometry does not —
- * the extension's sigma is GoCharting's and runs 1.02–1.08 wider than this
- * stack's, so nothing here is ever handed to the chart overlay.
+ * The record is written on 5-MINUTE frames; this tab draws 3-minute bars. An
+ * event's OWN t and p cross that boundary intact — they are a clock reading and
+ * a price, not a bar index — so the chart overlay does draw them, each at its
+ * own time and its own price and never snapped to a candle (LevelsOverlay's
+ * `drawMarks`). What must NEVER reach the chart is anything DERIVED: the
+ * extension's sigma is GoCharting's and runs 1.02–1.08 wider than this stack's,
+ * so its bands, zones and distances stay text on this tab and nothing else.
+ * `side` is not in this payload at all, which is why the marks are neutral.
  *
  * No direction verdict, no hit rate, no strength percentage. The row states
  * what the record holds and the operator decides what it is worth.

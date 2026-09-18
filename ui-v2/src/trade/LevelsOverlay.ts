@@ -6,6 +6,7 @@ import type { Converters } from '../vendor/candl/drawings/types'
 import type { MapLevel, RotationSignal, Structure, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
+import type { FootEvent } from './footprint'
 import type { Narration } from './narration'
 import { pillText } from './hinglish'
 import type { Zone } from './zones'
@@ -1047,6 +1048,292 @@ function drawBalloons(
   }
 }
 
+/* ── The extension's own order-flow marks ─────────────────────────────────
+   The Chrome extension (orderflow-desk/src/shell/overlay.js, its pass 8) draws
+   four glyphs over GoCharting, and the operator reads them fluently. This is
+   that family, on this chart, ported shape for shape:
+
+     trap         a FILLED DISC carrying P
+     climax       a DIAMOND carrying C
+     absorption   a SHELF — a rounded bar ~1.8 candles wide, letter at its
+                  left end
+     exhaustion   a CHEVRON, apex pointing away from the candle
+
+   HEAVY vs LIGHT is the extension's own grammar and the only thing that varies
+   here: an event that landed on a NAMED level (`at`) is stroked heavy, one
+   that did not is light. Every mark is haloed first in the card colour and
+   stroked second, which is what keeps it legible over the candles underneath
+   (overlay.js's rule B.2).
+
+   WHAT IS DELIBERATELY NOT THE EXTENSION'S, each for a stated reason:
+
+   • COLOUR. On GoCharting a mark wears the colour of the side that was
+     winning. `/api/day/record` does not carry `side` — the frame's event
+     objects hold {t, kind, p, at} and nothing else — so there is no side to
+     wear. Every mark is therefore drawn in the extension's own NEUTRAL (its
+     `sideC(0)` branch), which is this palette's `textSecondary`. Inventing a
+     side from the kind would be a direction verdict this stack does not make,
+     and tinting with bull/bear/accent would overload hues that already carry
+     exactly one meaning each (theme.ts).
+
+   • THE LIFT. overlay.js lifts a disc or a diamond off the candle's own
+     extreme and runs a leader line back to its price row, so the FOOTPRINT
+     CELLS underneath stay readable. This chart draws no footprint cells, and a
+     mark anchored to a candle's high or low would be a mark placed by candle
+     rather than by price. Dropped: every mark sits at its own clock time and
+     its own price, full stop.
+
+   • SIZE AND HH:MM STAMPS. The record carries no contract size, and this chart
+     already has a time axis and a hover Callout. Neither is drawn.
+
+   • TAP RINGS. `tap` is not a kind the record emits.
+
+   THE GEOMETRY RULE. These events are stamped off a 5-MINUTE chart; this tab
+   draws 3-minute candles. So x comes from `conv.timeToX()` on the event's own
+   clock — TimeScale.timeToIndex interpolates FRACTIONALLY between candle
+   times, so an 09:20 event lands two thirds of the way between the 09:18 and
+   09:21 candles, which is exactly where it happened — and y from
+   `conv.priceToY()` on its own price. No bar index ever positions a mark. The
+   containing candle is looked up for ONE thing: which way is "away", for the
+   chevron's apex and for de-overlapping two marks on one clock. */
+
+/** The four kinds that have a shape, in the extension's own draw priority
+ *  (overlay.js `PRIO`). `initiative` and `vacuum` are absent on purpose: the
+ *  extension does not count them as events of the read either (its B.8) and
+ *  the family has no glyph for them. TradeTab discloses how many were left. */
+const MARK_PRIO: Record<string, number> = { trap: 0, absorption: 1, exhaustion: 2, climax: 3 }
+const MARK_LETTER: Record<string, string> = {
+  trap: 'P', climax: 'C', absorption: 'A', exhaustion: 'E',
+}
+/** The mark family's own typography — sans, heavy, as overlay.js draws it.
+ *  Deliberately NOT this file's MONO_STACK: the letter on a glyph is part of
+ *  the glyph, and the operator reads these four in sans all day. */
+const MARK_FONT = 'ui-sans-serif, system-ui, sans-serif'
+/** The mark unit (half a mark's width), in CSS px, clamped into the
+ *  extension's own [4, 14].
+ *
+ *  THE COEFFICIENT IS THE EXTENSION'S RULE, RE-DERIVED, NOT ITS NUMBER.
+ *  overlay.js uses `0.5 × bar pitch`, which on ITS chart makes a mark exactly
+ *  as wide as the gap between two events: it draws a 5-minute chart and the
+ *  events are stamped every 5 minutes, so neighbours are one bar apart and
+ *  `2u = 1 × pitch` has them touch and never overlap.
+ *
+ *  Here the events are still 5 minutes apart but a candle is 3, so two
+ *  neighbouring events sit 5/3 = 1.67 candles apart. Carrying 0.5 across would
+ *  draw marks at 1.0 pitch against a 1.67-pitch spacing - needlessly small, and
+ *  below the letter threshold at any realistic zoom. 0.75 restores the rule:
+ *  `2u = 1.5 × pitch` against that 1.67 gap, so two consecutive frames still
+ *  clear each other, with a little air.
+ *
+ *  MEASURED on the live chart at 1440px: 125 candles, pitch 8.0 CSS px, so
+ *  u = 6.0, a 12px mark, a 10px letter and a 14.4px shelf - the extension's own
+ *  1.8-candle shelf, to the pixel. Narrower than that and the letters drop out,
+ *  which is exactly how the extension degrades too. */
+const MARK_U_MIN = 4
+const MARK_U_MAX = 14
+const MARK_U_OF_PITCH = 0.75
+/** Letters below this are illegible, and overlay.js drops them. Same rule. */
+const MARK_LETTERS_AT = 5.2
+
+/** Minutes past midnight for an "HH:MM" stamp, or NaN. */
+function hhmmMins(t: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t))
+  return m ? +m[1] * 60 + +m[2] : NaN
+}
+
+/** Greatest i in [0, hi] with times[i] <= t; -1 when t precedes times[0]. Used
+ *  ONLY to find which candle was forming when an event landed, never to
+ *  position one. */
+function barContaining(times: number[], t: number, hi: number): number {
+  if (hi < 0 || t < times[0]) return -1
+  let lo = 0
+  let h = hi
+  while (h - lo > 1) {
+    const mid = (lo + h) >> 1
+    if (times[mid] <= t) lo = mid
+    else h = mid
+  }
+  return times[h] <= t ? h : lo
+}
+
+/** How many of `marks` this layer draws, how many of those are heavy, and how
+ *  many kinds it has no glyph for. One pass, read both by the frame-skip
+ *  signature and by TradeTab's disclosure — so the number the operator reads
+ *  can never drift from the number actually drawn. */
+export function markCounts(
+  marks: FootEvent[] | null,
+): { drawn: number; heavy: number; skipped: number } {
+  let drawn = 0
+  let heavy = 0
+  let skipped = 0
+  for (const e of marks || []) {
+    if (MARK_PRIO[e.kind] === undefined) { skipped++; continue }
+    if (e.p == null || !Number.isFinite(e.p) || !Number.isFinite(hhmmMins(e.t))) continue
+    drawn++
+    if (e.at) heavy++
+  }
+  return { drawn, heavy, skipped }
+}
+
+function drawMarks(
+  ctx: CanvasRenderingContext2D,
+  conv: Converters,
+  pane: PaneRect,
+  pal: Palette,
+  bars: TapeBar[],
+  times: number[],
+  marks: FootEvent[],
+  lastIdx: number,
+) {
+  if (lastIdx < 0 || !times.length || !bars.length) return
+  const firstMins = hhmmMins(bars[0].t)
+  if (!Number.isFinite(firstMins)) return
+  // The day's midnight, read off the axis the candles are already on rather
+  // than re-derived from the day string — one time base means an event and a
+  // candle can never disagree about what "09:20" is.
+  const base = times[0] - firstMins * 60_000
+  // Causality: a mark stamped past the replay cursor belongs to a bar the
+  // cursor is hiding. Same rule the candles, ribbons and balloons obey.
+  const tEnd = times[lastIdx]
+
+  const pitch = halfBarPx(conv, times) * 2
+  const u = Math.max(MARK_U_MIN, Math.min(MARK_U_MAX, MARK_U_OF_PITCH * pitch))
+  const letters = u >= MARK_LETTERS_AT
+  const LS = Math.max(8, Math.min(13, 1.4 * u))
+
+  // Grouped by stamp, because two events share a clock often enough (three at
+  // 11:30 on 2026-09-18) that unstacked they would overprint.
+  const groups = new Map<string, FootEvent[]>()
+  for (const e of marks) {
+    if (MARK_PRIO[e.kind] === undefined) continue
+    if (e.p == null || !Number.isFinite(e.p)) continue
+    const mins = hhmmMins(e.t)
+    if (!Number.isFinite(mins) || base + mins * 60_000 > tEnd) continue
+    const g = groups.get(e.t)
+    if (g) g.push(e)
+    else groups.set(e.t, [e])
+  }
+  if (!groups.size) return
+
+  type Draw = { e: FootEvent; x: number; y: number; away: number }
+  const draws: Draw[] = []
+  for (const [t, g] of groups) {
+    // Heavy first, then the extension's own kind priority — so the mark that
+    // keeps its true row when a group has to spread is the strongest one.
+    g.sort((a, b) => ((b.at ? 1 : 0) - (a.at ? 1 : 0)) || (MARK_PRIO[a.kind] - MARK_PRIO[b.kind]))
+    const tms = base + hhmmMins(t) * 60_000
+    const x = conv.timeToX(tms)
+    if (!Number.isFinite(x)) continue
+    // The ONE thing the candle is consulted for: which way is away from it. An
+    // event in the lower half of the candle that was forming points down, one
+    // in the upper half points up — overlay.js's `outward`, in screen y.
+    const bi = barContaining(times, tms, lastIdx)
+    const b = bi >= 0 ? bars[bi] : null
+    const mid = b ? (Number(b.h) + Number(b.l)) / 2 : (g[0].p as number)
+    const away = (g[0].p as number) <= mid ? 1 : -1
+    let prevY: number | null = null
+    let prevExt = 0
+    for (const e of g) {
+      const ext = e.kind === 'absorption' ? Math.max(2, 0.35 * u) / 2 + 1
+        : e.kind === 'exhaustion' ? u * 0.7 : u
+      const y0 = conv.priceToY(e.p as number)
+      if (!Number.isFinite(y0)) continue
+      // Two marks on one clock, closer together than a mark is wide: the later
+      // one is nudged away rather than drawn on top. This is the only case
+      // where a mark leaves its own price row, and it is a few px.
+      const y: number = prevY != null && Math.abs(y0 - prevY) < 2 * u
+        ? prevY + away * (prevExt + ext + 1)
+        : y0
+      prevY = y
+      prevExt = ext
+      draws.push({ e, x, y, away })
+    }
+  }
+
+  ctx.save()
+  ctx.setLineDash([])      // explicit: the level pass leaves a dash set
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  const glow = withAlpha(pal.card, 0.9)
+  // overlay.js's B.2, the rule that makes a mark survive over what is under
+  // it: stroke it twice, a ring of empty chart first, then the mark itself.
+  const halo = (trace: () => void, color: string, lw: number) => {
+    ctx.strokeStyle = glow
+    ctx.lineWidth = lw + 2.5
+    trace()
+    ctx.stroke()
+    ctx.strokeStyle = color
+    ctx.lineWidth = lw
+    trace()
+    ctx.stroke()
+  }
+  const letter = (
+    s: string, x: number, y: number, color: string, ring: string, align: CanvasTextAlign,
+  ) => {
+    ctx.font = `800 ${LS}px ${MARK_FONT}`
+    ctx.textAlign = align
+    ctx.textBaseline = 'middle'
+    ctx.lineWidth = 3
+    ctx.strokeStyle = ring
+    ctx.strokeText(s, x, y)
+    ctx.fillStyle = color
+    ctx.fillText(s, x, y)
+  }
+
+  // Light first, heavy over it — a mark at a named level is the one that must
+  // win any remaining overlap (overlay.js's own draw order).
+  for (const d of draws.sort((a, b) => (a.e.at ? 1 : 0) - (b.e.at ? 1 : 0))) {
+    const { e, x, y, away } = d
+    if (y < pane.y + 2 || y > pane.y + pane.height - 2) continue
+    if (x < pane.x - 20 || x > pane.x + pane.width + 20) continue
+    const heavy = !!e.at
+    const lw = heavy ? 2.5 : 1.5
+    // NEUTRAL, always: the record carries no side. See the note above.
+    const cc = withAlpha(pal.textSecondary, heavy ? 1 : 0.8)
+    const R = u
+    if (e.kind === 'trap') {
+      halo(() => { ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2) }, cc, lw)
+      ctx.fillStyle = cc
+      ctx.fill()
+      if (letters) letter(MARK_LETTER.trap, x, y + 0.5, pal.card, cc, 'center')
+    } else if (e.kind === 'climax') {
+      halo(() => {
+        ctx.beginPath()
+        ctx.moveTo(x, y - R)
+        ctx.lineTo(x + R, y)
+        ctx.lineTo(x, y + R)
+        ctx.lineTo(x - R, y)
+        ctx.closePath()
+      }, cc, lw)
+      if (letters) letter(MARK_LETTER.climax, x, y + 0.5, cc, glow, 'center')
+    } else if (e.kind === 'absorption') {
+      // The shelf: ~1.8 candles wide so it keeps its own column and the next
+      // mark is not covered; the letter rides its LEFT end.
+      const w = Math.max(10, 1.8 * pitch) / 2
+      const h = Math.max(2, 0.35 * u)
+      halo(() => roundedRectPath(ctx, x - w, y - h / 2, 2 * w, h, h / 2), cc, lw)
+      ctx.fillStyle = cc
+      ctx.fill()
+      if (letters) letter(MARK_LETTER.absorption, x - w - 3, y + 0.5, cc, glow, 'right')
+    } else if (e.kind === 'exhaustion') {
+      // The chevron: apex outward, the letter beyond the apex where a stacked
+      // mark cannot be.
+      const w = R
+      const h = u * 0.5 * away
+      halo(() => {
+        ctx.beginPath()
+        ctx.moveTo(x - w, y - h)
+        ctx.lineTo(x, y + h * 0.4)
+        ctx.lineTo(x + w, y - h)
+      }, cc, lw)
+      if (letters) {
+        letter(MARK_LETTER.exhaustion, x, y + h * 0.4 + away * u * 0.8, cc, glow, 'center')
+      }
+    }
+  }
+  ctx.restore()
+}
+
 export function startLevelsOverlay(
   canvas: HTMLCanvasElement,
   host: HTMLElement,
@@ -1070,6 +1357,11 @@ export function startLevelsOverlay(
    *  is not the same as wrong, so nothing is deleted — it is opt-in, and
    *  TradeTab's legend reports how many are being withheld. */
   getStory: () => boolean,
+  /** The day's FOOTPRINT record, as `/api/day/record` publishes it and as the
+   *  SETUP CHECK row already reads it — the extension's own tape events. Null
+   *  means the record could not be read at all, which is a different fact from
+   *  an empty list and is NOT drawn as one: TradeTab prints the reason. */
+  getMarks: () => FootEvent[] | null,
 ): () => void {
   const ctx = canvas.getContext('2d')!
   let raf = 0
@@ -1109,11 +1401,13 @@ export function startLevelsOverlay(
     const smc = getSmc()
     const story = getStory()
     const structures = getStructures()
+    const marks = getMarks()
     // Drawn only when the operator asked for it AND the indices are
     // trustworthy. `structs.length === 0` and `structures === null` both draw
     // nothing, but they are different facts, and the signature below keeps
     // them apart so the disclosure in TradeTab and this layer never disagree.
     const structs = smc && structures ? structures : []
+    const mc = markCounts(marks)
     const dBars = data.bars
     const dTimes = data.times
     const dNarrs = data.narrs
@@ -1236,7 +1530,14 @@ export function startLevelsOverlay(
       `|${smc ? 1 : 0}${structures ? '' : 'x'},${structs.length},` +
       `${structs[0]?.born},${structs[structs.length - 1]?.born},` +
       `${structs[structs.length - 1]?.confirm},` +
-      `${structs[structs.length - 1]?.hi?.toFixed(1)},${structs[structs.length - 1]?.lo?.toFixed(1)}`
+      `${structs[structs.length - 1]?.hi?.toFixed(1)},${structs[structs.length - 1]?.lo?.toFixed(1)}` +
+      // Marks: availability (null vs an empty list — two different facts), how
+      // many this layer draws and how many are heavy. The 30s poll hands back a
+      // fresh ARRAY every time with identical contents, so keying on identity
+      // would repaint twice a minute for nothing; these three numbers move only
+      // when a mark actually appears or an `at` is filled in on one already
+      // drawn (record_read keys events on (t, kind, p), so that can happen).
+      `|${marks ? '' : 'x'}${mc.drawn},${mc.heavy},${mc.skipped}`
     if (sig === lastSig) return
     lastSig = sig
 
@@ -1515,6 +1816,21 @@ export function startLevelsOverlay(
       if (story && dNarrs.length) {
         drawBalloons(ctx, conv, pane, pal, dBars, dTimes, dNarrs, lastIdx, lanes)
       }
+      ctx.restore()
+    }
+
+    // The extension's order-flow marks, ABSOLUTELY LAST — they are annotation
+    // over everything else, and the operator reads them as the top layer on
+    // GoCharting too. Not gated by `story`: these are not this engine's
+    // unscored events, they are the extension's own read, which is the thing
+    // the operator asked to see here. Clipped to the pane like every other
+    // per-bar pass so a mark near the edge cannot paint over the axes.
+    if (lastIdx >= 0 && marks && marks.length) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(pane.x, pane.y, pane.width, pane.height)
+      ctx.clip()
+      drawMarks(ctx, conv, pane, pal, dBars, dTimes, marks, lastIdx)
       ctx.restore()
     }
   }
