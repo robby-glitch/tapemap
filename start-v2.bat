@@ -1,11 +1,12 @@
 @echo off
 REM TapeMap launcher (portable): runs from this file's own folder.
 REM The desk (ui/desk.html) is served directly by the Python backend on
-REM 8765 -- plain HTML, no build step. The Vite dev server on 5173 (ui-v2,
-REM the abandoned React app) is NOT started here any more (2026-08-22): it
-REM existed only to serve ui-v2, nothing the desk needs proxies through it,
-REM and opening it left the operator staring at a dashboard with no data
-REM while this window said everything was fine.
+REM 8765 -- plain HTML, no build step. TapeMap v2 (ui-v2, React on Vite,
+REM 5173) is started too, AFTER the backend answers -- see :ready below.
+REM It was pulled on 2026-08-22 because it put up a confident dashboard
+REM full of placeholder data while this window said all was well; restored
+REM 2026-09-18 because that is no longer what it does. Either half can be
+REM absent without stopping the other.
 title TapeMap v2 Launcher
 cd /d "%~dp0"
 
@@ -94,8 +95,47 @@ goto wait
 
 :ready
 start "" http://127.0.0.1:8765/desk.html
+
+REM --- TapeMap v2 on 5173 (restored 2026-09-18) ------------------------
+REM Opened ONLY after 5173 actually answers, never on the assumption that
+REM it will. A v2 tab that is not serving is the 2026-08-22 complaint.
+REM Vite proxies /api to 127.0.0.1:8765, so the backend must be up first --
+REM it is, by the time we reach this label.
+netstat -aon | findstr ":5173" | findstr "LISTENING" >nul
+if not errorlevel 1 (
+  echo TapeMap v2 already up on 5173 - reusing it.
+  start "" http://127.0.0.1:5173/
+  goto done
+)
+if not exist "%~dp0ui-v2\node_modules" (
+  echo TapeMap v2 has no node_modules. To enable it once:
+  echo     cd ui-v2 ^&^& npm install
+  echo Skipping it - the desk above is unaffected.
+  goto done
+)
+echo Starting TapeMap v2 on 5173...
+start "TapeMap v2" /D "%~dp0ui-v2" cmd /k npm run dev
+set _v2=0
+:waitv2
+netstat -aon | findstr ":5173" | findstr "LISTENING" >nul
+if not errorlevel 1 goto v2ready
+set /a _v2+=1
+if %_v2% geq 40 goto v2slow
+timeout /t 1 /nobreak >nul
+goto waitv2
+
+:v2ready
+start "" http://127.0.0.1:5173/
+goto done
+
+:v2slow
 echo.
-echo Keep the "TapeMap server" window open.
+echo 5173 never answered - look at the "TapeMap v2" window for the actual
+echo error. Not opening a tab for it on purpose. The desk is unaffected.
+
+:done
+echo.
+echo Keep the "TapeMap server" window open. TapeMap v2 has its own window.
 echo.
 echo Running on UPSTOX. Today's token was handled above - there is nothing
 echo to click. The TOKEN button in the dashboard is Dhan-only and cannot
