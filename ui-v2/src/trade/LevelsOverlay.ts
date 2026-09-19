@@ -1176,6 +1176,130 @@ export function markCounts(
   return { drawn, heavy, skipped }
 }
 
+/* ── The ladder record: levels, per-bar flags, and the tm family ──────────
+   Spec 2026-09-19-orderflow-levels §F. Levels are prices and draw at any
+   interval. Per-bar marks are placed by their own t and prices, never
+   snapped to a candle (footprint.ts:21-27). The tm glyphs are HOLLOW
+   versions of the ofd family's shapes with a lowercase letter, on the
+   opposite side of the bar, so the two families read as two readers and
+   never share a de-overlap pool. */
+const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', climax: 'c' }
+
+function drawPrints(
+  ctx: CanvasRenderingContext2D,
+  conv: Converters,
+  pane: PaneRect,
+  pal: Palette,
+  times: number[],
+  reply: TapeReply,
+  lastIdx: number,
+  placeLabel: (text: string, x: number, y: number, style: string) => void,
+) {
+  const yOf = (p: number) => conv.priceToY(p)
+  const inPane = (y: number) => Number.isFinite(y) && y >= pane.y + LEGEND_BAND_PX && y <= pane.y + pane.height - 2
+  const line = (p: number, style: string, dash: number[], label: string) => {
+    const y = yOf(p)
+    if (!inPane(y)) return
+    ctx.strokeStyle = style
+    ctx.setLineDash(dash)
+    ctx.beginPath(); ctx.moveTo(pane.x, y); ctx.lineTo(pane.x + pane.width, y); ctx.stroke()
+    ctx.setLineDash([])
+    placeLabel(label, pane.x + 3, y - STRUCT_LABEL_PX, style)
+  }
+  const row = reply.rowSize ?? 5
+  const L = reply.levels
+
+  // nodes first, underneath everything: HVN a wash, LVN a dashed box (5-point bins)
+  for (const n of L.nodes) {
+    const yt = yOf(n.p + 2.5), yb = yOf(n.p - 2.5)
+    if (!Number.isFinite(yt) || !Number.isFinite(yb)) continue
+    if (n.kind === 'HVN') {
+      ctx.fillStyle = withAlpha(pal.ink, 0.10)
+      ctx.fillRect(pane.x, yt, pane.width, yb - yt)
+    } else {
+      ctx.strokeStyle = withAlpha(pal.textMuted, 0.8)
+      ctx.setLineDash([3, 4])
+      ctx.strokeRect(pane.x + 0.5, yt + 0.5, pane.width - 1, Math.max(1, yb - yt - 1))
+      ctx.setLineDash([])
+    }
+  }
+  // session value area and POC
+  if (L.session) {
+    line(L.session.vah, withAlpha(pal.textMuted, 0.9), [6, 5], `VAH ${L.session.vah}`)
+    line(L.session.val, withAlpha(pal.textMuted, 0.9), [6, 5], `VAL ${L.session.val}`)
+    line(L.session.poc, withAlpha(pal.accent, 0.95), [6, 5], `POC ${L.session.poc}`)
+  }
+  // prior days, fainter, labelled with the day
+  for (const p of L.prior) {
+    line(p.poc, withAlpha(pal.accent, 0.45), [2, 4], `POC ${p.day.slice(5)}`)
+    line(p.vah, withAlpha(pal.textMuted, 0.45), [2, 4], `VAH ${p.day.slice(5)}`)
+    line(p.val, withAlpha(pal.textMuted, 0.45), [2, 4], `VAL ${p.day.slice(5)}`)
+  }
+  // naked POCs: from the pane's left edge to the touching bar, or to the right edge
+  for (const n of L.naked) {
+    const y = yOf(n.poc)
+    if (!inPane(y)) continue
+    const xEnd = n.touched_t != null ? conv.timeToX(n.touched_t) : pane.x + pane.width
+    ctx.strokeStyle = withAlpha(pal.accent, 0.8)
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(pane.x, y); ctx.lineTo(xEnd, y); ctx.stroke()
+    placeLabel(`NPOC ${n.day.slice(5)}`, pane.x + 3, y - STRUCT_LABEL_PX, withAlpha(pal.accent, 0.9))
+  }
+
+  // per-bar flags: a stack is a bracket on its price span; unfinished is a tick outside the extreme
+  const half = halfBarPx(conv, times)
+  const tCut = lastIdx >= 0 && times[lastIdx] != null ? times[lastIdx] + 300000 : Infinity
+  for (const b of reply.bars) {
+    if (b.t > tCut) continue
+    const x = conv.timeToX(b.t)
+    if (!Number.isFinite(x) || x < pane.x || x > pane.x + pane.width) continue
+    for (const s of b.stacks ?? []) {
+      const yt = yOf(s.high + row / 2), yb = yOf(s.low - row / 2)
+      if (!Number.isFinite(yt) || !Number.isFinite(yb)) continue
+      ctx.strokeStyle = s.side === 'buy' ? pal.bull : pal.bear
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(x - half + 1.5, yt + 0.5, Math.max(2, half * 2 - 3), Math.max(2, yb - yt - 1))
+      ctx.lineWidth = 1
+    }
+    if (b.unfinished_high) {
+      const y = yOf(b.h)
+      if (Number.isFinite(y)) { ctx.strokeStyle = pal.textMuted; ctx.beginPath(); ctx.moveTo(x - 3, y - 4); ctx.lineTo(x + 3, y - 4); ctx.stroke() }
+    }
+    if (b.unfinished_low) {
+      const y = yOf(b.l)
+      if (Number.isFinite(y)) { ctx.strokeStyle = pal.textMuted; ctx.beginPath(); ctx.moveTo(x - 3, y + 4); ctx.lineTo(x + 3, y + 4); ctx.stroke() }
+    }
+  }
+
+  // the tm family: hollow shelf (absorption), chevron (exhaustion), diamond (climax), lowercase letter
+  ctx.font = `bold 9px ${MARK_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const m of reply.marks.tm) {
+    if (m.p == null || m.t > tCut) continue
+    const x = conv.timeToX(m.t), y = yOf(m.p)
+    if (!Number.isFinite(x) || !inPane(y)) continue
+    const col = m.side === 1 ? pal.bull : m.side === -1 ? pal.bear : pal.textMuted
+    ctx.strokeStyle = col
+    ctx.lineWidth = 1.25
+    const u = Math.max(MARK_U_MIN, Math.min(MARK_U_MAX, half))
+    const xs = x + half + u   // the opposite side of the bar from the ofd glyphs
+    ctx.beginPath()
+    if (m.kind === 'absorption') {            // shelf
+      ctx.rect(xs - u * 1.8, y - u * 0.5, u * 3.6, u)
+    } else if (m.kind === 'exhaustion') {     // chevron, apex away from the candle
+      const dir = m.side === -1 ? -1 : 1
+      ctx.moveTo(xs - u, y + dir * u); ctx.lineTo(xs, y - dir * u * 0.2); ctx.lineTo(xs + u, y + dir * u)
+    } else {                                   // diamond
+      ctx.moveTo(xs, y - u); ctx.lineTo(xs + u, y); ctx.lineTo(xs, y + u); ctx.lineTo(xs - u, y); ctx.closePath()
+    }
+    ctx.stroke()
+    ctx.fillStyle = col
+    ctx.fillText(TM_LETTER[m.kind] ?? '?', xs, y + (m.kind === 'exhaustion' ? (m.side === -1 ? u * 0.7 : -u * 0.7) : 0))
+    ctx.lineWidth = 1
+  }
+}
+
 function drawMarks(
   ctx: CanvasRenderingContext2D,
   conv: Converters,
@@ -1838,6 +1962,35 @@ export function startLevelsOverlay(
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
       drawMarks(ctx, conv, pane, pal, dBars, dTimes, marks, lastIdx)
+      ctx.restore()
+    }
+
+    if (prints) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(pane.x, pane.y, pane.width, pane.height)
+      ctx.clip()
+      // `placeLabel` is drawStructures' local closure (line 611), not
+      // module-level, so it is rebuilt here over the same `takenLabels` pool
+      // that pass already seeded — a prints label never overprints a level's
+      // or a structure's.
+      const placeLabel = (text: string, x: number, y: number, color: string) => {
+        if (!text) return
+        const w = ctx.measureText(text).width
+        const box: LabelBox = {
+          x0: x, y0: y - STRUCT_LABEL_PX / 2 - 1,
+          x1: x + w, y1: y + STRUCT_LABEL_PX / 2 + 1,
+        }
+        if (box.x0 < pane.x || box.x1 > pane.x + pane.width - 2) return
+        if (box.y0 < pane.y + LEGEND_BAND_PX || box.y1 > pane.y + pane.height - 2) return
+        for (const t of takenLabels) {
+          if (box.x0 < t.x1 && box.x1 > t.x0 && box.y0 < t.y1 && box.y1 > t.y0) return
+        }
+        takenLabels.push(box)
+        ctx.fillStyle = color
+        ctx.fillText(text, x, y)
+      }
+      drawPrints(ctx, conv, pane, pal, dTimes, prints, lastIdx, placeLabel)
       ctx.restore()
     }
   }
