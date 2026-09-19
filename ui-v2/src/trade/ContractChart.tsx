@@ -298,6 +298,15 @@ export default function ContractChart({
 
   const hoverBar = hover != null ? bars[hover] : null
 
+  // The marks whose OWN stamp falls inside the hovered bar's span — never
+  // snapped: a 5-minute mark lists under whichever 3-minute bar contains it.
+  const hoverT = hover != null ? timesRef.current[hover] : null
+  const hoverTNext = hover != null ? (timesRef.current[hover + 1] ?? (hoverT != null ? hoverT + 300000 : null)) : null
+  const tmHere = prints && hoverT != null && hoverTNext != null
+    ? prints.marks.tm.filter((m) => m.t >= hoverT && m.t < hoverTNext) : []
+  const ofdHere = marks && hoverBar
+    ? marks.filter((e) => e.t >= hoverBar.t && (hover != null && bars[hover + 1] ? e.t < bars[hover + 1].t : true)) : []
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
@@ -310,6 +319,8 @@ export default function ContractChart({
           day={day}
           narr={narrs[hover] ?? null}
           rot={rotation?.[hover] ?? null}
+          tm={tmHere}
+          ofd={ofdHere}
           x={hoverPos.x}
           y={hoverPos.y}
           boxW={hoverPos.w}

@@ -11,6 +11,8 @@ import { dayBase } from './indicators'
 import type { Narration } from './narration'
 import { glossOf, pillText, dirText } from './hinglish'
 import type { RotationSignal, TapeBar } from '../data'
+import type { TapeMark } from './tape'
+import type { FootEvent } from './footprint'
 
 interface Props {
   mode: Mode
@@ -21,6 +23,11 @@ interface Props {
   /** The band-rotation signal on THIS bar, or null. Presentation only: every
    *  sentence below is the backend's own, quoted verbatim. */
   rot?: RotationSignal | null
+  /** The tm marks stamped inside this bar's span (server-side, each with a `why`). */
+  tm?: TapeMark[]
+  /** The extension's marks stamped inside this bar's span. They carry no `why`
+   *  on the wire, and the row says so rather than inventing one. */
+  ofd?: FootEvent[]
   /** Cursor position inside the chart frame. */
   x: number
   y: number
@@ -101,7 +108,7 @@ function toneColor(pal: ReturnType<typeof palette>, tone: Narration['tone']): st
   }
 }
 
-export default function Callout({ mode, bar, prevBar, day, narr, rot = null, x, y, boxW, boxH }: Props) {
+export default function Callout({ mode, bar, prevBar, day, narr, rot = null, tm, ofd, x, y, boxW, boxH }: Props) {
   const pal = palette(mode)
   // The box grows by the rotation block when there is one, so the
   // edge-flip/clamp arithmetic keeps the WHOLE callout on screen rather than
@@ -264,6 +271,21 @@ export default function Callout({ mode, bar, prevBar, day, narr, rot = null, x, 
           </div>
         </div>
       )}
+      {((tm && tm.length) || (ofd && ofd.length)) ? (
+        <div style={{ padding: '7px 11px 9px', borderTop: `1px solid ${pal.border}` }}>
+          <div style={{ fontSize: 10, color: pal.textMuted, marginBottom: 2 }}>prints · is bar ke marks</div>
+          {ofd?.map((e, i) => (
+            <div key={`o${i}`} style={{ fontSize: 11, color: pal.textSecondary, lineHeight: 1.4 }}>
+              {e.kind}{e.p != null ? ` @ ${e.p}` : ''} · extension (ofd) [I] — extension ne wajah nahi bheji
+            </div>
+          ))}
+          {tm?.map((m, i) => (
+            <div key={`t${i}`} style={{ fontSize: 11, color: pal.textSecondary, lineHeight: 1.4 }}>
+              {m.kind}{m.p != null ? ` @ ${m.p}` : ''} · tapemap (tm) [I] — {m.why}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
