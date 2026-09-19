@@ -211,14 +211,36 @@ test, plus a pinning test so this cannot regress silently; the stray file was de
 child of an assistant session); (c) open the Trade tab at 5 min and look at: session POC/VAH/VAL lines,
 HVN washes, LVN dashed boxes, prior-day lines, stack brackets, unfinished ticks, the hollow lowercase
 `a/e/c` beside the filled A/E/C, the delta/CVD pane (only at 5 or 15 min), and the hover rows listing
-each mark's `why`; (d) `data/tape/` currently holds only **seeded** records for 2026-09-11 and
-2026-09-18 (rows `src: "seed"`, from `tools/seed_tape_from_ofd.py`) — no socket-written day exists yet.
+each mark's `why`, and **count the tm glyphs against the legend's `drawn of served`** — the legend now
+reports what the overlay actually drew, not what the reply carried, and the two must agree; (d)
+`data/tape/` currently holds only **seeded** records for 2026-09-11 and 2026-09-18 (rows `src: "seed"`,
+from `tools/seed_tape_from_ofd.py`) — no socket-written day exists yet, and those two days hold **BAR
+records only**. No `ofd_marks_*` file exists for either of them, so their extension-mark population is
+**empty, not seeded**: an export carries no marks, and a day with no marks file is a different fact from
+a day the extension watched and detected nothing on. That is exactly what `marks.ofd_why` now says,
+in those two sentences.
+
+**One measured thing she should know before session one.** The unfinished-auction flag measured **0**
+across both recorded sessions, at rowSize 5 **and** at rowSize 1 [M]. The port is faithful — the
+extension's own engine finds none on those days either, which is what the row-1 parity fixture pins —
+and spec §J.4 keeps the extension's rule unchanged, deliberately. But the floor is
+`max(3, 2 % of vol)` **on BOTH sides of a single extreme tick**, which on a 1,000–4,000-lot bar means
+20–80 lots [M] resting on each side of one price, so she should not sit waiting for a tick that
+essentially cannot appear on this instrument at these sizes. Stacks are a different story: 0 at rowSize
+5, **68** at rowSize 1 on 2026-09-11 [M], which is why the second fixture exists.
 
 **Two pre-existing conditions, disclosed.** orderflow-desk's rebuilt `dist/` (commit `7ef87e2`) also
 bundles the operator's uncommitted `src/` WIP (`fit.js`, `taps.js`, `boot.js`, `overlay.js`) — the
 bundler inlines everything under `src/`, so this was unavoidable and pre-existing, not introduced here.
 `ui-v2` has no test runner; the Trade-chart UI work is typechecked (`npx tsc --noEmit`) only and stays
 visually unverified until the live session in (c).
+
+**The final review's fixes landed** (commits `90ab3be` Python + fixtures + tests, `16ca562` ui-v2, and
+this docs commit): the record's bar loop no longer raises on a corrupt entry, one mark filter serves both
+the file and the wire, the exhaustion window reads only bars that have both extremes, `/api/tape` stops
+serving the ladder and says which absence an empty `ofd` list is, the tm glyphs fan out per bar and the
+legend counts what was drawn, and the seed tool refuses to overwrite a real day or seed a non-5m export.
+Suite after: **1267 collected, 1264 passing**, the same 3 pre-existing `test_desk_numbers.py` failures.
 
 **Not done, on purpose.** No scoring of either mark family. The operator looks for five sessions
 (spec §K); then she states the bar in `research-findings.md`, pre-registered; then a scorer exists.
