@@ -116,3 +116,10 @@ def test_a_disk_error_is_counted_and_never_raised(tdir, monkeypatch):
     before = tape_log.failed
     assert tape_log.append(_doc(2), "2026-09-19", "NIFTY") == {"bars": 0, "marks": 0}
     assert tape_log.failed == before + 3      # 2 bars + 1 mark
+
+
+def test_under_pytest_the_record_dir_is_never_the_live_one(tmp_path):
+    """conftest.py's autouse fixture: a test that forgets to redirect DIR still
+    cannot write into data/tape/ (the 2026-09-19 leak)."""
+    assert tape_log.DIR.startswith(str(tmp_path))
+    assert not os.path.normpath(tape_log.DIR).endswith(os.path.join("data", "tape"))
