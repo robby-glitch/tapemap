@@ -89,6 +89,16 @@ def test_a_bar_that_is_not_a_bar_is_skipped_and_the_rest_are_written(tdir):
     assert [r["t"] for r in _lines(tape_log.day_path("2026-09-19", "NIFTY"))] == [1789726200000, 1789726500000]
 
 
+def test_a_numeric_string_t_is_not_a_bar(tdir):
+    """bar_t() must accept only int/float -- a numeric string `t` (e.g. what a
+    JSON round-trip through some other layer could hand back) is not a bar's
+    clock and must be skipped, not silently coerced by `int()`."""
+    doc = _doc(2)
+    doc["closed"][0]["t"] = "1757563500000"
+    assert tape_log.append(doc, "2026-09-19", "NIFTY") == {"bars": 1, "marks": 1}
+    assert [r["t"] for r in _lines(tape_log.day_path("2026-09-19", "NIFTY"))] == [1789726500000]
+
+
 def test_a_corrupt_row_in_the_file_does_not_break_the_restart_seed(tdir):
     tape_log.append(_doc(2), "2026-09-19", "NIFTY")
     with open(tape_log.day_path("2026-09-19", "NIFTY"), "a", encoding="utf-8") as f:

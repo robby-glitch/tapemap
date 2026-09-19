@@ -98,12 +98,17 @@ def bar_t(b) -> Optional[int]:
     a non-dict, no `t`, or a `t` that is not a number. A corrupt entry in a
     POST (or a corrupt row already in the file) is SKIPPED: raising here would
     take the whole frame POST down with it. Shared by the writer and by
-    server._tape_reply, so the record and the wire hold the same population."""
+    server._tape_reply, so the record and the wire hold the same population.
+    Only int/float: `bool` is a `int` subclass and a numeric string would
+    otherwise sail through `int()` -- neither is a bar timestamp."""
     if not isinstance(b, dict):
         return None
+    t = b.get("t")
+    if isinstance(t, bool) or not isinstance(t, (int, float)):
+        return None
     try:
-        return int(b["t"])
-    except (KeyError, TypeError, ValueError):
+        return int(t)
+    except (TypeError, ValueError):
         return None
 
 

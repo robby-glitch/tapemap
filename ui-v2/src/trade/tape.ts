@@ -12,13 +12,11 @@ import type { IndexKey } from '../data'
  * this endpoint family already settled on (footprint.ts). The poll dies with
  * the tab.
  */
-export interface TapeLadderRow { p: number; b: number; s: number; bt: number; st: number }
 export interface TapeStack { side: 'buy' | 'sell'; low: number; high: number; run: number }
 export interface TapeBarRow {
   t: number; o: number; h: number; l: number; c: number
   vol: number; buy: number; sell: number; delta: number; cvd: number
   oi: number | null; fromTicks: boolean
-  ladder: TapeLadderRow[] | null
   stacks: TapeStack[] | null; unfinished_high: boolean | null; unfinished_low: boolean | null; poc: number | null
 }
 export interface TapeNode { p: number; vol: number; kind: 'HVN' | 'LVN' }
@@ -42,7 +40,7 @@ export interface TapeReply {
   forming: TapeBarRow | null; forming_why: string | null
   ladder_why: string | null
   levels: TapeLevels
-  marks: { ofd: TapeMark[]; tm: TapeMark[]; tm_why: string | null }
+  marks: { ofd: TapeMark[]; ofd_why: string | null; tm: TapeMark[]; tm_why: string | null }
   why: null
 }
 

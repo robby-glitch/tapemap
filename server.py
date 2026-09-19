@@ -1098,11 +1098,18 @@ def _tape_reply(idx: str, day: str) -> dict:
     prior_days = [(d, tape_log.read_bars(d, idx)) for d in tape_log.prior_days(day, idx, 5)]
     prior = prints.prior_levels(prior_days)
     tm, tm_why = prints.tm_marks(raw)
-    # rule 6: "no file" and "nothing detected" are two different sentences, and
-    # the seeded days are exactly the first case -- an export carries no marks.
-    ofd_why = None if ofd else (
-        "the extension detected nothing on this day" if os.path.exists(tape_log.marks_path(day, idx))
-        else f"no marks file for {idx} on {day} — the record was seeded from an export, which carries none")
+    # rule 6: three facts, three sentences. Live has no marks file to check --
+    # the extension just hasn't detected anything yet today. File-branch keeps
+    # "no file" (seeded from an export, which carries none) apart from
+    # "file exists but the extension found nothing on this day".
+    if ofd:
+        ofd_why = None
+    elif live:
+        ofd_why = "the extension has detected nothing yet today"
+    elif not os.path.exists(tape_log.marks_path(day, idx)):
+        ofd_why = f"no marks file for {idx} on {day} — the record was seeded from an export, which carries none"
+    else:
+        ofd_why = "the extension detected nothing on this day"
     return {
         "ok": True, "idx": idx, "day": day, "interval": 5, "src": "live" if live else "file", "tag": "M", **meta,
         "bars": bars, "forming": forming, "forming_why": forming_why, "ladder_why": ladder_why,

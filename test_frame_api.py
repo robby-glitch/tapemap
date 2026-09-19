@@ -224,6 +224,21 @@ def test_api_tape_levels_why_when_no_bar_carries_a_ladder(tmp_path, monkeypatch)
     assert j["levels"]["nodes"] == []
 
 
+def test_api_tape_ofd_why_live_case_is_its_own_sentence(tmp_path, monkeypatch):
+    """The live branch has no marks file to check at all -- it's neither of the
+    file branch's two sentences, it's a third: the extension hasn't posted a
+    detection yet today."""
+    _isolate(tmp_path, monkeypatch)
+    doc = _ladder_doc()
+    doc["events"] = []
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["src"] == "live" and j["marks"]["ofd"] == []
+    assert j["marks"]["ofd_why"] == "the extension has detected nothing yet today"
+
+
 def test_api_tape_ofd_why_keeps_no_file_apart_from_nothing_detected(tmp_path, monkeypatch):
     """Rule 6: the seeded days hold BARS only -- no marks file was ever written
     for them -- and that is a different fact from a day the extension watched

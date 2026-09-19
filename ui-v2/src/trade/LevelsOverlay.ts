@@ -1201,9 +1201,13 @@ const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', cl
  *  replay cursor is not clamping anything); a mark stamped past it belongs to a
  *  bar the cursor is hiding and is NOT counted.
  *
- *  NOT modelled: the pane test. A mark scrolled off the price axis is still
- *  counted, exactly as markCounts counts the ofd family — the number is "what
- *  this reply puts on the chart", not "what fits in today's zoom". */
+ *  "Drawn" applies the causality clamp (tCut) exactly as drawPrints does, but
+ *  NOT the price-axis pane test that drawPrints' `inPane`/line-clipping also
+ *  applies — nor the one the per-bar stacks/unfinished loop applies via its
+ *  own pane-width bounds check. A mark or stack scrolled off the price axis
+ *  is still counted here, exactly as markCounts counts the ofd family — the
+ *  number is "what this reply puts on the chart", not "what fits in today's
+ *  zoom". */
 export function printsCounts(
   reply: TapeReply | null, tCut: number,
 ): { tmServed: number; tmDrawn: number; stacks: number; unfinished: number } {
@@ -1343,7 +1347,7 @@ function drawPrints(
     // The ONE thing the bar is consulted for: which way is away from it —
     // drawMarks' `outward`, in screen y, read off the record's own bar.
     const mid = mids.get(t)
-    const away = mid == null || (g[0].p as number) <= mid ? 1 : -1
+    const away = mid == null || !Number.isFinite(mid) || (g[0].p as number) <= mid ? 1 : -1
     g.sort((a, b) => (MARK_PRIO[a.kind] ?? 9) - (MARK_PRIO[b.kind] ?? 9))
     let prevY: number | null = null
     let prevExt = 0

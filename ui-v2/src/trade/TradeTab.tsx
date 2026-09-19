@@ -9,7 +9,7 @@ import { useFlow, FlowLine } from './flow'
 import { useFootprint } from './footprint'
 import { useTape } from './tape'
 import { buildNarration } from './narration'
-import { dayPrecision } from './indicators'
+import { dayBase, dayPrecision } from './indicators'
 import { buildZones } from './zones'
 // The overlay owns the cap; the legend below only reports it, so the number the
 // operator reads can never drift from the number actually drawn.
@@ -532,7 +532,7 @@ export default function TradeTab({
     let tCut = Infinity
     if (cursor != null && bars.length) {
       const m = /^(\d{1,2}):(\d{2})$/.exec(String(bars[at]?.t ?? ''))
-      const base = Date.parse(`${day}T00:00:00`)
+      const base = dayBase(day)   // one copy of the day-midnight rule (indicators.ts)
       if (m && Number.isFinite(base)) tCut = base + (+m[1] * 60 + +m[2]) * 60_000
     }
     return printsCounts(tape.reply, tCut)
