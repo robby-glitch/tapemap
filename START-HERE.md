@@ -175,7 +175,9 @@ Upstox REST ─► contract_bars.py ─► live.py ─► engine.py ──► /a
                                       └─ trigger_log.py     (the forward record)
                                                    │
 server.py :8765 ───────────────────────────────────┴──► Chrome extension overlay
-                                                   └──► ui-v2/ (React, ABANDONED)
+                                                   └──► ui-v2/ (React on Vite, 5173 — restored 2026-09-18)
+
+tape_log.py  data/tape/  (the ladder record: bars + the extension's marks, write-once)
 
 ── THE DESK, a separate stack on the same server ─────────────────────────
 
@@ -228,7 +230,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 924 tests, all green as of 2026-08-24
+python -m pytest -q       # 1250 collected, 1247 passing, 3 pre-existing failures in test_desk_numbers.py (theta_day_est returns None -- the desk's code, untouched by this work), as of 2026-09-19
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a
