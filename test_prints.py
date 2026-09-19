@@ -156,3 +156,37 @@ def test_naked_poc_touched_on_a_prior_newer_day_is_not_listed():
     newer = ("2026-09-18", [_bar(1, [_row(300, 5)], h=210, l=190)])   # traded through 200
     out = prints.naked([newer, older], [])
     assert [o["day"] for o in out] == ["2026-09-18"]
+
+
+import json
+import os
+
+FIXTURE = os.path.join("test", "fixtures", "prints_expected_2026-09-11.json")
+OFD = r"C:\Users\kaam\Desktop\Go charting\orderflow-desk\test\session-2026-09-11.ofd.json"
+
+
+def _parity():
+    exp = json.load(open(FIXTURE, encoding="utf-8"))
+    bars = [b for b in json.load(open(OFD, encoding="utf-8"))["bars"] if isinstance(b.get("ladder"), list) and b["ladder"]]
+    bars.sort(key=lambda b: b["t"])
+    assert len(bars) == len(exp["bars"]) == 77
+    return exp, bars
+
+
+def test_parity_per_bar_rows_flags_poc_and_unfinished_match_the_extension():
+    exp, bars = _parity()
+    for e, b in zip(exp["bars"], bars):
+        assert e["t"] == b["t"]
+        rows = prints.rebin(b["ladder"], exp["rowSize"], exp["rowAnchor"])
+        assert rows == e["rows"], f"rows differ at t={b['t']}"
+        f = prints.bar_flags(b, exp["rowSize"], exp["rowAnchor"])
+        assert f["stacks"] == e["stacks"], f"stacks differ at t={b['t']}"
+        assert f["poc"] == e["poc"], f"poc differs at t={b['t']}"
+        assert f["unfinished_high"] == e["unfinished_high"] and f["unfinished_low"] == e["unfinished_low"], f"unfinished differs at t={b['t']}"
+
+
+def test_parity_session_profile_and_nodes_match_the_extension():
+    exp, bars = _parity()
+    pr = prints.profile(bars)
+    assert (pr["poc"], pr["vah"], pr["val"], pr["total"]) == (exp["profile"]["poc"], exp["profile"]["vah"], exp["profile"]["val"], exp["profile"]["total"])
+    assert prints.nodes(pr) == exp["nodes"]
