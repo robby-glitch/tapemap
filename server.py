@@ -39,6 +39,7 @@ import fuse as fuse_mod
 import breadth as breadth_mod
 import frame
 import frame_log
+import tape_log
 import instruments
 import oi_dwell
 import pools as pools_mod
@@ -1189,6 +1190,10 @@ class Handler(SimpleHTTPRequestHandler):
                 fr = frame.build(doc, _book_for(self, idx), time.strftime("%H:%M"))
                 fr["day"] = day
                 fr["record"] = {"written": frame_log.append_if_changed(fr, day, idx)}
+                # THE LADDER RECORD (tape_log.py): each new closed bar and each
+                # new extension mark, once. Fail-soft inside; nothing here can
+                # change `ok`. Before the lock, like the frame write above.
+                tape_log.append(doc, day, idx)
                 with _SENSES_LOCK:
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
                     _SENSES["frame"][idx] = fr
@@ -2195,6 +2200,7 @@ def _isolate_mock_writers():
     global VPIN_LOG, VPIN_BACKFILL_LOG
     VPIN_LOG = os.path.join(mock, "vpin_log.jsonl")
     VPIN_BACKFILL_LOG = os.path.join(mock, "vpin_backfill.jsonl")
+    tape_log.DIR = os.path.join(mock, "tape")
 
 
 def _session_bars(index="NIFTY"):

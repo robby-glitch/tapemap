@@ -84,3 +84,23 @@ def test_the_record_is_rescored_once_per_closed_bar_not_once_per_post(monkeypatc
 
     post("BANKNIFTY", 13)        # a different index keeps its own count
     assert calls == [12, 13, 13]
+
+
+def test_frame_post_records_the_ladder_bars_and_marks(tmp_path, monkeypatch):
+    import tape_log
+    monkeypatch.setattr(server.frame_log, "day_path", lambda day: str(tmp_path / f"frame_{day}.jsonl"))
+    monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+    doc = _tape(n=2)
+    for b in doc["closed"]:
+        b["ladder"] = [{"p": 1.0, "b": 3, "s": 1, "bt": 2, "st": 1}]
+    doc["events"] = [{"t": doc["closed"][0]["t"], "kind": "absorption", "side": 1, "p": 1.0, "size": 3}]
+    doc["rowAnchor"] = 0
+    req = _Req("/api/frame", doc)
+    server.Handler.do_POST(req)
+    assert req.out[-1][1]["ok"] is True
+    bars = tape_log.read_bars("2026-09-11", "NIFTY")
+    assert len(bars) == 2 and bars[0]["ladder"] == [{"p": 1.0, "b": 3, "s": 1, "bt": 2, "st": 1}]
+    assert len(tape_log.read_marks("2026-09-11", "NIFTY")) == 1
+    server.Handler.do_POST(_Req("/api/frame", doc))     # the every-second re-post
+    assert len(tape_log.read_bars("2026-09-11", "NIFTY")) == 2
