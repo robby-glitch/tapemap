@@ -148,6 +148,10 @@ over `orderflow-desk/test/session-2026-09-11.ofd.json` via a committed expected-
   | `exhaustion` (ATAS delta divergence at a new extreme, brief §6.5, sign only) | `h > max(h)` of the previous **6** bars **and** `delta ≤ 0` → bearish; `l < min(l)` of the previous 6 **and** `delta ≥ 0` → bullish | `−1` at `h` / `+1` at `l` |
   | `climax` (volume-shape, brief §7.5) | `pct(vol) ≥ 0.90` **and** `\|delta\| / vol ≤ 0.15` | `0`, at `h` if `c > (h+l)/2` else `l` |
 
+  **`pct(x)` is the fraction of prior bars STRICTLY below `x`** — not `board.js rankIn`'s `<=`. Amended
+  2026-09-19 during implementation: with `<=`, every bar of a constant-volume series ranks 1.0 and the climax
+  rule fires on every quiet bar; with strict-below a tie ranks 0, a spike ranks 1.0, and a bar tying an earlier
+  maximum still ranks ≥ 0.9 and fires. The thresholds themselves are unchanged.
   Percentiles need `MIN_N = 6` prior bars (`board.js:19`, the same floor); earlier bars fire nothing and the
   reply says so once (`marks.tm_why: "first six bars: nothing to rank against"`). The `0.75 / 0.50 / 0.90 / 0.15 /
   6` are §J.3, stated once and pinned by test; they are not tuned in this spec and must not be tuned before §K.
