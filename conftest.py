@@ -11,12 +11,16 @@ still win, because their monkeypatch is applied after this one.
 """
 import pytest
 
+import book_log
 import tape_log
 
 
 @pytest.fixture(autouse=True)
 def _tape_record_in_tmp(tmp_path, monkeypatch):
     monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    # the book record (spec 2026-09-20 §B) is ~60 MB a day; the 2026-09-19 leak
+    # must not recur with it. Same fixture, one more line.
+    monkeypatch.setattr(book_log, "DIR", str(tmp_path / "book"))
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()
     yield
