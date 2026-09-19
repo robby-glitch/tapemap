@@ -7,6 +7,7 @@ import type { MapLevel, RotationSignal, Structure, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
 import type { FootEvent } from './footprint'
+import type { TapeReply } from './tape'
 import type { Narration } from './narration'
 import { pillText } from './hinglish'
 import type { Zone } from './zones'
@@ -1362,6 +1363,9 @@ export function startLevelsOverlay(
    *  means the record could not be read at all, which is a different fact from
    *  an empty list and is NOT drawn as one: TradeTab prints the reason. */
   getMarks: () => FootEvent[] | null,
+  /** The ladder record (`/api/tape`): levels, per-bar flags, and the `tm`
+   *  mark family. Null draws nothing; TradeTab prints the reason. */
+  getPrints: () => TapeReply | null,
 ): () => void {
   const ctx = canvas.getContext('2d')!
   let raf = 0
@@ -1402,12 +1406,14 @@ export function startLevelsOverlay(
     const story = getStory()
     const structures = getStructures()
     const marks = getMarks()
+    const prints = getPrints()
     // Drawn only when the operator asked for it AND the indices are
     // trustworthy. `structs.length === 0` and `structures === null` both draw
     // nothing, but they are different facts, and the signature below keeps
     // them apart so the disclosure in TradeTab and this layer never disagree.
     const structs = smc && structures ? structures : []
     const mc = markCounts(marks)
+    const printsKey = prints ? `${prints.src}:${prints.bars.length}:${prints.forming?.t ?? ''}:${prints.forming?.vol ?? ''}:${prints.marks.tm.length}` : 'x'
     const dBars = data.bars
     const dTimes = data.times
     const dNarrs = data.narrs
@@ -1537,7 +1543,8 @@ export function startLevelsOverlay(
       // would repaint twice a minute for nothing; these three numbers move only
       // when a mark actually appears or an `at` is filled in on one already
       // drawn (record_read keys events on (t, kind, p), so that can happen).
-      `|${marks ? '' : 'x'}${mc.drawn},${mc.heavy},${mc.skipped}`
+      `|${marks ? '' : 'x'}${mc.drawn},${mc.heavy},${mc.skipped}` +
+      `|${printsKey}`
     if (sig === lastSig) return
     lastSig = sig
 

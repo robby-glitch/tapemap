@@ -7,6 +7,7 @@ import ZoneRead from './ZoneRead'
 import SetupCheck from './SetupCheck'
 import { useFlow, FlowLine } from './flow'
 import { useFootprint } from './footprint'
+import { useTape } from './tape'
 import { buildNarration } from './narration'
 import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
@@ -426,6 +427,7 @@ export default function TradeTab({
   // covered must read "could not look", never "nothing there". Text only — the
   // record is 5-minute and this chart is 3-minute, so none of it is drawn.
   const footprint = useFootprint(index)
+  const tape = useTape(index)
 
   // Clamp both ends: a negative cursor would index bars[-1] === undefined and
   // throw on the first field read. Computed here (rather than only after the
@@ -951,6 +953,7 @@ export default function TradeTab({
             mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
             structures={structures} smc={smc} rotation={rotationDraw} story={story}
             marks={footprint.events}
+            prints={tape.reply}
           />
         </div>
       </div>
@@ -1029,6 +1032,20 @@ export default function TradeTab({
             : ''}
           {' '}Rang SIDE ka hota hai, par record mein side aata hi nahi, isliye sab
           {' '}neutral hain — side yahan bataya jaata to wo bana hua hota.
+        </div>
+      )}
+
+      {day && (
+        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
+          Prints (ladder record, /api/tape):
+          {tape.reply == null
+            ? ` ${tape.why}`
+            : ` ${tape.reply.src === 'live' ? 'live' : 'record'} · ${tape.reply.bars.length} bars`
+              + (tape.reply.levels.session ? ` · POC ${tape.reply.levels.session.poc} VAH ${tape.reply.levels.session.vah} VAL ${tape.reply.levels.session.val}` : ` · ${tape.reply.levels.why}`)
+              + ` · ${tape.reply.levels.nodes.length} nodes · ${tape.reply.marks.tm.length} tm marks [I]`
+              + (tape.reply.forming_why ? ` · ${tape.reply.forming_why}` : '')
+              + (tape.reply.ladder_why ? ` · ${tape.reply.ladder_why}` : '')
+              + (tape.reply.levels.prior_why ? ` · ${tape.reply.levels.prior_why}` : '')}
         </div>
       )}
 

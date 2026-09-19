@@ -7,6 +7,7 @@ import { CHART_UP, CHART_DOWN } from '../theme'
 import { toCandles, buildIndicators } from './indicators'
 import { startLevelsOverlay } from './LevelsOverlay'
 import type { FootEvent } from './footprint'
+import type { TapeReply } from './tape'
 import type { Narration } from './narration'
 import type { Zone } from './zones'
 import Callout from './Callout'
@@ -49,6 +50,10 @@ interface Props {
    *  GoCharting. Null = the record could not be read, which is not the same as
    *  an empty day and is not drawn as one; TradeTab prints the reason. */
   marks?: FootEvent[] | null
+  /** The ladder record's levels, flags and marks (`/api/tape`, ./tape.ts), from
+   *  the SAME `useTape` poll TradeTab's legend reads. Null = could not be read,
+   *  which is not an empty day and is not drawn as one; TradeTab prints the why. */
+  prints?: TapeReply | null
 }
 
 // A shared empty default, so an omitted `zones` prop does not hand the overlay
@@ -77,6 +82,7 @@ function nearestIndex(times: number[], t: number): number {
 export default function ContractChart({
   index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
   structures = null, smc = true, rotation = null, story = true, marks = null,
+  prints = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -119,6 +125,8 @@ export default function ContractChart({
   // captured prop would freeze at the first render's value.
   const marksRef = useRef<FootEvent[] | null>(marks)
   marksRef.current = marks
+  const printsRef = useRef<TapeReply | null>(prints ?? null)
+  printsRef.current = prints ?? null
   // The candle time axis (epoch ms), rebuilt once per data change (the same
   // [index, day, bars] effect that feeds the engine) — never recomputed
   // inside the mousemove handler itself.
@@ -175,6 +183,7 @@ export default function ContractChart({
       () => smcRef.current,
       () => storyRef.current,
       () => marksRef.current,
+      () => printsRef.current,
     )
 
     // Hover mapping: clientX -> container-relative x -> engine's own xToTime
