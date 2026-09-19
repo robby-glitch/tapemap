@@ -7,7 +7,7 @@ import type { MapLevel, RotationSignal, Structure, TapeBar } from '../data'
 import { palette } from '../theme'
 import type { Mode } from '../theme'
 import type { FootEvent } from './footprint'
-import type { TapeReply } from './tape'
+import type { TapeMark, TapeReply } from './tape'
 import type { Narration } from './narration'
 import { pillText } from './hinglish'
 import type { Zone } from './zones'
@@ -471,6 +471,33 @@ function drawZones(
 /** An axis-aligned box already occupied by a drawn label. */
 type LabelBox = { x0: number; y0: number; x1: number; y1: number }
 
+/** Draw `text` at (x, y) unless it would leave the pane, overprint the
+ *  engine's OHLC legend, or collide with a label already placed. `taken` is
+ *  mutated as labels land, so every pass that shares one pool de-clutters
+ *  against every other. ONE copy: the structures pass and the prints pass draw
+ *  into the same pool and must obey the same rule, and two copies of a rule is
+ *  one copy of a rule plus a future disagreement. */
+function makePlaceLabel(
+  ctx: CanvasRenderingContext2D, pane: PaneRect, taken: LabelBox[],
+): (text: string, x: number, y: number, color: string) => void {
+  return (text, x, y, color) => {
+    if (!text) return // unconfirmed/unchecked structures draw their shape only
+    const w = ctx.measureText(text).width
+    const box: LabelBox = {
+      x0: x, y0: y - STRUCT_LABEL_PX / 2 - 1,
+      x1: x + w, y1: y + STRUCT_LABEL_PX / 2 + 1,
+    }
+    if (box.x0 < pane.x || box.x1 > pane.x + pane.width - 2) return
+    if (box.y0 < pane.y + LEGEND_BAND_PX || box.y1 > pane.y + pane.height - 2) return
+    for (const t of taken) {
+      if (box.x0 < t.x1 && box.x1 > t.x0 && box.y0 < t.y1 && box.y1 > t.y0) return
+    }
+    taken.push(box)
+    ctx.fillStyle = color
+    ctx.fillText(text, x, y)
+  }
+}
+
 /**
  * The SMC / ICT structure layer (Phase 3.5), drawn between the zone bands and
  * the σ ribbons. Every shape here is the BACKEND's — structure.py found it,
@@ -603,27 +630,10 @@ function drawStructures(
   ctx.textBaseline = 'middle'
   ctx.lineWidth = 1
 
-  /** Draw `text` at (x, y) unless it would leave the pane, overprint the
-   *  engine's OHLC legend, or collide with a label already placed. Only the
-   *  TEXT de-clutters — the structure's own box/tick/line is already drawn,
-   *  the same bargain the level labels below make (line always, label when it
-   *  clears). */
-  const placeLabel = (text: string, x: number, y: number, color: string) => {
-    if (!text) return // unconfirmed/unchecked structures draw their shape only
-    const w = ctx.measureText(text).width
-    const box: LabelBox = {
-      x0: x, y0: y - STRUCT_LABEL_PX / 2 - 1,
-      x1: x + w, y1: y + STRUCT_LABEL_PX / 2 + 1,
-    }
-    if (box.x0 < pane.x || box.x1 > pane.x + pane.width - 2) return
-    if (box.y0 < pane.y + LEGEND_BAND_PX || box.y1 > pane.y + pane.height - 2) return
-    for (const t of taken) {
-      if (box.x0 < t.x1 && box.x1 > t.x0 && box.y0 < t.y1 && box.y1 > t.y0) return
-    }
-    taken.push(box)
-    ctx.fillStyle = color
-    ctx.fillText(text, x, y)
-  }
+  // Only the TEXT de-clutters — the structure's own box/tick/line is already
+  // drawn, the same bargain the level labels below make (line always, label
+  // when it clears).
+  const placeLabel = makePlaceLabel(ctx, pane, taken)
 
   for (const s of live) {
     const sc = scale(s)
@@ -1185,6 +1195,34 @@ export function markCounts(
    never share a de-overlap pool. */
 const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', climax: 'c' }
 
+/** What the prints pass actually DRAWS off a reply, counted by the same rules
+ *  drawPrints applies — `markCounts`' bargain for the tm family and the per-bar
+ *  flags. `tCut` is the last drawn bar's clock in ms (`Infinity` when the
+ *  replay cursor is not clamping anything); a mark stamped past it belongs to a
+ *  bar the cursor is hiding and is NOT counted.
+ *
+ *  NOT modelled: the pane test. A mark scrolled off the price axis is still
+ *  counted, exactly as markCounts counts the ofd family — the number is "what
+ *  this reply puts on the chart", not "what fits in today's zoom". */
+export function printsCounts(
+  reply: TapeReply | null, tCut: number,
+): { tmServed: number; tmDrawn: number; stacks: number; unfinished: number } {
+  let tmDrawn = 0
+  let stacks = 0
+  let unfinished = 0
+  for (const m of reply?.marks.tm ?? []) {
+    if (m.p == null || !Number.isFinite(m.p) || m.t > tCut) continue
+    tmDrawn++
+  }
+  for (const b of reply?.bars ?? []) {
+    if (b.t > tCut) continue
+    stacks += b.stacks?.length ?? 0
+    if (b.unfinished_high) unfinished++
+    if (b.unfinished_low) unfinished++
+  }
+  return { tmServed: reply?.marks.tm.length ?? 0, tmDrawn, stacks, unfinished }
+}
+
 function drawPrints(
   ctx: CanvasRenderingContext2D,
   conv: Converters,
@@ -1195,6 +1233,13 @@ function drawPrints(
   lastIdx: number,
   placeLabel: (text: string, x: number, y: number, style: string) => void,
 ) {
+  // The label passes measure and draw with THIS font — set explicitly, like
+  // drawStructures does, rather than inheriting whatever the last pass left
+  // on the context (a mis-measured label de-clutters against the wrong box).
+  ctx.save()
+  ctx.font = `${STRUCT_LABEL_PX}px ${MONO_STACK}`
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
   const yOf = (p: number) => conv.priceToY(p)
   const inPane = (y: number) => Number.isFinite(y) && y >= pane.y + LEGEND_BAND_PX && y <= pane.y + pane.height - 2
   const line = (p: number, style: string, dash: number[], label: string) => {
@@ -1248,7 +1293,10 @@ function drawPrints(
 
   // per-bar flags: a stack is a bracket on its price span; unfinished is a tick outside the extreme
   const half = halfBarPx(conv, times)
-  const tCut = lastIdx >= 0 && times[lastIdx] != null ? times[lastIdx] + 300000 : Infinity
+  // Causality, the same rule drawMarks obeys: the last DRAWN bar's clock, with
+  // no grace period. The old `+ 300000` leaked five minutes of hindsight past
+  // the replay cursor.
+  const tCut = lastIdx >= 0 && times[lastIdx] != null ? times[lastIdx] : Infinity
   for (const b of reply.bars) {
     if (b.t > tCut) continue
     const x = conv.timeToX(b.t)
@@ -1271,33 +1319,64 @@ function drawPrints(
     }
   }
 
-  // the tm family: hollow shelf (absorption), chevron (exhaustion), diamond (climax), lowercase letter
+  // the tm family: hollow shelf (absorption), chevron (exhaustion), diamond
+  // (climax), lowercase letter. GROUPED BY t and fanned out along the same
+  // axis drawMarks stacks on: two tm marks can fire on one bar at the same
+  // price (3 pairs on 2026-09-18) and unstacked the second prints over the
+  // first, so two readings read as one.
   ctx.font = `bold 9px ${MARK_FONT}`
   ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
+  const mids = new Map<number, number>()
+  for (const b of reply.bars) mids.set(b.t, (Number(b.h) + Number(b.l)) / 2)
+  const tmBy = new Map<number, TapeMark[]>()
   for (const m of reply.marks.tm) {
-    if (m.p == null || m.t > tCut) continue
-    const x = conv.timeToX(m.t), y = yOf(m.p)
-    if (!Number.isFinite(x) || !inPane(y)) continue
-    const col = m.side === 1 ? pal.bull : m.side === -1 ? pal.bear : pal.textMuted
-    ctx.strokeStyle = col
-    ctx.lineWidth = 1.25
-    const u = Math.max(MARK_U_MIN, Math.min(MARK_U_MAX, half))
-    const xs = x + half + u   // the opposite side of the bar from the ofd glyphs
-    ctx.beginPath()
-    if (m.kind === 'absorption') {            // shelf
-      ctx.rect(xs - u * 1.8, y - u * 0.5, u * 3.6, u)
-    } else if (m.kind === 'exhaustion') {     // chevron, apex away from the candle
-      const dir = m.side === -1 ? -1 : 1
-      ctx.moveTo(xs - u, y + dir * u); ctx.lineTo(xs, y - dir * u * 0.2); ctx.lineTo(xs + u, y + dir * u)
-    } else {                                   // diamond
-      ctx.moveTo(xs, y - u); ctx.lineTo(xs + u, y); ctx.lineTo(xs, y + u); ctx.lineTo(xs - u, y); ctx.closePath()
-    }
-    ctx.stroke()
-    ctx.fillStyle = col
-    ctx.fillText(TM_LETTER[m.kind] ?? '?', xs, y + (m.kind === 'exhaustion' ? (m.side === -1 ? u * 0.7 : -u * 0.7) : 0))
-    ctx.lineWidth = 1
+    if (m.p == null || !Number.isFinite(m.p) || m.t > tCut) continue
+    const g = tmBy.get(m.t)
+    if (g) g.push(m)
+    else tmBy.set(m.t, [m])
   }
+  const u = Math.max(MARK_U_MIN, Math.min(MARK_U_MAX, half))
+  for (const [t, g] of tmBy) {
+    const x = conv.timeToX(t)
+    if (!Number.isFinite(x)) continue
+    const xs = x + half + u   // the opposite side of the bar from the ofd glyphs
+    // The ONE thing the bar is consulted for: which way is away from it —
+    // drawMarks' `outward`, in screen y, read off the record's own bar.
+    const mid = mids.get(t)
+    const away = mid == null || (g[0].p as number) <= mid ? 1 : -1
+    g.sort((a, b) => (MARK_PRIO[a.kind] ?? 9) - (MARK_PRIO[b.kind] ?? 9))
+    let prevY: number | null = null
+    let prevExt = 0
+    for (const m of g) {
+      // half the glyph's own height, so two stacked glyphs clear each other
+      const ext = m.kind === 'absorption' ? u * 0.5 : m.kind === 'exhaustion' ? u * 0.7 : u
+      const y0 = yOf(m.p as number)
+      if (!Number.isFinite(y0)) continue
+      const y: number = prevY != null && Math.abs(y0 - prevY) < 2 * u
+        ? prevY + away * (prevExt + ext + 1)
+        : y0
+      prevY = y
+      prevExt = ext
+      if (!inPane(y)) continue
+      const col = m.side === 1 ? pal.bull : m.side === -1 ? pal.bear : pal.textMuted
+      ctx.strokeStyle = col
+      ctx.lineWidth = 1.25
+      ctx.beginPath()
+      if (m.kind === 'absorption') {            // shelf
+        ctx.rect(xs - u * 1.8, y - u * 0.5, u * 3.6, u)
+      } else if (m.kind === 'exhaustion') {     // chevron, apex away from the candle
+        const dir = m.side === -1 ? -1 : 1
+        ctx.moveTo(xs - u, y + dir * u); ctx.lineTo(xs, y - dir * u * 0.2); ctx.lineTo(xs + u, y + dir * u)
+      } else {                                   // diamond
+        ctx.moveTo(xs, y - u); ctx.lineTo(xs + u, y); ctx.lineTo(xs, y + u); ctx.lineTo(xs - u, y); ctx.closePath()
+      }
+      ctx.stroke()
+      ctx.fillStyle = col
+      ctx.fillText(TM_LETTER[m.kind] ?? '?', xs, y + (m.kind === 'exhaustion' ? (m.side === -1 ? u * 0.7 : -u * 0.7) : 0))
+      ctx.lineWidth = 1
+    }
+  }
+  ctx.restore()
 }
 
 function drawMarks(
@@ -1970,27 +2049,10 @@ export function startLevelsOverlay(
       ctx.beginPath()
       ctx.rect(pane.x, pane.y, pane.width, pane.height)
       ctx.clip()
-      // `placeLabel` is drawStructures' local closure (line 611), not
-      // module-level, so it is rebuilt here over the same `takenLabels` pool
-      // that pass already seeded — a prints label never overprints a level's
-      // or a structure's.
-      const placeLabel = (text: string, x: number, y: number, color: string) => {
-        if (!text) return
-        const w = ctx.measureText(text).width
-        const box: LabelBox = {
-          x0: x, y0: y - STRUCT_LABEL_PX / 2 - 1,
-          x1: x + w, y1: y + STRUCT_LABEL_PX / 2 + 1,
-        }
-        if (box.x0 < pane.x || box.x1 > pane.x + pane.width - 2) return
-        if (box.y0 < pane.y + LEGEND_BAND_PX || box.y1 > pane.y + pane.height - 2) return
-        for (const t of takenLabels) {
-          if (box.x0 < t.x1 && box.x1 > t.x0 && box.y0 < t.y1 && box.y1 > t.y0) return
-        }
-        takenLabels.push(box)
-        ctx.fillStyle = color
-        ctx.fillText(text, x, y)
-      }
-      drawPrints(ctx, conv, pane, pal, dTimes, prints, lastIdx, placeLabel)
+      // The same pool the structures pass seeded, so a prints label never
+      // overprints a level's or a structure's.
+      drawPrints(ctx, conv, pane, pal, dTimes, prints, lastIdx,
+        makePlaceLabel(ctx, pane, takenLabels))
       ctx.restore()
     }
   }

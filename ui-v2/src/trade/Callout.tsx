@@ -281,7 +281,9 @@ export default function Callout({ mode, bar, prevBar, day, narr, rot = null, tm,
           ))}
           {tm?.map((m, i) => (
             <div key={`t${i}`} style={{ fontSize: 11, color: pal.textSecondary, lineHeight: 1.4 }}>
-              {m.kind}{m.p != null ? ` @ ${m.p}` : ''} · tapemap (tm) [I] — {m.why}
+              {/* `why` is optional on the type, so the absence gets a sentence
+                  rather than rendering as nothing at all (rule 6). */}
+              {m.kind}{m.p != null ? ` @ ${m.p}` : ''} · tapemap (tm) [I] — {m.why ?? 'wajah nahi mili'}
             </div>
           ))}
         </div>

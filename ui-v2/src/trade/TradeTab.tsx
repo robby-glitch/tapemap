@@ -13,7 +13,7 @@ import { dayPrecision } from './indicators'
 import { buildZones } from './zones'
 // The overlay owns the cap; the legend below only reports it, so the number the
 // operator reads can never drift from the number actually drawn.
-import { STRUCT_ZONE_LIMIT, markCounts, runDrawPlan } from './LevelsOverlay'
+import { STRUCT_ZONE_LIMIT, markCounts, printsCounts, runDrawPlan } from './LevelsOverlay'
 
 type LegsView = 'split' | 'stacked' | 'off'
 
@@ -522,6 +522,21 @@ export default function TradeTab({
   // What the mark layer actually draws, counted by the SAME function the
   // overlay uses, so the legend below can never disagree with the chart.
   const markCount = useMemo(() => markCounts(footprint.events), [footprint.events])
+
+  // The prints layer's own counts, by the same function the overlay draws
+  // with. The causality cut is the cursor's bar read on the RECORD's clock:
+  // the cursor is a bar index and the ladder record is stamped in ms, and the
+  // day's midnight is the one base both agree on (drawMarks' rule). Live
+  // (no cursor) clamps nothing.
+  const printCount = useMemo(() => {
+    let tCut = Infinity
+    if (cursor != null && bars.length) {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(String(bars[at]?.t ?? ''))
+      const base = Date.parse(`${day}T00:00:00`)
+      if (m && Number.isFinite(base)) tCut = base + (+m[1] * 60 + +m[2]) * 60_000
+    }
+    return printsCounts(tape.reply, tCut)
+  }, [tape.reply, cursor, at, bars, day])
 
   // Causality (binding, Task 2 review): a zone's label/why embed the run's
   // FULL length, so while the replay cursor is set, buildZones must never
@@ -1043,7 +1058,12 @@ export default function TradeTab({
             ? ` ${tape.why}`
             : ` ${tape.reply.src === 'live' ? 'live' : 'record'} · ${tape.reply.bars.length} bars`
               + (tape.reply.levels.session ? ` · POC ${tape.reply.levels.session.poc} VAH ${tape.reply.levels.session.vah} VAL ${tape.reply.levels.session.val}` : ` · ${tape.reply.levels.why}`)
-              + ` · ${tape.reply.levels.nodes.length} nodes · ${tape.reply.marks.tm.length} tm marks [I]`
+              + ` · ${tape.reply.levels.nodes.length} nodes [M]`
+              + ` · tm ${printCount.tmDrawn} of ${printCount.tmServed} bane [I]`
+              // rule 6: a counted zero is "check kiya, 0 mile", never a bare 0
+              // that reads as a layer nobody wired up.
+              + (printCount.stacks ? ` · ${printCount.stacks} stacks [M]` : ' · stacks: check kiya, 0 mile [M]')
+              + (printCount.unfinished ? ` · ${printCount.unfinished} unfinished auction [M]` : ' · unfinished: check kiya, 0 mile [M]')
               + (tape.reply.forming_why ? ` · ${tape.reply.forming_why}` : '')
               + (tape.reply.ladder_why ? ` · ${tape.reply.ladder_why}` : '')
               + (tape.reply.levels.prior_why ? ` · ${tape.reply.levels.prior_why}` : '')
