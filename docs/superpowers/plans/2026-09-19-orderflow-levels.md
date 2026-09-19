@@ -1302,7 +1302,13 @@ git commit -m "prints: the tm family -- absorption (effort vs result), exhaustio
 - [ ] **Step 1: Write the failing tests** (append to `test_frame_api.py`)
 
 ```python
-from test_senses_api import _Cap          # the GET harness, one copy in the tree
+from test_senses_api import _Cap as _SensesCap   # the GET harness, one copy in the tree
+
+
+class _Cap(_SensesCap):
+    """The senses harness plus the one Handler method /api/tape reaches: `_idx()`
+    (a real method on `Handler`, bound here so `self._idx()` resolves)."""
+    _idx = server.Handler._idx
 
 
 def _ladder_doc(day="2026-09-11", n=8):
@@ -1410,7 +1416,13 @@ def _tape_reply(idx: str, day: str) -> dict:
     doc = (held or {}).get("doc") or {}
     live = bool(held) and str(doc.get("session", "")).endswith(day) and (time.time() - held["at"]) < TAPE_LIVE_S
     if live:
-        raw, forming, ofd = list(doc.get("closed") or []), doc.get("forming"), list(doc.get("events") or [])
+        raw, forming = list(doc.get("closed") or []), doc.get("forming")
+        # the extension's marks as posted, in the SAME shape tape_log writes them, so the
+        # two sources are one population on the wire (src is stamped here for the live path)
+        ofd = [{"t": m.get("t"), "kind": m.get("kind"), "side": m.get("side"), "p": m.get("p"),
+                "size": m.get("size"), "src": "ofd", "idx": idx, "day": day}
+               for m in (doc.get("events") or [])
+               if isinstance(m, dict) and m.get("t") is not None and m.get("kind")]
         meta = {"rowSize": doc.get("rowSize"), "rowAnchor": doc.get("rowAnchor", 0), "lot": doc.get("lot")}
         forming_why = None
     else:
