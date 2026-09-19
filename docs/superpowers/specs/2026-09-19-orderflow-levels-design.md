@@ -115,10 +115,13 @@ Three sentences (CLAUDE.md rule 6): `src: "live"` · `src: "file"` with `forming
 index, or the extension never posted"`. `ladder_why` is set when any bar lacks a ladder (extension < 0.3.1);
 `levels.why` when fewer than one ladder-bearing bar exists. `prior` and `naked` are empty with `why` on the first
 recorded day — *"no earlier day in the record yet"*, never an empty list without a sentence.
-**Amended 2026-09-19 at the final review:** `marks.ofd_why` is set whenever `marks.ofd` is empty — `"no marks file
-for <idx> on <day> — the record was seeded from an export, which carries none"` when no marks file exists for the
-day, else `"the extension detected nothing on this day"` — because "no file" and "nothing detected" are the two
-sentences rule 6 keeps apart, and §K's scorer reads this field. And the served `bars[]` and `forming` do **not**
+**Amended 2026-09-19 at the final review:** `marks.ofd_why` is `null` whenever `marks.ofd` is non-empty; when it's
+empty, which sentence fires depends on the branch, not just on file existence — `src: "live"` has no marks file to
+check at all, so it gets its own sentence: `"the extension has detected nothing yet today"`. On `src: "file"`:
+`"no marks file for <idx> on <day> — the record was seeded from an export, which carries none"` when no marks file
+exists for the day, else `"the extension detected nothing on this day"` — because "no file" and "nothing detected"
+are the two sentences rule 6 keeps apart, and §K's scorer reads this field (three facts, three sentences — the
+re-review caught the live case). And the served `bars[]` and `forming` do **not**
 carry `ladder`: it was 81 % of the reply's bytes with no consumer; the ladder stays in the record, which is its
 point. `ladder_why` tests for a missing OR empty ladder (`not b.get("ladder")`), since extension 0.3.1 posts `[]`
 for a bar without one.
