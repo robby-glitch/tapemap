@@ -157,12 +157,19 @@ def nodes(prof: Optional[dict]) -> List[dict]:
     return sorted(out, key=lambda n: n["p"])
 
 
+def _by_t(bars: List[dict]) -> List[dict]:
+    """The bars that can be placed on a clock, in time order. A row with no `t`
+    is SKIPPED, never sorted against None: a corrupt record row must not take
+    down the whole reply (final review, 2026-09-19)."""
+    return sorted((b for b in bars if isinstance(b, dict) and b.get("t") is not None), key=lambda b: b["t"])
+
+
 def with_cvd(bars: List[dict]) -> List[dict]:
     """Copies, sorted by t, each with delta and the running cvd -- anchored at
     the session open, reset daily (spec §J.1)."""
     out = []
     run = 0
-    for b in sorted(bars, key=lambda b: b["t"]):
+    for b in _by_t(bars):
         d = b.get("delta")
         if d is None:
             d = (b.get("buy") or 0) - (b.get("sell") or 0)
@@ -199,7 +206,7 @@ def naked(days: List[Tuple[str, List[dict]]], today_bars: List[dict]) -> List[di
         if any(_straddles(b, p) for _, newer in days[:i] for b in newer):
             continue
         touched = None
-        for b in sorted(today_bars, key=lambda b: b["t"]):
+        for b in _by_t(today_bars):
             if _straddles(b, p):
                 touched = b["t"]
                 break
@@ -241,7 +248,7 @@ def _delta_of(b: dict) -> float:
 
 def tm_marks(bars: List[dict]) -> Tuple[List[dict], Optional[str]]:
     """The second opinion. Each mark: {t, kind, side, p, size, why, src, tag}."""
-    bs = sorted(bars, key=lambda b: b["t"])
+    bs = _by_t(bars)
     out: List[dict] = []
     ranked_any = False
     for i, b in enumerate(bs):
@@ -254,7 +261,10 @@ def tm_marks(bars: List[dict]) -> Tuple[List[dict], Optional[str]]:
         rng = h - l
         abs_d = abs(d)
         r_d = pct_rank([abs(_delta_of(p)) for p in prior], abs_d)
-        r_r = pct_rank([(p["h"] - p["l"]) for p in prior if p.get("h") is not None and p.get("l") is not None], rng)
+        # the window and the range ranking read the same population: bars that
+        # HAVE both extremes. A prior bar missing h/l is not a zero-range bar.
+        prior_hl = [p for p in prior if p.get("h") is not None and p.get("l") is not None]
+        r_r = pct_rank([(p["h"] - p["l"]) for p in prior_hl], rng)
         r_v = pct_rank([float(p.get("vol") or 0) for p in prior], vol)
         if r_d is not None:
             ranked_any = True
@@ -266,8 +276,8 @@ def tm_marks(bars: List[dict]) -> Tuple[List[dict], Optional[str]]:
                                f"{'at or below' if d > 0 else 'at or above'} its open: absorbed",
                         "src": "tm", "tag": "I"})
         # exhaustion -- ATAS delta divergence at a new extreme, sign only, over the previous six bars
-        if len(prior) >= TM_EXH_LOOKBACK:
-            win = prior[-TM_EXH_LOOKBACK:]
+        if len(prior_hl) >= TM_EXH_LOOKBACK:
+            win = prior_hl[-TM_EXH_LOOKBACK:]
             if h > max(p["h"] for p in win) and d <= 0:
                 out.append({"t": b["t"], "kind": "exhaustion", "side": -1, "p": h, "size": int(abs_d),
                             "why": f"new high {h:.1f} over the last {TM_EXH_LOOKBACK} bars on delta {int(d)}: buyers did not come",

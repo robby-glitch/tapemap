@@ -79,6 +79,37 @@ def test_a_bar_without_a_ladder_is_written_with_null(tdir):
     assert rows[0]["ladder"] is None
 
 
+def test_a_bar_that_is_not_a_bar_is_skipped_and_the_rest_are_written(tdir):
+    """The extension posts what GoCharting hands it. A non-dict entry, or a `t`
+    that is not a number, used to raise INSIDE the POST handler and flip the
+    whole frame POST's ok to False -- one bad entry cost the day."""
+    doc = _doc(2)
+    doc["closed"] = [doc["closed"][0], "not a bar", None, {"t": "abc", "o": 1}, doc["closed"][1]]
+    assert tape_log.append(doc, "2026-09-19", "NIFTY") == {"bars": 2, "marks": 1}
+    assert [r["t"] for r in _lines(tape_log.day_path("2026-09-19", "NIFTY"))] == [1789726200000, 1789726500000]
+
+
+def test_a_corrupt_row_in_the_file_does_not_break_the_restart_seed(tdir):
+    tape_log.append(_doc(2), "2026-09-19", "NIFTY")
+    with open(tape_log.day_path("2026-09-19", "NIFTY"), "a", encoding="utf-8") as f:
+        f.write('{"t": "abc", "o": 1}\n{"o": 2}\n')     # rows with no usable clock
+    tape_log._seen_bars.clear()                          # a new process
+    tape_log._seen_marks.clear()
+    assert tape_log.append(_doc(3), "2026-09-19", "NIFTY")["bars"] == 1      # the two real ones are still seen
+    assert [r.get("t") for r in tape_log.read_bars("2026-09-19", "NIFTY")][-1:] == [1789726800000]
+
+
+def test_an_event_with_an_empty_kind_is_not_a_mark(tdir):
+    """`kind: ""` is not a kind. The writer and server._tape_reply share one
+    filter (tape_log.keep_mark) so the file and the wire cannot hold two
+    different populations under one name."""
+    ev = [{"t": 1789726200000, "kind": "", "side": 1, "p": 23380.0, "size": 1},
+          {"t": 1789726200000, "kind": "absorption", "side": 1, "p": 23380.0, "size": 2}]
+    assert tape_log.append(_doc(1, events=ev), "2026-09-19", "NIFTY")["marks"] == 1
+    assert [r["kind"] for r in _lines(tape_log.marks_path("2026-09-19", "NIFTY"))] == ["absorption"]
+    assert tape_log.keep_mark(ev[0]) is False and tape_log.keep_mark(ev[1]) is True
+
+
 def test_marks_are_written_once_by_t_kind_p_side(tdir):
     ev = [{"t": 1789726200000, "kind": "absorption", "side": 1, "p": 23380.0, "size": 120},
           {"t": 1789726200000, "kind": "absorption", "side": 1, "p": 23380.0, "size": 999},   # same identity

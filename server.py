@@ -1064,7 +1064,7 @@ def _tape_reply(idx: str, day: str) -> dict:
         ofd = [{"t": m.get("t"), "kind": m.get("kind"), "side": m.get("side"), "p": m.get("p"),
                 "size": m.get("size"), "src": "ofd", "idx": idx, "day": day}
                for m in (doc.get("events") or [])
-               if isinstance(m, dict) and m.get("t") is not None and m.get("kind")]
+               if tape_log.keep_mark(m)]
         meta = {"rowSize": doc.get("rowSize"), "rowAnchor": doc.get("rowAnchor", 0), "lot": doc.get("lot")}
         forming_why = None
     else:
@@ -1077,18 +1077,32 @@ def _tape_reply(idx: str, day: str) -> dict:
         forming_why = (f"extension not posting for {int(time.time() - held['at'])}s — showing the record" if held
                        else "extension not posting since server start — showing the record")
     row, anchor = float(meta["rowSize"] or 5), float(meta["rowAnchor"] or 0)
+    # the SAME filter the writer applies (tape_log.bar_t): a non-dict entry or a
+    # `t` that is not a number is skipped here too, so a corrupt POST or a
+    # corrupt record row costs one bar and not the whole reply.
+    raw = [b for b in raw if tape_log.bar_t(b) is not None]
     bars = []
     for b in prints.with_cvd(raw):
         f = prints.bar_flags(b, row, anchor)
-        bars.append({**{k: b.get(k) for k in ("t", "o", "h", "l", "c", "vol", "buy", "sell", "delta", "cvd", "oi", "fromTicks", "ladder")},
+        # the ladder is NOT served (spec §D, amended at the final review): it was
+        # 81 % of the reply's bytes and nothing on the wire read it. It stays in
+        # the record, which is its point.
+        bars.append({**{k: b.get(k) for k in ("t", "o", "h", "l", "c", "vol", "buy", "sell", "delta", "cvd", "oi", "fromTicks")},
                      **(f or _NO_FLAGS)})
-    ladder_why = _LADDER_WHY if any(b.get("ladder") is None for b in bars) else None
+    # falsy, not `is None`: extension 0.3.1 posts `[]` for a bar it has no ladder for
+    ladder_why = _LADDER_WHY if any(not b.get("ladder") for b in raw) else None
     if forming is not None:
-        forming = {**forming, **(prints.bar_flags(forming, row, anchor) or _NO_FLAGS)}
+        forming = {**{k: v for k, v in forming.items() if k != "ladder"},
+                   **(prints.bar_flags(forming, row, anchor) or _NO_FLAGS)}
     prof = prints.profile(raw)
     prior_days = [(d, tape_log.read_bars(d, idx)) for d in tape_log.prior_days(day, idx, 5)]
     prior = prints.prior_levels(prior_days)
     tm, tm_why = prints.tm_marks(raw)
+    # rule 6: "no file" and "nothing detected" are two different sentences, and
+    # the seeded days are exactly the first case -- an export carries no marks.
+    ofd_why = None if ofd else (
+        "the extension detected nothing on this day" if os.path.exists(tape_log.marks_path(day, idx))
+        else f"no marks file for {idx} on {day} — the record was seeded from an export, which carries none")
     return {
         "ok": True, "idx": idx, "day": day, "interval": 5, "src": "live" if live else "file", "tag": "M", **meta,
         "bars": bars, "forming": forming, "forming_why": forming_why, "ladder_why": ladder_why,
@@ -1096,7 +1110,7 @@ def _tape_reply(idx: str, day: str) -> dict:
                    "prior": prior, "prior_why": None if prior else "no earlier day in the record yet",
                    "naked": prints.naked(prior_days, raw), "nodes": prints.nodes(prof), "tag": "M",
                    "why": None if prof else "no bar with a ladder yet"},
-        "marks": {"ofd": ofd, "tm": tm, "tm_why": tm_why},
+        "marks": {"ofd": ofd, "ofd_why": ofd_why, "tm": tm, "tm_why": tm_why},
         "why": None,
     }
 

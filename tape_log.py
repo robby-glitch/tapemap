@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 DIR = os.path.join("data", "tape")
 failed = 0
@@ -93,10 +93,31 @@ def _mark_key(m: dict) -> tuple:
     return (m.get("t"), m.get("kind"), m.get("p"), m.get("side"))
 
 
+def bar_t(b) -> Optional[int]:
+    """The bar's `t` as an int, or None when the entry is not a bar at all --
+    a non-dict, no `t`, or a `t` that is not a number. A corrupt entry in a
+    POST (or a corrupt row already in the file) is SKIPPED: raising here would
+    take the whole frame POST down with it. Shared by the writer and by
+    server._tape_reply, so the record and the wire hold the same population."""
+    if not isinstance(b, dict):
+        return None
+    try:
+        return int(b["t"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def keep_mark(m) -> bool:
+    """The ofd-mark filter, shared by the writer and the live GET. An empty
+    `kind` is not a kind: it would be dropped by one path and kept by the
+    other, which is two populations wearing one name."""
+    return isinstance(m, dict) and m.get("t") is not None and bool(m.get("kind"))
+
+
 def _seed(day: str, idx: str) -> None:
     key = (day, idx)
     if key not in _seen_bars:
-        _seen_bars[key] = {int(r["t"]) for r in read_bars(day, idx) if r.get("t") is not None}
+        _seen_bars[key] = {t for t in (bar_t(r) for r in read_bars(day, idx)) if t is not None}
     if key not in _seen_marks:
         _seen_marks[key] = {_mark_key(r) for r in read_marks(day, idx)}
 
@@ -116,8 +137,8 @@ def append(doc: dict, day: str, idx: str) -> dict:
             "session": doc.get("session"), "idx": idx, "day": day}
     bars = []
     for b in doc.get("closed") or []:
-        t = b.get("t")
-        if t is None or int(t) in seen_b:
+        t = bar_t(b)
+        if t is None or t in seen_b:
             continue
         row = {k: b.get(k) for k in _BAR_KEYS}
         row["ladder"] = b.get("ladder") if isinstance(b.get("ladder"), list) else None
@@ -125,7 +146,7 @@ def append(doc: dict, day: str, idx: str) -> dict:
         bars.append(row)
     marks = []
     for m in doc.get("events") or []:
-        if not isinstance(m, dict) or m.get("t") is None or m.get("kind") is None:
+        if not keep_mark(m):
             continue
         k = _mark_key(m)
         if k in seen_m:
@@ -146,6 +167,6 @@ def append(doc: dict, day: str, idx: str) -> dict:
                     seen_m.discard(_mark_key(m))
             continue
         if key == "bars":
-            seen_b.update(int(r["t"]) for r in rows)
+            seen_b.update(bar_t(r) for r in rows)
         out[key] = len(rows)
     return out

@@ -135,6 +135,33 @@ def test_with_cvd_is_a_prefix_sum_in_time_order():
     assert bars[0].get("cvd") is None          # inputs untouched
 
 
+def test_with_cvd_restarts_from_zero_on_the_next_day():
+    """CVD is anchored at the session open and reset daily (spec §J.1): it is
+    called once PER DAY, and the second day's first cvd is its own first delta,
+    not yesterday's carry."""
+    d1 = [_bar(1, [], delta=5), _bar(2, [], delta=7)]
+    d2 = [_bar(11, [], delta=-3), _bar(12, [], delta=1)]
+    a, b = prints.with_cvd(d1), prints.with_cvd(d2)
+    assert [x["cvd"] for x in a] == [5, 12]
+    assert b[0]["cvd"] == b[0]["delta"] == -3 and b[1]["cvd"] == -2
+
+
+def test_with_cvd_skips_a_bar_with_no_clock():
+    """A record row with no `t` cannot be placed on any axis; it is skipped,
+    never sorted against None (final review, 2026-09-19)."""
+    out = prints.with_cvd([_bar(2, [], delta=1), {"ladder": [], "delta": 99}, _bar(1, [], delta=4)])
+    assert [(x["t"], x["cvd"]) for x in out] == [(1, 4), (2, 5)]
+
+
+def test_tm_marks_survive_a_prior_bar_with_no_extremes():
+    """The exhaustion window reads only bars that HAVE both extremes -- a prior
+    bar missing h/l used to raise KeyError and take the whole reply down."""
+    bars = _seq(6) + [_bar(1500, [], delta=1, vol=100),
+                      _bar(2000, [], o=23000, h=23020, l=22990, c=23010, delta=-5, vol=100)]
+    marks, _ = prints.tm_marks(bars)
+    assert [m["kind"] for m in marks if m["kind"] == "exhaustion"] == ["exhaustion"]
+
+
 def test_prior_levels_one_per_day_newest_first():
     d1 = ("2026-09-18", [_bar(1, [_row(100, 1), _row(101, 5), _row(102, 1)])])
     d2 = ("2026-09-17", [_bar(1, [_row(200, 5)])])
@@ -151,6 +178,16 @@ def test_naked_poc_survives_until_a_later_bar_straddles_it_wick_counts():
     assert {o["day"]: o for o in out}["2026-09-18"] == {"day": "2026-09-18", "poc": 300, "touched_t": None}
 
 
+def test_naked_poc_gapped_over_stays_naked_the_extensions_own_rule():
+    """A later bar whose WHOLE range is above the POC never straddles it, so the
+    POC stays naked -- market.js:75, and spec §J.2 keeps it that way so the
+    two tools agree on which POCs are naked."""
+    older = ("2026-09-17", [_bar(1, [_row(200, 5)])])                 # poc 200
+    today = [_bar(10, [], h=230, l=210), _bar(11, [], h=240, l=220)]  # gapped over, never back
+    out = prints.naked([older], today)
+    assert out == [{"day": "2026-09-17", "poc": 200, "touched_t": None}]
+
+
 def test_naked_poc_touched_on_a_prior_newer_day_is_not_listed():
     older = ("2026-09-17", [_bar(1, [_row(200, 5)])])
     newer = ("2026-09-18", [_bar(1, [_row(300, 5)], h=210, l=190)])   # traded through 200
@@ -161,20 +198,39 @@ def test_naked_poc_touched_on_a_prior_newer_day_is_not_listed():
 import json
 import os
 
+import pytest
+
 FIXTURE = os.path.join("test", "fixtures", "prints_expected_2026-09-11.json")
+FIXTURE_ROW1 = os.path.join("test", "fixtures", "prints_expected_2026-09-11_row1.json")
+# Row 5 is the chart's own row size and this day has ZERO stacks and ZERO
+# unfinished auctions at it -- a true-negative pin for both fields. Row 1 is
+# decode.js's own DEFAULTS.rowSize and the same day carries 68 stacks there, so
+# the stack code is pinned against the extension on real rows, not on nothing.
+FIXTURES = [FIXTURE, FIXTURE_ROW1]
 OFD = r"C:\Users\kaam\Desktop\Go charting\orderflow-desk\test\session-2026-09-11.ofd.json"
 
 
-def _parity():
-    exp = json.load(open(FIXTURE, encoding="utf-8"))
+def _parity(fixture=FIXTURE):
+    if not os.path.exists(OFD):
+        pytest.skip(f"the extension's recorded day is not at {OFD} \u2014 parity unpinned")
+    exp = json.load(open(fixture, encoding="utf-8"))
     bars = [b for b in json.load(open(OFD, encoding="utf-8"))["bars"] if isinstance(b.get("ladder"), list) and b["ladder"]]
     bars.sort(key=lambda b: b["t"])
     assert len(bars) == len(exp["bars"]) == 77
     return exp, bars
 
 
-def test_parity_per_bar_rows_flags_poc_and_unfinished_match_the_extension():
-    exp, bars = _parity()
+def test_the_row_one_fixture_carries_the_stacks_the_row_five_one_cannot():
+    """The reason the second fixture exists, pinned so it can never quietly
+    become another true-negative: 68 stacks [M], measured 2026-09-19."""
+    exp = json.load(open(FIXTURE_ROW1, encoding="utf-8"))
+    assert exp["rowSize"] == 1
+    assert sum(len(b["stacks"]) for b in exp["bars"]) == 68
+
+
+@pytest.mark.parametrize("fixture", FIXTURES)
+def test_parity_per_bar_rows_flags_poc_and_unfinished_match_the_extension(fixture):
+    exp, bars = _parity(fixture)
     for e, b in zip(exp["bars"], bars):
         assert e["t"] == b["t"]
         rows = prints.rebin(b["ladder"], exp["rowSize"], exp["rowAnchor"])
@@ -185,8 +241,9 @@ def test_parity_per_bar_rows_flags_poc_and_unfinished_match_the_extension():
         assert f["unfinished_high"] == e["unfinished_high"] and f["unfinished_low"] == e["unfinished_low"], f"unfinished differs at t={b['t']}"
 
 
-def test_parity_session_profile_and_nodes_match_the_extension():
-    exp, bars = _parity()
+@pytest.mark.parametrize("fixture", FIXTURES)
+def test_parity_session_profile_and_nodes_match_the_extension(fixture):
+    exp, bars = _parity(fixture)
     pr = prints.profile(bars)
     assert (pr["poc"], pr["vah"], pr["val"], pr["total"]) == (exp["profile"]["poc"], exp["profile"]["vah"], exp["profile"]["val"], exp["profile"]["total"])
     assert prints.nodes(pr) == exp["nodes"]

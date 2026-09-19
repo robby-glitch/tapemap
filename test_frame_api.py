@@ -143,11 +143,14 @@ def test_api_tape_live_when_the_extension_posted_within_15s(tmp_path, monkeypatc
     server.Handler.do_GET(cap)
     j = cap.sent
     assert j["ok"] is True and j["src"] == "live" and j["interval"] == 5 and j["tag"] == "M"
-    assert len(j["bars"]) == 8 and j["bars"][0]["ladder"] and "cvd" in j["bars"][0] and "stacks" in j["bars"][0]
-    assert j["forming"]["ladder"] and j["forming_why"] is None
+    # the ladder is NOT on the wire (spec §D, amended at the final review): 81 % of
+    # the bytes, no consumer. It stays in the record.
+    assert len(j["bars"]) == 8 and "ladder" not in j["bars"][0] and "cvd" in j["bars"][0] and "stacks" in j["bars"][0]
+    assert "ladder" not in j["forming"] and j["forming"]["poc"] is not None and j["forming_why"] is None
     assert j["levels"]["session"]["poc"] is not None and isinstance(j["levels"]["nodes"], list)
     assert j["levels"]["prior"] == [] and j["levels"]["prior_why"] == "no earlier day in the record yet"
     assert j["marks"]["ofd"][0]["src"] == "ofd" and all(m["src"] == "tm" and m["tag"] == "I" for m in j["marks"]["tm"])
+    assert j["marks"]["ofd_why"] is None                     # marks present: no sentence to say
     assert j["rowSize"] == 5 and j["rowAnchor"] == 0
 
 
@@ -194,3 +197,62 @@ def test_api_tape_ladder_why_when_a_bar_lacks_one(tmp_path, monkeypatch):
     cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
     server.Handler.do_GET(cap)
     assert "predates ladders" in cap.sent["ladder_why"]
+
+
+def test_api_tape_ladder_why_also_fires_on_an_empty_ladder(tmp_path, monkeypatch):
+    """Extension 0.3.1 posts `[]` for a bar it has no ladder for, so the test is
+    falsy, not `is None` -- an empty ladder is still a bar without one."""
+    _isolate(tmp_path, monkeypatch)
+    doc = _ladder_doc()
+    doc["closed"][0]["ladder"] = []
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert "predates ladders" in cap.sent["ladder_why"]
+
+
+def test_api_tape_levels_why_when_no_bar_carries_a_ladder(tmp_path, monkeypatch):
+    _isolate(tmp_path, monkeypatch)
+    doc = _ladder_doc()
+    for b in doc["closed"]:
+        b["ladder"] = []
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["levels"]["session"] is None and j["levels"]["why"] == "no bar with a ladder yet"
+    assert j["levels"]["nodes"] == []
+
+
+def test_api_tape_ofd_why_keeps_no_file_apart_from_nothing_detected(tmp_path, monkeypatch):
+    """Rule 6: the seeded days hold BARS only -- no marks file was ever written
+    for them -- and that is a different fact from a day the extension watched
+    and detected nothing on."""
+    import tape_log
+    _isolate(tmp_path, monkeypatch)
+    doc = _ladder_doc()
+    doc["events"] = []
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    server._SENSES["tape"]["NIFTY"]["at"] -= 60          # read the record, not the live doc
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    why = cap.sent["marks"]["ofd_why"]
+    assert cap.sent["marks"]["ofd"] == [] and "no marks file for NIFTY on 2026-09-11" in why
+    assert "seeded from an export" in why
+    # the file exists and holds nothing: the OTHER sentence
+    open(tape_log.marks_path("2026-09-11", "NIFTY"), "w", encoding="utf-8").close()
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert cap.sent["marks"]["ofd_why"] == "the extension detected nothing on this day"
+
+
+def test_api_tape_an_empty_kind_event_is_dropped_by_the_record_and_the_wire(tmp_path, monkeypatch):
+    import tape_log
+    _isolate(tmp_path, monkeypatch)
+    doc = _ladder_doc()
+    doc["events"] = [{"t": doc["closed"][1]["t"], "kind": "", "side": 1, "p": 101.0, "size": 9}]
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    assert tape_log.read_marks("2026-09-11", "NIFTY") == []          # the record
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert cap.sent["src"] == "live" and cap.sent["marks"]["ofd"] == []   # the live wire
