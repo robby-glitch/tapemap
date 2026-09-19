@@ -205,3 +205,80 @@ def naked(days: List[Tuple[str, List[dict]]], today_bars: List[dict]) -> List[di
                 break
         out.append({"day": day, "poc": p, "touched_t": touched})
     return out
+
+
+# --- the tm family: vendor-standard definitions, self-calibrated on the
+# session so far (README Principles: percentile-so-far, no absolute lot
+# counts). Spec §E table and §J.3. These five numbers are stated once,
+# pinned by test, and NOT tuned before spec §K.
+TM_ABS_DELTA_PCT = 0.75    # absorption: |delta| in the top quarter so far
+TM_ABS_RANGE_PCT = 0.50    # absorption: range at or under the median so far
+TM_CLIMAX_VOL_PCT = 0.90   # climax: volume in the top decile so far
+TM_CLIMAX_LOP = 0.15       # climax: |delta| / vol at or under this
+TM_EXH_LOOKBACK = 6        # exhaustion: a new extreme over the previous six bars
+TM_WHY_EARLY = "first six bars: nothing to rank against"
+
+
+def pct_rank(prior: List[float], x: float) -> Optional[float]:
+    """Fraction of `prior` at or below x; None under MIN_N (board.js rankIn)."""
+    v = [y for y in prior if y is not None]
+    if len(v) < MIN_N:
+        return None
+    return sum(1 for y in v if y <= x) / len(v)
+
+
+def _sign(x: float) -> int:
+    return 1 if x > 0 else -1 if x < 0 else 0
+
+
+def _delta_of(b: dict) -> float:
+    d = b.get("delta")
+    return d if d is not None else (b.get("buy") or 0) - (b.get("sell") or 0)
+
+
+def tm_marks(bars: List[dict]) -> Tuple[List[dict], Optional[str]]:
+    """The second opinion. Each mark: {t, kind, side, p, size, why, src, tag}."""
+    bs = sorted(bars, key=lambda b: b["t"])
+    out: List[dict] = []
+    ranked_any = False
+    for i, b in enumerate(bs):
+        prior = bs[:i]
+        h, l, o, c = b.get("h"), b.get("l"), b.get("o"), b.get("c")
+        if None in (h, l, o, c):
+            continue
+        d = _delta_of(b)
+        vol = float(b.get("vol") or 0)
+        rng = h - l
+        abs_d = abs(d)
+        r_d = pct_rank([abs(_delta_of(p)) for p in prior], abs_d)
+        r_r = pct_rank([(p["h"] - p["l"]) for p in prior if p.get("h") is not None and p.get("l") is not None], rng)
+        r_v = pct_rank([float(p.get("vol") or 0) for p in prior], vol)
+        if r_d is not None:
+            ranked_any = True
+        # absorption -- Sierra effort vs result: big effort, no range, and the close disagrees with the delta
+        if (r_d is not None and r_r is not None and r_d >= TM_ABS_DELTA_PCT and r_r <= TM_ABS_RANGE_PCT
+                and ((d > 0 and c <= o) or (d < 0 and c >= o))):
+            out.append({"t": b["t"], "kind": "absorption", "side": -_sign(d), "p": h if d > 0 else l, "size": int(abs_d),
+                        "why": f"{int(abs_d)} lots net {'bought' if d > 0 else 'sold'} for {rng:.1f} points and the bar closed "
+                               f"{'at or below' if d > 0 else 'at or above'} its open: absorbed",
+                        "src": "tm", "tag": "I"})
+        # exhaustion -- ATAS delta divergence at a new extreme, sign only, over the previous six bars
+        if len(prior) >= TM_EXH_LOOKBACK:
+            win = prior[-TM_EXH_LOOKBACK:]
+            if h > max(p["h"] for p in win) and d <= 0:
+                out.append({"t": b["t"], "kind": "exhaustion", "side": -1, "p": h, "size": int(abs_d),
+                            "why": f"new high {h:.1f} over the last {TM_EXH_LOOKBACK} bars on delta {int(d)}: buyers did not come",
+                            "src": "tm", "tag": "I"})
+            if l < min(p["l"] for p in win) and d >= 0:
+                out.append({"t": b["t"], "kind": "exhaustion", "side": 1, "p": l, "size": int(abs_d),
+                            "why": f"new low {l:.1f} over the last {TM_EXH_LOOKBACK} bars on delta {int(d)}: sellers did not come",
+                            "src": "tm", "tag": "I"})
+        # climax -- volume shape: top-decile volume that resolved nothing
+        prior_vol_max = max([float(p.get("vol") or 0) for p in prior]) if prior else 0
+        if r_v is not None and vol > 0 and vol > prior_vol_max and abs_d / vol <= TM_CLIMAX_LOP:
+            near_high = c > (h + l) / 2
+            out.append({"t": b["t"], "kind": "climax", "side": 0, "p": h if near_high else l, "size": int(vol),
+                        "why": f"{int(vol)} lots, |delta| {int(abs_d)} ({abs_d / vol * 100:.0f}%), closed near the "
+                               f"{'high' if near_high else 'low'}: unresolved",
+                        "src": "tm", "tag": "I"})
+    return out, (None if ranked_any else TM_WHY_EARLY)

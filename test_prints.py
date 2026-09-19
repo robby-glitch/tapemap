@@ -190,3 +190,68 @@ def test_parity_session_profile_and_nodes_match_the_extension():
     pr = prints.profile(bars)
     assert (pr["poc"], pr["vah"], pr["val"], pr["total"]) == (exp["profile"]["poc"], exp["profile"]["vah"], exp["profile"]["val"], exp["profile"]["total"])
     assert prints.nodes(pr) == exp["nodes"]
+
+def _seq(n, delta=1, rng=10, vol=100, base=23000, step=0):
+    """n closed bars with a flat profile: delta, range, volume as given."""
+    return [_bar(1000 + i, [], o=base + i * step, h=base + i * step + rng, l=base + i * step, c=base + i * step + 1,
+                 delta=delta, vol=vol) for i in range(n)]
+
+
+def test_pct_rank_needs_six_priors_and_is_the_fraction_at_or_below():
+    assert prints.pct_rank([1, 2, 3, 4, 5], 3) is None
+    assert prints.pct_rank([1, 2, 3, 4, 5, 6], 3) == 0.5
+    assert prints.pct_rank([1, 2, 3, 4, 5, 6], 6) == 1.0
+
+
+def test_tm_absorption_fires_on_big_delta_small_range_close_against_it():
+    bars = _seq(6) + [_bar(2000, [], o=23000, h=23004, l=23000, c=23000, delta=50, vol=100)]   # |delta| top, range 4 <= median 10, delta>0 & c<=o
+    marks, why = prints.tm_marks(bars)
+    assert why is None
+    abs_ = [m for m in marks if m["kind"] == "absorption"]
+    assert len(abs_) == 1 and abs_[0]["side"] == -1 and abs_[0]["p"] == 23004 and abs_[0]["src"] == "tm" and abs_[0]["tag"] == "I"
+    assert "absorbed" in abs_[0]["why"]
+
+
+def test_tm_absorption_silent_one_step_off_each_rule():
+    # range not small enough (11 > median 10)
+    assert not [m for m in prints.tm_marks(_seq(6) + [_bar(2000, [], o=23000, h=23011, l=23000, c=23000, delta=50, vol=100)])[0] if m["kind"] == "absorption"]
+    # close agrees with delta
+    assert not [m for m in prints.tm_marks(_seq(6) + [_bar(2000, [], o=23000, h=23004, l=23000, c=23003, delta=50, vol=100)])[0] if m["kind"] == "absorption"]
+    # |delta| not in the top quarter (priors all 50, this bar 10 -> rank 0)
+    assert not [m for m in prints.tm_marks(_seq(6, delta=50) + [_bar(2000, [], o=23000, h=23004, l=23000, c=23000, delta=10, vol=100)])[0] if m["kind"] == "absorption"]
+
+
+def test_tm_exhaustion_new_high_on_non_positive_delta_is_bearish_at_the_high():
+    bars = _seq(6, rng=10, step=0) + [_bar(2000, [], o=23005, h=23020, l=23004, c=23010, delta=-5, vol=100)]   # h 23020 > prior max 23010
+    ex = [m for m in prints.tm_marks(bars)[0] if m["kind"] == "exhaustion"]
+    assert len(ex) == 1 and ex[0]["side"] == -1 and ex[0]["p"] == 23020
+
+
+def test_tm_exhaustion_new_low_on_non_negative_delta_is_bullish_and_needs_six_priors():
+    bars = _seq(6, rng=10) + [_bar(2000, [], o=22999, h=23001, l=22990, c=22995, delta=3, vol=100)]     # l 22990 < prior min 23000
+    ex = [m for m in prints.tm_marks(bars)[0] if m["kind"] == "exhaustion"]
+    assert len(ex) == 1 and ex[0]["side"] == 1 and ex[0]["p"] == 22990
+    assert prints.tm_marks(_seq(5) + bars[-1:])[0] == []
+
+
+def test_tm_exhaustion_silent_when_delta_agrees_with_the_extreme():
+    bars = _seq(6, rng=10) + [_bar(2000, [], o=23005, h=23020, l=23004, c=23010, delta=5, vol=100)]
+    assert not [m for m in prints.tm_marks(bars)[0] if m["kind"] == "exhaustion"]
+
+
+def test_tm_climax_top_decile_volume_with_two_sided_prints():
+    bars = _seq(9, vol=100) + [_bar(2000, [], o=23000, h=23010, l=23000, c=23008, delta=10, vol=1000)]   # vol rank 1.0, |d|/vol 0.01
+    cl = [m for m in prints.tm_marks(bars)[0] if m["kind"] == "climax"]
+    assert len(cl) == 1 and cl[0]["side"] == 0 and cl[0]["p"] == 23010          # closed near the high
+    bars[-1]["delta"] = 200                                                       # 0.2 > 0.15 lopsided -> not a climax
+    assert not [m for m in prints.tm_marks(bars)[0] if m["kind"] == "climax"]
+
+
+def test_tm_first_six_bars_fire_nothing_and_say_why():
+    marks, why = prints.tm_marks(_seq(4))
+    assert marks == [] and why == "first six bars: nothing to rank against"
+
+
+def test_tm_is_pure():
+    bars = _seq(8) + [_bar(2000, [], o=23000, h=23004, l=23000, c=23000, delta=50, vol=100)]
+    assert prints.tm_marks(bars) == prints.tm_marks(bars)
