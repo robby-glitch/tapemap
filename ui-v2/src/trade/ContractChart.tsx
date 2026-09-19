@@ -54,6 +54,9 @@ interface Props {
    *  the SAME `useTape` poll TradeTab's legend reads. Null = could not be read,
    *  which is not an empty day and is not drawn as one; TradeTab prints the why. */
   prints?: TapeReply | null
+  /** The interval the backend says the bars ARE (TradeTab's `publishedInterval`).
+   *  The delta pane draws only at 5 or 15 — see indicators.alignDelta. */
+  publishedInterval?: number | null
 }
 
 // A shared empty default, so an omitted `zones` prop does not hand the overlay
@@ -82,7 +85,7 @@ function nearestIndex(times: number[], t: number): number {
 export default function ContractChart({
   index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
   structures = null, smc = true, rotation = null, story = true, marks = null,
-  prints = null,
+  prints = null, publishedInterval = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -251,10 +254,10 @@ export default function ContractChart({
     } else {
       engine.setData(candles) // first load, index/day change, or any gap — resync
     }
-    engine.setIndicators(buildIndicators(bars))
+    engine.setIndicators(buildIndicators(bars, prints ?? null, publishedInterval ?? null))
     timesRef.current = candles.map((c) => c.time)
     prevRef.current = { index, day, n: bars.length }
-  }, [index, day, bars])
+  }, [index, day, bars, prints, publishedInterval])
 
   useEffect(() => {
     engineRef.current?.setReplayCursor(cursor)

@@ -954,6 +954,7 @@ export default function TradeTab({
             structures={structures} smc={smc} rotation={rotationDraw} story={story}
             marks={footprint.events}
             prints={tape.reply}
+            publishedInterval={publishedInterval}
           />
         </div>
       </div>
@@ -1045,7 +1046,10 @@ export default function TradeTab({
               + ` · ${tape.reply.levels.nodes.length} nodes · ${tape.reply.marks.tm.length} tm marks [I]`
               + (tape.reply.forming_why ? ` · ${tape.reply.forming_why}` : '')
               + (tape.reply.ladder_why ? ` · ${tape.reply.ladder_why}` : '')
-              + (tape.reply.levels.prior_why ? ` · ${tape.reply.levels.prior_why}` : '')}
+              + (tape.reply.levels.prior_why ? ` · ${tape.reply.levels.prior_why}` : '')
+              + (tape.reply && publishedInterval !== 5 && publishedInterval !== 15
+                  ? ` · delta 5-min record se hai — is chart ke ${publishedInterval ?? '?'}-min bars se nahi jud sakta; 5 ya 15 par dekho`
+                  : '')}
         </div>
       )}
 

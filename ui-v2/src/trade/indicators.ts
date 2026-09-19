@@ -4,6 +4,7 @@
 import type { Candle } from '../vendor/candl/core/types'
 import type { IndicatorRenderData } from '../vendor/candl/chart/types'
 import type { TapeBar, BarLeg, OptPivotLeg } from '../data'
+import type { TapeReply } from './tape'
 
 // One-meaning colour (App.tsx `T`): brass is structure. The σ deviations
 // themselves are filled ribbons drawn on the overlay canvas (LevelsOverlay),
@@ -227,8 +228,46 @@ export function legRender(day: string, bars: TapeBar[], leg: 'ce' | 'pe',
   return { candles, indicators, map, missing }
 }
 
-export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
-  return [
+const IST_MS = 5.5 * 3600000
+/** "HH:MM" IST for a tape-bar epoch, the label convention the chart's bars use. */
+function hhmmOf(t: number): string {
+  const d = new Date(t + IST_MS)
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
+const DELTA_UP = '#26a69a'   // the CHART_UP pair, one meaning: sign of the delta
+const DELTA_DOWN = '#ef5350'
+
+/** Delta and CVD aligned 1:1 with the chart's bars, or null when they cannot be:
+ *  the record is 5-minute; 15 sums three record bars exactly; 3 and 1 do not
+ *  divide it (spec §J.5). Alignment is by "HH:MM" label, never by index. */
+export function alignDelta(
+  bars: TapeBar[], prints: TapeReply | null | undefined, interval: number | null | undefined,
+): { delta: (number | null)[]; cvd: (number | null)[] } | null {
+  if (!prints || (interval !== 5 && interval !== 15)) return null
+  const per = new Map<string, number>()        // record label -> delta
+  for (const b of prints.bars) per.set(hhmmOf(b.t), b.delta)
+  const delta: (number | null)[] = []
+  const cvd: (number | null)[] = []
+  let run: number | null = null
+  for (const bar of bars) {
+    let d: number | null = null
+    if (interval === 5) {
+      d = per.has(bar.t) ? per.get(bar.t)! : null
+    } else {
+      // 15: the record bars whose minute-of-hour floors into this bar's 15-minute bucket
+      const [hh, mm] = bar.t.split(':').map(Number)
+      const parts = [0, 5, 10].map((k) => per.get(`${String(hh).padStart(2, '0')}:${String(mm + k).padStart(2, '0')}`))
+      d = parts.every((v) => v != null) ? parts.reduce((a, v) => a + (v as number), 0) : null
+    }
+    delta.push(d)
+    if (d != null) run = (run ?? 0) + d
+    cvd.push(d != null ? run : null)
+  }
+  return delta.some((v) => v != null) ? { delta, cvd } : null
+}
+
+export function buildIndicators(bars: TapeBar[], prints?: TapeReply | null, publishedInterval?: number | null): IndicatorRenderData[] {
+  const out: IndicatorRenderData[] = [
     // The FUT chart no longer draws the VWAP polyline either. Operator,
     // 2026-08-11: the line is redundant next to the level chips on the right
     // and the VWAP figure the stat strip / Σ BANDS pane already print — one
@@ -245,4 +284,18 @@ export function buildIndicators(bars: TapeBar[]): IndicatorRenderData[] {
       outputs: [{ name: 'oi', values: series(bars, (b) => b.oi), color: OI_LINE }],
     },
   ]
+  // delta / CVD off the ladder record, only where the two series line up (5 / 15 min)
+  const dc = alignDelta(bars, prints, publishedInterval)
+  if (dc) {
+    const last = [...dc.delta].reverse().find((v) => v != null)
+    out.push({
+      instanceId: 'delta', placement: 'pane',
+      label: `Δ prints [M] · last ${last == null ? '—' : (last > 0 ? '+' : '') + last} lots · CVD ${dc.cvd[dc.cvd.length - 1] ?? '—'}`,
+      outputs: [
+        { name: 'delta', values: dc.delta, color: (last ?? 0) >= 0 ? DELTA_UP : DELTA_DOWN, style: 'histogram' },
+        { name: 'cvd', values: dc.cvd, color: OI_LINE },
+      ],
+    })
+  }
+  return out
 }
