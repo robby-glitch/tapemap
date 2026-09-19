@@ -46,7 +46,8 @@ scoring is pre-registered (§K). Nothing in this spec decides which family is ri
 
 **Two populations, one word.** `ui-v2/src/trade/footprint.ts` is the extension's event record and stays so. The
 new server-side detections are the **`tm` family**; the extension's are the **`ofd` family**; every mark carries
-`src`. Levels computed from ladders carry `src: "prints"` so they are never confused with the OI walls
+`src`. Levels computed from ladders arrive under their own `levels` object on `/api/tape` (amended 2026-09-19 at the
+final review: there is no `src` field — the object is the population) so they are never confused with the OI walls
 (`_WALL_KINDS`, `frame.py:56`) or the pivot-derived PDH/PDL/PDC (`structure.py:320`).
 
 ---
@@ -114,6 +115,13 @@ Three sentences (CLAUDE.md rule 6): `src: "live"` · `src: "file"` with `forming
 index, or the extension never posted"`. `ladder_why` is set when any bar lacks a ladder (extension < 0.3.1);
 `levels.why` when fewer than one ladder-bearing bar exists. `prior` and `naked` are empty with `why` on the first
 recorded day — *"no earlier day in the record yet"*, never an empty list without a sentence.
+**Amended 2026-09-19 at the final review:** `marks.ofd_why` is set whenever `marks.ofd` is empty — `"no marks file
+for <idx> on <day> — the record was seeded from an export, which carries none"` when no marks file exists for the
+day, else `"the extension detected nothing on this day"` — because "no file" and "nothing detected" are the two
+sentences rule 6 keeps apart, and §K's scorer reads this field. And the served `bars[]` and `forming` do **not**
+carry `ladder`: it was 81 % of the reply's bytes with no consumer; the ladder stays in the record, which is its
+point. `ladder_why` tests for a missing OR empty ladder (`not b.get("ladder")`), since extension 0.3.1 posts `[]`
+for a bar without one.
 
 Computed per request by `prints.py`; ~3,000 rows a day, sub-millisecond. `ponytail:` no cache until a profiler names it.
 
