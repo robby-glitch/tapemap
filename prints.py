@@ -97,3 +97,111 @@ def bar_flags(bar: dict, row_size: float, anchor: float = 0.0) -> Optional[dict]
             "unfinished_high": bool((top.get("b") or 0) >= unf_min and (top.get("s") or 0) >= unf_min),
             "unfinished_low": bool((bot.get("b") or 0) >= unf_min and (bot.get("s") or 0) >= unf_min),
             "poc": poc}
+
+
+def profile(bars: List[dict]) -> Optional[dict]:
+    """Volume-at-price over the RAW ladder prices (market.js:47-63): POC and
+    the 70% value area by the PAIRED expansion -- compare the next two rows up
+    against the next two rows down, take the larger pair whole, ties go up."""
+    m: Dict[float, float] = {}
+    for b in bars:
+        for r in (b.get("ladder") or []) if isinstance(b.get("ladder"), list) else []:
+            p = float(r["p"])
+            m[p] = m.get(p, 0) + (r.get("b") or 0) + (r.get("s") or 0)
+    rows = [{"p": p, "v": v} for p, v in sorted(m.items())]
+    if not rows:
+        return None
+    total = sum(r["v"] for r in rows)
+    poc = 0
+    for i in range(1, len(rows)):
+        if rows[i]["v"] > rows[poc]["v"]:
+            poc = i
+    lo = hi = poc
+    acc = rows[poc]["v"]
+    n = len(rows)
+    while acc < total * 0.7 and (lo > 0 or hi < n - 1):
+        dn = (rows[lo - 1]["v"] + (rows[lo - 2]["v"] if lo > 1 else 0)) if lo > 0 else -1
+        up = (rows[hi + 1]["v"] + (rows[hi + 2]["v"] if hi < n - 2 else 0)) if hi < n - 1 else -1
+        if up >= dn:
+            for _ in range(2):
+                if hi < n - 1:
+                    hi += 1
+                    acc += rows[hi]["v"]
+        else:
+            for _ in range(2):
+                if lo > 0:
+                    lo -= 1
+                    acc += rows[lo]["v"]
+    return {"poc": rows[poc]["p"], "vah": rows[hi]["p"], "val": rows[lo]["p"], "total": total, "rows": rows}
+
+
+def nodes(prof: Optional[dict]) -> List[dict]:
+    """board.js:192-200: 5-point bins; the top three by volume are HVN; a bin
+    at or under 0.35 x the median bin is LVN; the rest are dropped."""
+    if not prof:
+        return []
+    bins: Dict[int, float] = {}
+    for r in prof["rows"]:
+        k = _jsround(r["p"] / 5) * 5
+        bins[k] = bins.get(k, 0) + r["v"]
+    vals = sorted(bins.values())
+    med = vals[len(vals) >> 1] if vals else 1
+    med = med or 1
+    all_ = [{"p": p, "vol": _jsround(v)} for p, v in bins.items()]        # insertion order = ascending p
+    top = {n["p"] for n in sorted(all_, key=lambda n: -n["vol"])[:3]}
+    out = []
+    for n in all_:
+        kind = "HVN" if n["p"] in top else ("LVN" if n["vol"] <= med * 0.35 else "")
+        if kind:
+            out.append({"p": n["p"], "vol": n["vol"], "kind": kind})
+    return sorted(out, key=lambda n: n["p"])
+
+
+def with_cvd(bars: List[dict]) -> List[dict]:
+    """Copies, sorted by t, each with delta and the running cvd -- anchored at
+    the session open, reset daily (spec §J.1)."""
+    out = []
+    run = 0
+    for b in sorted(bars, key=lambda b: b["t"]):
+        d = b.get("delta")
+        if d is None:
+            d = (b.get("buy") or 0) - (b.get("sell") or 0)
+        run += d
+        out.append({**b, "delta": d, "cvd": run})
+    return out
+
+
+def prior_levels(days: List[Tuple[str, List[dict]]]) -> List[dict]:
+    out = []
+    for day, bars in days:
+        pr = profile(bars)
+        if pr:
+            out.append({"day": day, "poc": pr["poc"], "vah": pr["vah"], "val": pr["val"]})
+    return out
+
+
+def _straddles(b: dict, p: float) -> bool:
+    lo = b.get("l") if b.get("l") is not None else b.get("c")
+    hi = b.get("h") if b.get("h") is not None else b.get("c")
+    return lo is not None and hi is not None and lo <= p <= hi
+
+
+def naked(days: List[Tuple[str, List[dict]]], today_bars: List[dict]) -> List[dict]:
+    """A prior day's POC is naked until a LATER bar's range straddles it, a
+    wick counts (market.js:75). `days` newest first. Touched on a newer prior
+    day: not listed. Touched today: touched_t is that bar's t. Else None."""
+    out = []
+    for i, (day, bars) in enumerate(days):
+        pr = profile(bars)
+        if not pr:
+            continue
+        p = pr["poc"]
+        if any(_straddles(b, p) for _, newer in days[:i] for b in newer):
+            continue
+        touched = None
+        for b in sorted(today_bars, key=lambda b: b["t"]):
+            if _straddles(b, p):
+                touched = b["t"]
+                break
+        out.append({"day": day, "poc": p, "touched_t": touched})
+    return out

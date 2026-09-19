@@ -81,3 +81,78 @@ def test_bar_flags_poc_is_the_first_largest_row_and_unfinished_reads_the_raw_ext
 def test_bar_flags_none_without_a_ladder():
     assert prints.bar_flags({"vol": 5, "ladder": None}, 5) is None
     assert prints.bar_flags({"vol": 5, "ladder": []}, 5) is None
+
+
+def _bar(t, ladder, o=None, h=None, l=None, c=None, buy=None, sell=None, delta=None, vol=None):
+    b = {"t": t, "ladder": ladder, "o": o, "h": h, "l": l, "c": c}
+    if buy is not None: b["buy"] = buy
+    if sell is not None: b["sell"] = sell
+    if delta is not None: b["delta"] = delta
+    if vol is not None: b["vol"] = vol
+    return b
+
+
+def test_profile_sums_raw_ladder_prices_and_expands_two_rows_a_side():
+    # rows: 100:1 101:2 102:10 103:2 104:1 105:1  total 17, 70% = 11.9
+    # poc=102 (acc 10); up pair 103+104=3 vs down pair 101+100=3 -> tie goes up -> acc 13 >= 11.9 -> vah 104, val 102
+    lad = [_row(100, 1), _row(101, 2), _row(102, 10), _row(103, 2), _row(104, 1), _row(105, 1)]
+    pr = prints.profile([_bar(1, lad)])
+    assert (pr["poc"], pr["vah"], pr["val"], pr["total"]) == (102, 104, 102, 17)
+    assert [r["p"] for r in pr["rows"]] == [100, 101, 102, 103, 104, 105]
+
+
+def test_profile_takes_the_larger_pair_whole():
+    # poc=102(10); down pair 101+100 = 8 > up pair 103+104 = 2 -> take both down rows
+    lad = [_row(100, 4), _row(101, 4), _row(102, 10), _row(103, 1), _row(104, 1)]
+    pr = prints.profile([_bar(1, lad)])
+    assert (pr["val"], pr["vah"]) == (100, 102)
+
+
+def test_profile_ignores_bars_without_a_ladder_and_is_none_when_nothing_has_one():
+    assert prints.profile([_bar(1, None), _bar(2, [])]) is None
+    pr = prints.profile([_bar(1, None), _bar(2, [_row(100, 1)])])
+    assert pr["poc"] == 100
+
+
+def test_nodes_top_three_are_hvn_and_at_most_a_third_of_median_is_lvn():
+    # 5-point bins: 100:50 105:40 110:30 115:10 120:2 125:9   median of [2,9,10,30,40,50] -> vals[3]=30 -> LVN <= 10.5
+    lad = [_row(100, 50), _row(105, 40), _row(110, 30), _row(115, 10), _row(120, 2), _row(125, 9)]
+    nd = prints.nodes(prints.profile([_bar(1, lad)]))
+    assert [(n["p"], n["kind"]) for n in nd] == [(100, "HVN"), (105, "HVN"), (110, "HVN"), (115, "LVN"), (120, "LVN"), (125, "LVN")]
+    assert prints.nodes(None) == []
+
+
+def test_nodes_bin_rounds_half_up():
+    # 23352.5 / 5 = 4670.5 -> bin 23355 (JS), not 23350
+    nd = prints.nodes(prints.profile([_bar(1, [_row(23352.5, 5)])]))
+    assert nd[0]["p"] == 23355
+
+
+def test_with_cvd_is_a_prefix_sum_in_time_order():
+    bars = [_bar(3, [], buy=1, sell=4), _bar(1, [], delta=5), _bar(2, [], buy=2, sell=1)]
+    out = prints.with_cvd(bars)
+    assert [(b["t"], b["delta"], b["cvd"]) for b in out] == [(1, 5, 5), (2, 1, 6), (3, -3, 3)]
+    assert bars[0].get("cvd") is None          # inputs untouched
+
+
+def test_prior_levels_one_per_day_newest_first():
+    d1 = ("2026-09-18", [_bar(1, [_row(100, 1), _row(101, 5), _row(102, 1)])])
+    d2 = ("2026-09-17", [_bar(1, [_row(200, 5)])])
+    out = prints.prior_levels([d1, d2])
+    assert [(o["day"], o["poc"]) for o in out] == [("2026-09-18", 101), ("2026-09-17", 200)]
+
+
+def test_naked_poc_survives_until_a_later_bar_straddles_it_wick_counts():
+    older = ("2026-09-17", [_bar(1, [_row(200, 5)])])                 # poc 200
+    newer = ("2026-09-18", [_bar(1, [_row(300, 5)], h=310, l=295)])   # never touched 200
+    today = [_bar(10, [], h=250, l=240), _bar(11, [], h=205, l=199), _bar(12, [], h=201, l=200)]
+    out = prints.naked([newer, older], today)
+    assert {o["day"]: o for o in out}["2026-09-17"] == {"day": "2026-09-17", "poc": 200, "touched_t": 11}
+    assert {o["day"]: o for o in out}["2026-09-18"] == {"day": "2026-09-18", "poc": 300, "touched_t": None}
+
+
+def test_naked_poc_touched_on_a_prior_newer_day_is_not_listed():
+    older = ("2026-09-17", [_bar(1, [_row(200, 5)])])
+    newer = ("2026-09-18", [_bar(1, [_row(300, 5)], h=210, l=190)])   # traded through 200
+    out = prints.naked([newer, older], [])
+    assert [o["day"] for o in out] == ["2026-09-18"]
