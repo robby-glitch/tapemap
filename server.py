@@ -40,6 +40,7 @@ import breadth as breadth_mod
 import frame
 import frame_log
 import tape_log
+import prints
 import instruments
 import oi_dwell
 import pools as pools_mod
@@ -1045,6 +1046,61 @@ def _book_for(handler, idx):
             "ivrv": None, "coverage": _coverage()}
 
 
+TAPE_LIVE_S = 15      # the extension's own FRAME_STALE_MS boundary (orderflow-desk main.js:53)
+_LADDER_WHY = "extension predates ladders (orderflow-desk < 0.3.1)"
+_NO_FLAGS = {"stacks": None, "unfinished_high": None, "unfinished_low": None, "poc": None}
+
+
+def _tape_reply(idx: str, day: str) -> dict:
+    """GET /api/tape: bars + levels + two mark families, three sentences (spec §D)."""
+    with _SENSES_LOCK:
+        held = _SENSES["tape"].get(idx)
+    doc = (held or {}).get("doc") or {}
+    live = bool(held) and str(doc.get("session", "")).endswith(day) and (time.time() - held["at"]) < TAPE_LIVE_S
+    if live:
+        raw, forming = list(doc.get("closed") or []), doc.get("forming")
+        # the extension's marks as posted, in the SAME shape tape_log writes them, so the
+        # two sources are one population on the wire (src is stamped here for the live path)
+        ofd = [{"t": m.get("t"), "kind": m.get("kind"), "side": m.get("side"), "p": m.get("p"),
+                "size": m.get("size"), "src": "ofd", "idx": idx, "day": day}
+               for m in (doc.get("events") or [])
+               if isinstance(m, dict) and m.get("t") is not None and m.get("kind")]
+        meta = {"rowSize": doc.get("rowSize"), "rowAnchor": doc.get("rowAnchor", 0), "lot": doc.get("lot")}
+        forming_why = None
+    else:
+        raw = tape_log.read_bars(day, idx)
+        if not raw:
+            return {"ok": False, "idx": idx, "day": day, "src": None,
+                    "why": f"no prints record for {idx} on {day} — GoCharting was on another index, or the extension never posted"}
+        forming, ofd = None, tape_log.read_marks(day, idx)
+        meta = {"rowSize": raw[0].get("rowSize"), "rowAnchor": raw[0].get("rowAnchor", 0), "lot": raw[0].get("lot")}
+        forming_why = (f"extension not posting for {int(time.time() - held['at'])}s — showing the record" if held
+                       else "extension not posting since server start — showing the record")
+    row, anchor = float(meta["rowSize"] or 5), float(meta["rowAnchor"] or 0)
+    bars = []
+    for b in prints.with_cvd(raw):
+        f = prints.bar_flags(b, row, anchor)
+        bars.append({**{k: b.get(k) for k in ("t", "o", "h", "l", "c", "vol", "buy", "sell", "delta", "cvd", "oi", "fromTicks", "ladder")},
+                     **(f or _NO_FLAGS)})
+    ladder_why = _LADDER_WHY if any(b.get("ladder") is None for b in bars) else None
+    if forming is not None:
+        forming = {**forming, **(prints.bar_flags(forming, row, anchor) or _NO_FLAGS)}
+    prof = prints.profile(raw)
+    prior_days = [(d, tape_log.read_bars(d, idx)) for d in tape_log.prior_days(day, idx, 5)]
+    prior = prints.prior_levels(prior_days)
+    tm, tm_why = prints.tm_marks(raw)
+    return {
+        "ok": True, "idx": idx, "day": day, "interval": 5, "src": "live" if live else "file", "tag": "M", **meta,
+        "bars": bars, "forming": forming, "forming_why": forming_why, "ladder_why": ladder_why,
+        "levels": {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
+                   "prior": prior, "prior_why": None if prior else "no earlier day in the record yet",
+                   "naked": prints.naked(prior_days, raw), "nodes": prints.nodes(prof), "tag": "M",
+                   "why": None if prof else "no bar with a ladder yet"},
+        "marks": {"ofd": ofd, "tm": tm, "tm_why": tm_why},
+        "why": None,
+    }
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, payloads=None, chains=None, poller=None, late=None,
                  **kw):
@@ -2038,6 +2094,14 @@ class Handler(SimpleHTTPRequestHandler):
                              for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
+        elif self.path.startswith("/api/tape"):
+            # the ladder record and what prints.py reads off it (spec §D) --
+            # live from the extension's last post, else from data/tape/, else
+            # the third sentence. Streamed readers only; never a whole-file
+            # json.load on this thread (record_read.py:1-15).
+            q = parse_qs(urlsplit(self.path).query)
+            day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
+            self._json(json.dumps(_tape_reply(self._idx(), day), default=str).encode())
         elif self.path.startswith("/api/frame/bars"):
             q = parse_qs(urlsplit(self.path).query)
             day, idx = (q.get("day") or [time.strftime("%Y-%m-%d")])[0], (q.get("idx") or ["NIFTY"])[0]

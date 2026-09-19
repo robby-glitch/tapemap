@@ -104,3 +104,93 @@ def test_frame_post_records_the_ladder_bars_and_marks(tmp_path, monkeypatch):
     assert len(tape_log.read_marks("2026-09-11", "NIFTY")) == 1
     server.Handler.do_POST(_Req("/api/frame", doc))     # the every-second re-post
     assert len(tape_log.read_bars("2026-09-11", "NIFTY")) == 2
+
+
+from test_senses_api import _Cap as _SensesCap   # the GET harness, one copy in the tree
+
+
+class _Cap(_SensesCap):
+    """The senses harness plus the one Handler method /api/tape reaches: `_idx()`
+    (a real method on `Handler`, bound here so `self._idx()` resolves)."""
+    _idx = server.Handler._idx
+
+
+def _ladder_doc(day="2026-09-11", n=8):
+    doc = _tape(n=n)
+    doc["session"] = f"NIFTY-I|5m|{day}"
+    doc["rowAnchor"] = 0
+    for i, b in enumerate(doc["closed"]):
+        b.update({"o": 100 + i, "h": 104 + i, "l": 99 + i, "c": 101 + i, "vol": 20 + i, "buy": 12, "sell": 8 + i, "delta": 4 - i})
+        b["ladder"] = [{"p": 100.0 + i, "b": 9, "s": 1, "bt": 3, "st": 1}, {"p": 101.0 + i, "b": 2, "s": 8, "bt": 1, "st": 2}]
+    doc["events"] = [{"t": doc["closed"][1]["t"], "kind": "absorption", "side": 1, "p": 101.0, "size": 9}]
+    doc["forming"] = {"t": doc["closed"][-1]["t"] + 300000, "o": 1, "h": 2, "l": 0, "c": 1, "vol": 3, "delta": 1, "buy": 2, "sell": 1,
+                      "ladder": [{"p": 1.0, "b": 2, "s": 1, "bt": 1, "st": 1}]}
+    return doc
+
+
+def _isolate(tmp_path, monkeypatch):
+    import tape_log
+    monkeypatch.setattr(server.frame_log, "day_path", lambda day: str(tmp_path / f"frame_{day}.jsonl"))
+    monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+    server._SENSES["tape"].pop("NIFTY", None)
+
+
+def test_api_tape_live_when_the_extension_posted_within_15s(tmp_path, monkeypatch):
+    _isolate(tmp_path, monkeypatch)
+    server.Handler.do_POST(_Req("/api/frame", _ladder_doc()))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["ok"] is True and j["src"] == "live" and j["interval"] == 5 and j["tag"] == "M"
+    assert len(j["bars"]) == 8 and j["bars"][0]["ladder"] and "cvd" in j["bars"][0] and "stacks" in j["bars"][0]
+    assert j["forming"]["ladder"] and j["forming_why"] is None
+    assert j["levels"]["session"]["poc"] is not None and isinstance(j["levels"]["nodes"], list)
+    assert j["levels"]["prior"] == [] and j["levels"]["prior_why"] == "no earlier day in the record yet"
+    assert j["marks"]["ofd"][0]["src"] == "ofd" and all(m["src"] == "tm" and m["tag"] == "I" for m in j["marks"]["tm"])
+    assert j["rowSize"] == 5 and j["rowAnchor"] == 0
+
+
+def test_api_tape_file_when_the_extension_is_silent(tmp_path, monkeypatch):
+    _isolate(tmp_path, monkeypatch)
+    server.Handler.do_POST(_Req("/api/frame", _ladder_doc()))
+    server._SENSES["tape"]["NIFTY"]["at"] -= 60          # a minute of silence
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["ok"] is True and j["src"] == "file" and len(j["bars"]) == 8
+    assert j["forming"] is None and "not posting" in j["forming_why"]
+    assert j["marks"]["ofd"] and j["marks"]["ofd"][0]["kind"] == "absorption"
+
+
+def test_api_tape_neither_is_the_third_sentence(tmp_path, monkeypatch):
+    _isolate(tmp_path, monkeypatch)
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert cap.sent["ok"] is False and "no prints record for NIFTY on 2026-09-11" in cap.sent["why"]
+
+
+def test_api_tape_prior_days_and_naked_from_the_record(tmp_path, monkeypatch):
+    import tape_log
+    _isolate(tmp_path, monkeypatch)
+    for day in ("2026-09-09", "2026-09-10"):
+        tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+        server.Handler.do_POST(_Req("/api/frame", _ladder_doc(day=day)))
+    tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+    server.Handler.do_POST(_Req("/api/frame", _ladder_doc(day="2026-09-11")))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert [p["day"] for p in j["levels"]["prior"]] == ["2026-09-10", "2026-09-09"]
+    assert j["levels"]["prior_why"] is None
+    assert isinstance(j["levels"]["naked"], list)
+
+
+def test_api_tape_ladder_why_when_a_bar_lacks_one(tmp_path, monkeypatch):
+    _isolate(tmp_path, monkeypatch)
+    doc = _ladder_doc()
+    del doc["closed"][0]["ladder"]
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert "predates ladders" in cap.sent["ladder_why"]

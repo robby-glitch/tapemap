@@ -19,7 +19,7 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1244** (`pytest -q`, 2026-09-19 - the anytime-start rule
+- **Test count is now 1249** (`pytest -q`, 2026-09-19 - the anytime-start rule
   at the fuel rank: 2 in `test_chainside.py` pinning that the REST morning the
   ledger seed already fetched is ranked too, so `fuel_rank` is a number on the
   first snapshot after a late start and sits inside a distribution that spans
