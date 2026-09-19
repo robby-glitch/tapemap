@@ -197,10 +197,10 @@ def _seq(n, delta=1, rng=10, vol=100, base=23000, step=0):
                  delta=delta, vol=vol) for i in range(n)]
 
 
-def test_pct_rank_needs_six_priors_and_is_the_fraction_at_or_below():
+def test_pct_rank_needs_six_priors_and_is_the_fraction_strictly_below():
     assert prints.pct_rank([1, 2, 3, 4, 5], 3) is None
-    assert prints.pct_rank([1, 2, 3, 4, 5, 6], 3) == 0.5
-    assert prints.pct_rank([1, 2, 3, 4, 5, 6], 6) == 1.0
+    assert prints.pct_rank([1, 2, 3, 4, 5, 6], 3) == 2 / 6
+    assert prints.pct_rank([1, 2, 3, 4, 5, 6], 6) == 5 / 6
 
 
 def test_tm_absorption_fires_on_big_delta_small_range_close_against_it():
@@ -255,3 +255,11 @@ def test_tm_first_six_bars_fire_nothing_and_say_why():
 def test_tm_is_pure():
     bars = _seq(8) + [_bar(2000, [], o=23000, h=23004, l=23000, c=23000, delta=50, vol=100)]
     assert prints.tm_marks(bars) == prints.tm_marks(bars)
+
+
+def test_tm_climax_fires_on_a_repeated_top_decile_volume_not_only_a_new_max():
+    # nine quiet bars, then two 1000-lot bars: the second ties the max, is in the top decile, and must still fire
+    bars = _seq(9, vol=100) + [_bar(2000, [], o=23000, h=23010, l=23000, c=23008, delta=10, vol=1000),
+                               _bar(2001, [], o=23008, h=23016, l=23006, c=23014, delta=12, vol=1000)]
+    cl = [m for m in prints.tm_marks(bars)[0] if m["kind"] == "climax"]
+    assert [m["t"] for m in cl] == [2000, 2001]

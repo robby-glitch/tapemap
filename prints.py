@@ -220,11 +220,14 @@ TM_WHY_EARLY = "first six bars: nothing to rank against"
 
 
 def pct_rank(prior: List[float], x: float) -> Optional[float]:
-    """Fraction of `prior` at or below x; None under MIN_N (board.js rankIn)."""
+    """Fraction of `prior` strictly below x; None under MIN_N. Strict, unlike
+    board.js rankIn's <=: on a flat series a tie ranks 0, never 1.0, so a
+    constant-volume session cannot make every bar a climax (spec amendment
+    2026-09-19)."""
     v = [y for y in prior if y is not None]
     if len(v) < MIN_N:
         return None
-    return sum(1 for y in v if y <= x) / len(v)
+    return sum(1 for y in v if y < x) / len(v)
 
 
 def _sign(x: float) -> int:
@@ -274,8 +277,7 @@ def tm_marks(bars: List[dict]) -> Tuple[List[dict], Optional[str]]:
                             "why": f"new low {l:.1f} over the last {TM_EXH_LOOKBACK} bars on delta {int(d)}: sellers did not come",
                             "src": "tm", "tag": "I"})
         # climax -- volume shape: top-decile volume that resolved nothing
-        prior_vol_max = max([float(p.get("vol") or 0) for p in prior]) if prior else 0
-        if r_v is not None and vol > 0 and vol > prior_vol_max and abs_d / vol <= TM_CLIMAX_LOP:
+        if r_v is not None and vol > 0 and r_v >= TM_CLIMAX_VOL_PCT and abs_d / vol <= TM_CLIMAX_LOP:
             near_high = c > (h + l) / 2
             out.append({"t": b["t"], "kind": "climax", "side": 0, "p": h if near_high else l, "size": int(vol),
                         "why": f"{int(vol)} lots, |delta| {int(abs_d)} ({abs_d / vol * 100:.0f}%), closed near the "
