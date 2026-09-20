@@ -96,7 +96,7 @@ def test_every_new_writer_is_named_in_the_isolation_function():
     src = inspect.getsource(server._isolate_mock_writers)
     for name in ("day_state.DIR", "VPIN_BACKFILL_LOG", "VPIN_LOG",
                  "desk_log.SURF_DIR", "trader_mod.STATE", "sequence_mod.DIR",
-                 "tape_log.DIR"):
+                 "tape_log.DIR", "book_log.DIR"):
         assert name in src, f"{name} is not redirected for a --mock-chain run"
 
 

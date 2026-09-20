@@ -13,6 +13,9 @@ data/senses/
 # orderflow-desk, ~0.3MB/day, not refetchable from any broker. Two forward
 # populations in their own files (bars; the extension's marks), never pooled.
 data/tape/
+# the book record (book_log.py): every changed frame of each index future off
+# the Upstox socket, ~60 MB/day [I, measured day one], not refetchable.
+data/book/
 # surface fit forward log (one line per successful fit, per index, per day --
 # desk_log.py) and the desk verdict-transition log (a single running file,
 # same module). Neither is broker-sourced or refetchable; eod_capture.py's

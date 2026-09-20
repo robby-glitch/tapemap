@@ -40,6 +40,7 @@ import breadth as breadth_mod
 import frame
 import frame_log
 import tape_log
+import book_log
 import prints
 import instruments
 import oi_dwell
@@ -111,6 +112,10 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # frame.py (Task 2) reads this; frame.py does not exist yet, so
            # today's handler only stores it and answers have_bars.
            "tape": {},
+           # THE BOOK RECORD (spec 2026-09-20-upstox-tape §B): the deque the
+           # feed thread fills and the loop drains. `book_rows` is what the
+           # last drain wrote, for ux_log to consume on the same pass.
+           "book": book_log.Book(), "book_rows": [],
            # THE FRAME the tape most recently produced, idx -> the dict also
            # appended to frame_log when its signature changes. Placeholder
            # until frame.py lands.
@@ -779,7 +784,15 @@ def _senses_loop(poller, payloads, period=0.5):
                         chain_pace_due.append((idx, doc))
 
                 if feed_ok:
+                    # The record's hook: assigned once the chain source has a
+                    # feed, re-assigned harmlessly on every pass (an attribute
+                    # store), so a reconnect that rebuilds the feed re-hooks.
+                    if getattr(feed, "on_frame", None) is None:
+                        feed.on_frame = _SENSES["book"].on_frame
                     for idx, r in (getattr(src, "resolved", None) or {}).items():
+                        # The future's key is watched for the book record; a
+                        # contract roll changes fut_key and this re-watches it.
+                        _SENSES["book"].watch(idx, r.get("fut_key"))
                         # Near-ATM legs only, chosen against the poller's own spot. If
                         # spot is not known yet the FUTURE is watched alone rather than
                         # everything -- "which strikes are near" is unanswerable
@@ -851,6 +864,14 @@ def _senses_loop(poller, payloads, period=0.5):
             # it), so updating it needs no lock either. Own try/except per
             # index so a bad fit or a desk exception on ONE index cannot cost
             # the others their chain-pace log.
+            # THE BOOK RECORD'S DRAIN, outside the lock with the other writers.
+            # One call a pass: the feed thread's deque -> data/book/, and the
+            # same rows handed on for the ladder (ux_log, Task 8) below.
+            try:
+                _SENSES["book_rows"] = _SENSES["book"].flush()
+            except Exception:                   # a disk fault costs the rows, never the tape
+                _SENSES["book_rows"] = []
+
             # The toxicity record, outside the lock with the other writers.
             # Fail-soft: a full disk costs the row, never the tape.
             if vpin_due:
@@ -2286,6 +2307,7 @@ def _isolate_mock_writers():
     VPIN_LOG = os.path.join(mock, "vpin_log.jsonl")
     VPIN_BACKFILL_LOG = os.path.join(mock, "vpin_backfill.jsonl")
     tape_log.DIR = os.path.join(mock, "tape")
+    book_log.DIR = os.path.join(mock, "book")
 
 
 def _session_bars(index="NIFTY"):
@@ -2465,6 +2487,16 @@ def _save_day_state():
         log.exception("day state save")
 
 
+def _book_coverage():
+    b = _SENSES.get("book")
+    if b is None:
+        return {"from": {}, "dropped": 0, "written": 0, "why": "no book writer in this process"}
+    frm = dict(b.book_from)
+    return {"from": frm, "dropped": b.dropped, "written": b.written,
+            "why": None if frm else
+            "no frame recorded yet this process -- feed not connected, or before the first drain"}
+
+
 def _coverage():
     """What this process could and could not know about today.
 
@@ -2486,6 +2518,10 @@ def _coverage():
         "server_up": started,
         "session_open": "09:15",
         "late_min": gap,
+        # THE BOOK RECORD (spec 2026-09-20 §B): where the socket record starts
+        # today, per index, and what the deque dropped. Rule 6: an empty map
+        # gets its sentence.
+        "book": _book_coverage(),
         "reconstructed": [
             "the tape's 1-minute FUT bars (live.build_session re-fetches the "
             "whole session from REST every cycle -- never lost)",
