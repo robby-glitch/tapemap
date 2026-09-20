@@ -19,7 +19,7 @@ restating them.
 
 Checked against `git log`, the source and `data/trigger_log.jsonl`, not memory.
 
-- **Test count is now 1278** (`pytest -q`, 2026-09-20 - task 1 (book_log): the record module with 9 tests for row encoding, deque overflow, disk safety, restart-safety, and tear handling; the anytime-start rule
+- **Test count is now 1281** (`pytest -q`, 2026-09-20 - task 2 (upstox_feed.on_frame): the hook that fires after the merge, once per key, with (key, feed, currentTs), and catches all exceptions to record them without killing the reader; task 1 (book_log): the record module with 9 tests for row encoding, deque overflow, disk safety, restart-safety, and tear handling; the anytime-start rule
   at the fuel rank: 2 in `test_chainside.py` pinning that the REST morning the
   ledger seed already fetched is ranked too, so `fuel_rank` is a number on the
   first snapshot after a late start and sits inside a distribution that spans

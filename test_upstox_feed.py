@@ -279,3 +279,34 @@ def test_a_refused_connection_is_recorded_and_does_not_kill_the_thread():
     assert calls["n"] == 1
     assert "401" in f.last_error
     assert f.healthy() is False
+
+
+# --------------------------------------------------------------------------
+# the on_frame hook (spec 2026-09-20-upstox-tape §B)
+# --------------------------------------------------------------------------
+
+def test_on_frame_fires_per_key_after_the_merge_with_the_feed_and_current_ts():
+    f = _feed()
+    seen = []
+    def cb(key, feed, cts):
+        seen.append((key, feed["firstLevelWithGreeks"]["ltpc"]["ltp"], cts, key in f.snapshot()))
+    f.on_frame = cb
+    f._absorb(response({CE: greek_feed(114.10, 8916050, 0.1112, 0.4359, 0.0011),
+                        PE: greek_feed(164.50, 3740620, 0.1033, -0.5694, 0.0012)}))
+    assert sorted(seen) == sorted([(CE, 114.10, 1785900000, True), (PE, 164.50, 1785900000, True)])
+
+
+def test_a_raising_on_frame_is_recorded_and_the_mailbox_still_fills():
+    f = _feed()
+    def cb(key, feed, cts):
+        raise RuntimeError("hook fault")
+    f.on_frame = cb
+    f._absorb(response({CE: greek_feed(114.10, 8916050, 0.1112, 0.4359, 0.0011)}))
+    assert CE in f.snapshot() and "hook fault" in f.last_error
+
+
+def test_no_hook_means_no_change():
+    f = _feed()
+    assert f.on_frame is None
+    f._absorb(response({CE: greek_feed(114.10, 8916050, 0.1112, 0.4359, 0.0011)}))
+    assert f.frames == 1

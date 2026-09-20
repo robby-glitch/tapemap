@@ -90,6 +90,11 @@ class UpstoxFeed(threading.Thread):
         self.last_error = None
         self.segments = {}
         self.reconnects = 0
+        # THE BOOK RECORD'S HOOK (spec 2026-09-20-upstox-tape §B). Called on
+        # this thread, once per key in each decoded frame, AFTER the merge and
+        # OUTSIDE the lock, with (key, feed, currentTs). Assigned by the server
+        # once the chain source has built the feed; None means no record.
+        self.on_frame = None
 
     # ---- reading -------------------------------------------------------
 
@@ -196,3 +201,10 @@ class UpstoxFeed(threading.Thread):
             # that ticked, and replacing would blank every quiet strike --
             # downstream that is a chain with holes in it.
             self._latest.update(feeds)
+        if self.on_frame is not None:
+            cts = resp.get("currentTs")
+            for key, feed in feeds.items():
+                try:
+                    self.on_frame(key, feed, cts)
+                except Exception as e:            # noqa: BLE001 -- a hook must never kill the reader
+                    self.last_error = f"on_frame: {type(e).__name__}: {e}"
