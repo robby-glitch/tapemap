@@ -3,8 +3,8 @@ the parity pin against the extension's own code is test_parity_* (Task 6)."""
 import prints
 
 
-def _row(p, b=0, s=0, bt=0, st=0):
-    return {"p": p, "b": b, "s": s, "bt": bt, "st": st}
+def _row(p, b=0, s=0, bt=0, st=0, u=0):
+    return {"p": p, "b": b, "s": s, "u": u, "bt": bt, "st": st}
 
 
 def test_rebin_sums_into_row_buckets_and_sorts():
@@ -12,8 +12,8 @@ def test_rebin_sums_into_row_buckets_and_sorts():
     lad = [_row(23352.1, 1, 0, 1, 0), _row(23350.8, 0, 2, 0, 2), _row(23347.4, 3, 0, 2, 0)]
     rows = prints.rebin(lad, 5)
     assert [r["p"] for r in rows] == [23345.0, 23350.0]
-    assert rows[1] == {"p": 23350.0, "b": 1, "s": 2, "bt": 1, "st": 2}
-    assert rows[0] == {"p": 23345.0, "b": 3, "s": 0, "bt": 2, "st": 0}
+    assert rows[1] == {"p": 23350.0, "b": 1, "s": 2, "u": 0, "bt": 1, "st": 2}
+    assert rows[0] == {"p": 23345.0, "b": 3, "s": 0, "u": 0, "bt": 2, "st": 0}
 
 
 def test_rebin_rounds_half_up_like_javascript():
@@ -234,7 +234,9 @@ def test_parity_per_bar_rows_flags_poc_and_unfinished_match_the_extension(fixtur
     for e, b in zip(exp["bars"], bars):
         assert e["t"] == b["t"]
         rows = prints.rebin(b["ladder"], exp["rowSize"], exp["rowAnchor"])
-        assert rows == e["rows"], f"rows differ at t={b['t']}"
+        # rebin now carries u: 0; fixtures predate u and don't have it, so drop u from comparison
+        rows_no_u = [{k: v for k, v in row.items() if k != "u"} for row in rows]
+        assert rows_no_u == e["rows"], f"rows differ at t={b['t']}"
         f = prints.bar_flags(b, exp["rowSize"], exp["rowAnchor"])
         assert f["stacks"] == e["stacks"], f"stacks differ at t={b['t']}"
         assert f["poc"] == e["poc"], f"poc differs at t={b['t']}"
@@ -320,3 +322,26 @@ def test_tm_climax_fires_on_a_repeated_top_decile_volume_not_only_a_new_max():
                                _bar(2001, [], o=23008, h=23016, l=23006, c=23014, delta=12, vol=1000)]
     cl = [m for m in prints.tm_marks(bars)[0] if m["kind"] == "climax"]
     assert [m["t"] for m in cl] == [2000, 2001]
+
+
+# --- the unknown side, u (spec 2026-09-20-upstox-tape §C) -------------------
+
+def test_rebin_sums_u_and_defaults_it_to_zero():
+    rows = prints.rebin([{"p": 100.0, "b": 1, "s": 2, "u": 3, "bt": 1, "st": 1},
+                         {"p": 101.0, "b": 1, "s": 0, "bt": 1, "st": 0}], 5, 0)
+    assert rows == [{"p": 100.0, "b": 2, "s": 2, "u": 3, "bt": 2, "st": 1}]
+
+
+def test_profile_counts_u_as_volume_at_price():
+    bars = [{"t": 1, "ladder": [{"p": 100.0, "b": 1, "s": 1, "u": 10}, {"p": 101.0, "b": 5, "s": 0}]}]
+    pr = prints.profile(bars)
+    assert pr["poc"] == 100.0 and pr["total"] == 17
+
+
+def test_imbalances_and_bar_flags_ignore_u():
+    bar = {"vol": 20, "ladder": [{"p": 100.0, "b": 0, "s": 1, "u": 50, "bt": 0, "st": 1},
+                                 {"p": 105.0, "b": 6, "s": 0, "u": 50, "bt": 3, "st": 0}]}
+    f = prints.bar_flags(bar, 5, 0)
+    assert f["poc"] == 105.0                 # b+s only: 6 beats 1; u is not a side
+    flags, _ = prints.imbalances(prints.rebin(bar["ladder"], 5, 0))
+    assert flags == [0, 1]                   # 6 >= 3 * max(1, 1): a buy flag at 105, u never enters

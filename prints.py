@@ -39,10 +39,11 @@ def rebin(ladder, row_size: float, anchor: float = 0.0) -> List[dict]:
         p = round(_jsround((float(r["p"]) - anchor) / row_size) * row_size + anchor, 4)
         q = m.get(p)
         if q is None:
-            q = {"p": p, "b": 0, "s": 0, "bt": 0, "st": 0}
+            q = {"p": p, "b": 0, "s": 0, "u": 0, "bt": 0, "st": 0}
             m[p] = q
         q["b"] += r.get("b") or 0
         q["s"] += r.get("s") or 0
+        q["u"] += r.get("u") or 0
         q["bt"] += r.get("bt") or 0
         q["st"] += r.get("st") or 0
     return sorted(m.values(), key=lambda q: q["p"])
@@ -86,6 +87,8 @@ def bar_flags(bar: dict, row_size: float, anchor: float = 0.0) -> Optional[dict]
     _, stacks = imbalances(rows)
     poc, best = None, -1
     for r in rows:
+        # b + s, never u: the unknown side (spec 2026-09-20 §C) is volume the
+        # ladder cannot place on a side, and a flag is a side's claim.
         v = r["b"] + r["s"]
         if v > best:
             best, poc = v, r["p"]
@@ -107,7 +110,7 @@ def profile(bars: List[dict]) -> Optional[dict]:
     for b in bars:
         for r in (b.get("ladder") or []) if isinstance(b.get("ladder"), list) else []:
             p = float(r["p"])
-            m[p] = m.get(p, 0) + (r.get("b") or 0) + (r.get("s") or 0)
+            m[p] = m.get(p, 0) + (r.get("b") or 0) + (r.get("s") or 0) + (r.get("u") or 0)
     rows = [{"p": p, "v": v} for p, v in sorted(m.items())]
     if not rows:
         return None
