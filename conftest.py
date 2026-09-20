@@ -13,6 +13,7 @@ import pytest
 
 import book_log
 import tape_log
+import ux_log
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +24,8 @@ def _tape_record_in_tmp(tmp_path, monkeypatch):
     monkeypatch.setattr(book_log, "DIR", str(tmp_path / "book"))
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()
+    ux_log._STATE.clear()
     yield
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()
+    ux_log._STATE.clear()
