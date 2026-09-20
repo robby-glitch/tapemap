@@ -109,3 +109,94 @@ def test_min_gap_is_the_smallest_adjacent_price_step_on_either_side():
     assert ladder.min_gap(row) == 0.05
     assert ladder.min_gap(R(1, 1000, 100.0, 65, [[100.0, 65]], [[100.05, 65]])) == 0.05   # across the spread
     assert ladder.min_gap(R(1, 1000, 100.0, 65, [], [])) is None
+
+
+# --- bars ---------------------------------------------------------------------
+
+def test_bin_of_is_the_five_minute_open_in_epoch_ms():
+    assert ladder.bin_of(T0) == T0 and ladder.bin_of(T0 + 299_999) == T0 and ladder.bin_of(T0 + 300_000) == T0 + 300_000
+    assert ladder.hms_ist(T0) == "09:15:00"
+
+
+def _four_frames():
+    return [R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 2000, 1065, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),           # exact buy at 100.05
+            R(T0 + 3000, 1195, 100.05, 65, [[100.00, 65]], [[100.10, 65]], oi=500),   # recon: 65 eaten + 65 hidden
+            R(T0 + 300_500, 1195, 100.05, 65, [[100.00, 65]], [[100.10, 65]])]        # next bin, quiet: closes bar 0
+
+
+def test_a_bar_closes_when_a_frame_lands_in_the_next_bin_in_lots_with_counters():
+    L = ladder.Ladder(lot=65, tick=0.05, idx="NIFTY", day="2026-09-11")
+    out = [L.step(f) for f in _four_frames()]
+    assert [b for b, _ in out[:3]] == [None, None, None]
+    bar, fills = out[3]
+    assert fills == [] and bar["t"] == T0 and bar["src"] == "ux" and bar["idx"] == "NIFTY" and bar["day"] == "2026-09-11"
+    assert bar["o"] == 100.05 and bar["h"] == 100.05 and bar["l"] == 100.05 and bar["c"] == 100.05 and bar["oi"] == 500
+    assert bar["vol"] == 3 and bar["buy"] == 3 and bar["sell"] == 0 and bar["unknown"] == 0 and bar["delta"] == 3
+    assert bar["ladder"] == [{"p": 100.05, "b": 3, "s": 0, "u": 0, "bt": 3, "st": 0}]
+    assert bar["frames"] == 3 and bar["exact"] == 1 and bar["reconstructed"] == 1 and bar["hidden"] == 1
+    assert bar["vtt_resets"] == 0 and bar["lot_mismatch"] == 0 and bar["levels_seen"] == 2
+    assert bar["lot"] == 65 and bar["lot_src"] == "given" and bar["tick"] == 0.05 and bar["tick_src"] == "given"
+    assert bar["partial"] is False and bar["partial_why"] is None
+    assert bar["rowSize"] is None and bar["rowAnchor"] == 0 and bar["fromTicks"] is True
+
+
+def test_fill_events_carry_ltt_and_side_primary_first():
+    L = ladder.Ladder(lot=65, tick=0.05)
+    fs = [f for fr in _four_frames() for f in L.step(fr)[1]]
+    assert fs[0] == {"ltt": T0 + 2000, "side": 1, "p": 100.05, "q": 65, "hidden": False}
+    assert fs[1]["ltt"] == T0 + 3000 and fs[2]["hidden"] is True
+
+
+def test_trading_frames_bin_by_ltt_not_arrival():
+    L = ladder.Ladder(lot=65, tick=0.05)
+    fr = _four_frames()
+    late = R(T0 + 300_200, 1260, 100.05, 65, [[100.00, 65]], [[100.10, 65]], ltt=T0 + 299_000)   # arrived late, traded in bin 0
+    for f in fr[:3]:
+        L.step(f)
+    assert L.step(late)[0] is None                    # still bin 0: no close
+    bar, _ = L.step(fr[3])
+    assert bar["vol"] == 4 and bar["exact"] == 2
+
+
+def test_a_lot_mismatch_is_counted_and_kept_fractional():
+    L = ladder.Ladder(lot=65, tick=0.05)
+    L.step(R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))
+    L.step(R(T0 + 2000, 1100, 100.05, 100, [[100.00, 65]], [[100.05, 65]]))
+    bar = L.close_open()
+    assert bar["lot_mismatch"] == 1 and abs(bar["vol"] - 100 / 65) < 1e-9
+
+
+def test_lot_and_tick_are_inferred_and_say_so_when_not_given():
+    L = ladder.Ladder()
+    for f in _four_frames():
+        bar, _ = L.step(f)
+    assert bar["lot"] == 65 and bar["lot_src"] == "gcd" and bar["lot_why"] is None
+    assert bar["tick"] == 0.05 and bar["tick_src"] == "inferred"
+
+
+def test_no_trade_yet_means_no_lot_and_a_sentence():
+    L = ladder.Ladder()
+    L.step(R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))
+    bar = L.close_open()
+    assert bar["lot"] is None and bar["lot_src"] is None and bar["lot_why"] == "no traded volume yet to infer a lot from"
+    assert bar["vol"] == 0 and bar["ladder"] == []
+
+
+def test_the_first_bar_after_a_late_start_is_partial_with_the_record_start():
+    L = ladder.Ladder(lot=65, tick=0.05)
+    L.step(R(T0 + 120_000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))
+    bar, _ = L.step(R(T0 + 300_500, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))
+    assert bar["partial"] is True and bar["partial_why"] == "record starts at 09:17:00, bar opened at 09:15:00"
+
+
+def test_a_vtt_reset_inside_the_bar_marks_it_partial():
+    L = ladder.Ladder(lot=65, tick=0.05)
+    L.step(R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))
+    L.step(R(T0 + 2000, 900, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))
+    bar = L.close_open()
+    assert bar["vtt_resets"] == 1 and bar["partial"] is True and bar["partial_why"] == "vtt reset 1 time(s) inside the bar"
+
+
+def test_close_open_is_none_before_any_frame():
+    assert ladder.Ladder().close_open() is None
