@@ -191,11 +191,11 @@ def fut_key(name="NIFTY", rows=None):
     return futs[0]["instrument_key"]
 
 
-def lot_tick(name="NIFTY", rows=None, fetch=None):
+def lot_tick(name="NIFTY", rows=None):
     """(lot, tick) of the nearest live future, or (None, None) when the cached
     slice predates the two fields -- the caller (ladder.py) then infers and
     says so on the row (`lot_src`, `tick_src`)."""
-    rows = rows if rows is not None else load(name, fetch=fetch)
+    rows = rows if rows is not None else load(name)
     futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
                   key=lambda x: x.get("expiry") or 0)
     if not futs:

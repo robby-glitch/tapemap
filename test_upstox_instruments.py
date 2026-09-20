@@ -142,7 +142,8 @@ def test_the_slice_keeps_lot_and_tick_from_the_dump(cached, monkeypatch):
 
 def test_lot_tick_reads_the_nearest_future_and_is_none_none_on_an_old_slice(cached, monkeypatch):
     monkeypatch.setattr(ui, "INDEX_SYMBOL", {"NIFTY": "nifty"})
-    assert ui.lot_tick("NIFTY", fetch=cached[1]) == (65, 0.05)
+    rows = ui.load("NIFTY", fetch=cached[1])
+    assert ui.lot_tick("NIFTY", rows=rows) == (65, 0.05)
     old = [{k: v for k, v in r.items() if k not in ("lot_size", "tick_size")}
-           for r in ui.load("NIFTY", fetch=cached[1])]
+           for r in rows]
     assert ui.lot_tick("NIFTY", rows=old) == (None, None)
