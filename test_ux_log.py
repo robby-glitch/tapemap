@@ -20,6 +20,9 @@ def _rows():
 def test_on_frames_writes_each_closed_bar_once_and_returns_it_with_fills():
     out = ux_log.on_frames([("NIFTY", r) for r in _rows()], "2026-09-11", lot=65, tick=0.05)
     assert [(idx, b["t"]) for idx, b, _ in out] == [("NIFTY", T0), ("NIFTY", T0 + 300_000)]
+    # the fills travel with the bar they went into: bin 0 had the one exact buy;
+    # bin 1 had none (its closing frame's fill belongs to bin 2)
+    assert [len(f) for _, _, f in out] == [1, 0] and out[0][2][0]["p"] == 100.05 and out[0][2][0]["side"] == 1
     bars = ux_log.read_bars("2026-09-11", "NIFTY")
     assert [b["t"] for b in bars] == [T0, T0 + 300_000] and bars[0]["src"] == "ux" and bars[0]["vol"] == 1
     assert bars[1]["vol"] == 0 and bars[1]["ladder"] == []

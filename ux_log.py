@@ -78,7 +78,7 @@ def _land(st: dict, idx: str, day: str, bar: dict) -> bool:
 
 def on_frames(rows: List[Tuple[str, dict]], day: str, lot: Optional[int] = None,
               tick: Optional[float] = None, observer=None) -> List[Tuple[str, dict, List[dict]]]:
-    """Feed the rows a drain produced. Returns (idx, closed bar, fills this pass).
+    """Feed the rows a drain produced. Returns (idx, closed bar, the fills of the frames that went into it).
 
     `lot`/`tick` are used only when an index's state is CREATED; the server
     calls `state(idx, day, lot, tick)` per index first, then this without them.
@@ -89,13 +89,13 @@ def on_frames(rows: List[Tuple[str, dict]], day: str, lot: Optional[int] = None,
     for idx, row in rows:
         st = state(idx, day, lot, tick)
         closed, fills = st["ladder"].step(row)
+        if closed is not None and _land(st, idx, day, closed):
+            out.append((idx, closed, fills_by.pop(idx, [])))
         if fills:
             st["fills"].extend(fills)
             fills_by.setdefault(idx, []).extend(fills)
         if observer is not None:
             observer(idx, row, fills)
-        if closed is not None and _land(st, idx, day, closed):
-            out.append((idx, closed, fills_by.get(idx, [])))
     return out
 
 
