@@ -26,7 +26,8 @@ def _dump(exch, name, fut_type):
              "name": name, "instrument_key": f"{exch}_INDEX|{name}"},
             {"segment": seg, "name": name, "instrument_type": fut_type,
              "instrument_key": f"{seg}|FUT", "expiry": FUTURE + DAY_MS,
-             "strike_price": None, "trading_symbol": f"{name} FUT"},
+             "strike_price": None, "trading_symbol": f"{name} FUT",
+             "lot_size": 65, "tick_size": 0.05},
             # noise the filter must drop
             {"segment": seg, "name": "SOMETHINGELSE", "instrument_type": "CE",
              "instrument_key": f"{seg}|NOISE", "expiry": FUTURE,
@@ -130,3 +131,18 @@ def test_option_keys_returns_both_legs_or_raises(cached, monkeypatch):
         "CE": "NSE_FO|100CE", "PE": "NSE_FO|100PE"}
     with pytest.raises(RuntimeError, match="not listed"):
         ui.option_keys(999.0, "NIFTY", rows=rows)
+
+
+def test_the_slice_keeps_lot_and_tick_from_the_dump(cached, monkeypatch):
+    monkeypatch.setattr(ui, "INDEX_SYMBOL", {"NIFTY": "nifty"})
+    rows = ui.load("NIFTY", fetch=cached[1])
+    fut = next(r for r in rows if r["instrument_type"] in ui.FUT_TYPES)
+    assert fut["lot_size"] == 65 and fut["tick_size"] == 0.05
+
+
+def test_lot_tick_reads_the_nearest_future_and_is_none_none_on_an_old_slice(cached, monkeypatch):
+    monkeypatch.setattr(ui, "INDEX_SYMBOL", {"NIFTY": "nifty"})
+    assert ui.lot_tick("NIFTY", fetch=cached[1]) == (65, 0.05)
+    old = [{k: v for k, v in r.items() if k not in ("lot_size", "tick_size")}
+           for r in ui.load("NIFTY", fetch=cached[1])]
+    assert ui.lot_tick("NIFTY", rows=old) == (None, None)

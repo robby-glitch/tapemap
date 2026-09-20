@@ -95,7 +95,9 @@ def _slice(rows, name, exch):
              "instrument_type": (x.get("instrument_type") or "").upper(),
              "strike_price": x.get("strike_price"),
              "expiry": x.get("expiry"),
-             "trading_symbol": x.get("trading_symbol")}
+             "trading_symbol": x.get("trading_symbol"),
+             "lot_size": x.get("lot_size"),
+             "tick_size": x.get("tick_size")}
             for x in rows
             if x.get("segment") == seg
             and (x.get("name") or "").upper() == name]
@@ -187,6 +189,28 @@ def fut_key(name="NIFTY", rows=None):
     if not futs:
         raise RuntimeError(f"{name}: no future in the dump")
     return futs[0]["instrument_key"]
+
+
+def lot_tick(name="NIFTY", rows=None, fetch=None):
+    """(lot, tick) of the nearest live future, or (None, None) when the cached
+    slice predates the two fields -- the caller (ladder.py) then infers and
+    says so on the row (`lot_src`, `tick_src`)."""
+    rows = rows if rows is not None else load(name, fetch=fetch)
+    futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
+                  key=lambda x: x.get("expiry") or 0)
+    if not futs:
+        return None, None
+    f = futs[0]
+    lot, tick = f.get("lot_size"), f.get("tick_size")
+    try:
+        lot = int(lot) if lot else None
+    except (TypeError, ValueError):
+        lot = None
+    try:
+        tick = float(tick) if tick else None
+    except (TypeError, ValueError):
+        tick = None
+    return lot, tick
 
 
 def _near_opts(name, rows=None, now_ms=None):
