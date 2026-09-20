@@ -22,6 +22,10 @@ WHAT IS NOT DONE HERE. No half-and-half split of an unknown side (spec §J.11).
 No lot division until a bar closes (Task 7). No I/O, no clock.
 
 Pure, stdlib only. Every side is [I]; vol, OHLC and oi are [M].
+
+A row with no last price on either side cannot place its volume: V is booked
+unknown AND unpriced, with no fill -- the one branch where fills do not sum to V,
+and the counter says so.
 """
 from __future__ import annotations
 
@@ -72,7 +76,7 @@ def _march(levels: List[list], cur_at: Dict[float, int], side: int, ltp: float,
 
 
 def _empty(kind: str, V: int = 0) -> dict:
-    return {"kind": kind, "V": V, "fills": [], "hidden": 0, "unknown": 0}
+    return {"kind": kind, "V": V, "fills": [], "hidden": 0, "unknown": 0, "unpriced": 0}
 
 
 def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
@@ -88,12 +92,12 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
     if ltp is None:
         ltp = prev.get("ltp")
     if ltp is None:
-        return {"kind": "unknown", "V": V, "fills": [], "hidden": 0, "unknown": V}
+        return {"kind": "unknown", "V": V, "fills": [], "hidden": 0, "unknown": V, "unpriced": V}
     side = side_of(ltp, prev)
     ltq = cur.get("ltq")
     if ltq and V == int(ltq):
         return {"kind": "exact", "V": V, "hidden": 0, "unknown": V if side == 0 else 0,
-                "fills": [{"side": side, "p": ltp, "q": V, "hidden": False}]}
+                "unpriced": 0, "fills": [{"side": side, "p": ltp, "q": V, "hidden": False}]}
     cur_at: Dict[float, int] = {p: int(q) for p, q in (cur.get("b") or [])}
     cur_at.update({p: int(q) for p, q in (cur.get("a") or [])})
     primary = side
@@ -103,7 +107,7 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
         primary = 1 if da > db else -1 if db > da else 0
     if primary == 0:
         return {"kind": "unknown", "V": V, "hidden": 0, "unknown": V,
-                "fills": [{"side": 0, "p": ltp, "q": V, "hidden": False}]}
+                "unpriced": 0, "fills": [{"side": 0, "p": ltp, "q": V, "hidden": False}]}
     first = prev.get("a") or [] if primary == 1 else prev.get("b") or []
     second = prev.get("b") or [] if primary == 1 else prev.get("a") or []
     fills, rem = _march(first, cur_at, primary, ltp, tick, V)
@@ -113,4 +117,4 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
     if rem > 0:
         fills.append({"side": primary, "p": ltp, "q": rem, "hidden": True})
         hidden = rem
-    return {"kind": "recon", "V": V, "fills": fills, "hidden": hidden, "unknown": 0}
+    return {"kind": "recon", "V": V, "fills": fills, "hidden": hidden, "unknown": 0, "unpriced": 0}

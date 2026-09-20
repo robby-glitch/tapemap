@@ -92,6 +92,18 @@ def test_a_vtt_reset_and_a_quiet_frame_attribute_nothing():
     assert ladder.attribute(None, prev, 0.05)["kind"] == "skip"
 
 
+def test_volume_with_no_last_price_is_unpriced_and_says_so():
+    """The one branch where fills do not sum to V: nothing can place it, so the
+    counter carries it instead of the ladder."""
+    prev = {"t": 1, "ltt": 1, "ltp": None, "ltq": None, "vtt": 1000, "oi": None, "tbq": None, "tsq": None,
+            "b": [[100.00, 65]], "a": [[100.05, 65]]}
+    cur = dict(prev, t=2, ltt=2, vtt=1130)
+    r = ladder.attribute(prev, cur, 0.05)
+    assert r["kind"] == "unknown" and r["fills"] == [] and r["unknown"] == 130 and r["unpriced"] == 130
+    ok = ladder.attribute(prev, R(2, 1065, 100.05, 65, [[100.00, 65]], [[100.05, 65]]), 0.05)
+    assert ok["unpriced"] == 0 and sum(f["q"] for f in ok["fills"]) + ok["unpriced"] == ok["V"]
+
+
 def test_min_gap_is_the_smallest_adjacent_price_step_on_either_side():
     row = R(1, 1000, 100.0, 65, [[100.00, 65], [99.90, 65]], [[100.05, 65], [100.10, 65]])
     assert ladder.min_gap(row) == 0.05
