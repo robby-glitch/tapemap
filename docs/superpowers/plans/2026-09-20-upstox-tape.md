@@ -33,7 +33,7 @@
 | `upstox_instruments.py` (modify `_slice :91`) | `lot_size`, `tick_size` in the cached slice; `lot_tick(name)` |
 | `ladder.py` (new) | `attribute(prev, cur, tick)`; `Ladder` (bins, bars, fills, counters, `infer_lot`, `infer_tick`) |
 | `ux_log.py` (new) | per-index state, bar close → `data/tape/ux_<idx>_<day>.jsonl`, `rebuild`, `read_bars` |
-| `gate.py` (new) | `per_bar`, `session` |
+| `ux_gate.py` (new; **amended at Task 9** — `gate.py` already existed, the seller's gate `frame.py` imports) | `per_bar`, `session`, `rebinned` |
 | `runs.py` (new) | `Runs.on_fill` |
 | `impact.py` (new) | `Impact.on_frame`, `.read()` |
 | `tools/gate_report.py` (new) | the day's `gate.session` from files, printed as a table |
@@ -1627,6 +1627,10 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 9: `gate.py` — two records on one grid, shape only
 
+> **Amended during execution (2026-09-21):** the module is `ux_gate.py` and its tests `test_ux_gate.py`. `gate.py`
+> already existed (the seller's gate, `frame.py:36`); the first implementation overwrote it and was repaired in the
+> commit after `74ea67f`. Everything below stands with that rename; Tasks 12 and 13 import `ux_gate`.
+
 **Files:**
 - Create: `gate.py`
 - Test: `test_gate.py`
@@ -2363,7 +2367,7 @@ Imports, after `import book_log`:
 
 ```python
 import ux_log
-import gate as gate_mod
+import ux_gate as gate_mod      # amended at Task 9: gate.py is the seller's gate
 import runs as runs_mod
 import impact as impact_mod
 import upstox_instruments
@@ -2610,7 +2614,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import book_log  # noqa: E402
-import gate  # noqa: E402
+import ux_gate as gate  # noqa: E402   (amended at Task 9: gate.py is the seller's gate)
 import tape_log  # noqa: E402
 import ux_log  # noqa: E402
 
@@ -2974,6 +2978,10 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 Replace the paragraph with:
 
 > **Hidden-heavy bars.** Spec 1 draws no per-bar POC mark, so there is nothing to draw hollow (found at Task 15). The Callout carries the sentence instead: *"ux ladder here is mostly residual — the visible book explained NN %"* when `hidden / vol > 0.5`, and *"ux bar partial — <why>"* when the bar is partial. A ladder built mostly by residual must not read like one built by proof.
+
+- [ ] **Step 1b: The spec amendment (module name).** In the spec's §A table, §D heading and §E, `gate.py` becomes
+  `ux_gate.py`, with one sentence at §D: *"Named `ux_gate` (amended at implementation, Task 9): `gate.py` already
+  existed — the seller's gate, imported by `frame.py`."* The plan's file map carries the same note.
 
 - [ ] **Step 2: `START-HERE.md:180`** — after the `tape_log.py` line add:
 
