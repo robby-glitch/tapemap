@@ -104,6 +104,19 @@ def test_volume_with_no_last_price_is_unpriced_and_says_so():
     assert ok["unpriced"] == 0 and sum(f["q"] for f in ok["fills"]) + ok["unpriced"] == ok["V"]
 
 
+def test_unpriced_volume_reaches_the_bar_and_never_shares_a_number_with_unknown():
+    L = ladder.Ladder(lot=65, tick=0.05, idx="NIFTY", day="2026-09-11")
+    noltp_prev = {"t": T0 + 1000, "ltt": T0 + 1000, "ltp": None, "ltq": None, "vtt": 1000, "oi": None,
+                  "tbq": None, "tsq": None, "b": [[100.00, 65]], "a": [[100.05, 65]]}
+    noltp_cur = dict(noltp_prev, t=T0 + 2000, ltt=T0 + 2000, vtt=1065)
+    L.step(noltp_prev)
+    L.step(noltp_cur)
+    bar = L.close_open()
+    assert bar["unpriced"] == 65 / 65
+    total = sum(r["b"] + r["s"] + r["u"] for r in bar["ladder"]) + bar["unpriced"]
+    assert abs(total - bar["vol"]) < 1e-9
+
+
 def test_min_gap_is_the_smallest_adjacent_price_step_on_either_side():
     row = R(1, 1000, 100.0, 65, [[100.00, 65], [99.90, 65]], [[100.05, 65], [100.10, 65]])
     assert ladder.min_gap(row) == 0.05

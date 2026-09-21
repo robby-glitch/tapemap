@@ -106,5 +106,6 @@ def session(ofd: List[dict], ux: List[dict], row_size: float, anchor: float = 0.
     out["exact_frac_why"] = None if (ex + rc) else "no trading interval in the ux record"
     out["hidden_frac"] = (sum(b.get("hidden") or 0 for b in ux) / vol) if vol else None
     out["unknown_frac"] = (sum(b.get("unknown") or 0 for b in ux) / vol) if vol else None
-    out["hidden_frac_why"] = out["unknown_frac_why"] = None if vol else "no ux volume"
+    out["unpriced_frac"] = (sum(b.get("unpriced") or 0 for b in ux) / vol) if vol else None
+    out["hidden_frac_why"] = out["unknown_frac_why"] = out["unpriced_frac_why"] = None if vol else "no ux volume"
     return out

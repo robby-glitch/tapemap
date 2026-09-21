@@ -92,12 +92,16 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
     if ltp is None:
         ltp = prev.get("ltp")
     if ltp is None:
-        return {"kind": "unknown", "V": V, "fills": [], "hidden": 0, "unknown": V, "unpriced": V}
+        r = _empty("unknown", V)
+        r["unknown"] = r["unpriced"] = V
+        return r
     side = side_of(ltp, prev)
     ltq = cur.get("ltq")
     if ltq and V == int(ltq):
-        return {"kind": "exact", "V": V, "hidden": 0, "unknown": V if side == 0 else 0,
-                "unpriced": 0, "fills": [{"side": side, "p": ltp, "q": V, "hidden": False}]}
+        r = _empty("exact", V)
+        r["unknown"] = V if side == 0 else 0
+        r["fills"] = [{"side": side, "p": ltp, "q": V, "hidden": False}]
+        return r
     cur_at: Dict[float, int] = {p: int(q) for p, q in (cur.get("b") or [])}
     cur_at.update({p: int(q) for p, q in (cur.get("a") or [])})
     primary = side
@@ -106,8 +110,10 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
         da = sum(q for _, q in prev.get("a") or []) - sum(q for _, q in cur.get("a") or [])
         primary = 1 if da > db else -1 if db > da else 0
     if primary == 0:
-        return {"kind": "unknown", "V": V, "hidden": 0, "unknown": V,
-                "unpriced": 0, "fills": [{"side": 0, "p": ltp, "q": V, "hidden": False}]}
+        r = _empty("unknown", V)
+        r["unknown"] = V
+        r["fills"] = [{"side": 0, "p": ltp, "q": V, "hidden": False}]
+        return r
     first = prev.get("a") or [] if primary == 1 else prev.get("b") or []
     second = prev.get("b") or [] if primary == 1 else prev.get("a") or []
     fills, rem = _march(first, cur_at, primary, ltp, tick, V)
@@ -117,7 +123,9 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
     if rem > 0:
         fills.append({"side": primary, "p": ltp, "q": rem, "hidden": True})
         hidden = rem
-    return {"kind": "recon", "V": V, "fills": fills, "hidden": hidden, "unknown": 0, "unpriced": 0}
+    r = _empty("recon", V)
+    r["fills"], r["hidden"] = fills, hidden
+    return r
 
 
 IST_MS = 19_800_000
@@ -178,7 +186,7 @@ class Ladder:
     def _open(self, b: int) -> None:
         self.bin = b
         self.acc = {"t": b, "o": None, "h": None, "l": None, "c": None, "oi": None,
-                    "vol": 0, "buy": 0, "sell": 0, "unknown": 0, "hidden": 0,
+                    "vol": 0, "buy": 0, "sell": 0, "unknown": 0, "unpriced": 0, "hidden": 0,
                     "lad": {}, "frames": 0, "exact": 0, "reconstructed": 0,
                     "vtt_resets": 0, "levels_seen": 0, "first_ms": None}
 
@@ -202,7 +210,8 @@ class Ladder:
             why = f"record starts at {hms_ist(a['first_ms'])}, bar opened at {hms_ist(a['t'])}"
         bar = {"t": a["t"], "o": a["o"], "h": a["h"], "l": a["l"], "c": a["c"],
                "vol": a["vol"] / div, "buy": a["buy"] / div, "sell": a["sell"] / div,
-               "unknown": a["unknown"] / div, "delta": (a["buy"] - a["sell"]) / div, "oi": a["oi"],
+               "unknown": a["unknown"] / div, "unpriced": a["unpriced"] / div,
+               "delta": (a["buy"] - a["sell"]) / div, "oi": a["oi"],
                "fromTicks": True, "ladder": rows, "rowSize": None, "rowAnchor": 0,
                "lot": lot, "lot_src": lot_src, "lot_why": lot_why, "tick": tick, "tick_src": tick_src,
                "frames": a["frames"], "exact": a["exact"], "reconstructed": a["reconstructed"],
@@ -248,6 +257,7 @@ class Ladder:
             a["vol"] += V
             a["hidden"] += res["hidden"]
             a["unknown"] += res["unknown"]
+            a["unpriced"] += res["unpriced"]
             a["exact"] += res["kind"] == "exact"
             a["reconstructed"] += res["kind"] == "recon"
             ltp = row.get("ltp")

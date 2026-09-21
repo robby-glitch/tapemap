@@ -36,7 +36,7 @@ def test_session_joins_on_t_and_reports_the_named_fields():
     o = [_bar(T0, [(100.0, 10, 2), (105.0, 3, 1)]), _bar(T0 + 300_000, [(105.0, 1, 8)]), _bar(T0 + 600_000, [(110.0, 4, 4)])]
     u = [_bar(T0, [(100.0, 9, 1), (105.0, 3, 1)]), _bar(T0 + 300_000, [(110.0, 1, 8)])]
     for b in u:
-        b["src"] = "ux"; b["exact"] = 2; b["reconstructed"] = 1; b["hidden"] = 1; b["unknown"] = 0
+        b["src"] = "ux"; b["exact"] = 2; b["reconstructed"] = 1; b["hidden"] = 1; b["unknown"] = 0; b["unpriced"] = 1
     s = gate.session(o, u, 5, 0)
     assert s["bars_joined"] == 2 and s["bars_ofd_only"] == 1 and s["bars_ux_only"] == 0
     assert s["poc_rows_median"] == 0.5 and s["poc_within_1"] == 1.0
@@ -44,6 +44,7 @@ def test_session_joins_on_t_and_reports_the_named_fields():
     assert abs(s["vol_ratio_median"] - (14 / 16 + 9 / 9) / 2) < 1e-9
     assert 0 < s["va_overlap"] <= 1 and s["hvn_jaccard"] is not None and s["tag"] == "M"
     assert s["exact_frac"] == 4 / 6 and s["hidden_frac"] == 2 / 23 and s["unknown_frac"] == 0.0
+    assert s["unpriced_frac"] == 2 / 23
 
 
 def test_session_with_nothing_to_join_says_so():

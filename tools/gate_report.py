@@ -17,7 +17,7 @@ import ux_log  # noqa: E402
 
 FIELDS = ("bars_joined", "bars_ofd_only", "bars_ux_only", "poc_rows_median", "poc_within_1",
           "delta_sign_agree", "vol_ratio_median", "va_overlap", "hvn_jaccard", "lvn_jaccard",
-          "exact_frac", "hidden_frac", "unknown_frac")
+          "exact_frac", "hidden_frac", "unknown_frac", "unpriced_frac")
 
 
 def _fmt(v):

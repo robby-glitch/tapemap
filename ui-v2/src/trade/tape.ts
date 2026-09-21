@@ -47,6 +47,7 @@ export interface TapeReply {
 
 export interface UxBarRow extends TapeBarRow {
   unknown: number
+  unpriced: number
   exact: number | null; reconstructed: number | null; hidden: number | null
   partial: boolean | null; partial_why: string | null
 }
@@ -67,6 +68,7 @@ export interface UxAgree {
   exact_frac: number | null; exact_frac_why: string | null
   hidden_frac: number | null; hidden_frac_why: string | null
   unknown_frac: number | null; unknown_frac_why: string | null
+  unpriced_frac: number | null; unpriced_frac_why: string | null
 }
 export interface UxImpact { lambda: number | null; lots_per_tick: number | null; pct: number | null; n: number; why: string | null; tag: 'I' }
 export interface TapeUx {

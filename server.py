@@ -1126,7 +1126,7 @@ def _ux_bars(idx, day):
     return ux_log.read_bars(day, idx)
 
 
-_UX_KEEP = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "unknown", "delta", "cvd", "oi",
+_UX_KEEP = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "unknown", "unpriced", "delta", "cvd", "oi",
             "exact", "reconstructed", "hidden", "partial", "partial_why")
 
 
