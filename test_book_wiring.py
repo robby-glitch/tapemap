@@ -18,6 +18,7 @@ def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
     monkeypatch.setattr(book_log, "failed", 0)
     monkeypatch.setattr(ux_log, "failed", 0)
     monkeypatch.setitem(server._SENSES, "ux_drain_why", None)
+    monkeypatch.setitem(server._SENSES, "ux_drain_failed", 0)
     b = book_log.Book(day="2026-09-21")
     monkeypatch.setitem(server._SENSES, "book", b)
     c = server._coverage()["book"]
@@ -27,7 +28,7 @@ def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
     b.written = 10
     assert server._coverage()["book"] == {"from": {"NIFTY": "09:15:03"}, "dropped": 0, "written": 10,
                                           "rebuild_why": {}, "failed": 0, "ux_failed": 0,
-                                          "drain_why": None, "why": None}
+                                          "drain_why": None, "drain_failed": 0, "why": None}
 
 
 def test_coverage_carries_a_failed_rebuilds_reason_by_index(monkeypatch):
@@ -119,11 +120,14 @@ def test_ux_drain_resets_runs_and_impact_even_when_ofd_lot_raises(monkeypatch):
     assert st["day"] == "2026-09-21"
 
 
-def test_ux_drain_names_a_failed_flush_on_drain_why_and_clears_it_on_the_next_clean_pass(monkeypatch):
+def test_ux_drain_names_a_failed_flush_sticky_until_the_day_rolls(monkeypatch):
     """The flush/on_frames half is the shared, per-process step -- its own
     failure is named on `ux_drain_why` (served in coverage), separate from
-    any per-index `rebuild_why`, and cleared again the next time it succeeds."""
+    any per-index `rebuild_why`. It is STICKY: a clean pass after a failure
+    does not clear it (the wire really did lose rows this process), and
+    `ux_drain_failed` counts every failure. Only a day roll retires both."""
     monkeypatch.setitem(server._SENSES, "ux_drain_why", None)
+    monkeypatch.setitem(server._SENSES, "ux_drain_failed", 0)
     st = {"lot": 65, "tick": 0.05, "day": "2026-09-21", "rebuild_why": None, "runs": None, "impact": None}
     monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
     b = book_log.Book(day="2026-09-21")
@@ -133,12 +137,28 @@ def test_ux_drain_names_a_failed_flush_on_drain_why_and_clears_it_on_the_next_cl
     monkeypatch.setattr(ux_log, "on_frames", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     out = server._ux_drain("2026-09-21")
     assert out == []
-    assert server._SENSES["ux_drain_why"] == "drain failed: RuntimeError: boom"
-    assert server._coverage()["book"]["drain_why"] == "drain failed: RuntimeError: boom"
+    first_why = server._SENSES["ux_drain_why"]
+    assert first_why is not None and "drain failed at " in first_why and "RuntimeError: boom" in first_why
+    assert server._SENSES["ux_drain_failed"] == 1
+    assert server._coverage()["book"]["drain_why"] == first_why
+    assert server._coverage()["book"]["drain_failed"] == 1
 
-    monkeypatch.setattr(ux_log, "on_frames", lambda *a, **k: [])
+    # a second failure bumps the count but keeps the FIRST reason
     out2 = server._ux_drain("2026-09-21")
-    assert out2 == [("NIFTY", {"t": 1})] and server._SENSES["ux_drain_why"] is None
+    assert out2 == [] and server._SENSES["ux_drain_why"] == first_why
+    assert server._SENSES["ux_drain_failed"] == 2
+
+    # a clean pass after that does NOT clear either -- the wire is still short
+    monkeypatch.setattr(ux_log, "on_frames", lambda *a, **k: [])
+    out3 = server._ux_drain("2026-09-21")
+    assert out3 == [("NIFTY", {"t": 1})]
+    assert server._SENSES["ux_drain_why"] == first_why
+    assert server._SENSES["ux_drain_failed"] == 2
+
+    # only a day roll retires both
+    out4 = server._ux_drain("2026-09-22")
+    assert server._SENSES["ux_drain_why"] is None and server._SENSES["ux_drain_failed"] == 0
+    assert st["day"] == "2026-09-22"
 
 
 def test_ux_drain_lands_bars_once_across_the_rebuild_flush_boundary(tmp_path, monkeypatch):

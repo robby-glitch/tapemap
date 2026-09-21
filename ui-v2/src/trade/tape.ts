@@ -53,7 +53,7 @@ export interface UxBarRow extends TapeBarRow {
 }
 export interface UxRun {
   t: number; kind: 'run'; side: -1 | 1; n: number; qty: number; thr: number; p: number | null
-  from_t: number; to_t: number; src: 'ux'; tag: 'I'; why: string
+  from_t: number; to_t: number; src: 'ux'; tag: 'I'; why: string; unit?: 'lots' | 'units'
 }
 export interface UxAgree {
   tag: 'M'

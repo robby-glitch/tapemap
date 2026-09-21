@@ -79,6 +79,15 @@ def test_a_fill_with_no_side_neither_joins_nor_breaks():
     assert r.on_fill(F(603, 1, 650)) is not None
 
 
+def test_a_lotless_run_says_units_not_lots():
+    r = runs.Runs()                                  # no lot -- _lots is a no-op
+    _warm(r)
+    r.on_fill(F(600, 1, 650)); r.on_fill(F(602, 1, 650))
+    ev = r.on_fill(F(604, 1, 650))
+    assert ev["unit"] == "units" and "units" in ev["why"] and "lots" not in ev["why"]
+    assert ev["qty"] == 1950 and ev["thr"] == 325             # unscaled -- still units
+
+
 def test_the_window_forgets_fills_older_than_twenty_minutes():
     r = runs.Runs(lot=65)
     _warm(r)                                         # last at 490 s

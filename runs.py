@@ -98,10 +98,11 @@ class Runs:
             if n == RUN_N:
                 fs = run["fills"]
                 word = "buys" if side == 1 else "sells"
+                unit = "lots" if self.lot else "units"
                 ev = {"t": t, "kind": "run", "side": side, "n": n, "from_t": fs[0]["ltt"], "to_t": t,
                       "qty": self._lots(sum(x["q"] for x in fs)), "thr": self._lots(thr), "p": self._wavg_p(fs),
-                      "src": "ux", "tag": "I",
-                      "why": f"{n} {word} ≥ {self._lots(thr):g} lots inside {RUN_GAP_S} s — each in the top decile of the last 20 min"}
+                      "src": "ux", "tag": "I", "unit": unit,
+                      "why": f"{n} {word} ≥ {self._lots(thr):g} {unit} inside {RUN_GAP_S} s — each in the top decile of the last 20 min"}
                 run["ev"] = ev
                 self.events.append(ev)
                 fired = ev

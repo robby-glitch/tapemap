@@ -126,8 +126,13 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            "ux": {},
            # the shared flush/step half of `_ux_drain` names its own failure
            # here -- process-wide, not per index (`ux` state's `rebuild_why`
-           # is per index, for the rebuild half only). None on a clean pass.
+           # is per index, for the rebuild half only). Sticky: the FIRST
+           # failure's reason is kept (a clean pass does not clear it, so a
+           # reader never sees "no problem" for a wire that is still short
+           # bars), `ux_drain_failed` counts every failure since, and a day
+           # roll resets both.
            "ux_drain_why": None,
+           "ux_drain_failed": 0,
            # THE FRAME the tape most recently produced, idx -> the dict also
            # appended to frame_log when its signature changes. Placeholder
            # until frame.py lands.
@@ -1133,6 +1138,12 @@ def _ux_drain(day: str) -> list:
                 # `impact` are ALSO reset in `finally`, not inline, so a raise
                 # inside `_ofd_lot` -- before either line would otherwise run
                 # -- cannot leave yesterday's machines in place for today.
+                # `ux_drain_why`/`ux_drain_failed` are process-wide, not
+                # per-index, but a day roll is the one event that legitimately
+                # retires yesterday's sticky failure -- a new day gets a clean
+                # wire to complain about.
+                _SENSES["ux_drain_why"] = None
+                _SENSES["ux_drain_failed"] = 0
                 lot = None
                 try:
                     # dump (upstox_instruments, resolved in _ux_meta) first,
@@ -1161,10 +1172,11 @@ def _ux_drain(day: str) -> list:
         rows = _SENSES["book"].flush(day)
         if rows:
             ux_log.on_frames(rows, day, observer=_ux_observe)
-        _SENSES["ux_drain_why"] = None
         return rows
     except Exception as e:               # named on ux_drain_why, never raised past here
-        _SENSES["ux_drain_why"] = f"drain failed: {type(e).__name__}: {e}"
+        if _SENSES["ux_drain_why"] is None:            # sticky: the FIRST failure is kept
+            _SENSES["ux_drain_why"] = f"drain failed at {time.strftime('%H:%M:%S')}: {type(e).__name__}: {e}"
+        _SENSES["ux_drain_failed"] += 1
         log.exception("ux drain")
         return []
 
@@ -2666,6 +2678,7 @@ def _book_coverage():
     if _SENSES.get("book") is None:
         return {"from": {}, "dropped": 0, "written": 0, "rebuild_why": {}, "failed": book_log.failed,
                 "ux_failed": ux_log.failed, "drain_why": _SENSES.get("ux_drain_why"),
+                "drain_failed": _SENSES.get("ux_drain_failed", 0),
                 "why": "no book writer in this process"}
     b = _SENSES["book"]
     frm = dict(b.book_from)
@@ -2677,7 +2690,8 @@ def _book_coverage():
         why = f"{why} — {note}" if why else note
     return {"from": frm, "dropped": b.dropped, "written": b.written, "rebuild_why": rebuild_why,
             "failed": book_log.failed, "ux_failed": ux_log.failed,
-            "drain_why": _SENSES.get("ux_drain_why"), "why": why}
+            "drain_why": _SENSES.get("ux_drain_why"), "drain_failed": _SENSES.get("ux_drain_failed", 0),
+            "why": why}
 
 
 def _coverage():

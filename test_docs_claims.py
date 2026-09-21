@@ -54,10 +54,13 @@ def test_stated_test_count_matches_reality(request):
         pytest.skip("subset run; testscollected is not the repo's test count")
 
     actual = request.session.testscollected
-    # CLAUDE.md and START-HERE.md also state a count ("N collected, M passing"),
-    # scanned here too -- but that phrasing does not match either regex below
-    # (final review wave 2, 2026-09-21), so the pin on them is not yet live;
-    # see the wave-2 fix report before adding a third pattern for it.
+    # CLAUDE.md and START-HERE.md also state a count ("N collected, M passing")
+    # -- pinned on `collected` below (final review wave 3, 2026-09-21). The
+    # same phrase appears in HANDOFF.md's dated history too, but those are
+    # stale BY DESIGN (each entry cites the count at the time it was written,
+    # same as its commit hashes -- test_handoff_header_names_no_commit_hash
+    # is the same rule applied to hashes), so the `collected` pattern is only
+    # applied to these two first-read files, never to HANDOFF.md.
     docs = {p: _read(*p.split("/")) for p in
             ("context/HANDOFF.md", "context/DEFERRED.md", "PRODUCT.md",
              "README.md", "context/research-findings.md", "CLAUDE.md", "START-HERE.md")}
@@ -67,6 +70,8 @@ def test_stated_test_count_matches_reality(request):
         found = [int(n) for n in re.findall(r"\*\*(\d+) tests pass", text)]
         found += [int(n) for n in
                   re.findall(r"[Tt]est count is now \*?\*?(\d+)", text)]
+        if path in ("CLAUDE.md", "START-HERE.md"):
+            found += [int(n) for n in re.findall(r"(\d+) collected", text)]
         if found:
             claims[path] = found
 
