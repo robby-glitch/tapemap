@@ -29,14 +29,17 @@ def _fmt(v):
 def main(idx: str, day: str, lot=None, tick=None) -> int:
     ofd = tape_log.read_bars(day, idx)
     ux = ux_log.read_bars(day, idx)
-    if not ux and os.path.exists(book_log.day_path(day, idx)):
+    have_book = os.path.exists(book_log.day_path(day, idx))
+    if not ux and have_book:
         ux_log.rebuild(day, idx, lot, tick)
         ux = ux_log.read_bars(day, idx)
     missing = []
     if not ofd:
         missing.append(f"no GoCharting record for {idx} on {day}")
     if not ux:
-        missing.append(f"no ux record for {idx} on {day} — and no book file to rebuild one from")
+        missing.append(f"no ux record for {idx} on {day} — the book file holds no frame that closes a bar"
+                       if have_book else
+                       f"no ux record for {idx} on {day} — and no book file to rebuild one from")
     for m in missing:
         print(m)
     if missing:

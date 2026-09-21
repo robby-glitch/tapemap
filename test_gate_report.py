@@ -29,3 +29,16 @@ def test_report_says_which_record_is_missing(capsys):
     assert gate_report.main("NIFTY", "2026-09-11") == 2
     out = capsys.readouterr().out
     assert "no GoCharting record for NIFTY on 2026-09-11" in out and "no ux record for NIFTY on 2026-09-11" in out
+
+
+def test_an_empty_book_file_gets_its_own_sentence(capsys):
+    """Rule 6: a book file that exists but closes no bar is "checked, nothing",
+    not "could not check"."""
+    import os
+    import book_log
+    p = book_log.day_path("2026-09-11", "NIFTY")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "w", encoding="utf-8").close()
+    assert gate_report.main("NIFTY", "2026-09-11") == 2
+    out = capsys.readouterr().out
+    assert "the book file holds no frame that closes a bar" in out and "no book file" not in out
