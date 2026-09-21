@@ -7,7 +7,7 @@ import ZoneRead from './ZoneRead'
 import SetupCheck from './SetupCheck'
 import { useFlow, FlowLine } from './flow'
 import { useFootprint } from './footprint'
-import { useTape } from './tape'
+import { useTape, uxLegend } from './tape'
 import { buildNarration } from './narration'
 import { dayBase, dayPrecision } from './indicators'
 import { buildZones } from './zones'
@@ -1070,6 +1070,12 @@ export default function TradeTab({
               + (tape.reply && publishedInterval !== 5 && publishedInterval !== 15
                   ? ` · delta 5-min record se hai — is chart ke ${publishedInterval ?? '?'}-min bars se nahi jud sakta; 5 ya 15 par dekho`
                   : '')}
+        </div>
+      )}
+
+      {day && tape.reply && (
+        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
+          {uxLegend(tape.reply.ux, printCount.runsDrawn, printCount.runsServed)}
         </div>
       )}
 

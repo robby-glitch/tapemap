@@ -236,16 +236,23 @@ function hhmmOf(t: number): string {
 }
 const DELTA_UP = '#26a69a'   // the CHART_UP pair, one meaning: sign of the delta
 const DELTA_DOWN = '#ef5350'
+const UX_LINE = '#b388ff'
 
 /** Delta and CVD aligned 1:1 with the chart's bars, or null when they cannot be:
  *  the record is 5-minute; 15 sums three record bars exactly; 3 and 1 do not
- *  divide it (spec §J.5). Alignment is by "HH:MM" label, never by index. */
+ *  divide it (spec §J.5). Alignment is by "HH:MM" label, never by index.
+ *  `source` picks which family's bars to read — the ladder record (`ofd`,
+ *  the default) or the Upstox ux ladder (`ux`), which is null-out when the
+ *  reply itself carries a `why` (degraded, no bars to trust). */
 export function alignDelta(
   bars: TapeBar[], prints: TapeReply | null | undefined, interval: number | null | undefined,
+  source: 'ofd' | 'ux' = 'ofd',
 ): { delta: (number | null)[]; cvd: (number | null)[] } | null {
   if (!prints || (interval !== 5 && interval !== 15)) return null
+  const rows = source === 'ux' ? (prints.ux && !prints.ux.why ? prints.ux.bars : []) : prints.bars
+  if (!rows.length) return null
   const per = new Map<string, number>()        // record label -> delta
-  for (const b of prints.bars) per.set(hhmmOf(b.t), b.delta)
+  for (const b of rows) per.set(hhmmOf(b.t), b.delta)
   const delta: (number | null)[] = []
   const cvd: (number | null)[] = []
   let run: number | null = null
@@ -288,12 +295,16 @@ export function buildIndicators(bars: TapeBar[], prints?: TapeReply | null, publ
   const dc = alignDelta(bars, prints, publishedInterval)
   if (dc) {
     const last = [...dc.delta].reverse().find((v) => v != null)
+    const du = alignDelta(bars, prints, publishedInterval, 'ux')
+    const lastU = du ? [...du.delta].reverse().find((v) => v != null) : undefined
     out.push({
       instanceId: 'delta', placement: 'pane',
-      label: `Δ prints [M] · last ${last == null ? '—' : (last > 0 ? '+' : '') + last} lots · CVD ${dc.cvd[dc.cvd.length - 1] ?? '—'}`,
+      label: `Δ prints [M] · last ${last == null ? '—' : (last > 0 ? '+' : '') + last} lots · CVD ${dc.cvd[dc.cvd.length - 1] ?? '—'}`
+        + (du ? ` · Δ ux [I] last ${lastU == null ? '—' : (lastU > 0 ? '+' : '') + Math.round(lastU)} lots` : ' · Δ ux: is din ka ux record nahi'),
       outputs: [
         { name: 'delta', values: dc.delta, color: (last ?? 0) >= 0 ? DELTA_UP : DELTA_DOWN, style: 'histogram' },
         { name: 'cvd', values: dc.cvd, color: OI_LINE },
+        ...(du ? [{ name: 'delta_ux', values: du.delta, color: UX_LINE, style: 'line' as const }] : []),
       ],
     })
   }

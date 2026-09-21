@@ -306,6 +306,10 @@ export default function ContractChart({
     ? prints.marks.tm.filter((m) => m.t >= hoverT && m.t < hoverTNext) : []
   const ofdHere = marks && hoverBar
     ? marks.filter((e) => e.t >= hoverBar.t && (hover != null && bars[hover + 1] ? e.t < bars[hover + 1].t : true)) : []
+  const runsHere = prints?.ux && !prints.ux.why && hoverT != null && hoverTNext != null
+    ? prints.ux.marks.runs.filter((r) => r.to_t >= hoverT && r.to_t < hoverTNext) : []
+  const uxBarHere = prints?.ux && !prints.ux.why && hoverT != null
+    ? (prints.ux.bars.find((b) => b.t === hoverT) ?? null) : null
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -321,6 +325,8 @@ export default function ContractChart({
           rot={rotation?.[hover] ?? null}
           tm={tmHere}
           ofd={ofdHere}
+          runs={runsHere}
+          uxBar={uxBarHere}
           x={hoverPos.x}
           y={hoverPos.y}
           boxW={hoverPos.w}

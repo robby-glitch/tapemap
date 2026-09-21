@@ -11,7 +11,7 @@ import { dayBase } from './indicators'
 import type { Narration } from './narration'
 import { glossOf, pillText, dirText } from './hinglish'
 import type { RotationSignal, TapeBar } from '../data'
-import type { TapeMark } from './tape'
+import type { TapeMark, UxRun, UxBarRow } from './tape'
 import type { FootEvent } from './footprint'
 
 interface Props {
@@ -28,6 +28,10 @@ interface Props {
   /** The extension's marks stamped inside this bar's span. They carry no `why`
    *  on the wire, and the row says so rather than inventing one. */
   ofd?: FootEvent[]
+  /** The Upstox family's runs that completed inside this bar's span (each with a `why`). */
+  runs?: UxRun[]
+  /** The Upstox ladder's own bar, for the residual sentence. */
+  uxBar?: UxBarRow | null
   /** Cursor position inside the chart frame. */
   x: number
   y: number
@@ -108,7 +112,7 @@ function toneColor(pal: ReturnType<typeof palette>, tone: Narration['tone']): st
   }
 }
 
-export default function Callout({ mode, bar, prevBar, day, narr, rot = null, tm, ofd, x, y, boxW, boxH }: Props) {
+export default function Callout({ mode, bar, prevBar, day, narr, rot = null, tm, ofd, runs, uxBar, x, y, boxW, boxH }: Props) {
   const pal = palette(mode)
   // The box grows by the rotation block when there is one, so the
   // edge-flip/clamp arithmetic keeps the WHOLE callout on screen rather than
@@ -271,7 +275,7 @@ export default function Callout({ mode, bar, prevBar, day, narr, rot = null, tm,
           </div>
         </div>
       )}
-      {((tm && tm.length) || (ofd && ofd.length)) ? (
+      {((tm && tm.length) || (ofd && ofd.length) || (runs && runs.length) || uxBar) ? (
         <div style={{ padding: '7px 11px 9px', borderTop: `1px solid ${pal.border}` }}>
           <div style={{ fontSize: 10, color: pal.textMuted, marginBottom: 2 }}>prints · is bar ke marks</div>
           {ofd?.map((e, i) => (
@@ -286,6 +290,20 @@ export default function Callout({ mode, bar, prevBar, day, narr, rot = null, tm,
               {m.kind}{m.p != null ? ` @ ${m.p}` : ''} · tapemap (tm) [I] — {m.why ?? 'wajah nahi mili'}
             </div>
           ))}
+          {runs?.map((r, i) => (
+            <div key={`r${i}`} style={{ fontSize: 11, color: pal.textSecondary, lineHeight: 1.4 }}>
+              run{r.p != null ? ` @ ${r.p}` : ''} · {r.n} {r.side === 1 ? 'buys' : 'sells'} · tapemap (ux) [I] — {r.why}
+            </div>
+          ))}
+          {uxBar && uxBar.vol > 0 && (uxBar.hidden ?? 0) / uxBar.vol > 0.5 && (
+            <div style={{ fontSize: 11, color: pal.caution, lineHeight: 1.4 }}>
+              {/* spec 2 §F: a ladder built mostly by residual must not read like one built by proof */}
+              ux ladder here is mostly residual — the visible book explained {Math.round(100 * (1 - (uxBar.hidden ?? 0) / uxBar.vol))} %
+            </div>
+          )}
+          {uxBar?.partial && (
+            <div style={{ fontSize: 11, color: pal.textMuted, lineHeight: 1.4 }}>ux bar partial — {uxBar.partial_why}</div>
+          )}
         </div>
       ) : null}
     </div>
