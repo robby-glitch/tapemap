@@ -99,10 +99,14 @@ class Runs:
                 fs = run["fills"]
                 word = "buys" if side == 1 else "sells"
                 unit = "lots" if self.lot else "units"
+                thr_lots = self._lots(thr)
+                # "1 lot"/"1 unit", not "1 lots"/"1 units" -- the `unit` field
+                # itself stays plural (a fixed category, tested as such).
+                thr_unit = unit[:-1] if thr_lots == 1 else unit
                 ev = {"t": t, "kind": "run", "side": side, "n": n, "from_t": fs[0]["ltt"], "to_t": t,
-                      "qty": self._lots(sum(x["q"] for x in fs)), "thr": self._lots(thr), "p": self._wavg_p(fs),
+                      "qty": self._lots(sum(x["q"] for x in fs)), "thr": thr_lots, "p": self._wavg_p(fs),
                       "src": "ux", "tag": "I", "unit": unit,
-                      "why": f"{n} {word} ≥ {self._lots(thr):g} {unit} inside {RUN_GAP_S} s — each in the top decile of the last 20 min"}
+                      "why": f"{n} {word} ≥ {thr_lots:g} {thr_unit} inside {RUN_GAP_S} s — each in the top decile of the last 20 min"}
                 run["ev"] = ev
                 self.events.append(ev)
                 fired = ev

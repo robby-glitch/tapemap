@@ -405,6 +405,22 @@ def test_api_tape_ux_lot_why_names_a_lotless_day(tmp_path, monkeypatch):
     assert ux["lot_why"] == "no traded volume yet to infer a lot from"
 
 
+def test_api_tape_ux_lot_why_says_mixed_when_the_days_bars_disagree_on_source(tmp_path, monkeypatch):
+    """A day that crossed a dump outage: earlier bars landed at gcd, later
+    ones once the dump came back -- the LAST bar's lot_src alone would hide
+    that the bars are not one unit, so the mixed sentence overrides it (worse
+    than the plain gcd sentence, which it takes priority over)."""
+    _isolate_ux(tmp_path, monkeypatch)
+    _write_ux_bar("2026-09-17", "NIFTY", 1757563500000, "gcd")
+    _write_ux_bar("2026-09-17", "NIFTY", 1757563500000 + 300_000, "dump")
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-17")
+    server.Handler.do_GET(cap)
+    ux = cap.sent["ux"]
+    assert ux["lot_src"] == "dump"          # the last bar's, as before
+    assert ux["lot_why"] == ("mixed lot provenance across the day's bars: dump, gcd"
+                             " — the bars are not in one unit")
+
+
 def test_api_tape_ux_agree_why_when_no_ux_bar_shares_a_t_with_gocharting(tmp_path, monkeypatch):
     """Both records exist for the day, but at disjoint `t`s -- GoCharting's bars
     shifted one day later than the ux bars' own default `t`s (_ux_seed's), each

@@ -114,6 +114,19 @@ def test_read_bars_collapses_a_duplicate_t_last_row_wins():
     assert bars[0]["vol"] == 9                                         # the LAST row for that t wins
 
 
+def test_dedupe_by_t_skips_a_corrupt_t_never_raises(tmp_path):
+    """A row whose `t` is a dict (unhashable -- would raise) or `null`
+    (hashable, but would collapse every such row into one bin) is skipped;
+    the good rows still come back."""
+    p = ux_log.day_path("2026-09-11", "NIFTY")
+    ux_log._write_lines(p, [{"t": T0, "vol": 1, "src": "ux"},
+                            {"t": {"bad": True}, "vol": 2, "src": "ux"},
+                            {"t": None, "vol": 3, "src": "ux"},
+                            {"t": T0 + 300_000, "vol": 4, "src": "ux"}])
+    bars = ux_log.read_bars("2026-09-11", "NIFTY")
+    assert [b["t"] for b in bars] == [T0, T0 + 300_000]
+
+
 def test_write_failure_is_counted_never_raised(monkeypatch):
     monkeypatch.setattr(ux_log, "_write_lines", lambda *a, **k: (_ for _ in ()).throw(OSError("disk")))
     out = ux_log.on_frames([("NIFTY", r) for r in _rows()], "2026-09-11", lot=65, tick=0.05)

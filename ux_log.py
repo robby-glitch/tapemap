@@ -47,11 +47,17 @@ def day_path(day: str, idx: str) -> str:
 
 def _dedupe_by_t(rows: List[dict]) -> List[dict]:
     """a second writer's duplicate t is collapsed here, last row wins, so no
-    reader double-counts a bin -- order of first appearance is preserved."""
+    reader double-counts a bin -- order of first appearance is preserved.
+    A row whose `t` is not a real number (corrupt write, or JSON `null`) is
+    SKIPPED rather than hashed -- prints._by_t's rule ("a row with no `t` is
+    skipped, never sorted against None") applied here so it never collapses
+    every such row into one, and never raises on an unhashable `t`."""
     by_t: Dict[int, dict] = {}
     order: List[int] = []
     for r in rows:
         t = r.get("t")
+        if isinstance(t, bool) or not isinstance(t, (int, float)):
+            continue
         if t not in by_t:
             order.append(t)
         by_t[t] = r

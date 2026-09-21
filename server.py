@@ -1233,6 +1233,15 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
         out["lot_why"] = bars_raw[-1].get("lot_why")
     else:
         out["lot_why"] = None
+    # a day can cross a dump outage, a GoCharting-only stretch and a rebuild
+    # all in one file: the LAST bar's lot_src (served above) hides that the
+    # earlier bars were resolved a different way -- and different sources can
+    # disagree, so the bars are not provably one unit. This is worse than the
+    # gcd sentence (a known, consistent fallback), so it overrides it.
+    srcs = {b.get("lot_src") for b in bars_raw}
+    if len(srcs) > 1:
+        out["lot_why"] = ("mixed lot provenance across the day's bars: " + ", ".join(sorted(str(s) for s in srcs))
+                          + " — the bars are not in one unit")
     frames = sum(b.get("frames") or 0 for b in bars_raw)
     out["frames_per_s"] = round(frames / (300.0 * len(bars_raw)), 2)
     r = st.get("runs")

@@ -88,6 +88,15 @@ def test_a_lotless_run_says_units_not_lots():
     assert ev["qty"] == 1950 and ev["thr"] == 325             # unscaled -- still units
 
 
+def test_a_threshold_of_exactly_one_lot_is_singular_in_the_why():
+    r = runs.Runs(lot=325)                            # threshold 325 units = 1 lot
+    _warm(r)
+    r.on_fill(F(600, 1, 650)); r.on_fill(F(602, 1, 650))
+    ev = r.on_fill(F(604, 1, 650))
+    assert ev["thr"] == 1 and "1 lot " in ev["why"] and "1 lots" not in ev["why"]
+    assert ev["unit"] == "lots"                        # the field itself stays a fixed category
+
+
 def test_the_window_forgets_fills_older_than_twenty_minutes():
     r = runs.Runs(lot=65)
     _warm(r)                                         # last at 490 s
