@@ -1108,10 +1108,11 @@ function drawBalloons(
    containing candle is looked up for ONE thing: which way is "away", for the
    chevron's apex and for de-overlapping two marks on one clock. */
 
-/** The four kinds that have a shape, in the extension's own draw priority
- *  (overlay.js `PRIO`). `initiative` and `vacuum` are absent on purpose: the
- *  extension does not count them as events of the read either (its B.8) and
- *  the family has no glyph for them. TradeTab discloses how many were left. */
+/** The five kinds that have a shape, in the extension's own draw priority
+ *  (overlay.js `PRIO`), plus `run`, the ux family's own kind. `initiative` and
+ *  `vacuum` are absent on purpose: the extension does not count them as
+ *  events of the read either (its B.8) and the family has no glyph for them.
+ *  TradeTab discloses how many were left. */
 const MARK_PRIO: Record<string, number> = { trap: 0, absorption: 1, exhaustion: 2, climax: 3, run: 4 }
 const MARK_LETTER: Record<string, string> = {
   trap: 'P', climax: 'C', absorption: 'A', exhaustion: 'E',
@@ -1191,8 +1192,9 @@ export function markCounts(
    interval. Per-bar marks are placed by their own t and prices, never
    snapped to a candle (footprint.ts:21-27). The tm glyphs are HOLLOW
    versions of the ofd family's shapes with a lowercase letter, on the
-   opposite side of the bar, so the two families read as two readers and
-   never share a de-overlap pool. */
+   opposite side of the bar, so the three families read as three readers and
+   never share a de-overlap pool — `ofd` solid, `tm` hollow-lettered, `ux`
+   drawn as a ring. */
 const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', climax: 'c', run: 's' }
 
 /** What the prints pass actually DRAWS off a reply, counted by the same rules
@@ -1219,7 +1221,8 @@ export function printsCounts(
     if (m.p == null || !Number.isFinite(m.p) || m.t > tCut) continue
     tmDrawn++
   }
-  for (const r of reply?.ux?.marks.runs ?? []) {
+  const runsGated = reply?.ux && !reply.ux.why ? reply.ux.marks.runs : []
+  for (const r of runsGated) {
     if (r.p == null || !Number.isFinite(r.p) || r.to_t > tCut) continue
     runsDrawn++
   }
@@ -1230,7 +1233,7 @@ export function printsCounts(
     if (b.unfinished_low) unfinished++
   }
   return { tmServed: reply?.marks.tm.length ?? 0, tmDrawn, stacks, unfinished,
-           runsServed: reply?.ux?.marks.runs.length ?? 0, runsDrawn }
+           runsServed: runsGated.length, runsDrawn }
 }
 
 function drawPrints(
