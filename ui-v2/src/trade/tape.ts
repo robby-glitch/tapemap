@@ -31,7 +31,7 @@ export interface TapeLevels {
 }
 export interface TapeMark {
   t: number; kind: string; side: -1 | 0 | 1 | null; p: number | null; size: number | null
-  src: 'ofd' | 'tm'; why?: string; tag?: 'I'
+  src: 'ofd' | 'tm' | 'ux'; why?: string; tag?: 'I'
 }
 export interface TapeReply {
   ok: true; idx: string; day: string; interval: 5; src: 'live' | 'file'; tag: 'M'
@@ -41,7 +41,62 @@ export interface TapeReply {
   ladder_why: string | null
   levels: TapeLevels
   marks: { ofd: TapeMark[]; ofd_why: string | null; tm: TapeMark[]; tm_why: string | null }
+  ux: TapeUx
   why: null
+}
+
+export interface UxBarRow extends TapeBarRow {
+  unknown: number
+  exact: number | null; reconstructed: number | null; hidden: number | null
+  partial: boolean | null; partial_why: string | null
+}
+export interface UxRun {
+  t: number; kind: 'run'; side: -1 | 1; n: number; qty: number; thr: number; p: number | null
+  from_t: number; to_t: number; src: 'ux'; tag: 'I'; why: string
+}
+export interface UxAgree {
+  tag: 'M'
+  bars_joined: number; bars_ofd_only: number; bars_ux_only: number
+  poc_rows_median: number | null; poc_rows_median_why: string | null
+  poc_within_1: number | null; poc_within_1_why: string | null
+  delta_sign_agree: number | null; delta_sign_agree_why: string | null
+  vol_ratio_median: number | null; vol_ratio_median_why: string | null
+  va_overlap: number | null; va_overlap_why: string | null
+  hvn_jaccard: number | null; hvn_jaccard_why: string | null
+  lvn_jaccard: number | null; lvn_jaccard_why: string | null
+  exact_frac: number | null; exact_frac_why: string | null
+  hidden_frac: number | null; hidden_frac_why: string | null
+  unknown_frac: number | null; unknown_frac_why: string | null
+}
+export interface UxImpact { lambda: number | null; lots_per_tick: number | null; pct: number | null; n: number; why: string | null; tag: 'I' }
+export interface TapeUx {
+  src: 'ux'; tag: 'I'
+  bars: UxBarRow[]; forming: UxBarRow | null
+  levels: { session: { poc: number; vah: number; val: number } | null; nodes: TapeNode[]; why: string | null }
+  marks: { runs: UxRun[]; runs_why: string | null }
+  impact: UxImpact | null
+  agree: UxAgree | null; agree_why: string | null
+  book_from: string | null; frames_per_s: number | null; lot: number | null; lot_src: string | null
+  why: string | null
+}
+
+/** The one legend line for the Upstox family (spec 2 §F). Pure: a string off the wire, three
+ *  sentences where the wire says so, never a verdict. */
+export function uxLegend(ux: TapeUx | null | undefined, runsDrawn: number, runsServed: number): string {
+  if (!ux) return 'Upstox tape: reply mein ux object nahi aaya'
+  if (ux.why) return `Upstox tape: ${ux.why}`
+  const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)} %`)
+  const head = `Upstox tape (ux · ${ux.bars.length} bars · ${ux.frames_per_s ?? '—'} frames/s · book from ${ux.book_from ?? '—'} · lot ${ux.lot ?? '—'}${ux.lot_src ? ` (${ux.lot_src})` : ''}) [I]`
+  const a = ux.agree
+  const agree = a
+    ? ` · ux vs ofd: POC ±${a.poc_rows_median ?? '—'} rows (median) · VA overlap ${pct(a.va_overlap)} · delta sign ${pct(a.delta_sign_agree)} · vol ×${a.vol_ratio_median == null ? '—' : a.vol_ratio_median.toFixed(2)} · hidden ${pct(a.hidden_frac)} · unknown ${pct(a.unknown_frac)} [M]`
+    : ` · ${ux.agree_why ?? 'agreement: wajah nahi mili'}`
+  const runs = ` · runs ${runsDrawn} of ${runsServed} bane${runsServed === 0 && ux.marks.runs_why ? ` (${ux.marks.runs_why})` : ''} [I]`
+  const im = ux.impact
+  const lam = im && im.lots_per_tick != null
+    ? ` · λ 1 tick / ~${im.lots_per_tick.toFixed(1)} lots${im.pct != null ? ` (pct ${im.pct.toFixed(2)})` : ''} [I]`
+    : ` · λ: ${im?.why ?? 'gauge nahi mila'}`
+  return head + agree + runs + lam
 }
 
 export function useTape(index: IndexKey): { reply: TapeReply | null; why: string } {

@@ -1112,7 +1112,7 @@ function drawBalloons(
  *  (overlay.js `PRIO`). `initiative` and `vacuum` are absent on purpose: the
  *  extension does not count them as events of the read either (its B.8) and
  *  the family has no glyph for them. TradeTab discloses how many were left. */
-const MARK_PRIO: Record<string, number> = { trap: 0, absorption: 1, exhaustion: 2, climax: 3 }
+const MARK_PRIO: Record<string, number> = { trap: 0, absorption: 1, exhaustion: 2, climax: 3, run: 4 }
 const MARK_LETTER: Record<string, string> = {
   trap: 'P', climax: 'C', absorption: 'A', exhaustion: 'E',
 }
@@ -1193,7 +1193,7 @@ export function markCounts(
    versions of the ofd family's shapes with a lowercase letter, on the
    opposite side of the bar, so the two families read as two readers and
    never share a de-overlap pool. */
-const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', climax: 'c' }
+const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', climax: 'c', run: 's' }
 
 /** What the prints pass actually DRAWS off a reply, counted by the same rules
  *  drawPrints applies — `markCounts`' bargain for the tm family and the per-bar
@@ -1210,13 +1210,18 @@ const TM_LETTER: Record<string, string> = { absorption: 'a', exhaustion: 'e', cl
  *  zoom". */
 export function printsCounts(
   reply: TapeReply | null, tCut: number,
-): { tmServed: number; tmDrawn: number; stacks: number; unfinished: number } {
+): { tmServed: number; tmDrawn: number; stacks: number; unfinished: number; runsServed: number; runsDrawn: number } {
   let tmDrawn = 0
   let stacks = 0
   let unfinished = 0
+  let runsDrawn = 0
   for (const m of reply?.marks.tm ?? []) {
     if (m.p == null || !Number.isFinite(m.p) || m.t > tCut) continue
     tmDrawn++
+  }
+  for (const r of reply?.ux?.marks.runs ?? []) {
+    if (r.p == null || !Number.isFinite(r.p) || r.to_t > tCut) continue
+    runsDrawn++
   }
   for (const b of reply?.bars ?? []) {
     if (b.t > tCut) continue
@@ -1224,7 +1229,8 @@ export function printsCounts(
     if (b.unfinished_high) unfinished++
     if (b.unfinished_low) unfinished++
   }
-  return { tmServed: reply?.marks.tm.length ?? 0, tmDrawn, stacks, unfinished }
+  return { tmServed: reply?.marks.tm.length ?? 0, tmDrawn, stacks, unfinished,
+           runsServed: reply?.ux?.marks.runs.length ?? 0, runsDrawn }
 }
 
 function drawPrints(
@@ -1277,6 +1283,14 @@ function drawPrints(
     line(L.session.vah, withAlpha(pal.textMuted, 0.9), [6, 5], `VAH ${L.session.vah}`)
     line(L.session.val, withAlpha(pal.textMuted, 0.9), [6, 5], `VAL ${L.session.val}`)
     line(L.session.poc, withAlpha(pal.accent, 0.95), [6, 5], `POC ${L.session.poc}`)
+  }
+  // the Upstox family's session levels: same colours, DOTTED, labelled ux, placed by
+  // the same de-clutter so they never overprint the solid ones (spec 2 §F)
+  const U = reply.ux
+  if (U && !U.why && U.levels.session) {
+    line(U.levels.session.vah, withAlpha(pal.textMuted, 0.7), [2, 3], `VAH ux ${U.levels.session.vah}`)
+    line(U.levels.session.val, withAlpha(pal.textMuted, 0.7), [2, 3], `VAL ux ${U.levels.session.val}`)
+    line(U.levels.session.poc, withAlpha(pal.accent, 0.75), [2, 3], `POC ux ${U.levels.session.poc}`)
   }
   // prior days, fainter, labelled with the day
   for (const p of L.prior) {
@@ -1333,7 +1347,13 @@ function drawPrints(
   const mids = new Map<number, number>()
   for (const b of reply.bars) mids.set(b.t, (Number(b.h) + Number(b.l)) / 2)
   const tmBy = new Map<number, TapeMark[]>()
-  for (const m of reply.marks.tm) {
+  const asMarks: TapeMark[] = [
+    ...reply.marks.tm,
+    ...((reply.ux && !reply.ux.why) ? reply.ux.marks.runs : []).map((r): TapeMark => ({
+      t: r.to_t, kind: 'run', side: r.side, p: r.p, size: r.qty, src: 'ux', why: r.why, tag: 'I',
+    })),
+  ]
+  for (const m of asMarks) {
     if (m.p == null || !Number.isFinite(m.p) || m.t > tCut) continue
     const g = tmBy.get(m.t)
     if (g) g.push(m)
@@ -1353,7 +1373,7 @@ function drawPrints(
     let prevExt = 0
     for (const m of g) {
       // half the glyph's own height, so two stacked glyphs clear each other
-      const ext = m.kind === 'absorption' ? u * 0.5 : m.kind === 'exhaustion' ? u * 0.7 : u
+      const ext = m.kind === 'absorption' ? u * 0.5 : m.kind === 'exhaustion' ? u * 0.7 : m.kind === 'run' ? u * 0.8 : u
       const y0 = yOf(m.p as number)
       if (!Number.isFinite(y0)) continue
       const y: number = prevY != null && Math.abs(y0 - prevY) < 2 * u
@@ -1371,6 +1391,8 @@ function drawPrints(
       } else if (m.kind === 'exhaustion') {     // chevron, apex away from the candle
         const dir = m.side === -1 ? -1 : 1
         ctx.moveTo(xs - u, y + dir * u); ctx.lineTo(xs, y - dir * u * 0.2); ctx.lineTo(xs + u, y + dir * u)
+      } else if (m.kind === 'run') {            // ring: three prints, one press
+        ctx.arc(xs, y, u * 0.8, 0, Math.PI * 2)
       } else {                                   // diamond
         ctx.moveTo(xs, y - u); ctx.lineTo(xs + u, y); ctx.lineTo(xs, y + u); ctx.lineTo(xs - u, y); ctx.closePath()
       }
@@ -1620,7 +1642,10 @@ export function startLevelsOverlay(
     // them apart so the disclosure in TradeTab and this layer never disagree.
     const structs = smc && structures ? structures : []
     const mc = markCounts(marks)
-    const printsKey = prints ? `${prints.src}:${prints.bars.length}:${prints.forming?.t ?? ''}:${prints.forming?.vol ?? ''}:${prints.marks.tm.length}` : 'x'
+    const printsKey = prints
+      ? `${prints.src}:${prints.bars.length}:${prints.forming?.t ?? ''}:${prints.forming?.vol ?? ''}:${prints.marks.tm.length}`
+        + `:${prints.ux?.bars.length ?? 'x'}:${prints.ux?.forming?.t ?? ''}:${prints.ux?.marks.runs.length ?? 'x'}:${prints.ux?.marks.runs.at(-1)?.n ?? ''}`
+      : 'x'
     const dBars = data.bars
     const dTimes = data.times
     const dNarrs = data.narrs
