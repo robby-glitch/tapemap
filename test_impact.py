@@ -43,3 +43,12 @@ def test_pct_ranks_lambda_against_the_session_so_far():
         im.on_frame(_row(s, mid, mid + 0.05), [{"ltt": T0 + s * 1000, "side": 1, "p": mid, "q": q, "hidden": False}])
     r = im.read()
     assert r["lots_per_tick"] < 2.0 and r["pct"] is not None and r["pct"] > 0.5
+
+
+def test_read_snapshots_the_window_before_iterating():
+    """read() runs on the request thread while on_frame appends on the senses
+    thread; a deque iterated while appended to raises. Pinned by source."""
+    import inspect
+    src = inspect.getsource(impact.Impact._lam)
+    assert "self._win" not in src.split("\n", 1)[1]        # the body never touches the live deque
+    assert "list(self._win)" in inspect.getsource(impact.Impact.read)

@@ -72,3 +72,12 @@ def test_write_failure_is_counted_never_raised(monkeypatch):
     monkeypatch.setattr(ux_log, "_write_lines", lambda *a, **k: (_ for _ in ()).throw(OSError("disk")))
     out = ux_log.on_frames([("NIFTY", r) for r in _rows()], "2026-09-11", lot=65, tick=0.05)
     assert len(out) == 2 and ux_log.failed >= 2
+
+
+def test_the_ladder_step_and_the_forming_copy_share_one_lock():
+    import inspect
+    assert "with _LOCK:" in inspect.getsource(ux_log.on_frames)
+    assert "with _LOCK:" in inspect.getsource(ux_log.rebuild)
+    assert "with _LOCK:" in inspect.getsource(ux_log.forming)
+    # never across disk: _land (the writer) is not under it
+    assert "_LOCK" not in inspect.getsource(ux_log._land)

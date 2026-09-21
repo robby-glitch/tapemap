@@ -13,6 +13,9 @@ precede top-5% 6-bar moves no more often than any other reading, the figure
 goes. Never printed as a rate.
 
 Pure, stdlib only, no I/O, no clock -- time is the rows' own `t`.
+
+read() snapshots the window first: it runs on the request thread while
+on_frame appends on the senses thread.
 """
 from __future__ import annotations
 
@@ -45,16 +48,18 @@ class Impact:
         self._win.append((t, dp, sv))
         while self._win and self._win[0][0] < t - IMPACT_WIN_S * 1000:
             self._win.popleft()
-        lam, _ = self._lam()
+        lam, _ = self._lam(list(self._win))
         if lam is not None:
             self._history.append(lam)          # the session's readings, one per frame that had one
 
-    def _lam(self):
-        """(lambda in ticks per unit, None) or (None, why)."""
-        if not self._win or self._win[-1][0] - self._win[0][0] < (IMPACT_WIN_S - 1) * 1000:
+    def _lam(self, win):
+        """(lambda in ticks per unit, None) or (None, why). `win` is a snapshot
+        list -- this body never touches the live window, which the senses
+        thread may be appending to concurrently."""
+        if not win or win[-1][0] - win[0][0] < (IMPACT_WIN_S - 1) * 1000:
             return None, "fewer than 120 s of frames"
-        num = sum(dp * sv for _, dp, sv in self._win)
-        den = sum(sv * sv for _, _, sv in self._win)
+        num = sum(dp * sv for _, dp, sv in win)
+        den = sum(sv * sv for _, _, sv in win)
         if den <= 0:
             return None, "no signed volume in the window"
         if num <= 0:
@@ -63,8 +68,9 @@ class Impact:
 
     def read(self) -> dict:
         """Pure: safe to call from the request path any number of times."""
-        out = {"lambda": None, "lots_per_tick": None, "pct": None, "n": len(self._win), "why": None, "tag": "I"}
-        lam, why = self._lam()
+        win = list(self._win)               # snapshot once: atomic under the GIL against on_frame's append
+        out = {"lambda": None, "lots_per_tick": None, "pct": None, "n": len(win), "why": None, "tag": "I"}
+        lam, why = self._lam(win)
         if lam is None:
             out["why"] = why
             return out

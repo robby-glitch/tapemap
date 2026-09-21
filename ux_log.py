@@ -19,12 +19,16 @@ the open accumulator by closing a COPY.
 FAIL-SOFT, opened per call, "a" mode. A derivation written beside a
 measurement is how vpin_backfill had to be split from vpin_log -- this file
 holds only the derivation, and the book file holds only the measurement.
+
+_LOCK guards the ladder between the senses thread's step and the request
+thread's forming() copy; it is never held across disk.
 """
 from __future__ import annotations
 
 import copy
 import json
 import os
+import threading
 from collections import deque
 from typing import Dict, List, Optional, Tuple
 
@@ -34,6 +38,7 @@ import tape_log
 
 failed = 0
 _STATE: Dict[str, dict] = {}          # idx -> {"day", "ladder", "bars", "fills", "written", "seen"}
+_LOCK = threading.Lock()
 
 
 def day_path(day: str, idx: str) -> str:
@@ -88,7 +93,8 @@ def on_frames(rows: List[Tuple[str, dict]], day: str, lot: Optional[int] = None,
     fills_by: Dict[str, List[dict]] = {}
     for idx, row in rows:
         st = state(idx, day, lot, tick)
-        closed, fills = st["ladder"].step(row)
+        with _LOCK:
+            closed, fills = st["ladder"].step(row)
         if closed is not None and _land(st, idx, day, closed):
             out.append((idx, closed, fills_by.pop(idx, [])))
         if fills:
@@ -103,7 +109,9 @@ def forming(idx: str, day: str) -> Optional[dict]:
     st = _STATE.get(idx)
     if st is None or st["day"] != day or st["ladder"].acc is None:
         return None
-    return copy.deepcopy(st["ladder"]).close_open()
+    with _LOCK:
+        lad = copy.deepcopy(st["ladder"])
+    return lad.close_open()
 
 
 def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float] = None,
@@ -117,7 +125,8 @@ def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float]
     any_row = False
     for row in book_log.read_rows(day, idx):
         any_row = True
-        closed, fills = lad.step(row)
+        with _LOCK:
+            closed, fills = lad.step(row)
         st["fills"].extend(fills)
         if observer is not None:
             observer(idx, row, fills)
