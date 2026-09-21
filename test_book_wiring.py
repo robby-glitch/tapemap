@@ -94,10 +94,12 @@ def test_ux_drain_names_a_raised_rebuild_and_still_flushes_this_pass(monkeypatch
 
 
 def test_ux_drain_lands_bars_once_across_the_rebuild_flush_boundary(tmp_path, monkeypatch):
-    """End to end: a book file rebuilt into one closed bar, then two more
-    frames drained through `on_frame`/`flush` on a SECOND `_ux_drain` call --
-    the ladder must continue from where the rebuild left off, never re-step
-    the rebuilt frames, and runs/impact must have seen every frame."""
+    """End to end: a book file rebuilt with the restart bin left open (`_ux_drain`
+    passes `close_last=False`), then more frames drained through `on_frame`/
+    `flush` on a SECOND `_ux_drain` call, landing in the SAME bin the file
+    ended inside -- the ladder must continue from where the rebuild left off,
+    never re-step the rebuilt frames, land that bin exactly once with BOTH
+    halves in it, and runs/impact must have seen every frame."""
     import runs as runs_mod
     import impact as impact_mod
     import tape_log
@@ -109,7 +111,8 @@ def test_ux_drain_lands_bars_once_across_the_rebuild_flush_boundary(tmp_path, mo
     ux_log._STATE.clear()
 
     # the rebuild half: three frames written straight to the book file, all
-    # inside bin 0 -- rebuild closes bin 0 at file end.
+    # inside bin 0 -- the restart-bin fix leaves bin 0 open at file end
+    # (close_last=False) instead of closing it early.
     rows = [R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]),
             R(T0 + 2000, 1065, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),
             R(T0 + 3000, 1195, 100.05, 65, [[100.00, 65]], [[100.10, 65]])]
@@ -126,18 +129,27 @@ def test_ux_drain_lands_bars_once_across_the_rebuild_flush_boundary(tmp_path, mo
     monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
 
     out1 = server._ux_drain("2026-09-21")
-    assert out1 == []                                  # nothing in the deque yet; the rebuild wrote bin 0 alone
-    bars_after_rebuild = ux_log.read_bars("2026-09-21", "NIFTY")
-    assert [bar["t"] for bar in bars_after_rebuild] == [T0]
+    assert out1 == []                                  # nothing in the deque yet
+    assert ux_log.read_bars("2026-09-21", "NIFTY") == []     # bin 0 left open, not landed
+    assert ux_log.forming("NIFTY", "2026-09-21")["t"] == T0
 
-    # the flush half: two more frames via on_frame, continuing bin 1 -- must
-    # NOT trigger a second rebuild (st["day"] is already today).
-    b.on_frame(FUT, _frame(vtt=1260, ltp=100.10, ltq=65, ltt=T0 + 300_100,
-                           bids=((100.00, 65),), asks=((100.10, 65),)), now_ms=T0 + 300_100)
-    b.on_frame(FUT, _frame(vtt=1325, ltp=100.15, ltq=65, ltt=T0 + 300_200,
-                           bids=((100.05, 65),), asks=((100.15, 65),)), now_ms=T0 + 300_200)
+    # the flush half: one frame still inside bin 0, then one that crosses into
+    # bin 1 and so closes bin 0 -- must NOT trigger a second rebuild
+    # (st["day"] is already today).
+    b.on_frame(FUT, _frame(vtt=1260, ltp=100.10, ltq=65, ltt=T0 + 150_000,
+                           bids=((100.05, 65),), asks=((100.15, 65),)), now_ms=T0 + 150_000)
+    b.on_frame(FUT, _frame(vtt=1325, ltp=100.15, ltq=65, ltt=T0 + 300_100,
+                           bids=((100.10, 65),), asks=((100.20, 65),)), now_ms=T0 + 300_100)
     out2 = server._ux_drain("2026-09-21")
-    assert [idx for idx, _ in out2] == ["NIFTY", "NIFTY"]
+    assert [idx for idx, _ in out2] == ["NIFTY", "NIFTY"]     # the two flushed rows
+
+    bars = ux_log.read_bars("2026-09-21", "NIFTY")
+    assert [bar["t"] for bar in bars] == [T0]           # bin 0 landed exactly once, not re-stepped
+    landed = bars[0]
+    assert landed["frames"] == 4                        # 3 file rows + the one live frame still inside bin 0
+    assert landed["vol"] == 4.0 and landed["partial"] is False   # file's two trades plus the live one, in lots
+    assert st["impact"].read()["n"] > 0                 # every frame reached the gauge
+    assert st["runs"].window_n > 0                      # every fill reached the run detector
 
     bars = ux_log.read_bars("2026-09-21", "NIFTY")
     assert [bar["t"] for bar in bars] == [T0]           # bin 0 landed exactly once, not re-stepped

@@ -1136,7 +1136,8 @@ def _ux_drain(day: str) -> list:
                     st["runs"] = runs_mod.Runs(lot=lot)
                     st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
                     ux_log.state(idx, day, lot, st["tick"], lot_src=lot_src)
-                    n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe)
+                    n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe,
+                                          close_last=False)
                     if n_re:
                         log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
                     st["lot_src"] = lot_src

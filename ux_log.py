@@ -118,10 +118,17 @@ def forming(idx: str, day: str) -> Optional[dict]:
 
 
 def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float] = None,
-            lot_src: Optional[str] = None, observer=None) -> int:
+            lot_src: Optional[str] = None, observer=None, close_last: bool = True) -> int:
     """Stream today's book file; write every closed bin the file holds that the
-    ux file lacks, and close the bin the file ends inside. Returns bars written.
-    `observer` as in `on_frames`, so runs/impact warm up on a restart too."""
+    ux file lacks. `close_last` also closes the bin the file ends inside --
+    right for `tools/gate_report.py`, which runs from files alone after close,
+    but wrong for the live server: on a mid-day restart that bin is the
+    CURRENT one, so closing it here would make the live stream's first frame
+    in it look like a fresh bar and lose the rest to `_land`'s write-once
+    guard -- `server._ux_drain` passes `close_last=False` and leaves it for
+    the stream to finish, `forming()` serving it meanwhile. Returns bars
+    written. `observer` as in `on_frames`, so runs/impact warm up on a restart
+    too."""
     n = 0
     st = state(idx, day, lot, tick, lot_src)
     lad = st["ladder"]
@@ -135,7 +142,7 @@ def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float]
             observer(idx, row, fills)
         if closed is not None and _land(st, idx, day, closed):
             n += 1
-    if any_row:
+    if any_row and close_last:
         with _LOCK:
             last = lad.close_open()
         if last is not None and _land(st, idx, day, last):

@@ -57,6 +57,39 @@ def test_rebuild_streams_the_book_file_and_writes_only_missing_bins(monkeypatch)
     assert ux_log.state("NIFTY", "2026-09-11")["bars"][-1]["t"] == T0 + 600_000
 
 
+def test_rebuild_on_the_live_path_leaves_the_last_bin_for_the_stream():
+    """`close_last=False` (what `server._ux_drain` passes): the bin the book
+    file ends inside is NOT landed by the rebuild -- the live stream continues
+    it, and it lands once, whole, when a frame finally crosses its boundary."""
+    rows = [R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 2000, 1065, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 300_500, 1130, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 320_000, 1195, 100.05, 65, [[100.00, 65]], [[100.05, 65]])]
+    p = book_log.day_path("2026-09-11", "NIFTY")
+    os.makedirs(os.path.dirname(p))
+    with open(p, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r) + "\n")
+    n = ux_log.rebuild("2026-09-11", "NIFTY", 65, 0.05, close_last=False)
+    bars = ux_log.read_bars("2026-09-11", "NIFTY")
+    assert n == 1 and [b["t"] for b in bars] == [T0]
+    assert ux_log.forming("NIFTY", "2026-09-11")["t"] == T0 + 300_000
+
+    # the live stream continues bin 1 -- two more frames inside it, then one
+    # in bin 2 that finally closes it.
+    live = [R(T0 + 340_000, 1260, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 380_000, 1325, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 600_500, 1325, 100.05, 65, [[100.00, 65]], [[100.05, 65]])]
+    ux_log.on_frames([("NIFTY", r) for r in live], "2026-09-11", lot=65, tick=0.05)
+    bars = ux_log.read_bars("2026-09-11", "NIFTY")
+    assert [b["t"] for b in bars] == [T0, T0 + 300_000]     # bin 1 landed exactly once
+    landed = bars[1]
+    # all four of bin 1's trades (1065->1130 from the file, 1130->1195,
+    # 1195->1260, 1260->1325) in lots -- more than the file alone ever held
+    # (it never landed bin 1 at all under close_last=False).
+    assert landed["vol"] == 4.0 and landed["partial"] is False
+
+
 def test_rebuild_without_a_book_file_writes_nothing():
     assert ux_log.rebuild("2026-09-11", "NIFTY") == 0 and ux_log.read_bars("2026-09-11", "NIFTY") == []
 
