@@ -178,6 +178,8 @@ server.py :8765 ─────────────────────�
                                                    └──► ui-v2/ (React on Vite, 5173 — restored 2026-09-18)
 
 tape_log.py  data/tape/  (the ladder record: bars + the extension's marks, write-once)
+book_log.py  data/book/  (the book record: every changed frame of each index future off the socket, write-once by t)
+ux_log.py    data/tape/ux_<idx>_<day>.jsonl  (the Upstox ladder, derived by ladder.py, written once at bin close; ux_gate.py measures it against GoCharting's)
 
 ── THE DESK, a separate stack on the same server ─────────────────────────
 
@@ -230,7 +232,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 1269 collected, 1266 passing, 3 pre-existing failures in test_desk_numbers.py (theta_day_est returns None -- the desk's code, untouched by this work), as of 2026-09-19
+python -m pytest -q       # 1345 collected, 1342 passing, 3 pre-existing failures in test_desk_numbers.py (theta_day_est returns None -- the desk's code, untouched by this work), as of 2026-09-21
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a

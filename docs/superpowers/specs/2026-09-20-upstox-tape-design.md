@@ -44,7 +44,7 @@ proof with a persistence wrapper; the wrapper is deferred (§I). Its sweep detec
 | every decoded frame of each index future, on disk | `book_log.py` + one hook in `upstox_feed.py` | record | `[M]` |
 | the frames of one 5-minute bar → a ladder in spec 1's row shape | `ladder.py` (pure) | derivation | `[I]` (side, level); `[M]` (vol, OHLC, oi) |
 | the day's `ux` bars, written once at bar close, rebuilt from the book on restart | `ux_log.py` | record of a derivation | — |
-| GoCharting's bars vs `ux` bars on one grid: shape agreement, per bar and per session | `gate.py` (pure) | measurement of two records | `[M]` |
+| GoCharting's bars vs `ux` bars on one grid: shape agreement, per bar and per session | `ux_gate.py` (pure) | measurement of two records | `[M]` |
 | runs of three big same-side fills inside three seconds, causal percentile | `runs.py` (pure) | detector | `[I]` |
 | price impact: ticks moved per lot of signed volume, rolling 120 s | `impact.py` (pure) | gauge | `[I]` |
 | `/api/tape` gains a `ux` object; the Trade chart draws `ux` session levels dotted, `ux` delta as a second series, `s` glyphs for runs, one agreement line and one λ figure in the legend | `server._tape_reply`, `ui-v2/src/trade/*` | face | — |
@@ -168,6 +168,9 @@ bar's open in epoch ms, IST session — byte-equal to spec 1's `t`, which is the
    `u` for unknown. OHLC from `ltp` of trading frames; `oi` is the bar's last; `vol = Σ V`; `delta = buy − sell`
    (unknown excluded, by definition of a sign); `unknown = Σ u`.
 
+A row with no last price on either side cannot place its volume: V is booked `unknown` and `unpriced`, with no
+fill — the one branch where fills do not sum to V (amended at Task 6).
+
 **Fill events.** Besides bars, `ladder.step` yields each attribution as a fill event
 `{ltt, side: +1|−1|0, p, q_units, hidden: bool}` in tape order — the input of `runs.py` and `impact.py` (§G).
 Within one interval the primary side's fills are listed first, then the other side's (their true interleave is
@@ -190,7 +193,10 @@ the day it exists and the test skips until then (the spec 1 parity pattern).
 
 ---
 
-## §D The gate — `gate.py`, pure
+## §D The gate — `ux_gate.py`, pure
+
+Named `ux_gate` (amended at implementation, Task 9): `gate.py` already existed — the seller's gate, imported by
+`frame.py`.
 
 Two records for one index and day: GoCharting's bars (`tape_log.read_bars`) and `ux` bars (`ux_log.read_bars`).
 Both are re-binned with `prints.rebin` on **GoCharting's grid** (`rowSize`, `rowAnchor` from its record) — the
@@ -244,7 +250,7 @@ from files alone. `partial` is set on the first bar after `book_from` and on any
        "levels": {"session": {poc, vah, val} | null, "nodes": [...], "why": ...},
        "marks": {"runs": [ {t, kind: "run", side, n, qty, thr, from_t, to_t, src: "ux", tag: "I", why} ], "runs_why"},
        "impact": {"lots_per_tick", "pct", "n", "why"} | null,
-       "agree": gate.session(...) | null, "agree_why": ...,
+       "agree": ux_gate.session(...) | null, "agree_why": ...,
        "book_from": "HH:MM:SS" | null, "frames_per_s": measured | null, "lot", "lot_src",
        "why": ...}
 ```
@@ -261,7 +267,7 @@ exists for the day they are computed on `rowSize 5`, `rowAnchor 0` — the exten
 *"fewer than 50 fills in the last 20 minutes — the percentile has nothing to rank against"* / *"checked, none"* /
 `null`. `impact.why`: *"fewer than 120 s of frames"* / *"no signed volume in the window"* / `null`.
 
-**Cost.** `ladder.step` is O(levels) per frame; a bar closes over ~750 frames; `gate.session` runs once per bar
+**Cost.** `ladder.step` is O(levels) per frame; a bar closes over ~750 frames; `ux_gate.session` runs once per bar
 close over ≤ 78 bars; `impact` keeps a 120 s deque. Nothing here parses a file on the request path.
 
 ---
@@ -282,9 +288,10 @@ close over ≤ 78 bars; `impact` keeps a 120 s deque. Nothing here parses a file
 The operator asked for marks on her candle chart, not a second chart; the trader's call is that the three session
 lines and the delta line are the read, and the numbers carry the rest.
 
-**Hidden-heavy bars.** When a `ux` bar's `hidden / vol > 0.5`, its POC row is drawn hollow and the Callout says
-*"ux ladder here is mostly residual — the visible book explained NN %"*. A ladder built mostly by residual must not
-look like one built by proof.
+**Hidden-heavy bars.** Spec 1 draws no per-bar POC mark, so there is nothing to draw hollow (found at Task 15). The
+Callout carries the sentence instead: *"ux ladder here is mostly residual — the visible book explained NN %"* when
+`hidden / vol > 0.5`, and *"ux bar partial — <why>"* when the bar is partial. A ladder built mostly by residual must
+not read like one built by proof.
 
 ---
 

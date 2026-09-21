@@ -176,6 +176,62 @@ live day for all of it: 2026-08-26.
 operator's memory files in the assistant workspace. The anytime-start audit
 report: https://claude.ai/code/artifact/4b30ccb2-f146-4414-a7ec-be8abcfb5981
 
+### 2026-09-21 — the Upstox tape: the book record, the ux ladder and the gate (spec 2026-09-20-upstox-tape)
+
+**The suite was already red going in.** `python -m pytest -q`: **1345 collected, 1342 passing, 3
+pre-existing failures in `test_desk_numbers.py`** (`theta_day_est` returns `None` on three cases) — the
+desk's code, untouched by this work. Not fixed here; not ours. Same after: unchanged.
+
+**What shipped, one sentence per module.** `book_log.py` writes the book record — every changed frame of
+each index future off the socket, write-once by `t`, to `data/book/book_<idx>_<day>.jsonl` — off a hook,
+`upstox_feed.UpstoxFeed.on_frame`, and is drained by `server._senses_loop` outside the lock. `ladder.py` is
+pure: `attribute` does exact-case attribution by the per-trade touch, price-priority march for the
+reconstruction case, residual booked hidden, `unknown` `u` never split, plus an `unpriced` counter for the
+row with no last price on either side; `Ladder` bins frames by `ltt`, keeps lots (not units) at close, and
+marks `partial` with its reason. `ux_log.py` is the record of that derivation — third population in
+`data/tape/`, `ux_<idx>_<day>.jsonl` — rebuilt from the book file on start, one module `_LOCK` guarding the
+senses thread's `step` against the request thread's `forming` copy. `ux_gate.py` is `per_bar` / `session` /
+`rebinned` — **not** `gate.py`, which is the seller's gate `frame.py` already imported (Task 9's first
+commit overwrote it; the repair is `10b6f1d`). `runs.py` detects three big same-side fills inside three
+seconds, a causal percentile. `impact.py` gauges ticks moved per lot of signed volume, taking a snapshot
+before it iterates. `server.py` wires it all: `_ux_meta`, `_ux_observe`, `_ux_bars`, `_ux_reply`; `/api/tape`
+carries `ux`; `_coverage()["book"]` gets its own three-sentence entry; `_isolate_mock_writers` redirects
+`book_log.DIR` in tests. `tools/gate_report.py` prints one day's §D numbers from the two files, no verdict.
+`upstox_instruments` grows `lot_tick`, and `lot_size`/`tick_size` ride the cached slice. `prints.rebin` and
+`prints.profile` carry `u`. ui-v2: `tape.ts` (`TapeUx`, `uxLegend`), `LevelsOverlay.ts` (dotted `ux` session
+lines, run rings, gated counts), `indicators.ts` (the `delta_ux` line), `TradeTab.tsx` (the `ux` legend
+line), `ContractChart.tsx`/`Callout.tsx` (runs and the residual/partial sentences on hover).
+
+**The §F amendment, found at Task 15.** Spec 1 draws no per-bar POC mark, so there was nothing to draw
+hollow as §F originally said. The Callout carries the sentence instead: *"ux ladder here is mostly
+residual — the visible book explained NN %"* when `hidden / vol > 0.5`, and *"ux bar partial — <why>"* when
+the bar is partial. `docs/superpowers/specs/2026-09-20-upstox-tape-design.md` also renames `gate.py` to
+`ux_gate.py` throughout §A/§D/§E (with the naming sentence at §D), and §C now states the unpriced-volume
+branch explicitly.
+
+**Three incidents, named as facts.** (1) The `gate.py` collision above, repaired at `10b6f1d`. (2) Two
+request-thread read races, found in review and fixed, both now guarded and pinned by source tests:
+`impact.read()` was iterating a live deque the senses thread could append to mid-read; `ux_log.forming()`
+was deep-copying a ladder while the senses thread's `step` could still be mutating it. (3) The plan's own
+reference code was wrong three times and corrected in review: the unpriced-volume branch, per-bar fills
+that were not scoped to their own bar, and the empty-book sentence in `gate_report`.
+
+**What was seen live: nothing yet.** No live session has run this code. Before the next one: (a) restart
+the TapeMap server **detached** (`START-HERE.md` §0.6) — this spec touches no extension code, so unlike
+2026-09-19 there is nothing to reload in the browser; (b) `/api/health` → `coverage.book` shows `from` per
+index within a minute of the open, and `dropped` stays 0; (c) after the first bar closes, `/api/tape?idx=NIFTY`
+carries `ux.bars` and the legend's second line prints the agreement numbers; (d) count the run rings against
+the legend's `runs N of M bane`; (e) `python tools/gate_report.py NIFTY <day>` after close.
+
+**The measurements this spec owes on day one, and where they land.** Frames per second per instrument
+(`ux.frames_per_s`); the day's book file size (`ls -la data/book/`); `levels_seen` (5 or 30 — the
+`full_d30` question); `exact_frac` / `hidden_frac` / `unknown_frac`, session totals off the `ux` counters;
+and the first `tools/gate_report.py` table. None of these has a number yet — day one prints them.
+
+**Not done, on purpose.** §K step 2 — stating the bar — is the operator's, after five sessions; nothing in
+this spec prints a verdict. `TAPE_SOURCE` (§K.3) was deliberately not built; it follows her bar, not this
+task's schedule.
+
 ### 2026-09-19 — the ladder record, levels and a second opinion on the Trade chart (spec 2026-09-19-orderflow-levels)
 
 **The suite was already red going in.** `python -m pytest -q`: **1250 collected, 1247 passing, 3
