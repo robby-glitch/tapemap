@@ -133,7 +133,8 @@ def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float]
         if closed is not None and _land(st, idx, day, closed):
             n += 1
     if any_row:
-        last = lad.close_open()
+        with _LOCK:
+            last = lad.close_open()
         if last is not None and _land(st, idx, day, last):
             n += 1
     return n

@@ -77,7 +77,9 @@ def test_write_failure_is_counted_never_raised(monkeypatch):
 def test_the_ladder_step_and_the_forming_copy_share_one_lock():
     import inspect
     assert "with _LOCK:" in inspect.getsource(ux_log.on_frames)
-    assert "with _LOCK:" in inspect.getsource(ux_log.rebuild)
+    src_rebuild = inspect.getsource(ux_log.rebuild)
+    assert src_rebuild.count("with _LOCK:") == 2          # the per-row step AND the trailing close_open
+    assert "with _LOCK:\n            last = lad.close_open()" in src_rebuild
     assert "with _LOCK:" in inspect.getsource(ux_log.forming)
     # never across disk: _land (the writer) is not under it
     assert "_LOCK" not in inspect.getsource(ux_log._land)
