@@ -886,12 +886,19 @@ def _senses_loop(poller, payloads, period=0.5):
                         # either way -- but a failure NAMES itself on `rebuild_why`
                         # instead of silently looking like a fresh, empty day.
                         try:
-                            st["runs"] = runs_mod.Runs(lot=st["lot"])
-                            st["impact"] = impact_mod.Impact(lot=st["lot"], tick=st["tick"])
-                            ux_log.state(idx, day, st["lot"], st["tick"])
-                            n_re = ux_log.rebuild(day, idx, st["lot"], st["tick"], observer=_ux_observe)
+                            # dump (upstox_instruments, resolved in _ux_meta) first,
+                            # GoCharting's own lot for the same index/day second, the
+                            # gcd last (ladder infers when `lot` is still None) --
+                            # spec §B/§J.12, and the row says which.
+                            lot = st["lot"] if st["lot"] else _ofd_lot(idx, day)
+                            lot_src = "dump" if st["lot"] else ("ofd" if lot else None)
+                            st["runs"] = runs_mod.Runs(lot=lot)
+                            st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
+                            ux_log.state(idx, day, lot, st["tick"], lot_src=lot_src)
+                            n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe)
                             if n_re:
                                 log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
+                            st["lot_src"] = lot_src
                             st["rebuild_why"] = None
                         except Exception as e:
                             st["rebuild_why"] = f"rebuild failed: {type(e).__name__}: {e}"
@@ -1105,6 +1112,18 @@ _LADDER_WHY = "extension predates ladders (orderflow-desk < 0.3.1)"
 _NO_FLAGS = {"stacks": None, "unfinished_high": None, "unfinished_low": None, "poc": None}
 
 
+def _ofd_lot(idx, day):
+    """GoCharting's lot for `idx` on `day` -- the spec's second fallback, before
+    gcd (dump first, §B/§J.12): the live extension doc's `lot` while it is
+    posting, else the record's first bar's `lot`, else None."""
+    doc = (_SENSES["tape"].get(idx) or {}).get("doc") or {}
+    lot = doc.get("lot")
+    if lot:
+        return lot
+    bars = tape_log.read_bars(day, idx)
+    return bars[0].get("lot") if bars else None
+
+
 def _ux_meta(idx):
     """lot/tick for the index once per process, and its runs/impact machines.
     (None, None) when the cached slice predates the fields or cannot be read --
@@ -1151,7 +1170,7 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
            "levels": {"session": None, "nodes": [], "why": None},
            "marks": {"runs": [], "runs_why": None}, "impact": None,
            "agree": None, "agree_why": None, "book_from": book_from, "frames_per_s": None,
-           "lot": st.get("lot"), "lot_src": None, "rebuild_why": rebuild_why, "why": None}
+           "lot": st.get("lot"), "lot_src": None, "lot_why": None, "rebuild_why": rebuild_why, "why": None}
     if not bars_raw:
         if book_from is None and not os.path.exists(book_log.day_path(day, idx)):
             why = (f"no book record for {idx} on {day} — the server was not recording "
@@ -1172,6 +1191,8 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
     out["levels"] = {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
                      "nodes": prints.nodes(prof), "why": None if prof else "no ux bar with a ladder yet"}
     out["lot"], out["lot_src"] = bars_raw[-1].get("lot"), bars_raw[-1].get("lot_src")
+    out["lot_why"] = ("lot inferred by gcd -- vol_ratio is not yet a measurement of the feed"
+                       if out["lot_src"] == "gcd" else None)
     frames = sum(b.get("frames") or 0 for b in bars_raw)
     out["frames_per_s"] = round(frames / (300.0 * len(bars_raw)), 2)
     r = st.get("runs")

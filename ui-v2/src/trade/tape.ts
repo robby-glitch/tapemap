@@ -79,6 +79,7 @@ export interface TapeUx {
   impact: UxImpact | null
   agree: UxAgree | null; agree_why: string | null
   book_from: string | null; frames_per_s: number | null; lot: number | null; lot_src: string | null
+  lot_why: string | null
   rebuild_why: string | null
   why: string | null
 }
@@ -89,7 +90,7 @@ export function uxLegend(ux: TapeUx | null | undefined, runsDrawn: number, runsS
   if (!ux) return 'Upstox tape: reply mein ux object nahi aaya'
   if (ux.why) return `Upstox tape: ${ux.why}`
   const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)} %`)
-  const head = `Upstox tape (ux · ${ux.bars.length} bars · ${ux.frames_per_s ?? '—'} frames/s · book from ${ux.book_from ?? '—'} · lot ${ux.lot ?? '—'}${ux.lot_src ? ` (${ux.lot_src})` : ''}) [I]`
+  const head = `Upstox tape (ux · ${ux.bars.length} bars · ${ux.frames_per_s ?? '—'} frames/s · book from ${ux.book_from ?? '—'} · lot ${ux.lot ?? '—'}${ux.lot_src ? ` (${ux.lot_src})` : ''}) [I]${ux.lot_why ? ` · ${ux.lot_why}` : ''}`
   const a = ux.agree
   const agree = a
     ? ` · ux vs ofd: POC ±${a.poc_rows_median ?? '—'} rows (median) · VA overlap ${pct(a.va_overlap)} · delta sign ${pct(a.delta_sign_agree)} · vol ×${a.vol_ratio_median == null ? '—' : a.vol_ratio_median.toFixed(2)} · hidden ${pct(a.hidden_frac)} · unknown ${pct(a.unknown_frac)} [M]`

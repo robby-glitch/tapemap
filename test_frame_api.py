@@ -353,3 +353,33 @@ def test_api_tape_neither_record_is_still_the_third_sentence(tmp_path, monkeypat
     cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
     server.Handler.do_GET(cap)
     assert cap.sent["ok"] is False and "no prints record for NIFTY on 2026-09-11" in cap.sent["why"]
+
+
+def _write_ux_bar(day, idx, t, lot_src):
+    import ux_log
+    bar = {"t": t, "o": 100.0, "h": 100.0, "l": 100.0, "c": 100.0, "vol": 1, "buy": 1, "sell": 0,
+           "unknown": 0, "unpriced": 0, "delta": 1, "oi": None, "fromTicks": True, "ladder": [],
+           "rowSize": None, "rowAnchor": 0, "lot": 65, "lot_src": lot_src, "lot_why": None,
+           "tick": 0.05, "tick_src": "given", "frames": 1, "exact": 1, "reconstructed": 0,
+           "hidden": 0, "vtt_resets": 0, "lot_mismatch": 0, "levels_seen": 2,
+           "partial": False, "partial_why": None, "src": "ux", "idx": idx, "day": day}
+    ux_log._write_lines(ux_log.day_path(day, idx), [bar])
+
+
+def test_api_tape_ux_lot_why_fires_only_when_the_lot_is_gcd_inferred(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    _write_ux_bar("2026-09-13", "NIFTY", 1757563500000, "gcd")
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-13")
+    server.Handler.do_GET(cap)
+    ux = cap.sent["ux"]
+    assert ux["lot_src"] == "gcd"
+    assert ux["lot_why"] == "lot inferred by gcd -- vol_ratio is not yet a measurement of the feed"
+
+
+def test_api_tape_ux_lot_why_is_none_when_the_lot_came_from_the_dump(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    _write_ux_bar("2026-09-14", "NIFTY", 1757563500000, "dump")
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-14")
+    server.Handler.do_GET(cap)
+    ux = cap.sent["ux"]
+    assert ux["lot_src"] == "dump" and ux["lot_why"] is None

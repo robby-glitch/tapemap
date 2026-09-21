@@ -24,8 +24,7 @@ def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
 
 
 def test_coverage_carries_a_failed_rebuilds_reason_by_index(monkeypatch):
-    server._SENSES["ux"].clear()
-    server._SENSES["ux"]["NIFTY"] = {"rebuild_why": "rebuild failed: RuntimeError: boom"}
+    monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": {"rebuild_why": "rebuild failed: RuntimeError: boom"}})
     assert server._coverage()["book"]["rebuild_why"] == {"NIFTY": "rebuild failed: RuntimeError: boom"}
 
 
@@ -49,10 +48,21 @@ def test_the_loop_assigns_the_hook_watches_the_futures_and_flushes_outside_the_l
 
 def test_the_loop_rebuilds_on_a_new_day_before_the_flush_and_drains_into_the_ladder():
     src = inspect.getsource(server._senses_loop)
-    i_rebuild = src.index("ux_log.rebuild(day, idx, st[\"lot\"], st[\"tick\"], observer=_ux_observe)")
+    i_rebuild = src.index("ux_log.rebuild(day, idx, lot, st[\"tick\"], lot_src=lot_src, observer=_ux_observe)")
     i_flush = src.index("_SENSES[\"book_rows\"] = _SENSES[\"book\"].flush()")
     i_drain = src.index("ux_log.on_frames(rows, day, observer=_ux_observe)")
     assert i_rebuild < i_flush < i_drain
+
+
+def test_ofd_lot_reads_the_live_doc_then_the_file_then_none(tmp_path, monkeypatch):
+    import tape_log
+    monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    monkeypatch.setitem(server._SENSES, "tape", {})
+    assert server._ofd_lot("NIFTY", "2026-09-21") is None       # neither doc nor file
+    tape_log._write_lines(tape_log.day_path("2026-09-21", "NIFTY"), [{"t": 1, "lot": 65}])
+    assert server._ofd_lot("NIFTY", "2026-09-21") == 65          # the file, no live doc
+    server._SENSES["tape"]["NIFTY"] = {"doc": {"lot": 75}}
+    assert server._ofd_lot("NIFTY", "2026-09-21") == 75          # the live doc wins
 
 
 def test_ux_meta_falls_back_to_none_none_when_the_slice_cannot_be_read(monkeypatch):

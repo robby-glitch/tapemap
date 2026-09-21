@@ -150,8 +150,13 @@ class Ladder:
     """Frames in, bars out. One per instrument per day."""
 
     def __init__(self, lot: Optional[int] = None, tick: Optional[float] = None,
-                 interval_s: int = INTERVAL_S, idx: str = "", day: str = ""):
+                 interval_s: int = INTERVAL_S, idx: str = "", day: str = "",
+                 lot_src: Optional[str] = None):
         self.lot, self.tick, self.interval_s, self.idx, self.day = lot, tick, interval_s, idx, day
+        # the caller's word for where `lot` came from (spec §B/§J.12: "dump" |
+        # "ofd" | "gcd"); "given" is the default so a direct construction with
+        # just `lot=` (every pre-existing test) keeps reading as it always did.
+        self.lot_src = lot_src if lot_src is not None else ("given" if lot else None)
         self.prev: Optional[dict] = None
         self.bin: Optional[int] = None
         self.acc: Optional[dict] = None
@@ -171,7 +176,7 @@ class Ladder:
 
     def _resolve(self) -> Tuple[Optional[int], Optional[str], Optional[str], Optional[float], Optional[str]]:
         if self.lot:
-            lot, lot_src, lot_why = self.lot, "given", None
+            lot, lot_src, lot_why = self.lot, self.lot_src, None
         elif self._g:
             lot, lot_src, lot_why = self._g, "gcd", None
         else:

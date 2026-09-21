@@ -55,12 +55,15 @@ def _write_lines(path: str, rows: List[dict]) -> None:
         f.write("".join(json.dumps(r) + "\n" for r in rows))
 
 
-def state(idx: str, day: str, lot: Optional[int] = None, tick: Optional[float] = None) -> dict:
-    """The per-index state for `day`; a new day replaces yesterday's ladder."""
+def state(idx: str, day: str, lot: Optional[int] = None, tick: Optional[float] = None,
+          lot_src: Optional[str] = None) -> dict:
+    """The per-index state for `day`; a new day replaces yesterday's ladder.
+    `lot`/`tick`/`lot_src` are used only when the state is CREATED."""
     st = _STATE.get(idx)
     if st is None or st["day"] != day:
         bars = read_bars(day, idx)
-        st = _STATE[idx] = {"day": day, "ladder": ladder.Ladder(lot=lot, tick=tick, idx=idx, day=day),
+        st = _STATE[idx] = {"day": day,
+                            "ladder": ladder.Ladder(lot=lot, tick=tick, idx=idx, day=day, lot_src=lot_src),
                             "bars": bars, "fills": deque(maxlen=20_000), "written": 0,
                             "seen": {b["t"] for b in bars if isinstance(b.get("t"), int)}}
     return st
@@ -115,12 +118,12 @@ def forming(idx: str, day: str) -> Optional[dict]:
 
 
 def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float] = None,
-            observer=None) -> int:
+            lot_src: Optional[str] = None, observer=None) -> int:
     """Stream today's book file; write every closed bin the file holds that the
     ux file lacks, and close the bin the file ends inside. Returns bars written.
     `observer` as in `on_frames`, so runs/impact warm up on a restart too."""
     n = 0
-    st = state(idx, day, lot, tick)
+    st = state(idx, day, lot, tick, lot_src)
     lad = st["ladder"]
     any_row = False
     for row in book_log.read_rows(day, idx):
