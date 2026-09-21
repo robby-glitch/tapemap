@@ -54,9 +54,13 @@ def test_stated_test_count_matches_reality(request):
         pytest.skip("subset run; testscollected is not the repo's test count")
 
     actual = request.session.testscollected
+    # CLAUDE.md and START-HERE.md also state a count ("N collected, M passing"),
+    # scanned here too -- but that phrasing does not match either regex below
+    # (final review wave 2, 2026-09-21), so the pin on them is not yet live;
+    # see the wave-2 fix report before adding a third pattern for it.
     docs = {p: _read(*p.split("/")) for p in
             ("context/HANDOFF.md", "context/DEFERRED.md", "PRODUCT.md",
-             "README.md", "context/research-findings.md")}
+             "README.md", "context/research-findings.md", "CLAUDE.md", "START-HERE.md")}
 
     claims = {}
     for path, text in docs.items():

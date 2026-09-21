@@ -171,7 +171,8 @@ bar's open in epoch ms, IST session — byte-equal to spec 1's `t`, which is the
 A row with no last price on either side cannot place its volume: V is booked `unknown` and `unpriced`, with no
 fill — the one branch where fills do not sum to V (amended at Task 6).
 
-The bar carries `unpriced` beside `unknown`; the two absences never share a number (final review, 2026-09-21).
+The bar carries `unpriced` beside `unknown`; `unpriced` is the part of `unknown` that has no price at all, so
+the two never share a field, and a reader must not add them (final review, 2026-09-21).
 
 **Fill events.** Besides bars, `ladder.step` yields each attribution as a fill event
 `{ltt, side: +1|−1|0, p, q_units, hidden: bool}` in tape order — the input of `runs.py` and `impact.py` (§G).

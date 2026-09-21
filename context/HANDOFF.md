@@ -242,6 +242,19 @@ rebuild and the flush that follows it step the ladder exactly once across that b
 rebuild/flush boundary`). `unpriced`, `late_frames`, `rebuild_why`, `lot_why`, and `failed`/`ux_failed` are
 all new on the wire (`/api/tape`'s `ux` object and `/api/health`'s `coverage.book`) as of this wave.
 
+**A second pass, same day.** `rebuild`'s trailing close closed the CURRENT five-minute bin too — right for
+`tools/gate_report.py`, which runs from files alone after close, but wrong for the live server: on a mid-day
+restart that bin is still open, and closing it there made the live stream's first frame in it look like a
+fresh bar, silently discarding the rest to `_land`'s write-once guard. `rebuild` now takes `close_last`
+(default `True`; the live drain passes `False`), so the live stream completes that bin instead of the
+rebuild truncating it — one bar per restart used to come out short, and no longer does. Four more lines in
+`_ux_drain`: it resolves one day (`book.flush(day)`, not the implicit day it used to read), and resets
+`runs`/`impact` in `finally` rather than inline, so a raise inside `_ofd_lot` — before either reset used to
+run — can no longer leave yesterday's machines in place under a `st["day"]` already stamped for today. Its
+own flush/on_frames half now names a failed pass on a new `drain_why`, served in `coverage.book` beside the
+per-index `rebuild_why`. And a lotless day (no traded volume yet to infer a lot from) now carries that
+sentence on `ux.lot_why` too, the same field the gcd sentence already used.
+
 **What was seen live: nothing yet.** No live session has run this code. Before the next one: (a) restart
 the TapeMap server **detached** (`START-HERE.md` §0.6) — this spec touches no extension code, so unlike
 2026-09-19 there is nothing to reload in the browser; (b) `/api/health` → `coverage.book` shows `from` per

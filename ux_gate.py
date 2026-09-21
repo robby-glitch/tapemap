@@ -68,6 +68,11 @@ def rebinned(bars: List[dict], row_size: float, anchor: float) -> List[dict]:
 
 
 def session(ofd: List[dict], ux: List[dict], row_size: float, anchor: float = 0.0) -> dict:
+    """One day's agreement numbers, GoCharting against the ux ladder (spec §K).
+
+    `unpriced_frac` is the part of `unknown_frac` that has no price at all
+    (ladder.py §C); the two never share a unit, and must not be added
+    (final review, 2026-09-21)."""
     by_o = {b["t"]: b for b in ofd if b.get("t") is not None}
     by_u = {b["t"]: b for b in ux if b.get("t") is not None}
     joined = sorted(set(by_o) & set(by_u))
