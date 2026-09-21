@@ -52,3 +52,5 @@ def test_session_with_nothing_to_join_says_so():
     assert s["bars_joined"] == 0 and s["poc_rows_median"] is None and s["poc_rows_median_why"] == "no joined bars"
     assert s["va_overlap"] is None and s["va_overlap_why"] == "no ux profile"
     assert s["lvn_jaccard"] is None and s["lvn_jaccard_why"] == "no LVN on one side"
+    s2 = gate.session([], [], 5, 0)
+    assert s2["va_overlap"] is None and s2["va_overlap_why"] == "no profile on either side"

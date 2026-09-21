@@ -208,6 +208,22 @@ def test_the_first_bar_after_a_late_start_is_partial_with_the_record_start():
     assert bar["partial"] is True and bar["partial_why"] == "record starts at 09:17:00, bar opened at 09:15:00"
 
 
+def test_a_straggler_binning_earlier_than_the_open_bin_is_counted_not_reopened():
+    L = ladder.Ladder(lot=65, tick=0.05)
+    fr = _four_frames()
+    for f in fr[:3]:
+        L.step(f)
+    bar0, _ = L.step(fr[3])                       # closes bar 0, opens bar 1
+    assert bar0["late_frames"] == 0
+    # arrives after the close, but its ltt bins back inside bar 0's range --
+    # traded against the CURRENT (bar 1) touch, at a HIGHER vtt
+    straggler = R(T0 + 300_600, 1260, 100.10, 65, [[100.00, 65]], [[100.10, 65]], ltt=T0 + 1500)
+    L.step(straggler)
+    bar1 = L.close_open()
+    assert bar1["t"] == T0 + 300_000 and bar1["late_frames"] == 1
+    assert bar1["vol"] == 1 and bar1["buy"] == 1              # folded into the bar that IS open, bar 1
+
+
 def test_a_vtt_reset_inside_the_bar_marks_it_partial():
     L = ladder.Ladder(lot=65, tick=0.05)
     L.step(R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]))

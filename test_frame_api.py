@@ -383,3 +383,23 @@ def test_api_tape_ux_lot_why_is_none_when_the_lot_came_from_the_dump(tmp_path, m
     server.Handler.do_GET(cap)
     ux = cap.sent["ux"]
     assert ux["lot_src"] == "dump" and ux["lot_why"] is None
+
+
+def test_api_tape_ux_agree_why_when_no_ux_bar_shares_a_t_with_gocharting(tmp_path, monkeypatch):
+    """Both records exist for the day, but at disjoint `t`s -- GoCharting's bars
+    shifted one day later than the ux bars' own default `t`s (_ux_seed's), each
+    filed under 2026-09-15 so the join has two non-empty sides and zero overlap."""
+    _isolate_ux(tmp_path, monkeypatch)
+    doc = _tape(n=2)
+    for b in doc["closed"]:
+        b["t"] += 86_400_000
+        b["ladder"] = [{"p": 100.0, "b": 1, "s": 1, "bt": 1, "st": 1}]
+    doc["session"] = "NIFTY-I|5m|2026-09-15"
+    doc["rowAnchor"] = 0
+    server.Handler.do_POST(_Req("/api/frame", doc))
+    _ux_seed(day="2026-09-15")
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-15")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["ux"]["agree"] is None
+    assert j["ux"]["agree_why"] == "no GoCharting bar shares a t with any ux bar — nothing to compare"

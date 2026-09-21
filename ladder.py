@@ -195,7 +195,7 @@ class Ladder:
         self.acc = {"t": b, "o": None, "h": None, "l": None, "c": None, "oi": None,
                     "vol": 0, "buy": 0, "sell": 0, "unknown": 0, "unpriced": 0, "hidden": 0,
                     "lad": {}, "frames": 0, "exact": 0, "reconstructed": 0,
-                    "vtt_resets": 0, "levels_seen": 0, "first_ms": None}
+                    "vtt_resets": 0, "levels_seen": 0, "first_ms": None, "late_frames": 0}
 
     def _close(self) -> Optional[dict]:
         a = self.acc
@@ -223,7 +223,8 @@ class Ladder:
                "lot": lot, "lot_src": lot_src, "lot_why": lot_why, "tick": tick, "tick_src": tick_src,
                "frames": a["frames"], "exact": a["exact"], "reconstructed": a["reconstructed"],
                "hidden": a["hidden"] / div, "vtt_resets": a["vtt_resets"], "lot_mismatch": mismatch,
-               "levels_seen": a["levels_seen"], "partial": why is not None, "partial_why": why,
+               "levels_seen": a["levels_seen"], "late_frames": a["late_frames"],
+               "partial": why is not None, "partial_why": why,
                "src": "ux", "idx": self.idx, "day": self.day}
         self.acc = None
         self.bin = None
@@ -246,6 +247,11 @@ class Ladder:
         elif b > self.bin:
             closed = self._close()
             self._open(b)
+        elif b < self.bin:
+            # a straggler after a close: this frame's bin already closed, so it
+            # folds into whatever bar IS open now -- silently, except for this
+            # counter, which says it happened.
+            self.acc["late_frames"] += 1
         a = self.acc
         if self.first_ms is None:
             self.first_ms = t_bin

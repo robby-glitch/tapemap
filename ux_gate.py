@@ -91,7 +91,12 @@ def session(ofd: List[dict], ux: List[dict], row_size: float, anchor: float = 0.
 
     po, pu = prints.profile(rebinned(ofd, row_size, anchor)), prints.profile(rebinned(ux, row_size, anchor))
     out["va_overlap"] = _interval_overlap(po, pu)
-    out["va_overlap_why"] = None if out["va_overlap"] is not None else ("no ux profile" if not pu else "no GoCharting profile")
+    if out["va_overlap"] is not None:
+        out["va_overlap_why"] = None
+    elif po is None and pu is None:
+        out["va_overlap_why"] = "no profile on either side"
+    else:
+        out["va_overlap_why"] = "no ux profile" if not pu else "no GoCharting profile"
     no, nu = prints.nodes(po), prints.nodes(pu)
     for kind, key in (("HVN", "hvn_jaccard"), ("LVN", "lvn_jaccard")):
         a = {n["p"] for n in no if n["kind"] == kind}
