@@ -4,6 +4,7 @@ import inspect
 
 import book_log
 import server
+import ux_log
 
 
 def test_the_senses_state_owns_one_book():
@@ -12,6 +13,8 @@ def test_the_senses_state_owns_one_book():
 
 
 def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
+    monkeypatch.setattr(book_log, "failed", 0)
+    monkeypatch.setattr(ux_log, "failed", 0)
     b = book_log.Book(day="2026-09-21")
     monkeypatch.setitem(server._SENSES, "book", b)
     c = server._coverage()["book"]
@@ -20,12 +23,29 @@ def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
     b.book_from["NIFTY"] = "09:15:03"
     b.written = 10
     assert server._coverage()["book"] == {"from": {"NIFTY": "09:15:03"}, "dropped": 0, "written": 10,
-                                          "rebuild_why": {}, "why": None}
+                                          "rebuild_why": {}, "failed": 0, "ux_failed": 0, "why": None}
 
 
 def test_coverage_carries_a_failed_rebuilds_reason_by_index(monkeypatch):
     monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": {"rebuild_why": "rebuild failed: RuntimeError: boom"}})
     assert server._coverage()["book"]["rebuild_why"] == {"NIFTY": "rebuild failed: RuntimeError: boom"}
+
+
+def test_coverage_carries_the_two_write_failure_counters_and_notes_them_in_why(monkeypatch):
+    monkeypatch.setattr(book_log, "failed", 0)
+    monkeypatch.setattr(ux_log, "failed", 0)
+    b = book_log.Book(day="2026-09-21")
+    monkeypatch.setitem(server._SENSES, "book", b)
+    c = server._coverage()["book"]
+    assert c["failed"] == 0 and c["ux_failed"] == 0
+    monkeypatch.setattr(book_log, "failed", 2)
+    monkeypatch.setattr(ux_log, "failed", 1)
+    c2 = server._coverage()["book"]
+    assert c2["failed"] == 2 and c2["ux_failed"] == 1
+    assert c2["why"] == ("no frame recorded yet this process -- feed not connected, or before the first drain"
+                         " — 3 row(s) lost to a write failure this process")
+    b.book_from["NIFTY"] = "09:15:03"
+    assert server._coverage()["book"]["why"] == "3 row(s) lost to a write failure this process"
 
 
 def test_a_mock_run_cannot_write_into_the_live_book_record(monkeypatch):

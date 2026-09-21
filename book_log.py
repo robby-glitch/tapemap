@@ -171,7 +171,13 @@ class Book:
         return True
 
     def flush(self, day: Optional[str] = None) -> List[Tuple[str, dict]]:
-        """Senses loop. Writes what the deque holds; returns the rows written."""
+        """Senses loop. Writes what the deque holds; returns the rows written.
+
+        A failed write loses those rows and says so on `failed`; it never
+        advances the record past them -- `_last_t` (and `book_from`) move only
+        after a batch's write actually lands, to that batch's own last `t`, so
+        a later flush's filter is checked against what was truly written, not
+        against rows the write never landed."""
         global failed
         with self._lock:
             rows = list(self._q)
@@ -189,8 +195,6 @@ class Book:
                     self.book_from[idx] = _hms(ft)
             if row["t"] <= self._last_t[idx]:
                 continue
-            self._last_t[idx] = row["t"]
-            self.book_from.setdefault(idx, _hms(row["t"]))
             by.setdefault(idx, []).append(row)
         out: List[Tuple[str, dict]] = []
         for idx, rs in by.items():
@@ -199,9 +203,14 @@ class Book:
                 os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
                 with open(p, "a", encoding="utf-8") as f:
                     f.write("".join(json.dumps(r) + "\n" for r in rs))
-            except Exception:                  # never take the tape down
+            except Exception:                  # never take the tape down; the rows
+                                                # are gone from the deque regardless,
+                                                # but `_last_t` does not move past
+                                                # what was never actually written
                 failed += len(rs)
                 continue
             self.written += len(rs)
+            self._last_t[idx] = rs[-1]["t"]
+            self.book_from.setdefault(idx, _hms(rs[0]["t"]))
             out.extend((idx, r) for r in rs)
         return out

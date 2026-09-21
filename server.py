@@ -2634,15 +2634,20 @@ def _save_day_state():
 
 
 def _book_coverage():
-    b = _SENSES.get("book")
-    if b is None:
-        return {"from": {}, "dropped": 0, "written": 0, "rebuild_why": {}, "why": "no book writer in this process"}
+    lost = book_log.failed + ux_log.failed
+    if _SENSES.get("book") is None:
+        return {"from": {}, "dropped": 0, "written": 0, "rebuild_why": {}, "failed": book_log.failed,
+                "ux_failed": ux_log.failed, "why": "no book writer in this process"}
+    b = _SENSES["book"]
     frm = dict(b.book_from)
     ux_state = _SENSES.get("ux") or {}
     rebuild_why = {idx: st["rebuild_why"] for idx, st in ux_state.items() if st.get("rebuild_why")}
+    why = None if frm else "no frame recorded yet this process -- feed not connected, or before the first drain"
+    if lost:
+        note = f"{lost} row(s) lost to a write failure this process"
+        why = f"{why} — {note}" if why else note
     return {"from": frm, "dropped": b.dropped, "written": b.written, "rebuild_why": rebuild_why,
-            "why": None if frm else
-            "no frame recorded yet this process -- feed not connected, or before the first drain"}
+            "failed": book_log.failed, "ux_failed": ux_log.failed, "why": why}
 
 
 def _coverage():

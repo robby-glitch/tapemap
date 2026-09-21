@@ -78,6 +78,23 @@ def test_flush_after_a_restart_refuses_rows_at_or_before_the_files_last_t(tmp_pa
     assert [r["t"] for r in book_log.read_rows("2026-09-21", "NIFTY")] == [100, 200, 201]
 
 
+def test_a_failed_write_never_advances_the_record_and_a_later_row_still_lands(tmp_path, monkeypatch):
+    monkeypatch.setattr(book_log, "DIR", str(tmp_path / "book"))
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", FUT)
+    b.on_frame(FUT, _frame(), now_ms=100)
+    before = book_log.failed
+    real_open = builtins.open
+    monkeypatch.setattr(builtins, "open", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
+    assert b.flush() == []
+    assert book_log.failed == before + 1
+    monkeypatch.setattr(builtins, "open", real_open)
+    b.on_frame(FUT, _frame(vtt=1023815), now_ms=101)          # a later row
+    out = b.flush()
+    assert [r["t"] for _, r in out] == [101]                  # lands: `_last_t` never moved past the lost row
+    assert [r["t"] for r in book_log.read_rows("2026-09-21", "NIFTY")] == [101]
+
+
 def test_overflow_is_counted_not_raised(monkeypatch):
     monkeypatch.setattr(book_log, "MAXLEN", 2)
     b = book_log.Book(day="2026-09-21")
