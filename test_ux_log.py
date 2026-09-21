@@ -101,6 +101,19 @@ def test_a_day_roll_starts_a_fresh_ladder():
     assert ux_log.state("NIFTY", "2026-09-12")["bars"] == []
 
 
+def test_read_bars_collapses_a_duplicate_t_last_row_wins():
+    """A second writer (e.g. tools/gate_report.py run against a live day)
+    can append a duplicate `t` -- read_bars must collapse it so no reader
+    (prints.profile included) double-counts the bin."""
+    p = ux_log.day_path("2026-09-11", "NIFTY")
+    ux_log._write_lines(p, [{"t": T0, "vol": 1, "src": "ux"},
+                            {"t": T0 + 300_000, "vol": 2, "src": "ux"},
+                            {"t": T0, "vol": 9, "src": "ux"}])          # the duplicate, landed later
+    bars = ux_log.read_bars("2026-09-11", "NIFTY")
+    assert [b["t"] for b in bars] == [T0, T0 + 300_000]                # order of first appearance
+    assert bars[0]["vol"] == 9                                         # the LAST row for that t wins
+
+
 def test_write_failure_is_counted_never_raised(monkeypatch):
     monkeypatch.setattr(ux_log, "_write_lines", lambda *a, **k: (_ for _ in ()).throw(OSError("disk")))
     out = ux_log.on_frames([("NIFTY", r) for r in _rows()], "2026-09-11", lot=65, tick=0.05)

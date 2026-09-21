@@ -45,8 +45,21 @@ def day_path(day: str, idx: str) -> str:
     return os.path.join(tape_log.DIR, f"ux_{idx}_{day}.jsonl")
 
 
+def _dedupe_by_t(rows: List[dict]) -> List[dict]:
+    """a second writer's duplicate t is collapsed here, last row wins, so no
+    reader double-counts a bin -- order of first appearance is preserved."""
+    by_t: Dict[int, dict] = {}
+    order: List[int] = []
+    for r in rows:
+        t = r.get("t")
+        if t not in by_t:
+            order.append(t)
+        by_t[t] = r
+    return [by_t[t] for t in order]
+
+
 def read_bars(day: str, idx: str) -> List[dict]:
-    return tape_log._read(day_path(day, idx))
+    return _dedupe_by_t(tape_log._read(day_path(day, idx)))
 
 
 def _write_lines(path: str, rows: List[dict]) -> None:

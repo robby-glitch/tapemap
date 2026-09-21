@@ -5,9 +5,12 @@ files, printed as a table. It prints NUMBERS; the bar is the operator's (§K).
 
 If the ux file is missing but the book file exists, the ux bars are rebuilt
 from the book first (ux_log.rebuild), so this runs from files alone.
+
+Run it AFTER CLOSE. Against today it leaves the open bin alone and says so.
 """
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import book_log  # noqa: E402
@@ -27,11 +30,12 @@ def _fmt(v):
 
 
 def main(idx: str, day: str, lot=None, tick=None) -> int:
+    today = day == time.strftime("%Y-%m-%d")
     ofd = tape_log.read_bars(day, idx)
     ux = ux_log.read_bars(day, idx)
     have_book = os.path.exists(book_log.day_path(day, idx))
     if not ux and have_book:
-        ux_log.rebuild(day, idx, lot, tick)
+        ux_log.rebuild(day, idx, lot, tick, close_last=not today)
         ux = ux_log.read_bars(day, idx)
     missing = []
     if not ofd:
@@ -51,6 +55,9 @@ def main(idx: str, day: str, lot=None, tick=None) -> int:
     for k in FIELDS:
         why = s.get(k + "_why") or ""
         print(f"{k:<20} {_fmt(s.get(k)):>8}  {why}  [M]".rstrip())
+    if today:
+        print("the last bin is still open — its frames are not in a closed bar yet; "
+              "run again after close for the full day")
     return 0
 
 
