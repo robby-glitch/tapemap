@@ -1,6 +1,8 @@
 # tapemap/test_book_wiring.py
 """The book record is wired into the senses loop and isolated for a mock run."""
 import inspect
+import json
+import os
 
 import book_log
 import server
@@ -54,24 +56,93 @@ def test_a_mock_run_cannot_write_into_the_live_book_record(monkeypatch):
     assert book_log.DIR.replace("\\", "/") == "data/mock/book"
 
 
-def test_the_loop_assigns_the_hook_watches_the_futures_and_flushes_outside_the_lock():
-    """Source-pinned, the way test_day_state pins the isolation list: the four
-    lines that make the record exist must be in the loop, in this order --
-    hook, watch, flush -- and the flush must sit AFTER the lock block."""
+def test_the_loop_assigns_the_hook_watches_the_futures_and_drains_outside_the_lock():
+    """Source-pinned, the way test_day_state pins the isolation list: the
+    three lines that make the record exist must be in the loop, in this
+    order -- hook, watch, drain -- and the drain must sit AFTER the lock
+    block (the drain itself, book_log.flush included, is `_ux_drain`, tested
+    end to end below)."""
     src = inspect.getsource(server._senses_loop)
     i_hook = src.index("feed.on_frame = _SENSES[\"book\"].on_frame")
     i_watch = src.index("_SENSES[\"book\"].watch(idx, r.get(\"fut_key\"))")
-    i_flush = src.index("_SENSES[\"book_rows\"] = _SENSES[\"book\"].flush()")
     i_lock_end = src.index("# 5a/5b, OUTSIDE _SENSES_LOCK")
-    assert i_hook < i_watch < i_lock_end < i_flush
+    i_drain = src.index("_ux_drain(")
+    assert i_hook < i_watch < i_lock_end < i_drain
 
 
-def test_the_loop_rebuilds_on_a_new_day_before_the_flush_and_drains_into_the_ladder():
-    src = inspect.getsource(server._senses_loop)
-    i_rebuild = src.index("ux_log.rebuild(day, idx, lot, st[\"tick\"], lot_src=lot_src, observer=_ux_observe)")
-    i_flush = src.index("_SENSES[\"book_rows\"] = _SENSES[\"book\"].flush()")
-    i_drain = src.index("ux_log.on_frames(rows, day, observer=_ux_observe)")
-    assert i_rebuild < i_flush < i_drain
+def test_ux_drain_rebuilds_before_it_flushes_before_it_feeds_the_ladder():
+    src = inspect.getsource(server._ux_drain)
+    i_rebuild = src.index("ux_log.rebuild(")
+    i_flush = src.index(".flush()")
+    i_onframes = src.index("ux_log.on_frames(")
+    assert i_rebuild < i_flush < i_onframes
+
+
+def test_ux_drain_names_a_raised_rebuild_and_still_flushes_this_pass(monkeypatch):
+    """A rebuild failure must not swallow this pass's flush -- it is named on
+    `rebuild_why` (item 2) and the loop moves on to drain the deque."""
+    st = {"lot": None, "tick": None, "day": None, "rebuild_why": None, "runs": None, "impact": None}
+    monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
+    monkeypatch.setattr(ux_log, "rebuild", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", "FUT_KEY")
+    monkeypatch.setitem(server._SENSES, "book", b)
+    out = server._ux_drain("2026-09-21")
+    assert out == [] and st["day"] == "2026-09-21"
+    assert st["rebuild_why"] == "rebuild failed: RuntimeError: boom"
+    assert server._coverage()["book"]["rebuild_why"] == {"NIFTY": "rebuild failed: RuntimeError: boom"}
+
+
+def test_ux_drain_lands_bars_once_across_the_rebuild_flush_boundary(tmp_path, monkeypatch):
+    """End to end: a book file rebuilt into one closed bar, then two more
+    frames drained through `on_frame`/`flush` on a SECOND `_ux_drain` call --
+    the ladder must continue from where the rebuild left off, never re-step
+    the rebuilt frames, and runs/impact must have seen every frame."""
+    import runs as runs_mod
+    import impact as impact_mod
+    import tape_log
+    from test_ladder import R, T0
+    from test_book_log import _frame, FUT
+
+    monkeypatch.setattr(book_log, "DIR", str(tmp_path / "book"))
+    monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    ux_log._STATE.clear()
+
+    # the rebuild half: three frames written straight to the book file, all
+    # inside bin 0 -- rebuild closes bin 0 at file end.
+    rows = [R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 2000, 1065, 100.05, 65, [[100.00, 65]], [[100.05, 65]]),
+            R(T0 + 3000, 1195, 100.05, 65, [[100.00, 65]], [[100.10, 65]])]
+    p = book_log.day_path("2026-09-21", "NIFTY")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        f.write("".join(json.dumps(r) + "\n" for r in rows))
+
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", FUT)
+    monkeypatch.setitem(server._SENSES, "book", b)
+    st = {"lot": 65, "tick": 0.05, "day": None, "rebuild_why": None,
+          "runs": runs_mod.Runs(lot=65), "impact": impact_mod.Impact(lot=65, tick=0.05)}
+    monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
+
+    out1 = server._ux_drain("2026-09-21")
+    assert out1 == []                                  # nothing in the deque yet; the rebuild wrote bin 0 alone
+    bars_after_rebuild = ux_log.read_bars("2026-09-21", "NIFTY")
+    assert [bar["t"] for bar in bars_after_rebuild] == [T0]
+
+    # the flush half: two more frames via on_frame, continuing bin 1 -- must
+    # NOT trigger a second rebuild (st["day"] is already today).
+    b.on_frame(FUT, _frame(vtt=1260, ltp=100.10, ltq=65, ltt=T0 + 300_100,
+                           bids=((100.00, 65),), asks=((100.10, 65),)), now_ms=T0 + 300_100)
+    b.on_frame(FUT, _frame(vtt=1325, ltp=100.15, ltq=65, ltt=T0 + 300_200,
+                           bids=((100.05, 65),), asks=((100.15, 65),)), now_ms=T0 + 300_200)
+    out2 = server._ux_drain("2026-09-21")
+    assert [idx for idx, _ in out2] == ["NIFTY", "NIFTY"]
+
+    bars = ux_log.read_bars("2026-09-21", "NIFTY")
+    assert [bar["t"] for bar in bars] == [T0]           # bin 0 landed exactly once, not re-stepped
+    assert st["impact"].read()["n"] > 0                 # every frame reached the gauge
+    assert st["runs"].window_n > 0                      # every fill reached the run detector
 
 
 def test_ofd_lot_reads_the_live_doc_then_the_file_then_none(tmp_path, monkeypatch):

@@ -873,44 +873,8 @@ def _senses_loop(poller, payloads, period=0.5):
             # index so a bad fit or a desk exception on ONE index cannot cost
             # the others their chain-pace log.
             # THE BOOK RECORD'S DRAIN AND THE LADDER, outside the lock with the
-            # other writers (spec 2 §B, §E). Order matters: on the first pass of
-            # a day (or a late start) the ladder is REBUILT from the book file
-            # BEFORE this pass's rows are written, so nothing is stepped twice.
-            try:
-                day = time.strftime("%Y-%m-%d")
-                for idx in _SENSES["book"].watched():
-                    st = _ux_meta(idx)
-                    if st["day"] != day:
-                        # a failed rebuild must not be retried every 0.5 s (a 60 MB
-                        # re-read twice a second), so st["day"] is set in `finally`
-                        # either way -- but a failure NAMES itself on `rebuild_why`
-                        # instead of silently looking like a fresh, empty day.
-                        try:
-                            # dump (upstox_instruments, resolved in _ux_meta) first,
-                            # GoCharting's own lot for the same index/day second, the
-                            # gcd last (ladder infers when `lot` is still None) --
-                            # spec §B/§J.12, and the row says which.
-                            lot = st["lot"] if st["lot"] else _ofd_lot(idx, day)
-                            lot_src = "dump" if st["lot"] else ("ofd" if lot else None)
-                            st["runs"] = runs_mod.Runs(lot=lot)
-                            st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
-                            ux_log.state(idx, day, lot, st["tick"], lot_src=lot_src)
-                            n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe)
-                            if n_re:
-                                log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
-                            st["lot_src"] = lot_src
-                            st["rebuild_why"] = None
-                        except Exception as e:
-                            st["rebuild_why"] = f"rebuild failed: {type(e).__name__}: {e}"
-                            log.exception("ux rebuild for %s", idx)
-                        finally:
-                            st["day"] = day
-                rows = _SENSES["book_rows"] = _SENSES["book"].flush()
-                if rows:
-                    ux_log.on_frames(rows, day, observer=_ux_observe)
-            except Exception:                   # a disk fault costs the rows, never the tape
-                _SENSES["book_rows"] = []
-                log.exception("ux drain")
+            # other writers (spec 2 §B, §E).
+            _SENSES["book_rows"] = _ux_drain(time.strftime("%Y-%m-%d"))
 
             # The toxicity record, outside the lock with the other writers.
             # Fail-soft: a full disk costs the row, never the tape.
@@ -1146,6 +1110,49 @@ def _ux_observe(idx, row, fills):
     for f in fills:
         st["runs"].on_fill(f)
     st["impact"].on_frame(row, fills)
+
+
+def _ux_drain(day: str) -> list:
+    """The book record's drain and the ladder step, once a pass (spec 2 §B,
+    §E). Order matters: on the first pass of a day (or a late start) the
+    ladder is REBUILT from the book file BEFORE this pass's rows are written,
+    so nothing is stepped twice. Returns the rows flushed -- [] on a disk
+    fault too, which costs the rows, never the tape."""
+    try:
+        for idx in _SENSES["book"].watched():
+            st = _ux_meta(idx)
+            if st["day"] != day:
+                # a failed rebuild must not be retried every 0.5 s (a 60 MB
+                # re-read twice a second), so st["day"] is set in `finally`
+                # either way -- but a failure NAMES itself on `rebuild_why`
+                # instead of silently looking like a fresh, empty day.
+                try:
+                    # dump (upstox_instruments, resolved in _ux_meta) first,
+                    # GoCharting's own lot for the same index/day second, the
+                    # gcd last (ladder infers when `lot` is still None) --
+                    # spec §B/§J.12, and the row says which.
+                    lot = st["lot"] if st["lot"] else _ofd_lot(idx, day)
+                    lot_src = "dump" if st["lot"] else ("ofd" if lot else None)
+                    st["runs"] = runs_mod.Runs(lot=lot)
+                    st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
+                    ux_log.state(idx, day, lot, st["tick"], lot_src=lot_src)
+                    n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe)
+                    if n_re:
+                        log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
+                    st["lot_src"] = lot_src
+                    st["rebuild_why"] = None
+                except Exception as e:
+                    st["rebuild_why"] = f"rebuild failed: {type(e).__name__}: {e}"
+                    log.exception("ux rebuild for %s", idx)
+                finally:
+                    st["day"] = day
+        rows = _SENSES["book"].flush()
+        if rows:
+            ux_log.on_frames(rows, day, observer=_ux_observe)
+        return rows
+    except Exception:                   # a disk fault costs the rows, never the tape
+        log.exception("ux drain")
+        return []
 
 
 def _ux_bars(idx, day):
