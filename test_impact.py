@@ -45,10 +45,38 @@ def test_pct_ranks_lambda_against_the_session_so_far():
     assert r["lots_per_tick"] < 2.0 and r["pct"] is not None and r["pct"] > 0.5
 
 
-def test_read_snapshots_the_window_before_iterating():
-    """read() runs on the request thread while on_frame appends on the senses
-    thread; a deque iterated while appended to raises. Pinned by source."""
-    import inspect
-    src = inspect.getsource(impact.Impact._lam)
-    assert "self._win" not in src.split("\n", 1)[1]        # the body never touches the live deque
-    assert "list(self._win)" in inspect.getsource(impact.Impact.read)
+def test_read_survives_concurrent_readers_while_frames_stream_in():
+    """A writer thread steps ~2000 frames through `on_frame` while three
+    reader threads call `read()` in a loop for 1.5 s -- `read()` runs on the
+    request thread while `on_frame` appends on the senses thread, and a deque
+    iterated while it is being appended to raises."""
+    import threading
+    import time as time_mod
+    im = impact.Impact(lot=65, tick=0.05)
+    errors = []
+
+    def write():
+        mid = 100.00
+        for s in range(2000):
+            mid = round(mid + 0.01, 2)
+            im.on_frame(_row(s, mid, mid + 0.05),
+                       [{"ltt": T0 + s * 1000, "side": 1, "p": mid, "q": 65, "hidden": False}])
+
+    def read(deadline):
+        while time_mod.monotonic() < deadline:
+            try:
+                im.read()
+            except Exception as e:               # noqa: BLE001 -- any race raises here
+                errors.append(e)
+
+    deadline = time_mod.monotonic() + 1.5
+    writer = threading.Thread(target=write)
+    readers = [threading.Thread(target=read, args=(deadline,)) for _ in range(3)]
+    writer.start()
+    for r in readers:
+        r.start()
+    writer.join(timeout=3)
+    finished = not writer.is_alive()
+    for r in readers:
+        r.join(timeout=3)
+    assert errors == [] and finished

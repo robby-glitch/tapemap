@@ -74,12 +74,42 @@ def test_write_failure_is_counted_never_raised(monkeypatch):
     assert len(out) == 2 and ux_log.failed >= 2
 
 
-def test_the_ladder_step_and_the_forming_copy_share_one_lock():
-    import inspect
-    assert "with _LOCK:" in inspect.getsource(ux_log.on_frames)
-    src_rebuild = inspect.getsource(ux_log.rebuild)
-    assert src_rebuild.count("with _LOCK:") == 2          # the per-row step AND the trailing close_open
-    assert "with _LOCK:\n            last = lad.close_open()" in src_rebuild
-    assert "with _LOCK:" in inspect.getsource(ux_log.forming)
-    # never across disk: _land (the writer) is not under it
-    assert "_LOCK" not in inspect.getsource(ux_log._land)
+def test_the_ladder_step_and_the_forming_copy_survive_concurrent_readers(tmp_path, monkeypatch):
+    """A writer thread steps ~2000 frames through `on_frames` while three
+    reader threads call `forming` in a loop for 1.5 s -- `forming`'s deepcopy
+    must never land mid-mutation of the same ladder the writer is stepping."""
+    import threading
+    import time as time_mod
+    monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    ux_log._STATE.clear()
+    day = "2026-09-21"
+
+    def make_row(i):
+        ltt = T0 + i * 100
+        ltp = round(100.00 + (i % 7) * 0.05, 2)
+        return R(ltt, 1000 + i * 65, ltp, 65, [[round(ltp - 0.05, 2), 65]], [[round(ltp + 0.05, 2), 65]], ltt=ltt)
+
+    errors = []
+
+    def write():
+        for i in range(1, 2001):
+            ux_log.on_frames([("NIFTY", make_row(i))], day, lot=65, tick=0.05)
+
+    def read(deadline):
+        while time_mod.monotonic() < deadline:
+            try:
+                ux_log.forming("NIFTY", day)
+            except Exception as e:               # noqa: BLE001 -- any race raises here
+                errors.append(e)
+
+    deadline = time_mod.monotonic() + 1.5
+    writer = threading.Thread(target=write)
+    readers = [threading.Thread(target=read, args=(deadline,)) for _ in range(3)]
+    writer.start()
+    for r in readers:
+        r.start()
+    writer.join(timeout=3)
+    finished = not writer.is_alive()
+    for r in readers:
+        r.join(timeout=3)
+    assert errors == [] and finished

@@ -216,6 +216,32 @@ was deep-copying a ladder while the senses thread's `step` could still be mutati
 reference code was wrong three times and corrected in review: the unpriced-volume branch, per-bar fills
 that were not scoped to their own bar, and the empty-book sentence in `gate_report`.
 
+### The final review's fixes landed
+
+Six items from the final whole-run review, one commit each (`435f7dd..` on `feature/operator-objects`).
+(1) `unpriced` reaches the bar, the wire and the gate — it no longer collapses into `unknown`, which used
+to hold both the sideless-but-priced volume and the priced-nowhere volume as one number (`ladder: unpriced
+volume reaches the bar, the wire and the gate -- two absences, two numbers`). (2) A rebuild that raises is
+now named instead of silently retried every 0.5 s or silently looking like an empty day, and `ladder.min_gap`
+survives a `null` price in a book row (`server: a failed rebuild is named on the wire and in coverage, and
+min_gap survives a null price`). (3) The lot now falls dump → GoCharting's own record → gcd, exactly as the
+spec's §B/§J.12 always said, and the row names which; a gcd-inferred day gets a legend sentence saying
+`vol_ratio` is not yet a measurement of the feed (`server, ladder: the lot falls dump -> GoCharting -> gcd
+and the wire says which; a gcd day names itself`). (4) `book_log.flush` no longer advances its `_last_t`
+past a batch it failed to write — a failed write already lost those rows; it must not also lose the ones
+after them — and both write-loss counters (`book_log.failed`, `ux_log.failed`) now reach `/api/health`
+(`book_log: a failed write never advances the record, and both loss counters reach /api/health`). (5) Three
+minors: `va_overlap_why` now says "no profile on either side" instead of misreporting "no ux profile" when
+GoCharting's profile is absent too; a straggler frame binning earlier than the open bin (arriving after a
+close) is now counted on a `late_frames` bar field instead of folding in silently; the `agree_why` sentence
+for two records with no shared bar `t` is now pinned by a test (`ux_gate, ladder, tests: both-absent
+profiles get their sentence, stragglers are counted, the no-shared-t branch is pinned`). (6) The whole ux
+block in `_senses_loop` is now the module-level `_ux_drain(day)`, testable end to end — one test proves a
+rebuild and the flush that follows it step the ladder exactly once across that boundary, never twice
+(`server: the ux drain is a function, driven end to end by a test that lands bars once across the
+rebuild/flush boundary`). `unpriced`, `late_frames`, `rebuild_why`, `lot_why`, and `failed`/`ux_failed` are
+all new on the wire (`/api/tape`'s `ux` object and `/api/health`'s `coverage.book`) as of this wave.
+
 **What was seen live: nothing yet.** No live session has run this code. Before the next one: (a) restart
 the TapeMap server **detached** (`START-HERE.md` §0.6) — this spec touches no extension code, so unlike
 2026-09-19 there is nothing to reload in the browser; (b) `/api/health` → `coverage.book` shows `from` per
