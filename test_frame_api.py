@@ -271,3 +271,85 @@ def test_api_tape_an_empty_kind_event_is_dropped_by_the_record_and_the_wire(tmp_
     cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
     server.Handler.do_GET(cap)
     assert cap.sent["src"] == "live" and cap.sent["marks"]["ofd"] == []   # the live wire
+
+
+# --- spec 2026-09-20-upstox-tape §E: the ux object -------------------------------
+
+def _ux_seed(day="2026-09-11"):
+    """Two closed ux bars whose t match _ladder_doc's first two bars."""
+    import ux_log
+    from test_ladder import R
+    T = 1757563500000
+    rows = [R(T + 1000, 1000, 100.0, 65, [[100.0, 65]], [[101.0, 65]]),
+            R(T + 2000, 1065, 101.0, 65, [[100.0, 65]], [[101.0, 65]]),            # exact buy at 101
+            R(T + 300_500, 1130, 100.0, 65, [[100.0, 65]], [[101.0, 65]]),         # exact sell at 100, bin 1
+            R(T + 600_500, 1130, 100.0, 65, [[100.0, 65]], [[101.0, 65]])]         # bin 2: closes bin 1
+    ux_log.state("NIFTY", day, 65, 1.0)
+    ux_log.on_frames([("NIFTY", r) for r in rows], day)
+
+
+def _isolate_ux(tmp_path, monkeypatch):
+    import book_log
+    _isolate(tmp_path, monkeypatch)
+    monkeypatch.setitem(server._SENSES, "book", book_log.Book())
+    server._SENSES["ux"].clear()
+
+
+def test_api_tape_ux_absent_is_the_first_sentence(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    server.Handler.do_POST(_Req("/api/frame", _ladder_doc()))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    ux = cap.sent["ux"]
+    assert ux["src"] == "ux" and ux["tag"] == "I" and ux["bars"] == [] and ux["agree"] is None
+    assert ux["why"] == "no book record for NIFTY on 2026-09-11 — the server was not recording (book_log predates it, or the feed never connected)"
+    assert ux["levels"]["why"] == ux["why"] and ux["agree_why"] == ux["why"] and ux["marks"]["runs_why"] == ux["why"]
+
+
+def test_api_tape_ux_book_but_no_bar_yet_is_the_second_sentence(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    server._SENSES["book"].book_from["NIFTY"] = "09:15:03"
+    server.Handler.do_POST(_Req("/api/frame", _ladder_doc()))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert cap.sent["ux"]["why"] == "book record from 09:15:03, no bar closed yet"
+
+
+def test_api_tape_ux_bars_levels_marks_impact_and_agreement(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    _ux_seed()
+    server.Handler.do_POST(_Req("/api/frame", _ladder_doc()))
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["ok"] is True and len(j["bars"]) == 8                       # GoCharting untouched
+    ux = j["ux"]
+    assert ux["why"] is None and len(ux["bars"]) == 2 and "ladder" not in ux["bars"][0]
+    assert ux["bars"][0]["exact"] == 1 and ux["bars"][0]["cvd"] == 1 and ux["bars"][1]["cvd"] == 0
+    assert ux["bars"][0]["poc"] == 100.0 and ux["bars"][0]["partial"] is False
+    assert ux["levels"]["session"]["poc"] == 100.0 and ux["levels"]["why"] is None
+    assert ux["lot"] == 65 and ux["lot_src"] == "given" and ux["frames_per_s"] is not None
+    assert ux["marks"]["runs"] == [] and isinstance(ux["marks"]["runs_why"], str)
+    assert ux["impact"]["tag"] == "I" and isinstance(ux["impact"]["why"], str)
+    ag = ux["agree"]
+    assert ag["tag"] == "M" and ag["bars_joined"] == 2 and ag["poc_rows_median"] == 0 and ux["agree_why"] is None
+
+
+def test_api_tape_ux_without_gocharting_stands_alone(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    _ux_seed()
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["ok"] is True and j["src"] == "file" and j["bars"] == [] and j["rowSize"] == 5
+    assert j["levels"]["why"] == "no GoCharting record for NIFTY on 2026-09-11 — ux stands alone"
+    assert j["ux"]["agree"] is None
+    assert j["ux"]["agree_why"] == "GoCharting record absent for this day — ux stands alone, flags on the default grid"
+    assert len(j["ux"]["bars"]) == 2
+
+
+def test_api_tape_neither_record_is_still_the_third_sentence(tmp_path, monkeypatch):
+    _isolate_ux(tmp_path, monkeypatch)
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
+    server.Handler.do_GET(cap)
+    assert cap.sent["ok"] is False and "no prints record for NIFTY on 2026-09-11" in cap.sent["why"]

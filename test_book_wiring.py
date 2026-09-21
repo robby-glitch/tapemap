@@ -38,3 +38,19 @@ def test_the_loop_assigns_the_hook_watches_the_futures_and_flushes_outside_the_l
     i_flush = src.index("_SENSES[\"book_rows\"] = _SENSES[\"book\"].flush()")
     i_lock_end = src.index("# 5a/5b, OUTSIDE _SENSES_LOCK")
     assert i_hook < i_watch < i_lock_end < i_flush
+
+
+def test_the_loop_rebuilds_on_a_new_day_before_the_flush_and_drains_into_the_ladder():
+    src = inspect.getsource(server._senses_loop)
+    i_rebuild = src.index("ux_log.rebuild(day, idx, st[\"lot\"], st[\"tick\"], observer=_ux_observe)")
+    i_flush = src.index("_SENSES[\"book_rows\"] = _SENSES[\"book\"].flush()")
+    i_drain = src.index("ux_log.on_frames(rows, day, observer=_ux_observe)")
+    assert i_rebuild < i_flush < i_drain
+
+
+def test_ux_meta_falls_back_to_none_none_when_the_slice_cannot_be_read(monkeypatch):
+    import upstox_instruments
+    monkeypatch.setattr(upstox_instruments, "lot_tick", lambda name: (_ for _ in ()).throw(RuntimeError("no dump")))
+    server._SENSES["ux"].clear()
+    st = server._ux_meta("NIFTY")
+    assert st["lot"] is None and st["tick"] is None and st["runs"].lot is None

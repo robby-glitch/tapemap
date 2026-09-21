@@ -41,6 +41,11 @@ import frame
 import frame_log
 import tape_log
 import book_log
+import ux_log
+import ux_gate as gate_mod      # amended at Task 9: gate.py is the seller's gate
+import runs as runs_mod
+import impact as impact_mod
+import upstox_instruments
 import prints
 import instruments
 import oi_dwell
@@ -116,6 +121,9 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # feed thread fills and the loop drains. `book_rows` is what the
            # last drain wrote, for ux_log to consume on the same pass.
            "book": book_log.Book(), "book_rows": [],
+           # per-index lot/tick and the two book-derived detectors (spec §G);
+           # keyed by idx, reset on a day roll in the loop
+           "ux": {},
            # THE FRAME the tape most recently produced, idx -> the dict also
            # appended to frame_log when its signature changes. Placeholder
            # until frame.py lands.
@@ -864,13 +872,28 @@ def _senses_loop(poller, payloads, period=0.5):
             # it), so updating it needs no lock either. Own try/except per
             # index so a bad fit or a desk exception on ONE index cannot cost
             # the others their chain-pace log.
-            # THE BOOK RECORD'S DRAIN, outside the lock with the other writers.
-            # One call a pass: the feed thread's deque -> data/book/, and the
-            # same rows handed on for the ladder (ux_log, Task 8) below.
+            # THE BOOK RECORD'S DRAIN AND THE LADDER, outside the lock with the
+            # other writers (spec 2 §B, §E). Order matters: on the first pass of
+            # a day (or a late start) the ladder is REBUILT from the book file
+            # BEFORE this pass's rows are written, so nothing is stepped twice.
             try:
-                _SENSES["book_rows"] = _SENSES["book"].flush()
+                day = time.strftime("%Y-%m-%d")
+                for idx in _SENSES["book"].watched():
+                    st = _ux_meta(idx)
+                    if st["day"] != day:
+                        st["day"] = day
+                        st["runs"] = runs_mod.Runs(lot=st["lot"])
+                        st["impact"] = impact_mod.Impact(lot=st["lot"], tick=st["tick"])
+                        ux_log.state(idx, day, st["lot"], st["tick"])
+                        n_re = ux_log.rebuild(day, idx, st["lot"], st["tick"], observer=_ux_observe)
+                        if n_re:
+                            log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
+                rows = _SENSES["book_rows"] = _SENSES["book"].flush()
+                if rows:
+                    ux_log.on_frames(rows, day, observer=_ux_observe)
             except Exception:                   # a disk fault costs the rows, never the tape
                 _SENSES["book_rows"] = []
+                log.exception("ux drain")
 
             # The toxicity record, outside the lock with the other writers.
             # Fail-soft: a full disk costs the row, never the tape.
@@ -1072,6 +1095,89 @@ _LADDER_WHY = "extension predates ladders (orderflow-desk < 0.3.1)"
 _NO_FLAGS = {"stacks": None, "unfinished_high": None, "unfinished_low": None, "poc": None}
 
 
+def _ux_meta(idx):
+    """lot/tick for the index once per process, and its runs/impact machines.
+    (None, None) when the cached slice predates the fields or cannot be read --
+    ladder.py then infers and the row says `lot_src: "gcd"`."""
+    st = _SENSES["ux"].get(idx)
+    if st is None:
+        try:
+            lot, tick = upstox_instruments.lot_tick(idx)
+        except Exception:                      # noqa: BLE001 -- no dump is not a reason to stop recording
+            lot, tick = None, None
+        st = _SENSES["ux"][idx] = {"lot": lot, "tick": tick, "day": None,
+                                    "runs": runs_mod.Runs(lot=lot),
+                                    "impact": impact_mod.Impact(lot=lot, tick=tick)}
+    return st
+
+
+def _ux_observe(idx, row, fills):
+    """ux_log's per-row observer: every fill to the run detector, every frame to the gauge."""
+    st = _ux_meta(idx)
+    for f in fills:
+        st["runs"].on_fill(f)
+    st["impact"].on_frame(row, fills)
+
+
+def _ux_bars(idx, day):
+    st = ux_log._STATE.get(idx)
+    if st is not None and st["day"] == day:
+        return list(st["bars"])
+    return ux_log.read_bars(day, idx)
+
+
+_UX_KEEP = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "unknown", "delta", "cvd", "oi",
+            "exact", "reconstructed", "hidden", "partial", "partial_why")
+
+
+def _ux_reply(idx, day, row, anchor, ofd_raw):
+    """The ux object (spec §E): bars, levels, runs, impact, agreement -- three sentences each."""
+    bars_raw = [b for b in _ux_bars(idx, day) if tape_log.bar_t(b) is not None]
+    book = _SENSES["book"]
+    book_from = book.book_from.get(idx)
+    st = _SENSES["ux"].get(idx) or {}
+    out = {"src": "ux", "tag": "I", "bars": [], "forming": None,
+           "levels": {"session": None, "nodes": [], "why": None},
+           "marks": {"runs": [], "runs_why": None}, "impact": None,
+           "agree": None, "agree_why": None, "book_from": book_from, "frames_per_s": None,
+           "lot": st.get("lot"), "lot_src": None, "why": None}
+    if not bars_raw:
+        if book_from is None and not os.path.exists(book_log.day_path(day, idx)):
+            why = (f"no book record for {idx} on {day} — the server was not recording "
+                   f"(book_log predates it, or the feed never connected)")
+        else:
+            why = f"book record from {book_from or 'file'}, no bar closed yet"
+        out["why"] = out["levels"]["why"] = out["agree_why"] = out["marks"]["runs_why"] = why
+        return out
+    for b in prints.with_cvd(bars_raw):
+        f = prints.bar_flags(b, row, anchor)
+        out["bars"].append({**{k: b.get(k) for k in _UX_KEEP}, **(f or _NO_FLAGS)})
+    fm = ux_log.forming(idx, day)
+    if fm is not None:
+        out["forming"] = {**{k: fm.get(k) for k in _UX_KEEP}, **(prints.bar_flags(fm, row, anchor) or _NO_FLAGS)}
+    prof = prints.profile(gate_mod.rebinned(bars_raw, row, anchor))
+    out["levels"] = {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
+                     "nodes": prints.nodes(prof), "why": None if prof else "no ux bar with a ladder yet"}
+    out["lot"], out["lot_src"] = bars_raw[-1].get("lot"), bars_raw[-1].get("lot_src")
+    frames = sum(b.get("frames") or 0 for b in bars_raw)
+    out["frames_per_s"] = round(frames / (300.0 * len(bars_raw)), 2)
+    r = st.get("runs")
+    out["marks"] = {"runs": [dict(e) for e in r.events] if r else [],
+                    "runs_why": r.why() if r else "no fill has reached the run detector yet this process"}
+    im = st.get("impact")
+    out["impact"] = im.read() if im else {"lambda": None, "lots_per_tick": None, "pct": None, "n": 0,
+                                          "why": "no frame has reached the impact gauge yet this process", "tag": "I"}
+    if not ofd_raw:
+        out["agree_why"] = "GoCharting record absent for this day — ux stands alone, flags on the default grid"
+    else:
+        ag = gate_mod.session(ofd_raw, bars_raw, row, anchor)
+        if ag["bars_joined"] == 0:
+            out["agree_why"] = "no GoCharting bar shares a t with any ux bar — nothing to compare"
+        else:
+            out["agree"] = ag
+    return out
+
+
 def _tape_reply(idx: str, day: str) -> dict:
     """GET /api/tape: bars + levels + two mark families, three sentences (spec §D)."""
     with _SENSES_LOCK:
@@ -1090,11 +1196,15 @@ def _tape_reply(idx: str, day: str) -> dict:
         forming_why = None
     else:
         raw = tape_log.read_bars(day, idx)
-        if not raw:
+        if not raw and not _ux_bars(idx, day) and not os.path.exists(book_log.day_path(day, idx)) \
+                and idx not in _SENSES["book"].book_from:
             return {"ok": False, "idx": idx, "day": day, "src": None,
                     "why": f"no prints record for {idx} on {day} — GoCharting was on another index, or the extension never posted"}
         forming, ofd = None, tape_log.read_marks(day, idx)
-        meta = {"rowSize": raw[0].get("rowSize"), "rowAnchor": raw[0].get("rowAnchor", 0), "lot": raw[0].get("lot")}
+        # no GoCharting record but a ux one: the extension's defaults (rowSize 5,
+        # anchor 0), and levels.why says the grid was assumed (spec 2 §E)
+        meta = ({"rowSize": raw[0].get("rowSize"), "rowAnchor": raw[0].get("rowAnchor", 0), "lot": raw[0].get("lot")}
+                if raw else {"rowSize": 5, "rowAnchor": 0, "lot": None})
         forming_why = (f"extension not posting for {int(time.time() - held['at'])}s — showing the record" if held
                        else "extension not posting since server start — showing the record")
     row, anchor = float(meta["rowSize"] or 5), float(meta["rowAnchor"] or 0)
@@ -1137,8 +1247,10 @@ def _tape_reply(idx: str, day: str) -> dict:
         "levels": {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
                    "prior": prior, "prior_why": None if prior else "no earlier day in the record yet",
                    "naked": prints.naked(prior_days, raw), "nodes": prints.nodes(prof), "tag": "M",
-                   "why": None if prof else "no bar with a ladder yet"},
+                   "why": (f"no GoCharting record for {idx} on {day} — ux stands alone" if not raw
+                           else None if prof else "no bar with a ladder yet")},
         "marks": {"ofd": ofd, "ofd_why": ofd_why, "tm": tm, "tm_why": tm_why},
+        "ux": _ux_reply(idx, day, row, anchor, raw),
         "why": None,
     }
 
