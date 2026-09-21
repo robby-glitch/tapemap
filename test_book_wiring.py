@@ -19,7 +19,14 @@ def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
     assert c["why"] == "no frame recorded yet this process -- feed not connected, or before the first drain"
     b.book_from["NIFTY"] = "09:15:03"
     b.written = 10
-    assert server._coverage()["book"] == {"from": {"NIFTY": "09:15:03"}, "dropped": 0, "written": 10, "why": None}
+    assert server._coverage()["book"] == {"from": {"NIFTY": "09:15:03"}, "dropped": 0, "written": 10,
+                                          "rebuild_why": {}, "why": None}
+
+
+def test_coverage_carries_a_failed_rebuilds_reason_by_index(monkeypatch):
+    server._SENSES["ux"].clear()
+    server._SENSES["ux"]["NIFTY"] = {"rebuild_why": "rebuild failed: RuntimeError: boom"}
+    assert server._coverage()["book"]["rebuild_why"] == {"NIFTY": "rebuild failed: RuntimeError: boom"}
 
 
 def test_a_mock_run_cannot_write_into_the_live_book_record(monkeypatch):

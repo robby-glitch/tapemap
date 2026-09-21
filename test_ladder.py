@@ -124,6 +124,11 @@ def test_min_gap_is_the_smallest_adjacent_price_step_on_either_side():
     assert ladder.min_gap(R(1, 1000, 100.0, 65, [], [])) is None
 
 
+def test_min_gap_skips_a_null_price_and_uses_the_remaining_levels():
+    row = R(1, 1000, 100.0, 65, [[100.00, 65], [None, 65]], [[100.05, 65], [100.10, 65]])
+    assert ladder.min_gap(row) == 0.05
+
+
 # --- bars ---------------------------------------------------------------------
 
 def test_bin_of_is_the_five_minute_open_in_epoch_ms():

@@ -79,6 +79,7 @@ export interface TapeUx {
   impact: UxImpact | null
   agree: UxAgree | null; agree_why: string | null
   book_from: string | null; frames_per_s: number | null; lot: number | null; lot_src: string | null
+  rebuild_why: string | null
   why: string | null
 }
 

@@ -53,8 +53,10 @@ def side_of(ltp: float, prev: dict) -> int:
 
 def min_gap(row: dict) -> Optional[float]:
     """The smallest step between adjacent quoted prices, both sides and across
-    the spread -- the tick fallback while no dump value is known."""
-    ps = sorted({p for p, _ in (row.get("b") or [])} | {p for p, _ in (row.get("a") or [])})
+    the spread -- the tick fallback while no dump value is known. A level
+    priced `null` (not a number) is skipped rather than raised on by `sorted`."""
+    ps = sorted({p for p, _ in (row.get("b") or []) if isinstance(p, (int, float))} |
+                {p for p, _ in (row.get("a") or []) if isinstance(p, (int, float))})
     gaps = [round(b - a, 4) for a, b in zip(ps, ps[1:]) if b - a > 0]
     return min(gaps) if gaps else None
 

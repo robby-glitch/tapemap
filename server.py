@@ -881,13 +881,23 @@ def _senses_loop(poller, payloads, period=0.5):
                 for idx in _SENSES["book"].watched():
                     st = _ux_meta(idx)
                     if st["day"] != day:
-                        st["day"] = day
-                        st["runs"] = runs_mod.Runs(lot=st["lot"])
-                        st["impact"] = impact_mod.Impact(lot=st["lot"], tick=st["tick"])
-                        ux_log.state(idx, day, st["lot"], st["tick"])
-                        n_re = ux_log.rebuild(day, idx, st["lot"], st["tick"], observer=_ux_observe)
-                        if n_re:
-                            log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
+                        # a failed rebuild must not be retried every 0.5 s (a 60 MB
+                        # re-read twice a second), so st["day"] is set in `finally`
+                        # either way -- but a failure NAMES itself on `rebuild_why`
+                        # instead of silently looking like a fresh, empty day.
+                        try:
+                            st["runs"] = runs_mod.Runs(lot=st["lot"])
+                            st["impact"] = impact_mod.Impact(lot=st["lot"], tick=st["tick"])
+                            ux_log.state(idx, day, st["lot"], st["tick"])
+                            n_re = ux_log.rebuild(day, idx, st["lot"], st["tick"], observer=_ux_observe)
+                            if n_re:
+                                log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
+                            st["rebuild_why"] = None
+                        except Exception as e:
+                            st["rebuild_why"] = f"rebuild failed: {type(e).__name__}: {e}"
+                            log.exception("ux rebuild for %s", idx)
+                        finally:
+                            st["day"] = day
                 rows = _SENSES["book_rows"] = _SENSES["book"].flush()
                 if rows:
                     ux_log.on_frames(rows, day, observer=_ux_observe)
@@ -1105,7 +1115,7 @@ def _ux_meta(idx):
             lot, tick = upstox_instruments.lot_tick(idx)
         except Exception:                      # noqa: BLE001 -- no dump is not a reason to stop recording
             lot, tick = None, None
-        st = _SENSES["ux"][idx] = {"lot": lot, "tick": tick, "day": None,
+        st = _SENSES["ux"][idx] = {"lot": lot, "tick": tick, "day": None, "rebuild_why": None,
                                     "runs": runs_mod.Runs(lot=lot),
                                     "impact": impact_mod.Impact(lot=lot, tick=tick)}
     return st
@@ -1136,15 +1146,18 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
     book = _SENSES["book"]
     book_from = book.book_from.get(idx)
     st = _SENSES["ux"].get(idx) or {}
+    rebuild_why = st.get("rebuild_why")
     out = {"src": "ux", "tag": "I", "bars": [], "forming": None,
            "levels": {"session": None, "nodes": [], "why": None},
            "marks": {"runs": [], "runs_why": None}, "impact": None,
            "agree": None, "agree_why": None, "book_from": book_from, "frames_per_s": None,
-           "lot": st.get("lot"), "lot_src": None, "why": None}
+           "lot": st.get("lot"), "lot_src": None, "rebuild_why": rebuild_why, "why": None}
     if not bars_raw:
         if book_from is None and not os.path.exists(book_log.day_path(day, idx)):
             why = (f"no book record for {idx} on {day} — the server was not recording "
                    f"(book_log predates it, or the feed never connected)")
+        elif rebuild_why:
+            why = f"book record from {book_from or 'file'}, {rebuild_why}"
         else:
             why = f"book record from {book_from or 'file'}, no bar closed yet"
         out["why"] = out["levels"]["why"] = out["agree_why"] = out["marks"]["runs_why"] = why
@@ -2602,9 +2615,11 @@ def _save_day_state():
 def _book_coverage():
     b = _SENSES.get("book")
     if b is None:
-        return {"from": {}, "dropped": 0, "written": 0, "why": "no book writer in this process"}
+        return {"from": {}, "dropped": 0, "written": 0, "rebuild_why": {}, "why": "no book writer in this process"}
     frm = dict(b.book_from)
-    return {"from": frm, "dropped": b.dropped, "written": b.written,
+    ux_state = _SENSES.get("ux") or {}
+    rebuild_why = {idx: st["rebuild_why"] for idx, st in ux_state.items() if st.get("rebuild_why")}
+    return {"from": frm, "dropped": b.dropped, "written": b.written, "rebuild_why": rebuild_why,
             "why": None if frm else
             "no frame recorded yet this process -- feed not connected, or before the first drain"}
 
