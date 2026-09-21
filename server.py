@@ -124,6 +124,10 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # per-index lot/tick and the two book-derived detectors (spec §G);
            # keyed by idx, reset on a day roll in the loop
            "ux": {},
+           # the shared flush/step half of `_ux_drain` names its own failure
+           # here -- process-wide, not per index (`ux` state's `rebuild_why`
+           # is per index, for the rebuild half only). None on a clean pass.
+           "ux_drain_why": None,
            # THE FRAME the tape most recently produced, idx -> the dict also
            # appended to frame_log when its signature changes. Placeholder
            # until frame.py lands.
@@ -1125,7 +1129,11 @@ def _ux_drain(day: str) -> list:
                 # a failed rebuild must not be retried every 0.5 s (a 60 MB
                 # re-read twice a second), so st["day"] is set in `finally`
                 # either way -- but a failure NAMES itself on `rebuild_why`
-                # instead of silently looking like a fresh, empty day.
+                # instead of silently looking like a fresh, empty day. `runs`/
+                # `impact` are ALSO reset in `finally`, not inline, so a raise
+                # inside `_ofd_lot` -- before either line would otherwise run
+                # -- cannot leave yesterday's machines in place for today.
+                lot = None
                 try:
                     # dump (upstox_instruments, resolved in _ux_meta) first,
                     # GoCharting's own lot for the same index/day second, the
@@ -1133,25 +1141,30 @@ def _ux_drain(day: str) -> list:
                     # spec §B/§J.12, and the row says which.
                     lot = st["lot"] if st["lot"] else _ofd_lot(idx, day)
                     lot_src = "dump" if st["lot"] else ("ofd" if lot else None)
-                    st["runs"] = runs_mod.Runs(lot=lot)
-                    st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
                     ux_log.state(idx, day, lot, st["tick"], lot_src=lot_src)
                     n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe,
                                           close_last=False)
                     if n_re:
                         log.info("ux: rebuilt %s bar(s) for %s from today's book record", n_re, idx)
-                    st["lot_src"] = lot_src
                     st["rebuild_why"] = None
                 except Exception as e:
                     st["rebuild_why"] = f"rebuild failed: {type(e).__name__}: {e}"
                     log.exception("ux rebuild for %s", idx)
                 finally:
+                    st["runs"] = runs_mod.Runs(lot=lot)
+                    st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
                     st["day"] = day
-        rows = _SENSES["book"].flush()
+    except Exception:                   # a disk fault costs the rows, never the tape
+        log.exception("ux drain")
+        return []
+    try:
+        rows = _SENSES["book"].flush(day)
         if rows:
             ux_log.on_frames(rows, day, observer=_ux_observe)
+        _SENSES["ux_drain_why"] = None
         return rows
-    except Exception:                   # a disk fault costs the rows, never the tape
+    except Exception as e:               # named on ux_drain_why, never raised past here
+        _SENSES["ux_drain_why"] = f"drain failed: {type(e).__name__}: {e}"
         log.exception("ux drain")
         return []
 
@@ -1199,8 +1212,15 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
     out["levels"] = {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
                      "nodes": prints.nodes(prof), "why": None if prof else "no ux bar with a ladder yet"}
     out["lot"], out["lot_src"] = bars_raw[-1].get("lot"), bars_raw[-1].get("lot_src")
-    out["lot_why"] = ("lot inferred by gcd -- vol_ratio is not yet a measurement of the feed"
-                       if out["lot_src"] == "gcd" else None)
+    if out["lot_src"] == "gcd":
+        out["lot_why"] = "lot inferred by gcd -- vol_ratio is not yet a measurement of the feed"
+    elif out["lot"] is None:
+        # the bar's own reason (ladder._resolve's "no traded volume yet to
+        # infer a lot from") -- a lotless day is not the gcd day, and must
+        # not borrow its sentence.
+        out["lot_why"] = bars_raw[-1].get("lot_why")
+    else:
+        out["lot_why"] = None
     frames = sum(b.get("frames") or 0 for b in bars_raw)
     out["frames_per_s"] = round(frames / (300.0 * len(bars_raw)), 2)
     r = st.get("runs")
@@ -2645,7 +2665,8 @@ def _book_coverage():
     lost = book_log.failed + ux_log.failed
     if _SENSES.get("book") is None:
         return {"from": {}, "dropped": 0, "written": 0, "rebuild_why": {}, "failed": book_log.failed,
-                "ux_failed": ux_log.failed, "why": "no book writer in this process"}
+                "ux_failed": ux_log.failed, "drain_why": _SENSES.get("ux_drain_why"),
+                "why": "no book writer in this process"}
     b = _SENSES["book"]
     frm = dict(b.book_from)
     ux_state = _SENSES.get("ux") or {}
@@ -2655,7 +2676,8 @@ def _book_coverage():
         note = f"{lost} row(s) lost to a write failure this process"
         why = f"{why} — {note}" if why else note
     return {"from": frm, "dropped": b.dropped, "written": b.written, "rebuild_why": rebuild_why,
-            "failed": book_log.failed, "ux_failed": ux_log.failed, "why": why}
+            "failed": book_log.failed, "ux_failed": ux_log.failed,
+            "drain_why": _SENSES.get("ux_drain_why"), "why": why}
 
 
 def _coverage():

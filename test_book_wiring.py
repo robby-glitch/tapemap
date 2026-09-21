@@ -17,6 +17,7 @@ def test_the_senses_state_owns_one_book():
 def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
     monkeypatch.setattr(book_log, "failed", 0)
     monkeypatch.setattr(ux_log, "failed", 0)
+    monkeypatch.setitem(server._SENSES, "ux_drain_why", None)
     b = book_log.Book(day="2026-09-21")
     monkeypatch.setitem(server._SENSES, "book", b)
     c = server._coverage()["book"]
@@ -25,7 +26,8 @@ def test_coverage_names_the_book_record_with_the_three_sentences(monkeypatch):
     b.book_from["NIFTY"] = "09:15:03"
     b.written = 10
     assert server._coverage()["book"] == {"from": {"NIFTY": "09:15:03"}, "dropped": 0, "written": 10,
-                                          "rebuild_why": {}, "failed": 0, "ux_failed": 0, "why": None}
+                                          "rebuild_why": {}, "failed": 0, "ux_failed": 0,
+                                          "drain_why": None, "why": None}
 
 
 def test_coverage_carries_a_failed_rebuilds_reason_by_index(monkeypatch):
@@ -73,7 +75,7 @@ def test_the_loop_assigns_the_hook_watches_the_futures_and_drains_outside_the_lo
 def test_ux_drain_rebuilds_before_it_flushes_before_it_feeds_the_ladder():
     src = inspect.getsource(server._ux_drain)
     i_rebuild = src.index("ux_log.rebuild(")
-    i_flush = src.index(".flush()")
+    i_flush = src.index(".flush(day)")
     i_onframes = src.index("ux_log.on_frames(")
     assert i_rebuild < i_flush < i_onframes
 
@@ -91,6 +93,52 @@ def test_ux_drain_names_a_raised_rebuild_and_still_flushes_this_pass(monkeypatch
     assert out == [] and st["day"] == "2026-09-21"
     assert st["rebuild_why"] == "rebuild failed: RuntimeError: boom"
     assert server._coverage()["book"]["rebuild_why"] == {"NIFTY": "rebuild failed: RuntimeError: boom"}
+
+
+def test_ux_drain_resets_runs_and_impact_even_when_ofd_lot_raises(monkeypatch):
+    """A raise inside `_ofd_lot` happens BEFORE `lot` is resolved, so the old
+    code path (which reset runs/impact inline, after the lot lookup) would
+    leave yesterday's machines in place under `st["day"] == today`. The reset
+    now lives in `finally`, so it runs regardless of where the exception
+    lands."""
+    import runs as runs_mod
+    import impact as impact_mod
+    stale_impact = impact_mod.Impact(lot=65, tick=0.05)
+    stale_impact.on_frame({"t": 1, "b": [[100.0, 65]], "a": [[100.05, 65]]}, [{"q": 65, "side": 1}])
+    assert stale_impact.read()["n"] == 1                # proof it is not already fresh
+    st = {"lot": None, "tick": None, "day": "2026-09-20", "rebuild_why": None,
+          "runs": runs_mod.Runs(lot=65), "impact": stale_impact}
+    monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
+    monkeypatch.setattr(server, "_ofd_lot", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no lot")))
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", "FUT_KEY")
+    monkeypatch.setitem(server._SENSES, "book", b)
+    server._ux_drain("2026-09-21")
+    assert st["rebuild_why"] == "rebuild failed: RuntimeError: no lot"
+    assert st["impact"] is not stale_impact and st["impact"].read()["n"] == 0
+    assert st["day"] == "2026-09-21"
+
+
+def test_ux_drain_names_a_failed_flush_on_drain_why_and_clears_it_on_the_next_clean_pass(monkeypatch):
+    """The flush/on_frames half is the shared, per-process step -- its own
+    failure is named on `ux_drain_why` (served in coverage), separate from
+    any per-index `rebuild_why`, and cleared again the next time it succeeds."""
+    monkeypatch.setitem(server._SENSES, "ux_drain_why", None)
+    st = {"lot": 65, "tick": 0.05, "day": "2026-09-21", "rebuild_why": None, "runs": None, "impact": None}
+    monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", "FUT_KEY")
+    monkeypatch.setitem(server._SENSES, "book", b)
+    monkeypatch.setattr(b, "flush", lambda day=None: [("NIFTY", {"t": 1})])
+    monkeypatch.setattr(ux_log, "on_frames", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    out = server._ux_drain("2026-09-21")
+    assert out == []
+    assert server._SENSES["ux_drain_why"] == "drain failed: RuntimeError: boom"
+    assert server._coverage()["book"]["drain_why"] == "drain failed: RuntimeError: boom"
+
+    monkeypatch.setattr(ux_log, "on_frames", lambda *a, **k: [])
+    out2 = server._ux_drain("2026-09-21")
+    assert out2 == [("NIFTY", {"t": 1})] and server._SENSES["ux_drain_why"] is None
 
 
 def test_ux_drain_lands_bars_once_across_the_rebuild_flush_boundary(tmp_path, monkeypatch):

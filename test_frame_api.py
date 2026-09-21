@@ -385,6 +385,26 @@ def test_api_tape_ux_lot_why_is_none_when_the_lot_came_from_the_dump(tmp_path, m
     assert ux["lot_src"] == "dump" and ux["lot_why"] is None
 
 
+def test_api_tape_ux_lot_why_names_a_lotless_day(tmp_path, monkeypatch):
+    """No lot inferred yet (no traded volume) is not the gcd day -- it gets
+    the bar's own `lot_why`, not the gcd sentence."""
+    _isolate_ux(tmp_path, monkeypatch)
+    import ux_log
+    bar = {"t": 1757563500000, "o": None, "h": None, "l": None, "c": None, "vol": 0, "buy": 0, "sell": 0,
+           "unknown": 0, "unpriced": 0, "delta": 0, "oi": None, "fromTicks": True, "ladder": [],
+           "rowSize": None, "rowAnchor": 0, "lot": None, "lot_src": None,
+           "lot_why": "no traded volume yet to infer a lot from",
+           "tick": 0.05, "tick_src": "given", "frames": 1, "exact": 0, "reconstructed": 0,
+           "hidden": 0, "vtt_resets": 0, "lot_mismatch": 0, "levels_seen": 2,
+           "partial": False, "partial_why": None, "src": "ux", "idx": "NIFTY", "day": "2026-09-16"}
+    ux_log._write_lines(ux_log.day_path("2026-09-16", "NIFTY"), [bar])
+    cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-16")
+    server.Handler.do_GET(cap)
+    ux = cap.sent["ux"]
+    assert ux["lot"] is None and ux["lot_src"] is None
+    assert ux["lot_why"] == "no traded volume yet to infer a lot from"
+
+
 def test_api_tape_ux_agree_why_when_no_ux_bar_shares_a_t_with_gocharting(tmp_path, monkeypatch):
     """Both records exist for the day, but at disjoint `t`s -- GoCharting's bars
     shifted one day later than the ux bars' own default `t`s (_ux_seed's), each
