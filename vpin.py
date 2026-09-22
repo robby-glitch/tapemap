@@ -62,6 +62,32 @@ from typing import Dict, List, Optional
 
 # --- the [I] layer ---------------------------------------------------------
 BUCKET_V = 60_000    # units per bucket: median-of-30-sessions ADV/50 (docstring)
+# THE FAST LINE (operator, 2026-09-23: "we need a fast line and a slow line ...
+# 60k is why it is slow and takes time"). She is right about the cost and the
+# cause. Measured on the SAME cache the 60_000 was measured on (the last 30
+# `data/backtest/fut_*.json`, median day 2,963,090 units -- which reproduces
+# the docstring's 2,936,408 and so validates the method before the number):
+#
+#     by 09:30   367,250 units traded (12.4% of a median day)
+#     by 09:45   531,830 units        (17.9%)
+#     by 10:00   622,668 units        (21.0%)
+#
+# At 60_000 the 10th bucket -- MIN_HIST, the first ranked reading -- needs
+# 600,000 units, 20.2% of a median day, which lands near 09:58. That is the
+# docstring's own ~09:56 measured again, and it is why the gauge is mute
+# through the morning: on 2026-09-22 the whole 105-point 10:20-10:50 fall
+# happened before the percentile existed.
+#
+# 20_000 puts the 10th bucket at 200,000 units, roughly 09:25, and completes
+# ~148 buckets on a median day instead of ~49. WINDOW stays 50, so the average
+# spans 1,000,000 units (about a third of a session) rather than the whole of
+# one -- that shorter span IS the speed, and it is one parameter changed, not
+# two. WHAT IT COSTS: fewer trades per bucket, so the tick rule's
+# classification error carries more weight in each imbalance, and the two
+# lines are ranked against DIFFERENT populations -- their percentiles are not
+# comparable as numbers, only as shapes. [I] and SHADOW like the slow line,
+# and written to its OWN log so the promotion record stays one population.
+FAST_BUCKET_V = 20_000
 WINDOW = 50          # buckets a VPIN reading averages over (literature default)
 MIN_HIST = 10        # percentiles on fewer completed buckets are not trusted
 

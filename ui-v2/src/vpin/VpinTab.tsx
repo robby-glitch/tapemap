@@ -53,6 +53,13 @@ type Reply = {
   shadow?: boolean
   seeded_from_backfill?: boolean
   backfill?: { n: number; why: string | null; method: string; note: string }
+  /** THE FAST LINE: the same tape through a smaller volume bucket, its own
+   *  gauge, its own log, its own population. Percentiles from the two are
+   *  comparable as SHAPES and not as numbers — see vpin.FAST_BUCKET_V. */
+  fast_inst?: string
+  fast_bucket_v?: number
+  fast_series?: Point[] | null
+  fast_why?: string | null
 }
 
 /** The gauge only exists for this instrument; vpin.py attaches to one. */
@@ -85,6 +92,9 @@ export default function VpinTab({ index }: { index: IndexKey }) {
   const pal = usePalette()
   const wash = (token: string, a: number) => `rgba(${rgbOf(token)},${a})`
   const hot = '#E86A5A', calm = '#3CC8A8'
+  // The fast line needs its own hue, and hue here means LINE, not side — the
+  // side convention belongs to the Board. Lavender is used nowhere else.
+  const fastCol = '#9B8CE8'
 
   const [rep, setRep] = useState<Reply | null>(null)
   const [why, setWhy] = useState<string | null>('abhi padha ja raha hai')
@@ -108,19 +118,26 @@ export default function VpinTab({ index }: { index: IndexKey }) {
   const bars = gcBars.length ? gcBars : uxBars
   const priceSrc = gcBars.length ? 'GoCharting [M]' : uxBars.length ? 'Upstox tape [I]' : null
 
-  const st: State | null = rep?.state ? (rep.state[rep.inst ?? 'NIFTY-FUT'] ?? Object.values(rep.state)[0] ?? null) : null
+  const st: State | null = rep?.state ? (rep.state[rep.inst ?? 'NIFTY-FUT'] ?? null) : null
+  const stFast: State | null = rep?.state && rep.fast_inst ? (rep.state[rep.fast_inst] ?? null) : null
   const series: Point[] | null | undefined = rep?.series
   const pts = useMemo(() => (series ?? []).filter(p => p.pct != null && mins(p.t) != null), [series])
+  const fastPts = useMemo(() => (rep?.fast_series ?? []).filter(p => p.pct != null && mins(p.t) != null), [rep?.fast_series])
   const live = pts.filter(p => !p.backfill)
   const bf = pts.filter(p => !!p.backfill)
+  // The read leans on whichever line HAS a rank, and says which. Early in the
+  // session that is the fast one; that is the whole point of it existing.
+  const readPts = fastPts.length ? fastPts : pts
+  const readSt = fastPts.length ? stFast : st
+  const readName = fastPts.length ? `fast (${compact(rep?.fast_bucket_v)})` : `slow (${compact(st?.bucket_v)})`
 
   // ── the four-way read: what the two series did over the last LOOK_MIN ─────
   const sustain = useMemo(() => {
     if (index !== GAUGED) return null
-    if (!pts.length || !bars.length) return null
-    const now = pts[pts.length - 1]
+    if (!readPts.length || !bars.length) return null
+    const now = readPts[readPts.length - 1]
     const nowM = mins(now.t)!
-    const then = [...pts].reverse().find(p => (mins(p.t) ?? 0) <= nowM - LOOK_MIN) ?? pts[0]
+    const then = [...readPts].reverse().find(p => (mins(p.t) ?? 0) <= nowM - LOOK_MIN) ?? readPts[0]
     const dPct = (now.pct ?? 0) - (then.pct ?? 0)
 
     const inWin = bars.filter(b => (mins(tHM(b.t)) ?? 0) >= nowM - LOOK_MIN)
@@ -144,7 +161,7 @@ export default function VpinTab({ index }: { index: IndexKey }) {
         ? `Price has gone ${Math.abs(dPx).toFixed(0)} pts in ${LOOK_MIN}m — nothing — while toxicity ${rising ? `rose ${pctTxt(dPct)}` : `sits at ${pctTxt(now.pct)}`}. Size is being worked into a level that is still holding.`
         : `Price ${Math.abs(dPx).toFixed(0)} pts in ${LOOK_MIN}m and toxicity at ${pctTxt(now.pct)}. Both sides are being served.`)
     return { head, body, tone: moved && (rising || high) ? hot : !moved && !(rising || high) ? calm : pal.accent }
-  }, [pts, bars, index, pal.accent])
+  }, [readPts, bars, index, pal.accent])
 
   // ── band for the gauge; the same four the module's own percentile implies ──
   const band = (p: number | null | undefined) =>
@@ -182,12 +199,31 @@ export default function VpinTab({ index }: { index: IndexKey }) {
   const absence =
     index !== GAUGED ? `${index} pe VPIN naapa hi nahi jaata — gauge sirf ${GAUGED}-FUT par lagi hai.`
       : !rep ? (why ?? 'jawab nahi aaya')
-        : series === null ? 'forward log padha nahi ja saka — yeh "check nahi kar paye" hai, "koi bucket nahi" nahi.'
-          : st && (st.pct == null || st.vpin == null) ? `garam ho raha hai — ${st.buckets}/${WARM_BUCKETS} buckets. Percentile rank karne ke liye itne volume buckets chahiye (${compact(st.bucket_v)} contracts each).`
-            : !pts.length ? 'log padha gaya, aaj abhi tak ek bhi poora bucket nahi bana.'
+        : series === null && rep.fast_series === null ? 'dono forward log padhe nahi ja sake — yeh "check nahi kar paye" hai, "koi bucket nahi" nahi.'
+          : !readPts.length && readSt && (readSt.pct == null || readSt.vpin == null)
+            ? `dono line garam ho rahi hain — fast ${stFast?.buckets ?? 0}/${WARM_BUCKETS}, slow ${st?.buckets ?? 0}/${WARM_BUCKETS}. Rank karne ke liye itne bucket chahiye.`
+            : !readPts.length ? 'log padhe gaye, aaj abhi tak ek bhi poora bucket nahi bana.'
               : null
 
   const b = band(st?.pct)
+  const bf2 = band(stFast?.pct)
+
+  /** One gauge column. Two of these sit side by side so the fast line and the
+   *  slow line are read as two measurements, never as one number. */
+  const gauge = (title: string, sub: string, s: State | null, col: { word: string; col: string }) => (
+    <div>
+      <div style={S.lbl}>{title}</div>
+      <div style={{ fontSize: 34, fontWeight: 600, lineHeight: 1.05, color: col.col, fontVariantNumeric: 'tabular-nums' }}>
+        {s?.pct == null ? '—' : `${Math.round(s.pct * 100)}%`}
+      </div>
+      <div style={{ fontSize: 11, color: col.col, fontWeight: 500, letterSpacing: '.06em' }}>{col.word}</div>
+      <div style={{ height: 5, background: wash(pal.textPrimary, 0.08), marginTop: 6 }}>
+        <div style={{ height: '100%', width: `${Math.min(100, (s?.pct ?? 0) * 100)}%`, background: col.col }} />
+      </div>
+      <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 4 }}>
+        {sub}{s?.pct == null ? ` · ${s?.buckets ?? 0}/${WARM_BUCKETS} buckets` : ` · ${s.buckets} buckets · fill ${pctTxt(s.fill)}`}
+      </div>
+    </div>)
 
   return (
     <div style={S.root}>
@@ -202,23 +238,9 @@ export default function VpinTab({ index }: { index: IndexKey }) {
         </span>
       </div>
 
-      <div style={{ ...S.panel, display: 'grid', gridTemplateColumns: '260px 1fr', gap: 18, alignItems: 'start' }}>
-        <div>
-          <div style={S.lbl}>Toxicity · percentile of day</div>
-          <div style={{ fontSize: 40, fontWeight: 600, lineHeight: 1.05, color: b.col, fontVariantNumeric: 'tabular-nums' }}>
-            {st?.pct == null ? '—' : `${Math.round(st.pct * 100)}%`}
-          </div>
-          <div style={{ fontSize: 12, color: b.col, fontWeight: 500, letterSpacing: '.06em' }}>{b.word}</div>
-          <div style={{ height: 6, background: wash(pal.textPrimary, 0.08), marginTop: 8 }}>
-            <div style={{ height: '100%', width: `${Math.min(100, (st?.pct ?? 0) * 100)}%`, background: b.col }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: pal.textMuted, marginTop: 2 }}>
-            {['0', '.25', '.5', '.75', '1'].map(x => <span key={x}>{x}</span>)}
-          </div>
-          <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 6 }}>
-            {st?.pct == null ? '' : `aaj ke ${Math.round(st.pct * 100)}% readings isse neeche the`}
-          </div>
-        </div>
+      <div style={{ ...S.panel, display: 'grid', gridTemplateColumns: '190px 190px 1fr', gap: 18, alignItems: 'start' }}>
+        {gauge('FAST · percentile', `bucket ${compact(rep?.fast_bucket_v)}`, stFast, bf2)}
+        {gauge('SLOW · percentile', `bucket ${compact(st?.bucket_v)}`, st, b)}
 
         <div>
           <div style={S.lbl}>Move sustain kar raha hai? · last {LOOK_MIN}m · [I]</div>
@@ -228,7 +250,7 @@ export default function VpinTab({ index }: { index: IndexKey }) {
                 <div style={{ fontSize: 20, fontWeight: 600, margin: '2px 0 4px', color: sustain.tone }}>{sustain.head}</div>
                 <div style={{ fontSize: 12, color: pal.textSecondary, lineHeight: 1.45 }}>{sustain.body}</div>
                 <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 6 }}>
-                  Yeh do naapi hui series ka varnan hai, bhavishyavani nahi. Price {priceSrc ?? 'source nahi'} se, toxicity {rep?.tag ?? '[I]'} shadow gauge se. Koi trade nahi bol raha.
+                  Padha gaya <b style={{ color: pal.textSecondary, fontWeight: 500 }}>{readName}</b> line par. Yeh do naapi hui series ka varnan hai, bhavishyavani nahi. Price {priceSrc ?? 'source nahi'} se, toxicity {rep?.tag ?? '[I]'} shadow gauge se. Koi trade nahi bol raha.
                 </div>
               </>
             ) : <div style={S.hole}>price aur toxicity dono ka {LOOK_MIN}m window abhi nahi bana</div>}
@@ -238,11 +260,12 @@ export default function VpinTab({ index }: { index: IndexKey }) {
       <div style={{ ...S.panel, borderBottom: 0, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
           <span style={{ ...S.lbl, marginRight: 'auto' }}>Toxicity aur price, ek hi ghadi par</span>
-          <span style={{ fontSize: 10, color: pal.accent }}>— percentile [I]</span>
+          <span style={{ fontSize: 10, color: fastCol }}>— fast {compact(rep?.fast_bucket_v)} [I]</span>
+          <span style={{ fontSize: 10, color: pal.accent }}>— slow {compact(st?.bucket_v)} [I]</span>
           <span style={{ fontSize: 10, color: pal.textSecondary }}>— price {priceSrc ?? '(nahi)'}</span>
           {bf.length ? <span style={{ fontSize: 10, color: pal.textMuted }}>- - rebuilt buckets, alag gine gaye</span> : null}
         </div>
-        {!pts.length ? <div style={{ ...S.hole, padding: 12 }}>{absence ?? 'abhi koi point nahi'}</div> : (
+        {!pts.length && !fastPts.length ? <div style={{ ...S.hole, padding: 12 }}>{absence ?? 'abhi koi point nahi'}</div> : (
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={230} style={{ fontFamily: 'Roboto Mono, monospace', fontSize: 10 }}>
             {[0.35, 0.65, 0.8].map(y => (
               <g key={y}>
@@ -261,6 +284,10 @@ export default function VpinTab({ index }: { index: IndexKey }) {
               <polyline points={live.map(p => `${X(mins(p.t)!)},${YP(p.pct!)}`).join(' ')}
                 fill="none" stroke={pal.accent} strokeWidth={1.6} />
             )}
+            {fastPts.length > 0 && (
+              <polyline points={fastPts.map(p => `${X(mins(p.t)!)},${YP(p.pct!)}`).join(' ')}
+                fill="none" stroke={fastCol} strokeWidth={1.1} opacity={0.9} />
+            )}
             {live.filter(p => (p.pct ?? 0) >= 0.8).map((p, i) => (
               <circle key={i} cx={X(mins(p.t)!)} cy={YP(p.pct!)} r={2.2} fill={hot} />
             ))}
@@ -271,14 +298,18 @@ export default function VpinTab({ index }: { index: IndexKey }) {
           </svg>)}
 
         <div style={S.kv}>
-          {kv('VPIN', n4(st?.vpin), 'I')}
-          {kv('buckets', `${st?.buckets ?? '—'}`, 'M')}
-          {kv('bucket fill', pctTxt(st?.fill), 'M')}
-          {kv('points today', `${live.length} live${bf.length ? ` · ${bf.length} rebuilt` : ''}`, 'M')}
-          {kv('last imbalance', n4(pts.length ? pts[pts.length - 1].imb : null), 'M')}
-          {kv('last mark', pts.length ? (pts[pts.length - 1].t ?? '—') : '—', 'M')}
-          {kv('rebuilt morning', `${rep?.backfill?.n ?? 0}`, 'I')}
+          {kv('VPIN fast', n4(stFast?.vpin), 'I')}
+          {kv('VPIN slow', n4(st?.vpin), 'I')}
+          {kv('fast points', `${fastPts.length}`, 'M')}
+          {kv('slow points', `${live.length} live${bf.length ? ` · ${bf.length} rebuilt` : ''}`, 'M')}
+          {kv('fast last imb', n4(fastPts.length ? fastPts[fastPts.length - 1].imb : null), 'M')}
+          {kv('slow last imb', n4(pts.length ? pts[pts.length - 1].imb : null), 'M')}
+          {kv('last mark', (fastPts.length ? fastPts[fastPts.length - 1].t : pts.length ? pts[pts.length - 1].t : null) ?? '—', 'M')}
           {kv('seeded into rank', rep?.seeded_from_backfill ? 'yes' : 'no', 'M')}
+        </div>
+        {rep?.fast_why ? <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 6 }}>fast line: {rep.fast_why}</div> : null}
+        <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 6 }}>
+          Do alag population hain. Fast bucket {compact(rep?.fast_bucket_v)}, slow {compact(st?.bucket_v)} — percentile aapas mein number ke taur par mat milana, sirf shakal milana. Fast jaldi bolti hai aur zyada shor karti hai; slow der se bolti hai aur sthir hai.
         </div>
         {rep?.backfill?.why ? <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 6 }}>rebuilt morning: {rep.backfill.why} · {rep.backfill.method} · {rep.backfill.note}</div> : null}
         <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 6 }}>

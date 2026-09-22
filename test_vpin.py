@@ -119,3 +119,48 @@ def test_seed_ignores_prior_sessions():
     g.on_frame(101.0, 100.0)
     ev = g.on_frame(101.0, 200.0)[0]
     assert ev["pct"] is None          # yesterday bought it no voice
+
+
+# ── THE FAST LINE (operator, 2026-09-23) ────────────────────────────────────
+# "we need a fast line and a slow line ... 60k is why it is slow and takes
+# time". The separation is the load-bearing part: two bucket sizes are two
+# populations, and the slow log is the promotion evidence for a shadow module
+# on a declared 30-session kill clock.
+
+def test_the_fast_bucket_reaches_a_rank_on_less_volume():
+    """Same tape, smaller bucket -> MIN_HIST arrives sooner. That IS the point."""
+    assert vpin.FAST_BUCKET_V < vpin.BUCKET_V
+    need_fast = vpin.FAST_BUCKET_V * vpin.MIN_HIST
+    need_slow = vpin.BUCKET_V * vpin.MIN_HIST
+    assert need_fast < need_slow
+    # measured on the cache the constants came from: a median day is ~2.96M
+    # units, and the slow line's first rank needs ~20% of it
+    assert need_slow / 2_963_090 > 0.15
+    assert need_fast / 2_963_090 < 0.10
+
+
+def test_the_two_gauges_rank_against_their_own_populations():
+    """A fast bucket and a slow bucket fed the identical tape do not share a
+    percentile — each ranks inside its own series, which is why the face must
+    compare their shapes and never their numbers."""
+    fast, slow = vpin.Gauge(bucket_v=100), vpin.Gauge(bucket_v=400)
+    fast.on_frame(100.0, 0); slow.on_frame(100.0, 0)
+    for i in range(40):
+        px = 100.0 + (1 if i % 2 else -1)          # alternating, then one push
+        fast.on_frame(px, 100); slow.on_frame(px, 100)
+    for _ in range(12):
+        fast.on_frame(200.0, 100); slow.on_frame(200.0, 100)
+    assert fast.state()["buckets"] > slow.state()["buckets"]
+    # both have a reading; they are not required to agree, and the test does
+    # not assert they do -- it asserts they are counted apart
+    assert fast.state()["bucket_v"] != slow.state()["bucket_v"]
+
+
+def test_the_fast_log_is_a_different_file_from_the_promotion_record():
+    import server
+    assert server.VPIN_FAST_LOG != server.VPIN_LOG
+    assert server.VPIN_FAST_LOG != server.VPIN_BACKFILL_LOG
+    assert server.VPIN_FAST_INST != "NIFTY-FUT"
+    # the frame and the board read the bare instrument key, so the suffix is
+    # what keeps the fast line out of everything downstream
+    assert server.VPIN_FAST_INST.startswith("NIFTY-FUT")

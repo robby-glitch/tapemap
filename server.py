@@ -155,6 +155,16 @@ VPIN_LOG = str(ROOT / "data" / "vpin_log.jsonl")
 # be counting minutes the tool was not running for. Separate file, every row
 # additionally tagged `backfill: true`, and /api/vpin republishes the tag.
 VPIN_BACKFILL_LOG = str(ROOT / "data" / "vpin_backfill.jsonl")
+# THE FAST LINE'S OWN FILE (vpin.FAST_BUCKET_V). A SEPARATE POPULATION, kept
+# in a separate file for the same reason the backfill log is: `VPIN_LOG` is the
+# promotion evidence for a shadow module on a declared 30-session kill clock,
+# and two bucket sizes in one file would be one record of two different
+# measurements. Nothing ranks, averages or counts across the two.
+VPIN_FAST_LOG = str(ROOT / "data" / "vpin_fast.jsonl")
+# The gauge dict's key for it. `_book_for` and the frame read `f"{idx}-FUT"`
+# exactly, so the suffix keeps the fast line out of everything downstream --
+# it is displayed and logged, and read by nothing, exactly like the slow one.
+VPIN_FAST_INST = "NIFTY-FUT:fast"
 
 # OPEN OPERATOR DECISION, parked OFF until she rules on it.
 #
@@ -714,6 +724,7 @@ def _senses_loop(poller, payloads, period=0.5):
             # reason: their append touches disk, and disk never runs under
             # _SENSES_LOCK.
             vpin_due = []
+            vpin_fast_due = []
             with _SENSES_LOCK:
                 # FUEL AND DRAIN, from the chain -- the half the book cannot see,
                 # and needs no feed either. Parsed only when the poller has
@@ -858,6 +869,21 @@ def _senses_loop(poller, payloads, period=0.5):
                                         vpin_due.append(
                                             dict(ev, inst=name,
                                                  day=time.strftime("%Y-%m-%d")))
+                                    # THE FAST LINE, same frame, smaller
+                                    # bucket. Its own gauge and its own log:
+                                    # the two are different populations and
+                                    # must never be ranked against each other
+                                    # (vpin.FAST_BUCKET_V says why).
+                                    gf = _SENSES["vpin"].get(VPIN_FAST_INST)
+                                    if gf is None:
+                                        gf = _SENSES["vpin"][VPIN_FAST_INST] = \
+                                            vpin_mod.Gauge(vpin_mod.FAST_BUCKET_V)
+                                    for ev in gf.on_frame(
+                                            upstox_adapter.ltp_of(frame),
+                                            _v, stamp):
+                                        vpin_fast_due.append(
+                                            dict(ev, inst=VPIN_FAST_INST,
+                                                 day=time.strftime("%Y-%m-%d")))
                                 if lad:
                                     # Kite's order counts, if PaperDesk's bridge is
                                     # running. Matched on the touch rather than by
@@ -895,6 +921,15 @@ def _senses_loop(poller, payloads, period=0.5):
                             fh.write(json.dumps(ev) + "\n")
                 except OSError:
                     log.exception("vpin log append")
+            # The fast line's record, its own file, its own try: a failure on
+            # the display line must never cost the promotion record a row.
+            if vpin_fast_due:
+                try:
+                    with open(VPIN_FAST_LOG, "a", encoding="utf-8") as fh:
+                        for ev in vpin_fast_due:
+                            fh.write(json.dumps(ev) + "\n")
+                except OSError:
+                    log.exception("vpin fast log append")
             # THE DAY'S RAM-ONLY SERIES, written down so a post-close restart
             # does not blank the screen ("abhi to ui he khali ho jaata"). Out
             # here with the other disk writers, never under _SENSES_LOCK.
@@ -2261,6 +2296,21 @@ class Handler(SimpleHTTPRequestHandler):
             bf = [r for r in _read_jsonl(VPIN_BACKFILL_LOG)
                   if r.get("day") == today and r.get("inst") == "NIFTY-FUT"]
             series = None if live is None else _vpin_series(live, bf)
+            # THE FAST LINE, read the same way and kept apart the same way:
+            # null = its log could not be read, [] = read and no bucket yet.
+            fast = None
+            try:
+                with open(VPIN_FAST_LOG, encoding="utf-8"):
+                    pass
+            except OSError:
+                pass
+            else:
+                fast = [{"t": r.get("at"), "imb": r.get("imb"),
+                         "vpin": r.get("vpin"), "pct": r.get("pct"),
+                         "backfill": False, "src": "live_frames"}
+                        for r in _read_jsonl(VPIN_FAST_LOG)
+                        if r.get("day") == today
+                        and r.get("inst") == VPIN_FAST_INST]
             with _SENSES_LOCK:
                 st = {i: g.state()
                       for i, g in sorted(_SENSES["vpin"].items())}
@@ -2268,6 +2318,17 @@ class Handler(SimpleHTTPRequestHandler):
                 {"ok": True, "day": today, "inst": "NIFTY-FUT",
                  "series": series, "state": st, "tag": "[I]",
                  "shadow": True,
+                 # The fast line rides beside the slow one, never inside it.
+                 # Two bucket sizes are two populations: their percentiles are
+                 # comparable as SHAPES and not as numbers, and nothing here
+                 # ranks, averages or counts across the pair.
+                 "fast_inst": VPIN_FAST_INST,
+                 "fast_bucket_v": vpin_mod.FAST_BUCKET_V,
+                 "fast_series": fast,
+                 "fast_why": (None if fast else
+                              ("the fast line's log could not be read"
+                               if fast is None else
+                               "read, no completed fast bucket yet today")),
                  # The live gauge's percentile is ranked against ONE
                  # population. This says which, so a reading is never read
                  # against a distribution it was not measured in.
@@ -2524,9 +2585,10 @@ def _isolate_mock_writers():
     desk_log.SURF_DIR = os.path.join(mock, "surface")
     desk_log.DESK_LOG_PATH = os.path.join(mock, "desk_log.jsonl")
     day_state.DIR = os.path.join(mock, "day_state")
-    global VPIN_LOG, VPIN_BACKFILL_LOG
+    global VPIN_LOG, VPIN_BACKFILL_LOG, VPIN_FAST_LOG
     VPIN_LOG = os.path.join(mock, "vpin_log.jsonl")
     VPIN_BACKFILL_LOG = os.path.join(mock, "vpin_backfill.jsonl")
+    VPIN_FAST_LOG = os.path.join(mock, "vpin_fast.jsonl")
     tape_log.DIR = os.path.join(mock, "tape")
     book_log.DIR = os.path.join(mock, "book")
 
