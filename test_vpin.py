@@ -164,3 +164,28 @@ def test_the_fast_log_is_a_different_file_from_the_promotion_record():
     # the frame and the board read the bare instrument key, so the suffix is
     # what keeps the fast line out of everything downstream
     assert server.VPIN_FAST_INST.startswith("NIFTY-FUT")
+
+
+def test_a_fast_log_that_was_never_written_is_nothing_yet_not_a_failure(tmp_path):
+    """On day one the file does not exist because no bucket has completed.
+    That is `[]` ("checked, nothing yet"), never None ("could not check")."""
+    import server
+    missing = str(tmp_path / "never_written.jsonl")
+    assert server._vpin_fast_rows(missing, "2026-09-23", "NIFTY-FUT:fast") == []
+
+
+def test_a_fast_log_that_exists_is_filtered_to_the_day_and_the_instrument(tmp_path):
+    import json as _json
+    import server
+    p = tmp_path / "vpin_fast.jsonl"
+    p.write_text("\n".join(_json.dumps(r) for r in [
+        {"at": "09:24", "imb": 0.3, "vpin": 0.1, "pct": 0.4,
+         "day": "2026-09-23", "inst": "NIFTY-FUT:fast"},
+        {"at": "09:25", "imb": 0.4, "vpin": 0.2, "pct": 0.6,
+         "day": "2026-09-23", "inst": "NIFTY-FUT"},          # the SLOW line
+        {"at": "15:20", "imb": 0.9, "vpin": 0.9, "pct": 0.9,
+         "day": "2026-09-22", "inst": "NIFTY-FUT:fast"},     # yesterday
+    ]) + "\n", encoding="utf-8")
+    rows = server._vpin_fast_rows(str(p), "2026-09-23", "NIFTY-FUT:fast")
+    assert [r["t"] for r in rows] == ["09:24"]
+    assert rows[0]["backfill"] is False and rows[0]["src"] == "live_frames"

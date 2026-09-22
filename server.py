@@ -2298,19 +2298,7 @@ class Handler(SimpleHTTPRequestHandler):
             series = None if live is None else _vpin_series(live, bf)
             # THE FAST LINE, read the same way and kept apart the same way:
             # null = its log could not be read, [] = read and no bucket yet.
-            fast = None
-            try:
-                with open(VPIN_FAST_LOG, encoding="utf-8"):
-                    pass
-            except OSError:
-                pass
-            else:
-                fast = [{"t": r.get("at"), "imb": r.get("imb"),
-                         "vpin": r.get("vpin"), "pct": r.get("pct"),
-                         "backfill": False, "src": "live_frames"}
-                        for r in _read_jsonl(VPIN_FAST_LOG)
-                        if r.get("day") == today
-                        and r.get("inst") == VPIN_FAST_INST]
+            fast = _vpin_fast_rows(VPIN_FAST_LOG, today, VPIN_FAST_INST)
             with _SENSES_LOCK:
                 st = {i: g.state()
                       for i, g in sorted(_SENSES["vpin"].items())}
@@ -2328,7 +2316,7 @@ class Handler(SimpleHTTPRequestHandler):
                  "fast_why": (None if fast else
                               ("the fast line's log could not be read"
                                if fast is None else
-                               "read, no completed fast bucket yet today")),
+                               "no completed fast bucket yet today")),
                  # The live gauge's percentile is ranked against ONE
                  # population. This says which, so a reading is never read
                  # against a distribution it was not measured in.
@@ -2684,6 +2672,29 @@ def _backfill_vpin():
         + (f"the open to {first_live}" if first_live else "the session so far")
         + "; coarser than the live path and never pooled with it")
     log.info("vpin backfill: %s", _VPIN_BF["why"])
+
+
+def _vpin_fast_rows(path, day, inst):
+    """The fast line's buckets for `day`, in the shape `_vpin_series` returns.
+
+    THREE ABSENCES, THREE ANSWERS, and the middle one is the whole reason this
+    is a function. `None` means the log could not be READ -- a real failure.
+    `[]` means read and empty, OR never written at all: on the fast line's
+    first day `vpin_fast.jsonl` does not exist yet because no bucket has
+    completed, and "nothing yet" must not reach the face as "could not check".
+    The slow path never met this only because its log has existed for weeks.
+    """
+    try:
+        with open(path, encoding="utf-8"):
+            pass
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return None
+    return [{"t": r.get("at"), "imb": r.get("imb"), "vpin": r.get("vpin"),
+             "pct": r.get("pct"), "backfill": False, "src": "live_frames"}
+            for r in _read_jsonl(path)
+            if r.get("day") == day and r.get("inst") == inst]
 
 
 def _vpin_series(live, backfill):
