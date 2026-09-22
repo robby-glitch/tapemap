@@ -103,7 +103,33 @@ class Rank:
 
 # ---------------------------------------------------------------- one session
 
+# Anything at or past this magnitude is one of `Session.__init__`'s extreme
+# sentinels (-1e18 / +1e18), never a traded price. No index this tool follows
+# is within eighteen orders of magnitude of it.
+UNSET_EXTREME = 1e17
 MATURITY = 20      # minutes before VWAP bands carry statistical weight
+
+
+def session_extremes(fut_lo, fut_hi):
+    """The day's low and high AS LEVELS -- and nothing when they are not set yet.
+
+    `Session.__init__` starts `fut_hi` at -1e18 and `fut_lo` at +1e18 so the
+    first bar always wins their comparison. Until a futures bar has landed they
+    are sentinels, not prices, and on 2026-09-22 09:27 both reached the
+    operator's screen as levels:
+
+        FADE a test of 1000000000000000000 (session low)
+        BREAK of -1000000000000000000 (session high) needs vol rank >0.9
+
+    -1e18 sorts below every price and +1e18 above every price, so each became
+    the only candidate on its side of spot and won `floor`/`cap` outright. The
+    labels read backwards too: the "session low" sentinel sat ABOVE price.
+    Nothing downstream can tell a sentinel from a level, so they are dropped
+    here, at the one place the pair becomes a level.
+    """
+    return [(nm, px) for nm, px in (("session low", fut_lo),
+                                    ("session high", fut_hi))
+            if px is not None and abs(px) < UNSET_EXTREME]
 SLOPE_W = 10       # OI slope window (minutes)
 WARMUP = 15        # bars before volume/range ranks are trusted
 
@@ -399,6 +425,7 @@ class Session:
         self.quiet = quiet
         self.fut_hi_at = None      # CE close when FUT last made a session high
         self.fut_lo_at = None      # PE close when FUT last made a session low
+        # Sentinels, not prices -- see UNSET_EXTREME and `context`'s `cands`.
         self.fut_hi = -1e18
         self.fut_lo = 1e18
         self.broken = {}           # level name -> (price, minute idx, dir)
@@ -1065,7 +1092,7 @@ class Session:
                     break
 
         # --- event-born structure: today's map, not yesterday's math
-        cands = [("session low", self.fut_lo), ("session high", self.fut_hi)]
+        cands = session_extremes(self.fut_lo, self.fut_hi)
         for _k, px, _t, note, (hi0, lo0) in self.marks[-6:]:
             # A level price has already traded through is not a level any more.
             # fut_hi/lo only ever widen, so a session extreme beyond BOTH the

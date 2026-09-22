@@ -91,6 +91,7 @@ import time
 
 import band_rotation
 import contract_bars
+import fronts                   # research-findings §1d: the fade gate
 
 PATH = os.path.join("data", "trigger_log.jsonl")
 
@@ -248,9 +249,36 @@ def _oi_at(marks, t, why_none):
     return m.get("call"), m.get("put"), m.get("strength"), None
 
 
+_NO_GATE = {"legal": None, "why": "the fade gate was not asked", "side": None,
+            "defender": None, "front": None, "veto": None, "tag": "I"}
+
+
+def _gate_at(chain_state, t, side, ctx):
+    """§1d's fade gate AS AT bar `t` -- causal, never as at now.
+
+    The grid is truncated to marks at or before the row's own minute. A restart
+    that re-reads the state lists can write an arm for a bar an hour old, and
+    stamping it with the CURRENT fronts would put a fact on the row that did
+    not exist when the row's bar closed. Causality here is the same absolute
+    rule the rest of this file follows (see "NEVER log the last bar").
+
+    Fail-soft, like every other stamp on these rows: a gate that raises becomes
+    its own `why` and the row is still written. §1d suppresses nothing.
+    """
+    try:
+        mins = getattr(chain_state, "minutes", None) or {}
+        cut = {k: v for k, v in mins.items() if isinstance(k, str) and k <= t}
+        rows = fronts.read(cut, getattr(chain_state, "peak", None))
+        plays = [p for p in ((ctx or {}).get("plays") or [])
+                 if isinstance(p, str)] or None
+        return fronts.fade_gate(rows, side, plays)
+    except Exception as e:      # noqa: BLE001 -- the reason is the value
+        return {**_NO_GATE, "side": side, "why": f"{type(e).__name__}: {e}"}
+
+
 def _arm_rows(index, day_js, bars, last, day, oi_at, ones, interval, now,
               keys=(("run_state", False), ("run_state_sell", True)),
-              rule="5c"):
+              rule="5c", gate_at=None):
     """Every ARM on this session's state lists, as rows ready to append.
 
     BOTH sides, on the operator's decision: BUY off d3 (`run_state`) and SELL
@@ -315,6 +343,12 @@ def _arm_rows(index, day_js, bars, last, day, oi_at, ones, interval, now,
                    "closed_bar": True}
             if oi_why:                  # appended only when the OI is null,
                 row["oi_why"] = oi_why  # so a normal row is byte-identical
+            # §1d RIDES ALONGSIDE. The row is written whatever the gate says:
+            # judging the gate later means comparing rows it would have allowed
+            # against rows it would have refused, and a gate that edited the
+            # log would destroy the only evidence that can judge it.
+            row["gate"] = (gate_at or (lambda *_a: dict(_NO_GATE)))(
+                row["t"], "sell" if sell else "buy", bar.get("ctx"))
             out.append(row)
     return out
 
@@ -377,6 +411,10 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
             except Exception:
                 oi_marks_why = "chain unreadable when this row was written"
         oi_at = lambda t: _oi_at(oi_marks, t, oi_marks_why)
+        # §1d's gate, as at each row's own bar. One closure, both arm loops and
+        # the entry loop, so an arm and the entry it leads to are judged by the
+        # same rule against the same grid.
+        gate_at = lambda t, side, ctx: _gate_at(chain_state, t, side, ctx)
 
         # NEVER log the last bar: during a live refresh it is still FORMING,
         # and a trigger read off a forming bar can UN-FIRE when the minute
@@ -411,7 +449,8 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                 out.extend(json.dumps(r) for r in
                            _dedupe(_arm_rows(index, day_js, bars, last, day,
                                              oi_at,
-                                             ones, interval, time.time())))
+                                             ones, interval, time.time(),
+                                             gate_at=gate_at)))
                 wrote = len(out)
         except Exception:
             pass
@@ -430,7 +469,7 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                                ones, interval, time.time(),
                                keys=(("zone_state", False),
                                      ("zone_state_sell", True)),
-                               rule="zone")))
+                               rule="zone", gate_at=gate_at)))
                 wrote = len(out)
         except Exception:
             pass
@@ -482,6 +521,11 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                    "closed_bar": True}
             if oi_why:                  # appended only when the OI is null,
                 row["oi_why"] = oi_why  # so a normal row is byte-identical
+            # §1d, the same stamp the arm rows carry, and with the same
+            # promise: the ENTRY is still written whatever the gate says.
+            row["gate"] = _gate_at(chain_state, row["t"],
+                                   "sell" if row.get("side") == "SELL" else "buy",
+                                   bar.get("ctx"))
             k = _key(row)
             if k in _seen:
                 continue

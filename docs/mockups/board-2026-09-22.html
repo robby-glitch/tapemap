@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en" data-mode="dark"><head><meta charset="utf-8">
+<title>BOARD mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#0B0E14; --text:#E8EDF5; --muted:#5D6B84; --ink:255,255,255; --brass:#E0A852; --buy:#3CC8A8; --sell:#E86A5A; --line:rgba(255,255,255,0.08); }
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; font-size:13px; }
+.mono { font-family:'Roboto Mono',monospace; font-variant-numeric:tabular-nums; }
+.board { width:1600px; height:900px; margin:0 auto; display:grid; grid-template-rows:40px auto 1fr; grid-template-columns:1fr; gap:0; overflow:hidden; }
+.rail { display:flex; align-items:center; gap:18px; padding:0 14px; border-bottom:1px solid var(--line); font-size:11px; color:var(--muted); }
+.rail .idx { display:flex; gap:2px; }
+.rail .idx span { padding:3px 10px; border:1px solid var(--line); color:var(--muted); }
+.rail .idx span.on { color:var(--text); border-color:var(--brass); }
+.rail .h { margin-left:auto; display:flex; gap:14px; }
+.rail .h b { font-weight:500; color:var(--text); }
+.rail .clock { font-size:15px; color:var(--text); }
+.answer { display:grid; grid-template-columns:1.1fr 1.9fr 1fr; border-bottom:1px solid var(--line); }
+.answer > div { padding:10px 14px; border-right:1px solid var(--line); }
+.answer > div:last-child { border-right:0; }
+.lbl { font-size:11px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+.big { font-size:22px; font-weight:600; margin:2px 0 4px; }
+.big.grey { color:var(--muted); }
+.sub { font-size:11px; color:var(--muted); }
+.sub b { color:var(--text); font-weight:500; }
+.main { display:grid; grid-template-columns:1fr 560px; min-height:0; }
+.left { display:grid; grid-template-rows:262px 1fr; min-height:0; border-right:1px solid var(--line); }
+.right { display:grid; grid-template-rows:auto 1fr; min-height:0; }
+.panel { padding:8px 12px; min-height:0; border-bottom:1px solid var(--line); }
+.panel:last-child { border-bottom:0; }
+.ph { display:flex; align-items:baseline; gap:10px; margin-bottom:4px; }
+.ph .lbl { margin-right:auto; }
+.ph .m { font-size:10px; color:var(--brass); }
+.ph .i { font-size:10px; color:var(--muted); border:1px dashed var(--muted); padding:0 4px; }
+.strip { height:214px; }
+.zone-sell { fill:rgba(232,106,90,0.10); } .zone-buy { fill:rgba(60,200,168,0.12); }
+.wall-ce { stroke:var(--sell); stroke-width:1.4; } .wall-pe { stroke:var(--buy); stroke-width:1.4; } .lvl { stroke:var(--brass); stroke-width:0.8; stroke-dasharray:6 4; }
+.gut { fill:#8b96ab; font-size:9px; }
+.fire-b { fill:var(--buy); } .fire-s { fill:var(--sell); }
+.legend { display:flex; gap:14px; font-size:10px; color:var(--muted); margin-top:2px; }
+.legend i { font-style:normal; }
+.feed { overflow:auto; }
+.row { display:grid; grid-template-columns:44px 26px 1fr 84px 76px; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); align-items:baseline; font-size:12.5px; line-height:1.35; }
+.row.forming { color:var(--muted); }
+.row .t { color:var(--muted); }
+.row .tag { font-size:10px; color:var(--brass); } .row .tag.I { color:var(--muted); } .row .tag.forming { color:var(--muted); }
+.row .src { font-size:10px; color:var(--muted); text-align:right; }
+.row .verdict { font-size:11px; text-align:right; color:var(--text); font-weight:500; }
+table.ladder { width:100%; border-collapse:collapse; font-size:11.5px; }
+table.ladder th { font-weight:500; color:var(--muted); font-size:10px; text-align:left; padding:2px 6px; letter-spacing:.06em; }
+table.ladder td { padding:3px 6px; border-top:1px solid var(--line); }
+td.k { text-align:center; color:var(--text); width:96px; font-weight:500; }
+td.oi { display:grid; grid-template-columns:52px 52px 1fr; gap:6px; align-items:baseline; }
+td.oi .n { color:var(--text); } td.oi .d { color:var(--muted); } td.oi .st { font-size:10px; color:var(--muted); }
+td.oi.build { box-shadow:inset 3px 0 0 currentColor; } td.oi.cover { background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(255,255,255,0.05) 5px 7px); box-shadow:inset 3px 0 0 currentColor; }
+td.oi.ce { color:var(--sell); } td.oi.pe { color:var(--buy); } td.oi.flat { color:var(--muted); box-shadow:none; }
+td.oi.cover .st { color:inherit; font-weight:500; }
+tr.spotrow td { background:rgba(224,168,82,0.07); }
+.plays { display:grid; grid-template-columns:1fr; gap:6px; }
+.play { display:grid; grid-template-columns:118px 1fr 88px; gap:10px; padding:7px 8px; border:1px solid var(--line); align-items:center; }
+.play.on { border-color:var(--brass); }
+.play .name { font-weight:500; } .play .name small { display:block; color:var(--muted); font-weight:400; font-size:10px; }
+.play .conds { display:flex; flex-wrap:wrap; gap:4px 10px; font-size:11px; color:var(--muted); }
+.play .conds span::before { content:"○ "; } .play .conds span.ok { color:var(--text); } .play .conds span.ok::before { content:"● "; color:var(--brass); }
+.play .conds span.na::before { content:"◌ "; }
+.play .res { text-align:right; font-weight:500; } .play .res small { display:block; color:var(--muted); font-weight:400; font-size:10px; }
+.flip { font-size:11px; color:var(--muted); margin-top:6px; }
+.flip b { color:var(--text); font-weight:500; }
+.foot { font-size:10px; color:var(--muted); display:flex; gap:16px; margin-top:6px; }
+.kv { display:grid; grid-template-columns:repeat(4,1fr); gap:6px 14px; font-size:11px; }
+.kv div { display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding:2px 0; }
+.kv span:first-child { color:var(--muted); }
+.kv .up::after { content:" ↑"; color:var(--sell); } .kv .dn::after { content:" ↓"; color:var(--buy); }
+.kv .i { color:var(--muted); font-style:italic; }
+</style></head><body>
+<div class="board">
+  <div class="rail">
+    <span class="clock mono">Mon 21 Sep · 12:10:04</span>
+    <div class="idx"><span class="on">NIFTY</span><span>BANKNIFTY</span><span>SENSEX</span></div>
+    <span class="mono">FUT <b style="color:var(--text)">23425.3</b> · day 23360 – 23439.9 · z +1.4 · σ 14.2 [M]</span>
+    <span class="mono">exp Tue 23 · DTE 2</span>
+    <div class="h"><span>feed <b>ok</b></span><span>chain <b>12:09</b></span><span>book <b>ux ok · 1.9 fr/s</b></span><span>GoCharting <b>12:09</b> · POC agree 8/9 [M]</span><span>paper <b>flat</b></span><span>flat by <b>15:15 · 3h05</b></span></div>
+  </div>
+
+  <div class="answer">
+    <div>
+      <div class="lbl">Regime · since</div>
+      <div class="big">LOADED · UP <span class="sub" style="font-size:12px;font-weight:400">AMPLIFIED-UP 9m [M]</span></div>
+      <div class="sub">Was <b>PIN</b> 09:30 → 11:57 (both books building, pin 23400). Flips back to PIN if CE cover at 23450 stops and price holds under 23431 for 3 bars. Flips to <b>CASCADE</b> on drain + λ↑.</div>
+    </div>
+    <div>
+      <div class="lbl">Who is trapped · now</div>
+      <div class="big">Call writers above 23425 — covering, not defending</div>
+      <div class="sub">calls 60.3M vs puts 42.3M [M] · IVR CE 0.02 / PE 0.39 [M] · buyers accepted through u2 twice, no absorption at the edge [M] · λ rising, VPIN rising [I] · drag 41% [I] = grind still eating rent.</div>
+    </div>
+    <div>
+      <div class="lbl">Play · now</div>
+      <div class="big">SKIP <span class="sub" style="font-size:12px;font-weight:400">S5 · log as trade</span></div>
+      <div class="sub">Sell illegal (amplified) · fade illegal (writers not defending) · buy refused at <b>2/3</b>. Next mark <b>12:15</b> decides S2.</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <div class="panel">
+        <div class="ph"><span class="lbl">Tape · 5-min · zone ring 2σ→3σ · events · fires</span><span class="m">[M] bars, delta, CVD, events, fires</span><span class="i">[I] bands 5-min approx, walls</span></div>
+        <div class="strip"><svg viewBox="0 0 1000 250" width="100%" height="100%" font-family="Roboto Mono, monospace" font-size="10">
+<polygon class="zone-sell" points="47.7,81.5 67.6,73.9 87.5,70.8 107.4,71.8 127.2,69.4 147.1,68.3 167.0,68.5 186.9,69.7 206.7,70.7 226.6,71.8 246.5,72.2 266.3,73.0 286.2,73.4 306.1,73.7 326.0,74.0 345.8,74.2 365.7,74.8 385.6,75.0 405.4,75.3 425.3,75.2 445.2,74.4 465.1,73.6 484.9,73.6 504.8,73.5 524.7,73.3 544.6,72.5 564.4,72.0 584.3,71.7 604.2,71.3 624.0,64.4 643.9,53.8 663.8,48.3 683.7,44.5 683.7,18.7 663.8,23.5 643.9,30.8 624.0,45.0 604.2,54.0 584.3,54.4 564.4,54.8 544.6,55.3 524.7,56.3 504.8,56.6 484.9,56.6 465.1,56.5 445.2,57.4 425.3,58.1 405.4,58.0 385.6,57.5 365.7,57.2 345.8,56.5 326.0,56.3 306.1,56.1 286.2,56.6 266.3,56.5 246.5,55.7 226.6,55.3 206.7,54.1 186.9,53.2 167.0,51.6 147.1,51.0 127.2,52.2 107.4,55.0 87.5,53.5 67.6,56.6 47.7,65.9"/>
+<polygon class="zone-buy" points="47.7,144.0 67.6,143.1 87.5,140.2 107.4,138.9 127.2,138.3 147.1,137.5 167.0,136.1 186.9,135.7 206.7,137.1 226.6,137.6 246.5,138.5 266.3,139.0 286.2,140.7 306.1,144.3 326.0,145.0 345.8,145.3 365.7,145.1 385.6,144.9 405.4,144.5 425.3,143.9 445.2,142.4 465.1,142.1 484.9,141.6 504.8,141.2 524.7,141.1 544.6,141.1 564.4,140.9 584.3,140.8 604.2,140.6 624.0,142.2 643.9,145.8 663.8,147.3 683.7,147.5 683.7,173.3 663.8,172.1 643.9,168.9 624.0,161.6 604.2,157.9 584.3,158.1 564.4,158.1 544.6,158.3 524.7,158.1 504.8,158.2 484.9,158.7 465.1,159.2 445.2,159.4 425.3,161.1 405.4,161.7 385.6,162.4 365.7,162.7 345.8,163.0 326.0,162.8 306.1,161.9 286.2,157.6 266.3,155.5 246.5,155.1 226.6,154.1 206.7,153.7 186.9,152.2 167.0,152.9 147.1,154.8 127.2,155.5 107.4,155.7 87.5,157.6 67.6,160.4 47.7,159.6"/>
+<polyline points="47.7,112.7 67.6,108.5 87.5,105.5 107.4,105.3 127.2,103.8 147.1,102.9 167.0,102.3 186.9,102.7 206.7,103.9 226.6,104.7 246.5,105.4 266.3,106.0 286.2,107.1 306.1,109.0 326.0,109.5 345.8,109.8 365.7,109.9 385.6,110.0 405.4,109.9 425.3,109.6 445.2,108.4 465.1,107.9 484.9,107.6 504.8,107.4 524.7,107.2 544.6,106.8 564.4,106.5 584.3,106.2 604.2,106.0 624.0,103.3 643.9,99.8 663.8,97.8 683.7,96.0" fill="none" stroke="rgba(224,168,82,0.9)" stroke-width="1.2" stroke-dasharray=""/>
+<polyline points="47.7,81.5 67.6,73.9 87.5,70.8 107.4,71.8 127.2,69.4 147.1,68.3 167.0,68.5 186.9,69.7 206.7,70.7 226.6,71.8 246.5,72.2 266.3,73.0 286.2,73.4 306.1,73.7 326.0,74.0 345.8,74.2 365.7,74.8 385.6,75.0 405.4,75.3 425.3,75.2 445.2,74.4 465.1,73.6 484.9,73.6 504.8,73.5 524.7,73.3 544.6,72.5 564.4,72.0 584.3,71.7 604.2,71.3 624.0,64.4 643.9,53.8 663.8,48.3 683.7,44.5" fill="none" stroke="rgba(224,168,82,0.45)" stroke-width="0.8" stroke-dasharray="3 3"/>
+<polyline points="47.7,144.0 67.6,143.1 87.5,140.2 107.4,138.9 127.2,138.3 147.1,137.5 167.0,136.1 186.9,135.7 206.7,137.1 226.6,137.6 246.5,138.5 266.3,139.0 286.2,140.7 306.1,144.3 326.0,145.0 345.8,145.3 365.7,145.1 385.6,144.9 405.4,144.5 425.3,143.9 445.2,142.4 465.1,142.1 484.9,141.6 504.8,141.2 524.7,141.1 544.6,141.1 564.4,140.9 584.3,140.8 604.2,140.6 624.0,142.2 643.9,145.8 663.8,147.3 683.7,147.5" fill="none" stroke="rgba(224,168,82,0.45)" stroke-width="0.8" stroke-dasharray="3 3"/>
+<polyline points="47.7,65.9 67.6,56.6 87.5,53.5 107.4,55.0 127.2,52.2 147.1,51.0 167.0,51.6 186.9,53.2 206.7,54.1 226.6,55.3 246.5,55.7 266.3,56.5 286.2,56.6 306.1,56.1 326.0,56.3 345.8,56.5 365.7,57.2 385.6,57.5 405.4,58.0 425.3,58.1 445.2,57.4 465.1,56.5 484.9,56.6 504.8,56.6 524.7,56.3 544.6,55.3 564.4,54.8 584.3,54.4 604.2,54.0 624.0,45.0 643.9,30.8 663.8,23.5 683.7,18.7" fill="none" stroke="rgba(224,168,82,0.45)" stroke-width="0.8" stroke-dasharray="1 3"/>
+<polyline points="47.7,159.6 67.6,160.4 87.5,157.6 107.4,155.7 127.2,155.5 147.1,154.8 167.0,152.9 186.9,152.2 206.7,153.7 226.6,154.1 246.5,155.1 266.3,155.5 286.2,157.6 306.1,161.9 326.0,162.8 345.8,163.0 365.7,162.7 385.6,162.4 405.4,161.7 425.3,161.1 445.2,159.4 465.1,159.2 484.9,158.7 504.8,158.2 524.7,158.1 544.6,158.3 564.4,158.1 584.3,158.1 604.2,157.9 624.0,161.6 643.9,168.9 663.8,172.1 683.7,173.3" fill="none" stroke="rgba(224,168,82,0.45)" stroke-width="0.8" stroke-dasharray="1 3"/>
+<line x1="8" y1="10.2" x2="942" y2="10.2" class="wall-ce"/>
+<text x="946" y="13.2" class="gut">23450</text>
+<line x1="8" y1="189.2" x2="942" y2="189.2" class="wall-pe"/>
+<text x="946" y="192.2" class="gut">23350</text>
+<line x1="8" y1="99.7" x2="942" y2="99.7" class="lvl"/>
+<text x="946" y="102.7" class="gut">23400</text>
+<line x1="8.0" y1="99.7" x2="8.0" y2="171.3" stroke="#8b96ab" stroke-width="1"/>
+<rect x="-0.4" y="108.7" width="16.9" height="52.8" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="27.9" y1="98.1" x2="27.9" y2="125.9" stroke="#8b96ab" stroke-width="1"/>
+<rect x="19.4" y="108.7" width="16.9" height="8.9" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="47.7" y1="72.9" x2="47.7" y2="121.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="39.3" y="80.9" width="16.9" height="29.5" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="67.6" y1="72.9" x2="67.6" y2="95.3" stroke="#8b96ab" stroke-width="1"/>
+<rect x="59.2" y="79.5" width="16.9" height="11.1" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="87.5" y1="63.9" x2="87.5" y2="104.9" stroke="#8b96ab" stroke-width="1"/>
+<rect x="79.1" y="81.8" width="16.9" height="17.4" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="107.4" y1="90.8" x2="107.4" y2="115.8" stroke="#8b96ab" stroke-width="1"/>
+<rect x="98.9" y="96.2" width="16.9" height="5.2" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="127.2" y1="72.5" x2="127.2" y2="99.7" stroke="#8b96ab" stroke-width="1"/>
+<rect x="118.8" y="73.1" width="16.9" height="17.7" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="147.1" y1="68.2" x2="147.1" y2="96.7" stroke="#8b96ab" stroke-width="1"/>
+<rect x="138.7" y="73.1" width="16.9" height="15.9" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="167.0" y1="78.3" x2="167.0" y2="104.4" stroke="#8b96ab" stroke-width="1"/>
+<rect x="158.5" y="89.0" width="16.9" height="8.6" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="186.9" y1="85.4" x2="186.9" y2="132.0" stroke="#8b96ab" stroke-width="1"/>
+<rect x="178.4" y="92.6" width="16.9" height="19.7" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="206.7" y1="112.4" x2="206.7" y2="133.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="198.3" y="112.4" width="16.9" height="5.2" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="226.6" y1="92.2" x2="226.6" y2="131.8" stroke="#8b96ab" stroke-width="1"/>
+<rect x="218.2" y="117.8" width="16.9" height="14.0" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="246.5" y1="105.8" x2="246.5" y2="135.5" stroke="#8b96ab" stroke-width="1"/>
+<rect x="238.0" y="131.2" width="16.9" height="1.0" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="266.3" y1="108.7" x2="266.3" y2="135.5" stroke="#8b96ab" stroke-width="1"/>
+<rect x="257.9" y="115.5" width="16.9" height="2.1" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="286.2" y1="115.5" x2="286.2" y2="144.5" stroke="#8b96ab" stroke-width="1"/>
+<rect x="277.8" y="115.5" width="16.9" height="12.9" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="306.1" y1="115.0" x2="306.1" y2="144.5" stroke="#8b96ab" stroke-width="1"/>
+<rect x="297.6" y="128.2" width="16.9" height="14.5" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="326.0" y1="123.5" x2="326.0" y2="144.3" stroke="#8b96ab" stroke-width="1"/>
+<rect x="317.5" y="125.7" width="16.9" height="17.0" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="345.8" y1="114.1" x2="345.8" y2="142.7" stroke="#8b96ab" stroke-width="1"/>
+<rect x="337.4" y="126.4" width="16.9" height="16.3" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="365.7" y1="99.7" x2="365.7" y2="130.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="357.3" y="117.6" width="16.9" height="4.7" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="385.6" y1="99.9" x2="385.6" y2="122.3" stroke="#8b96ab" stroke-width="1"/>
+<rect x="377.1" y="109.0" width="16.9" height="3.0" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="405.4" y1="99.7" x2="405.4" y2="117.6" stroke="#8b96ab" stroke-width="1"/>
+<rect x="397.0" y="100.1" width="16.9" height="10.0" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="425.3" y1="90.8" x2="425.3" y2="113.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="416.9" y="90.8" width="16.9" height="8.9" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="445.2" y1="85.4" x2="445.2" y2="106.5" stroke="#8b96ab" stroke-width="1"/>
+<rect x="436.8" y="90.8" width="16.9" height="15.8" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="465.1" y1="80.1" x2="465.1" y2="94.9" stroke="#8b96ab" stroke-width="1"/>
+<rect x="456.6" y="87.2" width="16.9" height="7.7" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="484.9" y1="81.5" x2="484.9" y2="107.3" stroke="#8b96ab" stroke-width="1"/>
+<rect x="476.5" y="90.6" width="16.9" height="9.1" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="504.8" y1="78.3" x2="504.8" y2="111.9" stroke="#8b96ab" stroke-width="1"/>
+<rect x="496.4" y="89.0" width="16.9" height="7.5" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="524.7" y1="78.3" x2="524.7" y2="99.0" stroke="#8b96ab" stroke-width="1"/>
+<rect x="516.2" y="81.8" width="16.9" height="8.9" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="544.6" y1="72.9" x2="544.6" y2="95.6" stroke="#8b96ab" stroke-width="1"/>
+<rect x="536.1" y="73.4" width="16.9" height="6.6" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="564.4" y1="76.5" x2="564.4" y2="90.8" stroke="#8b96ab" stroke-width="1"/>
+<rect x="556.0" y="76.5" width="16.9" height="14.3" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="584.3" y1="72.9" x2="584.3" y2="97.4" stroke="#8b96ab" stroke-width="1"/>
+<rect x="575.9" y="77.5" width="16.9" height="13.2" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="604.2" y1="72.9" x2="604.2" y2="96.5" stroke="#8b96ab" stroke-width="1"/>
+<rect x="595.7" y="77.5" width="16.9" height="13.6" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="624.0" y1="51.4" x2="624.0" y2="91.1" stroke="#8b96ab" stroke-width="1"/>
+<rect x="615.6" y="57.0" width="16.9" height="24.9" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="643.9" y1="37.1" x2="643.9" y2="62.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="635.5" y="48.6" width="16.9" height="10.9" fill="#0B0E14" stroke="#8b96ab" stroke-width="1" />
+<line x1="663.8" y1="28.3" x2="663.8" y2="62.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="655.4" y="40.1" width="16.9" height="9.1" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="683.7" y1="40.5" x2="683.7" y2="62.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="675.2" y="48.9" width="16.9" height="10.2" fill="#8b96ab" stroke="#8b96ab" stroke-width="1" />
+<line x1="703.5" y1="35.1" x2="703.5" y2="62.2" stroke="#8b96ab" stroke-width="1"/>
+<rect x="695.1" y="54.5" width="16.9" height="7.7" fill="none" stroke="#8b96ab" stroke-width="1" stroke-dasharray="2 2"/>
+<text x="699.5" y="56.2" fill="#E0A852" font-size="11">▲</text>
+<polygon points="62.6,88.0 72.6,88.0 67.6,98.0" class="fire-s"/>
+<text x="74.6" y="90.0" class="fire-s" font-size="9">09:30 SELL u2</text>
+<polygon points="360.7,114.2 370.7,114.2 365.7,104.2" class="fire-b"/>
+<text x="372.7" y="116.2" class="fire-b" font-size="9">10:45 BUY d2</text>
+<polygon points="682.6,47.0 692.6,47.0 687.6,57.0" class="fire-s"/>
+<text x="694.6" y="49.0" class="fire-s" font-size="9">12:06 SELL u2</text>
+<line x1="703.5" y1="8" x2="703.5" y2="246" stroke="rgba(232,237,245,0.35)" stroke-dasharray="2 3"/>
+<text x="706.5" y="18" fill="#E8EDF5" font-size="10">NOW 12:10</text>
+<text x="8.0" y="196" fill="#5D6B84" font-size="9" text-anchor="middle">09:15</text>
+<text x="186.9" y="196" fill="#5D6B84" font-size="9" text-anchor="middle">10:00</text>
+<text x="425.3" y="196" fill="#5D6B84" font-size="9" text-anchor="middle">11:00</text>
+<text x="663.8" y="196" fill="#5D6B84" font-size="9" text-anchor="middle">12:00</text>
+<text x="902.3" y="196" fill="#5D6B84" font-size="9" text-anchor="middle">13:00</text>
+<line x1="8" y1="200" x2="942" y2="200" stroke="rgba(255,255,255,0.08)"/>
+<polyline points="8.0,239.8 27.9,235.1 47.7,230.3 67.6,227.1 87.5,222.9 107.4,220.5 127.2,220.4 147.1,220.4 167.0,219.7 186.9,222.1 206.7,223.3 226.6,227.5 246.5,227.6 266.3,230.2 286.2,236.8 306.1,247.7 326.0,244.5 345.8,245.0 365.7,245.6 385.6,243.8 405.4,244.3 425.3,239.5 445.2,249.0 465.1,243.5 484.9,241.7 504.8,240.8 524.7,242.0 544.6,240.3 564.4,239.8 584.3,239.7 604.2,239.3 624.0,209.3 643.9,203.0 663.8,210.6 683.7,215.6" fill="none" stroke="#3CC8A8" stroke-width="1.3"/>
+<text x="946" y="218.6" class="gut">CVD +482</text>
+<text x="8.0" y="258" fill="#3CC8A8" font-size="8" text-anchor="middle">+112</text>
+<text x="286.2" y="258" fill="#E86A5A" font-size="8" text-anchor="middle">-101</text>
+<text x="306.1" y="258" fill="#E86A5A" font-size="8" text-anchor="middle">-166</text>
+<text x="445.2" y="258" fill="#E86A5A" font-size="8" text-anchor="middle">-145</text>
+<text x="624.0" y="258" fill="#3CC8A8" font-size="8" text-anchor="middle">+460</text>
+<text x="663.8" y="258" fill="#E86A5A" font-size="8" text-anchor="middle">-117</text>
+</svg></div>
+        <div class="legend"><i>◆ absorption</i><i>▲ initiative</i><i>○ vacuum</i><i>✕ trap</i><i>▲▼ zone fire</i><i>— VWAP · - - ±2σ · ·· ±3σ</i><i>axis clamp(now+60m)</i></div>
+      </div>
+      <div class="panel feed">
+        <div class="ph"><span class="lbl">Read · one line per closed bar · latest first</span><span class="m">[M] unless marked</span></div>
+        <div class="row forming"><span class="t">12:10</span><span class="tag forming">[—]</span><span class="txt">bar forming — no read until it closes</span><span class="src"></span><span class="verdict"></span></div>
+<div class="row "><span class="t">12:06</span><span class="tag M">[M]</span><span class="txt">ZONE SELL fired u2 23431 → close 23423.9. Board: <b>FADE ILLEGAL</b>. Regime AMPLIFIED-UP 9m; calls 60.3M vs puts 42.3M, call-heavy book; IVR CE 0.02 = call writers pricing zero upside fear. Up here = writers trapped, not sellers defending.</span><span class="src">OI · γ · IV</span><span class="verdict">SKIP</span></div>
+<div class="row "><span class="t">12:00</span><span class="tag M">[M]</span><span class="txt">High 23439.9, delta −117 after +460/+96. Aggression <i>pausing</i> at u2, not failing: CVD still at its high, no absorption event at the edge.</span><span class="src">tape</span><span class="verdict">wait</span></div>
+<div class="row "><span class="t">11:55</span><span class="tag M">[M]</span><span class="txt">Delta +96 accepted above u2 23425 — no absorption, no trap. Defender absent above.</span><span class="src">tape</span><span class="verdict">wait</span></div>
+<div class="row "><span class="t">11:50</span><span class="tag M">[M]</span><span class="txt">Delta +460, run-of-three buys, 23405 → 23427 through 23418. S2 check: fuel ✓ (call wall 23450 [I]) · ignition ✓ · drain ? (15-min OI mark pending) → 2/3 <b>REFUSE</b>. Fakes die here.</span><span class="src">tape · OI</span><span class="verdict">refuse 2/3</span></div>
+<div class="row "><span class="t">11:05</span><span class="tag M">[M]</span><span class="txt">Delta −145 with close flat at 23405: heavy selling, price refused to fall. Sellers' aggression failing → bias up from here.</span><span class="src">tape</span><span class="verdict">lean</span></div>
+<div class="row "><span class="t">10:45</span><span class="tag M">[M]</span><span class="txt">ZONE BUY d2 fired 23397.5. Regime FLOOR, both books building since 09:30 (CE build + PE build flips) = pin hardening. Board: <b>FADE LEGAL</b> S1 long, stop below sweep 23375, target VWAP → u2.</span><span class="src">OI · γ · tape</span><span class="verdict">S1 long</span></div>
+<div class="row "><span class="t">10:30</span><span class="tag M">[M]</span><span class="txt">Low 23375 on delta −166, next bar higher low on +49: sweep-and-reclaim at d2. S1 armed.</span><span class="src">tape</span><span class="verdict">arm</span></div>
+<div class="row "><span class="t">09:30</span><span class="tag M">[M]</span><span class="txt">ZONE SELL fired u2 23401. Not a play: sells only at u3 (dead on 5 datasets at u2). Logged, not taken.</span><span class="src">rule</span><span class="verdict">no play</span></div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="panel">
+        <div class="ph"><span class="lbl">Inventory · strikes · Δ15m</span><span class="i">[I] illustrative — chain minutes missing on 21-Sep</span></div>
+        <table class="ladder">
+          <tr><th>CE · oi · Δ15m · state</th><th style="text-align:center">strike</th><th>PE · oi · Δ15m · state</th></tr>
+          <tr><td class="oi ce build"><span class="n">41.2L</span><span class="d">▲ +1.1</span><span class="st">build</span></td><td class="k">23600</td><td class="oi pe flat"><span class="n">3.9L</span><span class="d">· -0.2</span><span class="st">—</span></td></tr>
+<tr><td class="oi ce build"><span class="n">58.7L</span><span class="d">▲ +2.4</span><span class="st">build</span></td><td class="k">23550</td><td class="oi pe flat"><span class="n">6.1L</span><span class="d">· -0.4</span><span class="st">—</span></td></tr>
+<tr><td class="oi ce build"><span class="n">88.3L</span><span class="d">▲ +4.0</span><span class="st">build</span></td><td class="k">23500</td><td class="oi pe cover"><span class="n">9.8L</span><span class="d">▼ -0.9</span><span class="st">COVER</span></td></tr>
+<tr class="spotrow"><td class="oi ce cover"><span class="n">92.4L</span><span class="d">▼ -3.6</span><span class="st">COVER</span></td><td class="k">23450 ◀ 23425</td><td class="oi pe build"><span class="n">14.2L</span><span class="d">▲ +1.2</span><span class="st">build</span></td></tr>
+<tr><td class="oi ce cover"><span class="n">71.9L</span><span class="d">▼ -6.1</span><span class="st">COVER</span></td><td class="k">23400</td><td class="oi pe build"><span class="n">38.5L</span><span class="d">▲ +3.1</span><span class="st">build</span></td></tr>
+<tr><td class="oi ce cover"><span class="n">22.4L</span><span class="d">▼ -1.8</span><span class="st">COVER</span></td><td class="k">23350</td><td class="oi pe build"><span class="n">61.8L</span><span class="d">▲ +2.7</span><span class="st">build</span></td></tr>
+<tr><td class="oi ce flat"><span class="n">12.1L</span><span class="d">· -0.3</span><span class="st">—</span></td><td class="k">23300</td><td class="oi pe build"><span class="n">55.0L</span><span class="d">▲ +0.8</span><span class="st">build</span></td></tr>
+<tr><td class="oi ce flat"><span class="n">6.4L</span><span class="d">· +0.0</span><span class="st">—</span></td><td class="k">23250</td><td class="oi pe cover"><span class="n">34.7L</span><span class="d">▼ -1.1</span><span class="st">COVER</span></td></tr>
+        </table>
+        <div class="kv" style="margin-top:8px">
+          <div><span>VPIN</span><span class="i up">0.58</span></div>
+          <div><span>λ pts/lot</span><span class="i up">0.42</span></div>
+          <div><span>drag</span><span class="i">41%</span></div>
+          <div><span>IV/RV</span><span class="i">1.18</span></div>
+          <div><span>IV CE / PE</span><span>11.7 / 15.2</span></div>
+          <div><span>IVR CE / PE</span><span>0.02 / 0.39</span></div>
+          <div><span>30m range</span><span>39 pts · p82</span></div>
+          <div><span>inside ±1σ</span><span>13%</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="lbl">Plays · conditions lit · refuse below full</span></div>
+        <div class="plays">
+          <div class="play"><div class="name">S3 SELL premium<small>wings on · 60–70% take</small></div>
+            <div class="conds"><span>regime PIN</span><span>both books building</span><span>VPIN low</span><span class="ok">IV/RV &gt; 1</span><span>edges absorbed</span></div>
+            <div class="res">NO<small>1/5</small></div></div>
+          <div class="play"><div class="name">S2 BUY cascade CE<small>min 1–5 · exit on drain stop</small></div>
+            <div class="conds"><span class="ok">fuel: call wall 23450</span><span class="ok">ignition: +460 · 2.3× vol</span><span class="na">drain: CE OI velocity — mark 12:15</span></div>
+            <div class="res">REFUSE<small>2/3 · fakes die here</small></div></div>
+          <div class="play"><div class="name">S1 FADE u2<small>stop past sweep · target VWAP</small></div>
+            <div class="conds"><span class="ok">u2 touched 23431</span><span>absorption at edge</span><span>CE building above</span><span>regime PIN</span></div>
+            <div class="res">ILLEGAL<small>1/4 · zone fired 12:06</small></div></div>
+          <div class="play on"><div class="name">S5 SKIP<small>logged as an executed trade</small></div>
+            <div class="conds"><span class="ok">pieces disagree</span><span class="ok">no play at full</span></div>
+            <div class="res">ACTIVE<small>since 11:57</small></div></div>
+        </div>
+        <div class="flip">What flips it: <b>12:15 mark</b> — CE 23450 OI down ≥ 3L with price ≥ 23431 → S2 3/3, buy 23450 CE, time stop 12:20. CE 23450 OI up with price ≤ 23425 → back to PIN, S1 long at d2 re-arms.</div>
+        <div class="foot"><span>1/2/3 index</span><span>R read</span><span>L ladder</span><span>P plays</span><span>H health</span><span>· hue = side only · hatched = covering · dashed = forming/stale · grey = PATA NAHI</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

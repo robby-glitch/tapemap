@@ -39,6 +39,7 @@ import fuse as fuse_mod
 import breadth as breadth_mod
 import frame
 import frame_log
+import fronts                    # research-findings §1d: the near-ATM fronts
 import tape_log
 import book_log
 import ux_log
@@ -1063,13 +1064,22 @@ def _book_for(handler, idx):
     # the 3-minute fold). Two named facts, not the STRONG BULL / STRONG BEAR
     # verdict beside them -- that verdict is not ported at any size (spec §C.1).
     regime = None
+    plays = None
     try:
         _bars = _day0.get("bars") or []
-        regime = ((_bars[-1].get("ctx") or {}).get("pin") or {}).get("regime")
+        _ctx = _bars[-1].get("ctx") or {}
+        regime = (_ctx.get("pin") or {}).get("regime")
+        # THE ENGINE'S OWN VETO, carried so the fade gate can obey it
+        # (research-findings §1d). On 2026-09-22 the engine printed "NO FADE at
+        # 23360 -- negative gamma; continuation only" at 11:45 and 13:51 while
+        # the zone machine armed a BUY fade in the same minute, verdict GO. The
+        # sentence already existed; nothing read it. Strings only -- `fronts`
+        # matches on the prefix and never parses a price back out of them.
+        plays = [p for p in (_ctx.get("plays") or []) if isinstance(p, str)] or None
     except (AttributeError, IndexError, TypeError):
-        regime = None
+        regime, plays = None, None
     return {"warmap": wm, "minutes": getattr(st, "minutes", None),
-            "peaks": getattr(st, "peak", None),
+            "peaks": getattr(st, "peak", None), "plays": plays,
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
@@ -1963,11 +1973,27 @@ class Handler(SimpleHTTPRequestHandler):
             st = (getattr(self.poller, "states", None) or {}).get(idx) if self.poller else None
             mins = getattr(st, "minutes", None)
             peak = getattr(st, "peak", None)
+            # THE NEAR-ATM FRONTS (research-findings §1d) RIDE HERE, not only
+            # on the frame: this route is served straight out of the chain
+            # poller's state and does not touch the extension at all, so "who
+            # stopped building first" survives a dead GoCharting tab -- which
+            # is exactly the morning of 2026-09-22, when the extension posted
+            # once at 09:17 and stopped. `frame.py` calls the same function on
+            # the same grid, so the rule exists once, in one language.
+            rows = fronts.read(mins or {}, peak)
             self._json(json.dumps({
                 "ok": mins is not None,
                 "idx": idx,
                 "why": None if mins is not None else
                        "the chain poller has no state for this index yet",
+                # null, not [], for the reason frame.py gives at its own
+                # `fronts` key: an empty list reads as "checked, none found".
+                "fronts": rows or None,
+                "fronts_why": None if rows else
+                              ("the chain poller has no state for this index yet"
+                               if mins is None else
+                               "no minute carries a spot and a strike grid yet"),
+                "broke": fronts.broke(rows),
                 "minutes": mins or {},
                 "peak": [{"k": k, "side": s, "oi": v}
                          for (k, s), v in sorted((peak or {}).items())],

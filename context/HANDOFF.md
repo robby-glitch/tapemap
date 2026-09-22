@@ -176,6 +176,150 @@ live day for all of it: 2026-08-26.
 operator's memory files in the assistant workspace. The anytime-start audit
 report: https://claude.ai/code/artifact/4b30ccb2-f146-4414-a7ec-be8abcfb5981
 
+### 2026-09-23 — THE FADE GATE: her OI rule, pre-registered first, then built
+
+The operator's verdict on 2026-09-22's signals: *"yes this is the fix and fix
+it carefully you have got it."* Three things were agreed and two were left
+open on purpose.
+
+**§1d of `research-findings.md` was written BEFORE any code** — the rule, its
+fixed parameters, three predictions and a falsifier. Read it before touching a
+threshold in `fronts.py`.
+
+**`fronts.py`** (pure, stdlib, no I/O) answers her rule: the nine strikes
+nearest spot, the top two per side by **session-peak** OI, and each front's
+own **build → stall → unwind** read off its OI-change series. `fade_gate`
+then says whether a fade is legal: the defending front (PE for a BUY fade, CE
+for a SELL) must still be building, and the engine must not have printed its
+`NO FADE` veto. A missing input is `legal: None`, never legal.
+
+Wired in three places, all calling the SAME function so the rule exists once:
+
+- **`/api/oihist`** gains `fronts`, `fronts_why`, `broke`. This route is
+  served straight out of the chain poller and never touches the extension, so
+  the read survives a dead GoCharting tab.
+- **`frame.build`** gains `fronts`/`fronts_why` and `setup.gate`, off the
+  minute grid it already received for `_trapped`.
+- **`trigger_log`** stamps `gate` on every arm and every entry, computed **as
+  at that row's own bar** (`_gate_at` truncates the grid to `<= t`), because a
+  restart can write an arm for a bar an hour old.
+
+**IT SUPPRESSES NOTHING, and that is the load-bearing decision.** Every row
+the log would have written is still written. §5c's and §1b's running
+populations are untouched, and "what would obeying the gate have cost and
+saved" stays answerable from rows logged forward instead of a re-cut cache. A
+gate that edited the log would destroy the only evidence that can judge it.
+
+**Implementation verification** (NOT evidence, and it does not count toward
+§1d's falsifier — the thresholds were fixed before this ran): replayed against
+the live 2026-09-22 grid, the gate flips from legal to illegal between **10:19
+and 10:31**, and the first BUY arm of the fall was **10:30**. Across that
+day's 24 NIFTY rows it marks 6 legal and 18 illegal, with the 11:45 → 14:09
+block failing on the engine's own `NO FADE` rather than on the front.
+
+**Board:** the TypeScript re-implementation of the fronts is **deleted**; the
+tab now reads the server's answer, and the S1 FADE lamps are §1d's two
+conditions. "regime PINNED" came off that row — it was a stand-in for her
+unanswered "if market condition is right", and §1d replaces it with the rule
+she actually stated.
+
+**Still open, hers to answer** (§1b (a) and the u2 question): two-candle vs
+one-candle trigger, and whether u2 SELL survives at all. The gate is written so
+it depends on neither. **Item 3 of the agreed fix — the GO/SPENT/CAUTION
+verdict either gating something or leaving the headline — is NOT done.**
+
+Suite 1389 collected, 1386 passing, the same 3 pre-existing `test_desk_numbers`
+failures. tsc 0. **Python changed, so it needs a detached restart.**
+
+### 2026-09-22 — the sentinel that printed as a price (found live, on her screen)
+
+At 09:27, before the session had an extreme, the operator's playbook read:
+
+```
+FADE a test of 1000000000000000000 (session low)
+BREAK of -1000000000000000000 (session high) needs vol rank >0.9
+```
+
+`Session.__init__` starts `fut_hi` at -1e18 and `fut_lo` at +1e18 so the first
+bar always wins their comparison, and `context` put both straight into its
+level candidates. Being unbounded, -1e18 was the only candidate below spot and
++1e18 the only one above, so each won `floor`/`cap` outright instead of losing
+to a real level — **and the labels read backwards**, the "session low"
+sentinel sitting ABOVE price, because the low's sentinel is the positive one.
+
+Fix: `engine.session_extremes(fut_lo, fut_hi)`, a pure function that drops an
+extreme that is `None` or past `UNSET_EXTREME` (1e17), called at the one place
+the pair becomes a level. 5 tests in `test_session_extremes.py`. **Python, so
+it needs a detached restart to reach the screen.**
+
+### §K LOOK — the five-session Upstox-vs-GoCharting comparison. Session 1 of 5.
+
+One row per session. **No verdict here and no rate** — §K step 2 says the bar
+is the operator's, stated in `research-findings.md` BEFORE these are read.
+
+| day | joined | ofd-only | ux-only | POC rows | POC ±1 | Δ sign | vol × | VA lap | HVN | LVN | exact | hidden |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-09-22 | 76 | 2 | 0 | 0.000 | 0.868 | 0.789 | 1.000 | 1.000 | 0.500 | 0.800 | 0.388 | 0.589 |
+
+Session 1 notes, NIFTY, lot 65 (dump on the tool, ofd on the rows — same
+number, `lot_why` null):
+
+- **Record integrity: clean.** 70,924 book rows, `dropped 0`, `failed 0`,
+  `ux_failed 0`, `drain_why` null, `rebuild_why` {}. 76 unique ux bars on
+  disk, **zero duplicates**, `vtt_resets 0`, `lot_mismatch 0`, `unpriced 0`,
+  `unknown` 16 of ~32.6k, `late_frames` 28 of 20,587 (0.14 %). One partial
+  bar, 09:15, correctly named ("record starts at 09:17:19").
+- **ONE MISSING BIN: 13:10.** ux has no bar for it; the GoCharting record
+  does. The feed reported **2 reconnects** today and nothing in the log pins
+  the time, so the cause is unproven. This is a hole the FEED can make, not
+  the writer — spec 2's guarantee was about the writer. **Watch it on days
+  2-5; if it repeats at a reconnect, that is a named defect, not noise.**
+- **The two ofd-only bins are 13:10 and 15:40** (the second is post-close).
+  `bars_ux_only` is 0 — the ux ladder has never invented a bar.
+- **BANKNIFTY and SENSEX have full ux tapes and no GoCharting record at all**
+  (the extension can only sit on one chart). Not comparable, and that
+  asymmetry is itself an argument for the replacement.
+
+### 2026-09-22 — the BOARD tab (ui-v2, first in the strip): the whole board on one screen, read off existing endpoints
+
+Ordered after a "think as a professional trader, use everything, I buy AND sell"
+exchange: one main screen. Mockup first (`docs/mockups/board-2026-09-22.html`,
+Monday 2026-09-21 NIFTY frozen at 12:10, the bar after the zone SELL the board
+calls FADE ILLEGAL), then, on "bas ek tab mein daal de, kal chala ke bataungi",
+`ui-v2/src/board/BoardTab.tsx` — **no server change, no restart needed**. It
+reads `/api/frame` (gate, where, trapped, walls, tape events, setup, breadth),
+`/api/tape` (bars with delta + cvd, ux λ), `/api/vpin`, `/api/drag` and
+`/api/signals` (the engine context stamped on the day's rows). Three answer
+cells (REGIME = trapped.gear · WHO IS TRAPPED = trapped.writers + pace ·
+PLAY), a 5-min tape strip with the zones AS THEY ARE NOW (not a band
+history), a factual READ line per closed bar, the walls table with breadth,
+and a PLAYS panel that lights the conditions it can read (S3 sell / S2 buy /
+S1 fade) and says REFUSE below full; S5 SKIP is on whenever nothing is full.
+Every hole is grey PATA NAHI with the server's reason; no hit rate, no verdict.
+The lamps are a read of the fields, tagged [I], not a signal. Not reviewed by
+the operator yet — she runs it 2026-09-22 and says what to change or delete.
+
+**First live day, same morning — five defects found and fixed, all of them
+"built against a contract I had not watched serve":**
+
+1. **The clock was the frame's.** The extension posted once at 09:17 stamped
+   with MONDAY's session and stopped; every panel drew that as live. Now the
+   clock is the machine's, and a frame whose `day` is not today or whose `ts`
+   is over 5 minutes old is named stale, with the fix in the sentence
+   ("GoCharting tab F5 karo"), and every answer built on it becomes a hole.
+2. **No fallback to the Upstox tape.** The board died with GoCharting even
+   though `ux` had the same bars. It now draws ux bars when the ladder is
+   absent and labels which source is on screen — the whole point of spec
+   2026-09-20.
+3. **`trapped.gear` is a STRUCTURAL hole** — `_book_for` passes `senses: None`
+   on purpose, so a lamp on it could never light. The regime now comes from
+   `breadth.regime`/`pinned`, which the frame actually fills.
+4. **`tape.events[].at` is `{kind,label}`, not a string** — it rendered as
+   "[object Object]". Same class of bug: `where.low`/`high` are `{p,t}` and
+   `tape.aggressor` is `{side,rank}`.
+5. **51 wall rows dumped**, out to strikes 380 points away. Now the nearest 14
+   by the row's own `d`, with the count and where the rest live.
+
 ### 2026-09-21 — the Upstox tape: the book record, the ux ladder and the gate (spec 2026-09-20-upstox-tape)
 
 **The suite was already red going in.** `python -m pytest -q`: **1345 collected, 1342 passing, 3

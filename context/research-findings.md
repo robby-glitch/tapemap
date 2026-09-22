@@ -377,6 +377,105 @@ extra). Any frequency claim from 2026-08-14 is a lower bound.
 
 ---
 
+## 1d. PRE-REGISTERED — THE FADE GATE (written 2026-09-23 00:40, before any code, UNTESTED)
+
+Registered **before** the gate exists, per §5. **Nothing below is a result.**
+
+### Why this exists
+
+§1b left one clause of the operator's own rule unimplemented for five weeks:
+*"the upper band is where i look for sell **if market condition is right**"*.
+Open question **(c)** asked what that clause means. On **2026-09-22** she
+answered it, in her own words, after the tool named the wrong strike:
+
+> "hamesha read nearest ATM pe rehni chahiye. 23700 PE writers are irrelevant
+> because wahan pe hedging ke liye positions banate hain... Hamesha check karo
+> **the strike with most of OI and second best on both sides**, and always
+> check **which side stops first increasing their positions and then
+> unwinding**."
+
+**What the day showed.** NIFTY fell 23475 → 23370 between 10:20 and 10:50.
+The near-ATM put front **PE 23400 peaked at +234.2L at 10:19 and was at
++69.1L by 11:00** — one minute before the fall began, the side that would have
+had to defend the lower band stopped adding and began giving inventory back.
+Over that fall the zone machine armed **BUY ten times** (10:30, 10:33, 10:36,
+10:39, 10:42, 11:45, 11:54, 13:51, 13:54, 14:00), twice with the engine
+simultaneously printing **"NO FADE at 23360 — negative gamma; continuation
+only"** (11:45 and 13:51). Two modules, one minute, opposite instructions.
+
+### The rule, exactly
+
+A **FADE** arm or entry (the zone's BUY at d2/d3, or its SELL at u2/u3) is
+**LEGAL** only when both hold at that bar:
+
+1. **The defending front is still building.** For a BUY fade that is the **PE**
+   front; for a SELL fade the **CE** front. "The front" is the strike with the
+   **largest session-peak OI on that side among the nine strikes nearest
+   spot**; "building" means its 15-minute OI-change slope is **rising** and it
+   is not stalled (thresholds below).
+
+   > **Corrected 2026-09-23 01:10, before any row was logged against it.** An
+   > earlier draft of this line read "neither stalled nor off its own peak",
+   > which describes a **latch** — once broken, broken for the session. The
+   > implementation reads the **current direction** instead, so a front that
+   > ran and then came back counts as building again. That is the deliberate
+   > choice: writers who return are defending again, and a session-long latch
+   > would mark a fade illegal for six hours on the strength of one ten-minute
+   > flush. The looser reading is also the harder test for the gate, since it
+   > lets more fades through. Recorded rather than silently reconciled. The
+   > face must not say "still building" about a front far under its peak; it
+   > names the distance instead.
+2. **The engine has not vetoed it.** No `NO FADE` play for that side on the
+   same bar.
+
+Anything else is **ILLEGAL**, and a missing input is **PATA NAHI**, never legal.
+
+**Parameters, fixed now, not to be grid-searched (§5c's rule):** nine nearest
+strikes · top **2** per side by session-peak OI · **UNWIND** at 15 % off the
+front's own peak with a falling 15-minute slope · **STALL** at a 15-minute
+slope inside ±5 % of that peak · otherwise **BUILDING**. Ranking is by **peak**
+OI, not current, deliberately: a front that has already given back 70 % is the
+one being hunted, and ranking by current OI would drop it out of sight exactly
+when it matters.
+
+### What is NOT being changed, and this is the load-bearing part
+
+**The forward log keeps every row it would have written.** No arm and no entry
+is suppressed, renamed or dropped. The gate is stamped **alongside** each row
+as a new `gate` field and rendered on the face. §5c's and §1b's running
+populations are therefore untouched, and after N sessions the question "what
+would obeying the gate have cost and saved" is answerable **from rows logged
+forward**, with no cache re-cut. A gate that edited the log would destroy the
+only evidence that could judge it.
+
+### Predictions, committed in advance
+
+1. It marks **illegal** a large minority of fade arms — most of them clustered
+   inside single directional legs, not scattered.
+2. On a trending day it marks **nearly every** fade arm illegal; on a pinned
+   day **nearly none**. If it fires evenly across both, it is reading noise.
+3. The arms it marks illegal have a **worse MAE distribution** than the ones it
+   leaves legal.
+
+**Falsifier (committed in advance):** the illegal set's MAE is no worse than
+the legal set's, **or** the gate marks illegal fewer than 1 in 10 fade arms
+over 10 sessions (it would then be a rule that never binds), **or** the result
+collapses once the single worst leg is removed (§5 lesson 2).
+
+**Hazards recorded now.** The gate can only make the tool refuse more; refusing
+more is not evidence of anything by itself, and "fewer signals" must never be
+reported as an improvement. The compression/trap filter is the standing warning
+here: it was pre-registered too and turned out **actively harmful**, selecting
+losers in three separate datasets. This one dies the same way if it fails.
+
+**Still open, and NOT answered by this section** (§1b's own list): whether the
+trigger is the two-candle close or the one-candle reclaim **(a)**, and whether
+**u2 SELL survives at all** given that selling any upper band is dead on five
+datasets. Both are the operator's to answer, and this gate is deliberately
+written so it does not depend on either.
+
+---
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

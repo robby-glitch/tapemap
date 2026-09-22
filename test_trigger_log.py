@@ -28,6 +28,32 @@ class BrokenChain:
         raise RuntimeError("chain poller down")
 
 
+class FrontChain(FakeChain):
+    """A chain whose PUT front stopped building before the logged bar.
+
+    The shape of 2026-09-22, when PE 23400 peaked at 10:19 and the zone armed
+    BUY ten times into the fall that followed. `minutes` and `peak` are what
+    `fronts.read` consumes (research-findings §1d); `oi_flow` is inherited so
+    the row's existing OI stamp is unchanged.
+    """
+
+    def __init__(self, pe_peaks_at=1, n=20):
+        # The put front peaks at 10:01 and gives it back, so the row logged at
+        # `_payload`'s 10:03 is already inside the unwind -- the arrangement
+        # the live day had, with the clock pulled in so the fixture stays
+        # small. A peak AFTER the logged bar would read legal, correctly, and
+        # would be testing the other branch.
+        self.minutes = {}
+        for i in range(n):
+            pe = 100.0 * (i + 1) if i <= pe_peaks_at else \
+                100.0 * (pe_peaks_at + 1) - 60.0 * (i - pe_peaks_at)
+            self.minutes[f"10:{i:02d}"] = {
+                "spot": 24600.0,
+                "k": {24600.0: (50.0 * (i + 1), pe)},
+            }
+        self.peak = {(24600.0, "ce"): 5_000_000, (24600.0, "pe"): 4_000_000}
+
+
 def _payload(rot_t="10:03"):
     """The shape /api/data actually serves.
 
@@ -77,6 +103,44 @@ def test_logs_once_with_context(tmp_path):
     assert r["gamma"]["regime"] == "BALANCE" and r["oi_strength"] == 0.5
     assert r["oi_call"] == 1_000_000 and r["oi_put"] == 2_000_000
     assert "f30" not in r               # outcomes are score()'s job, later
+
+
+def test_every_row_carries_the_fade_gate(tmp_path):
+    """§1d rides on the row, and a chain that cannot answer it is PATA NAHI."""
+    path = _fresh(tmp_path)
+    assert trigger_log.log_new("NIFTY", _payload(), FakeChain(), path=path) == 1
+    g = [json.loads(x) for x in open(path, encoding="utf-8")][0]["gate"]
+    # FakeChain has no minute grid, so the gate could not be asked -- and an
+    # unanswerable gate is never "legal".
+    assert g["legal"] is None and g["why"] == "near-ATM fronts not read"
+    assert g["side"] == "buy" and g["tag"] == "I"
+
+
+def test_the_gate_marks_a_buy_whose_put_front_gave_up(tmp_path):
+    """The 2026-09-22 shape: the defender peaked, so the fade is illegal."""
+    path = _fresh(tmp_path)
+    assert trigger_log.log_new("NIFTY", _payload(), FrontChain(), path=path) == 1
+    r = [json.loads(x) for x in open(path, encoding="utf-8")][0]
+    assert r["gate"]["legal"] is False
+    assert r["gate"]["defender"] == "PE"
+    assert "24600" in r["gate"]["why"]
+    # the row itself is untouched: §1d suppresses nothing
+    assert r["side"] == "BUY" and r["px"] == 24610.0
+
+
+def test_the_gate_never_stops_a_row_being_written(tmp_path):
+    """A gate that raised would still leave the row on disk, with its reason."""
+    class Exploding(FakeChain):
+        @property
+        def minutes(self):
+            raise RuntimeError("grid on fire")
+
+    path = _fresh(tmp_path)
+    assert trigger_log.log_new("NIFTY", _payload(), Exploding(), path=path) == 1
+    r = [json.loads(x) for x in open(path, encoding="utf-8")][0]
+    assert r["px"] == 24610.0                      # the row survived
+    assert r["gate"]["legal"] is None
+    assert "RuntimeError" in r["gate"]["why"]
 
 
 def test_dedupe_survives_restart(tmp_path):

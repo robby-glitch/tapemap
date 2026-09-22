@@ -33,6 +33,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 import breadth as breadth_mod   # positioning breadth; no direction field exists in that object by construction
+import fronts as fronts_mod     # research-findings §1d: the near-ATM fronts and the fade gate
 import gate as gate_mod
 import signals as signal_mod     # the ballot and the state machine; frame.py never measures a vote
 import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
@@ -85,7 +86,13 @@ _EMPTY_TAPE = {"events": [], "aggressor": None, "aggressor_why": None}
 _EMPTY_SETUP = {"side": "buy", "state": "PATA NAHI", "state_why": None, "ref": None, "candles_left": None, "level": None,
                  "reached": False, "in_pocket": False, "flow": [], "fire": False, "visit": None, "tells": [],
                  "confirm": {"value": "UNKNOWN", "why": "setup did not build", "why_full": None, "tag": "I"}, "falsifies": None,
-                 "signal": dict(signal_mod.EMPTY_SIGNAL), "votes": dict(signal_mod.EMPTY_VOTES)}
+                 "signal": dict(signal_mod.EMPTY_SIGNAL), "votes": dict(signal_mod.EMPTY_VOTES),
+                 "gate": {"legal": None, "why": "the fade gate did not build", "side": None,
+                          "defender": None, "front": None, "veto": None, "tag": "I"}}
+# The same shape `_setup`'s hole carries, so a failure inside the gate and a
+# failure before it reach the face identically (research-findings §1d: a
+# missing input is PATA NAHI, never legal).
+_EMPTY_GATE = dict(_EMPTY_SETUP["gate"])
 
 
 def _hhmm(t_ms: int) -> str:
@@ -491,6 +498,17 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     walls = _safe(lambda: _walls(tape, book, broke), _EMPTY_WALLS)
     tape_o = _safe(lambda: _tape(tape, closed, walls["rows"]), _EMPTY_TAPE)
     setup = _safe(lambda: _setup(tape, book, clock, walls), _EMPTY_SETUP)
+    # THE FADE GATE (research-findings §1d). The SAME function the /api/oihist
+    # route calls, on the same minute grid this frame already receives for
+    # `_trapped` -- one rule, one language. It SUPPRESSES NOTHING: `setup` is
+    # returned untouched and every row the log would have written still gets
+    # written, because the only way to judge this gate later is rows logged
+    # forward beside it. See §1d, "What is NOT being changed".
+    fronts_rows, fronts_err = _safe_list(lambda: fronts_mod.read(mins, book.get("peaks")))
+    setup["gate"] = _safe(
+        lambda: fronts_mod.fade_gate(fronts_rows, setup.get("side") or "buy",
+                                     book.get("plays")),
+        dict(_EMPTY_GATE))
 
     def _events_and_armed():
         armed = []
@@ -515,4 +533,16 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     return {"ok": True, "idx": tape.get("idx") or "NIFTY", "ts": now_hhmm, "day": day, "interval": sess[1] if len(sess) >= 3 else None,
             "have_bars": len(closed), "lot": tape.get("lot"), "missing": missing, "coverage": book.get("coverage") or {},
             "events": events, "events_why": events_why, "taps": tape.get("taps") or [], "head": head, "record": {"written": False},
-            "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup, "breadth": breadth_o}
+            "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup, "breadth": breadth_o,
+            # §1d. `trapped` answers "who is in pain" off max(pain) over every
+            # leg; this answers "who stopped adding first, near the money".
+            # They are different questions and on 2026-09-22 they named
+            # different strikes -- 23700 and 23400 -- so both stay published.
+            # NULL, not [], when it could not be read: this contract's rule is
+            # that a `*_why` is non-null exactly when its field is null
+            # (test_frame.test_every_why_is_non_null_exactly_when_its_field_is_null),
+            # and an empty list would read as "checked, found no fronts".
+            "fronts": fronts_rows or None,
+            "fronts_why": None if fronts_rows else
+                          (fronts_err or ("chain minutes not answered" if not mins else
+                                          "no minute carries a spot and a strike grid yet"))}
