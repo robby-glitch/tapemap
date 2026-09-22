@@ -14,6 +14,7 @@ import ProtoTab from './proto/ProtoTab'
 import SignalsTab from './signals/SignalsTab'
 import FlowTab from './flow/FlowTab'
 import BoardTab from './board/BoardTab'
+import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
 // The five-state machine read, shared with the Glass board's MACHINE widget.
 // It moved out of this file so the board could import it without App.tsx and
@@ -66,7 +67,7 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
+export type Tab = 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'VPIN' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
 
 // ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
 const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
@@ -2151,7 +2152,7 @@ export default function App() {
   const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
-  const tabs: Tab[] = ['Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
+  const tabs: Tab[] = ['Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
   const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(MOCK)
   const idxDead = dead.includes(activeIndex)
@@ -2477,6 +2478,7 @@ export default function App() {
             the tab unmounts and the interval is cleared with it. */}
         {activeTab === 'Board'    && <BoardTab index={activeIndex} />}
         {activeTab === 'Flow'     && <FlowTab index={activeIndex} />}
+        {activeTab === 'VPIN'     && <VpinTab key={activeIndex} index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll. */}
