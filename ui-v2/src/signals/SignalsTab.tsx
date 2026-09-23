@@ -93,6 +93,8 @@ export type SignalRow = {
    *  none was rewritten to say so. Absent IS "entry". */
   kind?: 'arm' | null
   px?: number | null
+  /** §1d's fade gate AS AT the row's own bar. Shown on every row; never used to hide one. */
+  gate?: { legal?: boolean | null; why?: string | null; veto?: boolean | null } | null
   trigger?: string | null
   // ── arm rows only (kind === 'arm'). An entry row carries none of these. ──
   /** The bar interval the arm was recorded at. Always the scored 3. */
@@ -301,7 +303,10 @@ export default function SignalsTab() {
   // the rule alone would file it under the entry heading — the one place this
   // screen is not allowed to put it.
   const fiveRows = rows.filter(r => r.kind !== 'arm' && r.rule === '5c')
-  const legacyRows = rows.filter(r => r.kind !== 'arm' && r.rule !== '5c')
+  // ZONE entries are the rule she trades (§1b), not the void one-candle legacy. They were filed
+  // under "Void" here because the legacy test was `rule !== '5c'`; only UNTAGGED rows are legacy.
+  const zoneRows = rows.filter(r => r.kind !== 'arm' && r.rule === 'zone')
+  const legacyRows = rows.filter(r => r.kind !== 'arm' && r.rule !== '5c' && r.rule !== 'zone')
   const armRows = rows.filter(r => r.kind === 'arm')
 
   /** How many rows the WHOLE log holds for the population this view selects —
@@ -524,6 +529,22 @@ export default function SignalsTab() {
             </Section>
           )}
 
+          {/* Zone entries (§1b) — her rule, with the fade gate on every row (§1d). */}
+          {zoneRows.length > 0 && (
+            <Section
+              title={`Zone entries — d2/u2 · ${zoneRows.length} row${zoneRows.length === 1 ? '' : 's'} shown`}
+              note={'The zone rule you trade: armed at d2/u2, entered on the close past the arming bar. '
+                + 'Every row carries the fade gate as at its own bar. NO FADE rows are kept, not hidden: '
+                + 'they are how the gate gets judged.'}
+            >
+              {zoneRows.map((r, i) => (
+                <Row key={keyOf(r, i)} r={r} legacy={false}
+                  open={!!open[keyOf(r, i)]}
+                  onToggle={() => setOpen(o => ({ ...o, [keyOf(r, i)]: !o[keyOf(r, i)] }))} />
+              ))}
+            </Section>
+          )}
+
           {/* Arms — their own section, so nothing here can read as an entry. */}
           {armRows.length > 0 && (
             <Section
@@ -641,6 +662,7 @@ function Row({ r, legacy, open, onToggle }: {
         <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: pal.textPrimary }}>
           {px(r.px)}
         </span>
+        <GateChip g={r.gate} />
         {legacy && (
           <span className="chip" style={{
             background: wash(pal.caution, 0.1), color: pal.caution, fontSize: 11,
@@ -759,6 +781,7 @@ function ArmRow({ r, open, onToggle }: {
         <span className="chip" style={{ background: wash(sideCol, 0.12), color: sideCol, fontSize: 11 }}>
           {r.side ?? '—'} · {r.band ?? '—'}
         </span>
+        <GateChip g={r.gate} />
         {/* The word, on every row. It is the one thing this section must never
             let a glance get wrong. */}
         <span className="chip" title="the setup arming — not a trade signal"
@@ -969,6 +992,25 @@ function Outcome({ r }: { r: SignalRow }) {
 
 /** A context read as published. `null` prints as an em-dash and says so on
  *  hover — a missing read is not a neutral read. */
+/** §1d on the face: LEGAL / NO FADE (+ why) / gate ? — three states, never two. A row
+ *  written before the gate existed carries no field and reads as not-stamped, not as legal. */
+function GateChip({ g }: { g?: SignalRow['gate'] }) {
+  const pal = usePalette()
+  if (g === undefined) return null
+  const legal = g?.legal
+  const text = legal === true ? 'LEGAL' : legal === false ? 'NO FADE' : 'gate ?'
+  return (
+    <span className="chip" title={g?.why ?? 'the gate could not be read'} style={{
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+      background: legal === false ? wash(pal.caution, 0.16) : 'transparent',
+      color: legal === false ? pal.caution : legal === true ? pal.textPrimary : pal.textMuted,
+      border: `1px ${legal == null ? 'dashed' : 'solid'} ${legal === false ? wash(pal.caution, 0.4) : pal.border}`,
+    }}>
+      {text}{legal === false && g?.why ? ` · ${g.why}` : ''}
+    </span>
+  )
+}
+
 function Tag({ label, value, tone, mono }: {
   label: string
   value: string | null

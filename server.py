@@ -40,6 +40,7 @@ import breadth as breadth_mod
 import frame
 import frame_log
 import fronts                    # research-findings §1d: the near-ATM fronts
+import grounds                   # every engine call held against OI, CVD and order flow
 import tape_log
 import book_log
 import ux_log
@@ -1085,6 +1086,12 @@ def _book_for(handler, idx):
         # lives here, in the object this process already keeps.
         watch_prior = (((_SENSES.get("frame") or {}).get(idx) or {})
                        .get("walls") or {}).get("watch")
+        # ...and the previous frame's signal, so the fade gate read AT the tap and
+        # AT the trigger is FROZEN for the visit (frame.build). Recomputed each
+        # frame, a past bar's gate re-read with later plays/peaks could turn a
+        # vetoed trigger legal twenty minutes on and ring a late firm beep.
+        signal_prior = ((((_SENSES.get("frame") or {}).get(idx) or {})
+                         .get("setup") or {}).get("signal"))
     st = (getattr(handler.poller, "states", None) or {}).get(idx) if handler.poller else None
     box = handler.chains.get(idx) if handler.chains else None
     pj = {}
@@ -1100,6 +1107,7 @@ def _book_for(handler, idx):
     # verdict beside them -- that verdict is not ported at any size (spec §C.1).
     regime = None
     plays = None
+    plays_at = {}
     try:
         _bars = _day0.get("bars") or []
         _ctx = _bars[-1].get("ctx") or {}
@@ -1110,9 +1118,23 @@ def _book_for(handler, idx):
         # the zone machine armed a BUY fade in the same minute, verdict GO. The
         # sentence already existed; nothing read it. Strings only -- `fronts`
         # matches on the prefix and never parses a price back out of them.
-        plays = [p for p in (_ctx.get("plays") or []) if isinstance(p, str)] or None
+        # An EMPTY list is the engine read and printing no play -- no veto. Only a
+        # missing ctx is "not read" (None), and fronts.fade_gate treats those two
+        # differently: the first can be legal, the second is PATA NAHI.
+        _pl = _ctx.get("plays")
+        plays = [p for p in _pl if isinstance(p, str)] if isinstance(_pl, list) else None
+        # EVERY BAR'S OWN PLAYS, by its 3-min label -- the same ctx trigger_log
+        # stamps each row's gate from. frame.build reads a tap's/trigger's gate
+        # with THAT bar's veto, so the answer is a function of the bar alone: it
+        # survives a restart and cannot turn a vetoed trigger legal once the
+        # veto has aged out of the latest bar.
+        plays_at = {}
+        for _b in _bars:
+            _bp = ((_b or {}).get("ctx") or {}).get("plays")
+            if isinstance((_b or {}).get("t"), str) and isinstance(_bp, list):
+                plays_at[_b["t"]] = [p for p in _bp if isinstance(p, str)]
     except (AttributeError, IndexError, TypeError):
-        regime, plays = None, None
+        regime, plays, plays_at = None, None, {}
     return {"warmap": wm, "minutes": getattr(st, "minutes", None),
             "peaks": getattr(st, "peak", None), "plays": plays,
             "spot": box.get("spot") if box else None,
@@ -1120,7 +1142,7 @@ def _book_for(handler, idx):
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
             "pivots": _day0.get("pivots"),      # the prior session's floor pivots; frame._walls inverts them to PDH/PDL/PDC
             "vpin_pct": vpin_pct, "senses": senses, "sweeps": sweeps,
-            "watch_prior": watch_prior,
+            "watch_prior": watch_prior, "signal_prior": signal_prior, "plays_at": plays_at,
             "regime": regime, "pinned": None if regime is None else regime == "PINNED",
             "ivrv": None, "coverage": _coverage()}
 
@@ -1895,7 +1917,11 @@ class Handler(SimpleHTTPRequestHandler):
             entries = [r for r in rows if r.get("kind") != "arm"]
             arms = [r for r in rows if r.get("kind") == "arm"]
             five = [r for r in entries if r.get("rule") == "5c"]
-            legacy = [r for r in entries if r.get("rule") != "5c"]
+            # ZONE (§1b) is her rule, its own population -- not the void one-candle
+            # legacy. `legacy` was `rule != "5c"` and so counted every zone entry
+            # as quarantined (591 = 335 zone + 256 untagged on 2026-09-23).
+            zone = [r for r in entries if r.get("rule") == "zone"]
+            legacy = [r for r in entries if r.get("rule") not in ("5c", "zone")]
             sel = rows
             if kind == "arm":
                 sel = [r for r in sel if r.get("kind") == "arm"]
@@ -1907,9 +1933,17 @@ class Handler(SimpleHTTPRequestHandler):
                 sel = [r for r in sel if r.get("rule") == "5c"]
             if want:
                 sel = [r for r in sel if r.get("index") == want]
+            # ?day=YYYY-MM-DD | today -- a VIEW filter like ?idx=, for a chart that
+            # only draws today's marks (PaperDesk's fade-gate join). The counts
+            # below stay whole-file, exactly as they were.
+            vday = ((q.get("day") or [""])[0] or "").strip()
+            if vday == "today":
+                vday = time.strftime("%Y-%m-%d")
+            if vday:
+                sel = [r for r in sel if r.get("day") == vday]
             self._json(json.dumps({
                 "ok": True, "path": str(src), "rule": rule,
-                "idx": want or None, "kind": kind,
+                "idx": want or None, "kind": kind, "day": vday or None,
                 "total": len(rows), "unparsed": unparsed,
                 # Whole-file counts, per rule, deliberately unaffected by
                 # ?idx= — the screen's headline is "what has this strategy
@@ -1938,6 +1972,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "unscored": sum(1 for r in five if r.get("unscored")),
                 },
                 "legacy": {"n": len(legacy)},
+                "zone": {"n": len(zone)},     # counted apart, never summed into five_c or legacy
                 # The arm population, counted APART from `five_c` and never
                 # added to it. `setups` counts distinct setups (§5c: a run of
                 # falling lows collapses into ONE, so the re-arms are the
@@ -2406,6 +2441,29 @@ class Handler(SimpleHTTPRequestHandler):
                              for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
+        elif self.path.startswith("/api/calls"):
+            # EVERY ENGINE CALL, GROUNDED (grounds.py). The engine's verdict,
+            # episode, breadth and plays on its latest 3-min bar, each held
+            # against the near-ATM fronts (OI), the Upstox ladder's CVD and its
+            # order flow -- three families the engine never sees. A face shows a
+            # call WITH its status and facts, never bare. GET only, per request.
+            idx = self._idx()
+            try:
+                box = (self.payloads or {}).get(idx)
+                pl = payload_at(box, band_rotation.SCORED_INTERVAL) if box else None
+                pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
+                bars = ((pj.get("days") or [{}])[0] or {}).get("bars") or []
+                last = bars[-1] if bars else {}
+                ux = (_tape_reply(idx, time.strftime("%Y-%m-%d")) or {}).get("ux") or {}
+                st = (getattr(self.poller, "states", None) or {}).get(idx) if self.poller else None
+                fr = fronts.read(getattr(st, "minutes", None) or {}, getattr(st, "peak", None))
+                out = {"ok": bool(last), "idx": idx, "t": last.get("t"),
+                       "why": None if last else "no engine bar for this index yet",
+                       **grounds.ground(last.get("ctx") or {}, (last.get("fut") or {}).get("c"),
+                                        ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr)}
+            except Exception as e:           # a bad read must not 500 the face
+                out = {"ok": False, "idx": idx, "why": f"{type(e).__name__}: {e}", "calls": []}
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/tape"):
             # the ladder record and what prints.py reads off it (spec §D) --
             # live from the extension's last post, else from data/tape/, else

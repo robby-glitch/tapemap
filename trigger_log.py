@@ -256,7 +256,8 @@ _NO_GATE = {"legal": None, "why": "the fade gate was not asked", "side": None,
 def _gate_at(chain_state, t, side, ctx):
     """§1d's fade gate AS AT bar `t` -- causal, never as at now.
 
-    The grid is truncated to marks at or before the row's own minute. A restart
+    The grid is truncated to marks at or before the last minute INSIDE the
+    row's own bar (rows are only written once that bar has closed). A restart
     that re-reads the state lists can write an arm for a bar an hour old, and
     stamping it with the CURRENT fronts would put a fact on the row that did
     not exist when the row's bar closed. Causality here is the same absolute
@@ -267,11 +268,16 @@ def _gate_at(chain_state, t, side, ctx):
     """
     try:
         mins = getattr(chain_state, "minutes", None) or {}
-        cut = {k: v for k, v in mins.items() if isinstance(k, str) and k <= t}
+        # read at the last minute INSIDE the row's bar -- the same minute the
+        # frame reads its tap and trigger at (fronts.bar_last_minute)
+        at = fronts.bar_last_minute(t)
+        cut = fronts.cut(mins, at)
         rows = fronts.read(cut, getattr(chain_state, "peak", None))
-        plays = [p for p in ((ctx or {}).get("plays") or [])
-                 if isinstance(p, str)] or None
-        return fronts.fade_gate(rows, side, plays)
+        # [] = the engine printed no play (no veto); None = no ctx on the row,
+        # i.e. the veto was not read -- PATA NAHI, never legal (§1d).
+        pl = (ctx or {}).get("plays")
+        plays = [p for p in pl if isinstance(p, str)] if isinstance(pl, list) else None
+        return fronts.fade_gate(rows, side, plays, stale_why=fronts.stale(cut, at))
     except Exception as e:      # noqa: BLE001 -- the reason is the value
         return {**_NO_GATE, "side": side, "why": f"{type(e).__name__}: {e}"}
 

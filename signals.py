@@ -296,6 +296,7 @@ EMPTY_SIGNAL = {
     "target": None, "target_why": "no VWAP on the tape",
     "falsifier": None, "falsifier_why": "nothing to falsify before σ exists",
     "sound": None, "mute_why": "no visit to sound for",
+    "sound_ungated": None, "gate": None,     # frame.build fills both (gate_sound)
     "out_of_method": True, "tag": "M"}
 
 
@@ -490,6 +491,103 @@ def build(tape: dict, zone_states, side: str, oi_rows, sweeps, now_hhmm: str,
          "sound": sound, "mute_why": mute,
          "out_of_method": not v["is_edge"], "tag": "M"}
     return s, o
+
+
+def _front_word(g):
+    f = (g or {}).get("front") or {}
+    if not f:
+        return None
+    word = {"UNWINDING": "unwinding", "STALLED": "stopped"}.get(f.get("state"), "building")
+    tail = f" {f.get('peak_at')}" if word != "building" and f.get("peak_at") else ""
+    return f"{f.get('side')} {float(f.get('k')):.0f} {word}{tail}"
+
+
+def _refusal(g):
+    """The <=40-char reason an illegal fade is refused, in the gate's own terms."""
+    if (g or {}).get("veto"):
+        return "no fade · engine NO FADE (neg gamma)"
+    return f"no fade · {_front_word(g) or 'defender not building'}"[:40]
+
+
+def _frozen(g):
+    """The part of a gate read that must survive to the next frame, or None."""
+    if not g:
+        return None
+    return {k: g.get(k) for k in ("legal", "why", "veto", "front", "final")}
+
+
+def gate_sound(sig, g_now, g_reach=None, g_fire=None, idx=None):
+    """THE FADE GATE ON THE FACE (research-findings §1d: "rendered on the face").
+
+    The operator's rule decides what RINGS and how a tap is DRAWN. It never
+    decides what is LOGGED: every visit, arm and entry is still written with the
+    gate beside it, and `state`, `visit_key`, `is_edge` and `fire` -- which the
+    kill clocks read -- are untouched. Policy (trader review, 2026-09-23):
+
+      tap / arm  legal -> soft · PATA NAHI -> soft ("?" mark) · illegal -> silent, grey
+      trigger    legal at the trigger -> firm · PATA NAHI -> soft, never firm
+                 illegal -> silent, grey -- unless it was LEGAL at the tap: one
+                 "warn" (stand down), because the soft beep already primed her
+      in trade   a legal fade whose defender turns UNWINDING, or which the engine
+                 now vetoes -> one "warn" (reason gone). STALLED is a note only.
+      BANKNIFTY  never louder than soft: every reversion test inverted there.
+
+    The gate only REMOVES or softens a sound (or turns one into a warning); a
+    visit `_sound` already muted -- outside the window, not the first visit,
+    ballot not passed -- stays muted. `sound_ungated` keeps what would have
+    rung, so the record can say what the gate silenced.
+    """
+    base, fired = sig.get("sound"), sig.get("fired_at")
+    # The TAP reads the gate at the tap's own bar (frozen by frame.build), not the
+    # live one: read live, a flickering front flipped the mark every minute and
+    # could ring a soft beep minutes after the tap. `g_now` falls in only when
+    # there is no tap bar to read.
+    g_at = (g_fire if fired else (g_reach or g_now)) or {}
+    legal = g_at.get("legal")
+    sound, mute = base, sig.get("mute_why")
+    note = None
+    if legal is True:
+        label = _front_word(g_at) or "defender building"
+    elif legal is False:
+        label = _refusal(g_at)
+        f = g_at.get("front") or {}
+        if f.get("state") == "UNWINDING" and not g_at.get("veto"):
+            note = ("CE writers covering — ceiling not defended" if f.get("side") == "CE"
+                    else "PE writers covering — floor not defended")
+    else:
+        label = f"gate ? · {g_at.get('why') or 'not read'}"[:40]
+
+    if base is not None:
+        if fired:
+            if legal is True:
+                gn = g_now or {}
+                gone = gn.get("veto") or ((gn.get("front") or {}).get("state") == "UNWINDING")
+                if gn.get("legal") is False and gone:
+                    sound = "warn"
+                    label = f"reason gone · {_front_word(gn) or 'engine NO FADE'}"[:40]
+                elif gn.get("legal") is False:
+                    note = f"{_front_word(gn)} — watch it"
+            elif legal is None:
+                sound = "soft"
+            elif (g_reach or {}).get("legal") is True:
+                sound = "warn"
+                label = ("stand down · " + _refusal(g_at)[len("no fade · "):])[:40]
+            else:
+                sound, mute = None, label
+        elif legal is False:
+            sound, mute = None, label
+    if not fired and legal is True and (g_now or {}).get("legal") is False:
+        note = f"{_front_word(g_now) or 'engine NO FADE'} now — a trigger would stand down"
+    if idx == "BANKNIFTY" and sound == "firm":
+        sound = "soft"
+    caveat = ("BNF trends — fades inverted here" if idx == "BANKNIFTY"
+              else "upper-band sells: still your call" if sig.get("side") == "sell" else None)
+    return {"sound": sound, "mute_why": None if sound else (mute or label),
+            "sound_ungated": base,
+            "gate": {"legal": legal, "label": label, "note": note, "caveat": caveat,
+                     "why": g_at.get("why"),
+                     # the frozen pair, handed back next frame (frame.build: signal_prior)
+                     "reach": _frozen(g_reach), "fire": _frozen(g_fire), "tag": "I"}}
 
 
 def _sound(v, o, state, fired_at, seen_at):

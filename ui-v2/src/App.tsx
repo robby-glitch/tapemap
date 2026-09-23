@@ -5,7 +5,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow, RunState, TapeBar, Interval } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow, RunState, TapeBar, Interval, GroundedCall } from './data'
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -446,6 +446,26 @@ function TimingChip({ value }: { value: string }) {
       {value}
     </span>
   )
+}
+
+/** The headline call's evidence (grounds.py): OI, CVD and order flow, each FOR /
+ *  AGAINST / FLAT / BLIND with the fact behind it. A status, never a score. */
+function Grounds({ g }: { g?: GroundedCall | null }) {
+  const pal = usePalette()
+  if (!g) return (
+    <div style={{ fontSize: 11.5, color: pal.textMuted, marginTop: 4 }}>
+      UNGROUNDED — this call was not checked against OI, CVD or order flow (server predates /api/calls, or a replay position)
+    </div>)
+  const col = g.status === 'BACKED' ? pal.textPrimary : g.status === 'CONTRADICTED' ? pal.caution : pal.textMuted
+  const sym: Record<string, string> = { for: '✓', against: '✗', flat: '–', blind: '?' }
+  return (
+    <div style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }}>
+      <b style={{ color: col, letterSpacing: '0.04em' }}>{g.status}</b>
+      {(['oi', 'cvd', 'flow'] as const).map((k) => (
+        <div key={k} style={{ color: g[k].state === 'against' ? pal.caution : pal.textSecondary }}>
+          <span className="mono">{sym[g[k].state] ?? '?'} {k.toUpperCase()}</span> {g[k].fact}
+        </div>))}
+    </div>)
 }
 
 function DirectionChip({ value }: { value: string }) {
@@ -1368,19 +1388,9 @@ function ValidateTab({ index }: { index: IndexKey }) {
                 <span style={{
                   fontSize: 22, fontWeight: 800, letterSpacing: '0.04em', color: vCol,
                 }}>{check.verdict}</span>
-                <span className="mono" style={{ fontSize: 12, color: pal.textMuted }}>
-                  {check.score}/100
-                </span>
                 <span style={{ fontSize: 13.5, color: pal.textSecondary, flex: 1, minWidth: 220 }}>
                   {check.headline}
                 </span>
-              </div>
-              <div style={{ height: 4, backgroundColor: pal.inset, borderRadius: 2, marginTop: 14, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%', width: '100%', backgroundColor: vCol,
-                  transform: `scaleX(${check.score / 100})`, transformOrigin: 'left',
-                  borderRadius: 2, transition: 'transform 350ms ease',
-                }} />
               </div>
             </div>
 
@@ -1987,6 +1997,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
           <div style={{ fontSize: 14.5, lineHeight: 1.45, maxWidth: '62ch' }}>
             {read.headline}
           </div>
+          <Grounds g={read.ground} />
           {read.sub && (
             <div style={{ fontSize: 12.5, color: pal.textSecondary, marginTop: 3 }}>{read.sub}</div>
           )}

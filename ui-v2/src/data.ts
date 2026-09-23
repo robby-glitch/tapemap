@@ -21,6 +21,15 @@ export interface Read {
   timing: string
   direction: string
   sub: string
+  /** The headline call held against OI, CVD and order flow (/api/calls, grounds.py).
+   *  null = the server did not ground it (older server, or a replay position). */
+  ground?: GroundedCall | null
+}
+/** One engine call with its three evidence families (grounds.py). Never a score. */
+export interface GroundedCall {
+  source: string; text: string; kind: string | null; dir: 'up' | 'down' | null
+  status: 'BACKED' | 'THIN' | 'CONTRADICTED' | 'PATA NAHI'
+  oi: { state: string; fact: string | null }; cvd: { state: string; fact: string | null }; flow: { state: string; fact: string | null }
 }
 export interface Level {
   label: string
@@ -521,10 +530,6 @@ interface PerIndex {
 }
 
 // ── Mapping helpers ─────────────────────────────────────────────────────────────
-const VERDICT_SCORE: Record<string, number> = {
-  GO: 3, READY: 2, WAIT: 0, CAUTION: 0, 'STAND ASIDE': -1, SPENT: -1,
-}
-
 // Spike-radar gamma intensity by dealer regime.
 const GAMMA_INT: Record<string, number> = {
   'AMPLIFIED-UP': 1, 'AMPLIFIED-DOWN': 1, PINNED: 0.6, CEILING: 0.5, FLOOR: 0.5, BALANCE: 0.2,
@@ -712,7 +717,7 @@ function dedupLevels(levels: Level[], tol = 2): Level[] {
  * live snapshot with no per-strike history, so scrubbing borrows the closest
  * `series` sample at or before the bar and flags the ladder as live-only.
  */
-function mapIndex(D: any, C: any, at?: number): PerIndex {
+function mapIndex(D: any, C: any, at?: number, G?: any): PerIndex {
   const day = D.days[D.days.length - 1]
   const allBars: any[] = day.bars ?? []
   const at_ = at == null ? allBars.length - 1
@@ -740,22 +745,41 @@ function mapIndex(D: any, C: any, at?: number): PerIndex {
   ).toLowerCase()
 
   const regime: string = g?.regime || ''
-  const score =
-    (episode.includes('MOVE RUNNING') || state.includes('trend') || regime.startsWith('AMPLIFIED') ? 3 : 0) +
-    (VERDICT_SCORE[verdict] ?? 0) +
-    (breadth.includes('STRONG') ? 2 : breadth.includes('LEAN') ? 1 : 0) +
-    ((ctx.rng_r ?? 0) >= 0.3 ? 1 : 0)
+  // EVERY CALL IS GROUNDED (grounds.py via /api/calls): the engine's verdict,
+  // episode, breadth and plays are shown only with their evidence status. Only
+  // the LIVE bar is grounded -- a replay position carries the engine's words
+  // marked UNGROUNDED, never a status borrowed from now.
+  const calls: GroundedCall[] | null = at == null && Array.isArray(G?.calls) ? G.calls : null
+  const call = (src: string) => calls?.find((c) => c.source === src) ?? null
+  // LOOK HERE follows the tape, not the engine's adjectives: the index with the
+  // most directional calls the evidence BACKS.
+  const score = calls ? calls.filter((c) => c.status === 'BACKED' && c.dir).length : 0
 
-  const index: IndexInfo = { price: f.c, change, pct, state, arrow }
+  const index: IndexInfo = { price: f.c, change, pct, state, arrow }  // state is marked below, once grounded
 
   // READS
-  const direction = breadth.includes('BULL') ? 'BULLISH' : breadth.includes('BEAR') ? 'BEARISH' : 'NEUTRAL'
+  // A side is claimed only when the tape BACKS the engine's breadth; otherwise
+  // the method has no side (the validator's "Method read" gate follows this).
+  const bc = call('breadth')
+  const direction = !calls ? 'UNGROUNDED'
+    : bc?.status === 'BACKED' ? (bc.dir === 'up' ? 'BULLISH' : 'BEARISH') : 'NEUTRAL'
+  void breadth
+  const vc = call('verdict')
+  const mark = (c: GroundedCall | null) => !calls ? ' ?' : !c ? '' : c.status === 'BACKED' ? '' : c.status === 'CONTRADICTED' ? ' ✗' : ' ?'
+  const head = call('episode') ?? vc
+  const plays = (calls ?? []).filter((c) => c.source === 'play')
+  const bestPlay = plays.find((c) => c.status === 'BACKED')
+    ?? plays.find((c) => c.status !== 'CONTRADICTED') ?? plays[0] ?? null
   const read: Read = {
-    headline: ctx.episode || ctx.vwhy || '—',
-    timing: verdict || 'WAIT',
+    headline: head ? head.text : (ctx.episode || ctx.vwhy || '—'),
+    timing: (verdict || 'WAIT') + mark(vc),
     direction,
-    sub: ctx.plays?.[0] || `Reclaim VWAP ${Math.round(f.vwap)} to confirm a turn.`,
+    sub: bestPlay ? `${bestPlay.status === 'BACKED' ? '' : bestPlay.status === 'CONTRADICTED' ? '✗ not backed: ' : '? thin: '}${bestPlay.text}`
+      : calls ? '' : (ctx.plays?.[0] ? `? ungrounded: ${ctx.plays[0]}` : ''),
+    ground: head,
   }
+  // the card's one-word state is the same engine call: it carries the same mark
+  index.state = state + mark(head)
 
   // KEY_LEVELS. The chain quotes its walls against the INDEX; every level
   // here is drawn against the FUTURES tape. That gap was 72 points on
@@ -1385,6 +1409,9 @@ export function useLiveData(fallback: Dataset) {
     async function fetchIdx(k: IndexKey): Promise<IdxResult> {
       let dr: Response
       let cr: Response
+      // the grounding of this index's calls rides in PARALLEL and is optional:
+      // an older server has no route, and a slow read never delays the price
+      const gP = fetch('/api/calls?idx=' + k).then((r) => (r.ok ? r.json() : null)).catch(() => null)
       try {
         ;[dr, cr] = await Promise.all([
           fetch('/api/data?idx=' + k + '&interval=' + interval),
@@ -1422,7 +1449,7 @@ export function useLiveData(fallback: Dataset) {
       if (D?.live_error || !D?.days?.length)
         return { ok: false, reachable: true, why: D?.live_error || 'no session yet' }
       rawSeen[k] = { D, C }
-      return { ok: true, per: mapIndex(D, C) }
+      return { ok: true, per: mapIndex(D, C, undefined, await gP) }
     }
 
     async function tick() {

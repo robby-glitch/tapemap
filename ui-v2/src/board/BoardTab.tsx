@@ -65,6 +65,8 @@ type Vpin = { ok: boolean; state?: Record<string, { vpin: number | null; pct: nu
 type Drag = { ok: boolean; indices?: Record<string, { frac?: number | null; drag?: number | null; owed?: number | null; paid?: number | null; strike?: number | null; right_side?: string | null; anchor_why?: string | null }> }
 type SigRow = {
   day?: string | null; t?: string | null; side?: string | null; band?: string | null; rule?: string | null; kind?: 'arm' | null; px?: number | null; trigger?: string | null
+  /** §1d's fade gate AS AT the row's own bar (trigger_log._gate_at). Drawn, never used to drop a row. */
+  gate?: { legal?: boolean | null; why?: string | null; veto?: boolean | null } | null
   oi_call?: number | null; oi_put?: number | null; oi_why?: string | null
   gamma?: { regime?: string | null; iv_ce?: number | null; iv_pe?: number | null } | null
   ctx?: { verdict?: string | null; line?: string | null; breadth?: string | null; ivr_ce?: number | null; ivr_pe?: number | null; rng30?: number | null; inside1?: number | null; pin?: { k?: number | null; dist?: number | null } | null; flips?: string[] | null } | null
@@ -326,7 +328,14 @@ export default function BoardTab({ index }: { index: IndexKey }) {
       if (b.stacks?.length) parts.push(`stack ${b.stacks.map(s => `${s.side} ${s.low}–${s.high}`).join(', ')}`)
       if (b.unfinished_high) parts.push('unfinished high'); if (b.unfinished_low) parts.push('unfinished low')
       for (const e of ev) parts.push(`${e.kind}${e.at?.label ? ` ${e.at.label}` : ''}${e.p != null ? ` @${e.p}` : ''}`)
-      for (const s of sg) parts.push(`${s.kind === 'arm' ? 'ARM' : 'FIRE'} ${s.side} ${s.band} (${s.rule})${s.px != null ? ` @${s.px}` : ''}`)
+      // §1d on the face: an illegal fade is a tap, not a trade -- it still prints, with the gate's reason
+      for (const s of sg) {
+        // a row written before the gate existed carries no field: not stamped, which is not "could not read"
+        const g = s.gate?.legal, stamped = s.gate !== undefined
+        const word = s.kind === 'arm' ? 'ARM' : g === false ? 'no trade ·' : 'FIRE'
+        const gate = !stamped ? '' : g === true ? ' · legal' : g === false ? ` · NO FADE — ${s.gate?.why ?? 'defender not building'}` : ' · gate ?'
+        parts.push(`${word} ${s.side} ${s.band} (${s.rule})${s.px != null ? ` @${s.px}` : ''}${gate}`)
+      }
       out.push({ t: a, line: parts.join(' · '), tag: 'M' })
     }
     return out
@@ -430,7 +439,11 @@ export default function BoardTab({ index }: { index: IndexKey }) {
                     <rect x={x - bw / 2} y={Y(Math.max(b.o, b.c))} width={bw} height={Math.max(Y(Math.min(b.o, b.c)) - Y(Math.max(b.o, b.c)), 1)} fill={isF ? 'none' : up ? pal.bg : pal.textSecondary} stroke={pal.textSecondary} strokeWidth={1} strokeDasharray={isF ? '2 2' : undefined} /></g> })}
                 {events.map((e, i) => { const m = mins(e.t); if (m == null || e.p == null || m > t1) return null; return <text key={i} x={X(m) - 4} y={Y(e.p) - 6} fill={e.at ? pal.accent : pal.textSecondary} fontSize={11}>{glyph[e.kind] ?? '·'}</text> })}
                 {rows.filter(r => !r.kind && r.px != null).map((r, i) => { const m = mins(r.t); if (m == null || m > t1) return null; const x = X(m), y = Y(r.px!); const s = r.side === 'SELL'; const off = s ? -10 : 10
-                  return <g key={i}><polygon points={`${x - 5},${y + off} ${x + 5},${y + off} ${x},${y}`} fill={s ? sell : buy} /><text x={x + 7} y={y + (s ? -8 : 12)} fill={s ? sell : buy} fontSize={9}>{r.t} {r.side} {r.band}</text></g> })}
+                  // §1d: legal = the full mark; NOT legal = hollow grey "no fade"; gate unread = dashed with "?"
+                  const stamped = r.gate !== undefined, g = stamped ? r.gate?.legal : true, col = g === false ? pal.textMuted : s ? sell : buy
+                  return <g key={i}><title>{g === false ? `no fade — ${r.gate?.why ?? ''}` : g == null ? 'gate ? — not read' : 'fade gate legal'}</title>
+                    <polygon points={`${x - 5},${y + off} ${x + 5},${y + off} ${x},${y}`} fill={g === false ? 'none' : col} stroke={col} strokeWidth={1.2} strokeDasharray={g == null ? '2 2' : undefined} />
+                    <text x={x + 7} y={y + (s ? -8 : 12)} fill={col} fontSize={9}>{r.t} {g === false ? 'no fade' : `${r.side} ${r.band}`}{g == null ? ' ?' : ''}</text></g> })}
                 <line x1={X(Math.min(nowM, t1))} x2={X(Math.min(nowM, t1))} y1={PT} y2={PT + PH + CH + 10} stroke={wash(pal.textPrimary, 0.35)} strokeDasharray="2 3" />
                 {['09:15', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'].map(h => { const m = mins(h)!; return m <= t1 ? <text key={h} x={X(m)} y={PT + PH + 12} fill={pal.textMuted} fontSize={9} textAnchor="middle">{h}</text> : null })}
                 <line x1={PL} x2={W - PR} y1={c0} y2={c0} stroke={wash(pal.textPrimary, 0.08)} />

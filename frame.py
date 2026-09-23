@@ -507,8 +507,60 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     fronts_rows, fronts_err = _safe_list(lambda: fronts_mod.read(mins, book.get("peaks")))
     setup["gate"] = _safe(
         lambda: fronts_mod.fade_gate(fronts_rows, setup.get("side") or "buy",
-                                     book.get("plays")),
+                                     book.get("plays"),
+                                     stale_why=fronts_mod.stale(mins, clock)),
         dict(_EMPTY_GATE))
+    # ...AND RENDERED ON THE FACE (§1d). The gate decides what RINGS and how the
+    # tap is drawn; signals.gate_sound owns that policy. The tap's and the
+    # trigger's gates are read at the last minute INSIDE their own zone bar
+    # (fronts.bar_last_minute -- the same minute trigger_log stamps at) and are
+    # FROZEN for the visit the first time they are read: `signal_prior` hands
+    # the previous frame's back. Re-read every frame, a past bar's gate picked up
+    # later plays and peaks -- a trigger silenced by NO FADE could re-read legal
+    # once the veto aged out and ring a late firm beep mid-trade. At freeze time
+    # `plays` is the engine's latest, i.e. that bar's [I]. After a restart the
+    # frozen pair is rebuilt from the cut grid. Fail-soft: a raise keeps the
+    # signal, never lets it ring firm, and says why on its own `gate`.
+    # A bar's gate uses THAT BAR's own engine plays (book["plays_at"], the same
+    # ctx trigger_log stamps from), so it is a function of the bar alone and a
+    # restart cannot re-read a vetoed trigger as legal. It freezes only once the
+    # grid actually holds the bar's last minute -- never off a forming bar.
+    sig = setup.get("signal") or {}
+    prior = book.get("signal_prior") or {}
+    same = bool(sig.get("visit_key")) and prior.get("visit_key") == sig.get("visit_key")
+    pg = (prior.get("gate") or {}) if same else {}
+    try:
+        side = setup.get("side") or "buy"
+        plays_at = book.get("plays_at") or {}
+        last_mark = max((k for k in mins if isinstance(k, str)), default=None)
+
+        def _gate_at(label):
+            if not isinstance(label, str):
+                return None
+            at = fronts_mod.bar_last_minute(label)
+            c = fronts_mod.cut(mins, at)
+            g = fronts_mod.fade_gate(fronts_mod.read(c, book.get("peaks")), side,
+                                     plays_at.get(label, book.get("plays")),
+                                     stale_why=fronts_mod.stale(c, at))
+            # final only once a LATER minute exists (the bar has closed) and the 3-min
+            # payload carries that bar's own plays -- never off a forming bar
+            return {**g, "final": last_mark is not None and last_mark > at and label in plays_at}
+
+        def _held(key, label):
+            g = pg.get(key)
+            return g if g and g.get("final") else _gate_at(label)
+        g_reach = _held("reach", sig.get("reached_at"))
+        g_fire = _held("fire", sig.get("fired_at")) if sig.get("fired_at") else None
+        setup["signal"] = {**sig, **signal_mod.gate_sound(
+            sig, setup["gate"], g_reach, g_fire, tape.get("idx") or "NIFTY")}
+    except Exception as e:  # noqa: BLE001 -- the reason is the value
+        snd = sig.get("sound")
+        setup["signal"] = {**sig, "sound": "soft" if snd == "firm" else snd, "sound_ungated": snd,
+                           # the frozen pair survives an error: a recompute next frame
+                           # would be the late-firm path this freeze exists to close
+                           "gate": {"legal": None, "label": "gate ? · did not build", "note": None,
+                                    "caveat": None, "why": f"{type(e).__name__}: {e}",
+                                    "reach": pg.get("reach"), "fire": pg.get("fire"), "tag": "I"}}
 
     def _events_and_armed():
         armed = []

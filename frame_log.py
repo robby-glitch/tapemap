@@ -37,8 +37,13 @@ def sig(fr: dict) -> str:
     # `votes{}` ride inside the frame this function already writes whole.
     sg = s.get("signal") or {}
     vo = s.get("votes") or {}
+    # The UNGATED sound (§1d fade gate, 2026-09-23): the live gate flickers minute
+    # to minute, and a signature on the gated sound would append a whole ~29 KB
+    # frame per flicker to a file already at 64 MB by midday. The gated sound
+    # still rides inside every row that IS written.
+    snd = sg["sound_ungated"] if "sound_ungated" in sg else sg.get("sound")
     return json.dumps([fr.get("idx"), rows, s.get("state"), s.get("fire"), tells,
-                       sg.get("state"), sg.get("visit_key"), sg.get("sound"),
+                       sg.get("state"), sg.get("visit_key"), snd,
                        vo.get("n"), vo.get("passed"),
                        sorted(fr.get("missing") or [])], default=str)
 

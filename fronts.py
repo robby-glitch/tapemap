@@ -187,13 +187,59 @@ def broke(fronts):
     return sorted(unwinding or cands, key=lambda f: f.get("peak_at") or "")[0]
 
 
-def fade_gate(fronts, side, plays=None):
+STALE_MIN = 3   # an OI grid whose newest minute is this far behind the bar is not a read
+
+
+def _mins(hhmm):
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def stale(minutes, as_of):
+    """Why the grid cannot speak for `as_of` ("HH:MM"), or None when it can.
+
+    `read` uses the grid's newest minute however old it is. On a chain feed
+    that dies at 10:40 with the CE front unwinding, every SELL fade would read
+    ILLEGAL for the rest of the session -- a dead socket muting the operator
+    with a confident "no". A grid more than STALE_MIN behind the bar is a
+    missing input, and a missing input is PATA NAHI (§1d), never a verdict.
+    """
+    times = sorted(t for t in (minutes or {}) if isinstance(t, str))
+    if not times or not as_of:
+        return None
+    if _mins(as_of) - _mins(times[-1]) > STALE_MIN:
+        return f"chain grid stale since {times[-1]}"
+    return None
+
+
+def bar_last_minute(t, interval=3):
+    """The last one-minute mark INSIDE the bar labelled `t` (its opening minute).
+
+    Every reader of a bar's gate reads it here -- trigger_log's stamp, the
+    frame's tap and trigger -- so the three surfaces agree. On 2026-09-23 the
+    NIFTY PE gate flickered minute to minute 09:50-10:05, and reading one bar at
+    its open, its close and five minutes later gave three different answers.
+    `interval` is the zone machine's bar (band_rotation.SCORED_INTERVAL = 3).
+    """
+    end = _mins(t) + int(interval) - 1
+    return f"{end // 60:02d}:{end % 60:02d}"
+
+
+def cut(minutes, as_of):
+    """The grid as it stood at `as_of`: marks at or before that minute only."""
+    return {k: v for k, v in (minutes or {}).items() if isinstance(k, str) and k <= as_of}
+
+
+def fade_gate(fronts, side, plays=None, stale_why=None):
     """Is a fade of `side` ("buy"/"sell") legal right now? §1d.
 
     LEGAL only when the defending front is still BUILDING and the engine has
     not printed its NO FADE veto. A missing input is PATA NAHI (`legal: None`),
     never legal -- "we could not check" must not render as "we checked and
-    found nothing".
+    found nothing". Both conditions are inputs: `plays=None` means the engine's
+    playbook was NOT READ, so a building defender without it is PATA NAHI, not
+    legal. `plays=[]` is the engine read and printing nothing -- no veto.
+    `stale_why` (from `stale`) makes the whole read PATA NAHI.
 
     NOTHING IS SUPPRESSED BY THIS. §1d is explicit: the forward log keeps every
     row it would have written, and this rides alongside as a field, so the
@@ -209,6 +255,9 @@ def fade_gate(fronts, side, plays=None):
     if want is None:
         out["why"] = f"{side!r} is not a fade side"
         return out
+    if stale_why:
+        out["why"] = stale_why
+        return out
     if not fronts:
         out["why"] = "near-ATM fronts not read"
         return out
@@ -222,6 +271,11 @@ def fade_gate(fronts, side, plays=None):
         out["why"] = "engine says NO FADE -- negative gamma, continuation only"
         return out
     if front["state"] == BUILDING:
+        if veto is None:
+            # The defender holds, but the engine's veto was never read: one of
+            # §1d's two conditions is a hole, so this is PATA NAHI, not legal.
+            out["why"] = f"{want} {front['k']:.0f} building, NO FADE check not read"
+            return out
         out["legal"] = True
         # A front that ran and then came back reads BUILDING again -- the state
         # is the CURRENT direction, by design (§1d). But "still building" would

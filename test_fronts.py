@@ -80,15 +80,15 @@ def test_fade_is_illegal_when_its_defender_gave_up():
     assert gate["legal"] is False
     assert gate["defender"] == "PE"
     assert "23400" in gate["why"]
-    # the same tape, faded the other way, still has its defender
-    assert fronts.fade_gate(rows, "sell")["legal"] is True
+    # the same tape, faded the other way, still has its defender (engine read, no veto)
+    assert fronts.fade_gate(rows, "sell", plays=[])["legal"] is True
 
 
 def test_the_engine_veto_beats_a_building_defender():
     n = len(TIMES)
     rows = fronts.read(_grid(TIMES, 23400.0,
                              {23400.0: (_ramp(0, 300, n), _ramp(0, 300, n))}))
-    assert fronts.fade_gate(rows, "buy")["legal"] is True
+    assert fronts.fade_gate(rows, "buy", plays=[])["legal"] is True
     vetoed = fronts.fade_gate(rows, "buy",
                               plays=["NO FADE at 23360 - negative gamma; "
                                      "continuation only"])
@@ -105,6 +105,38 @@ def test_an_unrelated_play_is_not_a_veto():
                                    "are entries, not exits"])
     assert gate["legal"] is True
     assert gate["veto"] is False
+
+
+def test_an_unread_veto_is_pata_nahi_not_legal():
+    """§1d has two conditions; the engine's playbook NOT READ (None) is a hole,
+    while an engine that printed no play ([]) is a read with no veto."""
+    n = len(TIMES)
+    rows = fronts.read(_grid(TIMES, 23400.0,
+                             {23400.0: (_ramp(0, 300, n), _ramp(0, 300, n))}))
+    unread = fronts.fade_gate(rows, "buy")
+    assert unread["legal"] is None and unread["veto"] is None
+    assert "not read" in unread["why"]
+    assert fronts.fade_gate(rows, "buy", plays=[])["legal"] is True
+    # a defender that stopped is illegal whether or not the veto was read
+    stop = fronts.read(_grid(TIMES, 23400.0, {23400.0: (_ramp(0, 300, n), _ramp(0, 200, 20) + _flat(200, n - 20))}))
+    assert fronts.fade_gate(stop, "buy")["legal"] is False
+
+
+def test_a_stale_grid_is_pata_nahi_never_a_verdict():
+    """A chain that died at its last minute must not mute every fade all day."""
+    n = len(TIMES)
+    g = _grid(TIMES, 23400.0, {23400.0: (_ramp(0, 300, n), _ramp(0, 200, 20) + _ramp(200, 60, n - 20))})
+    last = sorted(g)[-1]
+    h, m = (int(x) for x in last.split(":"))
+    later = f"{(h * 60 + m + 10) // 60:02d}:{(h * 60 + m + 10) % 60:02d}"
+    assert fronts.stale(g, last) is None
+    why = fronts.stale(g, later)
+    assert why and last in why
+    gate = fronts.fade_gate(fronts.read(g), "buy", plays=[], stale_why=why)
+    assert gate["legal"] is None and gate["why"] == why
+    assert fronts.cut(g, sorted(g)[0]) == {sorted(g)[0]: g[sorted(g)[0]]}
+    # every reader takes a bar's gate at its LAST minute: 3-min 10:36 -> 10:38, 09:57 -> 09:59
+    assert fronts.bar_last_minute("10:36") == "10:38" and fronts.bar_last_minute("09:57", 3) == "09:59"
 
 
 def test_a_missing_grid_is_pata_nahi_and_never_legal():

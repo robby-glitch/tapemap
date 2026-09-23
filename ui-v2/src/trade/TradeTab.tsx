@@ -227,7 +227,10 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
       padding: '12px 16px', borderRadius: 6, backgroundColor: pal.card,
       border: `1px solid ${pal.border}`, display: 'flex', flexDirection: 'column', gap: 10,
     }}>
-      <div style={label}>ENGINE KYA DEKHNE KO KEH RAHA HAI</div>
+      {/* This is the ENGINE's read of the bar under the cursor -- price and OI only, never checked
+          against CVD or order flow. The header grounds the LIVE call (grounds.py); a past bar has no
+          grounding to show, so it is labelled, and its verdict is not coloured like a signal. */}
+      <div style={label}>ENGINE KA READ — UNGROUNDED · live call ka saboot (OI · CVD · order flow) header mein</div>
 
       {!ctx ? (
         <div style={{ fontSize: 11, color: pal.textMuted }}>
@@ -237,7 +240,7 @@ function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: T
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* VERDICT */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 190, flex: '1 1 190px' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: verdictColor(pal, ctx.verdict) }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: pal.textSecondary }}>
               {ctx.verdict}
             </span>
             <span style={{ fontSize: 11, color: pal.textSecondary }}>{ctx.vwhy}</span>
