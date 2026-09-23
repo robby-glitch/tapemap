@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TapeMap Side Column</title>
+<style>
+:root{
+  --paper:#FAF9F6; --card:#FFFFFF; --ink:#18181B; --ink2:#55555C; --ink3:#8A8A91; --rule:#E4E2DC; --rule2:#EFEDE8;
+  --zone:#00A8E8; --zone-fill:rgba(0,168,232,.16);         /* her Kite chart's azure: the zone colour means the zone */
+  --ce:#3E3AA0; --ce-soft:rgba(62,58,160,.16);             /* calls: indigo  -- never green */
+  --pe:#A86400; --pe-soft:rgba(168,100,0,.16);             /* puts: ochre    -- never red   */
+  --attn:#F2B233; --attn-soft:#FFF3D6;                      /* attention, not direction */
+  --mock:#7C3AED;
+  --mono:"Cascadia Mono","Consolas","SFMono-Regular",ui-monospace,monospace;
+  --sans:"Segoe UI","Inter",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.4 var(--sans);-webkit-font-smoothing:antialiased}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+details>summary{cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+
+/* ---- the frame ---- */
+.top{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--rule)}
+.topin{display:flex;align-items:stretch;gap:0;max-width:var(--w,470px);margin:0 auto}
+.idx{flex:1;padding:7px 8px 6px;border-right:1px solid var(--rule2);text-align:left;min-width:0}
+.idx:last-of-type{border-right:0}
+.idx .n{font-weight:650;font-size:12px;letter-spacing:.3px}
+.idx .s{font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.idx[aria-selected=true]{background:var(--card);box-shadow:inset 0 -2px 0 var(--ink)}
+.idx .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px;background:var(--rule)}
+.idx .dot.on{background:var(--zone)}
+.sub{display:flex;justify-content:space-between;align-items:center;max-width:var(--w,470px);margin:0 auto;padding:4px 10px;font-size:11px;color:var(--ink2);border-top:1px solid var(--rule2)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+.seg button{padding:2px 8px;font-size:11px;color:var(--ink2)}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.col{max-width:470px;margin:0 auto;padding:8px 10px 40px}
+
+section{background:var(--card);border:1px solid var(--rule);border-radius:8px;margin:0 0 8px;padding:10px 12px}
+h2{margin:0 0 6px;font-size:10.5px;font-weight:650;letter-spacing:.9px;text-transform:uppercase;color:var(--ink3)}
+h2 .q{text-transform:none;letter-spacing:0;font-weight:500;color:var(--ink3);margin-left:4px}
+
+/* ---- the answer ---- */
+.ans .head{font-size:19px;font-weight:680;line-height:1.2;letter-spacing:-.2px}
+.ans .head .side{display:inline-block;padding:0 6px;border-radius:4px;border:1.5px solid var(--ink);font-size:13px;vertical-align:3px;margin-right:6px;letter-spacing:.5px}
+.ans .line{margin-top:5px;color:var(--ink)}
+.ans .line b{font-weight:650}
+.kv{display:grid;grid-template-columns:92px 1fr;gap:3px 10px;margin-top:9px;padding-top:8px;border-top:1px solid var(--rule2)}
+.kv dt{color:var(--ink3);font-size:11.5px;padding-top:1px}
+.kv dd{margin:0}
+.gate{display:inline-block;padding:0 6px;border-radius:3px;font-weight:700;font-size:11.5px;letter-spacing:.4px}
+.gate.ok{border:1.5px solid var(--ink)}
+.gate.no{background:var(--attn);color:#2A1D00}
+.gate.unk{background:repeating-linear-gradient(135deg,#EDEBE6 0 4px,#F8F7F4 4px 8px);color:var(--ink2);border:1px dashed var(--ink3)}
+.caveat{margin-top:8px;padding:5px 8px;border-left:3px solid var(--rule);background:#F6F5F1;color:var(--ink2);font-size:11.5px}
+.caveat b{color:var(--ink)}
+.tapeline{margin-top:6px;font-size:11.5px;color:var(--ink2)}
+
+/* ---- honesty grammar ---- */
+.inf{font-style:italic;text-decoration:underline dotted var(--ink3);text-underline-offset:2px}
+.cant{display:inline-block;padding:0 5px;border-radius:3px;font-size:11px;color:var(--ink2);background:repeating-linear-gradient(135deg,#EDEBE6 0 4px,#F8F7F4 4px 8px);border:1px dashed #C9C6BE}
+.none{color:var(--ink3)}
+.mock{outline:1.5px dashed var(--mock);outline-offset:2px;border-radius:4px}
+.mocktag{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.6px;color:var(--mock);border:1px solid var(--mock);border-radius:3px;padding:0 4px;margin-left:6px;vertical-align:1px}
+.arith{border-bottom:1px solid var(--rule)}
+
+/* ---- rail ---- */
+.rail svg{display:block;width:100%;height:auto}
+.rail text{font-family:var(--mono);font-size:10px;fill:var(--ink2);paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+.rail .lbl{font-family:var(--sans);font-size:10.5px}
+.edge{font-size:11px;color:var(--ink2);display:flex;justify-content:space-between;gap:8px}
+
+/* ---- fronts ---- */
+.frow{display:grid;grid-template-columns:14px 70px 1fr auto;gap:6px;align-items:baseline;padding:2px 0;border-top:1px solid var(--rule2)}
+.frow:first-of-type{border-top:0}
+.sw{display:inline-block;width:12px;height:0;border-top:2.5px solid;vertical-align:3px}
+.sw.dash{border-top-style:dashed}
+.st{font-weight:650;font-size:11px;letter-spacing:.4px}
+.st.UNWINDING{background:var(--attn-soft);padding:0 4px;border-radius:3px}
+.small{font-size:11.5px;color:var(--ink2)}
+
+/* ---- day strip ---- */
+.day{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cell{border:1px solid var(--rule2);border-radius:6px;padding:6px 8px;min-width:0}
+.cell .k{font-size:10.5px;color:var(--ink3);letter-spacing:.4px;text-transform:uppercase;font-weight:600}
+.cell .v{font-size:15px;font-weight:650;margin-top:1px}
+.cell .d{font-size:11px;color:var(--ink2);margin-top:1px}
+.cell.wide{grid-column:1/-1}
+.bars3{display:grid;grid-template-columns:70px 1fr 44px;gap:3px 6px;align-items:center;margin-top:4px;font-size:11px}
+.bar{height:7px;background:var(--rule2);border-radius:2px;position:relative;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+
+/* ---- timeline ---- */
+.tl svg{display:block;width:100%;height:auto}
+.tl text{font-family:var(--mono);font-size:9.5px;fill:var(--ink3)}
+.rec{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px}
+.rec td{padding:3px 4px;border-top:1px solid var(--rule2);vertical-align:top}
+.rec td:first-child{font-family:var(--mono);color:var(--ink2);white-space:nowrap}
+
+/* ---- drawers ---- */
+.drawer{border-top:1px solid var(--rule2);padding:6px 0}
+.drawer:first-of-type{border-top:0}
+.drawer summary{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.drawer summary .c{color:var(--ink3);font-size:11px;margin-left:auto}
+.drawer summary::after{content:"+";color:var(--ink3);margin-left:8px;width:10px;text-align:center}
+.drawer[open] summary::after{content:"–"}
+.drawer .body{margin-top:8px;font-size:11.5px}
+.drawer ul{margin:0;padding-left:16px}
+.drawer li{margin:2px 0}
+.why{color:var(--ink3);font-size:11px}
+.pill{display:inline-block;font-size:10px;font-weight:650;letter-spacing:.4px;padding:0 5px;border-radius:3px;border:1px solid var(--rule);color:var(--ink2);white-space:nowrap}
+.pill.DEPLOYABLE{border-color:var(--ink);color:var(--ink)}
+
+/* ---- review ---- */
+#review{max-width:1240px;margin:0 auto;padding:10px 14px 50px}
+.rgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rgrid section{margin:0}
+.rwide{grid-column:1/-1}
+table.t{width:100%;border-collapse:collapse;font-size:11.5px}
+table.t th{text-align:left;font-weight:600;color:var(--ink3);font-size:10.5px;letter-spacing:.3px;padding:3px 5px;border-bottom:1px solid var(--rule)}
+table.t td{padding:3px 5px;border-bottom:1px solid var(--rule2);vertical-align:top}
+@media (max-width:900px){.rgrid{grid-template-columns:1fr}}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;align-items:center;font-size:11.5px}
+.lg-zone{width:22px;height:10px;background:var(--zone-fill);border-top:1.5px solid var(--zone);border-bottom:1.5px solid var(--zone)}
+.banner{max-width:var(--w,470px);margin:8px auto 0;padding:6px 10px;border:1px dashed var(--mock);border-radius:6px;color:var(--ink2);font-size:11px;background:#FBF9FF}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="topin" id="tabs" role="tablist"></div>
+  <div class="sub">
+    <span id="stamp"></span>
+    <span class="seg" role="group" aria-label="view">
+      <button id="vLive" aria-pressed="true">Beside the chart</button><button id="vRev" aria-pressed="false">After the bell</button>
+    </span>
+  </div>
+</div>
+<div class="banner" id="banner"></div>
+<main class="col" id="live"></main>
+<main id="review" hidden></main>
+
+<script>
+const D = /*DATA*/;
+
+/* ============ tiny helpers: format, never decide ============ */
+const $ = s => document.querySelector(s);
+function h(tag, attrs, ...kids){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})){
+    if (v==null || v===false) continue;
+    if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const k of kids.flat(3)){ if (k==null || k===false || k==='') continue; e.append(k.nodeType ? k : document.createTextNode(String(k))); }
+  return e;
+}
+const n = (x, d=1) => x==null ? '—' : Number(x).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const n0 = x => n(x,0);
+const sgn = (x, d=1) => x==null ? '—' : (x>0?'+':x<0?'−':'±') + n(Math.abs(x), d);
+const slakh = x => x==null ? '—' : (x>0?'+':x<0?'−':'') + n(Math.abs(x)/1e5, 1) + 'L';
+const pct = (x, d=0) => x==null ? '—' : n(x*100, d) + '%';
+const num = (t, cls) => h('span', {class:'num'+(cls?' '+cls:'')}, t);
+/* the three sentences, three renderings */
+const INF = (t, why) => h('span', {class:'inf num', title:'[I] inferred'+(why?' — '+why:'')}, t);
+const CANT = why => h('span', {class:'cant', title:'could not check: '+why}, "can't see · " + why);
+const NONE = t => h('span', {class:'none'}, t || 'none');
+const toMin = t => { const [a,b] = t.split(':').map(Number); return a*60+b; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let cur = 'NIFTY', mode = 'flat', holdPick = null, view = 'live';
+const IDX = Object.keys(D.idx);
+
+/* ============ reading the engine ============ */
+const ACTIVE = ['ARMED','TRIGGERED','IN_TRADE'];
+function machineOf(ix){
+  const s = ix.zone_sell, b = ix.zone_buy;
+  const sa = s && ACTIVE.includes(s.state), ba = b && ACTIVE.includes(b.state);
+  if (sa && (!ba || (s.ref_i||0) >= (b.ref_i||0))) return {side:'sell', z:s};
+  if (ba) return {side:'buy', z:b};
+  return null;
+}
+const hasFrame = ix => ix.frame && ix.frame.where;
+const px = ix => hasFrame(ix) && ix.frame.where.px!=null ? ix.frame.where.px : ix.fut.c;
+const pxSrc = ix => hasFrame(ix) && ix.frame.where.px!=null ? `GoCharting tape ${ix.frame.ts}` : `3-min bar ${ix.last_t}, still forming`;
+const defender = (ix, side) => (ix.fronts||[]).find(f => f.side === (side==='sell'?'CE':'PE'));
+const lastRow = (ix, side) => [...(ix.record_today||[])].reverse().find(r => r.side===side.toUpperCase());
+const entries = ix => (ix.record_today||[]).filter(r => r.kind !== 'arm');
+const methodCaveat = (idx, side) => {
+  const out = [];
+  if (idx === 'BANKNIFTY') out.push(h('div',{}, h('b',{},'BANKNIFTY trends. '), 'Every reversion test so far inverted here, so a zone fade has no validated edge on this index.'));
+  if (side === 'sell') out.push(h('div',{}, h('b',{},'Selling the upper zone is the unproven half. '), 'Selling upper bands failed on 5 datasets, and whether u2 SELL survives is still your call (§1b).'));
+  return out.length ? h('div',{class:'caveat'}, out) : null;
+};
+function gateBadge(g){
+  if (!g || g.legal == null) return h('span',{class:'gate unk'}, "CAN'T TELL");
+  return g.legal ? h('span',{class:'gate ok'},'LEGAL') : h('span',{class:'gate no'},'NOT LEGAL');
+}
+const atPeak = f => Math.abs(f.from_peak||0) < 5000;   // under 0.05L off the peak prints as the peak
+function frontWords(f){
+  if (!f) return CANT('no near-ATM front yet');
+  const tail = f.state==='BUILDING' ? (atPeak(f) ? ' · at its peak now' : ` · ${slakh(f.from_peak)} off its ${f.peak_at} peak`)
+             : ` · peaked ${f.peak_at}, ${slakh(f.from_peak)} since`;
+  return h('span',{}, h('b',{}, `${f.side} ${n0(f.k)} ${f.state.toLowerCase()}`), tail);
+}
+
+/* ============ top bar ============ */
+function tabs(){
+  const t = $('#tabs'); t.innerHTML = '';
+  for (const i of IDX){
+    const ix = D.idx[i], m = machineOf(ix), p = px(ix), f = ix.fut;
+    let s;
+    if (m) s = `${m.side.toUpperCase()} ${m.z.state.toLowerCase()} at ${m.side==='sell'?'u2':'d2'}`;
+    else { const up = f.u2 - p, dn = p - f.d2; s = up <= dn ? `sell zone ${n(up,0)} pts up` : `buy zone ${n(dn,0)} pts down`; }
+    t.append(h('button',{class:'idx', role:'tab', 'aria-selected': String(i===cur), onclick:()=>{cur=i; holdPick=null; render();}},
+      h('div',{class:'n'}, h('span',{class:'dot'+(m?' on':'')}), i), h('div',{class:'s'}, s)));
+  }
+  const fd = D.health.feed || {};
+  const st = $('#stamp'); st.innerHTML = '';
+  st.append(h('span',{class:'num'}, 'SNAPSHOT ' + D.taken.slice(11,16)), ' · ',
+    fd.healthy ? 'feed ok' : CANT(D.health.feed_why || 'feed not healthy'), ' · up since ' + D.health.coverage.server_up);
+}
+
+/* ============ 1. THE ANSWER ============ */
+function answer(ix){
+  const sec = h('section',{class:'ans'});
+  const idx = cur, p = px(ix), f = ix.fut;
+  sec.append(h('h2',{}, mode==='hold' ? 'Am I still safe?' : 'Is there a trade, and what kills it?'));
+
+  if (mode === 'hold'){
+    const es = entries(ix);
+    if (!es.length){ sec.append(h('div',{class:'head'}, NONE('No entry to track')), h('div',{class:'line small'}, 'Holding mode follows a position you say you hold. This mockup can only offer the tool\'s recorded entries, and this index has none today.')); return sec; }
+    const e = es[holdPick==null ? es.length-1 : holdPick];
+    const side = e.side.toLowerCase(), dir = side==='buy' ? 1 : -1;
+    const pl = (p - e.px) * dir;
+    sec.append(h('div',{class:'head'}, h('span',{class:'side'}, e.side), 'from ', num(n(e.px)), h('span',{class:'mocktag'},'MOCK: YOU SAY YOU HOLD IT')));
+    sec.append(h('div',{class:'line'}, h('span',{class:'arith num'}, sgn(pl)), ' pts on the future since ', num(e.t), ' · price ', num(n(p)), h('span',{class:'small'}, ` (${pxSrc(ix)})`)));
+    const vw = f.vwap, reached = dir*(p - vw) >= 0, wrong = side==='buy' ? f.d3 : f.u3;
+    const def = defender(ix, side), opp = (ix.fronts||[]).filter(x => x.side === (side==='buy'?'CE':'PE'));
+    const other = machineOf(ix);
+    sec.append(h('dl',{class:'kv'},
+      h('dt',{},'target'), h('dd',{}, 'VWAP ', num(n(vw)), reached ? h('span',{class:'small'},' · price is already past it, so the fade target is done') : h('span',{class:'small'}, ` · ${n(Math.abs(p-vw),0)} pts to go`)),
+      h('dt',{},'wrong if'), h('dd',{}, `a 3-min close ${side==='buy'?'below d3':'above u3'} `, num(n(wrong)), ' held 3 bars ', h('span',{class:'small'}, `(${n(Math.abs(p-wrong),0)} pts away)`)),
+      h('dt',{},'your floor'), h('dd',{}, frontWords(def), h('div',{class:'small'}, 'At entry the gate said ', gateBadge(e.gate), e.gate && e.gate.why ? ` (${e.gate.why})` : '')),
+      h('dt',{},'against you'), h('dd',{}, opp.length ? opp.map(o => h('div',{}, frontWords(o))) : NONE()),
+      other && other.side !== side ? [h('dt',{},'the tool now'), h('dd',{}, h('b',{}, `${other.side.toUpperCase()} ${other.z.state.toLowerCase()}`), ` at ${n(other.z.level)}${(lastRow(ix, other.side)||{}).t ? ' since ' + lastRow(ix, other.side).t : ''}. The zone machine has switched to the other side.`)] : null,
+      h('dt',{},'your stop'), h('dd',{}, h('span',{class:'mock'}, h('input',{type:'text', placeholder:'type your stop', style:'width:110px;font:inherit;border:1px solid var(--rule);border-radius:4px;padding:1px 5px'})), h('span',{class:'mocktag'},'MOCK'), h('div',{class:'small'}, 'The method\'s stop is still your open question (§1b b), so the tool has none to show.'))
+    ));
+    if (es.length > 1) sec.append(h('div',{class:'small', style:'margin-top:6px'}, 'track: ', es.map((x,i)=>h('button',{style:'text-decoration:underline;margin-right:8px', onclick:()=>{holdPick=i; render();}}, `${x.side} ${x.t} @ ${n(x.px)}`))));
+    const c = methodCaveat(idx, side); if (c) sec.append(c);
+    return sec;
+  }
+
+  const m = machineOf(ix);
+  if (m){
+    const z = m.z, side = m.side;
+    const row = lastRow(ix, side);
+    const liveGate = hasFrame(ix) && ix.frame.setup && ix.frame.setup.side === side ? ix.frame.setup.gate : null;
+    const g = liveGate || (row && row.gate);
+    sec.append(h('div',{class:'head'}, h('span',{class:'side'}, side.toUpperCase()), `${z.state.toLowerCase()} at ${side==='sell'?'u2':'d2'} `, num(n(z.level))));
+    sec.append(h('div',{class:'line'}, z.state === 'ARMED'
+      ? ['Goes in on a 3-min ', h('b',{}, `close ${side==='sell'?'below':'above'} ${n(side==='sell'?z.ref_low:z.ref_high)}`), ` (the arming bar's ${side==='sell'?'low':'high'}) · `, h('b',{}, `${z.candles_left} candles left`)]
+      : `state ${z.state}`));
+    const fs = hasFrame(ix) && ix.frame.setup && ix.frame.setup.signal;
+    sec.append(h('dl',{class:'kv'},
+      h('dt',{},'fade gate'), h('dd',{}, gateBadge(g), ' ', g && g.why ? g.why : '', h('div',{class:'small'}, liveGate ? `live, off the ${ix.frame.ts} frame` : row ? `as stamped on the ${row.t} ${row.kind==='arm'?'arm':'entry'} row. This index has no live frame` : '')),
+      h('dt',{},'defender now'), h('dd',{}, frontWords(defender(ix, side))),
+      h('dt',{},'stop'), h('dd',{}, num(n(z.stop)), h('span',{class:'small'}, ` · the zone machine's · ${n(Math.abs(z.stop-p),0)} pts from price`)),
+      h('dt',{},'target'), h('dd',{}, 'VWAP ', num(n(f.vwap)), h('span',{class:'small'}, ` · ${n(Math.abs(p-f.vwap),0)} pts`)),
+      fs && fs.falsifier ? [h('dt',{},'wrong if'), h('dd',{}, fs.falsifier.rule, h('span',{class:'small'}, ' (5-min frame)'))] : null
+    ));
+    const flow = hasFrame(ix) && ix.frame.setup && ix.frame.setup.side===side ? ix.frame.setup.flow : null;
+    if (flow && flow.length) sec.append(h('div',{class:'tapeline'}, 'Tape at the edge: ', flow.map(e=>`${e.kind} ${n0(e.p)} (${e.t})`).join(' · '), '. ', ix.frame.setup.fire ? h('span',{}, h('b',{}, 'The 5-min ballot counts this as FIRE while the gate says no.'), ' Those are two separate modules; see the notes.') : ''));
+    const c = methodCaveat(idx, side); if (c) sec.append(c);
+    return sec;
+  }
+  const up = f.u2 - p, dn = p - f.d2;
+  sec.append(h('div',{class:'head'}, 'Nothing armed'));
+  sec.append(h('div',{class:'line'}, 'Sell zone ', num(n(f.u2)), '–', num(n(f.u3)), h('span',{class:'small'}, ` · ${n(up,0)} pts above`), h('br'), 'Buy zone ', num(n(f.d3)), '–', num(n(f.d2)), h('span',{class:'small'}, ` · ${n(dn,0)} pts below`)));
+  sec.append(h('dl',{class:'kv'},
+    h('dt',{},'if it sells off'), h('dd',{}, 'a BUY fade needs the PE front building: ', frontWords(defender(ix,'buy'))),
+    h('dt',{},'if it rallies'), h('dd',{}, 'a SELL fade needs the CE front building: ', frontWords(defender(ix,'sell')))));
+  const c = methodCaveat(idx, up <= dn ? 'sell' : 'buy'); if (c) sec.append(c);
+  return sec;
+}
+
+/* ============ 2. THE RAIL: every price-located fact, on your chart's axis ============ */
+function rail(ix){
+  const f = ix.fut, p = px(ix), b = ix.basis || 0, W = 446, H = 400, AX = 222;
+  const sig = (f.u3 - f.vwap)/3;
+  const fr = (ix.fronts||[]).map(x => x.k + b);
+  let lo = Math.min(f.d3, p, ...ix.bars.map(x=>x.l)) - 1.5*sig, hi = Math.max(f.u3, p, ...ix.bars.map(x=>x.h)) + 1.5*sig;
+  if (fr.length){ lo = Math.min(lo, Math.min(...fr) - sig); hi = Math.max(hi, Math.max(...fr) + sig); }
+  const y = v => 14 + (hi - v) / (hi - lo) * (H - 28);
+  const inR = v => v >= lo && v <= hi;
+  const svg = [], add = s => svg.push(s);
+  // three columns, each with its own label slots: YOUR LINES (left) · OI (middle) · LEVELS (right)
+  const mkSlot = () => { const used = []; return yy => { let t = yy; for (let k = 0; used.some(q => Math.abs(q-t) < 11) && k < 40; k++) t = yy + (k%2 ? -1 : 1) * 11 * Math.ceil((k+1)/2); used.push(t); return t; }; };
+  const slot = mkSlot(), lslot = mkSlot();
+  const LEFT = 2;
+  for (const [a,c,label] of [[f.u3,f.u2,'SELL ZONE'],[f.d2,f.d3,'BUY ZONE']]){
+    add(`<rect x="0" y="${y(a)}" width="${W}" height="${y(c)-y(a)}" fill="var(--zone-fill)"/>`);
+    add(`<line x1="0" x2="${W}" y1="${y(a)}" y2="${y(a)}" stroke="var(--zone)"/><line x1="0" x2="${W}" y1="${y(c)}" y2="${y(c)}" stroke="var(--zone)"/>`);
+    add(`<text x="${LEFT}" y="${lslot((y(a)+y(c))/2)+3.5}" class="lbl" style="fill:#007AAB;font-weight:650">${label}</text>`);
+  }
+  add(`<line x1="0" x2="${W}" y1="${y(f.vwap)}" y2="${y(f.vwap)}" stroke="var(--ink3)" stroke-dasharray="4 3"/>`);
+  add(`<text x="${LEFT}" y="${lslot(y(f.vwap))+3.5}">VWAP ${n0(f.vwap)}</text>`);
+  add(`<line x1="${AX}" x2="${AX}" y1="6" y2="${H-6}" stroke="var(--rule)"/>`);
+  lslot(y(p));  // reserve the price row on the left
+  // OI strikes, left of the axis: CE just above the tick, PE just below; length ~ OI, dark = added today
+  const heat = (ix.warmap.heat||[]).filter(r => inR(r.k + b));
+  const mx = Math.max(1, ...heat.map(r => Math.max(r.ce_oi||0, r.pe_oi||0)));
+  const L = 118;
+  const frontKey = new Map((ix.fronts||[]).map(x => [x.k+x.side, x]));
+  for (const r of heat){
+    const yy = y(r.k + b);
+    for (const [side, oi, chg, dy] of [['CE', r.ce_oi, r.ce_chg, -4], ['PE', r.pe_oi, r.pe_chg, 1]]){
+      if (!oi) continue;
+      const w = oi/mx*L, wc = Math.max(0, Math.min(oi, chg||0))/mx*L;
+      const col = side==='CE' ? 'var(--ce)' : 'var(--pe)';
+      add(`<rect x="${AX-4-w}" y="${yy+dy}" width="${w}" height="3" fill="${col}" opacity=".28"/>`);
+      add(`<rect x="${AX-4-wc}" y="${yy+dy}" width="${wc}" height="3" fill="${col}"/>`);
+      const fk = frontKey.get(r.k+side);
+      if (fk){
+        add(`<rect x="${AX-4-w}" y="${yy+dy-0.5}" width="${w}" height="4" fill="none" stroke="${col}" stroke-width=".8"/>`);
+        add(`<text x="${AX-6}" y="${side==='CE' ? yy+dy-3 : yy+dy+12}" text-anchor="end" class="lbl" style="fill:${col};font-weight:650;font-size:10px">${side} front · ${fk.state.toLowerCase()}</text>`);
+      }
+    }
+    add(`<text x="${AX+4}" y="${yy+3.5}" style="fill:var(--ink2)">${n0(r.k)}</text>`);
+    add(`<line x1="${AX-3}" x2="${AX+1}" y1="${yy}" y2="${yy}" stroke="var(--ink3)"/>`);
+  }
+  // levels (index/chain frame, shifted by basis onto the futures axis)
+  const lv = (ix.warmap.levels||[]).filter(l => !['ROUND','CE_WALL','PE_WALL'].includes(l.kind));
+  const seq = ix.warmap.sequence || {};
+  const outside = {above:[], below:[]};
+  for (const l of lv){
+    const v = l.px + b;
+    const s = Object.values(seq).find(q => q.kind===l.kind && Math.abs(q.px - l.px) < 0.06);
+    const tag = l.kind==='GAMMA_FLIP' ? 'gamma flip' : l.kind==='MAX_PAIN' ? 'max pain' : l.kind;
+    const extra = s && s.tests ? ` · tested ${s.tests}×, last ${String(s.last_outcome||'').toLowerCase()}` : '';
+    if (!inR(v)){ (v > hi ? outside.above : outside.below).push(`${tag} ${n0(v)} (${sgn(v-p,0)})`); continue; }
+    const yy = slot(y(v)), inferred = l.tag === 'I';
+    add(`<line x1="${AX}" x2="${AX+34}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ink2)" ${inferred?'stroke-dasharray="2 2"':''}/>`);
+    add(`<text x="${AX+38}" y="${yy+3.5}" class="lbl" style="${inferred?'font-style:italic;':''}fill:var(--ink)">${esc(tag)} ${n0(v)}${esc(extra)}</text>`);
+  }
+  // tape walls (GoCharting frame -- NIFTY only)
+  for (const w of (hasFrame(ix) && ix.frame.walls) || []){
+    if (!inR(w.p)) continue;
+    add(`<rect x="${AX+1}" y="${y(w.p)-2}" width="7" height="4" fill="var(--ink)"/>`);
+    const yy = slot(y(w.p));
+    add(`<text x="${AX+38}" y="${yy+3.5}" class="lbl" style="fill:var(--ink2)">${w.kind==='S'?'offer':'bid'} wall ${n0(w.p)} · ${n0(w.size/1000)}k${w.leaned?` · leaned ${w.leaned}×`:''}</text>`);
+  }
+  // the machine: arming level, trigger, stop
+  const m = machineOf(ix);
+  if (m){
+    const z = m.z, ref = m.side==='sell' ? z.ref_low : z.ref_high;
+    for (const [v, t, dash] of [[z.level,'armed',''],[ref,'trigger','5 3'],[z.stop,'stop','1.5 2']]){
+      if (v==null || !inR(v)) continue;
+      add(`<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ink)" stroke-width="1.1" ${dash?`stroke-dasharray="${dash}"`:''}/>`);
+      add(`<text x="${LEFT}" y="${lslot(y(v))+3.5}" class="lbl" style="fill:var(--ink);font-weight:650">${t} ${n(v)}</text>`);
+    }
+  }
+  const dh = Math.max(...ix.bars.map(x=>x.h)), dl = Math.min(...ix.bars.map(x=>x.l));
+  for (const [v,t] of [[dh,'day high'],[dl,'day low']]){
+    add(`<line x1="${AX}" x2="${AX+34}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ink3)" stroke-dasharray="1 2"/>`);
+    add(`<text x="${AX+38}" y="${slot(y(v))+3.5}" class="lbl" style="fill:var(--ink3)">${t} ${n0(v)}</text>`);
+  }
+  add(`<line x1="0" x2="${W}" y1="${y(p)}" y2="${y(p)}" stroke="var(--ink)" stroke-width="2"/>`);
+  add(`<rect x="${LEFT-2}" y="${y(p)-8}" width="72" height="16" rx="3" fill="var(--ink)"/><text x="${LEFT+34}" y="${y(p)+3.5}" text-anchor="middle" style="fill:#fff;stroke:none;font-weight:700">${n(p)}</text>`);
+  const sec = h('section',{class:'rail'});
+  sec.append(h('h2',{}, 'The rail', h('span',{class:'q'}, 'on your futures chart\'s axis: zones, OI, levels, the machine')));
+  const box = h('div',{}); box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="price rail">${svg.join('')}</svg>`;
+  sec.append(box);
+  const rw = ix.warmap.runways || {};
+  const rwTxt = ['up','down'].map(d => { const r = rw[d]; if (!r || !r.target) return null;
+    return h('div',{}, d==='up'?'↑ ':'↓ ', `${r.target.kind.toLowerCase()} ${n0(r.target.px + b)}, ${n0(r.dist)} pts away · `, INF(r.per_point >= 5e4 ? `${n(r.per_point/1e6,1)}M of trapped premium per point` : 'almost nobody goes underwater this way', r.why)); }).filter(Boolean);
+  if (outside.above.length) sec.append(h('div',{class:'edge'}, '↑ above the rail: ' + outside.above.slice(-3).join(' · ')));
+  if (outside.below.length) sec.append(h('div',{class:'edge'}, '↓ below the rail: ' + outside.below.slice(0,3).join(' · ')));
+  const dw = ix.warmap.dwell || {};
+  sec.append(h('div',{class:'small', style:'margin-top:5px'}, h('b',{}, 'Dwell '), dw.active
+    ? [INF(`${Math.round((dw.held_s||0)/60)} min at ${dw.level.kind.toLowerCase()} ${n0(dw.level.px + b)}`, dw.why), ' · loading side ', INF(`${String(dw.loaded_side||'').toUpperCase()} ${pct(dw.side_share)}`), ' (a trap being set, per the war map)']
+    : NONE(dw.why ? `none: ${dw.why}` : 'none')));
+  sec.append(h('div',{class:'small', style:'margin-top:3px'}, h('b',{}, 'Runways'), ' (which way pays the dealer more to run):', rwTxt.length ? rwTxt : NONE()));
+  sec.append(h('div',{class:'why', style:'margin-top:3px'}, `Strikes sit at strike + basis (${n(b)}) so they line up with your futures chart. Bars are open interest; the dark part is what was added today.`));
+  return sec;
+}
+
+/* ============ 3. WHO STOPS FIRST -- the fronts (her rule, §1d) ============ */
+function frontsSec(ix){
+  const sec = h('section',{});
+  sec.append(h('h2',{}, 'Who is trapped', h('span',{class:'q'}, 'the two biggest strikes each side near ATM, and who stops adding first')));
+  const F = ix.fronts || [];
+  if (!F.length){ sec.append(CANT(ix.fronts_why || 'no fronts')); return sec; }
+  const br = ix.broke;
+  sec.append(h('div',{style:'font-size:14.5px;font-weight:650;margin-bottom:6px'},
+    br ? [`${br.side} ${n0(br.k)} stopped first`, h('span',{class:'small', style:'font-weight:400'}, ` · peaked ${br.peak_at}, ${slakh(br.from_peak)} since · now ${br.state.toLowerCase()}`)] : NONE('Nobody has stopped yet. All four fronts are still building')));
+  const W = 446, H = 150, T = 30;
+  const series = Object.entries(ix.front_series||{});
+  const marks = (series[0]||[null,[]])[1].map(r => r[0]);
+  if (marks.length > 1){
+    const x0 = toMin(marks[0]), x1 = toMin(marks[marks.length-1]);
+    const X = t => 30 + (toMin(t)-x0)/(x1-x0||1)*(W-36);
+    const vals = series.flatMap(([,s]) => s.map(r=>r[1]).filter(v=>v!=null));
+    const vmax = Math.max(...vals, 1), vmin = Math.min(...vals, 0);
+    const Y = v => T + 8 + (vmax - v)/(vmax - vmin || 1)*(H - T - 20);
+    const sp = (ix.spot_series||[]).filter(r=>r[1]!=null);
+    const smin = Math.min(...sp.map(r=>r[1])), smax = Math.max(...sp.map(r=>r[1]));
+    const YS = v => 4 + (smax - v)/(smax - smin || 1)*(T - 8);
+    const o = [];
+    o.push(`<text x="0" y="14">spot</text>`);
+    o.push(`<polyline fill="none" stroke="var(--ink3)" stroke-width="1" points="${sp.map(r=>`${X(r[0])},${YS(r[1])}`).join(' ')}"/>`);
+    o.push(`<line x1="30" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--rule)"/>`);
+    o.push(`<text x="0" y="${Y(vmax)+4}">${n(vmax/1e5,0)}L</text><text x="0" y="${Y(0)+3}">0</text>`);
+    for (let t = Math.ceil(x0/30)*30; t <= x1; t += 30){
+      const tt = `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
+      o.push(`<line x1="${X(tt)}" x2="${X(tt)}" y1="${T}" y2="${H-11}" stroke="var(--rule2)"/><text x="${X(tt)}" y="${H-1}" text-anchor="middle">${tt}</text>`);
+    }
+    for (const f of F){
+      const key = `${Math.round(f.k)}${f.side}`, s = (ix.front_series||{})[key]; if (!s) continue;
+      const rank = F.filter(q => q.side===f.side).indexOf(f);
+      const col = f.side==='CE' ? 'var(--ce)' : 'var(--pe)';
+      o.push(`<polyline fill="none" stroke="${col}" stroke-width="${rank?1.3:2}" ${rank?'stroke-dasharray="4 3"':''} points="${s.filter(r=>r[1]!=null).map(r=>`${X(r[0])},${Y(r[1])}`).join(' ')}"/>`);
+      if (f.peak_at && toMin(f.peak_at) < x1 - 2) o.push(`<circle cx="${X(f.peak_at)}" cy="${Y(f.peak)}" r="3.2" fill="#fff" stroke="${col}" stroke-width="1.6"/><text x="${X(f.peak_at)}" y="${Y(f.peak)-6}" text-anchor="middle" style="fill:${col}">${f.peak_at}</text>`);
+    }
+    const box = h('div',{}); box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="display:block;width:100%;height:auto;font:9.5px var(--mono);fill:var(--ink3)" role="img" aria-label="front OI change since the open">${o.join('')}</svg>`;
+    sec.append(box);
+  }
+  for (const f of F){
+    const rank = F.filter(q => q.side===f.side).indexOf(f);
+    sec.append(h('div',{class:'frow'},
+      h('span',{class:'sw'+(rank?' dash':''), style:`border-color:${f.side==='CE'?'var(--ce)':'var(--pe)'}`}),
+      h('span',{class:'num', style:'font-weight:600'}, `${f.side} ${n0(f.k)}`),
+      h('span',{}, h('span',{class:'st '+f.state}, f.state.toLowerCase()), ' ', h('span',{class:'small'}, atPeak(f) ? 'at its peak now' : `peaked ${f.peak_at}, ${slakh(f.from_peak)} since`)),
+      h('span',{class:'num small'}, `${slakh(f.chg)} today`)));
+  }
+  const bd = hasFrame(ix) && ix.frame.breadth;
+  sec.append(h('div',{class:'small', style:'margin-top:6px'}, bd && bd.t0 ? [`Last ${bd.window_min} min (${bd.t0}–${bd.t1}): PE written on `, num(bd.written_pe), ` strikes, unwound on `, num(bd.unwound_pe), ` · CE written on `, num(bd.written_ce), `, unwound on `, num(bd.unwound_ce), `.`] : CANT('strike breadth only arrives with a GoCharting frame, and only NIFTY has one')));
+  sec.append(h('div',{class:'why', style:'margin-top:3px'}, 'Ranked by session-peak OI among the 9 strikes nearest spot (§1d). Far strikes are left out on purpose: that is where hedgers park positions.'));
+  return sec;
+}
+
+/* ============ 4. THE DAY: is it paying, and whom ============ */
+function daySec(ix){
+  const sec = h('section',{});
+  sec.append(h('h2',{}, 'The day', h('span',{class:'q'}, 'is it paying, and whom?')));
+  const g = hasFrame(ix) && ix.frame.head ? ix.frame.head.gate : null;
+  const reg = ix.desk.regime || {}, b = ix.basis || 0;
+  const dh = Math.max(...ix.bars.map(x=>x.h)), dl = Math.min(...ix.bars.map(x=>x.l));
+  const em = reg.expected_move;
+  const fit = ix.surface.fit || {}, sd = ix.surface.day || {};
+  const vp = (D.vpin.state||{})['NIFTY-FUT'];
+  const grid = h('div',{class:'day'});
+  grid.append(h('div',{class:'cell wide'}, h('div',{class:'k'}, 'Worth trading today?'),
+    h('div',{class:'v'}, h('span',{class:'gate unk'}, "CAN'T SAY"), ' ', h('span',{style:'font-size:12px;font-weight:500'}, 'no event calendar, and IV/RV and VPIN are not wired into the gate')),
+    h('div',{class:'d'}, g ? ['With those gaps filled it would read ', h('b',{}, g.would_be), ` (${g.would_be_reason}). That is inferred, not a green light.`] : CANT('the gate rides on the GoCharting frame, which this index lacks'))));
+  const disagree = ix.gamma && reg.state && ((reg.state==='AMPLIFYING') !== /AMPLIFIED/.test(ix.gamma.regime));
+  grid.append(h('div',{class:'cell'}, h('div',{class:'k'}, 'Dealer hedging'),
+    h('div',{class:'v'}, reg.state ? INF(reg.state.toLowerCase(), (reg.why||[]).join(' ')) : CANT('no regime')),
+    h('div',{class:'d'}, reg.flip_px ? ['flip ', INF(n0(reg.flip_px + b)), ` on the future · price ${sgn(px(ix) - (reg.flip_px + b),0)}`] : 'the chain never crosses a flip (all one side)'),
+    h('div',{class:'d'}, 'the engine\'s own read: ', INF((ix.gamma||{}).regime || '—'), disagree ? h('span',{class:'gate no', style:'margin-left:4px;font-size:10px'}, 'DISAGREE') : null)));
+  grid.append(h('div',{class:'cell'}, h('div',{class:'k'}, 'Range used'),
+    h('div',{class:'v num'}, em ? pct((dh-dl)/em) : '—'),
+    h('div',{class:'d'}, `the day's ${n0(dh-dl)} pts of the straddle's ±${n0(em)}`),
+    h('div',{class:'d'}, `open ${n0(ix.fut.o)} · now ${sgn(px(ix)-ix.fut.o,0)}`)));
+  grid.append(h('div',{class:'cell'}, h('div',{class:'k'}, 'Vol sold vs paid'),
+    h('div',{class:'v num'}, fit.atm_iv!=null ? pct(fit.atm_iv,1) : '—', h('span',{style:'font-size:11px;font-weight:500;color:var(--ink2);font-family:var(--sans)'}, ' ATM IV')),
+    h('div',{class:'d'}, sd.open ? `opened ${pct(sd.open.a,1)} · range today ${pct(sd.lo.a,1)}–${pct(sd.hi.a,1)}` : ''),
+    h('div',{class:'d'}, 'realized, last 5 sessions: ', fit.rv5 ? h('span',{class:'num'}, pct(fit.rv5.rv,1)) : CANT(fit.rv5_why||'no rv'), h('span',{title:(fit.rv5||{}).basis_note||''}, ' (on a 252-day basis; IV uses 365)'))));
+  grid.append(h('div',{class:'cell'}, h('div',{class:'k'}, 'Flow toxicity'),
+    cur==='NIFTY' ? [h('div',{class:'v'}, vp ? INF(n(vp.vpin,2)) : CANT('no gauge')),
+      h('div',{class:'d'}, vp && vp.pct==null ? `rank not trusted yet (${vp.buckets} buckets)` : vp ? `ranks ${pct(vp.pct)} of today` : '')]
+    : [h('div',{class:'v'}, CANT('NIFTY future only')), h('div',{class:'d'}, 'VPIN is computed on the NIFTY future alone')]));
+  const bt = h('div',{class:'bars3'});
+  for (const i of IDX){
+    const fr = (D.idx[i].drag||{}).frac;
+    bt.append(h('span',{style: i===cur?'font-weight:650':''}, i),
+      h('span',{class:'bar'}, fr==null ? null : h('i',{style:`width:${Math.max(0,Math.min(1,fr))*100}%;${i===cur?'':'opacity:.4'}`})),
+      h('span',{class:'num', style:'text-align:right'}, fr==null ? '—' : pct(fr)));
+  }
+  const dg = ix.drag || {};
+  grid.append(h('div',{class:'cell wide'}, h('div',{class:'k'}, 'Buyer\'s tax', h('span',{style:'text-transform:none;letter-spacing:0;font-weight:500'}, ' · how much of a correct move an at-the-money buyer did not get')),
+    bt,
+    h('div',{class:'d', style:'margin-top:4px'}, dg.frac!=null ? [`${cur}: the ${String(dg.right_side||'').toUpperCase()} ${n0(dg.strike)}, bought at ${dg.anchored_at}, was owed `, num(n(dg.owed)), ' pts and paid ', num(n(dg.paid)), '.', dg.frac < 0 ? ' Buyers are being paid in full here today.' : ''] : CANT(dg.day_why || 'no reading')),
+    dg.day && dg.day.hi ? h('div',{class:'d'}, `Day's worst reading: ${pct(dg.day.hi.frac)} at ${dg.day.hi.t}`, dg.day.hi.frac > 2 ? h('span',{class:'gate no', style:'margin-left:4px;font-size:10px'}, 'TINY-MOVE ARTEFACT') : null) : null));
+  sec.append(grid);
+  return sec;
+}
+
+/* ============ 5. TODAY: what already happened ============ */
+function todaySec(ix){
+  const sec = h('section',{class:'tl'});
+  sec.append(h('h2',{}, 'Today so far', h('span',{class:'q'}, 'the forward record, the fronts that stopped, the tape')));
+  const W = 446, H = 58, x0 = toMin('09:15'), x1 = toMin('15:30');
+  const X = t => 8 + (toMin(t) - x0)/(x1 - x0)*(W - 16);
+  const o = [];
+  const now = ix.last_t; o.push(`<rect x="${X(now)}" y="6" width="${X('15:30')-X(now)}" height="36" fill="#F3F2EE"/>`);
+  o.push(`<line x1="8" x2="${W-8}" y1="30" y2="30" stroke="var(--rule)"/>`);
+  for (const t of ['09:15','10:00','11:00','12:00','13:00','14:00','15:00']) o.push(`<line x1="${X(t)}" x2="${X(t)}" y1="27" y2="33" stroke="var(--ink3)"/><text x="${X(t)}" y="${H-2}" text-anchor="middle">${t}</text>`);
+  for (const f of ix.fronts||[]) if (f.peak_at && f.state!=='BUILDING') o.push(`<line x1="${X(f.peak_at)}" x2="${X(f.peak_at)}" y1="6" y2="12" stroke="${f.side==='CE'?'var(--ce)':'var(--pe)'}" stroke-width="2.5"/>`);
+  for (const e of ((hasFrame(ix) && ix.frame.tape && ix.frame.tape.events) || [])) o.push(`<circle cx="${X(e.t)}" cy="30" r="2" fill="var(--ink2)"/>`);
+  for (const r of ix.record_today||[]){
+    const arm = r.kind==='arm', up = r.side==='BUY', xx = X(r.t), yy = up ? 20 : 40;
+    const legal = r.gate && r.gate.legal;
+    const pth = up ? `M${xx},${yy-6} L${xx-5},${yy+3} L${xx+5},${yy+3} z` : `M${xx},${yy+6} L${xx-5},${yy-3} L${xx+5},${yy-3} z`;
+    o.push(`<path d="${pth}" fill="${arm?'#fff':'var(--ink)'}" stroke="${legal===false?'var(--attn)':'var(--ink)'}" stroke-width="${legal===false?2.4:1.3}"><title>${arm?'arm':'entry'} ${r.side} ${r.band} ${r.t} · gate ${legal==null?'?':legal?'legal':'NOT legal'}</title></path>`);
+  }
+  const box = h('div',{}); box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="today timeline">${o.join('')}</svg>`;
+  sec.append(box);
+  const rows = ix.record_today||[];
+  if (rows.length){
+    const tb = h('table',{class:'rec'});
+    for (const r of rows) tb.append(h('tr',{}, h('td',{}, r.t), h('td',{}, h('b',{}, `${r.kind==='arm'?'arm':'entry'} ${r.side} ${r.band}`), r.px ? [' @ ', num(n(r.px))] : [' at ', num(n(r.level))]), h('td',{}, gateBadge(r.gate), h('div',{class:'why'}, (r.gate && r.gate.why) || ''))));
+    sec.append(tb);
+  } else sec.append(h('div',{class:'small'}, NONE('No arm or entry recorded on this index today.')));
+  sec.append(h('div',{class:'why', style:'margin-top:4px'}, '▲ buy · ▼ sell · hollow = arm, filled = entry · amber outline = the gate said NOT LEGAL · ticks on top = a front that stopped · dots = tape events (NIFTY only)'));
+  return sec;
+}
+
+/* ============ 6. DRAWERS: one tap away, never on the face ============ */
+function drawer(title, count, body){ return h('details',{class:'drawer'}, h('summary',{}, h('span',{}, title), h('span',{class:'c'}, count)), h('div',{class:'body'}, body)); }
+function drawers(ix){
+  const sec = h('section',{});
+  sec.append(h('h2',{}, 'Off the face', h('span',{class:'q'}, 'kept and labelled, one tap away')));
+  const ev = ix.engine_events || [];
+  sec.append(drawer('Engine narrative', `${ev.length} events · the stream that is off by default`,
+    [h('div',{class:'why', style:'margin-bottom:4px'}, 'This stream scored −0.1 / −6.2 against a +4.1 do-nothing control (research §2), so it is here to read, not to act on. Its current verdict "', h('b',{}, (ix.ctx||{}).verdict || '—'), '" and its play "', ((ix.ctx||{}).plays||[])[0] || '—', '" are kept off the face on purpose.'),
+     h('ul',{}, ev.slice(-14).reverse().map(e => h('li',{}, h('span',{class:'num'}, e.t), ' ', h('b',{}, e.kind), ' ', e.msg)))]));
+  const cands = ix.desk.candidates || [];
+  const cnt = s => cands.filter(c => c.status===s).length;
+  sec.append(drawer('Structures (the desk)', `${cnt('DEPLOYABLE')} deployable · ${cnt('STAND_ASIDE')} stand aside · ${cnt('BLOCKED')} blocked`,
+    [h('div',{class:'why', style:'margin-bottom:4px'}, 'Each is a status, not a confidence score, and none has a track record. Game: ', h('b',{}, ix.desk.game || '—'), '.'),
+     h('table',{class:'t'}, cands.map(c => h('tr',{}, h('td',{}, h('span',{class:'pill '+c.status}, c.status.replace('_',' '))), h('td',{}, c.name), h('td',{class:'why'}, (c.why||[])[0] || ''))))]));
+  const v = ix.desk.view || {};
+  sec.append(drawer('Direction view (desk)', `${v.bias||'—'} · ${v.conviction||'—'}`,
+    [h('div',{}, 'Trapped side per chainside: ', h('b',{}, String(v.trapped_side||'—').toUpperCase()), ', worst leg ', h('b',{}, v.worst_leg||'—'), '.'),
+     h('div',{class:'caveat'}, h('b',{}, 'Why this is off the face: '), 'it picks the single worst leg across every strike, and on NIFTY that is often a far strike, the kind you ruled irrelevant on 09-22. It can disagree with the fronts above, and the fronts are the ones that follow your rule.')]));
+  const cv = D.health.coverage || {};
+  sec.append(drawer('Coverage', `up since ${cv.server_up}${cv.late_min?` · ${cv.late_min} min late`:''}`,
+    [h('div',{}, h('b',{}, 'Rebuilt on a late start:')), h('ul',{}, (cv.reconstructed||[]).map(x=>h('li',{}, x))),
+     h('div',{}, h('b',{}, 'Cannot be rebuilt:')), h('ul',{}, (cv.not_reconstructable||[]).map(x=>h('li',{}, x)))]));
+  const pd = D.participant && D.participant.data;
+  sec.append(drawer('Participant OI', pd ? `NSE ${D.participant.day} · a day old` : 'unavailable',
+    pd ? h('table',{class:'t'}, h('tr',{}, ['','fut L','fut S','call L','call S','put L','put S'].map(x=>h('th',{},x))),
+        Object.entries(pd).map(([k,r]) => h('tr',{}, h('td',{}, k), ['fut_long','fut_short','call_long','call_short','put_long','put_short'].map(c=>h('td',{class:'num'}, n(r[c]/1e5,1)+'L'))))) : CANT((D.participant && D.participant.why) || 'not fetched')));
+  sec.append(drawer('How to read this screen', '', legend()));
+  return sec;
+}
+function legend(){
+  return h('div',{class:'legend'},
+    h('span',{class:'lg-zone'}), h('span',{}, 'Your zones, in your Kite chart\'s azure: d3–d2 is buy, u2–u3 is sell.'),
+    h('span',{class:'sw', style:'border-color:var(--ce)'}), h('span',{}, 'Calls are indigo, puts are ochre. This screen never uses red or green; those stay with price on your chart.'),
+    h('span',{class:'inf'}, 'italic'), h('span',{}, 'Inferred [I]: a model\'s reading. Plain numbers are measured [M]. Hover for the reason.'),
+    CANT('reason'), h('span',{}, 'Could not check. The reason is always printed.'),
+    NONE('none'), h('span',{}, 'Checked, and there was nothing.'),
+    h('span',{style:'color:var(--ink3)'}, 'drawers'), h('span',{}, 'Kept off the face on purpose. Still here, one tap away.'),
+    h('span',{class:'gate no'}, 'NOT LEGAL'), h('span',{}, 'Amber means look here. It never means up or down.'),
+    h('span',{class:'mocktag', style:'margin:0'}, 'MOCK'), h('span',{}, 'Invented for this mockup. No engine field is behind it.'));
+}
+
+/* ============ REVIEW (after the bell, full screen) ============ */
+function spark(pts, fmt){
+  if (!pts || pts.length < 2) return CANT('not enough points');
+  const W = 360, H = 46, vs = pts.map(p=>p[1]), lo = Math.min(...vs), hi = Math.max(...vs);
+  const X = i => 2 + i/(pts.length-1)*(W-60), Y = v => 4 + (hi - v)/(hi - lo || 1)*(H-14);
+  const box = h('div',{});
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="display:block;width:100%;height:auto"><polyline fill="none" stroke="var(--ink)" stroke-width="1.3" points="${pts.map((p,i)=>`${X(i)},${Y(p[1])}`).join(' ')}"/><text x="${W-54}" y="${Y(vs[vs.length-1])+3}" style="font:10px var(--mono);fill:var(--ink2)">${fmt(vs[vs.length-1])}</text><text x="2" y="${H-1}" style="font:9px var(--mono);fill:var(--ink3)">${pts[0][0]}</text><text x="${W-60}" y="${H-1}" text-anchor="end" style="font:9px var(--mono);fill:var(--ink3)">${pts[pts.length-1][0]}</text></svg>`;
+  return box;
+}
+function review(){
+  const R = $('#review'); R.innerHTML = '';
+  const g = h('div',{class:'rgrid'});
+  const bp = D.record.by_pop || [], sp = D.record.scored_by_pop || [];
+  const key = r => `${r.rule}|${r.kind}|${r.idx}`;
+  const scored = new Map(sp.map(r => [key(r), r.n]));
+  g.append(h('section',{class:'rwide'}, h('h2',{}, 'Forward record', h('span',{class:'q'}, 'populations kept apart · counts only, no rates (your pass bar is still owed, §5e)')),
+    h('table',{class:'t'}, h('tr',{}, ['population','kind', ...IDX].map(x=>h('th',{},x))),
+      [...new Set(bp.map(r => `${r.rule}|${r.kind}`))].map(pk => { const [rule,kind] = pk.split('|');
+        return h('tr',{}, h('td',{}, h('b',{}, rule==='legacy' ? 'legacy (quarantined)' : rule)), h('td',{}, kind),
+          IDX.map(i => { const r = bp.find(x => x.rule===rule && x.kind===kind && x.idx===i); const s = r && scored.get(key(r));
+            return h('td',{class:'num'}, r ? String(r.n) : '0', s ? h('span',{class:'why'}, ` · ${s} with outcomes filled`) : ''); })); })),
+    h('div',{class:'why', style:'margin-top:5px'}, 'Counted by this mockup from the /api/signals rows. The route\'s own "legacy" count folds zone entries in with the quarantined rows; see the notes.'),
+    h('div',{class:'why'}, D.record.no_rate_why)));
+  for (const i of IDX){
+    const ix = D.idx[i];
+    const s = h('section',{}, h('h2',{}, i));
+    s.append(h('div',{class:'small'}, h('b',{}, 'Today\'s rows')), (ix.record_today||[]).length ? h('table',{class:'t'}, ix.record_today.map(r => h('tr',{}, h('td',{class:'num'}, r.t), h('td',{}, `${r.kind==='arm'?'arm':'entry'} ${r.side} ${r.band}`), h('td',{class:'num'}, n(r.px || r.level)), h('td',{}, gateBadge(r.gate))))) : NONE());
+    const sd = ix.surface.day || {};
+    s.append(h('div',{class:'small', style:'margin-top:8px'}, h('b',{}, 'ATM IV through the day')), spark((sd.series||[]).map(r => [r.t, r.a]), v => pct(v,1)));
+    const rich = (ix.surface.richest||[])[0], cheap = (ix.surface.cheapest||[])[0];
+    s.append(h('div',{class:'small'}, 'richest ', rich ? h('b',{}, `${n0(rich.k)} ${rich.right}`) : '—', ' · cheapest ', cheap ? h('b',{}, `${n0(cheap.k)} ${cheap.right}`) : '—', h('div',{class:'why'}, 'measured against today\'s own curve only; there is no multi-day history yet')));
+    const dd = (ix.drag && ix.drag.day) || {};
+    s.append(h('div',{class:'small', style:'margin-top:8px'}, h('b',{}, 'Buyer\'s tax through the day')), spark((dd.series||[]).filter(r=>r.frac!=null && Math.abs(r.frac)<=1.5).map(r => [r.t, r.frac]), v => pct(v)), h('div',{class:'why'}, 'Readings above ±150% are left out; they come from tiny moves near the anchor.'));
+    const cands = ix.desk.candidates || [];
+    s.append(h('div',{class:'small', style:'margin-top:8px'}, h('b',{}, 'Structures')), h('div',{}, cands.filter(c=>c.status!=='BLOCKED').map(c => h('div',{}, h('span',{class:'pill '+c.status}, c.status.replace('_',' ')), ' ', c.name))), h('div',{class:'why'}, `${cands.filter(c=>c.status==='BLOCKED').length} blocked; the reasons are in the live drawer`));
+    g.append(s);
+  }
+  const P = D.paper || {};
+  g.append(h('section',{class:'rwide'}, h('h2',{}, 'Paper desk', h('span',{class:'q'}, 'the tool trading its own readings: 2 lots, paper only')),
+    h('div',{}, 'Today ', h('b',{class:'num'}, '₹' + n0(P.day_pnl)), ' · all-time ', h('span',{class:'num'}, '₹' + n0(P.realized_total)), ` · ${(P.open||[]).length} open · ${(P.day_refusals||[]).length} refusals logged`),
+    h('table',{class:'t', style:'margin-top:6px;max-width:520px'}, h('tr',{}, ['strategy','net ₹','trades','open'].map(x=>h('th',{},x))), Object.entries(P.by_strategy||{}).map(([k,v]) => h('tr',{}, h('td',{}, k), h('td',{class:'num'}, n0(v.net)), h('td',{class:'num'}, v.trades), h('td',{class:'num'}, v.open)))),
+    h('div',{class:'why', style:'margin-top:4px'}, P.note), h('div',{class:'why'}, P.accounting_note)));
+  const vp = D.vpin || {};
+  g.append(h('section',{}, h('h2',{}, 'Toxicity on the NIFTY future'), spark((vp.fast||[]).map(r => [r.t.slice(0,5), r.vpin]), v => n(v,2)), h('div',{class:'why'}, `fast line (20k buckets) · the slow line has ${(vp.series||[]).length} buckets so far · shadow, [I]`)));
+  g.append(h('section',{class:'rwide'}, h('h2',{}, 'Legend'), legend()));
+  R.append(g);
+}
+
+/* ============ render ============ */
+function render(){
+  tabs();
+  const bn = $('#banner'); bn.innerHTML = '';
+  bn.append('Mockup built from a read-only snapshot of the live API at ', h('b',{class:'num'}, D.taken), '. Every number is real. Anything marked ', h('span',{class:'mocktag', style:'margin:0'}, 'MOCK'), ' is invented. The sentences are put together by this page from engine fields; the notes explain why production should not work that way.');
+  const L = $('#live'); L.innerHTML = '';
+  const ix = D.idx[cur];
+  L.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;margin:0 0 8px'},
+    h('span',{class:'small'}, `${cur} · expiry ${ix.expiry} · basis ${n(ix.basis)}`),
+    h('span',{style:'display:inline-flex;align-items:center;gap:4px'}, h('span',{class:'seg mock', role:'group'}, h('button',{'aria-pressed':String(mode==='flat'), onclick:()=>{mode='flat'; render();}}, 'Flat'), h('button',{'aria-pressed':String(mode==='hold'), onclick:()=>{mode='hold'; render();}}, 'Holding')), h('span',{class:'mocktag'},'MOCK'))),
+    answer(ix), rail(ix), frontsSec(ix), daySec(ix), todaySec(ix), drawers(ix));
+  if (view === 'review') review();
+}
+function setView(v){
+  view = v;
+  $('#live').hidden = v !== 'live'; $('#review').hidden = v !== 'review';
+  $('#vLive').setAttribute('aria-pressed', String(v==='live')); $('#vRev').setAttribute('aria-pressed', String(v==='review'));
+  if (v === 'review') document.documentElement.style.setProperty('--w','1240px'); else document.documentElement.style.removeProperty('--w');
+  render();
+}
+$('#vLive').onclick = () => setView('live');
+$('#vRev').onclick = () => setView('review');
+render();
+</script>
+</body>
+</html>
