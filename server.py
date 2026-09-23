@@ -41,6 +41,7 @@ import frame
 import frame_log
 import fronts                    # research-findings §1d: the near-ATM fronts
 import grounds                   # every engine call held against OI, CVD and order flow
+import daylog                    # week-old daily records kept as .jsonl.gz
 import tape_log
 import book_log
 import ux_log
@@ -709,6 +710,8 @@ def _senses_loop(poller, payloads, period=0.5):
     seen_payload = {}          # idx -> id() of the last payload already read
     desk_state = {}            # idx -> {gear, conviction, deployable}, 5b's diff base
     last_day_save = 0.0        # the RAM-only day series' last write to disk
+    from chain_live import IST, in_session
+    from datetime import datetime
     while True:
         t0 = time.perf_counter()
         try:
@@ -814,15 +817,22 @@ def _senses_loop(poller, payloads, period=0.5):
                         chain_pace_due.append((idx, doc))
 
                 if feed_ok:
-                    # The record's hook: assigned once the chain source has a
-                    # feed, re-assigned harmlessly on every pass (an attribute
-                    # store), so a reconnect that rebuilds the feed re-hooks.
-                    if getattr(feed, "on_frame", None) is None:
-                        feed.on_frame = _SENSES["book"].on_frame
+                    # NOTHING IS RECORDED OUTSIDE THE SESSION (operator,
+                    # 2026-09-23). The feed runs on to ~15:40 and every recorder
+                    # below wrote it down -- ~6 MB of a closed book a day. Same
+                    # clock the chain poller stops on (chain_live.in_session).
+                    live = in_session(datetime.now(IST))
+                    # The record's hook: on inside the session, off outside it,
+                    # re-set every pass so a reconnect that rebuilds the feed re-hooks.
+                    _hook_book(feed, live)
                     for idx, r in (getattr(src, "resolved", None) or {}).items():
                         # The future's key is watched for the book record; a
                         # contract roll changes fut_key and this re-watches it.
+                        # Watched even after the close: a restart then rebuilds
+                        # the day's ladder and runs from this watched set.
                         _SENSES["book"].watch(idx, r.get("fut_key"))
+                        if not live:
+                            continue
                         # Near-ATM legs only, chosen against the poller's own spot. If
                         # spot is not known yet the FUTURE is watched alone rather than
                         # everything -- "which strikes are near" is unanswerable
@@ -1164,6 +1174,37 @@ def _ofd_lot(idx, day):
     return bars[0].get("lot") if bars else None
 
 
+# F&O trades 09:15-15:30 IST; nothing after the close is session (operator,
+# 2026-09-23: "the app should show the last snapshot and not build anything
+# after that"). The same clock the chain poller stops on.
+SESSION_END_HHMM = "15:30"
+
+
+def _session_only(doc: dict) -> dict:
+    """The extension's POST without anything stamped at or after the close.
+
+    GoCharting keeps drawing bars after 15:30, and each one reached the frame
+    build, the frame record, the ladder file and the scorer -- 81 frame rows
+    and 2.5 MB after the close on 2026-09-23. Trimmed here, the frame after the
+    close IS the last session snapshot. An item with no `t` is kept."""
+    def session(x):
+        t = x.get("t") if isinstance(x, dict) else None
+        return t is None or frame._hhmm(int(t)) < SESSION_END_HHMM
+    fm = doc.get("forming")
+    return {**doc, "closed": [b for b in doc.get("closed") or [] if session(b)],
+            "events": [e for e in doc.get("events") or [] if session(e)],
+            "forming": fm if isinstance(fm, dict) and session(fm) else None}
+
+
+def _hook_book(feed, live: bool) -> None:
+    """The book record's feed hook: on inside the session, off outside it.
+    Re-set every pass, so a reconnect that rebuilds the feed re-hooks."""
+    if not live:
+        feed.on_frame = None
+    elif getattr(feed, "on_frame", None) is None:
+        feed.on_frame = _SENSES["book"].on_frame
+
+
 def _ux_meta(idx):
     """lot/tick for the index once per process, and its runs/impact machines.
     (None, None) when the cached slice predates the fields or cannot be read --
@@ -1202,9 +1243,10 @@ def _ux_drain(day: str) -> list:
                 # re-read twice a second), so st["day"] is set in `finally`
                 # either way -- but a failure NAMES itself on `rebuild_why`
                 # instead of silently looking like a fresh, empty day. `runs`/
-                # `impact` are ALSO reset in `finally`, not inline, so a raise
-                # inside `_ofd_lot` -- before either line would otherwise run
-                # -- cannot leave yesterday's machines in place for today.
+                # `impact` are reset BEFORE the rebuild feeds them, and again in
+                # `except`, so a raise inside `_ofd_lot` cannot leave yesterday's
+                # machines in place for today. (Until 2026-09-23 the reset sat in
+                # `finally`, AFTER the rebuild, and threw every rebuilt run away.)
                 # `ux_drain_why`/`ux_drain_failed` are process-wide, not
                 # per-index, but a day roll is the one event that legitimately
                 # retires yesterday's sticky failure -- a new day gets a clean
@@ -1219,6 +1261,10 @@ def _ux_drain(day: str) -> list:
                     # spec §B/§J.12, and the row says which.
                     lot = st["lot"] if st["lot"] else _ofd_lot(idx, day)
                     lot_src = "dump" if st["lot"] else ("ofd" if lot else None)
+                    # fresh machines BEFORE the rebuild feeds them through _ux_observe --
+                    # a reset after it threw every rebuilt run away (2026-09-23)
+                    st["runs"] = runs_mod.Runs(lot=lot)
+                    st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
                     ux_log.state(idx, day, lot, st["tick"], lot_src=lot_src)
                     n_re = ux_log.rebuild(day, idx, lot, st["tick"], lot_src=lot_src, observer=_ux_observe,
                                           close_last=False)
@@ -1227,10 +1273,10 @@ def _ux_drain(day: str) -> list:
                     st["rebuild_why"] = None
                 except Exception as e:
                     st["rebuild_why"] = f"rebuild failed: {type(e).__name__}: {e}"
+                    st["runs"] = runs_mod.Runs(lot=lot)      # never yesterday's, never half-fed
+                    st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
                     log.exception("ux rebuild for %s", idx)
                 finally:
-                    st["runs"] = runs_mod.Runs(lot=lot)
-                    st["impact"] = impact_mod.Impact(lot=lot, tick=st["tick"])
                     st["day"] = day
     except Exception:                   # a disk fault costs the rows, never the tape
         log.exception("ux drain")
@@ -1272,7 +1318,7 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
            "agree": None, "agree_why": None, "book_from": book_from, "frames_per_s": None,
            "lot": st.get("lot"), "lot_src": None, "lot_why": None, "rebuild_why": rebuild_why, "why": None}
     if not bars_raw:
-        if book_from is None and not os.path.exists(book_log.day_path(day, idx)):
+        if book_from is None and not daylog.exists(book_log.day_path(day, idx)):
             why = (f"no book record for {idx} on {day} — the server was not recording "
                    f"(book_log predates it, or the feed never connected)")
         elif rebuild_why:
@@ -1346,7 +1392,7 @@ def _tape_reply(idx: str, day: str) -> dict:
         forming_why = None
     else:
         raw = tape_log.read_bars(day, idx)
-        if not raw and not _ux_bars(idx, day) and not os.path.exists(book_log.day_path(day, idx)) \
+        if not raw and not _ux_bars(idx, day) and not daylog.exists(book_log.day_path(day, idx)) \
                 and idx not in _SENSES["book"].book_from:
             return {"ok": False, "idx": idx, "day": day, "src": None,
                     "why": f"no prints record for {idx} on {day} — GoCharting was on another index, or the extension never posted"}
@@ -1541,6 +1587,10 @@ class Handler(SimpleHTTPRequestHandler):
                                            "(band_rotation.py:850-861)."}).encode())
                     return
                 day = str(doc.get("session") or "").split("|")[-1] or time.strftime("%Y-%m-%d")
+                # after the close the frame is the last session snapshot: bars
+                # and marks stamped 15:30 or later never reach the build, the
+                # record, the ladder file or the scorer (_session_only)
+                doc = _session_only(doc)
                 # `fr` is fully built -- including the log-write decision --
                 # BEFORE the lock is taken, and never mutated again once
                 # published: GET /api/frame json.dumps()s this same object
@@ -2460,7 +2510,8 @@ class Handler(SimpleHTTPRequestHandler):
                 out = {"ok": bool(last), "idx": idx, "t": last.get("t"),
                        "why": None if last else "no engine bar for this index yet",
                        **grounds.ground(last.get("ctx") or {}, (last.get("fut") or {}).get("c"),
-                                        ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr)}
+                                        ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr,
+                                        runs_why=(ux.get("marks") or {}).get("runs_why"))}
             except Exception as e:           # a bad read must not 500 the face
                 out = {"ok": False, "idx": idx, "why": f"{type(e).__name__}: {e}", "calls": []}
             self._json(json.dumps(out, default=str).encode())
@@ -3107,6 +3158,17 @@ def main():
         # the live one. Skipping this thread under mock used to mean
         # --mock-chain could not exercise 5a/5b at all; it now can, which is
         # the acceptance criterion this task was built against.
+        #
+        # WEEK-OLD DAYS, COMPRESSED (daylog.py; operator 2026-09-23, "my
+        # personal laptop with like 120 gb left"). Once per start, in the
+        # background so a start is never slowed; today and the last week are
+        # never touched. The folders are the recorders' own, so a redirect
+        # (mock isolation) is followed rather than second-guessed.
+        from chain_live import CHAIN_DIR
+        threading.Thread(target=daylog.compress_old, args=(time.strftime("%Y-%m-%d"),),
+                         kwargs={"dirs": (senses_mod.DIR, frame_log.DIR, book_log.DIR, str(CHAIN_DIR)),
+                                 "log": log.info},
+                         daemon=True, name="daylog").start()
         if poller is not None:
             threading.Thread(target=_senses_loop, args=(poller, payloads),
                              daemon=True, name="senses").start()

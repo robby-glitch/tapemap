@@ -19,6 +19,7 @@ import json
 import os
 from typing import Optional
 
+import daylog
 import frame_log
 import signals
 
@@ -51,10 +52,10 @@ def read(day: str, idx: str = "NIFTY", path: Optional[str] = None):
     whatever the extension replayed out of the chart before it started posting.
     """
     p = path or frame_log.day_path(day)
-    if not os.path.exists(p):
+    if not daylog.exists(p):                     # a week-old day is kept as .jsonl.gz (daylog.py)
         return [], []
     try:
-        st = os.stat(p)
+        st = os.stat(p if os.path.exists(p) else p + ".gz")
         key = (st.st_mtime, st.st_size, idx)
     except OSError:
         return [], []
@@ -64,7 +65,7 @@ def read(day: str, idx: str = "NIFTY", path: Optional[str] = None):
 
     rows, seen = [], {}
     try:
-        with io.open(p, encoding="utf-8") as fh:
+        with daylog.open_text(p) as fh:
             for line in fh:                      # streamed: never the whole file
                 line = line.strip()
                 if not line:

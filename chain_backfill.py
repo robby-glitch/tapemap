@@ -41,6 +41,12 @@ import threading
 import time
 
 MARK = "%H:%M"
+# The session's last candle is 15:29. Upstox keeps serving option candles to
+# ~15:39 (post-close OI, no index spot), so a restart after the close used to
+# gain ten minutes the live poller never records -- with spot None on the last
+# one, which blinded fronts.read (2026-09-23). The warm start already skips
+# closed-market snapshots; the backfill now keeps the same boundary.
+SESSION_END = "15:30"
 
 # Gap between REST calls. 17 strikes x 2 sides = 34 calls for a NIFTY window,
 # so this is the difference between ~9s and ~2min. Upstox's historical limit is
@@ -247,6 +253,8 @@ def backfill_minutes(state, index, strikes, tok, before=None, log=None,
     added = 0
     for m, rec in grid.items():
         if before is not None and m >= before:
+            continue
+        if m >= SESSION_END:     # a tool that ran from 09:15 never holds these
             continue
         if m in state.minutes:                        # never clobber the socket
             continue

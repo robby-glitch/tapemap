@@ -16,6 +16,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import book_log  # noqa: E402
+import daylog  # noqa: E402
 import ux_gate as gate  # noqa: E402   (amended at Task 9: gate.py is the seller's gate)
 import tape_log  # noqa: E402
 import ux_log  # noqa: E402
@@ -59,7 +60,7 @@ def main(idx: str, day: str, lot=None, tick=None) -> int:
     lot, tick, lot_src = _resolve_lot(idx, lot, tick, ofd)
     print(f"lot {lot if lot is not None else '—'} ({lot_src})")
     ux = ux_log.read_bars(day, idx)
-    have_book = os.path.exists(book_log.day_path(day, idx))
+    have_book = daylog.exists(book_log.day_path(day, idx))     # plain or week-old .gz
     if have_book and (not today or not ux):
         ux_log.rebuild(day, idx, lot, tick, lot_src=lot_src, close_last=not today)
         ux = ux_log.read_bars(day, idx)

@@ -322,6 +322,24 @@ def test_a_hole_in_the_middle_of_the_day_is_filled(monkeypatch):
     assert st.minutes["13:13"]["spot"] == 4.5
 
 
+def test_a_restart_after_the_close_rebuilds_the_session_and_nothing_after_it(monkeypatch):
+    """2026-09-23, restarted 16:46: REST served option candles to 15:39, the
+    cutoff was NOW, so the grid gained 15:30-15:39 -- after-close OI with no
+    index spot. fronts.read takes spot off the last mark, found None, and the
+    fade gate and the grounding went blind. A 16:46 start must hold exactly
+    what a 09:15 start holds: the session, up to 15:29."""
+    monkeypatch.setattr(cb, "minute_grid", lambda *a, **k: {
+        "15:28": {"spot": 1.0, "k": {1: (1, 1)}},
+        "15:29": {"spot": 2.0, "k": {1: (2, 2)}},
+        "15:30": {"spot": None, "k": {1: (3, 3)}},     # after the close
+        "15:39": {"spot": None, "k": {1: (4, 4)}},     # after the close
+    })
+    st = _State()
+    assert cb.backfill_minutes(st, "NIFTY", [1], "tok", before="16:46") == 2
+    assert sorted(st.minutes) == ["15:28", "15:29"]
+    assert st.minutes["15:29"]["spot"] == 2.0
+
+
 def test_a_restart_backfills_without_waiting_for_a_poll(tmp_path, monkeypatch):
     """The poller does not poll outside market hours, so a restart after the
     close never reached the post-poll backfill trigger and the day's holes

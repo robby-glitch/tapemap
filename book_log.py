@@ -34,6 +34,7 @@ import time
 from collections import deque
 from typing import Dict, Iterator, List, Optional, Tuple
 
+import daylog
 import upstox_adapter
 
 DIR = os.path.join("data", "book")
@@ -109,9 +110,10 @@ def first_t(path: str) -> Optional[int]:
 
 
 def read_rows(day: str, idx: str) -> Iterator[dict]:
-    """Streamed, never json.load of the whole file; a torn line is skipped."""
+    """Streamed, never json.load of the whole file; a torn line is skipped.
+    A week-old day is read from its .jsonl.gz (daylog.py)."""
     try:
-        with open(day_path(day, idx), encoding="utf-8") as f:
+        with daylog.open_text(day_path(day, idx)) as f:
             for line in f:
                 line = line.strip()
                 if not line:

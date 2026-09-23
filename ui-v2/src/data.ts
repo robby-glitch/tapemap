@@ -1158,7 +1158,7 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
   }
   for (const k of KEYS) {
     const p = per[k]
-    ds.INDICES[k] = { ...p.index, highlight: k === maxK }
+    ds.INDICES[k] = { ...p.index, highlight: k === maxK && p.score > 0 }   // no BACKED call anywhere → no LOOK HERE
     ds.READS[k] = p.read
     ds.KEY_LEVELS[k] = p.levels
     ds.ORDER_FLOW[k] = p.flow

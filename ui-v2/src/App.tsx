@@ -463,7 +463,7 @@ function Grounds({ g }: { g?: GroundedCall | null }) {
       <b style={{ color: col, letterSpacing: '0.04em' }}>{g.status}</b>
       {(['oi', 'cvd', 'flow'] as const).map((k) => (
         <div key={k} style={{ color: g[k].state === 'against' ? pal.caution : pal.textSecondary }}>
-          <span className="mono">{sym[g[k].state] ?? '?'} {k.toUpperCase()}</span> {g[k].fact}
+          <span className="mono">{sym[g[k].state] ?? '?'} {k.toUpperCase()}</span> {g[k].fact?.replace(/^CVD /, '')}
         </div>))}
     </div>)
 }

@@ -38,6 +38,28 @@ def test_frame_post_stores_the_tape_and_answers_have_bars(tmp_path, monkeypatch)
     assert isinstance(j["record"]["written"], bool) and "log_row_written" not in j and "strip" not in j
 
 
+def test_after_the_close_the_frame_is_the_last_session_snapshot(tmp_path, monkeypatch):
+    """2026-09-23: GoCharting kept drawing bars after 15:30 and each one reached
+    the build, the frame record, the ladder file and the scorer -- 81 rows and
+    2.5 MB after the close. Bars and marks stamped 15:30 or later never arrive."""
+    import tape_log
+    from datetime import datetime, timedelta, timezone
+    ist = timezone(timedelta(hours=5, minutes=30))
+    ms = lambda h, m: int(datetime(2026, 9, 23, h, m, tzinfo=ist).timestamp() * 1000)
+    out = server._session_only({"closed": [{"t": ms(15, 20)}, {"t": ms(15, 25)}, {"t": ms(15, 30)}, {"t": ms(16, 0)}],
+                                "forming": {"t": ms(16, 5)}, "events": [{"t": ms(15, 29)}, {"t": ms(15, 31)}]})
+    assert [b["t"] for b in out["closed"]] == [ms(15, 20), ms(15, 25)]
+    assert out["forming"] is None and [e["t"] for e in out["events"]] == [ms(15, 29)]
+    assert server._session_only({"forming": {"t": ms(15, 25)}})["forming"] == {"t": ms(15, 25)}   # in session: kept
+    monkeypatch.setattr(server.frame_log, "day_path", lambda day: str(tmp_path / f"frame_{day}.jsonl"))
+    monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
+    bars = [dict(_tape()["closed"][0], t=ms(15, m)) for m in (15, 20, 25, 30, 35)]
+    req = _Req("/api/frame", {**_tape(), "closed": bars})
+    server.Handler.do_POST(req)
+    assert req.out[-1][1]["have_bars"] == 3                                   # 15:15, 15:20, 15:25
+    assert len(server._SENSES["tape"]["NIFTY"]["doc"]["closed"]) == 3
+
+
 def test_frame_post_refuses_a_non_5m_interval_with_a_reason(tmp_path):
     req = _Req("/api/frame", _tape(interval=1))
     server.Handler.do_POST(req)

@@ -14,6 +14,7 @@ import json
 import os
 import sys
 
+import daylog
 import oi_dwell
 
 IDXS = ("NIFTY", "BANKNIFTY", "SENSEX")
@@ -21,10 +22,10 @@ IDXS = ("NIFTY", "BANKNIFTY", "SENSEX")
 
 def load(idx, day):
     p = os.path.join("data", "chain", f"chain_{idx}_{day}.jsonl")
-    if not os.path.exists(p):
+    if not daylog.exists(p):                 # plain, or the week-old .gz (daylog.py)
         return None
     out = []
-    for ln in open(p, encoding="utf-8"):
+    for ln in daylog.open_text(p):
         ln = ln.strip()
         if not ln:
             continue

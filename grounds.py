@@ -62,8 +62,16 @@ def _f(state, fact, tag="I"):
     return {"state": state, "fact": fact, "tag": tag}
 
 
-def facts(bars, runs, fronts_rows) -> dict:
-    """The evidence, measured once and shared by every call."""
+def _rank(v, s) -> float:
+    """|v| against today's own W-bar changes of series s, 0..1."""
+    h = [abs(s[i] - s[i - W]) for i in range(W, len(s)) if s[i] is not None and s[i - W] is not None]
+    return sum(1 for x in h if x <= abs(v)) / len(h) if h else 0.0
+
+
+def facts(bars, runs, fronts_rows, runs_why=None) -> dict:
+    """The evidence, measured once and shared by every call. `runs_why` is the
+    run detector's own reason (runs.Runs.why); anything but "checked, none"
+    means it could not look, so zero runs is not zero."""
     out = {}
     b = [x for x in (bars or []) if isinstance(x, dict) and x.get("cvd") is not None
          and None not in (x.get("c"), x.get("h"), x.get("l"), x.get("t"))]
@@ -73,8 +81,7 @@ def facts(bars, runs, fronts_rows) -> dict:
     else:
         a, z = b[-1 - W], b[-1]
         d = z["cvd"] - a["cvd"]
-        hist = [abs(b[i]["cvd"] - b[i - W]["cvd"]) for i in range(W, len(b))]
-        rank = sum(1 for h in hist if h <= abs(d)) / len(hist)
+        rank = _rank(d, [x["cvd"] for x in b])
 
         def div(i_ext, better):
             """A new extreme inside the window whose CVD did not beat its own earlier best."""
@@ -94,7 +101,10 @@ def facts(bars, runs, fronts_rows) -> dict:
                       "div_top": div(hi, 1), "div_bottom": div(lo, -1), "tag": "I"}
         if a.get("oi") is not None and z.get("oi") is not None:
             doi, dpx = z["oi"] - a["oi"], z["c"] - a["c"]
-            q = ("longs building" if dpx > 0 and doi > 0 else "shorts covering" if dpx > 0
+            # a quadrant is named only when both legs are a real move for today, never off noise
+            big = _rank(doi, [x.get("oi") for x in b]) >= STRONG and _rank(dpx, [x["c"] for x in b]) >= STRONG
+            q = ("too small against today's own 15-min changes to read" if not big else
+                 "longs building" if dpx > 0 and doi > 0 else "shorts covering" if dpx > 0
                  else "shorts building" if doi > 0 else "longs exiting")
             out["fut_oi"] = f"futures OI {doi:+,.0f} with price {dpx:+,.1f} since {since}: {q}"
         t0 = b[-W]["t"]
@@ -103,7 +113,8 @@ def facts(bars, runs, fronts_rows) -> dict:
         sk = [s for x in b[-W:] for s in (x.get("stacks") or []) if isinstance(s, dict)]
         out["flow"] = {"buy": rb + sum(1 for s in sk if s.get("side") == "buy"),
                        "sell": rs + sum(1 for s in sk if s.get("side") == "sell"),
-                       "since": since, "tag": "I"}
+                       "since": since, "tag": "I",
+                       "runs_why": runs_why if runs_why not in (None, "checked, none") else None}
     ce = next((f for f in (fronts_rows or []) if f.get("side") == "CE"), None)
     pe = next((f for f in (fronts_rows or []) if f.get("side") == "PE"), None)
     out["oi"] = {"ce": ce, "pe": pe} if (ce or pe) else None
@@ -146,13 +157,18 @@ def _oi(kind, d, F):
         return _f(BLIND, F.get("oi_why"), "M")
     ce, pe = o.get("ce") or {}, o.get("pe") or {}
     tail = f" · {F['fut_oi']}" if F.get("fut_oi") else ""
+    both_gone = ce.get("state") == "UNWINDING" and pe.get("state") == "UNWINDING"
     if kind == "range":
         if ce.get("state") == "BUILDING" and pe.get("state") == "BUILDING":
             return _f(FOR, f"both fronts writing: {_w(ce)}, {_w(pe)}{tail}", "M")
+        if both_gone:
+            return _f(AGAINST, f"both fronts unwinding: {_w(ce)}, {_w(pe)} — the writers holding the range are leaving{tail}", "M")
         gone = next((f for f in (ce, pe) if f.get("state") == "UNWINDING"), None)
         if gone:
             return _f(AGAINST, f"{_w(gone)} — one side is giving up{tail}", "M")
         return _f(FLAT, f"{_w(ce)}, {_w(pe)}{tail}", "M")
+    if both_gone:   # straddle writers leaving both sides says nothing about WHICH way
+        return _f(FLAT, f"both fronts unwinding: {_w(ce)}, {_w(pe)} — writers leaving both sides, no direction{tail}", "M")
     # fuel = the writers who PAY if price goes d (CE for up, PE for down); base = the other side
     fuel, base = (ce, pe) if d > 0 else (pe, ce)
     fs, bs = fuel.get("state"), base.get("state")
@@ -178,13 +194,17 @@ def _flow(kind, d, F):
         return _f(BLIND, F.get("flow_why"))
     nb, ns = f["buy"], f["sell"]
     txt = f"since {f['since']}: {nb} buy / {ns} sell prints of size (fill runs + stacked imbalances)"
+    if f.get("runs_why"):   # "we could not check" is never "we checked and found nothing"
+        if not (nb or ns):
+            return _f(BLIND, f"since {f['since']}: no stacked imbalance; fill runs could not be read — {f['runs_why']}")
+        txt += f"; fill runs could not be read — {f['runs_why']}"
 
     def dom(a, b):
         return a >= 2 and a >= 2 * b
     if kind == "range":
         if dom(nb, ns) or dom(ns, nb):
             return _f(AGAINST, txt + " — one-sided")
-        return _f(FOR, txt + (" — two-sided" if nb or ns else " — quiet"))
+        return _f(FOR, txt + (" — two-sided" if nb and ns else " — thin" if nb or ns else " — quiet"))
     nd, no = (nb, ns) if d > 0 else (ns, nb)
     if kind == "move":
         return _f(FOR, txt) if dom(nd, no) else _f(AGAINST, txt) if dom(no, nd) else _f(FLAT, txt)
@@ -258,9 +278,9 @@ def calls_of(ctx: dict, px) -> list:
     return out
 
 
-def ground(ctx, px, bars, runs, fronts_rows) -> dict:
+def ground(ctx, px, bars, runs, fronts_rows, runs_why=None) -> dict:
     """Every engine call on the latest bar, each with its three families and a status."""
-    F = facts(bars, runs, fronts_rows)
+    F = facts(bars, runs, fronts_rows, runs_why)
     rows = []
     for src, text, kind, d in calls_of(ctx, px):
         if kind is None or (kind != "range" and d is None):
@@ -295,4 +315,17 @@ if __name__ == "__main__":
     assert g["FADE a test "]["status"] == "BACKED"                                  # the exhaustion call is what the tape backs
     assert g["WHATEVER new"]["status"] == "PATA NAHI"                               # an unknown play is never passed as grounded
     assert ground({}, None, [], [], [])["calls"] == []
+    # the close, 2026-09-23: both ATM fronts unwinding, a quiet last 15 min after a day of big swings
+    day = [{"t": ms(10, 5 * i), "h": c + 5, "l": c - 5, "c": c, "cvd": c, "oi": oi, "stacks": []}
+           for i, (c, oi) in enumerate([(100, 0), (150, 5000)] * 3 + [(151, 5010), (152, 5020), (153, 5030)])]
+    both = [{"side": "CE", "k": 23400.0, "state": "UNWINDING"}, {"side": "PE", "k": 23400.0, "state": "UNWINDING"}]
+    ctx = {"verdict": "STAND ASIDE", "vwhy": "pin/chop", "breadth": "STRONG BULL", "plays": ["BREAK of 140 (x)"]}
+    G = ground(ctx, 153.0, day, [{"t": ms(10, 42), "side": -1}], both)
+    v, up, dn = G["calls"]
+    assert up["oi"]["state"] == dn["oi"]["state"] == FLAT     # covering on BOTH sides backs neither direction
+    assert v["oi"]["state"] == AGAINST and "both fronts" in v["oi"]["fact"]
+    assert v["flow"]["fact"].endswith("— thin")                # one print is not "two-sided"
+    assert "too small" in G["facts"]["fut_oi"]                 # +30 OI on +3 points is not "longs building"
+    blind = ground(ctx, 153.0, day, [], both, runs_why="fewer than 50 fills in the last 20 minutes")["calls"][0]
+    assert blind["flow"]["state"] == BLIND                     # a detector that could not rank is not "quiet"
     print("grounds demo ok")

@@ -66,7 +66,9 @@ def test_the_loop_assigns_the_hook_watches_the_futures_and_drains_outside_the_lo
     block (the drain itself, book_log.flush included, is `_ux_drain`, tested
     end to end below)."""
     src = inspect.getsource(server._senses_loop)
-    i_hook = src.index("feed.on_frame = _SENSES[\"book\"].on_frame")
+    # the hook lives in _hook_book since 2026-09-23 (on only inside the session)
+    assert "feed.on_frame = _SENSES[\"book\"].on_frame" in inspect.getsource(server._hook_book)
+    i_hook = src.index("_hook_book(feed, live)")
     i_watch = src.index("_SENSES[\"book\"].watch(idx, r.get(\"fut_key\"))")
     i_lock_end = src.index("# 5a/5b, OUTSIDE _SENSES_LOCK")
     i_drain = src.index("_ux_drain(")
@@ -100,8 +102,8 @@ def test_ux_drain_resets_runs_and_impact_even_when_ofd_lot_raises(monkeypatch):
     """A raise inside `_ofd_lot` happens BEFORE `lot` is resolved, so the old
     code path (which reset runs/impact inline, after the lot lookup) would
     leave yesterday's machines in place under `st["day"] == today`. The reset
-    now lives in `finally`, so it runs regardless of where the exception
-    lands."""
+    now runs before the rebuild AND in `except`, so it runs regardless of
+    where the exception lands."""
     import runs as runs_mod
     import impact as impact_mod
     stale_impact = impact_mod.Impact(lot=65, tick=0.05)
@@ -118,6 +120,41 @@ def test_ux_drain_resets_runs_and_impact_even_when_ofd_lot_raises(monkeypatch):
     assert st["rebuild_why"] == "rebuild failed: RuntimeError: no lot"
     assert st["impact"] is not stale_impact and st["impact"].read()["n"] == 0
     assert st["day"] == "2026-09-21"
+
+
+def test_the_book_record_is_hooked_only_inside_the_session():
+    """After the close the feed ran on to ~15:40 and every recorder wrote a
+    closed book down (2026-09-23). Outside 09:15-15:30 the hook is off and
+    nothing is observed -- but `watch()` still runs first, because a restart
+    after the close rebuilds the day's ladder and runs from the watched set."""
+    class Feed:
+        on_frame = None
+    f = Feed()
+    server._hook_book(f, True)
+    assert f.on_frame == server._SENSES["book"].on_frame
+    server._hook_book(f, False)
+    assert f.on_frame is None
+    src = inspect.getsource(server._senses_loop)
+    assert (src.index("in_session(") < src.index("_hook_book(") < src.index('_SENSES["book"].watch(')
+            < src.index("if not live") < src.index("obj.observe("))
+
+
+def test_ux_drain_keeps_the_machines_the_rebuild_fed(monkeypatch):
+    """A restart replays the day through `_ux_observe`; the run detector it fed
+    must be the one left standing. (2026-09-23: a reset in `finally` ran AFTER
+    the rebuild, so every run before a restart vanished and /api/calls read
+    the blind window as "0 buy / 0 sell -- quiet".)"""
+    st = {"lot": 65, "tick": 0.05, "day": "2026-09-20", "rebuild_why": None, "runs": None, "impact": None}
+    monkeypatch.setitem(server._SENSES, "ux", {"NIFTY": st})
+    fed = []
+    monkeypatch.setattr(ux_log, "state", lambda *a, **k: None)
+    monkeypatch.setattr(ux_log, "rebuild", lambda *a, **k: fed.append((st["runs"], st["impact"])) or 0)
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", "FUT_KEY")
+    monkeypatch.setitem(server._SENSES, "book", b)
+    server._ux_drain("2026-09-21")
+    assert fed and fed[0][0] is not None
+    assert (st["runs"], st["impact"]) == fed[0] and st["rebuild_why"] is None
 
 
 def test_ux_drain_names_a_failed_flush_sticky_until_the_day_rolls(monkeypatch):
