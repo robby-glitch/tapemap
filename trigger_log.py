@@ -87,6 +87,7 @@ no `px` and no outcome, and `score` / `backfill` skip them by name.
 import json
 import os
 import re
+import threading
 import time
 
 import band_rotation
@@ -96,6 +97,11 @@ import fronts                   # research-findings §1d: the fade gate
 PATH = os.path.join("data", "trigger_log.jsonl")
 
 _seen = None            # {(day, index, t, side, band, rule, kind)} on disk
+# server.py runs one refresh thread per index. _load_seen publishes `_seen`
+# before it has read the file, so without this a second index could dedupe
+# against a half-read record: at the 2026-09-23 17:43 restart BANKNIFTY
+# re-wrote 7 of its morning rows that way.
+_seen_lock = threading.Lock()
 
 
 def _key(row):
@@ -376,6 +382,13 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
         day_js = (payload.get("days") or [None])[-1]
         if not day_js:
             return 0
+        # A payload from another session never logs. At 00:00:05 on 2026-09-25
+        # BANKNIFTY's refresh still held the 09-24 session ("Sep 24 LIVE") and
+        # every row got the NEW date -- new keys, so all 9 were written again.
+        # live.py labels the session with the same strftime.
+        lbl = str(day_js.get("day") or "")
+        if lbl and not lbl.startswith(time.strftime("%b %d")):
+            return 0
         bars = day_js.get("bars") or []
         # BOTH sides of §5c's TWO-CANDLE rule -- the entries the chart marks.
         #
@@ -399,8 +412,9 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
             rot = [b if b is not None else s_ for b, s_ in zip(rot, sell)]
         elif sell and not rot:
             rot = sell
-        if _seen is None:
-            _load_seen(path)
+        with _seen_lock:
+            if _seen is None:
+                _load_seen(path)
         day = time.strftime("%Y-%m-%d")
 
         # The WHOLE mark series, not its last row: every row written below

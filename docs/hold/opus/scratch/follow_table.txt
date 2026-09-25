@@ -1,0 +1,33 @@
+09-22 09:42 NIFTY 23300CE                                  in   166.4 | her out 10:20  159.15 (-7.25) | window FOLD 10:25                 148.85 (-17.55) broken
+09-22 10:32 NIFTY 23550PE                                  in   134.8 | her out 10:38  144.05 (9.25) | window FOLD 11:19                 170.65 (35.85) broken
+09-22 10:42 NIFTY 23550PE                                  in  174.75 | her out 10:42  186.95 (12.2) | window FOLD 11:19                 170.65 (-4.1) broken
+09-22 10:43 NIFTY 23550PE                                  in  175.05 | her out 10:43   171.6 (-3.45) | window FOLD 11:19                 170.65 (-4.4) broken
+09-22 10:44 NIFTY 23550PE                                  in   171.5 | her out 10:44     174 (2.5) | window FOLD 11:19                 170.65 (-0.85) broken
+09-22 10:52 NIFTY 23500PE                                  in  146.15 | her out 10:55     133 (-13.15) | window FOLD 11:19                  126.1 (-20.05) broken
+09-22 13:48 NIFTY 23500PE                                  in   181.5 | her out 13:54   203.2 (21.7) | window FOLD 13:47                  176.5 (-5) broken
+09-23 09:18 NIFTY 23450CE                                  in     100 | her out 09:25      99 (-1) | window FOLD 09:50                  91.15 (-8.85) gone
+09-23 09:47 NIFTY 23450CE                                  in    99.4 | her out 09:49   91.75 (-7.65) | window FOLD 09:57                   91.7 (-7.7) broken
+09-23 09:49 NIFTY 23400PE                                  in     125 | her out 09:53   124.2 (-0.8) | window FOLD 10:19                 105.85 (-19.15) broken
+09-23 10:00 NIFTY 23450CE                                  in    98.6 | her out 10:09    90.8 (-7.8) | window FOLD 09:59                   96.6 (-2) broken
+09-23 10:19 NIFTY 23450CE                                  in  101.85 | her out 10:31     105 (3.15) | window FOLD 10:40                  107.5 (5.65) broken
+09-23 10:33 NIFTY 23450CE                                  in  106.45 | her out 11:04     106 (-0.45) | window FOLD 10:40                  107.5 (1.05) broken
+09-23 11:07 NIFTY 23450CE                                  in  115.65 | her out 11:16     110 (-5.65) | window FOLD 11:37                  117.1 (1.45) broken
+09-23 11:32 SENSEX 74900CE                                 in  215.25 | her out 11:40     200 (-15.25) | window FOLD 12:06                  256.2 (40.95) broken
+09-24 09:42 SENSEX 74200PE                                 in  179.25 | her out 09:47     203 (23.75) | window FOLD 10:14                 194.45 (15.2) broken
+09-24 10:19 SENSEX 74200PE                                 in   222.6 | her out 10:23     234 (11.4) | window FOLD 10:37                  178.9 (-43.7) broken
+09-24 12:32 SENSEX 74100PE                                 in  202.35 | her out 12:33     216 (13.65) | window FOLD 13:12                  200.4 (-1.95) broken
+09-24 12:35 SENSEX 74000PE                                 in   179.8 | her out 12:38     161 (-18.8) | window FOLD 13:12                  148.6 (-31.2) broken
+09-24 12:44 SENSEX 74000PE                                 in  167.95 | her out 12:50     160 (-7.95) | window FOLD 13:12                  148.6 (-19.35) broken
+09-24 13:26 SENSEX 74000PE                                 in   184.2 | her out 13:27     220 (35.8) | window FOLD 13:50                 333.85 (149.65) broken
+09-24 13:41 SENSEX 73900PE                                 in  190.03 | her out 13:43  192.98 (2.95) | window FOLD 13:50                 268.75 (78.72) broken
+09-24 13:43 SENSEX 73900PE                                 in  206.55 | her out 13:43   207.3 (0.75) | window FOLD 13:50                 268.75 (62.2) broken
+09-24 13:44 SENSEX 73900PE                                 in  230.45 | her out 13:44   237.6 (7.15) | window FOLD 13:50                 268.75 (38.3) broken
+09-24 13:45 SENSEX 73800PE                                 in  211.05 | her out 13:46  217.05 (6) | window FOLD 13:50                  207.4 (-3.65) broken
+09-24 13:54 SENSEX 73800PE                                 in  252.15 | her out 13:55     240 (-12.15) | window FOLD 13:53                 231.95 (-20.2) broken
+09-24 13:57 SENSEX 73800PE                                 in   267.4 | her out 13:58     297 (29.6) | window FOLD 14:40                 182.15 (-85.25) broken
+09-24 14:23 SENSEX 73800PE                                 in  287.45 | her out 14:23   294.8 (7.35) | window FOLD 14:40                 182.15 (-105.3) broken
+EX 09-23 09:57 SENSEX zone BUY (gate legal) · long ATM CE  in  237.15 | her out   -         - (-) | window FOLD 09:59                 237.15 (0) broken
+EX 09-23 09:57 NIFTY zone BUY (gate illegal) · long ATM CE in  121.65 | her out   -         - (-) | window FOLD 09:59                 121.65 (0) broken
+EX 09-23 11:15 NIFTY zone u2 SELL · WRITER short ATM CE    in   135.9 | her out   -         - (-) | window FOLD 11:18                 135.85 (0.05) broken
+EX 09-24 10:30 SENSEX · WRITER short ATM CE                in   183.3 | her out   -         - (-) | window FOLD 10:40                 197.15 (-13.85) broken
+EX 09-24 09:45 SENSEX · WRITER short ATM PE                in   182.6 | her out   -         - (-) | window FOLD 09:46                  196.2 (-13.6) broken

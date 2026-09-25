@@ -1,0 +1,2290 @@
+[
+ {
+  "id": "09-21 14:00 NIFTY 23300CE",
+  "blind": "could not check — no chain record for NIFTY on 2026-09-21"
+ },
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23300,
+  "p0": 166.4,
+  "px": 159.15,
+  "pnl": -471.25,
+  "qty": 65,
+  "entry": {
+   "t": "09:41",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,450 still adding (+197.6L) — writers adding in its way",
+   "n_for": 1,
+   "n_against": 3
+  },
+  "exits": [
+   {
+    "t": "10:19",
+    "word": "HOLD · NOISE",
+    "line": "Noise — what holds this trade has not changed: put writers holding: PE 23,450 still adding (+244.9L) · CVD +422 since 10:00, your way (rank 0.78)",
+    "for": [
+     "put writers holding: PE 23,450 still adding (+244.9L)",
+     "CVD +422 since 10:00, your way (rank 0.78)"
+    ],
+    "against": [
+     "prints against you: 2 sell / 1 buy"
+    ],
+    "paidLast": "10:19",
+    "quietFor": 0,
+    "prem": {
+     "c": 164.3,
+     "o": 166.05,
+     "vw": 160.02,
+     "sd": 6.61,
+     "src": "I",
+     "z": 0.6475037821482603,
+     "pnl": -136.49999999999963,
+     "pct": -1.262019230769229,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "09:41",
+   "line": "Watch, not an exit: CE 23,450 still adding (+197.6L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "10:25",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,500 folded 10:25, and the prints turned against you",
+   "prem": 148.85
+  },
+  "afterExit": {
+   "words": [
+    "HOLD · NOISE",
+    "FOLD"
+   ],
+   "firstFold": "10:25"
+  },
+  "premExit": 164.3,
+  "next30Best": 161.75,
+  "next30Worst": 99.65,
+  "close": 28.85,
+  "path": [
+   "09:41 WATCH",
+   "10:02 HOLD · NOISE",
+   "10:05 WATCH",
+   "10:06 HOLD · NOISE",
+   "10:07 HOLD",
+   "10:10 HOLD · NOISE",
+   "10:11 HOLD",
+   "10:12 HOLD · NOISE",
+   "10:13 HOLD",
+   "10:15 HOLD · NOISE",
+   "10:25 FOLD"
+  ]
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23550,
+  "p0": 134.8,
+  "px": 144.05,
+  "pnl": 601.25,
+  "qty": 65,
+  "entry": {
+   "t": "10:31",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+   "n_for": 4,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "10:37",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 23,400 giving back, 29% off its 10:19 high",
+     "PE 23,350 folded 10:36",
+     "call writers holding: CE 23,450 still adding (+308.1L)",
+     "CVD -765 since 10:20, your way (rank 1.00)",
+     "prints your way: 9 sell / 1 buy"
+    ],
+    "against": [
+     "CE 23,550 folded 10:31 — the call writers holding your trade left"
+    ],
+    "paidLast": "10:37",
+    "quietFor": 0,
+    "prem": {
+     "c": 144.8,
+     "o": 145.4,
+     "vw": 118.15,
+     "sd": 11.45,
+     "src": "I",
+     "z": 2.327510917030568,
+     "pnl": 650,
+     "pct": 7.41839762611276,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:31",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD"
+   ],
+   "firstFold": null
+  },
+  "premExit": 144.8,
+  "next30Best": 190.45,
+  "next30Worst": 146.5,
+  "close": 220.7,
+  "path": [
+   "10:31 WATCH",
+   "10:47 HOLD · NOISE",
+   "10:48 HOLD",
+   "10:49 HOLD · NOISE",
+   "10:50 HOLD",
+   "10:51 HOLD · NOISE",
+   "10:52 HOLD",
+   "10:53 WATCH"
+  ]
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23550,
+  "p0": 174.75,
+  "px": 186.95,
+  "pnl": 793,
+  "qty": 65,
+  "entry": {
+   "t": "10:41",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+   "n_for": 5,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "10:41",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 23,400 giving back, 33% off its 10:19 high",
+     "PE 23,350 folded 10:36",
+     "call writers holding: CE 23,450 still adding (+324.9L)",
+     "CVD -1146 since 10:25, your way (rank 1.00)",
+     "prints your way: 8 sell / 0 buy"
+    ],
+    "against": [
+     "CE 23,550 folded 10:31 — the call writers holding your trade left"
+    ],
+    "paidLast": "10:41",
+    "quietFor": 0,
+    "prem": {
+     "c": 159.35,
+     "o": 147.7,
+     "vw": 119.93,
+     "sd": 13.34,
+     "src": "I",
+     "z": 2.9550224887556213,
+     "pnl": -1001.0000000000003,
+     "pct": -8.81258941344779,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:41",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD"
+   ],
+   "firstFold": null
+  },
+  "premExit": 159.35,
+  "next30Best": 190.45,
+  "next30Worst": 166.95,
+  "close": 220.7,
+  "path": [
+   "10:41 WATCH",
+   "10:47 HOLD · NOISE",
+   "10:48 HOLD",
+   "10:49 HOLD · NOISE",
+   "10:50 HOLD",
+   "10:51 HOLD · NOISE",
+   "10:52 HOLD",
+   "10:53 WATCH",
+   "11:09 HOLD · NOISE",
+   "11:10 HOLD",
+   "11:11 WATCH"
+  ]
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23550,
+  "p0": 175.05,
+  "px": 171.6,
+  "pnl": -224.25,
+  "qty": 65,
+  "entry": {
+   "t": "10:42",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+   "n_for": 5,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "10:42",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 23,400 giving back, 63% off its 10:19 high",
+     "PE 23,250 folded 10:42",
+     "call writers holding: CE 23,450 still adding (+307.6L)",
+     "CVD -1146 since 10:25, your way (rank 1.00)",
+     "prints your way: 9 sell / 0 buy"
+    ],
+    "against": [
+     "CE 23,550 folded 10:31 — the call writers holding your trade left"
+    ],
+    "paidLast": "10:42",
+    "quietFor": 0,
+    "prem": {
+     "c": 179.65,
+     "o": 170.75,
+     "vw": 122.29,
+     "sd": 17.32,
+     "src": "I",
+     "z": 3.3117782909930713,
+     "pnl": 298.99999999999966,
+     "pct": 2.6278206226792333,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:42",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD"
+   ],
+   "firstFold": null
+  },
+  "premExit": 179.65,
+  "next30Best": 190.45,
+  "next30Worst": 166.95,
+  "close": 220.7,
+  "path": [
+   "10:42 WATCH",
+   "10:47 HOLD · NOISE",
+   "10:48 HOLD",
+   "10:49 HOLD · NOISE",
+   "10:50 HOLD",
+   "10:51 HOLD · NOISE",
+   "10:52 HOLD",
+   "10:53 WATCH",
+   "11:09 HOLD · NOISE",
+   "11:10 HOLD",
+   "11:11 WATCH"
+  ]
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23550,
+  "p0": 171.5,
+  "px": 174,
+  "pnl": 162.5,
+  "qty": 65,
+  "entry": {
+   "t": "10:43",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+   "n_for": 5,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "10:43",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 23,400 giving back, 68% off its 10:19 high",
+     "PE 23,250 folded 10:42",
+     "call writers holding: CE 23,450 still adding (+304.1L)",
+     "CVD -1146 since 10:25, your way (rank 1.00)",
+     "prints your way: 9 sell / 0 buy"
+    ],
+    "against": [
+     "CE 23,550 folded 10:31 — the call writers holding your trade left"
+    ],
+    "paidLast": "10:43",
+    "quietFor": 0,
+    "prem": {
+     "c": 166.95,
+     "o": 175.85,
+     "vw": 122.82,
+     "sd": 17.93,
+     "src": "I",
+     "z": 2.4612381483547128,
+     "pnl": -295.75000000000074,
+     "pct": -2.6530612244898055,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:43",
+   "line": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD"
+   ],
+   "firstFold": null
+  },
+  "premExit": 166.95,
+  "next30Best": 190.45,
+  "next30Worst": 168.3,
+  "close": 220.7,
+  "path": [
+   "10:43 WATCH",
+   "10:47 HOLD · NOISE",
+   "10:48 HOLD",
+   "10:49 HOLD · NOISE",
+   "10:50 HOLD",
+   "10:51 HOLD · NOISE",
+   "10:52 HOLD",
+   "10:53 WATCH",
+   "11:09 HOLD · NOISE",
+   "11:10 HOLD",
+   "11:11 WATCH"
+  ]
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23500,
+  "p0": 146.15,
+  "px": 133,
+  "pnl": -854.75,
+  "qty": 65,
+  "entry": {
+   "t": "10:51",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers paying: PE 23,400 giving back, 69% off its 10:19 high · PE 23,250 folded 10:42",
+   "n_for": 5,
+   "n_against": 0
+  },
+  "exits": [
+   {
+    "t": "10:54",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 23,500 folded 10:53 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 23,400 giving back, 77% off its 10:19 high",
+     "PE 23,250 folded 10:42",
+     "CVD -1024 since 10:35, your way (rank 0.88)",
+     "prints your way: 6 sell / 1 buy"
+    ],
+    "against": [
+     "CE 23,500 folded 10:53 — the call writers holding your trade left"
+    ],
+    "paidLast": "10:54",
+    "quietFor": 0,
+    "prem": {
+     "c": 137,
+     "o": 141.85,
+     "vw": 87.74,
+     "sd": 20.26,
+     "src": "I",
+     "z": 2.431391905231984,
+     "pnl": -594.7500000000003,
+     "pct": -6.260691070817659,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:53",
+   "line": "Watch, not an exit: CE 23,500 folded 10:53 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "11:19",
+   "kind": "broken",
+   "line": "Thesis broken: CE 23,300 folded 11:19, and PE writers are adding in its way",
+   "prem": 126.1
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "11:19"
+  },
+  "premExit": 137,
+  "next30Best": 137.65,
+  "next30Worst": 115.7,
+  "close": 170.6,
+  "path": [
+   "10:51 HOLD · NOISE",
+   "10:53 WATCH",
+   "11:09 HOLD · NOISE",
+   "11:10 HOLD",
+   "11:11 WATCH",
+   "11:19 FOLD"
+  ]
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23500,
+  "p0": 181.5,
+  "px": 203.2,
+  "pnl": 1410.5,
+  "qty": 65,
+  "entry": {
+   "t": "13:47",
+   "word": "FOLD",
+   "line": "Thesis broken: CE 23,350 folded 13:43, and the prints turned against you",
+   "n_for": 1,
+   "n_against": 2
+  },
+  "exits": [
+   {
+    "t": "13:53",
+    "word": "FOLD",
+    "line": "Thesis broken: CE 23,350 folded 13:43, and the prints turned against you (13:47) · the break has healed since — a re-entry is a new trade",
+    "for": [
+     "put writers paying: PE 23,300 giving back, 26% off its 13:15 high",
+     "PE 23,100 folded 13:51",
+     "CVD -294 since 13:35, your way (rank 0.69)",
+     "prints your way: 6 sell / 3 buy"
+    ],
+    "against": [
+     "CE 23,350 folded 13:43 — the call writers holding your trade left"
+    ],
+    "paidLast": "13:53",
+    "quietFor": 0,
+    "prem": {
+     "c": 195.25,
+     "o": 189.4,
+     "vw": 106.5,
+     "sd": 34.14,
+     "src": "I",
+     "z": 2.5995899238429994,
+     "pnl": 893.75,
+     "pct": 7.575757575757569,
+     "adverse": false
+    }
+   }
+  ],
+  "firstFold": {
+   "t": "13:47",
+   "kind": "broken",
+   "line": "Thesis broken: CE 23,350 folded 13:43, and the prints turned against you",
+   "prem": 176.5
+  },
+  "afterExit": {
+   "words": [
+    "FOLD"
+   ],
+   "firstFold": "13:54"
+  },
+  "premExit": 195.25,
+  "next30Best": 222.5,
+  "next30Worst": 114.25,
+  "close": 170.6,
+  "path": [
+   "13:47 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23450,
+  "p0": 100,
+  "px": 99,
+  "pnl": -65,
+  "qty": 65,
+  "entry": {
+   "t": "09:17",
+   "word": "PATA NAHI",
+   "line": "could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 2 so far",
+   "n_for": 0,
+   "n_against": 0
+  },
+  "exits": [
+   {
+    "t": "09:24",
+    "word": "PATA NAHI",
+    "line": "could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 9 so far",
+    "for": [],
+    "against": [],
+    "prem": {
+     "c": 105.2,
+     "o": 106.7,
+     "vw": 104.12,
+     "sd": 6.45,
+     "src": "M",
+     "z": 0.167441860465116,
+     "pnl": 338.00000000000017,
+     "pct": 5.200000000000005,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "09:32",
+   "line": "Watch, not an exit: CE 23,400 still adding (+42.1L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "09:50",
+   "kind": "gone",
+   "line": "Reason gone: nothing has paid for this trade in 15 min — nobody forced, nobody pressing your way",
+   "prem": 91.15
+  },
+  "afterExit": {
+   "words": [
+    "PATA NAHI",
+    "HOLD · NOISE",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "09:50"
+  },
+  "premExit": 105.2,
+  "next30Best": 100.55,
+  "next30Worst": 86.75,
+  "close": 107.2,
+  "path": [
+   "09:17 PATA NAHI",
+   "09:30 HOLD · NOISE",
+   "09:32 WATCH",
+   "09:50 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23450,
+  "p0": 99.4,
+  "px": 91.75,
+  "pnl": -497.25,
+  "qty": 65,
+  "entry": {
+   "t": "09:46",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,400 still adding (+56.1L) — writers adding in its way",
+   "n_for": 1,
+   "n_against": 3
+  },
+  "exits": [
+   {
+    "t": "09:48",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 23,400 still adding (+56.8L) — writers adding in its way",
+    "for": [
+     "put writers holding: PE 23,400 still adding (+43.4L)"
+    ],
+    "against": [
+     "CE 23,400 still adding (+56.8L) — writers adding in its way",
+     "CVD -529 since 09:30, against you (rank 0.67)",
+     "prints against you: 2 sell / 0 buy"
+    ],
+    "paidLast": null,
+    "quietFor": 3,
+    "prem": {
+     "c": 93.25,
+     "o": 98.9,
+     "vw": 100.2,
+     "sd": 6.04,
+     "src": "M",
+     "z": -1.1506622516556295,
+     "pnl": -399.75000000000034,
+     "pct": -6.187122736418516,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "09:46",
+   "line": "Watch, not an exit: CE 23,400 still adding (+56.1L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "09:57",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way",
+   "prem": 91.7
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "09:57"
+  },
+  "premExit": 93.25,
+  "next30Best": 100.4,
+  "next30Worst": 86.75,
+  "close": 107.2,
+  "path": [
+   "09:46 WATCH",
+   "09:57 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 23400,
+  "p0": 125,
+  "px": 124.2,
+  "pnl": -52,
+  "qty": 65,
+  "entry": {
+   "t": "09:48",
+   "word": "WATCH",
+   "line": "Watch, not an exit: PE 23,400 still adding (+43.4L) — writers adding in its way",
+   "n_for": 3,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "09:52",
+    "word": "WATCH",
+    "line": "Watch, not an exit: PE 23,400 still adding (+47.7L) — writers adding in its way",
+    "for": [
+     "call writers holding: CE 23,400 still adding (+57.7L)",
+     "prints your way: 3 sell / 0 buy"
+    ],
+    "against": [
+     "PE 23,400 still adding (+47.7L) — writers adding in its way",
+     "divergence: new low 23,385 at 09:45 with CVD -348, above its 09:40 trough -355"
+    ],
+    "paidLast": "09:52",
+    "quietFor": 0,
+    "prem": {
+     "c": 127.75,
+     "o": 127.25,
+     "vw": 118.87,
+     "sd": 5.35,
+     "src": "M",
+     "z": 1.6598130841121488,
+     "pnl": 178.75,
+     "pct": 2.200000000000002,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "09:48",
+   "line": "Watch, not an exit: PE 23,400 still adding (+43.4L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "10:19",
+   "kind": "broken",
+   "line": "Thesis broken: CE 23,300 folded 10:19, and PE writers are adding in its way",
+   "prem": 105.85
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "10:19"
+  },
+  "premExit": 127.75,
+  "next30Best": 130.8,
+  "next30Worst": 105.7,
+  "close": 81.15,
+  "path": [
+   "09:48 WATCH",
+   "09:57 HOLD · NOISE",
+   "10:11 HOLD",
+   "10:12 WATCH",
+   "10:19 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23450,
+  "p0": 98.6,
+  "px": 90.8,
+  "pnl": -507,
+  "qty": 65,
+  "entry": {
+   "t": "09:59",
+   "word": "FOLD",
+   "line": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way",
+   "n_for": 1,
+   "n_against": 3
+  },
+  "exits": [
+   {
+    "t": "10:08",
+    "word": "FOLD",
+    "line": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way (09:59)",
+    "for": [],
+    "against": [
+     "PE 23,500 folded 10:01 — the put writers holding your trade left",
+     "CVD -301 since 09:50, against you (rank 0.57)",
+     "prints against you: 4 sell / 0 buy"
+    ],
+    "paidLast": null,
+    "quietFor": 10,
+    "prem": {
+     "c": 91.95,
+     "o": 93.35,
+     "vw": 97.96,
+     "sd": 6.3,
+     "src": "M",
+     "z": -0.9539682539682526,
+     "pnl": -432.24999999999943,
+     "pct": -6.744421906693699,
+     "adverse": true
+    }
+   }
+  ],
+  "firstFold": {
+   "t": "09:59",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way",
+   "prem": 96.6
+  },
+  "afterExit": {
+   "words": [
+    "FOLD"
+   ],
+   "firstFold": "10:09"
+  },
+  "premExit": 91.95,
+  "next30Best": 109.15,
+  "next30Worst": 87.95,
+  "close": 107.2,
+  "path": [
+   "09:59 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23450,
+  "p0": 101.85,
+  "px": 105,
+  "pnl": 204.75,
+  "qty": 65,
+  "entry": {
+   "t": "10:18",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers holding: PE 23,400 still adding (+55.0L)",
+   "n_for": 1,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "10:30",
+    "word": "HOLD",
+    "line": "Reason intact: call writers paying: CE 23,400 giving back, 13% off its 10:15 high · CE 23,450 folded 10:26",
+    "for": [
+     "call writers paying: CE 23,400 giving back, 13% off its 10:15 high",
+     "CE 23,450 folded 10:26",
+     "put writers holding: PE 23,400 still adding (+65.7L)"
+    ],
+    "against": [
+     "prints against you: 2 sell / 1 buy"
+    ],
+    "paidLast": "10:30",
+    "quietFor": 0,
+    "prem": {
+     "c": 104.1,
+     "o": 102.85,
+     "vw": 98.1,
+     "sd": 6.02,
+     "src": "M",
+     "z": 0.9966777408637875,
+     "pnl": 146.25,
+     "pct": 2.2091310751104487,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:38",
+   "line": "Watch, not an exit: PE 23,350 folded 10:38 — the put writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "10:40",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence)",
+   "prem": 107.5
+  },
+  "afterExit": {
+   "words": [
+    "HOLD",
+    "HOLD · NOISE",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "10:40"
+  },
+  "premExit": 104.1,
+  "next30Best": 111.2,
+  "next30Worst": 100.65,
+  "close": 107.2,
+  "path": [
+   "10:18 HOLD · NOISE",
+   "10:19 HOLD",
+   "10:21 HOLD · NOISE",
+   "10:23 HOLD",
+   "10:24 HOLD · NOISE",
+   "10:27 HOLD",
+   "10:29 HOLD · NOISE",
+   "10:30 HOLD",
+   "10:34 HOLD · NOISE",
+   "10:36 HOLD",
+   "10:38 WATCH",
+   "10:40 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23450,
+  "p0": 106.45,
+  "px": 106,
+  "pnl": -29.25,
+  "qty": 65,
+  "entry": {
+   "t": "10:32",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: call writers paying: CE 23,400 giving back, 11% off its 10:15 high · CE 23,450 folded 10:26",
+   "n_for": 3,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "11:03",
+    "word": "FOLD",
+    "line": "Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence) (10:40) · the break has healed since — a re-entry is a new trade",
+    "for": [
+     "call writers paying: CE 23,400 giving back, 22% off its 10:15 high",
+     "CE 23,500 folded 10:56",
+     "put writers holding: PE 23,400 still adding (+93.8L)"
+    ],
+    "against": [
+     "divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433",
+     "prints against you: 2 sell / 0 buy"
+    ],
+    "paidLast": "11:03",
+    "quietFor": 0,
+    "prem": {
+     "c": 108.85,
+     "o": 109.6,
+     "vw": 100.78,
+     "sd": 6.9,
+     "src": "M",
+     "z": 1.1695652173913034,
+     "pnl": 155.99999999999943,
+     "pct": 2.2545796148426334,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "10:38",
+   "line": "Watch, not an exit: PE 23,350 folded 10:38 — the put writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "10:40",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence)",
+   "prem": 107.5
+  },
+  "afterExit": {
+   "words": [
+    "FOLD"
+   ],
+   "firstFold": "11:04"
+  },
+  "premExit": 108.85,
+  "next30Best": 119.55,
+  "next30Worst": 107.7,
+  "close": 107.2,
+  "path": [
+   "10:32 HOLD · NOISE",
+   "10:37 HOLD",
+   "10:38 WATCH",
+   "10:40 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 23450,
+  "p0": 115.65,
+  "px": 110,
+  "pnl": -367.25,
+  "qty": 65,
+  "entry": {
+   "t": "11:06",
+   "word": "WATCH",
+   "line": "Watch, not an exit: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433",
+   "n_for": 3,
+   "n_against": 2
+  },
+  "exits": [
+   {
+    "t": "11:15",
+    "word": "WATCH",
+    "line": "Watch, not an exit: divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433",
+    "for": [
+     "call writers paying: CE 23,400 giving back, 28% off its 10:15 high",
+     "CE 23,650 folded 11:06"
+    ],
+    "against": [
+     "divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433",
+     "prints against you: 5 sell / 0 buy"
+    ],
+    "paidLast": "11:15",
+    "quietFor": 0,
+    "prem": {
+     "c": 112.45,
+     "o": 115.8,
+     "vw": 102.37,
+     "sd": 7.74,
+     "src": "M",
+     "z": 1.3023255813953485,
+     "pnl": -208.00000000000017,
+     "pct": -2.7669693039342858,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "11:06",
+   "line": "Watch, not an exit: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433"
+  },
+  "firstFold": {
+   "t": "11:37",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,300 folded 11:37, and the move is not being paid for (CVD divergence)",
+   "prem": 117.1
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD · NOISE",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "11:37"
+  },
+  "premExit": 112.45,
+  "next30Best": 119.55,
+  "next30Worst": 107.7,
+  "close": 107.2,
+  "path": [
+   "11:06 WATCH",
+   "11:25 HOLD · NOISE",
+   "11:31 HOLD",
+   "11:34 HOLD · NOISE",
+   "11:36 HOLD",
+   "11:37 FOLD"
+  ]
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "mine": true,
+  "role": "long",
+  "side": "CE",
+  "k": 74900,
+  "p0": 215.25,
+  "px": 200,
+  "pnl": -305,
+  "qty": 20,
+  "entry": {
+   "t": "11:31",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers holding: PE 74,700 still adding (+31.7L)",
+   "n_for": 1,
+   "n_against": 0
+  },
+  "exits": [
+   {
+    "t": "11:39",
+    "word": "HOLD · NOISE",
+    "line": "Noise — what holds this trade has not changed: call writers paying: CE 75,000 giving back, 15% off its 09:59 high · CE 74,900 folded 11:38",
+    "for": [
+     "call writers paying: CE 75,000 giving back, 15% off its 09:59 high",
+     "CE 74,900 folded 11:38"
+    ],
+    "against": [
+     "divergence: new high 74,880 at 11:30 with CVD +1, under its 11:05 peak +15"
+    ],
+    "paidLast": "11:39",
+    "quietFor": 0,
+    "prem": {
+     "c": 204.5,
+     "o": 210.65,
+     "vw": 177.67,
+     "sd": 24.16,
+     "src": "M",
+     "z": 1.110513245033113,
+     "pnl": -215,
+     "pct": -4.994192799070851,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "11:51",
+   "line": "Watch, not an exit: CE 75,000 still adding (+20.8L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "12:06",
+   "kind": "broken",
+   "line": "Thesis broken: PE 74,600 folded 12:06, and the move is not being paid for (CVD divergence)",
+   "prem": 256.2
+  },
+  "afterExit": {
+   "words": [
+    "HOLD · NOISE",
+    "HOLD",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "12:06"
+  },
+  "premExit": 204.5,
+  "next30Best": 256.2,
+  "next30Worst": 190.75,
+  "close": 166.7,
+  "path": [
+   "11:31 HOLD · NOISE",
+   "11:32 HOLD",
+   "11:34 HOLD · NOISE",
+   "11:46 HOLD",
+   "11:48 HOLD · NOISE",
+   "11:51 WATCH",
+   "11:54 HOLD",
+   "11:55 HOLD · NOISE",
+   "11:59 HOLD",
+   "12:06 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 74200,
+  "p0": 179.25,
+  "px": 203,
+  "pnl": 475,
+  "qty": 20,
+  "entry": {
+   "t": "09:41",
+   "word": "WATCH",
+   "line": "Watch, not an exit: PE 74,200 still adding (+23.3L) — writers adding in its way",
+   "n_for": 2,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "09:46",
+    "word": "HOLD",
+    "line": "Reason intact: put writers paying: PE 74,200 giving back, 27% off its 09:37 high · PE 74,100 folded 09:46",
+    "for": [
+     "put writers paying: PE 74,200 giving back, 27% off its 09:37 high",
+     "PE 74,100 folded 09:46",
+     "call writers holding: CE 74,300 still adding (+57.1L)"
+    ],
+    "against": [],
+    "paidLast": "09:46",
+    "quietFor": 0,
+    "prem": {
+     "c": 196.2,
+     "o": 182.5,
+     "vw": 151.17,
+     "sd": 23.85,
+     "src": "M",
+     "z": 1.8880503144654088,
+     "pnl": 338.9999999999998,
+     "pct": 9.456066945606679,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "09:41",
+   "line": "Watch, not an exit: PE 74,200 still adding (+23.3L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "10:14",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,000 folded 10:14, and PE writers are adding in its way",
+   "prem": 194.45
+  },
+  "afterExit": {
+   "words": [
+    "HOLD",
+    "HOLD · NOISE",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "10:14"
+  },
+  "premExit": 196.2,
+  "next30Best": 204.3,
+  "next30Worst": 159.45,
+  "close": 619.85,
+  "path": [
+   "09:41 WATCH",
+   "09:46 HOLD",
+   "09:48 HOLD · NOISE",
+   "09:50 HOLD",
+   "09:52 HOLD · NOISE",
+   "09:53 HOLD",
+   "09:54 HOLD · NOISE",
+   "09:55 HOLD",
+   "09:56 HOLD · NOISE",
+   "09:57 HOLD",
+   "09:58 HOLD · NOISE",
+   "10:01 HOLD",
+   "10:02 HOLD · NOISE",
+   "10:05 WATCH",
+   "10:14 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 74200,
+  "p0": 222.6,
+  "px": 234,
+  "pnl": 456,
+  "qty": 40,
+  "entry": {
+   "t": "10:18",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,200 giving back, 24% off its 09:37 high",
+   "n_for": 1,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "10:22",
+    "word": "HOLD",
+    "line": "Reason intact: put writers paying: PE 74,000 giving back, 15% off its 10:12 high · PE 74,000 folded 10:22",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 15% off its 10:12 high",
+     "PE 74,000 folded 10:22",
+     "call writers holding: CE 74,300 still adding (+60.3L)"
+    ],
+    "against": [
+     "divergence: new low 74,125 at 10:15 with CVD -22, above its 09:55 trough -80"
+    ],
+    "paidLast": "10:22",
+    "quietFor": 0,
+    "prem": {
+     "c": 232.55,
+     "o": 217.05,
+     "vw": 168.17,
+     "sd": 28.73,
+     "src": "M",
+     "z": 2.2408632091890017,
+     "pnl": 398.0000000000007,
+     "pct": 4.4699011680143785,
+     "adverse": false
+    }
+   }
+  ],
+  "firstFold": {
+   "t": "10:37",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,000 folded 10:37, and the move is not being paid for (CVD divergence)",
+   "prem": 178.9
+  },
+  "afterExit": {
+   "words": [
+    "HOLD · NOISE",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "10:37"
+  },
+  "premExit": 232.55,
+  "next30Best": 228.4,
+  "next30Worst": 166.9,
+  "close": 619.85,
+  "path": [
+   "10:18 HOLD · NOISE",
+   "10:22 HOLD",
+   "10:23 HOLD · NOISE",
+   "10:25 HOLD",
+   "10:26 HOLD · NOISE",
+   "10:37 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 74100,
+  "p0": 202.35,
+  "px": 216,
+  "pnl": 546,
+  "qty": 40,
+  "entry": {
+   "t": "12:31",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 28% off its 11:12 high · PE 73,700 folded 12:27",
+   "n_for": 2,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "12:32",
+    "word": "HOLD",
+    "line": "Reason intact: put writers paying: PE 74,000 giving back, 28% off its 11:12 high · PE 73,700 folded 12:27",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 28% off its 11:12 high",
+     "PE 73,700 folded 12:27"
+    ],
+    "against": [
+     "divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80"
+    ],
+    "paidLast": "12:32",
+    "quietFor": 0,
+    "prem": {
+     "c": 206.8,
+     "o": 187.75,
+     "vw": 140.27,
+     "sd": 23.69,
+     "src": "M",
+     "z": 2.808357956943858,
+     "pnl": 178.00000000000068,
+     "pct": 2.1991598715097593,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "12:55",
+   "line": "Watch, not an exit: CE 74,100 folded 12:55 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "HOLD",
+    "HOLD · NOISE",
+    "WATCH"
+   ],
+   "firstFold": null
+  },
+  "premExit": 206.8,
+  "next30Best": 229.05,
+  "next30Worst": 200.95,
+  "close": 519.95,
+  "path": [
+   "12:31 HOLD · NOISE",
+   "12:32 HOLD",
+   "12:34 HOLD · NOISE",
+   "12:35 HOLD",
+   "12:36 HOLD · NOISE",
+   "12:37 HOLD",
+   "12:38 HOLD · NOISE",
+   "12:39 HOLD",
+   "12:40 HOLD · NOISE",
+   "12:41 HOLD",
+   "12:45 HOLD · NOISE",
+   "12:46 HOLD",
+   "12:49 HOLD · NOISE",
+   "12:51 HOLD",
+   "12:55 WATCH"
+  ]
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 74000,
+  "p0": 179.8,
+  "px": 161,
+  "pnl": -752,
+  "qty": 40,
+  "entry": {
+   "t": "12:34",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 40% off its 11:12 high · PE 73,700 folded 12:27",
+   "n_for": 2,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "12:35",
+    "word": "HOLD · NOISE",
+    "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 40% off its 11:12 high · PE 73,700 folded 12:27",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 40% off its 11:12 high",
+     "PE 73,700 folded 12:27"
+    ],
+    "against": [
+     "divergence: new low 74,004 at 12:30 with CVD -46, above its 09:55 trough -80"
+    ],
+    "paidLast": "12:35",
+    "quietFor": 0,
+    "prem": {
+     "c": 174,
+     "o": 165.9,
+     "vw": 103.83,
+     "sd": 21.52,
+     "src": "M",
+     "z": 3.2606877323420074,
+     "pnl": -232.00000000000045,
+     "pct": -3.2258064516129115,
+     "adverse": true
+    }
+   },
+   {
+    "t": "12:37",
+    "word": "HOLD · NOISE",
+    "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 54% off its 11:12 high · PE 73,700 folded 12:27",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 54% off its 11:12 high",
+     "PE 73,700 folded 12:27"
+    ],
+    "against": [
+     "divergence: new low 74,004 at 12:30 with CVD -46, above its 09:55 trough -80"
+    ],
+    "paidLast": "12:37",
+    "quietFor": 0,
+    "prem": {
+     "c": 160.25,
+     "o": 159.4,
+     "vw": 104.52,
+     "sd": 22.34,
+     "src": "M",
+     "z": 2.4946284691136977,
+     "pnl": -782.0000000000005,
+     "pct": -10.873192436040046,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "12:55",
+   "line": "Watch, not an exit: CE 74,100 folded 12:55 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "HOLD · NOISE",
+    "WATCH"
+   ],
+   "firstFold": null
+  },
+  "premExit": 160.25,
+  "next30Best": 172.8,
+  "next30Worst": 137.85,
+  "close": 418.2,
+  "path": [
+   "12:34 HOLD · NOISE",
+   "12:55 WATCH"
+  ]
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 74000,
+  "p0": 167.95,
+  "px": 160,
+  "pnl": -159,
+  "qty": 20,
+  "entry": {
+   "t": "12:43",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 49% off its 11:12 high · prints your way: 2 sell / 0 buy",
+   "n_for": 2,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "12:49",
+    "word": "HOLD · NOISE",
+    "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 51% off its 11:12 high · prints your way: 3 sell / 0 buy",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 51% off its 11:12 high",
+     "prints your way: 3 sell / 0 buy"
+    ],
+    "against": [
+     "divergence: new low 73,984 at 12:35 with CVD -64, above its 09:55 trough -80"
+    ],
+    "paidLast": "12:49",
+    "quietFor": 0,
+    "prem": {
+     "c": 167.55,
+     "o": 169.75,
+     "vw": 106.83,
+     "sd": 24.57,
+     "src": "M",
+     "z": 2.471306471306472,
+     "pnl": -7.999999999999545,
+     "pct": -0.23816612086928757,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "12:55",
+   "line": "Watch, not an exit: CE 74,100 folded 12:55 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "13:12",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way",
+   "prem": 148.6
+  },
+  "afterExit": {
+   "words": [
+    "HOLD · NOISE",
+    "HOLD",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "13:12"
+  },
+  "premExit": 167.55,
+  "next30Best": 172.8,
+  "next30Worst": 137.85,
+  "close": 418.2,
+  "path": [
+   "12:43 HOLD · NOISE",
+   "12:47 HOLD",
+   "12:49 HOLD · NOISE",
+   "12:54 HOLD",
+   "12:55 WATCH",
+   "13:12 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 74000,
+  "p0": 184.2,
+  "px": 220,
+  "pnl": 716,
+  "qty": 20,
+  "entry": {
+   "t": "13:25",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left",
+   "n_for": 1,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "13:26",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left",
+    "for": [
+     "CVD -21 since 13:10, your way (rank 0.57)"
+    ],
+    "against": [
+     "CE 73,900 folded 13:19 — the call writers holding your trade left"
+    ],
+    "paidLast": "13:26",
+    "quietFor": 0,
+    "prem": {
+     "c": 228.1,
+     "o": 170.6,
+     "vw": 112.66,
+     "sd": 29.17,
+     "src": "M",
+     "z": 3.957490572505999,
+     "pnl": 878.0000000000001,
+     "pct": 23.832790445168307,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "13:25",
+   "line": "Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "13:50",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "prem": 333.85
+  },
+  "afterExit": {
+   "words": [
+    "HOLD · NOISE",
+    "HOLD",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "13:50"
+  },
+  "premExit": 228.1,
+  "next30Best": 392.5,
+  "next30Worst": 190.9,
+  "close": 418.2,
+  "path": [
+   "13:25 WATCH",
+   "13:27 HOLD · NOISE",
+   "13:28 HOLD",
+   "13:29 HOLD · NOISE",
+   "13:33 HOLD",
+   "13:42 WATCH",
+   "13:46 HOLD",
+   "13:47 WATCH",
+   "13:50 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73900,
+  "p0": 190.03,
+  "px": 192.98,
+  "pnl": 177,
+  "qty": 40,
+  "entry": {
+   "t": "13:40",
+   "word": "HOLD",
+   "line": "Nothing is paying and nothing is against you — 1 quiet min of 15",
+   "n_for": 0,
+   "n_against": 0
+  },
+  "exits": [
+   {
+    "t": "13:41",
+    "word": "HOLD",
+    "line": "Nothing is paying and nothing is against you — 2 quiet min of 15",
+    "for": [],
+    "against": [],
+    "paidLast": null,
+    "quietFor": 2,
+    "prem": {
+     "c": 184.1,
+     "o": 177.75,
+     "vw": 92.6,
+     "sd": 31.85,
+     "src": "M",
+     "z": 2.8728414442700156,
+     "pnl": -237.20000000000027,
+     "pct": -3.120559911592913,
+     "adverse": true
+    }
+   },
+   {
+    "t": "13:42",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 83% off its 11:12 high",
+     "PE 73,600 folded 13:27"
+    ],
+    "against": [
+     "CE 74,200 folded 13:39 — the call writers holding your trade left"
+    ],
+    "paidLast": "13:42",
+    "quietFor": 0,
+    "prem": {
+     "c": 192.25,
+     "o": 182.65,
+     "vw": 93.35,
+     "sd": 32.87,
+     "src": "M",
+     "z": 3.0088226346212354,
+     "pnl": 88.79999999999995,
+     "pct": 1.1682365942219608,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "13:42",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "13:50",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "prem": 268.75
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "13:50"
+  },
+  "premExit": 192.25,
+  "next30Best": 372.8,
+  "next30Worst": 225.15,
+  "close": 318.75,
+  "path": [
+   "13:40 HOLD",
+   "13:42 WATCH",
+   "13:46 HOLD",
+   "13:47 WATCH",
+   "13:50 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73900,
+  "p0": 206.55,
+  "px": 207.3,
+  "pnl": 30,
+  "qty": 40,
+  "entry": {
+   "t": "13:42",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+   "n_for": 2,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "13:42",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 83% off its 11:12 high",
+     "PE 73,600 folded 13:27"
+    ],
+    "against": [
+     "CE 74,200 folded 13:39 — the call writers holding your trade left"
+    ],
+    "paidLast": "13:42",
+    "quietFor": 0,
+    "prem": {
+     "c": 192.25,
+     "o": 182.65,
+     "vw": 93.35,
+     "sd": 32.87,
+     "src": "M",
+     "z": 3.0088226346212354,
+     "pnl": -572.0000000000005,
+     "pct": -6.92326313241346,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "13:42",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "13:50",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "prem": 268.75
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "13:50"
+  },
+  "premExit": 192.25,
+  "next30Best": 372.8,
+  "next30Worst": 225.15,
+  "close": 318.75,
+  "path": [
+   "13:42 WATCH",
+   "13:46 HOLD",
+   "13:47 WATCH",
+   "13:50 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73900,
+  "p0": 230.45,
+  "px": 237.6,
+  "pnl": 143,
+  "qty": 20,
+  "entry": {
+   "t": "13:43",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+   "n_for": 1,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "13:43",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 90% off its 11:12 high"
+    ],
+    "against": [
+     "CE 74,200 folded 13:39 — the call writers holding your trade left"
+    ],
+    "paidLast": "13:43",
+    "quietFor": 0,
+    "prem": {
+     "c": 225.15,
+     "o": 190,
+     "vw": 94.26,
+     "sd": 34.34,
+     "src": "M",
+     "z": 3.811589982527664,
+     "pnl": -105.99999999999966,
+     "pct": -2.299848123237136,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "13:43",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "13:50",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "prem": 268.75
+  },
+  "afterExit": {
+   "words": [
+    "WATCH",
+    "HOLD",
+    "FOLD"
+   ],
+   "firstFold": "13:50"
+  },
+  "premExit": 225.15,
+  "next30Best": 372.8,
+  "next30Worst": 240.95,
+  "close": 318.75,
+  "path": [
+   "13:43 WATCH",
+   "13:46 HOLD",
+   "13:47 WATCH",
+   "13:50 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73800,
+  "p0": 211.05,
+  "px": 217.05,
+  "pnl": 240,
+  "qty": 40,
+  "entry": {
+   "t": "13:44",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+   "n_for": 1,
+   "n_against": 1
+  },
+  "exits": [
+   {
+    "t": "13:45",
+    "word": "WATCH",
+    "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left",
+    "for": [
+     "put writers paying: PE 74,000 giving back, 90% off its 11:12 high"
+    ],
+    "against": [
+     "CE 74,200 folded 13:39 — the call writers holding your trade left"
+    ],
+    "paidLast": "13:45",
+    "quietFor": 0,
+    "prem": {
+     "c": 207.3,
+     "o": 185.45,
+     "vw": 72.32,
+     "sd": 34.16,
+     "src": "M",
+     "z": 3.9514051522248255,
+     "pnl": -150,
+     "pct": -1.776830135039087,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "13:44",
+   "line": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "13:50",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "prem": 207.4
+  },
+  "afterExit": {
+   "words": [
+    "HOLD",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "13:50"
+  },
+  "premExit": 207.3,
+  "next30Best": 298.7,
+  "next30Worst": 207.4,
+  "close": 219.55,
+  "path": [
+   "13:44 WATCH",
+   "13:46 HOLD",
+   "13:47 WATCH",
+   "13:50 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73800,
+  "p0": 252.15,
+  "px": 240,
+  "pnl": -243,
+  "qty": 20,
+  "entry": {
+   "t": "13:53",
+   "word": "FOLD",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "n_for": 2,
+   "n_against": 2
+  },
+  "exits": [
+   {
+    "t": "13:54",
+    "word": "FOLD",
+    "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence) (13:53) · the break has healed since — a re-entry is a new trade",
+    "for": [],
+    "against": [
+     "divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150"
+    ],
+    "paidLast": "13:53",
+    "quietFor": 1,
+    "prem": {
+     "c": 247.4,
+     "o": 233,
+     "vw": 79.93,
+     "sd": 47.31,
+     "src": "M",
+     "z": 3.5398435848657788,
+     "pnl": -95,
+     "pct": -1.8837993257981411,
+     "adverse": true
+    }
+   }
+  ],
+  "firstFold": {
+   "t": "13:53",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)",
+   "prem": 231.95
+  },
+  "afterExit": {
+   "words": [
+    "FOLD"
+   ],
+   "firstFold": "13:55"
+  },
+  "premExit": 247.4,
+  "next30Best": 298.7,
+  "next30Worst": 230.85,
+  "close": 219.55,
+  "path": [
+   "13:53 FOLD"
+  ]
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73800,
+  "p0": 267.4,
+  "px": 297,
+  "pnl": 592,
+  "qty": 20,
+  "entry": {
+   "t": "13:56",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: CVD -35 since 13:40, your way (rank 0.89)",
+   "n_for": 1,
+   "n_against": 0
+  },
+  "exits": [
+   {
+    "t": "13:57",
+    "word": "HOLD",
+    "line": "Reason intact: CVD -35 since 13:40, your way (rank 0.89)",
+    "for": [
+     "CVD -35 since 13:40, your way (rank 0.89)"
+    ],
+    "against": [],
+    "paidLast": "13:57",
+    "quietFor": 0,
+    "prem": {
+     "c": 279.55,
+     "o": 251.65,
+     "vw": 81.68,
+     "sd": 50.24,
+     "src": "M",
+     "z": 3.9384952229299364,
+     "pnl": 243.00000000000068,
+     "pct": 4.54375467464474,
+     "adverse": false
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "14:14",
+   "line": "Watch, not an exit: CE 74,000 folded 14:12 — the call writers holding your trade left"
+  },
+  "afterExit": {
+   "words": [
+    "HOLD",
+    "HOLD · NOISE",
+    "WATCH"
+   ],
+   "firstFold": null
+  },
+  "premExit": 279.55,
+  "next30Best": 298.7,
+  "next30Worst": 230.85,
+  "close": 219.55,
+  "path": [
+   "13:56 HOLD · NOISE",
+   "13:57 HOLD",
+   "13:59 HOLD · NOISE",
+   "14:06 HOLD",
+   "14:07 HOLD · NOISE",
+   "14:10 HOLD",
+   "14:14 WATCH",
+   "14:21 HOLD · NOISE",
+   "14:22 HOLD",
+   "14:24 HOLD · NOISE",
+   "14:25 HOLD"
+  ]
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "mine": true,
+  "role": "long",
+  "side": "PE",
+  "k": 73800,
+  "p0": 287.45,
+  "px": 294.8,
+  "pnl": 147,
+  "qty": 20,
+  "entry": {
+   "t": "14:22",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: CVD -22 since 14:05, your way (rank 0.60)",
+   "n_for": 1,
+   "n_against": 0
+  },
+  "exits": [
+   {
+    "t": "14:22",
+    "word": "HOLD · NOISE",
+    "line": "Noise — what holds this trade has not changed: CVD -22 since 14:05, your way (rank 0.60)",
+    "for": [
+     "CVD -22 since 14:05, your way (rank 0.60)"
+    ],
+    "against": [],
+    "paidLast": "14:22",
+    "quietFor": 0,
+    "prem": {
+     "c": 274.25,
+     "o": 254.7,
+     "vw": 89.72,
+     "sd": 61.58,
+     "src": "M",
+     "z": 2.9965898018837285,
+     "pnl": -263.9999999999998,
+     "pct": -4.592102974430334,
+     "adverse": true
+    }
+   }
+  ],
+  "firstWatch": {
+   "t": "14:39",
+   "line": "Watch, not an exit: CE 73,500 folded 14:39 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "14:40",
+   "kind": "broken",
+   "line": "Thesis broken: CE 73,500 folded 14:39, and CVD turned against you",
+   "prem": 182.15
+  },
+  "afterExit": {
+   "words": [
+    "HOLD",
+    "HOLD · NOISE",
+    "WATCH",
+    "FOLD"
+   ],
+   "firstFold": "14:40"
+  },
+  "premExit": 274.25,
+  "next30Best": 292.45,
+  "next30Worst": 162.15,
+  "close": 219.55,
+  "path": [
+   "14:22 HOLD · NOISE",
+   "14:23 HOLD",
+   "14:24 HOLD · NOISE",
+   "14:25 HOLD",
+   "14:30 HOLD · NOISE",
+   "14:35 HOLD",
+   "14:39 WATCH",
+   "14:40 FOLD"
+  ]
+ },
+ {
+  "id": "EX 09-23 09:57 SENSEX zone BUY (gate legal) · long ATM CE",
+  "mine": false,
+  "role": "long",
+  "side": "CE",
+  "k": 74700,
+  "p0": 237.15,
+  "qty": 20,
+  "entry": {
+   "t": "09:59",
+   "word": "FOLD",
+   "line": "Thesis broken: PE 75,000 folded 09:56, and CE writers are adding in its way",
+   "n_for": 1,
+   "n_against": 2
+  },
+  "exits": [],
+  "firstFold": {
+   "t": "09:59",
+   "kind": "broken",
+   "line": "Thesis broken: PE 75,000 folded 09:56, and CE writers are adding in its way",
+   "prem": 237.15
+  },
+  "afterExit": null,
+  "premExit": null,
+  "next30Best": null,
+  "next30Worst": null,
+  "close": 276.75,
+  "path": [
+   "09:59 FOLD"
+  ]
+ },
+ {
+  "id": "EX 09-23 09:57 NIFTY zone BUY (gate illegal) · long ATM CE",
+  "mine": false,
+  "role": "long",
+  "side": "CE",
+  "k": 23400,
+  "p0": 121.65,
+  "qty": 65,
+  "entry": {
+   "t": "09:59",
+   "word": "FOLD",
+   "line": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way",
+   "n_for": 1,
+   "n_against": 3
+  },
+  "exits": [],
+  "firstFold": {
+   "t": "09:59",
+   "kind": "broken",
+   "line": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way",
+   "prem": 121.65
+  },
+  "afterExit": null,
+  "premExit": null,
+  "next30Best": null,
+  "next30Worst": null,
+  "close": 135.45,
+  "path": [
+   "09:59 FOLD"
+  ]
+ },
+ {
+  "id": "EX 09-23 11:15 NIFTY zone u2 SELL · WRITER short ATM CE",
+  "mine": false,
+  "role": "short",
+  "side": "CE",
+  "k": 23400,
+  "p0": 135.9,
+  "qty": 65,
+  "entry": {
+   "t": "11:17",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 23,650 folded 11:06 — the call writers holding your trade left",
+   "n_for": 1,
+   "n_against": 2
+  },
+  "exits": [],
+  "firstWatch": {
+   "t": "11:17",
+   "line": "Watch, not an exit: CE 23,650 folded 11:06 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "11:18",
+   "kind": "broken",
+   "line": "Thesis broken: CE 23,650 folded 11:06, and PE writers are adding in its way",
+   "prem": 135.85
+  },
+  "afterExit": null,
+  "premExit": null,
+  "next30Best": null,
+  "next30Worst": null,
+  "close": 135.45,
+  "path": [
+   "11:17 WATCH",
+   "11:18 FOLD"
+  ]
+ },
+ {
+  "id": "EX 09-24 10:30 SENSEX · WRITER short ATM CE",
+  "mine": false,
+  "role": "short",
+  "side": "CE",
+  "k": 74100,
+  "p0": 183.3,
+  "qty": 20,
+  "entry": {
+   "t": "10:29",
+   "word": "HOLD · NOISE",
+   "line": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 23% off its 10:12 high · PE 73,800 folded 10:23",
+   "n_for": 3,
+   "n_against": 0
+  },
+  "exits": [],
+  "firstWatch": {
+   "t": "10:37",
+   "line": "Watch, not an exit: CE 74,000 folded 10:37 — the call writers holding your trade left"
+  },
+  "firstFold": {
+   "t": "10:40",
+   "kind": "broken",
+   "line": "Thesis broken: CE 74,000 folded 10:37, and PE writers are adding in its way",
+   "prem": 197.15
+  },
+  "afterExit": null,
+  "premExit": null,
+  "next30Best": null,
+  "next30Worst": null,
+  "close": 0.15,
+  "path": [
+   "10:29 HOLD · NOISE",
+   "10:37 WATCH",
+   "10:40 FOLD"
+  ]
+ },
+ {
+  "id": "EX 09-24 09:45 SENSEX · WRITER short ATM PE",
+  "mine": false,
+  "role": "short",
+  "side": "PE",
+  "k": 74200,
+  "p0": 182.6,
+  "qty": 20,
+  "entry": {
+   "t": "09:44",
+   "word": "WATCH",
+   "line": "Watch, not an exit: CE 74,300 still adding (+54.5L) — writers adding in its way",
+   "n_for": 1,
+   "n_against": 2
+  },
+  "exits": [],
+  "firstWatch": {
+   "t": "09:44",
+   "line": "Watch, not an exit: CE 74,300 still adding (+54.5L) — writers adding in its way"
+  },
+  "firstFold": {
+   "t": "09:46",
+   "kind": "broken",
+   "line": "Thesis broken: PE 74,100 folded 09:46, and CE writers are adding in its way",
+   "prem": 196.2
+  },
+  "afterExit": null,
+  "premExit": null,
+  "next30Best": null,
+  "next30Worst": null,
+  "close": 619.85,
+  "path": [
+   "09:44 WATCH",
+   "09:46 FOLD"
+  ]
+ }
+]

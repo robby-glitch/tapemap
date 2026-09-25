@@ -1,0 +1,34 @@
+09-21 14:00 NIFTY 23300CE: could not check — no chain record for NIFTY on 2026-09-21
+09-22 09:42 NIFTY 23300CE                                  entry 09:41 WATCH        | exit 10:19 HOLD · NOISE     | 1st FOLD 10:25 broken
+09-22 10:32 NIFTY 23550PE                                  entry 10:31 WATCH        | exit 10:37 WATCH            | 1st FOLD -
+09-22 10:42 NIFTY 23550PE                                  entry 10:41 WATCH        | exit 10:41 WATCH            | 1st FOLD -
+09-22 10:43 NIFTY 23550PE                                  entry 10:42 WATCH        | exit 10:42 WATCH            | 1st FOLD -
+09-22 10:44 NIFTY 23550PE                                  entry 10:43 WATCH        | exit 10:43 WATCH            | 1st FOLD -
+09-22 10:52 NIFTY 23500PE                                  entry 10:51 HOLD · NOISE | exit 10:54 WATCH            | 1st FOLD 11:19 broken
+09-22 13:48 NIFTY 23500PE                                  entry 13:47 FOLD         | exit 13:53 FOLD             | 1st FOLD 13:47 broken
+09-23 09:18 NIFTY 23450CE                                  entry 09:17 PATA NAHI    | exit 09:24 PATA NAHI        | 1st FOLD 09:50 gone
+09-23 09:47 NIFTY 23450CE                                  entry 09:46 WATCH        | exit 09:48 WATCH            | 1st FOLD 09:57 broken
+09-23 09:49 NIFTY 23400PE                                  entry 09:48 WATCH        | exit 09:52 WATCH            | 1st FOLD 10:19 broken
+09-23 10:00 NIFTY 23450CE                                  entry 09:59 FOLD         | exit 10:08 FOLD             | 1st FOLD 09:59 broken
+09-23 10:19 NIFTY 23450CE                                  entry 10:18 HOLD · NOISE | exit 10:30 HOLD             | 1st FOLD 10:40 broken
+09-23 10:33 NIFTY 23450CE                                  entry 10:32 HOLD · NOISE | exit 11:03 FOLD             | 1st FOLD 10:40 broken
+09-23 11:07 NIFTY 23450CE                                  entry 11:06 WATCH        | exit 11:15 WATCH            | 1st FOLD 11:37 broken
+09-23 11:32 SENSEX 74900CE                                 entry 11:31 HOLD · NOISE | exit 11:39 HOLD · NOISE     | 1st FOLD 12:06 broken
+09-24 09:42 SENSEX 74200PE                                 entry 09:41 WATCH        | exit 09:46 HOLD             | 1st FOLD 10:14 broken
+09-24 10:19 SENSEX 74200PE                                 entry 10:18 HOLD · NOISE | exit 10:22 HOLD             | 1st FOLD 10:37 broken
+09-24 12:32 SENSEX 74100PE                                 entry 12:31 HOLD · NOISE | exit 12:32 HOLD             | 1st FOLD -
+09-24 12:35 SENSEX 74000PE                                 entry 12:34 HOLD · NOISE | exit 12:35 HOLD · NOISE, 12:37 HOLD · NOISE | 1st FOLD -
+09-24 12:44 SENSEX 74000PE                                 entry 12:43 HOLD · NOISE | exit 12:49 HOLD · NOISE     | 1st FOLD 13:12 broken
+09-24 13:26 SENSEX 74000PE                                 entry 13:25 WATCH        | exit 13:26 WATCH            | 1st FOLD 13:50 broken
+09-24 13:41 SENSEX 73900PE                                 entry 13:40 HOLD         | exit 13:41 HOLD, 13:42 WATCH | 1st FOLD 13:50 broken
+09-24 13:43 SENSEX 73900PE                                 entry 13:42 WATCH        | exit 13:42 WATCH            | 1st FOLD 13:50 broken
+09-24 13:44 SENSEX 73900PE                                 entry 13:43 WATCH        | exit 13:43 WATCH            | 1st FOLD 13:50 broken
+09-24 13:45 SENSEX 73800PE                                 entry 13:44 WATCH        | exit 13:45 WATCH            | 1st FOLD 13:50 broken
+09-24 13:54 SENSEX 73800PE                                 entry 13:53 FOLD         | exit 13:54 FOLD             | 1st FOLD 13:53 broken
+09-24 13:57 SENSEX 73800PE                                 entry 13:56 HOLD · NOISE | exit 13:57 HOLD             | 1st FOLD -
+09-24 14:23 SENSEX 73800PE                                 entry 14:22 HOLD · NOISE | exit 14:22 HOLD · NOISE     | 1st FOLD 14:40 broken
+EX 09-23 09:57 SENSEX zone BUY (gate legal) · long ATM CE  entry 09:59 FOLD         | exit                        | 1st FOLD 09:59 broken
+EX 09-23 09:57 NIFTY zone BUY (gate illegal) · long ATM CE entry 09:59 FOLD         | exit                        | 1st FOLD 09:59 broken
+EX 09-23 11:15 NIFTY zone u2 SELL · WRITER short ATM CE    entry 11:17 WATCH        | exit                        | 1st FOLD 11:18 broken
+EX 09-24 10:30 SENSEX · WRITER short ATM CE                entry 10:29 HOLD · NOISE | exit                        | 1st FOLD 10:40 broken
+EX 09-24 09:45 SENSEX · WRITER short ATM PE                entry 09:44 WATCH        | exit                        | 1st FOLD 09:46 broken

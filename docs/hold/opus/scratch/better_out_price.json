@@ -1,0 +1,696 @@
+[
+ {
+  "id": "09-21 14:00 NIFTY 23300CE",
+  "day": "2026-09-21",
+  "rd": "13:59",
+  "pnl": -754,
+  "her30": null,
+  "dayword": "could not check — no chain record for 2026-09-21",
+  "check": {
+   "word": "COULD NOT CHECK",
+   "why": "could not check — no chain record for 2026-09-21"
+  },
+  "win": "—",
+  "cleanest": "none is clean right now",
+  "engine": "—",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF blind · BAN blind · SEN blind"
+ },
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "day": "2026-09-22",
+  "rd": "09:41",
+  "pnl": -471.25,
+  "her30": 3.45,
+  "dayword": "NEITHER is clean (0 for · 0 against)",
+  "check": {
+   "word": "UNCLEAR",
+   "why": "today is not clean on NIFTY: price rows NOT AGREED — price: MIXED (5m / 15m / 1h disagree); OI: PIN (both sides writing: CE 23,450 writing · PE 23,400 writing)"
+  },
+  "win": "WATCH",
+  "cleanest": "none is clean right now",
+  "engine": "thin — zone BUY d2 entry 09:39 · §1d gate not logged · the day is not clear · could not check — the calls log starts on 2026-09-24",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "rd": "10:31",
+  "pnl": 601.25,
+  "her30": 46.9,
+  "dayword": "BUYING day — calls (1 for · 3 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "BUYING day — calls on NIFTY, and you bought PE — the other side"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY: BUYING day — calls, 1 for · 3 against — not clean",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "NIFTY: buy CE (1 for · 3 against)",
+  "second": "no second best — only one clean expression",
+  "bestOut": {
+   "leg": "NIFTY ATM 23450 CE (buy)",
+   "pts": -13.15
+  },
+  "secondOut": null,
+  "all": "NIF BUY_UP 1/3 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "rd": "10:41",
+  "pnl": 793,
+  "her30": 0,
+  "dayword": "SELLING day (1 for · 4 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY and BANKNIFTY and SENSEX (a tie): SELLING day, 1 for · 4 against — not clean",
+  "engine": "thin — zone BUY d2 arm 10:39 · §1d gate not logged · the day is not clear · could not check — the calls log starts on 2026-09-24",
+  "best": "NIFTY: write CE — CE 23,450 (54 pts above) (1 for · 4 against)",
+  "second": "BANKNIFTY: write CE — CE 56,500 (112 pts above) (1 for · 4 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23400 CE (write)",
+   "pts": 8.8
+  },
+  "secondOut": {
+   "leg": "BANKNIFTY ATM 56400 CE (write)",
+   "pts": 30.6
+  },
+  "all": "NIF SELL 1/4 · BAN SELL 1/4 · SEN SELL 1/4"
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "rd": "10:42",
+  "pnl": -224.25,
+  "her30": -2.4,
+  "dayword": "SELLING day (1 for · 4 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY and BANKNIFTY and SENSEX (a tie): SELLING day, 1 for · 4 against — not clean",
+  "engine": "thin — zone BUY d2 arm 10:39 · §1d gate not logged · the day is not clear · could not check — the calls log starts on 2026-09-24",
+  "best": "NIFTY: write CE — CE 23,450 (72 pts above) (1 for · 4 against)",
+  "second": "BANKNIFTY: write CE — CE 56,500 (118 pts above) (1 for · 4 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23400 CE (write)",
+   "pts": 1.6
+  },
+  "secondOut": {
+   "leg": "BANKNIFTY ATM 56400 CE (write)",
+   "pts": 31.3
+  },
+  "all": "NIF SELL 1/4 · BAN SELL 1/4 · SEN SELL 1/4"
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "rd": "10:43",
+  "pnl": 162.5,
+  "her30": -3.2,
+  "dayword": "SELLING day (1 for · 4 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY and BANKNIFTY and SENSEX (a tie): SELLING day, 1 for · 4 against — not clean",
+  "engine": "thin — zone BUY d2 arm 10:39 · §1d gate not logged · the day is not clear · could not check — the calls log starts on 2026-09-24",
+  "best": "NIFTY: write CE — CE 23,450 (57 pts above) (1 for · 4 against)",
+  "second": "BANKNIFTY: write CE — CE 56,500 (106 pts above) (1 for · 4 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23400 CE (write)",
+   "pts": 3.15
+  },
+  "secondOut": {
+   "leg": "BANKNIFTY ATM 56400 CE (write)",
+   "pts": 32.3
+  },
+  "all": "NIF SELL 1/4 · BAN SELL 1/4 · SEN SELL 1/4"
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "day": "2026-09-22",
+  "rd": "10:51",
+  "pnl": -854.75,
+  "her30": -26,
+  "dayword": "SELLING day (0 for · 5 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "SENSEX: SELLING day, 1 for · 4 against — not clean",
+  "engine": "thin — zone BUY d2 arm 10:42 · §1d gate not logged · the day is not clear · could not check — the calls log starts on 2026-09-24",
+  "best": "SENSEX: write CE — CE 74,900 (200 pts above) (1 for · 4 against)",
+  "second": "NIFTY: write CE — CE 23,450 (77 pts above) (0 for · 5 against)",
+  "bestOut": {
+   "leg": "SENSEX ATM 74700 CE (write)",
+   "pts": -22
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23350 CE (write)",
+   "pts": -6.8
+  },
+  "all": "NIF SELL 0/5 · BAN NEITHER 0/0 · SEN SELL 1/4"
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "day": "2026-09-22",
+  "rd": "13:47",
+  "pnl": 1410.5,
+  "her30": -61.9,
+  "dayword": "SELLING day (2 for · 2 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "FOLD",
+  "cleanest": "NIFTY and SENSEX (a tie): SELLING day, 2 for · 2 against — not clean",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF SELL 2/2 · BAN NEITHER 0/0 · SEN SELL 2/2"
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "rd": "09:17",
+  "pnl": -65,
+  "her30": -1.15,
+  "dayword": "could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 2 so far",
+  "check": {
+   "word": "COULD NOT CHECK",
+   "why": "could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 2 so far"
+  },
+  "win": "PATA NAHI",
+  "cleanest": "none is clean right now",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF blind · BAN blind · SEN blind"
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "rd": "09:46",
+  "pnl": -497.25,
+  "her30": -3.95,
+  "dayword": "SELLING day (4 for · 0 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "WATCH",
+  "cleanest": "SENSEX: SELLING day, 5 for · 0 against",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "SENSEX: write both sides — CE 74,700 (10 pts below) · PE 74,700 (10 pts below) (5 for · 0 against)",
+  "second": "NIFTY: write both sides — CE 23,400 (18 pts above) · PE 23,400 (18 pts above) (4 for · 0 against)",
+  "bestOut": {
+   "leg": "SENSEX ATM 74700 CE+PE (write)",
+   "pts": 9.45
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23400 CE+PE (write)",
+   "pts": 3.8
+  },
+  "all": "NIF SELL 4/0 · BAN SELL 3/1 · SEN SELL 5/0"
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "day": "2026-09-23",
+  "rd": "09:48",
+  "pnl": -52,
+  "her30": -17.7,
+  "dayword": "SELLING day (3 for · 0 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "WATCH",
+  "cleanest": "SENSEX: SELLING day, 4 for · 0 against",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "SENSEX: write both sides — CE 74,700 (18 pts above) · PE 74,700 (18 pts above) (4 for · 0 against)",
+  "second": "NIFTY: write both sides — CE 23,400 (27 pts above) · PE 23,400 (27 pts above) (3 for · 0 against)",
+  "bestOut": {
+   "leg": "SENSEX ATM 74700 CE+PE (write)",
+   "pts": 5.85
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23350 CE+PE (write)",
+   "pts": 1.4
+  },
+  "all": "NIF SELL 3/0 · BAN SELL 4/1 · SEN SELL 4/0"
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "rd": "09:59",
+  "pnl": -507,
+  "her30": 4.25,
+  "dayword": "SELLING day (4 for · 1 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "FOLD",
+  "cleanest": "NIFTY and SENSEX (a tie): SELLING day, 4 for · 1 against — not clean",
+  "engine": "a bad call — zone BUY d2 entry 09:57 · §1d gate ILLEGAL (PE 23400 stopped building at 09:53) · agrees with the day · could not check — the calls log starts on 2026-09-24",
+  "best": "NIFTY: write both sides — CE 23,400 (24 pts above) · PE 23,400 (24 pts above) (4 for · 1 against)",
+  "second": "SENSEX: write both sides — CE 74,700 (30 pts above) · PE 74,700 (30 pts above) (4 for · 1 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23400 CE+PE (write)",
+   "pts": 1.9
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 74700 CE+PE (write)",
+   "pts": -9.65
+  },
+  "all": "NIF SELL 4/1 · BAN SELL 1/4 · SEN SELL 4/1"
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "rd": "10:18",
+  "pnl": 204.75,
+  "her30": 8.6,
+  "dayword": "SELLING day (3 for · 1 against)",
+  "check": {
+   "word": "AGAINST",
+   "why": "NIFTY reads a SELLING day and you are a buyer — you are paying time on a writers' day"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "NIFTY: SELLING day, 3 for · 1 against — not clean",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "NIFTY: write PE — PE 23,400 (6 pts above) (3 for · 1 against)",
+  "second": "SENSEX: write PE — PE 74,700 (40 pts below) (1 for · 2 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23400 PE (write)",
+   "pts": 9.85
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 74700 PE (write)",
+   "pts": 30.55
+  },
+  "all": "NIF SELL 3/1 · BAN NEITHER 0/0 · SEN SELL 1/2"
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "rd": "10:32",
+  "pnl": -29.25,
+  "her30": 3.35,
+  "dayword": "NEITHER is clean (0 for · 0 against)",
+  "check": {
+   "word": "UNCLEAR",
+   "why": "today is not clean on NIFTY: price rows NOT AGREED — price: MIXED (5m / 15m / 1h disagree); OI: TREND UP (call side stopped, put side writing: CE 23,400 giving back · PE 23,400 writing)"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "none is clean right now",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "rd": "11:06",
+  "pnl": -367.25,
+  "her30": 1.5,
+  "dayword": "NEITHER is clean (0 for · 0 against)",
+  "check": {
+   "word": "UNCLEAR",
+   "why": "today is not clean on NIFTY: price rows NOT AGREED — price: MIXED (5m / 15m / 1h disagree); OI: TREND UP (call side stopped, put side writing: CE 23,400 giving back · PE 23,400 writing)"
+  },
+  "win": "WATCH",
+  "cleanest": "none is clean right now",
+  "engine": "checked, none — no zone arm or entry on NIFTY in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "day": "2026-09-23",
+  "rd": "11:31",
+  "pnl": -305,
+  "her30": -3.1,
+  "dayword": "NEITHER is clean (0 for · 0 against)",
+  "check": {
+   "word": "UNCLEAR",
+   "why": "today is not clean on SENSEX: price rows NOT AGREED (changing to TREND UP) — price: TREND UP (5m, 15m and 1h all UP); OI: TREND UP (call side stopped, put side writing: CE 75,000 stopped · PE 74,700 writing)"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "none is clean right now",
+  "engine": "checked, none — no zone arm or entry on SENSEX in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "day": "2026-09-24",
+  "rd": "09:41",
+  "pnl": 475,
+  "her30": -4.7,
+  "dayword": "NEITHER is clean (0 for · 0 against)",
+  "check": {
+   "word": "UNCLEAR",
+   "why": "today is not clean on SENSEX: price rows NOT AGREED — price: MIXED (5m / 15m / 1h disagree); OI: PIN (both sides writing: CE 74,300 writing · PE 74,200 writing)"
+  },
+  "win": "WATCH",
+  "cleanest": "none is clean right now",
+  "engine": "checked, none — no zone arm or entry on SENSEX in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "day": "2026-09-24",
+  "rd": "10:18",
+  "pnl": 456,
+  "her30": -35.25,
+  "dayword": "BUYING day — puts (2 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "SENSEX: BUYING day — puts, 2 for · 1 against — not clean",
+  "engine": "checked, none — no zone arm or entry on SENSEX in the last 15 min",
+  "best": "SENSEX: buy PE (2 for · 1 against)",
+  "second": "no second best — only one clean expression",
+  "bestOut": {
+   "leg": "SENSEX ATM 74100 PE (buy)",
+   "pts": -19.1
+  },
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN BUY_DOWN 2/1"
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "day": "2026-09-24",
+  "rd": "12:31",
+  "pnl": 546,
+  "her30": 11.45,
+  "dayword": "BUYING day — puts (3 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "BANKNIFTY and SENSEX (a tie): SELLING day, 3 for · 1 against — not clean",
+  "engine": "checked, none — no zone arm or entry on SENSEX in the last 15 min",
+  "best": "BANKNIFTY: write PE — PE 55,500 (108 pts below) (3 for · 1 against)",
+  "second": "SENSEX: buy PE (3 for · 1 against)",
+  "bestOut": {
+   "leg": "BANKNIFTY ATM 55600 PE (write)",
+   "pts": 0.35
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 74000 PE (buy)",
+   "pts": 19.15
+  },
+  "all": "NIF NEITHER 0/0 · BAN SELL 3/1 · SEN BUY_DOWN 3/1"
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "day": "2026-09-24",
+  "rd": "12:34",
+  "pnl": -752,
+  "her30": -38.25,
+  "dayword": "BUYING day — puts (3 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "NIFTY: BUYING day — puts, 3 for · 0 against",
+  "engine": "checked, none — no zone arm or entry on SENSEX in the last 15 min",
+  "best": "NIFTY: buy PE (3 for · 0 against)",
+  "second": "SENSEX: buy PE (3 for · 1 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23200 PE (buy)",
+   "pts": -10.4
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 74000 PE (buy)",
+   "pts": -23.7
+  },
+  "all": "NIF BUY_DOWN 3/0 · BAN SELL 2/0 · SEN BUY_DOWN 3/1"
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "day": "2026-09-24",
+  "rd": "12:43",
+  "pnl": -159,
+  "her30": -27,
+  "dayword": "BUYING day — puts (2 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "NIFTY: BUYING day — puts, 4 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 12:33 · §1d gate ILLEGAL (PE 74000 gave up its build at 11:12) · against the day · engine verdict CONTRADICTED: SPENT — leg released and given back — don't chase (OI against · CVD for · FLOW blind)",
+  "best": "NIFTY: buy PE (4 for · 0 against)",
+  "second": "SENSEX: buy PE (2 for · 1 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23200 PE (buy)",
+   "pts": -6.1
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 74000 PE (buy)",
+   "pts": -20.05
+  },
+  "all": "NIF BUY_DOWN 4/0 · BAN SELL 1/1 · SEN BUY_DOWN 2/1"
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "day": "2026-09-24",
+  "rd": "13:25",
+  "pnl": 716,
+  "her30": 196.9,
+  "dayword": "NEITHER is clean (0 for · 0 against)",
+  "check": {
+   "word": "UNCLEAR",
+   "why": "today is not clean on SENSEX: price rows NOT AGREED — price: MIXED (5m / 15m / 1h disagree); OI: BOTH LEAVING (neither side writing: CE 74,200 stopped · PE 74,000 stopped)"
+  },
+  "win": "WATCH",
+  "cleanest": "none is clean right now",
+  "engine": "checked, none — no zone arm or entry on SENSEX in the last 15 min",
+  "best": "no trade is clean right now",
+  "second": "—",
+  "bestOut": null,
+  "secondOut": null,
+  "all": "NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0"
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "day": "2026-09-24",
+  "rd": "13:40",
+  "pnl": 177,
+  "her30": 133.07,
+  "dayword": "BUYING day — puts (3 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD",
+  "cleanest": "NIFTY: BUYING day — puts, 5 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 13:36 · §1d gate ILLEGAL (engine says NO FADE -- negative gamma, continuation only) · against the day · engine verdict THIN: GO — one-sided tape / dealer hedging amplifies (OI for · CVD flat · FLOW flat)",
+  "best": "NIFTY: buy PE (5 for · 0 against)",
+  "second": "NIFTY: write CE — CE 23,200 (65 pts above) still being written (5 for · 0 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23150 PE (buy)",
+   "pts": 47.65
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23150 CE (write)",
+   "pts": 16.45
+  },
+  "all": "NIF BUY_DOWN 5/0 · BAN SELL 1/3 · SEN BUY_DOWN 3/1"
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "day": "2026-09-24",
+  "rd": "13:42",
+  "pnl": 30,
+  "her30": 111.2,
+  "dayword": "BUYING day — puts (3 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY: BUYING day — puts, 5 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 13:39 · §1d gate ILLEGAL (engine says NO FADE -- negative gamma, continuation only) · against the day · engine verdict THIN: GO — one-sided tape / dealer hedging amplifies (OI flat · CVD flat · FLOW flat)",
+  "best": "NIFTY: buy PE (5 for · 0 against)",
+  "second": "NIFTY: write CE — CE 23,200 (67 pts above) still being written (5 for · 0 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23150 PE (buy)",
+   "pts": 43.25
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23150 CE (write)",
+   "pts": 14.3
+  },
+  "all": "NIF BUY_DOWN 5/0 · BAN SELL 1/3 · SEN BUY_DOWN 3/1"
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "day": "2026-09-24",
+  "rd": "13:43",
+  "pnl": 143,
+  "her30": 79.3,
+  "dayword": "BUYING day — puts (2 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY: BUYING day — puts, 4 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 13:39 · §1d gate ILLEGAL (engine says NO FADE -- negative gamma, continuation only) · against the day · engine verdict THIN: GO — one-sided tape / dealer hedging amplifies (OI flat · CVD flat · FLOW flat)",
+  "best": "NIFTY: buy PE (4 for · 0 against)",
+  "second": "NIFTY: write CE — CE 23,200 (73 pts above) still being written (4 for · 0 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23150 PE (buy)",
+   "pts": 34.45
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23150 CE (write)",
+   "pts": 10.3
+  },
+  "all": "NIF BUY_DOWN 4/0 · BAN SELL 1/3 · SEN BUY_DOWN 2/1"
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "rd": "13:44",
+  "pnl": 240,
+  "her30": 30.6,
+  "dayword": "BUYING day — puts (2 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "WATCH",
+  "cleanest": "NIFTY: BUYING day — puts, 3 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 13:42 · §1d gate ILLEGAL (PE 74000 gave up its build at 11:12) · against the day · engine verdict THIN: SPENT — leg released and given back — don't chase (OI flat · CVD flat · FLOW flat)",
+  "best": "NIFTY: buy PE (3 for · 0 against)",
+  "second": "SENSEX: buy PE (2 for · 1 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23100 PE (buy)",
+   "pts": 22.35
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 73800 PE (buy)",
+   "pts": 56.45
+  },
+  "all": "NIF BUY_DOWN 3/0 · BAN SELL 1/3 · SEN BUY_DOWN 2/1"
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "rd": "13:53",
+  "pnl": -243,
+  "her30": 40.3,
+  "dayword": "BUYING day — puts (3 for · 2 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "FOLD",
+  "cleanest": "NIFTY: BUYING day — puts, 4 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 13:45 · §1d gate ILLEGAL (PE 74000 gave up its build at 11:12) · against the day · engine verdict CONTRADICTED: GO — one-sided tape / dealer hedging amplifies (OI flat · CVD against · FLOW flat)",
+  "best": "NIFTY: buy PE (4 for · 0 against)",
+  "second": "NIFTY: write CE — CE 23,200 (116 pts above) still being written (4 for · 0 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23100 PE (buy)",
+   "pts": 15.35
+  },
+  "secondOut": {
+   "leg": "NIFTY ATM 23100 CE (write)",
+   "pts": 15.65
+  },
+  "all": "NIF BUY_DOWN 4/0 · BAN NEITHER 0/0 · SEN BUY_DOWN 3/2"
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "rd": "13:56",
+  "pnl": 592,
+  "her30": 15.85,
+  "dayword": "BUYING day — puts (4 for · 0 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "NIFTY and SENSEX (a tie): BUYING day — puts, 4 for · 0 against",
+  "engine": "a bad call — zone BUY d2 arm 13:54 · §1d gate ILLEGAL (PE 74000 gave up its build at 11:12) · against the day · engine verdict THIN: GO — one-sided tape / dealer hedging amplifies (OI flat · CVD for · FLOW flat)",
+  "best": "NIFTY: buy PE (4 for · 0 against)",
+  "second": "SENSEX: buy PE (4 for · 0 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23050 PE (buy)",
+   "pts": 6.1
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 73700 PE (buy)",
+   "pts": 22.45
+  },
+  "all": "NIF BUY_DOWN 4/0 · BAN NEITHER 0/0 · SEN BUY_DOWN 4/0"
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "rd": "14:22",
+  "pnl": 147,
+  "her30": -125.3,
+  "dayword": "BUYING day — puts (3 for · 1 against)",
+  "check": {
+   "word": "AGREES",
+   "why": "BUYING day — puts on SENSEX, and you bought PE"
+  },
+  "win": "HOLD · NOISE",
+  "cleanest": "NIFTY: BUYING day — puts, 2 for · 0 against",
+  "engine": "a bad call — zone BUY d2 entry 14:15 · §1d gate ILLEGAL (PE 74000 gave up its build at 11:12) · against the day · engine verdict BACKED: GO — one-sided tape / dealer hedging amplifies (OI for · CVD for · FLOW flat)",
+  "best": "NIFTY: buy PE (2 for · 0 against)",
+  "second": "SENSEX: buy PE (3 for · 1 against)",
+  "bestOut": {
+   "leg": "NIFTY ATM 23050 PE (buy)",
+   "pts": -33.9
+  },
+  "secondOut": {
+   "leg": "SENSEX ATM 73600 PE (buy)",
+   "pts": -82.7
+  },
+  "all": "NIF BUY_DOWN 2/0 · BAN BUY_DOWN 2/1 · SEN BUY_DOWN 3/1"
+ }
+]

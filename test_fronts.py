@@ -187,3 +187,21 @@ if __name__ == "__main__":
     for _name, _fn in sorted(globals().items()):
         if _name.startswith("test_"):
             _fn(); print("ok", _name)
+
+
+def test_a_fold_needs_a_sized_build_and_only_a_new_high_rearms_it():
+    """BOARD rev 3 §6.1 (display, on §1d): a fold is the first UNWINDING read
+    after a new high, inside the nine, for a build of size. A front that never
+    built, or one under FOLD_SIZE of the biggest on its side, never folds."""
+    n = len(TIMES)
+    big = _ramp(0, 200, 16) + _ramp(200, 100, n - 16)      # high at mark 15, then gives back
+    small = _ramp(0, 20, 16) + _ramp(20, 0, n - 16)        # 10% of the biggest: not sized
+    never = _ramp(0, -80, n)                               # never above the open
+    g = _grid(TIMES, 23400.0, {23400.0: (never, big), 23450.0: (_flat(0, n), small)})
+    evs = fronts.folds(g)
+    assert [(e["k"], e["side"], e["high_at"]) for e in evs] == [(23400.0, "PE", TIMES[15])]
+    assert evs[0]["t"] > TIMES[15] and evs[0]["high"] == 200 and evs[0]["tag"] == "M"
+    # a new high after the fold re-arms it: a second fold, off the second high
+    again = big[:30] + _ramp(big[29], 260, 5) + _ramp(260, 150, n - 35)
+    evs2 = fronts.folds(_grid(TIMES, 23400.0, {23400.0: (never, again)}))
+    assert [e["high_at"] for e in evs2] == [TIMES[15], TIMES[34]]

@@ -17,10 +17,10 @@ const VWAP_LINE = '#FF1A1A'
 // The LEVEL stays a plain neutral line: it is context, not a direction call.
 // What the level cannot say — who moved and which way — is said in words by
 // `oiLabel` below, which is the part of this pane that carries the meaning.
-const OI_LINE = '#7F8EA3'
+export const OI_LINE = '#7F8EA3'
 
 /** Indian market units: OI is spoken in lakh and crore, not millions. */
-function lakh(n: number): string {
+export function lakh(n: number): string {
   const a = Math.abs(n)
   if (a >= 1e7) return `${(n / 1e7).toFixed(2)} Cr`
   if (a >= 1e5) return `${(n / 1e5).toFixed(2)} L`
@@ -146,7 +146,7 @@ const series = (bars: TapeBar[], f: (b: TapeBar) => number) =>
    FUT chart before the ribbons). Colours echo the overlay's BAND_RGB family
    (±1σ dark red / ±2σ sage / ±3σ azure) so the two charts read as one
    system; VWAP is the same bright red as the FUT chart. */
-const LEG_BAND_LINES: [keyof BarLeg, string][] = [
+export const LEG_BAND_LINES: [keyof BarLeg, string][] = [
   ['vwap', VWAP_LINE],
   ['u1', '#8B1A1A'], ['d1', '#8B1A1A'],
   ['u2', '#5F9C5F'], ['d2', '#5F9C5F'],
@@ -167,7 +167,7 @@ export interface LegRender {
 // Prior-day pivot lines on the leg panes: horizontal constants, one muted
 // colour for all seven — they are structure, not direction, and the pane is
 // small enough that seven coloured lines would fight the bands.
-const PIV_LINE = '#8A93A0'
+export const PIV_LINE = '#8A93A0'
 const PIV_KEYS: (keyof OptPivotLeg)[] = ['P', 'R1', 'S1', 'R2', 'S2', 'R3', 'S3']
 
 /** One option leg -> candles + band lines + OI pane (+ prior-day pivot lines

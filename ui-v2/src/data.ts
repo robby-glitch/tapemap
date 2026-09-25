@@ -458,6 +458,12 @@ export interface TapeView {
   runStateSellWhy: string
   /** Empty string when `runState` is non-null. */
   runStateWhy: string
+  /** THE ZONE (§1b, CLAUDE.md rule 3): the same machine armed at d2 / u2 -- HER setup, and what the
+   *  VALIDATE word's "Your setup" reads (VALIDATE-PREREG rev 2). The shell's MACHINE strip, the title
+   *  and the Glass board read THIS; the d3 line machine above stays for the Trade tab's own panel. */
+  zoneState: RunState[] | null
+  zoneStateSell: RunState[] | null
+  zoneStateWhy: string
 }
 
 // Live Spike Radar — one row per index, one cell per activity/spike column.
@@ -1174,174 +1180,6 @@ function assemble(per: Record<IndexKey, PerIndex>): Dataset {
 }
 
 // ── Hook ────────────────────────────────────────────────────────────────────────
-// ── Trade validator ────────────────────────────────────────────────────────
-// Replaces a mock that added Math.random() to its own confidence score and
-// hardcoded two of its four gates to pass. Every check below is computed from
-// the live chain or it is not shown.
-
-export interface Gate {
-  label: string
-  detail: string
-  verdict: 'pass' | 'warn' | 'fail'
-}
-export interface TradeCheck {
-  ok: boolean
-  premium: number
-  breakeven: number
-  moveNeeded: number      // points spot must travel to break even
-  expectedMove: number    // what the market is pricing for the rest of session
-  emRatio: number         // moveNeeded / expectedMove; > 1 = needs more than priced
-  delta: number
-  spreadPct: number
-  intrinsic: number
-  timeValue: number
-  wall: { strike: number; oi: number } | null
-  gates: Gate[]
-  score: number           // 0-100, deterministic
-  verdict: 'TAKE' | 'SMALL' | 'AVOID'
-  headline: string
-}
-
-/** Standard normal CDF (Abramowitz & Stegun 7.1.26) — for delta, since the
- *  feed sends null greeks. */
-function ncdf(x: number): number {
-  const t = 1 / (1 + 0.2316419 * Math.abs(x))
-  const d = 0.3989422804014327 * Math.exp(-x * x / 2)
-  const p = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937
-    + t * (-1.821255978 + t * 1.330274429))))
-  return x >= 0 ? 1 - p : p
-}
-
-const MIN_T = 1 / (365 * 24 * 6)        // ten minutes, in years
-
-/** Years to expiry, always finite. The chain publishes expiry as "MOCK" in
- *  fixture mode and can omit it entirely, and an Invalid Date silently turns
- *  every downstream greek into NaN — which then renders as "delta NaN" and
- *  falls through to the wrong branch of the contract-fit gate. */
-function yearsToExpiry(expiry: string, now = new Date()): number {
-  const end = /^\d{4}-\d{2}-\d{2}$/.test(expiry)
-    ? new Date(expiry + 'T15:30:00+05:30').getTime() : NaN
-  if (!Number.isFinite(end)) return 1 / 365       // assume ~a day
-  const t = (end - now.getTime()) / (365 * 24 * 3600 * 1000)
-  return Number.isFinite(t) ? Math.max(t, MIN_T) : 1 / 365
-}
-
-/** Fraction of the trading session still to run (09:15–15:30 IST). */
-function sessionLeft(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number)
-  if (!Number.isFinite(h)) return 0.5
-  return clamp01((930 - (h * 60 + m)) / 375)
-}
-
-export function validateTrade(
-  chain: Chain, read: Read, strike: number,
-  side: 'CE' | 'PE', position: 'Long' | 'Short', nowHHMM: string,
-): TradeCheck | null {
-  const row = chain.strikes.find((s) => s.strike === strike)
-  if (!row) return null
-
-  const spot = chain.spot
-  const premium = side === 'CE' ? row.ceLtp : row.peLtp
-  const iv = side === 'CE' ? row.ceIv : row.peIv
-  const spread = side === 'CE' ? row.ceSpread : row.peSpread
-  if (!premium) return null
-
-  const intrinsic = side === 'CE' ? Math.max(0, spot - strike) : Math.max(0, strike - spot)
-  const timeValue = Math.max(0, premium - intrinsic)
-  const breakeven = side === 'CE' ? strike + premium : strike - premium
-  const moveNeeded = Math.abs(breakeven - spot)
-  // What the market itself is charging for the remaining session
-  const expectedMove = chain.atmStraddle * Math.sqrt(Math.max(sessionLeft(nowHHMM), 0.02))
-  const emRatio = expectedMove > 0 ? moveNeeded / expectedMove : 99
-
-  const T = yearsToExpiry(chain.expiry)
-  const sig = iv > 0 ? iv : 0.12
-  const d1 = (Math.log(spot / strike) + (sig * sig / 2) * T) / (sig * Math.sqrt(T))
-  const callDelta = ncdf(d1)
-  const delta = side === 'CE' ? callDelta : callDelta - 1
-
-  const long = position === 'Long'
-  const bullish = (side === 'CE') === long          // long call / short put = bullish
-  const readBull = read.direction.toUpperCase().includes('BULL')
-  const readBear = read.direction.toUpperCase().includes('BEAR')
-  const aligned = (bullish && readBull) || (!bullish && readBear)
-  const noEdge = !readBull && !readBear
-
-  // Structure standing between spot and the target
-  const between = chain.strikes.filter((s) =>
-    bullish ? s.strike > spot && s.strike <= breakeven
-            : s.strike < spot && s.strike >= breakeven)
-  const wallRow = between.sort((a, b) =>
-    (bullish ? b.ceOI - a.ceOI : b.peOI - a.peOI))[0]
-  const wall = wallRow
-    ? { strike: wallRow.strike, oi: bullish ? wallRow.ceOI : wallRow.peOI }
-    : null
-
-  const spreadPct = premium > 0 ? spread / premium : 0
-  const gates: Gate[] = []
-
-  gates.push(noEdge
-    ? { label: 'Method read', detail: `${read.direction} — the method has no side right now`, verdict: 'warn' }
-    : aligned
-      ? { label: 'Method read', detail: `${read.direction} · ${read.timing} — trade agrees with it`, verdict: 'pass' }
-      : { label: 'Method read', detail: `${read.direction} — this is the opposite bet`, verdict: 'fail' })
-
-  gates.push(emRatio <= 0.6
-    ? { label: 'Move required', detail: `${moveNeeded.toFixed(0)} pts to break even, well inside the ${expectedMove.toFixed(0)} pts priced`, verdict: 'pass' }
-    : emRatio <= 1
-      ? { label: 'Move required', detail: `${moveNeeded.toFixed(0)} pts to break even vs ${expectedMove.toFixed(0)} pts priced — most of the session's budget`, verdict: 'warn' }
-      : { label: 'Move required', detail: `${moveNeeded.toFixed(0)} pts to break even, more than the ${expectedMove.toFixed(0)} pts the market is pricing`, verdict: 'fail' })
-
-  const dAbs = Math.abs(delta)
-  gates.push(!Number.isFinite(dAbs)
-    // never invent a greek: say the input was missing and move on
-    ? { label: 'Contract fit', detail: `delta unavailable (no usable IV or expiry) — ${intrinsic.toFixed(0)} pts intrinsic, ${timeValue.toFixed(1)} pts time value`, verdict: 'warn' }
-    : dAbs >= 0.35 && dAbs <= 0.65
-      ? { label: 'Contract fit', detail: `delta ${delta.toFixed(2)} — responsive without paying for intrinsic`, verdict: 'pass' }
-      : dAbs < 0.35
-        ? { label: 'Contract fit', detail: `delta ${delta.toFixed(2)} — needs a big move just to matter`, verdict: 'warn' }
-        : { label: 'Contract fit', detail: `delta ${delta.toFixed(2)} — ${intrinsic.toFixed(0)} of the ${premium.toFixed(0)} premium is intrinsic, you are largely buying the future`, verdict: 'warn' })
-
-  gates.push(chain.gex === 'Positive' && chain.inBookZone
-    ? { label: 'Dealer regime', detail: 'positive gamma inside the book zone — dealers damp moves, directional premium fights the pin', verdict: long ? 'warn' : 'pass' }
-    : chain.gex === 'Negative'
-      ? { label: 'Dealer regime', detail: 'negative gamma — hedging extends moves, which favours the buyer', verdict: long ? 'pass' : 'warn' }
-      : { label: 'Dealer regime', detail: `${chain.gex} gamma${chain.inBookZone ? '' : ', price outside the book zone'}`, verdict: 'warn' })
-
-  if (wall) {
-    gates.push({
-      label: 'Structure in the way',
-      detail: `${(wall.oi / 1e6).toFixed(1)}M ${bullish ? 'calls' : 'puts'} at ${wall.strike} sit between spot and your breakeven`,
-      verdict: wall.oi > 20e6 ? 'fail' : wall.oi > 8e6 ? 'warn' : 'pass',
-    })
-  } else {
-    gates.push({ label: 'Structure in the way', detail: 'no heavy book between spot and breakeven', verdict: 'pass' })
-  }
-
-  gates.push(spreadPct <= 0.02
-    ? { label: 'Liquidity', detail: `bid-ask ${spread.toFixed(2)} on ${premium.toFixed(2)} (${(spreadPct * 100).toFixed(1)}%)`, verdict: 'pass' }
-    : spreadPct <= 0.06
-      ? { label: 'Liquidity', detail: `bid-ask ${(spreadPct * 100).toFixed(1)}% of premium — costs you on entry and exit`, verdict: 'warn' }
-      : { label: 'Liquidity', detail: `bid-ask ${(spreadPct * 100).toFixed(1)}% of premium — too wide to trade cleanly`, verdict: 'fail' })
-
-  const fails = gates.filter((g) => g.verdict === 'fail').length
-  const warns = gates.filter((g) => g.verdict === 'warn').length
-  const score = Math.max(0, Math.min(100,
-    Math.round(100 - fails * 30 - warns * 12)))
-  const verdict: TradeCheck['verdict'] = fails > 0 ? 'AVOID' : warns >= 2 ? 'SMALL' : 'TAKE'
-  const headline =
-    fails > 0
-      ? `${gates.find((g) => g.verdict === 'fail')!.label.toLowerCase()} rules this out`
-      : warns >= 2
-        ? 'workable, but it is not a clean setup — size accordingly'
-        : `${moveNeeded.toFixed(0)} pts to break even against ${expectedMove.toFixed(0)} priced, with the read behind it`
-
-  return {
-    ok: true, premium, breakeven, moveNeeded, expectedMove, emRatio, delta,
-    spreadPct, intrinsic, timeValue, wall, gates, score, verdict, headline,
-  }
-}
-
 /** Why one index has no usable tape this tick.
  *
  * `reachable` is the distinction the old `null` return threw away. A backend
@@ -1538,6 +1376,7 @@ export function useLiveData(fallback: Dataset) {
         rotationRun: null, rotationRunWhy: '',
         rotationRunSell: null, rotationRunSellWhy: '',
         runState: null, runStateWhy: '', runStateSell: null, runStateSellWhy: '',
+        zoneState: null, zoneStateSell: null, zoneStateWhy: '',
       }
     }
     const bars: TapeBar[] = []
@@ -1636,6 +1475,10 @@ export function useLiveData(fallback: Dataset) {
     const [runStateSell, runStateSellWhy] =
       alignPerBar<RunState>(day.run_state_sell, bars.length, skipped,
                             'sell-side run-state')
+    const [zoneState, zoneStateWhy] =
+      alignPerBar<RunState>(day.zone_state, bars.length, skipped, 'zone state')
+    const [zoneStateSell] =
+      alignPerBar<RunState>(day.zone_state_sell, bars.length, skipped, 'sell-side zone state')
 
     return {
       day: day.day ?? '', bars,
@@ -1651,6 +1494,7 @@ export function useLiveData(fallback: Dataset) {
       structures, structuresWhy, rotation, rotationWhy,
       rotationRun, rotationRunWhy, rotationRunSell, rotationRunSellWhy,
       runState, runStateWhy, runStateSell, runStateSellWhy,
+      zoneState, zoneStateSell, zoneStateWhy,
     }
   }, [raw])
 

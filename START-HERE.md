@@ -14,6 +14,10 @@ short-variance paper hedger, and what is pending the operator's word). This
 file's §1–§8 remain true about the TAPE; the desk half moved fastest and
 `HANDOFF-DESK.md` §8g is its current shape.
 
+**The HOLD / FOLD window, THE PLAN and the VALIDATE tab (2026-09-25): start with
+`docs/hold/HANDOFF-2026-09-25.md`** — the signed rules and their hashes, where the code is, what was
+verified live, and what is open.
+
 ---
 
 ## 0. The five things people get wrong
@@ -232,7 +236,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 1413 collected, 1410 passing, 3 pre-existing failures in test_desk_numbers.py (theta_day_est returns None -- the desk's code, untouched by this work), as of 2026-09-23
+python -m pytest -q       # 1539 collected, 1536 passing, 3 pre-existing failures in test_desk_numbers.py (theta_day_est returns None -- the desk's code, untouched by this work), as of 2026-09-25
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a

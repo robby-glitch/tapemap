@@ -1,0 +1,245 @@
+{
+ "ok": true,
+ "draft": "DRAFT \u2014 pre-registered 2026-09-25 (docs/hold/PREREG-merged.md rev 4), untested; \u00a77's forward rows decide it, not this screen",
+ "idx": "NIFTY",
+ "day": "2026-09-25",
+ "asof": "09:35",
+ "trade": {
+  "id": "NIFTY-23200PE-long-0936",
+  "idx": "NIFTY",
+  "k": 23200.0,
+  "side": "PE",
+  "role": "long",
+  "t0": "09:36",
+  "p0": 143.15,
+  "qty": 65,
+  "exit_t": null,
+  "src": "check",
+  "expiry": null
+ },
+ "lot": 65,
+ "qty_src": "1 lot (65)",
+ "p0_src": "the chain's last trade at 09:35 [I]",
+ "thesis": {
+  "d": -1,
+  "buyer": true,
+  "Q": "PE",
+  "R": "CE"
+ },
+ "now": {
+  "t": "09:35",
+  "verdict": "WATCH",
+  "tag": null,
+  "sentence": "WATCH \u2014 PE 23,100 still adding (+80.3L) \u2014 writers adding in its way (held 3 min)",
+  "since": "09:35",
+  "fold_rule": null,
+  "unlatched": "WATCH",
+  "healed_since": null,
+  "line": {
+   "L": 23121.6,
+   "src": "session high so far, no 5m swing above you yet",
+   "room": 18,
+   "px": 23103.95,
+   "broken_at": null,
+   "blind": null,
+   "tag": "M"
+  },
+  "payers": {
+   "state": "against",
+   "k": 23100.0,
+   "tag": "M",
+   "fact": "PE 23,100 still adding (+80.3L) \u2014 writers adding in its way (held 3 min)"
+  },
+  "holders": {
+   "label": "HOLDERS",
+   "tag": "M",
+   "fold": null,
+   "fold_for": false,
+   "k": 23200.0,
+   "state": "for",
+   "fact": "CE 23,200 still adding (+29.7L) \u2014 holding"
+  },
+  "flow": {
+   "state": "blind",
+   "fact": "CVD -7 since 09:20 (rank 1.00) \u00b7 0 sell / 0 buy prints of size",
+   "why": "could not check \u2014 too thin to read (fill runs could not rank)",
+   "tag": "I"
+  },
+  "trend": {
+   "state": "flat",
+   "rows": "5m UP \u00b7 15m RANGE \u00b7 1h DOWN",
+   "tag": "I"
+  },
+  "both_leaving": false,
+  "count": "1 for \u00b7 1 against \u2014 a count, not odds",
+  "clock": {
+   "paid_last": null,
+   "quiet": 1,
+   "readable": 1,
+   "of": 15,
+   "text": "paid last \u2014 \u00b7 quiet 1 of 15"
+  },
+  "watch": "FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min",
+  "prem": {
+   "c": 143.15,
+   "tag": "I",
+   "pnl": 0.0,
+   "pct": 0.0,
+   "adverse": false
+  },
+  "blind": [
+   "could not check \u2014 too thin to read (fill runs could not rank)"
+  ]
+ },
+ "entry": {
+  "t": "09:35",
+  "verdict": "WATCH",
+  "text": "If you enter now, you enter into WATCH \u2014 PE 23,100 still adding (+80.3L) \u2014 writers adding in its way (held 3 min); it becomes FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min.",
+  "head_until": "09:40",
+  "fold_rule": null
+ },
+ "plan": {
+  "t": "09:35",
+  "stop": {
+   "L": 23121.6,
+   "room": 18,
+   "risk": 665.03,
+   "risk_why": null,
+   "tag": "M",
+   "risk_tag": "I"
+  },
+  "rung": {
+   "src": "wall",
+   "side": "PE",
+   "k": 23100.0,
+   "room": 4,
+   "word": "DEFENDED",
+   "favour": "the writers in your way are holding \u2014 against your move until they give",
+   "state": "BUILDING",
+   "fold_t": null,
+   "tag": "M"
+  },
+  "touch": null,
+  "exits": {
+   "line": "the line: 23121.6, 18 pts",
+   "window": "the window: WATCH \u00b7 since 09:35"
+  },
+  "room": {
+   "rung": 4,
+   "stop": 18,
+   "text": "rung 4 pts \u00b7 stop 18 pts",
+   "note": "you risk more points to the line than the next rung is away"
+  },
+  "draft": "DRAFT \u2014 pre-registered 2026-09-25 (docs/hold/PLAN-PREREG.md rev 2a), untested; its \u00a76 decides",
+  "not_shown": [
+   "not shown \u2014 a size: the plan leaves the size to you",
+   "not shown \u2014 a single exit: the line and the window both stand; you choose"
+  ]
+ },
+ "side": {
+  "side": "no side",
+  "since": "09:15",
+  "stamp": false,
+  "text": "no side since 09:15 \u2014 5m UP \u00b7 15m RANGE \u00b7 1h DOWN \u2014 no side",
+  "rows": "5m UP \u00b7 15m RANGE \u00b7 1h DOWN \u2014 no side",
+  "facts": [],
+  "oi_half": [
+   "PIN",
+   "both sides writing: CE 23,200 writing \u00b7 PE 23,100 writing"
+  ],
+  "expiry": {
+   "text": "could not check \u2014 expiry not in the day's record",
+   "tag": "M"
+  },
+  "note": "a count, never odds",
+  "tag": "I",
+  "agrees": "no side \u2014 the rows do not agree"
+ },
+ "zone": {
+  "trigger": {
+   "t": "09:33",
+   "seen": "09:35",
+   "ago": 0,
+   "kind": "triggered",
+   "side": "SELL",
+   "band": "u2",
+   "px": 23141.0,
+   "legal": true,
+   "why": "CE 23200 still building",
+   "agrees": "agrees",
+   "tag": "M"
+  },
+  "arm": {
+   "t": "09:30",
+   "seen": "09:32",
+   "ago": 3,
+   "kind": "armed",
+   "side": "SELL",
+   "band": "u2",
+   "px": null,
+   "legal": true,
+   "why": "CE 23200 still building",
+   "agrees": "agrees",
+   "tag": "M"
+  },
+  "why": null
+ },
+ "greeks": {
+  "delta": -0.581,
+  "gamma": 0.0014,
+  "tag": "M"
+ },
+ "absent": {
+  "checked_none": "checked, none \u2014 no order, no size and no confidence number is computed here",
+  "could_not_check": [
+   "could not check \u2014 too thin to read (fill runs could not rank)"
+  ],
+  "not_shown": [
+   "not shown \u2014 the engine's own headline words \u2014 its 09-24 calls read CONTRADICTED by the tool's own grounding",
+   "not shown \u2014 a size: the plan leaves the size to you",
+   "not shown \u2014 a single exit: the line and the window both stand; you choose"
+  ]
+ },
+ "note": "a check marks no trade; a VALIDATE press is logged (docs/hold/VALIDATE-PREREG.md \u00a73)",
+ "validate": {
+  "word": "WAIT",
+  "count": "1 of 5 line up",
+  "n_for": 1,
+  "n_against": 2,
+  "n_neither": 2,
+  "sentence": "Mixed \u2014 next wall only 4 pts away, your stop 18 pts away; PE 23,100 defended \u2014 the writers in your way are holding.",
+  "needs": [
+   "more room: the next wall is closer than your stop",
+   "the wall at PE 23,100 to give way"
+  ],
+  "draft": "DRAFT \u2014 pre-registered 2026-09-25 (docs/hold/VALIDATE-PREREG.md rev 1); its \u00a74 decides, on your forward checks",
+  "tag": "I",
+  "facts": [
+   {
+    "name": "Your setup",
+    "state": "for",
+    "text": "SELL u2 fired 09:33, gate legal \u2014 your setup, your direction"
+   },
+   {
+    "name": "Right now",
+    "state": "neither",
+    "text": "you would enter into WATCH \u2014 PE 23,100 still adding (+80.3L) \u2014 writers adding in its way (held 3 min); it becomes FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min"
+   },
+   {
+    "name": "Market side",
+    "state": "neither",
+    "text": "no side \u2014 the trend rows do not agree"
+   },
+   {
+    "name": "Room to run",
+    "state": "against",
+    "text": "next wall only 4 pts away, your stop 18 pts away"
+   },
+   {
+    "name": "Next wall",
+    "state": "against",
+    "text": "PE 23,100 defended \u2014 the writers in your way are holding"
+   }
+  ]
+ }
+}

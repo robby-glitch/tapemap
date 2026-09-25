@@ -293,3 +293,78 @@ def fade_gate(fronts, side, plays=None, stale_why=None):
     word = "gave up its build" if front["state"] == UNWINDING else "stopped building"
     out["why"] = f"{want} {front['k']:.0f} {word} at {front['peak_at']}"
     return out
+
+
+# ---- folds: BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md
+# §6.1). A DISPLAY read ON TOP of §1d, not part of it: it calls `_state` and
+# changes nothing above. Nothing here feeds `fade_gate`, `setup.gate`, the
+# zone machine or trigger_log.
+#
+# FOLD_SIZE is rev 1's display size rule [I], fixed before either reference
+# day (2026-09-23 range, 2026-09-24 trend) was read through it. It is NOT one
+# of §1d's pre-registered numbers and must not be mistaken for one.
+FOLD_SIZE = 0.15    # a fold needs a high build >= this share of the biggest on its side inside the nine
+
+
+def grid(minutes):
+    """The minute grid as whole series: ``(times, spots, strikes, S, RP)``.
+
+    `S[(k, side)]` is that strike-side's change since the open at every mark
+    -- an absent cell reads 0.0, exactly as in `read` -- and `RP` its running
+    high. A mark with no spot is skipped: nearness cannot be judged there.
+    """
+    times = sorted(t for t, r in (minutes or {}).items()
+                   if isinstance(t, str) and isinstance(r, dict) and r.get("spot") is not None)
+    spots = [float(minutes[t]["spot"]) for t in times]
+    ks = sorted({k for t in times for k in map(_num, minutes[t].get("k") or {}) if k is not None})
+    S, RP = {}, {}
+    for k in ks:
+        for i, side in enumerate(("CE", "PE")):
+            v = [_pair(_at(minutes[t].get("k"), k))[i] for t in times]
+            hi, run = float("-inf"), []
+            for x in v:
+                hi = max(hi, x)
+                run.append(hi)
+            S[(k, side)], RP[(k, side)] = v, run
+    return times, spots, ks, S, RP
+
+
+def nine(strikes, spot):
+    """§1d's window: the NEAR strikes nearest `spot`, a tie to the lower one
+    (the order `read` gets from an ascending grid)."""
+    return sorted(strikes, key=lambda k: (abs(k - spot), k))[:NEAR]
+
+
+def folds(minutes, g=None):
+    """Every FOLD in the grid, oldest first. [M] on §1d.
+
+    A strike-side folds at the first mark §1d reads it UNWINDING after a new
+    high, when at that mark it is inside the nine and its build is SIZED: its
+    high change since the open is > 0 and >= FOLD_SIZE of the biggest high
+    build on its side inside the nine. Stamped at that mark, never re-decided;
+    only a new high re-arms it. Causal -- a mark reads only marks at or before
+    it -- so the same grid gives the same folds whenever it is read, and a
+    front that never built can never fold. `g` is `grid(minutes)`, when the
+    caller already has it.
+    """
+    times, spots, ks, S, RP = g or grid(minutes)
+    near = [set(nine(ks, s)) for s in spots]
+    big = {sd: [max([RP[(k, sd)][j] for k in near[j]] + [0.0]) for j in range(len(times))]
+           for sd in ("CE", "PE")}
+    out = []
+    for (k, side), v in S.items():
+        high, hj, armed = float("-inf"), None, False
+        for j, x in enumerate(v):
+            if x > high:
+                high, hj, armed = x, j, True
+            if j < SLOPE_MARKS or not armed:
+                continue
+            if (k in near[j] and high > 0 and high >= FOLD_SIZE * big[side][j]
+                    and _state(x, high, x - v[j - SLOPE_MARKS]) == UNWINDING):
+                out.append({"k": k, "side": side, "t": times[j], "high": high,
+                            "high_at": times[hj], "spot_high": spots[hj],
+                            "spot_fold": spots[j], "off": round((high - x) / high, 3),
+                            "tag": "M"})
+                armed = False
+    out.sort(key=lambda e: (e["t"], -e["high"]))
+    return out

@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOLD or FOLD — prototype (Fable)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light only; --ink:#1c1c1c; --mute:#6b6b6b; --line:#e3e3e3; --bg:#fafafa; --panel:#fff;
+          --hold:#1f6f3f; --hold-bg:#e8f3ec; --watch:#8a5a00; --watch-bg:#fff3d6; --fold:#b3261e; --fold-bg:#fde8e6; --pn:#5a5a5a; --acc:#2b4f81; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.35 system-ui, "Segoe UI", Roboto, sans-serif; }
+  body { display:grid; grid-template-rows:36px 1fr 150px; grid-template-columns:300px 1fr; height:100vh; overflow:hidden; }
+  header { grid-column:1/3; display:flex; align-items:center; gap:14px; padding:0 14px; background:var(--panel); border-bottom:1px solid var(--line); font-size:12px; color:var(--mute); }
+  header b { color:var(--ink); font-size:13px; }
+  header .tag { border:1px solid var(--line); border-radius:3px; padding:1px 6px; }
+  aside { border-right:1px solid var(--line); background:var(--panel); overflow:auto; }
+  aside h3 { margin:10px 12px 4px; font-size:11px; letter-spacing:.06em; color:var(--mute); text-transform:uppercase; }
+  .tr { display:grid; grid-template-columns:64px 1fr 44px 12px 12px; gap:6px; align-items:center; padding:5px 12px; cursor:pointer; border-left:3px solid transparent; font-size:12px; }
+  .tr:hover { background:#f2f4f7; } .tr.on { background:#eef2f8; border-left-color:var(--acc); }
+  .tr .c { font-variant-numeric:tabular-nums; color:var(--mute); }
+  .tr .pl { text-align:right; font-variant-numeric:tabular-nums; color:var(--pn); }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.HOLD{background:var(--hold);} .dot.WATCH{background:#e0a100;} .dot.FOLD{background:var(--fold);} .dot.none{background:#ccc;}
+  form { padding:8px 12px 14px; display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:12px; }
+  form label { display:flex; flex-direction:column; gap:2px; color:var(--mute); }
+  form input, form select { font:inherit; padding:3px 4px; border:1px solid var(--line); border-radius:3px; background:#fff; color:var(--ink); }
+  form button { grid-column:1/3; padding:6px; border:1px solid var(--acc); background:#fff; color:var(--acc); border-radius:3px; cursor:pointer; }
+  main { position:relative; overflow:auto; }
+  .backdrop { height:100%; padding:18px 22px; color:#b9b9b9; }
+  .backdrop .mock { border:1px dashed #ddd; border-radius:6px; height:calc(100% - 30px); padding:14px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  .backdrop .mock div { border:1px dashed #e6e6e6; border-radius:4px; padding:8px; font-size:12px; }
+  .dock { grid-column:1/3; border-top:1px solid var(--line); background:var(--panel); padding:8px 14px; display:grid; grid-template-rows:auto auto auto; gap:6px; font-size:12px; }
+  .dock .ctl { display:flex; gap:10px; align-items:center; }
+  .dock button { font:inherit; padding:2px 10px; border:1px solid var(--line); background:#fff; border-radius:3px; cursor:pointer; }
+  .dock input[type=range] { flex:1; }
+  .strip { display:flex; height:16px; border:1px solid var(--line); border-radius:3px; overflow:hidden; cursor:pointer; }
+  .strip i { flex:1; display:block; position:relative; }
+  .strip i.HOLD{background:#cfe6d7;} .strip i.WATCH{background:#f6dea0;} .strip i.FOLD{background:#f3b8b3;} .strip i.PATA{background:#ddd;}
+  .strip i.cur { outline:2px solid var(--acc); outline-offset:-2px; z-index:2; }
+  .strip i.en::after, .strip i.ex::after { content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--ink); }
+  .strip i.ex::after { background:var(--acc); width:3px; }
+  .dock .at { color:var(--mute); display:flex; gap:18px; flex-wrap:wrap; }
+  .dock .at b { color:var(--ink); }
+  /* ------------------------------------------------ the floating window */
+  #win { position:fixed; top:56px; right:22px; width:390px; background:#fff; border:1px solid #cfcfcf; border-radius:6px; box-shadow:0 6px 24px rgba(0,0,0,.14); z-index:50; font-size:12.5px; }
+  #win .hd { display:flex; align-items:center; gap:8px; padding:7px 8px 7px 10px; border-bottom:1px solid var(--line); cursor:move; user-select:none; border-radius:6px 6px 0 0; }
+  #win .hd.FOLD { background:var(--fold-bg); } #win .hd.WATCH { background:var(--watch-bg); } #win .hd.HOLD { background:#fff; }
+  #win .v { font-weight:700; font-size:15px; letter-spacing:.02em; padding:2px 9px; border-radius:4px; }
+  #win .v.HOLD{color:var(--hold); background:var(--hold-bg);} #win .v.WATCH{color:var(--watch); background:#fbe7b5;} #win .v.FOLD{color:#fff; background:var(--fold);} #win .v.PATA{color:var(--mute); background:#eee;}
+  #win .hd .who { flex:1; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #win .hd .since { color:var(--fold); font-weight:600; white-space:nowrap; }
+  #win .hd button { border:0; background:transparent; font:inherit; color:var(--mute); cursor:pointer; padding:0 4px; font-size:14px; }
+  #win .why { padding:7px 10px; border-bottom:1px solid var(--line); color:var(--ink); }
+  #win .why.FOLD { color:var(--fold); font-weight:600; } #win .why.WATCH { color:var(--watch); }
+  #win table { width:100%; border-collapse:collapse; }
+  #win td { padding:5px 6px; vertical-align:top; border-bottom:1px solid #f0f0f0; }
+  #win td.n { width:72px; font-size:10.5px; letter-spacing:.06em; color:var(--mute); text-transform:uppercase; padding-top:7px; }
+  #win td.s { width:78px; font-weight:600; white-space:nowrap; }
+  #win td.s.for{color:var(--hold);} #win td.s.against{color:var(--fold);} #win td.s.flat{color:var(--pn);} #win td.s.blind{color:var(--mute); font-weight:400; font-style:italic;}
+  #win td.s.intact{color:var(--hold);} #win td.s.broken{color:var(--fold);}
+  #win td.f { color:#3a3a3a; font-size:11.5px; } #win td.t { width:22px; color:var(--mute); font-size:10px; text-align:right; }
+  #win .ft { padding:6px 10px; color:var(--mute); font-size:11.5px; display:flex; gap:10px; flex-wrap:wrap; }
+  #win .ft b { color:var(--pn); font-weight:600; }
+  #win.min .why, #win.min table, #win.min .ft { display:none; }
+  #win.min { width:auto; max-width:640px; } #win.min .hd { border-bottom:0; border-radius:6px; }
+  #win.min .hd .who { overflow:visible; }
+  /* ------------------------------------------------ the minute table */
+  .mt { margin:12px 22px 22px; border:1px solid var(--line); background:#fff; border-radius:6px; overflow:hidden; }
+  .mt h4 { margin:0; padding:8px 12px; font-size:12px; color:var(--mute); border-bottom:1px solid var(--line); font-weight:600; }
+  .mt table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .mt th { text-align:left; padding:5px 8px; color:var(--mute); font-weight:600; border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff; }
+  .mt td { padding:4px 8px; border-bottom:1px solid #f2f2f2; vertical-align:top; }
+  .mt tr.en td { background:#f4f6fa; } .mt tr.ex td { background:#eef2f8; }
+  .mt td.v { font-weight:700; } .mt td.v.HOLD{color:var(--hold);} .mt td.v.WATCH{color:var(--watch);} .mt td.v.FOLD{color:var(--fold);}
+  .mt td.num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .mt tr.cur td { outline:1px solid var(--acc); }
+  .note { margin:0 22px; color:var(--mute); font-size:11.5px; }
+  /* ------------------------------------------------ the BETTER TRADE panel (BETTER-RULES.md) */
+  #bt { position:fixed; top:56px; right:426px; width:430px; background:#fff; border:1px solid #cfcfcf; border-radius:6px; box-shadow:0 6px 24px rgba(0,0,0,.10); z-index:49; font-size:12px; }
+  #bt .hd { display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--mute); }
+  #bt .hd b { color:var(--ink); letter-spacing:.02em; text-transform:none; font-size:12.5px; }
+  #bt .hd label { margin-left:auto; text-transform:none; letter-spacing:0; display:flex; gap:4px; align-items:center; cursor:pointer; }
+  #bt .mine { padding:7px 10px; border-bottom:1px solid var(--line); font-weight:600; }
+  #bt .mine.bad { background:var(--watch-bg); color:var(--watch); } #bt .mine.ok { color:var(--hold); } #bt .mine.na { color:var(--mute); font-weight:400; }
+  #bt .mine small { display:block; font-weight:400; color:var(--pn); margin-top:2px; }
+  #bt table { width:100%; border-collapse:collapse; }
+  #bt td { padding:5px 6px; vertical-align:top; border-bottom:1px solid #f0f0f0; font-size:11.5px; }
+  #bt td.n { width:54px; font-size:10.5px; letter-spacing:.06em; color:var(--mute); text-transform:uppercase; padding-top:7px; }
+  #bt td.t { width:22px; color:var(--mute); font-size:10px; text-align:right; }
+  #bt b.w { font-weight:700; } #bt .BUYING { color:var(--acc); } #bt .SELLING { color:#6a4a9c; } #bt .UNDECIDED, #bt .FORMING { color:var(--mute); }
+  #bt .f { color:#3a3a3a; } #bt .f i { font-style:normal; color:var(--mute); }
+  #bt .rk span { display:block; }
+  #bt .ft { padding:6px 10px; color:var(--mute); font-size:11px; }
+  #bt.min table, #bt.min .ft, #bt.min .mine small { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <b>HOLD or FOLD</b> <span>floating trade window — prototype, Fable</span>
+  <span class="tag">replay · 2026-09-21 → 09-24 · frozen after the 09-24 close</span>
+  <span class="tag">advisory only · no order path · no odds</span>
+  <span class="tag">verdict logic is a DRAFT until pre-registered (RULES.md §8)</span>
+</header>
+
+<aside>
+  <h3>her trades (tradebook, flat-to-flat)</h3>
+  <div id="list"></div>
+  <h3>pick any trade</h3>
+  <form id="form" autocomplete="off">
+    <label>index <select name="idx"><option>SENSEX</option><option>NIFTY</option></select></label>
+    <label>day <select name="day"></select></label>
+    <label>strike <input name="strike" type="number" step="50" value="73800"></label>
+    <label>type <select name="type">
+      <option value="CE|buyer">long CE</option><option value="PE|buyer" selected>long PE</option>
+      <option value="CE|writer">short CE</option><option value="PE|writer">short PE</option>
+      <option value="CE|buyer|spread">bull call spread (debit)</option><option value="PE|buyer|spread">bear put spread (debit)</option>
+      <option value="CE|writer|spread">bear call spread (credit)</option><option value="PE|writer|spread">bull put spread (credit)</option>
+    </select></label>
+    <label>entry time <input name="entry_ts" value="13:41:38"></label>
+    <label>entry price <input name="entry" type="number" step="0.05" placeholder="chain px at entry"></label>
+    <label>qty <input name="qty" type="number" value="20"></label>
+    <label>2nd leg strike (spreads, P&amp;L only) <input name="leg2" type="number" step="50" placeholder="optional"></label>
+    <button type="submit">read this trade</button>
+  </form>
+</aside>
+
+<main>
+  <div class="backdrop">
+    <div>any tab of the tool, or the broker screen — the window floats over it</div>
+    <div class="mock"><div>BOARD · regime / who is trapped / plays</div><div>WAR · the strike ladder</div><div>the broker's chart (not here — never a price chart in the window)</div></div>
+  </div>
+  <div class="mt" id="mt"></div>
+</main>
+
+<div class="dock">
+  <div class="ctl">
+    <button id="play">▶ play</button>
+    <span id="tnow" style="min-width:52px;font-variant-numeric:tabular-nums"></span>
+    <input id="slider" type="range" min="0" max="0" value="0">
+    <span id="tend" style="color:var(--mute)"></span>
+    <label style="margin-left:16px;color:var(--mute);display:flex;gap:6px;align-items:center" title="RULES.md §10 A + F. Post-data proposals, NOT registered, off by default: (A) a wall-side fold within 2 steps of spot in the last 15 min reads FUEL against for a buyer; (F) FUEL is blind under 15 grid marks."><input type="checkbox" id="variant"> variant A+F (post-data, unregistered)</label>
+  </div>
+  <div class="strip" id="strip"></div>
+  <div class="at" id="at"></div>
+</div>
+
+<div id="win">
+  <div class="hd" id="hd">
+    <span class="v" id="v">—</span><span class="who" id="who">pick a trade</span><span class="since" id="since"></span>
+    <button id="min" title="collapse to one line">–</button><button title="close (prototype: no-op)">×</button>
+  </div>
+  <div class="why" id="why"></div>
+  <table>
+    <tr><td class="n">structure</td><td class="s" id="s1"></td><td class="f" id="f1"></td><td class="t">[M]</td></tr>
+    <tr><td class="n">fuel</td><td class="s" id="s2"></td><td class="f" id="f2"></td><td class="t">[M]</td></tr>
+    <tr><td class="n">flow</td><td class="s" id="s3"></td><td class="f" id="f3"></td><td class="t">[I]</td></tr>
+    <tr><td class="n">trend</td><td class="s" id="s4"></td><td class="f" id="f4"></td><td class="t">[I]</td></tr>
+  </table>
+  <div class="ft" id="ft"></div>
+</div>
+
+<div id="bt">
+  <div class="hd"><b>BETTER TRADE</b> <span id="btt"></span> <span>draft · a count, not odds</span>
+    <label title="read the day as if she were flat: no trade comparison"><input type="checkbox" id="flat"> flat</label>
+    <label title="BETTER-RULES.md §10 B, post-data, NOT registered: the day word from the price rows alone; the OI half becomes a counted fact"><input type="checkbox" id="bvar"> variant B</label>
+    <button id="btmin" style="border:0;background:transparent;cursor:pointer;color:var(--mute)">–</button></div>
+  <div class="mine" id="btm"></div>
+  <table>
+    <tr><td class="n">day</td><td class="f" id="b1"></td><td class="t">[I]</td></tr>
+    <tr><td class="n">side</td><td class="f" id="b2"></td><td class="t">[M·I]</td></tr>
+    <tr><td class="n">index</td><td class="f rk" id="b3"></td><td class="t">[I]</td></tr>
+    <tr><td class="n">engine</td><td class="f" id="b4"></td><td class="t">[I]</td></tr>
+    <tr><td class="n">best</td><td class="f" id="b5"></td><td class="t"></td></tr>
+  </table>
+  <div class="ft" id="btf"></div>
+</div>
+
+<script src="data.js"></script>
+<script src="hold.js"></script>
+<script src="better.js"></script>
+<script>
+(function () {
+  const D = window.HOLD_DATA, H = window.HOLD;
+  const $ = id => document.getElementById(id);
+  const inr = x => x == null ? '—' : (x < 0 ? '−' : '+') + Math.abs(Math.round(x)).toLocaleString('en-IN');
+  let R = null, i = 0, timer = null;
+
+  // ---------------------------------------------------------------- trade list
+  const list = $('list');
+  const byDay = {};
+  for (const t of D.trades) (byDay[t.day] = byDay[t.day] || []).push(t);
+  for (const day of Object.keys(byDay).sort()) {
+    const h = document.createElement('h3'); h.textContent = day; list.appendChild(h);
+    for (const t of byDay[day]) {
+      const r = H.read(D.days[`${t.idx}|${t.day}`], t);
+      const en = r.rows[0], ex = r.rows.find(x => x.isExit);
+      const el = document.createElement('div'); el.className = 'tr'; el.dataset.id = t.id;
+      const pl = t.exit != null ? Math.round((t.exit - t.entry) * t.qty) : null;
+      el.innerHTML = `<span class="c">${t.entry_ts.slice(0, 5)}→${t.exit_ts ? t.exit_ts.slice(0, 5) : 'open'}</span>
+        <span>${t.idx.slice(0, 1)} ${t.strike} ${t.side} ${t.role === 'writer' ? 'short' : ''} ×${t.qty}</span>
+        <span class="pl" title="what she took">${pl == null ? '' : inr(pl)}</span>
+        <span class="dot ${en ? en.verdict : 'none'}" title="at entry: ${en ? en.verdict : '?'}"></span>
+        <span class="dot ${ex ? ex.verdict : 'none'}" title="at exit: ${ex ? ex.verdict : 'open'}"></span>`;
+      el.onclick = () => select(t, el);
+      list.appendChild(el);
+    }
+  }
+
+  // ---------------------------------------------------------------- custom form
+  const form = $('form');
+  function fillDays() {
+    const idx = form.idx.value; const sel = form.day;
+    sel.innerHTML = Object.keys(D.days).filter(k => k.startsWith(idx + '|')).map(k => `<option>${k.split('|')[1]}</option>`).join('');
+    sel.value = sel.options[sel.options.length - 1].value;
+  }
+  form.idx.onchange = fillDays; fillDays();
+  form.onsubmit = e => {
+    e.preventDefault();
+    const [side, role, spread] = form.type.value.split('|');
+    const day = D.days[`${form.idx.value}|${form.day.value}`];
+    const ts = form.entry_ts.value.length === 5 ? form.entry_ts.value + ':00' : form.entry_ts.value;
+    const em = H.readMinute(ts);
+    const px = (day.px[`${+form.strike.value}${side}`] || {})[em];
+    const t = { idx: form.idx.value, day: form.day.value, strike: +form.strike.value, side, role, qty: +form.qty.value || 1,
+                entry_ts: ts, exit_ts: null, entry: form.entry.value ? +form.entry.value : px, exit: null,
+                leg2: spread && form.leg2.value ? { strike: +form.leg2.value, side, role: role === 'buyer' ? 'writer' : 'buyer' } : null,
+                src: 'picked', id: 'custom' };
+    document.querySelectorAll('.tr.on').forEach(x => x.classList.remove('on'));
+    select(t, null);
+  };
+
+  // ---------------------------------------------------------------- select + replay
+  let current = null;
+  $('variant').onchange = () => { if (current) select(current.t, current.el); };
+  function select(t, el) {
+    current = { t, el };
+    document.querySelectorAll('.tr.on').forEach(x => x.classList.remove('on'));
+    if (el) el.classList.add('on');
+    R = H.read(D.days[`${t.idx}|${t.day}`], t, { variant: $('variant').checked });
+    if (R.error) { alert(R.error); return; }
+    if (t.leg2) {                                   // the second leg enters P&L only (RULES.md §1)
+      const p2 = D.days[`${t.idx}|${t.day}`].px[`${t.leg2.strike}${t.leg2.side}`] || {};
+      const e2 = p2[R.entryMin];
+      for (const r of R.rows) { const v = p2[r.t]; r.pnl = (r.pnl == null || v == null || e2 == null) ? null : r.pnl + (v - e2) * t.qty * (t.leg2.role === 'buyer' ? 1 : -1); }
+    }
+    stop();
+    const s = $('slider'); s.max = R.rows.length - 1; s.value = 0; i = 0;
+    $('tend').textContent = R.rows[R.rows.length - 1].t;
+    $('strip').innerHTML = R.rows.map((r, k) => `<i class="${r.verdict === 'PATA NAHI' ? 'PATA' : r.verdict}${r.isEntry ? ' en' : ''}${r.isExit ? ' ex' : ''}" data-k="${k}" title="${r.t} ${r.verdict}"></i>`).join('');
+    renderTable();
+    show(0);
+  }
+  function show(k) {
+    if (!R) return;
+    i = Math.max(0, Math.min(k, R.rows.length - 1));
+    $('slider').value = i;
+    const r = R.rows[i], t = R.trade;
+    $('tnow').textContent = r.t;
+    document.querySelectorAll('.strip i').forEach(x => x.classList.toggle('cur', +x.dataset.k === i));
+    document.querySelectorAll('.mt tr').forEach(x => x.classList.toggle('cur', x.dataset.t === r.t));
+    // the window
+    const held = H.mm(r.t) - H.mm(R.entryMin);
+    $('v').textContent = r.verdict; $('v').className = 'v ' + (r.verdict === 'PATA NAHI' ? 'PATA' : r.verdict);
+    $('hd').className = 'hd ' + r.verdict;
+    $('who').textContent = `${t.idx} ${t.strike} ${t.side} · ${t.role === 'buyer' ? 'long' : 'short'} ×${t.qty}${t.leg2 ? ` / ${t.leg2.strike} ${t.leg2.side}` : ''} · ${held} min`;
+    $('since').textContent = r.since ? `since ${r.since}` : '';
+    const win = $('win');
+    if (win.classList.contains('min')) {
+      $('who').textContent = `${t.strike} ${t.side} · line ${H.fmt(r.structure.L)} (${r.structure.state === 'broken' ? 'BROKEN' : (R.want < 0 ? '+' : '−') + r.structure.dist}) · fuel ${r.fuel.word} · flow ${r.flow.word} · ${r.trend.word} · ${held} min`;
+    }
+    $('why').textContent = r.since ? r.foldWhy : r.why; $('why').className = 'why ' + r.verdict;
+    const room = r.structure.state === 'broken' ? `BROKEN ${r.structure.brokeAt} — ${t.idx} closed ${H.fmt(r.structure.px)} ${R.want < 0 ? 'above' : 'below'} ${H.fmt(r.structure.L)}` : `line ${H.fmt(r.structure.L)} (${r.structure.src}) · ${r.structure.dist} pts of room · ${t.idx} ${H.fmt(r.structure.px)}`;
+    set('s1', r.structure.state, r.structure.state); $('f1').textContent = room;
+    // the window shows the front sentence; grounds' futures-OI quadrant and the runs reason stay in the table below
+    set('s2', r.fuel.word, r.fuel.state); $('f2').textContent = (r.fuel.fact || '').split(' · futures OI')[0];
+    set('s3', r.flow.word, r.flow.state); $('f3').textContent = (r.flow.fact || '').replace(/; fill runs could not be read[^·]*/g, ' · fill runs: could not check').replace(/no stacked imbalance; fill runs could not be read[^·]*/g, 'no stacked imbalance · fill runs: could not check');
+    set('s4', r.trend.word, r.trend.state); $('f4').textContent = r.trend.fact;
+    const prem = r.prem == null ? `premium: could not check — ${r.premWhy}` : `${t.strike} ${t.side} ${t.entry != null ? t.entry.toFixed(2) + ' → ' : ''}${r.prem.toFixed(2)}`;
+    $('ft').innerHTML = `<span>entered ${R.entryMin} into <b>${R.rows[0].verdict}</b></span><span>${prem}</span>` +
+      (r.pnl == null ? '' : `<span>P&amp;L <b>${inr(r.pnl)}</b> [M]</span>`) + `<span>read ${r.t}, last finished minute</span>`;
+    renderBetter(t.day, r.t, $('flat').checked ? null : t);
+    // dock line
+    const ex = R.rows.find(x => x.isExit);
+    $('at').innerHTML = `<span>at <b>${r.t}</b>: <b>${r.verdict}</b></span>` +
+      (ex ? `<span>she exited ${t.exit_ts} at ${t.exit} — the window then said <b>${ex.verdict}</b></span>` : '<span>open trade (example)</span>') +
+      (R.fold ? `<span>first FOLD <b>${R.fold.t}</b></span>` : '<span>no FOLD before the close</span>') +
+      `<span>${t.src}</span>`;
+  }
+  function set(id, word, state) { const e = $(id); e.textContent = word; e.className = 's ' + state; }
+
+  // ---------------------------------------------------------------- the BETTER TRADE panel (BETTER-RULES.md §2–6)
+  const B = window.BETTER;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const dot = ok => ok === true ? '●' : ok === false ? '✕' : '?';
+  function renderBetter(day, t, trade) {
+    const X = B.read(D.days, day, t, trade, { variant: $('bvar').checked });
+    $('btt').textContent = `${day} · ${t}${X.variant ? ' · VARIANT B (unregistered)' : ''}`;
+    const me = trade ? X.per[trade.idx] : null;
+    const m = $('btm');
+    if (!trade) { m.className = 'mine na'; m.innerHTML = `flat — no trade to compare; the read stands on its own`; }
+    else { m.className = 'mine ' + (X.mine.head.startsWith('WRONG') ? 'bad' : X.mine.head.startsWith('your trade agrees') ? 'ok' : 'na'); m.innerHTML = `${esc(X.mine.head)}<small>${esc(X.mine.marks)} · your trade: ${trade.idx} ${trade.strike} ${trade.side} ${trade.role === 'buyer' ? 'long' : 'short'}</small>`; }
+    const focus = trade ? X.per[trade.idx] : X.ranked[0];
+    const dw = focus.day;
+    $('b1').innerHTML = `<b class="w ${esc(dw.day)}">${esc(focus.idx)} · ${esc(dw.day)}</b>${focus.since && dw.day !== 'could not check' ? ` <i>since ${esc(focus.since)}</i>` : ''} — ${esc(dw.why)}`;
+    const s = focus.side;
+    $('b2').innerHTML = s.side ? `<b class="w">${esc(s.side)} · ${esc(s.role)}</b> · ${s.n} of ${s.of} facts agree${s.blind ? `, ${s.blind} could not check` : ''}<br>` + s.facts.map(f => `${dot(f.ok)} ${esc(f.fact)} <i>[${f.tag}]</i>`).join('<br>')
+                      : `<b class="w">no side</b> — ${esc(s.whyNo || dw.why)}` + (s.facts.length ? '<br>' + s.facts.map(f => `${dot(f.ok)} ${esc(f.fact)} <i>[${f.tag}]</i>`).join('<br>') : '');
+    $('b3').innerHTML = X.ranked.map(x => `<span>${x.rank}. <b>${esc(x.idx)}</b> ${esc(x.day.day)}${x.side.side ? ' ' + esc(x.side.side) + ' ' + esc(x.side.role) : ''}${x.side.of ? ` · ${x.side.n} of ${x.side.of}` : ''}${x.side.blind ? ` · ${x.side.blind} blind` : ''}${x.notShown ? ` <i>· ${esc(x.notShown)}</i>` : ''}</span>`).join('');
+    const e = focus.engine;
+    $('b4').innerHTML = e.status ? `“${esc(e.text)}” — <b class="w">${esc(e.status)}</b>: ${esc(e.word)}${e.against.length ? '<br>' + e.against.map(esc).join('<br>') : ''}${e.for.length && !e.against.length ? '<br>' + e.for.map(esc).join('<br>') : ''}${e.note ? `<br><i>${esc(e.note)}</i>` : ''}${e.t ? ` <i>· read ${esc(e.t)}</i>` : ''}`
+                      : `<i>${esc(e.why)}</i>`;
+    $('b5').innerHTML = `<b class="w">${esc(X.best)}</b>${X.second ? `<br>second: ${esc(X.second)}` : ''}`;
+    const src = D.days[`${focus.idx}|${day}`];
+    $('btf').textContent = `read ${t}, last finished minute · index candles: ${src && src.trend_src ? src.trend_src : 'REST [M]'} · advisory, never an order or a size`;
+  }
+  $('flat').onchange = () => { if (R) show(i); };
+  $('bvar').onchange = () => { if (R) show(i); };
+  $('btmin').onclick = () => { $('bt').classList.toggle('min'); $('btmin').textContent = $('bt').classList.contains('min') ? '+' : '–'; };
+  function renderTable() {
+    const t = R.trade;
+    const rows = R.rows.map(r => `<tr data-t="${r.t}" class="${r.isEntry ? 'en' : ''}${r.isExit ? ' ex' : ''}">
+      <td class="num">${r.t}${r.isEntry ? ' ◂in' : ''}${r.isExit ? ' ◂out' : ''}</td><td class="v ${r.verdict}">${r.verdict}${r.since ? ' ' + r.since : ''}</td>
+      <td class="num">${H.fmt(r.structure.px)}</td><td>${r.structure.state === 'broken' ? 'BROKEN ' + r.structure.brokeAt : H.fmt(r.structure.L) + ' · ' + r.structure.dist}</td>
+      <td>${r.fuel.state}: ${r.fuel.fact || ''}</td><td>${r.flow.state}: ${r.flow.fact || ''}</td><td>${r.trend.state}: ${r.trend.fact}</td>
+      <td class="num">${r.prem == null ? '—' : r.prem.toFixed(2)}</td><td class="num">${inr(r.pnl)}</td></tr>`).join('');
+    $('mt').innerHTML = `<h4>${t.idx} ${t.strike} ${t.side} · ${t.role} · ${t.day} · minute by minute from the entry read to the close (${R.rows.length} rows)${R.variant ? ' · VARIANT A+F ON — post-data proposals, not registered' : ''}</h4>
+      <table><tr><th>min</th><th>verdict</th><th>index</th><th>line · room</th><th>fuel [M]</th><th>flow [I]</th><th>trend [I]</th><th>prem</th><th>P&amp;L</th></tr>${rows}</table>`;
+    document.querySelectorAll('.mt tr[data-t]').forEach(tr => tr.onclick = () => show(R.rows.findIndex(r => r.t === tr.dataset.t)));
+  }
+  $('slider').oninput = e => show(+e.target.value);
+  $('strip').onclick = e => { const k = e.target.dataset.k; if (k != null) show(+k); };
+  function stop() { if (timer) clearInterval(timer); timer = null; $('play').textContent = '▶ play'; }
+  $('play').onclick = () => { if (timer) return stop(); if (!R) return; $('play').textContent = '❚❚ pause'; timer = setInterval(() => { if (i >= R.rows.length - 1) return stop(); show(i + 1); }, 220); };
+  document.addEventListener('keydown', e => { if (e.key === 'ArrowRight') show(i + 1); if (e.key === 'ArrowLeft') show(i - 1); if (e.key === ' ') { e.preventDefault(); $('play').click(); } });
+
+  // ---------------------------------------------------------------- the window: drag + collapse
+  const win = $('win'), hd = $('hd');
+  let drag = null;
+  hd.onmousedown = e => { if (e.target.tagName === 'BUTTON') return; drag = { x: e.clientX - win.offsetLeft, y: e.clientY - win.offsetTop }; win.style.left = win.offsetLeft + 'px'; win.style.right = 'auto'; };
+  document.onmousemove = e => { if (!drag) return; win.style.left = (e.clientX - drag.x) + 'px'; win.style.top = (e.clientY - drag.y) + 'px'; };
+  document.onmouseup = () => drag = null;
+  $('min').onclick = () => { win.classList.toggle('min'); $('min').textContent = win.classList.contains('min') ? '+' : '–'; if (R) show(i); };
+
+  const first = document.querySelector('.tr[data-id^="2026-09-24_SENSEX_73900PE_134138"]') || document.querySelector('.tr');
+  if (first) first.click();
+})();
+</script>
+</body>
+</html>

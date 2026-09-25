@@ -1,0 +1,266 @@
+[
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "base": "10:25 broke (-17.6) x:HOLD",
+  "9.4 structure": "10:21 struc (-11.3) x:HOLD",
+  "9.5 ceiling": "10:25 broke (-17.6) x:HOLD",
+  "both": "10:21 struc (-11.3) x:HOLD",
+  "9.6 merged": "10:21 struc (-11.3) x:HOLD"
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "base": "11:19 broke (35.8) x:WATCH",
+  "9.4 structure": "11:14 struc (29.4) x:WATCH",
+  "9.5 ceiling": "11:19 broke (35.8) x:HOLD",
+  "both": "11:14 struc (29.4) x:HOLD",
+  "9.6 merged": "11:14 struc (29.4) x:WATCH"
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "base": "11:19 broke (-4.1) x:WATCH",
+  "9.4 structure": "11:14 struc (-10.5) x:WATCH",
+  "9.5 ceiling": "11:19 broke (-4.1) x:HOLD",
+  "both": "11:14 struc (-10.5) x:HOLD",
+  "9.6 merged": "11:14 struc (-10.5) x:WATCH"
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "base": "11:19 broke (-4.4) x:WATCH",
+  "9.4 structure": "11:14 struc (-10.8) x:WATCH",
+  "9.5 ceiling": "11:19 broke (-4.4) x:HOLD",
+  "both": "11:14 struc (-10.8) x:HOLD",
+  "9.6 merged": "11:14 struc (-10.8) x:WATCH"
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "base": "11:19 broke (-0.8) x:WATCH",
+  "9.4 structure": "11:14 struc (-7.3) x:WATCH",
+  "9.5 ceiling": "11:19 broke (-0.8) x:HOLD",
+  "both": "11:14 struc (-7.3) x:HOLD",
+  "9.6 merged": "11:14 struc (-7.3) x:WATCH"
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "base": "11:19 broke (-20.1) x:WATCH",
+  "9.4 structure": "11:14 struc (-26.1) x:WATCH",
+  "9.5 ceiling": "11:19 broke (-20.1) x:WATCH",
+  "both": "11:14 struc (-26.1) x:WATCH",
+  "9.6 merged": "11:14 struc (-26.1) x:WATCH"
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "base": "13:47 broke (-5.0) x:FOLD",
+  "9.4 structure": "13:47 broke (-5.0) x:FOLD",
+  "9.5 ceiling": "13:47 broke (-5.0) x:FOLD",
+  "both": "13:47 broke (-5.0) x:FOLD",
+  "9.6 merged": "13:47 broke (-5.0) x:FOLD"
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "base": "09:50 gone (-8.8) x:PATA NAHI",
+  "9.4 structure": "09:50 gone (-8.8) x:PATA NAHI",
+  "9.5 ceiling": "09:50 gone (-8.8) x:PATA NAHI",
+  "both": "09:50 gone (-8.8) x:PATA NAHI",
+  "9.6 merged": "09:50 gone (-8.8) x:PATA NAHI"
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "base": "09:57 broke (-7.7) x:WATCH",
+  "9.4 structure": "09:54 struc (-12.7) x:WATCH",
+  "9.5 ceiling": "09:57 broke (-7.7) x:WATCH",
+  "both": "09:54 struc (-12.7) x:WATCH",
+  "9.6 merged": "09:54 struc (-12.7) x:WATCH"
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "base": "10:19 broke (-19.2) x:WATCH",
+  "9.4 structure": "10:17 struc (-14.2) x:WATCH",
+  "9.5 ceiling": "10:19 broke (-19.2) x:WATCH",
+  "both": "10:17 struc (-14.2) x:WATCH",
+  "9.6 merged": "10:17 struc (-14.2) x:WATCH"
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "base": "09:59 broke (-2.0) x:FOLD",
+  "9.4 structure": "09:59 broke (-2.0) x:FOLD",
+  "9.5 ceiling": "10:00 broke (-2.6) x:FOLD",
+  "both": "10:00 broke (-2.6) x:FOLD",
+  "9.6 merged": "09:59 broke (-2.0) x:FOLD"
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "base": "10:40 broke (5.7) x:HOLD",
+  "9.4 structure": "10:40 broke (5.7) x:HOLD",
+  "9.5 ceiling": "11:37 broke (15.3) x:HOLD",
+  "both": "11:37 broke (15.3) x:HOLD",
+  "9.6 merged": "10:40 broke (5.7) x:HOLD"
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "base": "10:40 broke (1.0) x:FOLD",
+  "9.4 structure": "10:40 broke (1.0) x:FOLD",
+  "9.5 ceiling": "11:37 broke (10.6) x:WATCH",
+  "both": "11:37 broke (10.6) x:WATCH",
+  "9.6 merged": "10:40 broke (1.0) x:FOLD"
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "base": "11:37 broke (1.4) x:WATCH",
+  "9.4 structure": "11:37 broke (1.4) x:WATCH",
+  "9.5 ceiling": "11:37 broke (1.4) x:WATCH",
+  "both": "11:37 broke (1.4) x:WATCH",
+  "9.6 merged": "11:37 broke (1.4) x:WATCH"
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "base": "12:06 broke (40.9) x:HOLD",
+  "9.4 structure": "12:06 broke (40.9) x:HOLD",
+  "9.5 ceiling": "12:07 broke (24.6) x:HOLD",
+  "both": "12:07 broke (24.6) x:HOLD",
+  "9.6 merged": "12:06 broke (40.9) x:HOLD"
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "base": "10:14 broke (15.2) x:HOLD",
+  "9.4 structure": "10:14 broke (15.2) x:HOLD",
+  "9.5 ceiling": "10:14 broke (15.2) x:HOLD",
+  "both": "10:14 broke (15.2) x:HOLD",
+  "9.6 merged": "10:14 broke (15.2) x:HOLD"
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "base": "10:37 broke (-43.7) x:HOLD",
+  "9.4 structure": "10:37 broke (-43.7) x:HOLD",
+  "9.5 ceiling": "10:37 broke (-43.7) x:HOLD",
+  "both": "10:37 broke (-43.7) x:HOLD",
+  "9.6 merged": "10:37 broke (-43.7) x:HOLD"
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "base": "13:12 broke (-1.9) x:HOLD",
+  "9.4 structure": "13:12 broke (-1.9) x:HOLD",
+  "9.5 ceiling": "13:12 broke (-1.9) x:HOLD",
+  "both": "13:12 broke (-1.9) x:HOLD",
+  "9.6 merged": "13:24 gone (6.3) x:HOLD"
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "base": "13:12 broke (-31.2) x:HOLD",
+  "9.4 structure": "13:12 broke (-31.2) x:HOLD",
+  "9.5 ceiling": "13:12 broke (-31.2) x:HOLD",
+  "both": "13:12 broke (-31.2) x:HOLD",
+  "9.6 merged": "13:24 gone (-24.4) x:HOLD"
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "base": "13:12 broke (-19.3) x:HOLD",
+  "9.4 structure": "13:12 broke (-19.3) x:HOLD",
+  "9.5 ceiling": "13:12 broke (-19.3) x:HOLD",
+  "both": "13:12 broke (-19.3) x:HOLD",
+  "9.6 merged": "13:24 gone (-12.5) x:HOLD"
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "base": "13:50 broke (149.7) x:WATCH",
+  "9.4 structure": "13:50 broke (149.7) x:WATCH",
+  "9.5 ceiling": "13:50 broke (149.7) x:WATCH",
+  "both": "13:50 broke (149.7) x:WATCH",
+  "9.6 merged": "13:50 broke (149.7) x:WATCH"
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "base": "13:50 broke (78.7) x:WATCH",
+  "9.4 structure": "13:50 broke (78.7) x:WATCH",
+  "9.5 ceiling": "13:50 broke (78.7) x:WATCH",
+  "both": "13:50 broke (78.7) x:WATCH",
+  "9.6 merged": "13:50 broke (78.7) x:WATCH"
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "base": "13:50 broke (62.2) x:WATCH",
+  "9.4 structure": "13:50 broke (62.2) x:WATCH",
+  "9.5 ceiling": "13:50 broke (62.2) x:WATCH",
+  "both": "13:50 broke (62.2) x:WATCH",
+  "9.6 merged": "13:50 broke (62.2) x:WATCH"
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "base": "13:50 broke (38.3) x:WATCH",
+  "9.4 structure": "13:50 broke (38.3) x:WATCH",
+  "9.5 ceiling": "13:50 broke (38.3) x:WATCH",
+  "both": "13:50 broke (38.3) x:WATCH",
+  "9.6 merged": "13:50 broke (38.3) x:WATCH"
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "base": "13:50 broke (-3.7) x:WATCH",
+  "9.4 structure": "13:50 broke (-3.7) x:WATCH",
+  "9.5 ceiling": "13:50 broke (-3.7) x:WATCH",
+  "both": "13:50 broke (-3.7) x:WATCH",
+  "9.6 merged": "13:50 broke (-3.7) x:WATCH"
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "base": "13:53 broke (-20.2) x:FOLD",
+  "9.4 structure": "13:53 broke (-20.2) x:FOLD",
+  "9.5 ceiling": "13:53 broke (-20.2) x:FOLD",
+  "both": "13:53 broke (-20.2) x:FOLD",
+  "9.6 merged": "13:53 broke (-20.2) x:FOLD"
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "base": "14:40 broke (-85.2) x:HOLD",
+  "9.4 structure": "14:35 struc (-47.9) x:HOLD",
+  "9.5 ceiling": "14:40 broke (-85.2) x:HOLD",
+  "both": "14:35 struc (-47.9) x:HOLD",
+  "9.6 merged": "14:35 struc (-47.9) x:HOLD"
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "base": "14:40 broke (-105.3) x:HOLD",
+  "9.4 structure": "14:35 struc (-67.9) x:HOLD",
+  "9.5 ceiling": "14:40 broke (-105.3) x:HOLD",
+  "both": "14:35 struc (-67.9) x:HOLD",
+  "9.6 merged": "14:35 struc (-67.9) x:HOLD"
+ },
+ {
+  "id": "EX 09-23 09:57 SENSEX zone BUY (gate legal) · long ATM CE",
+  "base": "09:59 broke (0.0)",
+  "9.4 structure": "09:59 broke (0.0)",
+  "9.5 ceiling": "10:00 broke (2.4)",
+  "both": "10:00 broke (2.4)",
+  "9.6 merged": "10:05 broke (4.8)"
+ },
+ {
+  "id": "EX 09-23 09:57 NIFTY zone BUY (gate illegal) · long ATM CE",
+  "base": "09:59 broke (0.0)",
+  "9.4 structure": "09:59 broke (0.0)",
+  "9.5 ceiling": "10:00 broke (-0.7)",
+  "both": "10:00 broke (-0.7)",
+  "9.6 merged": "09:59 broke (0.0)"
+ },
+ {
+  "id": "EX 09-23 11:15 NIFTY zone u2 SELL · WRITER short ATM CE",
+  "base": "11:18 broke (0.1)",
+  "9.4 structure": "11:18 broke (0.1)",
+  "9.5 ceiling": "11:18 broke (0.1)",
+  "both": "11:18 broke (0.1)",
+  "9.6 merged": "11:33 struc (-12.4)"
+ },
+ {
+  "id": "EX 09-24 10:30 SENSEX · WRITER short ATM CE",
+  "base": "10:40 broke (-13.8)",
+  "9.4 structure": "10:40 broke (-13.8)",
+  "9.5 ceiling": "10:40 broke (-13.8)",
+  "both": "10:40 broke (-13.8)",
+  "9.6 merged": "10:52 struc (-38.3)"
+ },
+ {
+  "id": "EX 09-24 09:45 SENSEX · WRITER short ATM PE",
+  "base": "09:46 broke (-13.6)",
+  "9.4 structure": "09:46 broke (-13.6)",
+  "9.5 ceiling": "09:46 broke (-13.6)",
+  "both": "09:46 broke (-13.6)",
+  "9.6 merged": "09:50 broke (-1.3)"
+ }
+]

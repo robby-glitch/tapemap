@@ -1,0 +1,1402 @@
+[
+ {
+  "id": "09-21 14:00 NIFTY 23300CE",
+  "day": "2026-09-21",
+  "idx": "NIFTY",
+  "k": 23300,
+  "side": "CE",
+  "role": "long",
+  "p0": 179.6,
+  "her_x": "14:10",
+  "her_pts": -11.6,
+  "entry": {
+   "t": "13:59",
+   "mine": null,
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,423 holds (40 pts of room) · fuel could not check · flow could not check · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "14:09",
+   "mine": null,
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,423 holds (31 pts of room) · fuel could not check · flow could not check · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": null,
+   "mine_pts": null,
+   "fable": "14:29",
+   "fable_pts": null
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 0
+ },
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23300,
+  "side": "CE",
+  "role": "long",
+  "p0": 166.4,
+  "her_x": "10:20",
+  "her_pts": -7.25,
+  "entry": {
+   "t": "09:41",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,450 still adding (+197.6L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new high 23,460 at 09:30 with CVD -526, under its 09:15 peak +33 · since 09:25: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "10:19",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers holding: PE 23,450 still adding (+244.9L) · CVD +422 since 10:00, your way (rank 0.78)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,450 holds (9 pts of room) · fuel unclear · flow with you · trend 2 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "10:25",
+   "mine_pts": -17.55,
+   "fable": "10:21",
+   "fable_pts": -11.25
+  },
+  "inTradeDisagree": 3,
+  "inTradeMinutes": 39
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23550,
+  "side": "PE",
+  "role": "long",
+  "p0": 134.8,
+  "her_x": "10:38",
+  "her_pts": 9.25,
+  "entry": {
+   "t": "10:31",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "trend against you: 5m RANGE · 15m UP · 1h UP"
+   }
+  },
+  "exit": {
+   "t": "10:37",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (57 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "fold": {
+   "mine": "11:19",
+   "mine_pts": 35.85,
+   "fable": "11:14",
+   "fable_pts": 29.45
+  },
+  "inTradeDisagree": 4,
+  "inTradeMinutes": 7
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23550,
+  "side": "PE",
+  "role": "long",
+  "p0": 174.75,
+  "her_x": "10:42",
+  "her_pts": 12.2,
+  "entry": {
+   "t": "10:41",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (83 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "10:41",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (83 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "fold": {
+   "mine": "11:19",
+   "mine_pts": -4.1,
+   "fable": "11:14",
+   "fable_pts": -10.5
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 1
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23550,
+  "side": "PE",
+  "role": "long",
+  "p0": 175.05,
+  "her_x": "10:43",
+  "her_pts": -3.45,
+  "entry": {
+   "t": "10:42",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (85 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "10:42",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (85 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "fold": {
+   "mine": "11:19",
+   "mine_pts": -4.4,
+   "fable": "11:14",
+   "fable_pts": -10.8
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 1
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23550,
+  "side": "PE",
+  "role": "long",
+  "p0": 171.5,
+  "her_x": "10:44",
+  "her_pts": 2.5,
+  "entry": {
+   "t": "10:43",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (78 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "10:43",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (78 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "fold": {
+   "mine": "11:19",
+   "mine_pts": -0.85,
+   "fable": "11:14",
+   "fable_pts": -7.25
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 1
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23500,
+  "side": "PE",
+  "role": "long",
+  "p0": 146.15,
+  "her_x": "10:55",
+  "her_pts": -13.15,
+  "entry": {
+   "t": "10:51",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 23,400 giving back, 69% off its 10:19 high · PE 23,250 folded 10:42"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (99 pts of room) · fuel burning · flow with you · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "10:54",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,500 folded 10:53 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,471 holds (95 pts of room) · fuel unclear · flow with you · trend mixed"
+   }
+  },
+  "fold": {
+   "mine": "11:19",
+   "mine_pts": -20.05,
+   "fable": "11:14",
+   "fable_pts": -26.05
+  },
+  "inTradeDisagree": 2,
+  "inTradeMinutes": 4
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "day": "2026-09-22",
+  "idx": "NIFTY",
+  "k": 23500,
+  "side": "PE",
+  "role": "long",
+  "p0": 181.5,
+  "her_x": "13:54",
+  "her_pts": 21.7,
+  "entry": {
+   "t": "13:47",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: CE 23,350 folded 13:43, and the prints turned against you"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,344 holds (10 pts of room) · fuel burning · flow quiet · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "13:53",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: CE 23,350 folded 13:43, and the prints turned against you (13:47) · the break has healed since — a re-entry is a new trade"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,344 holds (36 pts of room) · fuel burning · flow with you · trend 2 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:47",
+   "mine_pts": -5,
+   "fable": "14:14",
+   "fable_pts": -47.55
+  },
+  "inTradeDisagree": 7,
+  "inTradeMinutes": 7
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23450,
+  "side": "CE",
+  "role": "long",
+  "p0": 100,
+  "her_x": "09:25",
+  "her_pts": -1,
+  "entry": {
+   "t": "09:17",
+   "mine": {
+    "w": "PATA NAHI",
+    "why": "could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 2 so far"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,352 holds (40 pts of room) · fuel unclear · flow could not check · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "09:24",
+   "mine": {
+    "w": "PATA NAHI",
+    "why": "could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 9 so far"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,352 holds (39 pts of room) · fuel unclear · flow could not check · trend mixed"
+   }
+  },
+  "fold": {
+   "mine": "09:50",
+   "mine_pts": -8.85,
+   "fable": "09:57",
+   "fable_pts": -8.3
+  },
+  "inTradeDisagree": 8,
+  "inTradeMinutes": 8
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23450,
+  "side": "CE",
+  "role": "long",
+  "p0": 99.4,
+  "her_x": "09:49",
+  "her_pts": -7.65,
+  "entry": {
+   "t": "09:46",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,400 still adding (+56.1L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: CVD -529 since 09:30 with price +9.8 (rank 0.67 of today's 15-min moves) · since 09:30: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "09:48",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,400 still adding (+56.8L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: CVD -529 since 09:30 with price +9.8 (rank 0.67 of today's 15-min moves) · since 09:30: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "09:57",
+   "mine_pts": -7.7,
+   "fable": "09:57",
+   "fable_pts": -7.7
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 3
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23400,
+  "side": "PE",
+  "role": "long",
+  "p0": 125,
+  "her_x": "09:53",
+  "her_pts": -0.8,
+  "entry": {
+   "t": "09:48",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: PE 23,400 still adding (+43.4L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,415 holds (42 pts of room) · fuel unclear · flow with you · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "09:52",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: PE 23,400 still adding (+47.7L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 23,385 at 09:45 with CVD -348, above its 09:40 trough -355 · since 09:35: 0 buy / 1 sell prints of size (fill runs + stacked imbalances); fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "10:19",
+   "mine_pts": -19.15,
+   "fable": "10:17",
+   "fable_pts": -14.2
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 5
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23450,
+  "side": "CE",
+  "role": "long",
+  "p0": 98.6,
+  "her_x": "10:09",
+  "her_pts": -7.8,
+  "entry": {
+   "t": "09:59",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: CVD -268 since 09:45 with price +2.7 (rank 0.33 of today's 15-min moves) · since 09:45: 0 buy / 2 sell prints of size (fill runs + stacked imbalances); fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "10:08",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way (09:59)"
+   },
+   "fable": {
+    "w": "FOLD",
+    "why": "fuel against you: CE 23400 building: writers still adding in its way · futures OI +13,975 with price +2.7 since 09:45: too small against today's own 15-min changes to read — flow against you: CVD -268 since 09:45 with price +2.7 (rank 0.33 of today's 15-min moves) · since 09:45: 0 buy / 2 sell prints of size (fill runs + stacked imbalances); fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "09:59",
+   "mine_pts": -2,
+   "fable": "10:00",
+   "fable_pts": -2.6
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 10
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23450,
+  "side": "CE",
+  "role": "long",
+  "p0": 101.85,
+  "her_x": "10:31",
+  "her_pts": 3.15,
+  "entry": {
+   "t": "10:18",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers holding: PE 23,400 still adding (+55.0L)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,350 holds (43 pts of room) · fuel burning · flow quiet · trend mixed"
+   }
+  },
+  "exit": {
+   "t": "10:30",
+   "mine": {
+    "w": "HOLD",
+    "why": "Reason intact: call writers paying: CE 23,400 giving back, 13% off its 10:15 high · CE 23,450 folded 10:26"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,356 holds (44 pts of room) · fuel burning · flow quiet · trend 2 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "10:40",
+   "mine_pts": 5.65,
+   "fable": "12:47",
+   "fable_pts": 16.95
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 13
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23450,
+  "side": "CE",
+  "role": "long",
+  "p0": 106.45,
+  "her_x": "11:04",
+  "her_pts": -0.45,
+  "entry": {
+   "t": "10:32",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: call writers paying: CE 23,400 giving back, 11% off its 10:15 high · CE 23,450 folded 10:26"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 23,356 holds (46 pts of room) · fuel burning · flow quiet · trend 2 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "11:03",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence) (10:40) · the break has healed since — a re-entry is a new trade"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433 · since 10:45: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "10:40",
+   "mine_pts": 1.05,
+   "fable": "12:47",
+   "fable_pts": 12.35
+  },
+  "inTradeDisagree": 25,
+  "inTradeMinutes": 32
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23450,
+  "side": "CE",
+  "role": "long",
+  "p0": 115.65,
+  "her_x": "11:16",
+  "her_pts": -5.65,
+  "entry": {
+   "t": "11:06",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433 · since 10:50: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "11:15",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433 · since 11:00: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "11:37",
+   "mine_pts": 1.45,
+   "fable": "12:47",
+   "fable_pts": 3.15
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 10
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "day": "2026-09-23",
+  "idx": "SENSEX",
+  "k": 74900,
+  "side": "CE",
+  "role": "long",
+  "p0": 215.25,
+  "her_x": "11:40",
+  "her_pts": -15.25,
+  "entry": {
+   "t": "11:31",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers holding: PE 74,700 still adding (+31.7L)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,618 holds (269 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "11:39",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: call writers paying: CE 75,000 giving back, 15% off its 09:59 high · CE 74,900 folded 11:38"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new high 74,880 at 11:30 with CVD +1, under its 11:05 peak +15 · since 11:25: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "12:06",
+   "mine_pts": 40.95,
+   "fable": "12:32",
+   "fable_pts": 9.65
+  },
+  "inTradeDisagree": 6,
+  "inTradeMinutes": 9
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74200,
+  "side": "PE",
+  "role": "long",
+  "p0": 179.25,
+  "her_x": "09:47",
+  "her_pts": 23.75,
+  "entry": {
+   "t": "09:41",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: PE 74,200 still adding (+23.3L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,362 holds (170 pts of room) · fuel unclear · flow with you · trend 2 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "09:46",
+   "mine": {
+    "w": "HOLD",
+    "why": "Reason intact: put writers paying: PE 74,200 giving back, 27% off its 09:37 high · PE 74,100 folded 09:46"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,327 holds (165 pts of room) · fuel burning · flow quiet · trend 2 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "10:14",
+   "mine_pts": 15.2,
+   "fable": "10:37",
+   "fable_pts": -0.35
+  },
+  "inTradeDisagree": 5,
+  "inTradeMinutes": 6
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74200,
+  "side": "PE",
+  "role": "long",
+  "p0": 222.6,
+  "her_x": "10:23",
+  "her_pts": 11.4,
+  "entry": {
+   "t": "10:18",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,200 giving back, 24% off its 09:37 high"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: CVD +26 since 10:00 with price -18.0 (rank 0.67 of today's 15-min moves) · since 10:00: 1 buy / 0 sell prints of size (fill runs + stacked imbalances); fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "10:22",
+   "mine": {
+    "w": "HOLD",
+    "why": "Reason intact: put writers paying: PE 74,000 giving back, 15% off its 10:12 high · PE 74,000 folded 10:22"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 74,125 at 10:15 with CVD -22, above its 09:55 trough -80 · since 10:05: 1 buy / 0 sell prints of size (fill runs + stacked imbalances); fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "10:37",
+   "mine_pts": -43.7,
+   "fable": "10:37",
+   "fable_pts": -43.7
+  },
+  "inTradeDisagree": 5,
+  "inTradeMinutes": 5
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74100,
+  "side": "PE",
+  "role": "long",
+  "p0": 202.35,
+  "her_x": "12:33",
+  "her_pts": 13.65,
+  "entry": {
+   "t": "12:31",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 28% off its 11:12 high · PE 73,700 folded 12:27"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80 · since 12:15: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "12:32",
+   "mine": {
+    "w": "HOLD",
+    "why": "Reason intact: put writers paying: PE 74,000 giving back, 28% off its 11:12 high · PE 73,700 folded 12:27"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80 · since 12:15: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "13:12",
+   "mine_pts": -1.95,
+   "fable": "14:35",
+   "fable_pts": 239.8
+  },
+  "inTradeDisagree": 2,
+  "inTradeMinutes": 2
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74000,
+  "side": "PE",
+  "role": "long",
+  "p0": 179.8,
+  "her_x": "12:38",
+  "her_pts": -18.8,
+  "entry": {
+   "t": "12:34",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 40% off its 11:12 high · PE 73,700 folded 12:27"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 74,004 at 12:30 with CVD -46, above its 09:55 trough -80 · since 12:20: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "12:37",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 54% off its 11:12 high · PE 73,700 folded 12:27"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 74,004 at 12:30 with CVD -46, above its 09:55 trough -80 · since 12:20: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "13:12",
+   "mine_pts": -31.2,
+   "fable": "14:35",
+   "fable_pts": 181.3
+  },
+  "inTradeDisagree": 4,
+  "inTradeMinutes": 4
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74000,
+  "side": "PE",
+  "role": "long",
+  "p0": 167.95,
+  "her_x": "12:50",
+  "her_pts": -7.95,
+  "entry": {
+   "t": "12:43",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 49% off its 11:12 high · prints your way: 2 sell / 0 buy"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 73,984 at 12:35 with CVD -64, above its 09:55 trough -80 · since 12:25: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "12:49",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 51% off its 11:12 high · prints your way: 3 sell / 0 buy"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 73,984 at 12:35 with CVD -64, above its 09:55 trough -80 · since 12:35: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "fold": {
+   "mine": "13:12",
+   "mine_pts": -19.35,
+   "fable": "14:35",
+   "fable_pts": 193.15
+  },
+  "inTradeDisagree": 7,
+  "inTradeMinutes": 7
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74000,
+  "side": "PE",
+  "role": "long",
+  "p0": 184.2,
+  "her_x": "13:27",
+  "her_pts": 35.8,
+  "entry": {
+   "t": "13:25",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (70 pts of room) · fuel unclear · flow with you · trend 2 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "13:26",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (151 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:50",
+   "mine_pts": 149.65,
+   "fable": "14:35",
+   "fable_pts": 176.9
+  },
+  "inTradeDisagree": 2,
+  "inTradeMinutes": 2
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73900,
+  "side": "PE",
+  "role": "long",
+  "p0": 190.03,
+  "her_x": "13:43",
+  "her_pts": 2.95,
+  "entry": {
+   "t": "13:40",
+   "mine": {
+    "w": "HOLD",
+    "why": "Nothing is paying and nothing is against you — 1 quiet min of 15"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (175 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "13:42",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (179 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:50",
+   "mine_pts": 78.72,
+   "fable": "14:35",
+   "fable_pts": 95.87
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 3
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73900,
+  "side": "PE",
+  "role": "long",
+  "p0": 206.55,
+  "her_x": "13:43",
+  "her_pts": 0.75,
+  "entry": {
+   "t": "13:42",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (179 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "13:42",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (179 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:50",
+   "mine_pts": 62.2,
+   "fable": "14:35",
+   "fable_pts": 79.35
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 1
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73900,
+  "side": "PE",
+  "role": "long",
+  "p0": 230.45,
+  "her_x": "13:44",
+  "her_pts": 7.15,
+  "entry": {
+   "t": "13:43",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (215 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "13:43",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (215 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:50",
+   "mine_pts": 38.3,
+   "fable": "14:35",
+   "fable_pts": 55.45
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 1
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73800,
+  "side": "PE",
+  "role": "long",
+  "p0": 211.05,
+  "her_x": "13:46",
+  "her_pts": 6,
+  "entry": {
+   "t": "13:44",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (268 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "13:45",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,200 folded 13:39 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (300 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:50",
+   "mine_pts": -3.65,
+   "fable": "14:35",
+   "fable_pts": 8.45
+  },
+  "inTradeDisagree": 2,
+  "inTradeMinutes": 2
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73800,
+  "side": "PE",
+  "role": "long",
+  "p0": 252.15,
+  "her_x": "13:55",
+  "her_pts": -12.15,
+  "entry": {
+   "t": "13:53",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150 · since 13:35: no stacked imbalance; fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": {
+   "t": "13:54",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence) (13:53) · the break has healed since — a re-entry is a new trade"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (390 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "13:53",
+   "mine_pts": -20.2,
+   "fable": "14:35",
+   "fable_pts": -32.65
+  },
+  "inTradeDisagree": 2,
+  "inTradeMinutes": 2
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73800,
+  "side": "PE",
+  "role": "long",
+  "p0": 267.4,
+  "her_x": "13:58",
+  "her_pts": 29.6,
+  "entry": {
+   "t": "13:56",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: CVD -35 since 13:40, your way (rank 0.89)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (378 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "13:57",
+   "mine": {
+    "w": "HOLD",
+    "why": "Reason intact: CVD -35 since 13:40, your way (rank 0.89)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (424 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "14:40",
+   "mine_pts": -85.25,
+   "fable": "14:35",
+   "fable_pts": -47.9
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 2
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 73800,
+  "side": "PE",
+  "role": "long",
+  "p0": 287.45,
+  "her_x": "14:23",
+  "her_pts": 7.35,
+  "entry": {
+   "t": "14:22",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: CVD -22 since 14:05, your way (rank 0.60)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (401 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you"
+   }
+  },
+  "exit": {
+   "t": "14:22",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: CVD -22 since 14:05, your way (rank 0.60)"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,037 holds (401 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you"
+   }
+  },
+  "fold": {
+   "mine": "14:40",
+   "mine_pts": -105.3,
+   "fable": "14:35",
+   "fable_pts": -67.95
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 1
+ },
+ {
+  "id": "OPUS 09-23 09:57 SENSEX zone BUY (gate legal) · long ATM CE",
+  "day": "2026-09-23",
+  "idx": "SENSEX",
+  "k": 74700,
+  "side": "CE",
+  "role": "long",
+  "p0": 237.15,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "09:59",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: PE 75,000 folded 09:56, and CE writers are adding in its way"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,629 holds (54 pts of room) · fuel unclear · flow quiet · trend mixed"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "09:59",
+   "mine_pts": 0,
+   "fable": "10:11",
+   "fable_pts": -27.2
+  },
+  "inTradeDisagree": 12,
+  "inTradeMinutes": 331
+ },
+ {
+  "id": "OPUS 09-23 09:57 NIFTY zone BUY (gate illegal) · long ATM CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23400,
+  "side": "CE",
+  "role": "long",
+  "p0": 121.65,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "09:59",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "flow against you: CVD -268 since 09:45 with price +2.7 (rank 0.33 of today's 15-min moves) · since 09:45: 0 buy / 2 sell prints of size (fill runs + stacked imbalances); fill runs could not be read — fill runs need the live book; the day record holds bars, not fills"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "09:59",
+   "mine_pts": 0,
+   "fable": "10:00",
+   "fable_pts": -0.65
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 331
+ },
+ {
+  "id": "OPUS 09-23 11:15 NIFTY zone u2 SELL · WRITER short ATM CE",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23400,
+  "side": "CE",
+  "role": "short",
+  "p0": 135.9,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "11:17",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 23,650 folded 11:06 — the call writers holding your trade left"
+   },
+   "fable": {
+    "w": "FOLD",
+    "why": "fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI +2,015 with price +17.7 since 11:00: too small against today's own 15-min changes to read — trend against you: 5m UP · 15m UP · 1h RANGE"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "11:18",
+   "mine_pts": 0.05,
+   "fable": "11:17",
+   "fable_pts": 0
+  },
+  "inTradeDisagree": 1,
+  "inTradeMinutes": 253
+ },
+ {
+  "id": "OPUS 09-24 10:30 SENSEX · WRITER short ATM CE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74100,
+  "side": "CE",
+  "role": "short",
+  "p0": 183.3,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "10:29",
+   "mine": {
+    "w": "HOLD",
+    "why": "Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 23% off its 10:12 high · PE 73,800 folded 10:23"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,215 holds (115 pts of room) · fuel holding · flow quiet · trend 3 of 3 with you"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "10:40",
+   "mine_pts": -13.85,
+   "fable": "10:52",
+   "fable_pts": -38.25
+  },
+  "inTradeDisagree": 15,
+  "inTradeMinutes": 301
+ },
+ {
+  "id": "OPUS 09-24 09:45 SENSEX · WRITER short ATM PE",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74200,
+  "side": "PE",
+  "role": "short",
+  "p0": 182.6,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "09:44",
+   "mine": {
+    "w": "WATCH",
+    "why": "Watch, not an exit: CE 74,300 still adding (+54.5L) — writers adding in its way"
+   },
+   "fable": {
+    "w": "WATCH",
+    "why": "trend against you: 5m DOWN · 15m DOWN · 1h RANGE"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "09:46",
+   "mine_pts": -13.6,
+   "fable": "09:46",
+   "fable_pts": -13.6
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 346
+ },
+ {
+  "id": "FABLE 2026-09-24_SENSEX_74500CE_110000_writer",
+  "day": "2026-09-24",
+  "idx": "SENSEX",
+  "k": 74500,
+  "side": "CE",
+  "role": "short",
+  "p0": 61.35,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "10:59",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: CE 74,200 folded 10:56, and PE writers are adding in its way"
+   },
+   "fable": {
+    "w": "HOLD",
+    "why": "line 74,215 holds (16 pts of room) · fuel holding · flow quiet · trend 2 of 3 with you"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "10:59",
+   "mine_pts": -3.1,
+   "fable": "11:19",
+   "fable_pts": -4.2
+  },
+  "inTradeDisagree": 20,
+  "inTradeMinutes": 271
+ },
+ {
+  "id": "FABLE 2026-09-23_NIFTY_23400CE_103000_writer",
+  "day": "2026-09-23",
+  "idx": "NIFTY",
+  "k": 23400,
+  "side": "CE",
+  "role": "short",
+  "p0": 129.5,
+  "her_x": null,
+  "her_pts": null,
+  "entry": {
+   "t": "10:29",
+   "mine": {
+    "w": "FOLD",
+    "why": "Thesis broken: CE 23,450 folded 10:26, and PE writers are adding in its way"
+   },
+   "fable": {
+    "w": "FOLD",
+    "why": "fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI -13,065 with price +39.0 since 10:15: shorts covering — trend against you: 5m UP · 15m UP · 1h RANGE"
+   }
+  },
+  "exit": null,
+  "fold": {
+   "mine": "10:29",
+   "mine_pts": 0,
+   "fable": "10:29",
+   "fable_pts": 0
+  },
+  "inTradeDisagree": 0,
+  "inTradeMinutes": 301
+ }
+]

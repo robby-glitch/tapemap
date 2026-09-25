@@ -1,0 +1,6 @@
+# signed pre-registrations: stored byte-for-byte, so the sha256 anchors in context/research-findings.md reproduce from git
+docs/hold/PREREG-merged.md -text
+docs/hold/PREREG-rev5.md -text
+docs/hold/VALIDATE-PREREG.md -text
+docs/hold/VALIDATE-PREREG-rev1.md -text
+docs/hold/PLAN-PREREG.md -text

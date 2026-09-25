@@ -1,0 +1,38 @@
+09-21 14:00 NIFTY 23300CE  | NIF blind · BAN blind · SEN blind                    | COULD NOT CHECK win —         | best no trade is clean right now
+09-22 09:42 NIFTY 23300CE  | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0  | UNCLEAR  win WATCH     | best no trade is clean right now
+09-22 10:32 NIFTY 23550PE  | NIF BUY_UP 1/3 · BAN NEITHER 0/0 · SEN NEITHER 0/0   | AGAINST  win WATCH     | best NIFTY: buy CE (1 for · 3 against)
+09-22 10:42 NIFTY 23550PE  | NIF SELL 1/4 · BAN SELL 1/4 · SEN SELL 1/4           | AGAINST  win WATCH     | best NIFTY: write CE — CE 23,450 (54 pts above) (1 for · 4 agains
+09-22 10:43 NIFTY 23550PE  | NIF SELL 1/4 · BAN SELL 1/4 · SEN SELL 1/4           | AGAINST  win WATCH     | best NIFTY: write CE — CE 23,450 (72 pts above) (1 for · 4 agains
+09-22 10:44 NIFTY 23550PE  | NIF SELL 1/4 · BAN SELL 1/4 · SEN SELL 1/4           | AGAINST  win WATCH     | best NIFTY: write CE — CE 23,450 (57 pts above) (1 for · 4 agains
+09-22 10:52 NIFTY 23500PE  | NIF SELL 0/5 · BAN NEITHER 0/0 · SEN SELL 1/4        | AGAINST  win HOLD · NOISE | best SENSEX: write CE — CE 74,900 (200 pts above) (1 for · 4 agai
+09-22 13:48 NIFTY 23500PE  | NIF SELL 2/2 · BAN NEITHER 0/0 · SEN SELL 2/2        | AGAINST  win FOLD      | best no trade is clean right now
+09-23 09:18 NIFTY 23450CE  | NIF blind · BAN blind · SEN blind                    | COULD NOT CHECK win PATA NAHI | best no trade is clean right now
+09-23 09:47 NIFTY 23450CE  | NIF SELL 4/0 · BAN SELL 3/1 · SEN SELL 5/0           | AGAINST  win WATCH     | best SENSEX: write both sides — CE 74,700 (10 pts below) · PE 74,
+09-23 09:49 NIFTY 23400PE  | NIF SELL 3/0 · BAN SELL 4/1 · SEN SELL 4/0           | AGAINST  win WATCH     | best SENSEX: write both sides — CE 74,700 (18 pts above) · PE 74,
+09-23 10:00 NIFTY 23450CE  | NIF SELL 4/1 · BAN SELL 1/4 · SEN SELL 4/1           | AGAINST  win FOLD      | best NIFTY: write both sides — CE 23,400 (24 pts above) · PE 23,4
+09-23 10:19 NIFTY 23450CE  | NIF SELL 3/1 · BAN NEITHER 0/0 · SEN SELL 1/2        | AGAINST  win HOLD · NOISE | best NIFTY: write PE — PE 23,400 (6 pts above) (3 for · 1 against
+09-23 10:33 NIFTY 23450CE  | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0  | UNCLEAR  win HOLD · NOISE | best no trade is clean right now
+09-23 11:07 NIFTY 23450CE  | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0  | UNCLEAR  win WATCH     | best no trade is clean right now
+09-23 11:32 SENSEX 74900CE | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0  | UNCLEAR  win HOLD · NOISE | best no trade is clean right now
+09-24 09:42 SENSEX 74200PE | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0  | UNCLEAR  win WATCH     | best no trade is clean right now
+09-24 10:19 SENSEX 74200PE | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN BUY_DOWN 2/1 | AGREES   win HOLD · NOISE | best SENSEX: buy PE (2 for · 1 against)
+09-24 12:32 SENSEX 74100PE | NIF NEITHER 0/0 · BAN SELL 3/1 · SEN BUY_DOWN 3/1    | AGREES   win HOLD · NOISE | best BANKNIFTY: write PE — PE 55,500 (108 pts below) (3 for · 1 a
+09-24 12:35 SENSEX 74000PE | NIF BUY_DOWN 3/0 · BAN SELL 2/0 · SEN BUY_DOWN 3/1   | AGREES   win HOLD · NOISE | best NIFTY: buy PE (3 for · 0 against)
+09-24 12:44 SENSEX 74000PE | NIF BUY_DOWN 4/0 · BAN SELL 1/1 · SEN BUY_DOWN 2/1   | AGREES   win HOLD · NOISE | best NIFTY: buy PE (4 for · 0 against)
+09-24 13:26 SENSEX 74000PE | NIF NEITHER 0/0 · BAN NEITHER 0/0 · SEN NEITHER 0/0  | UNCLEAR  win WATCH     | best no trade is clean right now
+09-24 13:41 SENSEX 73900PE | NIF BUY_DOWN 5/0 · BAN SELL 1/3 · SEN BUY_DOWN 3/1   | AGREES   win HOLD      | best NIFTY: buy PE (5 for · 0 against)
+09-24 13:43 SENSEX 73900PE | NIF BUY_DOWN 5/0 · BAN SELL 1/3 · SEN BUY_DOWN 3/1   | AGREES   win WATCH     | best NIFTY: buy PE (5 for · 0 against)
+09-24 13:44 SENSEX 73900PE | NIF BUY_DOWN 4/0 · BAN SELL 1/3 · SEN BUY_DOWN 2/1   | AGREES   win WATCH     | best NIFTY: buy PE (4 for · 0 against)
+09-24 13:45 SENSEX 73800PE | NIF BUY_DOWN 3/0 · BAN SELL 1/3 · SEN BUY_DOWN 2/1   | AGREES   win WATCH     | best NIFTY: buy PE (3 for · 0 against)
+09-24 13:54 SENSEX 73800PE | NIF BUY_DOWN 4/0 · BAN NEITHER 0/0 · SEN BUY_DOWN 3/2 | AGREES   win FOLD      | best NIFTY: buy PE (4 for · 0 against)
+09-24 13:57 SENSEX 73800PE | NIF BUY_DOWN 4/0 · BAN NEITHER 0/0 · SEN BUY_DOWN 4/0 | AGREES   win HOLD · NOISE | best NIFTY: buy PE (4 for · 0 against)
+09-24 14:23 SENSEX 73800PE | NIF BUY_DOWN 2/0 · BAN BUY_DOWN 2/1 · SEN BUY_DOWN 3/1 | AGREES   win HOLD · NOISE | best NIFTY: buy PE (2 for · 0 against)
+NIFTY      2026-09-22 {"blind":20,"NEITHER":123,"SELL":199,"BUY_UP":33}
+BANKNIFTY  2026-09-22 {"blind":20,"NEITHER":283,"SELL":72}
+SENSEX     2026-09-22 {"blind":20,"NEITHER":136,"SELL":198,"BUY_UP":21}
+NIFTY      2026-09-23 {"blind":15,"NEITHER":148,"SELL":212}
+BANKNIFTY  2026-09-23 {"blind":16,"NEITHER":119,"SELL":240}
+SENSEX     2026-09-23 {"blind":16,"NEITHER":129,"SELL":165,"BUY_UP":65}
+NIFTY      2026-09-24 {"blind":14,"NEITHER":202,"SELL":25,"BUY_DOWN":134}
+BANKNIFTY  2026-09-24 {"blind":16,"NEITHER":186,"SELL":150,"BUY_DOWN":23}
+SENSEX     2026-09-24 {"blind":14,"NEITHER":186,"BUY_DOWN":175}

@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hold or Fold</title>
+<style>
+:root{
+  --bg:#f5f4f0; --panel:#fff; --ink:#1c1e21; --mute:#676c73; --faint:#9aa0a6; --line:#e2e0da; --hover:#f0eee8;
+  --hold:#17603f; --hold-bg:#e6f2ea; --hold-bar:#2e7d52;
+  --watch:#6f4700; --watch-bg:#fff4d8; --watch-bar:#d69a00;
+  --fold:#fff; --fold-bg:#b3261e; --fold-bar:#8c1d17;
+  --blind:#5f6368; --blind-bg:#f0f0f0; --blind-bar:#b0b4b8;
+  --for:#2e7d52; --against:#b3261e;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.num{font-variant-numeric:tabular-nums}
+header{height:44px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header b{font-size:15px}
+.pill{font-size:11px;letter-spacing:.04em;padding:2px 8px;border-radius:10px;border:1px solid var(--line);color:var(--mute);background:#faf9f6}
+.pill.draft{border-color:#d69a00;color:#6f4700;background:#fff8e6}
+header .sp{flex:1}
+main{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 44px)}
+aside{border-right:1px solid var(--line);background:var(--panel);overflow-y:auto;overflow-x:hidden;padding:10px 0}
+aside h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:12px 14px 4px}
+.tr{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 14px;cursor:pointer;border-left:3px solid transparent}
+.tr:hover{background:var(--hover)} .tr.on{background:#eef3ef;border-left-color:var(--hold-bar)}
+.tr .a{font-weight:600} .tr .b{color:var(--mute);font-size:12px} .tr .c{text-align:right;font-size:12px;color:var(--mute)}
+.tr.blindrow .a{color:var(--mute)}
+form.custom{padding:6px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+form.custom label{font-size:11px;color:var(--mute);display:flex;flex-direction:column;gap:2px}
+form.custom input,form.custom select{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:#fff}
+form.custom button{grid-column:1/-1}
+button{font:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--line);border-radius:4px;background:#fff;cursor:pointer}
+button:hover{background:var(--hover)}
+section.stage{overflow:auto;padding:14px 18px}
+.now{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.now h2{font-size:17px;margin:0}
+.now .src{color:var(--mute);font-size:12px}
+.ctl{display:flex;gap:6px;align-items:center;margin:10px 0 6px;flex-wrap:wrap}
+.ctl .clock{font-size:20px;font-weight:600;margin:0 10px;min-width:58px}
+.ctl label{font-size:12px;color:var(--mute);display:flex;gap:4px;align-items:center}
+.strip{position:relative;height:26px;display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#fff;cursor:pointer}
+.strip i{flex:1;height:100%}
+.strip i.HOLD{background:#cfe6d7} .strip i.WATCH{background:#ffe2a0} .strip i.FOLD{background:#e38a84} .strip i.PATA{background:#e4e4e4}
+.strip .cur{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.marks{position:relative;height:16px;font-size:10px;color:var(--mute)}
+.marks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.marks .in{color:var(--hold)} .marks .out{color:var(--fold-bg)}
+.axis{position:relative;height:14px;font-size:10px;color:var(--faint)}
+.axis span{position:absolute;transform:translateX(-50%)}
+.cols{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-top:10px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.box h4{margin:0;padding:8px 12px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-bottom:1px solid var(--line)}
+table.log{width:100%;border-collapse:collapse;font-size:12.5px}
+table.log td{padding:4px 10px;border-bottom:1px solid #f0eee9;vertical-align:top}
+table.log tr{cursor:pointer} table.log tr:hover td{background:var(--hover)}
+table.log tr.cur td{background:#eef3ef}
+table.log td.w{font-weight:700;white-space:nowrap}
+.w.HOLD{color:var(--hold)} .w.WATCH{color:var(--watch)} .w.FOLD{color:var(--fold-bg)} .w.PATA{color:var(--blind)}
+.fills div{padding:6px 12px;border-bottom:1px solid #f0eee9;font-size:12.5px}
+.fills .t{font-weight:600}
+.note{font-size:12px;color:var(--mute);padding:8px 12px;line-height:1.5}
+
+/* ---------------- the floating window ---------------- */
+#hf{position:fixed;top:64px;right:24px;width:388px;background:var(--panel);border:1px solid #d6d3cc;border-radius:8px;
+    box-shadow:0 6px 24px rgba(40,36,30,.14);z-index:10;user-select:none;overflow:hidden}
+#hf .hd{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 10px;font-size:12px;color:var(--mute);cursor:grab;border-bottom:1px solid var(--line);background:#fbfaf7}
+#hf .hd .grip{letter-spacing:-2px;color:var(--faint)}
+#hf .hd .who{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hf .hd button{padding:0 7px;font-size:13px;line-height:20px}
+#hf .vb{display:flex;align-items:center;gap:10px;padding:10px 12px 4px;border-left:6px solid var(--hold-bar);background:var(--hold-bg)}
+#hf .word{font-size:26px;font-weight:800;letter-spacing:.02em;color:var(--hold)}
+#hf .since{font-size:12px;color:var(--mute);flex:1}
+#hf .say{padding:2px 12px 10px 18px;font-size:14px;background:var(--hold-bg);border-left:6px solid var(--hold-bar)}
+#hf .chip{display:inline-block;font-size:11px;padding:0 6px;border-radius:8px;background:#fff;border:1px solid var(--line);color:var(--mute);margin-right:6px}
+#hf.WATCH .vb,#hf.WATCH .say{background:var(--watch-bg);border-left-color:var(--watch-bar)} #hf.WATCH .word{color:var(--watch)}
+#hf.FOLD .vb,#hf.FOLD .say{background:var(--fold-bg);border-left-color:var(--fold-bar);color:#fff} #hf.FOLD .word{color:#fff} #hf.FOLD .since{color:#ffe1de}
+#hf.FOLD .chip{background:transparent;color:#fff;border-color:#e8a19c}
+#hf.PATA .vb,#hf.PATA .say{background:var(--blind-bg);border-left-color:var(--blind-bar)} #hf.PATA .word{color:var(--blind)}
+#hf.pulse .vb{animation:pulse .9s ease-out 1}
+@keyframes pulse{0%{filter:brightness(1.35)}100%{filter:none}}
+#hf .led{padding:8px 12px 6px;border-top:1px solid var(--line)}
+#hf .row{display:grid;grid-template-columns:16px 64px 1fr;gap:6px;font-size:12.5px;padding:2px 0}
+#hf .row .m{font-weight:700;text-align:center}
+#hf .row .m.for{color:var(--for)} #hf .row .m.against{color:var(--against)} #hf .row .m.flat,#hf .row .m.blind{color:var(--faint)}
+#hf .row .k{color:var(--mute);font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding-top:1px}
+#hf .row .tg{color:var(--faint);font-size:10.5px}
+#hf .count{font-size:11px;color:var(--mute);padding:3px 0 0 22px}
+#hf .clk{padding:6px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--mute);display:flex;align-items:center;gap:8px}
+#hf .ticks{display:flex;gap:2px} #hf .ticks b{width:7px;height:9px;border-radius:1px;background:#e6e4de} #hf .ticks b.q{background:#c9a24a}
+#hf .wt{padding:6px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--watch)}
+#hf .cx{padding:6px 12px 8px;border-top:1px solid var(--line);font-size:12px;color:var(--mute)}
+#hf .cx .p{color:var(--ink)}
+#hf .one{display:none}
+#hf.min .body{display:none}
+#hf.min .one{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:13px;cursor:grab;border-left:6px solid var(--hold-bar)}
+#hf.min .hd{display:none}
+#hf.min.WATCH .one{border-left-color:var(--watch-bar)} #hf.min.FOLD .one{border-left-color:var(--fold-bar);background:var(--fold-bg);color:#fff}
+#hf.min.PATA .one{border-left-color:var(--blind-bar)}
+#hf .one .w1{font-weight:800}
+#hf .one .r1{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;opacity:.85}
+
+/* ---------------- the better-trade panel (BETTER-RULES.md) ---------------- */
+#bt{position:fixed;top:64px;right:424px;width:372px;background:var(--panel);border:1px solid #d6d3cc;border-radius:8px;
+    box-shadow:0 6px 24px rgba(40,36,30,.12);z-index:9;font-size:12.5px;overflow:hidden}
+#bt .bh{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 10px;background:#fbfaf7;border-bottom:1px solid var(--line);color:var(--mute);font-size:12px}
+#bt .bh b{color:var(--ink)} #bt .bh .one{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+#bt .bh button{padding:0 7px;font-size:13px;line-height:20px}
+#bt .dr{font-size:10.5px;padding:0 6px;border:1px solid var(--line);border-radius:8px}
+#bt .bb{max-height:calc(100vh - 110px);overflow-y:auto}
+#bt.min .bb{display:none}
+#bt .ck{padding:8px 12px;font-size:13.5px;border-bottom:1px solid var(--line)}
+#bt .ck.AGAINST,#bt .ck.BROKEN{background:#fdecea;color:#8c1d17} #bt .ck.AGREES{background:var(--hold-bg);color:var(--hold)}
+#bt .ck.UNCLEAR,#bt .ck.COULD{background:var(--blind-bg);color:var(--blind)}
+#bt .ln{padding:6px 12px;border-bottom:1px solid #f0eee9}
+#bt .ln .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);display:block}
+#bt .ln .w{font-weight:700} #bt .ln .f{color:var(--mute);font-size:11.5px;display:block}
+#bt .ix{display:grid;grid-template-columns:78px 1fr;gap:2px 8px;padding:6px 12px;border-bottom:1px solid #f0eee9}
+#bt .ix .n{font-weight:600} #bt .ix .d{font-size:12px} #bt .ix .d.cl{font-weight:700}
+#bt .ft{padding:5px 12px 7px;color:var(--faint);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <b>Hold or Fold</b><span class="pill">prototype replay · 2026-09-22 → 09-24</span>
+  <span class="pill draft">DRAFT — the rule is not registered; no verdict here is live</span>
+  <span class="sp"></span>
+  <span class="pill">no charts · no orders · counts, never odds</span>
+</header>
+<main>
+  <aside id="list"></aside>
+  <section class="stage">
+    <div class="now"><h2 id="title">Pick a trade</h2><span class="src" id="src"></span></div>
+    <div class="ctl">
+      <button id="b0" title="first minute">⏮</button><button id="bp" title="back one minute (←)">◀</button>
+      <button id="bplay" title="play / pause (space)">▶ play</button><button id="bn" title="forward one minute (→)">▶</button>
+      <button id="b1" title="last minute">⏭</button>
+      <span class="clock num" id="clock">--:--</span>
+      <label>speed <select id="speed"><option value="600">1 min / 0.6 s</option><option value="200" selected>1 min / 0.2 s</option><option value="60">1 min / 0.06 s</option></select></label>
+      <label><input type="checkbox" id="snd"> one tone when it turns FOLD</label>
+    </div>
+    <div class="ctl vars"><span class="pill draft">post-data proposals, NOT registered — off = the draft as written before replay</span>
+      <label title="RULES 9.4: Fable's STRUCTURE line, ported rule for rule"><input type="checkbox" class="var" value="structure"> 9.4 + structure line (Fable)</label>
+      <label title="RULES 9.5: an R-fold does not count while the nearer R front is still being written"><input type="checkbox" class="var" value="ceiling"> 9.5 moved ceiling</label>
+      <label title="RULES 9.6: positioning alone no longer folds; needs CVD / prints against, or the line (implies 9.4)"><input type="checkbox" class="var" value="merged"> 9.6 merged (in-sample)</label>
+      <label title="BETTER-RULES 11.1: the day word from the price rows, OI counted as a fact"><input type="checkbox" id="btprice"> B-11.1 price-led day word</label>
+      <label title="show the better-trade read on its own, as when she is flat"><input type="checkbox" id="btflat"> I am flat</label>
+    </div>
+    <div class="marks" id="marks"></div>
+    <div class="strip" id="strip"></div>
+    <div class="axis" id="axis"></div>
+    <div class="cols">
+      <div class="box"><h4>Every change the window made (click a row to jump)</h4><table class="log" id="log"></table></div>
+      <div>
+        <div class="box fills"><h4>What it said at her fills</h4><div id="fills"></div></div>
+        <div class="box" style="margin-top:12px"><h4>How to read this page</h4>
+          <div class="note">The floating window (top right) is the product. It is draggable, and the <b>–</b> button collapses it to one line. It is replayed minute by minute from facts cut to each finished minute, so opening it mid-trade reads exactly as if it had watched since 09:15.
+          The strip above is the window's verdict per minute, not a price chart. ▲ is her entry fill, ▼ her exit fills; the window reads the minute finished just before each fill.
+          Sources: OI grid from <code>data/chain</code> (the server's own backfill marks for 09-24), CVD and prints from the Upstox ladder (<code>data/tape/ux_*</code>, fill runs rebuilt from <code>data/book</code>), premium from Upstox 1-min candles frozen 2026-09-24 night [M] or, for the expired 09-22 weekly, the chain record's LTP [I].</div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="hf" class="PATA">
+  <div class="one" id="one"><span class="w1" id="w1">—</span><span class="r1" id="r1"></span><button id="bmax" title="expand">+</button></div>
+  <div class="body">
+    <div class="hd" id="hd"><span class="grip">⠿⠿</span><span class="who" id="who">no trade</span><button id="bmin" title="collapse to one line">–</button></div>
+    <div class="vb"><span class="word" id="word">—</span><span class="since num" id="since"></span><span class="chip">DRAFT</span></div>
+    <div class="say" id="say">Pick a trade on the left.</div>
+    <div class="led" id="led"></div>
+    <div class="clk" id="clk"></div>
+    <div class="wt" id="wt"></div>
+    <div class="cx num" id="cx"></div>
+  </div>
+</div>
+
+<div id="bt" class="min">
+  <div class="bh"><b>Better trade</b><span class="dr">DRAFT</span><span class="one" id="btone"></span><button id="btt" title="open / collapse">+</button></div>
+  <div class="bb" id="btb"></div>
+</div>
+
+<script>/*BETTER*/</script>
+<script>/*VERDICT*/</script>
+<script>/*DATA*/</script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const K = HF.K, mm = HF.mm, hm = HF.hm;
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const cls = (w) => (w || "").startsWith("HOLD") ? "HOLD" : w === "WATCH" ? "WATCH" : w === "FOLD" ? "FOLD" : "PATA";
+let cur = null, timer = null, lastWord = null;
+
+// ---------------------------------------------------------------- the trade list
+function tradeRow(t, i, group) {
+  const inT = t.t0.slice(0, 5), outT = t.tx ? t.tx.slice(0, 5) : "open";
+  const d = DAYS[`${t.idx}_${t.day}`];
+  const blind = !d || !d.minutes;
+  const pnl = t.pnl != null ? `₹${t.pnl >= 0 ? "+" : "−"}${Math.abs(t.pnl).toLocaleString("en-IN")}` : "";
+  return `<div class="tr${blind ? " blindrow" : ""}" data-g="${group}" data-i="${i}">
+    <span class="a num">${inT} → ${outT} · ${t.idx} ${K(t.k)} ${t.side}${t.role === "short" ? " · WRITER" : ""}</span><span class="c num">${pnl}</span>
+    <span class="b num">${t.role === "short" ? "short" : "long"} ${t.qty} @ ${t.p0 ?? "?"}${t.px != null ? " → " + t.px : ""}${t.note ? " · " + esc(t.note) : ""}</span><span class="c">${blind ? "blind" : ""}</span></div>`;
+}
+function renderList() {
+  const byDay = {};
+  TRADES.mine.forEach((t, i) => (byDay[t.day] = byDay[t.day] || []).push([t, i]));
+  let h = "";
+  for (const day of Object.keys(byDay).sort().reverse()) {
+    h += `<h3>Her trades · ${day}${day === "2026-09-24" ? " · from orders.csv, FIFO round trips" : " · from the tradebook"}</h3>`;
+    h += byDay[day].map(([t, i]) => tradeRow(t, i, "mine")).join("");
+  }
+  h += `<h3>Examples chosen before any replay</h3>` + TRADES.examples.map((t, i) => tradeRow(t, i, "ex")).join("");
+  const opts = Object.keys(DAYS).filter((k) => DAYS[k].minutes).map((k) => `<option>${k}</option>`).join("");
+  h += `<h3>Any trade</h3><form class="custom" id="custom">
+    <label>index · day<select name="d">${opts}</select></label>
+    <label>strike<input name="k" type="number" step="50" value="73800"></label>
+    <label>option<select name="side"><option>PE</option><option>CE</option></select></label>
+    <label>side<select name="role"><option value="long">long (bought)</option><option value="short">short (written)</option></select></label>
+    <label>entry time<input name="t" type="time" min="09:15" max="15:29" value="13:57"></label>
+    <label>entry price<input name="p" type="number" step="0.05" placeholder="from the record"></label>
+    <label>qty<input name="q" type="number" value="20"></label>
+    <label>&nbsp;<button type="submit">Replay this trade</button></label></form>`;
+  $("#list").innerHTML = h;
+  document.querySelectorAll(".tr").forEach((el) => el.addEventListener("click", () => {
+    document.querySelectorAll(".tr.on").forEach((x) => x.classList.remove("on")); el.classList.add("on");
+    const t = (el.dataset.g === "mine" ? TRADES.mine : TRADES.examples)[+el.dataset.i];
+    start(t);
+  }));
+  $("#custom").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const f = new FormData(ev.target), [idx, day] = f.get("d").split("_");
+    const t = f.get("t") || "09:30", read = hm(Math.max(mm("09:15"), mm(t) - 1));
+    const D = DAYS[`${idx}_${day}`], leg = D.prem[`${+f.get("k")}${f.get("side")}`];
+    const p = f.get("p") ? +f.get("p") : leg ? leg.c[mm(read) - mm("09:15")] : null;
+    start({ id: "custom", idx, day, k: +f.get("k"), side: f.get("side"), role: f.get("role"), t0: t, p0: p, qty: +f.get("q") || 1,
+            read_from: read, read_to: "15:29", exits: [], mine: false, note: p == null ? "no premium in the record for this strike" : "" });
+  });
+}
+
+// ---------------------------------------------------------------- replay
+function start(t) {
+  stop();
+  const d = DAYS[`${t.idx}_${t.day}`];
+  const who = `${t.idx} ${K(t.k)} ${t.side} · ${t.role === "short" ? "SHORT" : "long"} ${t.qty} @ ${t.p0 ?? "?"} · in ${t.t0.slice(0, 5)}`;
+  $("#title").textContent = `${t.day} · ${who}`;
+  $("#who").textContent = who;
+  if (!d || !d.minutes) {
+    cur = null; paintBlind((d && d.why) || `could not check — no chain record for ${t.idx} on ${t.day}`, t);
+    $("#strip").innerHTML = $("#marks").innerHTML = $("#axis").innerHTML = $("#log").innerHTML = "";
+    $("#src").textContent = ""; $("#fills").innerHTML = `<div>${esc(t.blindWhy || "")}</div>`; return;
+  }
+  const variants = {}; document.querySelectorAll(".var:checked").forEach((c) => (variants[c.value] = true));
+  if (variants.merged) variants.structure = true;
+  const reads = HF.replay({ ...t, read_to: "15:29", variants }, d);
+  cur = { t, d, reads, i: 0, variants }; btOpen = null;
+  lastWord = null;
+  $("#src").textContent = `grid ${d.src.grid} · ${d.src.ladder} · premium ${(d.prem[`${t.k}${t.side}`] || {}).src === "M" ? "[M] Upstox 1-min candles" : (d.prem[`${t.k}${t.side}`] ? "[I] rebuilt from the chain record's LTP" : "could not check — not in the record")}`;
+  paintStrip(); paintLog(); paintFills(); seek(0, false);
+}
+function seek(i, playing) {
+  if (!cur) return;
+  cur.i = Math.max(0, Math.min(cur.reads.length - 1, i));
+  const v = cur.reads[cur.i];
+  paint(v, playing);
+  try { paintBT(v); } catch (e) { $("#btb").textContent = "could not check — " + e.message; }
+  $("#clock").textContent = v.t;
+  const n = cur.reads.length;
+  $("#strip .cur").style.left = `calc(${(cur.i + 0.5) / n * 100}% - 1px)`;
+  document.querySelectorAll("#log tr").forEach((r) => r.classList.toggle("cur", +r.dataset.i === lastChangeAt(cur.i)));
+}
+function lastChangeAt(i) { let j = i; while (j > 0 && sig(cur.reads[j - 1]) === sig(cur.reads[j])) j--; return j; }
+const sig = (v) => { const c = cls(v.word); return c + "|" + (c === "WATCH" || c === "PATA" ? v.line : ""); };
+function play() {
+  if (!cur) return;
+  if (timer) return stop();
+  $("#bplay").textContent = "❚❚ pause";
+  timer = setInterval(() => { if (cur.i >= cur.reads.length - 1) return stop(); seek(cur.i + 1, true); }, +$("#speed").value);
+}
+function stop() { if (timer) clearInterval(timer); timer = null; $("#bplay").textContent = "▶ play"; }
+function tone() {
+  try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = 523; g.gain.setValueAtTime(0.12, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.45);
+    o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 0.5); } catch (e) { /* no audio is not an error */ }
+}
+
+// ---------------------------------------------------------------- the floating window
+function mark(state) { return { for: "●", against: "✕", flat: "○", blind: "?" }[state]; }
+function ledger(v) {
+  const x = v.facts, th = v.th, f = v.flags || {};
+  if (x.blind) return `<div class="row"><span class="m blind">?</span><span class="k">facts</span><span>${esc(x.blind)}</span></div>`;
+  const wr = (s) => th.buyer ? HF.sideName(s) : (s === th.R ? `${HF.sideName(s)} (your side)` : HF.sideName(s));
+  const q = x.q, r = x.r;
+  let qs = x.qPays || x.qFold ? "for" : f.qA ? "against" : "flat";
+  let qt = `${wr(th.Q)} · ${q ? `${th.Q} ${K(q.k)} ${HF.frontWords(q)}` : "not read"}` + (x.qFold ? ` · ${th.Q} ${K(x.qFold.k)} folded ${x.qFold.t}` : "") + (x.both ? " · both sides leaving: OI cannot say which way" : "");
+  let rs = x.rFold || f.rA ? "against" : x.rHold ? "for" : "flat";
+  let rt = `${wr(th.R)} · ${r ? `${th.R} ${K(r.k)} ${HF.frontWords(r)}` : "not read"}` + (x.rFold ? ` · ${th.R} ${K(x.rFold.k)} folded ${x.rFold.t}` : "");
+  let fs, ft;
+  if (!x.cvd && !x.flow) { fs = "blind"; ft = esc(x.cvdWhy || x.flowWhy); }
+  else {
+    fs = x.cvdPays || x.flowPays ? "for" : x.cvdAgainst || x.flowAgainst ? "against" : "flat";
+    const c = x.cvd ? `CVD ${x.cvd.d > 0 ? "+" : ""}${x.cvd.d} since ${x.cvd.since} (rank ${x.cvd.rank.toFixed(2)}${x.cvd.rank < 0.5 ? ", small for today" : ""})` : esc(x.cvdWhy);
+    const p = x.flow ? `${x.flow.s} sell / ${x.flow.b} buy prints of size` : esc(x.flowWhy);
+    ft = `${c} · ${p}${x.div ? ` · divergence: ${esc(x.div)}` : ""}`;
+  }
+  const st = v.struct ? (v.struct.broken ? `<div class="row"><span class="m against">✕</span><span class="k">line</span><span>broken ${v.struct.broken} — line ${Math.round(v.struct.L).toLocaleString("en-IN")} (${esc(v.struct.src)}) <span class="tg">[M] proposal 9.4</span></span></div>`
+      : `<div class="row"><span class="m for">●</span><span class="k">line</span><span>${Math.round(v.struct.L).toLocaleString("en-IN")} holds · <b>${v.struct.room} pts of room</b> (${esc(v.struct.src)}) <span class="tg">[M] proposal 9.4</span></span></div>`) : "";
+  return st + `<div class="row"><span class="m ${qs}">${mark(qs)}</span><span class="k">${th.buyer ? "payers" : "would pay"}</span><span>${esc(qt)} <span class="tg">[M]</span></span></div>
+    <div class="row"><span class="m ${rs}">${mark(rs)}</span><span class="k">${th.buyer ? "holders" : "your side"}</span><span>${esc(rt)} <span class="tg">[M]</span></span></div>
+    <div class="row"><span class="m ${fs}">${mark(fs)}</span><span class="k">order flow</span><span>${ft} <span class="tg">[I]</span></span></div>
+    <div class="count">${v.for.length} for · ${v.against.length} against — a count, not odds</div>`;
+}
+function paint(v, playing) {
+  const w = v.word, c = cls(w), hf = $("#hf");
+  hf.className = c + (hf.classList.contains("min") ? " min" : "");
+  const big = w.startsWith("HOLD") ? "HOLD" : w;
+  $("#word").textContent = big; $("#w1").textContent = big;
+  // since: how long this verdict has stood
+  let j = cur.i; while (j > 0 && cls(cur.reads[j - 1].word) === c) j--;
+  $("#since").textContent = `${v.t} · since ${cur.reads[j].t} (${cur.i - j} min)`;
+  const chip = v.tag === "noise" ? `<span class="chip">noise</span>` : v.tag === "nothing paying" ? `<span class="chip">nothing paying</span>` : "";
+  $("#say").innerHTML = chip + esc(v.line);
+  $("#led").innerHTML = ledger(v);
+  // buyer's clock
+  if (v.th.buyer && !v.facts.blind) {
+    const q = Math.min(v.quietFor || 0, HF.REASON_GONE);
+    $("#clk").style.display = "";
+    $("#clk").innerHTML = `paid last ${v.paidLast || "— not since entry"} · quiet ${v.quietFor || 0} of ${HF.REASON_GONE} min <span class="ticks">${Array.from({ length: HF.REASON_GONE }, (_, k) => `<b class="${k < q ? "q" : ""}"></b>`).join("")}</span>`;
+  } else $("#clk").style.display = "none";
+  const wt = v.word === "WATCH" && v.watch ? `watch, not an exit · ${v.watch}` : v.note && !v.word.startsWith("FOLD") ? v.note : "";
+  $("#wt").style.display = wt ? "" : "none"; $("#wt").textContent = wt;
+  // context: never a vote; P&L in neutral ink on purpose
+  const p = v.prem, t = cur.t;
+  let cx;
+  if (p.c != null) {
+    const ch = (p.c - t.p0) * (t.role === "short" ? -1 : 1);
+    const tp = p.pct * (t.role === "short" ? -1 : 1);
+    cx = `<span class="p">prem ${p.c.toFixed(2)}</span> · in ${t.p0} · you ${ch >= 0 ? "+" : "−"}${Math.abs(ch).toFixed(2)} pts (${tp >= 0 ? "+" : "−"}${Math.abs(tp).toFixed(1)}%) · ₹${p.pnl >= 0 ? "+" : "−"}${Math.abs(Math.round(p.pnl)).toLocaleString("en-IN")} <span class="tg">[${p.src}]</span><br>` +
+         (p.z != null ? `${p.z >= 0 ? "+" : ""}${p.z.toFixed(1)}σ vs its own session VWAP ${p.vw.toFixed(1)}` : "VWAP band has no width yet");
+  } else cx = esc(p.why);
+  cx += ` · spot ${v.spot != null ? v.spot.toLocaleString("en-IN", { maximumFractionDigits: 0 }) : "?"}`;
+  cx += v.tr ? ` · 5m ${v.tr["5m"]} · 15m ${v.tr["15m"]} <span class="tg">[I] context</span>` : ` · trend: ${esc(v.trWhy || "not read")}`;
+  $("#cx").innerHTML = cx;
+  // the one line
+  const r1 = v.word === "FOLD" ? v.line.replace(/ \(\d\d:\d\d\).*/, "") : v.th.buyer && !v.facts.blind ? `paid ${v.quietFor ? v.quietFor + " min ago" : "now"} · ${v.line}` : v.line;
+  const tp1 = p.pct != null ? p.pct * (t.role === "short" ? -1 : 1) : null;
+  $("#r1").textContent = `${t.idx} ${K(t.k)} ${t.side}${t.role === "short" ? " short" : ""} · ${tp1 != null ? "you " + (tp1 >= 0 ? "+" : "−") + Math.abs(tp1).toFixed(1) + "% · " : ""}${r1}`;
+  if (playing && w === "FOLD" && lastWord !== "FOLD") { hf.classList.add("pulse"); setTimeout(() => hf.classList.remove("pulse"), 1000); if ($("#snd").checked) tone(); }
+  lastWord = w;
+}
+function paintBlind(why, t) {
+  const hf = $("#hf"); hf.className = "PATA" + (hf.classList.contains("min") ? " min" : "");
+  $("#word").textContent = $("#w1").textContent = "PATA NAHI";
+  $("#since").textContent = ""; $("#say").textContent = why; $("#r1").textContent = why;
+  $("#led").innerHTML = `<div class="row"><span class="m blind">?</span><span class="k">facts</span><span>${esc(why)}</span></div>`;
+  $("#clk").style.display = $("#wt").style.display = "none"; $("#cx").textContent = "no verdict without the OI grid — a missing value is never a zero";
+  $("#clock").textContent = "--:--";
+}
+
+
+// ---------------------------------------------------------------- the better-trade panel
+let btOpen = null;
+function daysOf(day) { return { NIFTY: DAYS[`NIFTY_${day}`], BANKNIFTY: DAYS[`BANKNIFTY_${day}`], SENSEX: DAYS[`SENSEX_${day}`] }; }
+function paintBT(v) {
+  const flat = $("#btflat").checked, t = cur.t, V = $("#btprice").checked ? { price: true } : null;
+  const R = BT.read(daysOf(t.day), v.t, flat ? null : { idx: t.idx, side: t.side, role: t.role }, V);
+  const entryFold = !flat && cur.reads[0] && cur.reads[0].word === "FOLD";
+  let ck = "", cw = "", one;
+  if (!flat) {
+    const c = R.check || { word: "COULD NOT CHECK", why: "" };
+    cw = entryFold ? "BROKEN" : c.word.split(" ")[0];
+    ck = `<div class="ck ${cw}">${entryFold ? `<b>You entered into a broken setup.</b> The window read FOLD at your entry minute (${esc(cur.reads[0].line)}). ` : ""}<b>Your trade vs today: ${esc(c.word)}.</b> ${esc(c.why)}</div>`;
+    one = entryFold ? "you entered into a broken setup" : c.word === "AGAINST" ? "your trade is against today's read"
+        : c.word === "AGREES" ? "your trade agrees with today's read" : "today is not clear on your index";
+  } else one = R.best ? `best: ${R.best.text}` : "no trade is clean right now";
+  const rows = R.reads.map((r) => `<span class="n">${r.idx}</span><span class="d${R.cleanest.idx === r.idx ? " cl" : ""}">${r.blind ? esc(r.blind)
+      : `${esc(r.word)}${r.changing ? " (changing)" : ""} · ${esc(r.side.text)}${r.day !== "NEITHER" ? ` · ${r.for.length} for · ${r.against.length} against` : ""}`}</span>`).join("");
+  const mine = R.reads.find((r) => r.idx === t.idx) || R.reads[0];
+  const facts = (r) => r.blind ? "" : [...r.for.map((x) => "● " + x), ...r.against.map((x) => "✕ " + x), ...r.cant.map((x) => "? " + x)].map(esc).join("<br>");
+  const cl = R.reads.find((r) => r.idx === R.cleanest.idx);
+  $("#btb").innerHTML = ck +
+    `<div class="ix">${rows}</div>` +
+    `<div class="ln"><span class="k">the day, ${esc(mine.idx)}</span>${mine.blind ? esc(mine.blind) : `<span class="w">${esc(mine.word)}</span> — ${esc(mine.why)}<span class="f">${facts(mine)}</span>`}</div>` +
+    `<div class="ln"><span class="k">cleanest index</span><span class="w">${esc(R.cleanest.text)}</span>${cl && cl.idx !== mine.idx ? `<span class="f">${facts(cl)}</span>` : ""}` +
+    `${cl && cl.idx === "BANKNIFTY" ? `<span class="f">context: BANKNIFTY trends and inverts reversion tests (research §3); the fade gate caps it at soft</span>` : ""}</div>` +
+    `<div class="ln"><span class="k">the engine's trade, ${esc(mine.idx)}</span>${esc(mine.engine ? mine.engine.text : "—")}</div>` +
+    `<div class="ln"><span class="k">best · second best</span><span class="w">${esc(R.bestText)}</span><span class="f">second: ${esc(R.secondText)}</span></div>` +
+    `<div class="ft">counts of facts, never odds · advisory · no size, no strike, no price · ${V ? "B-11.1 proposal ON (post-data)" : "the draft as written before replay"} · [I] REGIME / STRONG / CVD · [M] fronts, folds, premium</div>`;
+  $("#btone").textContent = one;
+  const auto = !flat && (cw === "AGAINST" || cw === "BROKEN");
+  const open = btOpen == null ? (flat || auto) : btOpen;
+  $("#bt").classList.toggle("min", !open); $("#btt").textContent = open ? "–" : "+";
+}
+
+// ---------------------------------------------------------------- the page around it
+function paintStrip() {
+  const n = cur.reads.length, t = cur.t;
+  $("#strip").innerHTML = cur.reads.map((v) => `<i class="${cls(v.word)}" title="${v.t} ${esc(v.word)}"></i>`).join("") + `<span class="cur"></span>`;
+  const pos = (hhmm) => ((mm(hhmm) - mm(cur.reads[0].t) + 0.5) / n) * 100;
+  let mk = "";
+  if (t.buys) t.buys.forEach((b) => { const r = hm(mm(b[0]) - 1); if (mm(r) >= mm(cur.reads[0].t)) mk += `<span class="in" style="left:${pos(r)}%" title="in ${b[0]} @ ${b[2]}">▲</span>`; });
+  else mk += `<span class="in" style="left:${pos(t.read_from)}%" title="in ${t.t0}">▲</span>`;
+  (t.sells || []).forEach((s) => { mk += `<span class="out" style="left:${pos(hm(mm(s[0]) - 1))}%;top:0" title="out ${s[0]} @ ${s[2]}">▼</span>`; });
+  $("#marks").innerHTML = mk;
+  let ax = "";
+  for (let m = Math.ceil(mm(cur.reads[0].t) / 30) * 30; m <= mm(cur.reads[n - 1].t); m += 30) ax += `<span style="left:${pos(hm(m))}%">${hm(m)}</span>`;
+  $("#axis").innerHTML = ax;
+  $("#strip").onclick = (e) => { const b = e.currentTarget.getBoundingClientRect(); stop(); seek(Math.floor((e.clientX - b.left) / b.width * n), false); };
+}
+function paintLog() {
+  let h = "", prev = null;
+  cur.reads.forEach((v, i) => {
+    const s = sig(v);
+    if (s !== prev) h += `<tr data-i="${i}"><td class="num">${v.t}</td><td class="w ${cls(v.word)}">${esc(v.word.startsWith("HOLD") ? "HOLD" : v.word)}</td><td>${esc(v.line)}</td></tr>`;
+    prev = s;
+  });
+  $("#log").innerHTML = h;
+  document.querySelectorAll("#log tr").forEach((r) => r.addEventListener("click", () => { stop(); seek(+r.dataset.i, false); }));
+}
+function paintFills() {
+  const t = cur.t, at = (hhmm) => cur.reads.find((v) => v.t === hhmm);
+  const rows = [];
+  (t.buys || [[t.t0, t.qty, t.p0]]).forEach((b) => { const v = at(hm(mm(b[0]) - 1)) || cur.reads[0]; rows.push(["▲ in " + b[0].slice(0, 8) + " @ " + b[2], v]); });
+  (t.sells || []).forEach((s) => { const v = at(hm(mm(s[0]) - 1)); if (v) rows.push(["▼ out " + s[0].slice(0, 8) + " @ " + s[2], v]); });
+  const f = cur.reads.find((v) => v.word === "FOLD");
+  $("#fills").innerHTML = rows.map(([a, v]) => `<div><span class="t num">${esc(a)}</span> · read ${v.t}: <b class="w ${cls(v.word)}">${esc(v.word)}</b> — ${esc(v.line)}</div>`).join("") +
+    `<div>${f ? `first FOLD <b class="w FOLD">${f.t}</b>${f.prem.c != null ? ` · prem ${f.prem.c}` : ""} — ${esc(f.line)}` : "no FOLD before 15:29"}</div>`;
+}
+
+// ---------------------------------------------------------------- drag, collapse, keys
+(function () {
+  const hf = $("#hf");
+  try { const p = JSON.parse(localStorage.getItem("hf.pos") || "null"); if (p) { hf.style.left = p.x + "px"; hf.style.top = p.y + "px"; hf.style.right = "auto"; }
+        if (localStorage.getItem("hf.min") === "1") hf.classList.add("min"); } catch (e) { /* storage may be blocked */ }
+  let d = null;
+  const down = (e) => { if (e.target.tagName === "BUTTON") return; const r = hf.getBoundingClientRect(); d = { dx: e.clientX - r.left, dy: e.clientY - r.top }; e.currentTarget.setPointerCapture(e.pointerId); };
+  const move = (e) => { if (!d) return; const x = Math.max(0, Math.min(innerWidth - 60, e.clientX - d.dx)), y = Math.max(0, Math.min(innerHeight - 30, e.clientY - d.dy));
+    hf.style.left = x + "px"; hf.style.top = y + "px"; hf.style.right = "auto"; };
+  const up = () => { if (!d) return; d = null; try { localStorage.setItem("hf.pos", JSON.stringify({ x: hf.offsetLeft, y: hf.offsetTop })); } catch (e) {} };
+  for (const el of [$("#hd"), $("#one")]) { el.addEventListener("pointerdown", down); el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); }
+  const setMin = (on) => { hf.classList.toggle("min", on); try { localStorage.setItem("hf.min", on ? "1" : "0"); } catch (e) {} };
+  $("#bmin").onclick = () => setMin(true); $("#bmax").onclick = () => setMin(false);
+  $("#b0").onclick = () => { stop(); seek(0); }; $("#b1").onclick = () => { stop(); seek(1e9); };
+  $("#bp").onclick = () => { stop(); seek(cur.i - 1); }; $("#bn").onclick = () => { stop(); seek(cur.i + 1); };
+  $("#bplay").onclick = play;
+  $("#btt").onclick = () => { btOpen = $("#bt").classList.contains("min"); if (cur) seek(cur.i); };
+  for (const id of ["#btprice", "#btflat"]) $(id).addEventListener("change", () => { btOpen = null; if (cur) seek(cur.i); });
+  document.querySelectorAll(".var").forEach((c) => c.addEventListener("change", () => { if (!cur) return; const i = cur.i; start(cur.t); seek(i); }));
+  addEventListener("keydown", (e) => { if (e.target.closest("form")) return;
+    if (e.key === "ArrowRight") { stop(); seek(cur.i + 1); } else if (e.key === "ArrowLeft") { stop(); seek(cur.i - 1); } else if (e.key === " ") { e.preventDefault(); play(); } });
+})();
+renderList();
+{ const first = document.querySelector('.tr[data-g="mine"]'); if (first) first.click(); }
+</script>
+</body>
+</html>

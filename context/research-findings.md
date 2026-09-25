@@ -476,6 +476,198 @@ written so it does not depend on either.
 
 ---
 
+## 1e. PRE-REGISTERED — THE HOLD / FOLD WINDOW AND THE SIDE READ (signed 2026-09-25 01:42, before any code, UNTESTED)
+
+**The full text is `docs/hold/PREREG-merged.md` rev 4** (written 2026-09-25
+01:37 IST). This section is its anchor. **sha256 at signing:
+`e7f50391da94a6a14b76ccc6dff5bc993c1b306859baaee8a78e36a7744709d0`.**
+- Any later edit to that file is a new revision with its own change-log
+  entry and a new hash here, never a silent change.
+- **Nothing in it is a result.**
+
+**Signed by the operator** when asked to sign it for building after the
+close. Her words: *"build it we have enough time till tommorrow open and i
+might not trade at all tommorrow so build it and than let me know . but this
+sesiion is very long . so do it new session"*.
+
+**Why it exists.** Her own diagnosis: *"identifying direction is never my
+problem but holding a trade it closing too early on my trade getting panicked
+with even 1 single red candle or holding a bad trade in fomo"*. The evidence
+is her 2026-09-24 SENSEX put trades against what the tool's data said at each
+exit (DEFERRED §0j.11).
+
+**What it registers, in brief:**
+- a floating, per-trade HOLD / WATCH / FOLD / PATA NAHI window, for buyers
+  and writers;
+- a price line as the hard FOLD, the nearer-front OI ledger, strict order
+  flow and a 5m / 15m / 1h trend vote;
+- her quiet clock as a FOLD, with its own kill clause;
+- the entry check ("you entered into a broken setup");
+- a CALLS / PUTS / no-side read;
+- all parameters inherited;
+- two write-once forward logs in `data/hold/`;
+- a falsifier judged over 30 sessions (at least 10), in % of premium, that
+  must survive removing the best day.
+
+It is designed by two models blind (Fable 5.1 base, Opus 5.5 OI read, clock
+and absences), then cross-reviewed. Opus reviewed it three times, and its
+last blocker was fixed in rev 4.
+
+**It gates nothing else.** It never feeds `setup.gate`, the zone machine or
+`trigger_log`. It shows DRAFT until its falsifier is judged. There is no order
+path.
+
+**REV 5 (OPTION B), signed 2026-09-25 19:40 IST, on her delegation.** Her words:
+*"but i dont get it or capable enough to answer as a trader you think is best take that for now"*. The full text is `docs/hold/PREREG-rev5.md`, **sha256
+`06a54cee595688abe4c90a8f5a56930d2a73e2a752861db2e62cbabd038b5189`**. It amends
+rev 4, which stays as it was, hash above.
+- **Why a new revision:** `docs/hold/REVIEW-2026-09-25.md` P0-1. Her 12:01 CE was
+  folded at 12:02 on a 1-minute close 1.4 pts through a line that sat 2 pts from
+  her entry.
+- **The line break (option B):** a 3-minute index close beyond L by more than
+  one median 1-minute candle.
+  - The candle is measured over 15 finished minutes when L is set or trailed,
+    then frozen and printed as a level.
+  - On a trail, the level never moves away from price.
+  - Until the candle is read, the buffer is 0; that fallback is named.
+- **Other changes:**
+  - after a FOLD, the STOP shows the line that broke;
+  - the PAYERS row's precedence;
+  - copy.
+- **Clause 7-B can kill it on forward rows.**
+- **Who chose B:** Claude (Opus 5.5), on principle, on her delegation. The line
+  separates a break from noise; option A only moves the timing. Option A is kept
+  as the text not chosen.
+- **Review:** three adversarial passes (`docs/hold/REV5-VALIDATE2-REVIEW.md`);
+  option B was SIGNABLE.
+- "For now": she may revisit.
+- **PLAN rev 3a** (a pointer to this break, no PLAN rule moves): `docs/hold/PLAN-PREREG.md` sha256
+  `b7549d79b6e78ff93b8b5c9e982db43c599ebda83e0dfe3e81dac0a57acef0c4`.
+
+---
+
+## 1f. PRE-REGISTERED — THE PLAN: STOP · NEXT RUNG · ROOM (signed 2026-09-25 09:31, before any code, UNTESTED)
+
+**The full text is `docs/hold/PLAN-PREREG.md` rev 2a.** This section is its
+anchor. **sha256 at signing:
+`a0295c202697679f14fd59aa157813bdbf74cc0f8b1fbff6da17cea5a1e7158b`.**
+- Any later edit to that file is a new revision with its own change-log
+  entry and a new hash here, never a silent change.
+- **Nothing in it is a result.**
+
+**Signed by the operator,** her word: *"sign"*.
+
+**Her request:** *"think for yourself building a tool to tell you if you can
+hold your trade target you can aim for stoploss one should look for"*.
+
+**Her two decisions:** *"again depends on market leave the size to me"*. So:
+- the plan never sizes, never says "book" or "exit";
+- it prints the line and the window's word side by side, never merged.
+
+**What it registers, in brief.** It sits beside §1e's window and changes none
+of its rules.
+- **STOP:** the window's line, in index points, with the premium at risk [I]
+  from the broker's Δ, Γ (a buyer −½Γ clamped 0…premium; a writer +½Γ).
+- **NEXT RUNG:** the nearest sized payers'-side front strictly beyond the
+  index in her direction; else the session extreme; else "price discovery".
+  It always carries DEFENDED / GIVING WAY / STALLED, says whose favour that
+  is, and shows the raw §1d state.
+- **ROOM:** points to the rung and to the stop, never a ratio as odds.
+- **A touch:** one per (trade, strike, side), with its own write-once
+  `rung_touch` row. `next15` there is the maximum favourable index excursion
+  over 15 finished minutes, as §1e's extremum.
+- **P1:** GIVING WAY touches are followed by larger excursions than DEFENDED
+  touches. It is judged at at least 15 of each and at least 10 sessions, by 30
+  sessions at the latest, and must survive removing the best day. If it fails,
+  the words are deleted and STOP and ROOM stay as display.
+- **Parameters:** all inherited; no new number.
+
+Drafted by Opus 5.5. The review attempt by Fable 5.1 hit a usage limit before
+writing anything. Sonnet reviewed rev 1a (NOT YET: M1 the excursion, M2
+write-once) and rev 2 (SIGNABLE); the trail is `docs/hold/PLAN-REVIEW.md`.
+
+**It gates nothing.** There is no order path. It shows DRAFT until P1 is
+judged.
+
+**REV 3 — THE BAND RUNG, signed 2026-09-25 13:20,** her word *"sign"*. It
+comes from her 09-25 NIFTY 23200 PE (*"we should have traded till nifty
+reaches the lower band"*). `docs/hold/PLAN-PREREG.md` is now **rev 3, sha256
+`b3d2c63b79a9cc512fbe4a480b610f142d1b1ecbe87697fa3e0694ff05c85327`**. Rev 2a's
+hash above stays as history.
+- **§2.7:** the band rung, for buyers only.
+  - A long PE aims at d2, a long CE at u2. These are the zone machine's own
+    3-min bands on the future, in σ, and never converted to index points.
+  - Its word is the §1d gate on the zone arm row at the touch bar, read on
+    the band's native fade side. There are four outcomes, each its own
+    sentence.
+  - The opposite trigger is printed as a fact, never an instruction.
+- **§5:** a write-once `band_touch` row.
+- **§6:** P2 (GIVING WAY band touches vs DEFENDED ones, `next15`), judged
+  like P1. The same-bar overlap with a wall touch is flagged
+  `also_wall_touch`.
+- Merged verbatim from `PLAN-ADDENDUM-rev3.md` rev 3a. Sonnet reviewed rev 3
+  (NOT YET); M1 and S1–S3 were fixed in 3a, and the trail is
+  `docs/hold/PLAN-ADDENDUM-REVIEW.md`.
+- **Not built yet.** It gates nothing.
+
+---
+
+## 1g. PRE-REGISTERED — THE VALIDATE WORD: GO · WAIT · NO (signed 2026-09-25 13:20, UNTESTED)
+
+**The full text is `docs/hold/VALIDATE-PREREG.md` rev 1.** This section is
+its anchor. **sha256 at signing:
+`6f1d9047dbdd699e6356e445b9287fc07a7cf719bdea5ea8018d06c849757db5`.**
+- Any later edit to that file is a new revision with its own change-log
+  entry and a new hash here, never a silent change.
+- **Nothing in it is a result.**
+
+**Signed by the operator,** her word: *"sign"*.
+
+**Her request:** *"i want the validate button there when i choose the strike
+ce or pe and weather i long or short it . and than it should tell weather the
+app the thinks i should take it or not or confidence score maybe"*. She gets
+a COUNT, never a percentage: rule 4, and there is no forward record yet.
+
+**What it registers, in brief:**
+- five facts, each WITH you / AGAINST / NEITHER, all read off already
+  registered objects:
+  - her setup (the zone trigger with its §1d gate);
+  - right now (§1e's entry check);
+  - the market side (§1e §10.4);
+  - the room and the next wall (§1f).
+- **NO** if the entry check is FOLD or 3 or more are against; **GO** if none
+  is against and 4 or more are with her; otherwise **WAIT**, naming what would
+  have to change.
+- every press logged write-once to `data/hold/check_<day>.jsonl`.
+- **P:** GO checks are followed by larger 30-minute premium excursions than
+  NO checks (§1e §7's unit).
+  - It is judged at 15 or more of each and 10 or more sessions, by 30
+    sessions at the latest, and must survive removing the best day.
+  - If it fails, the word is deleted and the five facts stay as a checklist.
+
+**Written after one live moment was seen,** and disclosed: her 09:36 entry
+reads WAIT (1 of 5), and it then ran 150 → 181. No rule was shaped to it.
+
+**It gates nothing.** There is no order path. It shows DRAFT until P is
+judged. Built 2026-09-25 12:25, before signing, exactly to this text.
+
+**REV 2, signed 2026-09-25 19:40 IST, on her delegation** (*"but i dont get it or capable enough to answer as a trader you think is best take that for now"*).
+`docs/hold/VALIDATE-PREREG.md` is now rev 2, **sha256
+`4a9b59638606e28515283f17e7af7ace0ec33f39274e8b93ab96027485b34423`**. Rev 1 is
+kept word for word in `docs/hold/VALIDATE-PREREG-rev1.md` (hash above).
+- **Your setup** reads the zone machine's closed 3-minute bar.
+- **Stop room** is measured against the index's own median 1-minute candle; a
+  stop inside one candle is AGAINST.
+- **One wall is one fact,** and the holdability fact is "paying".
+- **GO needs "Right now" = HOLD.**
+- **A writer** is told plainly what she gets.
+- **The unit** is one press per index per direction per 30 minutes.
+- **The outcome** is "target or line touched first", on 1-minute highs and lows.
+  It reads no break rule.
+- **Judging:** each word against WAIT, in a set where the geometry is comparable.
+- **Review:** three adversarial passes; SIGNABLE. Rev 1's press rows are never
+  pooled with rev 2's.
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

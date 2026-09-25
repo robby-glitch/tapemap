@@ -1,6 +1,8 @@
 """trigger_log: append-once semantics, context capture, fail-soft contract."""
 
 import json
+import threading
+import time
 
 import trigger_log
 
@@ -103,6 +105,42 @@ def test_logs_once_with_context(tmp_path):
     assert r["gamma"]["regime"] == "BALANCE" and r["oi_strength"] == 0.5
     assert r["oi_call"] == 1_000_000 and r["oi_put"] == 2_000_000
     assert "f30" not in r               # outcomes are score()'s job, later
+
+
+def test_a_second_index_waits_for_the_record_to_be_read(tmp_path, monkeypatch):
+    """2026-09-23 17:43: at a restart BANKNIFTY's thread deduped against the
+    set NIFTY's thread was still reading, and re-wrote 7 of its rows."""
+    path = _fresh(tmp_path)
+    assert trigger_log.log_new("BANKNIFTY", _payload(), FakeChain(), path=path) == 1
+    trigger_log._seen = None                                   # the restart
+    key, reading = trigger_log._key, threading.Event()
+
+    def slow_key(row):                   # NIFTY's thread, stuck mid-read
+        if not reading.is_set():
+            reading.set()
+            time.sleep(0.3)
+        return key(row)
+    monkeypatch.setattr(trigger_log, "_key", slow_key)
+    nifty = threading.Thread(target=trigger_log.log_new,
+                             args=("NIFTY", _payload(), FakeChain()), kwargs={"path": path})
+    nifty.start()
+    reading.wait()
+    assert trigger_log.log_new("BANKNIFTY", _payload(), FakeChain(), path=path) == 0
+    nifty.join()
+    rows = [json.loads(x) for x in open(path, encoding="utf-8")]
+    assert sorted(r["index"] for r in rows) == ["BANKNIFTY", "NIFTY"]
+
+
+def test_a_payload_from_another_session_never_logs(tmp_path):
+    """2026-09-25 00:00:05: a refresh still holding the 09-24 session wrote its
+    9 BANKNIFTY rows again, stamped with the new date."""
+    path = _fresh(tmp_path)
+    old = _payload()
+    old["days"][-1]["day"] = time.strftime("%b %d", time.localtime(time.time() - 86400)) + " LIVE"
+    assert trigger_log.log_new("BANKNIFTY", old, FakeChain(), path=path) == 0
+    today = _payload()
+    today["days"][-1]["day"] = time.strftime("%b %d") + " LIVE"
+    assert trigger_log.log_new("BANKNIFTY", today, FakeChain(), path=path) == 1
 
 
 def test_every_row_carries_the_fade_gate(tmp_path):

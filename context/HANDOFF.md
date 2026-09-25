@@ -10,7 +10,9 @@ strategy verdict is in `context/research-findings.md`, and the deep UI
 history is in `context/ui-v2-dashboard.md`, and the operator's own edge is
 specified in `docs/superpowers/specs/2026-07-31-operator-band-rotation-setup.md`.
 
-Last updated: 2026-09-09. **1066 collected; 1063 pass, 3 fail** (`pytest -q`,
+Last updated: 2026-09-23 — newest entry "2026-09-23 night" (suite 1413
+collected, 1410 passing); the count history below stops at 2026-08-26.
+Earlier: **1066 collected; 1063 pass, 3 fail** (`pytest -q`,
 2026-08-26 — 1041 plus 21 in `test_day_trades.py` for the paper day read back
 from the trade log;
 before that 1041 — 1021 plus 20 in `test_desk_numbers.py` for RV(5d), forward daily
@@ -81,6 +83,9 @@ moment this file is committed. `git log --oneline -1` and
 
 ### STATE OF THE APP — end of 2026-08-25, read this before anything else
 
+> **Newer than this section:** the dated entries directly below it, newest
+> first — start with "2026-09-23 night".
+
 Written for whoever picks this up cold (operator's order: "any body else work
 so they exact know where we are"). Every claim below is verifiable — the
 command or file that proves it is named.
@@ -112,6 +117,8 @@ Chrome extension:
   — v1.22.5 on disk (big-print reads OFF; its changelog file is
   `CHANGES-1.22.0-to-1.22.4.md` in that tree). NOT yet reloaded in Chrome —
   the operator still has to reload at chrome://extensions + refresh Kite.
+  **CORRECTED 2026-09-23:** that path is gone. PaperDesk now lives at
+  `operator mode\paperdesk\v1.22.6` and is loaded (see "2026-09-23 night").
 
 **What happened today (the detailed entries below have the full accounts):**
 VPIN shadow module's first live day validated its designed combo on the
@@ -175,6 +182,252 @@ live day for all of it: 2026-08-26.
 `/api/health.coverage` (what this process actually knows today), and the
 operator's memory files in the assistant workspace. The anytime-start audit
 report: https://claude.ai/code/artifact/4b30ccb2-f146-4414-a7ec-be8abcfb5981
+
+### 2026-09-25 end of day — the hold window, THE PLAN and VALIDATE built, reviewed, re-signed (rev 5 B, VALIDATE rev 2), live
+
+**START WITH `docs/hold/HANDOFF-2026-09-25.md`.** It supersedes the "next session builds it" note below: the window,
+the plan and the Validate tab are built and live (verified after her 22:17 restart); the review
+(`docs/hold/REVIEW-2026-09-25.md`) was fixed; rev 5 option B and VALIDATE rev 2 were signed 19:40 on her delegation
+and built; the MACHINE strip reads the zone machine; a MARKET NOW strip sits on the Validate tab.
+
+### 2026-09-24 day → 2026-09-25 01:45 — board rev 3 live, the hold window signed; NEXT SESSION BUILDS IT
+
+**START THE NEXT SESSION WITH `docs/hold/BUILD-BRIEF.md`.** Mary signed the
+hold / fold window pre-registration (`docs/hold/PREREG-merged.md` rev 4,
+sha256-anchored in `context/research-findings.md` §1e) and asked for it to be
+built "in a new session" before the 09-25 open. She "might not trade at all"
+on 09-25.
+
+**Live now, all UNCOMMITTED (commit only on her word):**
+- **Board rev 3 on the Board tab.**
+  - `ui-v2/src/board/BoardRev3.tsx`. The rollback is one line in `App.tsx`:
+    `<BoardTab …/>`.
+  - It sits on `GET /api/board` (`board.py`, `trendbox.py`,
+    `fronts.folds/grid/nine`; cached per index per minute), plus `/api/oihist`
+    gaining `open` / `folds` / `first`, with FIRST persisted in `day_state`.
+  - Shell: on the Board tab the answer band, MACHINE strip and replay bar are
+    hidden, and the GlanceBar carries a one-line read per index.
+- **`calls_log.py`** writes the grounded calls to `data/calls/`, in session
+  only.
+- **After-close cuts:** `/api/data` serves no bars at or after 15:30;
+  `live._opt_pivots` uses only candles before 15:30.
+- **Two record fixes in `trigger_log.py`, each with the fake rows removed on
+  her word and a backup kept in `data/`:**
+  - the startup race (`_seen_lock`, 0j at 2026-09-24 00:30);
+  - the midnight re-write (a payload from another session never logs,
+    DEFERRED 0j.12).
+- **The Mirror tab was built, then UNHOOKED on her word:** "i dont want them
+  as chart on my screen at all because i have them on my broker screen". The
+  server parts stay (per-contract pivots on `/api/contract`, the 15:30 cut).
+  Standing rule: NO price or premium charts anywhere; the app READS.
+- **Suite 1458 collected, 1455 passing** (the 3 pre-existing
+  `test_desk_numbers` failures). Server restarted 2026-09-25 01:10;
+  trigger_log is 1934 lines.
+
+**Her standing rules from this session** (in memory):
+- LIGHT only; no charts, reads only;
+- nothing designed off one day (show a trend day AND a range day);
+- "confidence" = an agreement count until measured;
+- strike selection wherever OI shows;
+- during market hours, findings go into DEFERRED §0j and are worked after
+  the close.
+
+**Waiting on her** (DEFERRED §0j):
+- 0j.4, the fade-gate defender options (a) / (b) / (c);
+- pre-registration of level-under-attack and the flush candle;
+- 0j.9, the 09:15 OI baseline, and the `live._pivots` post-15:30 twin (0j.10);
+- the three plumbing items in 0j.3: POST errors unlogged, the 136 MB frame
+  rewrite, the orphan `.tmp`;
+- the commit.
+
+**Design records:**
+- Board rev 1/2/3 mockups in `docs/mockups/`.
+- `docs/research/quant-tower-india-2026-09-24.md`.
+- Fable's trader review in `docs/review/`.
+- The hold window's two blind prototypes, cross-critiques and reviews in
+  `docs/hold/`.
+
+### 2026-09-24 00:30 — the record was written twice at a restart; fixed, copies removed
+
+Found by the board-mockup agent reading `data/trigger_log.jsonl`: **7
+BANKNIFTY zone rows for 2026-09-23 were on disk twice.** The second copies
+were all written at 17:43 (one of the post-close restarts in the entry below),
+with `oi_*` missing and the gate "near-ATM fronts not read". Their dedupe keys
+were identical to the originals, so dedupe itself was never the problem.
+
+**Root cause — a startup race.** `server.py` runs one `refresh_one` thread per
+index. On the first `log_new` after a start, `trigger_log._load_seen`
+published `_seen = set()` and only then filled it line by line. BANKNIFTY's
+thread deduped against the set NIFTY's thread was still reading, and the
+09-23 rows are the last lines in the file, so they were missing from it. The
+same shape shows once before: 5 pairs at 09:17 on 2026-08-06 (legacy,
+quarantined rows, left alone).
+
+**Fix:** `log_new` now loads `_seen` under `_seen_lock`, so a second index
+waits for the whole record. The new test in `test_trigger_log.py` stalls one
+thread mid-read and checks the other writes nothing; it fails without the
+lock. It is live from the next server start, and a start is the only moment
+the race can happen.
+
+**The 7 copies were removed on the operator's word** ("Back up, remove
+copies"). Backup first: `data/trigger_log.backup-2026-09-24-before-dedupe.jsonl`
+(byte-identical, sha256 checked). Each removed row was checked to have an
+earlier twin with the same key, and 09-23 now has 20 rows and 0 duplicates.
+Nothing else in the file changed.
+
+**Also tonight, design only — nothing wired, all awaiting her review:**
+`docs/mockups/board-chess-2026-09-24.html` (the BOARD as the main page, "like
+a chess board": pieces, move history, whose move, the next squares with
+conditions), `docs/mockups/war-compact-2026-09-24.html` (WAR at ±6 of ATM,
+~520 px instead of ~890), each with a `-notes.md` that maps every element to
+its endpoint and lists the server additions, smallest first. The research
+behind WAR: `docs/research/quant-tower-india-2026-09-24.md` (Quantower India's
+Options Surface + ODX ladder, adopted or rejected against §1d). She answered
+"Keep 9 strikes for now" to whether §1d's "near ATM" should become a points
+distance, so §1d is unchanged.
+
+**Later the same night (to 03:30):**
+- **Fable 5.1 reviewed both mockups as a trader:**
+  `docs/review/fable-trader-review-board-war-2026-09-24.md`. BOARD 6/10,
+  WAR 7.5/10, the two together 6/10.
+- **She chose "Rev 2 in Fable's layout":** `board-chess-rev2-2026-09-24.html`
+  and `war-compact-rev2-2026-09-24.html`, each with a `-notes.md`. Light only;
+  she hates dark mode, a standing preference. Her §1d is not smoothed. Each
+  front card has an empty "forced / released: pending §1d addendum" slot.
+- **The rev 2 board fits the app only with two shell changes.** Her screen is
+  1536×864 at 125%, and the app shell leaves the Board tab only ~392 px, so on
+  the Board tab: hide the answer band and the MACHINE strip, and move index
+  switching and the mini-ladders into the GlanceBar. That is a presentation
+  call, but check it with her before wiring.
+- **Forced vs released:** she said "pre-register", then held the drafted
+  addendum. Nothing is registered or built.
+- **She declined persisting the 09:15 OI baselines for now.** The 15:27
+  NIFTY restart artifact stays marked "could not check" on the mockups.
+- **Built on her word "Log the checked calls":** `calls_log.py`. One row per
+  index per engine bar in `data/calls/calls_<day>.jsonl`, 09:15–15:30 only,
+  the call as first shown. It is deduped against the file under one lock and
+  gzipped after 7 days by daylog. The `/api/calls` route and the log share
+  `server._calls_for`, so the row kept is what the face was served. It is the
+  data `grounds.py`'s kill condition needs.
+- **Server restarted detached at 03:27** with the logger fix and the call log.
+  The record is still 1866 rows after the restart, and no call file is written
+  outside the session.
+- **Check at the 2026-09-24 session:** `data/calls/` fills from 09:15, and
+  the recorders stop at 15:30.
+
+Suite 1416 collected, 1413 passing, the same 3 pre-existing
+`test_desk_numbers` failures.
+
+### 2026-09-23 night — every call grounded; a restart rebuilds the day exactly; nothing recorded after 15:30
+
+Two commits on `feature/operator-objects`: `7b83e6f` (15:28 — the fade gate
+on the face, and grounded calls) and `6e998f0` (after the close — everything
+below it found by checking the live header and restarting). The server was
+restarted detached at 18:09 with both. Left uncommitted on purpose:
+`data/trigger_log.jsonl` (never) and another session's `docs/review/opus5-*`.
+
+**Every engine call is grounded — `grounds.py`, GET `/api/calls?idx=`.** The
+operator: any call this tool makes, anywhere (MOVE SPENT, CAUTION, GO,
+FADE/BREAK), has to be grounded in OI, cumulative-delta divergence and order
+flow. The case that forced it: at 13:36 the engine said NIFTY "CAUTION — no
+edge" while CVD was −514 (rank .94), sell prints ran 9 to 1 and PE 23400 was
+unwinding. *(Corrected 2026-09-24: by §1d's own numbers PE 23400 was STALLED
+at 13:36, 5% off its 13:31 high, and first read UNWINDING at 13:37. Both
+mockup agents found this independently. The live header's word was rounded
+up; the call is still CONTRADICTED on all three families. CE 23400 was the
+front unwinding, since 10:20.)* Each call (verdict, episode, breadth, plays) is now held against
+three families the engine never sees — **OI** (near-ATM fronts; futures OI vs
+price), **CVD** (the ux ladder, all three indices: 15-min change ranked
+against today's own, top/bottom divergence) and **FLOW** (big fill runs,
+stacked imbalances) — and gets BACKED / THIN / CONTRADICTED / PATA NAHI with
+the facts printed. Never a score: the validator's 0–100 is gone. The [I]
+thresholds and a 30-session kill condition are in the docstring. The engine
+and every forward log are untouched (replay == live). ui-v2's header, index
+cards, direction chip, LOOK HERE and validator read grounded calls; anything
+unchecked says UNGROUNDED. This answers item 3 of the fade-gate entry below
+only in part: the verdict no longer headlines bare, but it still gates nothing.
+
+**The fade gate on the face** (same commit, §1d "rendered on the face"):
+`signals.gate_sound` only ever removes or softens a sound — illegal tap
+silent, PATA NAHI soft never firm, BANKNIFTY never louder than soft — with the
+gates frozen per visit so a restart cannot re-read a vetoed trigger as legal.
+`sound_ungated` keeps what would have rung. Full policy: the commit message.
+
+**The post-close check found six wrong reads in the grounding** (`6e998f0`):
+(1) both near-ATM fronts UNWINDING — writers leaving the straddle, every index
+at the close — counted "for" up AND down at once → now FLAT for a directional
+call, AGAINST a range call; (2) flow of 0 vs 1 prints said "two-sided" →
+"thin"; (3) the futures-OI quadrant ("longs building") was named off noise
+(+1,430 OI on +3 pts) → named only when both legs rank ≥ STRONG against
+today's own 15-min changes; (4) a fill-run detector that could not rank said
+"quiet" → BLIND with its reason (`runs_why`); (5) ui "CVD CVD"; (6) LOOK HERE
+landed on the first index when nothing anywhere was BACKED.
+
+**Two restart bugs, found by restarting after the close and comparing with
+the server that ran all day:**
+- `server._ux_drain` reset runs/impact in `finally`, i.e. AFTER the restart
+  rebuild had fed them — every fill run before any restart vanished (NIFTY 0
+  → 82 after the fix). The reset now happens before the rebuild.
+- `chain_backfill` fetched minutes 15:30–15:39 (Upstox serves option candles
+  to ~15:39, with no spot). `fronts.read` takes spot from the LAST minute, so
+  a post-close restart blinded every front. `SESSION_END = "15:30"` stops it.
+
+**THE RESTART-EQUIVALENCE CHECK is now standing.** The operator has to restate
+the anytime-start rule every session — *"whenever i open this tool is should
+be like if i openend it from 09:15"*. After any change: restart after the
+close; the rebuilt server must show the same fronts, fill runs, bars and calls
+as the one that ran all day. Tonight it did: NIFTY CE/PE 23400, BANKNIFTY
+CE/PE 56500, SENSEX CE 75000 / PE 74500, all unwinding as they were all day;
+grids to 15:29; runs 82/29. What a restart cannot rebuild, and says so: IV,
+greeks and GEX before the start, depth, war-map crossing evidence, paper-desk
+decisions, and SENSEX's first two minutes after a late start.
+
+**After the close: the last snapshot, and nothing more recorded.** The
+operator: *"the app should the last snapshot and i dont it to build anything
+after that"*. F&O closes 15:30 — she said 15:40, which is NSE's cash-only
+closing session; she was told and chose 15:30.
+- `server._senses_loop`: the book hook, senses, VPIN and pools run only inside
+  `chain_live.in_session` (09:15–15:30). `watch()` still runs, so a
+  post-close restart still rebuilds the fill runs.
+- `server._session_only`: POST `/api/frame` drops bars and marks at or after
+  15:30 before `frame.build`, so the frame after the close IS the 15:25
+  snapshot and the frame log stops growing.
+- Any new recorder must gate on `in_session`.
+
+**Disk — her laptop, ~140 GB free.** Each trading day wrote ~400 MB (senses
+~240, frame ~100, chain ~37, book ~25) and nothing was ever pruned. `daylog.py`
+gzips `data/{senses,frame,book,chain}/*_<day>.jsonl` older than 7 days at
+every server start (background thread), deleting the original only after the
+.gz decompresses to the same sha256. The last week stays plain because the
+extension posts the previous session's frames before 09:15. Every past-day
+reader goes through `daylog.open_text` / `daylog.exists` (the plain file wins
+if both exist) — any new reader must too. First run: 65 files 3.38 → 0.32 GB,
+`data/` 4.86 → 2.01 GB; a compressed day reads identically (`test_daylog.py`;
+`/api/day/record` gives 46 rows for 09-15). By hand: `python daylog.py compress`.
+
+**Not verified yet — check after the 2026-09-24 close:** that the recorders
+really stop live at 15:30, i.e. the day's `data/book`, `data/senses` and
+`data/frame` files do not grow after ~15:30.
+
+**Known, inert, left alone on purpose:** `score_frame.write` and
+`senses.restore_sweeps` read only today's (plain) file; a writer handed a day
+8+ days old could create a plain file shadowing its .gz (nothing does); a
+mock-chain run compresses the real `data/` folder.
+
+**PaperDesk moved** out of Downloads to `operator mode\paperdesk\v1.22.6`
+(vs 1.22.5: 7 files, ~100 lines — the fade gate on the chart marks). Chrome
+Profile 2 loads exactly two unpacked extensions: that and
+`Go charting\orderflow-desk\dist`. Every other PaperDesk copy went to the
+Recycle Bin; `paperdesk.bundle` and `paperdeskrepo.zip` kept on her word.
+
+**Standing rule, the operator 2026-09-23:** the tool is almost done, so every
+change is surgical — *"as a senior software dev who is a trader himself with
+over 20 years of experience"*: smallest root-cause diff, name what stays
+untouched, no restarts in market hours, tell her before changing, commit only
+on her word.
+
+Suite 1413 collected, 1410 passing, the same 3 pre-existing
+`test_desk_numbers` failures. tsc 0.
 
 ### 2026-09-23 — THE FADE GATE: her OI rule, pre-registered first, then built
 

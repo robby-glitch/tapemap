@@ -1,0 +1,299 @@
+[
+ {
+  "opt": "fixed",
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "entry": "FOLD",
+  "fold": "09:41 two",
+  "pts": -4,
+  "pataAfterFold": 0,
+  "flips": 0
+ },
+ {
+  "opt": "fixed",
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "entry": "WATCH",
+  "fold": "11:14 line",
+  "pts": 29.4,
+  "pataAfterFold": 0,
+  "flips": 5
+ },
+ {
+  "opt": "fixed",
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "entry": "WATCH",
+  "fold": "11:14 line",
+  "pts": -10.5,
+  "pataAfterFold": 0,
+  "flips": 5
+ },
+ {
+  "opt": "fixed",
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "entry": "WATCH",
+  "fold": "11:14 line",
+  "pts": -10.8,
+  "pataAfterFold": 0,
+  "flips": 5
+ },
+ {
+  "opt": "fixed",
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "entry": "WATCH",
+  "fold": "11:14 line",
+  "pts": -7.3,
+  "pataAfterFold": 0,
+  "flips": 5
+ },
+ {
+  "opt": "fixed",
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "entry": "HOLD",
+  "fold": "11:14 line",
+  "pts": -26.1,
+  "pataAfterFold": 0,
+  "flips": 4
+ },
+ {
+  "opt": "fixed",
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "entry": "WATCH",
+  "fold": "14:14 line",
+  "pts": -47.6,
+  "pataAfterFold": 0,
+  "flips": 4
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "entry": "HOLD",
+  "fold": "09:44 quiet",
+  "pts": -3.5,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "entry": "FOLD",
+  "fold": "09:46 two",
+  "pts": -3,
+  "pataAfterFold": 0,
+  "flips": 0
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "entry": "WATCH",
+  "fold": "10:17 line",
+  "pts": -14.2,
+  "pataAfterFold": 0,
+  "flips": 3
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "entry": "WATCH",
+  "fold": "10:05 two",
+  "pts": -1.1,
+  "pataAfterFold": 0,
+  "flips": 1
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "entry": "HOLD",
+  "fold": "12:47 line",
+  "pts": 17,
+  "pataAfterFold": 0,
+  "flips": 11
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "entry": "HOLD",
+  "fold": "12:47 line",
+  "pts": 12.3,
+  "pataAfterFold": 0,
+  "flips": 11
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "entry": "HOLD",
+  "fold": "12:47 line",
+  "pts": 3.1,
+  "pataAfterFold": 0,
+  "flips": 9
+ },
+ {
+  "opt": "fixed",
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "entry": "HOLD",
+  "fold": "12:44 quiet",
+  "pts": 12.6,
+  "pataAfterFold": 0,
+  "flips": 6
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "entry": "WATCH",
+  "fold": "10:16 quiet",
+  "pts": 25.1,
+  "pataAfterFold": 0,
+  "flips": 3
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "entry": "HOLD",
+  "fold": "10:43 flipped",
+  "pts": -19.5,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "entry": "HOLD",
+  "fold": "13:14 quiet",
+  "pts": -4.9,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "entry": "HOLD",
+  "fold": "13:14 quiet",
+  "pts": -34,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "entry": "HOLD",
+  "fold": "13:14 quiet",
+  "pts": -22.1,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "entry": "WATCH",
+  "fold": "14:08 quiet",
+  "pts": 204.9,
+  "pataAfterFold": 0,
+  "flips": 6
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "entry": "HOLD",
+  "fold": "14:08 quiet",
+  "pts": 129.2,
+  "pataAfterFold": 0,
+  "flips": 5
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "entry": "WATCH",
+  "fold": "14:08 quiet",
+  "pts": 112.6,
+  "pataAfterFold": 0,
+  "flips": 4
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "entry": "WATCH",
+  "fold": "14:08 quiet",
+  "pts": 88.8,
+  "pataAfterFold": 0,
+  "flips": 4
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "entry": "WATCH",
+  "fold": "14:08 quiet",
+  "pts": 40.3,
+  "pataAfterFold": 0,
+  "flips": 4
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "entry": "WATCH",
+  "fold": "14:08 quiet",
+  "pts": -0.8,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "entry": "HOLD",
+  "fold": "14:10 quiet",
+  "pts": -11.3,
+  "pataAfterFold": 0,
+  "flips": 1
+ },
+ {
+  "opt": "fixed",
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "entry": "HOLD",
+  "fold": "14:35 line",
+  "pts": -67.9,
+  "pataAfterFold": 0,
+  "flips": 1
+ },
+ {
+  "opt": "fixed",
+  "id": "EX 09-23 09:57 SENSEX zone BUY (gate legal) · long ATM CE",
+  "entry": "WATCH",
+  "fold": "10:11 line",
+  "pts": -27.2,
+  "pataAfterFold": 0,
+  "flips": 3
+ },
+ {
+  "opt": "fixed",
+  "id": "EX 09-23 09:57 NIFTY zone BUY (gate illegal) · long ATM CE",
+  "entry": "WATCH",
+  "fold": "10:05 two",
+  "pts": 1.1,
+  "pataAfterFold": 0,
+  "flips": 1
+ },
+ {
+  "opt": "fixed",
+  "id": "EX 09-23 11:15 NIFTY zone u2 SELL · WRITER short ATM CE",
+  "entry": "WATCH",
+  "fold": "11:18 flipped",
+  "pts": 0.1,
+  "pataAfterFold": 0,
+  "flips": 1
+ },
+ {
+  "opt": "fixed",
+  "id": "EX 09-24 10:30 SENSEX · WRITER short ATM CE",
+  "entry": "HOLD",
+  "fold": "10:43 flipped",
+  "pts": -3.5,
+  "pataAfterFold": 0,
+  "flips": 2
+ },
+ {
+  "opt": "fixed",
+  "id": "EX 09-24 09:45 SENSEX · WRITER short ATM PE",
+  "entry": "FOLD",
+  "fold": "09:44 two",
+  "pts": 0,
+  "pataAfterFold": 0,
+  "flips": 0
+ }
+]

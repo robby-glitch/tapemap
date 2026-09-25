@@ -4,8 +4,8 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { useLiveData, HEAT_COLS, validateTrade, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, Gate, FlowRow, RunState, TapeBar, Interval, GroundedCall } from './data'
+import { useLiveData, HEAT_COLS, chainAgeS, CHAIN_STALE_S } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, FlowRow, RunState, TapeBar, Interval, GroundedCall } from './data'
 import { usePalette, useMode, palette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -14,8 +14,15 @@ import ProtoTab from './proto/ProtoTab'
 import SignalsTab from './signals/SignalsTab'
 import FlowTab from './flow/FlowTab'
 import BoardTab from './board/BoardTab'
+// BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md). BoardTab
+// above stays importable: it is the one-line rollback of the Board tab.
+import BoardRev3, { useBoardGlance } from './board/BoardRev3'
+import type { GlanceRead } from './board/BoardRev3'
 import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
+// THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
+import HoldWindow from './hold/HoldWindow'
+import HoldTab from './hold/HoldTab'
 // The five-state machine read, shared with the Glass board's MACHINE widget.
 // It moved out of this file so the board could import it without App.tsx and
 // the board importing each other — see machine.ts.
@@ -484,11 +491,13 @@ function DirectionChip({ value }: { value: string }) {
   )
 }
 
-function IndexCell({ idx, data, active, onClick }: {
+function IndexCell({ idx, data, active, onClick, read }: {
   idx: IndexKey
   data: IndexInfo
   active: boolean
   onClick: () => void
+  /** The Board tab's one-line read of this index (/api/board), Board tab only. */
+  read?: GlanceRead
 }) {
   const [mode] = useMode()
   const pal = palette(mode)
@@ -547,6 +556,12 @@ function IndexCell({ idx, data, active, onClick }: {
           {data.arrow} {data.pct > 0 ? '+' : ''}{data.pct.toFixed(2)}%
         </span>
       </div>
+      {read && (
+        <div className="mono" title={read.title} style={{
+          fontSize: 10.5, lineHeight: '13px', color: read.line.startsWith('could not check') ? pal.caution : pal.textSecondary,
+          maxWidth: 230, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{read.line}</div>
+      )}
     </button>
   )
 }
@@ -640,11 +655,13 @@ function TokenCapture({ tone = 'quiet' }: { tone?: 'quiet' | 'loud' }) {
   )
 }
 
-function GlanceBar({ active, setActive, lastUpdated, error }: {
+function GlanceBar({ active, setActive, lastUpdated, error, reads }: {
   active: IndexKey
   setActive: (k: IndexKey) => void
   lastUpdated: Date | null
   error: string | null
+  /** Board tab only: each index's one-line read, under its cell. */
+  reads?: Partial<Record<IndexKey, GlanceRead>>
 }) {
   const { INDICES } = useData()
   const pal = usePalette()
@@ -711,7 +728,8 @@ function GlanceBar({ active, setActive, lastUpdated, error }: {
           answer anyway. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 200px', minWidth: 0 }}>
         {(Object.entries(INDICES) as [IndexKey, typeof INDICES[IndexKey]][]).map(([k, d]) => (
-          <IndexCell key={k} idx={k} data={d} active={active === k} onClick={() => setActive(k)} />
+          <IndexCell key={k} idx={k} data={d} active={active === k} onClick={() => setActive(k)}
+            read={reads ? reads[k] ?? { line: 'reading the board…', title: '' } : undefined} />
         ))}
       </div>
 
@@ -1274,183 +1292,6 @@ function EventsTab({ index }: { index: IndexKey }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function ValidateTab({ index }: { index: IndexKey }) {
-  const { READS, CHAIN_DATA, CHART_DATA } = useData()
-  const pal = usePalette()
-  const read = READS[index]
-  const chain = CHAIN_DATA[index]
-  const nowHHMM = CHART_DATA[index]?.slice(-1)[0]?.time ?? '12:00'
-
-  // Strikes come from the live ladder, so you cannot check a contract that
-  // does not exist — the old free-text box happily accepted anything.
-  const ladder = [...chain.strikes].sort((a, b) => a.strike - b.strike)
-  const nearest = ladder.reduce((best, s) =>
-    Math.abs(s.strike - chain.spot) < Math.abs(best.strike - chain.spot) ? s : best,
-    ladder[0])
-  const [strike, setStrike] = useState<number>(nearest?.strike ?? 0)
-  const [side, setSide] = useState<'CE' | 'PE'>('CE')
-  const [position, setPosition] = useState<'Long' | 'Short'>('Long')
-
-  const check = validateTrade(chain, read, strike, side, position, nowHHMM)
-  const vCol = check?.verdict === 'TAKE' ? pal.bull
-    : check?.verdict === 'SMALL' ? pal.caution : pal.bear
-  const gCol = (v: Gate['verdict']) => v === 'pass' ? pal.bull : v === 'warn' ? pal.caution : pal.bear
-  const gMark = (v: Gate['verdict']) => v === 'pass' ? '✓' : v === 'warn' ? '!' : '✕'
-
-  const seg = <K extends string>(
-    opts: readonly K[], value: K, onPick: (k: K) => void, tone: (k: K) => string,
-  ) => (
-    <div style={{ display: 'flex', gap: 6 }}>
-      {opts.map(o => (
-        <button key={o} onClick={() => onPick(o)} style={{
-          flex: 1, padding: '7px 8px', borderRadius: 6, fontSize: 12.5, fontWeight: 600,
-          cursor: 'pointer', transition: 'all 150ms',
-          border: `1px solid ${value === o ? tone(o) : pal.border}`,
-          backgroundColor: value === o ? `${tone(o)}1A` : 'transparent',
-          color: value === o ? tone(o) : pal.textMuted,
-        }}>{o}</button>
-      ))}
-    </div>
-  )
-
-  return (
-    <div style={{ padding: 24, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      {/* ── the contract ── */}
-      <div style={{
-        backgroundColor: pal.card, border: `1px solid ${pal.border}`,
-        borderRadius: 12, padding: 20, width: 300,
-      }}>
-        <div className="micro-label" style={{ marginBottom: 14 }}>Contract — {index}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: pal.textMuted }}>Strike</span>
-            <select value={strike} onChange={e => setStrike(+e.target.value)} style={{
-              backgroundColor: pal.inset, border: `1px solid ${pal.border}`, borderRadius: 6,
-              padding: '8px 10px', color: pal.textPrimary, fontSize: 13,
-              fontFamily: 'inherit', outline: 'none',
-            }}>
-              {ladder.map(s => (
-                <option key={s.strike} value={s.strike}>
-                  {s.strike}{s.strike === nearest?.strike ? '  · nearest spot' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: pal.textMuted }}>Option type</span>
-            {seg(['CE', 'PE'] as const, side, setSide, k => k === 'CE' ? pal.bear : pal.bull)}
-          </label>
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: pal.textMuted }}>Position</span>
-            {seg(['Long', 'Short'] as const, position, setPosition, () => pal.accent)}
-          </label>
-
-          {/* live premium, so the choice is never blind */}
-          <div style={{
-            borderTop: `1px solid ${pal.border}`, paddingTop: 12, display: 'grid',
-            gridTemplateColumns: '1fr auto', rowGap: 7, fontSize: 12,
-          }}>
-            <span style={{ color: pal.textMuted }}>Premium</span>
-            <span className="mono">{check ? `${check.premium.toFixed(2)}` : '—'}</span>
-            <span style={{ color: pal.textMuted }}>Intrinsic / time</span>
-            <span className="mono">{check ? `${check.intrinsic.toFixed(0)} / ${check.timeValue.toFixed(1)}` : '—'}</span>
-            <span style={{ color: pal.textMuted }}>Breakeven</span>
-            <span className="mono" style={{ color: pal.accent }}>{check ? check.breakeven.toFixed(0) : '—'}</span>
-            <span style={{ color: pal.textMuted }}>Spot now</span>
-            <span className="mono">{chain.spot.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── the answer ── */}
-      <div style={{ flex: 1, minWidth: 340, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {!check ? (
-          <div style={{
-            backgroundColor: pal.card, border: `1px solid ${pal.border}`,
-            borderRadius: 12, padding: 20, fontSize: 13, color: pal.textMuted,
-          }}>
-            No premium quoted for that contract right now — nothing to check against.
-          </div>
-        ) : (
-          <>
-            <div style={{
-              backgroundColor: pal.card, border: `1px solid ${pal.border}`,
-              borderRadius: 12, padding: '18px 20px',
-              borderLeft: `3px solid ${vCol}`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-                <span style={{
-                  fontSize: 22, fontWeight: 800, letterSpacing: '0.04em', color: vCol,
-                }}>{check.verdict}</span>
-                <span style={{ fontSize: 13.5, color: pal.textSecondary, flex: 1, minWidth: 220 }}>
-                  {check.headline}
-                </span>
-              </div>
-            </div>
-
-            {/* the one comparison that decides most option buys */}
-            <div style={{
-              backgroundColor: pal.card, border: `1px solid ${pal.border}`,
-              borderRadius: 12, padding: '16px 20px',
-            }}>
-              <div className="micro-label" style={{ marginBottom: 12 }}>
-                Move required vs move priced
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-                <span className="mono" style={{ fontSize: 26, fontWeight: 700, color: check.emRatio > 1 ? pal.bear : pal.textPrimary }}>
-                  {check.moveNeeded.toFixed(0)}
-                </span>
-                <span style={{ fontSize: 12, color: pal.textMuted }}>pts needed</span>
-                <span style={{ fontSize: 12, color: pal.textMuted }}>vs</span>
-                <span className="mono" style={{ fontSize: 18, color: pal.accent }}>
-                  {check.expectedMove.toFixed(0)}
-                </span>
-                <span style={{ fontSize: 12, color: pal.textMuted }}>priced for the rest of the session</span>
-              </div>
-              <div style={{ position: 'relative', height: 8, backgroundColor: pal.inset, borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  position: 'absolute', top: 0, bottom: 0, left: 0,
-                  width: `${Math.min(100, 100 / Math.max(check.emRatio, 0.01))}%`,
-                  backgroundColor: wash(pal.accent, 0.35),
-                }} />
-                <div style={{
-                  position: 'absolute', top: 0, bottom: 0, left: 0,
-                  width: `${Math.min(100, (check.emRatio / Math.max(check.emRatio, 1)) * 100)}%`,
-                  backgroundColor: check.emRatio > 1 ? pal.bear : pal.bull, opacity: 0.75,
-                }} />
-              </div>
-              <div style={{ fontSize: 11.5, color: pal.textMuted, marginTop: 9 }}>
-                Delta {Number.isFinite(check.delta) ? check.delta.toFixed(2) : 'n/a'} · bid-ask {(check.spreadPct * 100).toFixed(1)}% of premium
-                {check.wall && ` · ${(check.wall.oi / 1e6).toFixed(1)}M at ${check.wall.strike} in the way`}
-              </div>
-            </div>
-
-            <div style={{
-              backgroundColor: pal.card, border: `1px solid ${pal.border}`,
-              borderRadius: 12, padding: '16px 20px',
-            }}>
-              <div className="micro-label" style={{ marginBottom: 12 }}>What it clears, what it does not</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                {check.gates.map((g, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 118px 1fr', gap: 10, alignItems: 'baseline' }}>
-                    <span style={{ color: gCol(g.verdict), fontSize: 12, fontWeight: 700 }}>{gMark(g.verdict)}</span>
-                    <span style={{ fontSize: 11.5, color: pal.textMuted, letterSpacing: '0.02em' }}>{g.label}</span>
-                    <span style={{ fontSize: 12.5, color: g.verdict === 'pass' ? pal.textSecondary : pal.textPrimary, lineHeight: 1.5 }}>
-                      {g.detail}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
     </div>
   )
 }
@@ -2080,8 +1921,8 @@ function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, rep
     detail = `re-fire lock khula — ${lockNote(st)} · agla setup arm ho sakta hai`
   } else if (current === 'WAITING') {
     detail = lastBar
-      ? `d3 ${f1(lastBar.d3)} · price ${f1(lastBar.c)} · gap ${f1(lastBar.c - lastBar.d3)}`
-      : 'd3 — · koi bar nahi'
+      ? `d2 ${f1(lastBar.d2)} · u2 ${f1(lastBar.u2)} · price ${f1(lastBar.c)}`
+      : 'd2 — · koi bar nahi'
   } else if (current === 'ARMED') {
     detail = `todna ${showSell ? '<' : '>'} ${f1(showSell ? st.ref_low : st.ref_high)}`
       + ` · ${st.candles_left != null ? `${st.candles_left} candle baaki` : 'window —'}`
@@ -2100,7 +1941,7 @@ function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, rep
       padding: '6px 24px', backgroundColor: pal.bg,
       borderBottom: `1px solid ${pal.border}`,
     }}>
-      <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Machine</span>
+      <span className="micro-label" style={{ whiteSpace: 'nowrap' }} title="THE ZONE machine: d2→d3 buy, u2→u3 sell (CLAUDE.md rule 3) — the setup VALIDATE reads">Zone machine</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} aria-live="polite">
         {MACHINE_WORDS.map((w, i) => {
           const lit = !stale && w === current
@@ -2123,10 +1964,10 @@ function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, rep
         })}
       </div>
       {showSell && st && (
-        <span title="SELL mirror — operator ke kehne par bana, data ne REJECT kiya tha; buy rule ka 68.4% ise haasil nahi hai" style={{
+        <span title="zone SELL (u2→u3) — unscored, pre-registered; no rate of any kind belongs next to it" style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 7px',
           borderRadius: 4, border: `1px solid ${pal.border}`, color: pal.textSecondary,
-        }}>SELL · u3</span>
+        }}>SELL · u2→u3</span>
       )}
       {bothLive && (
         <span style={{ fontSize: 10.5, color: pal.textSecondary }}>· SELL side bhi live hai — Trade tab dekho</span>
@@ -2163,6 +2004,17 @@ export default function App() {
   const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
+  // BOARD rev 3's shell (notes §8 step 1), the Board tab ONLY: the board is
+  // its own answer, so the global ANSWER band, the MACHINE strip and the
+  // tape's replay bar (the board never follows it) step aside for its
+  // 1536 × 577, and the GlanceBar carries each index's one-line board read.
+  // Every other tab keeps all three exactly as before.
+  const onBoard = activeTab === 'Board'
+  // The Validate tab is its own answer too: the hold window's check never shows the engine's
+  // headline (docs/hold/PREREG-merged.md §5), so the ANSWER band and the replay bar step aside
+  // there, as on the Board. The MACHINE strip stays: it is her setup.
+  const onValidate = activeTab === 'Validate'
+  const boardReads = useBoardGlance(onBoard)
   const tabs: Tab[] = ['Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
   const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(MOCK)
@@ -2237,7 +2089,7 @@ export default function App() {
   useEffect(() => {
     let title = 'TapeMap — Live'
     if (!error && !idxDead) {
-      const { st } = liveMachine(tape.runState, tape.runStateSell)
+      const { st } = liveMachine(tape.zoneState, tape.zoneStateSell)     // the zone: her setup (rule 3)
       if (st) {
         const w = machineWord(st)
         if (w === 'ARMED') title = `● ARMED · ${st.candles_left != null ? `${st.candles_left} baaki` : 'window —'} — TapeMap`
@@ -2272,7 +2124,8 @@ export default function App() {
           STALE) still renders unconditionally: buying chart pixels by hiding
           a staleness disclosure is the one trade this tool refuses to make. */}
       {!focusHidesChrome && (
-        <GlanceBar active={activeIndex} setActive={setActiveIndex} lastUpdated={lastUpdated} error={error} />
+        <GlanceBar active={activeIndex} setActive={setActiveIndex} lastUpdated={lastUpdated} error={error}
+          reads={onBoard ? boardReads : undefined} />
       )}
 
       {/* A trading screen must never present placeholder numbers as real. The
@@ -2332,21 +2185,23 @@ export default function App() {
         </div>
       )}
 
-      {!focusHidesChrome && (
+      {!focusHidesChrome && !onBoard && !onValidate && (
         <AnswerBand index={activeIndex} stale={!!error || idxDead} />
       )}
 
-      {/* The machine strip renders UNCONDITIONALLY — every tab, and even under
-          FOCUS. It is the product's spine, and the one row that must never be
-          traded away for chart pixels. */}
-      <MachineStrip
-        runState={tape.runState}
-        runStateWhy={tape.runStateWhy}
-        runStateSell={tape.runStateSell}
+      {/* The machine strip renders on every tab, and even under FOCUS. It is
+          the product's spine, and the one row that must never be traded away
+          for chart pixels. The one exception is the Board tab, by her own
+          spec (BOARD rev 3 §8 step 1); the browser-tab title still mirrors
+          the machine there. */}
+      {!onBoard && <MachineStrip
+        runState={tape.zoneState}
+        runStateWhy={tape.zoneStateWhy}
+        runStateSell={tape.zoneStateSell}
         lastBar={tape.bars.length ? tape.bars[tape.bars.length - 1] : null}
         stale={!!error || idxDead}
         replaying={scrub != null}
-      />
+      />}
 
       {/* Tab bar */}
       <div role="tablist" aria-label="TapeMap panels" style={{
@@ -2387,7 +2242,7 @@ export default function App() {
       </div>
 
       {/* Replay transport. Hidden until there are bars to scrub. */}
-      {nBars > 1 && (
+      {nBars > 1 && !onBoard && !onValidate && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px',
           borderBottom: `1px solid ${pal.border}`,
@@ -2455,9 +2310,9 @@ export default function App() {
             pane paint the previous index's figures for one frame. */}
         {activeTab === 'Glass'    && <GlassBoard key={activeIndex} index={activeIndex}
                                               chain={activeChain} bars={tape.bars}
-                                              runState={tape.runState}
-                                              runStateWhy={tape.runStateWhy}
-                                              runStateSell={tape.runStateSell}
+                                              runState={tape.zoneState}
+                                              runStateWhy={tape.zoneStateWhy}
+                                              runStateSell={tape.zoneStateSell}
                                               publishedInterval={tape.interval}
                                               stale={idxDead || !!error} loading={loading}
                                               chainStale={chainStale}
@@ -2484,10 +2339,11 @@ export default function App() {
                                               runState={tape.runState}
                                               runStateWhy={tape.runStateWhy}
                                               runStateSell={tape.runStateSell} />}
+        {/* key={activeIndex}: the pins are per index, so a switch starts on ATM. */}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll:
             the tab unmounts and the interval is cleared with it. */}
-        {activeTab === 'Board'    && <BoardTab index={activeIndex} />}
+        {activeTab === 'Board'    && <BoardRev3 key={activeIndex} index={activeIndex} />}
         {activeTab === 'Flow'     && <FlowTab index={activeIndex} />}
         {activeTab === 'VPIN'     && <VpinTab key={activeIndex} index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
@@ -2495,7 +2351,8 @@ export default function App() {
         {/* Mounted only while active, which is also what stops its 30s poll. */}
         {activeTab === 'War'      && <WarTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
-        {activeTab === 'Validate' && <ValidateTab index={activeIndex} />}
+        {/* the hold window's permanent home: check before the trade, hold it after (docs/hold/) */}
+        {activeTab === 'Validate' && <HoldTab key={activeIndex} index={activeIndex} chain={activeChain} onIndex={setActiveIndex} />}
         {activeTab === 'Map'      && <MapTab index={activeIndex} />}
         {/* No `index` prop, deliberately: the log spans all three indices and
             the operator tracks the strategy, not one tape. The tab carries its
@@ -2508,6 +2365,7 @@ export default function App() {
                                               rotation={tape.rotation} rotationWhy={tape.rotationWhy}
                                               levels={tradeLevels} />}
       </div>
+      <HoldWindow hidden={onValidate} />
     </div>
     </DataCtx.Provider>
   )

@@ -1,0 +1,499 @@
+
+### 2026-09-24 SENSEX 74200PE buyer from 09:41 (p0 175.15)
+09:41 prem 175.15
+   FABLE HOLD  line 74,362 holds (170 pts of room) · fuel unclear · flow with you · trend 2 of 3 with you
+         S intact L 74,362 (170) · fuel flat · flow for · trend for
+   OPUS  WATCH Watch, not an exit: PE 74,200 still adding (+23.3L) — writers adding in its way
+         for 2 [call writers holding: CE 74,300 still adding (+50.6L) | CVD -28 since 09:25, your way (rank 1.00)] against 1 [PE 74,200 still adding (+23.3L) — writers adding in its way] · paidLast 09:41 quiet 0
+09:46 prem 195.8
+   FABLE HOLD  line 74,327 holds (165 pts of room) · fuel burning · flow quiet · trend 2 of 3 with you
+         S intact L 74,327 (165) · fuel for · flow flat · trend for
+   OPUS  HOLD  Reason intact: put writers paying: PE 74,200 giving back, 27% off its 09:37 high · PE 74,100 folded 09:46
+         for 3 [put writers paying: PE 74,200 giving back, 27% off its 09:37 high | PE 74,100 folded 09:46 | call writers holding: CE 74,300 still adding (+57.1L)] against 0 [] · paidLast 09:46 quiet 0
+10:14 prem 194.7
+   FABLE WATCH flow against you: CVD +26 since 10:00 with price -18.0 (rank 0.67 of today's 15-min moves) · since 10:00: 1 buy / 0 sell prints of size (fill runs + stacked imbalances); 
+         S intact L 74,327 (199) · fuel flat · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:14, and PE writers are adding in its way
+         for 0 [] against 3 [CE 74,000 folded 10:14 — the call writers holding your trade left | PE 74,200 still adding (+26.3L) — writers adding in its way | CVD +28 since 09:55, against y] · paidLast 10:13 quiet 1
+10:22 prem 232.85
+   FABLE WATCH flow against you: divergence: new low 74,125 at 10:15 with CVD -22, above its 09:55 trough -80 · since 10:05: 1 buy / 0 sell prints of size (fill runs + stacked imbalance
+         S intact L 74,215 (151) · fuel for · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:14, and PE writers are adding in its way (10:14) · the break has healed since — a re-entry is a new trade
+         for 3 [put writers paying: PE 74,000 giving back, 15% off its 10:12 high | PE 74,000 folded 10:22 | call writers holding: CE 74,300 still adding (+60.3L)] against 1 [divergence: new low 74,125 at 10:15 with CVD -22, above its 09:55 trough -80] · paidLast 10:22 quiet 0
+10:37 prem 179.15
+   FABLE FOLD  fuel against you: PE 74000 building: writers still adding in its way · futures OI +100 with price +16.0 since 10:20: too small against today's own 15-min changes to read 
+         S intact L 74,215 (53) · fuel against · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:14, and PE writers are adding in its way (10:14)
+         for 2 [put writers paying: PE 74,200 giving back, 35% off its 09:37 high | PE 73,800 folded 10:23] against 2 [CE 74,000 folded 10:37 — the call writers holding your trade left | divergence: new low 74,096 at 10:25 with CVD -43, above its 09:55 trough -80] · paidLast 10:37 quiet 0
+11:00 prem 165.75
+   FABLE FOLD  fuel against you: PE 74000 building: writers still adding in its way · futures OI +100 with price +16.0 since 10:20: too small against today's own 15-min changes to read 
+         S broken L 74,173 (-10) · fuel against · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:14, and PE writers are adding in its way (10:14)
+         for 0 [] against 3 [CE 74,200 folded 10:56 — the call writers holding your trade left | PE 74,100 still adding (+32.2L) — writers adding in its way | CE 74,300 giving back, 14% off] · paidLast 10:54 quiet 6
+11:30 prem 195
+   FABLE FOLD  fuel against you: PE 74000 building: writers still adding in its way · futures OI +100 with price +16.0 since 10:20: too small against today's own 15-min changes to read 
+         S broken L 74,173 (36) · fuel flat · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:14, and PE writers are adding in its way (10:14) · the break has healed since — a re-entry is a new trade
+         for 2 [put writers paying: PE 74,100 giving back, 20% off its 11:01 high | PE 73,900 folded 11:20] against 0 [] · paidLast 11:30 quiet 0
+   first FOLD: fable 10:37 (179.15) · opus 10:14 (194.7)
+
+### 2026-09-24 SENSEX 74200PE buyer from 10:18 (p0 209.1)
+10:18 prem 209.1
+   FABLE WATCH flow against you: CVD +26 since 10:00 with price -18.0 (rank 0.67 of today's 15-min moves) · since 10:00: 1 buy / 0 sell prints of size (fill runs + stacked imbalances); 
+         S intact L 74,327 (212) · fuel flat · flow against · trend for
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: put writers paying: PE 74,200 giving back, 24% off its 09:37 high
+         for 1 [put writers paying: PE 74,200 giving back, 24% off its 09:37 high] against 1 [CVD +26 since 10:00, against you (rank 0.67)] · paidLast 10:18 quiet 0
+10:22 prem 232.85
+   FABLE WATCH flow against you: divergence: new low 74,125 at 10:15 with CVD -22, above its 09:55 trough -80 · since 10:05: 1 buy / 0 sell prints of size (fill runs + stacked imbalance
+         S intact L 74,215 (151) · fuel for · flow against · trend for
+   OPUS  HOLD  Reason intact: put writers paying: PE 74,000 giving back, 15% off its 10:12 high · PE 74,000 folded 10:22
+         for 3 [put writers paying: PE 74,000 giving back, 15% off its 10:12 high | PE 74,000 folded 10:22 | call writers holding: CE 74,300 still adding (+60.3L)] against 1 [divergence: new low 74,125 at 10:15 with CVD -22, above its 09:55 trough -80] · paidLast 10:22 quiet 0
+10:37 prem 179.15
+   FABLE FOLD  fuel against you: PE 74000 building: writers still adding in its way · futures OI +100 with price +16.0 since 10:20: too small against today's own 15-min changes to read 
+         S intact L 74,215 (53) · fuel against · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:37, and the move is not being paid for (CVD divergence)
+         for 2 [put writers paying: PE 74,200 giving back, 35% off its 09:37 high | PE 73,800 folded 10:23] against 2 [CE 74,000 folded 10:37 — the call writers holding your trade left | divergence: new low 74,096 at 10:25 with CVD -43, above its 09:55 trough -80] · paidLast 10:37 quiet 0
+   first FOLD: fable 10:37 (179.15) · opus 10:37 (179.15)
+
+### 2026-09-24 SENSEX 74100PE buyer from 12:31 (p0 185.1)
+12:31 prem 185.1
+   FABLE WATCH flow against you: divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80 · since 12:15: no stacked imbalance; fill runs could not be read — fill run
+         S intact L 74,115 (101) · fuel for · flow against · trend for
+   OPUS  HOLD  Reason intact: put writers paying: PE 74,000 giving back, 28% off its 11:12 high · PE 73,700 folded 12:27
+         for 2 [put writers paying: PE 74,000 giving back, 28% off its 11:12 high | PE 73,700 folded 12:27] against 1 [divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80] · paidLast 12:31 quiet 0
+12:32 prem 203.3
+   FABLE WATCH flow against you: divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80 · since 12:15: no stacked imbalance; fill runs could not be read — fill run
+         S intact L 74,115 (135) · fuel for · flow against · trend for
+   OPUS  HOLD  Reason intact: put writers paying: PE 74,000 giving back, 28% off its 11:12 high · PE 73,700 folded 12:27
+         for 2 [put writers paying: PE 74,000 giving back, 28% off its 11:12 high | PE 73,700 folded 12:27] against 1 [divergence: new low 74,050 at 12:25 with CVD -49, above its 09:55 trough -80] · paidLast 12:32 quiet 0
+13:12 prem 201.9
+   FABLE WATCH fuel against you: PE 74000 building: writers still adding in its way · futures OI -160 with price +57.2 since 12:55: shorts covering
+         S intact L 74,115 (116) · fuel against · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way
+         for 0 [] against 2 [CE 74,300 folded 13:08 — the call writers holding your trade left | PE 74,000 adding again, still 17.2L under its 11:12 high — writers adding in its way] · paidLast 13:04 quiet 8
+13:26 prem 282.3
+   FABLE HOLD  line 74,037 holds (151 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (151) · fuel flat · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way (13:12) · the break has healed since — a re-entry is a new trade
+         for 1 [CVD -21 since 13:10, your way (rank 0.57)] against 1 [CE 73,900 folded 13:19 — the call writers holding your trade left] · paidLast 13:26 quiet 0
+13:50 prem 410.1
+   FABLE WATCH flow against you: divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150 · since 13:35: no stacked imbalance; fill runs could not be read — fill r
+         S intact L 74,037 (288) · fuel flat · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way (13:12)
+         for 2 [put writers paying: PE 74,000 gave back its whole 11:12 build (now −2.9L vs the open) | PE 73,600 folded 13:46] against 2 [CE 74,200 folded 13:39 — the call writers holding your trade left | divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150] · paidLast 13:50 quiet 0
+14:12 prem 476.6
+   FABLE HOLD  line 74,037 holds (387 pts of room) · fuel burning · flow quiet · trend 3 of 3 with you
+         S intact L 74,037 (387) · fuel for · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way (13:12) · the break has healed since — a re-entry is a new trade
+         for 0 [] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:09 quiet 3
+14:20 prem 487.35
+   FABLE HOLD  line 74,037 holds (390 pts of room) · fuel burning · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (390) · fuel for · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way (13:12) · the break has healed since — a re-entry is a new trade
+         for 2 [put writers paying: PE 74,000 gave back its whole 11:12 build (now −7.7L vs the open) | CVD -22 since 14:05, your way (rank 0.60)] against 1 [CE 74,000 folded 14:12 — the call writers holding your trade left] · paidLast 14:20 quiet 0
+14:35 prem 448.1
+   FABLE FOLD  SENSEX closed 73,702 above your line 73,690 (5m swing high 14:15)
+         S broken L 73,690 (-12) · fuel flat · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way (13:12) · the break has healed since — a re-entry is a new trade
+         for 0 [] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:34 quiet 1
+14:40 prem 393
+   FABLE FOLD  SENSEX closed 73,702 above your line 73,690 (5m swing high 14:15)
+         S broken L 73,690 (-67) · fuel flat · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,300 folded 13:08, and PE writers are adding in its way (13:12)
+         for 0 [] against 3 [CE 73,500 folded 14:39 — the call writers holding your trade left | CVD +92 since 14:25, against you (rank 1.00) | prints against you: 1 sell / 2 buy] · paidLast 14:39 quiet 1
+   first FOLD: fable 14:35 (448.1) · opus 13:12 (201.9)
+
+### 2026-09-24 SENSEX 74000PE buyer from 13:25 (p0 169.1)
+13:25 prem 169.1
+   FABLE HOLD  line 74,037 holds (70 pts of room) · fuel unclear · flow with you · trend 2 of 3 with you
+         S intact L 74,037 (70) · fuel flat · flow for · trend for
+   OPUS  WATCH Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left
+         for 1 [CVD -21 since 13:10, your way (rank 0.57)] against 1 [CE 73,900 folded 13:19 — the call writers holding your trade left] · paidLast 13:25 quiet 0
+13:26 prem 218.1
+   FABLE HOLD  line 74,037 holds (151 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (151) · fuel flat · flow for · trend for
+   OPUS  WATCH Watch, not an exit: CE 73,900 folded 13:19 — the call writers holding your trade left
+         for 1 [CVD -21 since 13:10, your way (rank 0.57)] against 1 [CE 73,900 folded 13:19 — the call writers holding your trade left] · paidLast 13:26 quiet 0
+13:50 prem 335.95
+   FABLE WATCH flow against you: divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150 · since 13:35: no stacked imbalance; fill runs could not be read — fill r
+         S intact L 74,037 (288) · fuel flat · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)
+         for 2 [put writers paying: PE 74,000 gave back its whole 11:12 build (now −2.9L vs the open) | PE 73,600 folded 13:46] against 2 [CE 74,200 folded 13:39 — the call writers holding your trade left | divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150] · paidLast 13:50 quiet 0
+   first FOLD: fable 14:35 (366.25) · opus 13:50 (335.95)
+
+### 2026-09-24 SENSEX 73800PE buyer from 13:53 (p0 229.3)
+13:53 prem 229.3
+   FABLE WATCH flow against you: divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150 · since 13:35: no stacked imbalance; fill runs could not be read — fill r
+         S intact L 74,037 (347) · fuel flat · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence)
+         for 2 [put writers paying: PE 74,000 gave back its whole 11:12 build (now −4.0L vs the open) | PE 73,600 folded 13:46] against 2 [CE 74,200 folded 13:39 — the call writers holding your trade left | divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150] · paidLast 13:53 quiet 0
+13:54 prem 258.75
+   FABLE HOLD  line 74,037 holds (390 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (390) · fuel flat · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 13:39, and the move is not being paid for (CVD divergence) (13:53) · the break has healed since — a re-entry is a new trade
+         for 0 [] against 1 [divergence: new low 73,713 at 13:45 with CVD -132, above its 13:40 trough -150] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 13:53 quiet 1
+   first FOLD: fable 14:35 (223.6) · opus 13:53 (229.3)
+
+### 2026-09-24 SENSEX 73800PE buyer from 13:56 (p0 254.65)
+13:56 prem 254.65
+   FABLE HOLD  line 74,037 holds (378 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (378) · fuel flat · flow for · trend for
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: CVD -35 since 13:40, your way (rank 0.89)
+         for 1 [CVD -35 since 13:40, your way (rank 0.89)] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 13:56 quiet 0
+13:57 prem 287.65
+   FABLE HOLD  line 74,037 holds (424 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (424) · fuel flat · flow for · trend for
+   OPUS  HOLD  Reason intact: CVD -35 since 13:40, your way (rank 0.89)
+         for 1 [CVD -35 since 13:40, your way (rank 0.89)] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 13:57 quiet 0
+14:12 prem 254.05
+   FABLE HOLD  line 74,037 holds (387 pts of room) · fuel burning · flow quiet · trend 3 of 3 with you
+         S intact L 74,037 (387) · fuel for · flow flat · trend for
+   OPUS  HOLD  Nothing is paying and nothing is against you — 3 quiet min of 15
+         for 0 [] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:09 quiet 3
+14:22 prem 270.9
+   FABLE HOLD  line 74,037 holds (401 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 74,037 (401) · fuel flat · flow for · trend for
+   OPUS  HOLD  Reason intact: CVD -22 since 14:05, your way (rank 0.60)
+         for 1 [CVD -22 since 14:05, your way (rank 0.60)] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:22 quiet 0
+14:30 prem 263.7
+   FABLE HOLD  line 73,690 holds (64 pts of room) · fuel unclear · flow with you · trend 3 of 3 with you
+         S intact L 73,690 (64) · fuel flat · flow for · trend for
+   OPUS  HOLD  Reason intact: CVD -20 since 14:15, your way (rank 0.57)
+         for 1 [CVD -20 since 14:15, your way (rank 0.57)] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:30 quiet 0
+14:35 prem 223.6
+   FABLE FOLD  SENSEX closed 73,702 above your line 73,690 (5m swing high 14:15)
+         S broken L 73,690 (-12) · fuel flat · flow flat · trend for
+   OPUS  HOLD  Nothing is paying and nothing is against you — 1 quiet min of 15
+         for 0 [] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:34 quiet 1
+14:40 prem 181.85
+   FABLE FOLD  SENSEX closed 73,702 above your line 73,690 (5m swing high 14:15)
+         S broken L 73,690 (-67) · fuel flat · flow against · trend for
+   OPUS  FOLD  Thesis broken: CE 73,500 folded 14:39, and CVD turned against you
+         for 0 [] against 3 [CE 73,500 folded 14:39 — the call writers holding your trade left | CVD +92 since 14:25, against you (rank 1.00) | prints against you: 1 sell / 2 buy] · paidLast 14:39 quiet 1
+   first FOLD: fable 14:35 (223.6) · opus 14:40 (181.85)
+
+### 2026-09-23 NIFTY 23450CE buyer from 09:17 (p0 98.35)
+09:17 prem 98.35
+   FABLE HOLD  line 23,352 holds (40 pts of room) · fuel unclear · flow could not check · trend mixed
+         S intact L 23,352 (40) · fuel flat · flow blind · trend flat
+   OPUS  PATA NAHI could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 2 so far
+09:24 prem 107.25
+   FABLE HOLD  line 23,352 holds (39 pts of room) · fuel unclear · flow could not check · trend mixed
+         S intact L 23,352 (39) · fuel flat · flow blind · trend flat
+   OPUS  PATA NAHI could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 9 so far
+09:50 prem 90.9
+   FABLE HOLD  line 23,352 holds (12 pts of room) · fuel unclear · flow quiet · trend mixed
+         S intact L 23,352 (12) · fuel flat · flow flat · trend flat
+   OPUS  FOLD  Reason gone: nothing has paid for this trade in 15 min — nobody forced, nobody pressing your way
+         for 1 [put writers holding: PE 23,400 still adding (+47.3L)] against 2 [CE 23,400 still adding (+55.5L) — writers adding in its way | prints against you: 3 sell / 0 buy] · paidLast 09:35 quiet 15
+09:57 prem 92.55
+   FABLE FOLD  fuel against you: CE 23400 building: writers still adding in its way · futures OI +3,575 with price -22.7 since 09:40: too small against today's own 15-min changes to rea
+         S intact L 23,352 (19) · fuel against · flow against · trend flat
+   OPUS  FOLD  Reason gone: nothing has paid for this trade in 15 min — nobody forced, nobody pressing your way (09:50)
+         for 0 [] against 3 [PE 23,450 folded 09:57 — the put writers holding your trade left | CE 23,400 still adding (+59.6L) — writers adding in its way | prints against you: 5 sell / 0 ] · paidLast 09:35 quiet 22
+   first FOLD: fable 09:57 (92.55) · opus 09:50 (90.9)
+
+### 2026-09-23 NIFTY 23450CE buyer from 09:59 (p0 95.3)
+09:59 prem 95.3
+   FABLE WATCH flow against you: CVD -268 since 09:45 with price +2.7 (rank 0.33 of today's 15-min moves) · since 09:45: 0 buy / 2 sell prints of size (fill runs + stacked imbalances); 
+         S intact L 23,350 (28) · fuel flat · flow against · trend flat
+   OPUS  FOLD  Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way
+         for 1 [put writers holding: PE 23,400 still adding (+44.1L)] against 3 [PE 23,450 folded 09:57 — the put writers holding your trade left | CE 23,400 still adding (+60.8L) — writers adding in its way | prints against you: 5 sell / 0 ]
+10:00 prem 95.1
+   FABLE FOLD  fuel against you: CE 23400 building: writers still adding in its way · futures OI +13,975 with price +2.7 since 09:45: too small against today's own 15-min changes to rea
+         S intact L 23,350 (31) · fuel against · flow against · trend flat
+   OPUS  FOLD  Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way (09:59)
+         for 0 [] against 3 [PE 23,450 folded 09:57 — the put writers holding your trade left | CE 23,400 still adding (+59.4L) — writers adding in its way | prints against you: 5 sell / 0 ]
+10:08 prem 92.4
+   FABLE FOLD  fuel against you: CE 23400 building: writers still adding in its way · futures OI +13,975 with price +2.7 since 09:45: too small against today's own 15-min changes to rea
+         S intact L 23,350 (23) · fuel against · flow against · trend flat
+   OPUS  FOLD  Thesis broken: PE 23,450 folded 09:57, and CE writers are adding in its way (09:59)
+         for 0 [] against 3 [PE 23,500 folded 10:01 — the put writers holding your trade left | CVD -301 since 09:50, against you (rank 0.57) | prints against you: 4 sell / 0 buy]
+   first FOLD: fable 10:00 (95.1) · opus 09:59 (95.3)
+
+### 2026-09-23 NIFTY 23450CE buyer from 10:18 (p0 101.75)
+10:18 prem 101.75
+   FABLE HOLD  line 23,350 holds (43 pts of room) · fuel burning · flow quiet · trend mixed
+         S intact L 23,350 (43) · fuel for · flow flat · trend flat
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: put writers holding: PE 23,400 still adding (+55.0L)
+         for 1 [put writers holding: PE 23,400 still adding (+55.0L)] against 1 [prints against you: 2 sell / 1 buy]
+10:30 prem 103.05
+   FABLE HOLD  line 23,356 holds (44 pts of room) · fuel burning · flow quiet · trend 2 of 3 with you
+         S intact L 23,356 (44) · fuel for · flow flat · trend for
+   OPUS  HOLD  Reason intact: call writers paying: CE 23,400 giving back, 13% off its 10:15 high · CE 23,450 folded 10:26
+         for 3 [call writers paying: CE 23,400 giving back, 13% off its 10:15 high | CE 23,450 folded 10:26 | put writers holding: PE 23,400 still adding (+65.7L)] against 1 [prints against you: 2 sell / 1 buy] · paidLast 10:30 quiet 0
+10:40 prem 108.45
+   FABLE WATCH flow against you: divergence: new high 23,441 at 10:35 with CVD -463, under its 09:20 peak +433 · since 10:25: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (55) · fuel for · flow against · trend for
+   OPUS  FOLD  Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence)
+         for 2 [CE 23,450 folded 10:26 | put writers holding: PE 23,400 still adding (+75.5L)] against 2 [PE 23,350 folded 10:38 — the put writers holding your trade left | divergence: new high 23,441 at 10:35 with CVD -463, under its 09:20 peak +433] · paidLast 10:40 quiet 0
+12:47 prem 119.75
+   FABLE FOLD  NIFTY closed 23,443 below your line 23,444 (5m swing low 12:30)
+         S broken L 23,444 (0) · fuel flat · flow flat · trend for
+   OPUS  FOLD  Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence) (10:40) · the break has healed since — a re-entry is a new trade
+         for 0 [] against 0 [] · paidLast 12:37 quiet 10
+   first FOLD: fable 12:47 (119.75) · opus 10:40 (108.45)
+
+### 2026-09-23 NIFTY 23450CE buyer from 10:32 (p0 104.45)
+10:32 prem 104.45
+   FABLE HOLD  line 23,356 holds (46 pts of room) · fuel burning · flow quiet · trend 2 of 3 with you
+         S intact L 23,356 (46) · fuel for · flow flat · trend for
+   OPUS  HOLD  Reason intact: call writers paying: CE 23,400 giving back, 11% off its 10:15 high · CE 23,450 folded 10:26
+         for 3 [call writers paying: CE 23,400 giving back, 11% off its 10:15 high | CE 23,450 folded 10:26 | put writers holding: PE 23,400 still adding (+68.3L)] against 1 [prints against you: 3 sell / 1 buy] · paidLast 10:32 quiet 0
+10:39 prem 107.55
+   FABLE WATCH flow against you: divergence: new high 23,441 at 10:35 with CVD -463, under its 09:20 peak +433 · since 10:25: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (55) · fuel for · flow against · trend for
+   OPUS  WATCH Watch, not an exit: PE 23,350 folded 10:38 — the put writers holding your trade left
+         for 2 [CE 23,450 folded 10:26 | put writers holding: PE 23,400 still adding (+74.3L)] against 1 [PE 23,350 folded 10:38 — the put writers holding your trade left] · paidLast 10:39 quiet 0
+10:40 prem 108.45
+   FABLE WATCH flow against you: divergence: new high 23,441 at 10:35 with CVD -463, under its 09:20 peak +433 · since 10:25: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (55) · fuel for · flow against · trend for
+   OPUS  FOLD  Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence)
+         for 2 [CE 23,450 folded 10:26 | put writers holding: PE 23,400 still adding (+75.5L)] against 2 [PE 23,350 folded 10:38 — the put writers holding your trade left | divergence: new high 23,441 at 10:35 with CVD -463, under its 09:20 peak +433] · paidLast 10:40 quiet 0
+11:03 prem 108.5
+   FABLE WATCH flow against you: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433 · since 10:45: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (63) · fuel for · flow against · trend for
+   OPUS  FOLD  Thesis broken: PE 23,350 folded 10:38, and the move is not being paid for (CVD divergence) (10:40) · the break has healed since — a re-entry is a new trade
+         for 3 [call writers paying: CE 23,400 giving back, 22% off its 10:15 high | CE 23,500 folded 10:56 | put writers holding: PE 23,400 still adding (+93.8L)] against 2 [divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433 | prints against you: 2 sell / 0 buy] · paidLast 11:03 quiet 0
+   first FOLD: fable 12:47 (119.75) · opus 10:40 (108.45)
+
+### 2026-09-23 NIFTY 23450CE buyer from 11:06 (p0 114.15)
+11:06 prem 114.15
+   FABLE WATCH flow against you: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433 · since 10:50: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (74) · fuel for · flow against · trend for
+   OPUS  WATCH Watch, not an exit: divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433
+         for 3 [call writers paying: CE 23,400 giving back, 22% off its 10:15 high | CE 23,650 folded 11:06 | put writers holding: PE 23,400 still adding (+95.4L)] against 2 [divergence: new high 23,446 at 10:55 with CVD -688, under its 09:20 peak +433 | prints against you: 3 sell / 0 buy] · paidLast 11:06 quiet 0
+11:15 prem 112.45
+   FABLE WATCH flow against you: divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433 · since 11:00: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (74) · fuel for · flow against · trend for
+   OPUS  WATCH Watch, not an exit: divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433
+         for 2 [call writers paying: CE 23,400 giving back, 28% off its 10:15 high | CE 23,650 folded 11:06] against 2 [divergence: new high 23,455 at 11:10 with CVD -855, under its 09:20 peak +433 | prints against you: 5 sell / 0 buy] · paidLast 11:15 quiet 0
+11:37 prem 118.2
+   FABLE WATCH flow against you: divergence: new high 23,460 at 11:30 with CVD -730, under its 09:20 peak +433 · since 11:20: no stacked imbalance; fill runs could not be read — fill ru
+         S intact L 23,356 (85) · fuel for · flow against · trend for
+   OPUS  FOLD  Thesis broken: PE 23,300 folded 11:37, and the move is not being paid for (CVD divergence)
+         for 2 [call writers paying: CE 23,400 giving back, 31% off its 10:15 high | prints your way: 0 sell / 2 buy] against 2 [PE 23,300 folded 11:37 — the put writers holding your trade left | divergence: new high 23,460 at 11:30 with CVD -730, under its 09:20 peak +433] · paidLast 11:37 quiet 0
+   first FOLD: fable 12:47 (119.75) · opus 11:37 (118.2)
+
+### 2026-09-23 SENSEX 74900CE buyer from 11:31 (p0 200.85)
+11:31 prem 200.85
+   FABLE HOLD  line 74,618 holds (269 pts of room) · fuel unclear · flow quiet · trend 3 of 3 with you
+         S intact L 74,618 (269) · fuel flat · flow flat · trend for
+   OPUS  HOLD  Reason intact: put writers holding: PE 74,700 still adding (+31.7L)
+         for 1 [put writers holding: PE 74,700 still adding (+31.7L)] against 0 []
+11:39 prem 203.85
+   FABLE WATCH flow against you: divergence: new high 74,880 at 11:30 with CVD +1, under its 11:05 peak +15 · since 11:25: no stacked imbalance; fill runs could not be read — fill runs 
+         S intact L 74,618 (261) · fuel for · flow against · trend for
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: call writers paying: CE 75,000 giving back, 15% off its 09:59 high · CE 74,900 folded 11:38
+         for 2 [call writers paying: CE 75,000 giving back, 15% off its 09:59 high | CE 74,900 folded 11:38] against 1 [divergence: new high 74,880 at 11:30 with CVD +1, under its 11:05 peak +15] · paidLast 11:39 quiet 0
+12:06 prem 252.55
+   FABLE WATCH flow against you: divergence: new high 74,900 at 12:00 with CVD -2, under its 11:05 peak +15 · since 11:50: no stacked imbalance; fill runs could not be read — fill runs 
+         S intact L 74,618 (309) · fuel for · flow against · trend for
+   OPUS  FOLD  Thesis broken: PE 74,600 folded 12:06, and the move is not being paid for (CVD divergence)
+         for 3 [call writers paying: CE 75,000 giving back, 16% off its 09:59 high | CE 75,200 folded 12:06 | put writers holding: PE 74,700 still adding (+34.3L)] against 2 [PE 74,600 folded 12:06 — the put writers holding your trade left | divergence: new high 74,900 at 12:00 with CVD -2, under its 11:05 peak +15] · paidLast 12:06 quiet 0
+12:32 prem 224
+   FABLE FOLD  fuel against you: CE 75000 building: writers still adding in its way · futures OI -460 with price -34.8 since 12:15: too small against today's own 15-min changes to read 
+         S intact L 74,840 (68) · fuel against · flow against · trend for
+   OPUS  FOLD  Thesis broken: PE 74,600 folded 12:06, and the move is not being paid for (CVD divergence) (12:06) · the break has healed since — a re-entry is a new trade
+         for 0 [] against 1 [CVD -10 since 12:15, against you (rank 0.54)] · paidLast 12:29 quiet 3
+   first FOLD: fable 12:32 (224) · opus 12:06 (252.55)
+
+### 2026-09-22 NIFTY 23550PE buyer from 10:31 (p0 130.1)
+10:31 prem 130.1
+   FABLE WATCH trend against you: 5m RANGE · 15m UP · 1h UP
+         S intact L 23,471 (44) · fuel for · flow flat · trend against
+   OPUS  WATCH Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left
+         for 4 [put writers paying: PE 23,450 giving back, 17% off its 10:20 high | PE 23,400 folded 10:31 | call writers holding: CE 23,450 still adding (+269.0L) | prints you] against 1 [CE 23,550 folded 10:31 — the call writers holding your trade left] · paidLast 10:31 quiet 0
+10:37 prem 144.8
+   FABLE HOLD  line 23,471 holds (57 pts of room) · fuel burning · flow with you · trend mixed
+         S intact L 23,471 (57) · fuel for · flow for · trend flat
+   OPUS  WATCH Watch, not an exit: CE 23,550 folded 10:31 — the call writers holding your trade left
+         for 5 [put writers paying: PE 23,400 giving back, 29% off its 10:19 high | PE 23,350 folded 10:36 | call writers holding: CE 23,450 still adding (+308.1L) | CVD -765 s] against 1 [CE 23,550 folded 10:31 — the call writers holding your trade left] · paidLast 10:37 quiet 0
+11:14 prem 164.25
+   FABLE FOLD  NIFTY closed 23,393 above your line 23,391 (5m swing high 10:55)
+         S broken L 23,391 (-3) · fuel against · flow flat · trend flat
+   OPUS  WATCH Watch, not an exit: PE 23,400 adding again, still 158.0L under its 10:19 high — writers adding in its way
+         for 1 [call writers holding: CE 23,400 still adding (+300.7L)] against 2 [PE 23,400 adding again, still 158.0L under its 10:19 high — writers adding in its way | prints against you: 1 sell / 3 buy] · paidLast 11:09 quiet 5
+11:19 prem 170.65
+   FABLE FOLD  NIFTY closed 23,393 above your line 23,391 (5m swing high 10:55)
+         S broken L 23,391 (6) · fuel against · flow flat · trend flat
+   OPUS  FOLD  Thesis broken: CE 23,300 folded 11:19, and PE writers are adding in its way
+         for 0 [] against 3 [CE 23,300 folded 11:19 — the call writers holding your trade left | PE 23,400 adding again, still 145.3L under its 10:19 high — writers adding in its way | prin] · paidLast 11:09 quiet 10
+   first FOLD: fable 11:14 (164.25) · opus 11:19 (170.65)
+
+### 2026-09-22 NIFTY 23500PE buyer from 13:47 (p0 176.5)
+13:47 prem 176.5
+   FABLE HOLD  line 23,344 holds (10 pts of room) · fuel burning · flow quiet · trend mixed
+         S intact L 23,344 (10) · fuel for · flow flat · trend flat
+   OPUS  FOLD  Thesis broken: CE 23,350 folded 13:43, and the prints turned against you
+         for 1 [PE 23,150 folded 13:43] against 2 [CE 23,350 folded 13:43 — the call writers holding your trade left | prints against you: 1 sell / 2 buy] · paidLast 13:47 quiet 0
+13:53 prem 195.25
+   FABLE HOLD  line 23,344 holds (36 pts of room) · fuel burning · flow with you · trend 2 of 3 with you
+         S intact L 23,344 (36) · fuel for · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 23,350 folded 13:43, and the prints turned against you (13:47) · the break has healed since — a re-entry is a new trade
+         for 4 [put writers paying: PE 23,300 giving back, 26% off its 13:15 high | PE 23,100 folded 13:51 | CVD -294 since 13:35, your way (rank 0.69) | prints your way: 6 sel] against 1 [CE 23,350 folded 13:43 — the call writers holding your trade left] · paidLast 13:53 quiet 0
+14:00 prem 222.5
+   FABLE HOLD  line 23,344 holds (55 pts of room) · fuel burning · flow with you · trend mixed
+         S intact L 23,344 (55) · fuel for · flow for · trend flat
+   OPUS  FOLD  Thesis broken: CE 23,350 folded 13:43, and the prints turned against you (13:47) · the break has healed since — a re-entry is a new trade
+         for 4 [put writers paying: PE 23,300 giving back, 59% off its 13:15 high | PE 23,100 folded 13:51 | CVD -663 since 13:45, your way (rank 0.81) | prints your way: 8 sel] against 0 [] · paidLast 14:00 quiet 0
+14:14 prem 133.95
+   FABLE FOLD  NIFTY closed 23,383 above your line 23,344 (5m swing high 13:15)
+         S broken L 23,344 (-39) · fuel flat · flow flat · trend flat
+   OPUS  FOLD  Thesis broken: CE 23,350 folded 13:43, and the prints turned against you (13:47) · the break has healed since — a re-entry is a new trade
+         for 1 [CVD -290 since 13:55, your way (rank 0.64)] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:14 quiet 0
+   first FOLD: fable 14:14 (133.95) · opus 13:47 (176.5)
+
+### 2026-09-22 NIFTY 23300CE buyer from 09:41 (p0 162.4)
+09:41 prem 162.4
+   FABLE WATCH flow against you: divergence: new high 23,460 at 09:30 with CVD -526, under its 09:15 peak +33 · since 09:25: no stacked imbalance; fill runs could not be read — fill run
+         S intact L 23,426 (27) · fuel flat · flow against · trend for
+   OPUS  WATCH Watch, not an exit: CE 23,450 still adding (+197.6L) — writers adding in its way
+         for 1 [put writers holding: PE 23,400 still adding (+174.6L)] against 3 [CE 23,450 still adding (+197.6L) — writers adding in its way | divergence: new high 23,460 at 09:30 with CVD -526, under its 09:15 peak +33 | prints against you]
+10:19 prem 164.3
+   FABLE HOLD  line 23,450 holds (9 pts of room) · fuel unclear · flow with you · trend 2 of 3 with you
+         S intact L 23,450 (9) · fuel flat · flow for · trend for
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: put writers holding: PE 23,450 still adding (+244.9L) · CVD +422 since 10:00, your way (rank 0.78)
+         for 2 [put writers holding: PE 23,450 still adding (+244.9L) | CVD +422 since 10:00, your way (rank 0.78)] against 1 [prints against you: 2 sell / 1 buy] · paidLast 10:19 quiet 0
+10:21 prem 155.15
+   FABLE FOLD  NIFTY closed 23,448 below your line 23,450 (5m swing low 09:55)
+         S broken L 23,450 (-2) · fuel flat · flow for · trend for
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: put writers holding: PE 23,450 still adding (+246.3L) · CVD +152 since 10:05, your way (rank 0.50)
+         for 2 [put writers holding: PE 23,450 still adding (+246.3L) | CVD +152 since 10:05, your way (rank 0.50)] against 1 [prints against you: 2 sell / 1 buy] · paidLast 10:21 quiet 0
+10:25 prem 148.85
+   FABLE FOLD  NIFTY closed 23,448 below your line 23,450 (5m swing low 09:55)
+         S broken L 23,450 (-12) · fuel flat · flow flat · trend for
+   OPUS  FOLD  Thesis broken: PE 23,500 folded 10:25, and the prints turned against you
+         for 0 [] against 2 [PE 23,500 folded 10:25 — the put writers holding your trade left | prints against you: 2 sell / 1 buy] · paidLast 10:24 quiet 1
+   first FOLD: fable 10:21 (155.15) · opus 10:25 (148.85)
+
+### 2026-09-24 SENSEX 74500CE writer from 10:59 (p0 64.15)
+10:59 prem 64.15
+   FABLE HOLD  line 74,215 holds (16 pts of room) · fuel holding · flow quiet · trend 2 of 3 with you
+         S intact L 74,215 (16) · fuel for · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 10:56, and PE writers are adding in its way
+         for 0 [] against 2 [CE 74,200 folded 10:56 — the call writers holding your trade left | PE 74,100 still adding (+32.2L) — writers adding in its way]
+11:07 prem 62.15
+   FABLE WATCH fuel against you: CE 74500 unwinding: covering is still paying the move · futures OI +0 with price -16.9 since 10:50: too small against today's own 15-min changes to read
+         S intact L 74,215 (27) · fuel against · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 10:56, and PE writers are adding in its way (10:59)
+         for 0 [] against 3 [CE 74,500 folded 11:07 — the call writers holding your trade left | PE 74,100 still adding (+33.5L) — writers adding in its way | CE 74,300 giving back, 16% off]
+11:19 prem 63.95
+   FABLE FOLD  SENSEX closed 74,232 above your line 74,203 (5m swing high 11:00)
+         S broken L 74,203 (-29) · fuel for · flow against · trend flat
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 10:56, and PE writers are adding in its way (10:59) · the break has healed since — a re-entry is a new trade
+         for 2 [put writers paying: PE 74,100 giving back, 14% off its 11:01 high | PE 74,200 folded 11:17] against 1 [CE 74,500 folded 11:07 — the call writers holding your trade left] · paidLast 11:19 quiet 0
+12:00 prem 39.35
+   FABLE FOLD  SENSEX closed 74,232 above your line 74,203 (5m swing high 11:00)
+         S broken L 74,136 (77) · fuel for · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 10:56, and PE writers are adding in its way (10:59) · the break has healed since — a re-entry is a new trade
+         for 4 [put writers paying: PE 74,000 giving back, 20% off its 11:12 high | PE 73,600 folded 12:00 | call writers holding: CE 74,200 still adding (+68.3L) | CVD -27 sin] against 0 [] · paidLast 12:00 quiet 0
+14:00 prem 14.45
+   FABLE FOLD  SENSEX closed 74,232 above your line 74,203 (5m swing high 11:00)
+         S broken L 74,037 (401) · fuel flat · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 74,200 folded 10:56, and PE writers are adding in its way (10:59) · the break has healed since — a re-entry is a new trade
+         for 1 [CVD -27 since 13:45, your way (rank 0.74)] against 0 [] · both sides' writers leaving — OI cannot say which way; order flow decides · paidLast 14:00 quiet 0
+   first FOLD: fable 11:19 (63.95) · opus 10:59 (64.15)
+
+### 2026-09-24 SENSEX 74200CE writer from 10:29 (p0 137.1)
+10:29 prem 137.1
+   FABLE HOLD  line 74,215 holds (115 pts of room) · fuel holding · flow quiet · trend 3 of 3 with you
+         S intact L 74,215 (115) · fuel for · flow flat · trend for
+   OPUS  HOLD · NOISE Noise — what holds this trade has not changed: put writers paying: PE 74,000 giving back, 23% off its 10:12 high · PE 73,800 folded 10:23
+         for 3 [put writers paying: PE 74,000 giving back, 23% off its 10:12 high | PE 73,800 folded 10:23 | call writers holding: CE 74,300 still adding (+65.2L)] against 0 [] · paidLast 10:29 quiet 0
+10:40 prem 146.9
+   FABLE HOLD  line 74,215 holds (78 pts of room) · fuel holding · flow quiet · trend 3 of 3 with you
+         S intact L 74,215 (78) · fuel for · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:37, and PE writers are adding in its way
+         for 0 [] against 2 [CE 74,000 folded 10:37 — the call writers holding your trade left | PE 74,200 adding again, still 7.7L under its 09:37 high — writers adding in its way] · paidLast 10:38 quiet 2
+11:00 prem 165.9
+   FABLE FOLD  SENSEX closed 74,185 above your line 74,173 (5m swing high 10:35)
+         S broken L 74,173 (-10) · fuel for · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:37, and PE writers are adding in its way (10:40)
+         for 0 [] against 3 [CE 74,200 folded 10:56 — the call writers holding your trade left | PE 74,100 still adding (+32.2L) — writers adding in its way | CE 74,300 giving back, 14% off] · paidLast 10:54 quiet 6
+11:30 prem 133.35
+   FABLE FOLD  SENSEX closed 74,185 above your line 74,173 (5m swing high 10:35)
+         S broken L 74,173 (36) · fuel for · flow flat · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:37, and PE writers are adding in its way (10:40) · the break has healed since — a re-entry is a new trade
+         for 2 [put writers paying: PE 74,100 giving back, 20% off its 11:01 high | PE 73,900 folded 11:20] against 0 [] · paidLast 11:30 quiet 0
+13:00 prem 93.05
+   FABLE FOLD  SENSEX closed 74,185 above your line 74,173 (5m swing high 10:35)
+         S broken L 74,115 (148) · fuel for · flow for · trend for
+   OPUS  FOLD  Thesis broken: CE 74,000 folded 10:37, and PE writers are adding in its way (10:40) · the break has healed since — a re-entry is a new trade
+         for 1 [CVD -25 since 12:45, your way (rank 0.57)] against 1 [CE 74,400 folded 13:00 — the call writers holding your trade left] · paidLast 13:00 quiet 0
+   first FOLD: fable 10:52 (170.4) · opus 10:40 (146.9)
+
+### 2026-09-24 SENSEX 74200PE writer from 09:44 (p0 181.3)
+09:44 prem 181.3
+   FABLE WATCH trend against you: 5m DOWN · 15m DOWN · 1h RANGE
+         S intact L 74,121 (47) · fuel for · flow flat · trend against
+   OPUS  WATCH Watch, not an exit: CE 74,300 still adding (+54.5L) — writers adding in its way
+         for 1 [put writers holding: PE 74,200 adding again, still 4.1L under its 09:37 high] against 2 [CE 74,300 still adding (+54.5L) — writers adding in its way | CVD -28 since 09:25, against you (rank 1.00)]
+09:46 prem 195.8
+   FABLE FOLD  fuel against you: PE 74000 unwinding: covering is still paying the move · futures OI +40 with price -48.8 since 09:30: shorts building — trend against you: 5m DOWN · 15m 
+         S intact L 74,121 (42) · fuel against · flow flat · trend against
+   OPUS  FOLD  Thesis broken: PE 74,100 folded 09:46, and CE writers are adding in its way
+         for 0 [] against 2 [PE 74,100 folded 09:46 — the put writers holding your trade left | CE 74,300 still adding (+57.1L) — writers adding in its way]
+09:50 prem 183.25
+   FABLE FOLD  fuel against you: PE 74000 unwinding: covering is still paying the move · futures OI +40 with price -48.8 since 09:30: shorts building — trend against you: 5m DOWN · 15m 
+         S intact L 74,121 (70) · fuel against · flow for · trend against
+   OPUS  FOLD  Thesis broken: PE 74,100 folded 09:46, and CE writers are adding in its way (09:46)
+         for 0 [] against 4 [PE 74,100 folded 09:46 — the put writers holding your trade left | CE 74,300 still adding (+58.9L) — writers adding in its way | PE 74,200 giving back, 30% off ]
+   first FOLD: fable 09:46 (195.8) · opus 09:46 (195.8)
+
+### 2026-09-23 NIFTY 23400CE writer from 10:29 (p0 129.15)
+10:29 prem 129.15
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI -13,065 with price +39.0 since 10:15: shorts covering — trend against you: 5m UP · 15
+         S intact L 23,415 (16) · fuel against · flow flat · trend against
+   OPUS  FOLD  Thesis broken: CE 23,450 folded 10:26, and PE writers are adding in its way
+         for 1 [prints your way: 2 sell / 1 buy] against 3 [CE 23,450 folded 10:26 — the call writers holding your trade left | PE 23,400 still adding (+64.5L) — writers adding in its way | CE 23,400 giving back, 14% off] · paidLast 10:29 quiet 0
+10:40 prem 135.9
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI -13,065 with price +39.0 since 10:15: shorts covering — trend against you: 5m UP · 15
+         S intact L 23,415 (4) · fuel for · flow for · trend against
+   OPUS  FOLD  Thesis broken: CE 23,450 folded 10:26, and PE writers are adding in its way (10:29)
+         for 1 [PE 23,350 folded 10:38] against 3 [CE 23,450 folded 10:26 — the call writers holding your trade left | PE 23,400 still adding (+75.5L) — writers adding in its way | CVD +403 since 10:25, against ] · paidLast 10:40 quiet 0
+11:18 prem 134.7
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI -13,065 with price +39.0 since 10:15: shorts covering — trend against you: 5m UP · 15
+         S broken L 23,415 (-8) · fuel against · flow for · trend against
+   OPUS  FOLD  Thesis broken: CE 23,450 folded 10:26, and PE writers are adding in its way (10:29)
+         for 1 [prints your way: 5 sell / 0 buy] against 3 [CE 23,650 folded 11:06 — the call writers holding your trade left | PE 23,400 still adding (+100.5L) — writers adding in its way | CE 23,400 giving back, 28% of] · paidLast 11:18 quiet 0
+   first FOLD: fable 10:29 (129.15) · opus 10:29 (129.15)
+
+### 2026-09-23 NIFTY 23450CE writer from 11:14 (p0 116)
+11:17 prem 109.05
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI +2,015 with price +17.7 since 11:00: too small against today's own 15-min changes to 
+         S intact L 23,441 (18) · fuel against · flow for · trend against
+   OPUS  FOLD  Thesis broken: CE 23,650 folded 11:06, and PE writers are adding in its way (11:14) · the break has healed since — a re-entry is a new trade
+         for 1 [prints your way: 5 sell / 0 buy] against 2 [CE 23,650 folded 11:06 — the call writers holding your trade left | CE 23,400 giving back, 29% off its 10:15 high — the side holding your trade is leaving] · paidLast 11:17 quiet 0
+11:18 prem 107.8
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI +2,015 with price +17.7 since 11:00: too small against today's own 15-min changes to 
+         S intact L 23,441 (19) · fuel against · flow for · trend against
+   OPUS  FOLD  Thesis broken: CE 23,650 folded 11:06, and PE writers are adding in its way (11:14)
+         for 1 [prints your way: 5 sell / 0 buy] against 3 [CE 23,650 folded 11:06 — the call writers holding your trade left | PE 23,400 still adding (+100.5L) — writers adding in its way | CE 23,400 giving back, 28% of] · paidLast 11:18 quiet 0
+12:00 prem 114.35
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI +2,015 with price +17.7 since 11:00: too small against today's own 15-min changes to 
+         S broken L 23,441 (9) · fuel against · flow for · trend flat
+   OPUS  FOLD  Thesis broken: CE 23,650 folded 11:06, and PE writers are adding in its way (11:14)
+         for 0 [] against 3 [CE 23,500 folded 11:52 — the call writers holding your trade left | PE 23,400 still adding (+114.4L) — writers adding in its way | CE 23,400 giving back, 36% of] · paidLast 11:52 quiet 8
+13:00 prem 123.55
+   FABLE FOLD  fuel against you: CE 23400 unwinding: covering is still paying the move · futures OI +2,015 with price +17.7 since 11:00: too small against today's own 15-min changes to 
+         S broken L 23,441 (-11) · fuel for · flow flat · trend flat
+   OPUS  FOLD  Thesis broken: CE 23,650 folded 11:06, and PE writers are adding in its way (11:14) · the break has healed since — a re-entry is a new trade
+         for 1 [call writers holding: CE 23,500 still adding (+36.9L)] against 0 [] · paidLast 12:44 quiet 16
+   first FOLD: fable 11:14 (116) · opus 11:14 (116)
+
+ENTRY-READ SENSEX|2026-09-24 buyer PE: fable {"HOLD":178,"WATCH":182,"FOLD":14} · opus {"PATA NAHI":13,"HOLD":188,"WATCH":81,"FOLD":92}
+
+ENTRY-READ SENSEX|2026-09-24 buyer CE: fable {"HOLD":13,"WATCH":209,"FOLD":152} · opus {"PATA NAHI":13,"HOLD":186,"WATCH":109,"FOLD":66}
+
+ENTRY-READ SENSEX|2026-09-24 writer CE: fable {"HOLD":284,"WATCH":82,"FOLD":8} · opus {"PATA NAHI":13,"HOLD":188,"WATCH":88,"FOLD":85}
+
+ENTRY-READ SENSEX|2026-09-24 writer PE: fable {"HOLD":13,"WATCH":185,"FOLD":176} · opus {"PATA NAHI":13,"HOLD":186,"WATCH":109,"FOLD":66}
+
+ENTRY-READ NIFTY|2026-09-23 buyer PE: fable {"HOLD":196,"WATCH":99,"FOLD":79} · opus {"PATA NAHI":14,"HOLD":138,"WATCH":145,"FOLD":77}
+
+ENTRY-READ NIFTY|2026-09-23 buyer CE: fable {"HOLD":163,"WATCH":201,"FOLD":10} · opus {"PATA NAHI":14,"HOLD":166,"WATCH":122,"FOLD":72}
+
+ENTRY-READ NIFTY|2026-09-23 writer CE: fable {"HOLD":156,"WATCH":105,"FOLD":113} · opus {"PATA NAHI":14,"HOLD":138,"WATCH":145,"FOLD":77}
+
+ENTRY-READ NIFTY|2026-09-23 writer PE: fable {"HOLD":239,"WATCH":124,"FOLD":11} · opus {"PATA NAHI":14,"HOLD":198,"WATCH":116,"FOLD":46}

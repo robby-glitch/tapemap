@@ -579,3 +579,105 @@ def test_bad_side_is_rejected_before_any_network_call():
     with pytest.raises(ValueError, match="side must be CE, PE or BOTH"):
         live.build_contract("NIFTY", side="CALL",
                             fetch=lambda sec_id, d: _payload(d))
+
+
+# ---- 8. nothing at or after the close --------------------------------------
+
+def _late(day, start="15:25", n=15):
+    """n 1-min bars from `start` -- what Upstox serves past the close."""
+    hh, mm = map(int, start.split(":"))
+    t0 = datetime.strptime(day, "%Y-%m-%d").replace(
+        hour=hh, minute=mm, tzinfo=IST).timestamp()
+    p = _payload(day, n=n)
+    p["timestamp"] = [t0 + 60 * i for i in range(n)]
+    return p
+
+
+@pytest.mark.parametrize("interval", [1, 3, 5])
+def test_bars_stamped_1530_or_later_are_cut(interval):
+    # 15:25..15:39: Upstox served 15:30 and 15:35 candles on 2026-09-24
+    leg = live._leg_series(lambda d: _late(d), ["2026-09-24"], interval)
+    assert leg["bars"], "the in-session minutes must survive"
+    assert all(b["t"] < "15:30" for b in leg["bars"])
+    # the last kept bar's band is the band AT 15:29 -- the cut moved nothing
+    whole = contract_bars.vwap_bands(contract_bars.to_bars(_late("2026-09-24")))
+    assert leg["vwap"][-1]["vwap"] == pytest.approx(whole[4]["vwap"])
+
+
+# ---- 9. each leg's own prior-session pivots --------------------------------
+
+def _pivot_env(monkeypatch, served):
+    """`_intraday` answers from `served[(sec_id, day)]`, and records the ask."""
+    asked = []
+
+    def fake(tok, sec_id, instrument, day, oi=True, seg="NSE_FNO", name=None):
+        asked.append((sec_id, instrument, day))
+        return served.get((sec_id, day), {})
+
+    monkeypatch.setattr(live, "_intraday", fake)
+    monkeypatch.setattr(live, "_token", lambda: "")
+    monkeypatch.setattr(live, "_opt_piv_cache", {})
+    monkeypatch.setattr(live.time, "sleep", lambda s: None)
+    return asked
+
+
+def _body(**legs):
+    return {"index": "NIFTY", "expiry": "2026-08-04",
+            "sessions": ["2026-07-30"], "legs": legs}
+
+
+def test_each_leg_gets_its_own_contracts_prior_session_pivots(monkeypatch):
+    y = "2026-07-29"                              # the session before 07-30
+    asked = _pivot_env(monkeypatch, {("111", y): _payload(y, n=5, base=100.0),
+                                     ("222", y): _payload(y, n=5, base=40.0)})
+    body = _body(CE={"strike": 24200.0, "security_id": "111"},
+                 PE={"strike": 24100.0, "security_id": "222"})
+    live.leg_pivots(body)
+    for side, base in (("CE", 100.0), ("PE", 40.0)):
+        leg = body["legs"][side]
+        H, L, C = base + 4 + 2, base - 1, base + 4 + 1   # _payload's n=5 H/L/C
+        assert leg["pivots"] == dict(live._floor_pivots(H, L, C), H=H, L=L, C=C)
+        assert leg["pivots_why"] is None
+        assert leg["pivots_day"] == y
+    # one fetch per leg, of THAT leg's contract, on the prior session only
+    assert sorted(asked) == [("111", "OPTIDX", y), ("222", "OPTIDX", y)]
+
+
+def test_no_prior_session_is_null_with_a_reason_never_zeros(monkeypatch):
+    _pivot_env(monkeypatch, {})                   # the prior session is empty
+    body = _body(CE={"strike": 24200.0, "security_id": "111"})
+    live.leg_pivots(body)
+    leg = body["legs"]["CE"]
+    assert leg["pivots"] is None
+    assert "no prior session" in leg["pivots_why"]
+
+
+def test_a_pivot_failure_never_costs_the_chart(monkeypatch):
+    _pivot_env(monkeypatch, {})
+
+    def boom(*a, **k):
+        raise RuntimeError("token unreadable")
+
+    monkeypatch.setattr(live, "_token", boom)
+    body = _body(PE={"strike": 24100.0, "security_id": "222", "bars": [1]})
+    live.leg_pivots(body)
+    leg = body["legs"]["PE"]
+    assert leg["bars"] == [1]                     # the chart is untouched
+    assert leg["pivots"] is None
+    assert "token unreadable" in leg["pivots_why"]
+
+
+def test_a_legs_pivots_come_from_its_prior_session_only_never_past_the_close(monkeypatch):
+    """0j.9.2: Upstox serves option candles to ~15:39, and the pivots were read
+    off them (PE 23,100 on 2026-09-23: L 17.7 / C 18.35 against the in-session
+    19.35 / 19.65). The prior day's H/L/C now stops at 15:29."""
+    y = "2026-07-29"
+    p = _payload(y, n=390, base=100.0)                      # 09:15 .. 15:44
+    p["high"][-1], p["low"][-1], p["close"][-1] = 999.0, 1.0, 2.0   # a post-close print
+    _pivot_env(monkeypatch, {("111", y): p})
+    body = _body(CE={"strike": 24200.0, "security_id": "111"})
+    live.leg_pivots(body)
+    piv, keep = body["legs"]["CE"]["pivots"], 375           # 09:15 .. 15:29
+    H, L, C = max(p["high"][:keep]), min(p["low"][:keep]), p["close"][keep - 1]
+    assert (piv["H"], piv["L"], piv["C"]) == (H, L, C)
+    assert piv["P"] == pytest.approx((H + L + C) / 3)

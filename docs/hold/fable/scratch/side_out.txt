@@ -1,0 +1,77 @@
+## side minutes per index-day, and the side changes (minute, side, index px)
+BANKNIFTY|2026-09-21 {"no side":215,"CALLS":160}
+   changes: 09:15 no side @56371 | 11:24 CALLS @56456 | 11:54 no side @56462 | 11:56 CALLS @56474 | 11:59 no side @56471 | 12:00 CALLS @56478 | 12:05 no side @56477 | 12:06 CALLS @56481 | 12:07 no side @56470 | 12:14 CALLS @56453 | 12:34 no side @56423 | 12:38 CALLS @56439 | 12:39 no side @56432 | 12:40 CALLS @56441 | 12:44 no side @56468 | 13:15 CALLS @56485 | 14:51 no side @56558
+BANKNIFTY|2026-09-22 {"no side":252,"CALLS":93,"PUTS":30}
+   changes: 09:15 no side @56588 | 09:24 CALLS @56619 | 09:25 no side @56604 | 09:29 CALLS @56652 | 09:32 no side @56596 | 09:34 CALLS @56588 | 10:32 no side @56448 | 12:55 PUTS @56183 | 12:56 no side @56213 | 13:00 PUTS @56164 | 13:07 no side @56189 | 13:17 PUTS @56186 | 13:19 no side @56195 | 13:20 PUTS @56171 | 13:33 no side @56200 | 13:45 PUTS @56170 | 13:49 no side @56181 | 13:50 PUTS @56175 | 13:52 no side @56181 | 13:53 PUTS @56129 | 13:54 no side @56130 | 14:24 CALLS @56313 | 14:40 no side @56284 | 14:54 CALLS @56274 | 15:09 no side @56269
+BANKNIFTY|2026-09-23 {"no side":253,"CALLS":122}
+   changes: 09:15 no side @56321 | 09:59 CALLS @56456 | 11:17 no side @56554 | 11:29 CALLS @56562 | 11:34 no side @56579 | 11:42 CALLS @56587 | 11:44 no side @56581 | 12:14 CALLS @56573 | 12:44 no side @56576 | 13:02 CALLS @56599 | 13:05 no side @56585 | 13:06 CALLS @56597 | 13:10 no side @56588
+BANKNIFTY|2026-09-24 {"PUTS":205,"no side":168}
+   changes: 09:17 PUTS @55723 | 10:39 no side @55598 | 11:14 PUTS @55589 | 11:44 no side @55596 | 11:47 PUTS @55592 | 11:48 no side @55600 | 11:49 PUTS @55591 | 11:50 no side @55596 | 11:51 PUTS @55583 | 11:53 no side @55599 | 11:55 PUTS @55581 | 11:59 no side @55598 | 12:32 PUTS @55563 | 12:34 no side @55597 | 12:54 PUTS @55566 | 12:56 no side @55584 | 13:49 PUTS @55467 | 15:09 no side @55548 | 15:29 PUTS @55439
+NIFTY|2026-09-21 {"CALLS":351,"no side":24}
+   changes: 09:15 CALLS @23345 | 13:09 no side @23401 | 13:13 CALLS @23408 | 15:10 no side @23437
+NIFTY|2026-09-22 {"no side":245,"CALLS":59,"PUTS":71}
+   changes: 09:15 no side @23452 | 09:29 CALLS @23446 | 09:32 no side @23439 | 09:38 CALLS @23447 | 10:33 no side @23416 | 10:34 CALLS @23422 | 10:35 no side @23409 | 12:11 PUTS @23360 | 12:19 no side @23367 | 12:20 PUTS @23362 | 12:21 no side @23367 | 12:29 PUTS @23358 | 12:32 no side @23361 | 12:33 PUTS @23359 | 12:34 no side @23364 | 12:43 PUTS @23352 | 13:28 no side @23338 | 13:29 PUTS @23340 | 13:34 no side @23344 | 13:45 PUTS @23332 | 13:47 no side @23334 | 13:48 PUTS @23329 | 13:54 no side @23308
+NIFTY|2026-09-23 {"no side":234,"CALLS":141}
+   changes: 09:15 no side @23355 | 10:19 CALLS @23393 | 11:49 no side @23435 | 12:01 CALLS @23439 | 12:30 no side @23449 | 12:35 CALLS @23453 | 12:36 no side @23449 | 12:42 CALLS @23452 | 12:43 no side @23449 | 12:44 CALLS @23449 | 12:59 no side @23453 | 13:02 CALLS @23456 | 13:05 no side @23451 | 13:07 CALLS @23456 | 13:09 no side @23449
+NIFTY|2026-09-24 {"no side":35,"PUTS":338}
+   changes: 09:17 no side @23237 | 09:29 PUTS @23259 | 11:09 no side @23221 | 11:13 PUTS @23214 | 13:03 no side @23179 | 13:11 PUTS @23175 | 13:13 no side @23181 | 13:19 PUTS @23180 | 14:55 no side @23116 | 14:56 PUTS @23112 | 15:24 no side @23086 | 15:28 PUTS @23063
+SENSEX|2026-09-21 {"CALLS":302,"no side":73}
+   changes: 09:15 CALLS @74620 | 10:14 no side @74658 | 11:11 CALLS @74744 | 15:14 no side @74894
+SENSEX|2026-09-22 {"CALLS":61,"no side":236,"PUTS":78}
+   changes: 09:15 CALLS @74958 | 09:16 no side @74907 | 09:29 CALLS @74930 | 09:32 no side @74919 | 09:38 CALLS @74953 | 10:35 no side @74819 | 11:35 PUTS @74698 | 11:37 no side @74716 | 11:38 PUTS @74711 | 11:39 no side @74685 | 12:09 PUTS @74663 | 12:10 no side @74671 | 12:11 PUTS @74651 | 12:19 no side @74662 | 12:24 PUTS @74656 | 12:32 no side @74654 | 12:43 PUTS @74628 | 13:28 no side @74585 | 13:29 PUTS @74589 | 13:34 no side @74600 | 13:45 PUTS @74565 | 13:47 no side @74574 | 13:48 PUTS @74562 | 13:54 no side @74474
+SENSEX|2026-09-23 {"no side":207,"CALLS":168}
+   changes: 09:15 no side @74649 | 10:24 CALLS @74744 | 11:50 no side @74858 | 12:01 CALLS @74884 | 13:12 no side @74897 | 13:13 CALLS @74898 | 13:24 no side @74908
+SENSEX|2026-09-24 {"no side":21,"PUTS":354}
+   changes: 09:15 no side @74330 | 09:29 PUTS @74283 | 11:18 no side @74202 | 11:20 PUTS @74175 | 15:24 no side @73720 | 15:29 PUTS @73581
+
+## at her entries
+2026-09-21 NIFTY  23300CE  b in 14:00 read 13:59 | CALLS    0 for · 0 against · 2 blind | agrees | rows 5m UP · 15m UP · 1h UP | others: BANKNIFTY CALLS, SENSEX CALLS | took -754
+2026-09-22 NIFTY  23300CE  b in 09:42 read 09:41 | CALLS    1 for · 1 against · 0 blind | agrees | rows 5m RANGE · 15m UP · 1h UP | 0DTE [M] | others: BANKNIFTY CALLS, SENSEX CALLS | took -471
+      for: holders PE 23400 building || against: payers CE 23450 building in its way
+2026-09-22 NIFTY  23550PE  b in 10:32 read 10:31 | CALLS    1 for · 2 against · 0 blind | against | rows 5m RANGE · 15m UP · 1h UP | 0DTE [M] | others: BANKNIFTY CALLS, SENSEX CALLS | took 601
+      for: payers CE 23450 building · fold 10:31 || against: OI TREND DOWN — put side stopped, call side writing: CE 23,450 writing · PE 23,450 giving back; holders PE 23450 leaving
+2026-09-22 NIFTY  23550PE  b in 10:42 read 10:41 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | 0DTE [M] | others: BANKNIFTY no side, SENSEX no side | took 793
+2026-09-22 NIFTY  23550PE  b in 10:43 read 10:42 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | 0DTE [M] | others: BANKNIFTY no side, SENSEX no side | took -224
+2026-09-22 NIFTY  23550PE  b in 10:44 read 10:43 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | 0DTE [M] | others: BANKNIFTY no side, SENSEX no side | took 163
+2026-09-22 NIFTY  23500PE  b in 10:52 read 10:51 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | 0DTE [M] | others: BANKNIFTY no side, SENSEX no side | took -855
+2026-09-22 NIFTY  23500PE  b in 13:48 read 13:47 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m DOWN · 1h RANGE | 0DTE [M] | others: BANKNIFTY PUTS, SENSEX no side | took 1410
+2026-09-23 NIFTY  23450CE  b in 09:18 read 09:17 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | others: BANKNIFTY no side, SENSEX no side | took -65
+2026-09-23 NIFTY  23450CE  b in 09:47 read 09:46 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | others: BANKNIFTY no side, SENSEX no side | took -497
+2026-09-23 NIFTY  23400PE  b in 09:49 read 09:48 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | others: BANKNIFTY no side, SENSEX no side | took -52
+2026-09-23 NIFTY  23450CE  b in 10:00 read 09:59 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m RANGE · 1h RANGE | others: BANKNIFTY CALLS, SENSEX no side | took -507
+2026-09-23 NIFTY  23450CE  b in 10:19 read 10:18 | no side  0 for · 0 against · 0 blind | no side | rows 5m RANGE · 15m UP · 1h RANGE | others: BANKNIFTY CALLS, SENSEX no side | took 205
+2026-09-23 NIFTY  23450CE  b in 10:33 read 10:32 | CALLS    3 for · 0 against · 0 blind | agrees | rows 5m UP · 15m UP · 1h RANGE | others: BANKNIFTY CALLS, SENSEX CALLS | took -29
+      for: OI TREND UP — call side stopped, put side writing: CE 23,400 giving back · PE 23,400 writing; payers CE 23400 unwinding · fold 10:26; holders PE 23400 building || against: 
+2026-09-23 NIFTY  23450CE  b in 11:07 read 11:06 | CALLS    3 for · 0 against · 0 blind | agrees | rows 5m UP · 15m UP · 1h RANGE | others: BANKNIFTY CALLS, SENSEX CALLS | took -367
+      for: OI TREND UP — call side stopped, put side writing: CE 23,400 giving back · PE 23,400 writing; payers CE 23400 unwinding · fold 11:06; holders PE 23400 building || against: 
+2026-09-23 SENSEX 74900CE  b in 11:32 read 11:31 | CALLS    2 for · 0 against · 0 blind | agrees | rows 5m UP · 15m UP · 1h UP | others: NIFTY CALLS, BANKNIFTY CALLS | took -305
+      for: OI TREND UP — call side stopped, put side writing: CE 75,000 stopped · PE 74,700 writing; holders PE 74700 building || against: 
+2026-09-24 SENSEX 74200PE  b in 09:42 read 09:41 | PUTS     1 for · 1 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h RANGE | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY PUTS | took 475
+      for: holders CE 74300 building || against: payers PE 74200 building in its way
+2026-09-24 SENSEX 74200PE  b in 10:19 read 10:18 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY PUTS | took 456
+      for: payers PE 74200 unwinding || against: 
+2026-09-24 SENSEX 74100PE  b in 12:32 read 12:31 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took 546
+      for: payers PE 74000 unwinding · fold 12:27 || against: 
+2026-09-24 SENSEX 74000PE  b in 12:35 read 12:34 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took -752
+      for: payers PE 74000 unwinding · fold 12:27 || against: 
+2026-09-24 SENSEX 74000PE  b in 12:44 read 12:43 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took -159
+      for: payers PE 74000 unwinding || against: 
+2026-09-24 SENSEX 74000PE  b in 13:26 read 13:25 | PUTS     0 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m RANGE · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took 716
+2026-09-24 SENSEX 73900PE  b in 13:41 read 13:40 | PUTS     1 for · 1 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took 177
+      for: payers PE 74000 unwinding · fold 13:27 || against: holders CE 74200 leaving
+2026-09-24 SENSEX 73900PE  b in 13:43 read 13:42 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took 30
+      for: payers PE 74000 unwinding · fold 13:27 || against: 
+2026-09-24 SENSEX 73900PE  b in 13:44 read 13:43 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took 143
+      for: payers PE 74000 unwinding || against: 
+2026-09-24 SENSEX 73800PE  b in 13:45 read 13:44 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took 240
+      for: payers PE 74000 unwinding || against: 
+2026-09-24 SENSEX 73800PE  b in 13:54 read 13:53 | PUTS     1 for · 0 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY PUTS | took -243
+      for: payers PE 74000 unwinding · fold 13:46 || against: 
+2026-09-24 SENSEX 73800PE  b in 13:57 read 13:56 | PUTS     1 for · 1 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY PUTS | took 592
+      for: payers PE 74000 unwinding · fold 13:46 || against: holders CE 74200 leaving
+2026-09-24 SENSEX 73800PE  b in 14:23 read 14:22 | PUTS     1 for · 1 against · 0 blind | agrees | rows 5m DOWN · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY PUTS | took 147
+      for: payers PE 74000 unwinding || against: holders CE 74200 leaving
+2026-09-24 SENSEX 74500CE  w in 11:00 read 10:59 | PUTS     0 for · 3 against · 0 blind | agrees (you wrote the other side) | rows 5m RANGE · 15m DOWN · 1h DOWN | 0DTE [M] | others: NIFTY PUTS, BANKNIFTY no side | took null
+      for:  || against: OI TREND UP — call side stopped, put side writing: CE 74,300 giving back · PE 74,100 writing; payers PE 74100 building in its way; holders CE 74300 leaving
+2026-09-23 NIFTY  23400CE  w in 10:30 read 10:29 | CALLS    3 for · 0 against · 0 blind | against (you wrote the read's side) | rows 5m UP · 15m UP · 1h RANGE | others: BANKNIFTY CALLS, SENSEX CALLS | took null
+      for: OI TREND UP — call side stopped, put side writing: CE 23,400 giving back · PE 23,400 writing; payers CE 23400 unwinding · fold 10:26; holders PE 23400 building || against: 

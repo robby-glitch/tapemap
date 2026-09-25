@@ -435,3 +435,36 @@ def test_a_box_with_no_session_serves_its_own_bytes():
     for n in live.INTERVALS:
         assert server.payload_at(box, n) == box["payload"]
     assert server.payload_at(b"raw replay bytes", 3) == b"raw replay bytes"
+
+
+# ------------------------------------------------- 9. nothing served after the close
+
+def test_api_data_serves_nothing_stamped_at_or_after_the_close():
+    """DEFERRED 0j.8 follow-up 3: /api/data served 15:30/15:35 FUT bars to every
+    tab. The served payload is re-derived from the session's minutes alone, so
+    every 1:1 layer stays 1:1 -- while `payload_at`, which trigger_log, the
+    frame's book and /api/calls read, is exactly what it was."""
+    import json
+    rows = [_row(i) for i in range(385)]                  # 09:15 .. 15:39, what Upstox serves
+    base = {"error": None, "built_at": 1.0, "head": {"index": "NIFTY"},
+            "day": _session(rows, events=[{"t": "15:00", "kind": "KEEP"}, {"t": "15:31", "kind": "LATE"}])}
+    box = {"session": base, "stamp": 1.0, "by_interval": {}}
+    for n in live.INTERVALS:
+        day = json.loads(server._session_payload(box, n))["days"][0]
+        assert day["bars"] and all(b["t"] < "15:30" for b in day["bars"]), n
+        for k in ("rotation", "run_state", "rotation_run", "zone_state", "zone_state_sell"):
+            assert len(day[k]) == len(day["bars"]), (n, k)
+        assert [e["kind"] for e in day["events"]] == ["KEEP"]
+    assert any(b["t"] >= "15:30" for b in json.loads(server.payload_at(box, 3))["days"][0]["bars"])
+    # the route itself serves the cut payload
+    from test_upstox_only import _Cap
+
+    class Cap(_Cap):
+        _idx = server.Handler._idx
+    cap = Cap("/api/data?idx=NIFTY&interval=5", payloads={"NIFTY": box})
+    server.Handler.do_GET(cap)
+    got = cap.sent
+    assert got["interval"] == 5 and got["days"][0]["bars"][-1]["t"] == "15:25"
+    # a session with nothing past the close is served payload_at's own bytes, no second derive
+    early = {"session": dict(base, day=_session(rows[:300])), "stamp": 1.0, "by_interval": {}}
+    assert server._session_payload(early, 3) is server.payload_at(early, 3)

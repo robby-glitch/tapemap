@@ -342,6 +342,8 @@ def _opt_pivots(tok, cfg, strike, ids):
            "expiry": cfg["expiry"], "ce": None, "pe": None,
            "why": {"ce": None, "pe": None}}
     for side in ("CE", "PE"):
+        if side not in ids:                  # leg_pivots asks for one leg only
+            continue
         key = (cfg["under_sym"], cfg["expiry"], strike, side, cfg["prev_day"])
         if key in _opt_piv_cache:
             leg, why = _opt_piv_cache[key]
@@ -350,8 +352,19 @@ def _opt_pivots(tok, cfg, strike, ids):
                 time.sleep(0.22)             # same pacing as build_payload's fetches
                 d = _intraday(tok, ids[side], "OPTIDX", cfg["prev_day"],
                               oi=False, seg=cfg["fut_seg"])
-                if d.get("close"):
-                    H, L, C = max(d["high"]), min(d["low"]), d["close"][-1]
+                # The SESSION only: Upstox serves option candles to ~15:39,
+                # and a post-close print is not the prior day's H/L/C (PE
+                # 23100, 2026-09-23: L 17.7 / C 18.35 against the in-session
+                # 19.35 / 19.65). Same cut as _leg_series and
+                # server._session_only -- nothing at or after SESSION_END_HHMM,
+                # and (its rule too) a row with no stamp is kept.
+                ts = d.get("timestamp") or []
+                keep = [i for i in range(len(d.get("close") or []))
+                        if i >= len(ts) or datetime.fromtimestamp(ts[i], IST).strftime("%H:%M") < SESSION_END_HHMM]
+                if keep and d.get("close"):
+                    H = max(d["high"][i] for i in keep)
+                    L = min(d["low"][i] for i in keep)
+                    C = d["close"][keep[-1]]
                     leg = dict(_floor_pivots(H, L, C), H=H, L=L, C=C)
                     why = None
                 else:
@@ -414,6 +427,7 @@ CONTRACT_DEADLINE_S = 25        # wall-clock cap on ONE intraday chart call.
                                 # returns in well under a second.
 CONTRACT_MAX_DAYS = 10          # days x legs is one request each; bounded so a
                                 # stray ?days=900 cannot walk into the rate cap
+SESSION_END_HHMM = "15:30"      # server.SESSION_END_HHMM; bars from here are cut
 
 AXIS_RULE = (
     "bars/vwap/oi/bar_days on EVERY leg are indexed by the shared `axis`: "
@@ -534,6 +548,11 @@ def _leg_series(fetch, sessions, interval):
         dropped += one.dropped + lost
         if one.lengths:
             lengths[sess] = one.lengths
+        # Nothing at or after the close is session: Upstox keeps serving
+        # candles past 15:30 (15:30 and 15:35 on 2026-09-24). Cut at the
+        # minute, BEFORE the bands and the resample, so no bucket can carry a
+        # post-close minute. server._session_only is the same rule.
+        one = [b for b in one if b is None or b["t"] < SESSION_END_HHMM]
         rows = contract_bars.resample(contract_bars.vwap_bands(one), interval)
         if not rows:
             reasons[sess] = (
@@ -879,6 +898,34 @@ def build_contract(idx, strike=None, side="BOTH", interval=3, days=1,
         out.update({k: only[k] for k in
                     ("strike", "side", "bars", "vwap", "oi", "bar_days")})
     return out
+
+
+def leg_pivots(body):
+    """Each leg of an `/api/contract` body gets ITS OWN contract's floor pivots
+    off the session before the newest one charted, in place: `pivots` (P,
+    R1-R3, S1-S3 plus the H/L/C receipts), `pivots_why` and `pivots_day`.
+
+    Same helpers as the tape's `opt_pivots` (`_opt_pivots` -> `_floor_pivots`),
+    so one contract has one set of pivots wherever it is drawn. No prior
+    session means `pivots` None and a `why`, never zeros. Kept outside
+    `build_contract` so an injected-fetch build stays offline; server.py calls
+    it on the body it serves. Fail-soft: a pivot failure never costs the chart.
+    """
+    legs = body.get("legs") or {}
+    if not legs:
+        return body
+    prev = instruments._prev_trading_day(body["sessions"][-1])
+    cfg = dict(instruments.get(body["index"]), expiry=body["expiry"],
+               prev_day=prev)
+    for side, leg in legs.items():
+        try:
+            got = _opt_pivots(_token(), cfg, leg["strike"],
+                              {side: leg["security_id"]})
+            piv, why = got[side.lower()], got["why"][side.lower()]
+        except Exception as e:               # noqa: BLE001 - said, not swallowed
+            piv, why = None, f"prior-day pivots failed: {type(e).__name__}: {e}"
+        leg["pivots"], leg["pivots_why"], leg["pivots_day"] = piv, why, prev
+    return body
 
 
 # --- basis plausibility -------------------------------------------------

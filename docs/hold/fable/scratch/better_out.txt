@@ -1,0 +1,91 @@
+## day-word counts per index-day (minutes)
+BANKNIFTY|2026-09-21 {"could not check":375} {}
+BANKNIFTY|2026-09-22 {"could not check":20,"UNDECIDED":344,"BUYING":1,"SELLING":10} {"BUYING CE":1,"SELLING PE":3,"SELLING CE":7}
+BANKNIFTY|2026-09-23 {"could not check":16,"UNDECIDED":341,"SELLING":18} {"SELLING CE":6,"SELLING PE":12}
+BANKNIFTY|2026-09-24 {"could not check":14,"UNDECIDED":355,"BUYING":4} {"BUYING PE":4}
+NIFTY|2026-09-21 {"could not check":375} {}
+NIFTY|2026-09-22 {"could not check":20,"UNDECIDED":333,"SELLING":13,"BUYING":9} {"SELLING CE":7,"BUYING CE":9,"SELLING PE":6}
+NIFTY|2026-09-23 {"could not check":15,"SELLING":32,"UNDECIDED":328} {"SELLING CE":25,"SELLING PE":7}
+NIFTY|2026-09-24 {"could not check":14,"UNDECIDED":328,"BUYING":31} {"BUYING PE":31}
+SENSEX|2026-09-21 {"could not check":375} {}
+SENSEX|2026-09-22 {"could not check":20,"UNDECIDED":337,"SELLING":13,"BUYING":5} {"SELLING PE":7,"SELLING CE":6,"BUYING CE":5}
+SENSEX|2026-09-23 {"could not check":16,"UNDECIDED":323,"SELLING":25,"BUYING":11} {"SELLING PE":15,"SELLING CE":10,"BUYING CE":11}
+SENSEX|2026-09-24 {"could not check":16,"UNDECIDED":333,"BUYING":26} {"BUYING PE":26}
+
+## at her entries
+2026-09-21 NIFTY  23300CE  b in 14:00 read 13:59 | could not check since 09:15 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 0 so far; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-21) | took -754
+      ranking: 1 NIFTY could not check 0/0 · 2 BANKNIFTY could not check 0/0 · 3 SENSEX could not check 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23300CE  b in 09:42 read 09:41 | UNDECIDED since 09:38 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took -471
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23550PE  b in 10:32 read 10:31 | UNDECIDED since 10:19 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took 601
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23550PE  b in 10:42 read 10:41 | UNDECIDED since 10:19 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took 793
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23550PE  b in 10:43 read 10:42 | UNDECIDED since 10:19 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took -224
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23550PE  b in 10:44 read 10:43 | UNDECIDED since 10:19 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took 163
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23500PE  b in 10:52 read 10:51 | UNDECIDED since 10:19 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took -855
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-22 NIFTY  23500PE  b in 13:48 read 13:47 | UNDECIDED since 13:21 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-22) | took 1410
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-23 NIFTY  23450CE  b in 09:18 read 09:17 | could not check since 09:15 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — could not check — fronts forming: the build → stall → unwind sequence needs 15 one-minute marks, 2 so far; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine could not check — no frame row yet · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took -65
+      ranking: 1 NIFTY could not check 0/0 · 2 BANKNIFTY could not check 0/0 · 3 SENSEX could not check 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-23 NIFTY  23450CE  b in 09:47 read 09:46 | SELLING since 09:30 · side PE 3/3 (blind 0) · rank 1 | WRONG TRADE for today's read — the read says NIFTY PE sell · 3 of 3 facts · day ✗ · side ✗ · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took -497
+      ranking: 1 NIFTY SELLING PE 3/3 · 2 BANKNIFTY SELLING PE 3/3 · 3 SENSEX SELLING PE 3/3 | best NIFTY PE sell · 3 of 3 facts | second BANKNIFTY PE sell · 3 of 3 facts
+2026-09-23 NIFTY  23400PE  b in 09:49 read 09:48 | SELLING since 09:30 · side PE 3/3 (blind 0) · rank 1 | your trade agrees with the read (2 of 3) · day ✗ · side ✓ · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took -52
+      ranking: 1 NIFTY SELLING PE 3/3 · 2 BANKNIFTY SELLING PE 3/3 · 3 SENSEX SELLING PE 3/3 | best NIFTY PE sell · 3 of 3 facts | second BANKNIFTY PE sell · 3 of 3 facts
+2026-09-23 NIFTY  23450CE  b in 10:00 read 09:59 | SELLING since 09:59 · side PE 3/3 (blind 0) · rank 1 | WRONG TRADE for today's read — the read says NIFTY PE sell · 3 of 3 facts · day ✗ · side ✗ · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took -507
+      ranking: 1 NIFTY SELLING PE 3/3 · 2 SENSEX SELLING PE 3/3 · 3 BANKNIFTY UNDECIDED 0/0 | best NIFTY PE sell · 3 of 3 facts | second SENSEX PE sell · 3 of 3 facts
+2026-09-23 NIFTY  23450CE  b in 10:19 read 10:18 | UNDECIDED since 10:17 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took 205
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-23 NIFTY  23450CE  b in 10:33 read 10:32 | UNDECIDED since 10:17 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took -29
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-23 NIFTY  23450CE  b in 11:07 read 11:06 | UNDECIDED since 10:17 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took -367
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-23 SENSEX 74900CE  b in 11:32 read 11:31 | BUYING since 11:31 · side CE 2/4 (blind 0) · rank 1 | your trade agrees with the read (3 of 3) · day ✓ · side ✓ · index ✓ | engine could not check — no frame record for SENSEX on 2026-09-23 · could not check — the calls log begins 2026-09-24 (none for SENSEX on 2026-09-2 | took -305
+      ranking: 1 SENSEX BUYING CE 2/4 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best SENSEX CE buy · 2 of 4 facts | second checked, none — the other two read UNDECIDED / forming / no side
+2026-09-24 SENSEX 74200PE  b in 09:42 read 09:41 | UNDECIDED since 09:31 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine THIN: GO — one-sided tape / dealer hedging amplifies | took 475
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 74200PE  b in 10:19 read 10:18 | UNDECIDED since 09:31 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine CONTRADICTED: WAIT — trend stalled — range p14, compression not continuation | took 456
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 74100PE  b in 12:32 read 12:31 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine CONTRADICTED: WAIT — trend stalled — range p11, compression not continuation | took 546
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 74000PE  b in 12:35 read 12:34 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine CONTRADICTED: SPENT — leg released and given back — don't chase | took -752
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 74000PE  b in 12:44 read 12:43 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine CONTRADICTED: SPENT — leg released and given back — don't chase | took -159
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 74000PE  b in 13:26 read 13:25 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine THIN: WAIT — trend stalled — range p8, compression not continuation | took 716
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 73900PE  b in 13:41 read 13:40 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 2 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index second | engine THIN: GO — one-sided tape / dealer hedging amplifies | took 177
+      ranking: 1 NIFTY BUYING PE 3/4 · 2 SENSEX UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best NIFTY PE buy · 3 of 4 facts | second checked, none — the other two read UNDECIDED / forming / no side
+2026-09-24 SENSEX 73900PE  b in 13:43 read 13:42 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 2 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index second | engine THIN: SPENT — leg released and given back — don't chase | took 30
+      ranking: 1 NIFTY BUYING PE 3/4 · 2 SENSEX UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best NIFTY PE buy · 3 of 4 facts | second checked, none — the other two read UNDECIDED / forming / no side
+2026-09-24 SENSEX 73900PE  b in 13:44 read 13:43 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 2 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index second | engine THIN: SPENT — leg released and given back — don't chase | took 143
+      ranking: 1 NIFTY BUYING PE 2/4 · 2 SENSEX UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best NIFTY PE buy · 2 of 4 facts | second checked, none — the other two read UNDECIDED / forming / no side
+2026-09-24 SENSEX 73800PE  b in 13:45 read 13:44 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine THIN: SPENT — leg released and given back — don't chase | took 240
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 73800PE  b in 13:54 read 13:53 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 2 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index second | engine CONTRADICTED: GO — one-sided tape / dealer hedging amplifies | took -243
+      ranking: 1 NIFTY BUYING PE 3/4 · 2 SENSEX UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best NIFTY PE buy · 3 of 4 facts | second checked, none — the other two read UNDECIDED / forming / no side
+2026-09-24 SENSEX 73800PE  b in 13:57 read 13:56 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 2 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index second | engine THIN: GO — one-sided tape / dealer hedging amplifies | took 592
+      ranking: 1 NIFTY BUYING PE 3/4 · 2 SENSEX UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best NIFTY PE buy · 3 of 4 facts | second checked, none — the other two read UNDECIDED / forming / no side
+2026-09-24 SENSEX 73800PE  b in 14:23 read 14:22 | UNDECIDED since 12:23 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine THIN: GO — one-sided tape / dealer hedging amplifies | took 147
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-24 SENSEX 74500CE  w in 11:00 read 10:59 | UNDECIDED since 10:37 · side null 0/0 (blind 0) · rank 1 | no read yet for SENSEX — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine THIN: STAND ASIDE — pin/chop — edges only, no chasing | took null
+      ranking: 1 SENSEX UNDECIDED 0/0 · 2 NIFTY UNDECIDED 0/0 · 3 BANKNIFTY UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+2026-09-23 NIFTY  23400CE  w in 10:30 read 10:29 | UNDECIDED since 10:17 · side null 0/0 (blind 0) · rank 1 | no read yet for NIFTY — the day has not decided; your trade is neither confirmed nor refused · day ? · side ? · index ✓ | engine checked, none — nothing armed · could not check — the calls log begins 2026-09-24 (none for NIFTY on 2026-09-23) | took null
+      ranking: 1 NIFTY UNDECIDED 0/0 · 2 BANKNIFTY UNDECIDED 0/0 · 3 SENSEX UNDECIDED 0/0 | best checked, none — no index has a decided day with a side | second null
+
+## DAY at 10:30 / 12:30 / 15:00
+BANKNIFTY|2026-09-21 10:30 could not check | 12:30 could not check | 15:00 could not check
+BANKNIFTY|2026-09-22 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+BANKNIFTY|2026-09-23 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+BANKNIFTY|2026-09-24 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+NIFTY|2026-09-21 10:30 could not check | 12:30 could not check | 15:00 could not check
+NIFTY|2026-09-22 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+NIFTY|2026-09-23 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+NIFTY|2026-09-24 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+SENSEX|2026-09-21 10:30 could not check | 12:30 could not check | 15:00 could not check
+SENSEX|2026-09-22 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+SENSEX|2026-09-23 10:30 UNDECIDED | 12:30 UNDECIDED | 15:00 UNDECIDED
+SENSEX|2026-09-24 10:30 BUYING PE 3/4 | 12:30 UNDECIDED | 15:00 UNDECIDED

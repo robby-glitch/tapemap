@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validate and Hold</title>
+<meta name="description" content="TapeMap design mockup: the Validate tab (GO / WAIT / NO) and the Hold / Fold window, built on real 2026-09-25 server replies for NIFTY 23200 PE.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+/* ── tokens ─────────────────────────────────────────────────────────── */
+:root{
+  color-scheme: light;
+  /* ink on paper */
+  --bg:#F3F1EB;
+  --surface:#FAF9F5;
+  --surface-raised:#FFFFFF;
+  --surface-sunk:#EAE7DF;
+  --border:#DCD7CC;
+  --border-strong:#B8B1A3;
+  --text-primary:#17160F;
+  --text-secondary:#4A463E;
+  --text-muted:#736D62;
+  /* the one accent: her hand, the VALIDATE press and focus */
+  --accent:#2441A3;
+  --accent-hover:#1B3285;
+  /* verdict ink, used only on the word and the marks */
+  --positive:#1A7641;
+  --caution:#A35E00;
+  --negative:#B3261E;
+  --unknown:#6B665E;
+  --on-red:#FFFFFF;
+  --on-red-soft:rgba(255,255,255,.84);
+  --on-red-line:rgba(255,255,255,.34);
+
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --t11:11px; --t12:12px; --t14:14px; --t16:16px; --t20:20px; --t28:28px; --t40:40px; --t56:56px; --t88:88px;
+
+  --f-word:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-ui:"IBM Plex Sans",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+
+  --r:4px; --r2:6px;
+  --dur:160ms; --ease:cubic-bezier(.2,0,0,1);
+}
+
+/* ── base ───────────────────────────────────────────────────────────── */
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  background:var(--bg);color:var(--text-primary);
+  font:400 var(--t14)/20px var(--f-ui);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+p{margin:0}
+.i{width:16px;height:16px;flex:none;vertical-align:-3px}
+.num{font-family:var(--f-num);font-weight:500;white-space:nowrap}
+.tag{font:400 var(--t11)/1 var(--f-num);color:var(--text-muted);margin-left:2px;vertical-align:1px;cursor:help;white-space:nowrap}
+.label{font:600 var(--t11)/16px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.word{font-family:var(--f-word);font-weight:700;text-transform:uppercase;letter-spacing:.01em}
+.muted{color:var(--text-muted)}
+.fine{font-size:var(--t12);line-height:16px;color:var(--text-muted)}
+.v-GO,.v-HOLD{color:var(--positive)}
+.v-WAIT,.v-WATCH{color:var(--caution)}
+.v-NO,.v-FOLD{color:var(--negative)}
+.v-PATA{color:var(--unknown)}
+.m-for{color:var(--positive)}
+.m-against{color:var(--negative)}
+.m-neither,.m-blind{color:var(--text-muted)}
+
+/* the three absences: solid = looked, found none · dashed = could not look · hatched = withheld */
+.abs{display:inline-flex;align-items:flex-start;gap:var(--s2);padding:var(--s1) var(--s2);border-radius:var(--r);
+  font-size:var(--t12);line-height:16px;color:var(--text-secondary);max-width:100%}
+.abs b{font-weight:600;white-space:nowrap}
+.abs .i{width:14px;height:14px;margin-top:1px}
+.abs-none{border:1px solid var(--border-strong);background:var(--surface-raised)}
+.abs-blind{border:1px dashed var(--text-muted);font-style:italic}
+.abs-blind b{font-style:normal}
+.abs-hidden{border:1px solid var(--border);color:var(--text-muted);
+  background:repeating-linear-gradient(135deg,transparent 0 4px,rgba(23,22,15,.07) 4px 5px)}
+.abs-list{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2)}
+
+.draft{font:700 var(--t12)/1 var(--f-word);letter-spacing:.16em;padding:var(--s1) var(--s2);
+  border:1.5px solid var(--text-primary);border-radius:2px;cursor:help;color:var(--text-primary);background:var(--surface-raised)}
+.illus{display:inline-flex;gap:var(--s2);align-items:center;padding:0 var(--s2);border:1px solid var(--text-primary);border-radius:2px;
+  font-size:var(--t12);line-height:20px;color:var(--text-secondary);background:var(--surface-raised)}
+.illus b{font:700 var(--t12)/1 var(--f-word);letter-spacing:.12em;color:var(--text-primary)}
+
+/* ── mockup strip (not part of the product) ─────────────────────────── */
+.mock{flex:none;height:32px;display:flex;align-items:center;gap:var(--s2);padding:0 var(--s4);overflow-x:auto;white-space:nowrap;
+  border-bottom:1px dashed var(--border-strong);font-size:var(--t12);
+  background:repeating-linear-gradient(135deg,var(--bg) 0 6px,var(--surface-sunk) 6px 7px)}
+.mock .grp{font:600 var(--t11)/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-left:var(--s3)}
+.mock .grp:first-child{margin-left:0;color:var(--text-primary)}
+.mock button{height:24px;padding:0 var(--s2);border:1px solid var(--border);border-radius:var(--r);background:var(--surface);font-size:var(--t12);
+  transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+.mock button:hover{border-color:var(--text-secondary);background:var(--surface-raised)}
+.mock button:active{background:var(--surface-sunk)}
+.mock button[aria-pressed="true"]{background:var(--text-primary);border-color:var(--text-primary);color:var(--surface)}
+.mock .note{margin-left:auto;padding-left:var(--s4);color:var(--text-muted)}
+
+/* ── app bar ────────────────────────────────────────────────────────── */
+.top{flex:none;height:44px;display:flex;align-items:stretch;gap:var(--s5);padding:0 var(--s4);border-bottom:1px solid var(--border);background:var(--surface)}
+.brand{display:flex;align-items:center;font:700 var(--t20)/1 var(--f-word);letter-spacing:.04em}
+.tabs{display:flex}
+.tabs button{position:relative;border:0;background:none;padding:0 var(--s3);color:var(--text-muted);
+  font:600 var(--t16)/1 var(--f-word);letter-spacing:.08em;border-bottom:2px solid transparent;
+  transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.tabs button:hover{color:var(--text-primary);background:var(--surface-sunk)}
+.tabs button:active{background:var(--border)}
+.tabs button[aria-selected="true"]{color:var(--text-primary);border-bottom-color:var(--text-primary)}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:var(--s4);font-size:var(--t12);color:var(--text-secondary)}
+.top-r .clock{font:500 var(--t14)/1 var(--f-num);color:var(--text-primary)}
+
+/* ── validate tab ───────────────────────────────────────────────────── */
+.view{flex:1;min-height:0}
+.validate{display:grid;grid-template-columns:296px minmax(0,1fr)}
+.slip{background:var(--surface);border-right:1px solid var(--border);padding:var(--s4);overflow:auto;display:flex;flex-direction:column;gap:var(--s3)}
+.answer{padding:var(--s4) var(--s5) var(--s6);overflow:auto;min-width:0}
+
+.field{display:flex;flex-direction:column;gap:var(--s1);border:0;margin:0;padding:0;min-width:0}
+.field > .label,.field legend{padding:0;margin-bottom:0}
+.hint{font-size:var(--t12);line-height:16px;color:var(--text-muted)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--border-strong);border-radius:var(--r);overflow:hidden;background:var(--surface-raised)}
+.seg label{position:relative;display:block}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:flex;align-items:center;justify-content:center;gap:var(--s1);height:36px;border-left:1px solid var(--border);
+  font-weight:600;cursor:pointer;user-select:none;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.seg label:first-child span{border-left:0}
+.seg span small{font-weight:400;font-size:var(--t11);line-height:12px;opacity:.72}
+.seg.stack span{flex-direction:column;gap:0;line-height:16px}
+.seg label:hover span{background:var(--surface-sunk)}
+.seg label:active span{background:var(--border)}
+.seg input:checked + span{background:var(--text-primary);color:var(--surface-raised)}
+.seg input:focus-visible + span{outline:2px solid var(--accent);outline-offset:-3px}
+
+select,.inp{height:36px;width:100%;border:1px solid var(--border-strong);border-radius:var(--r);background:var(--surface-raised);
+  padding:0 var(--s3);font-family:var(--f-num);font-size:var(--t16);transition:border-color var(--dur) var(--ease)}
+select:hover,.inp:hover{border-color:var(--text-secondary)}
+.inp{font-size:var(--t14)}
+.inp::-webkit-calendar-picker-indicator{display:none}
+.inp::-webkit-inner-spin-button,.inp::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.inp:disabled{background:var(--surface-sunk);color:var(--text-muted);cursor:not-allowed}
+select:disabled{color:var(--text-muted);background:var(--surface-sunk);cursor:not-allowed}
+
+.stepper{display:grid;grid-template-columns:36px 1fr 36px;height:36px;border:1px solid var(--border-strong);border-radius:var(--r);background:var(--surface-raised);overflow:hidden}
+.stepper button{border:0;background:none;display:grid;place-items:center;color:var(--text-secondary);transition:background var(--dur) var(--ease)}
+.stepper button:hover{background:var(--surface-sunk);color:var(--text-primary)}
+.stepper button:active{background:var(--border)}
+.stepper button:disabled{color:var(--border-strong);background:none;cursor:not-allowed}
+.stepper output{display:flex;align-items:center;justify-content:center;font:500 var(--t16)/1 var(--f-num);border-left:1px solid var(--border);border-right:1px solid var(--border)}
+
+.btn{height:36px;display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);padding:0 var(--s4);
+  border:1px solid var(--border-strong);border-radius:var(--r);background:var(--surface-raised);font-weight:600;
+  transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+.btn:hover{border-color:var(--text-secondary);background:var(--surface)}
+.btn:active{background:var(--surface-sunk)}
+.btn-validate{width:100%;height:48px;margin-top:var(--s1);background:var(--accent);border-color:var(--accent);color:#fff;
+  font:700 var(--t20)/1 var(--f-word);letter-spacing:.16em}
+.btn-validate:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-validate:active{box-shadow:inset 0 2px 0 rgba(0,0,0,.28)}
+.btn-validate:disabled{background:var(--surface-sunk);border-color:var(--border);color:var(--text-muted);cursor:progress;box-shadow:none}
+.btn-in{width:100%;height:40px;border:2px solid var(--text-primary);color:var(--text-primary);font:700 var(--t16)/1 var(--f-word);letter-spacing:.1em}
+.btn-in:hover{background:var(--text-primary);color:var(--surface-raised);border-color:var(--text-primary)}
+.btn-in:active{box-shadow:inset 0 2px 0 rgba(0,0,0,.3)}
+.btn-in:disabled{border:1px solid var(--border);color:var(--text-muted);background:none;cursor:not-allowed}
+
+.took{border-top:1px solid var(--border);padding-top:var(--s3);display:flex;flex-direction:column;gap:var(--s2)}
+.took .hint .tag{margin-left:0}
+
+.tcard{display:flex;flex-direction:column;gap:var(--s3)}
+.tcard .c{font:700 var(--t28)/32px var(--f-word);letter-spacing:.02em}
+.tcard .s{color:var(--text-secondary)}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--s1) var(--s3);margin:0;font-size:var(--t12);line-height:16px}
+.kv dt{color:var(--text-muted)}
+.kv dd{margin:0;color:var(--text-secondary)}
+.tcard .kv{font-size:var(--t14);line-height:20px}
+.words{display:grid;grid-template-columns:80px minmax(0,1fr);gap:var(--s2) var(--s3);align-items:baseline;margin-top:var(--s2);padding-top:var(--s3);border-top:1px solid var(--border)}
+.words .label{grid-column:1 / -1}
+.words .word{font-size:var(--t20);line-height:20px}
+.words p{font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
+
+/* answer — echo line */
+.echo{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);min-height:24px;margin-bottom:var(--s2);color:var(--text-secondary);font-size:var(--t12)}
+.echo .c{font:700 var(--t16)/1 var(--f-word);letter-spacing:.04em;color:var(--text-primary)}
+.echo .dot{color:var(--border-strong)}
+.echo .illus{margin-left:var(--s2)}
+
+/* answer — verdict band */
+.band{display:grid;grid-template-columns:minmax(256px,auto) minmax(200px,auto) minmax(0,1fr);border:1px solid var(--border);border-radius:var(--r2);background:var(--surface-raised)}
+.band > *{padding:var(--s4) var(--s5)}
+.band .w{margin:0;display:flex;flex-direction:column;justify-content:center;padding-right:var(--s6)}
+.band .w .word{font-size:var(--t88);line-height:80px}
+.band .w .since{margin-top:var(--s2);font-size:var(--t16);color:var(--text-secondary)}
+.band .cnt{border-left:1px solid var(--border);display:flex;flex-direction:column;justify-content:center}
+.band .cnt .n{font:500 var(--t40)/44px var(--f-num);white-space:nowrap}
+.band .cnt .n .of{font-family:var(--f-ui);font-weight:400;font-size:var(--t20);color:var(--text-secondary)}
+.band .cnt .n.n28{font-size:var(--t28);line-height:36px}
+.band .cnt .sub{font-size:var(--t14);color:var(--text-secondary)}
+.band .cnt .odds{font:600 var(--t11)/16px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-top:var(--s1)}
+.band .say{border-left:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:var(--s3)}
+.band .say p{font:500 var(--t16)/24px var(--f-ui);max-width:72ch}
+.needs{display:flex;flex-direction:column;gap:var(--s1)}
+.needs ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--s1)}
+.needs li{display:flex;gap:var(--s2);align-items:flex-start;font-weight:500}
+.needs li .i{margin-top:2px;color:var(--text-secondary)}
+/* red header only for NO and FOLD */
+.band.red{background:var(--negative);border-color:var(--negative);color:var(--on-red)}
+.band.red .word{color:var(--on-red)}
+.band.red .cnt,.band.red .say{border-color:var(--on-red-line)}
+.band.red .sub,.band.red .odds,.band.red .tag,.band.red .cnt .n .of,.band.red .since{color:var(--on-red-soft)}
+
+/* answer — body */
+.body{display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:var(--s5);margin-top:var(--s4);transition:opacity var(--dur) var(--ease)}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);padding:var(--s2) 0;border-top:2px solid var(--text-primary);border-bottom:1px solid var(--border)}
+.sec-h .note{font-size:var(--t12);color:var(--text-muted)}
+
+.fact{display:grid;grid-template-columns:16px 104px 80px minmax(0,1fr) 16px;gap:var(--s3);align-items:start;
+  padding:var(--s2);border-bottom:1px solid var(--border);border-radius:0;transition:background var(--dur) var(--ease)}
+.fact > .i{margin-top:2px}
+.fact .nm{font-weight:600}
+.fact .st{font:600 var(--t16)/20px var(--f-word);letter-spacing:.06em;text-transform:uppercase}
+.fact .tx{color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fact .chev{visibility:hidden;color:var(--text-muted);transition:transform var(--dur) var(--ease)}
+.fact.can{cursor:pointer}
+.fact.can .chev{visibility:visible}
+.fact.can:hover{background:var(--surface-sunk)}
+.fact.can:active{background:var(--border)}
+.fact.open .tx{display:block}
+.fact.open .chev{transform:rotate(180deg)}
+.fact[data-st="against"] .nm,.fact[data-st="against"] .st{color:var(--text-primary)}
+.fact[data-st="neither"] .st{color:var(--text-secondary)}
+
+.nums{align-self:start;border-top:2px solid var(--text-primary)}
+.nums > .nb:first-child{padding-top:var(--s2)}
+.nb{padding:var(--s2) 0 var(--s3);border-bottom:1px solid var(--border)}
+.nb-h{display:flex;justify-content:space-between;align-items:baseline}
+.nb-top{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);margin-top:var(--s1)}
+.nb .big{font:500 var(--t28)/32px var(--f-num);white-space:nowrap}
+.nb .big .k{font-family:var(--f-word);font-weight:700;font-size:var(--t28);letter-spacing:.02em;margin-right:var(--s1)}
+.nb .pts{font:500 var(--t20)/24px var(--f-num);white-space:nowrap}
+.nb .pts small{font:400 var(--t14) var(--f-ui);color:var(--text-secondary);margin-left:2px}
+.nb .risk{margin-top:0;font-size:var(--t14);color:var(--text-primary)}
+.nb .sub{margin-top:var(--s1);font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
+.nb .ww{display:flex;align-items:center;gap:var(--s1);margin-top:var(--s1);font:700 var(--t16)/20px var(--f-word);letter-spacing:.06em}
+.nb2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)}
+.nb2 .mid{font:500 var(--t20)/28px var(--f-num);white-space:nowrap}
+.pnl{margin-top:var(--s2);font-size:var(--t12);color:var(--text-secondary)}
+.pnl .num{font-weight:400}
+
+.runs .run{display:grid;grid-template-columns:104px 112px minmax(0,1fr);gap:var(--s3);align-items:start;padding:var(--s2);border-bottom:1px solid var(--border)}
+.run .t{font:400 var(--t14)/20px var(--f-num);color:var(--text-secondary)}
+.run .wd{display:flex;align-items:baseline;gap:var(--s2);font-size:var(--t20);line-height:20px}
+.run .wd small{font:400 var(--t12)/1 var(--f-ui);text-transform:none;letter-spacing:0;color:var(--text-muted)}
+.run .tx{color:var(--text-secondary)}
+.run.now{background:var(--surface-raised)}
+.run.now .t{color:var(--text-primary);font-weight:500}
+
+/* deeper detail */
+.deep{margin-top:var(--s4);border-top:1px solid var(--border)}
+.deep summary{list-style:none;display:flex;align-items:center;gap:var(--s2);min-height:36px;padding:0 var(--s2);cursor:pointer;
+  color:var(--text-secondary);font-weight:600;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.deep summary::-webkit-details-marker{display:none}
+.deep:not([open]){position:sticky;bottom:calc(-1 * var(--s6));background:var(--bg);padding-bottom:var(--s6);margin-bottom:calc(-1 * var(--s6))}
+.deep summary:hover{background:var(--surface-sunk);color:var(--text-primary)}
+.deep summary:active{background:var(--border)}
+.deep summary .muted{font-weight:400}
+.deep summary .i{transition:transform var(--dur) var(--ease)}
+.deep[open] summary .i{transform:rotate(180deg)}
+.deep-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s5);padding:var(--s4) var(--s2) 0}
+.deep-grid section{display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.deep-grid section + section{}
+.deep h4{margin:var(--s2) 0 0;padding-bottom:var(--s1);border-bottom:1px solid var(--border)}
+.deep h4:first-child{margin-top:0}
+.deep .sm{font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
+.rrow{display:grid;grid-template-columns:16px 80px 96px minmax(0,1fr);gap:var(--s2);align-items:start;font-size:var(--t12);line-height:16px;padding:var(--s1) 0}
+.rrow .i{width:14px;height:14px;margin-top:1px}
+.rrow .nm{font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:var(--t11)}
+.rrow .st{font:600 var(--t14)/16px var(--f-word);letter-spacing:.06em;text-transform:uppercase}
+.rrow .tx{color:var(--text-secondary);min-width:0}
+.rrow .tx .abs{margin-bottom:var(--s1)}
+.drow{display:grid;grid-template-columns:16px minmax(0,1fr);gap:var(--s2);font-size:var(--t12);line-height:16px;padding:var(--s1) 0}
+.drow > .i{width:14px;height:14px;margin-top:1px}
+.drow .rh{display:flex;align-items:baseline;gap:var(--s2)}
+.drow .nm{font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:var(--t11)}
+.drow .st{font:600 var(--t14)/16px var(--f-word);letter-spacing:.06em;text-transform:uppercase}
+.drow .tx{color:var(--text-secondary);margin-top:2px}
+.drow .tx .abs{margin-bottom:var(--s1)}
+.side-w{display:flex;align-items:baseline;gap:var(--s2)}
+.side-w .word{font-size:var(--t28);line-height:28px}
+.zr{display:grid;grid-template-columns:16px minmax(0,1fr);gap:var(--s2);font-size:var(--t12);line-height:16px}
+.zr .i{width:14px;height:14px;margin-top:1px}
+
+/* stale answer */
+.stale-note{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s3);margin-bottom:var(--s3);border:1px solid var(--text-primary);border-radius:var(--r);background:var(--surface-raised);font-weight:500}
+.answer.stale .band,.answer.stale .body,.answer.stale .deep{opacity:.4}
+
+/* empty + loading */
+.empty{max-width:760px;padding-top:var(--s5)}
+.empty h2{font:600 var(--t28)/36px var(--f-ui);margin:var(--s2) 0 var(--s3)}
+.empty > p{font-size:var(--t16);line-height:24px;color:var(--text-secondary);max-width:62ch}
+.legend{display:grid;grid-template-columns:96px minmax(0,1fr);gap:var(--s3) var(--s5);align-items:baseline;margin-top:var(--s5);padding-top:var(--s4);border-top:2px solid var(--text-primary)}
+.legend .word{font-size:var(--t40);line-height:40px}
+.legend p{font-size:var(--t16);line-height:24px;color:var(--text-secondary)}
+.five{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s2) var(--s4);margin-top:var(--s5);padding-top:var(--s3);border-top:1px solid var(--border)}
+.five ol{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);margin:0;padding:0;list-style:none;counter-reset:f}
+.five li{counter-increment:f;font-weight:600}
+.five ul.plain{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0;padding:0;list-style:none}
+.five ul.plain li + li::before{content:"·";margin-right:var(--s2);color:var(--border-strong);font-weight:400}
+.five li::before{content:counter(f);font:400 var(--t12)/1 var(--f-num);color:var(--text-muted);margin-right:var(--s1)}
+.sk{display:block;background:var(--surface-sunk);border-radius:2px;animation:pulse .9s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.4}to{opacity:1}}
+.fresh{animation:fadein 180ms var(--ease)}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* other tabs */
+.other{display:flex;align-items:center;justify-content:center;padding:var(--s7)}
+.other p{max-width:44ch;text-align:center;color:var(--text-muted);font-size:var(--t16);line-height:24px}
+.other b{display:block;font:700 var(--t28)/32px var(--f-word);letter-spacing:.06em;color:var(--border-strong);margin-bottom:var(--s2)}
+
+/* ── the floating hold window ───────────────────────────────────────── */
+.float{position:fixed;right:var(--s4);bottom:var(--s4);z-index:40;background:var(--surface-raised);border:1px solid var(--text-primary);border-radius:var(--r2);
+  box-shadow:0 8px 24px rgba(23,22,15,.14);max-width:calc(100vw - 32px);color:var(--text-primary)}
+.float[hidden]{display:none}
+.icon-btn{width:32px;height:32px;display:grid;place-items:center;flex:none;border:0;border-radius:var(--r);background:none;color:var(--text-secondary);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.icon-btn:hover{background:var(--surface-sunk);color:var(--text-primary)}
+.icon-btn:active{background:var(--border)}
+.fl-line{display:flex;align-items:center;gap:var(--s2);height:44px;padding:0 var(--s1) 0 var(--s3);white-space:nowrap;overflow:hidden}
+.fl-line .fw{font-size:var(--t28);line-height:1;margin-right:var(--s1)}
+.fl-line .c{font:700 var(--t16)/1 var(--f-word);letter-spacing:.04em}
+.fl-line .dot{color:var(--border-strong)}
+.fl-line .abs{padding:2px var(--s2)}
+.fl-line .ag{display:inline-flex;gap:var(--s1);align-items:center;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.fl-btns{display:flex;margin-left:auto;padding-left:var(--s2)}
+.float.open{width:400px;max-height:calc(100vh - 32px);overflow:auto}
+.fl-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:var(--s4);align-items:center;padding:var(--s3) var(--s2) var(--s3) var(--s4);border-bottom:1px solid var(--border)}
+.fl-head .fw{font-size:var(--t56);line-height:48px}
+.fl-head .since{font-size:var(--t14);color:var(--text-secondary)}
+.fl-head .cnt .num{font-size:var(--t16)}
+.fl-head .cnt .odds{font:600 var(--t11)/16px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.fl-head .fl-btns{align-self:start}
+.fl-sec{padding:var(--s3) var(--s4);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:var(--s2)}
+.fl-head .c{margin-top:var(--s1);font:700 var(--t16)/20px var(--f-word);letter-spacing:.04em;white-space:nowrap}
+.fl-head .c span{font:400 var(--t12)/1 var(--f-ui);letter-spacing:0;color:var(--text-secondary);margin-left:var(--s1)}
+.fl-say{font-weight:500}
+.fl-nums{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:var(--s3)}
+.fl-nums .big{font:500 var(--t16)/24px var(--f-num);white-space:nowrap}
+.fl-nums .sub{font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
+.fl-nums .ww{display:flex;align-items:center;gap:2px;font:700 var(--t14)/16px var(--f-word);letter-spacing:.06em}
+.fl-nums .ww .i{width:14px;height:14px}
+.fl-sec.fl-rows,.fl-sec.fl-runs{gap:2px}
+.fl-rows .rrow{display:grid;gap:var(--s2);align-items:start;font-size:var(--t12);line-height:16px;grid-template-columns:14px 64px minmax(0,1fr);padding:2px 0}
+.fl-rows .rrow .i{width:14px;height:14px;margin-top:1px}
+.fl-rows .rrow .nm{font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:var(--t11)}
+.fl-rows .rrow .tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-runs .run{display:grid;gap:var(--s2);align-items:baseline;grid-template-columns:88px 48px minmax(0,1fr);padding:2px 0;border:0;font-size:var(--t12);line-height:16px}
+.fl-runs .run .t{font-size:var(--t12);line-height:16px}
+.fl-runs .run .wd{font-size:var(--t16);line-height:16px}
+.fl-runs .run .tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s2) var(--s4);font-size:var(--t11);color:var(--text-muted)}
+/* red header only for FOLD */
+.float.red .fl-line,.float.red .fl-head{background:var(--negative);color:var(--on-red)}
+.float.red .fl-line .fw,.float.red .fl-head .fw{color:var(--on-red)}
+.float.red .icon-btn{color:var(--on-red)}
+/* popped out into Document Picture-in-Picture */
+body.pip{height:auto;overflow:auto;background:var(--surface-raised)}
+.float.in-pip{position:static;width:100%;max-width:none;max-height:none;border:0;border-radius:0;box-shadow:none}
+
+.toast{position:fixed;left:50%;bottom:var(--s4);transform:translateX(-50%);z-index:60;padding:var(--s2) var(--s4);border:1px solid var(--text-primary);
+  border-radius:var(--r);background:var(--surface-raised);font-weight:500;transition:opacity var(--dur) var(--ease)}
+.toast[hidden]{display:none}
+
+/* ── narrower screens ───────────────────────────────────────────────── */
+@media (max-width:1240px){
+  .band{grid-template-columns:auto auto minmax(0,1fr)}
+  .band .w{padding-right:var(--s5)}
+  .body{grid-template-columns:minmax(0,1fr)}
+  .nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 var(--s5)}
+  .nums > .nb:first-child{padding-top:var(--s3)}
+  .nums .nb2{grid-column:1 / -1;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nb-top{flex-wrap:wrap}
+  .deep-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  body{height:auto;overflow:auto}
+  .validate{grid-template-columns:minmax(0,1fr)}
+  .slip{border-right:0;border-bottom:1px solid var(--border)}
+  .answer{overflow:visible;padding:var(--s4)}
+  .deep:not([open]){position:static;padding-bottom:0;margin-bottom:0}
+  .band{grid-template-columns:auto minmax(0,1fr)}
+  .band .say{grid-column:1 / -1;border-left:0;border-top:1px solid var(--border)}
+  .band.red .say{border-top-color:var(--on-red-line)}
+  .band .w .word{font-size:var(--t56);line-height:52px}
+  .nums{grid-template-columns:minmax(0,1fr)}
+  .deep-grid{grid-template-columns:minmax(0,1fr)}
+  .fact{grid-template-columns:16px 96px minmax(0,1fr) 16px}
+  .fact .st{grid-column:3}
+  .fact .tx{grid-column:2 / 4}
+  .top{gap:var(--s3);overflow-x:auto}
+  .top-r .adv{display:none}
+  .runs .run{grid-template-columns:88px minmax(0,1fr)}
+  .runs .run .tx{grid-column:1 / -1}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="mock" role="toolbar" aria-label="Mockup states (not part of the product)">
+  <span class="grp">Mockup</span>
+  <span class="grp">A · Before</span>
+  <button type="button" data-go="empty">Empty</button>
+  <button type="button" data-go="loading">Loading</button>
+  <button type="button" data-go="c0943">09:43 · WAIT 4/5</button>
+  <button type="button" data-go="c0935">09:35 · WAIT 1/5</button>
+  <button type="button" data-go="go">GO *</button>
+  <button type="button" data-go="no">NO *</button>
+  <span class="grp">B · In</span>
+  <button type="button" data-go="in">10:00 · HOLD</button>
+  <span class="grp">C · Window</span>
+  <button type="button" data-go="fcol">Collapsed</button>
+  <button type="button" data-go="fopen">Open</button>
+  <span class="note">* illustrative, built from the real reply texts · designed at 1536 × 695</span>
+</div>
+
+<header class="top">
+  <div class="brand">TAPEMAP</div>
+  <nav class="tabs" role="tablist" aria-label="TapeMap tabs">
+    <button type="button" role="tab" data-tab="board">BOARD</button>
+    <button type="button" role="tab" data-tab="war">WAR</button>
+    <button type="button" role="tab" data-tab="validate">VALIDATE</button>
+  </nav>
+  <div class="top-r">
+    <span class="adv">advisory · nothing is sent to your broker</span>
+    <span><span class="clock" id="clock">09:43</span> IST</span>
+    <span class="draft" id="draftStamp" title="DRAFT — pre-registered 2026-09-25, untested. The forward rows decide it, not this screen.">DRAFT</span>
+  </div>
+</header>
+
+<main class="view validate" id="viewValidate">
+  <aside class="slip" aria-label="Your contract">
+    <form id="slip" autocomplete="off">
+      <div class="field" style="gap:var(--s3)">
+        <fieldset class="field">
+          <legend class="label">Index</legend>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="idx" value="NIFTY" checked><span>NIFTY</span></label>
+            <label><input type="radio" name="idx" value="SENSEX"><span>SENSEX</span></label>
+            <label><input type="radio" name="idx" value="BANKNIFTY"><span>BANKNIFTY</span></label>
+          </div>
+        </fieldset>
+
+        <label class="field">
+          <span class="label">Strike</span>
+          <select name="k" id="strike"></select>
+          <span class="hint" id="strikeHint"></span>
+        </label>
+
+        <div class="pair">
+          <fieldset class="field">
+            <legend class="label">Option</legend>
+            <div class="seg" role="radiogroup">
+              <label><input type="radio" name="opt" value="CE"><span>CE</span></label>
+              <label><input type="radio" name="opt" value="PE" checked><span>PE</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="field">
+            <legend class="label">You</legend>
+            <div class="seg stack" role="radiogroup">
+              <label><input type="radio" name="side" value="BUY" checked><span>BUY <small>long</small></span></label>
+              <label><input type="radio" name="side" value="SELL"><span>SELL <small>short</small></span></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="field">
+          <span class="label" id="qtyLabel">Qty</span>
+          <div class="stepper" role="group" aria-labelledby="qtyLabel">
+            <button type="button" data-step="-1" aria-label="One lot less" id="lotMinus"></button>
+            <output id="lots" name="lots">1 lot</output>
+            <button type="button" data-step="1" aria-label="One lot more" id="lotPlus"></button>
+          </div>
+          <span class="hint" id="qtyHint"></span>
+        </div>
+
+        <button type="submit" class="btn btn-validate" id="validateBtn">VALIDATE</button>
+        <p class="fine">Reads the market for this contract. Each press is logged. Nothing is sent to your broker.</p>
+      </div>
+
+      <div class="took" id="took">
+        <span class="label">Took it?</span>
+        <div class="pair">
+          <label class="field"><span class="hint">Fill time</span><input class="inp" type="time" step="1" name="ft" id="ft"></label>
+          <label class="field"><span class="hint">Fill price ₹</span><input class="inp" type="number" step="0.05" min="0" inputmode="decimal" name="fp" id="fp"></label>
+        </div>
+        <span class="hint" id="fillHint"></span>
+        <button type="button" class="btn btn-in" id="inBtn">I'M IN — WATCH IT FOR ME</button>
+      </div>
+    </form>
+
+    <div class="tcard" id="tcard" hidden></div>
+  </aside>
+
+  <section class="answer" id="answer" aria-live="polite"></section>
+</main>
+
+<main class="view other" id="viewOther" hidden>
+  <p><b id="otherName">BOARD</b>Another tab of TapeMap, not part of this mockup. When a trade is marked, the hold window floats over it, bottom right.</p>
+</main>
+
+<div class="float" id="float" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/*__DATA__ real server replies, 2026-09-25, injected verbatim from the JSON files beside this page */
+const C0943 = {"ok":true,"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/PREREG-merged.md rev 4), untested; §7's forward rows decide it, not this screen","idx":"NIFTY","day":"2026-09-25","asof":"09:43","trade":{"id":"NIFTY-23200PE-long-0944","idx":"NIFTY","k":23200,"side":"PE","role":"long","t0":"09:44","p0":181.5,"qty":65,"exit_t":null,"src":"check","expiry":null},"lot":65,"qty_src":"1 lot (65)","p0_src":"the chain's last trade at 09:43 [I]","thesis":{"d":-1,"buyer":true,"Q":"PE","R":"CE"},"now":{"t":"09:43","verdict":"HOLD","tag":null,"sentence":"HOLD — the reason stands: PE 23,000 giving back since 09:36 (24% off) — the writers your move forces are leaving; CE 23,100 still adding (+73.5L) — holding","since":"09:43","fold_rule":null,"unlatched":"HOLD","healed_since":null,"line":{"L":23121.6,"src":"session high so far, no 5m swing above you yet","room":73,"px":23048.8,"broken_at":null,"blind":null,"tag":"M"},"payers":{"state":"for","k":23000,"tag":"M","fact":"PE 23,000 giving back since 09:36 (24% off) — the writers your move forces are leaving"},"holders":{"label":"HOLDERS","tag":"M","fold":null,"fold_for":false,"k":23100,"state":"for","fact":"CE 23,100 still adding (+73.5L) — holding"},"flow":{"state":"blind","fact":"CVD -421 since 09:25 (rank 1.00) · 0 sell / 0 buy prints of size","why":"could not check — too thin to read (fill runs could not rank)","tag":"I"},"trend":{"state":"for","rows":"5m RANGE · 15m DOWN · 1h DOWN","tag":"I"},"both_leaving":false,"count":"3 for · 0 against — a count, not odds","clock":{"paid_last":"09:43","quiet":0,"readable":1,"of":15,"text":"paid last 09:43 · quiet 0 of 15"},"watch":null,"prem":{"c":181.5,"tag":"I","pnl":0,"pct":0,"adverse":false},"blind":["could not check — too thin to read (fill runs could not rank)"]},"entry":{"t":"09:43","verdict":"HOLD","text":"If you enter now, you enter into HOLD — line 23,121.6, 73 pts of room; PE 23,000 giving back since 09:36 (24% off) — the writers your move forces are leaving; CE 23,100 still adding (+73.5L) — holding.","head_until":"09:46","fold_rule":null},"plan":{"t":"09:43","stop":{"L":23121.6,"room":73,"risk":2880.93,"risk_why":null,"tag":"M","risk_tag":"I"},"rung":{"src":"wall","side":"PE","k":23000,"room":49,"word":"GIVING WAY","favour":"the writers in your way are leaving — in your favour","state":"UNWINDING","fold_t":"09:43","tag":"M"},"touch":null,"exits":{"line":"the line: 23121.6, 73 pts","window":"the window: HOLD · since 09:43"},"room":{"rung":49,"stop":73,"text":"rung 49 pts · stop 73 pts","note":"you risk more points to the line than the next rung is away"},"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/PLAN-PREREG.md rev 2a), untested; its §6 decides","not_shown":["not shown — a size: the plan leaves the size to you","not shown — a single exit: the line and the window both stand; you choose"]},"side":{"side":"PUTS","since":"09:37","stamp":false,"text":"PUTS side since 09:37 · 2 for · 0 against · 1 could not check · OI: TREND DOWN","rows":"5m RANGE · 15m DOWN · 1h DOWN","facts":[{"k":"payers","tag":"M","state":"for","fact":"PE 23,000 giving back since 09:36 (24% off) · PE 23,000 folded 09:43"},{"k":"holders","tag":"M","state":"for","fact":"CE 23,100 still adding (+73.5L)"},{"k":"aggression","tag":"I","state":"blind","fact":"could not check — too thin to read (fill runs could not rank)"}],"oi_half":["TREND DOWN","put side stopped, call side writing: CE 23,100 writing · PE 23,000 giving back"],"expiry":{"text":"could not check — expiry not in the day's record","tag":"M"},"note":"a count, never odds","tag":"I","agrees":"agrees"},"zone":{"trigger":{"t":"09:33","seen":"09:35","ago":8,"kind":"triggered","side":"SELL","band":"u2","px":23141,"legal":true,"why":"CE 23200 still building","agrees":"agrees","tag":"M"},"arm":{"t":"09:39","seen":"09:41","ago":2,"kind":"armed","side":"BUY","band":"d2","px":null,"legal":false,"why":"PE 23000 stopped building at 09:36","agrees":"against","tag":"M"},"why":null},"greeks":{"delta":-0.6546,"gamma":0.0013,"tag":"M"},"absent":{"checked_none":"checked, none — no order, no size and no confidence number is computed here","could_not_check":["could not check — too thin to read (fill runs could not rank)"],"not_shown":["not shown — the engine's own headline words — its 09-24 calls read CONTRADICTED by the tool's own grounding","not shown — a size: the plan leaves the size to you","not shown — a single exit: the line and the window both stand; you choose"]},"note":"a check marks no trade; a VALIDATE press is logged (docs/hold/VALIDATE-PREREG.md §3)","validate":{"word":"WAIT","count":"4 of 5 line up","n_for":4,"n_against":1,"n_neither":0,"sentence":"Mixed — next wall only 49 pts away, your stop 73 pts away.","needs":["more room: the next wall is closer than your stop"],"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/VALIDATE-PREREG.md rev 1); its §4 decides, on your forward checks","tag":"I","facts":[{"name":"Your setup","state":"for","text":"SELL u2 fired 09:33, gate legal — your setup, your direction"},{"name":"Right now","state":"for","text":"you would enter into HOLD — line 23,121.6, 73 pts of room; PE 23,000 giving back since 09:36 (24% off) — the writers your move forces are leaving; CE 23,100 still adding (+73.5L) — holding"},{"name":"Market side","state":"for","text":"PUTS side since 09:37 — agrees with you"},{"name":"Room to run","state":"against","text":"next wall only 49 pts away, your stop 73 pts away"},{"name":"Next wall","state":"for","text":"PE 23,000 giving way — the writers in your way are leaving"}]}};
+const C0935 = {"ok":true,"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/PREREG-merged.md rev 4), untested; §7's forward rows decide it, not this screen","idx":"NIFTY","day":"2026-09-25","asof":"09:35","trade":{"id":"NIFTY-23200PE-long-0936","idx":"NIFTY","k":23200,"side":"PE","role":"long","t0":"09:36","p0":143.15,"qty":65,"exit_t":null,"src":"check","expiry":null},"lot":65,"qty_src":"1 lot (65)","p0_src":"the chain's last trade at 09:35 [I]","thesis":{"d":-1,"buyer":true,"Q":"PE","R":"CE"},"now":{"t":"09:35","verdict":"WATCH","tag":null,"sentence":"WATCH — PE 23,100 still adding (+80.3L) — writers adding in its way (held 3 min)","since":"09:35","fold_rule":null,"unlatched":"WATCH","healed_since":null,"line":{"L":23121.6,"src":"session high so far, no 5m swing above you yet","room":18,"px":23103.95,"broken_at":null,"blind":null,"tag":"M"},"payers":{"state":"against","k":23100,"tag":"M","fact":"PE 23,100 still adding (+80.3L) — writers adding in its way (held 3 min)"},"holders":{"label":"HOLDERS","tag":"M","fold":null,"fold_for":false,"k":23200,"state":"for","fact":"CE 23,200 still adding (+29.7L) — holding"},"flow":{"state":"blind","fact":"CVD -7 since 09:20 (rank 1.00) · 0 sell / 0 buy prints of size","why":"could not check — too thin to read (fill runs could not rank)","tag":"I"},"trend":{"state":"flat","rows":"5m UP · 15m RANGE · 1h DOWN","tag":"I"},"both_leaving":false,"count":"1 for · 1 against — a count, not odds","clock":{"paid_last":null,"quiet":1,"readable":1,"of":15,"text":"paid last — · quiet 1 of 15"},"watch":"FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min","prem":{"c":143.15,"tag":"I","pnl":0,"pct":0,"adverse":false},"blind":["could not check — too thin to read (fill runs could not rank)"]},"entry":{"t":"09:35","verdict":"WATCH","text":"If you enter now, you enter into WATCH — PE 23,100 still adding (+80.3L) — writers adding in its way (held 3 min); it becomes FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min.","head_until":"09:40","fold_rule":null},"plan":{"t":"09:35","stop":{"L":23121.6,"room":18,"risk":665.03,"risk_why":null,"tag":"M","risk_tag":"I"},"rung":{"src":"wall","side":"PE","k":23100,"room":4,"word":"DEFENDED","favour":"the writers in your way are holding — against your move until they give","state":"BUILDING","fold_t":null,"tag":"M"},"touch":null,"exits":{"line":"the line: 23121.6, 18 pts","window":"the window: WATCH · since 09:35"},"room":{"rung":4,"stop":18,"text":"rung 4 pts · stop 18 pts","note":"you risk more points to the line than the next rung is away"},"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/PLAN-PREREG.md rev 2a), untested; its §6 decides","not_shown":["not shown — a size: the plan leaves the size to you","not shown — a single exit: the line and the window both stand; you choose"]},"side":{"side":"no side","since":"09:15","stamp":false,"text":"no side since 09:15 — 5m UP · 15m RANGE · 1h DOWN — no side","rows":"5m UP · 15m RANGE · 1h DOWN — no side","facts":[],"oi_half":["PIN","both sides writing: CE 23,200 writing · PE 23,100 writing"],"expiry":{"text":"could not check — expiry not in the day's record","tag":"M"},"note":"a count, never odds","tag":"I","agrees":"no side — the rows do not agree"},"zone":{"trigger":{"t":"09:33","seen":"09:35","ago":0,"kind":"triggered","side":"SELL","band":"u2","px":23141,"legal":true,"why":"CE 23200 still building","agrees":"agrees","tag":"M"},"arm":{"t":"09:30","seen":"09:32","ago":3,"kind":"armed","side":"SELL","band":"u2","px":null,"legal":true,"why":"CE 23200 still building","agrees":"agrees","tag":"M"},"why":null},"greeks":{"delta":-0.581,"gamma":0.0014,"tag":"M"},"absent":{"checked_none":"checked, none — no order, no size and no confidence number is computed here","could_not_check":["could not check — too thin to read (fill runs could not rank)"],"not_shown":["not shown — the engine's own headline words — its 09-24 calls read CONTRADICTED by the tool's own grounding","not shown — a size: the plan leaves the size to you","not shown — a single exit: the line and the window both stand; you choose"]},"note":"a check marks no trade; a VALIDATE press is logged (docs/hold/VALIDATE-PREREG.md §3)","validate":{"word":"WAIT","count":"1 of 5 line up","n_for":1,"n_against":2,"n_neither":2,"sentence":"Mixed — next wall only 4 pts away, your stop 18 pts away; PE 23,100 defended — the writers in your way are holding.","needs":["more room: the next wall is closer than your stop","the wall at PE 23,100 to give way"],"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/VALIDATE-PREREG.md rev 1); its §4 decides, on your forward checks","tag":"I","facts":[{"name":"Your setup","state":"for","text":"SELL u2 fired 09:33, gate legal — your setup, your direction"},{"name":"Right now","state":"neither","text":"you would enter into WATCH — PE 23,100 still adding (+80.3L) — writers adding in its way (held 3 min); it becomes FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min"},{"name":"Market side","state":"neither","text":"no side — the trend rows do not agree"},{"name":"Room to run","state":"against","text":"next wall only 4 pts away, your stop 18 pts away"},{"name":"Next wall","state":"against","text":"PE 23,100 defended — the writers in your way are holding"}]}};
+const H1000 = {"ok":true,"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/PREREG-merged.md rev 4), untested; §7's forward rows decide it, not this screen","idx":"NIFTY","day":"2026-09-25","asof":"10:00","trade":{"id":"NIFTY-23200PE-long-093630","idx":"NIFTY","k":23200,"side":"PE","role":"long","t0":"09:36:30","p0":150,"qty":65,"exit_t":null,"src":"marked","expiry":null},"thesis":{"d":-1,"buyer":true,"Q":"PE","R":"CE"},"now":{"t":"10:00","verdict":"HOLD","tag":null,"sentence":"HOLD — the reason stands: PE 23,100 giving back since 09:35 (25% off) — the writers your move forces are leaving; CE 23,100 still adding (+92.2L) — holding","since":"09:56","fold_rule":null,"unlatched":"HOLD","healed_since":null,"line":{"L":23121.6,"src":"session high so far, no 5m swing above you yet","room":65,"px":23056.85,"broken_at":null,"blind":null,"tag":"M"},"payers":{"state":"for","k":23100,"tag":"M","fact":"PE 23,100 giving back since 09:35 (25% off) — the writers your move forces are leaving"},"holders":{"label":"HOLDERS","tag":"M","fold":null,"fold_for":false,"k":23100,"state":"for","fact":"CE 23,100 still adding (+92.2L) — holding"},"flow":{"state":"blind","fact":"CVD -886 since 09:45 (rank 1.00) · 0 sell / 0 buy prints of size","why":"could not check — too thin to read (fill runs could not rank)","tag":"I"},"trend":{"state":"for","rows":"5m DOWN · 15m DOWN · 1h DOWN","tag":"I"},"both_leaving":false,"count":"3 for · 0 against — a count, not odds","clock":{"paid_last":"10:00","quiet":0,"readable":26,"of":15,"text":"paid last 10:00 · quiet 0 of 15"},"watch":null,"prem":{"c":170.6,"tag":"I","pnl":1339,"pct":13.7,"adverse":false},"blind":["could not check — too thin to read (fill runs could not rank)"]},"fold":null,"plan":{"t":"10:00","stop":{"L":23121.6,"room":65,"risk":2449.44,"risk_why":null,"tag":"M","risk_tag":"I"},"rung":{"src":"wall","side":"PE","k":23000,"room":57,"word":"DEFENDED","favour":"the writers in your way are holding — against your move until they give","state":"BUILDING","fold_t":null,"tag":"M"},"touch":null,"exits":{"line":"the line: 23121.6, 65 pts","window":"the window: HOLD · since 09:56"},"room":{"rung":57,"stop":65,"text":"rung 57 pts · stop 65 pts","note":"you risk more points to the line than the next rung is away"},"entry":{"t":"09:35","stop":{"L":23121.6,"room":18,"risk":665.03,"risk_why":null,"tag":"M","risk_tag":"I"},"rung":{"src":"wall","side":"PE","k":23100,"room":4,"word":"DEFENDED","favour":"the writers in your way are holding — against your move until they give","state":"BUILDING","fold_t":null,"tag":"M"},"touch":null,"exits":{"line":"the line: 23121.6, 18 pts","window":"the window: WATCH · since 09:35"},"room":{"rung":4,"stop":18,"text":"rung 4 pts · stop 18 pts","note":"you risk more points to the line than the next rung is away"}},"draft":"DRAFT — pre-registered 2026-09-25 (docs/hold/PLAN-PREREG.md rev 2a), untested; its §6 decides","not_shown":["not shown — a size: the plan leaves the size to you","not shown — a single exit: the line and the window both stand; you choose"]},"entry":{"t":"09:35","verdict":"WATCH","text":"You entered into WATCH — PE 23,100 still adding (+80.3L) — writers adding in its way (held 3 min); it becomes FOLD if the CE writers leave for 3 min, or one more of: flow against you (CVD strong and prints dominant); the trend rows against you (2 of 5m / 15m / 1h), or a 1-min index close beyond 23,121.6, or nothing pays for 15 readable min.","head_until":"09:40","fold_rule":null,"head":false},"side":{"side":"PUTS","since":"09:37","stamp":false,"text":"PUTS side since 09:37 · 2 for · 0 against · 1 could not check · OI: TREND DOWN","rows":"5m DOWN · 15m DOWN · 1h DOWN","facts":[{"k":"payers","tag":"M","state":"for","fact":"PE 23,100 giving back since 09:35 (25% off) · PE 22,850 folded 09:52"},{"k":"holders","tag":"M","state":"for","fact":"CE 23,100 still adding (+92.2L)"},{"k":"aggression","tag":"I","state":"blind","fact":"could not check — too thin to read (fill runs could not rank)"}],"oi_half":["TREND DOWN","put side stopped, call side writing: CE 23,100 writing · PE 23,100 giving back"],"expiry":{"text":"could not check — expiry not in the day's record","tag":"M"},"note":"a count, never odds","tag":"I","agrees":"agrees"},"after_exit":false,"sigma":{"why":"could not check — not in this sample","tag":"M"},"rows":null,"runs":[{"from":"09:35","to":"09:42","verdict":"WATCH","tag":null,"sentence":"WATCH — PE 23,100 still adding (+80.3L) — writers adding in its way (held 3 min)"},{"from":"09:43","to":"09:54","verdict":"HOLD","tag":null,"sentence":"HOLD — the reason stands: PE 23,000 giving back since 09:36 (24% off) — the writers your move forces are leaving; CE 23,100 still adding (+73.5L) — holding"},{"from":"09:55","to":"09:55","verdict":"WATCH","tag":null,"sentence":"WATCH — PE 22,850 folded 09:52, 9% off its 09:39 high"},{"from":"09:56","to":"10:00","verdict":"HOLD","tag":"noise","sentence":"HOLD · noise — what holds this trade has not changed: PE 23,100 giving back since 09:35 (25% off) — the writers your move forces are leaving; CE 23,100 still adding (+89.7L) — holding"}],"absent":{"checked_none":"checked, none — no FOLD rule has matched since your entry","could_not_check":["could not check — too thin to read (fill runs could not rank)"],"not_shown":["not shown — the engine's headline (WAIT / SPENT / GO) — its 09-24 calls read CONTRADICTED by the tool's own grounding","not shown — an order, a size, a target, a stop price or a probability — never","not shown — P&L on the collapsed line — the window reads the reason, not the money"]},"src_data":{"grid":"chain poller grid, 44 marks to 10:00","ladder":"48 ladder bars, 0 fill runs (no fill has reached the run detector yet this process)","trend":"Upstox index candles (REST)"},"note":"display only; the window gates nothing and has no order path"};
+/*__END__*/
+
+/* ── helpers ────────────────────────────────────────────────────────── */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function ico(name, cls = ''){
+  const n = window.lucide && lucide.icons && lucide.icons[name];
+  if(!n) return '';
+  const kids = n[2].map(([t, a]) => `<${t} ${Object.entries(a).map(([k, v]) => `${k}="${v}"`).join(' ')}/>`).join('');
+  return `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${kids}</svg>`;
+}
+const inr = (n, min = 0, max = min) => Number(n).toLocaleString('en-IN', {minimumFractionDigits:min, maximumFractionDigits:max});
+const rs = (n, dp = 0) => '₹' + inr(n, dp);
+const T = t => t ? `<span class="tag" title="${t === 'M' ? 'measured' : 'inferred'}">[${t}]</span>` : '';
+const N = (s, t) => `<span class="num">${s}</span>${T(t)}`;
+const signed = x => (x < 0 ? '−' : '+') + Math.abs(x).toFixed(2);
+const vcls = w => 'v-' + (w === 'PATA NAHI' ? 'PATA' : w);
+const strip = s => String(s).replace(/^[A-Z ]+(?: · \w+)? — /, '');          // the word is already shown
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const contract = t => `${t.idx} ${Math.round(t.k)} ${t.side}`;
+const atm = px => Math.round(px / 50) * 50;
+
+const MARK = {for:['Check','m-for'], against:['X','m-against'], neither:['Minus','m-neither'], flat:['Minus','m-neither'], blind:['EyeOff','m-blind'], line:['', '']};
+const mark = st => { const [n, c] = MARK[st] || MARK.neither; return n ? ico(n, c) : '<span></span>'; };
+const FACT_WORD = {for:'with you', against:'against', neither:'neither'};
+const ROW_WORD = {for:'for', against:'against', flat:'flat', blind:'could not check'};
+const WALL = {'GIVING WAY':'for', 'DEFENDED':'against', 'STALLED':'neither'};
+const LOT = {NIFTY:65, SENSEX:20, BANKNIFTY:null};
+
+function abs(text){
+  const s = String(text), i = s.indexOf(' — ');
+  const kind = s.startsWith('checked, none') ? 'none' : s.startsWith('could not check') ? 'blind' : 'hidden';
+  const icon = {none:'SearchX', blind:'EyeOff', hidden:'Ban'}[kind];
+  const head = i > 0 ? s.slice(0, i) : s, rest = i > 0 ? s.slice(i + 3) : '';
+  return `<span class="abs abs-${kind}">${ico(icon)}<span><b>${esc(head)}</b>${rest ? ' — ' + esc(rest) : ''}</span></span>`;
+}
+
+/* ── the two illustrative verdicts (the brief asks for GO and NO; no real reply holds them) ── */
+function variant(base, over, facts, note){
+  const d = structuredClone(base);
+  d.illustrative = note;
+  Object.assign(d.validate, over);
+  d.validate.facts = d.validate.facts.map(f => facts[f.name] ? {...f, ...facts[f.name]} : f);
+  return d;
+}
+const GO = variant(C0943,
+  {word:'GO', count:'4 of 5 line up', n_for:4, n_against:0, n_neither:1, needs:[],
+   sentence:'4 of 5 line up and nothing is against you — PE 23,000 giving way.'},
+  {'Room to run':{state:'neither', text:'next wall 49 pts away and giving way, your stop 73 pts away'}},
+  'the 09:43 reply, Room to run read as neither');
+const NO = variant(C0935,
+  {word:'NO', count:'0 of 5 line up', n_for:0, n_against:3, n_neither:2, needs:[],
+   sentence:'Against you — BUY d2 armed, not your setup; next wall only 4 pts away; PE 23,100 defended.'},
+  {'Your setup':{state:'against', text:'BUY d2 armed 09:39, gate not legal — PE 23000 stopped building at 09:36 — against your direction'}},
+  'the 09:35 reply, Your setup read from the 09:39 BUY d2 arm');
+const CHECKS = {c0943:C0943, c0935:C0935, go:GO, no:NO};
+
+/* ── state ──────────────────────────────────────────────────────────── */
+const S = {view:'empty', check:'c0943', tab:'validate', trade:false, float:'col', answered:null, lots:1};
+const form = $('#slip'), answer = $('#answer'), floatEl = $('#float');
+let pipWin = null, loadTimer = 0;
+
+const formKey = () => [form.idx.value, form.k.value, form.opt.value, form.side.value, S.lots].join('|');
+function pxNow(){ return S.view === 'in' ? H1000.now.line.px : (CHECKS[S.check] || C0943).now.line.px; }
+function asOf(){ return S.view === 'in' ? H1000.asof : (CHECKS[S.check] || C0943).asof; }
+
+/* ── the slip (her hand) ────────────────────────────────────────────── */
+function buildStrikes(){
+  const sel = form.k, idx = form.idx.value, keep = sel.value || '23200';
+  if(idx !== 'NIFTY'){
+    sel.innerHTML = '<option value="">ladder not in this mockup</option>';
+    sel.disabled = true;
+    $('#strikeHint').innerHTML = `${idx} replies are not in this mockup`;
+    return;
+  }
+  sel.disabled = false;
+  const px = pxNow(), a = atm(px);
+  let h = '';
+  for(let k = 22800; k <= 23400; k += 50) h += `<option value="${k}">${k}${k === a ? '  ·  ATM' : ''}</option>`;
+  sel.innerHTML = h;
+  sel.value = keep;
+  $('#strikeHint').innerHTML = `NIFTY ${N(inr(px, 1, 2), 'M')} at ${asOf()} · ATM ${a}`;
+}
+function renderQty(){
+  const lot = LOT[form.idx.value];
+  $('#lots').textContent = `${S.lots} lot${S.lots > 1 ? 's' : ''}`;
+  $('#qtyHint').innerHTML = lot ? `= ${N(inr(S.lots * lot))} qty · lot ${lot}` : 'lot size not in this mockup';
+  $('#lotMinus').disabled = S.lots <= 1;
+}
+function renderSlip(){
+  const inTrade = S.view === 'in';
+  form.hidden = inTrade;
+  $('#tcard').hidden = !inTrade;
+  if(inTrade){
+    const t = H1000.trade;
+    $('#tcard').innerHTML = `
+      <span class="label">Your marked trade</span>
+      <div><div class="c">${contract(t)}</div><div class="s">BUY · long · 1 lot (${t.qty})</div></div>
+      <dl class="kv">
+        <dt>In at</dt><dd class="num">${t.t0}</dd>
+        <dt>Fill</dt><dd><span class="num">${rs(t.p0, 2)}</span> <span class="muted">your fill</span></dd>
+      </dl>
+      <button type="button" class="btn" id="outBtn">I'M OUT — STOP WATCHING</button>
+      <p class="fine">Display only: the window gates nothing and has no order path. Nothing is sent to your broker.</p>
+      <div class="words">
+        <span class="label">The four words</span>
+        <span class="word v-HOLD">HOLD</span><p>The reason you entered still stands.</p>
+        <span class="word v-WATCH">WATCH</span><p>Something moved against you. It says what would make it FOLD.</p>
+        <span class="word v-FOLD">FOLD</span><p>A fold rule matched. The header turns red.</p>
+        <span class="word v-PATA">PATA NAHI</span><p>Don't know: a needed input is missing.</p>
+      </div>`;
+    $('#outBtn').onclick = () => go('empty');
+    return;
+  }
+  const loading = S.view === 'loading';
+  $('#validateBtn').disabled = loading;
+  $('#validateBtn').textContent = loading ? 'CHECKING…' : 'VALIDATE';
+  const d = S.view === 'check' ? CHECKS[S.check] : null;
+  $('#inBtn').disabled = !d;
+  $('#ft').disabled = $('#fp').disabled = !d;
+  $('#fillHint').innerHTML = d
+    ? `Prefilled from ${esc(d.p0_src.replace(' [I]', ''))}${T('I')}. Change it to your broker's fill.`
+    : 'After an answer. Marks your trade here; nothing is sent to your broker.';
+}
+
+/* ── answer: empty · loading ────────────────────────────────────────── */
+function renderEmpty(){
+  answer.innerHTML = `<div class="empty fresh">
+    <span class="label">Before you take it</span>
+    <h2>Pick the contract, then press VALIDATE.</h2>
+    <p>The answer is one word, and a count of how many of five facts line up with your trade. A count, not odds. Nothing is sent to your broker.</p>
+    <div class="legend">
+      <span class="word v-GO">GO</span><p>5 of 5 line up, or 4 of 5 with nothing against you.</p>
+      <span class="word v-WAIT">WAIT</span><p>In between. It says what would have to change.</p>
+      <span class="word v-NO">NO</span><p>3 or more of the five are against you.</p>
+    </div>
+    <div class="five"><span class="label">The five</span>
+      <ol><li>Your setup</li><li>Right now</li><li>Market side</li><li>Room to run</li><li>Next wall</li></ol></div>
+    <div class="five"><span class="label">Then the numbers</span>
+      <ul class="plain"><li>Stop</li><li>Next wall</li><li>Premium</li><li>Delta</li></ul></div>
+  </div>`;
+}
+function renderLoading(){
+  const names = ['Your setup','Right now','Market side','Room to run','Next wall'];
+  const sk = (w, h) => `<span class="sk" style="width:${w}px;height:${h}px"></span>`;
+  answer.innerHTML = `
+    <div class="echo"><span class="label">Checking</span><span class="c">${form.idx.value} ${form.k.value} ${form.opt.value}</span>
+      <span class="dot">·</span><span>${form.side.value === 'BUY' ? 'BUY · long' : 'SELL · short'}</span><span class="dot">·</span><span>${S.lots} lot${S.lots > 1 ? 's' : ''}</span></div>
+    <div class="band">
+      <div class="w">${sk(176, 80)}</div>
+      <div class="cnt">${sk(120, 40)}<span style="height:8px"></span>${sk(96, 12)}</div>
+      <div class="say">${sk(420, 16)}${sk(300, 16)}<span class="fine">Reading your setup, the side and the walls…</span></div>
+    </div>
+    <div class="body">
+      <div class="facts"><div class="sec-h"><span class="label">Five facts</span><span class="note">reading</span></div>
+        ${names.map(n => `<div class="fact"><span></span><span class="nm">${n}</span><span class="st muted">…</span>${sk(360, 14)}<span></span></div>`).join('')}</div>
+      <div class="nums">${['Stop','Next wall','Premium · Delta'].map(l => `<div class="nb"><span class="label">${l}</span><div class="nb-top">${sk(150, 28)}${sk(56, 20)}</div></div>`).join('')}</div>
+    </div>`;
+}
+
+/* ── answer: the check ──────────────────────────────────────────────── */
+function wallBlock(r, big = 'big'){
+  return `<div class="nb-top"><span class="${big}"><span class="k">${r.side}</span>${N(inr(r.k), r.tag)}</span><span class="pts">${N(r.room)}<small>pts</small>${T(r.tag)}</span></div>
+    <div class="ww">${mark(WALL[r.word] || 'neither')}${esc(r.word)}</div>
+    <div class="sub">${esc(r.favour)}</div>`;
+}
+function stopBlock(p, n, lots){
+  return `<div class="nb">
+      <div class="nb-h"><span class="label">Stop · index level</span></div>
+      <div class="nb-top"><span class="big">${N(inr(p.stop.L, 1), p.stop.tag)}</span><span class="pts">${N(p.stop.room)}<small>pts</small>${T(p.stop.tag)}</span></div>
+      <div class="risk">≈ ${N(rs(p.stop.risk * lots), p.stop.risk_tag)} at risk if it broke now</div>
+      <div class="sub">NIFTY now ${N(inr(n.line.px, 1, 2), n.line.tag)} · ${esc(n.line.src)}</div>
+    </div>`;
+}
+function rowsHTML(n){
+  const L = n.line;
+  const rows = [
+    {nm:'Line', st:L.broken_at ? 'against' : 'line', word:L.broken_at ? 'broken' : 'not broken',
+     tx:`${N(inr(L.L, 1), L.tag)} · ${N(L.room)} pts of room${T(L.tag)} — ${esc(L.src)}`},
+    {nm:'Payers', st:n.payers.state, tx:esc(n.payers.fact) + T(n.payers.tag)},
+    {nm:'Holders', st:n.holders.state, tx:esc(n.holders.fact) + T(n.holders.tag)},
+    {nm:'Order flow', st:n.flow.state,
+     tx:n.flow.state === 'blind' ? `${abs(n.flow.why)}<div class="muted">seen: ${esc(n.flow.fact)}${T(n.flow.tag)}</div>` : esc(n.flow.fact) + T(n.flow.tag)},
+    {nm:'Trend', st:n.trend.state, tx:esc(n.trend.rows) + T(n.trend.tag)},
+  ];
+  return rows.map(r => `<div class="drow">${mark(r.st)}<div><div class="rh"><span class="nm">${r.nm}</span><span class="st">${r.word || ROW_WORD[r.st] || r.st}</span></div><div class="tx">${r.tx}</div></div></div>`).join('')
+    + `<p class="sm">${esc(n.count)} · ${esc(n.clock.text)}</p>`;
+}
+function planHTML(p){
+  return `<h4 class="label">The plan</h4>
+    <dl class="kv">
+      <dt>Stop</dt><dd>${N(inr(p.stop.L, 1), p.stop.tag)} · ${N(p.stop.room)} pts · ≈ ${N(rs(p.stop.risk), p.stop.risk_tag)} at risk, 1 lot</dd>
+      <dt>Rung</dt><dd>${p.rung.side} ${N(inr(p.rung.k), p.rung.tag)} · ${N(p.rung.room)} pts · <b>${esc(p.rung.word.toLowerCase())}</b> — ${esc(p.rung.favour)}</dd>
+      <dt>Room</dt><dd>${esc(p.room.text)} — ${esc(p.room.note)}</dd>
+      <dt>Exits</dt><dd>the line ${N(inr(p.stop.L, 1), p.stop.tag)} · ${N(p.stop.room)} pts<br>${esc(p.exits.window)}</dd>
+      ${p.entry ? `<dt>At entry</dt><dd>${esc(p.entry.room.text)} · ${esc(p.entry.exits.window)}</dd>` : ''}
+    </dl>
+    <div class="abs-list">${p.not_shown.map(abs).join('')}</div>`;
+}
+function sideHTML(s){
+  return `<h4 class="label">The side read</h4>
+    <div class="side-w"><span class="word">${esc(s.side)}</span><span class="sm">since <span class="num">${s.since}</span>${T(s.tag)}</span></div>
+    <p class="sm">${esc(s.text)}</p>
+    ${s.facts.map(f => `<div class="drow">${mark(f.state)}<div><div class="rh"><span class="nm">${esc(f.k)}</span><span class="st">${ROW_WORD[f.state]}</span></div><div class="tx">${f.state === 'blind' ? abs(f.fact) : esc(f.fact) + T(f.tag)}</div></div></div>`).join('')}
+    <p class="sm">OI: <b>${esc(s.oi_half[0])}</b> — ${esc(s.oi_half[1])}</p>
+    <div class="abs-list">${abs(s.expiry.text)}</div>`;
+}
+function zoneHTML(z){
+  const line = e => e ? `<div class="zr">${mark(e.agrees === 'agrees' ? 'for' : 'against')}<div>
+      <b>${e.side} ${e.band}</b> ${e.kind} <span class="num">${e.t}</span> <span class="muted">(seen ${e.seen})</span> · gate ${e.legal ? 'legal' : 'not legal'}${e.px ? ` · at ${N(inr(e.px, 1), e.tag)}` : ''}
+      <div class="muted">${esc(e.why)} — ${esc(e.agrees)}</div></div></div>` : '';
+  return `<h4 class="label">The zone</h4>${line(z.trigger)}${line(z.arm)}`;
+}
+const absentHTML = a => `<h4 class="label">What is absent, and why</h4>
+  <div class="abs-list">${[a.checked_none, ...a.could_not_check, ...a.not_shown].map(abs).join('')}</div>`;
+
+function renderCheck(){
+  const d = CHECKS[S.check], v = d.validate, red = v.word === 'NO', lots = S.lots;
+  answer.innerHTML = `<div class="fresh">
+    <div class="echo">
+      <span class="label">Answer for</span><span class="c">${contract(d.trade)}</span>
+      <span class="dot">·</span><span>BUY · long</span><span class="dot">·</span><span>${lots} lot${lots > 1 ? 's' : ''} (${inr(lots * d.lot)})</span>
+      <span class="dot">·</span><span>checked <span class="num">${d.illustrative ? '—' : d.asof}</span></span>
+      ${d.illustrative ? `<span class="illus"><b>ILLUSTRATIVE</b>${esc(d.illustrative)} — not a server reply</span>` : ''}
+    </div>
+    <div class="band ${red ? 'red' : ''}">
+      <h2 class="w"><span class="word ${vcls(v.word)}">${v.word}</span></h2>
+      <div class="cnt">
+        <div class="n">${v.n_for}<span class="of"> of </span>5</div>
+        <div class="sub">line up${T(v.tag)}</div>
+        <div class="odds">a count, not odds</div>
+      </div>
+      <div class="say">
+        <p>${esc(v.sentence)}</p>
+        ${v.word === 'WAIT' && v.needs.length ? `<div class="needs"><span class="label">What would have to change</span>
+          <ul>${v.needs.map(x => `<li>${ico('ArrowRight')}<span>${esc(cap(x))}</span></li>`).join('')}</ul></div>` : ''}
+      </div>
+    </div>
+    <div class="body">
+      <div class="facts">
+        <div class="sec-h"><span class="label">Five facts</span><span class="note">${v.n_for} with you · ${v.n_against} against · ${v.n_neither} neither</span></div>
+        ${v.facts.map(f => `<div class="fact" data-st="${f.state}">${mark(f.state)}<span class="nm">${esc(f.name)}</span><span class="st">${FACT_WORD[f.state]}</span><span class="tx">${esc(f.text)}</span>${ico('ChevronDown', 'chev')}</div>`).join('')}
+      </div>
+      <div class="nums">
+        ${stopBlock(d.plan, d.now, lots)}
+        <div class="nb"><div class="nb-h"><span class="label">Next wall</span></div>${wallBlock(d.plan.rung)}</div>
+        <div class="nb nb2">
+          <div><span class="label">Premium</span><div class="mid">${N(rs(d.now.prem.c, 2), d.now.prem.tag)}</div><div class="sub">${esc(d.p0_src.replace(' [I]', ''))}</div></div>
+          <div><span class="label">Delta</span><div class="mid">${N(signed(d.greeks.delta), d.greeks.tag)}</div><div class="sub">gamma ${N(d.greeks.gamma)}${T(d.greeks.tag)}</div></div>
+        </div>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>${ico('ChevronDown')}Deeper detail <span class="muted">— if you enter now, the plan, the zone, the side read, what is absent</span></summary>
+      <div class="deep-grid">
+        <section><h4 class="label">If you enter now</h4><p class="sm">${esc(d.entry.text)}</p>${rowsHTML(d.now)}</section>
+        <section>${planHTML(d.plan)}${zoneHTML(d.zone)}</section>
+        <section>${sideHTML(d.side)}${absentHTML(d.absent)}
+          <h4 class="label">Draft</h4><p class="fine">${esc(v.draft)}</p><p class="fine">${esc(d.note)}</p></section>
+      </div>
+    </details>
+  </div>`;
+  markClamps();
+}
+
+/* ── answer: in a trade ─────────────────────────────────────────────── */
+function renderIn(){
+  const h = H1000, n = h.now, t = h.trade, red = n.verdict === 'FOLD';
+  const [nf, na] = (n.count.match(/(\d+) for · (\d+) against/) || []).slice(1);
+  answer.innerHTML = `<div class="fresh">
+    <div class="echo">
+      <span class="label">Watching your trade</span><span class="c">${contract(t)}</span>
+      <span class="dot">·</span><span>BUY · long</span><span class="dot">·</span><span>1 lot (${t.qty})</span>
+      <span class="dot">·</span><span>in <span class="num">${t.t0}</span> at <span class="num">${rs(t.p0, 2)}</span></span>
+      <span class="dot">·</span><span>read <span class="num">${h.asof}</span></span>
+    </div>
+    <div class="band ${red ? 'red' : ''}">
+      <h2 class="w"><span class="word ${vcls(n.verdict)}">${n.verdict}</span><span class="since">since <span class="num">${n.since}</span></span></h2>
+      <div class="cnt">
+        <div class="n n28">${nf}<span class="of"> for · </span>${na}<span class="of"> against</span></div>
+        <div class="odds">a count, not odds</div>
+      </div>
+      <div class="say"><p>${esc(cap(strip(n.sentence)))}</p>${abs(h.absent.checked_none)}</div>
+    </div>
+    <div class="body">
+      <div class="runs">
+        <div class="sec-h"><span class="label">What it said since you entered</span><span class="note">you entered into ${h.entry.verdict}</span></div>
+        ${h.runs.map((r, i) => `<div class="run ${i === h.runs.length - 1 ? 'now' : ''}">
+          <span class="t">${r.from === r.to ? r.from : `${r.from}–${r.to}`}</span>
+          <span class="wd word ${vcls(r.verdict)}">${r.verdict}${r.tag ? `<small>${esc(r.tag)}</small>` : ''}</span>
+          <span class="tx">${esc(cap(strip(r.sentence)))}</span></div>`).join('')}
+      </div>
+      <div class="nums">
+        ${stopBlock(h.plan, n, 1)}
+        <div class="nb"><div class="nb-h"><span class="label">Next wall</span></div>${wallBlock(h.plan.rung)}</div>
+        <div class="nb">
+          <span class="label">Premium</span>
+          <div class="nb-top"><span class="big">${N(rs(n.prem.c, 2), n.prem.tag)}</span></div>
+          <div class="sub">in at ${N(rs(t.p0, 2))} <span class="muted">your fill</span></div>
+          <div class="pnl">P&amp;L ${N((n.prem.pnl < 0 ? '−' : '+') + rs(Math.abs(n.prem.pnl)), n.prem.tag)}</div>
+        </div>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>${ico('ChevronDown')}Deeper detail <span class="muted">— the rows, the plan, the side read, what is absent</span></summary>
+      <div class="deep-grid">
+        <section><h4 class="label">The rows now</h4>${rowsHTML(n)}
+          <h4 class="label">At entry</h4><p class="sm">${esc(h.entry.text)}</p></section>
+        <section>${planHTML(h.plan)}${sideHTML(h.side)}</section>
+        <section>${absentHTML(h.absent)}<div class="abs-list">${abs(h.sigma.why)}</div>
+          <h4 class="label">Sources</h4><dl class="kv">${Object.entries(h.src_data).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+          <h4 class="label">Draft</h4><p class="fine">${esc(h.draft)}</p><p class="fine">${esc(h.plan.draft)}</p><p class="fine">${esc(h.note)}</p></section>
+      </div>
+    </details>
+  </div>`;
+}
+
+function renderNotHeld(msg){
+  answer.innerHTML = `<div class="empty fresh"><span class="label">No answer</span><h2>Nothing to read for that contract here.</h2><div class="abs-list">${abs('not shown — ' + msg)}</div></div>`;
+}
+
+/* two-line clamp: only rows that actually overflow open on click */
+function markClamps(){
+  answer.querySelectorAll('.fact').forEach(r => {
+    const tx = r.querySelector('.tx');
+    if(tx.scrollHeight > tx.clientHeight + 1){ r.classList.add('can'); r.tabIndex = 0; r.setAttribute('role', 'button'); r.setAttribute('aria-expanded', 'false'); }
+  });
+}
+answer.addEventListener('click', e => {
+  const r = e.target.closest('.fact.can'); if(!r) return;
+  r.setAttribute('aria-expanded', String(r.classList.toggle('open')));
+});
+answer.addEventListener('keydown', e => {
+  if((e.key === 'Enter' || e.key === ' ') && e.target.matches('.fact.can')){ e.preventDefault(); e.target.click(); }
+});
+
+/* ── the floating window ────────────────────────────────────────────── */
+function renderFloat(){
+  const h = H1000, n = h.now, t = h.trade, inPip = !!pipWin;
+  const show = S.trade && (inPip || S.tab !== 'validate');          // steps aside on the Validate tab
+  floatEl.hidden = !show;
+  if(!show) return;
+  floatEl.className = `float ${S.float} ${n.verdict === 'FOLD' ? 'red' : ''} ${inPip ? 'in-pip' : ''}`;
+  const btns = `<span class="fl-btns">
+      <button type="button" class="icon-btn" data-act="toggle" title="${S.float === 'col' ? 'Open' : 'Collapse to one line'}" aria-label="${S.float === 'col' ? 'Open' : 'Collapse'}">${ico(S.float === 'col' ? 'ChevronUp' : 'ChevronDown')}</button>
+      <button type="button" class="icon-btn" data-act="pip" title="${inPip ? 'Back into the tab' : 'Pop out over your broker screen'}" aria-label="Pop out">${ico(inPip ? 'Undo2' : 'PictureInPicture2')}</button></span>`;
+  const against = ['payers', 'holders', 'flow'].map(k => n[k]).find(r => r.state === 'against')
+    || (n.trend.state === 'against' ? {fact:n.trend.rows} : null);
+  const againstHTML = against
+    ? `<span class="ag">${ico('X', 'm-against')}${esc(against.fact)}</span>`
+    : `<span class="abs abs-none">${ico('SearchX')}<span><b>checked, none</b> against</span></span>`;
+
+  if(S.float === 'col'){
+    floatEl.innerHTML = `<div class="fl-line">
+      <span class="word fw ${vcls(n.verdict)}">${n.verdict}</span>
+      <span class="dot">·</span><span class="c">${contract(t)}</span>
+      <span class="dot">·</span><span>line ${N(inr(n.line.L, 1), n.line.tag)} · ${N(n.line.room)} pts room</span>
+      <span class="dot">·</span>${againstHTML}
+      <span class="dot">·</span><span>since <span class="num">${n.since}</span></span>
+      ${btns}</div>`;
+    return;
+  }
+  const [nf, na] = (n.count.match(/(\d+) for · (\d+) against/) || []).slice(1);
+  const rows = [['Line', n.line.broken_at ? 'against' : 'line', `${N(inr(n.line.L, 1), n.line.tag)} · ${N(n.line.room)} pts · not broken`],
+    ['Payers', n.payers.state, esc(n.payers.fact)], ['Holders', n.holders.state, esc(n.holders.fact)],
+    ['Flow', n.flow.state, n.flow.state === 'blind' ? `<i>could not check</i> — ${esc(n.flow.why.replace('could not check — ', ''))}` : esc(n.flow.fact)],
+    ['Trend', n.trend.state, esc(n.trend.rows)]];
+  floatEl.innerHTML = `
+    <div class="fl-head">
+      <div><div class="word fw ${vcls(n.verdict)}">${n.verdict}</div><div class="since">since <span class="num">${n.since}</span></div></div>
+      <div class="cnt"><div class="num">${nf} for · ${na} against</div><div class="odds">a count, not odds</div>
+        <div class="c">${contract(t)}<span>long · 1 lot · in ${t.t0}</span></div></div>
+      ${btns}
+    </div>
+    <div class="fl-sec">
+      <p class="fl-say">${esc(cap(strip(n.sentence)))}</p>
+      <div>${abs(h.absent.checked_none)}</div>
+    </div>
+    <div class="fl-sec fl-nums">
+      <div><span class="label">Stop</span><div class="big">${N(inr(h.plan.stop.L, 1), h.plan.stop.tag)}</div><div class="sub">${N(h.plan.stop.room)} pts · ≈ ${N(rs(h.plan.stop.risk), h.plan.stop.risk_tag)}</div></div>
+      <div><span class="label">Next wall</span><div class="big">${h.plan.rung.side} ${N(inr(h.plan.rung.k), h.plan.rung.tag)}</div><div class="ww">${mark(WALL[h.plan.rung.word])}${esc(h.plan.rung.word)}</div><div class="sub">${N(h.plan.rung.room)} pts</div></div>
+      <div><span class="label">Premium</span><div class="big">${N(rs(n.prem.c, 2), n.prem.tag)}</div><div class="sub">in ${N(rs(t.p0, 2))}</div><div class="sub">P&amp;L ${N('+' + rs(n.prem.pnl), n.prem.tag)}</div></div>
+    </div>
+    <div class="fl-sec fl-rows"><span class="label">The rows</span>
+      ${rows.map(([nm, st, tx]) => `<div class="rrow">${mark(st)}<span class="nm">${nm}</span><span class="tx" title="${esc(tx.replace(/<[^>]+>/g, ''))}">${tx}</span></div>`).join('')}
+    </div>
+    <div class="fl-sec fl-runs"><span class="label">Since you entered</span>
+      ${h.runs.map(r => `<div class="run"><span class="t">${r.from === r.to ? r.from : `${r.from}–${r.to}`}</span><span class="wd word ${vcls(r.verdict)}">${r.verdict}</span><span class="tx" title="${esc(r.sentence)}">${esc(cap(strip(r.sentence)))}</span></div>`).join('')}
+    </div>
+    <div class="fl-foot"><span class="draft" title="${esc(h.draft)}">DRAFT</span><span>read ${h.asof} · nothing is sent to your broker</span></div>`;
+}
+floatEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  if(b.dataset.act === 'toggle'){ S.float = S.float === 'col' ? 'open' : 'col'; renderFloat(); syncMock(); }
+  if(b.dataset.act === 'pip') popOut();
+});
+
+/* Chrome Document Picture-in-Picture: the same element moves into the pop-out and back */
+async function popOut(){
+  if(pipWin){ pipWin.close(); return; }
+  if(!('documentPictureInPicture' in window)){ toast('Pop-out needs Chrome 116 or newer. The window stays in the tab.'); return; }
+  pipWin = await documentPictureInPicture.requestWindow({width:420, height:620});
+  for(const ss of document.styleSheets){
+    try{
+      const st = pipWin.document.createElement('style');
+      st.textContent = [...ss.cssRules].map(r => r.cssText).join('\n');
+      pipWin.document.head.append(st);
+    }catch{
+      const l = pipWin.document.createElement('link'); l.rel = 'stylesheet'; l.href = ss.href; pipWin.document.head.append(l);
+    }
+  }
+  pipWin.document.title = 'Hold window';
+  pipWin.document.body.className = 'pip';
+  S.float = 'open';
+  pipWin.document.body.append(floatEl);
+  renderFloat(); syncMock();
+  pipWin.addEventListener('pagehide', () => { document.body.append(floatEl); pipWin = null; renderFloat(); syncMock(); });
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600);
+}
+
+/* ── render + navigation ────────────────────────────────────────────── */
+function render(){
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+  $('#viewValidate').hidden = S.tab !== 'validate';
+  $('#viewOther').hidden = S.tab === 'validate';
+  $('#otherName').textContent = S.tab.toUpperCase();
+  $('#clock').textContent = S.view === 'empty' ? '09:43' : asOf();
+  buildStrikes(); renderQty(); renderSlip();
+  answer.classList.remove('stale');
+  if(S.view === 'empty') renderEmpty();
+  else if(S.view === 'loading') renderLoading();
+  else if(S.view === 'check') renderCheck();
+  else if(S.view === 'in') renderIn();
+  renderFloat(); syncMock();
+}
+function syncMock(){
+  const on = {empty:S.view === 'empty', loading:S.view === 'loading', c0943:S.view === 'check' && S.check === 'c0943', c0935:S.view === 'check' && S.check === 'c0935',
+    go:S.view === 'check' && S.check === 'go', no:S.view === 'check' && S.check === 'no', in:S.view === 'in' && S.tab === 'validate',
+    fcol:S.view === 'in' && S.tab !== 'validate' && S.float === 'col', fopen:S.view === 'in' && S.tab !== 'validate' && S.float === 'open'};
+  document.querySelectorAll('.mock [data-go]').forEach(b => b.setAttribute('aria-pressed', String(!!on[b.dataset.go])));
+}
+function resetSlip(){
+  form.idx.value = 'NIFTY'; form.opt.value = 'PE'; form.side.value = 'BUY'; S.lots = 1;
+  buildStrikes(); form.k.value = '23200';
+}
+function fillFrom(d){ $('#ft').value = d.trade.t0; $('#fp').value = d.trade.p0.toFixed(2); }
+
+function go(state){
+  clearTimeout(loadTimer);
+  if(pipWin && !['in', 'fcol', 'fopen'].includes(state)) pipWin.close();
+  S.tab = 'validate'; S.trade = false;
+  if(state === 'empty'){ S.view = 'empty'; resetSlip(); }
+  else if(state === 'loading'){ S.view = 'loading'; resetSlip(); }
+  else if(CHECKS[state]){ S.view = 'check'; S.check = state; resetSlip(); fillFrom(CHECKS[state]); }
+  else { S.view = 'in'; S.trade = true;
+    if(state === 'fcol' || state === 'fopen'){ S.tab = 'board'; S.float = state === 'fcol' ? 'col' : 'open'; } }
+  render();
+  S.answered = S.view === 'check' ? formKey() : null;
+}
+document.querySelector('.mock').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if(b) go(b.dataset.go); });
+document.querySelector('.tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if(!b) return;
+  S.tab = b.dataset.tab;
+  if(S.view === 'loading'){ clearTimeout(loadTimer); S.view = 'empty'; }
+  render();
+});
+
+/* VALIDATE */
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  clearTimeout(loadTimer);
+  if(form.idx.value !== 'NIFTY'){ S.view = 'none'; renderSlip(); renderNotHeld(`this mockup holds only NIFTY replies; ${form.idx.value} answers come from the live server`); S.answered = null; return; }
+  if(form.k.value !== '23200' || form.opt.value !== 'PE' || form.side.value !== 'BUY'){
+    S.view = 'none'; renderSlip(); renderNotHeld('this mockup holds only the real replies for NIFTY 23200 PE, BUY'); S.answered = null; return; }
+  S.view = 'loading'; renderSlip(); renderLoading();
+  const key = formKey();
+  loadTimer = setTimeout(() => {
+    S.view = 'check'; if(!CHECKS[S.check]) S.check = 'c0943';
+    fillFrom(CHECKS[S.check]); renderSlip(); renderCheck(); syncMock();
+    if(innerWidth <= 860) answer.scrollIntoView({behavior:'smooth', block:'start'});
+    S.answered = key;
+  }, 700);
+  syncMock();
+});
+$('#inBtn').addEventListener('click', () => go('in'));
+
+/* any change after an answer marks it stale until she presses VALIDATE again */
+function checkStale(){
+  if(S.view !== 'check' || !S.answered) return;
+  const stale = formKey() !== S.answered;
+  answer.classList.toggle('stale', stale);
+  answer.querySelector('.stale-note')?.remove();
+  if(stale) answer.firstElementChild.insertAdjacentHTML('afterbegin',
+    `<div class="stale-note">${ico('Undo2')}<span>You changed the contract. This answer is for the one you checked. Press VALIDATE again.</span></div>`);
+}
+form.addEventListener('change', e => {
+  if(e.target.name === 'idx'){ buildStrikes(); renderQty(); }
+  if(e.target.name !== 'ft' && e.target.name !== 'fp') checkStale();
+});
+document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
+  S.lots = Math.max(1, S.lots + Number(b.dataset.step)); renderQty(); checkStale();
+}));
+
+$('#lotMinus').innerHTML = ico('Minus'); $('#lotPlus').innerHTML = ico('Plus');
+/* deep links for review: #empty #loading #c0943 #c0935 #go #no #in #fcol #fopen, add :deep to open the detail */
+const [start, extra] = location.hash.slice(1).split(':');
+go(['empty', 'loading', 'in', 'fcol', 'fopen', ...Object.keys(CHECKS)].includes(start) ? start : 'c0943');
+if(extra === 'deep') answer.querySelector('.deep')?.setAttribute('open', '');
+</script>
+</body>
+</html>

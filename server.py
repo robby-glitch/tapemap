@@ -14,6 +14,7 @@ tab works with an expired token and outside market hours.
 """
 
 import json
+import re
 import logging
 import math
 import os
@@ -41,6 +42,13 @@ import frame
 import frame_log
 import fronts                    # research-findings §1d: the near-ATM fronts
 import grounds                   # every engine call held against OI, CVD and order flow
+import board                     # BOARD rev 3's read, one index at one finished minute (display only)
+import trendbox                  # ...and its trend box, on the index's own candles
+import calls_log                 # ...and kept, one row per engine bar, in session only
+import hold                      # the hold / fold window, as registered (PREREG-merged.md rev 4 + PREREG-rev5.md option B)
+import hold_log                  # ...and its forward logs, write-once
+import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
+import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
 import daylog                    # week-old daily records kept as .jsonl.gz
 import tape_log
 import book_log
@@ -1061,6 +1069,38 @@ def payload_at(box, interval):
     return out
 
 
+def _session_payload(box, interval):
+    """/api/data's bytes: `payload_at`'s, minus everything stamped at or after
+    the close (DEFERRED 0j.8 follow-up 3 -- it served 15:30/15:35 FUT bars to
+    every tab). The session's 1-minute bars and events are cut at
+    SESSION_END_HHMM and the payload is DERIVED again from what is left, so
+    every layer that is 1:1 with the bars (rotation, run_state, zone_state,
+    structures) is computed on the session alone -- the rule `_session_only`
+    applies to the extension's POST, here applied where /api/data is served.
+
+    SERVED ONLY. `payload_at` itself is untouched, so trigger_log, the frame's
+    book and /api/calls read exactly what they read before. Cached per build
+    per interval like `payload_at`; a session with nothing past the close
+    serves `payload_at`'s own bytes, with no second derive.
+    """
+    base = box.get("session") if isinstance(box, dict) else None
+    day = (base or {}).get("day") or {}
+    ones = day.get("bars") or []
+    if not ones or str((ones[-1] or {}).get("t")) < SESSION_END_HHMM:
+        return payload_at(box, interval)
+    cache = box.setdefault("served", {})
+    hit = cache.get(interval)
+    if hit is not None and hit[0] == box.get("stamp"):
+        return hit[1]
+    from live import derive_payload
+    cut = dict(base, day=dict(day, bars=[b for b in ones if str(b.get("t")) < SESSION_END_HHMM],
+                              events=[e for e in day.get("events") or []
+                                      if str(e.get("t")) < SESSION_END_HHMM]))
+    out = derive_payload(cut, interval)
+    cache[interval] = (box.get("stamp"), out)
+    return out
+
+
 def _book_for(handler, idx):
     """Everything the frame composes from, gathered under the lock. Each
     field is None when its module has not answered; frame.py turns None into
@@ -1451,6 +1491,1147 @@ def _tape_reply(idx: str, day: str) -> dict:
     }
 
 
+def _calls_for(payloads, poller, idx: str) -> dict:
+    """/api/calls's reply, shared with calls_log so the row kept is what the
+    face was served. May raise; the route turns that into its own reply."""
+    box = (payloads or {}).get(idx)
+    pl = payload_at(box, band_rotation.SCORED_INTERVAL) if box else None
+    pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
+    bars = ((pj.get("days") or [{}])[0] or {}).get("bars") or []
+    last = bars[-1] if bars else {}
+    ux = (_tape_reply(idx, time.strftime("%Y-%m-%d")) or {}).get("ux") or {}
+    st = (getattr(poller, "states", None) or {}).get(idx) if poller else None
+    fr = fronts.read(getattr(st, "minutes", None) or {}, getattr(st, "peak", None))
+    return {"ok": bool(last), "idx": idx, "t": last.get("t"),
+            "why": None if last else "no engine bar for this index yet",
+            **grounds.ground(last.get("ctx") or {}, (last.get("fut") or {}).get("c"),
+                             ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr,
+                             runs_why=(ux.get("marks") or {}).get("runs_why"))}
+
+
+# ---- BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md §8) ----
+#
+# /api/board composes board.py and trendbox.py for the LATEST FINISHED MINUTE
+# of one index, CACHED per index per minute: the UI polls every ~15 s, and a
+# per-request rebuild is how this server wedged on 2026-09-18 (a 55 MB rewrite
+# per POST). One computation per index per minute -- plus one mirror per strike
+# pair asked for -- and every other request is a dict lookup. After the close
+# the minute stops moving (15:29), so the last session snapshot is computed
+# once and served. DISPLAY ONLY: nothing here feeds setup.gate, the zone
+# machine or trigger_log, and §1d is only called.
+BOARD_MIRROR_SPAN = 5     # the mirror follows strikes within ATM +- this many steps (bounds REST per request)
+
+
+def _board_fresh():
+    return {"core": {}, "base": {}, "reply": {}, "locks": {}, "first": {}, "first_day": None,
+            "trend_day": {}, "trend_1m": {}}
+
+
+_BOARD = _board_fresh()
+
+
+def _board_clock():
+    """(day, HH:MM) now. One seam, so a test can hold the clock."""
+    return time.strftime("%Y-%m-%d"), time.strftime("%H:%M")
+
+
+def _board_asof(minutes, now):
+    """The latest FINISHED minute on the grid -- never the one in progress
+    (`now`), never 15:30 or later -- or None before the day's first mark."""
+    cutoff = min(now, SESSION_END_HHMM)
+    ts = [t for t in list(minutes or {}) if isinstance(t, str) and t < cutoff]
+    return max(ts) if ts else None
+
+
+def _board_opens(poller, idx):
+    """{(strike, "ce"|"pe"): OI at the open} off the chain's latest snapshot:
+    oi - oi_chg, one subtraction (Upstox's oi_chg is since today's open)."""
+    snap = (getattr(poller, "prevs", None) or {}).get(idx) if poller else None
+    out = {}
+    for row in (snap or {}).get("strikes") or []:
+        for side in ("ce", "pe"):
+            leg = row.get(side) or {}
+            if isinstance(leg.get("oi"), (int, float)):
+                out[(float(row["k"]), side)] = float(leg["oi"]) - float(leg.get("oi_chg") or 0)
+    return out
+
+
+def _board_core(poller, idx):
+    """The grid cut to the latest finished minute, its folds, and the day's
+    FIRST FOLD -- the part /api/oihist shares with /api/board. Memory only, no
+    REST; cached per (index, day, minute).
+
+    FIRST is stamped ONCE per day, off a grid that is whole from the open (a
+    restart's backfill lands on its own thread, and a FIRST read off half a
+    morning would be kept all day), into _BOARD["first"]; _save_day_state
+    writes it down and _load_day_state reads it back, so a restart re-reads the
+    same FIRST (the anytime-start rule)."""
+    st = (getattr(poller, "states", None) or {}).get(idx) if poller else None
+    if st is None:
+        return None
+    snap = dict(getattr(st, "minutes", None) or {})     # one copy: the poller keeps writing
+    day, now = _board_clock()
+    asof = _board_asof(snap, now)
+    minutes = fronts.cut(snap, asof) if asof else {}
+    # the mark count is in the key: a restart's backfill lands on its own
+    # thread, and after the close `asof` stops moving -- without it a board
+    # read off half a morning would be served all evening
+    key = (day, asof, len(minutes))
+    hit = _BOARD["core"].get(idx)
+    if hit is not None and hit["key"] == key:
+        return hit
+    if _BOARD["first_day"] != day:
+        _BOARD["first"], _BOARD["first_day"] = {}, day
+    g = fronts.grid(minutes)
+    evs = fronts.folds(minutes, g)
+    opens = _board_opens(poller, idx)
+    peak = dict(getattr(st, "peak", None) or {})
+    cov = board.coverage(g[0])
+    first = _BOARD["first"].get(idx)
+    if first is None and cov["whole"]:
+        got = board.first_fold(minutes, evs, opens, peak, g)
+        if got:
+            first = _BOARD["first"][idx] = dict(got, src="stamped by this process at " + asof)
+    core = {"key": key, "day": day, "asof": asof, "minutes": minutes, "g": g, "evs": evs,
+            "opens": opens, "peak": peak, "first": first, "cov": cov}
+    _BOARD["core"][idx] = core
+    return core
+
+
+def _board_facts(idx, day, asof, fr):
+    """grounds' CVD / FLOW facts and the footprint marks, as of `asof`: only
+    ladder bars CLOSED by then and fill runs begun by then (the mockup's
+    replay rule), so a restart reads a past minute exactly as it read live."""
+    try:
+        tape = _tape_reply(idx, day)
+    except Exception as e:                  # a disk fault costs the facts, never the board
+        why = f"tape record unreadable: {type(e).__name__}: {e}"
+        return {"cvd": None, "flow": None, "cvd_why": why, "flow_why": why}, None
+    if not tape.get("ok"):
+        why = tape.get("why") or "no prints record"
+        return {"cvd": None, "flow": None, "cvd_why": why, "flow_why": why}, None
+    ux = tape.get("ux") or {}
+    now = board.mm(asof)
+    bars = [b for b in ux.get("bars") or []
+            if b.get("t") is not None and board.mm(grounds._hh(b["t"])) + 5 <= now]
+    runs = [r for r in (ux.get("marks") or {}).get("runs") or []
+            if r.get("from_t") is None or grounds._hh(r["from_t"]) <= asof]
+    facts = grounds.facts(bars, runs, fr, runs_why=(ux.get("marks") or {}).get("runs_why"))
+    if not bars and ux.get("why"):
+        facts["cvd_why"] = facts["flow_why"] = ux["why"]
+    return facts, tape.get("marks")
+
+
+def _board_trend(idx, day, asof):
+    """trendbox.rows off REST, cached like levels.py: the prior session's 1-min,
+    the 30-min and the daily candles once a day (a failure is retried at most
+    once a minute), today's 1-min at most once a minute. -> (rows|None, why)."""
+    import upstox_feed
+    import upstox_rest
+    td = _BOARD["trend_day"].get(idx)
+    if td is None or td["day"] != day or (td["data"] is None and td["tried"] != asof):
+        try:
+            td = {"day": day, "data": trendbox.fetch_daily(idx, day), "why": None, "tried": asof}
+        except Exception as e:
+            td = {"day": day, "data": None, "why": f"{type(e).__name__}: {e}", "tried": asof}
+        _BOARD["trend_day"][idx] = td
+    t1 = _BOARD["trend_1m"].get(idx)
+    if t1 is None or t1["key"] != (day, asof):
+        try:
+            t1 = {"key": (day, asof), "c": upstox_rest.intraday(upstox_instruments.index_key(idx),
+                                                                upstox_feed.read_token()), "why": None}
+        except Exception as e:
+            t1 = {"key": (day, asof), "c": None, "why": f"{type(e).__name__}: {e}"}
+        _BOARD["trend_1m"][idx] = t1
+    if td["data"] is None:
+        return None, "the prior sessions' index candles did not load: " + td["why"]
+    if t1["c"] is None:
+        return None, "today's index candles did not load: " + t1["why"]
+    d = td["data"]
+    tr = trendbox.rows(d["m1_prior"], t1["c"], d["m30"], d["d1"], day, asof)
+    return tr, (None if tr else f"no index candle at or before {asof} today")
+
+
+def _board_mirror(idx, asof, kce, kpe):
+    """The mirror read off /api/contract's own assembly (5-min legs, their
+    session VWAP bands and prior-session pivots, the near future)."""
+    import live
+    try:
+        if kce == kpe:
+            b = live.leg_pivots(live.build_contract(idx, strike=kce, side="BOTH", interval=5))
+            legs, fut, exp = b.get("legs") or {}, (b.get("index_series") or {}).get("bars"), b.get("expiry")
+        else:
+            bc = live.leg_pivots(live.build_contract(idx, strike=kce, side="CE", interval=5))
+            bp = live.leg_pivots(live.build_contract(idx, strike=kpe, side="PE", interval=5))
+            legs = {"CE": (bc.get("legs") or {}).get("CE"), "PE": (bp.get("legs") or {}).get("PE")}
+            fut, exp = (bc.get("index_series") or {}).get("bars"), bc.get("expiry")
+    except Exception as e:                  # one index's option REST failing costs its mirror only
+        log.exception("board mirror %s", idx)
+        return {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}", "tag": "M"}
+    return board.mirror(legs, fut, asof, expiry=exp)
+
+
+def _board_levels(idx):
+    """levels.static_levels (PDH/PDL/PDC/PWH/PWL/OPEN) off the war map's own
+    daily candles, for the board's squares -- memory only, no REST here; None
+    until the war map's daily fetch has landed. No lock: `daily` is replaced
+    whole by Levels.set_daily, so one attribute read sees all of it or none."""
+    wm = getattr(_SENSES.get("warmap"), "_by", None) or {}
+    daily = getattr(getattr(wm.get(idx), "levels", None), "daily", None)
+    return warmap_mod.levels_mod.static_levels(daily) if daily else None
+
+
+def _board_strikes(q, atm, step):
+    """(CE strike, PE strike, why): ATM by default; ?strike=K sets both legs,
+    ?ce=K / ?pe=K each one. A strike beyond ATM +- BOARD_MIRROR_SPAN steps is
+    not fetched, and says so."""
+    def num(name):
+        try:
+            v = float((q.get(name) or [""])[0])
+            return v if v == v and abs(v) != float("inf") else None
+        except ValueError:
+            return None
+    both = num("strike")
+    kce, kpe = num("ce") or both or atm, num("pe") or both or atm
+    far = [f"{side} {k:,.0f}" for side, k in (("CE", kce), ("PE", kpe))
+           if abs(k - atm) > BOARD_MIRROR_SPAN * step]
+    return kce, kpe, (board.NOT_SHOWN + f"{' and '.join(far)} is beyond ATM {atm:,.0f} ± {BOARD_MIRROR_SPAN} strikes"
+                      if far else None)
+
+
+_BOARD_NOT_SHOWN = {
+    "level_under_attack": board.NOT_SHOWN + "a draft read; it waits for her pre-registration (notes §7.1)",
+    "flush": board.NOT_SHOWN + "her proposed flush-candle rule waits for pre-registration (notes §7.2)",
+    "deep_otm": board.NOT_SHOWN + "the deep-OTM strip is a later batch (notes §8 step 7)",
+    "forced": board.NOT_SHOWN + "forced / released waits for her §1d addendum, which she held (notes §7.4)",
+    "engine": board.NOT_SHOWN + "the engine's own words and their grounding are /api/calls",
+}
+
+
+def _board_reply(poller, idx, q):
+    """GET /api/board's bytes for one index at its latest finished minute."""
+    core = _board_core(poller, idx)
+    if core is None or not core["g"][0]:
+        why = ("the chain poller has no state for this index yet" if core is None else
+               "no finished minute of today's session on the grid yet")
+        return json.dumps({"ok": False, "idx": idx, "day": _board_clock()[0], "asof": None,
+                           "why": board.CC + why, "not_shown": _BOARD_NOT_SHOWN}).encode()
+    key, day, asof = core["key"], core["day"], core["asof"]
+    # the war map's daily levels can land AFTER the close, when the minute key
+    # has stopped moving -- their arrival is part of the key, or the squares
+    # would stay level-blind all evening
+    lv = _board_levels(idx)
+    key = (key, lv is not None)
+    times, spots, ks, _S, _RP = core["g"]
+    step = min((b - a for a, b in zip(ks, ks[1:]) if b > a), default=None) or 1.0
+    atm = round(spots[-1] / step) * step
+    kce, kpe, far = _board_strikes(q, atm, step)
+    hit = (_BOARD["reply"].get(idx) or {})
+    if hit.get("key") == key and (kce, kpe) in hit:
+        return hit[(kce, kpe)]
+    with _BOARD["locks"].setdefault(idx, threading.Lock()):
+        hit = (_BOARD["reply"].get(idx) or {})
+        if hit.get("key") == key and (kce, kpe) in hit:
+            return hit[(kce, kpe)]
+        base = _BOARD["base"].get(idx)
+        if base is None or base["key"] != key:
+            fr = fronts.read(core["minutes"], core["peak"])
+            facts, marks = _board_facts(idx, day, asof, fr)
+            tr, tr_why = _board_trend(idx, day, asof)
+            doc = board.read(core["minutes"], core["peak"], core["opens"], facts, marks, tr,
+                             first=core["first"], idx=idx, g=core["g"], evs=core["evs"], trend_why=tr_why,
+                             levels=lv)
+            base = _BOARD["base"][idx] = {"key": key, "doc": doc}
+        mir = ({"ok": False, "why": far, "tag": "M"} if far else _board_mirror(idx, asof, kce, kpe))
+        mir.update(strikes={"CE": kce, "PE": kpe}, atm=atm, span=BOARD_MIRROR_SPAN)
+        out = json.dumps({**base["doc"], "idx": idx, "day": day, "built_at": time.time(),
+                          "mirror": mir, "not_shown": _BOARD_NOT_SHOWN,
+                          "note": "display only [I] on [M] facts; nothing here gates anything"},
+                         default=str).encode()
+        if hit.get("key") != key:
+            hit = {"key": key}
+        hit[(kce, kpe)] = out
+        _BOARD["reply"][idx] = hit
+        return out
+
+
+# ---- THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4; hold.py) ----
+#
+# Per-minute facts per index, CACHED and extended a minute at a time: one
+# record per finished minute from the same pure functions /api/board calls
+# (fronts, board, grounds, trendbox), in the shape hold.py reads -- the loop
+# body of docs/hold/opus/scratch/build_facts.py, which matched /api/oihist on
+# 373 of 373 minutes. A request is a dict lookup plus hold.read over <= 375
+# small records; nothing re-parses a day file (a 55 MB per-POST parse once
+# wedged this server). The running session-peak OI at a past minute is the
+# open plus the running high change on the grid's marks -- board.first_fold's
+# own ranking -- so a restart re-reads any past minute identically. DISPLAY
+# ONLY: nothing here feeds setup.gate, the zone machine or trigger_log.
+_HOLD = {"facts": {}, "locks": {}, "trades": [], "trades_day": None, "sigma": {}, "peaks": {}}
+HOLD_TRACK = 30          # §8: a side stamp's strike, tracked for its next 30 finished minutes
+HOLD_TRADES_LOCK = threading.Lock()
+
+
+def _hold_front(f):
+    if not f:
+        return None
+    return {"side": f["side"], "k": f["k"], "state": f["state"], "built": f["peak"] > 0,
+            "chg": round(f["chg"]), "peak": round(f["peak"]), "peak_at": f["peak_at"],
+            "words": board.state_words(f)}
+
+
+def _hold_rec(t, core, jx, ux, trd, c1, ix, peaks):
+    """One finished minute's facts, every input cut to `t`."""
+    minutes, g, evs = core["minutes"], core["g"], core["evs"]
+    rec, fr, j = {"t": t}, [], None
+    cut = fronts.cut(minutes, t)
+    marks = sorted(cut)
+    if not marks:
+        rec["blind"] = board.CC + "no chain mark yet today"
+    else:
+        # A mark the poller wrote without a spot: fronts.read cannot judge nearness there (fronts.grid
+        # skips it), so the minute reads blind. Live 2026-09-25 its float() raised, and every hold read
+        # and log row of SENSEX and BANKNIFTY that day was lost with it.
+        s = cut[marks[-1]].get("spot")
+        if s is not None:
+            s = float(s)
+            rec["spot"] = round(s, 2)
+        sw = fronts.stale(cut, t)
+        if sw:
+            rec["blind"] = board.CC + sw
+        elif s is None:
+            rec["blind"] = board.CC + f"no spot on the {marks[-1]} chain mark"
+        elif len(marks) < fronts.SLOPE_MARKS:
+            rec["blind"] = (board.CC + "fronts forming: the build → stall → unwind sequence needs "
+                            f"{fronts.SLOPE_MARKS} one-minute marks, {len(marks)} so far")
+        j = jx.get(marks[-1])
+        if peaks:                            # the running session high as it stood at this mark, exactly
+            pk = peaks.get(marks[-1], {})    # a backfilled mark the record never saw ranks by its own build, as build_facts did
+        else:                                # no chain record: board.first_fold's open + running high on the marks
+            pk = dict(core["peak"])
+            for (k, side), rp in (g[4].items() if j is not None else ()):
+                o = core["opens"].get((k, side.lower()))
+                if o is not None:
+                    pk[(k, side.lower())] = o + rp[j]
+        fr = fronts.read(cut, pk)
+        rec["fr"] = [{"k": f["k"], "side": f["side"], "state": f["state"], "built": f["peak"] > 0}
+                     for f in fr]                # PLAN §2.2: the top 2 per side, for the rung
+        if fr:
+            rec["CE"], rec["PE"] = _hold_front(board.nearer(fr, "CE", s)), _hold_front(board.nearer(fr, "PE", s))
+        else:
+            rec.setdefault("blind", board.CC + "near-ATM fronts not read")
+        rec["folds"] = [{"k": e["k"], "side": e["side"], "t": e["t"], "off": e["off"], "high_at": e["high_at"],
+                         "still": board.still_folded(e, j, g[3], g[4], jx)}
+                        for e in evs if j is not None and jx[e["t"]] <= j
+                        and board.mm(t) - board.mm(e["t"]) <= hold.FOLD_LIVE]
+    now = board.mm(t)
+    bt = [b for b in ux["bars"] if b.get("t") is not None and board.mm(grounds._hh(b["t"])) + 5 <= now]
+    rt = [r for r in ux["runs"] if r.get("from_t") is None or grounds._hh(r["from_t"]) <= t]
+    F = grounds.facts(bt, rt, fr, runs_why=ux["runs_why"])
+    if not bt and ux["why"]:
+        F["cvd_why"] = F["flow_why"] = ux["why"]
+    c, fl = F.get("cvd"), F.get("flow")
+    rec["cvd"] = c and {"d": round(c["d"]), "rank": c["rank"], "dpx": c["dpx"], "since": c["since"],
+                        "dt": c["div_top"], "db": c["div_bottom"]}
+    rec["cvd_why"] = None if c else board.CC + (F.get("cvd_why") or "no ladder bars")
+    rec["flow"] = fl and {"b": fl["buy"], "s": fl["sell"], "rw": fl.get("runs_why")}
+    rec["flow_why"] = None if fl else board.CC + (F.get("flow_why") or "no prints")
+    trr = trendbox.rows(trd["m1_prior"], c1, trd["m30"], trd["d1"], core["day"], t) if trd and c1 else None
+    rec["tr"] = {k: trr["rows"][k]["word"] for k in hold.ROWS} if trr else None
+    rec["tr_why"] = None if trr else board.CC + (ux["tr_why"] or f"no index candle at or before {t} today")
+    x = ix.get(t)
+    rec["ix"] = [x[3], x[1], x[2]] if x else None
+    return rec
+
+
+def _hold_peaks(idx, day):
+    """{HH:MM: {(k, "ce"|"pe"): session-high OI as of that minute's last snapshot}} off
+    the day's own chain record -- ChainState.peak as it stood at each minute, exactly
+    ("the peak as of t, never the day's end", §2; build_facts.read_chain's reading,
+    which matched /api/oihist). The grid's minute marks cannot give it: they miss an
+    intra-minute high, and a strike that has left the chain window has no open. Read
+    once, then only the lines appended since -- a few KB a minute, never a whole-file
+    parse per request. {} when there is no record."""
+    from chain_live import CHAIN_DIR
+    st = _HOLD["peaks"].get(idx)
+    if st is None or st["day"] != day:
+        st = _HOLD["peaks"][idx] = {"day": day, "off": 0, "run": {}, "by_t": {}, "greeks": {}}
+    try:
+        with open(CHAIN_DIR / f"chain_{idx}_{day}.jsonl", "rb") as f:
+            f.seek(0, 2)
+            if f.tell() < st["off"]:                 # the record was rewritten: read it again
+                st.update(off=0, run={}, by_t={}, greeks={})
+            f.seek(st["off"])
+            data = f.read()
+    except OSError:
+        return st["by_t"]
+    end = data.rfind(b"\n") + 1                     # a line the poller is still writing waits for the next read
+    run = st["run"]
+    for line in data[:end].splitlines():
+        try:
+            s = json.loads(line)
+        except ValueError:
+            continue
+        m = (s.get("ts") or "")[:5]
+        if not ("09:15" <= m < "15:30") or s.get("spot") is None:
+            continue
+        gk = st["greeks"].setdefault(m, {})          # PLAN §2.1: the broker's greeks, last snapshot of the minute
+        for row in s.get("strikes") or []:
+            ce, pe = row.get("ce") or {}, row.get("pe") or {}
+            gk[float(row["k"])] = (ce.get("delta"), ce.get("gamma"), pe.get("delta"), pe.get("gamma"))
+            for side in ("ce", "pe"):
+                oi = (row.get(side) or {}).get("oi")
+                if isinstance(oi, (int, float)):
+                    key = (float(row["k"]), side)
+                    run[key] = max(run.get(key, 0.0), float(oi))
+        st["by_t"][m] = dict(run)
+    st["off"] += end
+    return st["by_t"]
+
+
+def _hold_greeks(idx, day, k, side, n):
+    """[(delta, gamma) | None] for the first n session minutes: the broker's greeks for
+    her strike-side at the latest chain snapshot at or before each minute [M] (the
+    record _hold_peaks reads). None before the strike first appears -- never a zero."""
+    st = _HOLD["peaks"].get(idx) or {}
+    by = (st.get("greeks") or {}) if st.get("day") == day else {}
+    j, out, last = (0 if side == "CE" else 2), [], None
+    for t in hold.SESSION[:n]:
+        g = (by.get(t) or {}).get(float(k))
+        if g and g[j] is not None and g[j + 1] is not None:
+            last = (g[j], g[j + 1])
+        out.append(last)
+    return out
+
+
+def _hold_expiry(poller, idx):
+    """§10.3: the chain poller's resolved expiry for `idx` (the frame head's expiry is
+    this same value, handed on), or None -- never the live instrument dump."""
+    r = (getattr(poller, "resolved", None) or {}).get(idx)
+    if isinstance(r, dict) and r.get("expiry"):
+        return r["expiry"]
+    box = (getattr(poller, "boxes", None) or {}).get(idx) or {}
+    try:
+        pl = box.get("payload")
+        return json.loads(pl).get("expiry") if isinstance(pl, (bytes, str)) else None
+    except (ValueError, AttributeError):
+        return None
+
+
+HOLD_REFETCH_S = 15      # a late index candle is asked for again at most this often
+
+
+def _hold_candles(idx, day, asof):
+    """(prior sessions' candles, today's index 1-min, why) -- the trend box's REST,
+    off /api/board's own cache (fetched once per grid minute). Upstox serves a minute's
+    candle a minute or more late (live 2026-09-25), and the board's one fetch per minute
+    usually lands before it; so while the newest minute's candle is missing, today's
+    1-min is asked again at most every HOLD_REFETCH_S, into the hold's own cache (the
+    board's is not touched). One seam for tests."""
+    _tr, why = _board_trend(idx, day, asof)
+    trd, c1 = (_BOARD["trend_day"].get(idx) or {}).get("data"), (_BOARD["trend_1m"].get(idx) or {}).get("c")
+
+    def newest(c):
+        return max((r[1] for r in trendbox.candles(c or []) if r[0] == day), default="")
+    mine = _HOLD.setdefault("c1", {})
+    h = mine.get(idx) if (mine.get(idx) or {}).get("day") == day else None
+    if h and newest(h["c"]) > newest(c1):
+        c1 = h["c"]
+    if c1 is not None and newest(c1) < asof and (h is None or time.time() - h["at"] >= HOLD_REFETCH_S):
+        mine[idx] = {"day": day, "at": time.time(), "c": c1}     # claimed first: a read meanwhile does not ask too
+        import upstox_feed
+        import upstox_rest
+        try:
+            fresh = upstox_rest.intraday(upstox_instruments.index_key(idx), upstox_feed.read_token())
+        except Exception:                    # a failed re-ask costs nothing: the board's candles stand
+            fresh = None
+        if fresh and newest(fresh) > newest(c1):
+            c1 = fresh
+        mine[idx] = {"day": day, "at": time.time(), "c": c1}
+    return trd, c1, why
+
+
+def _hold_land(idx, day):
+    """rev 5 §A.0.4, per index, kept in day state so a restart re-reads what was read live (the record alone
+    would read every late close as if on time): `late` {HH:MM: {read_at}} -- a candle first read after its own
+    minute, at the first finished minute whose facts carried it -- or {read_at: None, backfill: HH:MM} -- a
+    close no live read ever carried, first read from a restart's backfill; `blind` the minutes read without
+    their candle and still waiting; `live_to` the latest minute read live. `boot`, this process's first read
+    of the day, is not kept: a restart is a new boot."""
+    land = _HOLD.setdefault("land", {})
+    lnd = land.get(idx)
+    if lnd is None or lnd.get("day") != day:
+        lnd = land[idx] = {"day": day, "late": {}, "blind": [], "live_to": None, "boot": None}
+    return lnd
+
+
+def _hold_late(idx, day):
+    return _hold_land(idx, day)["late"]
+
+
+def _hold_frozen(tr):
+    """rev 5 §A.0.4 / §G: a marked trade's B reads from day state (None for a query, a check or an import)."""
+    return _HOLD.setdefault("frozen_b", {}).get(tr["id"]) if tr.get("src") == "marked" else None
+
+
+def _hold_freeze(tr, reads):
+    """Each B read of a marked trade (L, its set / trail minute, B, B_at, the level in force, clamped) is
+    written ONCE into day state and read back on a restart (rev 5 §A.0.4, §G)."""
+    if tr.get("src") != "marked" or not reads:
+        return
+    have = _HOLD.setdefault("frozen_b", {}).setdefault(tr["id"], [])
+    keys = {(round(b["L"], 2), b["L_at"]) for b in have}
+    new = [dict(b) for b in reads if (round(b["L"], 2), b["L_at"]) not in keys]
+    if new:
+        have.extend(new)
+        _HOLD["dirty"] = _HOLD["land_new"] = True
+
+
+def _hold_facts(poller, idx):
+    """The day's per-minute records for `idx`, 09:15 .. the latest finished minute,
+    built once and extended a minute at a time. None before the grid has a mark."""
+    core = _board_core(poller, idx)
+    if core is None or not core["g"][0]:
+        return None
+    day, asof = core["day"], core["asof"]
+    # The candles OUTSIDE the lock (REVIEW P1-18): a late candle's REST re-ask (30 s timeout) must not
+    # queue every /api/hold and /api/hold/check on this index behind it. The lock guards the cache.
+    trd, c1, tr_why = _hold_candles(idx, day, asof)
+    with _HOLD["locks"].setdefault(idx, threading.Lock()):
+        # A MINUTE IS FINISHED WHEN ITS INDEX CANDLE HAS LANDED. Live 2026-09-25 11:58: Upstox had
+        # served candles to 11:56 while the grid held 11:57, so reading 11:57 blinded the line (PATA
+        # NAHI) and would have written that blindness into the write-once logs. The read waits for
+        # the candle -- at most fronts.STALE_MIN minutes; a candle feed further behind is stale, and
+        # the minute reads blind and says so.
+        newest = max((r[1] for r in trendbox.candles(c1 or []) if r[0] == day and r[1] <= asof), default=None)
+        if newest and newest < asof and hold.mm(asof) - hold.mm(newest) <= fronts.STALE_MIN:
+            asof = newest
+        n_at = sum(1 for t in core["minutes"] if t <= asof)
+        key = (day, asof, n_at, trd is not None, c1 is not None)
+        hit = _HOLD["facts"].get(idx)
+        if hit is not None and hit["key"] == key:
+            return hit
+        prev = hit if hit is not None and hit["day"] == day else None
+        recs = dict(prev["recs"]) if prev else {}
+        if prev and sum(1 for t in core["minutes"] if t <= prev["asof"]) != prev["n"]:
+            recs = {}                    # a backfill landed under minutes already read: read them again
+        try:
+            tape = _tape_reply(idx, day)
+        except Exception as e:           # a disk fault costs the facts, never the window
+            tape = {"ok": False, "why": f"tape record unreadable: {type(e).__name__}: {e}"}
+        u = (tape.get("ux") or {}) if tape.get("ok") else {}
+        mk = u.get("marks") or {}
+        ux = {"bars": u.get("bars") or [], "runs": mk.get("runs") or [], "runs_why": mk.get("runs_why"),
+              "why": u.get("why") if tape.get("ok") else (tape.get("why") or "no prints record"),
+              "tr_why": tr_why}
+        jx = {t: j for j, t in enumerate(core["g"][0])}
+        ix = {r[1]: r[2:] for r in trendbox.candles(c1 or []) if r[0] == day}
+        peaks = _hold_peaks(idx, day)
+        # A ladder bar or fill run that lands after a minute was first read (a drain a moment late, the
+        # run detector re-fed after a restart) must reach that minute, as a restart would read it: each
+        # minute keeps the counts it was read with -- bars closed by t, runs begun by t, _hold_rec's own
+        # cuts -- and is read again when they move. Rows already logged stay as written (write-once).
+        from bisect import bisect_right
+        ends = sorted(board.mm(grounds._hh(b["t"])) + 5 for b in ux["bars"] if b.get("t") is not None)
+        starts = sorted(grounds._hh(r["from_t"]) for r in ux["runs"] if r.get("from_t") is not None)
+        seen = dict(prev.get("seen") or {}) if prev else {}
+        land = _hold_land(idx, day)
+        boot = land["boot"] is None
+        if boot:                         # rev 5 §A.0.4: this process's first read of today. A close that no live read
+            land["boot"] = asof          # ever carried (the server was down across it) is read from backfill: at its
+            for t in hold.SESSION:       # own bar, and tagged so, never blended with a close read live.
+                if t >= asof:
+                    break
+                if (hold.is_close(t) and t in ix and t not in land["late"]
+                        and (land["live_to"] is None or t > land["live_to"] or t in land["blind"])):
+                    land["late"][t] = {"read_at": None, "backfill": asof}
+                    _HOLD["dirty"] = _HOLD["land_new"] = True
+        for t in hold.SESSION:
+            if t > asof:
+                break
+            n = (bisect_right(ends, hold.mm(t)), bisect_right(starts, t) + len(ux["runs"]) - len(starts))
+            r = recs.get(t)
+            if r is None or (r["tr"] is None and trd and c1) or (r["ix"] is None and t in ix) or seen.get(t) != n:
+                recs[t] = _hold_rec(t, core, jx, ux, trd, c1, ix, peaks)
+                seen[t] = n
+            if recs[t]["ix"] is None:    # read without its candle: when it lands it is read late, never back-dated
+                if t not in land["blind"]:
+                    land["blind"].append(t)
+            elif t in land["blind"]:
+                land["blind"].remove(t)
+                if not boot and t not in land["late"]:
+                    land["late"][t] = {"read_at": asof}      # the first finished minute whose facts carry it
+                    _HOLD["dirty"] = _HOLD["land_new"] = True
+        land["live_to"] = max(land["live_to"] or asof, asof)
+        exp = _hold_expiry(poller, idx)
+        out = {"key": key, "day": day, "asof": asof, "n": n_at, "recs": recs, "seen": seen, "core": core,
+               "pivots": hold.pivots(c1 or [], day, asof),
+               "expiry": hold.expiry_line(idx, day, exp, "the chain poller's resolved expiry"),
+               "src": {"grid": f"chain poller grid, {len(core['g'][0])} marks to {asof}",
+                       "ladder": (f"{len(ux['bars'])} ladder bars, {len(ux['runs'])} fill runs"
+                                  + (f" ({ux['runs_why']})" if ux["runs_why"] else "") if ux["bars"]
+                                  else board.CC + str(ux["why"] or "no ladder bars")),
+                       "trend": "Upstox index candles (REST)" if c1 and trd else board.CC + str(tr_why)}}
+        _HOLD["facts"][idx] = out
+        return out
+
+
+def _hold_minutes(F):
+    return [F["recs"][t] for t in hold.SESSION if t <= F["asof"]]
+
+
+def _hold_prem(F, k, side):
+    """The held contract's premium per minute [I]: the chain poller's last LTP of each
+    minute (a restart's backfill fills the same key); open = the previous close."""
+    mins, c = F["core"]["minutes"], []
+    for t in hold.SESSION:
+        if t > F["asof"]:
+            break
+        cell = fronts._at((mins.get(t) or {}).get("px"), k)
+        v = cell[0 if side == "CE" else 1] if isinstance(cell, (list, tuple)) and len(cell) == 2 else None
+        c.append(float(v) if isinstance(v, (int, float)) and v > 0 else None)
+    return {"c": c, "o": [None] + c[:-1], "src": "I"} if any(v is not None for v in c) else None
+
+
+def _hold_sigma(idx, k, side, asof):
+    """The premium against its own session VWAP, in σ [M] -- /api/contract's assembly
+    on REST 1-min candles, once per contract per minute. Footer only; never an input."""
+    hit = _HOLD["sigma"].get((idx, k, side))
+    if hit and hit["asof"] == asof:
+        return hit["out"]
+    import live
+    try:
+        b = live.build_contract(idx, strike=k, side=side, interval=1)
+        bars, vw = b.get("bars") or [], b.get("vwap") or []
+        i = next((i for i in range(len(bars) - 1, -1, -1) if (bars[i] or {}).get("t") == asof), None)
+        if i is None or not vw[i] or vw[i].get("vwap") is None or not vw[i].get("u1"):
+            out = {"why": board.CC + f"no {asof} candle for this contract from REST yet", "tag": "M"}
+        else:
+            sd = vw[i]["u1"] - vw[i]["vwap"]
+            out = {"vwap": round(vw[i]["vwap"], 2), "z": round((bars[i]["c"] - vw[i]["vwap"]) / sd, 1) if sd else None,
+                   "c": bars[i]["c"], "tag": "M"}
+    except Exception as e:                   # the footer's σ failing costs the σ, never the window
+        out = {"why": board.CC + f"premium candles: {type(e).__name__}: {e}", "tag": "M"}
+    _HOLD["sigma"][(idx, k, side)] = {"asof": asof, "out": out}
+    return out
+
+
+def _hold_trades():
+    """Today's marked trades; restored from data/day_state/ on a restart."""
+    day = _board_clock()[0]
+    if _HOLD["trades_day"] != day:
+        _HOLD["trades"], _HOLD["trades_day"] = [], day
+    return _HOLD["trades"]
+
+
+_HOLD_T = re.compile(r"^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$")      # a real clock time: "09:99" is refused
+
+
+def _hold_sec(t):
+    """HH:MM[:SS] -> seconds since midnight."""
+    return hold.mm(t) * 60 + int(t[6:8] or 0)
+
+
+def _hold_trade(doc, src="marked"):
+    """A trade from the form, the query or the tradebook, checked at the door. -> (trade, why)."""
+    try:
+        idx = str(doc.get("idx") or "").upper()
+        side, role = str(doc.get("side") or "").upper(), str(doc.get("role") or "").lower()
+        k = float(doc.get("k"))
+        p0 = float(doc["p0"]) if doc.get("p0") not in (None, "") else None
+        qty = int(float(doc.get("qty") or 0))
+    except (TypeError, ValueError, KeyError):
+        return None, "strike, entry price and qty must be numbers"
+    t0, ex = str(doc.get("t0") or ""), doc.get("exit_t") or None
+    if idx not in instruments.ENABLED:
+        return None, f"index must be one of {', '.join(instruments.ENABLED)}"
+    if side not in ("CE", "PE") or role not in ("long", "short"):
+        return None, "side must be CE or PE, and role long or short"
+    if not (k > 0 and k != float("inf")) or (p0 is not None and not 0 < p0 < 1e6) or qty < 0:
+        return None, "strike and entry price must be positive, qty not negative"
+    if not _HOLD_T.match(t0) or not "09:15" <= t0[:5] <= "15:29":
+        return None, "entry time must be HH:MM or HH:MM:SS inside 09:15-15:29"
+    if ex is not None and (not _HOLD_T.match(str(ex)) or str(ex) < t0):
+        return None, "exit time must be HH:MM or HH:MM:SS, not before the entry"
+    return {"id": f"{idx}-{k:g}{side}-{role}-{t0.replace(':', '')}", "idx": idx, "k": k, "side": side,
+            "role": role, "t0": t0, "p0": p0, "qty": qty, "exit_t": ex, "src": src,
+            "expiry": doc.get("expiry")}, None
+
+
+def _hold_reply(poller, q):
+    """GET /api/hold's reply: the verdict, the four rows, the entry check and the side read."""
+    def one(n):
+        return (q.get(n) or [None])[0]
+    if one("id"):
+        tr = next((t for t in list(_hold_trades()) if t["id"] == one("id")), None)
+        if tr is None:
+            return {"ok": False, "why": board.CC + f"no marked trade {one('id')} today"}
+    else:
+        tr, why = _hold_trade({n: one(n) for n in ("idx", "k", "side", "role", "t0", "p0", "qty", "exit_t")}, "query")
+        if tr is None:
+            return {"ok": False, "why": board.CC + why}
+    F = _hold_facts(poller, tr["idx"])
+    if F is None:
+        return {"ok": False, "trade": tr, "draft": hold.DRAFT,
+                "why": board.CC + "no finished minute of today's session on the chain grid yet"}
+    asof = one("asof") or F["asof"]
+    if asof not in hold.SESSION or asof > F["asof"]:
+        return {"ok": False, "trade": tr, "draft": hold.DRAFT,
+                "why": board.CC + f"{asof} is not a finished session minute yet (latest {F['asof']})"}
+    mins = _hold_minutes(F)
+    res = hold.read(tr, mins, F["pivots"], upto=asof, prem=_hold_prem(F, tr["k"], tr["side"]), idx=tr["idx"],
+                    late=_hold_late(tr["idx"], F["day"]), frozen=_hold_frozen(tr))
+    if not res["ok"]:
+        return {"ok": False, "trade": tr, "asof": asof, "draft": hold.DRAFT, "why": res["why"]}
+    pl = plan.read(tr, mins, res["rows"], greeks=_hold_greeks(tr["idx"], F["day"], tr["k"], tr["side"], len(mins)))
+    i = hold.SESSION.index(asof)
+    sd = hold.sides(mins, upto=i)[-1]
+    now, ent = res["rows"][-1], res["entry"]
+    ex = tr.get("exit_t")
+    return {
+        "ok": True, "draft": hold.DRAFT, "idx": tr["idx"], "day": F["day"], "asof": asof, "trade": tr,
+        "thesis": res["th"], "now": now, "fold": res["fold"],
+        "plan": {**pl["rows"][-1], "entry": pl["rows"][0], "draft": plan.DRAFT, "not_shown": plan.NOT_SHOWN_LINES},
+        "entry": {**ent, "head": asof < ent["head_until"]},
+        "side": {**hold.side_line(mins[i], sd, F["expiry"]), "agrees": hold.agrees(tr["side"], tr["role"], sd["side"])},
+        "after_exit": bool(ex) and hold.mm(asof) > hold.mm(hold.read_minute(ex)),
+        "sigma": _hold_sigma(tr["idx"], tr["k"], tr["side"], asof) if one("sigma") != "0" else None,
+        "rows": res["rows"] if one("rows") == "1" else None,
+        "runs": _hold_runs(res["rows"]) if one("rows") == "brief" else None,
+        "absent": {
+            "checked_none": board.NONE + ("nothing un-latches a FOLD; a re-entry is a new trade" if res["fold"]
+                                          else "no FOLD rule has matched since your entry"),
+            "could_not_check": now["blind"],
+            "not_shown": [board.NOT_SHOWN + "the engine's own headline word — it read CONTRADICTED on 09-24",
+                          board.NOT_SHOWN + "an order, a size, a target, a stop price or a probability — never",
+                          board.NOT_SHOWN + "P&L on the collapsed line — the window reads the reason, not the money"]},
+        "src_data": F["src"], "note": "display only; the window gates nothing and has no order path",
+    }
+
+
+def _hold_side_reply(poller, idx, asof=None):
+    """GET /api/hold/side: §10's read for one index, whether or not she is in a trade."""
+    F = _hold_facts(poller, idx)
+    if F is None:
+        return {"ok": False, "idx": idx, "why": board.CC + "no finished minute of today's session on the chain grid yet"}
+    asof = asof if asof in hold.SESSION and asof <= F["asof"] else F["asof"]
+    mins = _hold_minutes(F)
+    i = hold.SESSION.index(asof)
+    return {"ok": True, "idx": idx, "day": F["day"], "asof": asof, "draft": hold.DRAFT,
+            "side": hold.side_line(mins[i], hold.sides(mins, upto=i)[-1], F["expiry"])}
+
+
+def _hold_runs(rows):
+    """The trade's record since entry as runs of the WORD: [{from, to, verdict, tag, sentence}],
+    one per change of HOLD / WATCH / FOLD / PATA NAHI (a noise tag flickering minute to minute is
+    not a change of the word) -- each with the sentence that opened it. What the Validate tab
+    prints instead of 300 minute rows."""
+    out = []
+    for x in rows:
+        if out and out[-1]["verdict"] == x["verdict"]:
+            out[-1]["to"] = x["t"]
+        else:
+            out.append({"from": x["t"], "to": x["t"], "verdict": x["verdict"], "tag": x["tag"], "sentence": x["sentence"]})
+    return out
+
+
+def _hold_zone_rows():
+    """The zone machine's rows (data/trigger_log.jsonl, read-only), re-read only when the
+    file changes -- so a check polled every 15 s costs a stat, not a parse."""
+    try:
+        st = os.stat(trigger_log.PATH)
+    except OSError:
+        return None
+    c = _HOLD.get("zone_cache")
+    if not c or c["key"] != (st.st_size, st.st_mtime):
+        rows, _bad = trigger_log.read(trigger_log.PATH)
+        c = _HOLD["zone_cache"] = {"key": (st.st_size, st.st_mtime), "rows": [r for r in rows if r.get("rule") == "zone"]}
+    return c["rows"]
+
+
+def _hold_lot(idx):
+    try:
+        return upstox_instruments.lot_tick(idx)[0]
+    except Exception:                        # the dump not loaded: the check says "per unit"
+        return None
+
+
+def _hold_zone(idx, day, asof, d):
+    """Her setup, as the zone machine logged it forward: its latest TRIGGER and latest ARM on
+    `idx` today, each seen once its 3-min bar has closed by `asof`, with its own §1d gate [M]
+    and whether it agrees with a trade of direction `d`. Display only; it gates nothing."""
+    rows = _hold_zone_rows()
+    if rows is None:
+        return {"trigger": None, "arm": None, "why": board.CC + "the zone record could not be read"}
+    mine = [r for r in rows if r.get("rule") == "zone" and r.get("day") == day and r.get("index") == idx
+            and isinstance(r.get("t"), str) and fronts.bar_last_minute(r["t"], 3) <= asof]     # never pooled with 5c
+
+    def ev(r):
+        g, zd = r.get("gate") or {}, {"SELL": -1, "BUY": 1}.get(r.get("side"), 0)
+        seen = fronts.bar_last_minute(r["t"], 3)
+        return {"t": r["t"], "seen": seen, "ago": hold.mm(asof) - hold.mm(seen),
+                "kind": "armed" if r.get("kind") == "arm" else "triggered", "side": r.get("side"),
+                "band": r.get("band"), "px": r.get("px"), "legal": g.get("legal"), "why": g.get("why"),
+                "agrees": "agrees" if zd == d else "against" if zd == -d else "no side", "tag": "M"}
+    trig = [r for r in mine if r.get("kind") != "arm"]
+    arms = [r for r in mine if r.get("kind") == "arm"]
+    return {"trigger": ev(trig[-1]) if trig else None, "arm": ev(arms[-1]) if arms else None,
+            "why": None if mine else board.NONE + f"the zone machine has not armed on {idx} today"}
+
+
+def _hold_machine(payloads, idx):
+    """The zone machine's own per-bar states on the day's 3-min future bars -- what /api/data publishes at
+    band_rotation.SCORED_INTERVAL as zone_state / zone_state_sell -- as (bars, buy, sell); (None, None, None)
+    when the tape has no payload. One seam for tests."""
+    try:
+        pl = payload_at((payloads or {}).get(idx), band_rotation.SCORED_INTERVAL)
+        pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
+        d0 = (pj.get("days") or [{}])[0] if isinstance(pj, dict) else {}
+        return d0.get("bars"), d0.get("zone_state"), d0.get("zone_state_sell")
+    except Exception:                        # an unreadable tape costs the setup fact, never the check
+        return None, None, None
+
+
+def _hold_setup(payloads, idx, day, asof, d):
+    """VALIDATE rev 2 §1.1: Your setup, the zone machine's own state on the last closed 3-min bar, by the
+    registered pick, with the §1d gate of its event's logged zone row. Display only; it gates nothing."""
+    bars, buy, sell = _hold_machine(payloads, idx)
+    rows = _hold_zone_rows()
+    mine = [r for r in rows or [] if r.get("day") == day and r.get("index") == idx]
+    return validate.pick(bars if rows is not None else None, buy, sell, mine, asof, d)
+
+
+def _hold_geom(F, idx, t, d):
+    """VALIDATE rev 2 §1.3 at check minute t for direction d, ONE function for the check's Room and the outcome
+    writer (§3): the window's line from the trade the check makes (t0 = t + 1; CE for d = +1, PE for d = -1;
+    long -- a writer's danger-side line for the same d is the same line), the noise and the target, off the
+    same day facts. Exact after a restart."""
+    mins, late = _hold_minutes(F), _hold_late(idx, F["day"])
+    tr = {"side": "CE" if d > 0 else "PE", "role": "long", "t0": hold.hm(hold.mm(t) + 1), "k": 0, "p0": None, "qty": 0}
+    res = hold.read(tr, mins, F["pivots"], upto=t, idx=idx, late=late)
+    ln = res["rows"][0]["line"] if res.get("ok") else {"blind": res.get("why")}
+    return validate.geometry(mins, hold.SESSION.index(t), d, ln, late)
+
+
+def _hold_check(poller, q, payloads=None):
+    """GET /api/hold/check -- the Validate tab's "if I enter now": THE SAME READ the window makes
+    at a fill (the entry check, the four rows, the plan, the side read), made at the latest
+    finished minute for a trade not yet taken, plus her setup from the zone machine. Nothing is
+    marked, nothing is logged; no new rule is involved."""
+    def one(n):
+        return (q.get(n) or [None])[0]
+    idx = str(one("idx") or "").upper()
+    if idx not in instruments.ENABLED:
+        return {"ok": False, "why": board.CC + f"index must be one of {', '.join(instruments.ENABLED)}"}
+    F = _hold_facts(poller, idx)
+    if F is None:
+        if _board_clock()[1] < "09:16":      # nothing is missing before the first minute has finished
+            return {"ok": False, "idx": idx, "why": board.NOT_SHOWN + "the first check reads the 09:15 minute, from 09:16"}
+        return {"ok": False, "idx": idx, "why": board.CC + "no finished minute of today's session on the chain grid yet"}
+    asof = F["asof"]
+    if hold.mm(asof) + 1 > hold.mm("15:29"):
+        return {"ok": False, "idx": idx, "asof": asof,
+                "why": board.NOT_SHOWN + "the session has closed — a pre-trade check reads a live minute"}
+    lot = _hold_lot(idx)
+    qty = one("qty") or lot or 1
+    try:
+        k, side = float(one("k")), str(one("side") or "").upper()
+        cell = fronts._at((F["core"]["minutes"].get(asof) or {}).get("px"), k)
+    except (TypeError, ValueError):
+        return {"ok": False, "idx": idx, "why": board.CC + "strike must be a number"}
+    live = cell[0 if side == "CE" else 1] if isinstance(cell, (list, tuple)) and len(cell) == 2 else None
+    p0 = one("p0") or live
+    tr, why = _hold_trade({"idx": idx, "k": k, "side": side, "role": one("role"), "qty": qty, "p0": p0,
+                           "t0": hold.hm(hold.mm(asof) + 1)}, "check")
+    if tr is None:
+        return {"ok": False, "idx": idx, "why": board.CC + why}
+    mins = _hold_minutes(F)
+    res = hold.read(tr, mins, F["pivots"], prem=_hold_prem(F, k, side), idx=idx, late=_hold_late(idx, F["day"]))
+    if not res["ok"]:
+        return {"ok": False, "idx": idx, "asof": asof, "why": res["why"]}
+    gk = _hold_greeks(idx, F["day"], k, side, len(mins))
+    pl = plan.read(tr, mins, res["rows"], greeks=gk)
+    i = hold.SESSION.index(asof)
+    sd = hold.sides(mins, upto=i)[-1]
+    ent = res["entry"]
+    text = ent["text"].replace("You entered into", "If you enter now, you enter into", 1) \
+                      .replace("the reason was already gone (read", "the reason is already gone (read", 1)
+    out = {
+        "ok": True, "draft": hold.DRAFT, "idx": idx, "day": F["day"], "asof": asof, "trade": tr, "lot": lot,
+        "qty_src": "you" if one("qty") else f"1 lot ({lot})" if lot else "per unit — the lot size is not loaded",
+        "p0_src": "you" if one("p0") else f"the chain's last trade at {asof} [I]" if live else None,
+        "thesis": res["th"], "now": res["rows"][-1], "entry": {**ent, "text": text},
+        "plan": {**pl["rows"][-1], "draft": plan.DRAFT, "not_shown": plan.NOT_SHOWN_LINES},
+        "side": {**hold.side_line(mins[i], sd, F["expiry"]), "agrees": hold.agrees(side, tr["role"], sd["side"])},
+        "zone": _hold_zone(idx, F["day"], asof, res["th"]["d"]),
+        "greeks": ({"delta": gk[-1][0], "gamma": gk[-1][1], "tag": "M"} if gk and gk[-1] else
+                   {"why": board.CC + "no greeks for this strike in the chain record"}),
+        "absent": {"checked_none": board.NOT_SHOWN + "an order, a size or a confidence number — never computed here",
+                   "could_not_check": res["rows"][-1]["blind"],
+                   "not_shown": [board.NOT_SHOWN + "the engine's own headline word — it read CONTRADICTED on 09-24"]
+                   + plan.NOT_SHOWN_LINES},
+        "note": "a check marks no trade; a VALIDATE press is logged",       # VALIDATE-PREREG.md §3
+    }
+    d = res["th"]["d"]
+    out["setup"] = su = _hold_setup(payloads, idx, F["day"], asof, d)          # VALIDATE rev 2 §1.1
+    out["room"] = g = _hold_geom(F, idx, asof, d)                               # §1.3
+    out["validate"] = v = validate.word(out)
+    if one("log") == "1":                    # VALIDATE-PREREG rev 2 §3: every press, write-once per minute and contract
+        tg, paid = g["target"], v["facts"][3]
+        hold_log.append("check", F["day"], [{
+            "day": F["day"], "at": round(time.time(), 1), "t": asof, "idx": idx, "k": k, "side": side,
+            "role": tr["role"], "p0": tr["p0"], "word": v["word"], "n_for": v["n_for"], "n_against": v["n_against"],
+            "facts": [[f["name"], f["state"], f["absence"], f["text"]] for f in v["facts"]], "entry_verdict": ent["verdict"],
+            "zone_t": (out["zone"].get("trigger") or {}).get("t"),
+            "stop": {k2: out["plan"]["stop"].get(k2) for k2 in ("L", "room")},
+            "rung": out["plan"]["rung"] and {k2: out["plan"]["rung"].get(k2) for k2 in ("src", "side", "k", "room", "word")},
+            "tag": "I", "rev": validate.REV, "d": d,
+            "setup": {k2: su.get(k2) for k2 in ("machine", "state", "band", "ref_t", "candles_left", "legal", "why")},
+            "room": {"line": g["line"], "noise": g["noise"], "n": g["n"],
+                     "target": {k2: tg.get(k2) for k2 in ("src", "side", "k", "pts", "word")}},
+            "paid": True if paid["state"] == "for" else False if paid["absence"] == "none" else None}])
+    return out
+
+
+def _hold_row(F, tr, x, ent, sd, pr, fold=None):
+    """One §8 trade-log row, with THE PLAN's minute (PLAN §5) as one additive key, and rev 5 §G's additive
+    keys: the line's close read, its B and level; the latch once set; the option the row was written under."""
+    rec = F["recs"][x["t"]]
+    c, fl, ex = rec.get("cvd") or {}, rec.get("flow") or {}, tr.get("exit_t")
+    return {"day": F["day"], "t": x["t"], "idx": tr["idx"], "trade_id": tr["id"], "src": tr["src"],
+            "after_exit": bool(ex) and hold.mm(x["t"]) > hold.mm(hold.read_minute(ex)),
+            "strike": tr["k"], "side": tr["side"], "role": tr["role"], "qty": tr["qty"],
+            "entry_t": tr["t0"], "entry_px": tr["p0"], "exit_t": ex,
+            "verdict": x["verdict"], "word_tag": x["tag"], "since": x["since"], "fold_rule": x["fold_rule"],
+            "entry_verdict": ent["verdict"], "unlatched": x["unlatched"],
+            "line": {k: x["line"].get(k) for k in ("L", "src", "room", "broken_at", "blind", "px", "bar_close", "bar",
+                                                   "read_at", "backfill", "B", "B_at", "level", "clamped")},
+            "latch": {k: fold.get(k) for k in ("t", "rule", "bar", "L", "src", "px", "by", "read_at", "backfill", "B",
+                                               "B_at", "level", "by_level", "clamped")}
+                     if fold and hold.mm(x["t"]) >= hold.mm(fold["t"]) else None,
+            "prereg": hold.PREREG,
+            "payers": {k: x["payers"].get(k) for k in ("k", "state", "fold_t")},
+            "holders": {k: x["holders"].get(k) for k in ("k", "state", "fold_t")},
+            "both_leaving": x["both_leaving"],
+            "flow": {"cvd_d": c.get("d"), "rank": c.get("rank"), "buy": fl.get("b"), "sell": fl.get("s"),
+                     "word": x["flow"]["state"], "why": x["flow"]["why"]},
+            "trend": {**(rec.get("tr") or {}), "word": x["trend"]["state"]},
+            "clock": {k: x["clock"].get(k) for k in ("paid_last", "quiet", "readable")},
+            "prem": x["prem"].get("c"), "prem_pct_of_entry": x["prem"].get("pct"), "pnl": x["prem"].get("pnl"),
+            "blind": x["blind"],
+            "side_read": {"side": sd["side"], "since": sd["since"],
+                          "agrees": hold.agrees(tr["side"], tr["role"], sd["side"])},
+            "plan": {"stop": {k: pr["stop"].get(k) for k in ("L", "room", "risk", "risk_why")},
+                     "rung": pr["rung"] and {k: pr["rung"].get(k) for k in ("src", "side", "k", "room", "word", "state", "fold_t")},
+                     "touch": pr["touch"] and {k: pr["touch"].get(k) for k in ("k", "side", "word", "session")}},
+            "tag": "I", "src_data": F["src"], "at": round(time.time(), 1)}
+
+
+def _hold_tick(poller, idx, extra=()):
+    """The forward logs for one index up to its latest finished minute (§8): every
+    minute's side row not yet written, each side stamp's strike track once its 30
+    finished minutes are in (to 15:29 and flagged short after 14:59), and the rows of
+    every marked trade (+ `extra`, the import's). Exact after a restart. -> rows written."""
+    F = _hold_facts(poller, idx)
+    if F is None:
+        return 0
+    day, asof, mins = F["day"], F["asof"], _hold_minutes(F)
+    sds = hold.sides(mins)
+    grid = F["core"]["minutes"]
+    ks = F["core"]["g"][2]
+    step = min((b - a for a, b in zip(ks, ks[1:]) if b > a), default=None) or 1.0
+
+    def px(t, k):
+        cell = fronts._at((grid.get(t) or {}).get("px"), k)
+        return list(cell) if isinstance(cell, (list, tuple)) and len(cell) == 2 else [None, None]
+
+    def atm(m):
+        return round(m["spot"] / step) * step if m.get("spot") is not None else None
+    side_rows = []
+    for m, sd in zip(mins, sds):
+        if hold_log.has("side", day, (idx, m["t"], "minute")):
+            continue
+        k = atm(m)
+        sl = hold.side_line(m, sd, F["expiry"])
+        side_rows.append({
+            "day": day, "t": m["t"], "idx": idx, "kind": "minute", "rows": m.get("tr"), "side": sd["side"],
+            "since": sd["since"], "stamp": sd["stamp"], "facts": {f["k"]: f["state"] for f in sl["facts"]},
+            "oi_half": sl["oi_half"], "blind": [b for b in (m.get("blind"), m.get("tr_why")) if b],
+            "expiry": F["expiry"]["text"], "atm": {"k": k, **dict(zip(("ce_px", "pe_px"), px(m["t"], k) if k else [None, None]))},
+            "tag": "I", "src_data": F["src"], "at": round(time.time(), 1)})
+    for i, sd in enumerate(sds):
+        if not sd["stamp"]:
+            continue
+        end = min(hold.mm(sd["t"]) + HOLD_TRACK, hold.mm("15:29"))
+        if hold.mm(asof) < end or hold_log.has("side", day, (idx, sd["t"], "stamp_track")):
+            continue
+        k, ts = atm(mins[i]), [hold.hm(n) for n in range(hold.mm(sd["t"]), end + 1)]
+        side_rows.append({"day": day, "t": sd["t"], "idx": idx, "kind": "stamp_track", "side": sd["side"],
+                          "stamp_track": {"k": k, "from": sd["t"], "to": hold.hm(end),
+                                          "short": hold.mm(sd["t"]) + HOLD_TRACK > hold.mm("15:29"),
+                                          "ce": [{"t": t, "px": px(t, k)[0]} for t in ts],
+                                          "pe": [{"t": t, "px": px(t, k)[1]} for t in ts]},
+                          "tag": "I", "src_data": F["src"], "at": round(time.time(), 1)})
+    n = hold_log.append("side", day, side_rows)
+    with HOLD_TRADES_LOCK:
+        trades = [t for t in _hold_trades() if t["idx"] == idx] + list(extra)
+    by_t = {s["t"]: s for s in sds}
+    for tr in trades:
+        # rev 5 §A.0.4: a live or marked trade reads each close when it was read; the close-time import reads
+        # every close at its own bar (src: import, shown apart)
+        res = hold.read(tr, mins, F["pivots"], prem=_hold_prem(F, tr["k"], tr["side"]), idx=idx,
+                        late=None if tr.get("src") == "import" else _hold_late(idx, day), frozen=_hold_frozen(tr))
+        if not res["ok"]:
+            continue
+        _hold_freeze(tr, res["b_reads"])
+        pl = plan.read(tr, mins, res["rows"], greeks=_hold_greeks(idx, day, tr["k"], tr["side"], len(mins)))
+        pr = {p["t"]: p for p in pl["rows"]}
+        n += hold_log.append("hold", day, [_hold_row(F, tr, x, res["entry"], by_t[x["t"]], pr[x["t"]], res["fold"])
+                                           for x in res["rows"]
+                                           if not hold_log.has("hold", day, (tr["id"], x["t"], "minute"))])
+        d = res["th"]["d"]
+        touch_rows = []
+        for tc in pl["touches"]:                     # PLAN §5: each touch its own write-once row, once its 15 minutes finish
+            nx = plan.next15(mins, tc["i"], d, len(mins) - 1)
+            if nx is None or hold_log.has("hold", day, (tr["id"], tc["t"], "rung_touch")):
+                continue
+            touch_rows.append({"day": day, "kind": "rung_touch", "t": tc["t"], "touch_t": tc["t"], "trade_id": tr["id"],
+                               "idx": idx, "src": tr["src"], "k": tc["k"], "side": tc["side"], "word": tc["word"],
+                               "close_at_touch": tc["close"], "next15": nx, "tag": "M", "at": round(time.time(), 1)})
+        n += hold_log.append("hold", day, touch_rows)
+    n += _hold_outcomes(F, idx)
+    if _HOLD.pop("land_new", False):         # a late read or a B read: on disk before the next restart can need it
+        _save_day_state()
+    return n
+
+
+def _hold_outcomes(F, idx):
+    """VALIDATE rev 2 §3, the stamp_track discipline: for every (idx, read minute t, d) with a rev 2 buyer press
+    and no outcome row yet, once its window has finished (asof >= min(t + 30, 15:29)), ONE outcome row -- the
+    trade re-created from the press row as the check made it, L and the target read by the check's own
+    function. Keyed (idx, t, d, "outcome") so a long CE and a long PE at one minute are two rows."""
+    day, asof = F["day"], F["asof"]
+    press = [r for r in hold_log.read("check", day) if r.get("rev") == validate.REV
+             and r.get("kind") != "check_outcome" and r.get("role") == "long" and r.get("t") in hold.SESSION]
+    rows, mins = [], None
+    for key in sorted({(r["t"], r["d"]) for r in press if r.get("idx") == idx}):
+        t, d = key
+        if hold.mm(asof) < min(hold.mm(t) + validate.HORIZON, hold.mm(hold.SESSION[-1])) \
+                or hold_log.has("check", day, (idx, t, d, "outcome")):
+            continue
+        mins = mins or _hold_minutes(F)
+        o = validate.outcome(mins, hold.SESSION.index(t), d, _hold_geom(F, idx, t, d))
+        if o is None:
+            continue
+        rows.append({"kind": "check_outcome", "day": day, "t": t, "idx": idx, "d": d,
+                     "word": next(r["word"] for r in press if (r["idx"], r["t"], r["d"]) == (idx, t, d)),
+                     "co_timed": sorted({r["idx"] for r in press if r["idx"] != idx and (r["t"], r["d"]) == key}),
+                     "opposite_same_minute": any((r["idx"], r["t"], r["d"]) == (idx, t, -d) for r in press),
+                     **o, "tag": "M"})
+    return hold_log.append("check", day, rows)
+
+
+def _hold_loop(poller):
+    """The forward logs, once a minute per index, for session minutes only -- on its own
+    thread, so a slow REST candle fetch can never cost the tape a build. The 15:29
+    minute finishes at 15:30:00, so the gate reads the clock 90 s back; the close-time
+    import completes anything a dead minute missed."""
+    from chain_live import IST, in_session
+    from datetime import datetime, timedelta
+    last = {}
+    while True:
+        time.sleep(10)
+        now = datetime.now(IST)
+        if not in_session(now - timedelta(seconds=90)):
+            continue
+        for idx in instruments.ENABLED:
+            m = now.strftime("%H:%M")
+            if last.get(idx) == m:
+                continue
+            last[idx] = m
+            try:
+                _hold_tick(poller, idx)
+            except Exception:
+                log.exception("hold log failed %s", idx)
+
+
+_HOLD_SYM = re.compile(r"^(NIFTY|SENSEX|BANKNIFTY)\d{2}[0-9A-Z]{3}(\d+)(CE|PE)$")
+
+
+def _hold_trips(text, day):
+    """Her Zerodha tradebook CSV -> flat-to-flat round trips of `day`, long when the
+    first fill buys, short when it sells. -> (trades, skipped)."""
+    import csv
+    import io
+    fills, skipped = [], []
+    for r in csv.DictReader(io.StringIO(text)):
+        if (r.get("trade_date") or "") != day:
+            continue
+        m = _HOLD_SYM.match(r.get("symbol") or "")
+        try:
+            q, p = int(float(r["quantity"])), float(r["price"])
+            t = (r.get("order_execution_time") or "")[11:19]
+            bs = (r.get("trade_type") or "").lower()
+        except (KeyError, TypeError, ValueError):
+            m = None
+        if not m or bs not in ("buy", "sell") or not _HOLD_T.match(t):
+            skipped.append(r.get("symbol") or "?")
+            continue
+        fills.append((t, r["symbol"], m.group(1), float(m.group(2)), m.group(3), bs, q, p, r.get("expiry_date")))
+    trips, book = [], {}
+    for t, sym, idx, k, side, bs, q, p, exp in sorted(fills):
+        st = book.get(sym)
+        if st is None or st["pos"] == 0:
+            st = book[sym] = {"idx": idx, "k": k, "side": side, "role": "long" if bs == "buy" else "short",
+                              "t0": t, "pos": 0, "in": [], "exit_t": None, "expiry": exp}
+        sg = 1 if bs == "buy" else -1
+        if (st["role"] == "long") == (sg > 0):
+            st["in"].append((q, p))
+        else:
+            st["exit_t"] = t
+        st["pos"] += sg * q
+        if st["pos"] == 0:
+            trips.append(st)
+    trips += [st for st in book.values() if st["pos"] != 0]          # still open at the import
+    out = []
+    for st in trips:
+        qin = sum(q for q, _ in st["in"])
+        tr, why = _hold_trade({**st, "p0": round(sum(q * p for q, p in st["in"]) / qin, 2) if qin else None,
+                               "qty": qin, "exit_t": st["exit_t"] if st["pos"] == 0 else None}, "import")
+        (out.append(tr) if tr else skipped.append(f"{st['idx']} {st['k']:g}{st['side']} {st['t0']}: {why}"))
+    return out, skipped
+
+
+def _hold_import(poller, text):
+    """POST /api/hold/import -- the close-time import (§8, S5). Every trade of TODAY in
+    her tradebook that she did not mark is replayed causally from the day record and
+    logged `src: import`; the side log and the marked trades are completed to the
+    latest finished minute. An empty body only completes."""
+    day = _board_clock()[0]
+    trips, skipped = _hold_trips(text, day) if text.strip() else ([], [])
+
+    def same(m, t):
+        return (m["idx"] == t["idx"] and m["k"] == t["k"] and m["side"] == t["side"] and m["role"] == t["role"]
+                and abs(hold.mm(m["t0"]) - hold.mm(t["t0"])) <= 2)
+    n_broker = 0
+    with HOLD_TRADES_LOCK:
+        marked = list(_hold_trades())
+        for t in trips:
+            for m in marked:
+                if t["exit_t"] and same(m, t):
+                    # the tradebook's exit BESIDE the one she clicked: additive, it never changes exit_t
+                    # or a logged row; which of the two §7 reads is her call (REVIEW P1-9)
+                    m["exit_t_broker"] = t["exit_t"]
+                    n_broker += 1
+    if n_broker:
+        _save_day_state()
+    new = [t for t in trips if not any(same(m, t) for m in marked)]
+    written = {idx: _hold_tick(poller, idx, extra=[t for t in new if t["idx"] == idx]) for idx in instruments.ENABLED}
+    return {"ok": True, "day": day, "trips": len(trips), "imported": [t["id"] for t in new],
+            "matched_marked": len(trips) - len(new), "skipped": skipped, "rows_written": written,
+            "files": [hold_log.path("hold", day), hold_log.path("side", day)]}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, payloads=None, chains=None, poller=None, late=None,
                  **kw):
@@ -1514,6 +2695,82 @@ class Handler(SimpleHTTPRequestHandler):
         # server publishes. The two join on (index, day, t) when §5e asks
         # "of the zone arms, which did I actually take". Fire-and-forget on
         # the extension side — a failure here must never block a fill.
+        if self.path.startswith("/api/hold/"):
+            # THE HOLD WINDOW's two doors. /api/hold/trades {op: mark|exit|reopen|unmark}:
+            # the trades she marks, kept in data/day_state/ so a restart keeps
+            # them. /api/hold/import (text/csv, may be empty): the close-time
+            # tradebook import. CAPPED like every POST here; never an order.
+            # A POST another site's page made is refused (REVIEW §P2): a no-cors
+            # text/plain POST needs no preflight and could mark or unmark trades
+            # in her forward record. The UI posts through the Vite proxy
+            # (same-origin); a client that sends no Sec-Fetch-Site (curl) passes.
+            site = self.headers.get("Sec-Fetch-Site")
+            if site is not None and site not in ("same-origin", "same-site", "none"):
+                self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
+                return
+            try:
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                except ValueError:
+                    n = -1
+                cap = 1048576 if self.path.startswith("/api/hold/import") else 8192
+                if not 0 <= n < cap:
+                    self._json(b'{"ok":false,"why":"bad request"}', 400)
+                    return
+                body = self.rfile.read(n) if n else b""
+                if self.path.startswith("/api/hold/import"):
+                    out = _hold_import(self.poller, body.decode("utf-8-sig", "replace"))
+                else:
+                    doc = json.loads(body or b"{}")
+                    op = doc.get("op")
+                    with HOLD_TRADES_LOCK:
+                        trades = _hold_trades()
+                        if op == "mark":
+                            tr, why = _hold_trade(doc)
+                            out = {"ok": False, "why": board.CC + why} if tr is None else None
+                            # a double-click, not a second trade (REVIEW P1-8): the same contract, still
+                            # open, marked within 60 s of this one
+                            dup = tr and next((t for t in trades if not t.get("exit_t")
+                                               and all(t[f] == tr[f] for f in ("idx", "k", "side", "role"))
+                                               and abs(_hold_sec(t["t0"]) - _hold_sec(tr["t0"])) <= 60), None)
+                            if dup:
+                                out = {"ok": False, "why": f"already marked — {dup['idx']} {dup['k']:g} {dup['side']} "
+                                                           f"{dup['role']} in at {dup['t0']} is open"}
+                            elif tr is not None:
+                                trades[:] = [t for t in trades if t["id"] != tr["id"]] + [dict(tr, at=time.time())]
+                        elif op in ("exit", "unmark", "reopen"):
+                            tr = next((t for t in trades if t["id"] == doc.get("id")), None)
+                            ex = str(doc.get("exit_t") or time.strftime("%H:%M:%S"))      # none given: now
+                            out = None
+                            if tr is None:
+                                out = {"ok": False, "why": board.CC + f"no marked trade {doc.get('id')} today"}
+                            elif op == "unmark":
+                                trades.remove(tr)
+                            elif op == "reopen":
+                                # the UI's 10 s "undo I'm out", for an exit clicked in the last 120 s. Minute
+                                # rows the log wrote meanwhile keep their after_exit (write-once, hold_log.py).
+                                if not tr.get("exit_t") or time.time() - (tr.get("exit_at") or 0) > 120:
+                                    out = {"ok": False, "why": "nothing to undo — no exit in the last 120 s"}
+                                else:
+                                    tr["exit_t"] = None
+                                    tr.pop("exit_t_broker", None)
+                                    tr.pop("exit_at", None)
+                            elif not _HOLD_T.match(ex) or ex < tr["t0"]:
+                                out = {"ok": False, "why": board.CC + "exit time must be HH:MM[:SS], not before the entry"}
+                            else:
+                                tr["exit_t"], tr["exit_at"] = ex, time.time()
+                        else:
+                            out = {"ok": False, "why": board.CC + "op must be mark, exit, reopen or unmark"}
+                        out = out or {"ok": True, "trades": list(trades)}
+                    if out["ok"]:
+                        _HOLD["dirty"] = True
+                        _save_day_state()
+                self._json(json.dumps(out, default=str).encode())
+            except Exception as e:      # never 500 at the window
+                log.exception("hold post %s", self.path)
+                self._json(json.dumps({"ok": False, "why": f"{type(e).__name__}: {e}"}).encode())
+            return
+
         if self.path.startswith("/api/orderbook"):
             # PaperDesk's Kite tap, shipping per-level ORDER COUNTS. Read-only
             # and additive: nothing in the tape or the chain depends on it, so
@@ -1762,7 +3019,7 @@ class Handler(SimpleHTTPRequestHandler):
             from live import clamp_interval
             q = parse_qs(urlsplit(self.path).query)
             interval = clamp_interval((q.get("interval") or [None])[0])
-            pl = payload_at(box, interval)
+            pl = _session_payload(box, interval)
             self._json(pl if pl is not None else b"{}")
         elif self.path.startswith("/api/chain"):
             idx = self._idx()
@@ -1892,6 +3149,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = live.build_contract(idx, strike=strike, side=side,
                                            interval=interval, days=days,
                                            chain_rows=rows, atm=atm)
+                live.leg_pivots(body)            # fail-soft, per leg
             except Exception as e:
                 # Same isolation as /api/data: this index reports its own
                 # failure, the others are untouched, and the traceback lands
@@ -2101,6 +3359,15 @@ class Handler(SimpleHTTPRequestHandler):
             # once at 09:17 and stopped. `frame.py` calls the same function on
             # the same grid, so the rule exists once, in one language.
             rows = fronts.read(mins or {}, peak)
+            # BOARD rev 3, ADDITIVE: the open per strike and side (carried in),
+            # and the day's folds and FIRST FOLD off the same grid, cut to the
+            # latest finished minute and cached per minute (_board_core).
+            opens = _board_opens(self.poller, idx)
+            try:
+                core, core_why = _board_core(self.poller, idx), None
+            except Exception as e:           # the new keys must never cost the old ones
+                log.exception("oihist folds %s", idx)
+                core, core_why = None, f"{type(e).__name__}: {e}"
             self._json(json.dumps({
                 "ok": mins is not None,
                 "idx": idx,
@@ -2123,7 +3390,31 @@ class Handler(SimpleHTTPRequestHandler):
                 # the same evidence as an observation.
                 "backfill_marks": sorted(m for m, rec in (mins or {}).items()
                                          if (rec or {}).get("src") == "backfill"),
+                "open": [{"k": k, "side": s, "oi": v} for (k, s), v in sorted(opens.items())],
+                "open_why": None if opens else "no chain snapshot yet -- the open is oi - oi_chg off it",
+                "folds": core["evs"] if core else None,
+                "folds_asof": core["asof"] if core else None,
+                "folds_why": (board.CC + (core_why or "the chain poller has no state for this index yet")
+                              if core is None else None if core["evs"] else
+                              board.NONE + "no sized front inside the nine has folded yet today"),
+                "first": core["first"] if core else None,
+                "first_why": None if core and core["first"] else (
+                    board.NONE + "no §1d top-2 front has folded yet today" if core and core["cov"]["whole"]
+                    else board.CC + "the grid is not whole from the open yet"),
             }, default=str).encode())
+        elif self.path.startswith("/api/board"):
+            # BOARD rev 3's server half (notes §8 steps 2-6): headline, fronts
+            # with carried/built, folds and FIRST, agreement, the trend box,
+            # the mirror read and PCR -- for the latest FINISHED minute, cached
+            # per index per minute. ?idx= and optional ?strike= / ?ce= / ?pe=.
+            idx = self._idx()
+            try:
+                out = _board_reply(self.poller, idx, parse_qs(urlsplit(self.path).query))
+            except Exception as e:           # a bad read must not 500 the face
+                log.exception("board %s", idx)
+                out = json.dumps({"ok": False, "idx": idx,
+                                  "why": board.CC + f"{type(e).__name__}: {e}"}).encode()
+            self._json(out)
         elif self.path.startswith("/api/day/record"):
             # The record has never had a reader. The day's ORDER FLOW lives in
             # it — the extension replays GoCharting's loaded footprint, so a
@@ -2491,6 +3782,28 @@ class Handler(SimpleHTTPRequestHandler):
                              for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
+        elif self.path.startswith("/api/hold"):
+            # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
+            # /api/hold?id= a marked trade, or ?idx=&k=&side=&role=&t0=&p0=&qty=
+            # [&asof=HH:MM][&rows=1]; /api/hold/side?idx= the side read, flat or
+            # not; /api/hold/trades today's marked trades. GET only here.
+            q = parse_qs(urlsplit(self.path).query)
+            path = urlsplit(self.path).path
+            try:
+                if path == "/api/hold/trades":
+                    with HOLD_TRADES_LOCK:
+                        out = {"ok": True, "trades": list(_hold_trades()), "draft": hold.DRAFT}
+                    out["lots"] = {i: _hold_lot(i) for i in instruments.ENABLED}     # before any answer (REVIEW P1-7)
+                elif path == "/api/hold/check":
+                    out = _hold_check(self.poller, q, self.payloads)
+                elif path == "/api/hold/side":
+                    out = _hold_side_reply(self.poller, self._idx(), (q.get("asof") or [None])[0])
+                else:
+                    out = _hold_reply(self.poller, q)
+            except Exception as e:           # a bad read must not 500 the window
+                log.exception("hold %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/calls"):
             # EVERY ENGINE CALL, GROUNDED (grounds.py). The engine's verdict,
             # episode, breadth and plays on its latest 3-min bar, each held
@@ -2499,19 +3812,7 @@ class Handler(SimpleHTTPRequestHandler):
             # call WITH its status and facts, never bare. GET only, per request.
             idx = self._idx()
             try:
-                box = (self.payloads or {}).get(idx)
-                pl = payload_at(box, band_rotation.SCORED_INTERVAL) if box else None
-                pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
-                bars = ((pj.get("days") or [{}])[0] or {}).get("bars") or []
-                last = bars[-1] if bars else {}
-                ux = (_tape_reply(idx, time.strftime("%Y-%m-%d")) or {}).get("ux") or {}
-                st = (getattr(self.poller, "states", None) or {}).get(idx) if self.poller else None
-                fr = fronts.read(getattr(st, "minutes", None) or {}, getattr(st, "peak", None))
-                out = {"ok": bool(last), "idx": idx, "t": last.get("t"),
-                       "why": None if last else "no engine bar for this index yet",
-                       **grounds.ground(last.get("ctx") or {}, (last.get("fut") or {}).get("c"),
-                                        ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr,
-                                        runs_why=(ux.get("marks") or {}).get("runs_why"))}
+                out = _calls_for(self.payloads, self.poller, idx)
             except Exception as e:           # a bad read must not 500 the face
                 out = {"ok": False, "idx": idx, "why": f"{type(e).__name__}: {e}", "calls": []}
             self._json(json.dumps(out, default=str).encode())
@@ -2682,6 +3983,7 @@ def _isolate_mock_writers():
     desk_log.SURF_DIR = os.path.join(mock, "surface")
     desk_log.DESK_LOG_PATH = os.path.join(mock, "desk_log.jsonl")
     day_state.DIR = os.path.join(mock, "day_state")
+    hold_log.DIR = os.path.join(mock, "hold")
     global VPIN_LOG, VPIN_BACKFILL_LOG, VPIN_FAST_LOG
     VPIN_LOG = os.path.join(mock, "vpin_log.jsonl")
     VPIN_BACKFILL_LOG = os.path.join(mock, "vpin_backfill.jsonl")
@@ -2876,6 +4178,23 @@ def _load_day_state():
     if n:
         log.info("day state: restored %s drag sample(s) across %s index(es)",
                  n, len(doc.get("drag_day") or {}))
+    # BOARD rev 3's FIRST FOLD, stamped once per day: a restart re-reads it
+    # rather than re-deciding it (the anytime-start rule).
+    _BOARD["first"] = {i: dict(f, src="restored from data/day_state/") for i, f in
+                       (doc.get("board_first") or {}).items() if isinstance(f, dict)}
+    _BOARD["first_day"] = time.strftime("%Y-%m-%d")
+    # THE HOLD WINDOW's marked trades: a restart re-reads each one (its entry
+    # minute, line, latch and clock are re-derived from the day record) and its
+    # log continues the same rows (hold_log.py appends only what is missing).
+    _HOLD["trades"] = [t for t in doc.get("hold_trades") or [] if isinstance(t, dict) and t.get("id")]
+    _HOLD["trades_day"] = _board_clock()[0]
+    # rev 5 §A.0.4: when each late close was first read, which closes were backfilled, and each marked
+    # trade's B reads -- written once, read back, so a restart re-reads what was read live.
+    _HOLD["land"] = {i: {"day": v["day"], "late": dict(v.get("late") or {}), "blind": list(v.get("blind") or []),
+                         "live_to": v.get("live_to"), "boot": None}
+                     for i, v in (doc.get("hold_land") or {}).items()
+                     if isinstance(v, dict) and v.get("day") == _HOLD["trades_day"]}
+    _HOLD["frozen_b"] = {k: v for k, v in (doc.get("hold_b") or {}).items() if isinstance(v, list)}
 
 
 def _save_day_state():
@@ -2884,8 +4203,18 @@ def _save_day_state():
     try:
         with _SENSES_LOCK:
             snap = {i: list(r) for i, r in (_SENSES["drag_day"] or {}).items()}
-        if snap:
-            day_state.save(time.strftime("%Y-%m-%d"), {"drag_day": snap})
+        day = time.strftime("%Y-%m-%d")
+        first = dict(_BOARD["first"]) if _BOARD["first_day"] == day else {}
+        with HOLD_TRADES_LOCK:
+            trades = [dict(t) for t in _hold_trades()]
+        land = {}
+        for i, v in list((_HOLD.get("land") or {}).items()):     # copied under the index lock that writes it
+            with _HOLD["locks"].setdefault(i, threading.Lock()):
+                land[i] = {"day": v["day"], "late": dict(v["late"]), "blind": list(v["blind"]), "live_to": v["live_to"]}
+        frozen = {k: list(v) for k, v in list((_HOLD.get("frozen_b") or {}).items())}
+        if snap or first or trades or land or _HOLD.pop("dirty", False):   # dirty: an unmark must reach the disk too
+            day_state.save(day, {"drag_day": snap, "board_first": first, "hold_trades": trades,
+                                 "hold_land": land, "hold_b": frozen})
     except OSError:
         log.exception("day state save")
 
@@ -3075,6 +4404,10 @@ def main():
         # serial loop froze all three tapes at once). The scrip master behind
         # resolve_dynamic is lock-guarded and day-cached in instruments, so
         # three threads still cost one download.
+        from chain_live import IST, in_session
+        from datetime import datetime
+        _calls_min = {}             # idx -> the minute calls were last read
+
         def refresh_one(x, c, stagger):
             _t.sleep(stagger)       # de-phase the per-index cycles
             first = True
@@ -3136,6 +4469,17 @@ def main():
                         poller.states.get(x) if poller else None,
                         ones=((_sess.get("day") or {}).get("bars")
                               if isinstance(_sess, dict) else None))
+                    # The grounded calls, kept (calls_log.py): in session only,
+                    # read at most once a minute per index, a row only when the
+                    # engine's bar is new. Its own try: the log must never cost
+                    # the tape a build.
+                    if _calls_min.get(x) != _t.strftime("%H:%M") and in_session(datetime.now(IST)):
+                        _calls_min[x] = _t.strftime("%H:%M")
+                        try:
+                            calls_log.append(_t.strftime("%Y-%m-%d"), x,
+                                             _calls_for(payloads, poller, x), _t.time())
+                        except Exception:
+                            log.exception("calls log failed %s", x)
                 except Exception as e:  # keep last good data; else say why
                     log.exception("live build failed %s", x)
                     if not have[x]:
@@ -3166,13 +4510,16 @@ def main():
         # (mock isolation) is followed rather than second-guessed.
         from chain_live import CHAIN_DIR
         threading.Thread(target=daylog.compress_old, args=(time.strftime("%Y-%m-%d"),),
-                         kwargs={"dirs": (senses_mod.DIR, frame_log.DIR, book_log.DIR, str(CHAIN_DIR)),
+                         kwargs={"dirs": (senses_mod.DIR, frame_log.DIR, book_log.DIR, str(CHAIN_DIR),
+                                          calls_log.DIR, hold_log.DIR),
                                  "log": log.info},
                          daemon=True, name="daylog").start()
         if poller is not None:
             threading.Thread(target=_senses_loop, args=(poller, payloads),
                              daemon=True, name="senses").start()
             log.info("senses thread started -> %s", senses_mod.day_path())
+            # THE HOLD WINDOW's forward logs (hold_log.py), on their own thread.
+            threading.Thread(target=_hold_loop, args=(poller,), daemon=True, name="hold").start()
         httpd.serve_forever()          # bound above, before anything was taken
         return
     port = int(argv[0]) if argv else 8765
