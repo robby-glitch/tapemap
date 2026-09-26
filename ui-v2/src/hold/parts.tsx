@@ -95,6 +95,17 @@ export function Age({ asof, stale = 90 }: { asof?: string; stale?: number }) {
   return <span className={`age${a > stale ? ' old' : ''}`} title="how long since the minute it read finished">read {asof} · {txt}</span>
 }
 
+/** Her PRACTICE since 2026-09-26, not a rule: nothing held or opened after 15:00, because the new CAS makes the close
+ *  too volatile ("dont make any new rules"). A reminder from 14:45; it blocks nothing and feeds no word. */
+export function Cutoff({ open = false }: { open?: boolean }) {
+  const [, tick] = useState(0)
+  useEffect(() => { const t = setInterval(() => tick(x => x + 1), 15000); return () => clearInterval(t) }, [])
+  const d = new Date(), m = d.getHours() * 60 + d.getMinutes(), left = 15 * 60 - m
+  if (m < 14 * 60 + 45 || m >= 15 * 60 + 30) return null
+  return <span className="cutoff" title="your practice since 26 Sep (the new CAS), not a rule — nothing is blocked">
+    {left > 0 ? `your 15:00 cutoff (CAS) — ${left} min` : open ? 'past your 15:00 cutoff (CAS) — this trade is still open' : 'past your 15:00 cutoff (CAS) — no new trades'}</span>
+}
+
 /** The count as five marks in fact order -- still a count, and it cannot be read as 20 % (REVIEW P1-1). */
 export function Marks({ facts }: { facts: { state: string; name: string }[] }) {
   return <span className="marks" aria-label={facts.map(f => `${f.name} ${f.state}`).join(', ')}>

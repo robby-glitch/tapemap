@@ -1,0 +1,906 @@
+[
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "entry": [
+   "FOLD",
+   "FOLD",
+   "FOLD"
+  ],
+  "rev4": {
+   "t": "09:41",
+   "rule": 6,
+   "prem_pts": -4.0
+  },
+  "A": {
+   "t": "09:41",
+   "rule": 6,
+   "prem_pts": -4.0
+  },
+  "B": {
+   "t": "09:41",
+   "rule": 6,
+   "prem_pts": -4.0
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": 29.4
+  },
+  "A": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": 29.4
+  },
+  "B": {
+   "t": "11:20",
+   "rule": 5,
+   "prem_pts": 34.1
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -10.5
+  },
+  "A": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -10.5
+  },
+  "B": {
+   "t": "11:20",
+   "rule": 5,
+   "prem_pts": -5.8
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -10.8
+  },
+  "A": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -10.8
+  },
+  "B": {
+   "t": "11:20",
+   "rule": 5,
+   "prem_pts": -6.2
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -7.2
+  },
+  "A": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -7.2
+  },
+  "B": {
+   "t": "11:20",
+   "rule": 5,
+   "prem_pts": -2.6
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -26.1
+  },
+  "A": {
+   "t": "11:14",
+   "rule": 3,
+   "L": 23390.75,
+   "px": 23393.3,
+   "by_L": 2.5,
+   "prem_pts": -26.1
+  },
+  "B": {
+   "t": "11:20",
+   "rule": 5,
+   "prem_pts": -21.2
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "14:14",
+   "rule": 3,
+   "L": 23344.05,
+   "px": 23382.6,
+   "by_L": 38.5,
+   "prem_pts": -47.6
+  },
+  "A": {
+   "t": "14:14",
+   "rule": 3,
+   "L": 23344.05,
+   "px": 23382.6,
+   "by_L": 38.5,
+   "prem_pts": -47.6
+  },
+  "B": {
+   "t": "14:14",
+   "rule": 3,
+   "L": 23344.05,
+   "px": 23382.6,
+   "by_L": 38.5,
+   "B": 5.55,
+   "B_at": "13:47",
+   "level": 23349.6,
+   "by_level": 33.0,
+   "prem_pts": -47.6
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "09:44",
+   "rule": 5,
+   "prem_pts": -3.5
+  },
+  "A": {
+   "t": "09:44",
+   "rule": 5,
+   "prem_pts": -3.5
+  },
+  "B": {
+   "t": "09:44",
+   "rule": 5,
+   "prem_pts": -3.5
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "entry": [
+   "FOLD",
+   "FOLD",
+   "FOLD"
+  ],
+  "rev4": {
+   "t": "09:46",
+   "rule": 6,
+   "prem_pts": -3.0
+  },
+  "A": {
+   "t": "09:46",
+   "rule": 6,
+   "prem_pts": -3.0
+  },
+  "B": {
+   "t": "09:46",
+   "rule": 6,
+   "prem_pts": -3.0
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "10:17",
+   "rule": 3,
+   "L": 23384.0,
+   "px": 23385.45,
+   "by_L": 1.5,
+   "prem_pts": -14.2
+  },
+  "A": {
+   "t": "10:17",
+   "rule": 3,
+   "L": 23384.0,
+   "px": 23385.45,
+   "by_L": 1.5,
+   "prem_pts": -14.2
+  },
+  "B": {
+   "t": "10:19",
+   "rule": 6,
+   "prem_pts": -19.2
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "10:05",
+   "rule": 6,
+   "prem_pts": -1.1
+  },
+  "A": {
+   "t": "10:05",
+   "rule": 6,
+   "prem_pts": -1.1
+  },
+  "B": {
+   "t": "10:05",
+   "rule": 6,
+   "prem_pts": -1.1
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "12:47",
+   "rule": 3,
+   "L": 23443.7,
+   "px": 23443.3,
+   "by_L": 0.4,
+   "prem_pts": 17.0
+  },
+  "A": {
+   "t": "12:47",
+   "rule": 3,
+   "L": 23443.7,
+   "px": 23443.3,
+   "by_L": 0.4,
+   "prem_pts": 17.0
+  },
+  "B": {
+   "t": "12:52",
+   "rule": 5,
+   "prem_pts": 20.3
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "12:47",
+   "rule": 3,
+   "L": 23443.7,
+   "px": 23443.3,
+   "by_L": 0.4,
+   "prem_pts": 12.3
+  },
+  "A": {
+   "t": "12:47",
+   "rule": 3,
+   "L": 23443.7,
+   "px": 23443.3,
+   "by_L": 0.4,
+   "prem_pts": 12.3
+  },
+  "B": {
+   "t": "12:52",
+   "rule": 5,
+   "prem_pts": 15.7
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "12:47",
+   "rule": 3,
+   "L": 23443.7,
+   "px": 23443.3,
+   "by_L": 0.4,
+   "prem_pts": 3.1
+  },
+  "A": {
+   "t": "12:47",
+   "rule": 3,
+   "L": 23443.7,
+   "px": 23443.3,
+   "by_L": 0.4,
+   "prem_pts": 3.1
+  },
+  "B": {
+   "t": "12:52",
+   "rule": 5,
+   "prem_pts": 6.5
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "12:44",
+   "rule": 5,
+   "prem_pts": 12.6
+  },
+  "A": {
+   "t": "12:44",
+   "rule": 5,
+   "prem_pts": 12.6
+  },
+  "B": {
+   "t": "12:44",
+   "rule": 5,
+   "prem_pts": 12.6
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "10:16",
+   "rule": 5,
+   "prem_pts": 25.1
+  },
+  "A": {
+   "t": "10:16",
+   "rule": 5,
+   "prem_pts": 25.1
+  },
+  "B": {
+   "t": "10:16",
+   "rule": 5,
+   "prem_pts": 25.1
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "10:43",
+   "rule": 4,
+   "prem_pts": -19.5
+  },
+  "A": {
+   "t": "10:43",
+   "rule": 4,
+   "prem_pts": -19.5
+  },
+  "B": {
+   "t": "10:43",
+   "rule": 4,
+   "prem_pts": -19.5
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -4.9
+  },
+  "A": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -4.9
+  },
+  "B": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -4.9
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -34.0
+  },
+  "A": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -34.0
+  },
+  "B": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -34.0
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -22.1
+  },
+  "A": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -22.1
+  },
+  "B": {
+   "t": "13:14",
+   "rule": 5,
+   "prem_pts": -22.1
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 204.9
+  },
+  "A": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 204.9
+  },
+  "B": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 204.9
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 129.2
+  },
+  "A": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 129.2
+  },
+  "B": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 129.2
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 112.6
+  },
+  "A": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 112.6
+  },
+  "B": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 112.6
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 88.8
+  },
+  "A": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 88.8
+  },
+  "B": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 88.8
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 40.2
+  },
+  "A": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 40.2
+  },
+  "B": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": 40.2
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": -0.8
+  },
+  "A": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": -0.8
+  },
+  "B": {
+   "t": "14:08",
+   "rule": 5,
+   "prem_pts": -0.8
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "14:10",
+   "rule": 5,
+   "prem_pts": -11.2
+  },
+  "A": {
+   "t": "14:10",
+   "rule": 5,
+   "prem_pts": -11.2
+  },
+  "B": {
+   "t": "14:10",
+   "rule": 5,
+   "prem_pts": -11.2
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "14:35",
+   "rule": 3,
+   "L": 73689.95,
+   "px": 73701.88,
+   "by_L": 11.9,
+   "prem_pts": -67.9
+  },
+  "A": {
+   "t": "14:35",
+   "rule": 3,
+   "L": 73689.95,
+   "px": 73701.88,
+   "by_L": 11.9,
+   "prem_pts": -67.9
+  },
+  "B": {
+   "t": "14:36",
+   "rule": 5,
+   "prem_pts": -93.7
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "EX 09-23 09:57 SENSEX zone BUY (gate legal)",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "10:11",
+   "rule": 3,
+   "L": 74629.1,
+   "px": 74628.56,
+   "by_L": 0.5,
+   "prem_pts": -27.2
+  },
+  "A": {
+   "t": "10:11",
+   "rule": 3,
+   "L": 74629.1,
+   "px": 74628.56,
+   "by_L": 0.5,
+   "prem_pts": -27.2
+  },
+  "B": {
+   "t": "12:44",
+   "rule": 5,
+   "prem_pts": 110.0
+  },
+  "whatA": "same",
+  "whatB": "moved"
+ },
+ {
+  "id": "EX 09-23 09:57 NIFTY zone BUY (gate illegal)",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "10:05",
+   "rule": 6,
+   "prem_pts": 1.1
+  },
+  "A": {
+   "t": "10:05",
+   "rule": 6,
+   "prem_pts": 1.1
+  },
+  "B": {
+   "t": "10:05",
+   "rule": 6,
+   "prem_pts": 1.1
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "EX 09-23 11:15 NIFTY zone u2 SELL \u00b7 WRITER s",
+  "entry": [
+   "WATCH",
+   "WATCH",
+   "WATCH"
+  ],
+  "rev4": {
+   "t": "11:18",
+   "rule": 4,
+   "prem_pts": 0.1
+  },
+  "A": {
+   "t": "11:18",
+   "rule": 4,
+   "prem_pts": 0.1
+  },
+  "B": {
+   "t": "11:18",
+   "rule": 4,
+   "prem_pts": 0.1
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "EX 09-24 10:30 SENSEX \u00b7 WRITER short ATM CE",
+  "entry": [
+   "HOLD",
+   "HOLD",
+   "HOLD"
+  ],
+  "rev4": {
+   "t": "10:43",
+   "rule": 4,
+   "prem_pts": -3.5
+  },
+  "A": {
+   "t": "10:43",
+   "rule": 4,
+   "prem_pts": -3.5
+  },
+  "B": {
+   "t": "10:43",
+   "rule": 4,
+   "prem_pts": -3.5
+  },
+  "whatA": "same",
+  "whatB": "same"
+ },
+ {
+  "id": "EX 09-24 09:45 SENSEX \u00b7 WRITER short ATM PE",
+  "entry": [
+   "FOLD",
+   "FOLD",
+   "FOLD"
+  ],
+  "rev4": {
+   "t": "09:44",
+   "rule": 6,
+   "prem_pts": -0.0
+  },
+  "A": {
+   "t": "09:44",
+   "rule": 6,
+   "prem_pts": -0.0
+  },
+  "B": {
+   "t": "09:44",
+   "rule": 6,
+   "prem_pts": -0.0
+  },
+  "whatA": "same",
+  "whatB": "same"
+ }
+]

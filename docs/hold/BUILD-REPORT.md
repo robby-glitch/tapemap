@@ -322,3 +322,11 @@ arrow), OI call- or put-heavy (PCR), the walls and who built them (built today /
 the mirror (each leg's premium vs its own VWAP in σ, and its pivots), the Board's headline — plus VPIN (`/api/vpin`,
 NIFTY futures only, SHADOW, "not counted anywhere"). It feeds no word. It folds to one summary line whenever an answer
 or a trade is on screen (I'M IN stays above the fold); a click opens it. UI only; no server change, no restart needed.
+
+## 2026-09-26 — her 15:00 practice, as a reminder only
+
+Her words: "we gonna close our position before 3 because due to new cas system is highly volatile ... no trade buying or
+selling after 3 ... dont make any new rules". `parts.Cutoff` (display only, blocks nothing, feeds no word): from 14:45 the
+window's one line and footer and the Validate tab show "your 15:00 cutoff (CAS) — N min"; after 15:00, "past your 15:00
+cutoff (CAS)". No rule, registration or server change. The unsigned expression draft gains a disclosure note and an additive
+`after_1500` log flag (descriptive only).

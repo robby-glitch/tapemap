@@ -1,0 +1,3099 @@
+[
+ {
+  "id": "09-21 14:00 NIFTY 23300CE",
+  "why": "could not check \u2014 never frozen"
+ },
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "read": "09:41",
+  "close_read": "09:41",
+  "d": "UP",
+  "word": "STAND ASIDE \u00b7 both refused",
+  "named_by": "refusal",
+  "nb": 1,
+  "ns": 3,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "sell"
+  },
+  "ref": [
+   "R5",
+   "R1"
+  ],
+  "since": "09:41",
+  "was": "SELL PE",
+  "until": "09:41",
+  "word4": "STAND ASIDE \u00b7 both refused",
+  "word_1m": "STAND ASIDE \u00b7 both refused",
+  "word_rev0a": "STAND ASIDE",
+  "buy": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 47.8,
+   "entry": "FOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 26.4,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 52.35,
+   "r_over_S": 0.57,
+   "entry": "FOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23450.0,
+    "p0": 47.8,
+    "p30": 49.75,
+    "pnl": 1.95,
+    "risk": 12.35,
+    "r": 0.16
+   },
+   "sell": {
+    "k": 23400.0,
+    "p0": 26.4,
+    "p30": 21.35,
+    "pnl": 5.05,
+    "risk": 9.89,
+    "r": 0.51
+   },
+   "move": [
+    13.0,
+    "with"
+   ],
+   "G": -0.35
+  },
+  "writer": {
+   "word": "NO",
+   "facts": [
+    "against",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 9.89,
+   "c0": 26.4,
+   "line": 26.65,
+   "noise": 8.35,
+   "otm": 52.3,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "stop",
+   "stratum": true
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "placement": "wall",
+   "p0": 26.4,
+   "rev5": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "yes": [
+    "09:41",
+    6,
+    0.0,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "close": -44.3
+  },
+  "her_pts": -7.25
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "read": "10:31",
+  "close_read": "10:29",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "named_by": "count",
+  "nb": 1,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "neither",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "10:26",
+  "was": "EITHER",
+  "until": "10:26",
+  "word4": "SELL CE",
+  "word_1m": "EITHER",
+  "word_rev0a": "EITHER",
+  "buy": {
+   "side": "PE",
+   "k": 23450.0,
+   "px": 49.1,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 37.0,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 12.65,
+   "r_over_S": 0.15,
+   "entry": "WATCH"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23450.0,
+    "p0": 55.0,
+    "p30": 96.05,
+    "pnl": 41.05,
+    "risk": 22.07,
+    "r": 1.86
+   },
+   "sell": {
+    "k": 23450.0,
+    "p0": 32.5,
+    "p30": 19.35,
+    "pnl": 13.15,
+    "risk": 21.64,
+    "r": 0.61
+   },
+   "move": [
+    50.6,
+    "with"
+   ],
+   "G": 1.25
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "neither",
+    "with",
+    "with",
+    "neither"
+   ],
+   "X": 21.64,
+   "c0": 32.5,
+   "line": 43.7,
+   "noise": 7.05,
+   "otm": 23.1,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 32.5,
+   "rev5": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "yes": [
+    "14:14",
+    3,
+    15.55,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "close": 32.45
+  },
+  "her_pts": 9.25
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "read": "10:41",
+  "close_read": "10:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "10:41",
+  "was": "SELL CE",
+  "until": "10:41",
+  "word4": "EITHER",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 49.0,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 62.2,
+   "r_over_S": 0.65,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 49.0,
+    "p30": 57.0,
+    "pnl": 8.0,
+    "risk": 32.36,
+    "r": 0.25
+   },
+   "sell": {
+    "k": 23450.0,
+    "p0": 25.1,
+    "p30": 20.45,
+    "pnl": 4.65,
+    "risk": 35.43,
+    "r": 0.13
+   },
+   "move": [
+    5.6,
+    "with"
+   ],
+   "G": 0.12
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "X": 35.43,
+   "c0": 25.1,
+   "line": 82.8,
+   "noise": 7.7,
+   "otm": 62.2,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 25.1,
+   "rev5": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "yes": [
+    "14:14",
+    3,
+    8.15,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "close": 25.05
+  },
+  "her_pts": 12.2
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "read": "10:42",
+  "close_read": "10:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "10:41",
+  "was": "SELL CE",
+  "until": "10:41",
+  "word4": "EITHER",
+  "word_1m": "SELL CE",
+  "word_rev0a": "SELL CE",
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 49.0,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 62.2,
+   "r_over_S": 0.65,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 64.1,
+    "p30": 55.55,
+    "pnl": -8.55,
+    "risk": 35.67,
+    "r": -0.24
+   },
+   "sell": {
+    "k": 23450.0,
+    "p0": 22.35,
+    "p30": 21.05,
+    "pnl": 1.3,
+    "risk": 35.6,
+    "r": 0.04
+   },
+   "move": [
+    2.5,
+    "with"
+   ],
+   "G": -0.28
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "X": 35.6,
+   "c0": 22.35,
+   "line": 84.9,
+   "noise": 7.7,
+   "otm": 64.3,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 22.35,
+   "rev5": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "yes": [
+    "14:14",
+    3,
+    5.4,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "close": 22.3
+  },
+  "her_pts": -3.45
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "read": "10:43",
+  "close_read": "10:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "10:41",
+  "was": "SELL CE",
+  "until": "10:41",
+  "word4": "EITHER",
+  "word_1m": "SELL CE",
+  "word_rev0a": "SELL CE",
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 49.0,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 62.2,
+   "r_over_S": 0.65,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 54.55,
+    "p30": 52.9,
+    "pnl": -1.65,
+    "risk": 31.29,
+    "r": -0.05
+   },
+   "sell": {
+    "k": 23450.0,
+    "p0": 23.85,
+    "p30": 21.85,
+    "pnl": 2.0,
+    "risk": 33.73,
+    "r": 0.06
+   },
+   "move": [
+    4.5,
+    "with"
+   ],
+   "G": -0.11
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "X": 33.73,
+   "c0": 23.85,
+   "line": 78.2,
+   "noise": 8.8,
+   "otm": 57.6,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 23.85,
+   "rev5": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "yes": [
+    "14:14",
+    3,
+    6.9,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "close": 23.8
+  },
+  "her_pts": 2.5
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "read": "10:51",
+  "close_read": "10:50",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "10:44",
+  "was": "BUY PE",
+  "until": "10:44",
+  "word4": "SELL CE",
+  "word_1m": "SELL CE",
+  "word_rev0a": "SELL CE",
+  "buy": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 41.2,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 20.25,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 80.85,
+   "r_over_S": 0.79,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23350.0,
+    "p0": 38.7,
+    "p30": 28.55,
+    "pnl": -10.15,
+    "risk": 26.69,
+    "r": -0.38
+   },
+   "sell": {
+    "k": 23450.0,
+    "p0": 20.85,
+    "p30": 22.65,
+    "pnl": -1.8,
+    "risk": 39.41,
+    "r": -0.05
+   },
+   "move": [
+    -20.7,
+    "against"
+   ],
+   "G": -0.33
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "X": 39.41,
+   "c0": 20.85,
+   "line": 98.9,
+   "noise": 9.1,
+   "otm": 78.3,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 20.85,
+   "rev5": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "yes": [
+    "14:14",
+    3,
+    3.9,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "close": 20.8
+  },
+  "her_pts": -13.15
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "read": "13:47",
+  "close_read": "13:47",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "neither",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:47",
+  "was": "BUY PE \u00b7 selling refused",
+  "until": "13:47",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 51.65,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 14.55,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "STALLED"
+   ],
+   "r_w": 65.75,
+   "r_over_S": 0.81,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23350.0,
+    "p0": 51.65,
+    "p30": 26.5,
+    "pnl": -25.15,
+    "risk": 5.28,
+    "r": -4.76
+   },
+   "sell": {
+    "k": 23400.0,
+    "p0": 14.55,
+    "p30": 38.85,
+    "pnl": -24.3,
+    "risk": 2.61,
+    "r": -9.3
+   },
+   "move": [
+    -51.2,
+    "against"
+   ],
+   "G": 4.54
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 2.61,
+   "c0": 14.55,
+   "line": 9.8,
+   "noise": 5.55,
+   "otm": 65.8,
+   "line_beyond_strike": false,
+   "out30": "target",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 14.55,
+   "rev5": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "yes": [
+    "14:14",
+    3,
+    -17.25,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "close": 14.5
+  },
+  "her_pts": 21.7
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "read": "09:17",
+  "close_read": "09:17",
+  "d": "UP",
+  "word": "STAND ASIDE \u00b7 led",
+  "named_by": "refusal",
+  "nb": 0,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "neither",
+   "shield": "neither",
+   "regime": "sell",
+   "premium": "neither"
+  },
+  "ref": [
+   "R3",
+   "R4cnc"
+  ],
+  "since": "09:17",
+  "was": null,
+  "until": null,
+  "word4": "STAND ASIDE \u00b7 led",
+  "word_1m": "STAND ASIDE \u00b7 led",
+  "word_rev0a": "STAND ASIDE",
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 125.5,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": null,
+   "px": null,
+   "placement": null,
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": null,
+   "r_over_S": null,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 125.5,
+    "p30": 124.6,
+    "pnl": -0.9,
+    "risk": 16.98,
+    "r": -0.05
+   },
+   "sell": {
+    "why": "no strike"
+   },
+   "move": [
+    -5.0,
+    "against"
+   ]
+  },
+  "writer": {
+   "word": null
+  },
+  "other": {},
+  "her_pts": -1.0
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "read": "09:46",
+  "close_read": "09:44",
+  "d": "UP",
+  "word": "STAND ASIDE \u00b7 both refused",
+  "named_by": "refusal",
+  "nb": 1,
+  "ns": 3,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "ref": [
+   "R5",
+   "R1"
+  ],
+  "since": "09:44",
+  "was": "SELL PE",
+  "until": "09:44",
+  "word4": "STAND ASIDE \u00b7 both refused",
+  "word_1m": "STAND ASIDE \u00b7 both refused",
+  "word_rev0a": "STAND ASIDE",
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 121.55,
+   "entry": "FOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 95.4,
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": -22.0,
+   "r_over_S": -0.09,
+   "entry": "FOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 121.8,
+    "p30": 120.45,
+    "pnl": -1.35,
+    "risk": 12.44,
+    "r": -0.11
+   },
+   "sell": {
+    "k": 23350.0,
+    "p0": 95.6,
+    "p30": 93.2,
+    "pnl": 2.4,
+    "risk": 12.6,
+    "r": 0.19
+   },
+   "move": [
+    -3.2,
+    "against"
+   ],
+   "G": -0.3
+  },
+  "writer": {
+   "word": "NO",
+   "facts": [
+    "against",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 12.6,
+   "c0": 95.6,
+   "line": 26.8,
+   "noise": 5.4,
+   "otm": 32.1,
+   "line_beyond_strike": false,
+   "out30": "stop",
+   "out1529": "stop",
+   "stratum": true
+  },
+  "other": {
+   "k": 23350.0,
+   "side": "PE",
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "p0": 95.6,
+   "rev5": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "yes": [
+    "09:46",
+    6,
+    0.0,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "close": 31.25
+  },
+  "her_pts": -7.65
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "read": "09:48",
+  "close_read": "09:47",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "09:32",
+  "was": "STAND ASIDE \u00b7 led",
+  "until": "09:32",
+  "word4": "EITHER",
+  "word_1m": "SELL CE",
+  "word_rev0a": "SELL CE",
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 113.7,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 124.6,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 13.55,
+   "r_over_S": 0.06,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 120.65,
+    "p30": 107.3,
+    "pnl": -13.35,
+    "risk": 21.13,
+    "r": -0.63
+   },
+   "sell": {
+    "k": 23400.0,
+    "p0": 118.0,
+    "p30": 126.6,
+    "pnl": -8.6,
+    "risk": 20.62,
+    "r": -0.42
+   },
+   "move": [
+    -19.7,
+    "against"
+   ],
+   "G": -0.21
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 20.62,
+   "c0": 118.0,
+   "line": 41.7,
+   "noise": 6.35,
+   "otm": 27.2,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "stop",
+   "stratum": true
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 118.0,
+   "rev5": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "yes": [
+    "10:19",
+    6,
+    -10.8,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "close": -17.45
+  },
+  "her_pts": -0.8
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "read": "09:59",
+  "close_read": "09:59",
+  "d": "UP",
+  "word": "SELL PE",
+  "named_by": "count",
+  "nb": 0,
+  "ns": 4,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "09:59",
+  "was": "STAND ASIDE \u00b7 led",
+  "until": "09:59",
+  "word4": "SELL PE",
+  "word_1m": "SELL PE",
+  "word_rev0a": "SELL PE",
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 121.65,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 94.3,
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": -22.95,
+   "r_over_S": -0.1,
+   "entry": "WATCH"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 121.65,
+    "p30": 129.5,
+    "pnl": 7.85,
+    "risk": 12.61,
+    "r": 0.62
+   },
+   "sell": {
+    "k": 23350.0,
+    "p0": 94.3,
+    "p30": 85.6,
+    "pnl": 8.7,
+    "risk": 13.13,
+    "r": 0.66
+   },
+   "move": [
+    21.4,
+    "with"
+   ],
+   "G": -0.04
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "neither",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 13.13,
+   "c0": 94.3,
+   "line": 27.5,
+   "noise": 6.7,
+   "otm": 27.0,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 23350.0,
+   "side": "PE",
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "p0": 94.3,
+   "rev5": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "yes": [
+    "10:05",
+    6,
+    0.95,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "close": 29.95
+  },
+  "her_pts": -7.8
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "read": "10:18",
+  "close_read": "10:17",
+  "d": "UP",
+  "word": "SELL PE",
+  "named_by": "count",
+  "nb": 0,
+  "ns": 4,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "10:17",
+  "was": "BUY CE \u00b7 selling refused",
+  "until": "10:17",
+  "word4": "SELL PE",
+  "word_1m": "SELL PE",
+  "word_rev0a": "SELL PE",
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 123.9,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 90.3,
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": -14.55,
+   "r_over_S": -0.06,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 126.6,
+    "p30": 138.2,
+    "pnl": 11.6,
+    "risk": 20.05,
+    "r": 0.58
+   },
+   "sell": {
+    "k": 23350.0,
+    "p0": 87.05,
+    "p30": 78.7,
+    "pnl": 8.35,
+    "risk": 20.01,
+    "r": 0.42
+   },
+   "move": [
+    27.2,
+    "with"
+   ],
+   "G": 0.16
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 20.01,
+   "c0": 87.05,
+   "line": 42.95,
+   "noise": 6.6,
+   "otm": 42.5,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 23350.0,
+   "side": "PE",
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "p0": 87.05,
+   "rev5": [
+    "13:32",
+    3,
+    12.4
+   ],
+   "yes": [
+    "13:32",
+    3,
+    12.4,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "13:32",
+    3,
+    12.4
+   ],
+   "close": 22.7
+  },
+  "her_pts": 3.15
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "read": "10:32",
+  "close_read": "10:32",
+  "d": "UP",
+  "word": "BUY CE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "10:23",
+  "was": "SELL PE",
+  "until": "10:23",
+  "word4": "EITHER",
+  "word_1m": "BUY CE",
+  "word_rev0a": "BUY CE",
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 131.5,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 104.45,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 1.3,
+   "r_over_S": 0.01,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 131.5,
+    "p30": 136.9,
+    "pnl": 5.4,
+    "risk": 21.76,
+    "r": 0.25
+   },
+   "sell": {
+    "k": 23400.0,
+    "p0": 104.45,
+    "p30": 98.3,
+    "pnl": 6.15,
+    "risk": 24.21,
+    "r": 0.25
+   },
+   "move": [
+    17.0,
+    "with"
+   ],
+   "G": 0.0
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "X": 24.21,
+   "c0": 104.45,
+   "line": 45.7,
+   "noise": 5.0,
+   "otm": 1.3,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "placement": "wall",
+   "p0": 104.45,
+   "rev5": [
+    "13:32",
+    3,
+    11.65
+   ],
+   "yes": [
+    "10:35",
+    "3s",
+    -2.15,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "10:35",
+    "3s",
+    -2.15
+   ],
+   "close": 23.3
+  },
+  "her_pts": -0.45
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "read": "11:06",
+  "close_read": "11:05",
+  "d": "UP",
+  "word": "BUY CE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "11:05",
+  "was": "SELL PE",
+  "until": "11:05",
+  "word4": "EITHER",
+  "word_1m": "BUY CE",
+  "word_rev0a": "BUY CE",
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 138.0,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 97.9,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 21.8,
+   "r_over_S": 0.09,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 23400.0,
+    "p0": 142.0,
+    "p30": 145.9,
+    "pnl": 3.9,
+    "risk": 36.33,
+    "r": 0.11
+   },
+   "sell": {
+    "k": 23400.0,
+    "p0": 94.3,
+    "p30": 93.45,
+    "pnl": 0.85,
+    "risk": 37.43,
+    "r": 0.02
+   },
+   "move": [
+    8.5,
+    "with"
+   ],
+   "G": 0.09
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "X": 37.43,
+   "c0": 94.3,
+   "line": 73.7,
+   "noise": 4.8,
+   "otm": 29.3,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": true
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "placement": "wall",
+   "p0": 94.3,
+   "rev5": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "yes": [
+    "13:32",
+    3,
+    1.5,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "close": 13.15
+  },
+  "her_pts": -5.65
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "read": "11:31",
+  "close_read": "11:29",
+  "d": "UP",
+  "word": "SELL PE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "11:26",
+  "was": "BUY CE",
+  "until": "11:26",
+  "word4": "EITHER",
+  "word_1m": "SELL PE",
+  "word_rev0a": "SELL PE",
+  "buy": {
+   "side": "CE",
+   "k": 74900.0,
+   "px": 193.9,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 74700.0,
+   "px": 168.95,
+   "placement": "wall",
+   "wall": [
+    74700.0,
+    "BUILDING"
+   ],
+   "r_w": 152.85,
+   "r_over_S": 0.34,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74900.0,
+    "p0": 204.0,
+    "p30": 212.15,
+    "pnl": 8.15,
+    "risk": 105.01,
+    "r": 0.08
+   },
+   "sell": {
+    "k": 74700.0,
+    "p0": 161.1,
+    "p30": 153.65,
+    "pnl": 7.45,
+    "risk": 124.36,
+    "r": 0.06
+   },
+   "move": [
+    -3.3,
+    "against"
+   ],
+   "G": 0.02
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 124.36,
+   "c0": 161.1,
+   "line": 269.41,
+   "noise": 15.16,
+   "otm": 187.3,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": true
+  },
+  "other": {
+   "k": 74700.0,
+   "side": "PE",
+   "placement": "wall",
+   "p0": 161.1,
+   "rev5": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "yes": [
+    "13:29",
+    3,
+    5.3,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "close": 29.1
+  },
+  "her_pts": -15.25
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "read": "09:41",
+  "close_read": "09:41",
+  "d": "DOWN",
+  "word": "EITHER",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 2,
+  "facts": {
+   "speed": "neither",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "09:41",
+  "was": "SELL CE",
+  "until": "09:41",
+  "word4": "BUY PE",
+  "word_1m": "EITHER",
+  "word_rev0a": "EITHER",
+  "buy": {
+   "side": "PE",
+   "k": 74200.0,
+   "px": 172.25,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74300.0,
+   "px": 129.3,
+   "placement": "wall",
+   "wall": [
+    74300.0,
+    "BUILDING"
+   ],
+   "r_w": 108.0,
+   "r_over_S": 0.31,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74200.0,
+    "p0": 172.25,
+    "p30": 174.55,
+    "pnl": 2.3,
+    "risk": 72.52,
+    "r": 0.03
+   },
+   "sell": {
+    "k": 74300.0,
+    "p0": 129.3,
+    "p30": 122.2,
+    "pnl": 7.1,
+    "risk": 81.67,
+    "r": 0.09
+   },
+   "move": [
+    5.5,
+    "with"
+   ],
+   "G": -0.06
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "with"
+   ],
+   "X": 81.67,
+   "c0": 129.3,
+   "line": 170.29,
+   "noise": 26.37,
+   "otm": 108.0,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74300.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 129.3,
+   "rev5": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "yes": [
+    "10:43",
+    4,
+    29.2,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "close": 129.15
+  },
+  "her_pts": 23.75
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "read": "10:18",
+  "close_read": "10:17",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "10:17",
+  "was": "SELL CE",
+  "until": "10:17",
+  "word4": "EITHER",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 74100.0,
+   "px": 157.05,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74300.0,
+   "px": 101.3,
+   "placement": "wall",
+   "wall": [
+    74300.0,
+    "STALLED"
+   ],
+   "r_w": 206.91,
+   "r_over_S": 0.6,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74100.0,
+    "p0": 157.25,
+    "p30": 138.15,
+    "pnl": -19.1,
+    "risk": 80.91,
+    "r": -0.24
+   },
+   "sell": {
+    "k": 74300.0,
+    "p0": 101.7,
+    "p30": 109.0,
+    "pnl": -7.3,
+    "risk": 90.67,
+    "r": -0.08
+   },
+   "move": [
+    -19.2,
+    "against"
+   ],
+   "G": -0.16
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 90.67,
+   "c0": 101.7,
+   "line": 211.8,
+   "noise": 22.64,
+   "otm": 184.8,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74300.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 101.7,
+   "rev5": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "yes": [
+    "10:43",
+    4,
+    1.6,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "close": 101.55
+  },
+  "her_pts": 11.4
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "read": "12:31",
+  "close_read": "12:29",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "12:20",
+  "was": "EITHER",
+  "until": "12:20",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 130.0,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 105.75,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 181.9,
+   "r_over_S": 0.55,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74000.0,
+    "p0": 139.95,
+    "p30": 159.1,
+    "pnl": 19.15,
+    "risk": 43.52,
+    "r": 0.44
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 99.5,
+    "p30": 97.65,
+    "pnl": 1.85,
+    "risk": 38.55,
+    "r": 0.05
+   },
+   "move": [
+    31.7,
+    "with"
+   ],
+   "G": 0.39
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 38.55,
+   "c0": 99.5,
+   "line": 101.37,
+   "noise": 17.45,
+   "otm": 186.5,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 99.5,
+   "rev5": [
+    "14:38",
+    3,
+    66.2
+   ],
+   "yes": [
+    "14:45",
+    4,
+    70.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    66.2
+   ],
+   "close": 99.35
+  },
+  "her_pts": 13.65
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "read": "12:34",
+  "close_read": "12:32",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "12:20",
+  "was": "EITHER",
+  "until": "12:20",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 153.75,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 94.5,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 220.4,
+   "r_over_S": 0.66,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74000.0,
+    "p0": 165.25,
+    "p30": 141.55,
+    "pnl": -23.7,
+    "risk": 63.57,
+    "r": -0.37
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 91.5,
+    "p30": 105.65,
+    "pnl": -14.15,
+    "risk": 51.5,
+    "r": -0.27
+   },
+   "move": [
+    -38.0,
+    "against"
+   ],
+   "G": -0.1
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 51.5,
+   "c0": 91.5,
+   "line": 140.52,
+   "noise": 18.97,
+   "otm": 225.6,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 91.5,
+   "rev5": [
+    "14:38",
+    3,
+    58.2
+   ],
+   "yes": [
+    "14:45",
+    4,
+    62.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    58.2
+   ],
+   "close": 91.35
+  },
+  "her_pts": -18.8
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "read": "12:43",
+  "close_read": "12:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "12:20",
+  "was": "EITHER",
+  "until": "12:20",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 157.15,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 97.0,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 201.34,
+   "r_over_S": 0.6,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74000.0,
+    "p0": 161.0,
+    "p30": 140.95,
+    "pnl": -20.05,
+    "risk": 57.52,
+    "r": -0.35
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 96.8,
+    "p30": 100.75,
+    "pnl": -3.95,
+    "risk": 48.02,
+    "r": -0.08
+   },
+   "move": [
+    -21.7,
+    "against"
+   ],
+   "G": -0.27
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 48.02,
+   "c0": 96.8,
+   "line": 128.76,
+   "noise": 18.08,
+   "otm": 213.9,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 96.8,
+   "rev5": [
+    "14:38",
+    3,
+    63.5
+   ],
+   "yes": [
+    "14:45",
+    4,
+    67.9,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    63.5
+   ],
+   "close": 96.65
+  },
+  "her_pts": -7.95
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "read": "13:25",
+  "close_read": "13:23",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "named_by": "count",
+  "nb": 1,
+  "ns": 2,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "13:23",
+  "was": "BUY PE",
+  "until": "13:23",
+  "word4": "EITHER",
+  "word_1m": "SELL CE",
+  "word_rev0a": "SELL CE",
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 154.65,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 94.6,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 199.89,
+   "r_over_S": 0.6,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 74000.0,
+    "p0": 169.8,
+    "p30": 381.1,
+    "pnl": 211.3,
+    "risk": 34.83,
+    "r": 6.07
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 82.65,
+    "p30": 37.85,
+    "pnl": 44.8,
+    "risk": 22.9,
+    "r": 1.96
+   },
+   "move": [
+    302.0,
+    "with"
+   ],
+   "G": 4.11
+  },
+  "writer": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "with"
+   ],
+   "X": 22.9,
+   "c0": 82.65,
+   "line": 70.13,
+   "noise": 12.21,
+   "otm": 232.8,
+   "line_beyond_strike": false,
+   "out30": "target",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 82.65,
+   "rev5": [
+    "14:38",
+    3,
+    49.35
+   ],
+   "yes": [
+    "14:45",
+    4,
+    53.75,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    49.35
+   ],
+   "close": 82.5
+  },
+  "her_pts": 35.8
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "read": "13:40",
+  "close_read": "13:38",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "until": "13:35",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 73900.0,
+   "px": 162.8,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 63.15,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 295.95,
+   "r_over_S": 0.9,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73900.0,
+    "p0": 177.35,
+    "p30": 323.1,
+    "pnl": 145.75,
+    "risk": 78.69,
+    "r": 1.85
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 59.5,
+    "p30": 34.1,
+    "pnl": 25.4,
+    "risk": 50.29,
+    "r": 0.51
+   },
+   "move": [
+    216.1,
+    "with"
+   ],
+   "G": 1.34
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 50.29,
+   "c0": 59.5,
+   "line": 175.23,
+   "noise": 24.68,
+   "otm": 337.9,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 59.5,
+   "rev5": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "yes": [
+    "14:45",
+    4,
+    30.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "close": 59.35
+  },
+  "her_pts": 2.95
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "read": "13:42",
+  "close_read": "13:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "until": "13:35",
+  "word4": "EITHER",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 73900.0,
+   "px": 184.1,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 59.8,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "r_w": 334.67,
+   "r_over_S": 0.98,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73900.0,
+    "p0": 192.25,
+    "p30": 317.75,
+    "pnl": 125.5,
+    "risk": 81.15,
+    "r": 1.55
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 59.5,
+    "p30": 34.7,
+    "pnl": 24.8,
+    "risk": 51.2,
+    "r": 0.48
+   },
+   "move": [
+    208.5,
+    "with"
+   ],
+   "G": 1.07
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 51.2,
+   "c0": 59.5,
+   "line": 178.61,
+   "noise": 24.44,
+   "otm": 341.3,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 59.5,
+   "rev5": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "yes": [
+    "14:45",
+    4,
+    30.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "close": 59.35
+  },
+  "her_pts": 0.75
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "read": "13:43",
+  "close_read": "13:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "until": "13:35",
+  "word4": "EITHER",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 73900.0,
+   "px": 184.1,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 59.8,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "r_w": 334.67,
+   "r_over_S": 0.98,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73900.0,
+    "p0": 225.15,
+    "p30": 309.75,
+    "pnl": 84.6,
+    "risk": 102.13,
+    "r": 0.83
+   },
+   "sell": {
+    "k": 74200.0,
+    "p0": 55.6,
+    "p30": 35.75,
+    "pnl": 19.85,
+    "risk": 59.74,
+    "r": 0.33
+   },
+   "move": [
+    169.1,
+    "with"
+   ],
+   "G": 0.5
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "X": 59.74,
+   "c0": 55.6,
+   "line": 215.46,
+   "noise": 24.44,
+   "otm": 378.1,
+   "line_beyond_strike": false,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "placement": "wall",
+   "p0": 55.6,
+   "rev5": [
+    "14:38",
+    3,
+    22.3
+   ],
+   "yes": [
+    "14:45",
+    4,
+    26.7,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ],
+    33.3,
+    37.05
+   ],
+   "no": [
+    "14:38",
+    3,
+    22.3
+   ],
+   "close": 55.45
+  },
+  "her_pts": 7.15
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "read": "13:44",
+  "close_read": "13:44",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "until": "13:35",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 73800.0,
+   "px": 185.2,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 73800.0,
+   "px": 176.0,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 431.09,
+   "r_over_S": 1.19,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73800.0,
+    "p0": 185.2,
+    "p30": 241.65,
+    "pnl": 56.45,
+    "risk": 107.94,
+    "r": 0.52
+   },
+   "sell": {
+    "k": 73800.0,
+    "p0": 176.0,
+    "p30": 130.3,
+    "pnl": 45.7,
+    "risk": 157.56,
+    "r": 0.29
+   },
+   "move": [
+    107.1,
+    "with"
+   ],
+   "G": 0.23
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "X": 157.56,
+   "c0": 176.0,
+   "line": 268.43,
+   "noise": 24.44,
+   "otm": 31.1,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "target",
+   "stratum": true
+  },
+  "other": {
+   "k": 73800.0,
+   "side": "CE",
+   "placement": "atm",
+   "p0": 176.0,
+   "rev5": [
+    "14:38",
+    3,
+    42.9
+   ],
+   "yes": [
+    "14:38",
+    3,
+    42.9,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:38",
+    3,
+    42.9
+   ],
+   "close": 175.9
+  },
+  "her_pts": 6.0
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "read": "13:53",
+  "close_read": "13:53",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "until": "13:35",
+  "word4": "BUY PE",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 73700.0,
+   "px": 180.15,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 73700.0,
+   "px": 192.55,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 509.48,
+   "r_over_S": 1.37,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73700.0,
+    "p0": 180.15,
+    "p30": 228.1,
+    "pnl": 47.95,
+    "risk": 121.4,
+    "r": 0.39
+   },
+   "sell": {
+    "k": 73700.0,
+    "p0": 192.55,
+    "p30": 129.35,
+    "pnl": 63.2,
+    "risk": 219.74,
+    "r": 0.29
+   },
+   "move": [
+    120.4,
+    "with"
+   ],
+   "G": 0.1
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "X": 219.74,
+   "c0": 192.55,
+   "line": 346.82,
+   "noise": 28.77,
+   "otm": 9.5,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 73700.0,
+   "side": "CE",
+   "placement": "atm",
+   "p0": 192.55,
+   "rev5": [
+    "14:38",
+    3,
+    11.2
+   ],
+   "yes": [
+    "14:02",
+    "3s",
+    4.15,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:02",
+    "3s",
+    4.15
+   ],
+   "close": 192.4
+  },
+  "her_pts": -12.15
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "read": "13:56",
+  "close_read": "13:56",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "until": "13:35",
+  "word4": "EITHER",
+  "word_1m": "BUY PE",
+  "word_rev0a": "BUY PE",
+  "buy": {
+   "side": "PE",
+   "k": 73700.0,
+   "px": 195.95,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 73700.0,
+   "px": 170.85,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "r_w": 540.69,
+   "r_over_S": 1.47,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73700.0,
+    "p0": 195.95,
+    "p30": 218.4,
+    "pnl": 22.45,
+    "risk": 137.75,
+    "r": 0.16
+   },
+   "sell": {
+    "k": 73700.0,
+    "p0": 170.85,
+    "p30": 131.9,
+    "pnl": 38.95,
+    "risk": 236.17,
+    "r": 0.16
+   },
+   "move": [
+    63.3,
+    "with"
+   ],
+   "G": 0.0
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "X": 236.17,
+   "c0": 170.85,
+   "line": 378.03,
+   "noise": 39.11,
+   "otm": 40.7,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 73700.0,
+   "side": "CE",
+   "placement": "atm",
+   "p0": 170.85,
+   "rev5": [
+    "14:38",
+    3,
+    -10.5
+   ],
+   "yes": [
+    "14:02",
+    "3s",
+    -17.55,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:02",
+    "3s",
+    -17.55
+   ],
+   "close": 170.7
+  },
+  "her_pts": 29.6
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "read": "14:22",
+  "close_read": "14:20",
+  "d": "DOWN",
+  "word": "EITHER",
+  "named_by": "count",
+  "nb": 2,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "sell"
+  },
+  "ref": [],
+  "since": "14:14",
+  "was": "SELL CE",
+  "until": "14:14",
+  "word4": "BUY PE",
+  "word_1m": "SELL CE",
+  "word_rev0a": "SELL CE",
+  "buy": {
+   "side": "PE",
+   "k": 73600.0,
+   "px": 156.35,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 73700.0,
+   "px": 157.4,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 553.14,
+   "r_over_S": 1.52,
+   "entry": "HOLD"
+  },
+  "rmult": {
+   "buy": {
+    "k": 73600.0,
+    "p0": 162.7,
+    "p30": 80.0,
+    "pnl": -82.7,
+    "risk": 116.56,
+    "r": -0.71
+   },
+   "sell": {
+    "k": 73700.0,
+    "p0": 146.2,
+    "p30": 194.3,
+    "pnl": -48.1,
+    "risk": 250.07,
+    "r": -0.19
+   },
+   "move": [
+    -154.8,
+    "against"
+   ],
+   "G": -0.52
+  },
+  "writer": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "with"
+   ],
+   "X": 250.07,
+   "c0": 146.2,
+   "line": 401.47,
+   "noise": 25.56,
+   "otm": 64.1,
+   "line_beyond_strike": true,
+   "out30": "neither",
+   "out1529": "neither",
+   "stratum": false
+  },
+  "other": {
+   "k": 73700.0,
+   "side": "CE",
+   "placement": "atm",
+   "p0": 146.2,
+   "rev5": [
+    "14:38",
+    3,
+    -35.15
+   ],
+   "yes": [
+    "14:35",
+    "3s",
+    -14.7,
+    [],
+    null,
+    null
+   ],
+   "no": [
+    "14:35",
+    "3s",
+    -14.7
+   ],
+   "close": 146.05
+  },
+  "her_pts": 7.35
+ }
+]

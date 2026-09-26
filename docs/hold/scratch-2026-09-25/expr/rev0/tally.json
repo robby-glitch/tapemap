@@ -1,0 +1,21 @@
+{
+ "R1": 1054,
+ "R2": 919,
+ "R3": 272,
+ "R4": 26,
+ "R5": 1105,
+ "R6": 1319,
+ "premium:buy": 5434,
+ "premium:neither": 168,
+ "premium:sell": 1118,
+ "regime:buy": 1685,
+ "regime:neither": 1685,
+ "regime:sell": 3350,
+ "room:buy": 4329,
+ "room:neither": 272,
+ "room:sell": 2119,
+ "shield:neither": 5091,
+ "shield:sell": 1629,
+ "speed:buy": 2989,
+ "speed:neither": 3731
+}

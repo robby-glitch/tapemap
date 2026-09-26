@@ -1,0 +1,182 @@
+[
+ {
+  "day": "NIFTY 2026-09-22",
+  "d": "UP",
+  "BUY": 90,
+  "SELL": 117,
+  "EITHER": 23,
+  "ASIDE both refused": 90,
+  "ASIDE refused leg led": 53,
+  "could not check": 2
+ },
+ {
+  "day": "NIFTY 2026-09-22",
+  "d": "DOWN",
+  "BUY": 72,
+  "SELL": 149,
+  "EITHER": 81,
+  "ASIDE both refused": 58,
+  "ASIDE refused leg led": 13,
+  "could not check": 2
+ },
+ {
+  "day": "SENSEX 2026-09-22",
+  "d": "UP",
+  "BUY": 110,
+  "SELL": 140,
+  "EITHER": 39,
+  "ASIDE both refused": 45,
+  "ASIDE refused leg led": 39,
+  "could not check": 2
+ },
+ {
+  "day": "SENSEX 2026-09-22",
+  "d": "DOWN",
+  "BUY": 117,
+  "SELL": 138,
+  "EITHER": 32,
+  "ASIDE both refused": 50,
+  "ASIDE refused leg led": 36,
+  "could not check": 2
+ },
+ {
+  "day": "BANKNIFTY 2026-09-22",
+  "d": "UP",
+  "BUY": 142,
+  "SELL": 41,
+  "EITHER": 6,
+  "ASIDE both refused": 135,
+  "ASIDE refused leg led": 49,
+  "could not check": 2
+ },
+ {
+  "day": "BANKNIFTY 2026-09-22",
+  "d": "DOWN",
+  "BUY": 129,
+  "SELL": 137,
+  "EITHER": 8,
+  "ASIDE both refused": 49,
+  "ASIDE refused leg led": 50,
+  "could not check": 2
+ },
+ {
+  "day": "NIFTY 2026-09-23",
+  "d": "UP",
+  "BUY": 142,
+  "SELL": 107,
+  "EITHER": 65,
+  "ASIDE both refused": 8,
+  "ASIDE refused leg led": 52,
+  "could not check": 1
+ },
+ {
+  "day": "NIFTY 2026-09-23",
+  "d": "DOWN",
+  "BUY": 149,
+  "SELL": 66,
+  "EITHER": 26,
+  "ASIDE both refused": 76,
+  "ASIDE refused leg led": 57,
+  "could not check": 1
+ },
+ {
+  "day": "SENSEX 2026-09-23",
+  "d": "UP",
+  "BUY": 112,
+  "SELL": 150,
+  "EITHER": 64,
+  "ASIDE both refused": 1,
+  "ASIDE refused leg led": 46,
+  "could not check": 2
+ },
+ {
+  "day": "SENSEX 2026-09-23",
+  "d": "DOWN",
+  "BUY": 96,
+  "SELL": 108,
+  "EITHER": 60,
+  "ASIDE both refused": 51,
+  "ASIDE refused leg led": 58,
+  "could not check": 2
+ },
+ {
+  "day": "BANKNIFTY 2026-09-23",
+  "d": "UP",
+  "BUY": 119,
+  "SELL": 108,
+  "EITHER": 57,
+  "ASIDE both refused": 49,
+  "ASIDE refused leg led": 40,
+  "could not check": 2
+ },
+ {
+  "day": "BANKNIFTY 2026-09-23",
+  "d": "DOWN",
+  "BUY": 163,
+  "SELL": 55,
+  "EITHER": 22,
+  "ASIDE both refused": 81,
+  "ASIDE refused leg led": 52,
+  "could not check": 2
+ },
+ {
+  "day": "NIFTY 2026-09-24",
+  "d": "UP",
+  "BUY": 87,
+  "SELL": 28,
+  "EITHER": 58,
+  "ASIDE both refused": 187,
+  "ASIDE refused leg led": 13,
+  "could not check": 2
+ },
+ {
+  "day": "NIFTY 2026-09-24",
+  "d": "DOWN",
+  "BUY": 226,
+  "SELL": 68,
+  "EITHER": 52,
+  "ASIDE both refused": 10,
+  "ASIDE refused leg led": 17,
+  "could not check": 2
+ },
+ {
+  "day": "SENSEX 2026-09-24",
+  "d": "UP",
+  "BUY": 178,
+  "SELL": 22,
+  "EITHER": 81,
+  "ASIDE both refused": 78,
+  "ASIDE refused leg led": 16,
+  "could not check": 0
+ },
+ {
+  "day": "SENSEX 2026-09-24",
+  "d": "DOWN",
+  "BUY": 198,
+  "SELL": 90,
+  "EITHER": 35,
+  "ASIDE both refused": 21,
+  "ASIDE refused leg led": 31,
+  "could not check": 0
+ },
+ {
+  "day": "BANKNIFTY 2026-09-24",
+  "d": "UP",
+  "BUY": 155,
+  "SELL": 103,
+  "EITHER": 37,
+  "ASIDE both refused": 57,
+  "ASIDE refused leg led": 21,
+  "could not check": 2
+ },
+ {
+  "day": "BANKNIFTY 2026-09-24",
+  "d": "DOWN",
+  "BUY": 179,
+  "SELL": 107,
+  "EITHER": 59,
+  "ASIDE both refused": 23,
+  "ASIDE refused leg led": 5,
+  "could not check": 2
+ }
+]

@@ -14,8 +14,8 @@ short-variance paper hedger, and what is pending the operator's word). This
 file's §1–§8 remain true about the TAPE; the desk half moved fastest and
 `HANDOFF-DESK.md` §8g is its current shape.
 
-**The HOLD / FOLD window, THE PLAN and the VALIDATE tab (2026-09-25): start with
-`docs/hold/HANDOFF-2026-09-25.md`** — the signed rules and their hashes, where the code is, what was
+**The HOLD / FOLD window, THE PLAN and the VALIDATE tab: start with `docs/hold/HANDOFF-2026-09-26.md`**
+(what changed since, the EXPRESSION draft in flight, Monday's plan), then `docs/hold/HANDOFF-2026-09-25.md` — the signed rules and their hashes, where the code is, what was
 verified live, and what is open.
 
 ---

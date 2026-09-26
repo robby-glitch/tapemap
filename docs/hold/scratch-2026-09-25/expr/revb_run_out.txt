@@ -1,0 +1,107 @@
+('NIFTY', '2026-09-22') 10 s
+('SENSEX', '2026-09-22') 16 s
+('BANKNIFTY', '2026-09-22') 23 s
+('NIFTY', '2026-09-23') 29 s
+('SENSEX', '2026-09-23') 35 s
+('BANKNIFTY', '2026-09-23') 41 s
+('NIFTY', '2026-09-24') 47 s
+('SENSEX', '2026-09-24') 53 s
+('BANKNIFTY', '2026-09-24') 60 s
+{
+ "1m": {
+  "reads": 6750,
+  "trans": 6732,
+  "changes": 1936,
+  "runs": 1954,
+  "median_run_min": 2.0,
+  "runs_of_one": 885,
+  "strong_flips": 8,
+  "side_flips": 319,
+  "words": {
+   "BUY": 871,
+   "EITHER": 774,
+   "LEANS BUY": 1052,
+   "LEANS SELL": 1025,
+   "SELL": 762,
+   "STAND ASIDE": 2236,
+   "could not check": 30
+  },
+  "labels": {
+   "BUY CE": 236,
+   "BUY CE \u00b7 selling refused": 131,
+   "EITHER": 774,
+   "LEANS BUY CE": 379,
+   "LEANS BUY CE \u00b7 selling refused": 126,
+   "LEANS SELL PE": 517,
+   "SELL PE": 337,
+   "STAND ASIDE \u00b7 both refused": 1069,
+   "STAND ASIDE \u00b7 led": 688,
+   "STAND ASIDE \u00b7 tie": 479,
+   "could not check": 30,
+   "BUY PE": 384,
+   "BUY PE \u00b7 selling refused": 120,
+   "LEANS BUY PE": 367,
+   "LEANS BUY PE \u00b7 selling refused": 180,
+   "LEANS SELL CE": 504,
+   "SELL CE": 421,
+   "LEANS SELL PE \u00b7 buying refused": 1,
+   "SELL PE \u00b7 buying refused": 2,
+   "LEANS SELL CE \u00b7 buying refused": 3,
+   "SELL CE \u00b7 buying refused": 2
+  }
+ },
+ "3m": {
+  "reads": 2250,
+  "trans": 2232,
+  "changes": 987,
+  "runs": 1005,
+  "median_run_min": 3,
+  "runs_of_one": 564,
+  "strong_flips": 11,
+  "side_flips": 153,
+  "words": {
+   "BUY": 293,
+   "EITHER": 275,
+   "LEANS BUY": 347,
+   "LEANS SELL": 324,
+   "SELL": 255,
+   "STAND ASIDE": 756
+  },
+  "labels": {
+   "BUY CE": 83,
+   "BUY CE \u00b7 selling refused": 45,
+   "EITHER": 275,
+   "LEANS BUY CE": 114,
+   "LEANS BUY CE \u00b7 selling refused": 45,
+   "LEANS SELL PE": 166,
+   "SELL PE": 113,
+   "STAND ASIDE \u00b7 both refused": 360,
+   "STAND ASIDE \u00b7 led": 226,
+   "STAND ASIDE \u00b7 tie": 170,
+   "BUY PE": 126,
+   "BUY PE \u00b7 selling refused": 39,
+   "LEANS BUY PE": 132,
+   "LEANS BUY PE \u00b7 selling refused": 56,
+   "LEANS SELL CE": 157,
+   "SELL CE": 140,
+   "SELL PE \u00b7 buying refused": 1,
+   "LEANS SELL CE \u00b7 buying refused": 1,
+   "SELL CE \u00b7 buying refused": 1
+  }
+ }
+}
+{'trade': '09-24 09:42 SENSEX 74200PE', 'k': 74200, 'CE0': 174.7, 'rev5': ('10:43', 4, 138.2), 'rev_a': ('10:43', 4, 138.2), 'yes': ('10:43', 4, 138.2, [], None, None), 'no': ('10:43', 4, 138.2), 'B_k': 26.37, 'B_at': '09:41', 'CE_1529': 0.15}
+{'trade': '09-24 10:19 SENSEX 74200PE', 'k': 74200, 'CE0': 138.6, 'rev5': ('10:43', 4, 138.2), 'rev_a': ('10:43', 4, 138.2), 'yes': ('10:43', 4, 138.2, [], None, None), 'no': ('10:43', 4, 138.2), 'B_k': 22.64, 'B_at': '10:18', 'CE_1529': 0.15}
+{'trade': '09-24 12:32 SENSEX 74100PE', 'k': 74100, 'CE0': 138.0, 'rev5': ('14:38', 3, 47.55), 'rev_a': ('14:45', 4, 42.45), 'yes': ('14:45', 4, 42.45, [('held', '14:38', 336.0, 321.6)], 47.55, 53.25), 'no': ('14:38', 3, 47.55), 'B_k': 17.45, 'B_at': '12:31', 'CE_1529': 0.15}
+{'trade': '09-24 12:35 SENSEX 74000PE', 'k': 74000, 'CE0': 171.7, 'rev5': ('14:38', 3, 67.75), 'rev_a': ('13:05', '3s', 191.65), 'yes': ('13:05', '3s', 191.65, [], None, None), 'no': ('13:05', '3s', 191.65), 'B_k': 18.97, 'B_at': '12:34', 'CE_1529': 0.2}
+{'trade': '09-24 12:44 SENSEX 74000PE', 'k': 74000, 'CE0': 178.1, 'rev5': ('14:38', 3, 67.75), 'rev_a': ('13:05', '3s', 191.65), 'yes': ('13:05', '3s', 191.65, [], None, None), 'no': ('13:05', '3s', 191.65), 'B_k': 18.08, 'B_at': '12:43', 'CE_1529': 0.2}
+{'trade': '09-24 13:26 SENSEX 74000PE', 'k': 74000, 'CE0': 157.05, 'rev5': ('14:38', 3, 67.75), 'rev_a': ('14:38', 3, 67.75), 'yes': ('14:38', 3, 67.75, [], None, None), 'no': ('14:38', 3, 67.75), 'B_k': 12.21, 'B_at': '13:25', 'CE_1529': 0.2}
+{'trade': '09-24 13:41 SENSEX 73900PE', 'k': 73900, 'CE0': 157.65, 'rev5': ('14:38', 3, 95.9), 'rev_a': ('14:38', 3, 95.9), 'yes': ('14:38', 3, 95.9, [], None, None), 'no': ('14:38', 3, 95.9), 'B_k': 24.68, 'B_at': '13:40', 'CE_1529': 0.1}
+{'trade': '09-24 13:43 SENSEX 73900PE', 'k': 73900, 'CE0': 154.25, 'rev5': ('14:38', 3, 95.9), 'rev_a': ('14:38', 3, 95.9), 'yes': ('14:38', 3, 95.9, [], None, None), 'no': ('14:38', 3, 95.9), 'B_k': 24.44, 'B_at': '13:42', 'CE_1529': 0.1}
+{'trade': '09-24 13:44 SENSEX 73900PE', 'k': 73900, 'CE0': 140.4, 'rev5': ('14:38', 3, 95.9), 'rev_a': ('14:38', 3, 95.9), 'yes': ('14:38', 3, 95.9, [], None, None), 'no': ('14:38', 3, 95.9), 'B_k': 24.44, 'B_at': '13:43', 'CE_1529': 0.1}
+{'trade': '09-24 13:45 SENSEX 73800PE', 'k': 73800, 'CE0': 176.0, 'rev5': ('14:38', 3, 133.1), 'rev_a': ('14:38', 3, 133.1), 'yes': ('14:38', 3, 133.1, [], None, None), 'no': ('14:38', 3, 133.1), 'B_k': 24.44, 'B_at': '13:44', 'CE_1529': 0.1}
+{'trade': '09-24 13:54 SENSEX 73800PE', 'k': 73800, 'CE0': 145.05, 'rev5': ('14:38', 3, 133.1), 'rev_a': ('14:38', 3, 133.1), 'yes': ('14:38', 3, 133.1, [], None, None), 'no': ('14:38', 3, 133.1), 'B_k': 28.77, 'B_at': '13:53', 'CE_1529': 0.1}
+{'trade': '09-24 13:57 SENSEX 73800PE', 'k': 73800, 'CE0': 127.65, 'rev5': ('14:38', 3, 133.1), 'rev_a': ('14:38', 3, 133.1), 'yes': ('14:38', 3, 133.1, [], None, None), 'no': ('14:38', 3, 133.1), 'B_k': 39.11, 'B_at': '13:56', 'CE_1529': 0.1}
+{'trade': '09-24 14:23 SENSEX 73800PE', 'k': 73800, 'CE0': 107.45, 'rev5': ('14:38', 3, 133.1), 'rev_a': ('14:38', 3, 133.1), 'yes': ('14:38', 3, 133.1, [], None, None), 'no': ('14:38', 3, 133.1), 'B_k': 25.56, 'B_at': '14:22', 'CE_1529': 0.1}
+grid words {'LEANS SELL PE': 18, 'SELL PE': 7, 'STAND ASIDE · both refused': 35, 'STAND ASIDE · tie': 14, 'LEANS BUY CE · selling refused': 6, 'STAND ASIDE · led': 14, 'LEANS SELL CE': 23, 'SELL CE': 7, 'EITHER': 35, 'LEANS BUY PE': 13, 'LEANS BUY PE · selling refused': 7, 'LEANS BUY CE': 11, 'BUY CE': 9, 'BUY PE': 8, 'BUY PE · selling refused': 5, 'BUY CE · selling refused': 4} 165
+done 66 s

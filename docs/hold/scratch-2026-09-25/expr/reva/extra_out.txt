@@ -1,0 +1,14 @@
+('NIFTY', '2026-09-22')
+('SENSEX', '2026-09-22')
+('BANKNIFTY', '2026-09-22')
+('NIFTY', '2026-09-23')
+('SENSEX', '2026-09-23')
+('BANKNIFTY', '2026-09-23')
+('NIFTY', '2026-09-24')
+('SENSEX', '2026-09-24')
+('BANKNIFTY', '2026-09-24')
+median run (min): {'1m': 2.0, '3m': 6.0} runs: {'1m': 1416, '3m': 770} transitions: {'1m': 6732, '3m': 2232}
+grid sell legs, the window's first fold (reach, YES): {'3s': 13, '4': 27, '3': 64, '6': 48, 'None': 13} 3s: 13
+Traceback (most recent call last):
+  File "<stdin>", line 67, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: 'reva/grid_3s.json'

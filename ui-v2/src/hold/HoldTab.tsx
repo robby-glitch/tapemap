@@ -13,7 +13,7 @@ import type { ReactNode } from 'react'
 import type { Chain, IndexKey } from '../data'
 import { counts } from './HoldWindow'
 import type { Reading, Trade } from './HoldWindow'
-import { Abs, AbsentList, Age, Err, Guard, Ico, Mark, Marks, N, PlanList, Qual, Quiet, Rows, SideList, Sigma, StopBlock, T, WallBlock, WatchList,
+import { Abs, AbsentList, Age, Cutoff, Err, Guard, Ico, Mark, Marks, N, PlanList, Qual, Quiet, Rows, SideList, Sigma, StopBlock, T, WallBlock, WatchList,
          cap, inr, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
 import { ageSec, followTrade, j, tradeOp, useHold } from './store'
 import MarketNow from './MarketNow'
@@ -211,6 +211,7 @@ function Tab({ index, chain, onIndex }: { index: IndexKey; chain: Chain; onIndex
             </>}
             <button type="submit" className="btn btn-validate" disabled={busy || !strike}>{busy ? 'CHECKING…' : ck?.ok && !editing ? 'VALIDATE AGAIN' : 'VALIDATE'}</button>
             <p className="fine">Each press is logged. Keys: C/P · B/S · ↑↓ strike · Enter · I = I'm in</p>
+            <Cutoff />
 
             <div className="took">
               <span className="label">Took it?</span>
@@ -445,7 +446,7 @@ function InView({ t, rd, open, flip, err }: { t: Trade; rd?: Held; open: Trade[]
         <span className="dot">·</span><span>{t.role === 'long' ? 'BUY · long' : 'SELL · short'} · qty <span className="num">{t.qty}</span></span>
         <span className="dot">·</span><span>in <span className="num">{t.t0}</span>{t.p0 != null && <> at <span className="num">{rs(t.p0, 2)}</span></>}</span>
         {t.exit_t && <><span className="dot">·</span><span>out <span className="num">{t.exit_t}</span></span></>}
-        <span className="dot">·</span><Age asof={rd.asof} />
+        <span className="dot">·</span><Age asof={rd.asof} /><Cutoff open={!t.exit_t} />
         <span className="right"><span className="fine">nothing is sent to your broker</span><span className="draft" title={rd.draft}>DRAFT</span></span>
       </div>
       {err && <div className="stale-note"><Abs text={err} /></div>}

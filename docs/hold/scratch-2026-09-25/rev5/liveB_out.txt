@@ -1,0 +1,10 @@
+NIFTY-23100CE- rev4 12:02 3 L 23075.2 close 23073.8 by 1.4 prem 111.2 pts -2.35
+NIFTY-23100CE- A 12:02 3 L 23075.2 close 23073.8 by 1.4 prem 111.2 pts -2.35
+NIFTY-23100CE- B 12:05 3 L 23075.2 close 23067.2 by 8.0 B 4.9 @12:00 level 23070.3 prem 111.35 pts -2.2
+   B values along the trade: [(23075.2, 4.9, '12:00', 23070.3), (23109.05, 7.25, '14:40', 23101.8)]
+   B line first break (any rule aside): 12:05
+NIFTY-23200PE- rev4 12:30 3 L 23084.8 close 23087.5 by 2.7 prem 144.55 pts -10.85
+NIFTY-23200PE- A 12:32 3 L 23084.8 close 23085.4 by 0.6 prem 146.4 pts -9.0
+NIFTY-23200PE- B 13:59 3 L 23055.45 close 23063.2 by 7.8 B 5.3 @13:25 level 23060.75 prem 151.3 pts -4.1
+   B values along the trade: [(23091.6, 5.3, '12:04', 23096.9), (23084.8, 4.4, '12:25', 23089.2), (23055.45, 5.3, '13:25', 23060.75)]
+   B line first break (any rule aside): 13:59

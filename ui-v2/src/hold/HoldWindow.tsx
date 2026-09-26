@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { Abs, Age, Err, Guard, Ico, Mark, N, Qual, Quiet, Rows, SideList, Sigma, WALL, WatchList, cap, inr, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
+import { Abs, Age, Cutoff, Err, Guard, Ico, Mark, N, Qual, Quiet, Rows, SideList, Sigma, WALL, WatchList, cap, inr, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
 import { onFold, rank, tone, tradeOp, useHold } from './store'
 import type { Held } from './store'
 
@@ -196,6 +196,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
       </span>
       {now && <span className="since">since <span className="num">{now.since}</span></span>}
       <Age asof={rd?.asof} />
+      <Cutoff open />
       <span className="draft" title={rd?.draft || 'pre-registered, untested'}>DRAFT</span>
       {btns}
     </div>
@@ -278,7 +279,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
         <label style={{ marginLeft: 'auto' }}><input type="checkbox" checked={beep} onChange={e => setBeep(e.target.checked)} /> tone on FOLD</label>
         {msg && <Err>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></Err>}
       </div>
-      <div className="fl-foot"><span className="draft" title={rd?.draft || 'pre-registered, untested'}>DRAFT</span><Age asof={rd?.asof} /><span>nothing is sent to your broker</span></div>
+      <div className="fl-foot"><span className="draft" title={rd?.draft || 'pre-registered, untested'}>DRAFT</span><Age asof={rd?.asof} /><Cutoff open /><span>nothing is sent to your broker</span></div>
     </>
   )
 

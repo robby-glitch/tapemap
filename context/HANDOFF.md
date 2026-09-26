@@ -183,6 +183,12 @@ live day for all of it: 2026-08-26.
 operator's memory files in the assistant workspace. The anytime-start audit
 report: https://claude.ai/code/artifact/4b30ccb2-f146-4414-a7ec-be8abcfb5981
 
+### 2026-09-26 — START WITH `docs/hold/HANDOFF-2026-09-26.md`
+
+It supersedes the 09-25 entry below as the starting point: the buy-or-sell EXPRESSION pre-registration is in flight
+(draft rev c, first review answered, second pass owed, then her sign), her expiry-day and 15:00 (CAS) decisions,
+and the Monday 2026-09-28 forward-day plan.
+
 ### 2026-09-25 end of day — the hold window, THE PLAN and VALIDATE built, reviewed, re-signed (rev 5 B, VALIDATE rev 2), live
 
 **START WITH `docs/hold/HANDOFF-2026-09-25.md`.** It supersedes the "next session builds it" note below: the window,

@@ -414,3 +414,7 @@
 .hv .mkt-now{font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
 @media (max-width:1240px){ .hv .mkt-grid{grid-template-columns:repeat(3,minmax(0,1fr))} .hv .mc:nth-child(4){border-left:0;padding-left:0} }
 
+/* her 15:00 practice (CAS) — a reminder, never a gate */
+.hv .cutoff{flex:none;font:600 var(--t12)/16px var(--f-ui);color:var(--caution);white-space:nowrap}
+.hv.float.red .fl-line .cutoff{color:var(--on-red)}
+

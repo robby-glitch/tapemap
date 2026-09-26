@@ -1,0 +1,182 @@
+{
+ "units": 216,
+ "words": {
+  "SELL PE": 25,
+  "STAND ASIDE \u00b7 both refused": 35,
+  "BUY CE \u00b7 selling refused": 16,
+  "STAND ASIDE \u00b7 led": 14,
+  "SELL CE": 30,
+  "EITHER": 35,
+  "BUY PE": 21,
+  "BUY PE \u00b7 selling refused": 20,
+  "BUY CE": 20
+ },
+ "scored_G": 160,
+ "notscored": {
+  "no strike": 44,
+  "no premium": 6,
+  "no greeks": 6
+ },
+ "writer": {
+  "30": {
+   "neither": 82,
+   "stop": 33,
+   "not scored": 26,
+   "target": 24
+  },
+  "1529": {
+   "stop": 48,
+   "not scored": 26,
+   "neither": 42,
+   "target": 49
+  },
+  "stratum": 133,
+  "words": {
+   "GO": 60,
+   "NO": 24,
+   "WAIT": 81
+  }
+ },
+ "held_breaks": [
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "14:44",
+   "k": 73500.0,
+   "side": "PE",
+   "held": [
+    "held",
+    "15:29",
+    80.5,
+    20.05
+   ],
+   "fold": null,
+   "rule": null,
+   "P_b": 0.15,
+   "P_x": 0.15,
+   "P_max": 0.15
+  },
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "15:14",
+   "k": 73500.0,
+   "side": "PE",
+   "held": [
+    "held",
+    "15:29",
+    80.5,
+    20.05
+   ],
+   "fold": null,
+   "rule": null,
+   "P_b": 0.15,
+   "P_x": 0.15,
+   "P_max": 0.15
+  },
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "11:14",
+   "k": 74300.0,
+   "side": "CE",
+   "held": [
+    "held",
+    "14:38",
+    536.0,
+    321.6
+   ],
+   "fold": "14:45",
+   "rule": 4,
+   "P_b": 23.5,
+   "P_x": 19.9,
+   "P_max": 26.4
+  },
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "11:44",
+   "k": 74300.0,
+   "side": "CE",
+   "held": [
+    "held",
+    "14:38",
+    536.0,
+    321.6
+   ],
+   "fold": "14:45",
+   "rule": 4,
+   "P_b": 23.5,
+   "P_x": 19.9,
+   "P_max": 26.4
+  },
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "12:14",
+   "k": 74300.0,
+   "side": "CE",
+   "held": [
+    "held",
+    "14:38",
+    536.0,
+    321.6
+   ],
+   "fold": "14:45",
+   "rule": 4,
+   "P_b": 23.5,
+   "P_x": 19.9,
+   "P_max": 26.4
+  },
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "12:44",
+   "k": 74200.0,
+   "side": "CE",
+   "held": [
+    "held",
+    "14:38",
+    436.0,
+    321.6
+   ],
+   "fold": "14:45",
+   "rule": 4,
+   "P_b": 33.3,
+   "P_x": 28.9,
+   "P_max": 37.05
+  },
+  {
+   "day": [
+    "SENSEX",
+    "2026-09-24"
+   ],
+   "unit": "13:14",
+   "k": 74200.0,
+   "side": "CE",
+   "held": [
+    "held",
+    "14:38",
+    436.0,
+    321.6
+   ],
+   "fold": "14:45",
+   "rule": 4,
+   "P_b": 33.3,
+   "P_x": 28.9,
+   "P_max": 37.05
+  }
+ ]
+}

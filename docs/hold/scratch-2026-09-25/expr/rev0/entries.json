@@ -1,0 +1,2527 @@
+[
+ {
+  "id": "09-21 14:00 NIFTY 23300CE",
+  "why": "could not check \u2014 the day was never frozen (no chain record)"
+ },
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "read": "09:41",
+  "d": "UP",
+  "word": "STAND ASIDE",
+  "nb": 2,
+  "ns": 2,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "session CE 23456.0 is 3.65 pts away, nearer than the line at 26.65",
+   "shield": "PE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "CALLS \u2014 the rows trend your way",
+   "premium": "ATM 23450 CE z 0.49 \u00b7 PE z -1.92 (09:39 bar) \u2014 rotated"
+  },
+  "refused": [
+   "R5 you would enter a broken setup (the long leg's entry check reads FOLD, rule 6)",
+   "R1 the short leg's entry check reads FOLD (rule 6)"
+  ],
+  "buy": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 47.8,
+   "entry": "FOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 26.4,
+   "entry": "FOLD",
+   "otm": 52
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 166.4,
+   "exit": "10:19",
+   "pts": -7.25,
+   "p30": 169.85,
+   "pts30": 3.45
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 26.4,
+   "sold_pts_15": 2.4,
+   "sold_pts_30": 5.05,
+   "sold_pts_close": -44.3,
+   "worst_30": 0.2,
+   "rev5_fold": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "reach_fold": [
+    "09:41",
+    6,
+    0.0,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "NO",
+   "facts": [
+    "against",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "FOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 26.65,
+   "noise": 8.35,
+   "X": 9.89,
+   "c0": 26.4,
+   "iv": 0.2,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "read": "10:31",
+  "d": "DOWN",
+  "word": "EITHER",
+  "nb": 2,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "neither",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 23,450 are covering \u2014 OI 17% off its peak, giving back since 10:20 [M] \u2014 fuel for your put",
+   "room": "session PE 23421.8 is 5.1 pts away, nearer than the line at 43.7",
+   "shield": "CE 23450.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "CALLS \u2014 the rows trend against your direction",
+   "premium": "ATM 23450 CE z -2.27 \u00b7 PE z 0.4 (10:29 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23450.0,
+   "px": 55.0,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 32.5,
+   "entry": "WATCH",
+   "otm": 23
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 134.8,
+   "exit": "10:37",
+   "pts": 9.25,
+   "p30": 181.7,
+   "pts30": 46.9
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 32.5,
+   "sold_pts_15": 9.05,
+   "sold_pts_30": 13.15,
+   "sold_pts_close": 32.45,
+   "worst_30": 1.7,
+   "rev5_fold": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "reach_fold": [
+    "14:14",
+    3,
+    15.55,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "neither",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "WATCH",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "line": 43.7,
+   "noise": 7.05,
+   "X": 21.64,
+   "c0": 32.5,
+   "iv": 0.193,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "read": "10:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 23,400 are covering \u2014 OI 33% off its peak, giving back since 10:19 [M] \u2014 fuel for your put",
+   "room": "no wall in the way \u2014 price discovery; line 82.8 pts",
+   "shield": "CE 23450.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23400 CE z -2.33 \u00b7 PE z 2.35 (10:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 49.0,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "entry": "HOLD",
+   "otm": 62
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 174.75,
+   "exit": "10:41",
+   "pts": 12.2,
+   "p30": 174.75,
+   "pts30": 0.0
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 25.1,
+   "sold_pts_15": 3.9,
+   "sold_pts_30": 4.65,
+   "sold_pts_close": 25.05,
+   "worst_30": 1.25,
+   "rev5_fold": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "reach_fold": [
+    "14:14",
+    3,
+    8.15,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "line": 82.8,
+   "noise": 7.7,
+   "X": 35.43,
+   "c0": 25.1,
+   "iv": 0.229,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "read": "10:42",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "nb": 2,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 23,400 are covering \u2014 OI 63% off its peak, giving back since 10:19 [M] \u2014 fuel for your put",
+   "room": "session PE 23368.2 is 17.5 pts away, nearer than the line at 84.9",
+   "shield": "CE 23450.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23400 CE z -2.33 \u00b7 PE z 2.35 (10:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 64.1,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 22.35,
+   "entry": "HOLD",
+   "otm": 64
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 175.05,
+   "exit": "10:42",
+   "pts": -3.45,
+   "p30": 172.65,
+   "pts30": -2.4
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 22.35,
+   "sold_pts_15": 0.15,
+   "sold_pts_30": 1.3,
+   "sold_pts_close": 22.3,
+   "worst_30": -1.5,
+   "rev5_fold": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "reach_fold": [
+    "14:14",
+    3,
+    5.4,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "line": 84.9,
+   "noise": 7.7,
+   "X": 35.6,
+   "c0": 22.35,
+   "iv": 0.218,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "read": "10:43",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "nb": 2,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 23,400 are covering \u2014 OI 68% off its peak, giving back since 10:19 [M] \u2014 fuel for your put",
+   "room": "session PE 23368.2 is 24.2 pts away, nearer than the line at 78.2",
+   "shield": "CE 23450.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23400 CE z -2.33 \u00b7 PE z 2.35 (10:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 54.55,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 23.85,
+   "entry": "HOLD",
+   "otm": 58
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 171.5,
+   "exit": "10:43",
+   "pts": 2.5,
+   "p30": 168.3,
+   "pts30": -3.2
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 23.85,
+   "sold_pts_15": 2.0,
+   "sold_pts_30": 2.0,
+   "sold_pts_close": 23.8,
+   "worst_30": 0.35,
+   "rev5_fold": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "reach_fold": [
+    "14:14",
+    3,
+    6.9,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "line": 78.2,
+   "noise": 8.8,
+   "X": 33.73,
+   "c0": 23.85,
+   "iv": 0.216,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "read": "10:51",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "nb": 2,
+  "ns": 3,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 23,400 are covering \u2014 OI 69% off its peak, giving back since 10:19 [M] \u2014 fuel for your put",
+   "room": "session PE 23366.9 is 4.8 pts away, nearer than the line at 98.9",
+   "shield": "CE 23450.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23350 CE z -1.64 \u00b7 PE z 1.65 (10:49 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 38.7,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 20.85,
+   "entry": "HOLD",
+   "otm": 78
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 146.15,
+   "exit": "10:54",
+   "pts": -13.15,
+   "p30": 120.15,
+   "pts30": -26.0
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 20.85,
+   "sold_pts_15": 1.2,
+   "sold_pts_30": -1.8,
+   "sold_pts_close": 20.8,
+   "worst_30": -2.7,
+   "rev5_fold": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "reach_fold": [
+    "14:14",
+    3,
+    3.9,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "with",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "line": 98.9,
+   "noise": 9.1,
+   "X": 39.41,
+   "c0": 20.85,
+   "iv": 0.235,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "read": "13:47",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "neither",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 23,150 folded 13:43 \u2014 10% off their 13:07 high [M] \u2014 fuel for your put",
+   "room": "wall PE 23300.0 is 34.25 pts away; the line 9.8",
+   "shield": "CE 23400.0 STALLED",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m DOWN \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23350 CE z -0.8 \u00b7 PE z 1.21 (13:44 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 51.65,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 14.55,
+   "entry": "HOLD",
+   "otm": 66
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 181.5,
+   "exit": "13:53",
+   "pts": 21.7,
+   "p30": 119.6,
+   "pts30": -61.9
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 14.55,
+   "sold_pts_15": 5.45,
+   "sold_pts_30": -24.3,
+   "sold_pts_close": 14.5,
+   "worst_30": -24.3,
+   "rev5_fold": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "reach_fold": [
+    "14:14",
+    3,
+    -17.25,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23400.0,
+    "STALLED"
+   ],
+   "line": 9.8,
+   "noise": 5.55,
+   "X": 2.61,
+   "c0": 14.55,
+   "iv": 0.298,
+   "mirror": "rotated",
+   "outcome": "target 13:53",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "read": "09:17",
+  "d": "UP",
+  "word": "STAND ASIDE",
+  "nb": 0,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "neither",
+   "shield": "neither",
+   "regime": "sell",
+   "premium": "neither"
+  },
+  "fact_text": {
+   "speed": "could not check \u2014 OI fronts forming: the build \u2192 stall \u2192 unwind sequence needs 15 one-minute marks, 2 so far",
+   "room": "could not check \u2014 the walls could not be read: fronts forming: the build \u2192 stall \u2192 unwind sequence needs 15 one-minute marks, 2 so far",
+   "shield": "could not check \u2014 OI fronts forming: the build \u2192 stall \u2192 unwind sequence needs 15 one-minute marks, 2 so far",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "could not check \u2014 the first 5-min bar has not closed"
+  },
+  "refused": [
+   "R3 OI blind \u2014 a writer does not sell a wall she cannot see"
+  ],
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 125.5,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 116.2,
+   "entry": "HOLD",
+   "otm": 9
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 100.0,
+   "exit": "09:24",
+   "pts": -1.0,
+   "p30": 98.85,
+   "pts30": -1.15
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 116.2,
+   "sold_pts_15": -6.8,
+   "sold_pts_30": 2.5,
+   "sold_pts_close": 35.05,
+   "worst_30": -9.05,
+   "rev5_fold": [
+    "09:44",
+    6,
+    -0.55
+   ],
+   "reach_fold": [
+    "09:44",
+    6,
+    -0.55,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "neither",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 36.15,
+   "noise": null,
+   "X": null,
+   "c0": 116.2,
+   "iv": 0.092,
+   "mirror": null,
+   "outcome": null,
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "read": "09:46",
+  "d": "UP",
+  "word": "STAND ASIDE",
+  "nb": 0,
+  "ns": 4,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "sell"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "wall CE 23400.0 is 17.9 pts away, nearer than the line at 26.8",
+   "shield": "PE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23400 CE z -0.43 \u00b7 PE z -0.23 (09:44 bar) \u2014 decaying together"
+  },
+  "refused": [
+   "R5 you would enter a broken setup (the long leg's entry check reads FOLD, rule 6)",
+   "R1 the short leg's entry check reads FOLD (rule 6)"
+  ],
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 121.8,
+   "entry": "FOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 116.9,
+   "entry": "FOLD",
+   "otm": 18
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 99.4,
+   "exit": "09:48",
+   "pts": -7.65,
+   "p30": 95.45,
+   "pts30": -3.95
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 116.9,
+   "sold_pts_15": -1.3,
+   "sold_pts_30": 2.45,
+   "sold_pts_close": 35.75,
+   "worst_30": -13.9,
+   "rev5_fold": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "reach_fold": [
+    "09:46",
+    6,
+    0.0,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "NO",
+   "facts": [
+    "against",
+    "with",
+    "with",
+    "with"
+   ],
+   "right_now": "FOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 26.8,
+   "noise": 5.4,
+   "X": 14.56,
+   "c0": 116.9,
+   "iv": 0.088,
+   "mirror": "decaying together",
+   "outcome": "stop 09:54",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "read": "09:48",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "nb": 1,
+  "ns": 4,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "sell"
+  },
+  "fact_text": {
+   "speed": "paid now: flow with you",
+   "room": "session PE 23355.3 is 17.55 pts away, nearer than the line at 41.7",
+   "shield": "CE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23350 CE z -0.38 \u00b7 PE z -0.51 (09:44 bar) \u2014 decaying together"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 99.05,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 118.0,
+   "entry": "HOLD",
+   "otm": 27
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 125.0,
+   "exit": "09:52",
+   "pts": -0.8,
+   "p30": 107.3,
+   "pts30": -17.7
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 118.0,
+   "sold_pts_15": -3.6,
+   "sold_pts_30": -8.6,
+   "sold_pts_close": -17.45,
+   "worst_30": -8.6,
+   "rev5_fold": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "reach_fold": [
+    "10:19",
+    6,
+    -10.8,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "with"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 41.7,
+   "noise": 6.35,
+   "X": 20.62,
+   "c0": 118.0,
+   "iv": 0.108,
+   "mirror": "decaying together",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "read": "09:59",
+  "d": "UP",
+  "word": "SELL PE",
+  "nb": 0,
+  "ns": 4,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "sell"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "wall CE 23400.0 is 22.95 pts away, nearer than the line at 27.5",
+   "shield": "PE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m RANGE \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23400 CE z -0.09 \u00b7 PE z -0.79 (09:59 bar) \u2014 decaying together"
+  },
+  "refused": [],
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 121.65,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 115.45,
+   "entry": "WATCH",
+   "otm": 23
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 98.6,
+   "exit": "10:08",
+   "pts": -7.8,
+   "p30": 102.85,
+   "pts30": 4.25
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 115.45,
+   "sold_pts_15": -7.5,
+   "sold_pts_30": 9.75,
+   "sold_pts_close": 34.3,
+   "worst_30": -11.1,
+   "rev5_fold": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "reach_fold": [
+    "10:05",
+    6,
+    0.95,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "neither",
+    "with",
+    "with",
+    "with"
+   ],
+   "right_now": "WATCH",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 27.5,
+   "noise": 6.7,
+   "X": 15.22,
+   "c0": 115.45,
+   "iv": 0.085,
+   "mirror": "decaying together",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "read": "10:18",
+  "d": "UP",
+  "word": "SELL PE",
+  "nb": 1,
+  "ns": 3,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "sell",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "wall CE 23400.0 is 7.5 pts away, nearer than the line at 42.95",
+   "shield": "PE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "no side \u2014 5m RANGE \u00b7 15m UP \u00b7 1h RANGE \u2014 no side",
+   "premium": "ATM 23400 CE z -1.04 \u00b7 PE z 0.52 (10:14 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 126.6,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 107.3,
+   "entry": "HOLD",
+   "otm": 8
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 101.85,
+   "exit": "10:30",
+   "pts": 3.15,
+   "p30": 110.45,
+   "pts30": 8.6
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 107.3,
+   "sold_pts_15": 3.8,
+   "sold_pts_30": 9.85,
+   "sold_pts_close": 26.15,
+   "worst_30": -1.65,
+   "rev5_fold": [
+    "13:32",
+    3,
+    14.5
+   ],
+   "reach_fold": [
+    "13:32",
+    3,
+    14.5,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 42.95,
+   "noise": 6.6,
+   "X": 23.27,
+   "c0": 107.3,
+   "iv": 0.085,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "read": "10:32",
+  "d": "UP",
+  "word": "BUY CE",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Call writers at 23,400 are covering \u2014 OI 11% off its peak, giving back since 10:15 [M] \u2014 fuel for your call",
+   "room": "session CE 23414.55 is 13.25 pts away, nearer than the line at 45.7",
+   "shield": "PE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "CALLS \u2014 the rows trend your way",
+   "premium": "ATM 23400 CE z 1.03 \u00b7 PE z -1.84 (10:29 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 131.5,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 104.45,
+   "entry": "HOLD",
+   "otm": 1
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 106.45,
+   "exit": "11:03",
+   "pts": -0.45,
+   "p30": 109.8,
+   "pts30": 3.35
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 104.45,
+   "sold_pts_15": 6.4,
+   "sold_pts_30": 6.15,
+   "sold_pts_close": 23.3,
+   "worst_30": -2.15,
+   "rev5_fold": [
+    "13:32",
+    3,
+    11.65
+   ],
+   "reach_fold": [
+    "13:32",
+    3,
+    11.65,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 45.7,
+   "noise": 5.0,
+   "X": 24.21,
+   "c0": 104.45,
+   "iv": 0.086,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "read": "11:06",
+  "d": "UP",
+  "word": "BUY CE",
+  "nb": 3,
+  "ns": 2,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Call writers at 23,400 are covering \u2014 OI 22% off its peak, giving back since 10:15 [M] \u2014 fuel for your call",
+   "room": "session CE 23430.6 is 1.3 pts away, nearer than the line at 73.7",
+   "shield": "PE 23400.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "CALLS \u2014 the rows trend your way",
+   "premium": "ATM 23450 CE z 1.02 \u00b7 PE z -1.5 (11:04 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 114.05,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 94.3,
+   "entry": "HOLD",
+   "otm": 29
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 115.65,
+   "exit": "11:15",
+   "pts": -5.65,
+   "p30": 117.15,
+   "pts30": 1.5
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 94.3,
+   "sold_pts_15": -3.85,
+   "sold_pts_30": 0.85,
+   "sold_pts_close": 13.15,
+   "worst_30": -5.55,
+   "rev5_fold": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "reach_fold": [
+    "13:32",
+    3,
+    1.5,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "line": 73.7,
+   "noise": 4.8,
+   "X": 37.43,
+   "c0": 94.3,
+   "iv": 0.089,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "read": "11:31",
+  "d": "UP",
+  "word": "EITHER",
+  "nb": 2,
+  "ns": 2,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "wall CE 75000.0 is 112.72 pts away, nearer than the line at 269.41",
+   "shield": "PE 74700.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "CALLS \u2014 the rows trend your way",
+   "premium": "ATM 74900 CE z 0.9 \u00b7 PE z -1.03 (11:29 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "CE",
+   "k": 74900.0,
+   "px": 204.0,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "PE",
+   "k": 74700.0,
+   "px": 161.1,
+   "entry": "HOLD",
+   "otm": 187
+  },
+  "frsrc": "I-nearer-only",
+  "her": {
+   "p0": 215.25,
+   "exit": "11:39",
+   "pts": -15.25,
+   "p30": 212.15,
+   "pts30": -3.1
+  },
+  "other": {
+   "k": 74700.0,
+   "side": "PE",
+   "shown": true,
+   "p0": 161.1,
+   "sold_pts_15": 8.7,
+   "sold_pts_30": 7.45,
+   "sold_pts_close": 29.1,
+   "worst_30": -9.3,
+   "rev5_fold": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "reach_fold": [
+    "13:29",
+    3,
+    5.3,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74700.0,
+    "BUILDING"
+   ],
+   "line": 269.41,
+   "noise": 15.16,
+   "X": 124.36,
+   "c0": 161.1,
+   "iv": 0.144,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "read": "09:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "buy",
+   "shield": "sell",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "wall PE 74000.0 is 192.0 pts away; the line 170.29",
+   "shield": "CE 74300.0 BUILDING \u2014 the wall behind the sale is defended",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 74200 CE z -1.39 \u00b7 PE z 0.9 (09:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 74200.0,
+   "px": 172.25,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74300.0,
+   "px": 129.3,
+   "entry": "HOLD",
+   "otm": 108
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 179.25,
+   "exit": "09:46",
+   "pts": 23.75,
+   "p30": 174.55,
+   "pts30": -4.7
+  },
+  "other": {
+   "k": 74300.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 129.3,
+   "sold_pts_15": 11.9,
+   "sold_pts_30": 7.1,
+   "sold_pts_close": 129.15,
+   "worst_30": -4.3,
+   "rev5_fold": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "reach_fold": [
+    "10:43",
+    4,
+    29.2,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "GO",
+   "facts": [
+    "with",
+    "with",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74300.0,
+    "BUILDING"
+   ],
+   "line": 170.29,
+   "noise": 26.37,
+   "X": 81.67,
+   "c0": 129.3,
+   "iv": 0.233,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "read": "10:18",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,200 are covering \u2014 OI 24% off its peak, giving back since 09:37 [M] \u2014 fuel for your put",
+   "room": "wall PE 74000.0 is 115.17 pts away, nearer than the line at 211.8",
+   "shield": "CE 74300.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 74100 CE z -1.28 \u00b7 PE z 1.05 (10:14 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 74100.0,
+   "px": 157.25,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74300.0,
+   "px": 101.7,
+   "entry": "HOLD",
+   "otm": 185
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 222.6,
+   "exit": "10:22",
+   "pts": 11.4,
+   "p30": 187.35,
+   "pts30": -35.25
+  },
+  "other": {
+   "k": 74300.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 101.7,
+   "sold_pts_15": -10.15,
+   "sold_pts_30": -7.3,
+   "sold_pts_close": 101.55,
+   "worst_30": -15.3,
+   "rev5_fold": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "reach_fold": [
+    "10:43",
+    4,
+    1.6,
+    []
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74300.0,
+    "STALLED"
+   ],
+   "line": 211.8,
+   "noise": 22.64,
+   "X": 90.67,
+   "c0": 101.7,
+   "iv": 0.248,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "read": "12:31",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 28% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "session PE 73983.19 is 30.35 pts away, nearer than the line at 101.37",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 74000 CE z -1.32 \u00b7 PE z 1.58 (12:29 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 139.95,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 99.5,
+   "entry": "HOLD",
+   "otm": 186
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 202.35,
+   "exit": "12:32",
+   "pts": 13.65,
+   "p30": 213.8,
+   "pts30": 11.45
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 99.5,
+   "sold_pts_15": 5.65,
+   "sold_pts_30": 1.85,
+   "sold_pts_close": 99.35,
+   "worst_30": 0.45,
+   "rev5_fold": [
+    "14:38",
+    3,
+    66.2
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    70.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 101.37,
+   "noise": 17.45,
+   "X": 38.55,
+   "c0": 99.5,
+   "iv": 0.325,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "read": "12:34",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 40% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "session PE 73961.12 is 13.27 pts away, nearer than the line at 140.52",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 74000 CE z -1.71 \u00b7 PE z 3.02 (12:34 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 165.25,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 91.5,
+   "entry": "HOLD",
+   "otm": 226
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 179.8,
+   "exit": "12:37",
+   "pts": -18.8,
+   "p30": 141.55,
+   "pts30": -38.25
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 91.5,
+   "sold_pts_15": -2.35,
+   "sold_pts_30": -14.15,
+   "sold_pts_close": 91.35,
+   "worst_30": -14.15,
+   "rev5_fold": [
+    "14:38",
+    3,
+    58.2
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    62.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 140.52,
+   "noise": 18.97,
+   "X": 51.5,
+   "c0": 91.5,
+   "iv": 0.338,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "read": "12:43",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 49% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "session PE 73947.7 is 38.45 pts away, nearer than the line at 128.76",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 74000 CE z -1.39 \u00b7 PE z 2.28 (12:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 161.0,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 96.8,
+   "entry": "HOLD",
+   "otm": 214
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 167.95,
+   "exit": "12:49",
+   "pts": -7.95,
+   "p30": 140.95,
+   "pts30": -27.0
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 96.8,
+   "sold_pts_15": 0.5,
+   "sold_pts_30": -3.95,
+   "sold_pts_close": 96.65,
+   "worst_30": -12.3,
+   "rev5_fold": [
+    "14:38",
+    3,
+    63.5
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    67.9,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 128.76,
+   "noise": 18.08,
+   "X": 48.02,
+   "c0": 96.8,
+   "iv": 0.35,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "read": "13:25",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "session PE 73947.7 is 19.51 pts away, nearer than the line at 70.13",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 74000 CE z -1.07 \u00b7 PE z 1.63 (13:24 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 74000.0,
+   "px": 169.8,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 82.65,
+   "entry": "HOLD",
+   "otm": 233
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 184.2,
+   "exit": "13:26",
+   "pts": 35.8,
+   "p30": 381.1,
+   "pts30": 196.9
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 82.65,
+   "sold_pts_15": 23.15,
+   "sold_pts_30": 44.8,
+   "sold_pts_close": 82.5,
+   "worst_30": 7.1,
+   "rev5_fold": [
+    "14:38",
+    3,
+    49.35
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    53.75,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 70.13,
+   "noise": 12.21,
+   "X": 22.9,
+   "c0": 82.65,
+   "iv": 0.384,
+   "mirror": "rotated",
+   "outcome": "target 13:26",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "read": "13:40",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "session PE 73840.3 is 21.81 pts away, nearer than the line at 175.23",
+   "shield": "CE 74200.0 UNWINDING",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73900 CE z -1.4 \u00b7 PE z 2.7 (13:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73900.0,
+   "px": 177.35,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 59.5,
+   "entry": "HOLD",
+   "otm": 338
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 190.03,
+   "exit": "13:42",
+   "pts": 2.95,
+   "p30": 323.1,
+   "pts30": 133.07
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 59.5,
+   "sold_pts_15": 21.65,
+   "sold_pts_30": 25.4,
+   "sold_pts_close": 59.35,
+   "worst_30": -0.3,
+   "rev5_fold": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    30.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "line": 175.23,
+   "noise": 24.68,
+   "X": 50.29,
+   "c0": 59.5,
+   "iv": 0.422,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "read": "13:42",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 83% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "session PE 73840.3 is 18.43 pts away, nearer than the line at 178.61",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73900 CE z -1.4 \u00b7 PE z 2.7 (13:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73900.0,
+   "px": 192.25,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 59.5,
+   "entry": "HOLD",
+   "otm": 341
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 206.55,
+   "exit": "13:42",
+   "pts": 0.75,
+   "p30": 317.75,
+   "pts30": 111.2
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 59.5,
+   "sold_pts_15": 27.35,
+   "sold_pts_30": 24.8,
+   "sold_pts_close": 59.35,
+   "worst_30": 3.9,
+   "rev5_fold": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    30.6,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "with",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 178.61,
+   "noise": 24.44,
+   "X": 51.2,
+   "c0": 59.5,
+   "iv": 0.428,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": true
+  }
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "read": "13:43",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 4,
+  "ns": 0,
+  "facts": {
+   "speed": "buy",
+   "room": "buy",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 90% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "no wall in the way \u2014 price discovery; line 215.46 pts",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73800 CE z -1.37 \u00b7 PE z 2.57 (13:39 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73800.0,
+   "px": 171.1,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 55.6,
+   "entry": "HOLD",
+   "otm": 378
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 230.45,
+   "exit": "13:43",
+   "pts": 7.15,
+   "p30": 309.75,
+   "pts30": 79.3
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 55.6,
+   "sold_pts_15": 24.4,
+   "sold_pts_30": 19.85,
+   "sold_pts_close": 55.45,
+   "worst_30": 3.9,
+   "rev5_fold": [
+    "14:38",
+    3,
+    22.3
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    26.7,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 215.46,
+   "noise": 24.44,
+   "X": 59.74,
+   "c0": 55.6,
+   "iv": 0.444,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "read": "13:44",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 90% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "session PE 73762.82 is 6.09 pts away, nearer than the line at 268.43",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73800 CE z -1.46 \u00b7 PE z 3.69 (13:44 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73800.0,
+   "px": 185.2,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 51.7,
+   "entry": "HOLD",
+   "otm": 431
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 211.05,
+   "exit": "13:45",
+   "pts": 6.0,
+   "p30": 241.65,
+   "pts30": 30.6
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 51.7,
+   "sold_pts_15": 19.25,
+   "sold_pts_30": 15.2,
+   "sold_pts_close": 51.55,
+   "worst_30": 2.9,
+   "rev5_fold": [
+    "14:38",
+    3,
+    18.4
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    22.8,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 268.43,
+   "noise": 24.44,
+   "X": 71.43,
+   "c0": 51.7,
+   "iv": 0.469,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "read": "13:53",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 3,
+  "ns": 1,
+  "facts": {
+   "speed": "buy",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "paid now: Put writers at 74,000 are covering \u2014 OI 110% off its peak, giving back since 11:12 [M] \u2014 fuel for your put",
+   "room": "session PE 73671.56 is 18.96 pts away, nearer than the line at 346.82",
+   "shield": "CE 74200.0 STALLED",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73700 CE z -0.86 \u00b7 PE z 2.55 (13:49 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73700.0,
+   "px": 180.15,
+   "entry": "WATCH"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 41.4,
+   "entry": "HOLD",
+   "otm": 509
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 252.15,
+   "exit": "13:54",
+   "pts": -12.15,
+   "p30": 292.45,
+   "pts30": 40.3
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 41.4,
+   "sold_pts_15": 5.75,
+   "sold_pts_30": 17.0,
+   "sold_pts_close": 41.25,
+   "worst_30": 0.4,
+   "rev5_fold": [
+    "14:38",
+    3,
+    8.1
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    12.5,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "line": 346.82,
+   "noise": 28.77,
+   "X": 83.35,
+   "c0": 41.4,
+   "iv": 0.503,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "read": "13:56",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "session PE 73633.66 is 25.65 pts away, nearer than the line at 378.03",
+   "shield": "CE 74200.0 UNWINDING",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73700 CE z -0.92 \u00b7 PE z 2.85 (13:54 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73700.0,
+   "px": 195.95,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 36.2,
+   "entry": "HOLD",
+   "otm": 541
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 267.4,
+   "exit": "13:57",
+   "pts": 29.6,
+   "p30": 283.25,
+   "pts30": 15.85
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 36.2,
+   "sold_pts_15": 2.6,
+   "sold_pts_30": 12.05,
+   "sold_pts_close": 36.05,
+   "worst_30": -4.8,
+   "rev5_fold": [
+    "14:38",
+    3,
+    2.9
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    7.3,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "line": 378.03,
+   "noise": 39.11,
+   "X": 85.65,
+   "c0": 36.2,
+   "iv": 0.508,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "read": "14:22",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "nb": 2,
+  "ns": 1,
+  "facts": {
+   "speed": "neither",
+   "room": "sell",
+   "shield": "neither",
+   "regime": "buy",
+   "premium": "buy"
+  },
+  "fact_text": {
+   "speed": "checked, none \u2014 nothing paying now",
+   "room": "session PE 73582.25 is 53.62 pts away, nearer than the line at 401.47",
+   "shield": "CE 74200.0 UNWINDING",
+   "regime": "PUTS \u2014 the rows trend your way",
+   "premium": "ATM 73600 CE z -0.54 \u00b7 PE z 1.71 (14:19 bar) \u2014 rotated"
+  },
+  "refused": [],
+  "buy": {
+   "side": "PE",
+   "k": 73600.0,
+   "px": 162.7,
+   "entry": "HOLD"
+  },
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 27.9,
+   "entry": "HOLD",
+   "otm": 564
+  },
+  "frsrc": "M",
+  "her": {
+   "p0": 287.45,
+   "exit": "14:22",
+   "pts": 7.35,
+   "p30": 162.15,
+   "pts30": -125.3
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "shown": true,
+   "p0": 27.9,
+   "sold_pts_15": -3.6,
+   "sold_pts_30": -5.25,
+   "sold_pts_close": 27.75,
+   "worst_30": -9.15,
+   "rev5_fold": [
+    "14:38",
+    3,
+    -5.4
+   ],
+   "reach_fold": [
+    "14:45",
+    4,
+    -1.0,
+    [
+     [
+      "held",
+      "14:38",
+      436.0,
+      321.6
+     ]
+    ]
+   ]
+  },
+  "writer_word": {
+   "word": "WAIT",
+   "facts": [
+    "with",
+    "neither",
+    "against",
+    "neither"
+   ],
+   "right_now": "HOLD",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "line": 401.47,
+   "noise": 25.56,
+   "X": 81.77,
+   "c0": 27.9,
+   "iv": 0.568,
+   "mirror": "rotated",
+   "outcome": "neither",
+   "stratum": false
+  }
+ }
+]

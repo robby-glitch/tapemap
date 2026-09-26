@@ -1,0 +1,36 @@
+09-22 09:42 NIFTY 23300CE                    FOLD /FOLD  rev4 09:41 two              prem -4.0   | rev5 09:41 two              prem -4.0    same
+09-22 10:32 NIFTY 23550PE                    WATCH/WATCH rev4 11:14 line    by 2.5   prem 29.4   | rev5 11:14 line    by 2.5   prem 29.4    same (rev4 fold minute was a bar close)
+09-22 10:42 NIFTY 23550PE                    WATCH/WATCH rev4 11:14 line    by 2.5   prem -10.5  | rev5 11:14 line    by 2.5   prem -10.5   same (rev4 fold minute was a bar close)
+09-22 10:43 NIFTY 23550PE                    WATCH/WATCH rev4 11:14 line    by 2.5   prem -10.8  | rev5 11:14 line    by 2.5   prem -10.8   same (rev4 fold minute was a bar close)
+09-22 10:44 NIFTY 23550PE                    WATCH/WATCH rev4 11:14 line    by 2.5   prem -7.2   | rev5 11:14 line    by 2.5   prem -7.2    same (rev4 fold minute was a bar close)
+09-22 10:52 NIFTY 23500PE                    HOLD /HOLD  rev4 11:14 line    by 2.5   prem -26.1  | rev5 11:14 line    by 2.5   prem -26.1   same (rev4 fold minute was a bar close)
+09-22 13:48 NIFTY 23500PE                    WATCH/WATCH rev4 14:14 line    by 38.5  prem -47.6  | rev5 14:14 line    by 38.5  prem -47.6   same (rev4 fold minute was a bar close)
+09-23 09:18 NIFTY 23450CE                    HOLD /HOLD  rev4 09:44 quiet            prem -3.5   | rev5 09:44 quiet            prem -3.5    same
+09-23 09:47 NIFTY 23450CE                    FOLD /FOLD  rev4 09:46 two              prem -3.0   | rev5 09:46 two              prem -3.0    same
+09-23 09:49 NIFTY 23400PE                    WATCH/WATCH rev4 10:17 line    by 1.5   prem -14.2  | rev5 10:17 line    by 1.5   prem -14.2   same (rev4 fold minute was a bar close)
+09-23 10:00 NIFTY 23450CE                    WATCH/WATCH rev4 10:05 two              prem -1.1   | rev5 10:05 two              prem -1.1    same
+09-23 10:19 NIFTY 23450CE                    HOLD /HOLD  rev4 12:47 line    by 0.4   prem 17.0   | rev5 12:47 line    by 0.4   prem 17.0    same (rev4 fold minute was a bar close)
+09-23 10:33 NIFTY 23450CE                    HOLD /HOLD  rev4 12:47 line    by 0.4   prem 12.3   | rev5 12:47 line    by 0.4   prem 12.3    same (rev4 fold minute was a bar close)
+09-23 11:07 NIFTY 23450CE                    HOLD /HOLD  rev4 12:47 line    by 0.4   prem 3.1    | rev5 12:47 line    by 0.4   prem 3.1     same (rev4 fold minute was a bar close)
+09-23 11:32 SENSEX 74900CE                   HOLD /HOLD  rev4 12:44 quiet            prem 12.6   | rev5 12:44 quiet            prem 12.6    same
+09-24 09:42 SENSEX 74200PE                   WATCH/WATCH rev4 10:16 quiet            prem 25.1   | rev5 10:16 quiet            prem 25.1    same
+09-24 10:19 SENSEX 74200PE                   HOLD /HOLD  rev4 10:43 flipped          prem -19.5  | rev5 10:43 flipped          prem -19.5   same
+09-24 12:32 SENSEX 74100PE                   HOLD /HOLD  rev4 13:14 quiet            prem -4.9   | rev5 13:14 quiet            prem -4.9    same
+09-24 12:35 SENSEX 74000PE                   HOLD /HOLD  rev4 13:14 quiet            prem -34.0  | rev5 13:14 quiet            prem -34.0   same
+09-24 12:44 SENSEX 74000PE                   HOLD /HOLD  rev4 13:14 quiet            prem -22.1  | rev5 13:14 quiet            prem -22.1   same
+09-24 13:26 SENSEX 74000PE                   WATCH/WATCH rev4 14:08 quiet            prem 204.9  | rev5 14:08 quiet            prem 204.9   same
+09-24 13:41 SENSEX 73900PE                   HOLD /HOLD  rev4 14:08 quiet            prem 129.2  | rev5 14:08 quiet            prem 129.2   same
+09-24 13:43 SENSEX 73900PE                   WATCH/WATCH rev4 14:08 quiet            prem 112.6  | rev5 14:08 quiet            prem 112.6   same
+09-24 13:44 SENSEX 73900PE                   WATCH/WATCH rev4 14:08 quiet            prem 88.8   | rev5 14:08 quiet            prem 88.8    same
+09-24 13:45 SENSEX 73800PE                   WATCH/WATCH rev4 14:08 quiet            prem 40.2   | rev5 14:08 quiet            prem 40.2    same
+09-24 13:54 SENSEX 73800PE                   WATCH/WATCH rev4 14:08 quiet            prem -0.8   | rev5 14:08 quiet            prem -0.8    same
+09-24 13:57 SENSEX 73800PE                   HOLD /HOLD  rev4 14:10 quiet            prem -11.2  | rev5 14:10 quiet            prem -11.2   same
+09-24 14:23 SENSEX 73800PE                   HOLD /HOLD  rev4 14:35 line    by 11.9  prem -67.9  | rev5 14:35 line    by 11.9  prem -67.9   same (rev4 fold minute was a bar close)
+EX 09-23 09:57 SENSEX zone BUY (gate legal)  WATCH/WATCH rev4 10:11 line    by 0.5   prem -27.2  | rev5 10:11 line    by 0.5   prem -27.2   same (rev4 fold minute was a bar close)
+EX 09-23 09:57 NIFTY zone BUY (gate illegal) WATCH/WATCH rev4 10:05 two              prem 1.1    | rev5 10:05 two              prem 1.1     same
+EX 09-23 11:15 NIFTY zone u2 SELL · WRITER s WATCH/WATCH rev4 11:18 flipped          prem 0.1    | rev5 11:18 flipped          prem 0.1     same
+EX 09-24 10:30 SENSEX · WRITER short ATM CE  HOLD /HOLD  rev4 10:43 flipped          prem -3.5   | rev5 10:43 flipped          prem -3.5    same
+EX 09-24 09:45 SENSEX · WRITER short ATM PE  FOLD /FOLD  rev4 09:44 two              prem -0.0   | rev5 09:44 two              prem -0.0    same
+Counter({'same': 33}) n = 33
+rev4 line folds: 12 | rev5 line folds: 12
+entry verdict changed: []

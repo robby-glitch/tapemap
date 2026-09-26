@@ -1,0 +1,1556 @@
+[
+ {
+  "id": "09-21 14:00 NIFTY 23300CE",
+  "why": "never frozen"
+ },
+ {
+  "id": "09-22 09:42 NIFTY 23300CE",
+  "read": "09:41",
+  "close_read": "09:41",
+  "d": "UP",
+  "word": "STAND ASIDE \u00b7 both refused",
+  "lead": null,
+  "nb": 1,
+  "ns": 3,
+  "ref": [
+   "R5",
+   "R1"
+  ],
+  "since": "09:41",
+  "was": "SELL PE",
+  "word_a": "STAND ASIDE \u00b7 both refused",
+  "word_1m": "STAND ASIDE \u00b7 both refused",
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 26.4,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 52.35,
+   "r_over_S": 0.57,
+   "entry": "FOLD"
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "p0": 26.4,
+   "rev5": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "a": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "b_yes": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "b_no": [
+    "09:41",
+    6,
+    0.0
+   ],
+   "B_k": 8.35,
+   "B_at": "09:41",
+   "close": -44.3
+  }
+ },
+ {
+  "id": "09-22 10:32 NIFTY 23550PE",
+  "read": "10:31",
+  "close_read": "10:29",
+  "d": "DOWN",
+  "word": "SELL CE",
+  "lead": 2,
+  "nb": 1,
+  "ns": 3,
+  "ref": [],
+  "since": "10:26",
+  "was": "EITHER",
+  "word_a": "SELL CE",
+  "word_1m": "EITHER",
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 37.0,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 12.65,
+   "r_over_S": 0.15,
+   "entry": "WATCH"
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "p0": 32.5,
+   "rev5": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "a": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "b_yes": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "b_no": [
+    "14:14",
+    3,
+    15.55
+   ],
+   "B_k": 7.05,
+   "B_at": "10:31",
+   "close": 32.45
+  }
+ },
+ {
+  "id": "09-22 10:42 NIFTY 23550PE",
+  "read": "10:41",
+  "close_read": "10:41",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 3,
+  "ns": 2,
+  "ref": [],
+  "since": "10:41",
+  "was": "LEANS SELL CE",
+  "word_a": "BUY PE",
+  "word_1m": "LEANS BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 62.2,
+   "r_over_S": 0.65,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "p0": 25.1,
+   "rev5": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "a": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "b_yes": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "b_no": [
+    "14:14",
+    3,
+    8.15
+   ],
+   "B_k": 7.7,
+   "B_at": "10:41",
+   "close": 25.05
+  }
+ },
+ {
+  "id": "09-22 10:43 NIFTY 23550PE",
+  "read": "10:42",
+  "close_read": "10:41",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 3,
+  "ns": 2,
+  "ref": [],
+  "since": "10:41",
+  "was": "LEANS SELL CE",
+  "word_a": "BUY PE",
+  "word_1m": "LEANS SELL CE",
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 62.2,
+   "r_over_S": 0.65,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "p0": 22.35,
+   "rev5": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "a": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "b_yes": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "b_no": [
+    "14:14",
+    3,
+    5.4
+   ],
+   "B_k": 7.7,
+   "B_at": "10:42",
+   "close": 22.3
+  }
+ },
+ {
+  "id": "09-22 10:44 NIFTY 23550PE",
+  "read": "10:43",
+  "close_read": "10:41",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 3,
+  "ns": 2,
+  "ref": [],
+  "since": "10:41",
+  "was": "LEANS SELL CE",
+  "word_a": "BUY PE",
+  "word_1m": "LEANS SELL CE",
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 25.1,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 62.2,
+   "r_over_S": 0.65,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "p0": 23.85,
+   "rev5": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "a": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "b_yes": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "b_no": [
+    "14:14",
+    3,
+    6.9
+   ],
+   "B_k": 8.8,
+   "B_at": "10:43",
+   "close": 23.8
+  }
+ },
+ {
+  "id": "09-22 10:52 NIFTY 23500PE",
+  "read": "10:51",
+  "close_read": "10:50",
+  "d": "DOWN",
+  "word": "LEANS SELL CE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 3,
+  "ref": [],
+  "since": "10:44",
+  "was": "LEANS BUY PE",
+  "word_a": "SELL CE",
+  "word_1m": "LEANS SELL CE",
+  "sell": {
+   "side": "CE",
+   "k": 23450.0,
+   "px": 20.25,
+   "placement": "wall",
+   "wall": [
+    23450.0,
+    "BUILDING"
+   ],
+   "r_w": 80.85,
+   "r_over_S": 0.79,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23450.0,
+   "side": "CE",
+   "p0": 20.85,
+   "rev5": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "a": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "b_yes": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "b_no": [
+    "14:14",
+    3,
+    3.9
+   ],
+   "B_k": 9.1,
+   "B_at": "10:51",
+   "close": 20.8
+  }
+ },
+ {
+  "id": "09-22 13:48 NIFTY 23500PE",
+  "read": "13:47",
+  "close_read": "13:47",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "13:47",
+  "was": "STAND ASIDE \u00b7 tie",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 14.55,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "STALLED"
+   ],
+   "r_w": 65.75,
+   "r_over_S": 0.81,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "CE",
+   "p0": 14.55,
+   "rev5": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "a": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "b_yes": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "b_no": [
+    "14:14",
+    3,
+    -17.25
+   ],
+   "B_k": 5.55,
+   "B_at": "13:47",
+   "close": 14.5
+  }
+ },
+ {
+  "id": "09-23 09:18 NIFTY 23450CE",
+  "read": "09:17",
+  "close_read": "09:17",
+  "d": "UP",
+  "word": "STAND ASIDE \u00b7 led",
+  "lead": -1,
+  "nb": 0,
+  "ns": 1,
+  "ref": [
+   "R3",
+   "R4cnc"
+  ],
+  "since": "09:17",
+  "was": null,
+  "word_a": "STAND ASIDE \u00b7 led",
+  "word_1m": "STAND ASIDE \u00b7 led",
+  "sell": {
+   "side": "PE",
+   "k": null,
+   "px": null,
+   "placement": null,
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": null,
+   "r_over_S": null,
+   "entry": "HOLD"
+  },
+  "other": {}
+ },
+ {
+  "id": "09-23 09:47 NIFTY 23450CE",
+  "read": "09:46",
+  "close_read": "09:44",
+  "d": "UP",
+  "word": "STAND ASIDE \u00b7 both refused",
+  "lead": null,
+  "nb": 1,
+  "ns": 3,
+  "ref": [
+   "R5",
+   "R1"
+  ],
+  "since": "09:44",
+  "was": "SELL PE",
+  "word_a": "STAND ASIDE \u00b7 both refused",
+  "word_1m": "STAND ASIDE \u00b7 both refused",
+  "sell": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 95.4,
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": -22.0,
+   "r_over_S": -0.09,
+   "entry": "FOLD"
+  },
+  "other": {
+   "k": 23350.0,
+   "side": "PE",
+   "p0": 95.6,
+   "rev5": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "a": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "b_yes": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "b_no": [
+    "09:46",
+    6,
+    0.0
+   ],
+   "B_k": 5.4,
+   "B_at": "09:46",
+   "close": 31.25
+  }
+ },
+ {
+  "id": "09-23 09:49 NIFTY 23400PE",
+  "read": "09:48",
+  "close_read": "09:47",
+  "d": "DOWN",
+  "word": "LEANS SELL CE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 3,
+  "ref": [],
+  "since": "09:44",
+  "was": "SELL CE",
+  "word_a": "SELL CE",
+  "word_1m": "SELL CE",
+  "sell": {
+   "side": "CE",
+   "k": 23400.0,
+   "px": 124.6,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 13.55,
+   "r_over_S": 0.06,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "CE",
+   "p0": 118.0,
+   "rev5": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "a": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "b_yes": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "b_no": [
+    "10:19",
+    6,
+    -10.8
+   ],
+   "B_k": 6.35,
+   "B_at": "09:48",
+   "close": -17.45
+  }
+ },
+ {
+  "id": "09-23 10:00 NIFTY 23450CE",
+  "read": "09:59",
+  "close_read": "09:59",
+  "d": "UP",
+  "word": "SELL PE",
+  "lead": 4,
+  "nb": 0,
+  "ns": 4,
+  "ref": [],
+  "since": "09:59",
+  "was": "STAND ASIDE \u00b7 led",
+  "word_a": "SELL PE",
+  "word_1m": "SELL PE",
+  "sell": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 94.3,
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": -22.95,
+   "r_over_S": -0.1,
+   "entry": "WATCH"
+  },
+  "other": {
+   "k": 23350.0,
+   "side": "PE",
+   "p0": 94.3,
+   "rev5": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "a": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "b_yes": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "b_no": [
+    "10:05",
+    6,
+    0.95
+   ],
+   "B_k": 6.7,
+   "B_at": "09:59",
+   "close": 29.95
+  }
+ },
+ {
+  "id": "09-23 10:19 NIFTY 23450CE",
+  "read": "10:18",
+  "close_read": "10:17",
+  "d": "UP",
+  "word": "SELL PE",
+  "lead": 4,
+  "nb": 0,
+  "ns": 4,
+  "ref": [],
+  "since": "10:17",
+  "was": "LEANS BUY CE \u00b7 selling refused",
+  "word_a": "SELL PE",
+  "word_1m": "SELL PE",
+  "sell": {
+   "side": "PE",
+   "k": 23350.0,
+   "px": 90.3,
+   "placement": "k0 (wall at the money, in-the-money side)",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": -14.55,
+   "r_over_S": -0.06,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23350.0,
+   "side": "PE",
+   "p0": 87.05,
+   "rev5": [
+    "13:32",
+    3,
+    12.4
+   ],
+   "a": [
+    "13:32",
+    3,
+    12.4
+   ],
+   "b_yes": [
+    "13:32",
+    3,
+    12.4
+   ],
+   "b_no": [
+    "13:32",
+    3,
+    12.4
+   ],
+   "B_k": 6.6,
+   "B_at": "10:18",
+   "close": 22.7
+  }
+ },
+ {
+  "id": "09-23 10:33 NIFTY 23450CE",
+  "read": "10:32",
+  "close_read": "10:32",
+  "d": "UP",
+  "word": "LEANS BUY CE",
+  "lead": 1,
+  "nb": 3,
+  "ns": 2,
+  "ref": [],
+  "since": "10:23",
+  "was": "LEANS SELL PE",
+  "word_a": "BUY CE",
+  "word_1m": "LEANS BUY CE",
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 104.45,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 1.3,
+   "r_over_S": 0.01,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "p0": 104.45,
+   "rev5": [
+    "13:32",
+    3,
+    11.65
+   ],
+   "a": [
+    "10:35",
+    "3s",
+    -2.15
+   ],
+   "b_yes": [
+    "13:32",
+    3,
+    11.65
+   ],
+   "b_no": [
+    "13:32",
+    3,
+    11.65
+   ],
+   "B_k": 5.0,
+   "B_at": "10:32",
+   "close": 23.3
+  }
+ },
+ {
+  "id": "09-23 11:07 NIFTY 23450CE",
+  "read": "11:06",
+  "close_read": "11:05",
+  "d": "UP",
+  "word": "LEANS BUY CE",
+  "lead": 1,
+  "nb": 3,
+  "ns": 2,
+  "ref": [],
+  "since": "11:05",
+  "was": "LEANS SELL PE",
+  "word_a": "BUY CE",
+  "word_1m": "LEANS BUY CE",
+  "sell": {
+   "side": "PE",
+   "k": 23400.0,
+   "px": 97.9,
+   "placement": "wall",
+   "wall": [
+    23400.0,
+    "BUILDING"
+   ],
+   "r_w": 21.8,
+   "r_over_S": 0.09,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 23400.0,
+   "side": "PE",
+   "p0": 94.3,
+   "rev5": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "a": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "b_yes": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "b_no": [
+    "13:32",
+    3,
+    1.5
+   ],
+   "B_k": 4.8,
+   "B_at": "11:06",
+   "close": 13.15
+  }
+ },
+ {
+  "id": "09-23 11:32 SENSEX 74900CE",
+  "read": "11:31",
+  "close_read": "11:29",
+  "d": "UP",
+  "word": "LEANS SELL PE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 3,
+  "ref": [],
+  "since": "11:26",
+  "was": "LEANS BUY CE",
+  "word_a": "SELL PE",
+  "word_1m": "SELL PE",
+  "sell": {
+   "side": "PE",
+   "k": 74700.0,
+   "px": 168.95,
+   "placement": "wall",
+   "wall": [
+    74700.0,
+    "BUILDING"
+   ],
+   "r_w": 152.85,
+   "r_over_S": 0.34,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74700.0,
+   "side": "PE",
+   "p0": 161.1,
+   "rev5": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "a": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "b_yes": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "b_no": [
+    "13:29",
+    3,
+    5.3
+   ],
+   "B_k": 15.16,
+   "B_at": "11:31",
+   "close": 29.1
+  }
+ },
+ {
+  "id": "09-24 09:42 SENSEX 74200PE",
+  "read": "09:41",
+  "close_read": "09:41",
+  "d": "DOWN",
+  "word": "EITHER",
+  "lead": 0,
+  "nb": 2,
+  "ns": 2,
+  "ref": [],
+  "since": "09:41",
+  "was": "SELL CE",
+  "word_a": "EITHER",
+  "word_1m": "EITHER",
+  "sell": {
+   "side": "CE",
+   "k": 74300.0,
+   "px": 129.3,
+   "placement": "wall",
+   "wall": [
+    74300.0,
+    "BUILDING"
+   ],
+   "r_w": 108.0,
+   "r_over_S": 0.31,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74300.0,
+   "side": "CE",
+   "p0": 129.3,
+   "rev5": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "a": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "b_yes": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "b_no": [
+    "10:43",
+    4,
+    29.2
+   ],
+   "B_k": 26.37,
+   "B_at": "09:41",
+   "close": 129.15
+  }
+ },
+ {
+  "id": "09-24 10:19 SENSEX 74200PE",
+  "read": "10:18",
+  "close_read": "10:17",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 1,
+  "ref": [],
+  "since": "10:17",
+  "was": "LEANS SELL CE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74300.0,
+   "px": 101.3,
+   "placement": "wall",
+   "wall": [
+    74300.0,
+    "STALLED"
+   ],
+   "r_w": 206.91,
+   "r_over_S": 0.6,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74300.0,
+   "side": "CE",
+   "p0": 101.7,
+   "rev5": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "a": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "b_yes": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "b_no": [
+    "10:43",
+    4,
+    1.6
+   ],
+   "B_k": 22.64,
+   "B_at": "10:18",
+   "close": 101.55
+  }
+ },
+ {
+  "id": "09-24 12:32 SENSEX 74100PE",
+  "read": "12:31",
+  "close_read": "12:29",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "12:26",
+  "was": "LEANS BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 105.75,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 181.9,
+   "r_over_S": 0.55,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 99.5,
+   "rev5": [
+    "14:38",
+    3,
+    66.2
+   ],
+   "a": [
+    "14:45",
+    4,
+    70.6
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    70.6
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    66.2
+   ],
+   "B_k": 17.45,
+   "B_at": "12:31",
+   "close": 99.35
+  }
+ },
+ {
+  "id": "09-24 12:35 SENSEX 74000PE",
+  "read": "12:34",
+  "close_read": "12:32",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "12:26",
+  "was": "LEANS BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 94.5,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 220.4,
+   "r_over_S": 0.66,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 91.5,
+   "rev5": [
+    "14:38",
+    3,
+    58.2
+   ],
+   "a": [
+    "14:45",
+    4,
+    62.6
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    62.6
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    58.2
+   ],
+   "B_k": 18.97,
+   "B_at": "12:34",
+   "close": 91.35
+  }
+ },
+ {
+  "id": "09-24 12:44 SENSEX 74000PE",
+  "read": "12:43",
+  "close_read": "12:41",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "12:26",
+  "was": "LEANS BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 97.0,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 201.34,
+   "r_over_S": 0.6,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 96.8,
+   "rev5": [
+    "14:38",
+    3,
+    63.5
+   ],
+   "a": [
+    "14:45",
+    4,
+    67.9
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    67.9
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    63.5
+   ],
+   "B_k": 18.08,
+   "B_at": "12:43",
+   "close": 96.65
+  }
+ },
+ {
+  "id": "09-24 13:26 SENSEX 74000PE",
+  "read": "13:25",
+  "close_read": "13:23",
+  "d": "DOWN",
+  "word": "LEANS SELL CE",
+  "lead": 1,
+  "nb": 1,
+  "ns": 2,
+  "ref": [],
+  "since": "13:23",
+  "was": "LEANS BUY PE",
+  "word_a": "SELL CE",
+  "word_1m": "LEANS SELL CE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 94.6,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 199.89,
+   "r_over_S": 0.6,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 82.65,
+   "rev5": [
+    "14:38",
+    3,
+    49.35
+   ],
+   "a": [
+    "14:45",
+    4,
+    53.75
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    53.75
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    49.35
+   ],
+   "B_k": 12.21,
+   "B_at": "13:25",
+   "close": 82.5
+  }
+ },
+ {
+  "id": "09-24 13:41 SENSEX 73900PE",
+  "read": "13:40",
+  "close_read": "13:38",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "13:35",
+  "was": "EITHER",
+  "word_a": "BUY PE",
+  "word_1m": "LEANS BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 63.15,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 295.95,
+   "r_over_S": 0.9,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 59.5,
+   "rev5": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "a": [
+    "14:45",
+    4,
+    30.6
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    30.6
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "B_k": 24.68,
+   "B_at": "13:40",
+   "close": 59.35
+  }
+ },
+ {
+  "id": "09-24 13:43 SENSEX 73900PE",
+  "read": "13:42",
+  "close_read": "13:41",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 1,
+  "ref": [],
+  "since": "13:41",
+  "was": "BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 59.8,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "r_w": 334.67,
+   "r_over_S": 0.98,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 59.5,
+   "rev5": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "a": [
+    "14:45",
+    4,
+    30.6
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    30.6
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    26.2
+   ],
+   "B_k": 24.44,
+   "B_at": "13:42",
+   "close": 59.35
+  }
+ },
+ {
+  "id": "09-24 13:44 SENSEX 73900PE",
+  "read": "13:43",
+  "close_read": "13:41",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 1,
+  "ref": [],
+  "since": "13:41",
+  "was": "BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 74200.0,
+   "px": 59.8,
+   "placement": "wall",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "r_w": 334.67,
+   "r_over_S": 0.98,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 74200.0,
+   "side": "CE",
+   "p0": 55.6,
+   "rev5": [
+    "14:38",
+    3,
+    22.3
+   ],
+   "a": [
+    "14:45",
+    4,
+    26.7
+   ],
+   "b_yes": [
+    "14:45",
+    4,
+    26.7
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    22.3
+   ],
+   "B_k": 24.44,
+   "B_at": "13:43",
+   "close": 55.45
+  }
+ },
+ {
+  "id": "09-24 13:45 SENSEX 73800PE",
+  "read": "13:44",
+  "close_read": "13:44",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "13:44",
+  "was": "LEANS BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 73800.0,
+   "px": 176.0,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 431.09,
+   "r_over_S": 1.19,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 73800.0,
+   "side": "CE",
+   "p0": 176.0,
+   "rev5": [
+    "14:38",
+    3,
+    42.9
+   ],
+   "a": [
+    "14:38",
+    3,
+    42.9
+   ],
+   "b_yes": [
+    "14:38",
+    3,
+    42.9
+   ],
+   "b_no": [
+    "14:38",
+    3,
+    42.9
+   ],
+   "B_k": 24.44,
+   "B_at": "13:44",
+   "close": 175.9
+  }
+ },
+ {
+  "id": "09-24 13:54 SENSEX 73800PE",
+  "read": "13:53",
+  "close_read": "13:53",
+  "d": "DOWN",
+  "word": "BUY PE",
+  "lead": 2,
+  "nb": 3,
+  "ns": 1,
+  "ref": [],
+  "since": "13:44",
+  "was": "LEANS BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 73700.0,
+   "px": 192.55,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 509.48,
+   "r_over_S": 1.37,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 73700.0,
+   "side": "CE",
+   "p0": 192.55,
+   "rev5": [
+    "14:38",
+    3,
+    11.2
+   ],
+   "a": [
+    "14:02",
+    "3s",
+    4.15
+   ],
+   "b_yes": [
+    "14:38",
+    "3s",
+    11.2
+   ],
+   "b_no": [
+    "14:38",
+    "3s",
+    11.2
+   ],
+   "B_k": 28.77,
+   "B_at": "13:53",
+   "close": 192.4
+  }
+ },
+ {
+  "id": "09-24 13:57 SENSEX 73800PE",
+  "read": "13:56",
+  "close_read": "13:56",
+  "d": "DOWN",
+  "word": "LEANS BUY PE",
+  "lead": 1,
+  "nb": 2,
+  "ns": 1,
+  "ref": [],
+  "since": "13:56",
+  "was": "BUY PE",
+  "word_a": "BUY PE",
+  "word_1m": "LEANS BUY PE",
+  "sell": {
+   "side": "CE",
+   "k": 73700.0,
+   "px": 170.85,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "UNWINDING"
+   ],
+   "r_w": 540.69,
+   "r_over_S": 1.47,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 73700.0,
+   "side": "CE",
+   "p0": 170.85,
+   "rev5": [
+    "14:38",
+    3,
+    -10.5
+   ],
+   "a": [
+    "14:02",
+    "3s",
+    -17.55
+   ],
+   "b_yes": [
+    "14:38",
+    "3s",
+    -10.5
+   ],
+   "b_no": [
+    "14:38",
+    "3s",
+    -10.5
+   ],
+   "B_k": 39.11,
+   "B_at": "13:56",
+   "close": 170.7
+  }
+ },
+ {
+  "id": "09-24 14:23 SENSEX 73800PE",
+  "read": "14:22",
+  "close_read": "14:20",
+  "d": "DOWN",
+  "word": "EITHER",
+  "lead": 0,
+  "nb": 2,
+  "ns": 2,
+  "ref": [],
+  "since": "14:14",
+  "was": "LEANS SELL CE",
+  "word_a": "EITHER",
+  "word_1m": "LEANS SELL CE",
+  "sell": {
+   "side": "CE",
+   "k": 73700.0,
+   "px": 157.4,
+   "placement": "atm",
+   "wall": [
+    74200.0,
+    "STALLED"
+   ],
+   "r_w": 553.14,
+   "r_over_S": 1.52,
+   "entry": "HOLD"
+  },
+  "other": {
+   "k": 73700.0,
+   "side": "CE",
+   "p0": 146.2,
+   "rev5": [
+    "14:38",
+    3,
+    -35.15
+   ],
+   "a": [
+    "14:35",
+    "3s",
+    -14.7
+   ],
+   "b_yes": [
+    "14:38",
+    "3s",
+    -35.15
+   ],
+   "b_no": [
+    "14:38",
+    "3s",
+    -35.15
+   ],
+   "B_k": 25.56,
+   "B_at": "14:22",
+   "close": 146.05
+  }
+ }
+]

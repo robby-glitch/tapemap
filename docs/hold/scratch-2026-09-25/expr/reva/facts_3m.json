@@ -1,0 +1,51 @@
+{
+ "N_closes": 2250,
+ "facts": {
+  "speed:neither": 1242,
+  "room:neither": 405,
+  "shield:neither": 1713,
+  "regime:sell": 1116,
+  "premium:neither": 168,
+  "regime:buy": 567,
+  "room:sell": 707,
+  "shield:sell": 537,
+  "premium:sell": 1316,
+  "room:buy": 1138,
+  "speed:buy": 1008,
+  "premium:buy": 766,
+  "regime:neither": 567
+ },
+ "refusals": {
+  "R3": 98,
+  "R4cnc": 138,
+  "R5": 372,
+  "R1": 355,
+  "R2": 311,
+  "R6": 440,
+  "R4": 24
+ },
+ "co": {
+  "SHIELD S \u00b7 ROOM S": 294,
+  "SPEED B \u00b7 REGIME B": 331,
+  "REGIME B \u00b7 PREMIUM B": 217,
+  "REGIME S \u00b7 PREMIUM S": 686,
+  "SPEED B \u00b7 ROOM B": 470
+ },
+ "co_if_independent": {
+  "SHIELD S \u00b7 ROOM S": 169,
+  "SPEED B \u00b7 REGIME B": 254,
+  "REGIME B \u00b7 PREMIUM B": 193,
+  "REGIME S \u00b7 PREMIUM S": 653,
+  "SPEED B \u00b7 ROOM B": 510
+ },
+ "sell_placement_at_SELL_words": {
+  "wall": 478,
+  "k0 (wall at the money, in-the-money side)": 83,
+  "atm": 19
+ },
+ "sell_wall_r_over_S_quartiles": [
+  0.09,
+  0.19,
+  0.34
+ ]
+}

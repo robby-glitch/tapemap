@@ -1,0 +1,108 @@
+{
+ "NIFTY 2026-09-22": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP STAND ASIDE": 143,
+  "DOWN STAND ASIDE": 71,
+  "UP BUY": 90,
+  "DOWN BUY": 72,
+  "UP SELL": 117,
+  "DOWN EITHER": 81,
+  "DOWN SELL": 149,
+  "UP EITHER": 23
+ },
+ "SENSEX 2026-09-22": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP STAND ASIDE": 84,
+  "DOWN STAND ASIDE": 86,
+  "UP BUY": 110,
+  "DOWN BUY": 117,
+  "UP SELL": 140,
+  "DOWN EITHER": 32,
+  "DOWN SELL": 138,
+  "UP EITHER": 39
+ },
+ "BANKNIFTY 2026-09-22": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP STAND ASIDE": 184,
+  "DOWN STAND ASIDE": 99,
+  "UP BUY": 142,
+  "DOWN BUY": 129,
+  "UP SELL": 41,
+  "UP EITHER": 6,
+  "DOWN SELL": 137,
+  "DOWN EITHER": 8
+ },
+ "NIFTY 2026-09-23": {
+  "UP could not check": 1,
+  "DOWN could not check": 1,
+  "UP STAND ASIDE": 60,
+  "DOWN STAND ASIDE": 133,
+  "UP BUY": 142,
+  "DOWN SELL": 66,
+  "UP SELL": 107,
+  "DOWN BUY": 149,
+  "DOWN EITHER": 26,
+  "UP EITHER": 65
+ },
+ "SENSEX 2026-09-23": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP STAND ASIDE": 47,
+  "DOWN STAND ASIDE": 109,
+  "UP BUY": 112,
+  "DOWN SELL": 108,
+  "UP SELL": 150,
+  "DOWN EITHER": 60,
+  "UP EITHER": 64,
+  "DOWN BUY": 96
+ },
+ "BANKNIFTY 2026-09-23": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP STAND ASIDE": 89,
+  "DOWN STAND ASIDE": 133,
+  "DOWN SELL": 55,
+  "UP BUY": 119,
+  "DOWN EITHER": 22,
+  "DOWN BUY": 163,
+  "UP SELL": 108,
+  "UP EITHER": 57
+ },
+ "NIFTY 2026-09-24": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP STAND ASIDE": 200,
+  "DOWN STAND ASIDE": 27,
+  "UP BUY": 87,
+  "DOWN BUY": 226,
+  "DOWN SELL": 68,
+  "DOWN EITHER": 52,
+  "UP SELL": 28,
+  "UP EITHER": 58
+ },
+ "SENSEX 2026-09-24": {
+  "UP STAND ASIDE": 94,
+  "DOWN STAND ASIDE": 52,
+  "UP SELL": 22,
+  "DOWN BUY": 198,
+  "DOWN EITHER": 35,
+  "DOWN SELL": 90,
+  "UP BUY": 178,
+  "UP EITHER": 81
+ },
+ "BANKNIFTY 2026-09-24": {
+  "UP could not check": 2,
+  "DOWN could not check": 2,
+  "UP BUY": 155,
+  "DOWN BUY": 179,
+  "DOWN EITHER": 59,
+  "UP EITHER": 37,
+  "DOWN SELL": 107,
+  "UP STAND ASIDE": 78,
+  "UP SELL": 103,
+  "DOWN STAND ASIDE": 28
+ }
+}
