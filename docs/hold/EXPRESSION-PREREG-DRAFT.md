@@ -7,8 +7,8 @@
   history is in §G.
 - **Rev a (01:25)** answers the adversarial review `docs/hold/EXPRESSION-REVIEW.md` (01:11), whose verdict was **NOT YET on
   A, B and C**.
-- **Rev a's text of §A–§C, §E and §F was fingerprinted before its disclosure run** (§D.0), and so was rev b's. §D is
-  rev b's disclosure, written after rev b's run.
+- **Rev a's text of §A–§C, §E and §F was fingerprinted before its disclosure run** (§D.0), and so were rev b's and
+  rev c's. §D is rev c's disclosure, written after rev c's run.
 - §G lists every edit to the rules made after a fingerprint, including the three that rev 0a left out (review M5).
 - **Rev b (01:47)** takes two trader decisions made **after rev a's rows were seen**, on principle, and is fingerprinted
   before its run (§D.0):
@@ -671,13 +671,16 @@ held loss printed, W-R, and this answer. It can be signed.
 
 ---
 
-## D. DISCLOSURE (rev b) — written 2026-09-26 01:53 IST by the clock, after rev b's fingerprinted run
+## D. DISCLOSURE (rev c) — written 2026-09-26 18:43 IST by the clock, after rev c's fingerprinted run
 
 **In-sample hindsight** on four frozen days and one live day. These are counts and rows, never a rate. **None of it counts
 toward §E**, and no word is scored against an outcome on the grid.
 
-**What rev b changed.** Rev b changes no fact, refusal, strike or line: those are rev a's. Only two things moved: the word's
-grading, and rule 3s's buffer. So §D.3 is rev a's, unchanged, and every other table is rev b's.
+**What rev c changed.** Rev c changes no fact, refusal, strike, line or buffer. Two things moved:
+- **the word at a tie with one leg refused:** LEANS on the open leg, by refusal, where rev b read STAND ASIDE · tie;
+- **the writer's window on her option's expiry day:** a line break folds her as today (her answer, §C.7), where rev b's
+  disclosure had assumed YES.
+So §D.3 and the R-multiple rows of §D.4 are rev a's, unchanged, and every other table is rev c's.
 
 ### D.0 Method, fingerprints, limits, and the repo
 
@@ -686,103 +689,112 @@ grading, and rule 3s's buffer. So §D.3 is rev a's, unchanged, and every other t
 - rev 0a `5ddc16d1…a654` (00:33);
 - rev a `79d7daa6…162d` (01:28);
 - rev a as run `cd210306…dfddf5` (01:32);
-- **rev b `d7d9ab3859c1e689591f5bd627ba63be4188b6dc755e3c8d135fd43e67c0e6cd` (01:48, `rules_revb_before_run.md`).**
-- The rules text did not move after rev b's run. §D, §G's closing line and §H were written after it.
+- rev b `d7d9ab38…67c0e6cd` (01:48);
+- **rev c `64ad9d7f868cfbc7ec7754785966c0a19c46899b4b6219a89fc1dfae90332010` (14:38, `rules_revc_before_run.md`).**
+- The rules text did not move after rev c's run. §D, §G's post-run lines and §H were written after it.
 
 **Scratch** (the session scratchpad `expr/`):
-- `expr_b.py` implements rev b once. It grades rev a's expression and adds the buffered 3s.
-- `run_b.py` does the run.
-- The outputs are in `expr/revb/`: `stability.json`, `silence_detail.json`, `entries.json`, `seller_0924.json`, `grid.json`,
-  `tables_b.md`, `perday_b.md` and `rtable.md`.
+- `expr_c.py` implements rev c once: rev b's grading with the tie changed (it carries one self-check), and rev b's reach with
+  the answer NO.
+- `run_c.py` does the run, 14:39–14:42.
+- The outputs are in `expr/revc/`: `stability.json`, `silence_detail.json`, `entries.json`, `seller_0924.json` and
+  `grid.json`. `gen_D_c.py` wrote this section from them.
 
-**The repo** (rev a's incident, fixed in rev b):
-- `expr.py` no longer changes its working directory.
-- Every rev b script writes to absolute paths inside `expr/`.
-- After the run, `git status` showed nothing new in the repo except this draft and the review.
+**The repo.** Every rev c script writes to absolute paths inside `expr/`, and rev c wrote nothing in the repo but this draft.
+- `git status` after the run showed changes that are **not rev c's**, and they were left untouched:
+  - `ui-v2/src/hold/*` (14:36:33) and `docs/hold/BUILD-REPORT.md` (14:37:11), both modified before rev c's patch (14:38);
+  - a new `docs/hold/scratch-2026-09-25/` (14:41:52–58), a copy of this session's scratchpad folders made by another
+    process during the run.
+- **At 14:43, commit `54dc72c`** (not rev c's) took this draft exactly at the rev c fingerprint (`64ad9d7f…`, checked),
+  together with those files and that folder. The folder holds a partial `revc_run_out.txt`, copied mid-run.
+- This section, §G's post-run lines and §H are edits on top of that commit, in the working tree, uncommitted.
 
-**The inputs** are as rev a's §D.0:
+**The inputs** are as rev a's:
 - nearer-only fronts on 09-22 and 09-23 [I];
 - Black-76 greeks [I];
 - [I] candles on NIFTY and BANKNIFTY 09-24;
 - 09-21 not frozen;
 - 09-25 without premiums.
 
-**B_k** is `hold.noise` at each sale's entry read: the same function rev 5 B's line uses, with its fallback.
+**"Expiry day"** on the record is NIFTY 09-22 and SENSEX 09-24: the chain's resolved expiry was the session date. BANKNIFTY
+had none.
 
-### D.1 Words and silence at the 3-minute close (rev b's words)
+### D.1 Words and silence at the 3-minute close (rev c's words)
 
 The counts are per index-day and direction, of 125 closes.
 - "count · ref" splits a word named on the count from one named because the other leg was refused.
-- STAND ASIDE is split into both refused · led · tie.
+- For LEANS BUY, the figure after the semicolon is the ties with selling refused, which rev c names LEANS BUY.
+- STAND ASIDE is split into both refused · led.
 
-| index-day | dir | BUY (count · ref) | LEANS BUY (count · ref) | EITHER | LEANS SELL | SELL | STAND ASIDE (both · led · tie) | changes · BUY↔SELL · buy-side↔sell-side | median run |
+| index-day | dir | BUY (count · ref) | LEANS BUY (count · ref; of which ties) | EITHER | LEANS SELL | SELL | STAND ASIDE (both · led) | changes · BUY↔SELL · buy-side↔sell-side | median run |
 |---|---|---|---|---|---|---|---|---|---|
-| NIFTY 09-22 | UP | 6 (4 · 2) | 10 (5 · 5) | 4 | 27 | 15 | 63 (31 · 17 · 15) | 42 · 0 · 5 | 6 min |
-|  | DOWN | 12 (11 · 1) | 12 (6 · 6) | 27 | 21 | 25 | 28 (20 · 5 · 3) | 55 · 0 · 4 | 6 min |
-| SENSEX 09-22 | UP | 4 (3 · 1) | 18 (13 · 5) | 11 | 23 | 21 | 48 (16 · 12 · 20) | 61 · 0 · 11 | 3 min |
-|  | DOWN | 10 (8 · 2) | 21 (11 · 10) | 10 | 20 | 25 | 39 (16 · 12 · 11) | 49 · 1 · 7 | 3 min |
-| BANKNIFTY 09-22 | UP | 15 (2 · 13) | 16 (6 · 10) | 3 | 7 | 6 | 78 (47 · 20 · 11) | 35 · 1 · 7 | 3 min |
-|  | DOWN | 11 (1 · 10) | 18 (9 · 9) | 4 | 16 | 31 | 45 (16 · 14 · 15) | 55 · 0 · 6 | 3 min |
-| NIFTY 09-23 | UP | 11 (11 · 0) | 29 (27 · 2) | 25 | 17 | 19 | 24 (3 · 18 · 3) | 70 · 1 · 23 | 3 min |
-|  | DOWN | 8 (1 · 7) | 12 (4 · 8) | 12 | 6 | 13 | 74 (26 · 22 · 26) | 49 · 0 · 3 | 3 min |
-| SENSEX 09-23 | UP | 16 (14 · 2) | 16 (16 · 0) | 23 | 34 | 19 | 17 (1 · 16 · 0) | 58 · 3 · 16 | 6 min |
-|  | DOWN | 8 (5 · 3) | 6 (5 · 1) | 16 | 23 | 16 | 56 (16 · 24 · 16) | 48 · 0 · 1 | 3 min |
-| BANKNIFTY 09-23 | UP | 15 (13 · 2) | 22 (22 · 0) | 15 | 20 | 20 | 33 (17 · 13 · 3) | 66 · 3 · 13 | 3 min |
-|  | DOWN | 20 (4 · 16) | 11 (1 · 10) | 10 | 8 | 10 | 66 (27 · 18 · 21) | 50 · 0 · 2 | 3 min |
-| NIFTY 09-24 | UP | 18 (14 · 4) | 10 (9 · 1) | 20 | 10 | 0 | 67 (62 · 4 · 1) | 42 · 0 · 2 | 3 min |
-|  | DOWN | 32 (32 · 0) | 41 (39 · 2) | 19 | 14 | 9 | 10 (3 · 6 · 1) | 72 · 0 · 12 | 3 min |
-| SENSEX 09-24 | UP | 25 (10 · 15) | 15 (4 · 11) | 30 | 7 | 1 | 47 (26 · 9 · 12) | 49 · 1 · 1 | 3 min |
-|  | DOWN | 36 (36 · 0) | 33 (32 · 1) | 13 | 24 | 2 | 17 (6 · 10 · 1) | 65 · 0 · 15 | 3 min |
-| BANKNIFTY 09-24 | UP | 18 (12 · 6) | 23 (12 · 11) | 15 | 21 | 13 | 35 (19 · 5 · 11) | 59 · 1 · 9 | 3 min |
-|  | DOWN | 28 (28 · 0) | 34 (25 · 9) | 18 | 26 | 10 | 9 (8 · 1 · 0) | 62 · 0 · 16 | 3 min |
-| **total, of 2,250** | | **293 (209 · 84)** | **347 (246 · 101)** | **275** | **324** | **255** | **756 (360 · 226 · 170)** | **987 · 11 · 153** | 3 min |
+| NIFTY 09-22 | UP | 6 (4 · 2) | 25 (5 · 20; 15) | 4 | 27 | 15 | 48 (31 · 17) | 47 · 0 · 6 | 6 min |
+|  | DOWN | 12 (11 · 1) | 15 (6 · 9; 3) | 27 | 21 | 25 | 25 (20 · 5) | 55 · 0 · 5 | 6 min |
+| SENSEX 09-22 | UP | 4 (3 · 1) | 38 (13 · 25; 20) | 11 | 23 | 21 | 28 (16 · 12) | 60 · 0 · 19 | 3 min |
+|  | DOWN | 10 (8 · 2) | 32 (11 · 21; 11) | 10 | 20 | 25 | 28 (16 · 12) | 44 · 1 · 10 | 6 min |
+| BANKNIFTY 09-22 | UP | 15 (2 · 13) | 27 (6 · 21; 11) | 3 | 7 | 6 | 67 (47 · 20) | 41 · 1 · 8 | 3 min |
+|  | DOWN | 11 (1 · 10) | 33 (9 · 24; 15) | 4 | 16 | 31 | 30 (16 · 14) | 55 · 0 · 8 | 3 min |
+| NIFTY 09-23 | UP | 11 (11 · 0) | 32 (27 · 5; 3) | 25 | 17 | 19 | 21 (3 · 18) | 74 · 1 · 25 | 3 min |
+|  | DOWN | 8 (1 · 7) | 38 (4 · 34; 26) | 12 | 6 | 13 | 48 (26 · 22) | 56 · 0 · 8 | 3 min |
+| SENSEX 09-23 | UP | 16 (14 · 2) | 16 (16 · 0; 0) | 23 | 34 | 19 | 17 (1 · 16) | 58 · 3 · 16 | 6 min |
+|  | DOWN | 8 (5 · 3) | 22 (5 · 17; 16) | 16 | 23 | 16 | 40 (16 · 24) | 53 · 0 · 2 | 3 min |
+| BANKNIFTY 09-23 | UP | 15 (13 · 2) | 25 (22 · 3; 3) | 15 | 20 | 20 | 30 (17 · 13) | 69 · 3 · 14 | 3 min |
+|  | DOWN | 20 (4 · 16) | 32 (1 · 31; 21) | 10 | 8 | 10 | 45 (27 · 18) | 52 · 0 · 6 | 6 min |
+| NIFTY 09-24 | UP | 18 (14 · 4) | 11 (9 · 2; 1) | 20 | 10 | 0 | 66 (62 · 4) | 44 · 0 · 2 | 3 min |
+|  | DOWN | 32 (32 · 0) | 42 (39 · 3; 1) | 19 | 14 | 9 | 9 (3 · 6) | 70 · 0 · 12 | 3 min |
+| SENSEX 09-24 | UP | 25 (10 · 15) | 27 (4 · 23; 12) | 30 | 7 | 1 | 35 (26 · 9) | 50 · 1 · 2 | 3 min |
+|  | DOWN | 36 (36 · 0) | 33 (32 · 1; 0) | 13 | 25 | 2 | 16 (6 · 10) | 67 · 0 · 15 | 3 min |
+| BANKNIFTY 09-24 | UP | 18 (12 · 6) | 34 (12 · 22; 11) | 15 | 21 | 13 | 24 (19 · 5) | 53 · 1 · 11 | 6 min |
+|  | DOWN | 28 (28 · 0) | 34 (25 · 9; 0) | 18 | 26 | 10 | 9 (8 · 1) | 62 · 0 · 16 | 3 min |
+| **total, of 2,250** | | **293 (209 · 84)** | **516 (246 · 270; 169)** | **275** | **325** | **255** | **586 (360 · 226)** | **1,010 · 11 · 185** | 3 min |
 
 **At the 3-minute close (2,250 reads):**
 
 | word | closes |
 |---|---|
 | BUY | 293 (209 on the count · 84 by refusal) |
-| LEANS BUY | 347 (246 · 101) |
+| LEANS BUY | 516 (246 on the count · **270 by refusal**: 101 with a one-fact lead, **169 ties**) |
 | EITHER | 275 |
-| LEANS SELL | 324 (323 · 1) |
+| LEANS SELL | 325 (323 · 2 by refusal: 1 with a one-fact lead, 1 tie) |
 | SELL | 255 (253 · 2) |
-| **STAND ASIDE** | **756** (360 both refused · 226 led · 170 tie) |
+| **STAND ASIDE** | **586** (360 both refused · 226 led) |
 
-**Silence at the 3-minute close: 756 of 2,250 closes.** That is up from rev a's 586.
-- The 170 new STAND ASIDE · tie closes are exactly the tie with a refused leg that rev a named as the open leg.
-- **Of the 1,219 directional words, 671 are LEANS.** Those are named by a single fact.
-- The strong words (BUY and SELL) are 548.
+**Silence at the 3-minute close: 586 of 2,250 closes.** That is rev b's 756 less its 170 STAND ASIDE · tie closes, and the same
+586 as rev a.
+- **The 170 ties now read LEANS:** 169 LEANS BUY · selling refused and 1 LEANS SELL · buying refused.
+- **LEANS BUY is now the most frequent directional word, and more than half of it is named by refusal:** 270 of 516. It is its own population,
+  never pooled with the 246 on the count (§E.2).
+- **Of the 1,389 directional words, 841 are LEANS:** 569 on the count, 102 by refusal with a one-fact lead, and 170 by
+  refusal at a tie.
 
 **Every minute, for comparison** (6,750 reads):
 - BUY 871;
-- LEANS BUY 1,052;
+- LEANS BUY 1,524 (746 · 778 by refusal, of which 472 ties);
 - EITHER 774;
-- LEANS SELL 1,025;
+- LEANS SELL 1,032;
 - SELL 762;
-- STAND ASIDE 2,236 (1,069 · 688 · 479);
+- STAND ASIDE 1,757 (1,069 · 688);
 - could not check 30.
 
-### D.2 Stability under rev b's words, both cadences
+### D.2 Stability under rev c's words, both cadences
 
-| | read every minute | **read at the 3-minute close (registered)** | rev a at the 3-minute close (four words, for comparison) |
-|---|---|---|---|
-| reads | 6,750 | 2,250 | 2,250 |
-| word changes, of transitions | 1,936 of 6,732 | **987 of 2,232** | 752 of 2,232 |
-| median life of a word | 2 minutes | **3 minutes** (one bar) | 6 minutes |
-| runs that last a single read | 885 of 1,954 | **564 of 1,005** | 355 of 770 |
-| **direct BUY ↔ SELL flips** (strong to strong) | 8 | **11** | 185 (all BUY ↔ SELL were "strong" then) |
-| buy-side ↔ sell-side flips (any of BUY, LEANS BUY to any of SELL, LEANS SELL) | 319 | **153** | 185 |
-| directional words named by one fact (now LEANS) | 2,077 of 3,710 | **671 of 1,219** | 671 of 1,389 |
+| | read every minute | **read at the 3-minute close (registered)** | rev b at the 3-minute close | rev a at the 3-minute close |
+|---|---|---|---|---|
+| reads | 6,750 | 2,250 | 2,250 | 2,250 |
+| word changes, of transitions | 1,957 of 6,732 | **1,010 of 2,232** | 987 of 2,232 | 752 of 2,232 |
+| median life of a word | 2 minutes | **3 minutes** (one bar) | 3 minutes | 6 minutes |
+| runs that last a single read | 869 of 1,975 | **562 of 1,028** | 564 of 1,005 | 355 of 770 |
+| **direct BUY ↔ SELL flips** (strong to strong) | 8 | **11** | 11 | 185 |
+| buy-side ↔ sell-side flips (any of BUY, LEANS BUY to any of SELL, LEANS SELL) | 369 | **185** | 153 | 185 |
+| directional words that are LEANS | 2,556 of 4,189 | **841 of 1,389** | 671 of 1,219 | — |
 
 **Plainly:**
-- **The strength in the word makes the word change more often.** Every one-fact change of margin (3–1 to 3–2) is now a word
-  change. So the median word lives one bar, and more than half the runs last a single bar.
-- **What it removes is the misleading flip.** A strong BUY now almost never turns straight into a strong SELL: 11 times at
-  the close, against rev a's 185. Almost every flip of side now passes through LEANS or EITHER.
-- **The word is still close to a coin flip at its margin, and it now says so in its own letters.** Just over half its
-  directional words are LEANS.
+- **Rev c moves the word little.** The 170 ties that were STAND ASIDE are now LEANS on the open leg, so 23 more closes change
+  word and 32 more side flips appear, all through LEANS. The strong BUY ↔ SELL flip stays at 11.
+- **The word is still close to a coin flip at its margin, and it says so in its letters:** 841 of its 1,389 directional
+  words are LEANS, and 272 of those are named by refusal.
 
-### D.3 Facts, refusals, co-occurrence and the sell strike — rev a's, unchanged in rev b
+### D.3 Facts, refusals, co-occurrence and the sell strike — rev a's, unchanged in rev b and rev c
 
 | fact | FOR BUY | FOR SELL | NEITHER |
 |---|---|---|---|
@@ -825,46 +837,46 @@ The counts are per index-day and direction, of 125 closes.
 The wall's distance in straddles at SELL words had quartiles of 0.09 / 0.19 / 0.34. The far case is rare, and it happened on
 the expiry afternoon.
 
-### D.4 At her 29 entries, the word on the screen at her entry (rev b)
+### D.4 At her 29 entries, the word on the screen at her entry (rev c)
 
 This is the last 3-minute close at or before her read minute.
 - The lead is the named leg's count minus the other's.
 - The last column is the sold leg's first FOLD, in seller points at the fold:
   - rev 5 option B as built;
-  - rev a's zero-buffer rule 3s;
-  - **rev b's buffered rule 3s** (§C, YES answer), with B_k.
+  - rev b's rule with YES, which is not registered;
+  - **rev c: 3s with B_k, and NO on expiry day (registered).**
 
-| # | entry (read · close read) | dir | **word (rev b)** | lead · b–s | refused | since · was | rev a word | the sold leg's first FOLD: rev 5 B · rev a (3s zero-buffer) · **rev b (3s + B_k)** — seller pts |
-|---|---|---|---|---|---|---|---|---|
-| 1 | 09-21 13:59 NIFTY 23300CE | UP | **could not check** — never frozen | | | | same | |
-| 2 | 09-22 09:41 · 09:41 NIFTY 23300CE | UP | **STAND ASIDE · both** | — · 1–3 | R5, R1 | since 09:41 · was SELL PE | STAND ASIDE · both | 09:41 r6 +0.0 · 09:41 r6 +0.0 · **09:41 r6 +0.0** (B_k 8.35) |
-| 3 | 09-22 10:31 · 10:29 NIFTY 23550PE | DOWN | **SELL CE** | 2 · 1–3 | — | since 10:26 · was EITHER | SELL CE | 14:14 r3 +15.55 · 14:14 r3 +15.55 · **14:14 r3 +15.55** (B_k 7.05) |
-| 4 | 09-22 10:41 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | BUY PE | 14:14 r3 +8.15 · 14:14 r3 +8.15 · **14:14 r3 +8.15** (B_k 7.7) |
-| 5 | 09-22 10:42 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | BUY PE | 14:14 r3 +5.4 · 14:14 r3 +5.4 · **14:14 r3 +5.4** (B_k 7.7) |
-| 6 | 09-22 10:43 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | BUY PE | 14:14 r3 +6.9 · 14:14 r3 +6.9 · **14:14 r3 +6.9** (B_k 8.8) |
-| 7 | 09-22 10:51 · 10:50 NIFTY 23500PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 10:44 · was LEANS BUY PE | SELL CE | 14:14 r3 +3.9 · 14:14 r3 +3.9 · **14:14 r3 +3.9** (B_k 9.1) |
-| 8 | 09-22 13:47 · 13:47 NIFTY 23500PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:47 · was STAND ASIDE · tie | BUY PE | 14:14 r3 -17.25 · 14:14 r3 -17.25 · **14:14 r3 -17.25** (B_k 5.55) |
-| 9 | 09-23 09:17 · 09:17 NIFTY 23450CE | UP | **STAND ASIDE · led** | -1 · 0–1 | R3, R4cnc | since 09:17 | STAND ASIDE · led | — |
-| 10 | 09-23 09:46 · 09:44 NIFTY 23450CE | UP | **STAND ASIDE · both** | — · 1–3 | R5, R1 | since 09:44 · was SELL PE | STAND ASIDE · both | 09:46 r6 +0.0 · 09:46 r6 +0.0 · **09:46 r6 +0.0** (B_k 5.4) |
-| 11 | 09-23 09:48 · 09:47 NIFTY 23400PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 09:44 · was SELL CE | SELL CE | 10:19 r6 -10.8 · 10:19 r6 -10.8 · **10:19 r6 -10.8** (B_k 6.35) |
-| 12 | 09-23 09:59 · 09:59 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 09:59 · was STAND ASIDE · led | SELL PE | 10:05 r6 +0.95 · 10:05 r6 +0.95 · **10:05 r6 +0.95** (B_k 6.7) |
-| 13 | 09-23 10:18 · 10:17 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 10:17 · was LEANS BUY CE · sell refused | SELL PE | 13:32 r3 +12.4 · 13:32 r3 +12.4 · **13:32 r3 +12.4** (B_k 6.6) |
-| 14 | 09-23 10:32 · 10:32 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 10:23 · was LEANS SELL PE | BUY CE | 13:32 r3 +11.65 · 10:35 r3s -2.15 · **13:32 r3 +11.65** (B_k 5.0) |
-| 15 | 09-23 11:06 · 11:05 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 11:05 · was LEANS SELL PE | BUY CE | 13:32 r3 +1.5 · 13:32 r3 +1.5 · **13:32 r3 +1.5** (B_k 4.8) |
-| 16 | 09-23 11:31 · 11:29 SENSEX 74900CE | UP | **LEANS SELL PE** | 1 · 2–3 | — | since 11:26 · was LEANS BUY CE | SELL PE | 13:29 r3 +5.3 · 13:29 r3 +5.3 · **13:29 r3 +5.3** (B_k 15.16) |
-| 17 | 09-24 09:41 · 09:41 SENSEX 74200PE | DOWN | **EITHER** | 0 · 2–2 | — | since 09:41 · was SELL CE | EITHER | 10:43 r4 +29.2 · 10:43 r4 +29.2 · **10:43 r4 +29.2** (B_k 26.37) |
-| 18 | 09-24 10:18 · 10:17 SENSEX 74200PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 10:17 · was LEANS SELL CE | BUY PE | 10:43 r4 +1.6 · 10:43 r4 +1.6 · **10:43 r4 +1.6** (B_k 22.64) |
-| 19 | 09-24 12:31 · 12:29 SENSEX 74100PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | BUY PE | 14:38 r3 +66.2 · 14:45 r4 +70.6 · **14:45 r4 +70.6** (B_k 17.45) |
-| 20 | 09-24 12:34 · 12:32 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | BUY PE | 14:38 r3 +58.2 · 14:45 r4 +62.6 · **14:45 r4 +62.6** (B_k 18.97) |
-| 21 | 09-24 12:43 · 12:41 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | BUY PE | 14:38 r3 +63.5 · 14:45 r4 +67.9 · **14:45 r4 +67.9** (B_k 18.08) |
-| 22 | 09-24 13:25 · 13:23 SENSEX 74000PE | DOWN | **LEANS SELL CE** | 1 · 1–2 | — | since 13:23 · was LEANS BUY PE | SELL CE | 14:38 r3 +49.35 · 14:45 r4 +53.75 · **14:45 r4 +53.75** (B_k 12.21) |
-| 23 | 09-24 13:40 · 13:38 SENSEX 73900PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:35 · was EITHER | BUY PE | 14:38 r3 +26.2 · 14:45 r4 +30.6 · **14:45 r4 +30.6** (B_k 24.68) |
-| 24 | 09-24 13:42 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE | BUY PE | 14:38 r3 +26.2 · 14:45 r4 +30.6 · **14:45 r4 +30.6** (B_k 24.44) |
-| 25 | 09-24 13:43 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE | BUY PE | 14:38 r3 +22.3 · 14:45 r4 +26.7 · **14:45 r4 +26.7** (B_k 24.44) |
-| 26 | 09-24 13:44 · 13:44 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE | BUY PE | 14:38 r3 +42.9 · 14:38 r3 +42.9 · **14:38 r3 +42.9** (B_k 24.44) |
-| 27 | 09-24 13:53 · 13:53 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE | BUY PE | 14:38 r3 +11.2 · 14:02 r3s +4.15 · **14:38 r3s +11.2** (B_k 28.77) |
-| 28 | 09-24 13:56 · 13:56 SENSEX 73800PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:56 · was BUY PE | BUY PE | 14:38 r3 -10.5 · 14:02 r3s -17.55 · **14:38 r3s -10.5** (B_k 39.11) |
-| 29 | 09-24 14:22 · 14:20 SENSEX 73800PE | DOWN | **EITHER** | 0 · 2–2 | — | since 14:14 · was LEANS SELL CE | EITHER | 14:38 r3 -35.15 · 14:35 r3s -14.7 · **14:38 r3s -35.15** (B_k 25.56) |
+| # | entry (read · close read) | dir | **word (rev c)** | lead · b–s | refused | since · was | the sold leg's first FOLD: rev 5 B · YES (not registered) · **rev c** — seller pts |
+|---|---|---|---|---|---|---|---|
+| 1 | 09-21 13:59 NIFTY 23300CE | UP | **could not check** — never frozen | | | | |
+| 2 | 09-22 09:41 · 09:41 NIFTY 23300CE | UP | **STAND ASIDE · both refused** | — · 1–3 | R5, R1 | since 09:41 · was SELL PE | 09:41 r6 +0 · 09:41 r6 +0 · **09:41 r6 +0** (B_k 8.35) |
+| 3 | 09-22 10:31 · 10:29 NIFTY 23550PE | DOWN | **SELL CE** | 2 · 1–3 | — | since 10:26 · was EITHER | 14:14 r3 +15.55 · 14:14 r3 +15.55 · **14:14 r3 +15.55** (B_k 7.05) |
+| 4 | 09-22 10:41 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | 14:14 r3 +8.15 · 14:14 r3 +8.15 · **14:14 r3 +8.15** (B_k 7.7) |
+| 5 | 09-22 10:42 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | 14:14 r3 +5.4 · 14:14 r3 +5.4 · **14:14 r3 +5.4** (B_k 7.7) |
+| 6 | 09-22 10:43 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | 14:14 r3 +6.9 · 14:14 r3 +6.9 · **14:14 r3 +6.9** (B_k 8.8) |
+| 7 | 09-22 10:51 · 10:50 NIFTY 23500PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 10:44 · was LEANS BUY PE | 14:14 r3 +3.9 · 14:14 r3 +3.9 · **14:14 r3 +3.9** (B_k 9.1) |
+| 8 | 09-22 13:47 · 13:47 NIFTY 23500PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:47 · was LEANS BUY PE · selling refused | 14:14 r3 -17.25 · 14:14 r3 -17.25 · **14:14 r3 -17.25** (B_k 5.55) |
+| 9 | 09-23 09:17 · 09:17 NIFTY 23450CE | UP | **STAND ASIDE · led** | -1 · 0–1 | R3, R4cnc | since 09:17 | — |
+| 10 | 09-23 09:46 · 09:44 NIFTY 23450CE | UP | **STAND ASIDE · both refused** | — · 1–3 | R5, R1 | since 09:44 · was SELL PE | 09:46 r6 +0 · 09:46 r6 +0 · **09:46 r6 +0** (B_k 5.4) |
+| 11 | 09-23 09:48 · 09:47 NIFTY 23400PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 09:44 · was SELL CE | 10:19 r6 -10.8 · 10:19 r6 -10.8 · **10:19 r6 -10.8** (B_k 6.35) |
+| 12 | 09-23 09:59 · 09:59 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 09:59 · was STAND ASIDE · led | 10:05 r6 +0.95 · 10:05 r6 +0.95 · **10:05 r6 +0.95** (B_k 6.7) |
+| 13 | 09-23 10:18 · 10:17 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 10:17 · was LEANS BUY CE · selling refused | 13:32 r3 +12.4 · 13:32 r3 +12.4 · **13:32 r3 +12.4** (B_k 6.6) |
+| 14 | 09-23 10:32 · 10:32 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 10:23 · was LEANS SELL PE | 13:32 r3 +11.65 · 13:32 r3 +11.65 · **13:32 r3 +11.65** (B_k 5.0) |
+| 15 | 09-23 11:06 · 11:05 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 11:05 · was LEANS SELL PE | 13:32 r3 +1.5 · 13:32 r3 +1.5 · **13:32 r3 +1.5** (B_k 4.8) |
+| 16 | 09-23 11:31 · 11:29 SENSEX 74900CE | UP | **LEANS SELL PE** | 1 · 2–3 | — | since 11:26 · was LEANS BUY CE | 13:29 r3 +5.3 · 13:29 r3 +5.3 · **13:29 r3 +5.3** (B_k 15.16) |
+| 17 | 09-24 09:41 · 09:41 SENSEX 74200PE | DOWN | **EITHER** | 0 · 2–2 | — | since 09:41 · was SELL CE | 10:43 r4 +29.2 · 10:43 r4 +29.2 · **10:43 r4 +29.2** (B_k 26.37) |
+| 18 | 09-24 10:18 · 10:17 SENSEX 74200PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 10:17 · was LEANS SELL CE | 10:43 r4 +1.6 · 10:43 r4 +1.6 · **10:43 r4 +1.6** (B_k 22.64) |
+| 19 | 09-24 12:31 · 12:29 SENSEX 74100PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | 14:38 r3 +66.2 · 14:45 r4 +70.6 · **14:38 r3 +66.2** (B_k 17.45) |
+| 20 | 09-24 12:34 · 12:32 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | 14:38 r3 +58.2 · 14:45 r4 +62.6 · **14:38 r3 +58.2** (B_k 18.97) |
+| 21 | 09-24 12:43 · 12:41 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | 14:38 r3 +63.5 · 14:45 r4 +67.9 · **14:38 r3 +63.5** (B_k 18.08) |
+| 22 | 09-24 13:25 · 13:23 SENSEX 74000PE | DOWN | **LEANS SELL CE** | 1 · 1–2 | — | since 13:23 · was LEANS BUY PE | 14:38 r3 +49.35 · 14:45 r4 +53.75 · **14:38 r3 +49.35** (B_k 12.21) |
+| 23 | 09-24 13:40 · 13:38 SENSEX 73900PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:35 · was EITHER | 14:38 r3 +26.2 · 14:45 r4 +30.6 · **14:38 r3 +26.2** (B_k 24.68) |
+| 24 | 09-24 13:42 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE | 14:38 r3 +26.2 · 14:45 r4 +30.6 · **14:38 r3 +26.2** (B_k 24.44) |
+| 25 | 09-24 13:43 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE | 14:38 r3 +22.3 · 14:45 r4 +26.7 · **14:38 r3 +22.3** (B_k 24.44) |
+| 26 | 09-24 13:44 · 13:44 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE | 14:38 r3 +42.9 · 14:38 r3 +42.9 · **14:38 r3 +42.9** (B_k 24.44) |
+| 27 | 09-24 13:53 · 13:53 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE | 14:38 r3 +11.2 · 14:38 r3s +11.2 · **14:38 r3s +11.2** (B_k 28.77) |
+| 28 | 09-24 13:56 · 13:56 SENSEX 73800PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:56 · was BUY PE | 14:38 r3 -10.5 · 14:38 r3s -10.5 · **14:38 r3s -10.5** (B_k 39.11) |
+| 29 | 09-24 14:22 · 14:20 SENSEX 73800PE | DOWN | **EITHER** | 0 · 2–2 | — | since 14:14 · was LEANS SELL CE | 14:38 r3 -35.15 · 14:38 r3s -35.15 · **14:38 r3s -35.15** (B_k 25.56) |
 
 **The words at her 29 entries:**
 
@@ -875,18 +887,17 @@ This is the last 3-minute close at or before her read minute.
 | SELL | 3 |
 | LEANS SELL | 4 |
 | EITHER | 2 |
-| STAND ASIDE | 3 |
+| STAND ASIDE | 3 (2 both refused · 1 led) |
 | could not check | 1 |
 
-Silent at 4 of 29. Every directional word was named on the count.
-- **Rev a's words became:**
-  - of rev a's 16 BUYs, 7 stay BUY and 9 become LEANS BUY;
-  - of rev a's 7 SELLs, 3 stay SELL and 4 become LEANS SELL.
-- **Rev b's buffer moved four sold legs:**
-  - **#14:** the PE 23,400 is no longer folded at 10:35 on a close through its strike. It folds at 13:32 by rule 3, at
-    +11.65 instead of −2.15.
-  - **#27, #28, #29** (CE 73,700, placed at K₀) are no longer folded at 14:02 / 14:02 / 14:35. They fold at 14:38, when that
-    close was more than one candle through 73,700: +11.2, −10.5 and −35.15 instead of +4.15, −17.55 and −14.7.
+**Silent at 4 of 29,** as in rev b. Every directional word was named on the count.
+- **No entry word moved in rev c.** None of her 29 entries fell on a tie with one leg refused. Only one "was" changed: #8's
+  prior word is now LEANS BUY PE · selling refused, where rev b had STAND ASIDE · tie.
+- **The answer NO moved seven sold legs,** all SENSEX 09-24 (expiry): #19–#25 fold at 14:38 by rule 3, as rev 5 B does, instead
+  of being held to 14:45 under YES. In seller points that is 4.4 less on each of the seven, with the premium 4.4 higher at
+  14:38 than at 14:45.
+- **Under rev c, every sold leg at her entries folds exactly where rev 5 B folds it,** except #27–#29, which 3s labels at the
+  same 14:38 close.
 
 **The legs afterwards, in R-multiples on the shared line** (rev a's figures). The legs, strikes and line are unchanged in rev
 b, so these still stand.
@@ -923,96 +934,112 @@ b, so these still stand.
 | 28 | 0.16 | 0.16 | 0.0 | +63.3 with | 170.7 | WAIT · neither · neither · line beyond strike |
 | 29 | -0.71 | -0.19 | -0.52 | -154.8 against | 146.05 | WAIT · neither · neither · line beyond strike |
 
-### D.5 Her 09-25 NIFTY entries (rev b)
+### D.5 Her 09-25 NIFTY entries (rev c)
 
 These are read at the read minute [I proxy]. The 3-minute-close facts before each entry were not frozen, and no premium was
 frozen, so **R4 refuses SELL at all three**. That is the frozen record's gap, not the market's.
 
-| entry (read) | dir | the word (rev b) | lead · b–s | what moved |
+| entry (read) | dir | the word (rev c) | lead · b–s | what moved |
 |---|---|---|---|---|
-| 09:36 PE (her words; the saved 09:35 check) | DOWN | **STAND ASIDE · led:** "the facts favour selling, 3 to 0, but selling is refused: R4 — could not check" | −3 · 0–3 | as rev a |
-| 12:01:21 CE (marked) | UP | **STAND ASIDE · tie:** "the facts tie 1–1, and selling is refused: nothing leads to buying" | 0 · 1–1 | rev a said BUY CE · selling refused (the tie reading) |
-| 12:05:28 PE (marked) | DOWN | **LEANS BUY PE · selling refused (R4)** | 1 · 2–1 | rev a said BUY PE · selling refused |
+| 09:36 PE (her words; the saved 09:35 check) | DOWN | **STAND ASIDE · led:** "the facts favour selling, 3 to 0, but selling is refused: R4 — could not check" | −3 · 0–3 | as rev a and rev b |
+| 12:01:21 CE (marked) | UP | **LEANS BUY CE · selling refused (R4):** "the facts tie 1–1; selling is refused, so the open leg is named, weakly" | 0 · 1–1 | rev b said STAND ASIDE · tie; rev a said BUY CE · selling refused |
+| 12:05:28 PE (marked) | DOWN | **LEANS BUY PE · selling refused (R4)** | 1 · 2–1 | as rev b |
 
-### D.6 The seller on 09-24 under rev b's buffered rule 3s (the strike-rule disclosure)
+### D.6 The seller on 09-24 under rev c: her answer NO, and the buffered rule 3s
 
-These are her 13 put entries read as sales of the call at the same strike (the handoff's replay).
-- B_k is rev 5 B's candle, read at each entry: 12.21 to 39.11 pts [M].
+These are her 13 put entries read as sales of the call at the same strike (the handoff's replay). 09-24 was SENSEX's expiry,
+so under her answer the reach is not read on any of them.
 
-| sold call (entries) | B_k at entry | rev 5 B (as built) | rev a (3s, no buffer) | **rev b, §C YES** | **rev b, §C NO** | at 15:29 |
+| sold call (entries) | B_k at entry | rev 5 B (as built) | **rev c (NO, registered)** | YES (not registered) | at 14:59 [M] | at 15:29 [M] |
 |---|---|---|---|---|---|---|
-| 74,200 (09:41, 10:18) | 26.37 · 22.64 | 10:43 rule 4, 138.2 | the same | the same | the same | 0.15 |
-| 74,100 (12:31) | 17.45 | 14:38 rule 3, 47.55 | held, then 14:45 rule 4, 42.45 | **held 14:38 (P_max 53.25), 14:45 rule 4, 42.45** | 14:38 rule 3, 47.55 | 0.15 |
-| **74,000 (12:34, 12:43)** | 18.97 · 18.08 | 14:38 rule 3, 67.75 | 13:05 rule 3s, 191.65 | **13:05 rule 3s, 191.65** | **the same** | 0.2 |
-| 74,000 (13:25) | 12.21 | 14:38 rule 3, 67.75 | the same | the same | the same | 0.2 |
-| 73,900 (13:40, 13:42, 13:43) | 24.68 · 24.44 · 24.44 | 14:38 rule 3, 95.9 | the same | the same | the same | 0.1 |
-| 73,800 (13:44, 13:53, 13:56, 14:22) | 24.44 · 28.77 · 39.11 · 25.56 | 14:38 rule 3, 133.1 | the same | the same | the same | 0.1 |
+| 74,200 (09:41, 10:18) | 26.37 · 22.64 | 10:43 rule 4, 138.2 | **the same** | the same | 22.15 | 0.15 |
+| 74,100 (12:31) | 17.45 | 14:38 rule 3, 47.55 | **14:38 rule 3, 47.55** | held 14:38 (P_max 53.25), 14:45 rule 4, 42.45 | 33.55 | 0.15 |
+| **74,000 (12:34, 12:43)** | 18.97 · 18.08 | 14:38 rule 3, 67.75 | **13:05 rule 3s, 191.65** | the same as rev c | 50.2 | 0.2 |
+| 74,000 (13:25) | 12.21 | 14:38 rule 3, 67.75 | **the same** | the same | 50.2 | 0.2 |
+| 73,900 (13:40, 13:42, 13:43) | 24.68 · 24.44 · 24.44 | 14:38 rule 3, 95.9 | **the same** | the same | 76.1 | 0.1 |
+| 73,800 (13:44, 13:53, 13:56, 14:22) | 24.44 · 28.77 · 39.11 · 25.56 | 14:38 rule 3, 133.1 | **the same** | the same | 111.2 | 0.1 |
 
-**The two 74,000 sales still fold at 13:05, at 191.65, under rev b.**
-- **Why:** the 13:03–13:05 bar closed **25.4 pts** through 74,000, and one frozen candle at their entries was **18.97** and
-  **18.08** pts. That is more than one candle through, so under the rule she signed for her line it was not noise.
-- **The cost, in hindsight:** rev 5 held them to 14:38 at 67.75, and they expired at 0.2.
-- **The buffer does not undo this row.** It is disclosed as it is, and not tuned.
+**Under rev c the 09-24 seller is rev 5 B's window exactly, except the two 74,000 sales.** 3s folds those at 13:05, at 191.65:
+that bar closed 25.4 pts through 74,000, against one frozen candle of 18.97 and 18.08 pts. It is disclosed as it is, and not
+tuned.
+- **The 74,100 call folds at 14:38 at 47.55, as today.** Under YES it would have been held seven minutes, touched 53.25, and
+  folded at 14:45 at 42.45 by rule 4.
 
-**The 165 sold legs on the grid** (§E.2's units, §C with YES):
+**The 165 sold legs on the grid** (§E.2's units):
 
-| | rev a (3s, zero buffer) | **rev b (3s + B_k)** |
+| | rev b (YES assumed) | **rev c (NO, registered)** |
 |---|---|---|
-| first FOLD by rule 3s | 13 | **13** |
-| … before rev 5 B's own fold | 8 | **4** |
-| … at a lower premium than rev 5's fold (better for her) | 7 | **3** |
-| … at a higher premium | 1 | **1** |
-| … at the same close as rev 5's line fold | 5 | **9** |
-| first FOLD by rule 3 / 6 / 4 / none | 64 / 48 / 27 / 13 | 64 / 48 / 27 / 13 |
+| first FOLD by rule 3 / 6 / 4 / 3s / none | 64 / 48 / 27 / 13 / 13 | **71 / 48 / 22 / 13 / 11** |
+| held breaks (legs held on a line break) | 7 legs, 2 held breaks | **none** |
+| 3s before rev 5 B's own fold | 4 (3 at a lower premium, 1 higher) | **4 (the same four)** |
+| 3s at the same close as rev 5 B's line fold | 9 | **9** |
+| first FOLD at the same minute as rev 5 B | 154 | **161** |
 
-**The four rev b 3s folds that come before rev 5's fold:**
+- **The seven legs the answer moved** were all SENSEX 09-24, its expiry. They were held under YES and now fold at the line,
+  as rev 5 B does:
+  - CE 74,300 ×3 and CE 74,200 ×2: 14:38 rule 3, at 23.5 and 33.3, where YES held them to 14:45 at 19.9 and 28.9;
+  - PE 73,500 ×2 (the 14:44 and 15:14 units): at the 15:29 close by rule 3, at 0.15, the same premium YES's to-close gave.
+- **The four 3s folds before rev 5's** are unchanged from rev b: SENSEX 09-22 PE 75,000 (10:20 at 291.55, against 10:31 at
+  342.05); SENSEX 09-23 CE 74,700 ×2 (10:17 at 243.35, against 10:20 at 264.95); BANKNIFTY 09-24 PE 55,500 (15:14 at 329.45,
+  against 15:20 at 320.0, the one higher).
 
-| sold leg | 3s fold | rev 5's fold | at 15:29 |
-|---|---|---|---|
-| SENSEX 09-22 PE 75,000 | 10:20 at 291.55 | 10:31 rule 4 at 342.05 | 448.8 |
-| SENSEX 09-23 CE 74,700, two units | 10:17 at 243.35 | 10:20 rule 3 at 264.95 | 276.75 |
-| BANKNIFTY 09-24 PE 55,500 | 15:14 at 329.45, the one higher | 15:20 rule 6 at 320.0 | 304.2 |
+**Held breaks, W-R's unit: none on the record under her answer.** Both of rev b's held breaks (SENSEX 09-24 14:38 CE; 15:29 PE
+73,500) were on SENSEX's expiry day. So off expiry, where the reach is still read, it bound nowhere on these four days. W-R's
+forward populations will fill slowly (§C.4).
 
-The other nine 3s folds land on the same close as rev 5's line fold. They are labelled 3s because §C.2 reads the strike first.
-
-**The four rev a 3s folds that the buffer moved to the line's close** were all closes through the strike by less than one
-candle, earlier in the bar sequence:
-- NIFTY 09-22 PE 23,450 ×2, now 10:26;
-- SENSEX 09-24 PE 74,000, now 13:26;
-- SENSEX 09-24 CE 73,700, now 14:38.
-
-**Plainly, the strike rule with rev 5 B's buffer:**
-- it no longer folds on a poke inside one candle;
-- it still folds a close more than one candle through (09-24 74,000 at 13:05);
-- on the grid it rarely acts before the line itself (4 of 165).
-
-**Held breaks** (W-R's unit) are unchanged from rev a:
-- SENSEX 09-24 14:38 CE (74,100 / 74,200 / 74,300), with P_b → P_x (P_max):
-  - 47.55 → 42.45 (53.25);
-  - 33.3 → 28.9 (37.05);
-  - 23.5 → 19.9 (26.4).
-- SENSEX 09-24 15:29 PE 73,500.
-
-### D.7 The grid in rev b: the words at the units, and what did not change
+### D.7 The grid in rev c: the words at the units
 
 **The 216 units read:**
 
 | word | units |
 |---|---|
 | BUY | 26 (17 on the count · 9 by refusal) |
-| LEANS BUY | 37 (24 · 13) |
+| LEANS BUY | 51 (24 · 27 by refusal, of which 14 ties) |
 | EITHER | 35 |
 | LEANS SELL | 41 |
 | SELL | 14 |
-| STAND ASIDE | 63 (35 both · 14 led · 14 tie) |
+| STAND ASIDE | 49 (35 both · 14 led) |
 
-**Unchanged from rev a**, because they read no word:
-- G is scored at 160 of 216 units;
-- the writer population (ii): 165 legs, of which 57 resolved at 30 minutes;
-- the held breaks.
+**Unchanged from rev b**, because they read no word: G is scored at 160 of 216 units, and the writer population (ii) is 165
+legs, of which 57 resolved at 30 minutes.
 
-**The forward counts by word are now spread over more populations,** since LEANS is never pooled. §E.2's 15-per-word bar will
-take longer to reach, and that is disclosed, not tuned.
+**The forward counts by word are spread over more populations.** Each refusal-named word is now judged on its own (§E.2), so
+§E.2's 15-per-word bar takes longer to reach. On the grid, LEANS BUY by refusal is the most frequent refusal word (27 of 216 units).
+That is disclosed, not tuned.
+
+### D.8 Her practice, not a rule: nothing held or opened after 15:00
+
+**Her words, 2026-09-26:**
+> "we gonna close our position before 3 because due to new cas system is highly volatile i dont want to get into that no
+> trade buying or selling after 3 om to be on safe side dont make any new rules but just telling you so that you know because
+> maybe it change in future (cas system)"
+
+**Her current practice:** no position held, and none opened, after 15:00. It may change with the CAS system. **It is not a
+rule, a refusal or a gate here:** no word, fact, refusal, fold or falsifier reads the clock at 15:00. The only change is the
+descriptive log flag `after_1500` (§E.3), so the forward record can be read with and without those rows.
+
+**The evidence in this draft that falls after 15:00:**
+- **The 09-24 seller rows (§D.6).** The 14:38 folds are before 15:00, but the hindsight they are measured against is not.
+  The calls "expired at 0.1–0.2" at 15:29. At 14:59, where her practice would have closed them, they stood at 22.15 (74,200),
+  33.55 (74,100), 50.2 (74,000), 76.1 (73,900) and 111.2 (73,800) [M].
+  - The 14:38 line folds bought back 14.0 (74,100), 17.55 (74,000), 19.8 (73,900) and 21.9 (73,800) points above the
+    14:59 premium, not 47–133 above the 15:29 one.
+  - The 74,000 3s fold at 13:05 (191.65) stood 141.45 above its 14:59 premium.
+  - The 10:43 fold of 74,200 (138.2) stood 116.05 above.
+  - These are hindsight rows, shown and not judged.
+- **The held breaks under YES,** the road not taken: the 14:38 CE break was held to 14:45, before 15:00. The PE 73,500 break
+  came at the 15:29 close, after 15:00.
+- **The grid:**
+  - the units at 14:44, whose 30 minutes cross 15:00, and 15:14 are 36 of the 216 units;
+  - 25 of the 165 sold legs start at those units;
+  - 22 of the 165 sold legs first fold at 15:00 or later, or not at all, and run to 15:29. Among them is the BANKNIFTY 09-24
+    PE 55,500 3s fold at 15:14.
+- **Every "to 15:29" figure is after 15:00 by construction:** §D.4's "sold leg to 15:29", the writer word's to-15:29 read, and
+  §B.3's to-15:29, which is shown and not judged.
+- **Not after 15:00:** her 29 entries, and their 30-minute windows (the last, #29 at 14:22, ends at 14:52), and her three 09-25
+  entries.
+- **§E.2's check with the `short` units removed** (after 14:59) was registered before her words, and is unchanged. It is a
+  check on the falsifier, not her practice made a rule.
 
 ---
 
@@ -1492,18 +1519,34 @@ absolute paths inside `expr/`. Nothing can land in the repo again.
 
 **Fingerprinted before its run** (§D.0).
 
+**14:39–14:42, rev c's run** (`run_c.py`, after `expr_c.py`'s self-check). It wrote only inside `expr/revc/`.
+
+**14:43, not rev c's.** Commit `54dc72c` took this draft at the rev c fingerprint, with other files and a copy of this
+session's scratchpad (§D.0). Nothing of rev c's run was committed by rev c.
+
+**18:43, §D rewritten for rev c, after the run** (`gen_D_c.py`). The session had paused between 14:42 and 18:43.
+- Before §D went in, the text outside §D was checked identical to the fingerprinted copy.
+- **One claim was fixed after it went in:** LEANS BUY is the most frequent *directional* word, not the most frequent word
+  (STAND ASIDE is 586).
+- **No rule moved after rev c's run.**
+
 ---
 
 ## H. What this draft could not resolve
 
-1. **The expiry-day question (§C.7)** is hers. §C cannot be signed without it.
-2. **The word's margin: decided in rev b.** A one-fact lead reads LEANS, with no threshold number (§A.4).
-   - Still open: the tie with one leg refused reads STAND ASIDE. That is the drafter's reading of "STAND ASIDE when refused",
-     for the trader to confirm.
-3. **Rule 3s's scope: decided in rev b.** Rev 5 B's own buffer, at every close (§C.2). §D.6 shows rev a's zero-buffer cost and
-   rev b's re-run side by side.
-   - **Still true under rev b:** the 09-24 74,000 sales fold at 13:05. That close was 25.4 pts through the strike against a
+1. **The expiry-day question (§C.7): answered NO, 2026-09-26.** §C is complete and can be signed.
+   - **Still hers:** the answer is registered for the window's fold only. Fact 5 (PREMIUM) and the sale's placement unit
+     (§A.5) still read the ATM straddle on expiry day, while her quote sets the ATM straddle aside on expiry day. Whether
+     that exception reaches them is hers to say. Nothing here changes them.
+2. **The word: its margin decided in rev b, the refused tie in rev c** (LEANS on the open leg, by refusal).
+   - **Still open, for the trader: STAND ASIDE · led stays silent.** That is 226 closes, entry #9 and 09-25 09:36, where the
+     refused leg leads. A literal "STAND ASIDE only when both legs are refused" would name the open leg there too, against
+     the count. It is kept silent on rev 0's named choice, which was not revoked.
+3. **Rule 3s's scope: decided in rev b.** Rev 5 B's own buffer, at every close (§C.2).
+   - **Still true under rev c:** the 09-24 74,000 sales fold at 13:05. That close was 25.4 pts through the strike against a
      candle of 18–19, so it was not noise by her own line rule.
+   - **The reach will rarely bind, and W-R may never reach its count.** Under her answer no held break exists on the four
+     days (§D.6). If fewer than 15 arrive by 30 sessions, the reach stays DRAFT. The count is not lowered.
 4. **ROOM leans BUY** where no holding wall is in the way and the line is outside one candle. It is inherited from VALIDATE's
    target, and judged forward.
 5. **Rule 3s folds a sale made more than one candle in the money at its first close.** §A.5 never places one, but a press
@@ -1523,10 +1566,13 @@ absolute paths inside `expr/`. Nothing can land in the repo again.
 9. **The owed code changes when she signs** (none made here):
    - the `expr_<day>` log at the 3-minute close, with the backfill off the request path;
    - the outcome key's `role`, with `_hold_tick`'s `has()` changed with it;
-   - the writer rows' `reach` / `held` / `3r` / `3s` keys, and the expiry-day answer;
+   - the writer rows' `reach` / `held` / `3r` / `3s` keys, and `expiry_day` (her NO: the reach is not read that day);
+   - `after_1500` on expression, outcome, press and hold rows (descriptive; it gates nothing);
    - PLAN §2.6's display, change-log line and §1f hash;
    - **tests:**
-     - the word order and `named_by`;
+     - the word order and `named_by`, including the refused tie read as LEANS by refusal;
+     - the expiry-day fold at a line break, with 3s still in force;
+     - `after_1500` changing no word, fold or falsifier;
      - R4 failing closed;
      - ROOM's noise step;
      - the K₀ placement (never in the money; the far wall; the in-the-money "at" wall);
@@ -1535,3 +1581,5 @@ absolute paths inside `expr/`. Nothing can land in the repo again.
      - the held loss;
      - W-R's total test;
      - the outcome key collision.
+10. **Her 15:00 practice is disclosed, not registered** (§D.8). If CAS changes it, nothing here has to move. The flag lets the
+    forward record be read either way.
