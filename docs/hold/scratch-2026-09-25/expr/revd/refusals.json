@@ -1,0 +1,54 @@
+{
+ "N_closes": 2250,
+ "refusals": {
+  "R3": 98,
+  "R4cnc": 138,
+  "R5": 372,
+  "R1": 355,
+  "R2": 311,
+  "R6": 440,
+  "R4": 24
+ },
+ "behind_refusal_words": {
+  "STAND ASIDE\u00b7refusal\u00b7led": {
+   "n": 226,
+   "with_R6": 112,
+   "only_R6": 96
+  },
+  "LEANS BUY\u00b7refusal\u00b7": {
+   "n": 101,
+   "with_R6": 51,
+   "only_R6": 35
+  },
+  "STAND ASIDE\u00b7refusal\u00b7both": {
+   "n": 360,
+   "with_R6": 96,
+   "only_R6": 5
+  },
+  "BUY\u00b7refusal\u00b7": {
+   "n": 84,
+   "with_R6": 60,
+   "only_R6": 39
+  },
+  "LEANS BUY\u00b7refusal\u00b7tie": {
+   "n": 169,
+   "with_R6": 121,
+   "only_R6": 105
+  },
+  "SELL\u00b7refusal\u00b7": {
+   "n": 2,
+   "with_R6": 0,
+   "only_R6": 0
+  },
+  "LEANS SELL\u00b7refusal\u00b7": {
+   "n": 1,
+   "with_R6": 0,
+   "only_R6": 0
+  },
+  "LEANS SELL\u00b7refusal\u00b7tie": {
+   "n": 1,
+   "with_R6": 0,
+   "only_R6": 0
+  }
+ }
+}

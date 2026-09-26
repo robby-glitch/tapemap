@@ -1,0 +1,185 @@
+('NIFTY', '2026-09-22') 16 s
+('SENSEX', '2026-09-22') 26 s
+('BANKNIFTY', '2026-09-22') 34 s
+('NIFTY', '2026-09-23') 43 s
+('SENSEX', '2026-09-23') 51 s
+('BANKNIFTY', '2026-09-23') 60 s
+('NIFTY', '2026-09-24') 69 s
+('SENSEX', '2026-09-24') 78 s
+('BANKNIFTY', '2026-09-24') 87 s
+{
+ "1m": {
+  "reads": 6750,
+  "trans": 6732,
+  "changes": 1957,
+  "runs": 1975,
+  "median_run_min": 2,
+  "runs_of_one": 869,
+  "strong_flips": 8,
+  "side_flips": 369,
+  "words": {
+   "BUY": 871,
+   "EITHER": 774,
+   "LEANS BUY": 1524,
+   "LEANS SELL": 1032,
+   "SELL": 762,
+   "STAND ASIDE": 1757,
+   "could not check": 30
+  },
+  "tab": {
+   "could not check\u00b7None\u00b7": 30,
+   "STAND ASIDE\u00b7refusal\u00b7led": 688,
+   "LEANS BUY\u00b7refusal\u00b7": 306,
+   "SELL\u00b7count\u00b7": 758,
+   "STAND ASIDE\u00b7refusal\u00b7both": 1069,
+   "LEANS SELL\u00b7count\u00b7": 1021,
+   "EITHER\u00b7count\u00b7": 774,
+   "LEANS BUY\u00b7count\u00b7": 746,
+   "BUY\u00b7count\u00b7": 620,
+   "LEANS BUY\u00b7refusal\u00b7tie": 472,
+   "BUY\u00b7refusal\u00b7": 251,
+   "LEANS SELL\u00b7refusal\u00b7tie": 7,
+   "SELL\u00b7refusal\u00b7": 4,
+   "LEANS SELL\u00b7refusal\u00b7": 4
+  }
+ },
+ "3m": {
+  "reads": 2250,
+  "trans": 2232,
+  "changes": 1010,
+  "runs": 1028,
+  "median_run_min": 3.0,
+  "runs_of_one": 562,
+  "strong_flips": 11,
+  "side_flips": 185,
+  "words": {
+   "BUY": 293,
+   "EITHER": 275,
+   "LEANS BUY": 516,
+   "LEANS SELL": 325,
+   "SELL": 255,
+   "STAND ASIDE": 586
+  },
+  "tab": {
+   "STAND ASIDE\u00b7refusal\u00b7led": 226,
+   "LEANS BUY\u00b7refusal\u00b7": 101,
+   "SELL\u00b7count\u00b7": 253,
+   "STAND ASIDE\u00b7refusal\u00b7both": 360,
+   "LEANS SELL\u00b7count\u00b7": 323,
+   "LEANS BUY\u00b7count\u00b7": 246,
+   "BUY\u00b7count\u00b7": 209,
+   "BUY\u00b7refusal\u00b7": 84,
+   "LEANS BUY\u00b7refusal\u00b7tie": 169,
+   "EITHER\u00b7count\u00b7": 275,
+   "SELL\u00b7refusal\u00b7": 2,
+   "LEANS SELL\u00b7refusal\u00b7": 1,
+   "LEANS SELL\u00b7refusal\u00b7tie": 1
+  }
+ }
+}
+refusals {'R3': 98, 'R4cnc': 138, 'R5': 372, 'R1': 355, 'R2': 311, 'R6': 440, 'R4': 24} {'STAND ASIDE·refusal·led': {'n': 226, 'with_R6': 112, 'only_R6': 96}, 'LEANS BUY·refusal·': {'n': 101, 'with_R6': 51, 'only_R6': 35}, 'STAND ASIDE·refusal·both': {'n': 360, 'with_R6': 96, 'only_R6': 5}, 'BUY·refusal·': {'n': 84, 'with_R6': 60, 'only_R6': 39}, 'LEANS BUY·refusal·tie': {'n': 169, 'with_R6': 121, 'only_R6': 105}, 'SELL·refusal·': {'n': 2, 'with_R6': 0, 'only_R6': 0}, 'LEANS SELL·refusal·': {'n': 1, 'with_R6': 0, 'only_R6': 0}, 'LEANS SELL·refusal·tie': {'n': 1, 'with_R6': 0, 'only_R6': 0}}
+moved from rev c 0 {}
+entries 29
+{'trade': '09-24 09:42 SENSEX 74200PE', 'k': 74200, 'CE0': 174.7, 'rev5': ('10:43', 4, 138.2), 'CE_1459': 22.15, 'CE_1529': 0.15}
+{'trade': '09-24 10:19 SENSEX 74200PE', 'k': 74200, 'CE0': 138.6, 'rev5': ('10:43', 4, 138.2), 'CE_1459': 22.15, 'CE_1529': 0.15}
+{'trade': '09-24 12:32 SENSEX 74100PE', 'k': 74100, 'CE0': 138.0, 'rev5': ('14:38', 3, 47.55), 'CE_1459': 33.55, 'CE_1529': 0.15}
+{'trade': '09-24 12:35 SENSEX 74000PE', 'k': 74000, 'CE0': 171.7, 'rev5': ('14:38', 3, 67.75), 'CE_1459': 50.2, 'CE_1529': 0.2}
+{'trade': '09-24 12:44 SENSEX 74000PE', 'k': 74000, 'CE0': 178.1, 'rev5': ('14:38', 3, 67.75), 'CE_1459': 50.2, 'CE_1529': 0.2}
+{'trade': '09-24 13:26 SENSEX 74000PE', 'k': 74000, 'CE0': 157.05, 'rev5': ('14:38', 3, 67.75), 'CE_1459': 50.2, 'CE_1529': 0.2}
+{'trade': '09-24 13:41 SENSEX 73900PE', 'k': 73900, 'CE0': 157.65, 'rev5': ('14:38', 3, 95.9), 'CE_1459': 76.1, 'CE_1529': 0.1}
+{'trade': '09-24 13:43 SENSEX 73900PE', 'k': 73900, 'CE0': 154.25, 'rev5': ('14:38', 3, 95.9), 'CE_1459': 76.1, 'CE_1529': 0.1}
+{'trade': '09-24 13:44 SENSEX 73900PE', 'k': 73900, 'CE0': 140.4, 'rev5': ('14:38', 3, 95.9), 'CE_1459': 76.1, 'CE_1529': 0.1}
+{'trade': '09-24 13:45 SENSEX 73800PE', 'k': 73800, 'CE0': 176.0, 'rev5': ('14:38', 3, 133.1), 'CE_1459': 111.2, 'CE_1529': 0.1}
+{'trade': '09-24 13:54 SENSEX 73800PE', 'k': 73800, 'CE0': 145.05, 'rev5': ('14:38', 3, 133.1), 'CE_1459': 111.2, 'CE_1529': 0.1}
+{'trade': '09-24 13:57 SENSEX 73800PE', 'k': 73800, 'CE0': 127.65, 'rev5': ('14:38', 3, 133.1), 'CE_1459': 111.2, 'CE_1529': 0.1}
+{'trade': '09-24 14:23 SENSEX 73800PE', 'k': 73800, 'CE0': 107.45, 'rev5': ('14:38', 3, 133.1), 'CE_1459': 111.2, 'CE_1529': 0.1}
+grid {
+ "units": 216,
+ "words": {
+  "LEANS SELL PE": 18,
+  "SELL PE": 7,
+  "STAND ASIDE \u00b7 both refused": 35,
+  "LEANS BUY CE \u00b7 selling refused": 12,
+  "STAND ASIDE \u00b7 led": 14,
+  "LEANS SELL CE": 23,
+  "SELL CE": 7,
+  "EITHER": 35,
+  "LEANS BUY PE": 13,
+  "LEANS BUY PE \u00b7 selling refused": 15,
+  "LEANS BUY CE": 11,
+  "BUY CE": 9,
+  "BUY PE": 8,
+  "BUY PE \u00b7 selling refused": 5,
+  "BUY CE \u00b7 selling refused": 4
+ },
+ "tab": {
+  "LEANS SELL\u00b7count\u00b7": 41,
+  "SELL\u00b7count\u00b7": 14,
+  "STAND ASIDE\u00b7refusal\u00b7both": 35,
+  "LEANS BUY\u00b7refusal\u00b7tie": 14,
+  "LEANS BUY\u00b7refusal\u00b7": 13,
+  "STAND ASIDE\u00b7refusal\u00b7led": 14,
+  "EITHER\u00b7count\u00b7": 35,
+  "LEANS BUY\u00b7count\u00b7": 24,
+  "BUY\u00b7count\u00b7": 17,
+  "BUY\u00b7refusal\u00b7": 9
+ },
+ "scored_G": 204,
+ "notscored": {
+  "no premium": 6,
+  "no greeks": 6
+ },
+ "tab_scored": {
+  "LEANS SELL\u00b7count\u00b7": 39,
+  "SELL\u00b7count\u00b7": 14,
+  "STAND ASIDE\u00b7refusal\u00b7both": 34,
+  "LEANS BUY\u00b7refusal\u00b7tie": 13,
+  "LEANS BUY\u00b7refusal\u00b7": 11,
+  "STAND ASIDE\u00b7refusal\u00b7led": 12,
+  "EITHER\u00b7count\u00b7": 33,
+  "LEANS BUY\u00b7count\u00b7": 23,
+  "BUY\u00b7count\u00b7": 17,
+  "BUY\u00b7refusal\u00b7": 8
+ },
+ "writer": {
+  "n": 216,
+  "words": {
+   "GO": 72,
+   "NO": 35,
+   "WAIT": 109
+  },
+  "words_no_cnc_clause": {
+   "GO": 72,
+   "NO": 35,
+   "WAIT": 109
+  },
+  "cnc_moved": 0,
+  "stratum": {
+   "GO": 72,
+   "NO": 21,
+   "WAIT": 77
+  },
+  "stratum_beyond": {
+   "GO": 71,
+   "NO": 19,
+   "WAIT": 74
+  },
+  "beyond": 196,
+  "resolved30": 78,
+  "resolved1529": 127,
+  "notscored": 38,
+  "resolved30_stratum": 78
+ },
+ "legs": {
+  "n": 216,
+  "first_fold": {
+   "3": 108,
+   "4": 35,
+   "6": 54,
+   "none": 19
+  },
+  "exp_today": 48,
+  "after_1500_start": 18
+ }
+}
+done 124 s

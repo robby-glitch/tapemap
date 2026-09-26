@@ -49,6 +49,7 @@ import hold                      # the hold / fold window, as registered (PREREG
 import hold_log                  # ...and its forward logs, write-once
 import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
 import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
+import expression                # ...and THE EXPRESSION, buy or sell, and the writer's word (EXPRESSION-PREREG.md rev e)
 import daylog                    # week-old daily records kept as .jsonl.gz
 import tape_log
 import book_log
@@ -2376,8 +2377,17 @@ def _hold_check(poller, q, payloads=None):
     out["setup"] = su = _hold_setup(payloads, idx, F["day"], asof, d)          # VALIDATE rev 2 §1.1
     out["room"] = g = _hold_geom(F, idx, asof, d)                               # §1.3
     out["validate"] = v = validate.word(out)
+    try:                                     # EXPRESSION-PREREG §A.2 / §F.1; its failing never costs the buyer's word
+        out["expr"] = ex = _expr_press(F, idx, asof, d, tr, out, res)
+    except Exception as e:
+        log.exception("expression read failed %s %s", idx, asof)
+        why = board.CC + f"the expression could not be read: {type(e).__name__}: {e}"
+        out["expr"] = ex = {"ok": False, "why": why, "d": d, "dir": "UP" if d > 0 else "DOWN", "draft": expression.DRAFT,
+                            "not_shown": expression.NOT_SHOWN_LINES, "mine": None, "log": {"word": None, "why": why}}
+    if tr["role"] == "short" and ex.get("mine"):     # §B: a writer's GO / WAIT / NO (amends VALIDATE rev 2 §1.6, writers only)
+        out["validate"] = v = ex["mine"]
     if one("log") == "1":                    # VALIDATE-PREREG rev 2 §3: every press, write-once per minute and contract
-        tg, paid = g["target"], v["facts"][3]
+        tg, paid = g["target"], v["facts"][3] if tr["role"] == "long" else {}
         hold_log.append("check", F["day"], [{
             "day": F["day"], "at": round(time.time(), 1), "t": asof, "idx": idx, "k": k, "side": side,
             "role": tr["role"], "p0": tr["p0"], "word": v["word"], "n_for": v["n_for"], "n_against": v["n_against"],
@@ -2385,11 +2395,14 @@ def _hold_check(poller, q, payloads=None):
             "zone_t": (out["zone"].get("trigger") or {}).get("t"),
             "stop": {k2: out["plan"]["stop"].get(k2) for k2 in ("L", "room")},
             "rung": out["plan"]["rung"] and {k2: out["plan"]["rung"].get(k2) for k2 in ("src", "side", "k", "room", "word")},
-            "tag": "I", "rev": validate.REV, "d": d,
+            "tag": "I", "rev": v["rev"], "d": d,
             "setup": {k2: su.get(k2) for k2 in ("machine", "state", "band", "ref_t", "candles_left", "legal", "why")},
             "room": {"line": g["line"], "noise": g["noise"], "n": g["n"],
                      "target": {k2: tg.get(k2) for k2 in ("src", "side", "k", "pts", "word")}},
-            "paid": True if paid["state"] == "for" else False if paid["absence"] == "none" else None}])
+            "paid": True if paid.get("state") == "for" else False if paid.get("absence") == "none" else None,
+            **({"writer": {k2: v.get(k2) for k2 in ("X", "P", "L", "line", "noise", "beyond_strike", "stratum")}}
+               if tr["role"] == "short" else {}),
+            "expr": ex["log"], "after_1500": expression.after_1500(asof)}])      # EXPRESSION-PREREG §E.3, additive
     return out
 
 
@@ -2427,11 +2440,13 @@ def _hold_row(F, tr, x, ent, sd, pr, fold=None):
             "tag": "I", "src_data": F["src"], "at": round(time.time(), 1)}
 
 
-def _hold_tick(poller, idx, extra=()):
+def _hold_tick(poller, idx, extra=(), expr=True):
     """The forward logs for one index up to its latest finished minute (§8): every
     minute's side row not yet written, each side stamp's strike track once its 30
     finished minutes are in (to 15:29 and flagged short after 14:59), and the rows of
-    every marked trade (+ `extra`, the import's). Exact after a restart. -> rows written."""
+    every marked trade (+ `extra`, the import's). Exact after a restart. -> rows written.
+    `expr`: THE EXPRESSION's log too (EXPRESSION-PREREG §E.3; its rows are not in the count) --
+    False from the import's request, which leaves it to the hold loop's thread."""
     F = _hold_facts(poller, idx)
     if F is None:
         return 0
@@ -2500,6 +2515,11 @@ def _hold_tick(poller, idx, extra=()):
                                "close_at_touch": tc["close"], "next15": nx, "tag": "M", "at": round(time.time(), 1)})
         n += hold_log.append("hold", day, touch_rows)
     n += _hold_outcomes(F, idx)
+    if expr:
+        try:
+            _expr_tick(F, idx)
+        except Exception:                    # the expression's log failing costs its rows, never the window's
+            log.exception("expression log failed %s", idx)
     if _HOLD.pop("land_new", False):         # a late read or a B read: on disk before the next restart can need it
         _save_day_state()
     return n
@@ -2509,15 +2529,17 @@ def _hold_outcomes(F, idx):
     """VALIDATE rev 2 §3, the stamp_track discipline: for every (idx, read minute t, d) with a rev 2 buyer press
     and no outcome row yet, once its window has finished (asof >= min(t + 30, 15:29)), ONE outcome row -- the
     trade re-created from the press row as the check made it, L and the target read by the check's own
-    function. Keyed (idx, t, d, "outcome") so a long CE and a long PE at one minute are two rows."""
+    function. Keyed (idx, t, d, role, "outcome") so a long CE and a long PE at one minute are two rows, and a
+    long CE and a short PE (EXPRESSION-PREREG §B.3) are two rows. A rev "2W" writer press gets its own row,
+    role "short": P − X before the static L, 30 minutes judged and to 15:29 shown, written once both are known."""
     day, asof = F["day"], F["asof"]
-    press = [r for r in hold_log.read("check", day) if r.get("rev") == validate.REV
-             and r.get("kind") != "check_outcome" and r.get("role") == "long" and r.get("t") in hold.SESSION]
+    allp = [r for r in hold_log.read("check", day) if r.get("kind") != "check_outcome" and r.get("t") in hold.SESSION]
+    press = [r for r in allp if r.get("rev") == validate.REV and r.get("role") == "long"]
     rows, mins = [], None
     for key in sorted({(r["t"], r["d"]) for r in press if r.get("idx") == idx}):
         t, d = key
         if hold.mm(asof) < min(hold.mm(t) + validate.HORIZON, hold.mm(hold.SESSION[-1])) \
-                or hold_log.has("check", day, (idx, t, d, "outcome")):
+                or hold_log.has("check", day, (idx, t, d, "long", "outcome")):
             continue
         mins = mins or _hold_minutes(F)
         o = validate.outcome(mins, hold.SESSION.index(t), d, _hold_geom(F, idx, t, d))
@@ -2527,8 +2549,270 @@ def _hold_outcomes(F, idx):
                      "word": next(r["word"] for r in press if (r["idx"], r["t"], r["d"]) == (idx, t, d)),
                      "co_timed": sorted({r["idx"] for r in press if r["idx"] != idx and (r["t"], r["d"]) == key}),
                      "opposite_same_minute": any((r["idx"], r["t"], r["d"]) == (idx, t, -d) for r in press),
-                     **o, "tag": "M"})
+                     **o, "after_1500": expression.after_1500(t), "tag": "M"})
+    wpress = [r for r in allp if r.get("rev") == expression.REV_W and r.get("role") == "short"]
+    D = None
+    for key in sorted({(r["t"], r["d"]) for r in wpress if r.get("idx") == idx}):
+        t, d = key
+        end = hold.hm(min(hold.mm(t) + validate.HORIZON, hold.mm(hold.SESSION[-1])))
+        if hold.mm(asof) < hold.mm(end) or hold_log.has("check", day, (idx, t, d, "short", "outcome")):
+            continue
+        p = next(r for r in wpress if (r["idx"], r["t"], r["d"]) == (idx, t, d))
+        w, D = p.get("writer") or {}, D or _expr_day(F, idx)
+        i = hold.SESSION.index(t)
+        f30 = expression.writer_outcome(D, i, d, p["k"], p["side"], w, end)
+        f1529 = expression.writer_outcome(D, i, d, p["k"], p["side"], w, hold.SESSION[-1])
+        if f30 is None or f1529 is None:             # to 15:29 not known yet: the row waits, whole (write-once)
+            continue
+        rows.append({"kind": "check_outcome", "day": day, "t": t, "idx": idx, "d": d, "role": "short", "word": p["word"],
+                     "k": p["k"], "side": p["side"],
+                     "target": {"P": w.get("P"), "X": w.get("X"),
+                                "level": None if None in (w.get("P"), w.get("X")) else round(w["P"] - w["X"], 2)},
+                     "stop": {"L": w.get("L"), "pts": w.get("line")}, "first_30": f30, "first_1529": f1529, "to": end,
+                     "beyond_strike": w.get("beyond_strike"), "stratum": w.get("stratum"),
+                     "co_timed": sorted({r["idx"] for r in wpress if r["idx"] != idx and (r["t"], r["d"]) == key}),
+                     "short": hold.mm(t) + validate.HORIZON > hold.mm(hold.SESSION[-1]),
+                     "after_1500": expression.after_1500(t), "tag": "M"})
     return hold_log.append("check", day, rows)
+
+
+# ---- THE EXPRESSION (docs/hold/EXPRESSION-PREREG.md rev e, signed 2026-09-26 20:48; expression.py) ----
+#
+# §A's read at each 3-minute close, per index and direction, off the same per-minute facts the window reads;
+# §B's writer word on a SELL press. Its forward log (§E.3) is written by the hold loop's thread and completed at
+# the close by the same thread when the import asks: a day's backfill is ~750 reads, and a server once wedged on
+# heavy work inside a request (2026-09-18). A request reads at most ONE close. It gates nothing; no order path.
+def _expr_day(F, idx, late=None):
+    """expression.py's input off the hold facts: the minutes, pivots, each strike's minute close off the chain
+    grid [I] (as _hold_prem) and the broker's greeks [M] (as _hold_greeks). `late` (rev 5 §A.0.4) for a press, as
+    VALIDATE reads it; None for the closes, each read at its own bar as the close-time import reads them."""
+    mins, grid = _hold_minutes(F), F["core"]["minutes"]
+    ks = F["core"]["g"][2]
+    step = min((b - a for a, b in zip(ks, ks[1:]) if b > a), default=None) or 1.0
+    gks = {}
+
+    def px(k, side, i):
+        if k is None or i >= len(mins):
+            return None
+        cell = fronts._at((grid.get(hold.SESSION[i]) or {}).get("px"), k)
+        v = cell[0 if side == "CE" else 1] if isinstance(cell, (list, tuple)) and len(cell) == 2 else None
+        return float(v) if isinstance(v, (int, float)) and v > 0 else None
+
+    def gk(k, side, i):
+        if k is None:
+            return None
+        if (k, side) not in gks:
+            gks[(k, side)] = _hold_greeks(idx, F["day"], k, side, len(mins))
+        g = gks[(k, side)]
+        return g[i] if i < len(g) else None
+    return {"idx": idx, "step": step, "minutes": mins, "pivots": F["pivots"], "px": px, "gk": gk, "late": late}
+
+
+def _expr_cache(idx, day):
+    c = _HOLD.setdefault("expr", {}).get(idx)
+    if c is None or c["day"] != day:
+        c = _HOLD["expr"][idx] = {"day": day, "reads": {}, "writers": {}}
+    return c
+
+
+def _expr_get(D, C, i, d):
+    """The read at close i for direction d, kept for the day; a close read before its candle landed is read
+    again once it has (§A.2: a late close is read when its candle lands)."""
+    t = hold.SESSION[i]
+    e = C["reads"].get((t, d))
+    if e is None or (e["word"] is None and D["minutes"][i].get("ix")):
+        e = C["reads"][(t, d)] = expression.read(D, i, d)
+        C["writers"].pop((t, d), None)
+    return e
+
+
+def _expr_drag(idx):
+    """§A.7: the drag number, printed, never counted -- read live; drag.py keeps no per-minute past."""
+    with _SENSES_LOCK:
+        b = (_SENSES.get("drag") or {}).get(idx)
+    r = b.read() if b is not None else None
+    if not r or r.get("paid") is None or r.get("owed") is None:
+        return {"why": board.CC + ((r or {}).get("anchor_why") or "no drag number yet today"), "tag": "M"}
+    return {"text": f"today a correct buyer was paid {r['paid']:.1f} of {r['owed']:.1f} owed since "
+                    f"{r.get('anchored_at')} [M]", "paid": r["paid"], "owed": r["owed"], "tag": "M"}
+
+
+def _expr_tick(F, idx):
+    """§E.3's log for one index to its latest finished minute: one row per 3-min close per direction not yet
+    written, in order (a due close whose candle has not landed holds the rest until it lands, or the day is
+    complete), and one `expr_outcome` row per unit once complete. Exact after a restart. -> rows written."""
+    day, asof = F["day"], F["asof"]
+    with _HOLD.setdefault("expr_locks", {}).setdefault(idx, threading.Lock()):
+        D, C = _expr_day(F, idx), _expr_cache(idx, day)
+        closes = [i for i, t in enumerate(hold.SESSION) if hold.is_close(t) and t <= asof]
+        final = asof == hold.SESSION[-1]
+        rows = []
+        for d in (1, -1):
+            ser = [_expr_get(D, C, i, d) for i in closes]
+            for j, i in enumerate(closes):
+                e = ser[j]
+                if not D["minutes"][i].get("ix") and not final:
+                    break
+                if hold_log.has("expr", day, (idx, e["t"], d, "expr")):
+                    continue
+                live = hold.mm(asof) - hold.mm(e["t"]) < hold.BAR
+                rows.append(expression.row(D, e, day, idx, (ser, j), expiry_line=F["expiry"], drag=(
+                    _expr_drag(idx) if live else
+                    {"why": board.NOT_SHOWN + f"the drag number is read live, not kept per minute (row written at {asof})",
+                     "tag": "M"})))
+        n = hold_log.append("expr", day, rows)
+        outs = []
+        for d in (1, -1):
+            for i in closes:
+                t = hold.SESSION[i]
+                if (not expression.is_unit(t) or not hold_log.has("expr", day, (idx, t, d, "expr"))
+                        or hold_log.has("expr", day, (idx, t, d, "expr_outcome"))):
+                    continue
+                e = _expr_get(D, C, i, d)
+                if e["word"] and (t, d) not in C["writers"]:
+                    C["writers"][(t, d)] = expression.writer(D, i, d, e["sell"]["side"], e["sell"]["k"], Sr=e["_short"])
+                co = [x for x in instruments.ENABLED if x != idx and hold_log.has("expr", day, (x, t, d, "expr"))]
+                o = expression.outcome_row(D, e, C["writers"].get((t, d)), day, idx, co)
+                if o is not None:
+                    outs.append(o)
+        return n + hold_log.append("expr", day, outs)
+
+
+def _expr_complete(poller):
+    """The close-time import's half of §E.3, on the hold loop's thread (never the import's request)."""
+    for idx in instruments.ENABLED:
+        try:
+            F = _hold_facts(poller, idx)
+            if F is not None:
+                _expr_tick(F, idx)
+        except Exception:
+            log.exception("expression log failed %s", idx)
+
+
+def _expr_verdict(w, su=None, expiry=None):
+    """§B's writer word in VALIDATE's reply shape, so the tab renders a writer's four facts as a buyer's."""
+    base_ = {"rev": expression.REV_W, "draft": expression.DRAFT, "tag": "I", "writer_note": None,
+             "not_shown": [validate.SIGMA, board.NOT_SHOWN + "a writer has no next wall; time is her target"]}
+    if not w.get("word"):
+        return {**base_, "word": None, "count": "", "n_for": 0, "n_against": 0, "n_neither": 0, "needs": [],
+                "sentence": w.get("why"), "facts": []}
+    printed = [x for x in (su and su.get("text") and f"Your setup — {su['text']} (printed, not counted)",
+                           expiry and expiry.get("text"),
+                           w["X"] is not None and f"X = {w['X']:,.2f} of premium at your line [I]") if x]
+    return {**base_, "word": w["word"], "count": w["count"], "n_for": w["n_for"], "n_against": w["n_against"],
+            "n_neither": w["n_neither"], "sentence": w["sentence"], "needs": w["needs"], "printed": printed,
+            "line": w["line"], "noise": w["noise"], "X": w["X"], "P": w["P"], "L": w["L"], "wall": w["wall"],
+            "beyond_strike": w["beyond_strike"], "stratum": w["stratum"], "entry": w["entry"],
+            "facts": [{"name": n, "state": s, "text": t, "absence": a} for n, s, a, t in w["facts"]]}
+
+
+def _expr_setup_line(su):
+    """§F.1: when her zone setup names a direction on its closed bar -- display only, it pre-fills nothing."""
+    if not su or su.get("side") not in ("BUY", "SELL") or not su.get("state"):
+        return None
+    return (f"setup: {su['side']} {su['band']} {validate.STATE_WORD[su['state']]}, {su['ref_t']} bar — "
+            f"the expression for {'UP' if su['side'] == 'BUY' else 'DOWN'} is ready")
+
+
+def _expr_refused(e, codes):
+    out = []
+    for c in codes:
+        why = (e.get("why_ref") or {}).get(c) or expression.R_TEXT[c]
+        out.append(f"R4 — could not check: {hold._strip(why)}" if c == "R4cnc" else f"{c} — {why}")
+    return out
+
+
+def _expr_press(F, idx, asof, d, tr, out, res):
+    """§A.2 / §A.6 / §F.1 on a VALIDATE press: the last 3-min close's word for the direction of the pressed leg,
+    its since / was, the five facts, and the two legs at that close's ATM strike -- premiums, Δ, entry checks and
+    each leg's own VALIDATE word read at the press minute -- with the prints. A SELL press also gets §B's word at
+    her own strike (`mine`). At most ONE close is read here; the day's closes are the hold loop's."""
+    day, ip, late = F["day"], hold.SESSION.index(asof), _hold_late(idx, F["day"])
+    Dl = _expr_day(F, idx, late)
+    bs, ss = ("CE", "PE") if d > 0 else ("PE", "CE")
+    mine = (_expr_verdict(expression.writer(Dl, ip, d, tr["side"], tr["k"], Sr=res), out.get("setup"), F["expiry"])
+            if tr["role"] == "short" else None)
+    closes = [i for i, t in enumerate(hold.SESSION) if hold.is_close(t) and t <= asof]
+    base_ = {"ok": False, "d": d, "dir": "UP" if d > 0 else "DOWN", "draft": expression.DRAFT, "mine": mine,
+             "prereg": expression.PREREG, "not_shown": expression.NOT_SHOWN_LINES,
+             "setup_line": _expr_setup_line(out.get("setup"))}
+    if not closes:
+        why = board.CC + "the 09:15–09:17 close has not landed"
+        return {**base_, "why": why, "log": {"word": None, "why": why}}
+    D, C = _expr_day(F, idx), _expr_cache(idx, day)
+    ic = closes[-1]
+    tc = hold.SESSION[ic]
+    e = _expr_get(D, C, ic, d)
+    if e["word"] is None:
+        why = (board.CC + f"the {hold.bar_name(tc)} close has not landed" if not D["minutes"][ic].get("ix")
+               else e.get("why") or board.CC + "the line can't be set")
+        return {**base_, "read_at": tc, "why": why, "log": {"word": None, "read_at": tc, "why": why}}
+    lab = lambda x: x["word"] or "could not check"
+    since, was, gap = tc, None, None
+    for i in reversed(closes[:-1]):
+        x = C["reads"].get((hold.SESSION[i], d))
+        if x is None:                               # the loop has not read it yet: say so, never read it here
+            gap = board.CC + f"the closes before {since} are still being read — the since-clock starts there"
+            break
+        if lab(x) == lab(e):
+            since = hold.SESSION[i]
+        else:
+            was = {"word": lab(x), "until": since}
+            break
+    k, t1 = e["buy"]["k"], hold.hm(hold.mm(asof) + 1)
+    same_l = tr["role"] == "long" and tr["side"] == bs
+    Lr = res if same_l else hold.read({"side": bs, "role": "long", "t0": t1, "k": k, "p0": None, "qty": tr["qty"]},
+                                      Dl["minutes"], F["pivots"], idx=idx, late=late)
+    vb = out["validate"] if same_l else validate.word({**out, "trade": {**tr, "side": bs, "role": "long", "k": k},
+                                                       "thesis": Lr["th"], "entry": Lr["entry"], "now": Lr["rows"][-1]}) \
+        if Lr.get("ok") else None
+    same_s = tr["role"] == "short" and tr["side"] == ss and float(tr["k"]) == float(k)
+    Sr = res if same_s else hold.read({"side": ss, "role": "short", "t0": t1, "k": k, "p0": None, "qty": tr["qty"]},
+                                      Dl["minutes"], F["pivots"], idx=idx, late=late)
+    ws = expression.writer(Dl, ip, d, ss, k, Sr=Sr)
+    vs = mine if same_s else _expr_verdict(ws, out.get("setup"), F["expiry"])
+    b = expression.base(e["word"])
+    named = "buy" if b in ("BUY", "LEANS BUY") else "sell" if b in ("SELL", "LEANS SELL") else None
+    zero = bool(F["expiry"].get("zero_dte"))
+
+    def card(lg, role, rd, v, codes):
+        g_ = Dl["gk"](k, lg, ip)
+        return {"side": lg, "role": role, "k": k, "atm": f"ATM {k:,.0f}; one strike ITM reads the same facts",
+                "expiry": F["expiry"].get("text"), "px": Dl["px"](k, lg, ip), "px_t": asof, "px_tag": "I",
+                "delta": g_[0] if g_ else None, "gamma": g_[1] if g_ else None, "greeks_tag": "M",
+                "greeks_why": None if g_ else board.CC + "no greeks for this strike in the chain record",
+                "entry": rd["entry"]["verdict"] if rd.get("ok") else None, "validate": v,
+                "named": named == ("buy" if role == "long" else "sell"),
+                "refused": _expr_refused(e, codes)}      # σ: /api/hold/sigma, after the answer (a REST fetch)
+    buy = card(bs, "long", Lr, vb, e["ref_b"])
+    sell = card(ss, "short", Sr, vs, e["ref_s"])
+    L = ws.get("L")
+    sell.update(wall=ws.get("wall"), s4=expression.S4_ROW if zero else None,
+                line_vs_strike=None if L is None else
+                f"your line {L:,.1f} sits {abs(k - L):,.1f} pts {'below' if L < k else 'above'} your strike [M]")
+    exp_txt = (F["expiry"].get("text") or "") + (" Theta is fastest and gamma largest today: the first pays a writer, "
+                                                "the second hunts her; §B's Cushion reads both." if zero else "")
+    words = {"word": e["word"], "base": b, "leg": e["word"].split(" · ")[0].split(" ")[-1] if named else None,
+             "leans": b.startswith("LEANS"), "named_by": e["named_by"], "strength": e["strength"], "lead": e["lead"],
+             "refusal": e["refusal"], "refused": _expr_refused(e, e["refusal"]), "since": since, "was": was,
+             "since_gap": gap, "read_at": tc, "nb": e["nb"], "ns": e["ns"], "nn": e["nn"], "count": e["count"]}
+    facts = [{"name": n, "state": s, "absence": a, "text": t, "tag": expression.TAG[n]} for n, s, a, t in e["facts"]]
+    return {**base_, "ok": True, **words, "facts": facts, "buy": buy, "sell": sell, "zero_dte": zero,
+            "printed": {"drag": _expr_drag(idx), "expiry": exp_txt, "regime": expression.regime_board(D["minutes"][ic])},
+            "log": {**{x: words[x] for x in ("word", "named_by", "refusal", "since", "nb", "ns", "read_at")},
+                    "facts": e["facts"],
+                    "legs": {lg: {"side": c["side"], "k": k, "px": c["px"], "delta": c["delta"], "entry": c["entry"],
+                                  "word": (c["validate"] or {}).get("word")} for lg, c in (("buy", buy), ("sell", sell))}}}
+
+
+def _expr_reply(poller, payloads, idx):
+    """GET /api/hold/expr: the slip's quiet line (§F.1) -- her zone setup's direction on its closed bar. Cheap:
+    no close is read here."""
+    F = _hold_facts(poller, idx)
+    if F is None:
+        return {"ok": False, "idx": idx, "why": board.CC + "no finished minute of today's session on the chain grid yet"}
+    su = _hold_setup(payloads, idx, F["day"], F["asof"], 1)
+    return {"ok": True, "idx": idx, "asof": F["asof"], "setup_line": _expr_setup_line(su)}
 
 
 def _hold_loop(poller):
@@ -2541,6 +2825,8 @@ def _hold_loop(poller):
     last = {}
     while True:
         time.sleep(10)
+        if _HOLD.pop("expr_complete", False):         # the close-time import's ask (EXPRESSION-PREREG §E.3)
+            _expr_complete(poller)
         now = datetime.now(IST)
         if not in_session(now - timedelta(seconds=90)):
             continue
@@ -2626,10 +2912,13 @@ def _hold_import(poller, text):
     if n_broker:
         _save_day_state()
     new = [t for t in trips if not any(same(m, t) for m in marked)]
-    written = {idx: _hold_tick(poller, idx, extra=[t for t in new if t["idx"] == idx]) for idx in instruments.ENABLED}
+    written = {idx: _hold_tick(poller, idx, extra=[t for t in new if t["idx"] == idx], expr=False)
+               for idx in instruments.ENABLED}
+    _HOLD["expr_complete"] = True            # THE EXPRESSION's log: the hold loop's thread, never this request
     return {"ok": True, "day": day, "trips": len(trips), "imported": [t["id"] for t in new],
             "matched_marked": len(trips) - len(new), "skipped": skipped, "rows_written": written,
-            "files": [hold_log.path("hold", day), hold_log.path("side", day)]}
+            "expr": "the expression log completes on the hold thread within about 10 s",
+            "files": [hold_log.path("hold", day), hold_log.path("side", day), hold_log.path("expr", day)]}
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -3798,6 +4087,12 @@ class Handler(SimpleHTTPRequestHandler):
                     out = _hold_check(self.poller, q, self.payloads)
                 elif path == "/api/hold/side":
                     out = _hold_side_reply(self.poller, self._idx(), (q.get("asof") or [None])[0])
+                elif path == "/api/hold/expr":
+                    out = _expr_reply(self.poller, self.payloads, self._idx())
+                elif path == "/api/hold/sigma":      # a leg's σ vs its VWAP (§F.1, printed): off the press's path
+                    F = _hold_facts(self.poller, self._idx())
+                    out = (_hold_sigma(self._idx(), float((q.get("k") or ["0"])[0]), (q.get("side") or ["CE"])[0].upper(),
+                                       F["asof"]) if F else {"why": board.CC + "no finished minute yet", "tag": "M"})
                 else:
                     out = _hold_reply(self.poller, q)
             except Exception as e:           # a bad read must not 500 the window

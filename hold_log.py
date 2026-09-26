@@ -5,9 +5,12 @@
   data/hold/side_<day>.jsonl  one row per finished minute per index, flat or in a
                               trade, plus one `stamp_track` row per side stamp
                               once that strike's next 30 finished minutes are in
-  data/hold/check_<day>.jsonl one row per VALIDATE press (VALIDATE-PREREG rev 2 §3),
-                              plus one `check_outcome` row per (idx, t, d) once
+  data/hold/check_<day>.jsonl one row per VALIDATE press (VALIDATE-PREREG rev 2 §3; a writer press rev "2W"),
+                              plus one `check_outcome` row per (idx, t, d, role) once
                               its 30 finished minutes are in
+  data/hold/expr_<day>.jsonl  THE EXPRESSION (EXPRESSION-PREREG §E.3): one row per 3-min
+                              close per index per direction, and one `expr_outcome` row
+                              per unit once complete
 
 §7 and §10.6 are answered from these rows and nowhere else, so a row is written
 ONCE and never rewritten -- the calls_log discipline. A restart reads what is on
@@ -33,9 +36,12 @@ def key(kind: str, r: dict):
     if kind == "hold":                       # a minute row and a rung_touch row at the same t are two rows
         return r.get("trade_id"), r.get("t"), r.get("kind") or "minute"
     if kind == "check":
-        if r.get("kind") == "check_outcome":    # VALIDATE rev 2 §3 (M1b): a long CE and a long PE at one minute, two rows
-            return r.get("idx"), r.get("t"), r.get("d"), "outcome"
+        if r.get("kind") == "check_outcome":    # VALIDATE rev 2 §3 (M1b): a long CE and a long PE at one minute, two rows;
+            # EXPRESSION-PREREG §B.3: + role, since a long CE and a short PE share d; a row without one is a buyer's
+            return r.get("idx"), r.get("t"), r.get("d"), r.get("role") or "long", "outcome"
         return r.get("idx"), r.get("t"), r.get("k"), r.get("side"), r.get("role")   # one press per minute per contract
+    if kind == "expr":                       # EXPRESSION-PREREG §E.3: one row per close, per index, per direction
+        return r.get("idx"), r.get("t"), r.get("d"), r.get("kind")
     return r.get("idx"), r.get("t"), r.get("kind") or "minute"
 
 

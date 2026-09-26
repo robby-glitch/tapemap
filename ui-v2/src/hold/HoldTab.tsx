@@ -22,10 +22,20 @@ import type { Held } from './store'
 type Absence = 'none' | 'blind' | 'hidden' | null
 type Fact = { name: string; state: 'for' | 'against' | 'neither'; text: string; absence?: Absence }
 type Verdict = { word: 'GO' | 'WAIT' | 'NO' | null; count: string; rev?: string; line?: number | null; noise?: number | null; not_shown?: string[]; n_for: number; n_against: number; n_neither: number; sentence: string
-                 needs: string[]; facts: Fact[]; draft: string; tag?: string; writer_note?: string | null }
+                 needs: string[]; facts: Fact[]; draft: string; tag?: string; writer_note?: string | null; printed?: string[] }
 type ZoneEv = { t: string; seen: string; ago: number; kind?: string; side: string; band: string; px: number | null; legal: boolean | null; why: string | null; agrees: string; tag?: string }
+// THE EXPRESSION (docs/hold/EXPRESSION-PREREG.md rev e §A, §B, §F.1): the last 3-min close's word for her direction
+type XFact = { name: string; state: 'buy' | 'sell' | 'neither'; absence: Absence; text: string; tag: string }
+type XCard = { side: 'CE' | 'PE'; role: 'long' | 'short'; k: number; atm: string; expiry?: string | null; px: number | null; px_t: string; px_tag: string
+               delta: number | null; gamma: number | null; greeks_tag: string; greeks_why: string | null; entry: string | null; validate: Verdict | null
+               named: boolean; refused: string[]; wall?: { k: number; state: string } | null; s4?: string | null; line_vs_strike?: string | null }
+type Expr = { ok: boolean; why?: string; d: number; dir: 'UP' | 'DOWN'; draft: string; not_shown: string[]; setup_line?: string | null; read_at?: string
+              word?: string; base?: string; leg?: string | null; leans?: boolean; named_by?: 'count' | 'refusal'; lead?: number | null; refused?: string[]
+              since?: string; was?: { word: string; until: string } | null; since_gap?: string | null; nb?: number; ns?: number; nn?: number; count?: string
+              facts?: XFact[]; buy?: XCard; sell?: XCard; zero_dte?: boolean
+              printed?: { drag: { text?: string; why?: string; tag: string }; expiry: string; regime: { word: string | null; price?: string[]; oi?: string[]; why?: string } } }
 type Check = Reading & {
-  idx?: string; lot?: number | null; qty_src?: string; p0_src?: string | null; validate?: Verdict; note?: string
+  idx?: string; lot?: number | null; qty_src?: string; p0_src?: string | null; validate?: Verdict; note?: string; expr?: Expr
   zone?: { trigger: ZoneEv | null; arm: ZoneEv | null; why: string | null }
   greeks?: { delta?: number; gamma?: number; why?: string; tag?: string }
 }
@@ -109,6 +119,28 @@ function Tab({ index, chain, onIndex }: { index: IndexKey; chain: Chain; onIndex
     const t = [...(r.trades || [])].reverse().find(t => t.idx === index && t.k === strike && t.side === side && t.role === role && !t.exit_t)
     if (t) { select(t.id); setMode('in') }
   }
+  // §F.1: each expression card keeps its own I'M IN -- it marks that leg (the ATM strike, now, the card's premium)
+  const imInCard = async (c: XCard) => {
+    if (!ck?.ok || stale || marking) return
+    setMarking(true)
+    const r = await tradeOp({ op: 'mark', idx: ck.trade?.idx ?? index, k: c.k, side: c.side, role: c.role, t0: nowHMS(),
+                              p0: c.px != null ? String(c.px) : '', qty: lot ? lots * lot : ck.trade?.qty })
+    setMarking(false)
+    if (!r.ok) { setMsg(r.why || 'the mark did not land'); return }
+    setMsg(null)
+    const t = [...(r.trades || [])].reverse().find(t => t.k === c.k && t.side === c.side && t.role === c.role && !t.exit_t)
+    if (t) { select(t.id); setMode('in') }
+  }
+  // §F.1: "setup: BUY d2 armed, 11:42 bar — the expression for UP is ready" -- display only, it pre-fills nothing
+  const [setupLine, setSetupLine] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    const go = () => j<{ ok: boolean; setup_line?: string | null }>(`/api/hold/expr?idx=${index}`)
+      .then(r => { if (live) setSetupLine(r.ok ? r.setup_line ?? null : null) }).catch(() => { if (live) setSetupLine(null) })
+    go()
+    const t = setInterval(go, 30000)
+    return () => { live = false; clearInterval(t) }
+  }, [index])
   const imOut = async (t: Trade) => {
     const r = await tradeOp({ op: 'exit', id: t.id, exit_t: exitT || nowHMS() })
     if (!r.ok) { setMsg(r.why || 'the exit did not land'); return }
@@ -211,6 +243,7 @@ function Tab({ index, chain, onIndex }: { index: IndexKey; chain: Chain; onIndex
             </>}
             <button type="submit" className="btn btn-validate" disabled={busy || !strike}>{busy ? 'CHECKING…' : ck?.ok && !editing ? 'VALIDATE AGAIN' : 'VALIDATE'}</button>
             <p className="fine">Each press is logged. Keys: C/P · B/S · ↑↓ strike · Enter · I = I'm in</p>
+            {setupLine && <p className="fine xp-setup">{setupLine}</p>}
             <Cutoff />
 
             <div className="took">
@@ -262,7 +295,8 @@ function Tab({ index, chain, onIndex }: { index: IndexKey; chain: Chain; onIndex
           : !ck ? <Empty />
           : !ck.ok ? <div className="empty fresh"><span className="label">No answer</span><h2>Nothing to read for that contract right now.</h2><div className="abs-list"><Abs text={ck.why} /></div></div>
           : !ck.validate ? <div className="empty fresh"><div className="abs-list"><Abs text="could not check — the server needs a restart to give the word" /></div></div>
-          : <CheckView ck={ck} v={ck.validate} at={asked?.at} stale={stale} riskScale={riskScale} onAgain={validateNow} />}
+          : <CheckView ck={ck} v={ck.validate} at={asked?.at} stale={stale} riskScale={riskScale} onAgain={validateNow}
+                       onIn={imInCard} busy={marking} />}
       </section>
     </div>
   )
@@ -317,7 +351,8 @@ function useTick(ms: number) {
   useEffect(() => { const i = setInterval(() => t(x => x + 1), ms); return () => clearInterval(i) }, [ms])
 }
 
-function CheckView({ ck, v, at, stale, riskScale, onAgain }: { ck: Check; v: Verdict; at?: string; stale: boolean; riskScale: number; onAgain: () => void }) {
+function CheckView({ ck, v, at, stale, riskScale, onAgain, onIn, busy }: { ck: Check; v: Verdict; at?: string; stale: boolean; riskScale: number; onAgain: () => void
+                                                                        onIn: (c: XCard) => void; busy: boolean }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
   useTick(5000)
   const tr = ck.trade!, n = ck.now!, g = ck.greeks
@@ -327,13 +362,15 @@ function CheckView({ ck, v, at, stale, riskScale, onAgain }: { ck: Check; v: Ver
       {stale && <div className="stale-note"><Ico n="Undo" /><span>You changed the contract. This answer is for the one you checked. Press VALIDATE again.</span></div>}
       {old && <div className="stale-note"><Ico n="Undo" /><span>This answer is {Math.floor(age / 60)} min old — the market has moved a bar.</span>
         <button type="button" className="btn btn-sm" onClick={onAgain}>VALIDATE AGAIN</button></div>}
+      {ck.expr ? <Expression x={ck.expr} idx={tr.idx} onIn={onIn} busy={busy || stale} />
+        : <div className="xp"><Abs text="not shown — the expression needs the server restarted on the new code" kind="hidden" /></div>}
       <div className="echo">
         <span className="label">Answer for</span><span className="c">{tr.idx} {tr.k} {tr.side}</span>
         <span className="dot">·</span><span>{tr.role === 'long' ? 'BUY · long' : 'SELL · short'}</span>
         <span className="dot">·</span><Age asof={ck.asof} stale={OLD_S} />{at && <span className="fine">pressed {at}</span>}
         <span className="right"><span className="fine">nothing is sent to your broker</span><span className="draft" title={v.draft}>DRAFT</span></span>
       </div>
-      <div className={`band${v.word === 'NO' ? ' red' : ''}`}>
+      <div className={`band${v.word === 'NO' ? ' red' : ''}${ck.expr?.ok ? ' mine' : ''}`}>
         <h2 className="w"><span className={`word ${vcls(v.word || 'PATA NAHI')}`}>{v.word || '—'}</span></h2>
         <div className="cnt">
           <Marks facts={v.facts} />
@@ -347,6 +384,7 @@ function CheckView({ ck, v, at, stale, riskScale, onAgain }: { ck: Check; v: Ver
               <ul>{v.needs.map(x => { const f = v.facts.find(f => f.name === x); return <li key={x}><Ico n="ArrowRight" /><span><b>{x}</b>{f && !f.absence ? ` — ${f.text}` : ''}</span></li> })}</ul></div>
           )}
           {v.writer_note && <Abs text={v.writer_note} kind="hidden" />}
+          {v.printed && v.printed.length > 0 && <p className="fine">Printed, not counted: {v.printed.join(' · ')}</p>}
         </div>
       </div>
       <div className="body">
@@ -388,6 +426,106 @@ function CheckView({ ck, v, at, stale, riskScale, onAgain }: { ck: Check; v: Ver
             <h4 className="label">Draft</h4><p className="fine">{v.draft}</p>{ck.note && <p className="fine">{ck.note}</p>}</section>
         </div>
       </details>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- THE EXPRESSION (EXPRESSION-PREREG.md rev e §F.1)
+const XCOL: [XFact['state'], string][] = [['buy', 'For buy'], ['sell', 'For sell'], ['neither', 'Neither']]
+const fmtD = (x: number) => (x < 0 ? '−' : '+') + Math.abs(x).toFixed(2)
+
+/** The word's second line, in the caution ink when a leg is refused (§F.1 item 1). */
+function wordNote(x: Expr): string | null {
+  const why = (x.refused || []).join('; '), tie = x.lead === 0 && x.named_by === 'refusal'
+  if (x.base === 'STAND ASIDE') {
+    if (x.word?.includes('both')) return `both refused: ${why}`
+    return x.refused?.some(r => r.startsWith('R5')) ? `the facts favour buying, ${x.nb} to ${x.ns}, but buying is refused: ${why}`
+      : `the facts favour selling, ${x.ns} to ${x.nb}, but selling is refused: ${why}`
+  }
+  if (x.named_by === 'refusal')
+    return `${x.word?.includes('selling') ? 'selling' : 'buying'} refused (${why})` + (tie ? ` · the facts tie ${x.nb}–${x.ns}` : '')
+  if (x.base === 'EITHER') return x.nb === 0 && x.ns === 0 ? 'nothing separates them' : `the facts split ${x.nb}–${x.ns}`
+  return null
+}
+
+function Expression({ x, idx, onIn, busy }: { x: Expr; idx: string; onIn: (c: XCard) => void; busy: boolean }) {
+  const [sig, setSig] = useState<Record<string, { z?: number | null; why?: string; tag?: string }>>({})
+  useEffect(() => {                                   // σ vs its own VWAP, printed: fetched after the answer (a REST read)
+    let live = true
+    for (const c of [x.buy, x.sell]) if (c) j<{ z?: number | null; why?: string; tag?: string }>(`/api/hold/sigma?idx=${idx}&k=${c.k}&side=${c.side}`)
+      .then(r => { if (live) setSig(s => ({ ...s, [c.side]: r })) }).catch(e => { if (live) setSig(s => ({ ...s, [c.side]: { why: `could not check — ${(e as Error).message}` } })) })
+    return () => { live = false }
+  }, [x.buy?.k, x.buy?.side, idx])
+  if (!x.ok) return (
+    <section className="xp"><div className="xp-h"><span className="label">The expression · {x.dir} · {idx}</span><span className="draft" title={x.draft}>DRAFT</span></div>
+      <div className="xp-absent"><Abs text={x.why || 'could not check — the expression'} /></div>
+      {x.setup_line && <p className="fine">{x.setup_line}</p>}</section>)
+  const note = wordNote(x), aside = x.base === 'STAND ASIDE', pr = x.printed
+  const head = x.base === 'EITHER' || aside ? x.base : `${x.base!.replace('LEANS ', '')} ${x.leg}`
+  return (
+    <section className="xp" aria-label="The expression — buy the option, or sell the other side">
+      <div className="xp-h"><span className="label">The expression · {x.dir} · {idx}</span>
+        <span className="fine">which leg expresses your direction — not a second VALIDATE</span><span className="draft" title={x.draft}>DRAFT</span></div>
+      <div className="xp-band">
+        <div className="xp-w">
+          {x.leans && <span className="word xp-leans">LEANS</span>}
+          <h2 className={`word xp-word${aside ? ' v-WAIT' : ''}`}>{head}</h2>
+          {note && <p className="xp-note">{note}</p>}
+        </div>
+        <div className="xp-meta">
+          <p>since <span className="num">{x.since}</span>{x.was && <> · was {x.was.word} until <span className="num">{x.was.until}</span></>} · read at the <span className="num">{x.read_at}</span> close</p>
+          {x.since_gap && <Abs text={x.since_gap} />}
+          <p className="xp-count"><b className="num">{x.nb}</b> for buy · <b className="num">{x.ns}</b> for sell · <b className="num">{x.nn}</b> neither — of 5, a count, not odds<T t="I" /></p>
+        </div>
+      </div>
+      <div className="xp-cards">{[x.buy!, x.sell!].map(c => <XCardView key={c.side} c={c} sig={sig[c.side]} onIn={onIn} busy={busy} />)}</div>
+      <div className="xp-facts" role="table" aria-label="The five facts">
+        <div className="xp-fr xp-fh" role="row"><span role="columnheader" className="label">Fact</span>
+          {XCOL.map(([, l]) => <span key={l} role="columnheader" className="label">{l}</span>)}</div>
+        {(x.facts || []).map(f => (
+          <div key={f.name} className="xp-fr" role="row" data-st={f.state}>
+            <span className="nm" role="cell">{f.name}</span>
+            {XCOL.map(([s]) => <span key={s} role="cell" className="xp-m">{f.state === s && <Ico n={s === 'neither' ? 'Minus' : 'Check'} c="xp-mk" />}</span>)}
+            <span className="xp-tx" role="cell">{f.absence ? <Abs text={f.text} kind={f.absence} /> : <>{f.state === 'neither' && <b className="muted">a read — </b>}{f.text}</>}<T t={f.tag} /></span>
+          </div>))}
+      </div>
+      <div className="xp-print"><span className="label">Printed, not counted</span>
+        <p>{pr?.drag.text ?? <Abs text={pr?.drag.why} />}</p>
+        <p>{pr?.expiry ? <>{pr.expiry}<T t="M" /></> : <Abs text="could not check — the expiry is not in the day's record" />}</p>
+        <p>{pr?.regime.word !== undefined && pr.regime.price ? <>the board's REGIME: <b>{pr.regime.word ?? '—'}</b> · price {pr.regime.price[0]} · OI {pr.regime.oi?.[0]}<T t="I" /></>
+          : <Abs text={pr?.regime.why || 'could not check — the board regime'} />}</p>
+        {[x.buy!, x.sell!].map(c => { const s = sig[c.side]; return <p key={c.side}>{c.side} {inr(c.k)}: {s == null ? <span className="muted">reading…</span>
+          : s.z != null ? <>premium <N t={s.tag || 'M'}>{`${s.z > 0 ? '+' : ''}${s.z}σ`}</N> vs its own VWAP</> : <Abs text={s.why} />}</p> })}
+      </div>
+      <div className="abs-list xp-not">{x.not_shown.map(t => <Abs key={t} text={t} />)}</div>
+    </section>
+  )
+}
+
+function XCardView({ c, sig, onIn, busy }: { c: XCard; sig?: { z?: number | null; why?: string; tag?: string }; onIn: (c: XCard) => void; busy: boolean }) {
+  const buy = c.role === 'long', v = c.validate
+  return (
+    <div className={`xp-card${c.named ? ' named' : ''}${c.refused.length ? ' refused' : ''}`}>
+      <div className="xp-ch"><span className="word">{buy ? 'BUY' : 'SELL'} {c.side} {inr(c.k)}</span>
+        <span className="fine">ATM · {c.expiry || 'expiry not in the day\'s record'}{!buy && c.delta != null && <> · Δ <N t={c.greeks_tag}>{fmtD(c.delta)}</N></>}</span></div>
+      {c.refused.length > 0 && <p className="xp-note">{buy ? 'buying' : 'selling'} refused: {c.refused.join('; ')}</p>}
+      <div className="xp-cb">
+        <div><span className="label">{buy ? 'VALIDATE' : 'The writer\'s VALIDATE'}</span>
+          <div className={`word xp-vw ${vcls(v?.word || 'PATA NAHI')}`}>{v?.word || '—'}</div>
+          {v?.word ? <span className="fine">{v.count}</span> : <Abs text={v?.sentence || 'could not check — this leg\'s word'} />}</div>
+        <dl className="kv">
+          <dt>Premium</dt><dd>{c.px != null ? <><N t={c.px_tag}>{rs(c.px, 2)}</N> <span className="muted">at {c.px_t}</span></> : <Abs text={`could not check — no premium for ${c.side} ${c.k} at ${c.px_t}`} />}</dd>
+          <dt>Δ</dt><dd>{c.delta != null ? <N t={c.greeks_tag}>{fmtD(c.delta)}</N> : <Abs text={c.greeks_why} />}</dd>
+          <dt>Entry check</dt><dd>{c.entry ? <b className={`word ${vcls(c.entry)}`}>{c.entry}</b> : <Abs text="could not check — the entry check" />}</dd>
+          {!buy && <><dt>Wall behind it</dt><dd>{c.wall ? <>{c.side} <N t="M">{inr(c.wall.k)}</N> · {c.wall.state.toLowerCase()}</>
+            : <Abs text="checked, none — no wall behind the sale (R6)" />}</dd>
+            {c.line_vs_strike && <><dt>Your line</dt><dd>{c.line_vs_strike}</dd></>}</>}
+          <dt>σ</dt><dd>{sig == null ? <span className="muted">reading…</span> : sig.z != null ? <N t={sig.tag || 'M'}>{`${sig.z > 0 ? '+' : ''}${sig.z}σ`}</N> : <Abs text={sig.why} />}</dd>
+        </dl>
+        {c.s4 && <p className="fine">On 0DTE: {c.s4}</p>}
+        <p className="fine">{c.atm}</p>
+      </div>
+      <button type="button" className="btn btn-in" disabled={busy} onClick={() => onIn(c)}>I'M IN — {buy ? 'BUY' : 'SELL'} {c.side} {inr(c.k)}</button>
     </div>
   )
 }

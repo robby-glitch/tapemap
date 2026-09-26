@@ -418,3 +418,48 @@
 .hv .cutoff{flex:none;font:600 var(--t12)/16px var(--f-ui);color:var(--caution);white-space:nowrap}
 .hv.float.red .fl-line .cutoff{color:var(--on-red)}
 
+
+/* ── THE EXPRESSION (docs/hold/EXPRESSION-PREREG.md rev e §F.1): buy the option, or sell the other side.
+   The leg's ink is black (her instrument, not a verdict colour); STAND ASIDE and a refusal are caution ink;
+   LEANS is part of the word, half its size, above it; a refused card is dimmed with its reason, never hidden. ── */
+.hv .xp{margin-bottom:var(--s5);display:flex;flex-direction:column;gap:var(--s3)}
+.hv .xp-h{display:flex;align-items:baseline;gap:var(--s3)}
+.hv .xp-h .draft{margin-left:auto}
+.hv .xp-band{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:var(--s5);align-items:end;padding:var(--s4) var(--s5);
+  border:1px solid var(--border);border-radius:var(--r2);background:var(--surface-raised)}
+.hv .xp-w{display:flex;flex-direction:column}
+.hv .xp-leans{font-size:44px;line-height:40px;color:var(--text-primary)}
+.hv .xp-word{font-size:var(--t88);line-height:80px;margin:0;color:var(--text-primary)}
+.hv .xp-word.v-WAIT{color:var(--caution)}
+.hv .xp-note{margin-top:var(--s1);color:var(--caution);font-weight:600;font-size:var(--t14);line-height:20px;max-width:72ch}
+.hv .xp-meta{display:flex;flex-direction:column;gap:var(--s2);color:var(--text-secondary)}
+.hv .xp-count b{font-size:var(--t20)}
+.hv .xp-absent{padding:var(--s5);border:1px solid var(--border);border-radius:var(--r2);
+  background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(23,22,15,.06) 6px 7px)}
+.hv .xp-cards{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s4)}
+.hv .xp-card{display:flex;flex-direction:column;gap:var(--s2);padding:var(--s3) var(--s4);border:1px solid var(--border);border-radius:var(--r2);background:var(--surface-raised)}
+.hv .xp-card.named{border:2px solid var(--text-primary)}
+.hv .xp-card.refused{background:var(--surface-sunk)}
+.hv .xp-card.refused .xp-cb,.hv .xp-card.refused .xp-ch{opacity:.55}
+.hv .xp-ch{display:flex;flex-direction:column;gap:2px}
+.hv .xp-ch .word{font-size:var(--t28);line-height:32px}
+.hv .xp-cb{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--s2) var(--s4);align-items:start}
+.hv .xp-cb > .fine{grid-column:1 / -1}
+.hv .xp-vw{font-size:var(--t40);line-height:40px}
+.hv .xp-facts{border-top:2px solid var(--text-primary)}
+.hv .xp-fr{display:grid;grid-template-columns:120px repeat(3,88px);gap:var(--s1) var(--s2);align-items:center;padding:var(--s2);border-bottom:1px solid var(--border)}
+.hv .xp-fr .nm{font-weight:600}
+.hv .xp-m{display:flex;justify-content:center}
+.hv .xp-mk{color:var(--text-primary);width:20px;height:20px;stroke-width:3}
+.hv .xp-tx{grid-column:1 / -1;color:var(--text-secondary)}
+.hv .xp-fh .label{text-align:center}
+.hv .xp-fh .label:first-child{text-align:left}
+.hv .xp-print{display:flex;flex-direction:column;gap:2px;font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
+.hv .xp-setup{color:var(--text-secondary)}
+.hv .band.mine .w .word{font-size:var(--t40);line-height:40px}
+@media (max-width:860px){
+  .hv .xp-band,.hv .xp-cards{grid-template-columns:minmax(0,1fr)}
+  .hv .xp-word{font-size:var(--t56);line-height:52px}
+  .hv .xp-leans{font-size:28px;line-height:28px}
+  .hv .xp-fr{grid-template-columns:88px repeat(3,56px)}
+}

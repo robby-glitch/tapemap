@@ -668,6 +668,44 @@ kept word for word in `docs/hold/VALIDATE-PREREG-rev1.md` (hash above).
 - **Review:** three adversarial passes; SIGNABLE. Rev 1's press rows are never
   pooled with rev 2's.
 
+## 1h. PRE-REGISTERED — THE EXPRESSION: BUY THE OPTION, OR SELL THE OTHER SIDE (signed 2026-09-26 20:48, before any code, UNTESTED)
+
+**The full text is `docs/hold/EXPRESSION-PREREG.md` rev e.** This section is
+its anchor. **sha256 at signing:
+`45d8d369957d50303ccda89cf4588a1cc1102ff3e3b9d33b29cfedf2de45fc1e`.**
+- Any later edit to that file is a new revision with its own change-log
+  entry and a new hash here, never a silent change.
+- **Nothing in it is a result.**
+
+**Signed by the operator,** her word: *"sign"*.
+
+**Her request (2026-09-25):** *"if any trade pops up engine should be able to
+tell me weather to buy any option make sense or selling the otherside"*.
+
+**What it registers, in brief:**
+- **the expression (§A):** given her direction, at each 3-minute close, BUY /
+  LEANS BUY / EITHER / LEANS SELL / SELL / STAND ASIDE, from five counted facts
+  (SPEED, ROOM, WALL, REGIME, PREMIUM) and each leg's own refusals. The sale is
+  at the buy's ATM strike. LEANS is a one-fact lead, or a refused tie; words
+  named by refusal are never pooled with words on the count.
+- **the writer in VALIDATE (§B):** GO / WAIT / NO from four writer facts. GO
+  never stands on a could-not-check risk fact, or with no wall behind the sale.
+  It amends VALIDATE rev 2 §1.6, §2, §3 and §4, for writers only.
+- **the writer in the window (§C): no change.** Her answers: fold as today on
+  every day, and no strike stop.
+- **Falsifiers (§E.2):** R-multiples on the shared line; each word against the
+  count units that do not point its way, per direction, pooled and in *with*;
+  at 15 or more units and 10 or more sessions, by 30 at the latest; it must
+  survive removing the best day. A failed word is withdrawn.
+
+**Disclosed before signing** (§D): four frozen days, in-sample hindsight,
+never a rate. The word changes often, and 841 of its 1,389 directional words
+are LEANS. The 09-24 sold calls still fold at 14:38, by her answer.
+
+**It gates nothing.** There is no order path, and it shows DRAFT until each
+word is judged. Four adversarial reviews; the last found all three parts
+signable.
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

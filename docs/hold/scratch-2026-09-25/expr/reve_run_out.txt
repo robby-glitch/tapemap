@@ -1,0 +1,67 @@
+('NIFTY', '2026-09-22') 11 s
+('SENSEX', '2026-09-22') 16 s
+('BANKNIFTY', '2026-09-22') 22 s
+('NIFTY', '2026-09-23') 27 s
+('SENSEX', '2026-09-23') 33 s
+('BANKNIFTY', '2026-09-23') 38 s
+('NIFTY', '2026-09-24') 43 s
+('SENSEX', '2026-09-24') 47 s
+('BANKNIFTY', '2026-09-24') 51 s
+{
+ "closes": {
+  "n": 2250,
+  "words": {
+   "WAIT": 1262,
+   "GO": 633,
+   "NO": 355
+  },
+  "words_d": {
+   "WAIT": 1131,
+   "GO": 764,
+   "NO": 355
+  },
+  "moved": {
+   "GO -> WAIT": 131
+  },
+  "go_beside_sell_refusal": 0,
+  "go_beside_sell_refusal_d": 131
+ },
+ "grid": {
+  "n": 216,
+  "words": {
+   "GO": 60,
+   "NO": 35,
+   "WAIT": 121
+  },
+  "words_d": {
+   "GO": 72,
+   "NO": 35,
+   "WAIT": 109
+  },
+  "moved": {
+   "GO -> WAIT (SENSEX 09-22)": 1,
+   "GO -> WAIT (BANKNIFTY 09-22)": 2,
+   "GO -> WAIT (NIFTY 09-23)": 2,
+   "GO -> WAIT (SENSEX 09-23)": 3,
+   "GO -> WAIT (BANKNIFTY 09-23)": 4
+  },
+  "stratum": {
+   "GO": 60,
+   "NO": 21,
+   "WAIT": 89
+  },
+  "stratum_beyond": {
+   "GO": 59,
+   "NO": 19,
+   "WAIT": 86
+  },
+  "beyond": 196,
+  "resolved30": 78,
+  "resolved1529": 127,
+  "notscored": 38,
+  "resolved30_stratum": 78
+ }
+}
+entries moved []
+entries d reproduces file True
+done 51 s

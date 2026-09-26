@@ -1,4 +1,4 @@
-# PRE-REGISTRATION DRAFT — THE EXPRESSION: BUY THE OPTION, OR SELL THE OTHER SIDE; THE SELLER IN VALIDATE; THE SELLER IN THE WINDOW — REVISION c (rev 0 written 2026-09-26 00:16 IST; rev a 01:25; rev b 01:47; rev c written 14:37 IST by the clock, before its run; NOT SIGNED, UNTESTED)
+# PRE-REGISTRATION DRAFT — THE EXPRESSION: BUY THE OPTION, OR SELL THE OTHER SIDE; THE SELLER IN VALIDATE; THE SELLER IN THE WINDOW — REVISION e (rev 0 written 2026-09-26 00:16 IST; rev a 01:25; rev b 01:47; rev c 14:37; rev d 19:17; rev e written 19:51 IST by the clock, before its run; NOT SIGNED, UNTESTED)
 
 **Status.** This is a DRAFT. Nothing below is a result. Nothing here is in force until Mary signs it.
 
@@ -7,36 +7,55 @@
   history is in §G.
 - **Rev a (01:25)** answers the adversarial review `docs/hold/EXPRESSION-REVIEW.md` (01:11), whose verdict was **NOT YET on
   A, B and C**.
-- **Rev a's text of §A–§C, §E and §F was fingerprinted before its disclosure run** (§D.0), and so were rev b's and
-  rev c's. §D is rev c's disclosure, written after rev c's run.
+- **Rev a's text of §A–§C, §E and §F was fingerprinted before its disclosure run** (§D.0), and so were rev b's,
+  rev c's, rev d's and rev e's. §D is rev e's disclosure, written after rev e's run.
 - §G lists every edit to the rules made after a fingerprint, including the three that rev 0a left out (review M5).
 - **Rev b (01:47)** takes two trader decisions made **after rev a's rows were seen**, on principle, and is fingerprinted
   before its run (§D.0):
-  - the strike rule inherits rev 5 option B's one-candle buffer (§C.2);
+  - the strike rule inherits rev 5 option B's one-candle buffer (rev b's §C.2; withdrawn in rev d);
   - the word shows its margin: BUY / SELL, LEANS BUY / LEANS SELL, EITHER, STAND ASIDE (§A.4).
 - **Rev c (14:37)** registers two things, and is fingerprinted before its run (§D.0):
-  - **Mary's answer to §C.7, NO:** on the sold option's expiry day a line break folds her as today, and the reach is not
-    read (§C.7);
+  - **Mary's answer to rev c's §C.7, NO:** on the sold option's expiry day a line break folds her as today, and the reach
+    is not read (now §C.1);
   - **one trader decision on the word:** a tie with one leg refused names the open leg as LEANS, by refusal (§A.4).
   - It also adds one descriptive log flag, `after_1500`, that gates nothing (§E.3), and discloses her current practice of
     trading nothing after 15:00, which is not a rule (§D).
+- **Rev d (19:17)** answers the second review `docs/hold/EXPRESSION-REVIEW-2.md` (19:05: **A signable with text edits; B
+  and C NOT YET**), and registers her two answers of 26 Sep. It is fingerprinted before its run (§D.0):
+  - **the window does not change for writers** (§C): "fold as today" on every day (her choice), and no strike stop (the
+    coordinator's reading of her words, §C.2);
+  - **the sale is named at the money, the same strike as the buy** (§A.5): "atm" is the first strike she names, and "the
+    same strike" is the draft's choice, by parity;
+  - **§B's three blockers:** the writer's wall is §A's wall behind the sale; a could-not-check risk fact reads WAIT, never
+    GO; the stratum is Cushion's WITH as §B.1 defines it.
+- **Rev e (19:51)** answers the third review `docs/hold/EXPRESSION-REVIEW-3.md` (A and C signable with text edits; B NOT YET
+  on B-N1). It is fingerprinted before its run (§D.0):
+  - **one rule:** a writer's GO also needs the wall behind the sale. With none (§A's R6), the word is WAIT (§B.2);
+  - the review's text edits, which change no rule, number or population (§G).
 
 **Decisions taken as the trader.** Where the review left a choice, these were decided on her standing delegation and
 conveyed by the coordinator on 2026-09-26. Her words: *"Think yourself as the trader and you are building the for youself"*.
 - the word is read on the 3-minute close (M3);
 - the outcome is in R-multiples (M1);
 - an unreadable straddle refuses SELL (M4);
-- the signed reach, and a close through the strike always folds (M7); rev b adds rev 5 B's one-candle buffer to it;
-- her option's own expiry, else FOLD (M8);
-- the kill clause judges total and majority (M9);
 - the grid writer population and its horizon (M6);
-- the refusal split (M2);
-- the far-strike rule (Q3).
-- **rev b, after rev a's rows were seen:** the strike rule with rev 5 B's buffer; the word's strength shown as LEANS.
+- the refusal split (M2).
+- **rev b, after rev a's rows were seen:** the word's strength shown as LEANS.
 - **rev c, after rev b's rows were seen:** a tie with one leg refused names the open leg as LEANS, by refusal.
+- **rev d, after rev c's rows and the second review:** the writer's wall is §A's wall behind the sale (she sells at or in
+  the money, so the strike is not where her wall stands); a writer's GO never stands on a could-not-check risk fact (B-M2); the stratum (B-M1); fact 5 reads the ATM
+  straddle on expiry day too (A-T2).
+- **rev e, after rev d's rows and the third review:** a writer's GO also needs the wall behind the sale (B-N1).
+- **Withdrawn in rev d by her answers:** the reach and its signed R (M7), S of her option's own expiry (M8), the kill clause
+  W-R (M9), rule 3s and its buffer (rev b), and the far-strike placement (Q3).
 
-**Her one decision, §C.7, is answered** (2026-09-26): *"No, fold as today"*. On the sold option's expiry day the reach is
-not read, and a line break folds her as today. **With it, §C is complete and can be signed.**
+**Her decisions are all answered** (2026-09-26, §C.1):
+- on the sold option's expiry day: *"No, fold as today"*;
+- off expiry: **"Fold as today, everywhere"** (her choice in the question tool);
+- a strike stop: none. Her words: *"for selling also i look for strike atm or even itm if the market is my side or there is
+  a trend and i dont care about candle or thing its always zones and levels oder flow and oi read"*.
+
+**Still hers, and not asked here:** her "90-minute write guard" has no text in the repo (§E.1).
 
 **What it amends, and what it leaves alone** (review S9, S16):
 - It **adds** THE EXPRESSION (§A) to the Validate tab and to a new forward log.
@@ -46,14 +65,11 @@ not read, and a line break folds her as today. **With it, §C is complete and ca
   - **§3** (writer press rows and outcome rows; the outcome key gains `role`);
   - **§4** (it was "buyers only"; two writer populations are added).
   Buyer facts, words, outcomes and rows do not move.
-- It **amends the window for writers only** (§C):
-  - **rev 4 §2 / §3 rule 3**, with the reach (off her option's expiry day only), rule 3r and rule 3s;
-  - **rev 4 §1's principle "no candle of the premium is an input"**, which now **changes for writers**: the window reads
-    the ATM straddle's premiums to decide a writer's fold;
-  - **rev 4 §7 / rev 5 §F**, for how 3r and 3s stamp (§C.5), and W-R's unit (§C.4).
-- It **amends PLAN §2.6's display:** a writer's STOP adds the reach line and the held loss.
-- **Buyers are untouched.** No buyer rule of the window (rev 4 + rev 5 B), THE PLAN (rev 3a) or VALIDATE (rev 2) moves.
-  Buyer clocks do not restart (§E.4).
+- **The window does not change** (§C, her answers). A writer is folded exactly as today: rev 4 with rev 5 option B. Rev 4's
+  principle "no candle of the premium is an input" (rev 4, "Why this exists") holds for writers too.
+- **THE PLAN (rev 3a) does not change.**
+- **Buyers are untouched,** and so are writers in the window. No rule of the window (rev 4 + rev 5 B), THE PLAN (rev 3a) or
+  VALIDATE's buyers (rev 2) moves. The window's clocks, buyer and writer, do not restart (§E.4).
 
 **Her words, 2026-09-25:**
 > "i buy and sell option as per the market condition if its better to sell options than i will sell options with out any
@@ -86,6 +102,9 @@ trade" reads, the modules), plus:
 **Rev a's new rules were written after those numbers were read.** Each change is logged in §G with its reason, and none was
 run before its fingerprint.
 
+**What had been seen when rev d was written:** everything above, rev a's, rev b's and rev c's runs, the second review and
+every number in it, and her three answers of 26 Sep.
+
 ---
 
 ## A. THE EXPRESSION READ
@@ -99,7 +118,7 @@ Given a direction `d` (UP or DOWN), the read compares two legs:
 **The two legs share one thesis.** In rev 4 §1's table a long CE and a short PE have the same `d` (+1), as do a long PE and
 a short CE (−1). They have the same line, the same payers and the same holders. They differ in four places:
 - **speed.** A buyer rents the move and needs it fast (the drag number). A writer needs only its absence.
-- **risk shape.** A buyer's loss stops at the premium. A writer's is open-ended, so she needs a wall behind her strike.
+- **risk shape.** A buyer's loss stops at the premium. A writer's is open-ended, so she needs a wall behind the sale (fact 3).
 - **what a range does.** A range taxes a buyer and pays a writer (the desk's two-regimes table: "confirmed pin → sell").
 - **which rent is winning.** By put–call parity (CE − PE = F − K, discounted), a long CE's P&L minus a short PE's P&L at one
   strike **is** a long straddle's P&L, with direction cancelled exactly. So "did buying beat selling" is "did the straddle
@@ -148,11 +167,11 @@ Each fact is tagged [M] or [I].
 |---|---|---|---|---|
 | 1 | **SPEED**: is anyone being forced your way right now? | the window's "paid" at `t` (rev 4 §3 rule 5; VALIDATE rev 2 §1.4) | — | nothing paying (*checked, none*) · OI blind (*could not check*) |
 | 2 | **ROOM**: the next wall that holds, against your line, in VALIDATE §1.3's own order | the line outside one candle, and the target at least as far as the line, or no target | the line outside one candle, and the target nearer than the line | **the line inside one candle** (a read: "the reward comparison is not read") · line, noise or walls unreadable (*could not check*) |
-| 3 | **SHIELD**: is the wall behind the sale defended? | — | that wall is BUILDING with a build today | STALLED or UNWINDING (a read) · no such wall, or OI blind (also a refusal) |
+| 3 | **WALL**: is the wall behind the sale building? | — | that wall is BUILDING with a build today | STALLED or UNWINDING (a read) · no such wall, or OI blind (also a refusal) |
 | 4 | **REGIME**: the price rows, the side read (rev 4 §10.1) | the side read names your direction's side | "no side" | the other side (a read) · a row forming (*could not check*) |
 | 5 | **PREMIUM**: whose rent won over the last 15 minutes, on one fixed straddle | the straddle rose (the move out-paid time) | the straddle fell (time won) | both legs rose (a read; refuses SELL) · unchanged (a read) · unreadable (*could not check*; refuses SELL) |
 
-**Max four each way.** SPEED is buy-only and SHIELD is sell-only; the other three are two-sided.
+**Max four each way.** SPEED is buy-only and WALL is sell-only; the other three are two-sided.
 
 **1 SPEED [M on I].** This is VALIDATE rev 2 §1.4's "Paying", read for the long leg: the window's own quiet-clock "paid" at
 `t`. That means any one of:
@@ -181,10 +200,13 @@ beyond the index that is DEFENDED or STALLED; else the session extreme beyond; e
 *Why the noise step is back:* the line is shared by both legs, so the noise separates neither leg and is not counted as a
 fact. But comparing a target with a line that one candle will reach is a comparison VALIDATE's own order never makes.
 
-**3 SHIELD [M].** It reads **the wall behind the sale**: the nearest to spot of the sold side's §1d top two (`fronts.read`,
-the running peak) that sits **at or beyond spot** on the sold option's out-of-the-money side. "At" is within half a strike
-step.
+**3 WALL [M]** (rev d renames rev 0's SHIELD, review A-T9: a wall is not a shield). It reads **the wall behind the sale**:
+the nearest to spot of the sold side's §1d top two (`fronts.read`, the running peak) that sits **at or beyond spot** on the
+sold option's out-of-the-money side. "At" is within half a strike step.
 - That wall is FOR SELL when it reads BUILDING with a build today (`built`).
+- **A wall is where writers are adding, not a bound on price.** No sentence of the expression or the Validate tab calls it a
+  floor that holds, a defence or a shield. The window's signed copy ("the floor holds", rev 5 §D items 7 and 8) is
+  unchanged (§C).
 - *Why:* her words set the reading, *"always check which side stops first increasing their positions and then unwinding"*.
   That the side still adding is the side not being forced, and that a new sale joins it, is **this draft's** inference.
 - *Why not the window's nearer front:* the nearer front can sit behind price (in the money for the sold option).
@@ -223,6 +245,9 @@ exactly when the realised move beats the decay.
 - Her own words make the ATM straddle the anchor of that setup: *"yeah straddle is about right because they almost forms
   mirror charts"*.
 - **They also set an expiry exception:** *"since today was sensex expiry so that why otherwise atm straddle is ideal"*.
+  - **Fact 5 still reads the ATM straddle on expiry day** (rev d, decided as the trader, review A-T2). Her exception is
+    about the band-rotation setup's anchor. Fact 5 asks a different question, whose rent won, and parity answers it
+    exactly on any day. On 0DTE, §A.5 prints the setup table's S4 row beside the sale.
 
 *Why the strike is fixed at `t − 15`:* a straddle is cheapest at the money. So a strike chosen at `t` would bias the change
 toward "fell".
@@ -240,18 +265,19 @@ leg anchored at the open's strike and is silent until the index has moved. It is
 **SELL is refused when any one holds:**
 - **R1.** The short leg's entry check reads FOLD at `t` (rule 4 or 6 with rev 4 §4's writer clauses).
 - **R2.** **Your side is leaving under a squeeze.** The window's YOUR SIDE row for the short leg reads AGAINST: her own
-  side's nearer front UNWINDING, held 3 minutes, while spot moves toward her strike (rev 4 §4). "Never sell into a squeeze".
+  side's nearer front UNWINDING, held 3 minutes, while spot moves against her direction (rev 4 §4's `dpx` sign; for a sale out of the money, that is toward her strike).
+  "Never sell into a squeeze".
   The operator thesis, which is design notes, puts it this way: a writer's forced buy-back is the cascade's fuel.
 - **R3.** **OI is blind**: fronts forming, the grid stale, or fronts not read. "A writer does not sell a wall she cannot
   see."
 - **R4 (rev a: fails closed; review M4).** Fact 5 reads **both legs rose**, **or fact 5 could not check**, **or the ATM
-  straddle at `t` of the sale's expiry cannot be read** (§A.5 needs it).
+  straddle at `t` of the sale's expiry cannot be read** (the sale is one leg of that pair, §A.5).
   - "Never sell into a bid straddle, and never sell one you cannot see": "R4 — could not check: {why}".
-  - This is §C.2's own principle: an unread safety input fails closed.
-- **R6.** **No wall behind the sale:** none of the sold side's top two sits at or beyond spot. "The {floor} is already behind
+  - The principle stands on its own: an unread safety input fails closed.
+- **R6.** **No wall behind the sale:** none of the sold side's top two sits at or beyond spot. "The {side} wall is already behind
   price."
 
-**The word (rev b)**, in this order. `b` and `s` are the FOR BUY and FOR SELL counts, and the **lead** is the named leg's
+**The word (rev b; the refused tie, rev c)**, in this order. `b` and `s` are the FOR BUY and FOR SELL counts, and the **lead** is the named leg's
 count minus the other's.
 1. **could not check** when the line cannot be set at the close (no index candle, or the close not landed);
 2. **both refused: STAND ASIDE · both refused**, naming each refusal;
@@ -271,6 +297,8 @@ count minus the other's.
 **The word's strength is in the word** (rev b, the trader's decision after rev a's rows):
 - **There is no threshold number.** "Exactly 1" means a single fact decides the word, and "2 or more" means more than one
   does.
+- **LEANS means one of two things** (review A-T4): a single fact decides it, or, named by refusal, the facts tie and one
+  expression is open. The second prints "the facts tie {b}–{s}", so the two are never read alike.
 - **LEANS is a word of its own:** on screen, in the log (`strength: "lead" | "leans" | "tie"`, `lead: n`), and in the
   falsifiers, where LEANS and BUY / SELL are separate populations, never pooled (§E.2).
 
@@ -285,7 +313,7 @@ count minus the other's.
   worry about". Rev b read the tie as STAND ASIDE · tie (the drafter's reading). Rev c names the open leg, but only as LEANS,
   because nothing leads.
 - **Unchanged: when the refused leg leads, the word is STAND ASIDE · led.** The facts favour the closed leg, so naming the
-  open one would be a vote the count does not give.
+  open one would be a vote the count does not give. The second review confirmed this as the trader's reading.
 
 **The split is kept everywhere** (review M2): on screen, in the log (`named_by: "count" | "refusal"`, `refusal: [codes]`) and in
 the falsifiers (§E.2).
@@ -310,35 +338,22 @@ input.
 **BUY: the ATM strike** (spot rounded to the step; the side log's `atm.k`). Her words: *"i often trade itm or atm so which
 option i m holding hardly matters"*. It is printed "ATM {k}; one strike ITM reads the same facts".
 
-**SELL (rev a, coordinator Q3).** **A sale is never placed in the money:** rule 3s (§C.2) would fold it at its first close.
-K₀ is the nearest strike at or beyond spot on the sold option's out-of-the-money side: for a PE sale the highest strike ≤
-spot, and for a CE sale the lowest strike ≥ spot.
-1. **At the wall behind the sale** (fact 3's wall), when that wall lies **within one ATM straddle** of spot. That is its
-   signed out-of-the-money distance r_w ≤ S, with S the ATM straddle of the same expiry at `t`.
-   - When the wall is "at" spot on the in-the-money side (inside SHIELD's half-step tolerance), the sale goes to K₀, and the
-     wall stands at the money beside it.
-   - Otherwise it goes at the wall's strike, the farther from spot of the wall and K₀.
-2. **When the wall lies beyond one straddle** (r_w > S): **at the money, out-of-the-money side: K₀.** The defended wall still
-   stands behind it, farther out.
-   - The print: "SELL PE {k} (ATM) — the defended floor {kw} sits {r_w} pts out, beyond one ATM straddle ({S} pts [M]); a sale
-     at the floor would be {r_w/S:.1f} straddles out".
-3. **S unreadable:** SELL is refused (R4).
-4. **No wall:** "not shown" (R6).
-
-*Why the rule, inherited:*
-- **one ATM straddle** is §C's reach unit (the market's price of the move to that expiry). A strike one straddle out sits
-  near 0.2 delta under the usual lognormal reading [I] (the review's independent check). That is the seller-desk design's
-  first delta lamp.
-- **K₀** is the side log's `atm.k`, or its neighbour on the out-of-the-money side: never in the money. There the sale has
-  about the buy's Δ, and by parity the comparison is nearly the straddle's (§A.1).
-- **Any strike between ATM and a far wall would be an invented placement.**
-- A sale at a wall beyond one straddle expresses "no crash", not her direction (review Q3). The far cases on her days were
-  expiry afternoons.
+**SELL (rev d): the ATM strike, the same strike as the buy** (the side log's `atm.k`). "atm" is the first strike she names;
+"the same strike" is the draft's choice, by parity. Her words, 2026-09-26:
+*"for selling also i look for strike atm or even itm if the market is my side or there is a trend"*. It is printed "ATM
+{k}; one strike ITM reads the same facts", as the buy is.
+- *Why:* her sale is a directional trade at the money, not a far strike parked behind a wall. By parity (§A.1) a long CE and
+  a short PE at one strike differ by exactly a long straddle, so the comparison is the cleanest there is.
+- *What it replaces:* rev a's placement at the wall within one ATM straddle, else K₀, the nearest strike on the
+  out-of-the-money side (the seller-desk design's; rev c's §D.3 disclosed where it placed sales). K₀ existed so that rule 3s
+  would not fold a sale at its first close. Rule 3s is withdrawn (§C).
+- **The wall behind the sale** (fact 3) is a fact, not the strike. With no wall, SELL is refused (R6) and the sale is still
+  priced and printed, dimmed with its reason.
+- **S unreadable:** SELL is refused (R4).
 
 **Printed beside the sale** (review S8):
-- its distance in straddles of its own expiry (r/S);
 - its Δ [M];
-- the wall's strike and state;
+- the wall behind it: its strike and state;
 - the line's position against the strike;
 - **on 0DTE**, one row from the desk's setup table (design notes, not a rule here): *"S4 expiry flush — logged, not traded ·
   expiry afternoon → neither"*. It is printed, and it never refuses.
@@ -356,10 +371,11 @@ spot, and for a CE sale the lowest strike ≥ spot.
 
 - **The drag number** (`/api/drag`): "today a correct buyer was paid {paid} of {owed} owed since {anchor} [M]".
 - **The expiry line** (rev 4 §10.3), with each leg's expiry named. On 0DTE it adds: "theta is fastest and gamma largest
-  today: the first pays a writer, the second hunts her; §B and §C read both".
+  today: the first pays a writer, the second hunts her; §B's Cushion reads both".
 - **The board's REGIME,** both halves.
-- **Each leg's VALIDATE word:** the buyer's rev 2 word, and the writer's (§B).
-- **For the sell leg:** R/S of its own expiry, Δ, and on 0DTE the setup-table row (§A.5).
+- **Each leg's VALIDATE word:** the buyer's rev 2 word, and the writer's (§B). If §A is ever signed without §B, the writer's
+  card shows VALIDATE rev 2 §1.6's writer screen instead (review A-T10).
+- **For the sell leg:** Δ, the wall behind it, and on 0DTE the setup-table row (§A.5).
 - "Not shown — a size", "not shown — an order", "not shown — odds: the count is a count".
 
 ### A.8 Hazards recorded now
@@ -370,6 +386,12 @@ spot, and for a CE sale the lowest strike ≥ spot.
 - **The word is close to a coin flip at its margin.** Many words are named by one fact (§D.2).
   - Rev b says so **in the word**: LEANS BUY / LEANS SELL.
   - The since-clock shows whether a 3–2 is new or has stood.
+- **The sale is at the money** (her practice): the most gamma a short option carries, most of all on an expiry afternoon.
+  The window folds it at her line and on rules 4 and 6, as it folds every writer (§C).
+- **SELL is a time-beats-move word** (third review A-T15). In a trend SPEED, REGIME and usually PREMIUM vote BUY by
+  construction, so §A will seldom name her in-the-money trend sale. By parity that is no contradiction: at one strike, buying
+  the call beat selling the put exactly when the straddle rose. Her trend sale is read by §B at her press; §A does not
+  endorse it.
 - **SELL is refused whenever OI is blind or the straddle cannot be read.** The straddle needs `t − 15`, so SELL is refused
   in every session until about 09:30 (R3 and R4). Those closes can read only BUY or LEANS BUY, by refusal, or STAND ASIDE.
 - **BANKNIFTY** trends and inverts reversion tests (research-findings §3). The index is printed beside the word.
@@ -387,16 +409,20 @@ A SELL press gets **GO / WAIT / NO** from four writer facts. The buyer's word, f
 | # | fact | WITH | AGAINST | NEITHER |
 |---|---|---|---|---|
 | 1 | **Right now**: the window's entry check for the short leg | HOLD | FOLD, which makes the word NO | WATCH (a read) · PATA NAHI (*could not check*) |
-| 2 | **Your wall**: the wall between spot and your strike | a front of your side at or between spot and your strike, BUILDING with a build | — | none there, or not building (a read) · OI blind (*could not check*) |
+| 2 | **Your wall**: the wall behind the sale, §A.3 fact 3's (rev d) | that wall BUILDING with a build | — | not building (a read) · no such wall (*checked, none*) · OI blind (*could not check*) |
 | 3 | **Cushion**: the danger line against the noise, and what the line costs against what you collect | line > one candle's noise **and** P ≥ X | line ≤ noise **or** X > P | line blind, noise unreadable, or no greeks (*could not check*) |
 | 4 | **Time is paying**: the fixed straddle (§A.3 fact 5) | the straddle fell | both legs rose | the straddle rose by a move, or unchanged (a read) · unreadable (*could not check*) |
 
 **1 Right now.** The buyer's object (VALIDATE §1.2), read for the short leg, with rev 4 §4's writer clauses. Rule 3 cannot
-fire at entry (M5), so §C does not touch it.
+fire at entry (M5).
 
-**2 Your wall [M].** Your side's §1d top two, the nearest to spot of those at or between spot and your strike (inclusive, half
-a step): BUILDING with a build, WITH; else NEITHER, a read. It has no AGAINST: a squeeze is inside Right now, as VALIDATE §1.4
-keeps payers and flow inside Right now.
+**2 Your wall [M] (rev d).** Exactly §A.3 fact 3's wall behind the sale: the nearest to spot of your side's §1d top two that
+sits at or beyond spot on your option's out-of-the-money side (half a step). BUILDING with a build: WITH. Not building:
+NEITHER, a read. No such wall: NEITHER, checked, none. OI blind: NEITHER, could not check.
+- *Why this wall, and not one between spot and your strike* (rev a's text): she sells at the money or in the money (her
+  words, §A.5). For a sale in the money, "between spot and your strike" is the wrong side of spot. One wall, one definition,
+  in §A and §B.
+- It has no AGAINST: a squeeze is inside Right now, as VALIDATE §1.4 keeps payers and flow inside Right now.
 
 **3 Cushion [M and I]**, in VALIDATE §1.3's order:
 1. line or noise unreadable: could not check;
@@ -409,10 +435,11 @@ keeps payers and flow inside Right now.
 **When the line lies at or beyond your strike** (line distance ≥ your strike's signed OTM distance from spot), X is still
 computed, and it is **flagged** (review S10, the "state it" option): "[I] — your line lies beyond your strike, where this
 second-order estimate is least trustworthy (PLAN §7)".
-- *Why not "could not check":* an at-the-money sale, which is §A.5's far-wall placement and parity's cleanest comparison,
-  always has its danger line beyond its strike. Reading it blind would blind the writer's word exactly where rev a places
-  sales.
-- The danger past the strike is rule 3s's job (§C.2).
+- *Why not "could not check":* an at-the-money sale, which is §A.5's placement and her practice, always has its danger line
+  beyond its strike. Reading it blind would blind the writer's word on every sale she makes.
+- Past the strike, her line decides, as for every writer (§C).
+- **For a sale in the money,** P carries intrinsic value, so P ≥ X nearly always holds there [I], and the Cushion reads
+  mostly its noise test (third review B-T3).
 
 *The +½Γ term is where 0DTE enters*: a near line on an expiry afternoon reads AGAINST where the same line on a Monday would
 not.
@@ -424,10 +451,26 @@ not.
 
 ### B.2 The word, for a writer (amends VALIDATE §2, which read "for a buyer")
 
-VALIDATE rev 2 §2's rule, inherited:
+VALIDATE rev 2 §2's rule, inherited, with one writer clause (rev d):
 - **NO:** Right now is AGAINST.
-- **GO:** Right now is HOLD, no fact is AGAINST, and at most one is NEITHER.
+- **GO:** Right now is HOLD, no fact is AGAINST, at most one is NEITHER, **no fact is "could not check", and the wall behind
+  the sale exists** (rev e).
 - **WAIT:** everything else, naming what would have to change, or what is not there yet.
+
+**A writer's GO never stands on an unread risk fact** (rev d, second review B-M2). Could not check on Your wall, Cushion or
+Time is paying reads **WAIT**: "not there yet: could not check {fact}". A NEITHER that is a read keeps VALIDATE's one
+allowed place.
+- *Principle:* an unread safety input fails closed (§A.4 R4). Without this clause, one minute could show SELL refused (R3 or
+  R4) in §A beside a GO in §B.
+- A buyer's word is unchanged: VALIDATE rev 2 §2 still reads for buyers as signed.
+
+**A writer's GO also needs the wall behind the sale** (rev e, third review B-N1). With no wall at or beyond spot on her
+side (§A's R6), the word is **WAIT**: "not there yet: no wall behind the sale (R6)". Not NO: NO stays the entry FOLD, as
+P2-W reads it.
+- *Principle:* rev d made §A's and §B's walls one object. §A refuses SELL when it is absent, so §B must not print GO on the
+  same card for the same absence.
+- *What had been seen:* the third review's count, a GO beside R6 at 131 of 2,250 closes and 12 of 216 units, all on 09-22
+  and 09-23, where R6 over-fires.
 
 It is printed "{w} with · {a} against · {n} neither — of 4, a count, not odds".
 
@@ -437,7 +480,7 @@ It is printed "{w} with · {a} against · {n} neither — of 4, a count, not odd
   is on the dead list.
 - **Your option's σ against its own session VWAP.** *Why not counted:* it has no registered direction for a writer, and fact 4
   reads whether time is winning without that ambiguity.
-- The expiry line; the reach (§C); X [I]; the drag number.
+- The expiry line; X [I]; the drag number.
 
 ### B.3 The writer's outcome, its populations and its judgement (amends VALIDATE §3 and §4)
 
@@ -448,10 +491,12 @@ It is printed "{w} with · {a} against · {n} neither — of 4, a count, not odd
     writer's decay is this draft's choice.
 - **stop:** the index's 1-minute high (a short CE) or low (a short PE) reaches the static L at the check.
 - **`first`:** `target`, `stop`, `same minute`, or `neither`.
-- **Not scored**, each shown with its reason: no greeks; the line not set; X > P ("checked,
-  none — no target below zero").
+- **Not scored**, each shown with its reason: no greeks; the line not set; **the line inside one candle** (Cushion is
+  AGAINST before X is read, so there is no target) (rev e, B-T1).
+- **X > P is scored, and only the stop can resolve it:** the target P − X is below zero ("checked, none — no target below
+  zero"). Neither group is in the stratum, so no judged population reads them.
 - `short` and `gaps` as VALIDATE §3.
-- It reads no break rule, no trail and no reach.
+- It reads no break rule and no trail.
 - *Known asymmetry:* the stop end reads the index's range, and the target end reads the premium's close. That favours `stop`,
   the conservative direction for judging GO.
 
@@ -473,8 +518,9 @@ It is printed "{w} with · {a} against · {n} neither — of 4, a count, not odd
   population is judged on its own count. It exists so the writer word can reach its counts without her having to sell.
 
 **The judgement** is VALIDATE rev 2 §4's form, per population:
-- **the stratum:** the writer's Cushion WITH geometry (line > noise, the line inside the strike, P ≥ X), identical for GO,
-  WAIT and NO;
+- **the stratum:** the writer's Cushion WITH geometry as §B.1 defines it (line > noise and P ≥ X), identical for GO, WAIT
+  and NO. Units with the line at or beyond the strike are inside it, flagged, and shown split, never excluded (rev d,
+  second review B-M1: rev a's "the line inside the strike" was left over from before its 01:31 change);
 - **P1-W:** GO(target)·WAIT(stop) > WAIT(target)·GO(stop);
 - **P2-W:** NO less often, the same way;
 - **when:** each at ≥ 15 resolved units of its word and ≥ 15 resolved WAIT units in the stratum, and ≥ 10 sessions; by 30
@@ -495,192 +541,83 @@ role defaulting to "long" for existing rows.
 
 ---
 
-## C. THE SELLER IN THE WINDOW: THE REACH (amends rule 3 for writers only)
+## C. THE SELLER IN THE WINDOW: NO CHANGE — HER ANSWERS (rev d)
 
-### C.1 Why, and what it is where she signs (review S17)
+### C.1 Her answers, 2026-09-26
 
-**On 09-24 the window folded 11 sold calls at 14:38**, by rule 3, on the bounce off the 14:24 low. Every one ended at 0.1–0.2.
+- **On the sold option's expiry day** (rev c's §C.7, asked with the ATM straddle's words): *"No, fold as today"*.
+- **Off expiry, the reach** (asked in the question tool: keep the reach, or fold at the line as today, everywhere): her
+  choice, **"Fold as today, everywhere"**.
+- **A strike stop for a sale made in the money** (asked in the question tool, with rule 3s's one-candle buffer), her words,
+  verbatim:
+  > "i am not sure where you coming with these candle thing because for selling also i look for strike atm or even itm if
+  > the market is my side or there is a trend and i dont care about candle or thing its always zones and levels oder flow and
+  > oi read ."
 
-**The line is a buyer's structure.** A writer is short an option. Her danger is her strike being reached, and her loss is
-open-ended. So for a writer, a swing break matters by how near it brings price to her strike, against **the market's own
-price of the move to her option's expiry: the ATM straddle of that expiry.**
-- The unit "strike distance in σ of the straddle" is from the **seller-desk design** (Fable and Opus, 2026-08-25, adopted into
-  her desk), not her words.
-- **Her own words set the ATM straddle aside on expiry day:** *"since today was sensex expiry so that why otherwise atm
-  straddle is ideal"*. §C.7 asked her directly, and she answered NO: on the sold option's expiry day the reach is not read.
+### C.2 What is registered
 
-**What the rule is, plainly:**
-- **It binds only off her option's expiry day, and only when her strike is farther than one straddle out** (her answer,
-  §C.7). Off expiry, S was 250–600 pts on the index-days the review checked, so nearly every sale sits inside it and the line
-  decides exactly as today. **It will rarely bind.**
-- **On the sold option's expiry day it is not read:** a line break folds her exactly as today. Every held break on the
-  record was SENSEX 09-24 after 14:38, its expiry afternoon (rev b's §D.6), where her answer folds at the line.
-- **Rule 3s adds one hard stop for every writer, always:** a 3-minute close through her strike by **more than one frozen
-  median 1-minute candle** folds her. That is rev 5 option B's own buffer (rev b).
+**The window does not change for writers.** A sold option is folded exactly as today: rev 4 with rev 5 option B. That is
+rule 3 at her line, rules 4 and 6, the latch, PATA NAHI on a due close, YOUR SIDE, no quiet clock, and W1 and W2.
+- **There is no reach, no rule 3r and no rule 3s.** Rev a's reach, rev b's buffered strike rule, W-R, the held loss and the
+  reach and strike rows are withdrawn.
+- **The writers' forward record continues**: rev 5's writer rows stay one record, and nothing restarts (§E.4).
+- **Rev 4's principle** "no candle of the premium is an input" (rev 4, "Why this exists") holds for writers too.
 
-### C.2 The rule
+**How her words are read** (the coordinator's reading, stated so she can correct it):
+- **Her danger is her level or zone breaking, and the order flow and the OI turning.** The window folds on its own versions
+  of those (third review C-T1):
+  - rule 3 at the window's line L, rev 4 §2's: the last 5-minute swing beyond price, trailing. It is not her drawn zone;
+  - rules 4 and 6 on the fronts, the flow **and the trend rows** (5m / 15m / 1h).
+  Whether that line is her level when she sells is hers to confirm; it is the line she signed for both roles.
+- **Her answer settles rev 4 §11.2 item 2** (C-T2): its line half, "a minimum-room clause, or a wider structure for
+  writers", is rejected. W1 keeps testing the line.
+- **Her strike is not a stop.** She sells at the money, and in the money in a trend, on purpose. A stop at the strike would
+  fold her own entries.
+- **The line's one-candle buffer stays** (rev 5 B, signed). It is not a new candle rule. It is what stops a poke through her
+  level from folding her.
 
-At each 3-minute close, for a **writer**, read two numbers [M]:
-- **R**, signed (review M7): the distance from the close to her strike **on the strike's OTM side**. That is k − close for a
-  short CE, and close − k for a short PE. R ≤ 0 means the close is at or through her strike.
-- **B_k** (rev b): **exactly rev 5 §A.2's B**, with its measure, window, freeze, clamp and fallback, read for the strike's line.
-  - It is the median high − low of the index's own 1-minute candles over the 15 finished minutes ending at the minute the
-    strike's line is set, which is her entry read. All 15 must be present.
-  - It is frozen. The strike never trails, so B_k is read once, and rev 5's clamp (never away) can never bind.
-  - Fewer than 15 candles at entry: buffer 0 until B_k can be read, at the first later minute with its own 15, then frozen.
-    That is rev 5's named fallback and its one move away.
-  - The strike's break level is **k + B_k** for a short CE and **k − B_k** for a short PE, printed from entry beside the
-    strike.
-- **S** (review M8): **the ATM straddle of her option's own expiry** at that close's minute, the ATM CE plus the ATM PE of
-  that expiry. When the day's chain record does not carry her option's expiry, or does not price its ATM pair that minute,
-  **S is unreadable**.
+### C.3 What this leaves, stated
 
-Then, in order:
-1. **Rule 3s — the strike, always, with rev 5 B's buffer** (rev b). At any close, broken line or not, held or not: a close
-   **beyond the strike's break level** (R < −B_k, strict) → **FOLD, rule 3s**. "{IDX}'s {bar} bar closed {|R|} pts through
-   your strike {k} — {|R| − B_k} past one candle ({B_k} pts [M], read {B_at})".
-   - *Principle:* her line rule, signed as rev 5 B, says a close inside one normal candle is noise. The strike is a line, so
-     the same rule applies. **A zero-buffer strike stop (rev a) contradicted signed rev 5.**
-   - A sale made more than one candle in the money folds at its first close, and the entry check says so at entry.
-2. **At a close that rule 3 reads as a break** (rev 5 option B):
-   - **on the sold option's expiry day** (her answer, §C.7): **FOLD, rule 3, as today.** The reach is not read. The reach row
-     says "expiry today — the reach is not read: the line decides (your answer, 26 Sep)";
-   - S unreadable: **FOLD, rule 3** ("could not check the reach: {why} — the line decides");
-   - R ≤ S: **FOLD, rule 3**, as today, adding "your strike is {R} pts out, inside one ATM straddle ({S} pts [M], the
-     market's price of the move to {expiry})";
-   - R > S: **held.** The word is **WATCH**, tag **LINE BROKEN · HELD**:
-     > "The line broke at the {bar} close ({by} pts past {L}). Your strike is {R} pts out, outside one ATM straddle ({S} pts
-     > [M], the market's price of the move to {expiry}). ≈ ₹{Y} [I] of premium between here and the fold level. FOLD at the
-     > first 3-min close with your strike within one straddle, or through your strike by more than one candle."
-3. **While held, every later close re-reads R and S:**
-   - R ≤ S, or S unreadable: **FOLD, rule 3r ("the reach")**, stamped at its `read_at`;
-   - a heal (rev 5 A.0.6: a close back on her side of the L that broke) ends the held state, and a later break is read by
-     this rule again.
-4. **Unchanged:** rules 4 and 6 (they fold a held writer at once), the latch, PATA NAHI on a due close not landed, and no quiet
-   clock.
+- **The 09-24 trap is not closed.** The window folded 11 sold calls at 14:38 by rule 3, on the bounce off the 14:24 low. At
+  14:59 they stood at 33.55–111.2, and they ended at 0.1–0.2 (§D.6) [M]. Her answers keep that fold. It is disclosed, not
+  tuned.
+- **A writer whose line lies beyond her strike can sit in the money on HOLD with no break** (the first review's S15: the
+  NIFTY 09-22 CE 23,450 legs). By her method that is not a hazard to close: she sells in the money on purpose, and her line
+  and the OI decide.
+- **"Toward her strike" reads by her direction** (C-T3). For a sale at or in the money, rev 4 §4's "toward her strike" and
+  W1's "away from her strike" read by the `dpx` sign against her direction, as rev 4 §4 says and the live code does. The
+  window's copy (rev 5 §D item 7″: "spot moving toward your strike — a squeeze") reads the wrong way round for such a sale.
+  A copy amendment is owed and is not made here (§H).
+- **A fold costs her little to undo, not nothing** (C-T4). Brokerage is zero, but statutory charges are rebated only on a
+  position closing at least ₹1 positive. A fold at her line usually closes at a loss, so it pays them [I].
 
-**The held loss [I], printed every minute while held** (review S17, M7). It is PLAN §2.1's writer premium at risk from here
-to the fold level: |Δ|·(R − S) + ½·Γ·(R − S)² × qty, on the broker's Δ, Γ for her strike [M]. It is labelled "≈ ₹{Y} [I] of
-premium between here and the fold level". It is an estimate, and is never "at risk if", never "safe", never "won't reach".
+### C.4 The road not taken, on file
 
-**Copy that implies safety is not allowed** (review S12). The straddle is the market's price of the move, not a bound on it.
-A strike just outside it is well within reach. Every sentence names S as "the market's price of the move to {expiry}".
-
-**The expiry-day switch is her answer to §C.7: NO.**
-- "Expiry day" is a session whose date is her sold option's own expiry date, from the chain record
-  (`upstox_instruments.resolve`), not the index's weekly calendar. A sale of a later expiry, made on an index's expiry day,
-  is read off expiry.
-- With the answer in, §C is complete and can be signed.
-
-### C.3 What closes the FOMO trap, and what it cannot close
-
-- **Decay is inside S.** The straddle shrinks with time, so the same strike becomes farther in straddles as expiry nears.
-  **On her option's expiry day the reach is not read** (§C.7), so an expiry afternoon's collapsing straddle cannot hold her
-  through a line break.
-- **The trap is closed from three sides:**
-  - price toward her strike shrinks R;
-  - a bid straddle (vol expanding) grows S;
-  - a close through her strike by more than one candle folds her whatever S says (3s).
-- **What it cannot close:** only closes are read (rev 5's grid). One 3-minute bar can carry price through her strike and
-  back inside the bar. On an expiry afternoon a single bar can be as wide as the straddle: SENSEX 09-24 at 15:29 had S 20.05
-  against a 139.3-pt bar (review M7). The held loss and P_max (§C.4) are printed and logged for that reason.
-- **What the buffer costs** (rev b): a close up to one candle through her strike does not fold her by 3s. That is the price of
-  not folding on noise, the same price rev 5 B already pays at the line.
-- **The principle that changes** (review S16): rev 4 §1's "no candle of the premium is an input" no longer holds for
-  writers.
-  - The window now reads the ATM straddle's premiums to decide a writer's fold.
-  - Her own option's premium is still not an input to the word. Its greeks enter only the printed held loss.
-
-### C.4 Its kill clause, W-R, forward rows only (review M9, S13)
-
-**The unit** is a **held break**: a writer's first line break read R > S.
-- It is keyed **(index, bar, L, side)**, as rev 5 §F.1 keys a distinct break by bar and line.
-- Trades and strikes that share it count once. The break's figures are the **median across its strikes**, as 7b's are, and
-  the per-strike rows are shown.
-
-**Its figures [M]:**
-- **P_b:** her option's premium at the break close, what folding at the line would have bought back;
-- **P_x:** the premium at her first FOLD after it, any rule including 3r and 3s, or at 15:29 (`to_close`) if none;
-- **P_max:** **logged:** the highest premium between the break close and that fold, what her margin saw while held;
-- **S_b:** the straddle at the break.
-
-**The clause dies if any one holds** (coordinator item 5):
-- **(a) the majority:** P_x > P_b on more than half of the held breaks;
-- **(b) the total, in premium points:** Σ(P_x − P_b) > 0 over the held breaks, per index;
-- **(b′) the total, pooled across indices** in units of the straddle at the break: Σ(P_x − P_b)/S_b > 0.
-
-Each test also counts with the best day removed (the session whose removal moves it most toward failing).
-
-**Printed beside the verdict:** the single worst held break (the largest P_x − P_b, with its P_max), whatever the verdict.
-
-**Two populations, never pooled, each judged on its own count:**
-- (i) her writer trades, marked and imported;
-- (ii) the expression grid's SELL legs (§E.3 `sell_hold`), each re-read by the window from its unit to 15:29.
-
-It dies if **either** judged population fails. **When:** ≥ 15 held breaks in a population and ≥ 10 sessions, by 30 at the
-latest. Short of that, inconclusive and DRAFT.
-- **Held breaks come off expiry only** (§C.7), so they will be rare. If fewer than 15 arrive by 30 sessions, W-R is
-  inconclusive and the reach stays DRAFT. The count is not lowered to reach a verdict.
-
-**If it dies,** writers' rule 3 is rev 5 option B's again, and rule 3s stays. The signed text is on file.
-
-### C.5 How 3r and 3s stamp, and the hazard 3s closes (review S14, S15)
-
-- **3r and 3s are line-family FOLD stamps for writers:**
-  - **clause 1** counts them as FOLD stamps;
-  - **7b-B** counts them as rule-3 stamps (`fold_rule` ∈ {3, 3r, 3s}, shown split by sub-rule);
-  - **7a's unit** is the first line break, whatever folded first, so a held break is 7a's unit.
-- **The hazard** (review S15): under rev 4 / 5 today, a writer whose line lies beyond her own strike can sit in the money on
-  HOLD with no break. The record has four such sales, the NIFTY 09-22 CE 23,450 legs, with the line 78–99 pts away and the
-  strike 58–78 OTM. **Rule 3s closes it:** a close through the strike by more than one candle folds her.
-- Rev 4 §4's own-side and payers-adding clauses stand, and so do W1 and W2.
-
-### C.6 Flagged
-
-- **This clause was written after seeing the 09-24 writer replay's folds and premiums, and after the review's numbers.** Its
-  unit is the seller-desk design's; its scale is one, as "one candle" is.
-- 3s and the signed R were decided as the trader after the review showed the holes. **3s's buffer (rev b) was decided
-  after rev a's rows showed the zero-buffer stop's cost.**
-- **W-R judges it on forward rows only.**
-- **The expiry-day answer is hers**, given 2026-09-26 and relayed by the coordinator. It was asked after rev b's §D.6 had
-  set the YES and NO rows side by side.
-
-### C.7 THE ONE QUESTION FOR MARY: the reach on expiry day — ANSWERED 2026-09-26: NO
-
-> Mary, you said about the ATM straddle: *"since today was sensex expiry so that why otherwise atm straddle is ideal"*.
-> When you have **sold** an option and it is **that option's expiry day**, and the index closes a 3-min bar through your
-> danger line: should the window keep your sale open (WATCH, not FOLD) as long as your strike is farther from the index
-> than the ATM straddle?
-> **YES or NO?**
-
-**Her answer, 2026-09-26** (her choice in the question tool, verbatim, relayed by the coordinator): *"No, fold as today"*.
-
-**What it does, registered:**
-- **On the sold option's expiry day, a line break FOLDs a writer exactly as today:** rev 5 option B, rule 3. The reach is not
-  read that day, and there is no WATCH · LINE BROKEN · HELD.
-- **Still in force on expiry day:** rule 3s (a close through her strike by more than one frozen candle), rules 4 and 6, and
-  the entry check.
-- **Off expiry, the reach applies as §C.2 says.** There S was 250–600 pts on her days, so nearly every sale sits inside one
-  straddle, and **the reach will rarely bind.**
-- **On 09-24 (SENSEX expiry)** the 74,100 call folds at 14:38 by rule 3, at 47.55, as today. A YES would have held it to
-  14:45 (rule 4 at 42.45, with a high of 53.25 while held).
-- **The YES branch is not registered.** Its figures stay in §D.6 as the road not taken.
-
-**§C is complete:** the signed-distance strike rule with rev 5 B's buffer (3s), S of her own option's expiry or FOLD, the
-held loss printed, W-R, and this answer. It can be signed.
+Rev a–c's §C (the reach, rules 3r and 3s, B_k, W-R, the held loss, the reach and strike rows) is on file, fingerprinted, in
+`docs/hold/scratch-2026-09-25/expr/rules_revc_before_run.md`. Its figures stay in rev c's outputs (`expr/revc/`). None of it
+is registered.
 
 ---
 
-## D. DISCLOSURE (rev c) — written 2026-09-26 18:43 IST by the clock, after rev c's fingerprinted run
+## D. DISCLOSURE (rev e) — rev d's run, written 19:32, and rev e's writer re-read, written 19:57 IST by the clock, each after its fingerprinted run
 
 **In-sample hindsight** on four frozen days and one live day. These are counts and rows, never a rate. **None of it counts
 toward §E**, and no word is scored against an outcome on the grid.
 
-**What rev c changed.** Rev c changes no fact, refusal, strike, line or buffer. Two things moved:
-- **the word at a tie with one leg refused:** LEANS on the open leg, by refusal, where rev b read STAND ASIDE · tie;
-- **the writer's window on her option's expiry day:** a line break folds her as today (her answer, §C.7), where rev b's
-  disclosure had assumed YES.
-So §D.3 and the R-multiple rows of §D.4 are rev a's, unchanged, and every other table is rev c's.
+**What rev d changed in what this reads:**
+- **the sale's strike:** the ATM strike, the buy's (§A.5), where rev c placed it at the wall or K₀;
+- **the writer's word (§B):** its wall is §A's wall behind the sale, and a could-not-check risk fact reads WAIT;
+- **the window:** every sold leg is folded by rev 5 B as built (§C), with no reach and no 3s;
+- **rev e:** a writer's GO also needs the wall behind the sale (§B.2). Only the writer's word can move, so rev e's run
+  re-reads it at every 3-minute close, at her entries and at the units (§D.4, §D.7). Every other table is rev d's.
+
+**No word moved at any of the 2,250 closes, and no refusal count moved** [M] (`revd/moved_from_revc.json` is empty;
+`revd/refusals.json`).
+- R1 and R2 read the window's fronts and flow for the short leg, and those do not depend on its strike.
+- R4's straddle clause added a code only where SELL was already refused.
+
+So §D.1–§D.3's words, stability and refusals are rev c's, reproduced by rev d's own run. What is new is §D.4's sold leg
+and writer word, §D.6, §D.7's scoring and writer population, and §D.8.
 
 ### D.0 Method, fingerprints, limits, and the repo
 
@@ -690,24 +627,26 @@ So §D.3 and the R-multiple rows of §D.4 are rev a's, unchanged, and every othe
 - rev a `79d7daa6…162d` (01:28);
 - rev a as run `cd210306…dfddf5` (01:32);
 - rev b `d7d9ab38…67c0e6cd` (01:48);
-- **rev c `64ad9d7f868cfbc7ec7754785966c0a19c46899b4b6219a89fc1dfae90332010` (14:38, `rules_revc_before_run.md`).**
-- The rules text did not move after rev c's run. §D, §G's post-run lines and §H were written after it.
+- rev c `64ad9d7f…2010` (14:38);
+- rev d `78b5f86c…d260` (19:22);
+- **rev e `fb583979be6a4bf53b8b64797fde343e5f49b6883f4ad9c84ff00d16d4d80cc9` (19:54, `rules_reve_before_run.md`).**
+- The rules text did not move after rev d's run or rev e's. §D and §G's post-run lines were written after them.
 
-**Scratch** (the session scratchpad `expr/`):
-- `expr_c.py` implements rev c once: rev b's grading with the tie changed (it carries one self-check), and rev b's reach with
-  the answer NO.
-- `run_c.py` does the run, 14:39–14:42.
-- The outputs are in `expr/revc/`: `stability.json`, `silence_detail.json`, `entries.json`, `seller_0924.json` and
-  `grid.json`. `gen_D_c.py` wrote this section from them.
+**Scratch** (`docs/hold/scratch-2026-09-25/expr/`):
+- `expr_d.py` implements rev d once, over rev c's code. It carries self-checks of the new writer clause and the shared wall.
+- `run_d.py` does the run, 19:25:54–19:27:58.
+- The outputs are in `expr/revd/`: `stability.json`, `refusals.json`, `moved_from_revc.json`, `entries.json`,
+  `seller_0924.json` and `grid.json`.
+- `gen_tables_d.py` wrote the tables (`revd/tables_d.md`), and `gen_D_d.py` wrote this section from them. The prose was
+  written by hand after the tables were read.
+- **Rev e:** `expr_e.py` wraps rev d's writer word with rev e's clause (it carries a self-check). `run_e.py` re-reads the
+  writer word, 19:55:30–19:56:21, into `expr/reve/writer.json`. It also re-derives rev d's writer word at her entries and
+  matches `revd/entries.json`.
 
-**The repo.** Every rev c script writes to absolute paths inside `expr/`, and rev c wrote nothing in the repo but this draft.
-- `git status` after the run showed changes that are **not rev c's**, and they were left untouched:
-  - `ui-v2/src/hold/*` (14:36:33) and `docs/hold/BUILD-REPORT.md` (14:37:11), both modified before rev c's patch (14:38);
-  - a new `docs/hold/scratch-2026-09-25/` (14:41:52–58), a copy of this session's scratchpad folders made by another
-    process during the run.
-- **At 14:43, commit `54dc72c`** (not rev c's) took this draft exactly at the rev c fingerprint (`64ad9d7f…`, checked),
-  together with those files and that folder. The folder holds a partial `revc_run_out.txt`, copied mid-run.
-- This section, §G's post-run lines and §H are edits on top of that commit, in the working tree, uncommitted.
+**The repo.** Rev d's scripts write only inside `expr/`, and run with `python -B` (no `__pycache__`). `git status` after the
+run showed only rev d's scratch files, this draft, and the second review (`EXPRESSION-REVIEW-2.md`, the reviewer's file).
+After rev e's run it showed, besides those, only rev e's scratch files (`expr_e.py`, `run_e.py`, `reve/`,
+`reve_run_out.txt`, `rules_reve_before_run.md`) and the third review (`EXPRESSION-REVIEW-3.md`).
 
 **The inputs** are as rev a's:
 - nearer-only fronts on 09-22 and 09-23 [I];
@@ -719,34 +658,34 @@ So §D.3 and the R-multiple rows of §D.4 are rev a's, unchanged, and every othe
 **"Expiry day"** on the record is NIFTY 09-22 and SENSEX 09-24: the chain's resolved expiry was the session date. BANKNIFTY
 had none.
 
-### D.1 Words and silence at the 3-minute close (rev c's words)
+### D.1 Words and silence at the 3-minute close (rev d's words, identical to rev c's)
 
 The counts are per index-day and direction, of 125 closes.
 - "count · ref" splits a word named on the count from one named because the other leg was refused.
-- For LEANS BUY, the figure after the semicolon is the ties with selling refused, which rev c names LEANS BUY.
+- For LEANS BUY, the figure after the semicolon is the ties with selling refused (rev c's rule).
 - STAND ASIDE is split into both refused · led.
 
-| index-day | dir | BUY (count · ref) | LEANS BUY (count · ref; of which ties) | EITHER | LEANS SELL | SELL | STAND ASIDE (both · led) | changes · BUY↔SELL · buy-side↔sell-side | median run |
+| index-day | dir | BUY (count · ref) | LEANS BUY (count · ref; of which ties) | EITHER | LEANS SELL (count · ref) | SELL (count · ref) | STAND ASIDE (both · led) | changes · BUY↔SELL · buy-side↔sell-side | median run |
 |---|---|---|---|---|---|---|---|---|---|
-| NIFTY 09-22 | UP | 6 (4 · 2) | 25 (5 · 20; 15) | 4 | 27 | 15 | 48 (31 · 17) | 47 · 0 · 6 | 6 min |
-|  | DOWN | 12 (11 · 1) | 15 (6 · 9; 3) | 27 | 21 | 25 | 25 (20 · 5) | 55 · 0 · 5 | 6 min |
-| SENSEX 09-22 | UP | 4 (3 · 1) | 38 (13 · 25; 20) | 11 | 23 | 21 | 28 (16 · 12) | 60 · 0 · 19 | 3 min |
-|  | DOWN | 10 (8 · 2) | 32 (11 · 21; 11) | 10 | 20 | 25 | 28 (16 · 12) | 44 · 1 · 10 | 6 min |
-| BANKNIFTY 09-22 | UP | 15 (2 · 13) | 27 (6 · 21; 11) | 3 | 7 | 6 | 67 (47 · 20) | 41 · 1 · 8 | 3 min |
-|  | DOWN | 11 (1 · 10) | 33 (9 · 24; 15) | 4 | 16 | 31 | 30 (16 · 14) | 55 · 0 · 8 | 3 min |
-| NIFTY 09-23 | UP | 11 (11 · 0) | 32 (27 · 5; 3) | 25 | 17 | 19 | 21 (3 · 18) | 74 · 1 · 25 | 3 min |
-|  | DOWN | 8 (1 · 7) | 38 (4 · 34; 26) | 12 | 6 | 13 | 48 (26 · 22) | 56 · 0 · 8 | 3 min |
-| SENSEX 09-23 | UP | 16 (14 · 2) | 16 (16 · 0; 0) | 23 | 34 | 19 | 17 (1 · 16) | 58 · 3 · 16 | 6 min |
-|  | DOWN | 8 (5 · 3) | 22 (5 · 17; 16) | 16 | 23 | 16 | 40 (16 · 24) | 53 · 0 · 2 | 3 min |
-| BANKNIFTY 09-23 | UP | 15 (13 · 2) | 25 (22 · 3; 3) | 15 | 20 | 20 | 30 (17 · 13) | 69 · 3 · 14 | 3 min |
-|  | DOWN | 20 (4 · 16) | 32 (1 · 31; 21) | 10 | 8 | 10 | 45 (27 · 18) | 52 · 0 · 6 | 6 min |
-| NIFTY 09-24 | UP | 18 (14 · 4) | 11 (9 · 2; 1) | 20 | 10 | 0 | 66 (62 · 4) | 44 · 0 · 2 | 3 min |
-|  | DOWN | 32 (32 · 0) | 42 (39 · 3; 1) | 19 | 14 | 9 | 9 (3 · 6) | 70 · 0 · 12 | 3 min |
-| SENSEX 09-24 | UP | 25 (10 · 15) | 27 (4 · 23; 12) | 30 | 7 | 1 | 35 (26 · 9) | 50 · 1 · 2 | 3 min |
-|  | DOWN | 36 (36 · 0) | 33 (32 · 1; 0) | 13 | 25 | 2 | 16 (6 · 10) | 67 · 0 · 15 | 3 min |
-| BANKNIFTY 09-24 | UP | 18 (12 · 6) | 34 (12 · 22; 11) | 15 | 21 | 13 | 24 (19 · 5) | 53 · 1 · 11 | 6 min |
-|  | DOWN | 28 (28 · 0) | 34 (25 · 9; 0) | 18 | 26 | 10 | 9 (8 · 1) | 62 · 0 · 16 | 3 min |
-| **total, of 2,250** | | **293 (209 · 84)** | **516 (246 · 270; 169)** | **275** | **325** | **255** | **586 (360 · 226)** | **1,010 · 11 · 185** | 3 min |
+| NIFTY 09-22 | UP | 6 (4 · 2) | 25 (5 · 20; 15) | 4 | 27 (27 · 0) | 15 (15 · 0) | 48 (31 · 17) | 47 · 0 · 6 | 6 min |
+|  | DOWN | 12 (11 · 1) | 15 (6 · 9; 3) | 27 | 21 (21 · 0) | 25 (25 · 0) | 25 (20 · 5) | 55 · 0 · 5 | 6 min |
+| SENSEX 09-22 | UP | 4 (3 · 1) | 38 (13 · 25; 20) | 11 | 23 (23 · 0) | 21 (20 · 1) | 28 (16 · 12) | 60 · 0 · 19 | 3 min |
+|  | DOWN | 10 (8 · 2) | 32 (11 · 21; 11) | 10 | 20 (20 · 0) | 25 (25 · 0) | 28 (16 · 12) | 44 · 1 · 10 | 6 min |
+| BANKNIFTY 09-22 | UP | 15 (2 · 13) | 27 (6 · 21; 11) | 3 | 7 (7 · 0) | 6 (6 · 0) | 67 (47 · 20) | 41 · 1 · 8 | 3 min |
+|  | DOWN | 11 (1 · 10) | 33 (9 · 24; 15) | 4 | 16 (15 · 1) | 31 (31 · 0) | 30 (16 · 14) | 55 · 0 · 8 | 3 min |
+| NIFTY 09-23 | UP | 11 (11 · 0) | 32 (27 · 5; 3) | 25 | 17 (17 · 0) | 19 (19 · 0) | 21 (3 · 18) | 74 · 1 · 25 | 3 min |
+|  | DOWN | 8 (1 · 7) | 38 (4 · 34; 26) | 12 | 6 (6 · 0) | 13 (13 · 0) | 48 (26 · 22) | 56 · 0 · 8 | 3 min |
+| SENSEX 09-23 | UP | 16 (14 · 2) | 16 (16 · 0; 0) | 23 | 34 (34 · 0) | 19 (19 · 0) | 17 (1 · 16) | 58 · 3 · 16 | 6 min |
+|  | DOWN | 8 (5 · 3) | 22 (5 · 17; 16) | 16 | 23 (23 · 0) | 16 (16 · 0) | 40 (16 · 24) | 53 · 0 · 2 | 3 min |
+| BANKNIFTY 09-23 | UP | 15 (13 · 2) | 25 (22 · 3; 3) | 15 | 20 (20 · 0) | 20 (20 · 0) | 30 (17 · 13) | 69 · 3 · 14 | 3 min |
+|  | DOWN | 20 (4 · 16) | 32 (1 · 31; 21) | 10 | 8 (8 · 0) | 10 (9 · 1) | 45 (27 · 18) | 52 · 0 · 6 | 6 min |
+| NIFTY 09-24 | UP | 18 (14 · 4) | 11 (9 · 2; 1) | 20 | 10 (10 · 0) | 0 (0 · 0) | 66 (62 · 4) | 44 · 0 · 2 | 3 min |
+|  | DOWN | 32 (32 · 0) | 42 (39 · 3; 1) | 19 | 14 (14 · 0) | 9 (9 · 0) | 9 (3 · 6) | 70 · 0 · 12 | 3 min |
+| SENSEX 09-24 | UP | 25 (10 · 15) | 27 (4 · 23; 12) | 30 | 7 (7 · 0) | 1 (1 · 0) | 35 (26 · 9) | 50 · 1 · 2 | 3 min |
+|  | DOWN | 36 (36 · 0) | 33 (32 · 1; 0) | 13 | 25 (24 · 1) | 2 (2 · 0) | 16 (6 · 10) | 67 · 0 · 15 | 3 min |
+| BANKNIFTY 09-24 | UP | 18 (12 · 6) | 34 (12 · 22; 11) | 15 | 21 (21 · 0) | 13 (13 · 0) | 24 (19 · 5) | 53 · 1 · 11 | 6 min |
+|  | DOWN | 28 (28 · 0) | 34 (25 · 9; 0) | 18 | 26 (26 · 0) | 10 (10 · 0) | 9 (8 · 1) | 62 · 0 · 16 | 3 min |
+| **total, of 2,250** | | **293 (209 · 84)** | **516 (246 · 270; 169)** | **275** | **325 (323 · 2)** | **255 (253 · 2)** | **586 (360 · 226)** | **1,010 · 11 · 185** | 3 min |
 
 **At the 3-minute close (2,250 reads):**
 
@@ -759,13 +698,27 @@ The counts are per index-day and direction, of 125 closes.
 | SELL | 255 (253 · 2) |
 | **STAND ASIDE** | **586** (360 both refused · 226 led) |
 
-**Silence at the 3-minute close: 586 of 2,250 closes.** That is rev b's 756 less its 170 STAND ASIDE · tie closes, and the same
-586 as rev a.
-- **The 170 ties now read LEANS:** 169 LEANS BUY · selling refused and 1 LEANS SELL · buying refused.
-- **LEANS BUY is now the most frequent directional word, and more than half of it is named by refusal:** 270 of 516. It is its own population,
-  never pooled with the 246 on the count (§E.2).
-- **Of the 1,389 directional words, 841 are LEANS:** 569 on the count, 102 by refusal with a one-fact lead, and 170 by
-  refusal at a tie.
+**Silence at the 3-minute close: 586 of 2,250 closes.**
+- **LEANS BUY is the most frequent directional word, and more than half of it is named by refusal:** 270 of 516. It is its
+  own population, never pooled with the 246 on the count (§E.2).
+- **Of the 1,389 directional words, 841 are LEANS.**
+
+**What stands behind the words named by refusal** (review A-T5, A-T6) [M]:
+
+| word named by refusal | closes | R6 among its refusals | R6 alone |
+|---|---|---|---|
+| BUY · selling refused | 84 | 60 | 39 |
+| LEANS BUY · selling refused, a one-fact lead | 101 | 51 | 35 |
+| LEANS BUY · selling refused, a tie (rev c) | 169 | **121** | **105** |
+| STAND ASIDE · led | 226 | 112 | 96 |
+| STAND ASIDE · both refused | 360 | 96 | 5 |
+| SELL, LEANS SELL · buying refused (all four) | 4 | 0 | 0 |
+
+- **Most of rev c's refused ties rest on R6,** "no wall behind the sale": 121 of 169, and R6 alone on 105. R6 over-fired on
+  09-22 and 09-23, where only the nearer fronts were frozen (§D.3). So most of rev c's in-sample effect sits on a fixture
+  gap, and the forward rows will say how often a real session reads it.
+- **A word named because buying is refused almost never occurs:** 4 of 2,250 closes, and 0 of the 216 units (§D.7). Expect
+  SELL and LEANS SELL · buying refused to end inconclusive and DRAFT [I].
 
 **Every minute, for comparison** (6,750 reads):
 - BUY 871;
@@ -776,31 +729,33 @@ The counts are per index-day and direction, of 125 closes.
 - STAND ASIDE 1,757 (1,069 · 688);
 - could not check 30.
 
-### D.2 Stability under rev c's words, both cadences
+### D.2 Stability, both cadences (rev d's, identical to rev c's)
 
-| | read every minute | **read at the 3-minute close (registered)** | rev b at the 3-minute close | rev a at the 3-minute close |
-|---|---|---|---|---|
-| reads | 6,750 | 2,250 | 2,250 | 2,250 |
-| word changes, of transitions | 1,957 of 6,732 | **1,010 of 2,232** | 987 of 2,232 | 752 of 2,232 |
-| median life of a word | 2 minutes | **3 minutes** (one bar) | 3 minutes | 6 minutes |
-| runs that last a single read | 869 of 1,975 | **562 of 1,028** | 564 of 1,005 | 355 of 770 |
-| **direct BUY ↔ SELL flips** (strong to strong) | 8 | **11** | 11 | 185 |
-| buy-side ↔ sell-side flips (any of BUY, LEANS BUY to any of SELL, LEANS SELL) | 369 | **185** | 153 | 185 |
-| directional words that are LEANS | 2,556 of 4,189 | **841 of 1,389** | 671 of 1,219 | — |
+| | read every minute | **read at the 3-minute close (registered)** | rev c at the 3-minute close |
+|---|---|---|---|
+| reads | 6,750 | 2,250 | 2,250 |
+| word changes, of transitions | 1,957 of 6,732 | **1,010 of 2,232** | 1,010 of 2,232 |
+| median life of a word | 2 minutes | **3 minutes** | 3 minutes |
+| runs that last a single read | 869 of 1,975 | **562 of 1,028** | 562 of 1,028 |
+| direct BUY ↔ SELL flips | 8 | **11** | 11 |
+| buy-side ↔ sell-side flips | 369 | **185** | 185 |
+| directional words that are LEANS | 2,556 of 4,189 | **841 of 1,389** | 841 of 1,389 |
 
 **Plainly:**
-- **Rev c moves the word little.** The 170 ties that were STAND ASIDE are now LEANS on the open leg, so 23 more closes change
-  word and 32 more side flips appear, all through LEANS. The strong BUY ↔ SELL flip stays at 11.
+- **The word changes often.** Its median life is one bar, and 562 of its 1,028 runs last a single read. The since-clock is what
+  makes it usable: a word that has stood four bars and one that appeared this bar are different reads.
 - **The word is still close to a coin flip at its margin, and it says so in its letters:** 841 of its 1,389 directional
-  words are LEANS, and 272 of those are named by refusal.
+  words are LEANS.
+- Rev a's 185 direct BUY ↔ SELL flips, in rev c's history, are not comparable with these 11 (review A-T7). Rev a had no
+  LEANS, so every directional word was "strong" there.
 
-### D.3 Facts, refusals, co-occurrence and the sell strike — rev a's, unchanged in rev b and rev c
+### D.3 Facts, refusals and co-occurrence — rev a's, unchanged in revs b, c and d
 
 | fact | FOR BUY | FOR SELL | NEITHER |
 |---|---|---|---|
 | SPEED | 1,008 | — | 1,242 |
 | ROOM (with S1's noise step) | 1,138 | 707 | 405 |
-| SHIELD | — | 537 | 1,713 |
+| WALL | — | 537 | 1,713 |
 | REGIME | 567 | 1,116 | 567 |
 | PREMIUM | 766 | 1,316 | 168 |
 
@@ -820,65 +775,56 @@ The counts are per index-day and direction, of 125 closes.
 
 | pair (both votes) | together | if independent |
 |---|---|---|
-| SHIELD SELL · ROOM SELL (a pin) | 294 | 169 |
+| WALL SELL · ROOM SELL (a pin) | 294 | 169 |
 | SPEED BUY · REGIME BUY (a trend) | 331 | 254 |
 | REGIME BUY · PREMIUM BUY | 217 | 193 |
 | REGIME SELL · PREMIUM SELL | 686 | 653 |
 | SPEED BUY · ROOM BUY | 470 | 510 |
 
-**Where the sale was placed (Q3)**, at the 580 SELL words:
+**The sale's strike (rev d):** the ATM strike, the buy's, at every word. Rev c's placements (478 at the wall, 102 at K₀ at the
+580 SELL words; the wall a median 0.19 straddles out) are on file in rev c's outputs (`reva/facts_3m.json`), and none is
+registered.
 
-| placement | SELL words |
-|---|---|
-| at the wall | 478 |
-| at K₀, because the wall sat at the money on the in-the-money side | 83 |
-| at K₀, because the wall lay beyond one straddle | 19 |
-
-The wall's distance in straddles at SELL words had quartiles of 0.09 / 0.19 / 0.34. The far case is rare, and it happened on
-the expiry afternoon.
-
-### D.4 At her 29 entries, the word on the screen at her entry (rev c)
+### D.4 At her 29 entries, the word on the screen at her entry (rev d)
 
 This is the last 3-minute close at or before her read minute.
 - The lead is the named leg's count minus the other's.
-- The last column is the sold leg's first FOLD, in seller points at the fold:
-  - rev 5 option B as built;
-  - rev b's rule with YES, which is not registered;
-  - **rev c: 3s with B_k, and NO on expiry day (registered).**
+- The last column is **the sold leg at the ATM strike**, named with rev c's strike where it differed. It shows that leg's first
+  FOLD under rev 5 B, which is the window as built and as registered (§C), in seller points at the fold.
 
-| # | entry (read · close read) | dir | **word (rev c)** | lead · b–s | refused | since · was | the sold leg's first FOLD: rev 5 B · YES (not registered) · **rev c** — seller pts |
-|---|---|---|---|---|---|---|---|
-| 1 | 09-21 13:59 NIFTY 23300CE | UP | **could not check** — never frozen | | | | |
-| 2 | 09-22 09:41 · 09:41 NIFTY 23300CE | UP | **STAND ASIDE · both refused** | — · 1–3 | R5, R1 | since 09:41 · was SELL PE | 09:41 r6 +0 · 09:41 r6 +0 · **09:41 r6 +0** (B_k 8.35) |
-| 3 | 09-22 10:31 · 10:29 NIFTY 23550PE | DOWN | **SELL CE** | 2 · 1–3 | — | since 10:26 · was EITHER | 14:14 r3 +15.55 · 14:14 r3 +15.55 · **14:14 r3 +15.55** (B_k 7.05) |
-| 4 | 09-22 10:41 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | 14:14 r3 +8.15 · 14:14 r3 +8.15 · **14:14 r3 +8.15** (B_k 7.7) |
-| 5 | 09-22 10:42 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | 14:14 r3 +5.4 · 14:14 r3 +5.4 · **14:14 r3 +5.4** (B_k 7.7) |
-| 6 | 09-22 10:43 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE | 14:14 r3 +6.9 · 14:14 r3 +6.9 · **14:14 r3 +6.9** (B_k 8.8) |
-| 7 | 09-22 10:51 · 10:50 NIFTY 23500PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 10:44 · was LEANS BUY PE | 14:14 r3 +3.9 · 14:14 r3 +3.9 · **14:14 r3 +3.9** (B_k 9.1) |
-| 8 | 09-22 13:47 · 13:47 NIFTY 23500PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:47 · was LEANS BUY PE · selling refused | 14:14 r3 -17.25 · 14:14 r3 -17.25 · **14:14 r3 -17.25** (B_k 5.55) |
-| 9 | 09-23 09:17 · 09:17 NIFTY 23450CE | UP | **STAND ASIDE · led** | -1 · 0–1 | R3, R4cnc | since 09:17 | — |
-| 10 | 09-23 09:46 · 09:44 NIFTY 23450CE | UP | **STAND ASIDE · both refused** | — · 1–3 | R5, R1 | since 09:44 · was SELL PE | 09:46 r6 +0 · 09:46 r6 +0 · **09:46 r6 +0** (B_k 5.4) |
-| 11 | 09-23 09:48 · 09:47 NIFTY 23400PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 09:44 · was SELL CE | 10:19 r6 -10.8 · 10:19 r6 -10.8 · **10:19 r6 -10.8** (B_k 6.35) |
-| 12 | 09-23 09:59 · 09:59 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 09:59 · was STAND ASIDE · led | 10:05 r6 +0.95 · 10:05 r6 +0.95 · **10:05 r6 +0.95** (B_k 6.7) |
-| 13 | 09-23 10:18 · 10:17 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 10:17 · was LEANS BUY CE · selling refused | 13:32 r3 +12.4 · 13:32 r3 +12.4 · **13:32 r3 +12.4** (B_k 6.6) |
-| 14 | 09-23 10:32 · 10:32 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 10:23 · was LEANS SELL PE | 13:32 r3 +11.65 · 13:32 r3 +11.65 · **13:32 r3 +11.65** (B_k 5.0) |
-| 15 | 09-23 11:06 · 11:05 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 11:05 · was LEANS SELL PE | 13:32 r3 +1.5 · 13:32 r3 +1.5 · **13:32 r3 +1.5** (B_k 4.8) |
-| 16 | 09-23 11:31 · 11:29 SENSEX 74900CE | UP | **LEANS SELL PE** | 1 · 2–3 | — | since 11:26 · was LEANS BUY CE | 13:29 r3 +5.3 · 13:29 r3 +5.3 · **13:29 r3 +5.3** (B_k 15.16) |
-| 17 | 09-24 09:41 · 09:41 SENSEX 74200PE | DOWN | **EITHER** | 0 · 2–2 | — | since 09:41 · was SELL CE | 10:43 r4 +29.2 · 10:43 r4 +29.2 · **10:43 r4 +29.2** (B_k 26.37) |
-| 18 | 09-24 10:18 · 10:17 SENSEX 74200PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 10:17 · was LEANS SELL CE | 10:43 r4 +1.6 · 10:43 r4 +1.6 · **10:43 r4 +1.6** (B_k 22.64) |
-| 19 | 09-24 12:31 · 12:29 SENSEX 74100PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | 14:38 r3 +66.2 · 14:45 r4 +70.6 · **14:38 r3 +66.2** (B_k 17.45) |
-| 20 | 09-24 12:34 · 12:32 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | 14:38 r3 +58.2 · 14:45 r4 +62.6 · **14:38 r3 +58.2** (B_k 18.97) |
-| 21 | 09-24 12:43 · 12:41 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE | 14:38 r3 +63.5 · 14:45 r4 +67.9 · **14:38 r3 +63.5** (B_k 18.08) |
-| 22 | 09-24 13:25 · 13:23 SENSEX 74000PE | DOWN | **LEANS SELL CE** | 1 · 1–2 | — | since 13:23 · was LEANS BUY PE | 14:38 r3 +49.35 · 14:45 r4 +53.75 · **14:38 r3 +49.35** (B_k 12.21) |
-| 23 | 09-24 13:40 · 13:38 SENSEX 73900PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:35 · was EITHER | 14:38 r3 +26.2 · 14:45 r4 +30.6 · **14:38 r3 +26.2** (B_k 24.68) |
-| 24 | 09-24 13:42 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE | 14:38 r3 +26.2 · 14:45 r4 +30.6 · **14:38 r3 +26.2** (B_k 24.44) |
-| 25 | 09-24 13:43 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE | 14:38 r3 +22.3 · 14:45 r4 +26.7 · **14:38 r3 +22.3** (B_k 24.44) |
-| 26 | 09-24 13:44 · 13:44 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE | 14:38 r3 +42.9 · 14:38 r3 +42.9 · **14:38 r3 +42.9** (B_k 24.44) |
-| 27 | 09-24 13:53 · 13:53 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE | 14:38 r3 +11.2 · 14:38 r3s +11.2 · **14:38 r3s +11.2** (B_k 28.77) |
-| 28 | 09-24 13:56 · 13:56 SENSEX 73800PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:56 · was BUY PE | 14:38 r3 -10.5 · 14:38 r3s -10.5 · **14:38 r3s -10.5** (B_k 39.11) |
-| 29 | 09-24 14:22 · 14:20 SENSEX 73800PE | DOWN | **EITHER** | 0 · 2–2 | — | since 14:14 · was LEANS SELL CE | 14:38 r3 -35.15 · 14:38 r3s -35.15 · **14:38 r3s -35.15** (B_k 25.56) |
+| # | entry (read · close read) | dir | **word (rev d)** | lead · b–s | refused | since · was | rev c word, if different | the sold leg (ATM): rev 5 B's first FOLD, seller pts |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 09-21 13:59 NIFTY 23300CE | UP | **could not check** — never frozen | | | | | |
+| 2 | 09-22 09:41 · 09:41 NIFTY 23300CE | UP | **STAND ASIDE · both refused** | — · 1–3 | R5, R1 | since 09:41 · was SELL PE |  | PE 23450 (rev c sold 23400): 09:41 r6 +0 |
+| 3 | 09-22 10:31 · 10:29 NIFTY 23550PE | DOWN | **SELL CE** | 2 · 1–3 | — | since 10:26 · was EITHER |  | CE 23450 (rev c sold 23450): 14:14 r3 +15.55 |
+| 4 | 09-22 10:41 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE |  | CE 23400 (rev c sold 23450): 14:14 r3 +14.85 |
+| 5 | 09-22 10:42 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE |  | CE 23400 (rev c sold 23450): 14:14 r3 +8.25 |
+| 6 | 09-22 10:43 · 10:41 NIFTY 23550PE | DOWN | **LEANS BUY PE** | 1 · 3–2 | — | since 10:41 · was LEANS SELL CE |  | CE 23400 (rev c sold 23450): 14:14 r3 +11.4 |
+| 7 | 09-22 10:51 · 10:50 NIFTY 23500PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 10:44 · was LEANS BUY PE |  | CE 23350 (rev c sold 23450): 14:14 r3 +7.4 |
+| 8 | 09-22 13:47 · 13:47 NIFTY 23500PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:47 · was LEANS BUY PE · selling refused |  | CE 23350 (rev c sold 23400): 14:14 r3 -26.55 |
+| 9 | 09-23 09:17 · 09:17 NIFTY 23450CE | UP | **STAND ASIDE · led** | -1 · 0–1 | R3, R4cnc | since 09:17 |  | PE 23400: 09:44 r6 -0.55 |
+| 10 | 09-23 09:46 · 09:44 NIFTY 23450CE | UP | **STAND ASIDE · both refused** | — · 1–3 | R5, R1 | since 09:44 · was SELL PE |  | PE 23400 (rev c sold 23350): 09:46 r6 +0 |
+| 11 | 09-23 09:48 · 09:47 NIFTY 23400PE | DOWN | **LEANS SELL CE** | 1 · 2–3 | — | since 09:44 · was SELL CE |  | CE 23400 (rev c sold 23400): 10:19 r6 -10.8 |
+| 12 | 09-23 09:59 · 09:59 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 09:59 · was STAND ASIDE · led |  | PE 23400 (rev c sold 23350): 10:05 r6 +0.95 |
+| 13 | 09-23 10:18 · 10:17 NIFTY 23450CE | UP | **SELL PE** | 4 · 0–4 | — | since 10:17 · was LEANS BUY CE · selling refused |  | PE 23400 (rev c sold 23350): 13:32 r3 +14.5 |
+| 14 | 09-23 10:32 · 10:32 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 10:23 · was LEANS SELL PE |  | PE 23400 (rev c sold 23400): 13:32 r3 +11.65 |
+| 15 | 09-23 11:06 · 11:05 NIFTY 23450CE | UP | **LEANS BUY CE** | 1 · 3–2 | — | since 11:05 · was LEANS SELL PE |  | PE 23400 (rev c sold 23400): 13:32 r3 +1.5 |
+| 16 | 09-23 11:31 · 11:29 SENSEX 74900CE | UP | **LEANS SELL PE** | 1 · 2–3 | — | since 11:26 · was LEANS BUY CE |  | PE 74900 (rev c sold 74700): 13:29 r3 +8.65 |
+| 17 | 09-24 09:41 · 09:41 SENSEX 74200PE | DOWN | **EITHER** | 0 · 2–2 | — | since 09:41 · was SELL CE |  | CE 74200 (rev c sold 74300): 10:43 r4 +36.5 |
+| 18 | 09-24 10:18 · 10:17 SENSEX 74200PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 10:17 · was LEANS SELL CE |  | CE 74100 (rev c sold 74300): 10:43 r4 -1 |
+| 19 | 09-24 12:31 · 12:29 SENSEX 74100PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE |  | CE 74000 (rev c sold 74200): 14:38 r3 +120.25 |
+| 20 | 09-24 12:34 · 12:32 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE |  | CE 74000 (rev c sold 74200): 14:38 r3 +103.95 |
+| 21 | 09-24 12:43 · 12:41 SENSEX 74000PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 12:26 · was LEANS BUY PE |  | CE 74000 (rev c sold 74200): 14:38 r3 +110.35 |
+| 22 | 09-24 13:25 · 13:23 SENSEX 74000PE | DOWN | **LEANS SELL CE** | 1 · 1–2 | — | since 13:23 · was LEANS BUY PE |  | CE 74000 (rev c sold 74200): 14:38 r3 +89.3 |
+| 23 | 09-24 13:40 · 13:38 SENSEX 73900PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:35 · was EITHER |  | CE 73900 (rev c sold 74200): 14:38 r3 +61.75 |
+| 24 | 09-24 13:42 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE |  | CE 73900 (rev c sold 74200): 14:38 r3 +58.35 |
+| 25 | 09-24 13:43 · 13:41 SENSEX 73900PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:41 · was BUY PE |  | CE 73900 (rev c sold 74200): 14:38 r3 +44.5 |
+| 26 | 09-24 13:44 · 13:44 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE |  | CE 73800 (rev c sold 73800): 14:38 r3 +42.9 |
+| 27 | 09-24 13:53 · 13:53 SENSEX 73800PE | DOWN | **BUY PE** | 2 · 3–1 | — | since 13:44 · was LEANS BUY PE |  | CE 73700 (rev c sold 73700): 14:38 r3 +11.2 |
+| 28 | 09-24 13:56 · 13:56 SENSEX 73800PE | DOWN | **LEANS BUY PE** | 1 · 2–1 | — | since 13:56 · was BUY PE |  | CE 73700 (rev c sold 73700): 14:38 r3 -10.5 |
+| 29 | 09-24 14:22 · 14:20 SENSEX 73800PE | DOWN | **EITHER** | 0 · 2–2 | — | since 14:14 · was LEANS SELL CE |  | CE 73600 (rev c sold 73700): 14:38 r3 -44.05 |
 
-**The words at her 29 entries:**
+**The words at her 29 entries** (unchanged from rev c):
 
 | word | entries |
 |---|---|
@@ -890,122 +836,128 @@ This is the last 3-minute close at or before her read minute.
 | STAND ASIDE | 3 (2 both refused · 1 led) |
 | could not check | 1 |
 
-**Silent at 4 of 29,** as in rev b. Every directional word was named on the count.
-- **No entry word moved in rev c.** None of her 29 entries fell on a tie with one leg refused. Only one "was" changed: #8's
-  prior word is now LEANS BUY PE · selling refused, where rev b had STAND ASIDE · tie.
-- **The answer NO moved seven sold legs,** all SENSEX 09-24 (expiry): #19–#25 fold at 14:38 by rule 3, as rev 5 B does, instead
-  of being held to 14:45 under YES. In seller points that is 4.4 less on each of the seven, with the premium 4.4 higher at
-  14:38 than at 14:45.
-- **Under rev c, every sold leg at her entries folds exactly where rev 5 B folds it,** except #27–#29, which 3s labels at the
-  same 14:38 close.
+- **No entry word moved in rev d** [M].
+- **The sold leg moved to the ATM strike at 20 of her 28 frozen entries.** At #9 rev c named no sale, because S could not be
+  read at 09:17 (R4). Rev d prices the ATM 23,400 PE there and still refuses it.
+- **The window folds every sold leg as rev 5 B does,** because §C changes nothing.
 
-**The legs afterwards, in R-multiples on the shared line** (rev a's figures). The legs, strikes and line are unchanged in rev
-b, so these still stand.
+**The legs afterwards, in R-multiples on the shared line, and the writer's word** (rev d: the sell leg at the ATM strike).
+The sold leg's premium change is shown to 14:59, where her practice closes (§D.8), and to 15:29.
 
-| # | BUY leg R +30 | SELL leg R +30 | G | index 30-min move vs d | sold leg to 15:29 (seller pts) | writer word · 30 min · to 15:29 |
+| # | BUY leg R +30 | SELL leg (ATM) R +30 | G | index 30-min move vs d | sold leg to 14:59 · to 15:29 (seller pts) | writer word (rev d) · 30 min · to 15:29 |
 |---|---|---|---|---|---|---|
 | 1 | | | | | could not check | |
-| 2 | 0.16 | 0.51 | -0.35 | +13.0 with | -44.3 | NO · neither · stop |
-| 3 | 1.86 | 0.61 | 1.25 | +50.6 with | 32.45 | WAIT · neither · target · line beyond strike |
-| 4 | 0.25 | 0.13 | 0.12 | +5.6 with | 25.05 | WAIT · neither · neither · line beyond strike |
-| 5 | -0.24 | 0.04 | -0.28 | +2.5 with | 22.3 | WAIT · neither · neither · line beyond strike |
-| 6 | -0.05 | 0.06 | -0.11 | +4.5 with | 23.8 | WAIT · neither · neither · line beyond strike |
-| 7 | -0.38 | -0.05 | -0.33 | -20.7 against | 20.8 | WAIT · neither · neither · line beyond strike |
-| 8 | -4.76 | -9.3 | 4.54 | -51.2 against | 14.5 | WAIT · target · target |
-| 9 | -0.05 | no strike | — | -5.0 against | — | — |
-| 10 | -0.11 | 0.19 | -0.3 | -3.2 against | 31.25 | NO · stop · stop |
-| 11 | -0.63 | -0.42 | -0.21 | -19.7 against | -17.45 | GO · neither · stop · line beyond strike |
-| 12 | 0.62 | 0.66 | -0.04 | +21.4 with | 29.95 | WAIT · neither · target · line beyond strike |
-| 13 | 0.58 | 0.42 | 0.16 | +27.2 with | 22.7 | GO · neither · target · line beyond strike |
-| 14 | 0.25 | 0.25 | 0.0 | +17.0 with | 23.3 | GO · neither · target · line beyond strike |
-| 15 | 0.11 | 0.02 | 0.09 | +8.5 with | 13.15 | GO · neither · neither · line beyond strike |
-| 16 | 0.08 | 0.06 | 0.02 | -3.3 against | 29.1 | GO · neither · neither · line beyond strike |
-| 17 | 0.03 | 0.09 | -0.06 | +5.5 with | 129.15 | GO · neither · target · line beyond strike |
-| 18 | -0.24 | -0.08 | -0.16 | -19.2 against | 101.55 | WAIT · neither · target · line beyond strike |
-| 19 | 0.44 | 0.05 | 0.39 | +31.7 with | 99.35 | WAIT · neither · target |
-| 20 | -0.37 | -0.27 | -0.1 | -38.0 against | 91.35 | WAIT · neither · target |
-| 21 | -0.35 | -0.08 | -0.27 | -21.7 against | 96.65 | WAIT · neither · target |
-| 22 | 6.07 | 1.96 | 4.11 | +302.0 with | 82.5 | GO · target · target |
-| 23 | 1.85 | 0.51 | 1.34 | +216.1 with | 59.35 | WAIT · neither · target |
-| 24 | 1.55 | 0.48 | 1.07 | +208.5 with | 59.35 | WAIT · neither · target |
-| 25 | 0.83 | 0.33 | 0.5 | +169.1 with | 55.45 | WAIT · neither · neither |
-| 26 | 0.52 | 0.29 | 0.23 | +107.1 with | 175.9 | WAIT · neither · target · line beyond strike |
-| 27 | 0.39 | 0.29 | 0.1 | +120.4 with | 192.4 | WAIT · neither · neither · line beyond strike |
-| 28 | 0.16 | 0.16 | 0.0 | +63.3 with | 170.7 | WAIT · neither · neither · line beyond strike |
-| 29 | -0.71 | -0.19 | -0.52 | -154.8 against | 146.05 | WAIT · neither · neither · line beyond strike |
+| 2 | 0.16 | 0.5 | -0.34 | +13 with | -54.1 · -76.25 | NO · neither · stop · line beyond strike |
+| 3 | 1.86 | 0.61 | 1.25 | +50.6 with | 25.4 · 32.45 | WAIT · neither · target · line beyond strike |
+| 4 | 0.25 | 0.18 | 0.07 | +5.6 with | 28.95 · 46.6 | WAIT · neither · neither · line beyond strike |
+| 5 | -0.24 | 0.03 | -0.27 | +2.5 with | 22.35 · 40.0 | WAIT · neither · neither · line beyond strike |
+| 6 | -0.05 | 0.07 | -0.12 | +4.5 with | 25.5 · 43.15 | WAIT · neither · neither · line beyond strike |
+| 7 | -0.38 | -0.1 | -0.28 | -20.7 against | 23.9 · 63.3 | WAIT · neither · neither · line beyond strike |
+| 8 | -4.76 | -8.54 | 3.78 | -51.2 against | -10.05 · 29.35 | WAIT · target · target |
+| 9 | -0.05 | 0.13 | -0.18 | -5 against | 24.6 · 35.05 | WAIT · not scored · not scored · line beyond strike |
+| 10 | -0.11 | 0.17 | -0.28 | -3.2 against | 25.3 · 35.75 | NO · stop · stop · line beyond strike |
+| 11 | -0.63 | -0.42 | -0.21 | -19.7 against | -12.4 · -17.45 | GO · neither · stop · line beyond strike |
+| 12 | 0.62 | 0.64 | -0.02 | +21.4 with | 23.85 · 34.3 | WAIT · neither · target · line beyond strike |
+| 13 | 0.58 | 0.42 | 0.16 | +27.2 with | 15.7 · 26.15 | GO · neither · target · line beyond strike |
+| 14 | 0.25 | 0.25 | 0.0 | +17 with | 12.85 · 23.3 | GO · neither · target · line beyond strike |
+| 15 | 0.11 | 0.02 | 0.09 | +8.5 with | 2.7 · 13.15 | GO · neither · neither · line beyond strike |
+| 16 | 0.08 | 0.08 | 0.0 | -3.3 against | 5.35 · 31.7 | GO · neither · neither · line beyond strike |
+| 17 | 0.03 | 0.09 | -0.06 | +5.5 with | 152.55 · 174.55 | GO · neither · target · line beyond strike |
+| 18 | -0.24 | -0.12 | -0.12 | -19.2 against | 152.3 · 185.7 | WAIT · neither · target · line beyond strike |
+| 19 | 0.44 | 0.16 | 0.28 | +31.7 with | 137.8 · 187.8 | WAIT · neither · target · line beyond strike |
+| 20 | -0.37 | -0.29 | -0.08 | -38 against | 121.5 · 171.5 | WAIT · neither · target · line beyond strike |
+| 21 | -0.35 | -0.11 | -0.24 | -21.7 against | 127.9 · 177.9 | WAIT · neither · target · line beyond strike |
+| 22 | 6.07 | 2.4 | 3.67 | +302 with | 106.85 · 156.85 | GO · target · target · line beyond strike |
+| 23 | 1.85 | 0.7 | 1.15 | +216.1 with | 81.55 · 157.55 | WAIT · neither · target · line beyond strike |
+| 24 | 1.55 | 0.64 | 0.91 | +208.5 with | 78.15 · 154.15 | WAIT · neither · target · line beyond strike |
+| 25 | 0.83 | 0.4 | 0.43 | +169.1 with | 64.3 · 140.3 | WAIT · neither · target · line beyond strike |
+| 26 | 0.52 | 0.29 | 0.23 | +107.1 with | 64.8 · 175.9 | WAIT · neither · target · line beyond strike |
+| 27 | 0.39 | 0.29 | 0.1 | +120.4 with | 31.25 · 192.4 | WAIT · neither · neither · line beyond strike |
+| 28 | 0.16 | 0.16 | 0.0 | +63.3 with | 9.55 · 170.7 | WAIT · neither · neither · line beyond strike |
+| 29 | -0.71 | -0.22 | -0.49 | -154.8 against | -25.75 · 195.25 | WAIT · neither · neither · line beyond strike |
 
-### D.5 Her 09-25 NIFTY entries (rev c)
+- **The writer's word at her entries** (§B): GO 7, WAIT 19, NO 2 [M]. Neither rev d's could-not-check clause nor rev e's
+  wall clause moved any of them. These are rows, shown and not judged.
+- **The line lies beyond the strike at 27 of 28,** as §B.1 says it must for a sale at the money. X is computed there and
+  flagged.
+
+### D.5 Her 09-25 NIFTY entries (rev d)
 
 These are read at the read minute [I proxy]. The 3-minute-close facts before each entry were not frozen, and no premium was
-frozen, so **R4 refuses SELL at all three**. That is the frozen record's gap, not the market's.
+frozen, so **R4 refuses SELL at all three**. That is the frozen record's gap, not the market's. Rev d moves nothing here.
 
-| entry (read) | dir | the word (rev c) | lead · b–s | what moved |
+| entry (read) | dir | the word (rev d) | lead · b–s | what moved |
 |---|---|---|---|---|
 | 09:36 PE (her words; the saved 09:35 check) | DOWN | **STAND ASIDE · led:** "the facts favour selling, 3 to 0, but selling is refused: R4 — could not check" | −3 · 0–3 | as rev a and rev b |
 | 12:01:21 CE (marked) | UP | **LEANS BUY CE · selling refused (R4):** "the facts tie 1–1; selling is refused, so the open leg is named, weakly" | 0 · 1–1 | rev b said STAND ASIDE · tie; rev a said BUY CE · selling refused |
 | 12:05:28 PE (marked) | DOWN | **LEANS BUY PE · selling refused (R4)** | 1 · 2–1 | as rev b |
 
-### D.6 The seller on 09-24 under rev c: her answer NO, and the buffered rule 3s
+### D.6 The seller on 09-24, folded as today (her answers)
 
-These are her 13 put entries read as sales of the call at the same strike (the handoff's replay). 09-24 was SENSEX's expiry,
-so under her answer the reach is not read on any of them.
+These are her 13 put entries read as sales of the call at the same strike (the handoff's replay). The window is rev 5 B,
+unchanged, on every day (§C).
 
-| sold call (entries) | B_k at entry | rev 5 B (as built) | **rev c (NO, registered)** | YES (not registered) | at 14:59 [M] | at 15:29 [M] |
-|---|---|---|---|---|---|---|
-| 74,200 (09:41, 10:18) | 26.37 · 22.64 | 10:43 rule 4, 138.2 | **the same** | the same | 22.15 | 0.15 |
-| 74,100 (12:31) | 17.45 | 14:38 rule 3, 47.55 | **14:38 rule 3, 47.55** | held 14:38 (P_max 53.25), 14:45 rule 4, 42.45 | 33.55 | 0.15 |
-| **74,000 (12:34, 12:43)** | 18.97 · 18.08 | 14:38 rule 3, 67.75 | **13:05 rule 3s, 191.65** | the same as rev c | 50.2 | 0.2 |
-| 74,000 (13:25) | 12.21 | 14:38 rule 3, 67.75 | **the same** | the same | 50.2 | 0.2 |
-| 73,900 (13:40, 13:42, 13:43) | 24.68 · 24.44 · 24.44 | 14:38 rule 3, 95.9 | **the same** | the same | 76.1 | 0.1 |
-| 73,800 (13:44, 13:53, 13:56, 14:22) | 24.44 · 28.77 · 39.11 · 25.56 | 14:38 rule 3, 133.1 | **the same** | the same | 111.2 | 0.1 |
+| sold call (entries) | rev 5 B's first FOLD (as built, and under rev d) | at 14:59 [M] | at 15:29 [M] |
+|---|---|---|---|
+| 74,200 (09:41, 10:18) | 10:43 rule 4, 138.2 | 22.15 | 0.15 |
+| 74,100 (12:31) | 14:38 rule 3, 47.55 | 33.55 | 0.15 |
+| 74,000 (12:34, 12:43, 13:25) | 14:38 rule 3, 67.75 | 50.2 | 0.2 |
+| 73,900 (13:40, 13:42, 13:43) | 14:38 rule 3, 95.9 | 76.1 | 0.1 |
+| 73,800 (13:44, 13:53, 13:56, 14:22) | 14:38 rule 3, 133.1 | 111.2 | 0.1 |
 
-**Under rev c the 09-24 seller is rev 5 B's window exactly, except the two 74,000 sales.** 3s folds those at 13:05, at 191.65:
-that bar closed 25.4 pts through 74,000, against one frozen candle of 18.97 and 18.08 pts. It is disclosed as it is, and not
-tuned.
-- **The 74,100 call folds at 14:38 at 47.55, as today.** Under YES it would have been held seven minutes, touched 53.25, and
-  folded at 14:45 at 42.45 by rule 4.
+- **The 11 sold calls folded at 14:38 by rule 3** (the bounce off the 14:24 low), and the two 74,200 calls at 10:43 by
+  rule 4. **Every one ended at 0.1–0.2.** Her answers keep those folds. This is disclosed, not tuned (§C.3).
+- **Against 14:59, where her practice would have closed them,** the 14:38 folds gave up 14.0 (74,100), 17.55 (74,000), 19.8
+  (73,900) and 21.9 (73,800) points [M]. The 10:43 fold of 74,200 (138.2) stood 116.05 above its 14:59 premium.
 
-**The 165 sold legs on the grid** (§E.2's units):
+**The 216 sold legs on the grid**, one per unit at the ATM strike, under rev 5 B [M]:
 
-| | rev b (YES assumed) | **rev c (NO, registered)** |
-|---|---|---|
-| first FOLD by rule 3 / 6 / 4 / 3s / none | 64 / 48 / 27 / 13 / 13 | **71 / 48 / 22 / 13 / 11** |
-| held breaks (legs held on a line break) | 7 legs, 2 held breaks | **none** |
-| 3s before rev 5 B's own fold | 4 (3 at a lower premium, 1 higher) | **4 (the same four)** |
-| 3s at the same close as rev 5 B's line fold | 9 | **9** |
-| first FOLD at the same minute as rev 5 B | 154 | **161** |
-
-- **The seven legs the answer moved** were all SENSEX 09-24, its expiry. They were held under YES and now fold at the line,
-  as rev 5 B does:
-  - CE 74,300 ×3 and CE 74,200 ×2: 14:38 rule 3, at 23.5 and 33.3, where YES held them to 14:45 at 19.9 and 28.9;
-  - PE 73,500 ×2 (the 14:44 and 15:14 units): at the 15:29 close by rule 3, at 0.15, the same premium YES's to-close gave.
-- **The four 3s folds before rev 5's** are unchanged from rev b: SENSEX 09-22 PE 75,000 (10:20 at 291.55, against 10:31 at
-  342.05); SENSEX 09-23 CE 74,700 ×2 (10:17 at 243.35, against 10:20 at 264.95); BANKNIFTY 09-24 PE 55,500 (15:14 at 329.45,
-  against 15:20 at 320.0, the one higher).
-
-**Held breaks, W-R's unit: none on the record under her answer.** Both of rev b's held breaks (SENSEX 09-24 14:38 CE; 15:29 PE
-73,500) were on SENSEX's expiry day. So off expiry, where the reach is still read, it bound nowhere on these four days. W-R's
-forward populations will fill slowly (§C.4).
-
-### D.7 The grid in rev c: the words at the units
-
-**The 216 units read:**
-
-| word | units |
+| first FOLD | legs |
 |---|---|
-| BUY | 26 (17 on the count · 9 by refusal) |
-| LEANS BUY | 51 (24 · 27 by refusal, of which 14 ties) |
-| EITHER | 35 |
-| LEANS SELL | 41 |
-| SELL | 14 |
-| STAND ASIDE | 49 (35 both · 14 led) |
+| rule 3, the line | 108 |
+| rule 6 | 54 |
+| rule 4 | 35 |
+| none to 15:29 | 19 |
 
-**Unchanged from rev b**, because they read no word: G is scored at 160 of 216 units, and the writer population (ii) is 165
-legs, of which 57 resolved at 30 minutes.
+48 of them are on an expiry day (NIFTY 09-22, SENSEX 09-24).
 
-**The forward counts by word are spread over more populations.** Each refusal-named word is now judged on its own (§E.2), so
-§E.2's 15-per-word bar takes longer to reach. On the grid, LEANS BUY by refusal is the most frequent refusal word (27 of 216 units).
-That is disclosed, not tuned.
+### D.7 The grid in rev d: the words at the units, scoring, and the writer population
+
+**The 216 units read** (unchanged from rev c):
+
+| word | units | scored (G): count · refusal |
+|---|---|---|
+| BUY | 26 (17 on the count · 9 by refusal) | 17 · 8 |
+| LEANS BUY | 51 (24 · 27 by refusal, of which 14 ties) | 23 · 24 |
+| EITHER | 35 | 33 |
+| LEANS SELL | 41 | 39 |
+| SELL | 14 | 14 |
+| STAND ASIDE | 49 (35 both · 14 led) | 34 · 12 |
+
+- **G is scored at 204 of 216 units** [M], where rev c scored 160. The sale is always priced now, so the R6 units are scored.
+  - The 12 not scored are "no premium" (6) and "no greeks" (6).
+- **The refusal populations will fill slowly.** On the grid, BUY · selling refused had 9 units and LEANS BUY · selling refused
+  27. SELL and LEANS SELL · buying refused had none. §E.2's bar is 15 per word per direction, so these will take many
+  sessions, and some may end DRAFT [I].
+
+**The writer population (ii)** (§B.3), at the ATM sell leg of every unit, rev e's word [M]:
+
+| | GO | WAIT | NO | all |
+|---|---|---|---|---|
+| the writer's word | 60 | 121 | 35 | 216 |
+| in the stratum (line > noise and P ≥ X) | 60 | 89 | 21 | 170 |
+| of which the line lies beyond the strike | 59 | 86 | 19 | 164 |
+
+- **Rev e's wall clause moved 12 units from GO to WAIT** [M], all on 09-22 and 09-23: SENSEX 09-22 1, BANKNIFTY 09-22 2,
+  NIFTY 09-23 2, SENSEX 09-23 3, BANKNIFTY 09-23 4. Rev d's words were GO 72 · WAIT 109 · NO 35.
+- **At every 3-minute close** (2,250): the writer's word is GO 633 · WAIT 1,262 · NO 355. Rev e moved 131 from GO to WAIT,
+  and **no GO now stands beside a sell refusal of §A** (rev d had 131, every one R6 alone) [M].
+- **Rev d's could-not-check clause moved no unit's word** [M]. It is a guard for the forward record, and it did not bind on
+  these days.
+- **The line lies beyond the strike at 196 of 216 units,** as it must for a sale at the money (§B.1). The stratum keeps them,
+  flagged (review B-M1).
+- **Resolved within 30 minutes: 78, all inside the stratum. To 15:29: 127. Not scored: 38.** No word is crossed with an
+  outcome here.
 
 ### D.8 Her practice, not a rule: nothing held or opened after 15:00
 
@@ -1019,23 +971,15 @@ rule, a refusal or a gate here:** no word, fact, refusal, fold or falsifier read
 descriptive log flag `after_1500` (§E.3), so the forward record can be read with and without those rows.
 
 **The evidence in this draft that falls after 15:00:**
-- **The 09-24 seller rows (§D.6).** The 14:38 folds are before 15:00, but the hindsight they are measured against is not.
-  The calls "expired at 0.1–0.2" at 15:29. At 14:59, where her practice would have closed them, they stood at 22.15 (74,200),
-  33.55 (74,100), 50.2 (74,000), 76.1 (73,900) and 111.2 (73,800) [M].
-  - The 14:38 line folds bought back 14.0 (74,100), 17.55 (74,000), 19.8 (73,900) and 21.9 (73,800) points above the
-    14:59 premium, not 47–133 above the 15:29 one.
-  - The 74,000 3s fold at 13:05 (191.65) stood 141.45 above its 14:59 premium.
-  - The 10:43 fold of 74,200 (138.2) stood 116.05 above.
-  - These are hindsight rows, shown and not judged.
-- **The held breaks under YES,** the road not taken: the 14:38 CE break was held to 14:45, before 15:00. The PE 73,500 break
-  came at the 15:29 close, after 15:00.
+- **The 09-24 seller rows (§D.6).** The folds are before 15:00, but the hindsight they are measured against is not. The calls
+  "expired at 0.1–0.2" at 15:29. At 14:59 they stood at 22.15 (74,200), 33.55 (74,100), 50.2 (74,000), 76.1 (73,900) and
+  111.2 (73,800) [M].
 - **The grid:**
-  - the units at 14:44, whose 30 minutes cross 15:00, and 15:14 are 36 of the 216 units;
-  - 25 of the 165 sold legs start at those units;
-  - 22 of the 165 sold legs first fold at 15:00 or later, or not at all, and run to 15:29. Among them is the BANKNIFTY 09-24
-    PE 55,500 3s fold at 15:14.
-- **Every "to 15:29" figure is after 15:00 by construction:** §D.4's "sold leg to 15:29", the writer word's to-15:29 read, and
-  §B.3's to-15:29, which is shown and not judged.
+  - the units at 14:44, whose 30 minutes cross 15:00, and at 15:14 are 36 of the 216;
+  - 18 of the 216 sold legs start at the 15:14 units;
+  - 19 are not folded by 15:29, and run to the close.
+- **Every "to 15:29" figure is after 15:00 by construction:** §D.4's "to 15:29", the writer word's to-15:29 read, and §B.3's
+  to-15:29, which is shown and not judged. §D.4 now shows "to 14:59" beside it.
 - **Not after 15:00:** her 29 entries, and their 30-minute windows (the last, #29 at 14:22, ends at 14:52), and her three 09-25
   entries.
 - **§E.2's check with the `short` units removed** (after 14:59) was registered before her words, and is unchanged. It is a
@@ -1052,24 +996,21 @@ descriptive log flag `after_1500` (§E.3), so the forward record can be read wit
 | cadence | the 3-minute closes of the 09:15 grid (125 a day) | CLAUDE.md rule 3; rev 5 A.0.1; **named choice** (M3) |
 | SPEED | the window's "paid" at the close | rev 4 §3 rule 5; VALIDATE rev 2 §1.4 |
 | ROOM | VALIDATE §1.3's order: line ≤ noise NEITHER; target < line SELL; else BUY | VALIDATE rev 2 §1.3 (rev a, S1) |
-| SHIELD | the nearest of the sold side's top two at or beyond spot (half a step), BUILDING with a build | §1d; `fronts.read`; board's `built` |
+| WALL | the nearest of the sold side's top two at or beyond spot (half a step), BUILDING with a build | §1d; `fronts.read`; board's `built` |
 | REGIME | §10.1's vote | rev 4 §10 |
-| PREMIUM | the straddle of the strike ATM at `t − 15`, CE + PE at `t` against at `t − 15`; both legs up reads NEITHER and R4 | `QUIET` = 15; rev 4 §8; her ATM-straddle words, **with her expiry exception** |
+| PREMIUM | the straddle of the strike ATM at `t − 15`, CE + PE at `t` against at `t − 15`; both legs up reads NEITHER and R4 | `QUIET` = 15; rev 4 §8; her ATM-straddle words; **read on expiry day too** (rev d, A-T2) |
 | refusals | R1, R2, R5 the window's; R3, R4 (fails closed), R6 named | §A.4 |
 | the word | refusals, then the count; a lead of 2 or more BUY / SELL, of exactly 1 LEANS, a tie EITHER, a tie with a leg refused LEANS on the open leg, by refusal; `named_by` and `strength` kept apart | **named choices** (M2; rev b; rev c) |
-| strikes | BUY ATM; SELL at the wall within one straddle, else ATM | side log `atm.k`; §C's unit (Q3) |
-| expiries | both legs the chain's resolved expiry; S of her option's own expiry | `upstox_instruments.resolve` (S8, M8) |
-| writer facts | Right now · Your wall · Cushion (noise, the strike range, X vs P) · Time is paying | VALIDATE rev 2 §1.2 / §1.3; PLAN §2.1; §A fact 5 |
+| strikes | BUY ATM; SELL ATM, the same strike | side log `atm.k`; her "atm", and parity for "the same strike" (rev d) |
+| expiries | both legs the chain's resolved expiry | `upstox_instruments.resolve` (S8) |
+| writer facts | Right now · Your wall (§A's wall behind the sale) · Cushion (noise, X vs P; flagged when the line lies beyond the strike) · Time is paying | VALIDATE rev 2 §1.2 / §1.3; PLAN §2.1; §A facts 3 and 5 (rev d) |
+| writer GO | never on a could-not-check risk fact, nor with no wall behind the sale | the fail-closed principle (§A.4 R4; rev d, B-M2); one wall, one answer (rev e, B-N1) |
 | writer target · horizon | P − X, 1:1 in premium · 30 min judged, to 15:29 shown | PLAN §2.1; VALIDATE §3's 30 (M6) |
-| the reach | signed R against S of her expiry, scale 1×; **not read on her option's expiry day** | **named choice**; seller-desk design's unit; ≈ 0.2 Δ [I]; **her answer, §C.7** |
-| rule 3s (rev b) | a close beyond k ± B_k, always; B_k = rev 5 §A.2's B read at her entry, frozen, with its fallback | rev 5 option B, signed |
-| held loss | PLAN §2.1's writer formula to the fold level (R − S) | PLAN §2.1 |
-| W-R | (index, bar, L, side), median across strikes; majority, total points, total in S; best day removed; P_max logged | rev 5 §F.1 / 7b; **named** (M9) |
+| the window, writers | unchanged: rev 4 + rev 5 option B; no reach, no strike rule | **her answers** (§C.1) |
 | expression units | the 3-minute closes at 09:44, 10:14 … 15:14 (the 10th close and every 10th after), per (index, `d`) | the 30-minute horizon on the canonical grid |
 | expression outcome | R-multiples on the shared line: each leg's P&L over 30 finished minutes ÷ its PLAN §2.1 premium at risk to L | PLAN §2.1's two formulas (M1) |
 
-**No new number.** The new uses of inherited numbers are 3 (the grid), 15, 30, 1× (the straddle, as 1× the candle) and half a
-step. Every named choice above is a new registration if changed.
+**No new number.** The new uses of inherited numbers are 3 (the grid), 15, 30 and half a step. Every named choice above is a new registration if changed.
 
 **Not used, and why:**
 - **her "90-minute write guard"** has no text in the repo; it is hers to state;
@@ -1094,7 +1035,8 @@ minute:
 - **Not scored, shown with its reason:**
   - either leg's risk unreadable (no greeks);
   - the buyer's clamp at 0;
-  - no sell strike (R6).
+  - a premium missing, at either end (rev e, A-T14).
+  - (Rev d: the sale is always priced at the money, so a unit refused by R6 is scored like any other.)
 - **Shown beside G, never judged:** G in points / S at the unit; each leg's % of its own premium (rev 0a's unit, kept
   visible); MFE and MAE.
 
@@ -1135,7 +1077,7 @@ minute:
   leg beat the reads that did not point to it.
 - **STAND ASIDE · led, on its own:** the median of max(long R, short R), the better leg, is lower at its units than at count
   units.
-- **The sell refusals** (R1–R4; R6 cannot be scored): the median short R-multiple where SELL was refused is lower than at
+- **The sell refusals** (R1–R4 and R6; rev d scores R6): the median short R-multiple where SELL was refused is lower than at
   SELL-count units. It is shown per code.
   - If it fails, the refusals are re-registered.
   - R5 (the buy refusal) is the window's entry FOLD and is judged there.
@@ -1174,11 +1116,12 @@ live by `_hold_tick` and completed by the close-time import.
  since, was: {word, until},
  nb, ns, facts: [[name, state, absence, text]...],
  buy:  {side, k, expiry, px, delta, gamma, entry},
- sell: {side, k, expiry, px, delta, gamma, entry, placement: "wall"|"atm", wall: {k, state, r_w}|null, r_over_S},
- S, line, noise, regime_board, drag, expiry_line, blind: [...], word_1m, unit: bool, after_1500: bool, prereg: "expr-c", tag: "I"}
+ sell: {side, k, expiry, px, delta, gamma, entry, wall: {k, state}|null},
+ S, line, noise, regime_board, drag, expiry_line, blind: [...], word_1m, unit: bool, after_1500: bool, prereg: "expr-e", tag: "I"}
 ```
 
-A tie with one leg refused logs `strength: "leans"`, `lead: 0`, `named_by: "refusal"` (rev c).
+A tie with one leg refused logs `strength: "leans"`, `lead: 0`, `named_by: "refusal"` (rev c). The sell leg's `k` is the
+buy leg's, the ATM strike (rev d).
 
 On a unit close, an **outcome row** is written once its 30 minutes have finished:
 
@@ -1187,8 +1130,7 @@ On a unit close, an **outcome row** is written once its 30 minutes have finished
  long:  {side, k, p0, p30, pnl, risk, r_mult, pct, mfe, mae},
  short: {side, k, p0, p30, pnl, risk, r_mult, pct, mfe, mae} | "not scored — why",
  G, G_pts_over_S, move: {pts, split: "with"|"against"|"flat"}, short_window: bool, after_1500: bool, co_timed: [...],
- writer: {facts, X, word, first_30, first_1529},                                   -- §B.3 population (ii)
- sell_hold: {key: [idx, bar, L, side], R, S_b, held, fold_t, fold_rule, P_b, P_x, P_max, to_close} | null}  -- §C.4 (ii)
+ writer: {facts, X, word, beyond_strike: bool, first_30, first_1529}}             -- §B.3 population (ii)
 ```
 
 **`data/hold/check_<day>.jsonl` (additive):**
@@ -1198,17 +1140,11 @@ On a unit close, an **outcome row** is written once its 30 minutes have finished
 - the outcome key gains `role` (§B.3);
 - every press and outcome row gains `after_1500` (below).
 
-**`data/hold/hold_<day>.jsonl` (additive, writer rows only):**
-- `reach: {k, R, S, S_expiry, atm, outside}` on every bar-close row;
-- `held: {key, bar, L, t, R, S, P_b, P_max_so_far, loss_to_fold} | null`;
-- `fold_rule: "3r" | "3s"`, and `strike: {k, B_k, B_at, level}` from entry (rev b);
-- `writer_clause: "reach-c"`;
-- `expiry_day: true | false`: her option's expiry is the session date. When true the reach is not read (her answer,
-  2026-09-26);
-- `after_1500` (below).
+**`data/hold/hold_<day>.jsonl`: unchanged** (rev d). The window does not change (§C), so its rows gain nothing.
 
-**`after_1500: true` (rev c), descriptive only.** It is written on every expression, outcome, press and hold row whose own
-minute is 15:00 or later, and `false` before.
+**`after_1500: true` (rev c), descriptive only.** It is written on every expression, outcome and press row whose own minute
+is 15:00 or later, and `false` before. Rev d drops it from the window's rows, which do not change; a hold row's minute is its
+own `t`.
 - **It gates nothing.** It changes no word, no fact, no refusal, no fold and no falsifier. §E.2's existing check with the
   `short` units removed is unchanged.
 - **Why it exists:** Mary's current practice is to hold nothing and open nothing after 15:00 (§D, "Her practice"). The flag
@@ -1217,20 +1153,19 @@ minute is 15:00 or later, and `false` before.
 
 `prereg` keeps its rev 5 value, so buyer rows do not change label.
 
-**Day state:** nothing new. R, S and P_max are read from the day's chain record, which a restart re-reads.
+**Day state:** nothing new.
 
 ### E.4 The forward clocks
 
 | clause | changed here? | its forward record |
 |---|---|---|
-| the expression, §E.2 | new | Starts at its first session after the code (`prereg: "expr-c"`). |
+| the expression, §E.2 | new | Starts at its first session after the code (`prereg: "expr-e"`). |
 | VALIDATE, buyers (P1, P2) | no | **Continues.** The `expr` key is additive. |
 | VALIDATE, writers, (i) presses and (ii) grid | new | Starts at the first session after the code (`rev: "2W"`). Earlier writer presses (`word: null`) are rev 2's record, never pooled. |
 | the window, buyers | no | **Continues.** |
-| the window, writers (W1, W2, the writer clauses 1–7) | yes: rule 3 for writers, plus 3r and 3s | **Reset for writers only** (`writer_clause: "reach-c"`). Rev 5's writer rows stay rev 5's record. |
-| §C.4 W-R | new | Starts with the writer reset. Her §C.7 answer is in (NO), so held breaks come off expiry only. |
+| the window, writers (W1, W2, the writer clauses 1–7) | no (her answers, §C) | **Continues.** |
 | §10 side read, PLAN P1 / P2 | no | Continue. |
-| PLAN §2.6 (a writer's STOP) | display: the reach line and the held loss | A PLAN change-log line and a new §1f hash; no PLAN rule moves. |
+| PLAN (rev 3a) | no | Continues. |
 
 Test browsers strip `&log=1`. Nothing is logged by a test.
 
@@ -1269,10 +1204,10 @@ direction on its closed bar, a quiet line reads "setup: BUY d2 armed, 11:42 bar 
    hidden. Each card keeps its own I'M IN.
    - **Left, "BUY CE 23,100 · ATM · expiry 2026-09-29, 4 days":** the premium and its minute [I], Δ [M], the leg's own
      VALIDATE word at 40 px (read at the press minute), and its entry-check word.
-   - **Right, "SELL PE 23,050 · at the floor · 0.4 straddles out · Δ −0.31 [M]":** the wall's strike and state, "your line
-     23,061.5 sits 11.5 pts above your strike", the premium [I], and the writer's VALIDATE word (§B).
-     - When placed ATM because the wall is beyond one straddle: "SELL PE 23,100 (ATM) — the defended floor 22,850 sits 250
-       pts out, beyond one ATM straddle (180 pts [M])".
+   - **Right, "SELL PE 23,100 · ATM · expiry 2026-09-29, 4 days · Δ −0.49 [M]":** the wall behind it ("PE 23,000 ·
+     building"), "your line 23,061.5 sits 38.5 pts below your strike", the premium and its minute [I], and the writer's
+     VALIDATE word (§B), or VALIDATE rev 2 §1.6's writer screen if §B is unsigned. With no wall behind it, the card is dimmed
+     with R6's reason, and still priced; its writer word is then WAIT (§B.2).
      - On 0DTE: "S4 expiry flush — logged, not traded · expiry afternoon → neither (the desk's setup table)".
 3. **The five facts:** a table with the columns FOR BUY · FOR SELL · NEITHER, one mark per row, the sentence under it with its
    tag.
@@ -1287,38 +1222,12 @@ direction on its closed bar, a quiet line reads "setup: BUY d2 armed, 11:42 bar 
 **When the whole read is absent** ("could not check — the 12:30–12:32 close has not landed"), that replaces the word in the
 hatched style.
 
-### F.2 The floating window: a sold option
+### F.2 The floating window: a sold option — unchanged
 
-**The head:** "SOLD PE 22,900 · NIFTY · expiry 2026-09-29" and "YOU ARE SHORT". The word, its since-clock and its tag (LINE
-BROKEN · HELD, NOISE, OI BLIND). The noise wording is "The premium you sold is up" (rev 5 §D item 8).
-
-**The rows:**
-- **The line row** (a short PE's danger is down): "danger line 23,061.5 (5m swing low 11:25) · breaks below 23,056.6 — 9
-  pts away [M]".
-- **The reach row, writers only:**
-  - "your strike 192 pts out · one ATM straddle 118 pts [M], the market's price of the move to 29 Sep — outside: a line
-    break is a WATCH for you";
-  - inside: "… — inside: the line decides";
-  - on her option's expiry day: "expiry today — the reach is not read: a line break folds you (your answer, 26 Sep)";
-  - held: "held since 12:05 · strike 160 pts out, straddle 118 · ≈ ₹{Y} [I] of premium between here and the fold level ·
-    FOLD at the first 3-min close with your strike within one straddle, or through your strike by more than one candle".
-  - **No row says "safe", "won't reach", or anything like it.**
-- **The strike row, always, for writers:** "your strike {k} · breaks on a 3-min close {above / below} {k ± B_k} — one
-  median candle, {B_k} pts [M], read {B_at} (rule 3s) — {R} pts out".
-- **YOUR SIDE** replaces HOLDERS, and there is **no quiet clock**: "not shown — a writer has no quiet clock; time pays her".
-
-**The footer,** in neutral ink:
-- "sold at 92.00 · now 61.50 [I] · decayed 30.50 of 92.00";
-- while held, "highest since the break: {P_max} [M]";
-- the expiry line;
-- the premium at risk to the line [I] (PLAN §2.1).
-
-**The WATCH hint** lists every condition that alone folds her: the reach close, the strike close (3s), rule 4's writer items,
-and rule 6's families.
-
-**Collapsed:** `WATCH · SOLD NIFTY 22900 PE · line broken 12:05, held — strike 160 · straddle 118 · ≈ ₹Y to fold · since 12:05`.
-
-**One tone** fires on the transition into FOLD (3, 3r and 3s included). There is nothing on WATCH or HOLD.
+The window shows a sold option exactly as it does today (rev 4 + rev 5 B, live): "short · qty {q} · in HH:MM", YOUR SIDE in
+place of HOLDERS, no quiet clock ("not shown — a writer has no quiet clock; time pays her"), and "none — a writer: the stop
+alone". Nothing is added: no
+reach row, no strike row, no held loss (her answers, §C).
 
 ---
 
@@ -1530,56 +1439,143 @@ session's scratchpad (§D.0). Nothing of rev c's run was committed by rev c.
   (STAND ASIDE is 586).
 - **No rule moved after rev c's run.**
 
+**Rev d, 2026-09-26 19:17 IST (clock), written before its run.** It answers the second review
+(`EXPRESSION-REVIEW-2.md`, 19:05: A signable with text edits; B and C NOT YET; M1–M9 closed) and registers her two answers
+of 26 Sep. Everything below was written after rev c's rows, the second review's numbers and her answers were read.
+
+**Her answers** (§C.1), asked by the coordinator in the question tool:
+1. **The reach off expiry:** "Fold as today, everywhere". The reach, 3r, W-R, the held loss and the reach rows are withdrawn.
+2. **A strike stop for a sale made in the money:** her words (§C.1). Read as: no strike stop at all, and her sale is at the
+   money or in the money on purpose. So:
+   - **rule 3s is withdrawn**, with B_k and the strike row. The second review's B/C-M3 and C-M4 (3s at entry; 3s pooled
+     into 7b-B, with no kill clause) fall with it;
+   - **§A.5 names the sale at the ATM strike, the same as the buy**, in place of rev a's wall / K₀ placement. K₀ existed only
+     so that 3s would not fold a sale at its first close.
+   - The coordinator's reading of her words is stated in §C.2, so she can correct it.
+3. **So §C registers no change to the window:** writers are folded as today, the writers' record continues, rev 4's
+   principle holds, and PLAN does not change (header, §E.3, §E.4, §F.2).
+
+**The second review's blockers, fixed as the trader, on principle:**
+- **B-M1, the stratum:** Cushion's WITH as §B.1 defines it (line > noise and P ≥ X). The line at or beyond the strike is
+  flagged and shown split, never excluded. The disclosure code already computed it this way (`expr_a.writer_word_a`).
+- **B-M2, fail-open:** a writer's GO never stands on a could-not-check risk fact (Your wall, Cushion, Time is paying): WAIT.
+- **§B.1's Your wall is §A's wall behind the sale.** This is a consequence of her answer: for a sale in the money, "between
+  spot and your strike" is the wrong side of spot. One wall, one definition.
+
+**The text edits (A-T1 to A-T11, B-S1, C-S1 to C-S5):**
+- A-T1 and A-T3 in §H and the header ("her one decision" and the draft's own "can be signed" are gone);
+- A-T2 decided as the trader: fact 5 reads the ATM straddle on expiry day too (§A.3);
+- A-T4 in §A.4;
+- A-T9: fact 3 is renamed WALL, "defended floor" copy is gone with the placement, and "a wall is where writers are adding,
+  not a bound on price" is in §A.3;
+- A-T10 in §A.7;
+- A-T11 in the header;
+- A-T5–A-T8 are disclosures, in rev d's §D;
+- B-S1 in §E.1;
+- C-S1 to C-S5 fall with the reach and 3s.
+
+**Consequential edits:**
+- §A.4 R4's parenthetical;
+- §A.7 (the sale's prints: no r/S);
+- §A.8 (the sale is at the money);
+- §B.1 Cushion's reasons; §B.2's printed list; §B.3 (no reach);
+- §E.1 (strikes, expiries, writer facts, writer GO; the reach, 3s, held loss and W-R rows gone; no "1× the straddle");
+- §E.2 (R6 units are scored, because the sale is always priced);
+- §E.3 (the `sell` log object loses `placement`, `r_w` and `r_over_S`; `sell_hold` is gone; `hold_` rows are unchanged, and
+  `after_1500` leaves them; `prereg: "expr-d"`);
+- §E.4 (no writer reset; no W-R; PLAN continues);
+- §F.1's sell card; §F.2.
+
+**Not changed:** the five facts' logic, the refusals, the word's grading, the units, the outcome, the falsifiers' claims,
+the horizon, the populations, and `after_1500` on expression, outcome and press rows.
+
+**Fingerprinted before its run** (§D.0).
+
+**19:25–19:28, rev d's run** (`run_d.py`), then the tables (`gen_tables_d.py`). `git status` afterwards showed only rev
+d's scratch files, this draft and the second review.
+
+**19:32, §D rewritten for rev d, after the run** (`gen_D_d.py`). Before it went in, the text outside §D was checked
+byte-identical to the fingerprinted copy.
+- **One claim was fixed before it went in:** the line lies beyond the strike at 27 of her 28 frozen entries, not 26.
+- After it went in, fact 3's two labels in the carried-over §D.3 tables were renamed SHIELD → WALL, to match §A.3.
+- **No rule moved after rev d's run.**
+
+**Rev e, 2026-09-26 19:51 IST (clock), written before its run.** It answers the third review (`EXPRESSION-REVIEW-3.md`:
+A and C signable with text edits; B NOT YET on one blocker, B-N1; every second-review item closed or moot; every §D number
+reproduced, and "no word moved" confirmed in two separate processes). Everything below was written after rev d's rows and
+the third review's numbers were read.
+
+**The one rule, B-N1, decided as the trader, on principle:** a writer's GO also needs the wall behind the sale. With none
+(§A's R6), the word is WAIT, "not there yet: no wall behind the sale (R6)" (§B.2, §E.1). Rev d made §A's and §B's walls one
+object, so one absence must give one answer. **What had been seen:** the review's count, a GO beside R6 at 131 of 2,250
+closes and 12 of 216 units, all on the nearer-only days.
+
+**The text edits, none of which changes a rule, a number or a population:**
+- A-T12 (R2 by her direction), A-T13 (§A.1's wall), A-T14 (§E.2's not-scored list), A-T15 (§A.8: SELL is a time-beats-move
+  word), A-T16 (attribution in the header, §A.5 and §E.1), A-T17 (§F.1's fallback);
+- B-T1 (§B.3's not-scored list, matched to the code rev a–e ran), B-T2 (`beyond_strike` in the log), B-T3 (Cushion in the
+  money);
+- C-T1 (the window's own line and rules, not "exactly" her zone), C-T2 (rev 4 §11.2 item 2 settled), C-T3 ("toward her
+  strike" by her direction; the window copy's amendment owed, §H), C-T4 (statutory charges on a losing fold), C-T5 (§F.2
+  quotes the live window), C-T6 (the "floor" ban scoped to the expression and the Validate tab);
+- §H: her two confirm items, the owed copy amendment, and the owed tests; `prereg: "expr-e"`.
+
+**Fingerprinted before its run** (§D.0).
+
+**19:55–19:56, rev e's run** (`run_e.py`); **19:57, §D amended for rev e, after the run.** Only the writer's word moved:
+131 closes and 12 units from GO to WAIT, all on 09-22 and 09-23, and none of her entries. Rev d's other tables stand. Before
+§D was amended, the text outside §D was checked byte-identical to rev e's fingerprinted copy. **No rule moved after rev e's
+run.**
+
+**After rev e's run, the fourth review** (`EXPRESSION-REVIEW-4.md`: all three parts signable with text edits) **gave four
+text edits, applied as given:** H-1 (the title said REVISION d), H-2 (rev e's line in the header's decisions list), D-1
+(§D.0's repo note for rev e's run), C-1 (§H's owed window-copy amendment names both sentences). **None changes a rule, a
+number or a population;** they touch the title, the header, §D.0 and §H.
+
 ---
 
 ## H. What this draft could not resolve
 
-1. **The expiry-day question (§C.7): answered NO, 2026-09-26.** §C is complete and can be signed.
-   - **Still hers:** the answer is registered for the window's fold only. Fact 5 (PREMIUM) and the sale's placement unit
-     (§A.5) still read the ATM straddle on expiry day, while her quote sets the ATM straddle aside on expiry day. Whether
-     that exception reaches them is hers to say. Nothing here changes them.
-2. **The word: its margin decided in rev b, the refused tie in rev c** (LEANS on the open leg, by refusal).
-   - **Still open, for the trader: STAND ASIDE · led stays silent.** That is 226 closes, entry #9 and 09-25 09:36, where the
-     refused leg leads. A literal "STAND ASIDE only when both legs are refused" would name the open leg there too, against
-     the count. It is kept silent on rev 0's named choice, which was not revoked.
-3. **Rule 3s's scope: decided in rev b.** Rev 5 B's own buffer, at every close (§C.2).
-   - **Still true under rev c:** the 09-24 74,000 sales fold at 13:05. That close was 25.4 pts through the strike against a
-     candle of 18–19, so it was not noise by her own line rule.
-   - **The reach will rarely bind, and W-R may never reach its count.** Under her answer no held break exists on the four
-     days (§D.6). If fewer than 15 arrive by 30 sessions, the reach stays DRAFT. The count is not lowered.
+1. **Her decisions are all answered** (§C.1): expiry day NO; off expiry "fold as today, everywhere"; no strike stop.
+   - **Decided as the trader** (review A-T2): fact 5 reads the ATM straddle on expiry day too (§A.3).
+   - **Hers to confirm, not blocking** (third review §6):
+     - is the window's line (rev 4 §2: the last 5-minute swing beyond price, trailing) her level when she sells (§C.2)?
+     - does "i dont care about candle" leave rev 5 B's one-candle buffer on the line in place? The draft keeps it, signed.
+   - **Still hers, not asked here:** her "90-minute write guard" (item 5).
+2. **The word:** its margin was decided in rev b, and the refused tie in rev c (LEANS on the open leg, by refusal).
+   STAND ASIDE · led stays silent, on rev 0's named choice. The second review confirmed it as the trader's reading.
+3. **The window does not change for a writer** (§C). The 09-24 trap stays: the 11 sold calls fold at 14:38, as today
+   (§C.3, §D.6).
+   - **Owed, not made here:** two sentences of the window's copy (rev 5 §D item 7″) read the wrong way round for a sale at
+     or in the money (§C.3): "spot moving toward your strike — a squeeze" and "winners cashing in — your strike is farther
+     from spot". Their amendment is a separate copy change for her to sign.
 4. **ROOM leans BUY** where no holding wall is in the way and the line is outside one candle. It is inherited from VALIDATE's
    target, and judged forward.
-5. **Rule 3s folds a sale made more than one candle in the money at its first close.** §A.5 never places one, but a press
-   at an in-the-money strike is her own. A deliberate in-the-money sale is not supported by this window; hers to say if it
-   should be.
-6. **Only closes are read.** A bar can carry price through her strike and back (§C.3). P_max and the held loss show it; they
-   do not prevent it.
-7. **Her "90-minute write guard"** has no text in the repo. **IV against realised vol** is not computed per minute. Neither is
+5. **Her "90-minute write guard"** has no text in the repo. **IV against realised vol** is not computed per minute. Neither is
    used.
-8. **The disclosure's inputs** are partly [I]:
+6. **The disclosure's inputs** are partly [I]:
    - Black-76 greeks, not the broker's;
    - nearer-only fronts on 09-22 and 09-23;
    - [I] candles on two 09-24 indices;
    - 09-21 and the 09-25 premiums not frozen;
    - for 09-25, the facts at the 3-minute close before each entry not frozen (§D).
    The forward rows are the only evidence.
-9. **The owed code changes when she signs** (none made here):
+7. **The owed code changes when she signs** (none made here):
    - the `expr_<day>` log at the 3-minute close, with the backfill off the request path;
-   - the outcome key's `role`, with `_hold_tick`'s `has()` changed with it;
-   - the writer rows' `reach` / `held` / `3r` / `3s` keys, and `expiry_day` (her NO: the reach is not read that day);
-   - `after_1500` on expression, outcome, press and hold rows (descriptive; it gates nothing);
-   - PLAN §2.6's display, change-log line and §1f hash;
+   - the writer's VALIDATE word (§B), and the outcome key's `role`, with `_hold_tick`'s `has()` changed with it;
+   - `after_1500` on expression, outcome and press rows (descriptive; it gates nothing);
+   - **nothing in the window, and nothing in PLAN;**
    - **tests:**
      - the word order and `named_by`, including the refused tie read as LEANS by refusal;
-     - the expiry-day fold at a line break, with 3s still in force;
-     - `after_1500` changing no word, fold or falsifier;
+     - `after_1500` changing no word or falsifier;
      - R4 failing closed;
      - ROOM's noise step;
-     - the K₀ placement (never in the money; the far wall; the in-the-money "at" wall);
-     - signed R and 3s, including a held writer whose close lands through the strike by more than S;
-     - S of her own expiry;
-     - the held loss;
-     - W-R's total test;
+     - the sale at the buy's ATM strike, and an R6 unit still priced and scored;
+     - the writer's wall read as §A's wall behind the sale;
+     - a writer's could-not-check risk fact giving WAIT, never GO;
+     - a writer with no wall behind the sale (R6) giving WAIT, never GO;
+     - `beyond_strike` written on the writer object;
+     - the stratum keeping units with the line beyond the strike;
      - the outcome key collision.
-10. **Her 15:00 practice is disclosed, not registered** (§D.8). If CAS changes it, nothing here has to move. The flag lets the
-    forward record be read either way.
+8. **Her 15:00 practice is disclosed, not registered** (§D.8). If CAS changes it, nothing here has to move. The flag lets the
+   forward record be read either way.
