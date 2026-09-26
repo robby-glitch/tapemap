@@ -543,6 +543,10 @@ rev 4, which stays as it was, hash above.
 - "For now": she may revisit.
 - **PLAN rev 3a** (a pointer to this break, no PLAN rule moves): `docs/hold/PLAN-PREREG.md` sha256
   `b7549d79b6e78ff93b8b5c9e982db43c599ebda83e0dfe3e81dac0a57acef0c4`.
+- **Copy amendment 1 to rev 5, signed 2026-09-26 22:37** (her words: *"fix the two backwards seller sentences in the
+  window"*): the writer's own-side sentences of §D item 7″ now read by her direction ("spot moving against you — a
+  squeeze" / "winners cashing in — spot moving your way"), not the strike. Copy only; no rule moves.
+  `docs/hold/PREREG-rev5-COPY-1.md` sha256 `735c40078a12f80021a5fe39590b79e555914cf17c5f1f7430f6202f380f9631`.
 
 ---
 

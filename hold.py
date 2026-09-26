@@ -710,8 +710,8 @@ def _holders(x, oi_blind, rA, rF, squeeze, dpx, buyer, R, rs, i):
     own = None
     if not buyer:
         own = (CC + "no ladder window yet" if dpx is None else
-               "spot moving toward your strike — a squeeze" if squeeze else
-               "winners cashing in — your strike is farther from spot than at entry")
+               "spot moving against you — a squeeze" if squeeze else         # by her direction, not the strike:
+               "winners cashing in — spot moving your way")                  # rev 5 copy amendment 1
     if rF:
         out["fold"] = (f"{Hw} at {_k(rF['k'])} folded {rF['t']} — the {cap} you stepped [M]" if buyer else
                        f"{Hw} at {_k(rF['k'])} (your side) folded {rF['t']} [M] — {own}")
