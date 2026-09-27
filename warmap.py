@@ -3,10 +3,9 @@
 COMPOSITION ONLY, the direction.py precedent: nothing here measures anything
 new. levels.py says WHERE the battlefield is, dwell.py whether a trap is
 loading, chainside/trapped_inventory who is already underwater, hunt.py which
-runway pays, sequence.py where each level is in the playbook, driver.py whose
-tape is doing the driving. This file feeds them all from the same chain
-snapshot the senses loop already pays for, and serves one assembled state to
-/api/warmap.
+runway pays, sequence.py where each level is in the playbook. This file
+feeds them all from the same chain snapshot the senses loop already pays for,
+and serves one assembled state to /api/warmap.
 
 EVERYTHING RUNS AT CHAIN PACE (~10s per index), never at the 0.5s book tick,
 and `state()` serves the last assembled reading rather than recomputing per
@@ -29,7 +28,6 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
-import driver as driver_mod
 import dwell as dwell_mod
 import hunt
 import levels as levels_mod
@@ -47,7 +45,6 @@ class WarMap:
         self.levels = levels_mod.Levels(idx)
         self.dwell = dwell_mod.DwellWatch()
         self.seq = sequence_mod.Sequencer(idx, path=seq_path)
-        self.driver = driver_mod.Driver()
         self._fetch = fetch              # test seam
         self._fetching = False
         self._fetched_day: Optional[str] = None
@@ -182,7 +179,7 @@ class WarMap:
             return
         # Session-open OI per strike = live oi - live oi_chg (Upstox: chg is
         # since 09:15). The grid holds chg per minute; base + chg is the OI
-        # the wall-finder, dwell and driver actually read. A strike the live
+        # the wall-finder and dwell actually read. A strike the live
         # window no longer carries is left out rather than guessed.
         base = {}
         for s in strikes or []:
@@ -201,7 +198,6 @@ class WarMap:
         bf_path = (live_path or sequence_mod.day_path()).replace(".jsonl", "_backfill.jsonl")
         self.dwell = dwell_mod.DwellWatch()
         self.seq = sequence_mod.Sequencer(self.idx, path=bf_path)
-        self.driver = driver_mod.Driver()
         day = now or datetime.now()
         fired: List[dict] = []
         for m in marks:
@@ -222,7 +218,6 @@ class WarMap:
             fired.extend(self.seq.on_snapshot(
                 r["spot"], band, lv["levels"], dw,
                 now=day.replace(hour=hh, minute=mm, second=0, microsecond=0)))
-            self.driver.on_snapshot(None, rows)   # no futures volume in the grid: stated, not faked
         self.seq.path, self.seq.extra = live_path, {}
         self.seq_fired_backfill = fired
         nb = sum(1 for m in marks if bf[m].get("src") == "backfill")
@@ -234,16 +229,14 @@ class WarMap:
                          "why": (f"replayed {len(marks)} minute(s) {marks[0]}-{marks[-1]} "
                                  f"({nb} rebuilt from REST candles, {len(marks) - nb} "
                                  f"observed by an earlier process today) through fresh "
-                                 f"dwell, sequence and driver machines before the first "
+                                 f"dwell and sequence machines before the first "
                                  f"live snapshot"
                                  + (f"; NOTHING before {gap} -- the REST walk did not "
                                     f"land and that stretch is missing" if gap else "")
-                                 + "; the grid carries no futures volume, bid/ask or "
-                                   "ledger basis, so the driver ranked on OI alone and "
+                                 + "; the grid carries no bid/ask or ledger basis, so "
                                    "dwell has no crossing evidence for that stretch")}
 
     def on_snapshot(self, doc: dict, chain_side=None,
-                    fut_vtt: Optional[float] = None,
                     now: Optional[datetime] = None,
                     grid: Optional[dict] = None) -> dict:
         self._kick_daily()
@@ -270,7 +263,6 @@ class WarMap:
                                        "why": "snapshot carries no clock"})
         band = self.dwell.band(spot)
         seq_fired = self.seq.on_snapshot(spot, band, lv["levels"], dw, now=now)
-        dr = self.driver.on_snapshot(fut_vtt, strikes)
         legs = self._legs(strikes, chain_side) if chain_side else []
         run = hunt.runways(spot, lv["levels"], legs, band)
 
@@ -278,7 +270,7 @@ class WarMap:
             "ok": True, "idx": self.idx, "ts": doc.get("ts"),
             "spot": spot, "band": round(band, 2) if band else None,
             "levels": lv["levels"], "daily_why": lv["daily_why"],
-            "dwell": dw, "runways": run, "driver": dr,
+            "dwell": dw, "runways": run,
             "heat": self._heat(strikes, chain_side),
             "seq_fired": seq_fired,
             "flip_px": metrics.get("flip_px"),

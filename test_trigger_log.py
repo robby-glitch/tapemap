@@ -242,34 +242,6 @@ def test_px_from_flat_bars(tmp_path):
         assert json.loads(f.read())["px"] == 24610.0
 
 
-def test_backfill_recovers_px_from_the_receipt(tmp_path):
-    """A row logged without a px is repairable from its trigger sentence."""
-    path = _fresh(tmp_path)
-    trigger_log.log_new("NIFTY", _payload(), None, path=path)
-    with open(path, encoding="utf-8") as f:
-        row = json.loads(f.read())
-    row["px"] = None                        # the 2026-08-04 rows as written
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(json.dumps(row) + "\n")
-
-    assert trigger_log.backfill(path) == 1
-    with open(path, encoding="utf-8") as f:
-        assert json.loads(f.read())["px"] == 24610.0
-    assert trigger_log.backfill(path) == 0   # idempotent
-
-
-def test_backfill_leaves_an_unparsable_receipt_alone(tmp_path):
-    """No sentence to read -> px stays null. Never guess an entry price."""
-    path = _fresh(tmp_path)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"day": "2026-08-04", "index": "NIFTY", "t": "09:33",
-                            "side": "BUY", "band": "d3", "px": None,
-                            "trigger": "chain down, no receipt"}) + "\n")
-    assert trigger_log.backfill(path) == 0
-    with open(path, encoding="utf-8") as f:
-        assert json.loads(f.read())["px"] is None
-
-
 def test_forming_bar_is_never_logged(tmp_path):
     """The last bar is still open — its trigger can un-fire when it closes."""
     path = _fresh(tmp_path)
@@ -601,15 +573,13 @@ def test_an_arm_never_gets_an_entry_price_or_a_forward_move(tmp_path):
 
     `score` DOES now give an arm an outcome -- the operator asked for one,
     measured from the arm candle's own close -- but it must never hand it the
-    two fields that only mean something for a trade that was taken, and
-    `backfill` must never report it as damaged.
+    two fields that only mean something for a trade that was taken.
     """
     path = _fresh(tmp_path)
     pl, ones = _arm_payload(_armed_session(), _armed_minutes())
     trigger_log.log_new("NIFTY", pl, None, ones=ones, path=path)
     _, skipped = trigger_log.score(path)
     assert skipped == 0
-    assert trigger_log.backfill(path) == 0
     a = _arms(path)[0]
     assert "f15" not in a and "f30" not in a and "px" not in a
 

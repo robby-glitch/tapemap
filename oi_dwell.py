@@ -26,9 +26,7 @@ cumulative oi_chg base is tiny, so the ratio is violent noise: replaying
 direction until there is enough OI behind it to mean something.
 
 TUNE, DO NOT TRUST. CONFIRM/DEAD/MIN_BASE are calibration knobs measured
-against three sessions (2026-08-20/21/24), not derived constants. Re-run
-`python oi_dwell.py replay <chain.jsonl>` after any change; the sweep in
-`replay` prints what each setting would have done.
+against three sessions (2026-08-20/21/24), not derived constants.
 """
 
 CONFIRM = 12          # consecutive disagreeing snapshots before a flip wins
@@ -213,9 +211,4 @@ def demo():
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "replay":
-        import replay_dwell
-        replay_dwell.main(sys.argv[2:])
-    else:
-        demo()
+    demo()

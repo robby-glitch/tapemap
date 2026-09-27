@@ -13,11 +13,11 @@ them is the fastest way to waste a session.
   `band_rotation.py`, the zone machine, `data/trigger_log.jsonl`,
   `/console.html`. START-HERE.md is its document.
 - **THE DESK** — *which instrument, and which structure*, a seller's desk.
-  `surface.py`, `desk.py`, `direction.py`, `drag.py`, the war map
-  (`warmap.py` + friends), the paper desk (`book.py`, `quoting.py`,
-  `trader.py`) and its short-variance hedger (`hedge.py`), `/desk.html`
-  today and `/toolb.html` pending approval. HANDOFF-DESK.md is its document —
-  **§8g is its current shape**, read that first.
+  `surface.py`, `direction.py`, `drag.py`, the war map (`warmap.py` +
+  friends). HANDOFF-DESK.md is its document. **Deleted 2026-09-28** (the
+  ponytail cleanup, `docs/review/PONYTAIL-REVIEW-2026-09-28.md`): `desk.py`,
+  the paper desk (`trader.py`, `book.py`, `quoting.py`, `hedge.py`) and the
+  old `/desk.html` and `/toolb.html` screens. The live UI is ui-v2 on 5173.
 
 ## The rules that survive even if you read nothing else
 
@@ -55,7 +55,7 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 1565 collected, 1562 passing, 3 pre-existing failures in test_desk_numbers.py (theta_day_est returns None -- the desk's code, untouched by this work), as of 2026-09-26 (THE EXPRESSION build)
+python -m pytest -q            # 1377 collected, 1377 passing, as of 2026-09-28 (the ponytail cleanup)
 ```
 
 **Launch the server DETACHED, never as a child of an assistant/terminal
@@ -63,12 +63,11 @@ session** (2026-08-25: a host-process restart killed a child server mid-market
 and cost 30 minutes of every forward log):
 `Start-Process -FilePath '...\start-v2.bat' -WorkingDirectory '...\tapemap' -WindowStyle Minimized`
 
-Screens: `/desk.html` (the OLD desk — rejected 2026-08-25, do not invest) ·
-`/toolb.html` (the NEW tool, pending the operator's final approval — see
-HANDOFF.md "STATE OF THE APP") · `/console.html` (the tape detectors).
-APIs: `/api/desk?capital=<rupees>` · `/api/surface` · `/api/drag` ·
+Screens: ui-v2 on `http://127.0.0.1:5173/` (the live UI; `/` redirects there) ·
+`/console.html` (the tape detectors).
+APIs: `/api/surface` · `/api/drag` (both read by her PaperDesk extension) ·
 `/api/chain` · `/api/senses` · `/api/vpin` · `/api/oiflow` · `/api/warmap` ·
-`/api/paperdesk` · `/api/health` (its `coverage` says what this process can
+`/api/paper_fill` (PaperDesk's POST) · `/api/health` (its `coverage` says what this process can
 and cannot know about today — render it, never paper over it).
 
 **The anytime-start rule (operator, 2026-08-25, standing):** every module must

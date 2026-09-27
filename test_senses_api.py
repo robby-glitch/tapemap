@@ -5,70 +5,13 @@ visible in `grep -l _SENSES *.py`: before this file, nothing tested the server's
 book layer at all. The detectors had tests; the seam where their state meets a
 concurrent HTTP handler did not.
 
-Nothing here starts a server. `_clean_books` is a pure function, and the race is
-reproduced by driving the two real code paths against each other directly, which
-is faster and deterministic.
+Nothing here starts a server. The race is reproduced by driving the two real
+code paths against each other directly, which is faster and deterministic.
 """
 import json
 import threading
 
-import pools
 import server
-
-
-# --------------------------------------------------------------------------
-# the POST is unauthenticated and its body is attacker-shaped
-# --------------------------------------------------------------------------
-
-def test_a_book_that_is_not_a_dict_cannot_reach_orders_for():
-    """POST {"books":{"1":5}} used to raise AttributeError inside the senses
-    loop every 0.5s -- caught there, it left the book layer dark until a valid
-    bridge POST happened to overwrite the poisoned dict."""
-    assert server._clean_books({"1": 5}) == {}
-    # and the real consumer survives what does get through
-    assert pools.orders_for({"bid": [{"price": 1.0, "qty": 1}],
-                             "ask": [{"price": 2.0, "qty": 1}]},
-                            server._clean_books({"1": 5})) is None
-
-
-def test_junk_shapes_are_dropped_rather_than_trusted():
-    for junk in (None, [], "books", 5, {"1": None}, {"1": {"depth": 7}},
-                 {"1": {"depth": {"bid": "no", "ask": "no"}}},
-                 {"1": {"depth": {"bid": [], "ask": []}}}):
-        assert server._clean_books(junk) == {}
-
-
-def test_a_non_numeric_price_is_dropped_before_it_can_be_subtracted():
-    """orders_for does abs(price - b0). A string raises TypeError; a NaN
-    compares false against everything and reads as 'no book matched' -- a wrong
-    answer wearing a right one's clothes."""
-    for bad in ("24000", None, float("nan"), float("inf"), True):
-        got = server._clean_books(
-            {"1": {"depth": {"bid": [{"price": bad, "orders": 3}],
-                             "ask": [{"price": 1.0, "orders": 3}]}}})
-        assert got == {}, bad
-
-
-def test_a_real_bridge_post_survives_intact():
-    books = {"265": {"depth": {
-        "bid": [{"price": 24000.0, "qty": 100, "orders": 3}],
-        "ask": [{"price": 24000.05, "qty": 100, "orders": 8}]}}}
-    got = server._clean_books(books)
-    assert got["265"]["depth"]["bid"][0]["orders"] == 3
-    assert got["265"]["depth"]["ask"][0]["orders"] == 8
-    # and it still matches a ladder at the same touch
-    lad = {"bid": [{"price": 24000.0, "qty": 50}],
-           "ask": [{"price": 24000.05, "qty": 50}]}
-    assert pools.orders_for(lad, got) == {"bid": [3], "ask": [8]}
-
-
-def test_the_number_of_books_and_the_depth_per_side_are_both_capped():
-    many = {str(i): {"depth": {"bid": [{"price": 1.0}], "ask": [{"price": 2.0}]}}
-            for i in range(server._MAX_BOOKS + 50)}
-    assert len(server._clean_books(many)) == server._MAX_BOOKS
-    deep = {"1": {"depth": {"bid": [{"price": float(i)} for i in range(40)],
-                            "ask": [{"price": 1.0}]}}}
-    assert len(server._clean_books(deep)["1"]["depth"]["bid"]) == 10
 
 
 # --------------------------------------------------------------------------
@@ -115,32 +58,6 @@ def test_the_lock_is_reentrant_because_the_read_side_nests():
     with server._SENSES_LOCK:
         with server._SENSES_LOCK:
             assert True
-
-
-# --------------------------------------------------------------------------
-# the cap the other two POSTs already had
-# --------------------------------------------------------------------------
-
-def test_the_orderbook_post_declares_the_same_kind_of_cap_as_its_siblings():
-    """/api/paper_fill caps at 16384 and /api/token at 8192. /api/orderbook
-    shipped with no cap at all, so a declared Content-Length of 5e9 blocked the
-    handler thread forever -- there is no socket timeout -- and repeated
-    connections piled up hung threads."""
-    src = (server.ROOT / "server.py").read_text(encoding="utf-8")
-    # Split on the NEXT handler's dispatch line, not on its name: the orderbook
-    # handler's own comment cites "/api/paper_fill 16K" as the precedent it
-    # follows, and slicing on the bare name cuts the body off before the cap.
-    body = (src.split('startswith("/api/orderbook")')[1]
-               .split('startswith("/api/paper_fill")')[0])
-    assert "0 < n < " in body, "the orderbook POST must bound its body"
-    assert "except ValueError" in body, "a junk Content-Length must not raise"
-
-
-def test_clean_books_output_is_json_serialisable():
-    """It is handed straight to a live dict the senses loop reads."""
-    json.dumps(server._clean_books(
-        {"1": {"depth": {"bid": [{"price": 1.0, "orders": 2}],
-                         "ask": [{"price": 2.0, "orders": 3}]}}}))
 
 
 # --------------------------------------------------------------------------
@@ -248,18 +165,18 @@ class _Cap:
         pass
 
 
-def test_root_redirects_to_the_desk():
-    """start-v2.bat now opens `/`; the site root must land on the desk, not
-    a directory listing or the legacy index."""
+def test_root_redirects_to_the_live_ui():
+    """The site root lands on the live UI (TapeMap v2 on 5173), not a
+    directory listing or a deleted page."""
     cap = _Cap("/")
     server.Handler.do_GET(cap)
     assert cap.status == 302
-    assert ("Location", "/desk.html") in cap.headers
+    assert ("Location", "http://127.0.0.1:5173/") in cap.headers
 
 
 def test_health_feed_is_none_with_a_reason_off_the_upstox_path():
-    """Dhan, --mock-chain and replay mode all leave poller.src unset (or
-    poller itself None) -- feed must be null with a reason, never a
+    """Dhan and --mock-chain both leave poller.src unset (or poller
+    itself None) -- feed must be null with a reason, never a
     fabricated 'healthy', per constraint 3."""
     cap = _Cap("/api/health", payloads={"NIFTY": {}})
     server.Handler.do_GET(cap)
@@ -340,14 +257,12 @@ def test_health_publishes_latency_percentiles():
 
 # --------------------------------------------------------------------------
 # 5a/5b -- the chain-pace hook. Collaborators (`_surface_read`, `_view_for`,
-# `desk_mod.regime_from_chain`/`decide`, `desk_log`'s two writers) are each
-# tested on their own elsewhere; this tests the ORCHESTRATION -- that
-# `_log_chain_pace` computes the state, diffs it against the previous
-# reading, and writes only what actually changed.
+# `desk_log`'s two writers) are each tested on their own elsewhere; this tests
+# the ORCHESTRATION -- that `_log_chain_pace` computes the state, diffs it
+# against the previous reading, and writes only what actually changed.
 # --------------------------------------------------------------------------
 
 def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
-    import desk as desk_mod
     import desk_log
     import direction as direction_mod
     import surface as surface_mod
@@ -357,14 +272,9 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
     surf = surface_mod.SurfaceRead(index="NIFTY", expiry="2026-08-27",
                                    f=24000.0, f_src="future", t=0.01, fit=fit)
     view = direction_mod.View(gear="CASCADE", conviction="FORCED")
-    decision = desk_mod.Decision(index="NIFTY", expiry="2026-08-27",
-                                 best="long_call")
 
     monkeypatch.setattr(server, "_surface_read", lambda poller, idx: surf)
     monkeypatch.setattr(server, "_view_for", lambda idx, payloads: view)
-    monkeypatch.setattr(desk_mod, "regime_from_chain",
-                        lambda doc: desk_mod.Regime())
-    monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision)
 
     surfaces, transitions, transition_kw = [], [], []
     monkeypatch.setattr(desk_log, "log_surface",
@@ -390,16 +300,15 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
     # `oi_dir` is HOLD here (strikes=None -> no OI base), which the gate
     # publishes as None: "no view yet", not a direction.
     assert desk_state["NIFTY"] == {"gear": "CASCADE", "conviction": "FORCED",
-                                   "deployable": "long_call",
                                    "oi_dir": None}
-    # First reading -- all three fields transition FROM None, and every row
-    # is marked baseline=True (the restart pseudo-transition, not an
-    # observed one -- see desk_log.py's module docstring / _log_chain_pace's
-    # own docstring above).
+    # First reading -- both fields transition FROM None, and every row is
+    # marked baseline=True (the restart pseudo-transition, not an observed
+    # one -- see desk_log.py's module docstring / _log_chain_pace's own
+    # docstring above).
     fields = {t[1] for t in transitions}
     # `oi_dir` is absent: it read HOLD (no OI base) and published None, and
-    # None -> None is not a transition. Three rows, not four.
-    assert fields == {"gear", "conviction", "deployable"}
+    # None -> None is not a transition.
+    assert fields == {"gear", "conviction"}
     assert all(t[2] is None for t in transitions)
     assert all(kw.get("baseline") is True for kw in transition_kw)
 
@@ -409,39 +318,33 @@ def test_log_chain_pace_writes_surface_and_the_first_transitions(monkeypatch):
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
     assert transitions == []
 
-    # A real change -- but ONE snapshot no longer moves the desk. oi_dwell's
-    # gate needs CONFIRM consecutive readings before a field flips. This is
-    # the defect measured 2026-08-24 (1,126 `deployable` transitions in a
-    # session, median life eleven seconds) pinned as fixed: the desk may now
-    # only say something it has said CONFIRM times running.
-    decision2 = desk_mod.Decision(index="NIFTY", expiry="2026-08-27",
-                                  best="short_strangle")
-    monkeypatch.setattr(desk_mod, "decide", lambda *a, **kw: decision2)
+    # A real change -- but ONE snapshot no longer moves a gated field.
+    # oi_dwell's gate needs CONFIRM consecutive readings before `conviction`
+    # flips (measured 2026-08-24: 1,807 transitions in a session, median life
+    # eleven seconds). The desk may now only say something it has said
+    # CONFIRM times running. `gear` is not gated (oi_dwell.GATED_FIELDS), so
+    # it is held fixed here.
+    view2 = direction_mod.View(gear="CASCADE", conviction="NONE")
+    monkeypatch.setattr(server, "_view_for", lambda idx, payloads: view2)
     for _ in range(oi_dwell.CONFIRM - 1):
         server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
     assert transitions == [], "an unconfirmed change must not be published"
     server._log_chain_pace(None, {}, "NIFTY", {"strikes": None}, desk_state)
     assert len(transitions) == 1
     _idx, field, frm, to = transitions[0]
-    assert field == "deployable" and frm == "long_call" and to == "short_strangle"
+    assert field == "conviction" and frm == "FORCED" and to == "NONE"
     assert transition_kw[0].get("baseline") is not True
 
 
 def test_log_chain_pace_skips_the_surface_log_on_a_failed_fit(monkeypatch):
     """Constraint 3: a failed fit logs nothing rather than a fabricated
     coefficient."""
-    import desk as desk_mod
     import desk_log
     import surface as surface_mod
 
     surf = surface_mod.SurfaceRead(index="NIFTY", expiry="")   # fit.ok False
     monkeypatch.setattr(server, "_surface_read", lambda poller, idx: surf)
     monkeypatch.setattr(server, "_view_for", lambda idx, payloads: None)
-    monkeypatch.setattr(desk_mod, "regime_from_chain",
-                        lambda doc: desk_mod.Regime())
-    monkeypatch.setattr(desk_mod, "decide",
-                        lambda *a, **kw: desk_mod.Decision(index="NIFTY",
-                                                           expiry=""))
     calls = []
     monkeypatch.setattr(desk_log, "log_surface",
                         lambda *a, **kw: calls.append(a))

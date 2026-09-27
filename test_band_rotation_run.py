@@ -519,8 +519,3 @@ def test_live_uses_the_shared_stop_rather_than_its_own_copy():
     src = inspect.getsource(live._at_interval)
     assert "OPERATOR_STOP_PTS" in src
     assert "stop_pts=20" not in src.replace(" ", "")
-
-
-def test_the_scorer_and_the_rule_share_one_stop():
-    import run_score
-    assert run_score.STOP_PTS is band_rotation.OPERATOR_STOP_PTS

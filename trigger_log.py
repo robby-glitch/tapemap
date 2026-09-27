@@ -59,7 +59,7 @@ told apart by `kind`:
 
 An arm is NOT a trade signal. It is the setup arming; the entry may never
 come, and nothing anywhere may fold an arm into an entry count. Arm rows carry
-no `px` and no outcome, and `score` / `backfill` skip them by name.
+no `px` and no outcome, and `score` skips them by name.
 
     kind, interval, t, side, band, level     3 is the ONLY interval an arm is
                 logged at (band_rotation.SCORED_INTERVAL) -- the interval
@@ -81,7 +81,6 @@ no `px` and no outcome, and `score` / `backfill` skip them by name.
     python trigger_log.py score     # fill f15/f30 AND the outcome measures
                                     # where the session allows; every row it
                                     # cannot score says why, on the row
-    python trigger_log.py backfill  # recover a missing px from its receipt
 """
 
 import json
@@ -566,8 +565,8 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
 def read(path=PATH):
     """(rows oldest-first, count of lines that would not parse).
 
-    Every reader goes through here — `show`, `score` and `backfill` in this
-    file, /api/signals over in server.py — because a row shape re-implemented
+    Every reader goes through here — `show` and `score` in this file,
+    /api/signals over in server.py — because a row shape re-implemented
     elsewhere is a row shape that can drift from the one `log_new` writes. So
     the parse lives here, once.
 
@@ -588,55 +587,6 @@ def read(path=PATH):
             except ValueError:
                 bad += 1
     return rows, bad
-
-
-# ── repair: recover a missing px from the detector's own receipt ───────────
-
-_CLOSED_RE = re.compile(r"closed\s+(\d+(?:\.\d+)?)\s+back\s+(?:above|below)\b")
-
-
-def backfill(path=PATH):
-    """Fill px on rows logged without one, from their `trigger` sentence.
-
-    band_rotation's receipt ends "... and the same bar closed 24643.00 back
-    above it" -- that number IS the close the row should have carried, so
-    this recovers it exactly rather than approximating from a neighbouring
-    bar. Verified against the live tape on 2026-08-04: the 09:36 record's
-    sentence read 24650.90 and the same bar's fut.c was 24650.9.
-
-    Idempotent -- rows that already have a px are left untouched. Needed
-    once because of the schema bug in `_close`; kept because a future bar
-    could go missing for other reasons and the sentence always survives.
-    """
-    try:
-        rows, _ = read(path)
-    except OSError:
-        print(f"no log at {path}")
-        return 0
-    fixed = unrecoverable = 0
-    for r in rows:
-        if r.get("kind") == "arm":
-            # An arm has no entry price to recover and no receipt sentence to
-            # recover one from: nothing was entered. Counting it as
-            # "unrecoverable" would report a repair that was never owed.
-            continue
-        if r.get("px") is not None:
-            continue
-        m = _CLOSED_RE.search(r.get("trigger") or "")
-        if m:
-            r["px"] = float(m.group(1))
-            fixed += 1
-        else:
-            unrecoverable += 1
-    if fixed:
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write("\n".join(json.dumps(r) for r in rows) + "\n")
-        os.replace(tmp, path)
-    print(f"{len(rows)} rows, {fixed} px recovered"
-          + (f", {unrecoverable} with no parsable receipt" if unrecoverable
-             else ""))
-    return fixed
 
 
 # ── scoring: fill f15/f30 by clock label, never at log time ────────────────
@@ -758,8 +708,8 @@ FLAT_BY_MIN = 15 * 60 + 15
 TARGET_N = 20
 
 # "index low touched d3 57611.96 at 09:37, then closed ..." -- `_run_why`'s
-# receipt. Worded so it cannot collide with `_trigger_why`'s sentence, which
-# `_CLOSED_RE` above parses; these two must stay tellable apart.
+# receipt. Worded so it cannot collide with `_trigger_why`'s sentence ("closed
+# X back above/below"); these two must stay tellable apart.
 _TOUCH_RE = re.compile(r"touched\s+([ud]\d)\s+(\d+(?:\.\d+)?)")
 
 
@@ -768,8 +718,7 @@ def _level_of(row):
 
     The row's own `level` field when it has one. Rows written before
     2026-08-12 have none, so it is recovered from the detector's own receipt
-    -- the same trick `backfill` uses on `px`, and exact rather than
-    approximated. The band NAME in the sentence has to match the row's `band`
+    -- exact rather than approximated. The band NAME in the sentence has to match the row's `band`
     or nothing is returned: a number lifted out of a sentence describing a
     different band is worse than no number.
     """
@@ -1224,7 +1173,5 @@ if __name__ == "__main__":
     verb = sys.argv[1] if len(sys.argv) > 1 else ""
     if verb == "score":
         score()
-    elif verb == "backfill":
-        backfill()
     else:
         show()

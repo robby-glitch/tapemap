@@ -1,6 +1,5 @@
 """Local server for the tape-engine UI.
 
-  python server.py [port] [data_dir] [strike] [--mock-chain]
   python server.py live [port] [--mock-chain]
 
 Serves ui/ as static files, the analysis JSON at /api/data, and the live
@@ -30,11 +29,9 @@ from urllib.parse import parse_qs, urlsplit
 import band_rotation
 import chainside as chain_mod
 import day_state
-import desk as desk_mod
 import desk_log
 import direction as direction_mod
 import drag as drag_mod
-import driver as driver_mod
 import warmap as warmap_mod
 import fuse as fuse_mod
 import breadth as breadth_mod
@@ -69,11 +66,9 @@ import score_frame
 _SCORED_BARS = {}
 import senses as senses_mod
 import surface as surface_mod
-import trader as trader_mod
 import trigger_log
 import upstox_adapter
 import vpin as vpin_mod
-from analyze import analyze
 
 ROOT = Path(__file__).parent
 log = logging.getLogger("tapemap")
@@ -89,14 +84,6 @@ _STARTED = time.time()
 # losing the oldest entries here costs nothing.
 _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            "fuse": None, "pools": {}, "chain": {},
-           # Kite order counts, POSTed by PaperDesk's bridge. token -> book.
-           # The ONE field Upstox does not send, and the only thing that tells
-           # a defended wall from a crowd on a round number.
-           "orders": {}, "orders_at": None, "orders_n": 0,
-           # THE PAPER DESK (trader.Trader): the tool trading itself, both
-           # sides, 2 lots, PAPER ONLY -- no order path exists or ever
-           # will. Fed at chain pace outside the lock; /api/paperdesk.
-           "ptrader": None,
            # THE OI WAR MAP, one board per index (warmap.Boards). Fed at
            # chain pace in the senses loop, served at /api/warmap. Shadow
            # end to end: it describes the battlefield and gates nothing.
@@ -228,60 +215,6 @@ DAY_STATE_EVERY_S = 60
 # anywhere takes them the other way round, so there is no cycle to deadlock on.
 # Reentrant because the read side calls back into objects this module owns.
 _SENSES_LOCK = threading.RLock()
-
-# Most books a single POST may set. The bridge sends the newest book per
-# subscribed token; Kite's own cap is far below this.
-_MAX_BOOKS = 512
-
-
-def _clean_books(books):
-    """Keep only what `pools.orders_for` can actually walk. Never trust shape.
-
-    THE POST IS UNAUTHENTICATED and its body is attacker-shaped: any script on
-    the kite.zerodha.com origin passes CORS, and CORS advises browsers anyway.
-    `orders_for` does `(book or {}).get("depth")`, so a single value that is not
-    a dict -- POST {"books": {"1": 5}} -- raises AttributeError inside the senses
-    loop every 0.5s, which the loop catches, logs and sleeps on. The book layer
-    then stays dark until a valid bridge POST happens to overwrite the poisoned
-    dict. One crafted request would deny the whole layer, so the shape is
-    checked HERE, once, rather than trusted 45,000 times.
-
-    Anything unrecognised is dropped silently: this is a best-effort side
-    channel, and a partly-readable POST is worth more than a refused one.
-    """
-    if not isinstance(books, dict):
-        return {}
-    out = {}
-    for tok, book in list(books.items())[:_MAX_BOOKS]:
-        if not isinstance(book, dict):
-            continue
-        depth = book.get("depth")
-        if not isinstance(depth, dict):
-            continue
-        side_out = {}
-        for side in ("bid", "ask"):
-            levels = depth.get(side)
-            if not isinstance(levels, list):
-                continue
-            # 10 a side is the whole Kite packet; more is not a deeper book.
-            # `price` must be a FINITE number: orders_for does arithmetic on it
-            # (`abs(price - b0)`), so a string raises TypeError and a NaN
-            # compares false against everything, which would read as "no book
-            # matched" -- a wrong answer wearing the right one's clothes.
-            clean = []
-            for l in levels[:10]:
-                if not isinstance(l, dict):
-                    continue
-                px = l.get("price")
-                if not isinstance(px, (int, float)) or isinstance(px, bool):
-                    continue
-                if px != px or px in (float("inf"), float("-inf")):
-                    continue
-                clean.append(l)
-            side_out[side] = clean
-        if side_out.get("bid") and side_out.get("ask"):
-            out[str(tok)] = {"depth": side_out}
-    return out
 
 
 # 5d -- LATENCY INSTRUMENTATION. Two ring buffers (last 500 samples each), one
@@ -579,26 +512,24 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
     WHY HERE, AND WHY THIS COSTS NOTHING EXTRA. This is called once per new
     chain payload for `idx` -- the same trigger `_senses_loop` already uses
     to re-parse the chain, which happens once per ~10s refresh, never per
-    poll. `desk.decide` is real work (fits a whole candidate catalog); gating
-    it on the same trigger, rather than the 0.5s loop tick, is what keeps it
-    off the loop's own budget -- it already only runs at chain pace, which IS
-    the requirement, not a separate throttle bolted on.
+    poll. The surface fit is real work; gating it on the same trigger, rather
+    than the 0.5s loop tick, is what keeps it off the loop's own budget -- it
+    already only runs at chain pace, which IS the requirement, not a separate
+    throttle bolted on.
 
     CALLED WITHOUT `_SENSES_LOCK` HELD. `_senses_loop` queues `(idx, doc)`
     pairs while it holds the lock and calls this function only after
-    releasing it, so `desk.decide`'s real work never blocks `/api/senses`,
-    `/api/drag` or `POST /api/orderbook`, all three of which also take
-    `_SENSES_LOCK`. `_view_for` still needs a couple of `_SENSES` fields and
-    re-acquires the lock itself, briefly, for that read alone.
+    releasing it, so the fit never blocks `/api/senses` or `/api/drag`, both
+    of which also take `_SENSES_LOCK`. `_view_for` still needs a couple of
+    `_SENSES` fields and re-acquires the lock itself, briefly, for that read
+    alone.
 
     NEVER NEEDS THE BOOK FEED. `_surface_read` falls back to spot when the
-    future is unavailable, `desk_mod.regime_from_chain` reads the chain
-    payload directly, and `_view_for` returns None gracefully when the book
-    (fuse) or chain half is not ready -- exactly the same tolerance
-    `/api/desk` already relies on. That is what lets this run under
+    future is unavailable, and `_view_for` returns None gracefully when the
+    book (fuse) or chain half is not ready. That is what lets this run under
     --mock-chain, where `poller.src` never exists at all.
 
-    `desk_state` is the caller's idx -> {gear, conviction, deployable} cache;
+    `desk_state` is the caller's idx -> {gear, conviction, oi_dir} cache;
     mutated in place so the next tick has something to diff against. It
     resets to empty on every process start (the server is bounced routinely),
     so the FIRST reading for an index in a process diffs against `{}` and
@@ -617,27 +548,21 @@ def _log_chain_pace(poller, payloads, idx, doc, desk_state):
                              surf.fit.rmse, surf.f_src, surf.expiry,
                              surf.fit.n)
 
-    reg = desk_mod.regime_from_chain(doc)
     view = _view_for(idx, payloads)
-    decision = desk_mod.decide(surf, reg, desk_mod.DEFAULT_CAPITAL,
-                               strikes=doc.get("strikes"), view=view)
 
     # The RAW per-snapshot reading -- correct, and by itself unreadable.
-    # Measured 2026-08-24: published straight through, these three fields
-    # produced 1,807 transitions in one session, `deployable` alone 1,126 of
-    # them at a median life of ELEVEN SECONDS (one chain snapshot). Nothing
-    # downstream -- not the screen, not the operator -- can act on a
-    # recommendation that is gone before it can be read.
+    # Measured 2026-08-24: published straight through, the desk's fields
+    # produced 1,807 transitions in one session at a median life of ELEVEN
+    # SECONDS (one chain snapshot). Nothing downstream -- not the screen, not
+    # the operator -- can act on a reading that is gone before it can be read.
     #
-    # `oi_dir` is the fourth field and the one that was missing entirely:
-    # chain_metrics.oi_flow has computed this divergence all along, but its
-    # only consumers were a display table and a passive stamp on trigger
-    # rows, so on 2026-08-24 the desk watched CE/PE OI diverge one way for
-    # four hours (+1.7M -> +88.7M while spot fell 24299 -> 24150) and never
-    # once let it change a decision.
+    # `oi_dir` was the field missing entirely: chain_metrics.oi_flow has
+    # computed this divergence all along, but its only consumers were a
+    # display table and a passive stamp on trigger rows, so on 2026-08-24 the
+    # desk watched CE/PE OI diverge one way for four hours (+1.7M -> +88.7M
+    # while spot fell 24299 -> 24150) and never once let it change a decision.
     raw_state = {"gear": getattr(view, "gear", None),
                 "conviction": getattr(view, "conviction", None),
-                "deployable": decision.best,
                 "oi_dir": oi_dwell.direction(doc.get("strikes") or [])[0]}
     # `_DESK_GATE` can only hold a field at a value the desk itself published
     # earlier -- it never invents one -- so the worst case is a reading stale
@@ -715,9 +640,8 @@ def _senses_loop(poller, payloads, period=0.5):
     book = _SENSES["fuse"] = fuse_mod.Book()
     chains = chain_mod.Chains()
     wboards = _SENSES["warmap"] = warmap_mod.Boards()
-    ptrader = _SENSES["ptrader"] = trader_mod.Trader()
     seen_payload = {}          # idx -> id() of the last payload already read
-    desk_state = {}            # idx -> {gear, conviction, deployable}, 5b's diff base
+    desk_state = {}            # idx -> {gear, conviction, oi_dir}, 5b's diff base
     last_day_save = 0.0        # the RAM-only day series' last write to disk
     from chain_live import IST, in_session
     from datetime import datetime
@@ -794,17 +718,10 @@ def _senses_loop(poller, payloads, period=0.5):
                         # mutated only by THIS thread, so feeding here keeps
                         # /api/warmap's read (which takes this same lock)
                         # from ever iterating a half-updated machine dict.
-                        # The future's session volume rides along when the
-                        # feed has it; None is a stated absence downstream.
                         try:
-                            fvtt = None
-                            _res = (getattr(src, "resolved", None) or {}).get(idx) or {}
-                            _fkey = _res.get("fut_key")
-                            if _fkey and snap.get(_fkey):
-                                _lad, fvtt = senses_mod.ladder_of(snap.get(_fkey))
                             _wb = wboards.for_index(idx)
                             _wb.on_snapshot(doc, chains.for_index(idx),
-                                            fut_vtt=fvtt, grid=_grid)
+                                            grid=_grid)
                             # A restored publish repeats on the poller's 30s
                             # closed-market tick, because _try_seed is a
                             # one-shot that needs the daily levels and the REST
@@ -815,14 +732,13 @@ def _senses_loop(poller, payloads, period=0.5):
                                 getattr(poller, "restored_acked", set()).add(idx)
                         except Exception:   # the map must never stall the tape
                             log.exception("warmap at chain pace (%s)", idx)
-                        # 5a/5b is queued, NOT run here -- `desk.decide` fits a
-                        # whole candidate catalog and must not run while this
-                        # lock is held: /api/senses, /api/drag and
-                        # POST /api/orderbook all block on the same
-                        # `_SENSES_LOCK`, and one slow decide would stall every
-                        # one of them. `doc` is a local dict already parsed
-                        # from this snapshot, so queuing it costs nothing the
-                        # lock needs to protect.
+                        # 5a/5b is queued, NOT run here -- the surface fit is
+                        # real work and must not run while this lock is held:
+                        # /api/senses and /api/drag both block on the same
+                        # `_SENSES_LOCK`, and one slow fit would stall both.
+                        # `doc` is a local dict already parsed from this
+                        # snapshot, so queuing it costs nothing the lock needs
+                        # to protect.
                         chain_pace_due.append((idx, doc))
 
                 if feed_ok:
@@ -905,13 +821,9 @@ def _senses_loop(poller, payloads, period=0.5):
                                             dict(ev, inst=VPIN_FAST_INST,
                                                  day=time.strftime("%Y-%m-%d")))
                                 if lad:
-                                    # Kite's order counts, if PaperDesk's bridge is
-                                    # running. Matched on the touch rather than by
-                                    # symbol table -- both feeds watch the same
-                                    # exchange, so the same instrument has the same two
-                                    # prices. Absent -> wall-vs-cluster stays open.
-                                    oc = pools_mod.orders_for(lad, _SENSES["orders"])
-                                    _SENSES["pools"][name] = pools_mod.summary(lad, oc)
+                                    # No order counts: Upstox does not send them,
+                                    # so wall-vs-cluster stays open (pools.py).
+                                    _SENSES["pools"][name] = pools_mod.summary(lad, None)
                     _SENSES["polls"] += 1
                     _SENSES["err"] = None
                 else:
@@ -926,8 +838,8 @@ def _senses_loop(poller, payloads, period=0.5):
             # inverted) cannot be crossed from this path. `desk_state`
             # belongs only to this thread (no other thread reads or writes
             # it), so updating it needs no lock either. Own try/except per
-            # index so a bad fit or a desk exception on ONE index cannot cost
-            # the others their chain-pace log.
+            # index so a bad fit on ONE index cannot cost the others their
+            # chain-pace log.
             # THE BOOK RECORD'S DRAIN AND THE LADDER, outside the lock with the
             # other writers (spec 2 §B, §E).
             _SENSES["book_rows"] = _ux_drain(time.strftime("%Y-%m-%d"))
@@ -966,28 +878,6 @@ def _senses_loop(poller, payloads, period=0.5):
                     _log_chain_pace(poller, payloads, idx, doc, desk_state)
                 except Exception:
                     log.exception("desk_log at chain pace (%s)", idx)
-                # THE PAPER DESK, same cadence, same isolation: it reads the
-                # view and the war map's already-assembled state (this tick's
-                # own -- the boards were fed under the lock above), decides,
-                # and writes its own files. Outside _SENSES_LOCK because it
-                # touches disk; a defect here costs the paper book its tick,
-                # never the tape.
-                try:
-                    view = _view_for(idx, payloads)
-                    with _SENSES_LOCK:
-                        cr = (_SENSES["chain"] or {}).get(idx)
-                        wb = _SENSES.get("warmap")
-                        wst = (wb.for_index(idx).state()
-                               if wb is not None else None)
-                    # NOT on a restored snapshot. The boards above are STATE
-                    # and are rebuilt; a paper decision is an EVENT, and one
-                    # taken at 22:00 off a 15:29 snapshot never happened.
-                    # Decisions during the absence are on the un-rebuildable
-                    # list and must stay there.
-                    if doc.get("mode") != "restored":
-                        ptrader.on_chain(idx, doc, view, cr, wst)
-                except Exception:
-                    log.exception("paper trader at chain pace (%s)", idx)
         except Exception as e:            # never take the tape down
             _SENSES["err"] = f"{type(e).__name__}: {e}"
             log.exception("senses loop")
@@ -1054,8 +944,6 @@ def payload_at(box, interval):
     A box with no session (starting up, or a build that failed) serves its own
     error bytes verbatim: an interval cannot make a tape exist.
     """
-    if not isinstance(box, dict):
-        return box                       # legacy/replay mode: raw bytes
     base = box.get("session")
     if base is None:
         return box.get("payload")
@@ -2210,18 +2098,6 @@ def _hold_reply(poller, q):
     }
 
 
-def _hold_side_reply(poller, idx, asof=None):
-    """GET /api/hold/side: §10's read for one index, whether or not she is in a trade."""
-    F = _hold_facts(poller, idx)
-    if F is None:
-        return {"ok": False, "idx": idx, "why": board.CC + "no finished minute of today's session on the chain grid yet"}
-    asof = asof if asof in hold.SESSION and asof <= F["asof"] else F["asof"]
-    mins = _hold_minutes(F)
-    i = hold.SESSION.index(asof)
-    return {"ok": True, "idx": idx, "day": F["day"], "asof": asof, "draft": hold.DRAFT,
-            "side": hold.side_line(mins[i], hold.sides(mins, upto=i)[-1], F["expiry"])}
-
-
 def _hold_runs(rows):
     """The trade's record since entry as runs of the WORD: [{from, to, verdict, tag, sentence}],
     one per change of HOLD / WATCH / FOLD / PATA NAHI (a noise tag flickering minute to minute is
@@ -2922,15 +2798,15 @@ def _hold_import(poller, text):
 
 
 class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *a, payloads=None, chains=None, poller=None, late=None,
-                 **kw):
-        self.payloads = payloads or {}     # idx -> {"payload": bytes} (or bytes)
+    def __init__(self, *a, payloads=None, late=None, **kw):
+        self.payloads = payloads or {}     # idx -> {"payload": bytes, "session": ...}
         # Resolved per REQUEST rather than when the factory was built: the
         # socket is now bound BEFORE the chain poller exists, so the poller is
         # handed over through `late` once it does. See main() for why the bind
         # has to come first.
-        self.chains = late["chains"] if late is not None else chains
-        self.poller = late["poller"] if late is not None else poller
+        late = late or {}
+        self.chains = late.get("chains")
+        self.poller = late.get("poller")
         super().__init__(*a, directory=str(ROOT / "ui"), **kw)
 
     def _idx(self):
@@ -3058,39 +2934,6 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:      # never 500 at the window
                 log.exception("hold post %s", self.path)
                 self._json(json.dumps({"ok": False, "why": f"{type(e).__name__}: {e}"}).encode())
-            return
-
-        if self.path.startswith("/api/orderbook"):
-            # PaperDesk's Kite tap, shipping per-level ORDER COUNTS. Read-only
-            # and additive: nothing in the tape or the chain depends on it, so
-            # a bridge that is not running costs exactly the wall-vs-cluster
-            # answer and nothing else.
-            try:
-                # A CAP, like every other POST here (/api/paper_fill 16K,
-                # /api/token 8K). Without one, `rfile.read(n)` on a declared
-                # Content-Length of 5,000,000,000 blocks this handler thread
-                # forever -- there is no socket timeout -- and repeated
-                # connections pile up hung threads on ThreadingHTTPServer.
-                # CORS does not help: it only advises BROWSERS, and the server
-                # processes the request either way. 10 depth levels across a
-                # few hundred tokens is tens of KB; 512K is generous.
-                try:
-                    n = int(self.headers.get("Content-Length") or 0)
-                except ValueError:
-                    n = 0
-                if not 0 < n < 524288:
-                    self._json(b'{"ok":false,"msg":"bad request"}', 400)
-                    return
-                doc = json.loads(self.rfile.read(n) or b"{}")
-                books = _clean_books(doc.get("books"))
-                with _SENSES_LOCK:
-                    _SENSES["orders"] = books
-                    _SENSES["orders_at"] = time.time()
-                    _SENSES["orders_n"] = len(books)
-                self._json(json.dumps({"ok": True, "books": len(books)}).encode())
-            except Exception as e:      # never 500 at a browser extension
-                self._json(json.dumps({"ok": False,
-                                       "error": str(e)}).encode(), 200)
             return
 
         if self.path.startswith("/api/paper_fill"):
@@ -3240,12 +3083,10 @@ class Handler(SimpleHTTPRequestHandler):
         #   * the UI's NOT LIVE banner, which named an expired Dhan token as
         #     the usual cause while the tool was running on Upstox.
         if urlsplit(self.path).path == "/":
-            # The site root IS the desk now -- start-v2.bat opens it directly
-            # and a bookmark to "/" should land there too. /index.html (the
-            # legacy landing page) stays reachable by its own name; only the
-            # bare root redirects.
+            # The live UI is TapeMap v2 on Vite (5173, started by
+            # start-v2.bat); a bookmark to this server's root lands there.
             self.send_response(302)
-            self.send_header("Location", "/desk.html")
+            self.send_header("Location", "http://127.0.0.1:5173/")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -3266,7 +3107,7 @@ class Handler(SimpleHTTPRequestHandler):
                     feed_why = "chain source has no feed yet (starting up)"
             else:
                 feed_why = ("no Upstox chain source in this server mode -- "
-                            "Dhan broker, --mock-chain, or replay mode")
+                            "Dhan broker or --mock-chain")
             self._json(json.dumps({
                 "ok": True,
                 "broker": _broker(),
@@ -3295,10 +3136,10 @@ class Handler(SimpleHTTPRequestHandler):
             idx = self._idx()
             box = self.payloads.get(idx)
             if box is None:
-                # Never serve one index's tape under another's name. Replay
-                # mode only builds DEFAULT, and the old fallback chain quietly
-                # answered /api/data?idx=BANKNIFTY with NIFTY's session — three
-                # identical panels that looked live and were mislabelled.
+                # Never serve one index's tape under another's name. The old
+                # fallback chain quietly answered /api/data?idx=BANKNIFTY with
+                # NIFTY's session — three identical panels that looked live
+                # and were mislabelled.
                 self._json(json.dumps({
                     "index": idx, "strike": None, "days": [],
                     "built_at": time.time(),
@@ -3720,61 +3561,6 @@ class Handler(SimpleHTTPRequestHandler):
                 "events_why": None if events else (
                     "no tape events recorded" if rows else "no record for that day"),
             }, default=str).encode())
-        elif self.path.startswith("/api/desk"):
-            # Every structure, with a STATUS each -- deployable, stand aside,
-            # or blocked with the missing input named. Never a confidence
-            # score: nothing here has a track record, and a number a reader
-            # takes for a probability would be the one lie this stack cannot
-            # afford. `?capital=` (rupees, default Rs 5cr) is the margin
-            # capital sizing is built against; it is what makes `lots` per
-            # candidate a real number instead of a label on the reading.
-            q = parse_qs(urlsplit(self.path).query)
-            only = (q.get("idx") or [None])[0]
-            try:
-                capital = max(1.0, min(
-                    float((q.get("capital") or [str(desk_mod.DEFAULT_CAPITAL)])[0]),
-                    1000 * desk_mod.ONE_CRORE))
-            except ValueError:
-                capital = desk_mod.DEFAULT_CAPITAL
-            out = {}
-            for idx in (instruments.ENABLED if not only else [only]):
-                try:
-                    surf = _surface_read(self.poller, idx)
-                    reg = desk_mod.regime_from_chain(_chain_doc(self.poller, idx))
-                    # The raw strikes go through so the lot size is MEASURED
-                    # off the chain's own oi/vol GCD rather than read from a
-                    # table that rots the next time the exchange revises the
-                    # contract-value band.
-                    out[idx] = asdict(desk_mod.decide(
-                        surf, reg, capital,
-                        strikes=(_chain_doc(self.poller, idx) or {}).get("strikes"),
-                        view=_view_for(idx, self.payloads)))
-                    # THE SCREEN MUST SHOW WHAT THE LOG RECORDS. `decide` is
-                    # a fresh per-request computation, so without this the
-                    # browser got the RAW state -- the eleven-second
-                    # `deployable` -- while `desk_log.jsonl` recorded the
-                    # gated one, and the two disagreed by construction.
-                    # Landed 2026-08-24 with the gate and missed for an hour:
-                    # a fix for "computed but never consumed" that was itself
-                    # computed and never consumed.
-                    #
-                    # PEEK, DO NOT FILTER. `_log_chain_pace` advances the gate
-                    # once per chain snapshot; a browser poll must not feed it
-                    # a second stream on its own clock.
-                    held = _DESK_GATE.held_for(idx)
-                    if "deployable" in held:
-                        out[idx]["best"] = held["deployable"]
-                    if held.get("oi_dir") is not None:
-                        out[idx]["oi_dir"] = held["oi_dir"]
-                except Exception as e:
-                    out[idx] = {"index": idx, "fit_ok": False, "best": None,
-                                "candidates": [],
-                                "why": [f"{type(e).__name__}: {e}"]}
-            self._json(json.dumps({
-                "ok": any(v.get("best") for v in out.values()),
-                "capital": capital,
-                "indices": out,
-            }).encode())
         elif self.path.startswith("/api/surface"):
             # THE DAY, not just the snapshot (2026-08-25). The a/b/c story --
             # "vol aayi ya nikli, skew kab unwind hua" -- lived only in the
@@ -3889,36 +3675,11 @@ class Handler(SimpleHTTPRequestHandler):
                          "chain -- there is no assumed 0.5 here, and that "
                          "assumption is why this module exists."),
             }).encode())
-        elif self.path.startswith("/api/paperdesk"):
-            # THE PAPER DESK's review surface: book, marks, risk, quotes,
-            # the decision tail (entries, exits, REFUSALS). PAPER ONLY --
-            # its own note says so on every response, and the maker-fill
-            # optimism caveat travels with the numbers.
-            with _SENSES_LOCK:
-                pt = _SENSES.get("ptrader")
-            if pt is None:
-                self._json(json.dumps({
-                    "ok": False,
-                    "why": "no paper trader in this server mode"}).encode())
-                return
-            docs = {}
-            for idx in (self.chains or {}):
-                cbox = self.chains.get(idx) or {}
-                try:
-                    d = json.loads(cbox.get("payload") or "null")
-                    if d and d.get("ok"):
-                        docs[idx] = d
-                except (TypeError, ValueError):
-                    pass
-            self._json(json.dumps({"ok": True,
-                                   "desk": pt.state(docs)}).encode())
         elif self.path.startswith("/api/warmap"):
-            # THE OI WAR MAP, per index: levels + dwell + runways + sequence
-            # + driver, assembled at chain pace by warmap.py and served from
-            # its last reading. SHADOW: nothing here gates a setup, and no
-            # field is ever a hit rate. `participant` is market-wide (the
-            # NSE EOD file does not split by index) and one day lagged,
-            # which its own `lag` field says.
+            # THE OI WAR MAP, per index: levels + dwell + runways + sequence,
+            # assembled at chain pace by warmap.py and served from its last
+            # reading. SHADOW: nothing here gates a setup, and no field is
+            # ever a hit rate.
             q = parse_qs(urlsplit(self.path).query)
             only = (q.get("idx") or [None])[0]
             with _SENSES_LOCK:
@@ -3926,14 +3687,11 @@ class Handler(SimpleHTTPRequestHandler):
                 out = boards.states() if boards is not None else {}
             if only:
                 out = {k: v for k, v in out.items() if k == only}
-            prev_day = instruments._prev_trading_day(
-                time.strftime("%Y-%m-%d"))
             self._json(json.dumps({
                 "ok": bool(out),
                 "why": None if out else ("no war map yet -- the senses loop "
                                          "builds one per index at chain pace"),
                 "indices": out,
-                "participant": driver_mod.participant_context(prev_day),
                 "note": ("stop zones and retail attribution are [I] forever; "
                          "the forward log is data/warmap/ and is never "
                          "pooled with any other record"),
@@ -4055,14 +3813,6 @@ class Handler(SimpleHTTPRequestHandler):
                     "failed": getattr(obj, "failed", 0),
                     "log": getattr(obj, "path", None) or senses_mod.day_path(),
                     "pending": obj.pending() if obj else {},
-                    # Is the Kite bridge alive? A dead bridge costs exactly the
-                    # wall-vs-cluster answer, and must say so rather than letting
-                    # every shelf read as "unknowable" for a silent reason.
-                    "orders_bridge": {
-                        "books": _SENSES["orders_n"],
-                        "age_s": (round(time.time() - _SENSES["orders_at"], 1)
-                                  if _SENSES["orders_at"] else None),
-                    },
                     "read": read,
                     "pools": _SENSES["pools"],
                     # SHADOW, [I]: percentile-so-far of flow toxicity on the
@@ -4074,8 +3824,8 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path.startswith("/api/hold"):
             # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
             # /api/hold?id= a marked trade, or ?idx=&k=&side=&role=&t0=&p0=&qty=
-            # [&asof=HH:MM][&rows=1]; /api/hold/side?idx= the side read, flat or
-            # not; /api/hold/trades today's marked trades. GET only here.
+            # [&asof=HH:MM][&rows=1]; /api/hold/trades today's marked trades.
+            # GET only here.
             q = parse_qs(urlsplit(self.path).query)
             path = urlsplit(self.path).path
             try:
@@ -4085,8 +3835,6 @@ class Handler(SimpleHTTPRequestHandler):
                     out["lots"] = {i: _hold_lot(i) for i in instruments.ENABLED}     # before any answer (REVIEW P1-7)
                 elif path == "/api/hold/check":
                     out = _hold_check(self.poller, q, self.payloads)
-                elif path == "/api/hold/side":
-                    out = _hold_side_reply(self.poller, self._idx(), (q.get("asof") or [None])[0])
                 elif path == "/api/hold/expr":
                     out = _expr_reply(self.poller, self.payloads, self._idx())
                 elif path == "/api/hold/sigma":      # a leg's σ vs its VWAP (§F.1, printed): off the press's path
@@ -4119,14 +3867,6 @@ class Handler(SimpleHTTPRequestHandler):
             q = parse_qs(urlsplit(self.path).query)
             day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
             self._json(json.dumps(_tape_reply(self._idx(), day), default=str).encode())
-        elif self.path.startswith("/api/frame/bars"):
-            q = parse_qs(urlsplit(self.path).query)
-            day, idx = (q.get("day") or [time.strftime("%Y-%m-%d")])[0], (q.get("idx") or ["NIFTY"])[0]
-            with _SENSES_LOCK:
-                t = (_SENSES["tape"].get(idx) or {}).get("doc") or {}
-            bars = (t.get("closed") or []) if str(t.get("session", "")).endswith(day) else []
-            self._json(json.dumps({"ok": bool(bars), "day": day, "idx": idx, "bars": bars,
-                                   "why": None if bars else "no tape held for that day in this process"}).encode())
         elif self.path.startswith("/api/frame"):
             q = parse_qs(urlsplit(self.path).query)
             idx = (q.get("idx") or ["NIFTY"])[0]
@@ -4163,11 +3903,9 @@ class Handler(SimpleHTTPRequestHandler):
 def _view_for(idx, payloads):
     """The direction view for one index, or None if the tape cannot form one.
 
-    NONE IS A RESULT, NOT A FAILURE. `desk.decide` blocks the flow half of the
-    catalog with its reason named when this returns None, exactly as it did
-    before a direction view existed at all -- so a cold server, a market that
-    is shut, or a chain that has not warmed produces a readable screen rather
-    than an error.
+    NONE IS A RESULT, NOT A FAILURE. A cold server, a market that is shut, or
+    a chain that has not warmed gives None, and the desk log's gear and
+    conviction read None rather than an error.
 
     It assembles the same two halves `/api/senses` already assembles, and for
     the same reason: ignition is a BOOK quantity and fuel/drain are CHAIN
@@ -4262,18 +4000,12 @@ def _isolate_mock_writers():
     fixture levels and fixture fits into the LIVE forward record --
     data/paper_desk/, data/warmap/, data/surface/, data/desk_log.jsonl --
     costing the paper desk and the war map their clean day 1. A replay must
-    never share a path with the record it exists to rehearse for. All four
-    writers read these constants at call time (trader.Trader binds them in
-    __init__ for the same reason).
+    never share a path with the record it exists to rehearse for. The
+    writers read these constants at call time.
     """
     import os
-    import hedge as hedge_mod
     import sequence as sequence_mod
     mock = os.path.join("data", "mock")
-    hedge_mod.LEDGER_DIR = os.path.join(mock, "paper_desk")
-    trader_mod.DIR_ = os.path.join(mock, "paper_desk")
-    trader_mod.STATE = os.path.join(trader_mod.DIR_, "state.json")
-    trader_mod.TRADES = os.path.join(trader_mod.DIR_, "trades.jsonl")
     sequence_mod.DIR = os.path.join(mock, "warmap")
     desk_log.SURF_DIR = os.path.join(mock, "surface")
     desk_log.DESK_LOG_PATH = os.path.join(mock, "desk_log.jsonl")
@@ -4576,15 +4308,15 @@ def _coverage():
             "the buyer's-tax day trace, if an earlier process today wrote it "
             "down (data/day_state/, observed not reconstructed)",
             # WIRED 2026-09-15: warmap.py replays that same grid through fresh
-            # dwell / sequence / driver machines on the first chain snapshot
+            # dwell / sequence machines on the first chain snapshot
             # after the grid and the daily levels land. Its rows go to
             # warmap_<day>_backfill.jsonl, never the observed log.
             "the drag meter's anchor -- on a late start drag.Board anchors on "
             "the grid's earliest backfilled mark (09:15's strike and premiums), "
             "not on the first live snapshot; /api/drag.<idx>.anchor_src says "
             "which, and the rate then uses the live delta alone",
-            "the war map's boards -- levels, dwell, the sequence machines and "
-            "the driver's OI rank -- replayed at 1-minute pace from the same "
+            "the war map's boards -- levels, dwell and the sequence machines "
+            "-- replayed at 1-minute pace from the same "
             "minute grid (data/warmap/warmap_<day>_backfill.jsonl, rows tagged "
             "backfill:true; /api/warmap.<idx>.backfill says what landed)",
         ],
@@ -4601,10 +4333,8 @@ def _coverage():
             "no delta, and drag.between refuses an assumed one, so the samples "
             "between 09:15 and this start cannot be rebuilt (the ANCHOR can, "
             "and is: see `reconstructed`)",
-            "the war map's dwell crossing evidence, hunt fuel and futures-led "
-            "driver rank before this start -- the minute grid carries no "
-            "bid/ask, no ledger basis and no futures volume",
-            "the paper desk's decisions and refusals before this start",
+            "the war map's dwell crossing evidence and hunt fuel before this "
+            "start -- the minute grid carries no bid/ask and no ledger basis",
         ],
         "why": (None if gap is None else
                 f"could not check — server started {started}, {gap} min after "
@@ -4817,19 +4547,8 @@ def main():
             threading.Thread(target=_hold_loop, args=(poller,), daemon=True, name="hold").start()
         httpd.serve_forever()          # bound above, before anything was taken
         return
-    port = int(argv[0]) if argv else 8765
-    base = argv[1] if len(argv) > 1 else "data"
-    strike = float(argv[2]) if len(argv) > 2 else 24200.0
-    poller = (_start_chain(True, [instruments.get(x) for x in instruments.ENABLED])
-              if mock_chain else None)
-    chains = poller.boxes if poller else None
-    payload = json.dumps(analyze(base, strike)).encode()
-    payloads = {instruments.DEFAULT: {"payload": payload}}
-    log.info("analysis ready (%s KB), serving on http://127.0.0.1:%s",
-             len(payload) // 1024, port)
-    ThreadingHTTPServer(("127.0.0.1", port),
-                        partial(Handler, payloads=payloads,
-                                chains=chains, poller=poller)).serve_forever()
+    log.error("usage: python server.py live [port] [--mock-chain]")
+    sys.exit(2)
 
 
 if __name__ == "__main__":

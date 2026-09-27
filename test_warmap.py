@@ -35,8 +35,7 @@ def _fed_board(tmp_path):
     for n in range(8):
         sec = 34200 + n * 60
         cs.on_snapshot(str(sec), _doc(sec, 25000.0)["strikes"])
-        wm.on_snapshot(_doc(sec, 25000.0 + (n % 3)), cs, fut_vtt=1000.0 + n,
-                       now=IN_HOURS)
+        wm.on_snapshot(_doc(sec, 25000.0 + (n % 3)), cs, now=IN_HOURS)
     return wm, cs
 
 
@@ -44,7 +43,7 @@ def test_the_board_assembles_every_object_and_states_absences(tmp_path):
     wm, cs = _fed_board(tmp_path)
     st = wm.state()
     assert st["ok"] is True
-    for key in ("levels", "dwell", "runways", "driver", "heat", "sequence",
+    for key in ("levels", "dwell", "runways", "heat", "sequence",
                 "seq_log"):
         assert key in st, key
     # the daily fetch thread is async; wait for the stub to land, then feed

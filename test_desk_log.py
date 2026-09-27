@@ -157,11 +157,11 @@ def test_a_write_failure_does_not_raise(tmp_path):
 # --------------------------------------------------------------------------
 
 def test_diff_transitions_reports_only_changed_fields():
-    prev = {"gear": "PIN", "conviction": "NONE", "deployable": None}
-    curr = {"gear": "CASCADE", "conviction": "NONE", "deployable": "long_call"}
+    prev = {"gear": "PIN", "conviction": "NONE", "oi_dir": None}
+    curr = {"gear": "CASCADE", "conviction": "NONE", "oi_dir": "BEARISH"}
     out = DL.diff_transitions(prev, curr)
     assert ("gear", "PIN", "CASCADE") in out
-    assert ("deployable", None, "long_call") in out
+    assert ("oi_dir", None, "BEARISH") in out
     assert not any(f == "conviction" for f, _, _ in out)
 
 
@@ -174,13 +174,13 @@ def test_diff_transitions_first_reading_is_a_transition_from_none():
     transition -- see test_log_transition_baseline_row_carries_the_marker
     below and the module docstring."""
     out = DL.diff_transitions({}, {"gear": "PIN", "conviction": "NONE",
-                                   "deployable": None})
+                                   "oi_dir": None})
     assert ("gear", None, "PIN") in out
     assert ("conviction", None, "NONE") in out
-    # deployable stayed None -> None: genuinely unchanged, not a transition.
-    assert not any(f == "deployable" for f, _, _ in out)
+    # oi_dir stayed None -> None: genuinely unchanged, not a transition.
+    assert not any(f == "oi_dir" for f, _, _ in out)
 
 
 def test_diff_transitions_reports_nothing_when_nothing_changed():
-    state = {"gear": "PIN", "conviction": "NONE", "deployable": None}
+    state = {"gear": "PIN", "conviction": "NONE", "oi_dir": None}
     assert DL.diff_transitions(state, dict(state)) == []

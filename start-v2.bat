@@ -1,6 +1,6 @@
 @echo off
 REM TapeMap launcher (portable): runs from this file's own folder.
-REM The desk (ui/desk.html) is served directly by the Python backend on
+REM The backend (the API and /console.html) is served directly by Python on
 REM 8765 -- plain HTML, no build step. TapeMap v2 (ui-v2, React on Vite,
 REM 5173) is started too, AFTER the backend answers -- see :ready below.
 REM It was pulled on 2026-08-22 because it put up a confident dashboard
@@ -94,7 +94,6 @@ timeout /t 1 /nobreak >nul
 goto wait
 
 :ready
-start "" http://127.0.0.1:8765/desk.html
 
 REM --- TapeMap v2 on 5173 (restored 2026-09-18) ------------------------
 REM Opened ONLY after 5173 actually answers, never on the assumption that

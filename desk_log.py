@@ -10,8 +10,8 @@ WHAT GOES HERE, AND WHAT NEVER DOES. Two files:
                                       rmse, f_src, expiry, n_points}.
 
   data/desk_log.jsonl                TRANSITIONS ONLY -- a line is written
-                                      only when gear, conviction or the desk's
-                                      best structure actually CHANGES from the
+                                      only when gear, conviction or the OI
+                                      direction actually CHANGES from the
                                       previous reading. {ts, idx, field, from,
                                       to, detail}. This is the ledger
                                       `direction.py`'s own declared 30-session
@@ -74,10 +74,10 @@ DESK_LOG_PATH = os.path.join("data", "desk_log.jsonl")
 MARKET_OPEN = (9, 15)
 MARKET_CLOSE = (15, 30)
 
-# The three fields a transition can fire on, in the order a reader expects
-# them named -- gear (the regime), conviction (the direction view's
-# strength), deployable (the desk's own best-structure name, or None).
-TRANSITION_FIELDS = ("gear", "conviction", "deployable", "oi_dir")
+# The fields a transition can fire on, in the order a reader expects them
+# named -- gear (the regime), conviction (the direction view's strength),
+# oi_dir (the gated CE/PE OI-change direction, oi_dwell.py).
+TRANSITION_FIELDS = ("gear", "conviction", "oi_dir")
 
 
 def market_hours(now: Optional[datetime] = None) -> bool:

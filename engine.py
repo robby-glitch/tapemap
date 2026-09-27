@@ -27,7 +27,6 @@ Event grammar:
 import csv
 import math
 import re
-import sys
 from bisect import bisect_right, insort
 from collections import defaultdict
 from datetime import datetime
@@ -1358,23 +1357,3 @@ def session_json(sess):
             row["setup"] = su
         out["bars"].append(row)
     return out
-
-
-# ---------------------------------------------------------------------- main
-
-def main():
-    base = sys.argv[1] if len(sys.argv) > 1 else "data"
-    strike = float(sys.argv[2]) if len(sys.argv) > 2 else None
-    expiry = sys.argv[3] if len(sys.argv) > 3 else "2026-07-21"  # weekly expiry
-    fut, years = load(f"{base}/FUT_3day.csv")
-    ce, _ = load(f"{base}/CE_3day.csv")
-    pe, _ = load(f"{base}/PE_3day.csv")
-    for day in sorted(fut, key=lambda d: (d.split()[0], int(d.split()[1]))):
-        if day in ce and day in pe:
-            t_days = days_to_expiry(day, years[day], expiry)
-            Session(day, fut[day], ce[day], pe[day], strike=strike,
-                    t_days=t_days).run()
-
-
-if __name__ == "__main__":
-    main()

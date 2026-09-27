@@ -434,7 +434,6 @@ def test_a_box_with_no_session_serves_its_own_bytes():
     box = {"payload": b'{"live_error":"starting up"}', "session": None}
     for n in live.INTERVALS:
         assert server.payload_at(box, n) == box["payload"]
-    assert server.payload_at(b"raw replay bytes", 3) == b"raw replay bytes"
 
 
 # ------------------------------------------------- 9. nothing served after the close
