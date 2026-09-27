@@ -171,14 +171,11 @@ export default function VpinTab({ index }: { index: IndexKey }) {
           : p <= 0.35 ? { word: 'CALM', col: calm }
             : { word: 'NORMAL', col: pal.textSecondary }
 
-  // ── geometry: percentile and price on one clock ───────────────────────────
+  // ── geometry: percentile on the session clock ─────────────────────────────
   const W = 1000, H = 260, PL = 8, PR = 62, PT = 10, PH = 190
   const OPEN = 9 * 60 + 15, CLOSE = 15 * 60 + 30
   const X = (m: number) => PL + (m - OPEN) / (CLOSE - OPEN) * (W - PL - PR)
   const YP = (v: number) => PT + (1 - v) * PH                       // percentile 0..1
-  const lo = bars.length ? Math.min(...bars.map(b => b.l)) : 0
-  const hi = bars.length ? Math.max(...bars.map(b => b.h)) : 1
-  const YX = (p: number) => PT + (hi - p) / Math.max(hi - lo, 1e-9) * PH
 
   const line = `1px solid ${pal.border}`
   const S: Record<string, CSSProperties> = {
@@ -259,10 +256,9 @@ export default function VpinTab({ index }: { index: IndexKey }) {
 
       <div style={{ ...S.panel, borderBottom: 0, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-          <span style={{ ...S.lbl, marginRight: 'auto' }}>Toxicity aur price, ek hi ghadi par</span>
+          <span style={{ ...S.lbl, marginRight: 'auto' }}>Toxicity, session ki ghadi par</span>
           <span style={{ fontSize: 10, color: fastCol }}>— fast {compact(rep?.fast_bucket_v)} [I]</span>
           <span style={{ fontSize: 10, color: pal.accent }}>— slow {compact(st?.bucket_v)} [I]</span>
-          <span style={{ fontSize: 10, color: pal.textSecondary }}>— price {priceSrc ?? '(nahi)'}</span>
           {bf.length ? <span style={{ fontSize: 10, color: pal.textMuted }}>- - rebuilt buckets, alag gine gaye</span> : null}
         </div>
         {!pts.length && !fastPts.length ? <div style={{ ...S.hole, padding: 12 }}>{absence ?? 'abhi koi point nahi'}</div> : (
@@ -272,10 +268,6 @@ export default function VpinTab({ index }: { index: IndexKey }) {
                 <line x1={PL} x2={W - PR} y1={YP(y)} y2={YP(y)} stroke={wash(pal.textPrimary, 0.08)} strokeDasharray="2 4" />
                 <text x={W - PR + 4} y={YP(y) + 3} fill={pal.textMuted} fontSize={9}>{y}</text>
               </g>))}
-            {bars.length > 0 && (
-              <polyline points={bars.map(x => `${X(mins(tHM(x.t))!)},${YX(x.c)}`).join(' ')}
-                fill="none" stroke={pal.textSecondary} strokeWidth={1.1} opacity={0.75} />
-            )}
             {bf.length > 0 && (
               <polyline points={bf.map(p => `${X(mins(p.t)!)},${YP(p.pct!)}`).join(' ')}
                 fill="none" stroke={pal.accent} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
@@ -294,7 +286,6 @@ export default function VpinTab({ index }: { index: IndexKey }) {
             {['09:15', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '15:30'].map(h => (
               <text key={h} x={X(mins(h)!)} y={PT + PH + 14} fill={pal.textMuted} fontSize={9} textAnchor="middle">{h}</text>
             ))}
-            {bars.length > 0 && <text x={W - PR + 4} y={YX(bars[bars.length - 1].c) + 3} fill={pal.textSecondary} fontSize={9}>{bars[bars.length - 1].c}</text>}
           </svg>)}
 
         <div style={S.kv}>

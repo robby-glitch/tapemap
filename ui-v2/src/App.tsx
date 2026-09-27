@@ -1,21 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react'
-import {
-  ComposedChart, Area, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts'
 import { useLiveData, HEAT_COLS, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatCell, HeatTone, PressCell, Chain, MapData, MapLevelKind, FlowRow, RunState, TapeBar, Interval, GroundedCall } from './data'
-import { usePalette, useMode, palette, rgbOf } from './theme'
+import type { IndexKey, IndexInfo, Dataset, HeatTone, Chain, MapLevelKind, FlowRow, RunState, TapeBar, Interval, GroundedCall } from './data'
+import { usePalette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
 import GlassBoard from './one/GlassBoard'
-import ProtoTab from './proto/ProtoTab'
 import SignalsTab from './signals/SignalsTab'
 import FlowTab from './flow/FlowTab'
-import BoardTab from './board/BoardTab'
-// BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md). BoardTab
-// above stays importable: it is the one-line rollback of the Board tab.
+// BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md).
 import BoardRev3, { useBoardGlance } from './board/BoardRev3'
 import type { GlanceRead } from './board/BoardRev3'
 import VpinTab from './vpin/VpinTab'
@@ -39,15 +31,11 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
-// 'Proto' is the throwaway lightweight-charts spike (src/proto/). It is not a
-// feature: it exists to decide v3's charting foundation and gets deleted with
-// its directory once the verdict is recorded. See context/HANDOFF.md §6b.
 // 'Glass' is the glance BOARD (src/one/GlassBoard.tsx): the machine and seven
 // instruments as movable panes of glass, each one a launcher into the tab that
 // owns its evidence. It replaces the one-screen chart trial that used to sit
 // here — that trial answered "what has to happen next" with a bigger chart,
-// which is the thing the operator already has in Kite. OneTab.tsx is left on
-// disk, unmounted, until the board has been judged.
+// which is the thing the operator already has in Kite.
 //
 // It is listed FIRST and is NOT the default tab — the operator judges it
 // against the nine that already exist, and a board that seizes the landing
@@ -74,320 +62,53 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'VPIN' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals' | 'Proto'
+export type Tab = 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'VPIN' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals'
 
-// ── Mock data (fallback shown on first paint / when an index fails to fetch) ────
-const MOCK_INDICES: Record<IndexKey, { price: number; change: number; pct: number; state: string; arrow: string; highlight?: boolean }> = {
-  BANKNIFTY: { price: 56624, change: -405,  pct: -0.71, state: 'recovering',   arrow: '▼', highlight: true },
-  NIFTY:     { price: 23860, change: -60,   pct: -0.25, state: 'heavy, capped', arrow: '▼' },
-  SENSEX:    { price: 76360, change: -30,   pct: -0.04, state: 'rolled over',   arrow: '〰' },
+// ── Empty dataset (first paint, and any index never read this session) ──────
+// Nothing in it is invented: a live read replaces it within one poll. Until
+// then every consumer renders "not shown" — never a zero standing in for a
+// price, never a placeholder read or signal (CLAUDE.md rule 6).
+const NOT_SHOWN = 'not shown — no live read from the backend yet'
+const EMPTY_CHAIN: Chain = {
+  pcr: '—', maxPain: 0, gex: '—', squeeze: '—', strikes: [],
+  mpDist: 0, gexSpot: 0, bookZone: null, inBookZone: true,
+  spot: 0, expiry: '', atmStraddle: 0, aligned: true, flipPx: null, ts: '', builtAt: null,
+}
+const perIndex = <V,>(make: () => V): Record<IndexKey, V> =>
+  ({ NIFTY: make(), BANKNIFTY: make(), SENSEX: make() })
+const EMPTY: Dataset = {
+  INDICES: perIndex(() => ({ price: 0, change: 0, pct: 0, state: 'not shown', arrow: '' })),
+  READS: perIndex(() => ({ headline: NOT_SHOWN, timing: '', direction: '', sub: '' })),
+  KEY_LEVELS: perIndex(() => []),
+  ORDER_FLOW: perIndex(() => ({ main: '', mm: '', stats: [] })),
+  CHAIN_DATA: perIndex(() => ({ ...EMPTY_CHAIN })),
+  EVENTS_BY_IDX: perIndex(() => []),
+  FOCUS_BY_IDX: perIndex(() => []),
+  CHART_DATA: perIndex(() => []),
+  HEAT: perIndex(() => []),
+  PRESSURE: perIndex(() => []),
+  MAP: perIndex(() => ({ now: 0, zoneLo: 0, zoneHi: 0, levels: [] })),
 }
 
-const MOCK_READS: Record<IndexKey, { headline: string; timing: string; direction: string; sub: string }> = {
-  NIFTY: {
-    headline: 'Down-leg exhausted — relief bounce under resistance',
-    timing: 'WAIT',
-    direction: 'BEARISH',
-    sub: 'Reclaim VWAP 23,909 to confirm a turn.',
-  },
-  BANKNIFTY: {
-    headline: 'Biggest mover — short squeeze in progress near 56,500',
-    timing: 'READY',
-    direction: 'BULLISH',
-    sub: 'Hold above 56,500 CE wall to sustain. Watch 56,800 resistance.',
-  },
-  SENSEX: {
-    headline: 'Sideways drift — insufficient momentum either way',
-    timing: 'WAIT',
-    direction: 'NEUTRAL',
-    sub: 'No edge until break above 76,500 or below 76,100.',
-  },
+/** Has this index been read at all? A live price is the futures close, which
+ *  is never 0 — only the empty dataset carries 0. */
+const hasRead = (i: IndexInfo) => i.price > 0
+
+/** The empty dataset's rendering for a whole tab: "not shown", which is not
+ *  "checked and found nothing" and not "could not check". */
+function NotShown({ what }: { what: string }) {
+  const pal = usePalette()
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{
+        background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
+        padding: 20, fontSize: 13, color: pal.textMuted,
+      }}>{what}: {NOT_SHOWN}.</div>
+    </div>
+  )
 }
 
-const MOCK_KEY_LEVELS: Record<IndexKey, Array<{ label: string; value: number; note: string; dist: number; dir: 'up' | 'down' | 'here' }>> = {
-  NIFTY: [
-    { label: 'CAP',  value: 23900, note: 'CE wall 7M', dist: +40, dir: 'up' },
-    { label: 'VWAP', value: 23909, note: 'reclaim = turn', dist: +49, dir: 'up' },
-    { label: 'NOW',  value: 23860, note: 'last price', dist: 0, dir: 'here' },
-    { label: 'LOW',  value: 23808, note: 'session low', dist: -52, dir: 'down' },
-    { label: 'SUP',  value: 23750, note: 'PE wall 5.2M', dist: -110, dir: 'down' },
-  ],
-  BANKNIFTY: [
-    { label: 'RES',  value: 56800, note: 'call wall', dist: +176, dir: 'up' },
-    { label: 'VWAP', value: 56700, note: 'reclaim watch', dist: +76, dir: 'up' },
-    { label: 'NOW',  value: 56624, note: 'last price', dist: 0, dir: 'here' },
-    { label: 'SUP',  value: 56500, note: 'CE wall / key', dist: -124, dir: 'down' },
-    { label: 'LOW',  value: 56200, note: 'session low', dist: -424, dir: 'down' },
-  ],
-  SENSEX: [
-    { label: 'RES',  value: 76500, note: 'call wall', dist: +140, dir: 'up' },
-    { label: 'VWAP', value: 76420, note: 'flat VWAP', dist: +60, dir: 'up' },
-    { label: 'NOW',  value: 76360, note: 'last price', dist: 0, dir: 'here' },
-    { label: 'SUP',  value: 76100, note: 'PE wall', dist: -260, dir: 'down' },
-    { label: 'LOW',  value: 75900, note: 'session low', dist: -460, dir: 'down' },
-  ],
-}
-
-const MOCK_ORDER_FLOW: Record<IndexKey, { main: string; mm: string; stats: Array<{ label: string; value: string }> }> = {
-  NIFTY: {
-    main: 'Selling dried up. Futures discount refilled, call-writers covering (supportive). But NIFTY OI is rebuilding — shorts may re-press. Move: decelerating.',
-    mm: 'Dealers still cap rallies (negative-gamma).',
-    stats: [
-      { label: 'Realized σ', value: '9.4%' },
-      { label: '30m Range', value: '94 pts · 68th %ile' },
-      { label: 'ATM IV', value: '13.2%' },
-    ],
-  },
-  BANKNIFTY: {
-    main: 'Short squeeze in early stages. PE writers rapidly covering — OI shedding at lows. Call-side building slowly but not yet a wall. Move: accelerating.',
-    mm: 'Dealers long gamma locally — moves self-correct near 56,500.',
-    stats: [
-      { label: 'Realized σ', value: '12.8%' },
-      { label: '30m Range', value: '224 pts · 82nd %ile' },
-      { label: 'ATM IV', value: '15.6%' },
-    ],
-  },
-  SENSEX: {
-    main: 'Balanced flow, no conviction either way. Futures trading at fair value. Options market quiet — no large directional bets. Move: sideways drift.',
-    mm: 'Dealers neutral gamma — no strong hedging flow.',
-    stats: [
-      { label: 'Realized σ', value: '7.1%' },
-      { label: '30m Range', value: '82 pts · 34th %ile' },
-      { label: 'ATM IV', value: '11.4%' },
-    ],
-  },
-}
-
-const MOCK_CHAIN_DATA: Record<IndexKey, { pcr: string; maxPain: number; gex: string; squeeze: string; strikes: Array<{ strike: number; ceOI: number; peOI: number; type?: 'callwall' | 'putwall' | 'atm' }> }> = {
-  NIFTY: {
-    pcr: '0.82', maxPain: 24000, gex: 'Negative', squeeze: 'Low',
-    strikes: [
-      { strike: 24200, ceOI: 8200, peOI: 1100, type: 'callwall' },
-      { strike: 24100, ceOI: 5400, peOI: 1800 },
-      { strike: 24000, ceOI: 7100, peOI: 2200 },
-      { strike: 23900, ceOI: 7000, peOI: 2900, type: 'callwall' },
-      { strike: 23800, ceOI: 2100, peOI: 4200, type: 'atm' },
-      { strike: 23700, ceOI: 1200, peOI: 5800 },
-      { strike: 23600, ceOI: 900,  peOI: 6100, type: 'putwall' },
-      { strike: 23500, ceOI: 600,  peOI: 5200 },
-    ],
-  },
-  BANKNIFTY: {
-    pcr: '1.04', maxPain: 56500, gex: 'Positive', squeeze: 'High',
-    strikes: [
-      { strike: 57000, ceOI: 4200, peOI: 900 },
-      { strike: 56800, ceOI: 5800, peOI: 1400, type: 'callwall' },
-      { strike: 56700, ceOI: 3200, peOI: 2100 },
-      { strike: 56600, ceOI: 2800, peOI: 2900, type: 'atm' },
-      { strike: 56500, ceOI: 1900, peOI: 4400, type: 'putwall' },
-      { strike: 56200, ceOI: 800,  peOI: 5100 },
-      { strike: 56000, ceOI: 600,  peOI: 4800 },
-      { strike: 55800, ceOI: 400,  peOI: 3200 },
-    ],
-  },
-  SENSEX: {
-    pcr: '0.91', maxPain: 76500, gex: 'Neutral', squeeze: 'Medium',
-    strikes: [
-      { strike: 77000, ceOI: 3100, peOI: 600 },
-      { strike: 76800, ceOI: 4200, peOI: 900, type: 'callwall' },
-      { strike: 76600, ceOI: 2800, peOI: 1400 },
-      { strike: 76400, ceOI: 2100, peOI: 2200, type: 'atm' },
-      { strike: 76200, ceOI: 1100, peOI: 3800 },
-      { strike: 76000, ceOI: 800,  peOI: 4200, type: 'putwall' },
-      { strike: 75800, ceOI: 500,  peOI: 3100 },
-      { strike: 75600, ceOI: 300,  peOI: 2400 },
-    ],
-  },
-}
-
-const MOCK_EVENTS = [
-  { time: '14:33', text: 'Fake low sprung — late shorts trapped, small bounce likely', tag: 'BEAR-TRAP SPRUNG', dir: 'bull' as const },
-  { time: '14:09', text: 'New low but puts aren\'t confirming — selling not fully paid for', tag: 'UNCONFIRMED BREAKDOWN', dir: 'neutral' as const },
-  { time: '13:53', text: 'Call-writers being squeezed — supportive of a bounce', tag: 'SQUEEZE SIGNAL', dir: 'bull' as const },
-  { time: '13:22', text: 'VWAP lost — sellers have the edge, avoid longs', tag: 'VWAP LOSS', dir: 'bear' as const },
-  { time: '12:47', text: 'OI building at 23,800 PE — that\'s the floor the market is defending', tag: 'SUPPORT IDENTIFIED', dir: 'bull' as const },
-  { time: '12:18', text: 'Afternoon drift lower on light volume — no conviction', tag: 'LOW CONVICTION', dir: 'neutral' as const },
-  { time: '11:54', text: 'Call wall at 23,900 absorbing every rally — capped', tag: 'CAPPED', dir: 'bear' as const },
-  { time: '11:30', text: 'Morning range set: 23,808–23,942. Fair value near 23,870.', tag: 'RANGE SET', dir: 'neutral' as const },
-]
-
-// ── Chart data gen ────────────────────────────────────────────────────────────
-// Realistic intraday mock: a mean-reverting price walk 09:15→15:29 with a VWAP
-// that tracks price and a tight ±1σ band — so the MOCK chart reads like a real one.
-function makeIntraday(basePrice: number, vwapBase: number) {
-  const data = []
-  const sigma = basePrice * 0.0009
-  const bound = basePrice * 0.0032
-  let price = basePrice + basePrice * 0.0016
-  let vwap = vwapBase
-  const start = 9 * 60 + 15
-  const end = 15 * 60 + 29
-  const total = (end - start) / 3
-  let i = 0
-  for (let mins = start; mins <= end; mins += 3, i++) {
-    const h = Math.floor(mins / 60), mm = mins % 60
-    const time = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
-    const revert = (basePrice - price) * 0.06
-    const noise = (Math.random() - 0.5) * basePrice * 0.001
-    price = Math.max(basePrice - bound, Math.min(basePrice + bound, price + revert + noise))
-    vwap += (price - vwap) * 0.03 + (Math.random() - 0.5) * 1.5
-    const s = sigma * (0.85 + Math.random() * 0.3)
-    data.push({
-      time,
-      price: +price.toFixed(2),
-      vwap: +vwap.toFixed(2),
-      upper: +(price + s).toFixed(2),
-      lower: +(price - s).toFixed(2),
-      vol: Math.floor(Math.random() * 800000 + 200000),
-      isFuture: i / total > 0.9,
-    })
-  }
-  return data
-}
-
-const MOCK_CHART_DATA: Record<IndexKey, ReturnType<typeof makeIntraday>> = {
-  NIFTY:     makeIntraday(23860, 23909),
-  BANKNIFTY: makeIntraday(56624, 56700),
-  SENSEX:    makeIntraday(76360, 76420),
-}
-
-// Augment the mock strike ladder with the heatmap fields the live shape now carries.
-function mockChain(c: typeof MOCK_CHAIN_DATA[IndexKey]): Chain {
-  const ks = c.strikes.map(s => s.strike)
-  return {
-    ...c,
-    strikes: c.strikes.map((s) => {
-      const tot = s.ceOI + s.peOI || 1
-      return {
-        ...s, gex: s.ceOI - s.peOI,
-        ceW: +(s.ceOI / tot).toFixed(2), peW: +(s.peOI / tot).toFixed(2),
-        cePk: s.ceOI, pePk: s.peOI,     // placeholder: "at peak", so 0% off
-        // no quotes in the fallback: the validator returns null rather than
-        // checking a trade against invented premiums
-        ceLtp: 0, peLtp: 0, ceIv: 0, peIv: 0, ceSpread: 0, peSpread: 0,
-      }
-    }),
-    mpDist: 0,
-    gexSpot: 0,
-    bookZone: ks.length ? [Math.min(...ks), Math.max(...ks)] : null,
-    inBookZone: true,
-    spot: 0,
-    expiry: '',
-    atmStraddle: 0,
-    aligned: true,
-    flipPx: null,        // fallback has no gamma flip — null, never a fabricated level
-    ts: '',
-    // fallback has no real snapshot time — null reads as "unknown", never as fresh.
-    builtAt: null,
-  }
-}
-
-// Mock Live Spike Radar — 8 cells per index in HEAT_COLS order
-// (FUT VOL, FUT OI, CE VOL, CE OI, PE VOL, PE OI, GAMMA, SQZ), with a few real spikes.
-const MOCK_HEAT: Record<IndexKey, HeatCell[]> = {
-  // NIFTY — heavy, capped: futures shorts building + puts being written (bearish spikes).
-  NIFTY: [
-    { label: '42%', intensity: 0.42, dir: 'bear', spike: false },
-    { label: '86%', intensity: 0.86, dir: 'bear', spike: true },
-    { label: '50%', intensity: 0.50, dir: 'bear', spike: false },
-    { label: '64%', intensity: 0.64, dir: 'bear', spike: false },
-    { label: '38%', intensity: 0.38, dir: 'neutral', spike: false },
-    { label: '85%', intensity: 0.85, dir: 'bear', spike: true },
-    { label: 'AMPLIFIED-DOWN', intensity: 1, dir: 'bear', spike: true },
-    { label: 'DOWN 0.04', intensity: 0.10, dir: 'bear', spike: false },
-  ],
-  // BANKNIFTY — the mover: futures volume + PE writing surge, gamma flipped up, squeeze on.
-  BANKNIFTY: [
-    { label: '90%', intensity: 0.90, dir: 'bull', spike: true },
-    { label: '72%', intensity: 0.72, dir: 'bull', spike: false },
-    { label: '55%', intensity: 0.55, dir: 'bear', spike: false },
-    { label: '60%', intensity: 0.60, dir: 'bear', spike: false },
-    { label: '68%', intensity: 0.68, dir: 'bull', spike: false },
-    { label: '84%', intensity: 0.84, dir: 'bull', spike: true },
-    { label: 'AMPLIFIED-UP', intensity: 1, dir: 'bull', spike: true },
-    { label: 'UP 0.36', intensity: 0.90, dir: 'bull', spike: true },
-  ],
-  // SENSEX — quiet drift: nothing lit.
-  SENSEX: [
-    { label: '22%', intensity: 0.22, dir: 'neutral', spike: false },
-    { label: '30%', intensity: 0.30, dir: 'neutral', spike: false },
-    { label: '28%', intensity: 0.28, dir: 'neutral', spike: false },
-    { label: '35%', intensity: 0.35, dir: 'neutral', spike: false },
-    { label: '40%', intensity: 0.40, dir: 'bull', spike: false },
-    { label: '33%', intensity: 0.33, dir: 'neutral', spike: false },
-    { label: 'BALANCE', intensity: 0.20, dir: 'neutral', spike: false },
-    { label: 'DOWN 0.10', intensity: 0.25, dir: 'bear', spike: false },
-  ],
-}
-
-// Mock Pressure Tape — ~30 buckets with a believable session arc: morning selling,
-// midday balance, afternoon buying push, with varied magnitude + occasional spikes.
-function mockPressure(points: ReturnType<typeof makeIntraday>): PressCell[] {
-  const N = 30
-  const per = Math.max(1, Math.floor(points.length / N))
-  const out: PressCell[] = []
-  for (let b = 0; b < N; b++) {
-    const phase = b / (N - 1) // 0 → 1 across the session
-    // arc: strong selling early (−), cross to buying by the close (+)
-    const arc = Math.sin((phase - 0.15) * Math.PI * 1.15) * 0.65
-    const wobble = Math.sin(b * 1.7) * 0.18
-    const spike = b % 7 === 3 ? -Math.sign(arc || 1) * 0.3 : 0 // occasional opposite spike
-    const val = Math.max(-0.95, Math.min(0.95, arc + wobble + spike))
-    const p = points[Math.min(points.length - 1, b * per)]
-    const pEnd = points[Math.min(points.length - 1, (b + 1) * per - 1)]
-    const dir = val > 0.03 ? 'buying' : val < -0.03 ? 'selling' : 'balanced'
-    out.push({
-      t: p?.time ?? '',
-      tEnd: pEnd?.time ?? p?.time ?? '',
-      val: +val.toFixed(2),
-      price: pEnd?.price ?? p?.price ?? 0,
-      note: `${p?.time ?? ''}–${pEnd?.time ?? ''} · net ${dir} ${Math.round(Math.abs(val) * 100)}%`,
-    })
-  }
-  return out
-}
-
-// Mock Levels Map (plausible static levels; replaced by live action-zone map when data arrives).
-function mockMap(now: number, vwap: number, callW: number, putW: number): MapData {
-  const u1 = Math.round(now * 1.0015)
-  const d1 = Math.round(now * 0.9985)
-  const levels = [
-    { label: 'NOW', value: now, kind: 'now' as const, note: 'last price' },
-    { label: 'CALL', value: callW, kind: 'wall' as const, note: 'call wall — resistance' },
-    { label: 'PUT', value: putW, kind: 'wall' as const, note: 'put wall — support' },
-    { label: 'VWAP', value: vwap, kind: 'vwap' as const, note: 'fair value' },
-    { label: '+1σ', value: u1, kind: 'band' as const, note: 'volatility band' },
-    { label: '−1σ', value: d1, kind: 'band' as const, note: 'volatility band' },
-    { label: 'PIN', value: Math.round(now / 50) * 50, kind: 'pin' as const, note: 'dealer magnet (mock)' },
-    { label: 'HI', value: Math.round(now * 1.0027), kind: 'session' as const, note: 'session high' },
-    { label: 'LO', value: Math.round(now * 0.9961), kind: 'session' as const, note: 'session low' },
-  ].sort((a, b) => b.value - a.value)
-  const vals = levels.map(l => l.value)
-  const lo = Math.min(...vals), hi = Math.max(...vals)
-  const pad = (hi - lo) * 0.12 || now * 0.001
-  return { now, zoneLo: lo - pad, zoneHi: hi + pad, levels }
-}
-
-// ── Assembled mock dataset + live-data context ─────────────────────────────────
-const MOCK: Dataset = {
-  INDICES: MOCK_INDICES,
-  READS: MOCK_READS,
-  KEY_LEVELS: MOCK_KEY_LEVELS,
-  ORDER_FLOW: MOCK_ORDER_FLOW,
-  CHAIN_DATA: { NIFTY: mockChain(MOCK_CHAIN_DATA.NIFTY), BANKNIFTY: mockChain(MOCK_CHAIN_DATA.BANKNIFTY), SENSEX: mockChain(MOCK_CHAIN_DATA.SENSEX) },
-  EVENTS_BY_IDX: { NIFTY: MOCK_EVENTS, BANKNIFTY: MOCK_EVENTS, SENSEX: MOCK_EVENTS },
-  FOCUS_BY_IDX: { NIFTY: MOCK_EVENTS, BANKNIFTY: MOCK_EVENTS, SENSEX: MOCK_EVENTS },
-  CHART_DATA: MOCK_CHART_DATA,
-  HEAT: MOCK_HEAT,
-  PRESSURE: { NIFTY: mockPressure(MOCK_CHART_DATA.NIFTY), BANKNIFTY: mockPressure(MOCK_CHART_DATA.BANKNIFTY), SENSEX: mockPressure(MOCK_CHART_DATA.SENSEX) },
-  MAP: {
-    NIFTY: mockMap(23860, 23909, 23900, 23750),
-    BANKNIFTY: mockMap(56624, 56700, 56800, 56500),
-    SENSEX: mockMap(76360, 76420, 76500, 76100),
-  },
-}
-
-const DataCtx = createContext<Dataset>(MOCK)
+const DataCtx = createContext<Dataset>(EMPTY)
 function useData(): Dataset {
   return useContext(DataCtx)
 }
@@ -395,20 +116,10 @@ function useData(): Dataset {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n: number) => n.toLocaleString('en-IN')
 /** `rgba()` from a palette token — the only route by which a colour in this
- *  file acquires an alpha channel. Every tint, hairline and glow below used to
- *  be a literal `rgba(255,255,255,…)` or `rgba(224,168,82,…)`, which is a
- *  dark-surface assumption baked past the palette: white at 7% is invisible on
- *  white. Alphas are unchanged, so dark still renders exactly as before. */
+ *  file acquires an alpha channel. */
 const wash = (token: string, alpha: number | string) => `rgba(${rgbOf(token)},${alpha})`
 // Real OI is large (millions of units). Show in lakhs (L), or thousands (K) below 1L.
 const formatOI = (n: number) => n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : `${(n / 1e3).toFixed(1)}K`
-/* These three were module-level colour constants, which is exactly the shape a
-   theme cannot reach: evaluated once at import, they would keep painting the
-   dark palette forever while the rest of the page went white. Each now takes
-   the active palette from its caller. The dark values are unchanged — every
-   triplet below is `rgbOf()` of the same dark token the literal spelled out
-   (bull #2EC27E → 46,194,126, bear #FF5F6B → 255,95,107, muted #5D6B84 →
-   93,107,132), so dark renders byte-identically. */
 
 // Heat-tile hue per tone, as the `r,g,b` triplet the alpha ramp needs.
 const heatRgb = (pal: Palette): Record<HeatTone, string> => ({
@@ -435,10 +146,8 @@ const kindStyle = (pal: Palette): Record<MapLevelKind, { color: string; dot: num
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function TimingChip({ value }: { value: string }) {
-  // The literals these entries used to hold were the dark palette spelled out
-  // by hand — caution, accent, bull, bear, textMuted. Read from the palette
-  // they now follow the mode, and on white they use TL's darkened variants
-  // instead of the neon pair that vanishes there.
+  // Palette tokens, never literals: on white these are TL's darkened
+  // variants, not the neon pair that vanishes there.
   const pal = usePalette()
   const colors: Record<string, [string, string]> = {
     WAIT:  [wash(pal.caution, 0.12), pal.caution],
@@ -499,8 +208,7 @@ function IndexCell({ idx, data, active, onClick, read }: {
   /** The Board tab's one-line read of this index (/api/board), Board tab only. */
   read?: GlanceRead
 }) {
-  const [mode] = useMode()
-  const pal = palette(mode)
+  const pal = usePalette()
   const isUp = data.pct >= 0
   const color = Math.abs(data.pct) < 0.1 ? pal.textSecondary : isUp ? pal.bull : pal.bear
 
@@ -535,9 +243,8 @@ function IndexCell({ idx, data, active, onClick, read }: {
           letterSpacing: '0.1em',
           backgroundColor: pal.accent,
           // On light brass, ink (#141A22) measures 4.4:1 — just under the
-          // line. The darker page-black is 4.9:1. Dark mode keeps the white
-          // it has always had.
-          color: mode === 'light' ? '#0B0E14' : '#fff',
+          // line. The darker page-black is 4.9:1.
+          color: '#0B0E14',
           padding: '1px 7px',
           borderRadius: 4,
         }}>
@@ -550,11 +257,13 @@ function IndexCell({ idx, data, active, onClick, read }: {
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span className="mono" style={{ fontSize: 15, fontWeight: 600, color: pal.textPrimary }}>
-          {fmt(data.price)}
+          {hasRead(data) ? fmt(data.price) : '—'}
         </span>
-        <span className="mono" style={{ fontSize: 11, color, fontWeight: 600 }}>
-          {data.arrow} {data.pct > 0 ? '+' : ''}{data.pct.toFixed(2)}%
-        </span>
+        {hasRead(data) && (
+          <span className="mono" style={{ fontSize: 11, color, fontWeight: 600 }}>
+            {data.arrow} {data.pct > 0 ? '+' : ''}{data.pct.toFixed(2)}%
+          </span>
+        )}
       </div>
       {read && (
         <div className="mono" title={read.title} style={{
@@ -744,79 +453,13 @@ function GlanceBar({ active, setActive, lastUpdated, error, reads }: {
   )
 }
 
-/* Recharts renders this as a real element, so it may hold hooks. It has to:
-   a tooltip that keeps its dark #1B2130 panel while the chart behind it turns
-   white is the one component where getting the theme wrong is invisible until
-   you hover — and its label was pal.textMuted on that dark panel, which on a
-   white panel would be the same reading either way only by luck. */
-const ChartTooltip = ({ active, payload, label }: any) => {
-  const [mode] = useMode()
-  const pal = palette(mode)
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{
-      backgroundColor: pal.inset,
-      border: `1px solid ${wash(pal.ink, 0.1)}`,
-      borderRadius: 8,
-      padding: '8px 12px',
-      fontSize: 11,
-      color: pal.textSecondary,
-      // On white, an inset-coloured panel is nearly the card colour, so the
-      // tooltip needs a shadow to read as floating rather than as a hole.
-      // Light only: dark mode is meant to look exactly as it did before.
-      boxShadow: mode === 'light' ? `0 4px 14px ${wash(pal.ink, 0.16)}` : undefined,
-    }}>
-      <div style={{ marginBottom: 4, color: pal.textMuted }}>{label}</div>
-      {payload.filter((p: any) => p.dataKey === 'price' || p.dataKey === 'vwap').map((p: any) => (
-        <div key={p.dataKey} style={{ display: 'flex', gap: 8 }}>
-          <span style={{ color: p.dataKey === 'vwap' ? pal.caution : pal.textPrimary }}>{p.dataKey === 'vwap' ? 'VWAP' : 'Price'}:</span>
-          <span className="mono" style={{ color: pal.textPrimary, fontWeight: 600 }}>{fmt(Math.round(p.value))}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function TapeTab({ index }: { index: IndexKey }) {
-  const { KEY_LEVELS, ORDER_FLOW, CHART_DATA, PRESSURE, MAP } = useData()
-  const [mode] = useMode()
-  const pal = palette(mode)
+  const { INDICES, KEY_LEVELS, ORDER_FLOW, PRESSURE } = useData()
+  const pal = usePalette()
+  if (!hasRead(INDICES[index])) return <NotShown what={`${index} tape`} />
   const levels = KEY_LEVELS[index]
   const flow = ORDER_FLOW[index]
-  const data = CHART_DATA[index]
   const pressure = PRESSURE[index]
-  const map = MAP[index]
-
-  // Y domain = action zone (near price) so a far spike can't crush the chart.
-  const zLo = map.zoneLo
-  const zHi = map.zoneHi
-
-  // Readable X-axis: only hour-boundary times that exist in the data, plus ends.
-  const hourTicks = data.filter(d => d.time.endsWith(':00')).map(d => d.time)
-  const xTicks = Array.from(
-    new Set([data[0]?.time, ...hourTicks, data[data.length - 1]?.time].filter(Boolean)),
-  ) as string[]
-
-  // Key levels drawn ON the chart: in-zone, deduped, skip now (price line) + vwap (its own line).
-  const dedupeEps = map.now * 0.0004
-  const refLevels = map.levels
-    .filter(l => l.kind !== 'now' && l.kind !== 'vwap' && l.value >= zLo && l.value <= zHi)
-    .sort((a, b) => b.value - a.value)
-    .reduce<typeof map.levels>((acc, l) => {
-      if (!acc.some(k => Math.abs(k.value - l.value) <= dedupeEps)) acc.push(l)
-      return acc
-    }, [])
-  const refColor = (l: typeof map.levels[number]) =>
-    l.kind === 'wall' ? (l.label === 'CALL' ? pal.bear : pal.bull)
-    : l.kind === 'pin' ? pal.accent
-    : l.kind === 'floor' ? pal.bull
-    : l.kind === 'cap' ? pal.bear
-    : l.kind === 'strike' ? pal.strike
-    : l.kind === 'trap' ? pal.caution
-    : l.kind === 'band' ? wash(pal.ink, 0.14)
-    : pal.textMuted
-  const strongKind = (k: string) =>
-    k === 'wall' || k === 'pin' || k === 'floor' || k === 'cap' || k === 'strike' || k === 'trap'
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px', gap: 16, padding: 24, flex: 1 }}>
@@ -864,7 +507,8 @@ function TapeTab({ index }: { index: IndexKey }) {
         })}
       </div>
 
-      {/* Center: Chart */}
+      {/* Center: the Pressure Tape. The price/VWAP chart that sat above it is
+          gone (no charts, reads only: she has the chart on her broker screen). */}
       <div style={{
         backgroundColor: pal.card,
         border: `1px solid ${pal.border}`,
@@ -873,83 +517,6 @@ function TapeTab({ index }: { index: IndexKey }) {
         display: 'flex',
         flexDirection: 'column',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', marginBottom: 12 }}>
-          <div className="micro-label">Price · VWAP · ±1σ · Key Levels</div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: pal.textMuted }}>
-            <span style={{ color: pal.textPrimary }}>— Price</span>
-            <span style={{ color: pal.caution }}>-- VWAP</span>
-            {/* A legend swatch echoing the band's own translucency. At 0.6 on
-                white that is 2.1:1 — and the band it labels is drawn at 0.09,
-                so the swatch was never a literal sample anyway. Light mode
-                takes it to full brass; dark keeps the value it had. */}
-            <span style={{ color: mode === 'light' ? pal.accent : wash(pal.accent, 0.6) }}>▨ ±1σ</span>
-          </div>
-        </div>
-        <div style={{ height: 380 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 6, right: 78, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={pal.accent} stopOpacity={0.10} />
-                  <stop offset="100%" stopColor={pal.accent} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={pal.accent} stopOpacity={0.09} />
-                  <stop offset="100%" stopColor={pal.accent} stopOpacity={0.04} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 6" stroke={wash(pal.ink, 0.04)} vertical={false} />
-              <XAxis
-                dataKey="time"
-                ticks={xTicks}
-                interval={0}
-                minTickGap={40}
-                tick={{ fill: pal.textMuted, fontSize: 10 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                domain={[zLo, zHi]}
-                allowDataOverflow
-                tick={{ fill: pal.textMuted, fontSize: 10 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={v => fmt(Math.round(v))}
-                width={62}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              {/* ±1σ band: accent between per-bar upper and lower (card mask hides below lower) */}
-              <Area type="monotone" dataKey="upper" stroke="none" fill="url(#bandFill)" isAnimationActive={false} />
-              <Area type="monotone" dataKey="lower" stroke="none" fill={pal.card} isAnimationActive={false} />
-              {/* Key levels ON the chart as horizontal reference lines */}
-              {refLevels.map((l, i) => {
-                const c = refColor(l)
-                const strong = strongKind(l.kind)
-                return (
-                  <ReferenceLine
-                    key={`ref-${l.kind}-${Math.round(l.value)}-${i}`}
-                    y={l.value}
-                    stroke={c}
-                    strokeDasharray={strong ? '5 4' : '2 5'}
-                    strokeOpacity={strong ? 0.85 : 0.5}
-                    ifOverflow="hidden"
-                    label={{
-                      value: `${l.kind === 'trap' ? '⚑ ' : ''}${l.label} ${fmt(Math.round(l.value))}`,
-                      position: 'right',
-                      fill: c,
-                      fontSize: 9,
-                    }}
-                  />
-                )
-              })}
-              {/* VWAP */}
-              <Line type="monotone" dataKey="vwap" stroke={pal.caution} strokeWidth={1} strokeDasharray="4 4" dot={false} activeDot={false} isAnimationActive={false} />
-              {/* Price — the hero (bold line + depth fill in one series) */}
-              <Area type="monotone" dataKey="price" stroke={pal.textPrimary} strokeWidth={2} fill="url(#priceFill)" dot={false} activeDot={{ r: 3, fill: pal.accent, strokeWidth: 0 }} isAnimationActive={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
         {/* Pressure Tape — diverging net-flow histogram (bars grow up=buying / down=selling) */}
         <div style={{ padding: '10px 12px 4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -1077,8 +644,9 @@ function OffPeak({ oi, pk }: { oi: number; pk: number }) {
 }
 
 function ChainTab({ index }: { index: IndexKey }) {
-  const { CHAIN_DATA } = useData()
+  const { CHAIN_DATA, INDICES } = useData()
   const pal = usePalette()
+  if (!hasRead(INDICES[index])) return <NotShown what={`${index} option chain`} />
   const chain = CHAIN_DATA[index]
   const maxCeOI = Math.max(1, ...chain.strikes.map(s => s.ceOI))
   const maxPeOI = Math.max(1, ...chain.strikes.map(s => s.peOI))
@@ -1200,7 +768,7 @@ function ChainTab({ index }: { index: IndexKey }) {
 }
 
 function EventsTab({ index }: { index: IndexKey }) {
-  const { EVENTS_BY_IDX, FOCUS_BY_IDX } = useData()
+  const { EVENTS_BY_IDX, FOCUS_BY_IDX, INDICES } = useData()
   const pal = usePalette()
   // FOCUS is the default: on a live expiry day the raw log repeats itself so
   // often that the signal is buried. Preference persists, as it does in v1.
@@ -1209,6 +777,7 @@ function EventsTab({ index }: { index: IndexKey }) {
   const full = EVENTS_BY_IDX[index]
   const hidden = Math.max(0, full.length - events.length)
   const [hovered, setHovered] = useState<number | null>(null)
+  if (!hasRead(INDICES[index])) return <NotShown what={`${index} events`} />
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 760 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
@@ -1297,8 +866,9 @@ function EventsTab({ index }: { index: IndexKey }) {
 }
 
 function MapTab({ index }: { index: IndexKey }) {
-  const { MAP } = useData()
+  const { MAP, INDICES } = useData()
   const pal = usePalette()
+  if (!hasRead(INDICES[index])) return <NotShown what={`${index} levels map`} />
   const m = MAP[index]
   const H = 520
   const span = Math.max(1, m.zoneHi - m.zoneLo)
@@ -1385,13 +955,12 @@ function HeatTab({ active, setActive, dead }: {
   active: IndexKey; setActive: (k: IndexKey) => void; dead: IndexKey[]
 }) {
   const { HEAT, INDICES } = useData()
-  const [mode] = useMode()
-  const pal = palette(mode)
+  const pal = usePalette()
   const keys: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
   // This is the one view read across all three indices at once, so a dead one
-  // must not sit here looking identical to a live one. Its fallback row would
-  // otherwise show invented signals — "AMPLIFIED-UP", "UP 0.36" — and get
-  // counted in the spike badge as though it were happening.
+  // must not sit here looking identical to a live one. Its row would otherwise
+  // show its last good read and get counted in the spike badge as though it
+  // were happening now.
   const isDead = (k: IndexKey) => dead.includes(k)
   const spikeCount = keys.reduce(
     (n, k) => n + (isDead(k) ? 0 : HEAT[k].filter(c => c.spike).length), 0)
@@ -1459,7 +1028,7 @@ function HeatTab({ active, setActive, dead }: {
                 <span className="mono" style={{
                   fontSize: 11, color: pal.textMuted,
                   textDecoration: isDead(k) ? 'line-through' : 'none',
-                }}>{fmt(INDICES[k].price)}</span>
+                }}>{hasRead(INDICES[k]) ? fmt(INDICES[k].price) : '—'}</span>
               </button>
               {isDead(k) ? (
                 <div style={{
@@ -1468,6 +1037,14 @@ function HeatTab({ active, setActive, dead }: {
                   fontSize: 11.5, color: pal.caution,
                 }}>
                   no {k} tape — nothing to read here
+                </div>
+              ) : !hasRead(INDICES[k]) ? (
+                <div style={{
+                  flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+                  border: `1px dashed ${pal.border}`, borderRadius: 8, padding: '8px 14px',
+                  fontSize: 11.5, color: pal.textMuted,
+                }}>
+                  {k}: {NOT_SHOWN}
                 </div>
               ) : cells.map((cell, i) => {
                 const hue = heatRgb(pal)[cell.dir]
@@ -1495,13 +1072,11 @@ function HeatTab({ active, setActive, dead }: {
                     <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.1, color: cell.intensity > 0.5 ? pal.textPrimary : pal.textSecondary }}>
                       {cell.spike ? '⚡ ' : ''}{cell.label}
                     </span>
-                    {/* The tile's own hue, on a tile washed in that same hue.
-                        On a dark tile the bright token reads; on a white
-                        surface the wash goes saturated and the glyph
-                        disappears into it (measured 1.5–2.8:1). Direction is
-                        already carried by the tile colour and the arrow's
-                        shape, so light mode draws the glyph in ink. */}
-                    <span style={{ fontSize: 9, color: mode === 'light' ? pal.textPrimary : `rgb(${hue})`, opacity: 0.9 }}>{arrow}</span>
+                    {/* Ink, not the tile's own hue: on white the wash goes
+                        saturated and a same-hue glyph disappears into it
+                        (measured 1.5–2.8:1). Direction is already carried by
+                        the tile colour and the arrow's shape. */}
+                    <span style={{ fontSize: 9, color: pal.textPrimary, opacity: 0.9 }}>{arrow}</span>
                   </div>
                 )
               })}
@@ -1778,6 +1353,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
   const read = READS[index]
   const chain = CHAIN_DATA[index]
   const levels = KEY_LEVELS[index] ?? []
+  const has = hasRead(info)
 
   const dirCol = info.change > 0 ? pal.bull : info.change < 0 ? pal.bear : pal.textSecondary
   const above = levels.filter(l => l.value > info.price).sort((a, b) => a.value - b.value)[0]
@@ -1806,7 +1382,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
               color: stale ? pal.textMuted : pal.textPrimary,
               textDecoration: stale ? 'line-through' : 'none',
             }}>
-              {info.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {has ? info.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
             </div>
             {/* Frame discipline: this is the futures tape, and OI Flow's LTP
                 column is the index print — 70+ points apart some afternoons.
@@ -1817,7 +1393,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
             </span>
           </div>
           <div className="mono" style={{ fontSize: 12, color: stale ? pal.textMuted : dirCol, marginTop: 5 }}>
-            {stale ? 'placeholder' : `${info.change > 0 ? '+' : ''}${info.change.toFixed(2)} · ${info.pct > 0 ? '+' : ''}${info.pct.toFixed(2)}%`}
+            {!has ? 'not shown' : stale ? 'not live' : `${info.change > 0 ? '+' : ''}${info.change.toFixed(2)} · ${info.pct > 0 ? '+' : ''}${info.pct.toFixed(2)}%`}
           </div>
         </div>
 
@@ -1829,7 +1405,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
             }}>
               No live data — do not trade from this screen
             </div>
-          ) : (
+          ) : has && (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
               <DirectionChip value={read.direction} />
               <TimingChip value={read.timing} />
@@ -1838,13 +1414,14 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
           <div style={{ fontSize: 14.5, lineHeight: 1.45, maxWidth: '62ch' }}>
             {read.headline}
           </div>
-          <Grounds g={read.ground} />
+          {has && <Grounds g={read.ground} />}
           {read.sub && (
             <div style={{ fontSize: 12.5, color: pal.textSecondary, marginTop: 3 }}>{read.sub}</div>
           )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+          {has && <>
           {chip(`MAX PAIN ${chain.maxPain} · ${mpDist >= 0 ? '+' : ''}${mpDist}`, 'structure')}
           {/* A GEX reading without "where is price relative to the books" is
               the single most misleading number on the screen. */}
@@ -1852,6 +1429,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
             ? chip(`GEX ${chain.gex} · in book zone`)
             : chip(`GEX ${chain.gex} · OUTSIDE BOOKS — SNAP-BACK RISK`, 'structure')}
           {chip(`PCR ${chain.pcr} · SQUEEZE ${chain.squeeze}`)}
+          </>}
         </div>
       </div>
 
@@ -1861,6 +1439,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
         borderTop: `1px solid ${pal.border}`, fontSize: 12.5,
       }}>
         <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Changes if</span>
+        {!has ? <span style={{ color: pal.textMuted }}>{NOT_SHOWN}</span> : <>
         {above
           ? <span>breaks <span className="mono" style={{ color: pal.accent }}>{above.value}</span>
               <span style={{ color: pal.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
@@ -1870,6 +1449,7 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
           ? <span>or loses <span className="mono" style={{ color: pal.accent }}>{below.value}</span>
               <span style={{ color: pal.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
           : <span style={{ color: pal.textMuted }}>no level mapped below</span>}
+        </>}
       </div>
     </div>
   )
@@ -1991,16 +1571,14 @@ function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, rep
 }
 
 export default function App() {
-  // The shell paints from the same mode the chart does — see theme.ts's
-  // ModeProvider, mounted in main.tsx above this component.
   const pal = usePalette()
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
   const [activeTab, setActiveTab] = useState<Tab>('Heat')
   // FOCUS: while on and the Trade tab is active, hide the glance bar + ANSWER
   // band so the chart reclaims that ~417px of chrome (Kite gives the chart
-  // nearly the whole viewport; this dashboard didn't). Persisted the same way
-  // useMode() persists its own toggle — defaults OFF so nothing changes for
-  // anyone who hasn't opted in.
+  // nearly the whole viewport; this dashboard didn't). Persisted in
+  // localStorage — defaults OFF so nothing changes for anyone who hasn't
+  // opted in.
   const [focus, setFocusState] = useState<boolean>(() => localStorage.getItem('tape.focus') === '1')
   const setFocus = (v: boolean) => { localStorage.setItem('tape.focus', v ? '1' : '0'); setFocusState(v) }
   const focusHidesChrome = focus && activeTab === 'Trade'
@@ -2015,9 +1593,9 @@ export default function App() {
   // there, as on the Board. The MACHINE strip stays: it is her setup.
   const onValidate = activeTab === 'Validate'
   const boardReads = useBoardGlance(onBoard)
-  const tabs: Tab[] = ['Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals', 'Proto']
+  const tabs: Tab[] = ['Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals']
   const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
-          interval, setInterval: setInterval_ } = useLiveData(MOCK)
+          interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
 
   // ── Replay. scrub === null means live. Re-maps stored payloads; no refetch.
@@ -2128,10 +1706,9 @@ export default function App() {
           reads={onBoard ? boardReads : undefined} />
       )}
 
-      {/* A trading screen must never present placeholder numbers as real. The
-          fallback dataset exists so the first paint isn't empty — the moment
-          every index fails, say so at full width instead of showing a small
-          "reconnecting" chip beside believable-looking prices. */}
+      {/* A trading screen must never present stale numbers as live. The
+          moment every index fails, say so at full width instead of showing a
+          small "reconnecting" chip beside believable-looking prices. */}
       {error && (
         <div style={{
           padding: '9px 24px', backgroundColor: wash(pal.bear, 0.12),
@@ -2141,11 +1718,11 @@ export default function App() {
         }}>
           <span style={{ marginRight: 12 }}>
             {error === 'unreachable'
-              ? 'NOT LIVE — no answer from the backend on 8765, so every figure below is '
-                + 'placeholder data. Run stop.bat, then the TapeMap v2 shortcut again.'
+              ? 'NOT LIVE — no answer from the backend on 8765, so nothing below is live '
+                + '(the last good read, or not shown). Run stop.bat, then the TapeMap v2 shortcut again.'
               : `NOT LIVE — the backend is up${broker ? ` on ${broker}` : ''} but has no `
-                + `session yet${errorWhy ? `: ${errorWhy}` : ''}. Every figure below is `
-                + 'placeholder data.'}
+                + `session yet${errorWhy ? `: ${errorWhy}` : ''}. Nothing below is live `
+                + '(the last good read, or not shown).'}
           </span>
           {/* The button only appears where it can actually change something.
               It cannot reach a backend that is not answering; and on Upstox
@@ -2165,7 +1742,7 @@ export default function App() {
           fontSize: 12.5, fontWeight: 600,
         }}>
           NO {activeIndex} TAPE — the backend has no session for this index, so the
-          figures below are placeholder. {dead.length < 3 && 'The other indices are live.'}
+          figures below are not live (the last good read, or not shown). {dead.length < 3 && 'The other indices are live.'}
         </div>
       )}
 
@@ -2358,12 +1935,6 @@ export default function App() {
             the operator tracks the strategy, not one tape. The tab carries its
             own index filter, which starts on ALL. */}
         {activeTab === 'Signals'  && <SignalsTab />}
-        {/* No key={activeIndex}: unlike TradeTab, the spike is deliberately
-            exposed to an index switch without a remount, because surviving one
-            is a real v3 requirement. */}
-        {activeTab === 'Proto'    && <ProtoTab day={tape.day} bars={tape.bars}
-                                              rotation={tape.rotation} rotationWhy={tape.rotationWhy}
-                                              levels={tradeLevels} />}
       </div>
       <HoldWindow hidden={onValidate} />
     </div>

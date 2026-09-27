@@ -156,8 +156,7 @@ interface Props {
    *  the re-fire lock cleared". It is NOT a trade exit and is never rendered
    *  as one.
    *
-   *  All optional: absent, the list does not render at all and OneTab's panel
-   *  is byte-for-byte what it was. */
+   *  All optional: absent, the list does not render at all. */
   sessionRun?: (RotationSignal | null)[] | null
   /** Why `sessionRun` is null, in data.ts's own words. Empty when it isn't. */
   sessionRunWhy?: string
@@ -168,15 +167,6 @@ interface Props {
   sessionRunSellWhy?: string
   sessionStates?: RunState[] | null
   sessionStatesSell?: RunState[] | null
-  /** ONE-SCREEN rendering (src/one/OneTab.tsx). The state block and the
-   *  TRIGGER group render exactly as they always have; the unscored groups —
-   *  "Saath de raha hai", "Mera read", Reset and the two tallies — move behind
-   *  a closed disclosure. Nothing is dropped: the disclosure's own summary
-   *  carries the agree tally, so a collapsed group can never read as an empty
-   *  one, and one click restores the full panel.
-   *
-   *  ABSENT (the Trade tab) the render is unchanged, byte for byte. */
-  compact?: boolean
 }
 
 const LS_RULES = 'tape.check.rules'
@@ -236,7 +226,7 @@ function Tick({ pal, state }: { pal: Pal; state: TickState }) {
 
 export default function SetupCheck({
   pal, day, bar, runState, runStateWhy, runStateSell, entry, entrySell,
-  flow, flowWhy, footprint = null, publishedInterval = null, compact = false,
+  flow, flowWhy, footprint = null, publishedInterval = null,
   sessionRun, sessionRunWhy = '', sessionRunSell, sessionRunSellWhy = '',
   sessionStates, sessionStatesSell,
 }: Props) {
@@ -602,11 +592,8 @@ export default function SetupCheck({
     ? (st.exit_why ? 'BAAHAR' : st.state === 'IN_TRADE' ? 'TRADE MEIN' : st.state)
     : null
 
-  /* The three blocks below were inline in the return until 2026-08-11. They
-     are named now ONLY so the compact rendering can re-parent them without a
-     second copy — the JSX is unchanged, so the Trade tab's tree is identical.
-     A forked "compact version" of these rows is exactly how one reading of the
-     machine becomes two. */
+  /* The three blocks below are named, not inlined, only for readability of
+     the return. */
   const resetBtn = (
     <button
       onClick={reset}
@@ -622,11 +609,8 @@ export default function SetupCheck({
   /* ── AAJ KE SIGNAL ─────────────────────────────────────────────────────
      The day's entries, which stay put when the machine returns to WAITING.
      Rendered only when the arrays were PASSED — `undefined` on both means the
-     caller (OneTab) never offered them, and an absent list is not the same
-     claim as an empty one.
-
-     Deliberately NOT inside `compact`'s disclosure: the whole complaint was a
-     signal disappearing, and a fold is a slower way of disappearing. */
+     caller never offered them, and an absent list is not the same claim as an
+     empty one. */
   const sessionOffered = sessionRun !== undefined || sessionRunSell !== undefined
   const buyGone = !sessionRun
   const sellGone = !sessionRunSell
@@ -828,10 +812,7 @@ export default function SetupCheck({
             fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
           }}>{day || '—'}</div>
         </div>
-        {/* In compact this sits with the manual rows it clears, inside the
-            disclosure — a Reset whose targets are all hidden is a button that
-            reads as clearing the trigger. */}
-        {!compact && resetBtn}
+        {resetBtn}
       </div>
 
       {/* The state block. This IS the product — PRODUCT.md's five-state machine
@@ -935,61 +916,15 @@ export default function SetupCheck({
                      : '§5c — sirf isi hisse ka score nikla hai: 68.4% hit at +30m, n=19.'}
                  rows={trigger} />
         )}
-        {/* Above the unscored half and outside compact's fold, because it is
-            the §5c record and belongs with §5c's trigger. */}
+        {/* Above the unscored half, because it is the §5c record and belongs
+            with §5c's trigger. */}
         {sessionBlock}
-        {compact ? (
-          /* The unscored half, closed by default. The summary carries its own
-             tally, so "collapsed" can never be misread as "nothing found" —
-             A1's distinction, kept at the one place the rows are hidden. */
-          <details style={{ marginTop: 14 }}>
-            {/* NOT `display:flex` on the summary itself — that suppresses the
-                native disclosure triangle in Chrome, and a fold with no
-                affordance is a fold nobody opens. The row is a child instead,
-                so the marker keeps its own box. */}
-            <summary style={{
-              // fontSize sizes the native marker too. Left at the inherited
-              // 16px the triangle plus a calc(100% - 16px) row overflowed the
-              // rail and wrapped onto a second line box, which is where 20px
-              // of dead space above the label came from.
-              cursor: 'pointer', paddingBottom: 5, lineHeight: 1.2, fontSize: 11,
-              borderBottom: `1px solid ${pal.border}`,
-            }}>
-              <span style={{
-                display: 'inline-flex', width: 'calc(100% - 20px)',
-                alignItems: 'baseline', justifyContent: 'space-between', gap: 6,
-                verticalAlign: 'middle',
-              }}>
-                <span style={label}>Rang, rok nahi</span>
-                <span style={{
-                  fontFamily: MONO, fontSize: 10, fontWeight: 700, color: pal.textMuted,
-                  fontVariantNumeric: 'tabular-nums',
-                }}>{onOf(agree)} / {agree.length}</span>
-              </span>
-            </summary>
-            {contextGroup}
-            {mineBlock}
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-              {resetBtn}
-            </div>
-            <div style={{ fontSize: 9.5, color: pal.textMuted, marginTop: 8, lineHeight: 1.5 }}>
-              Jaan-bujh kar alag rakhe hain. Trigger ya to bana hai ya nahi; baaki sirf rang
-              hai. Dono jod dene se ek bina-score wali line ek scored line ke barabar ho jaati.
-            </div>
-          </details>
-        ) : (
-          <>
-            {contextGroup}
-            {mineBlock}
-          </>
-        )}
+        {contextGroup}
+        {mineBlock}
       </div>
 
       {/* TWO tallies, never one. See the header comment for the measurements
-          that make adding them a mistake rather than a simplification.
-          In compact the trigger tally is the TRIGGER GROUP's own count and the
-          agree tally is the disclosure's — same two numbers, never summed. */}
-      {!compact && (
+          that make adding them a mistake rather than a simplification. */}
       <div style={{ borderTop: `1px solid ${pal.border}`, marginTop: 12, paddingTop: 10 }}>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
@@ -1012,7 +947,6 @@ export default function SetupCheck({
           hai. Dono jod dene se ek bina-score wali line ek scored line ke barabar ho jaati.
         </div>
       </div>
-      )}
     </div>
   )
 }

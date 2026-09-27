@@ -26,7 +26,8 @@ type LegsView = 'split' | 'stacked' | 'off'
  *  glance. It stays a fixed basis rather than a percentage so the chart, not
  *  the panel, absorbs a resize. */
 const CHART_SIDE_W = 260
-import { palette, MONO, useMode } from '../theme'
+import { palette, MONO } from '../theme'
+import type { Mode } from '../theme'
 import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, OptPivots, Interval } from '../data'
 import { INTERVALS } from '../data'
 
@@ -356,9 +357,9 @@ export default function TradeTab({
   rotationRunSellWhy,
   runState, runStateWhy, runStateSell,
 }: Props) {
-  // Persisted per Task 1: defaults to light — the operator reads charts in
-  // Kite on the light theme and reported the dark build unreadable.
-  const [mode, setMode] = useMode()
+  // LIGHT only — the operator reads charts in Kite on the light theme and
+  // reported the dark build unreadable. The chart stack still takes `mode`.
+  const mode: Mode = 'light'
   const pal = palette(mode)
 
   // SMC structure layer, now default OFF — reversed 2026-07-31 on measurement,
@@ -692,7 +693,7 @@ export default function TradeTab({
       backgroundColor: pal.bg,
     }}>
       {/* Stat strip — one compact row (Task 6's "breathing room"): 11px
-          labels, 13px values, the Light/Dark toggle beside the mode pill. */}
+          labels, 13px values. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
         padding: '7px 14px', backgroundColor: pal.card,
@@ -719,7 +720,7 @@ export default function TradeTab({
         <Stat pal={pal} label="Bars" value={`${at + 1} / ${bars.length}`} />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-          {/* TIMEFRAME. Same segmented shape as LIGHT/DARK beside it, and in
+          {/* TIMEFRAME. A segmented control in
               the strip ABOVE the chart — nothing goes between the toolbar and
               the chart, and this adds no vertical block of its own: it sits in
               a row that already exists, so the chart's height budget (a
@@ -727,24 +728,9 @@ export default function TradeTab({
               see the root style) is untouched. */}
           <IntervalSwitch pal={pal} interval={interval} onChange={onIntervalChange} />
 
-          <div style={{ display: 'flex', border: `1px solid ${pal.border}`, borderRadius: 4, overflow: 'hidden' }}>
-            {(['light', 'dark'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                  padding: '3px 9px', cursor: 'pointer', border: 'none',
-                  backgroundColor: mode === m ? pal.accent : 'transparent',
-                  color: mode === m ? pal.card : pal.textMuted,
-                }}
-              >{m === 'light' ? 'LIGHT' : 'DARK'}</button>
-            ))}
-          </div>
-
           {/* FOCUS: hides the glance bar + ANSWER band (App.tsx-owned state)
               while this tab is active, so the chart reclaims that height.
-              Styled like the LIGHT/DARK toggle, palette tokens only. */}
+              Palette tokens only. */}
           <button
             onClick={onFocusToggle}
             title="Is tab par glance bar aur ANSWER band chhupa do, taaki chart ko zyada height mile"
@@ -758,7 +744,7 @@ export default function TradeTab({
           >FOCUS</button>
 
           {/* SMC: the structure layer (FVG / OB / BOS / CHoCH / EQH / EQL) on
-              the chart. Same styling family as FOCUS and LIGHT/DARK. When the
+              the chart. Same styling family as FOCUS. When the
               layer is unavailable the button still toggles — it is the
               operator's preference, not a status light; the disclosure line
               below is what reports availability. */}
@@ -798,7 +784,7 @@ export default function TradeTab({
 
           {/* LEGS: how the CE/PE premium panes are laid out. Same styling
               family; the label names the state you would switch TO is wrong —
-              it names the CURRENT one, like LIGHT/DARK, so the button reads as
+              it names the CURRENT one, so the button reads as
               a state not a command. */}
           <button
             onClick={cycleLegs}

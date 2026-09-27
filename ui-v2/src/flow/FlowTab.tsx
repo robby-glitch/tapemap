@@ -15,14 +15,17 @@ import type { IndexKey } from '../data'
       loaded footprint when the tab opens late, so a file whose first frame landed
       at 09:50 still carries events stamped 09:15 (measured 2026-09-18: 2,060
       rows from 09:50, 40 events from 09:15). Drawing from the first row's time
-      would silently amputate the morning. The axis is fixed 09:15→15:30 and the
-      price line starts where the record starts, with that gap named in words.
+      would silently amputate the morning. The axis is fixed 09:15→15:30, and a
+      record that starts late says so in words.
 
    2. AGREEMENT WITH A LEVEL IS THE STRONGEST THING THIS BRAIN CAN SAY. An event
       with `at` non-null happened AT a named level; it is drawn in brass — the
       palette's one structure hue — larger, and stemmed to the axis. An event
-      with no level is ink. Kind is carried by SHAPE, so no reader has to hold a
-      colour key in their head, and no hue picks up a second meaning.
+      with no level is ink. Kind is carried by SHAPE and by its LANE, so no
+      reader has to hold a colour key in their head, and no hue picks up a
+      second meaning. There is no price axis and no price line (no charts,
+      reads only): an event's price is a number in the readout, never a
+      position.
 
    What this screen refuses: no hit rate, no win rate, no expectancy, no
    confidence — and no direction verdict. A cluster of events is a cluster of
@@ -80,7 +83,7 @@ const px1 = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 1 
 // A fixed viewBox scaled to the container: uniform, so a square stays square at
 // any width, and no ResizeObserver is needed to keep the marks honest.
 const VB_W = 1200, VB_H = 400
-const PAD_L = 58, PAD_R = 16, PAD_T = 16
+const PAD_L = 84, PAD_R = 16, PAD_T = 16
 const PLOT_H = 264
 const AXIS_Y = PAD_T + PLOT_H              // the time axis
 const BAND_Y = AXIS_Y + 44                 // the machine band, under the axis
@@ -91,6 +94,16 @@ const xOf = (m: number) => PAD_L + ((m - OPEN) / SPAN) * W
 
 /** The six kinds, each a shape. Order is the legend's order. */
 const KINDS: EventKind[] = ['absorption', 'exhaustion', 'trap', 'climax', 'vacuum', 'initiative']
+
+/** One lane per kind, in the legend's order; a kind this build has never seen
+ *  gets the last lane rather than being dropped. */
+const LANES: string[] = [...KINDS, 'other']
+const LANE_H = PLOT_H / LANES.length
+const laneOf = (kind: string) => {
+  const i = (KINDS as string[]).indexOf(kind)
+  return i < 0 ? KINDS.length : i
+}
+const yOfLane = (i: number) => PAD_T + (i + 0.5) * LANE_H
 
 /** One marker. Shape carries the kind; colour carries only whether the event
  *  landed on a named level. `s` is the half-size. */
@@ -180,51 +193,17 @@ export default function FlowTab({ index }: { index: IndexKey }) {
     const inEv = events.filter(e => { const m = mins(e.t); return m != null && m >= OPEN && m <= CLOSE })
     const outEv = events.length - inEv.length
 
-    const prices = [
-      ...inRow.map(r => r.px).filter((v): v is number => typeof v === 'number'),
-      ...inEv.map(e => e.p).filter((v): v is number => typeof v === 'number'),
-    ]
-    // Events are priced too, so the domain covers them: an event drawn off the
-    // top of the plot is an event the operator cannot see.
-    let lo = prices.length ? Math.min(...prices) : 0
-    let hi = prices.length ? Math.max(...prices) : 1
-    if (hi - lo < 1e-9) { lo -= 1; hi += 1 }
-    const pad = (hi - lo) * 0.06
-    lo -= pad; hi += pad
-    const yOf = (p: number) => PAD_T + ((hi - p) / (hi - lo)) * PLOT_H
-
-    // ONE POINT PER MINUTE, the last price recorded in it. The record is written
-    // per signature change, so a busy minute holds many rows — measured
-    // 2026-09-18: 1,957 in-session rows across 152 distinct minutes, up to 49 in
-    // one minute, spread as wide as 34 points. Drawn raw at minute resolution
-    // those stack into vertical hairballs and the SHAPE of the day disappears
-    // behind them, which is the one thing this line is here for.
-    const perMin = new Map<number, number>()
-    for (const r of inRow) {
-      const m = mins(r.t)
-      if (m == null || typeof r.px !== 'number') continue
-      perMin.set(m, r.px)                      // file order, so the last wins
-    }
-    const pts = [...perMin.entries()].sort((a, b) => a[0] - b[0])
-    // Broken wherever the record has no frame for a while — measured on the same
-    // day, two holes of 38 and 36 minutes. A straight line across those would be
-    // a price this file invented.
+    // Stretches where no frame was recorded at all — measured 2026-09-18, two
+    // holes of 38 and 36 minutes. The machine band below bridges them, so they
+    // are named in words instead.
     const GAP = 5
-    const segs: string[] = []
-    let cur: string[] = []
+    const seen = [...new Set(inRow.map(r => mins(r.t)).filter((m): m is number => m != null))]
+      .sort((a, b) => a - b)
     let holes = 0, longestHole = 0
-    for (let i = 0; i < pts.length; i++) {
-      const [m, p] = pts[i]
-      const jump = i > 0 ? m - pts[i - 1][0] : 0
-      if (jump > GAP) {
-        holes++
-        longestHole = Math.max(longestHole, jump)
-        if (cur.length > 1) segs.push(cur.join(' '))
-        cur = []
-      }
-      cur.push(`${xOf(m).toFixed(1)},${yOf(p).toFixed(1)}`)
+    for (let i = 1; i < seen.length; i++) {
+      const jump = seen[i] - seen[i - 1]
+      if (jump > GAP) { holes++; longestHole = Math.max(longestHole, jump) }
     }
-    if (cur.length > 1) segs.push(cur.join(' '))
 
     // Consecutive same-state rows coalesced into runs — 1,957 rects would be
     // 1,957 DOM nodes for 20 visible blocks.
@@ -242,7 +221,7 @@ export default function FlowTab({ index }: { index: IndexKey }) {
 
     const firstRowT = inRow.find(r => mins(r.t) != null)?.t ?? null
 
-    return { inRow, outRow, inEv, outEv, lo, hi, yOf, segs, runs, firstRowT, minutes: pts.length, holes, longestHole }
+    return { inRow, outRow, inEv, outEv, runs, firstRowT, holes, longestHole }
   }, [rows, events])
 
   // Hour ticks plus both ends of the session.
@@ -252,12 +231,6 @@ export default function FlowTab({ index }: { index: IndexKey }) {
     out.push(CLOSE)
     return out
   }, [])
-
-  const priceTicks = useMemo(() => {
-    const out: number[] = []
-    for (let i = 0; i <= 4; i++) out.push(g.lo + ((g.hi - g.lo) * i) / 4)
-    return out
-  }, [g.lo, g.hi])
 
   const card: CSSProperties = {
     background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
@@ -326,14 +299,12 @@ export default function FlowTab({ index }: { index: IndexKey }) {
             </pattern>
           </defs>
 
-          {/* price gridlines + labels */}
-          {(!noRows || !noEvents) && priceTicks.map((p, i) => (
-            <g key={`py-${i}`}>
-              <line x1={PAD_L} y1={g.yOf(p)} x2={VB_W - PAD_R} y2={g.yOf(p)}
+          {/* one lane per kind — the price is in the readout, never a position */}
+          {!noEvents && LANES.map((k, i) => (
+            <g key={`lane-${k}`}>
+              <line x1={PAD_L} y1={yOfLane(i)} x2={VB_W - PAD_R} y2={yOfLane(i)}
                 stroke={wash(pal.ink, 0.05)} strokeWidth={1} />
-              <text x={PAD_L - 8} y={g.yOf(p) + 3.5} textAnchor="end" fontSize={10} fill={pal.textMuted}>
-                {px1(Math.round(p * 10) / 10)}
-              </text>
+              <text x={PAD_L - 8} y={yOfLane(i) + 3.5} textAnchor="end" fontSize={10} fill={pal.textMuted}>{k}</text>
             </g>
           ))}
 
@@ -346,17 +317,11 @@ export default function FlowTab({ index }: { index: IndexKey }) {
             </g>
           ))}
 
-          {/* price line — context behind the events, never a chart replacement */}
-          {g.segs.map((pts, i) => (
-            <polyline key={`seg-${i}`} points={pts} fill="none" stroke={pal.textPrimary}
-              strokeWidth={1} strokeOpacity={0.55} strokeLinejoin="round" />
-          ))}
-
           {/* events */}
           {g.inEv.map((e, i) => {
             const m = mins(e.t)
-            if (m == null || typeof e.p !== 'number') return null
-            const x = xOf(m), y = g.yOf(e.p)
+            if (m == null) return null
+            const x = xOf(m), y = yOfLane(laneOf(e.kind))
             const level = !!e.at
             const color = level ? pal.accent : pal.textSecondary
             return (
@@ -370,7 +335,7 @@ export default function FlowTab({ index }: { index: IndexKey }) {
                 <Mark kind={e.kind} x={x} y={y} s={level ? 6 : 4} color={color} strong={level} />
                 {/* Generous invisible hit area — the marks are small on purpose. */}
                 <circle cx={x} cy={y} r={10} fill="transparent" />
-                <title>{`${e.t} · ${e.kind} · ${px1(e.p)}${e.at ? ` · ${e.at}` : ' · no named level'}`}</title>
+                <title>{`${e.t} · ${e.kind} · ${typeof e.p === 'number' ? px1(e.p) : '—'}${e.at ? ` · ${e.at}` : ' · no named level'}`}</title>
               </g>
             )
           })}
@@ -408,8 +373,8 @@ export default function FlowTab({ index }: { index: IndexKey }) {
           {noRows && (
             <text x={PAD_L + 10} y={PAD_T + PLOT_H / 2 - 8} fontSize={13} fill={pal.caution}>
               {rows.length === 0
-                ? `No price line: ${pay.rows_why ?? 'the record returned no rows and did not say why'}.`
-                : `No price line: all ${rows.length} recorded row${rows.length === 1 ? '' : 's'} fall outside 09:15–15:30.`}
+                ? `No record rows: ${pay.rows_why ?? 'the record returned no rows and did not say why'}.`
+                : `No record rows on this axis: all ${rows.length} recorded row${rows.length === 1 ? '' : 's'} fall outside 09:15–15:30.`}
             </text>
           )}
           {noEvents && (
@@ -452,7 +417,7 @@ export default function FlowTab({ index }: { index: IndexKey }) {
           The axis is the SESSION, 09:15–15:30 — never the record's own first row. The extension
           replays the chart's loaded footprint, so events reach back before this process started.
           {g.firstRowT && (mins(g.firstRowT) ?? OPEN) > OPEN
-            ? ` The price line starts at ${g.firstRowT}, the first frame on file; there is no recorded price before it and none is drawn.`
+            ? ` The record starts at ${g.firstRowT}, the first frame on file; the machine band has nothing before it.`
             : ''}
         </span>
         <span>
@@ -460,13 +425,9 @@ export default function FlowTab({ index }: { index: IndexKey }) {
           {g.outEv > 0 ? ` ${g.outEv} fell outside 09:15–15:30 and are not on this axis.` : ''}
           {g.outRow > 0 ? ` ${g.outRow} record row${g.outRow === 1 ? '' : 's'} sit outside the session window and are not drawn.` : ''}
         </span>
-        {g.minutes > 0 && <span>
-          The line is the LAST price recorded in each minute — {g.minutes} minute
-          {g.minutes === 1 ? '' : 's'} out of {g.inRow.length} row{g.inRow.length === 1 ? '' : 's'}, because the record is
-          written per signature change and a busy minute holds dozens.
-          {g.holes > 0
-            ? ` It is broken across ${g.holes} stretch${g.holes === 1 ? '' : 'es'} where no frame was recorded at all (longest ${g.longestHole} minutes); a line drawn through those would be invented.`
-            : ''}
+        {g.holes > 0 && <span>
+          The record has {g.holes} stretch{g.holes === 1 ? '' : 'es'} where no frame was recorded at all
+          (longest {g.longestHole} minutes); the machine band bridges them, so they are named here.
         </span>}
         <span>
           The band is what the MACHINE was saying, not what the flow meant. No hit rate, win rate or

@@ -1,6 +1,6 @@
 import { Fragment, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { palette, useMode } from '../theme'
+import { usePalette } from '../theme'
 import type { Palette } from '../theme'
 import { liveMachine, machineWord, MACHINE_WORDS, lockNote } from '../machine'
 import { useFlow } from '../trade/flow'
@@ -852,9 +852,10 @@ export default function GlassBoard({
   index, chain, bars, runState, runStateWhy, runStateSell,
   publishedInterval, stale, loading, chainStale, setActiveTab,
 }: Props) {
-  const [mode] = useMode()
-  const pal = palette(mode)
-  const dark = mode === 'dark'
+  const pal = usePalette()
+  // LIGHT only (operator rule). glass.tsx still takes a `dark` prop; it is
+  // always false now.
+  const dark = false
 
   const w = useChainWire(index)
   const { last: lastFlow, rows: flowRows, why: flowWhy } = useFlow(index)

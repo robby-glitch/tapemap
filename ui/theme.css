@@ -1,11 +1,11 @@
 /* ==========================================================================
-   ui/theme.css -- the one color grammar for /desk.html and /console.html.
+   ui/theme.css -- the color grammar for /console.html.
 
    THE LAW. Most of the day the answer is NO, so the default state must look
    unremarkable, not alarming -- a screen that looks like an alarm all the
    time teaches you to ignore alarms.
 
-     GREY  = stand aside / no evidence -- the ordinary state of both screens.
+     GREY  = stand aside / no evidence -- the ordinary state of the screen.
      AMBER = loaded -- something is building but has not fired.
      GREEN = confirmed forced flow, and ONLY that. Never "looks bullish",
              never "this number is good" -- exactly the CASCADE gear.
@@ -14,59 +14,35 @@
      TEAL (--sell) marks the sell/short side of a leg or structure.
      BRASS (--buy) marks the buy/long side of a leg or structure.
 
-   Both pages read this file for every color token; each page's own <style>
-   sizes, spaces and lays out -- it does not invent a hex value. Everything
+   The page reads this file for every color token; its own <style> sizes,
+   spaces and lays out -- it does not invent a hex value. Everything
    else (direction bull/bear, risk/loss red, the naked-leg purple, a rich
    point's gold) is a SEPARATE axis from the grey/amber/green/red grammar
    above and deliberately uses different hues so the two axes are never
    mistaken for each other.
 
-   Dark is the default (:root). Light is a real second palette, reached by
-   `@media (prefers-color-scheme: light)` and overridable either way with
-   `<html data-theme="light">` / `data-theme="dark"` -- no toggle button
-   wires this yet; force it from devtools
-   (`document.documentElement.dataset.theme = "light"`) or the OS setting.
+   LIGHT only (the operator's rule): one palette, no dark variant.
    ========================================================================== */
 :root{
   /* -- surfaces -- */
-  --ground:#0B100F; --panel:#131B1A; --sunk:#0F1716; --raise:#182220;
-  /* -- text -- */
-  --ink:#E6ECEA; --ink2:#AEBDB9; --muted:#7E908C;
-  /* -- structure -- */
-  --line:#26312F; --grid:#1E2827;
-  /* -- sides: teal sells, brass buys -- */
-  --sell:#54BCB6; --buy:#D9A44A;
-  /* -- other axes: never reused for the grey/amber/green/red grammar -- */
-  --risk:#D9706A; --naked:#C77DD1; --rich:#C9A227;
-  --bull:#5FC98A; --bear:#E0705F; --flat:#8A9B97; --blue:#5B8FC7;
-  /* -- THE STATE GRAMMAR -- */
-  --grey:#8A94A3; --amber:#D99A2B; --green:#3FA66A; --red:#C8503F;
-  /* -- pre-existing names kept as aliases so neither page needed a rename -- */
-  --rule:var(--line); --bg:var(--ground); --dim:var(--ink2);
-}
-@media (prefers-color-scheme: light){
-  :root:not([data-theme="dark"]){
-    --ground:#F4F6F5; --panel:#FFFFFF; --sunk:#E9EEEC; --raise:#DFE6E4;
-    --ink:#0E1A19; --ink2:#41534F; --muted:#6C7D79;
-    --line:#D2DAD8; --grid:#DCE3E1;
-    --sell:#0E5A5B; --buy:#7A4E15;
-    --risk:#8E2B2B; --naked:#7A2E82; --rich:#8A6D0B;
-    --bull:#136B3E; --bear:#9B2F20; --flat:#5C6D69; --blue:#2C5C8A;
-    --grey:#5C6D69; --amber:#8A6D0B; --green:#136B3E; --red:#8E2B2B;
-  }
-}
-:root[data-theme="light"]{
   --ground:#F4F6F5; --panel:#FFFFFF; --sunk:#E9EEEC; --raise:#DFE6E4;
+  /* -- text -- */
   --ink:#0E1A19; --ink2:#41534F; --muted:#6C7D79;
+  /* -- structure -- */
   --line:#D2DAD8; --grid:#DCE3E1;
+  /* -- sides: teal sells, brass buys -- */
   --sell:#0E5A5B; --buy:#7A4E15;
+  /* -- other axes: never reused for the grey/amber/green/red grammar -- */
   --risk:#8E2B2B; --naked:#7A2E82; --rich:#8A6D0B;
   --bull:#136B3E; --bear:#9B2F20; --flat:#5C6D69; --blue:#2C5C8A;
+  /* -- THE STATE GRAMMAR -- */
   --grey:#5C6D69; --amber:#8A6D0B; --green:#136B3E; --red:#8E2B2B;
+  /* -- pre-existing names kept as aliases so the page needed no rename -- */
+  --rule:var(--line); --bg:var(--ground); --dim:var(--ink2);
 }
 
-/* -- a11y floor: every interactive control gets a real focus ring in both
-   themes, not just the browser default (which some OS themes suppress). -- */
+/* -- a11y floor: every interactive control gets a real focus ring, not
+   just the browser default (which some OS themes suppress). -- */
 button:focus-visible, a:focus-visible, input:focus-visible,
 [tabindex]:focus-visible{
   outline:2px solid var(--sell); outline-offset:2px;
