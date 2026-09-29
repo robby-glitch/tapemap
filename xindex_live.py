@@ -67,7 +67,8 @@ def _zone(idx: str, day: str, close: int):
         if e is None:
             return None, f"zone bar {want} not served yet"
         ref = e.get("ref_high") if key == "buy" else e.get("ref_low")
-        out[key] = {"state": e.get("state"), "level": e.get("level"), "ref": ref, "stop": e.get("stop")}
+        out[key] = {"state": e.get("state"), "level": e.get("level"), "ref": ref, "stop": e.get("stop"),
+                    "exit": e.get("exit_why")}                  # stop / vwap on the bar her trade closed
     return out, None
 
 

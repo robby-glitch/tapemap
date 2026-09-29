@@ -22,7 +22,8 @@ def leg(d, px0, px1, t0, t1, cls="rotation", agg=0, ab=False, back=0.0, ux="ok")
 def snap(asof, forming=None, legs=(), ruler=20.0, zone=WAIT, walls=None, au=("TREND", 1, None), ok=True):
     px = forming["now"] if forming else 100.0
     return {"ok": ok, "why": None if ok else "reader failed", "ruler": ruler, "legs": list(legs), "forming": forming,
-            "auction": {"state": au[0], "d": au[1], "band": au[2]}, "t_last": asof - 60000, "px": px,
+            "auction": {"state": au[0], "d": au[1], "band": au[2], "ctr": au[3] if len(au) > 3 else None},
+            "t_last": asof - 60000, "px": px,
             "zone": zone, "zone_why": None if zone is not None else "no zone state", "walls": walls}
 
 
@@ -65,7 +66,7 @@ def test_determinism_and_no_repaint():
     assert json.dumps(again, sort_keys=True, default=str) == json.dumps(a[2], sort_keys=True, default=str)
 
 
-def test_state_words_with_levels():
+def test_state_words_follow_structure_with_levels():
     t = at("10:00")
     armed = {"buy": {"state": "ARMED", "level": 990.0, "ref": 1010.0, "stop": 970.0}, "sell": {"state": "WAITING"}}
     o, _ = X.step(t, trio(t, n=snap(t, leg(-1, 1050, 995, "09:40", "09:59"), zone=armed)))
@@ -75,27 +76,62 @@ def test_state_words_with_levels():
     trade = {"buy": {"state": "IN_TRADE", "level": 990.0, "stop": 970.0}, "sell": {"state": "WAITING"}}
     o, _ = X.step(t, trio(t, n=snap(t, up(t), zone=trade)))
     assert o["idx"]["NIFTY"]["word"] == "chal_raha" and o["idx"]["NIFTY"]["levels"]["kill"] == 970.0
-    o, _ = X.step(t, trio(t))
+    # the reader's TREND in force: chal raha, killed at its trend-break level (the last counter pivot)
+    o, _ = X.step(t, trio(t, n=snap(t, up(t), au=("TREND", 1, None, 1030.0))))
     r = o["idx"]["NIFTY"]
-    assert r["word"] == "chal_raha" and r["levels"]["start"] == 1000 and r["levels"]["kill"] == 1060 - 20.0
-    spent = leg(1, 1000, 1060, "09:40", "09:55", back=15.0)            # 3 rulers, 0.75 ruler back from its extreme
-    o, _ = X.step(t, trio(t, n=snap(t, spent)))
-    assert o["idx"]["NIFTY"]["word"] == "ho_gaya" and o["idx"]["NIFTY"]["word_dir"] == 1
-    rng = snap(t, leg(1, 1000, 1025, "09:50", "09:59"), au=("RANGE", 0, [990.0, 1030.0]))
-    o, _ = X.step(t, trio(t, n=rng))
-    r = o["idx"]["NIFTY"]
-    assert r["word"] == "ban_sakta" and r["levels"]["up"] == 1050.0 and r["levels"]["down"] == 970.0
+    assert r["word"] == "chal_raha" and r["word_dir"] == 1 and r["levels"]["kill"] == 1030.0 and r["levels"]["start"] == 1000
 
 
-def test_word_needs_an_event_or_two_bars():
-    t1, t2, t3 = at("10:00"), at("10:03"), at("10:06")
-    o1, st = X.step(t1, trio(t1))
-    assert o1["idx"]["NIFTY"]["word"] == "chal_raha"
-    spent = lambda t: snap(t, leg(1, 1000, 1060, "09:40", "09:55", back=15.0))   # noqa: E731
-    o2, st = X.step(t2, trio(t2, n=spent(t2)), st)
-    assert o2["idx"]["NIFTY"]["word"] == "chal_raha"                  # one bar is a wiggle
-    o3, st = X.step(t3, trio(t3, n=spent(t3)), st)
-    assert o3["idx"]["NIFTY"]["word"] == "ho_gaya"                    # two bars in a row is a change
+def seq_words(snaps_by_bar):
+    st, words = None, []
+    t = at("10:00")
+    for n in snaps_by_bar:
+        o, st = X.step(t, trio(t, n=n(t)), st)
+        words.append((o["idx"]["NIFTY"]["word"], o["idx"]["NIFTY"]["word_dir"], o["idx"]["NIFTY"]["levels"]))
+        t += 3 * 60000
+    return words
+
+
+def test_ho_gaya_and_ban_sakta_come_from_structure_events():
+    trend = lambda t: snap(t, up(t), au=("TREND", 1, None, 1030.0))                                      # noqa: E731
+    broke = lambda t: snap(t, leg(-1, 1060, 1020, "10:01", X.hm(t - 60000)), au=("TREND", -1, None, 1060.0))  # noqa: E731
+    w = seq_words([trend, broke])
+    assert w[1][:2] == ("ho_gaya", 1) and "trend toota" in w[1][2]["confirm"]
+    mid = lambda t: snap(t, leg(-1, 1060, 1025, "10:01", X.hm(t - 60000)), au=("RANGE", 1, [990.0, 1060.0]))  # noqa: E731
+    near = lambda t: snap(t, leg(1, 1025, 1058, "10:04", X.hm(t - 60000)), au=("RANGE", 1, [990.0, 1060.0]))  # noqa: E731
+    top = lambda t: snap(t, leg(1, 1025, 1065, "10:04", X.hm(t - 60000)), au=("RANGE", 1, [990.0, 1065.0]))   # noqa: E731
+    back = lambda t: snap(t, leg(-1, 1065, 1030, "10:10", X.hm(t - 60000)), au=("RANGE", 1, [990.0, 1065.0]))  # noqa: E731
+    w = seq_words([trend, mid, near, top, back])
+    assert w[1][:2] == ("ho_gaya", 1) and "range bana" in w[1][2]["confirm"]
+    assert w[2][0] == "ho_gaya"                                     # price near an edge is not structure
+    assert w[3][:2] == ("ban_sakta", 1) and w[3][2]["start"] == 1085.0 and w[3][2]["kill"] == 990.0
+    assert w[4][0] == "ban_sakta"                                   # leaving the edge is no new word
+    trade = lambda t: snap(t, up(t), zone={"buy": {"state": "IN_TRADE", "level": 990.0, "stop": 970.0},   # noqa: E731
+                                          "sell": {"state": "WAITING"}})
+    out = lambda t: snap(t, up(t), zone={"buy": {"state": "WAITING", "exit": "vwap"}, "sell": {"state": "WAITING"}})  # noqa: E731
+    w = seq_words([trade, out])
+    assert w[1][:2] == ("ho_gaya", 1) and "vwap" in w[1][2]["confirm"]
+
+
+def test_a_flow_flip_alone_cannot_change_the_word():
+    """Same structure every bar; flow, WHO, walls and peers flip underneath. The word must not move."""
+    s1 = lambda t: snap(t, up(t, cls="new_longs", agg=1), au=("TREND", 1, None, 1030.0),               # noqa: E731
+                        walls={"vote": 1, "why": "PE likh rahe"})
+    s2 = lambda t: snap(t, up(t, cls="short_covering", agg=1, ab=True), au=("TREND", 1, None, 1030.0),  # noqa: E731
+                        walls={"vote": -1, "why": "CE likh rahe"})
+    st, seen = None, []
+    t = at("10:00")
+    for k in range(8):
+        n = (s1 if k % 2 == 0 else s2)(t)
+        peers = {"BANKNIFTY": snap(t, leg(-1 if k % 2 else 1, 2000, 2060, "09:40", X.hm(t - 60000))),
+                 "SENSEX": snap(t, up(t))}
+        o, st = X.step(t, {"NIFTY": n, **peers}, st)
+        r = o["idx"]["NIFTY"]
+        seen.append((r["word"], r["word_dir"], r["lines"]["flow"]["vote"], r["lines"]["walls"]["vote"]))
+        t += 3 * 60000
+    assert {w[:2] for w in seen} == {("chal_raha", 1)}
+    assert len({w[2] for w in seen}) > 1 and len({w[3] for w in seen}) > 1       # the evidence really did flip
+    assert st["word_changes"]["NIFTY"] == 0
 
 
 def zone_buy(t, state="ARMED"):

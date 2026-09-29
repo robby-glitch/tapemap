@@ -10,7 +10,7 @@ Per day, per 3-minute bar close, xindex.step() gets exactly what it would have h
   * her zone machine's state from data/trigger_log.jsonl (rule "zone" only; never pooled with 5c). An arm row makes
     ARMED until its trigger or RUN_WINDOW bars; a trigger row makes "trigger hua"; after it the trade's exit is not in
     the log, so the zone reads CAN'T CHECK until that side arms again. A day with no zone rows for an index is WAITING
-    only where verified live (BANKNIFTY 29 Sep, supervisor 2026-09-29); otherwise CAN'T CHECK. Never a reconstruction;
+    only where verified (BANKNIFTY 28 and 29 Sep, supervisor); otherwise CAN'T CHECK. Never a reconstruction;
   * the option chain (data/chain/) for the walls, now vs WRITE_MIN minutes before.
 Writes docs/reader/replays/xindex_<day>.txt: the LOOK HERE timeline, notes, counts against the pre-registered bars,
 and the automatic misdescription audit. Nothing under data/ is written. No outcome is scored: no hit rate.
@@ -30,7 +30,9 @@ import reader_replay as rr  # noqa: E402
 import xindex  # noqa: E402
 
 VERIFIED_EMPTY = {("BANKNIFTY", "2026-09-29"): "WAITING verified live on 125 served bars (supervisor, 2026-09-29): "
-                                               "every band touch was before the 09:25 anchor"}
+                                               "every band touch was before the 09:25 anchor",
+                  ("BANKNIFTY", "2026-09-28"): "WAITING verified on 125 bars from the day's REST candles, the NIFTY control "
+                                               "reproducing its log exactly (supervisor, 2026-09-30)"}
 BARS = {"awards": 10, "changes": 16, "flips6": 0, "word_changes": 12}      # pre-registered in 9-cross-index-design §4.4
 
 

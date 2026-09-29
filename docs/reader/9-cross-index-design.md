@@ -749,3 +749,8 @@ No lot count appears anywhere on this sheet.
 
   This design's rebuild that "arms it on both sides" must have skipped the 09:25 gate; re-check it before shadow.
 - **28 Sep: still unverified.** Only today's session is served live. A replay needs the day's bands. The same pre-09:25 explanation is plausible but not proven; that check is still owed.
+- **28 Sep: verified, not a bug (2026-09-30, 01:xx).**
+  - **Method:** BANKNIFTY's Sep future (`NSE_FO|68390`) 1-minute candles came from Upstox historical, banded with the server's own `contract_bars.vwap_sigma`, resampled with `contract_bars.resample_index(…, 3)`, and run through `band_rotation.run_states` (d2 BUY, u2 SELL, stop 20).
+  - **Result:** WAITING on all 125 bars on both sides. BANKNIFTY had no zone setup on 28 Sep.
+  - **Control:** the same rebuild of NIFTY 28 Sep (`NSE_FO|68407`) reproduces the live `trigger_log` exactly: 6 arms at 09:33, 09:36, 14:18, 14:33, 14:36 and 14:39, with identical extremes.
+  - **Conclusion:** the "missing BANKNIFTY setups" on 28 and 29 Sep were days with no setup. The zone machine and its log are sound.

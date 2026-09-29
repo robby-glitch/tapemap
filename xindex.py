@@ -12,7 +12,8 @@ and the option chain; it returns, once per 3-minute bar close:
   X5 POTENTIAL conditions forming (her zone armed, a range edge, writing at a wall), with levels
   LOOK HERE    a COUNT of six lines (zone, flow, WHO, walls, sync, extremes) -- never a %, never a probability --
                awarded on her zone + 2 more lines or 4 without it, held with hysteresis, capped per session
-  STATE WORD   move ban sakta hai / chal raha hai / ho gaya, each with its start, confirm and kill levels
+  STATE WORD   move ban sakta hai / chal raha hai / ho gaya, from STRUCTURE ONLY (her zone machine, the reader's
+               auction), each with its start, confirm and kill levels; flow/OI/sync/extremes never flip it
 
 THIN TAPE. SENSEX's future trades 1-3k lots a day (9-cross-index-design.md §2.1): its flow and WHO never vote, it is a
 witness (never the decider) in SYNC and EXTREMES, and without her zone it cannot reach the LOOK HERE bar.
@@ -47,9 +48,14 @@ SHEET: List[Tuple[str, object, str]] = [
     ("TIE", 1, "minutes: turns within 1 minute are 'saath mein'; the canonical minute resolves no less"),
     ("TOL", 0.25, "x ruler: TOOK / EQUAL / FAILED band at an extreme"),
     ("SMALL", 0.5, "x ruler: a divergence whose failing gap is under this is labelled 'chhota'"),
-    ("SIZE", 1.0, "x ruler: a leg of at least this is a running move; a peer under it is 'kamzor' sync"),
-    ("NEAR", 0.5, "x ruler: price within this of a range edge is 'kinare par' (potential)"),
-    ("SPENT", 2.0, "x ruler: 'ho gaya' = last confirmed leg >= this while the counter-leg is under SIZE"),
+    ("SIZE", 1.0, "x ruler: a forming leg of at least this (still near its extreme) gives the COUNT its direction when "
+                  "no structure does; a peer under it is 'kamzor' sync. It never sets the state word"),
+    ("NEAR", 0.5, "x ruler: price within this of a RANGE edge gives the COUNT its direction. The WORD's 'pressed at an "
+                  "edge' is structural instead: the reader widened its box at that edge -> 'ban sakta'. "
+                  "THE STATE WORD FOLLOWS STRUCTURE ONLY: her zone machine (armed / trigger+trade / exit) and the "
+                  "reader's auction (RANGE edge / BREAKOUT-TREND / trend broken or range after a trend); flow, OI, "
+                  "sync and extremes stay in the count and the why line and never flip the word (trader's call, "
+                  "2026-09-30)"),
     ("REACH", 1.5, "x ruler: an option strike within this of price is 'within reach'"),
     ("WRITE_MIN", 15, "minutes: the OI-add window at the walls"),
     ("NOISE_Z", 3.0, "a strike's add counts only beyond 3 x robust sigma of every strike's add in the window"),
@@ -441,35 +447,102 @@ def _edge(s: dict) -> int:
     return 1 if band[1] - px <= near else -1 if px - band[0] <= near else 0
 
 
-def _word(i: str, s: dict, D: int, side: int, zst: Optional[dict]) -> Tuple[str, dict]:
-    """The state word and its levels, from her zone first, then the reader's auction and forming leg."""
+def _zone_lv(side: int, zst: dict) -> dict:
+    stop = zst.get("stop")
+    if zst["state"] == "ARMED":
+        ref = zst.get("ref")
+        return {"start": ref, "confirm": f"3-min close {'upar' if side > 0 else 'neeche'} "
+                                         f"{num(ref) if ref else 'ref candle'} (her trigger)", "kill": stop, "from": "zone"}
+    return {"start": zst.get("level"), "confirm": "her trade is on", "kill": stop,
+            "kill_why": None if stop else "her stop not in the payload", "from": "zone"}
+
+
+def _range_lv(s: dict, d: int) -> dict:
+    lo, hi = s["auction"]["band"]
     dl = s["ruler"]
-    f = s.get("forming")
+    return {"start": round(hi + dl, 1) if d > 0 else round(lo - dl, 1), "up": round(hi + dl, 1),
+            "down": round(lo - dl, 1), "kill": lo if d > 0 else hi, "from": "range",
+            "confirm": f"range {num(lo)}–{num(hi)} toota: trade {'upar' if d > 0 else 'neeche'} "
+                       f"{num(hi + dl) if d > 0 else num(lo - dl)}"}
+
+
+def _trend_lv(s: dict, d: int, band) -> dict:
+    au, f = s.get("auction") or {}, s.get("forming")
+    start = (band[1] if d > 0 else band[0]) if band else (f.get("px0") if f and f.get("dir") == d else None)
+    ctr = au.get("ctr")
+    return {"start": start, "confirm": "BREAKOUT" if band else "TREND in force", "kill": ctr,
+            "kill_why": None if ctr is not None else "no counter pivot yet: the trend-break level forms with it",
+            "from": "trend", "band": band}
+
+
+def _structure(state: dict, i: str, s: dict, side: int, zst: Optional[dict]) -> Tuple[str, int, dict]:
+    """THE STATE WORD, from STRUCTURE ONLY (trader's call 2026-09-30): her zone machine, then the reader's auction.
+    A word changes only on a structure transition; between transitions it holds and only its levels refresh.
+      ban sakta  = her zone ARMED, or a reader RANGE box pressed at an edge (the reader widened it there)
+      chal raha  = her zone TRIGGERED / IN_TRADE, or a reader BREAKOUT / TREND in force
+      ho gaya    = her zone's exit (stop / VWAP), or the reader's trend broken, or a RANGE after a trend / breakout
+    Flow, OI, sync and extremes are never read here. Mutates state["ws"][i]."""
+    ws = dict((state.get("ws") or {}).get(i) or {})
+    word, d, lv = ws.get("word") or "none", ws.get("d") or 0, dict(ws.get("lv") or {})
     au = s.get("auction") or {}
-    px = f.get("now") if f and f.get("now") is not None else s.get("px")
-    if side and zst:
-        stop = zst.get("stop")
-        if zst["state"] == "ARMED":
-            ref = zst.get("ref")
-            return "ban_sakta", {"start": ref, "confirm": f"3-min close {'upar' if side > 0 else 'neeche'} "
-                                                         f"{num(ref) if ref else 'ref candle'} (her trigger)",
-                                 "kill": stop, "from": "zone"}
-        return "chal_raha", {"start": zst.get("level"), "confirm": "her trade is on", "kill": stop, "from": "zone"}
-    if au.get("state") == "RANGE" and au.get("band"):
-        lo, hi = au["band"]                   # a range IS the coil: one word, both levels (no edge-to-edge churn)
-        return "ban_sakta", {"start": round(hi + dl, 1) if D > 0 else round(lo - dl, 1) if D < 0 else None,
-                             "up": round(hi + dl, 1), "down": round(lo - dl, 1), "kill": None, "from": "range",
-                             "confirm": f"range {num(lo)}–{num(hi)} toota: upar {num(hi + dl)} / neeche {num(lo - dl)}"}
-    if f and D and _pushing(s) == D:
-        return "chal_raha", {"start": f["px0"], "confirm": f"leg {abs(f['pts']) / dl:.1f}δ, extreme {num(f['px1'])}",
-                             "kill": round(f["px1"] - D * dl, 1), "from": "leg"}
-    if f and abs(f.get("pts") or 0) >= float(TH["SPENT"]) * dl and (f.get("back") or 0) > float(TH["NEAR"]) * dl:
-        return "ho_gaya", {"start": f["px0"], "end": f["px1"], "rulers": round(abs(f["pts"]) / dl, 1),
-                           "confirm": f"extreme {num(f['px1'])} {hm(f['t1'])}, abhi {num(f['back'])} peeche",
-                           "kill": None, "dir": f["dir"], "from": "leg"}
-    if f and abs(f.get("pts") or 0) < float(TH["SPENT"]) * dl and (f.get("back") or 0) > float(TH["NEAR"]) * dl:
-        return None, {}                       # a small leg that stalled: no new word, the last one holds
-    return "none", {"start": None, "confirm": None, "kill": None, "from": None}
+    ak = [au.get("state"), au.get("d") or 0, au.get("ext") is not None]   # a trend is in force once it has an extreme
+    zone_known = s.get("zone") is not None
+    zk = [side, (zst or {}).get("state", "WAITING")] if zone_known else ws.get("zkey")
+    zone_on = bool(zk and zk[0])
+    pz = ws.get("zkey")
+    if zone_known and zk != pz:                                    # her machine moved: it owns the word
+        if side and zst["state"] == "ARMED":
+            word, d, lv = "ban_sakta", side, _zone_lv(side, zst)
+        elif side:
+            word, d, lv = "chal_raha", side, _zone_lv(side, zst)
+        elif pz and pz[0] and pz[1] in ("TRIGGERED", "IN_TRADE"):
+            ex = ((s["zone"].get("buy" if pz[0] > 0 else "sell") or {}).get("exit"))
+            word, d, lv = "ho_gaya", pz[0], {"start": None, "kill": None, "from": "zone",
+                                              "confirm": f"her trade closed ({ex or 'stop / VWAP'})"}
+        elif pz and pz[0]:                                         # an armed setup lapsed: back to the auction
+            word, d, lv = "none", 0, {"start": None, "confirm": None, "kill": None, "from": None}
+            ws["akey"] = None                                      # re-read the auction's structure below
+    elif zone_on and zst and lv.get("from") == "zone" and word in ("ban_sakta", "chal_raha"):
+        lv = _zone_lv(side, zst)                                   # same state: levels refresh, the word holds
+    exited = zone_known and word == "ho_gaya" and lv.get("from") == "zone" and zk != pz
+    if zone_on or exited:                                          # her zone owns the word: the auction is only tracked
+        ws["akey"] = ak
+        if au.get("band"):
+            ws["band"] = list(au["band"])
+    else:
+        pa = ws.get("akey")
+        band = au.get("band")
+        moved = ak != pa
+        if moved:                                                  # the reader's auction moved
+            was_trend = bool(pa) and pa[0] == "TREND"
+            if ak[0] == "TREND" and was_trend and pa[1] == -ak[1]:
+                word, d, lv = "ho_gaya", pa[1], {"start": None, "kill": None, "from": "trend",
+                                                  "confirm": f"trend toota ({'neeche' if pa[1] > 0 else 'upar'})"}
+            elif ak[0] == "TREND" and was_trend and pa[1] == ak[1]:
+                if ak[2] and not (word == "chal_raha" and d == ak[1]):   # the new trend's first extreme: in force
+                    word, d, lv = "chal_raha", ak[1], _trend_lv(s, ak[1], None)
+            elif ak[0] == "TREND":
+                was_range = bool(pa) and pa[0] == "RANGE"
+                word, d, lv = "chal_raha", ak[1], _trend_lv(s, ak[1], ws.get("band") if was_range else None)
+            elif ak[0] == "RANGE" and was_trend:
+                word, d, lv = "ho_gaya", pa[1], {"start": None, "kill": None, "from": "trend",
+                                                  "confirm": (f"range bana {num(band[0])}–{num(band[1])} · toote to "
+                                                              f"upar {num(band[1] + s['ruler'])} / neeche "
+                                                              f"{num(band[0] - s['ruler'])}" if band else "range bana")}
+        if ak[0] == "RANGE" and band:
+            pb = ws.get("band")                                    # pressed = the reader widened the box at an edge
+            e = 0 if moved or not pb else (1 if band[1] > pb[1] else -1 if band[0] < pb[0] else 0)
+            if e and (word != "ban_sakta" or lv.get("from") == "range"):
+                word, d, lv = "ban_sakta", e, _range_lv(s, e)      # the box pressed at an edge (a side switch is no new word)
+            elif word == "ban_sakta" and lv.get("from") == "range":
+                lv = _range_lv(s, d)                               # the box may widen: levels refresh, the word holds
+            ws["band"] = list(band)
+        elif ak[0] == "TREND" and word == "chal_raha" and lv.get("from") == "trend":
+            lv = _trend_lv(s, ak[1], lv.get("band"))               # the trend-break level trails the counter pivots
+        ws["akey"] = ak
+    ws.update(zkey=zk, word=word, d=d, lv=lv)
+    state["ws"] = {**(state.get("ws") or {}), i: ws}
+    return word, d, lv
 
 
 def _potential(i, s, zs, wl) -> List[str]:
@@ -527,8 +600,9 @@ def step(asof: int, snaps: Dict[str, dict], state: Optional[dict] = None) -> Tup
                        "n_for": 0, "n_against": 0, "n_check": 0, "thin": thin(i), "potential": []}
             continue
         side, zst = zs[i]
+        word, D_w, lv = _structure(state, i, s, side, zst)
         au = (s.get("auction") or {}).get("state")
-        D = side or (_edge(s) if au == "RANGE" else _pushing(s))
+        D = side or (D_w if word in ("ban_sakta", "chal_raha") else 0) or (_edge(s) if au == "RANGE" else _pushing(s))
         cands = [D] if D else [1, -1]
         best = None
         for d in cands:
@@ -540,9 +614,6 @@ def step(asof: int, snaps: Dict[str, dict], state: Optional[dict] = None) -> Tup
             elif key == best[0] and not D:
                 best = (key, 0, ln, nf, na, nc)        # a range scoring both ways equally has no direction
         _, D, ln, nf, na, nc = best
-        cand, clv = _word(i, s, D, side, zst)
-        word, lv, D_w = _settle(state, i, cand, clv, D, (side, (zst or {}).get("state")),
-                                ((s.get("auction") or {}).get("state"), (s.get("auction") or {}).get("d")))
         chip = f"{WORD[word]} {ARROW[D_w]}" if D_w else WORD[word]
         rows[i] = {"ok": True, "why": None, "D": D, "word": word, "chip": chip, "levels": lv, "lines": ln,
                    "n_for": nf, "n_against": na, "n_check": nc, "thin": thin(i), "potential": _potential(i, s, zs, wl),
@@ -552,6 +623,8 @@ def step(asof: int, snaps: Dict[str, dict], state: Optional[dict] = None) -> Tup
                                    >= max(p.get("t_ms") or 0 for p in ev_lo["per"].values()))) else ev_lo)
     look = _look(state, rows, b, early, frozen)
     for i in IDXS:
+        if rows[i]["word"] == "cant":                  # a data hole or the 15:15 freeze is "could not check", not a
+            continue                                   # word change: the churn count compares the words it could read
         if state["words"].get(i) is not None and state["words"][i] != rows[i]["word"]:
             state["word_changes"] = {**state["word_changes"], i: state["word_changes"][i] + 1}
         state["words"] = {**state["words"], i: rows[i]["word"]}
@@ -568,26 +641,6 @@ def step(asof: int, snaps: Dict[str, dict], state: Optional[dict] = None) -> Tup
     state["bar"], state["out"] = b, out
     out["counts"] = {k: state[k] for k in ("changes", "awards", "switches", "releases", "flips6")}
     return out, state
-
-
-def _settle(state: dict, i: str, cand: Optional[str], clv: dict, D: int, zkey, akey) -> Tuple[str, dict, int]:
-    """The state word never moves on one bar's wiggle: a candidate replaces the shown word at once only on a named
-    event (her zone's state or the reader's auction state changed this bar); otherwise it must repeat on 2 bars in a
-    row. A stalled small leg (cand None) holds the shown word. Mutates state["ws"][i]."""
-    ws = dict((state.get("ws") or {}).get(i) or {})
-    event = ws.get("zkey") != list(zkey) or ws.get("akey") != list(akey)
-    cd = clv.get("dir", D) if cand == "ho_gaya" else D
-    shown = ws.get("word")
-    if cand is not None and (shown is None or event or (cand == ws.get("cand") and cd == ws.get("cand_d"))):
-        if cand != shown or cd != ws.get("d"):
-            ws.update(word=cand, lv=clv, d=cd)
-        else:
-            ws["lv"] = clv
-    ws.update(cand=cand, cand_d=cd, zkey=list(zkey), akey=list(akey))
-    state["ws"] = {**(state.get("ws") or {}), i: ws}
-    if ws.get("word") is None:
-        return "none", {"start": None, "confirm": None, "kill": None, "from": None}, 0
-    return ws["word"], ws["lv"], ws["d"]
 
 
 def _need(r: dict) -> int:
@@ -683,9 +736,11 @@ def audit(out: dict) -> List[str]:
                 bad.append(f"{out['t']} {i}: {k} CAN'T CHECK without a reason")
         if r["thin"] and (r["lines"]["flow"]["vote"] is not None or r["lines"]["who"]["vote"] is not None):
             bad.append(f"{out['t']} {i}: thin tape voted flow/WHO")
-        if r["word"] in ("ban_sakta", "chal_raha") and r["ok"] and r["levels"].get("start") is None \
-                and r["levels"].get("from") == "leg":
-            bad.append(f"{out['t']} {i}: {r['word']} without a start level")
+        lv = r["levels"]
+        if r["word"] == "ban_sakta" and lv.get("from") == "range" and lv.get("start") is None:
+            bad.append(f"{out['t']} {i}: ban sakta without its start level")
+        if r["word"] == "chal_raha" and lv.get("kill") is None and not lv.get("kill_why"):
+            bad.append(f"{out['t']} {i}: chal raha without a kill level or its reason")
     lk = out["look"]
     if lk["idx"]:
         r = out["idx"][lk["idx"]]
