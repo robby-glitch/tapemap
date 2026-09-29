@@ -81,7 +81,11 @@ def test_a_marked_trade_is_read_and_a_repeat_is_served_from_the_cache(srv):
     assert a["entry"]["t"] == "12:19" and a["entry"]["text"].startswith("You entered into")
     assert a["side"]["text"] and a["side"]["agrees"] in ("agrees", "against", "no side — the rows do not agree")
     assert a["side"]["expiry"]["text"] == board.CC + "expiry not in the day's record"      # the test poller has none
-    assert len({a["absent"]["checked_none"][:15], board.CC, a["absent"]["not_shown"][0][:13]}) == 3
+    cn, rn = a["absent"]["checked_none"], a["absent"]["rule_note"]
+    if a["fold"]:               # under a latch the rule is its own field (2026-09-29), never a "checked, none" sentence
+        assert cn is None and rn == "nothing un-latches a FOLD; a re-entry is a new trade"
+    else:
+        assert rn is None and len({cn[:15], board.CC, a["absent"]["not_shown"][0][:13]}) == 3
     facts = server._HOLD["facts"]["NIFTY"]
     assert _get("/api/hold?id=NIFTY-23200PE-long-122030", srv) == a and server._HOLD["facts"]["NIFTY"] is facts
     assert _get("/api/hold/trades", srv)["trades"][0]["id"] == a["trade"]["id"]
@@ -100,6 +104,23 @@ def test_a_restart_reads_the_same_window(srv):
     assert b["trade"]["id"] == a["trade"]["id"]
     for k in ("now", "entry", "fold", "side", "rows"):
         assert b[k] == a[k], k
+    # P1-01: her exit, and her undo of it, survive the same restart (each ok POST saves day_state)
+    tid = a["trade"]["id"]
+
+    def restart():
+        server._HOLD.clear()
+        server._HOLD.update(_fresh())
+        server._BOARD.clear()
+        server._BOARD.update(server._board_fresh())
+        server._load_day_state()
+    assert _post("/api/hold/trades", {"op": "exit", "id": tid, "exit_t": "13:10:00"}, srv)["ok"]
+    restart()
+    assert _get("/api/hold/trades", srv)["trades"][0]["exit_t"] == "13:10:00"
+    assert _get(f"/api/hold?id={tid}", srv)["after_exit"] is True
+    assert _post("/api/hold/trades", {"op": "reopen", "id": tid}, srv)["ok"]
+    restart()
+    assert _get("/api/hold/trades", srv)["trades"][0]["exit_t"] is None
+    assert _get(f"/api/hold?id={tid}", srv)["after_exit"] is False
 
 
 def test_an_asof_replay_is_the_first_part_of_the_close_read(srv):
@@ -370,6 +391,18 @@ def test_a_post_from_another_site_is_refused(srv):
     for i, site in enumerate(("same-origin", "same-site", "none")):
         got = _post("/api/hold/trades", {**MARK, "t0": f"12:2{i}:30", "k": 23200 + 50 * i}, srv, {"Sec-Fetch-Site": site})
         assert got["ok"], site
+
+
+def test_the_extensions_service_worker_is_let_in_by_its_origin_a_web_page_is_not(srv):
+    """2026-09-29: the GoCharting panel marks from sw.js (Origin chrome-extension://<id>, cross-site by nature) --
+    the frame door's rule (P1-07). A web origin with cross-site stays refused; no header (curl) passes."""
+    ext = {"Sec-Fetch-Site": "cross-site", "Origin": "chrome-extension://abcdefghijklmnopabcdefghijklmnop"}
+    assert _post("/api/hold/trades", MARK, srv, ext)["ok"]
+    cap = _Post("/api/hold/trades", {**MARK, "k": 23250}, srv, {"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"})
+    server.Handler.do_POST(cap)
+    assert cap.status == 403 and cap.sent["why"] == "refused — a POST from another site"
+    assert _post("/api/hold/trades", {**MARK, "k": 23300, "t0": "12:25:30"}, srv)["ok"]          # no header at all
+    assert [t["k"] for t in _get("/api/hold/trades", srv)["trades"]] == [23200, 23300]
 
 
 def test_the_check_names_its_absences_by_kind(pre, monkeypatch):

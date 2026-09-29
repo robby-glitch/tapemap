@@ -140,15 +140,17 @@ class Book:
         self._lock = threading.Lock()
         self._q: deque = deque(maxlen=MAXLEN)
         self._watch: Dict[str, str] = {}          # key -> idx
+        self._expiry: Dict[str, Optional[str]] = {}   # key -> the contract's expiry (P1-04), stamped on every row
         self._last_sig: Dict[str, tuple] = {}
         self._last_t: Dict[str, int] = {}         # idx -> last t written (or found in the file)
         self.dropped = 0
         self.written = 0
         self.book_from: Dict[str, str] = {}       # idx -> HH:MM:SS of the record's first row
 
-    def watch(self, idx: str, key: Optional[str]) -> None:
+    def watch(self, idx: str, key: Optional[str], expiry: Optional[str] = None) -> None:
         if key:
             self._watch[key] = idx
+            self._expiry[key] = expiry
 
     def watched(self) -> set:
         """The indices with a watched key -- what ux_log has a ladder for."""
@@ -162,6 +164,9 @@ class Book:
         row = row_of(feed, cts, now_ms)
         if row is None:
             return False
+        # THE CONTRACT STAMP (P1-04): which future this row was measured on. Additive; not in the
+        # change signature, so a heartbeat is still a heartbeat.
+        row["ik"], row["expiry"] = key, self._expiry.get(key)
         sig = _sig(row)
         if self._last_sig.get(key) == sig:
             return False

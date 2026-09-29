@@ -35,6 +35,10 @@ export const strip = (s: string) => s.replace(/^(?:HOLD|WATCH|FOLD|PATA NAHI)\b[
 export const roomText = (room: number) => room < 0 ? `${Math.abs(room)} pts past it` : `${room} pts`
 export const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
 export const nowHMS = () => new Date().toTimeString().slice(0, 8)
+/** The server's level line ("line 22,808.5 · breaks on a 3-min close above 22,814.8 — one median candle, 6.35 pts [M],
+ *  read 15:05", or its own "buffer 0 until … (could not check — 3 of 15 candles)") without the line itself, which
+ *  the big number above it already shows. Never a claim of our own about the buffer. */
+export const levelNote = (s: string) => s.replace(/^line [\d,.]+ · /, '')
 
 export function T({ t }: { t?: string | null }) {
   return t ? <span className="tag" title={t === 'M' ? 'measured' : 'inferred'}>[{t}]</span> : null
@@ -76,6 +80,18 @@ const QUAL: Record<string, [string, string]> = {
 export function Qual({ tag }: { tag?: string | null }) {
   const q = tag ? QUAL[tag] : null
   return q ? <span className={`qual ${q[1]}`}> · {q[0]}</span> : null
+}
+
+/** Under a latched FOLD the word stays FOLD; the read made NOW with the latch removed (the server's `unlatched`,
+ *  hold.py §7) sits under it, secondary, with `healed_since` when a rule-3 break has healed. Never hidden. */
+export function Live({ n }: { n: Now }) {
+  if (n.verdict !== 'FOLD') return null
+  return <div className="live"><span className="label">live read now</span><span className="word">{n.unlatched}</span>
+    {n.healed_since && <span className="sm">· healed since <span className="num">{n.healed_since}</span></span>}</div>
+}
+/** The latch as a stamped line -- when it fired, which rule, the server's own reason. History, not the read now. */
+export function Fired({ fold }: { fold: { t: string; rule: number; why?: string } }) {
+  return <p className="sm stamp">FOLD fired <span className="num">{fold.t}</span> (rule {fold.rule}){fold.why ? ` — ${fold.why}` : ''}</p>
 }
 
 /** The buyer's quiet clock: her own rule-5 FOLD, "visible at all times" (§3.5; REVIEW P0-8). */
@@ -146,13 +162,14 @@ export function StopBlock({ p, n, idx, fold, riskScale = 1, noise }: { p?: PlanR
   )
 }
 
-export function WallBlock({ p, fold }: { p?: PlanRow | null; fold?: Fold }) {
+/** The next wall / target the server sends -- shown for as long as it sends one, a FOLD included: while she is still
+ *  in, the target is still hers (UI audit 2026-09-28). */
+export function WallBlock({ p }: { p?: PlanRow | null }) {
   const r = p?.rung
   return (
     <div className="nb">
       <span className="label">Next wall</span>
-      {fold ? <div><Abs text="not shown — the plan ended at the FOLD" /></div>
-        : !r ? <div><Abs text="not shown — a writer has no next wall: time is her target" /></div>
+      {!r ? <div><Abs text="not shown — a writer has no next wall: time is her target" /></div>
         : r.src === 'wall' && r.k != null ? <>
           <div className="nb-top"><span className="big"><span className="k">{r.side}</span><N t="M">{inr(r.k)}</N></span>
             {r.room != null && <span className="pts"><span className="num">{r.room}</span><small>pts</small><T t="M" /></span>}</div>
@@ -177,10 +194,10 @@ export function Sigma({ rd }: { rd?: Reading }) {
                      : <Abs text={g.why} />
 }
 
-/** What would turn this WATCH into FOLD, as a list (REVIEW copy 9); the server's items when it sends them. */
+/** What would turn this WATCH into FOLD, as a list (REVIEW copy 9): the server's `watch_items`, never a split of its text. */
 export function WatchList({ n }: { n: Now }) {
   if (n.verdict !== 'WATCH') return null
-  const items = n.watch_items || (n.watch ? n.watch.replace(/^FOLD if (any one of: )?/, '').split(/ · |, or /) : [])
+  const items = n.watch_items || (n.watch ? [n.watch] : [])
   if (!items.length) return null
   return <div className="needs"><span className="label">What would make it FOLD</span>
     <ul>{items.map(x => <li key={x}><Ico n="ArrowRight" /><span>{cap(x)}</span></li>)}</ul></div>
@@ -248,9 +265,17 @@ export function SideList({ s }: { s: SideRead }) {
   )
 }
 
-export function AbsentList({ a, extra = [] }: { a?: Reading['absent']; extra?: (string | null | undefined)[] }) {
-  const all = [a?.checked_none, ...(a?.could_not_check || []), ...(a?.not_shown || []), ...extra].filter(Boolean) as string[]
-  return <><h4 className="label">What is absent, and why</h4><div className="abs-list">{all.map((t, i) => <Abs key={i} text={t} />)}</div></>
+/** Each absence in the form its server FIELD names, never sorted by its first words. Under a latch the server's
+ *  checked_none slot carries the latch rule ("nothing un-latches a FOLD"), a rule statement and not an absence: the
+ *  band prints it as plain text, so it is left out here. */
+export function AbsentList({ a, extra = [], latched = false }: { a?: Reading['absent'] & { rule_note?: string | null }; extra?: (string | null | undefined)[]; latched?: boolean }) {
+  const all: [string, 'none' | 'blind' | 'hidden' | undefined][] = []
+  if (a?.checked_none && !latched) all.push([a.checked_none, 'none'])
+  if (a?.rule_note) all.push([a.rule_note, undefined])          // the latch rule, on its own field since 2026-09-29: plain text
+  for (const t of a?.could_not_check || []) all.push([t, 'blind'])
+  for (const t of a?.not_shown || []) all.push([t, 'hidden'])
+  for (const t of extra) if (t) all.push([t, undefined])
+  return <><h4 className="label">What is absent, and why</h4><div className="abs-list">{all.map(([t, k], i) => <Abs key={i} text={t} kind={k} />)}</div></>
 }
 
 export type Run = { from: string; to: string; verdict: string; tag: string | null; sentence: string }

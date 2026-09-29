@@ -53,6 +53,8 @@ HEAL = 15            # rev 5 §F.1: clause 7a's heal window, clock minutes (N5's
 LATE_BREAK = "15:14"  # rev 5 §F.1: a break whose bar closes after this has fewer than five closes left -> short
 PREREG = "rev5-B"    # rev 5 §G: the option the rows are written under
 CC, NONE, NOT_SHOWN = board.CC, board.NONE, board.NOT_SHOWN
+WHO = " (writers: [I])"     # the OI change is measured; that writers made it is inferred -- OI up
+                            # can be new buyers (2026-09-28 trader audit, bug 4)
 DRAFT = ("DRAFT — pre-registered 2026-09-25 (docs/hold/PREREG-merged.md rev 4, amended by PREREG-rev5.md "
          "option B, signed 19:40), untested; §7's forward rows decide it, not this screen")
 SESSION = [f"{m // 60:02d}:{m % 60:02d}" for m in range(9 * 60 + 15, 15 * 60 + 30)]
@@ -155,7 +157,7 @@ def flow(rec, d):
     is strong AND the prints dominate the same way. -> (state, fact, why)."""
     c, f = rec.get("cvd"), rec.get("flow")
     dirn, _word, fact, why = board.aggression({
-        "cvd": c and {"d": c["d"], "rank": c["rank"], "since": c["since"]},
+        "cvd": c and {"d": c["d"], "rank": c["rank"], "since": c["since"], "rank_why": c.get("rank_why")},
         "flow": f and {"buy": f["b"], "sell": f["s"], "runs_why": f.get("rw")},
         "cvd_why": _strip(rec.get("cvd_why"))})
     if dirn:
@@ -453,6 +455,9 @@ def read(trade, minutes, pivs, upto=None, prem=None, idx=None, late=None, frozen
     p0, qty = trade.get("p0"), trade.get("qty") or 0
     sg = 1 if buyer else -1
     contract = f"{idx} {float(trade.get('k') or 0):g} {trade['side']}"
+    # after her exit the premium and P&L are the exit minute's (the last finished minute before it, as the
+    # entry reads), never the latest print: a 10:20 exit must not show 15:29's premium
+    xi = at.get(read_minute(str(trade["exit_t"]))) if trade.get("exit_t") else None
     rows, latch, heal, readable, paid_at, run, etext, said = [], None, None, [], {}, None, None, None
     for i in range(e, to + 1):
         m, x = minutes[i], rs[i]
@@ -510,7 +515,7 @@ def read(trade, minutes, pivs, upto=None, prem=None, idx=None, late=None, frozen
                             "winners cashing in" if H.get("fold_for") else None,
                             "flow with you" if fWith else None,
                             "the trend rows with you" if tr_state == "for" else None) if f]
-        pr = _prem(prem, i, p0, qty, sg)       # never an input to the verdict (§1): noise tag, P&L, footer
+        pr = _prem(prem, i if xi is None else min(i, xi), p0, qty, sg)   # never an input to the verdict (§1): noise tag, P&L, footer
         room = (ln or {}).get("room")
         room_txt = (f"Line could not check — no candle for {t}" if room is None else
                     f"Line {room} pts away [M]" if room >= 0 else f"Line {-room} pts past it [M]")
@@ -685,17 +690,17 @@ def _payers(x, oi_blind, qA, rs, i, Q, buyer=True):
     f = x["q_fold"]
     if qA:      # before the fold: the WATCH / FOLD sentences quote this fact as the reason (REVIEW P0-4)
         return {"state": "against", "k": k, "tag": "M", **({"fold_t": f["t"]} if f else {}),
-                "fact": f"{Pw} at {_k(k)} adding in your way (held {PERSIST} min) — {_sw(q)} [M]"
+                "fact": f"{Pw} at {_k(k)} adding in your way (held {PERSIST} min) — {_sw(q)} [M]{WHO}"
                         + (f"; the {Q} {_k(f['k'])} fold of {f['t']} is still with you" if f else "")}
     if x["q_pays"]:
         pk, ch = q.get("peak"), q.get("chg")
         how = (f"OI {(pk - ch) / max(abs(pk), 1):.0%} off its peak, giving back since "
                f"{q.get('unwind_at') or q.get('peak_at')}" if pk is not None and ch is not None else _sw(q))
         return {"state": "for", "k": k, "tag": "M", "short": f"{_lc(Pw)} covering",
-                "fact": f"{Pw} at {_k(k)} are covering — {how} [M] — {gain}"}
+                "fact": f"{Pw} at {_k(k)} are covering — {how} [M]{WHO} — {gain}"}
     if f:
         return {"state": "for", "k": k, "fold_t": f["t"], "tag": "M", "short": f"{_lc(Pw)} folded {f['t']}",
-                "fact": f"{Pw} at {_k(f['k'])} folded {f['t']} — {f['off']:.0%} off their {f['high_at']} high [M] — {gain}"}
+                "fact": f"{Pw} at {_k(f['k'])} folded {f['t']} — {f['off']:.0%} off their {f['high_at']} high [M]{WHO} — {gain}"}
     if x["q_build"]:
         return {"state": "flat", "k": k, "tag": "M",
                 "fact": f"{_fw(q)} — adding, {_run(rs, i, 'q_build')} of {PERSIST} min before it counts"}
@@ -713,8 +718,8 @@ def _holders(x, oi_blind, rA, rF, squeeze, dpx, buyer, R, rs, i):
                "spot moving against you — a squeeze" if squeeze else         # by her direction, not the strike:
                "winners cashing in — spot moving your way")                  # rev 5 copy amendment 1
     if rF:
-        out["fold"] = (f"{Hw} at {_k(rF['k'])} folded {rF['t']} — the {cap} you stepped [M]" if buyer else
-                       f"{Hw} at {_k(rF['k'])} (your side) folded {rF['t']} [M] — {own}")
+        out["fold"] = (f"{Hw} at {_k(rF['k'])} folded {rF['t']} — the {cap} you stepped [M]{WHO}" if buyer else
+                       f"{Hw} at {_k(rF['k'])} (your side) folded {rF['t']} [M]{WHO} — {own}")
         out["fold_t"], out["fold_for"] = rF["t"], squeeze is False and not buyer
     if oi_blind or not r:
         return {**out, "state": "blind", "fact": CC + (_strip(oi_blind) or f"no {R} front read"), "k": None}
@@ -724,13 +729,13 @@ def _holders(x, oi_blind, rA, rF, squeeze, dpx, buyer, R, rs, i):
         return {**out, "state": "flat", "fact": f"both sides' writers leaving — OI cannot say which way ({_fw(r)})"}
     if x["r_hold"]:
         return {**out, "state": "for", "short": f"the {'floor' if R == 'PE' else 'ceiling'} holds",
-                "fact": f"{Hw} at {_k(r['k'])} {_sw(r)} [M] — the {cap} you holds"}
+                "fact": f"{Hw} at {_k(r['k'])} {_sw(r)} [M]{WHO} — the {cap} you holds"}
     if not x["r_unw"]:
         return {**out, "state": "flat", "fact": _fw(r)}
     if buyer:
         return {**out, "state": "against" if rA else "flat",
-                "fact": f"{Hw} at {_k(r['k'])} {_sw(r)} [M] — the {cap} you is leaving" + ("" if rA else left)}
-    mine = f"{Hw} at {_k(r['k'])} (your side) {_sw(r)} [M] — {own}"
+                "fact": f"{Hw} at {_k(r['k'])} {_sw(r)} [M]{WHO} — the {cap} you is leaving" + ("" if rA else left)}
+    mine = f"{Hw} at {_k(r['k'])} (your side) {_sw(r)} [M]{WHO} — {own}"
     if dpx is None:
         return {**out, "state": "blind", "fact": mine}
     if squeeze:

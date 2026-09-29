@@ -134,3 +134,18 @@ def test_a_republish_keeps_the_per_strike_columns(tmp_path):
     assert [s["ce_w"] for s in again] == [s["ce_w"] for s in first]
     assert [s["ce_pk"] for s in again] == [s["ce_pk"] for s in first]
     assert all(s["ce_pk"] is not None for s in again)
+
+
+def test_the_chain_row_names_its_own_contract():
+    """P1-04: the day-file row carries the underlying's key and the expiry it was polled on;
+    without an Upstox source (Dhan, mock) the key is null. The snapshot itself is unchanged."""
+    poller = _poller()
+    snap = _snap("09:20:00", 24010.0)
+    assert poller._stamped("TEST", snap, EXPIRY) == {**snap, "ik": None, "expiry": EXPIRY}
+
+    class Src:
+        resolved = {"TEST": {"idx_key": "NSE_INDEX|Nifty 50"}}
+    poller.src = Src()
+    row = poller._stamped("TEST", snap, EXPIRY)
+    assert row["ik"] == "NSE_INDEX|Nifty 50" and row["expiry"] == EXPIRY and row["strikes"] == snap["strikes"]
+    assert "ik" not in snap

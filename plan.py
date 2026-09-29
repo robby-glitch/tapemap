@@ -180,7 +180,8 @@ def read(trade, minutes, rows, greeks=None):
                 "you risk more points to the line than the next rung is away" if rr is not None and room is not None
                 and rr < room else None)
         out.append({"t": r["t"], "stop": stop, "rung": rg, "touch": touch, "exits": exits,
-                    "next_wall": NOT_SHOWN + "the next wall — the plan ended at the FOLD" if af else None,   # §B
+                    # §B: only once she is out; while the trade is open the rung above IS the next wall
+                    "next_wall": NOT_SHOWN + "the next wall — the plan ended at the FOLD" if af and trade.get("exit_t") else None,
                     "room": {"rung": rr, "stop": room, "text": f"rung {rr if rr is not None else '—'} pts · stop "
                                                               f"{_pts(room) if room is not None else '— pts'}", "note": note}})
         prev = rg

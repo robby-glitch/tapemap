@@ -46,11 +46,29 @@ and is deleted rather than tuned. Pure, stdlib only, no I/O, no clock.
 from __future__ import annotations
 
 import re
+from datetime import date, timedelta
 
 W = 3               # 5-minute ladder bars in the window (15 min)
 STRONG = 0.5        # |dCVD| rank vs today's own 15-min changes
 ONE_SIDED = 0.8
+MIN_PRIOR = 3       # earlier W-bar changes a rank needs; fewer is "could not check" (2026-09-28 audit, bug 1)
+ROLL_DAYS = 7       # the near future's OI is blind this many calendar days up to its expiry (pro-tool P1-02)
+THIN_FLOW = ("SENSEX",)   # futures too thin for a flow read: SENSEX prints a median 7-10 lots a 5-min bar [M] (P1-02)
 FOR, AGAINST, FLAT, BLIND = "for", "against", "flat", "blind"
+
+
+def roll_why(day, fut_expiry) -> str | None:
+    """The sentence that blinds the near future's OI read in its expiry week, or None.
+    The roll drains the expiring contract (NIFTY Sep: 17.0M -> 10.4M over 22-28 Sep [M])
+    while it still trades, so a quadrant read on it names the roll, not positioning."""
+    try:
+        d, e = date.fromisoformat(str(day)), date.fromisoformat(str(fut_expiry))
+    except (TypeError, ValueError):
+        return None
+    if not 0 <= (e - d).days < ROLL_DAYS:
+        return None
+    nxt = e.replace(day=1) + timedelta(days=32)          # the next contract is the next month's
+    return f"the {e:%b} future is rolling into {nxt:%b}"
 
 
 def _hh(t_ms) -> str:
@@ -62,16 +80,25 @@ def _f(state, fact, tag="I"):
     return {"state": state, "fact": fact, "tag": tag}
 
 
-def _rank(v, s) -> float:
-    """|v| against today's own W-bar changes of series s, 0..1."""
-    h = [abs(s[i] - s[i - W]) for i in range(W, len(s)) if s[i] is not None and s[i - W] is not None]
-    return sum(1 for x in h if x <= abs(v)) / len(h) if h else 0.0
+def _rank(v, s):
+    """|v| (the change ending at s[-1]) against today's EARLIER W-bar changes of series s, 0..1,
+    or None when fewer than MIN_PRIOR exist. The current change is not its own history: counted
+    in, the day's first read ranked 1.0 by construction and its second at least 0.5 = STRONG,
+    so every CVD read "pressing" 09:35-09:44 (2026-09-28, the false 09:35 FOLD)."""
+    h = [abs(s[i] - s[i - W]) for i in range(W, len(s) - 1) if s[i] is not None and s[i - W] is not None]
+    return sum(1 for x in h if x <= abs(v)) / len(h) if len(h) >= MIN_PRIOR else None
 
 
-def facts(bars, runs, fronts_rows, runs_why=None) -> dict:
+def _unsized(n):
+    return f"{n} earlier 15-min change{'' if n == 1 else 's'} today; sizing this one needs {MIN_PRIOR}"
+
+
+def facts(bars, runs, fronts_rows, runs_why=None, roll=None, idx=None) -> dict:
     """The evidence, measured once and shared by every call. `runs_why` is the
     run detector's own reason (runs.Runs.why); anything but "checked, none"
-    means it could not look, so zero runs is not zero."""
+    means it could not look, so zero runs is not zero. `roll` (roll_why's
+    sentence) blinds the futures-OI quadrant; `idx` in THIN_FLOW blinds the
+    flow read with the bar's own lot count as the reason (P1-02)."""
     out = {}
     b = [x for x in (bars or []) if isinstance(x, dict) and x.get("cvd") is not None
          and None not in (x.get("c"), x.get("h"), x.get("l"), x.get("t"))]
@@ -97,13 +124,19 @@ def facts(bars, runs, fronts_rows, runs_why=None) -> dict:
         hi = max(range(len(b)), key=lambda i: b[i]["h"])
         lo = min(range(len(b)), key=lambda i: b[i]["l"])
         since = _hh(b[-W]["t"])
-        out["cvd"] = {"d": d, "dpx": round(z["c"] - a["c"], 1), "rank": round(rank, 2), "since": since,
+        out["cvd"] = {"d": d, "dpx": round(z["c"] - a["c"], 1), "since": since,
+                      "rank": None if rank is None else round(rank, 2),
+                      "rank_why": _unsized(len(b) - W - 1) if rank is None else None,
                       "div_top": div(hi, 1), "div_bottom": div(lo, -1), "tag": "I"}
-        if a.get("oi") is not None and z.get("oi") is not None:
+        if roll:
+            out["fut_oi"] = f"futures OI: could not check — {roll}"
+        elif a.get("oi") is not None and z.get("oi") is not None:
             doi, dpx = z["oi"] - a["oi"], z["c"] - a["c"]
             # a quadrant is named only when both legs are a real move for today, never off noise
-            big = _rank(doi, [x.get("oi") for x in b]) >= STRONG and _rank(dpx, [x["c"] for x in b]) >= STRONG
-            q = ("too small against today's own 15-min changes to read" if not big else
+            ro, rp = _rank(doi, [x.get("oi") for x in b]), _rank(dpx, [x["c"] for x in b])
+            big = None not in (ro, rp) and ro >= STRONG and rp >= STRONG
+            q = ("could not check — " + _unsized(len(b) - W - 1) if None in (ro, rp) else
+                 "too small against today's own 15-min changes to read" if not big else
                  "longs building" if dpx > 0 and doi > 0 else "shorts covering" if dpx > 0
                  else "shorts building" if doi > 0 else "longs exiting")
             out["fut_oi"] = f"futures OI {doi:+,.0f} with price {dpx:+,.1f} since {since}: {q}"
@@ -115,6 +148,12 @@ def facts(bars, runs, fronts_rows, runs_why=None) -> dict:
                        "sell": rs + sum(1 for s in sk if s.get("side") == "sell"),
                        "since": since, "tag": "I",
                        "runs_why": runs_why if runs_why not in (None, "checked, none") else None}
+    if idx in THIN_FLOW:
+        # a thin future's prints are too few to read as flow; the count is the reason, never "quiet"
+        lots = b[-1].get("vol") if b else None
+        out["flow"] = None
+        out["flow_why"] = (f"{idx} future, {lots:g} lots this bucket" if isinstance(lots, (int, float))
+                           else f"{idx} future: no closed ladder bar yet")
     ce = next((f for f in (fronts_rows or []) if f.get("side") == "CE"), None)
     pe = next((f for f in (fronts_rows or []) if f.get("side") == "PE"), None)
     out["oi"] = {"ce": ce, "pe": pe} if (ce or pe) else None
@@ -130,6 +169,8 @@ def _cvd(kind, d, F):
     c = F.get("cvd")
     if c is None:
         return _f(BLIND, F.get("cvd_why"))
+    if c["rank"] is None:
+        return _f(BLIND, c.get("rank_why"))
     sgn = (c["d"] > 0) - (c["d"] < 0)
     strong = c["rank"] >= STRONG
     txt = (f"CVD {c['d']:+,.0f} since {c['since']} with price {c['dpx']:+,.1f} "
@@ -278,9 +319,9 @@ def calls_of(ctx: dict, px) -> list:
     return out
 
 
-def ground(ctx, px, bars, runs, fronts_rows, runs_why=None) -> dict:
+def ground(ctx, px, bars, runs, fronts_rows, runs_why=None, roll=None, idx=None) -> dict:
     """Every engine call on the latest bar, each with its three families and a status."""
-    F = facts(bars, runs, fronts_rows, runs_why)
+    F = facts(bars, runs, fronts_rows, runs_why, roll=roll, idx=idx)
     rows = []
     for src, text, kind, d in calls_of(ctx, px):
         if kind is None or (kind != "range" and d is None):

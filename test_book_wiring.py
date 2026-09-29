@@ -69,7 +69,7 @@ def test_the_loop_assigns_the_hook_watches_the_futures_and_drains_outside_the_lo
     # the hook lives in _hook_book since 2026-09-23 (on only inside the session)
     assert "feed.on_frame = _SENSES[\"book\"].on_frame" in inspect.getsource(server._hook_book)
     i_hook = src.index("_hook_book(feed, live)")
-    i_watch = src.index("_SENSES[\"book\"].watch(idx, r.get(\"fut_key\"))")
+    i_watch = src.index("_SENSES[\"book\"].watch(idx, r.get(\"fut_key\"), r.get(\"fut_expiry\"))")   # P1-04: the expiry rides with the key
     i_lock_end = src.index("# 5a/5b, OUTSIDE _SENSES_LOCK")
     i_drain = src.index("_ux_drain(")
     assert i_hook < i_watch < i_lock_end < i_drain

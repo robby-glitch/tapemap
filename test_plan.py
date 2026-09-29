@@ -173,4 +173,8 @@ def test_rev5_the_stop_sentence_the_break_level_and_the_stop_after_a_fold():
                             "collapsed": "FOLD · NIFTY 100 CE · line 95.0 broke 10:02 by 1.4 pts · since 10:02"}
     f = plan.read({"side": "CE", "role": "long", "qty": 20}, mins, [folded])["rows"][0]
     assert f["stop"]["L"] == 99.0 and f["stop"]["after_fold"]["L"] == 95.0                  # the log keeps the trailed L
-    assert f["stop"]["after_fold"]["text"].startswith("broke 10:02") and f["next_wall"] == plan.NOT_SHOWN + "the next wall — the plan ended at the FOLD"
+    # 2026-09-29 (plumbing fix c): while she is still in, the rung IS the next wall -- no "plan ended" absence beside it;
+    # the sentence appears only once she has marked out
+    assert f["stop"]["after_fold"]["text"].startswith("broke 10:02") and f["next_wall"] is None and f["rung"] is not None
+    out = plan.read({"side": "CE", "role": "long", "qty": 20, "exit_t": "10:04:00"}, mins, [folded])["rows"][0]
+    assert out["next_wall"] == plan.NOT_SHOWN + "the next wall — the plan ended at the FOLD"

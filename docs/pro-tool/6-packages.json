@@ -1,0 +1,549 @@
+{
+  "summary": "I applied both reviews' MUST-FIX lists and wrote three files in C:\\Users\\kaam\\Desktop\\operator mode\\tapemap\\docs\\pro-tool\\: 6-blueprint.md (replaces 4-final-blueprint.md; the MUST-FIX table is §1, rebuttals are §13), 6-amendment.md (replaces 4-amendment-draft.md) and 6-for-mary.md (her one page). Nothing was edited, started or committed outside docs/pro-tool/. The only other writes were replay scripts in scratchpad/j6.\n\nEvery MUST-FIX was accepted in substance. Three were narrowed, with evidence:\n- The POST guard covers /api/frame only for now. /api/paper_fill's sender has not been checked yet.\n- The expiry-day header disclosure is told to her in words rather than built the night before expiry.\n- The code-version field goes on rev 6 rows only.\n\nI checked the load-bearing claims myself and ran three new replays [M]:\n- **Never-loosen G:** changes no exit on all 9 trades (j6/run_j6.py).\n- **Expiry afternoon** (the trader's rule): after 13:30 on expiry day, the give-up follows the best price and plain acceptance folds. A1 goes from +77 to +199 at 14:12:45, the short mirror S1 from +58 to +84, and A2, S2 and R-A2 are unchanged (j6/run_x.py). It was designed on the one expiry trade, so it is flagged post hoc and 29 Sep is its first unseen day.\n- **Buy-or-sell read:** the literal \"wall ahead not adding\" reads SELL at all 8 marks (confirmed). The relative rule (wall ahead vs her defenders, % of own OI over 6 min) reads BUY at A1 and H1 and SELL at the other six (j6/expr_rel.py). That is in-sample, and A1 reads EITHER if \"pressing\" does not count as initiative.\n- The old expiry-day buy rule would have read SELL at A1, and expiry eve reads SELL at her own +97 % put, so both calendar votes are removed.\n\nAlso verified: trigger_log has 2,005 working lines against 402 at HEAD and 1,995 in the newest backup. frame.py:263 builds its contract OI from the bars the extension posts, so the planned contract match compared GoCharting with itself. server.py:1354 pools prior GoCharting tape days into the Trade tab. H2 at 14:12 had zone, flow and OI quiet and VPIN with her; A1 at 14:00 had flow and OI against under a HOLD headline.\n\nMain changes to the engine and face:\n- Four headlines: HOLD, PAST GIVE-UP, FOLD and CAN'T CHECK, so the screen never says HOLD while blind.\n- The clause under HOLD is built from her four reads (\"behind you / against you / nothing against you\"); the tape words move into the FLOW row. This answers her question with the pro's distinction: quiet is not against.\n- The OI event now also needs at least 3 updates and a 3 % drop.\n- The seller gets her own sentences.\n- The re-entry read is shown as unproven (it lost 3 of 3), and the whipsaw is stated as unsolved.\n\nAmendment mechanics:\n- No signed file is ever edited; closures, signature, hash and the in-force date live only in research-findings §1i.\n- Her commit of 6-amendment.md is the proof of order.\n- Gates run after that commit, on the design days (22–28 Sep) and the unseen days (29–30 Sep) reported apart.\n- Rev 6 is in force only from the first session its face is live.\n- One named alternative (the held breach alone) can replace the trailed rule.\n- Until then the shadow engine logs during hours and is shown only after 15:30.\n\nThe build order follows the safety review: her commits and a trigger_log copy first, then the leak guard, the fut_oi blind, the roll fix, contract stamps, the extension contract match against Upstox, the minimal panel fix and the frame guard. The engine then runs in shadow and the gates are measured. The faces come only after she signs.",
+  "decisions": [
+    "All 10 trader and 12 safety MUST-FIX items accepted in substance; narrowed with evidence in 6-blueprint §13: R3 the POST guard is /api/frame only until PaperDesk's sender is read; R4 the expiry-day header disclosure is told to her, not built the night before expiry; R5 code_sha only on rev 6 rows.",
+    "HOLD's clause is now built from her four reads ('behind you: ... / against you: ... / nothing behind you now, nothing against you'); the tape words move to the FLOW row. The pro rule stated for Mary: quiet is not against, and against at your level plus acceptance is the fold.",
+    "Fourth headline CAN'T CHECK since hh:mm with its reason: no G, order flow silent >= 30 s (h), or a TapeMap downtime hole. A stale chain (> 180 s) blinds only the OI row and the flow+OI fold. No tally or OI event spans a hole.",
+    "G never loosens, touched or not; replayed at zero exit change on all 9 trades [M, j6].",
+    "OI event floor: n >= 3 updates and >= 3 % (h) of the wall, on top of 3 sigma sqrt n; the reviewer measured no exit change [M, t5].",
+    "Expiry afternoon (from 13:30 on expiry day, trailed): G = best future since entry - theta at each bucket close her way, tighten only, fold on plain acceptance. A1 +77 -> +199, S1 +58 -> +84 [M, j6]. Flagged post hoc, designed on one trade; it has its own falsifier and kill row, and 29 Sep is its first unseen day. On expiry day the premium line splits into intrinsic and time value (display only).",
+    "Buy-or-sell read changed to the relative rule: wall ahead vs her defenders, % of own OI over 6 min, both numbers printed. The expiry-eve and expiry-day votes are removed because they read SELL at the trades they were meant to allow. The read is on the face only if the gate shows it is not constant.",
+    "The re-entry read is shown as unproven (0 of 3 in replay); the whipsaw is stated as unsolved; the at-entry FOLD carries a whipsaw outcome column.",
+    "Seller's own sentences for TIRING, PULLBACK and BEHIND YOU; the expiry-afternoon rule applies to the short identically.",
+    "Amendment: no signed file is edited; closures, signature, sha and the in-force date go only into research-findings section 1i. Her commit of 6-amendment.md is the proof of order. Rev 6 takes force from the first session its face is live. The trailed rule has one named alternative: the held breach alone.",
+    "Gate table 6-gate-table.md is written after her commit. It reports the design days (22-28 Sep) apart from the unseen days (29-30 Sep) and splits trades into mechanical / hand-picked / sold / re-entry, each with peak-before-exit and give-back. 22 Sep plumbing is disclosed. The earliest signature is Wednesday night.",
+    "The shadow engine logs only during hours and is shown after 15:30 (live only on her word). Resume works by causal recompute on the arrival clock; logged words win and a difference writes a diverged row. Rows are written per event and per bucket close, never per batch.",
+    "Build order per safety: P0 trigger_log copy and her commits first (the build briefs forbid stash, reset --hard, checkout . and clean), then the leak guard, the fut_oi blind, the roll fix, contract stamps, the extension contract match against Upstox ux OI (2 % tolerance), the minimal panel fix and the frame guard.",
+    "Mary is told plainly that rev 5's latch still runs on 29-30 Sep and cannot change without her signature, and that she should restart after Tuesday's close so the roll fix is live on 30 Sep."
+  ],
+  "packages": [
+    {
+      "id": "P0-01",
+      "title": "Protect trigger_log and land her pending commits",
+      "repo": "both",
+      "files": [
+        "tapemap/data/trigger_log.jsonl (copied outside the repo, never edited)",
+        "tapemap/.gitignore (her staged untracking)",
+        "tapemap working tree BUGFIX #1-6 (her commit)",
+        "orderflow-desk working tree fit/overlay diff (her commit)"
+      ],
+      "depends_on": [],
+      "what": "Copy data/trigger_log.jsonl (2,005 rows) outside the repo now. She commits the staged untracking first, then BUGFIX #1-6 and the extension diff once their tests pass. The extension commit message names the three fit.js notes and the 5m fixture rewrite (confirm who rewrote it). Every later build brief forbids git stash, reset --hard, checkout ., clean and any whole-tree checkout.",
+      "acceptance": "The copy has 2,005 lines, including today's 10 rows. After her commits, git status shows no staged deletion of trigger_log, and the working file still has 2,005+ lines. The build briefs carry the forbidden-command list.",
+      "registered_rule_change": false,
+      "live_risk": "Highest in the plan. Before her commit, any stash or reset writes HEAD's 402 lines over the live 2,005, and the newest backup lacks today's 10 rows. Her hands only; after the close."
+    },
+    {
+      "id": "P1-01",
+      "title": "Leak guard for every data directory, plus restart test extended",
+      "repo": "tapemap",
+      "files": [
+        "conftest.py",
+        "server.py (_isolate_mock_writers)",
+        "test_hold_route.py"
+      ],
+      "depends_on": [
+        "P0-01"
+      ],
+      "what": "Add day_state.DIR, hold_log.DIR, chain_live.CHAIN_DIR, calls_log.DIR, frame_log.DIR, senses.DIR, trigger_log.PATH, data/fold/ and the backfill path to the autouse fixture and to _isolate_mock_writers. Extend test_a_restart_reads_the_same_window with exit and reopen assertions instead of adding a new file.",
+      "acceptance": "Full pytest passes, and a guard test asserts that every listed path resolves under tmp_path during tests. No file under data/ changes mtime during a full pytest run (checked by listing before and after).",
+      "registered_rule_change": false,
+      "live_risk": "Low; tests only. Must land before any other package's tests run, because a morning test run would write a fake marked trade into today's day_state."
+    },
+    {
+      "id": "P1-02",
+      "title": "fut_oi blind in the near contract's expiry week; SENSEX flow blind",
+      "repo": "tapemap",
+      "files": [
+        "grounds.py",
+        "frame.py",
+        "test_grounds_rank.py",
+        "test_frame.py"
+      ],
+      "depends_on": [
+        "P0-01",
+        "P1-01"
+      ],
+      "what": "In the expiry week, the near future's OI change reads 'could not check: the Sep future is rolling into Oct' instead of a number. SENSEX FLOW/VPIN reads 'could not check: SENSEX future, n lots this bucket'. No signed rule reads fut_oi (verified by the safety review).",
+      "acceptance": "Tests show the blind sentence on an expiry-week day and the number on other days. The calls rows written after the change carry the new text, and the changeover is dated in the commit message.",
+      "registered_rule_change": false,
+      "live_risk": "Low. The grounds text changes partway through the calls population, so the change is separable only by date. Ship after the close with a restart by her."
+    },
+    {
+      "id": "P1-03",
+      "title": "The 30 Sep roll for the Trade tab's prior levels and naked POCs",
+      "repo": "tapemap",
+      "files": [
+        "server.py (~1354 prior_days pooling)",
+        "tape_log.py",
+        "test_tape_log.py"
+      ],
+      "depends_on": [
+        "P0-01",
+        "P1-01",
+        "P1-02"
+      ],
+      "what": "Drop prior GoCharting tape days on or before the expired front future's expiry, using the same expiry source as BUGFIX #6. prior_why reads 'the Sep future expired 29 Sep; earlier days are another contract'.",
+      "acceptance": "A test with a 30 Sep day and 22-29 Sep priors returns no prior levels, with the why. A 1 Oct day uses only 30 Sep. BUGFIX #6 is committed and her restart happens after Tuesday's close.",
+      "registered_rule_change": false,
+      "live_risk": "Must be live before 30 Sep 09:15. It needs her restart after the 29 Sep close. A missed restart draws Sep prices on the Oct chart, off by the calendar spread."
+    },
+    {
+      "id": "P1-04",
+      "title": "Contract stamps on book, ux and chain rows (not on GoCharting tape rows)",
+      "repo": "tapemap",
+      "files": [
+        "server.py (Book.watch expiry threading)",
+        "book_log.py",
+        "ux_log.py",
+        "chain_live.py",
+        "tape_log.py",
+        "test_book_log.py",
+        "test_ux_log.py",
+        "test_chain_live.py",
+        "test_tape_log.py"
+      ],
+      "depends_on": [
+        "P1-03"
+      ],
+      "what": "Additive ik and expiry fields on every book_, ux_ and chain_ row. Tape rows get ik: null and ik_why: 'GoCharting continuous NIFTY-I; contract not declared'. No tail is carried across two contracts. Built after her commit, in one sitting, as the only server.py change of that sitting.",
+      "acceptance": "Tests show the new fields on each row type and ik null with its why on tape rows. Existing readers of these files pass unchanged.",
+      "registered_rule_change": false,
+      "live_risk": "Medium: touches the recorders. Additive only; verified on a mock run before her restart after a close."
+    },
+    {
+      "id": "P1-05",
+      "title": "Extension fit to TapeMap's session day and contract match against Upstox",
+      "repo": "both",
+      "files": [
+        "orderflow-desk/src/engine/fit.js",
+        "orderflow-desk/src/shell/main.js",
+        "orderflow-desk/src/shell/overlay.js",
+        "orderflow-desk/test/fit.mjs",
+        "tapemap/frame.py",
+        "tapemap/server.py",
+        "tapemap/test_frame_api.py"
+      ],
+      "depends_on": [
+        "P1-04"
+      ],
+      "what": "Changes to the fit:\n- With no date tick, fit only frame.day.\n- TapeMap unreachable reads 'not trusted: TapeMap not reachable', never every loaded day.\n- g.ahead is offered only when the last loaded bar's date equals frame.day.\n\nThe contract match:\n- A new frame field carries the last N Upstox ux bars {t, oi}.\n- The extension compares GoCharting bar OI with it on closed bars, matching when |dOI| <= 2 % (h).\n- 2 bad bars pause the marks, 2 good resume them.\n- While paused, one tag: 'chart shows another day / contract since hh:mm; marks paused, panel live'.",
+      "acceptance": "npm run verify passes, plus new fit tests: Friday loaded with no tick never fits; wrong contract pauses; same contract with a 0.93 % gap stays trusted; TapeMap down means not trusted. The tapemap test shows the ux OI field.",
+      "registered_rule_change": false,
+      "live_risk": "Needs an extension reload and an F5 on GoCharting (the relay orphans). Reload on expiry morning only if every node test passes and she is at the desk before 09:10; otherwise the extension runs as it does today."
+    },
+    {
+      "id": "P1-06",
+      "title": "Panel minimal fix: LIGHT tokens, details state kept, skip unchanged render",
+      "repo": "orderflow-desk",
+      "files": [
+        "src/shell/panel.js",
+        "test/panel.mjs",
+        "package.json"
+      ],
+      "depends_on": [
+        "P0-01"
+      ],
+      "what": "- Swap the panel to LIGHT tokens.\n- Before the innerHTML write at panel.js:515, collect the open <details> and restore them after.\n- Skip the write when the HTML string is unchanged.\n- Add test/panel.mjs (with a stub, since there is no jsdom) to npm test and verify.\n\nFull per-block patching stays in P3-03.",
+      "acceptance": "npm test and verify run panel.mjs. The tests show an open details survives a re-render and an identical frame causes no write. The panel is visibly light.",
+      "registered_rule_change": false,
+      "live_risk": "Same reload rule as P1-05. The diff is small, but the extension is reloaded on expiry morning only if every test passes and she is at the desk before 09:10."
+    },
+    {
+      "id": "P1-07",
+      "title": "Refuse cross-site POSTs to /api/frame",
+      "repo": "tapemap",
+      "files": [
+        "server.py (do_POST /api/frame)",
+        "test_frame_api.py"
+      ],
+      "depends_on": [
+        "P1-04"
+      ],
+      "what": "Refuse a POST to /api/frame whose Sec-Fetch-Site is cross-site unless its Origin is exactly the extension's chrome-extension:// origin from config. /api/paper_fill is untouched until PaperDesk's sender is checked.",
+      "acceptance": "Tests: cross-site without the extension Origin gets 403. Sec-Fetch-Site none, same-origin, and the extension Origin all pass. No header passes (curl). The first live session logs the headers sw.js actually sends.",
+      "registered_rule_change": false,
+      "live_risk": "If sw.js sends an unexpected header, the frame POSTs would be refused and the panel would go blank. The tests above plus one logged live session, with a one-line revert ready."
+    },
+    {
+      "id": "P2-01",
+      "title": "fold.py: the rev 6 engine, in shadow",
+      "repo": "tapemap",
+      "files": [
+        "fold.py",
+        "test_fold.py"
+      ],
+      "depends_on": [
+        "P1-01",
+        "P1-04"
+      ],
+      "what": "Implement 6-blueprint section 4 exactly:\n- units with F* and its early-minute rule;\n- fights, and a G that never loosens;\n- the one wall ranking (fronts.py untouched);\n- the OI event with its n >= 3 and 3 % floor;\n- acceptance with no tally spanning a hole;\n- the modes and the four trailed exits, including the expiry-afternoon row;\n- the four headlines including CAN'T CHECK;\n- the chip-built clause and the seller sentences;\n- line 2, the four rows, premium at G/A and the intrinsic/time split.\n\nPure functions over recorded inputs; it gates nothing.",
+      "acceptance": "Replaying the 8 design trades plus S1-S8 reproduces blueprint 6 section 4.9's exits. Tests prove: G never loosens; CAN'T CHECK appears over a synthetic hole and never HOLD inside one; the ZONE sentence agrees with its chip; no FOLD on arrival.",
+      "registered_rule_change": false,
+      "live_risk": "None live: a new module, not wired to any screen until P2-03, and only as a log."
+    },
+    {
+      "id": "P2-02",
+      "title": "The rev 6 event log and causal resume",
+      "repo": "tapemap",
+      "files": [
+        "fold_log.py",
+        "test_fold_log.py",
+        "conftest.py"
+      ],
+      "depends_on": [
+        "P2-01"
+      ],
+      "what": "Write data/fold/fold_<IDX>_<day>.jsonl with the 6-amendment section 5 schema:\n- rows per event and per bucket close;\n- each row carries shadow, thresholds_sha and code_sha;\n- outcome rows 20 min after each falsifiable read.\n\nResume:\n- recompute causally, admitting a book row by its arrival t and a chain row by its own ts;\n- logged words win on screen and are not re-emitted;\n- a difference writes a diverged row.",
+      "acceptance": "Tests: a mid-day restart on recorded inputs yields zero diverged rows. The row count per trade-hour is bounded (no per-batch rows). The log path is redirected in tests.",
+      "registered_rule_change": false,
+      "live_risk": "Low. Disk growth is bounded by the per-event cadence; the 09-18 wedge came from per-POST rewrites, which are avoided here."
+    },
+    {
+      "id": "P2-03",
+      "title": "Server wiring: incremental shadow fold, logged in hours, shown after 15:30",
+      "repo": "tapemap",
+      "files": [
+        "server.py",
+        "test_hold_route.py",
+        "ui-v2/src/hold/ (one after-close shadow block)"
+      ],
+      "depends_on": [
+        "P2-02"
+      ],
+      "what": "Run fold incrementally in the poller for each marked trade. /api/hold returns its shadow state without reading any day file. During 09:15-15:30 the shadow is logged only. After 15:30 one grey block in the hold tab shows the day's rev 6 words; it shows live only if she asks.",
+      "acceptance": "A timing test: the /api/hold request p95 does not grow with the day's book size. No shadow words appear in hours by default. An exception inside fold never breaks /api/hold (isolation test).",
+      "registered_rule_change": false,
+      "live_risk": "Medium: touches the live server path. It needs her restart after a close. Shown live in hours, it would put an unsigned rule into her decisions, so it is off by default."
+    },
+    {
+      "id": "P2-04",
+      "title": "The gate harness and 6-gate-table.md",
+      "repo": "tapemap",
+      "files": [
+        "tools/gate6.py",
+        "docs/pro-tool/6-gate-table.md"
+      ],
+      "depends_on": [
+        "P2-01",
+        "P2-02",
+        "her commit of docs/pro-tool/6-amendment.md"
+      ],
+      "what": "Replay every recorded day through fold.py. Design days (22-28 Sep) and unseen days (29 Sep expiry, 30 Sep roll) are reported apart. Trades are split into mechanical / hand-picked / sold / re-entry, each with exit, best, peak-before-exit and give-back. The 22 Sep plumbing is disclosed. Run the six pass gates of 6-amendment section 8 and the expression non-constancy check (with R2/R4). It runs only after her commit of the amendment.",
+      "acceptance": "6-gate-table.md exists with a mtime and a commit after the amendment's commit. Each gate is shown with pass/fail and its numbers, and the unseen days are in a separate section.",
+      "registered_rule_change": false,
+      "live_risk": "None live: read-only on data, writes only the gate table."
+    },
+    {
+      "id": "P2-05",
+      "title": "oi_prev: previous-close OI, same expiry, additive",
+      "repo": "tapemap",
+      "files": [
+        "upstox_chain.py",
+        "chain_live.py",
+        "test_chain_live.py"
+      ],
+      "depends_on": [
+        "P1-04"
+      ],
+      "what": "Check with one REST call whether Upstox's option chain carries the previous-close OI per leg. If it does, add oi_prev to chain rows. If not, the reads say 'could not check' and never show 0. oi_chg's meaning is unchanged.",
+      "acceptance": "Tests show oi_prev present or 'could not check' with its reason, and oi_chg unchanged.",
+      "registered_rule_change": false,
+      "live_risk": "Low: additive field. The one REST call runs outside market hours."
+    },
+    {
+      "id": "P2-06",
+      "title": "09:15-09:16 backfill written to disk, tagged",
+      "repo": "tapemap",
+      "files": [
+        "server.py (backfill_minutes)",
+        "ux_log.py",
+        "conftest.py"
+      ],
+      "depends_on": [
+        "P2-02"
+      ],
+      "what": "Persist the REST backfill minutes, tagged backfilled, so fold's recompute is deterministic. Add the path to the leak guard.",
+      "acceptance": "A restart test reads the same backfill from disk. Backfilled rows are never counted as observed.",
+      "registered_rule_change": false,
+      "live_risk": "Low-medium: touches the start path. Deferred from Phase 1 by the safety review because REST re-fetches on every start today."
+    },
+    {
+      "id": "P3-01",
+      "title": "DESK: the Validate tab renamed and rebuilt as the rev 6 face",
+      "repo": "tapemap",
+      "files": [
+        "ui-v2/src/hold/",
+        "ui-v2/src/App.tsx"
+      ],
+      "depends_on": [
+        "P2-03",
+        "her signature in research-findings section 1i"
+      ],
+      "what": "- The header, the headline with its four-reads clause, line 2, the premium row, the wall-ahead row and the four rows, at 2x size, LIGHT.\n- The check slip keys are unchanged.\n- Detail is open by default: the G staircase with refused loosenings, OI events with z/n/%, tallies, holes, and the alternative-exit columns marked 'logged, not in force'.",
+      "acceptance": "Snapshots at H2 14:12 and A1 14:00 read as blueprint 6 section 7.1. CAN'T CHECK renders over a hole. No count or rate is on screen.",
+      "registered_rule_change": true,
+      "live_risk": "Puts rev 6 in force on the first session it is live; that date goes into section 1i. It needs her signature first and ships after a close."
+    },
+    {
+      "id": "P3-02",
+      "title": "Retire the closed rules; /api/hold answers from fold",
+      "repo": "tapemap",
+      "files": [
+        "hold.py",
+        "validate.py",
+        "expression.py",
+        "trendbox.py",
+        "server.py",
+        "test_hold.py",
+        "test_validate.py",
+        "test_expression.py"
+      ],
+      "depends_on": [
+        "P3-01"
+      ],
+      "what": "Tag pre-rev6 first. Remove the line/close, trend, quiet clock, latch/heal, GO/WAIT/NO, the Room ratio and FOLD_NEEDS. /api/hold serves fold.read. Rev 5 logs stop on the in-force date, and their rows stay their own population.",
+      "acceptance": "The tag exists and the tests are updated. Rev 5 rows before the date are byte-identical. /api/hold returns rev 6 fields.",
+      "registered_rule_change": true,
+      "live_risk": "High if shipped before her signature or in hours. The tag gives an instant rollback."
+    },
+    {
+      "id": "P3-03",
+      "title": "Panel patched per block, and mark-my-trade from the panel",
+      "repo": "both",
+      "files": [
+        "orderflow-desk/src/shell/panel.js",
+        "orderflow-desk/src/shell/sw.js",
+        "orderflow-desk/src/shell/main.js",
+        "orderflow-desk/test/panel.mjs",
+        "tapemap/server.py (hold door Origin config)"
+      ],
+      "depends_on": [
+        "P3-01",
+        "P1-06"
+      ],
+      "what": "- Per-block DOM patching.\n- The 400 px frame of blueprint 6 section 7.1.\n- Mark trade: CE/PE -> BUY/SELL -> MARK, with the strike prefilled ATM on F* and the premium frozen when the row opens, posted through sw.js to /api/hold/trades.\n- Build test first: log the Sec-Fetch-Site and Origin that sw.js sends. The door admits none, same-origin, or the exact extension Origin.",
+      "acceptance": "npm run verify passes. A mark from the panel appears in day_state and survives a restart. A cross-site mark is refused.",
+      "registered_rule_change": true,
+      "live_risk": "Extension reload plus F5 GoCharting, after a close only."
+    },
+    {
+      "id": "P3-04",
+      "title": "Chart marks from the rev 6 event log",
+      "repo": "both",
+      "files": [
+        "orderflow-desk/src/shell/overlay.js",
+        "orderflow-desk/test/overlay.mjs",
+        "tapemap/frame.py"
+      ],
+      "depends_on": [
+        "P3-01",
+        "P1-05"
+      ],
+      "what": "Every glyph and line comes from the fold log at its frozen (t, p): the 7 glyphs, the give-up staircase, and W/A with strike chips. Removed: ROUND, the sigma pocket, the event strip, pain chips, trap discs and BANK.",
+      "acceptance": "The overlay tests show marks at their log positions, and nothing moves across frames.",
+      "registered_rule_change": true,
+      "live_risk": "Extension reload, after a close only; marks pause under the P1-05 trust rule."
+    },
+    {
+      "id": "P4-01",
+      "title": "Entry face: IF YOU WERE IN",
+      "repo": "tapemap",
+      "files": [
+        "fold.py",
+        "ui-v2/src/hold/",
+        "data/hold/check_<day>.jsonl writer"
+      ],
+      "depends_on": [
+        "P3-01"
+      ],
+      "what": "The hypothetical-mark face: headline, line 2, G and the premium there, A and the premium there, premium vs day VWAP as sigma, days to expiry, and three amber clauses. No word and no refusal. Logged at each press.",
+      "acceptance": "Her 09:30 28 Sep put shows 41 pts of room and a 56-72 pt give-up as two distances, with no verdict. Check rows are written.",
+      "registered_rule_change": true,
+      "live_risk": "Replaces VALIDATE rev 2 on screen; in force only under the signature."
+    },
+    {
+      "id": "P4-02",
+      "title": "Flat: NEXT FIGHT, GAVE UP event, re-entry read (unproven), THE DAY",
+      "repo": "tapemap",
+      "files": [
+        "fold.py",
+        "ui-v2/src/hold/",
+        "data/fold/flat_<IDX>_<day>.jsonl writer"
+      ],
+      "depends_on": [
+        "P3-01"
+      ],
+      "what": "- The flat half per blueprint 6 section 6.\n- The re-entry read is printed with 'unproven: 0 of 3 in replay' and logged against the at-entry whipsaw column.\n- Frozen silent events.",
+      "acceptance": "Replays show the flat events at their fixed times, and the re-entry read carries its unproven tag.",
+      "registered_rule_change": true,
+      "live_risk": "Low; silent reads only."
+    },
+    {
+      "id": "P4-03",
+      "title": "Expression: relative wall-pace buy/sell read",
+      "repo": "tapemap",
+      "files": [
+        "expression.py",
+        "test_expression.py",
+        "ui-v2/src/hold/",
+        "data/hold/expr_<day>.jsonl writer"
+      ],
+      "depends_on": [
+        "P3-01",
+        "P2-04"
+      ],
+      "what": "- BUY: an initiative win her way and the wall ahead's 6-min OI % growth below her defenders'.\n- SELL: the wall ahead grew at least as fast, or the last win was absorbed, or TIRING.\n- EITHER: otherwise.\n\nBoth numbers are printed. No calendar votes; R2/R4 kept. The read freezes when the mark row opens. It shows on the face only if the gate table showed both BUY and SELL; otherwise the face reads 'not showing you: in test'.",
+      "acceptance": "The 8 design marks read as j6/expr_rel.py (BUY A1, H1; SELL the rest). The display switch follows the gate table. Rows are logged at every bucket close.",
+      "registered_rule_change": true,
+      "live_risk": "Replaces EXPRESSION rev e on screen; a wrong read nudges her side choice, so display is gated."
+    },
+    {
+      "id": "P5-01",
+      "title": "Tabs cut to DESK, WAR, RECORD, Trade",
+      "repo": "tapemap",
+      "files": [
+        "ui-v2/src/App.tsx",
+        "ui-v2/src/flow",
+        "ui-v2/src/board",
+        "ui-v2/src/signals",
+        "ui-v2/src/vpin",
+        "ui-v2/src/one"
+      ],
+      "depends_on": [
+        "P3-01"
+      ],
+      "what": "Remove Glass, Heat, Tape, Flow, Chain, OI Flow, Map and Events. Signals -> RECORD (with the after-close shadow words), the VPIN tab -> DESK detail, Board -> DESK FLAT. The Trade tab and vendor/ stay untouched. Tag before.",
+      "acceptance": "The UI builds, the four tabs render, and the Trade tab chart works unchanged.",
+      "registered_rule_change": false,
+      "live_risk": "Low; after a close, one commit, tag for rollback."
+    },
+    {
+      "id": "P5-02",
+      "title": "Dead fields out of frame, panel and overlay",
+      "repo": "both",
+      "files": [
+        "tapemap/frame.py",
+        "tapemap/gate.py",
+        "tapemap/watch.py",
+        "orderflow-desk/src/shell/panel.js",
+        "orderflow-desk/src/shell/overlay.js"
+      ],
+      "depends_on": [
+        "P3-03",
+        "P3-04"
+      ],
+      "what": "Remove gate.py (always PATA NAHI), the senses/ivrv None fields, the ballot, watch.py, the breadth footer, ROUND and both WRONG IFs. Keep anything trigger_log.py imports.",
+      "acceptance": "pytest and npm verify pass, and trigger_log.py's imports are unchanged.",
+      "registered_rule_change": false,
+      "live_risk": "Low; tag before."
+    },
+    {
+      "id": "P5-03",
+      "title": "Board and plan on F* and the one wall ranking",
+      "repo": "tapemap",
+      "files": [
+        "board.py",
+        "plan.py",
+        "test_board.py",
+        "test_plan.py"
+      ],
+      "depends_on": [
+        "P3-02"
+      ],
+      "what": "board.itm/nearer and the plan rung use F* and fold's ranking. The plan's STOP is G, NEXT RUNG is A as numbers, and the section 2.7 band stays as a printed level. §1d is untouched.",
+      "acceptance": "Tests show moneyness on F*, not spot, on 28 Sep's 24-46 pt gap.",
+      "registered_rule_change": true,
+      "live_risk": "Closes PLAN rev 3 sections; under the signature only."
+    },
+    {
+      "id": "P6-01",
+      "title": "Resting liquidity at G/A and big prints, in shadow",
+      "repo": "tapemap",
+      "files": [
+        "ladder.py",
+        "fold.py",
+        "book_log.py"
+      ],
+      "depends_on": [
+        "P2-03"
+      ],
+      "what": "- Touch-depth read only while price is at G or A.\n- Fills >= the day's 99th percentile, at a level.\n- One line each, logged in shadow.",
+      "acceptance": "Replayed lines on 28 Sep, with [M]/[I] tags.",
+      "registered_rule_change": false,
+      "live_risk": "Low; shadow only."
+    },
+    {
+      "id": "P6-02",
+      "title": "Failed auction at a day extreme and the next-weekly chain on expiry days, in shadow",
+      "repo": "tapemap",
+      "files": [
+        "fold.py",
+        "chain_live.py",
+        "upstox_chain.py"
+      ],
+      "depends_on": [
+        "P2-03"
+      ],
+      "what": "A failed-auction read on FLAT. On expiry days, subscribe to the next weekly's chain so A can live there.",
+      "acceptance": "On 29 Sep, the next-weekly chain rows are recorded, and the failed-auction reads are logged.",
+      "registered_rule_change": false,
+      "live_risk": "Medium for the chain subscription (feed load); after a close, verified on a mock."
+    },
+    {
+      "id": "P6-03",
+      "title": "VPIN fed from the ladder's fills (one classifier)",
+      "repo": "tapemap",
+      "files": [
+        "vpin.py",
+        "ladder.py",
+        "test_vpin.py"
+      ],
+      "depends_on": [
+        "P2-03"
+      ],
+      "what": "A new VPIN series from the ladder's signed fills, with its own clock beside the old gauge. The VPIN row switches to it only when the series has 30 sessions of its own.",
+      "acceptance": "The series is written to its own file with its own rev; the old gauge is unchanged.",
+      "registered_rule_change": false,
+      "live_risk": "Low; additive."
+    },
+    {
+      "id": "P6-04",
+      "title": "GoCharting tick post used only to dispute a fight",
+      "repo": "both",
+      "files": [
+        "orderflow-desk/src/engine/adapter.js",
+        "orderflow-desk/src/shell/main.js",
+        "tapemap/fold.py",
+        "tapemap/server.py"
+      ],
+      "depends_on": [
+        "P1-07",
+        "P2-03"
+      ],
+      "what": "Post GoCharting's signed ticks. A fight they contradict is drawn hatched as disputed. Kill: more than 1 fight in 3 disputed over 30 sessions.",
+      "acceptance": "A disputed-fight test, and the kill count logged.",
+      "registered_rule_change": false,
+      "live_risk": "Extension reload, after a close only."
+    },
+    {
+      "id": "P6-05",
+      "title": "Pre-09:15 subscription and the tick-built minute",
+      "repo": "tapemap",
+      "files": [
+        "upstox_feed.py",
+        "ux_log.py",
+        "server.py"
+      ],
+      "depends_on": [
+        "P6-01",
+        "P6-02",
+        "P6-03"
+      ],
+      "what": "Subscribe before 09:15 so the 09:15-09:17 lots are seen. Build the minute from ticks, reconcile with REST later, tagged. Goes last.",
+      "acceptance": "A quiet morning shows book rows from 09:15:00, and the reconciliation diffs are logged.",
+      "registered_rule_change": false,
+      "live_risk": "Highest of phase 6: touches the live feed. Needs a quiet morning with her present; never on an expiry or roll day."
+    }
+  ]
+}

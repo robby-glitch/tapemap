@@ -176,7 +176,33 @@ def live_expiries(rows, now_ms=None):
                    and x["expiry"] >= now_ms})
 
 
-def fut_key(name="NIFTY", rows=None):
+def _futs(rows, now_ms=None):
+    """The futures still alive, soonest first -- the same `now` filter the options
+    already use. A cached dump keeps a future after its expiry, so on a roll morning
+    futs[0] was the dead contract and the ladder, VPIN and book would have watched it
+    all day (2026-09-28 trader audit, bug 13)."""
+    live = set(live_expiries(rows, now_ms))
+    return sorted((x for x in rows if x["instrument_type"] in FUT_TYPES
+                   and x.get("expiry") in live), key=lambda x: x["expiry"])
+
+
+def _ymd(ms):
+    return datetime.fromtimestamp(ms / 1000).strftime("%Y-%m-%d")
+
+
+def fut_expired(rows, now_ms=None):
+    """The most recently EXPIRED future's expiry as 'YYYY-MM-DD', for as long as the
+    cached dump still lists it -- the roll morning's "the Sep future expired 29 Sep"
+    (pro-tool P1-03) -- or None once the dump has dropped it (Upstox lists live
+    instruments only). The same `expiry` field `_futs` reads."""
+    if now_ms is None:
+        now_ms = datetime.now().timestamp() * 1000
+    gone = [x["expiry"] for x in rows if x["instrument_type"] in FUT_TYPES
+            and isinstance(x.get("expiry"), (int, float)) and x["expiry"] < now_ms]
+    return _ymd(max(gone)) if gone else None
+
+
+def fut_key(name="NIFTY", rows=None, now_ms=None):
     """The near-month future's instrument key.
 
     Separate from `resolve` because the bar path needs the future BEFORE it
@@ -184,20 +210,18 @@ def fut_key(name="NIFTY", rows=None):
     from -- while the strike window cannot be chosen without one.
     """
     rows = rows if rows is not None else load(name)
-    futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
-                  key=lambda x: x.get("expiry") or 0)
+    futs = _futs(rows, now_ms)
     if not futs:
         raise RuntimeError(f"{name}: no future in the dump")
     return futs[0]["instrument_key"]
 
 
-def lot_tick(name="NIFTY", rows=None):
+def lot_tick(name="NIFTY", rows=None, now_ms=None):
     """(lot, tick) of the nearest live future, or (None, None) when the cached
     slice predates the two fields -- the caller (ladder.py) then infers and
     says so on the row (`lot_src`, `tick_src`)."""
     rows = rows if rows is not None else load(name)
-    futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
-                  key=lambda x: x.get("expiry") or 0)
+    futs = _futs(rows, now_ms)
     if not futs:
         return None, None
     f = futs[0]
@@ -277,8 +301,7 @@ def resolve(spot, name="NIFTY", each_side=STRIKES_EACH_SIDE, rows=None,
         rows, idx_key = blob["rows"], blob["index_key"]
     else:
         idx_key = None
-    futs = sorted((x for x in rows if x["instrument_type"] in FUT_TYPES),
-                  key=lambda x: x.get("expiry") or 0)
+    futs = _futs(rows, now_ms)
     opts = [x for x in rows if x["instrument_type"] in ("CE", "PE")]
     exps = live_expiries(opts, now_ms)
     if not exps:
@@ -297,6 +320,10 @@ def resolve(spot, name="NIFTY", each_side=STRIKES_EACH_SIDE, rows=None,
             for x in chosen}
     fkey = futs[0]["instrument_key"] if futs else None
     keys = ([idx_key] if idx_key else []) + ([fkey] if fkey else []) + list(meta)
+    # fut_expiry / fut_expired: the watched future's own expiry and the last one that has
+    # already expired -- the contract stamp (P1-04) and the roll morning's cut (P1-03)
     return {"idx_key": idx_key, "fut_key": fkey,
-            "expiry": datetime.fromtimestamp(exp / 1000).strftime("%Y-%m-%d"),
+            "expiry": _ymd(exp),
+            "fut_expiry": _ymd(futs[0]["expiry"]) if futs else None,
+            "fut_expired": fut_expired(rows, now_ms),
             "strikes": sorted(strikes), "keys": keys, "meta": meta}

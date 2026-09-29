@@ -11,9 +11,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Chain, IndexKey } from '../data'
-import { counts } from './HoldWindow'
 import type { Reading, Trade } from './HoldWindow'
-import { Abs, AbsentList, Age, Cutoff, Err, Guard, Ico, Mark, Marks, N, PlanList, Qual, Quiet, Rows, SideList, Sigma, StopBlock, T, WallBlock, WatchList,
+import { Abs, AbsentList, Age, Cutoff, Err, Fired, Guard, Ico, Live, Mark, Marks, N, PlanList, Qual, Quiet, Rows, SideList, Sigma, StopBlock, T, WallBlock, WatchList,
          cap, inr, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
 import { ageSec, followTrade, j, tradeOp, useHold } from './store'
 import MarketNow from './MarketNow'
@@ -40,7 +39,6 @@ type Check = Reading & {
   greeks?: { delta?: number; gamma?: number; why?: string; tag?: string }
 }
 const IDX: IndexKey[] = ['NIFTY', 'SENSEX', 'BANKNIFTY'] as IndexKey[]
-const FACT_WORD = { for: 'with you', against: 'against', neither: 'neither' }
 const NAMES = ['Your setup', 'Right now', 'Room', 'Paying']          // VALIDATE-PREREG rev 2 §1
 const OLD_S = 60                     // an answer older than a minute is dimmed: the market has moved a bar
 
@@ -374,8 +372,7 @@ function CheckView({ ck, v, at, stale, riskScale, onAgain, onIn, busy }: { ck: C
         <h2 className="w"><span className={`word ${vcls(v.word || 'PATA NAHI')}`}>{v.word || '—'}</span></h2>
         <div className="cnt">
           <Marks facts={v.facts} />
-          <div className="sub"><b>{v.n_for}</b> with you · <b>{v.n_against}</b> against · {v.n_neither} neither · of {v.facts.length}<T t={v.tag || 'I'} /></div>
-          <div className="odds">a count, not odds</div>
+          <div className="sub">{v.count}<T t={v.tag || 'I'} /></div>
         </div>
         <div className="say">
           <p className="clamp3" title={v.sentence}>{v.sentence}</p>
@@ -397,7 +394,7 @@ function CheckView({ ck, v, at, stale, riskScale, onAgain, onIn, busy }: { ck: C
               <div key={f.name} className={`fact${can ? ' can' : ''}${open[f.name] ? ' open' : ''}`} data-st={f.state}
                    role={can ? 'button' : undefined} tabIndex={can ? 0 : undefined} aria-expanded={can ? !!open[f.name] : undefined}
                    onClick={flip} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip() } }}>
-                <Mark st={f.state} /><span className="nm">{f.name}</span><span className="st">{f.absence ? '—' : FACT_WORD[f.state]}</span>
+                <Mark st={f.state} /><span className="nm">{f.name}</span><span className="st">{f.absence ? '—' : f.state}</span>
                 <span className="tx">{f.absence ? <Abs text={f.text} kind={f.absence} /> : f.text}</span><Ico n="ChevronDown" c="chev" />
               </div>
             )
@@ -434,20 +431,6 @@ function CheckView({ ck, v, at, stale, riskScale, onAgain, onIn, busy }: { ck: C
 const XCOL: [XFact['state'], string][] = [['buy', 'For buy'], ['sell', 'For sell'], ['neither', 'Neither']]
 const fmtD = (x: number) => (x < 0 ? '−' : '+') + Math.abs(x).toFixed(2)
 
-/** The word's second line, in the caution ink when a leg is refused (§F.1 item 1). */
-function wordNote(x: Expr): string | null {
-  const why = (x.refused || []).join('; '), tie = x.lead === 0 && x.named_by === 'refusal'
-  if (x.base === 'STAND ASIDE') {
-    if (x.word?.includes('both')) return `both refused: ${why}`
-    return x.refused?.some(r => r.startsWith('R5')) ? `the facts favour buying, ${x.nb} to ${x.ns}, but buying is refused: ${why}`
-      : `the facts favour selling, ${x.ns} to ${x.nb}, but selling is refused: ${why}`
-  }
-  if (x.named_by === 'refusal')
-    return `${x.word?.includes('selling') ? 'selling' : 'buying'} refused (${why})` + (tie ? ` · the facts tie ${x.nb}–${x.ns}` : '')
-  if (x.base === 'EITHER') return x.nb === 0 && x.ns === 0 ? 'nothing separates them' : `the facts split ${x.nb}–${x.ns}`
-  return null
-}
-
 function Expression({ x, idx, onIn, busy }: { x: Expr; idx: string; onIn: (c: XCard) => void; busy: boolean }) {
   const [sig, setSig] = useState<Record<string, { z?: number | null; why?: string; tag?: string }>>({})
   useEffect(() => {                                   // σ vs its own VWAP, printed: fetched after the answer (a REST read)
@@ -460,7 +443,8 @@ function Expression({ x, idx, onIn, busy }: { x: Expr; idx: string; onIn: (c: XC
     <section className="xp"><div className="xp-h"><span className="label">The expression · {x.dir} · {idx}</span><span className="draft" title={x.draft}>DRAFT</span></div>
       <div className="xp-absent"><Abs text={x.why || 'could not check — the expression'} /></div>
       {x.setup_line && <p className="fine">{x.setup_line}</p>}</section>)
-  const note = wordNote(x), aside = x.base === 'STAND ASIDE', pr = x.printed
+  // the word's second line is the server's own refusal sentences (§F.1 item 1), in the caution ink; the count is its `count`
+  const note = x.refused?.length ? x.refused.join('; ') : null, aside = x.base === 'STAND ASIDE', pr = x.printed
   const head = x.base === 'EITHER' || aside ? x.base : `${x.base!.replace('LEANS ', '')} ${x.leg}`
   return (
     <section className="xp" aria-label="The expression — buy the option, or sell the other side">
@@ -475,7 +459,7 @@ function Expression({ x, idx, onIn, busy }: { x: Expr; idx: string; onIn: (c: XC
         <div className="xp-meta">
           <p>since <span className="num">{x.since}</span>{x.was && <> · was {x.was.word} until <span className="num">{x.was.until}</span></>} · read at the <span className="num">{x.read_at}</span> close</p>
           {x.since_gap && <Abs text={x.since_gap} />}
-          <p className="xp-count"><b className="num">{x.nb}</b> for buy · <b className="num">{x.ns}</b> for sell · <b className="num">{x.nn}</b> neither — of 5, a count, not odds<T t="I" /></p>
+          <p className="xp-count">{x.count}<T t="I" /></p>
         </div>
       </div>
       <div className="xp-cards">{[x.buy!, x.sell!].map(c => <XCardView key={c.side} c={c} sig={sig[c.side]} onIn={onIn} busy={busy} />)}</div>
@@ -575,8 +559,9 @@ function InView({ t, rd, open, flip, err }: { t: Trade; rd?: Held; open: Trade[]
   if (!rd) return <div className="empty"><span className="label">Reading your trade…</span></div>
   if (!rd.ok || !rd.now) return <div className="empty fresh"><span className="label">No reading</span><div className="abs-list"><Abs text={rd.why || 'could not check — no reading yet'} /></div></div>
   const n = rd.now, runs = rd.runs || [], red = n.verdict === 'FOLD', fold = rd.fold
-  const [nf, na] = counts(n)
   const entryRoom = rd.plan?.entry?.stop?.room
+  // under a latch the server's checked_none slot carries the latch rule -- a rule statement, printed plain (not an absence)
+  const rule = fold ? rd.absent?.checked_none?.replace(/^checked, none — /, '') : null
   return (
     <div className="fresh">
       <div className="echo">
@@ -590,17 +575,21 @@ function InView({ t, rd, open, flip, err }: { t: Trade; rd?: Held; open: Trade[]
       {err && <div className="stale-note"><Abs text={err} /></div>}
       <div className={`band${red ? ' red' : ''}`}>
         <h2 className="w"><span className={`word ${vcls(n.verdict)}`}>{n.verdict}<Qual tag={n.tag} /></span>
+          <Live n={n} />
           <span className="since">since <span className="num">{n.since}</span>{t.role === 'long' && <> · <Quiet n={n} /></>}</span></h2>
         <div className="cnt">
-          {nf != null ? <div className="n n28">{nf}<span className="of"> for · </span>{na}<span className="of"> against</span></div> : <div className="sub">{n.count}</div>}
+          <div className="label">live read</div>
+          <div className="n n28">{n.n_for}<span className="of"> for · </span>{n.n_against}<span className="of"> against</span></div>
           <div className="odds">a count, not odds</div>
         </div>
         <div className="say">
-          <p>{cap(strip(n.sentence))}</p>
+          {fold ? <Fired fold={fold} /> : <p>{cap(strip(n.sentence))}</p>}
+          {rule && <p className="sm">{rule}</p>}
+          <div className="band-rows"><Rows n={n} /></div>
           {flip && flip.rows.length > 0 && <p className="sm flip">changed {flip.t}: {flip.rows.join(' · ')}</p>}
           <WatchList n={n} />
           {rd.entry?.head && <p className="sm" style={{ fontWeight: 600 }}>{rd.entry.text}</p>}
-          {!red && n.verdict === 'HOLD' && <Abs text={rd.absent?.checked_none} />}
+          {!red && n.verdict === 'HOLD' && <Abs text={rd.absent?.checked_none} kind="none" />}
         </div>
       </div>
       <div className="body">
@@ -619,7 +608,7 @@ function InView({ t, rd, open, flip, err }: { t: Trade; rd?: Held; open: Trade[]
         </div>
         <div className="nums">
           <StopBlock p={rd.plan} n={n} idx={t.idx} fold={fold} />
-          <WallBlock p={rd.plan} fold={fold} />
+          <WallBlock p={rd.plan} />
           <div className="nb">
             <span className="label">Premium</span>
             {n.prem.c != null ? <>
@@ -632,11 +621,11 @@ function InView({ t, rd, open, flip, err }: { t: Trade; rd?: Held; open: Trade[]
         </div>
       </div>
       <details className="deep">
-        <summary><Ico n="ChevronDown" />Deeper detail <span className="muted">— the rows, the plan, the side read, what is absent</span></summary>
+        <summary><Ico n="ChevronDown" />Deeper detail <span className="muted">— at entry, the plan, the side read, what is absent</span></summary>
         <div className="deep-grid">
-          <section><h4 className="label">The rows now</h4><Rows n={n} />{rd.entry && <><h4 className="label">At entry</h4><p className="sm">{rd.entry.text}</p></>}</section>
+          <section>{rd.entry && <><h4 className="label">At entry</h4><p className="sm">{rd.entry.text}</p></>}</section>
           <section>{rd.plan && <PlanList p={rd.plan} qty={t.qty} />}{rd.side && <SideList s={rd.side} />}</section>
-          <section><AbsentList a={rd.absent} extra={[rd.sigma?.why]} />
+          <section><AbsentList a={rd.absent} extra={[rd.sigma?.why]} latched={!!fold} />
             {rd.src_data && <><h4 className="label">Sources</h4><dl className="kv">{Object.entries(rd.src_data).flatMap(([k, v]) => [<dt key={k}>{k}</dt>, <dd key={`${k}.v`}>{v}</dd>])}</dl></>}
             <h4 className="label">Draft</h4><p className="fine">{rd.draft}</p>{rd.plan?.draft && <p className="fine">{rd.plan.draft}</p>}{rd.note && <p className="fine">{rd.note}</p>}</section>
         </div>

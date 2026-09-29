@@ -208,6 +208,33 @@ def test_with_no_recorded_marks_everything_is_fair_game(monkeypatch):
     assert cb.backfill_minutes(_State(), "NIFTY", [1], "tok", before=None) == 2
 
 
+def test_the_backfill_is_on_disk_and_a_restart_reads_the_same_morning(monkeypatch):
+    """P2-06: the rebuilt marks are written once, tagged backfilled; a second process (REST down) holds the
+    same morning from the file, and a file mark wins over a fresh fetch so two processes never differ."""
+    import json as _json
+    import os
+    monkeypatch.setattr(cb, "minute_grid", lambda *a, **k: {
+        "09:15": {"spot": 1.0, "k": {23000: (1, 1)}, "px": {23000: (41.25, 55.8)}, "src": "backfill"},
+        "09:16": {"spot": 2.0, "k": {23000: (2, 2)}, "px": {23000: (42.0, 55.0)}, "src": "backfill"},
+        "15:35": {"spot": 3.0, "k": {23000: (3, 3)}, "px": {23000: (None, None)}, "src": "backfill"},
+    })
+    st = _State()
+    assert cb.backfill_minutes(st, "NIFTY", [23000], "tok", before=None, day="2026-09-29") == 2
+    rows = [_json.loads(x) for x in open(cb.path("2026-09-29", "NIFTY"), encoding="utf-8")]
+    assert [r["t"] for r in rows] == ["09:15", "09:16"] and all(r["backfilled"] is True and r["src"] == "backfill" for r in rows)
+    assert os.sep + "data" + os.sep not in os.path.abspath(cb.DIR)[len(os.path.abspath(os.sep)):] or "tmp" in cb.DIR.lower()
+    # the restart: REST raises, the file serves; the same marks, the same values, int strikes and (ce, pe) pairs back
+    monkeypatch.setattr(cb, "minute_grid", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("401")))
+    st2 = _State()
+    assert cb.backfill_minutes(st2, "NIFTY", [23000], "tok", before=None, day="2026-09-29") == 2
+    assert st2.minutes == st.minutes and st2.minutes["09:15"]["k"] == {23000: (1, 1)} and st2.minutes["09:15"]["px"][23000] == (41.25, 55.8)
+    # a fresh fetch that disagrees with the file does not change what an earlier process held; nothing is re-written
+    monkeypatch.setattr(cb, "minute_grid", lambda *a, **k: {"09:15": {"spot": 9.0, "k": {23000: (9, 9)}, "px": {}, "src": "backfill"}})
+    st3 = _State()
+    cb.backfill_minutes(st3, "NIFTY", [23000], "tok", before=None, day="2026-09-29")
+    assert st3.minutes["09:15"]["spot"] == 1.0 and len(open(cb.path("2026-09-29", "NIFTY"), encoding="utf-8").readlines()) == 2
+
+
 # ---- the poller's side of the hook -----------------------------------------
 
 def test_the_poller_does_not_backfill_on_dhan(monkeypatch):

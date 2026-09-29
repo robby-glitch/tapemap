@@ -44,6 +44,7 @@ import trendbox                  # ...and its trend box, on the index's own cand
 import calls_log                 # ...and kept, one row per engine bar, in session only
 import hold                      # the hold / fold window, as registered (PREREG-merged.md rev 4 + PREREG-rev5.md option B)
 import hold_log                  # ...and its forward logs, write-once
+import fold_live                 # the rev 6 engine (fold.py) run live: /api/fold*, the frame's fold / flat (API-v3)
 import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
 import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
 import expression                # ...and THE EXPRESSION, buy or sell, and the writer's word (EXPRESSION-PREREG.md rev e)
@@ -120,6 +121,11 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
            # feed thread fills and the loop drains. `book_rows` is what the
            # last drain wrote, for ux_log to consume on the same pass.
            "book": book_log.Book(), "book_rows": [],
+           # THE WATCHED CONTRACT per index (pro-tool P1-02..P1-05): idx -> {"ik", "expiry",
+           # "expired"} off upstox_instruments.resolve, re-set every senses pass beside Book.watch.
+           # `expiry` blinds the futures-OI read in its expiry week, `expired` cuts the Trade tab's
+           # prior days at the roll, `ik` stamps the book and ux rows.
+           "contract": {},
            # per-index lot/tick and the two book-derived detectors (spec §G);
            # keyed by idx, reset on a day roll in the loop
            "ux": {},
@@ -740,6 +746,7 @@ def _senses_loop(poller, payloads, period=0.5):
                         # snapshot, so queuing it costs nothing the lock needs
                         # to protect.
                         chain_pace_due.append((idx, doc))
+                        fold_live.push_chain(idx, doc)      # the rev 6 engine's chain row (fold_live.py)
 
                 if feed_ok:
                     # NOTHING IS RECORDED OUTSIDE THE SESSION (operator,
@@ -755,7 +762,9 @@ def _senses_loop(poller, payloads, period=0.5):
                         # contract roll changes fut_key and this re-watches it.
                         # Watched even after the close: a restart then rebuilds
                         # the day's ladder and runs from this watched set.
-                        _SENSES["book"].watch(idx, r.get("fut_key"))
+                        _SENSES["book"].watch(idx, r.get("fut_key"), r.get("fut_expiry"))
+                        _SENSES["contract"][idx] = {"ik": r.get("fut_key"), "expiry": r.get("fut_expiry"),
+                                                    "expired": r.get("fut_expired")}
                         if not live:
                             continue
                         # Near-ATM legs only, chosen against the poller's own spot. If
@@ -843,6 +852,7 @@ def _senses_loop(poller, payloads, period=0.5):
             # THE BOOK RECORD'S DRAIN AND THE LADDER, outside the lock with the
             # other writers (spec 2 §B, §E).
             _SENSES["book_rows"] = _ux_drain(time.strftime("%Y-%m-%d"))
+            fold_live.push_book(_SENSES["book_rows"])      # the rev 6 engine's book rows, the ones just written
 
             # The toxicity record, outside the lock with the other writers.
             # Fail-soft: a full disk costs the row, never the tape.
@@ -862,6 +872,7 @@ def _senses_loop(poller, payloads, period=0.5):
                             fh.write(json.dumps(ev) + "\n")
                 except OSError:
                     log.exception("vpin fast log append")
+                fold_live.push("NIFTY", "vpin", vpin_fast_due)      # the rev 6 engine's VPIN row (NIFTY-FUT:fast)
             # THE DAY'S RAM-ONLY SERIES, written down so a post-close restart
             # does not blank the screen ("abhi to ui he khali ho jaata"). Out
             # here with the other disk writers, never under _SENSES_LOCK.
@@ -1009,6 +1020,7 @@ def _book_for(handler, idx):
     with _SENSES_LOCK:
         wb = _SENSES.get("warmap")
         wm = wb.for_index(idx).state() if wb else None
+        ct = dict((_SENSES.get("contract") or {}).get(idx) or {})
         g = (_SENSES.get("vpin") or {}).get(f"{idx}-FUT")
         vpin_pct = g.state().get("pct") if g else None
         senses = None
@@ -1083,10 +1095,17 @@ def _book_for(handler, idx):
             "vpin_pct": vpin_pct, "senses": senses, "sweeps": sweeps,
             "watch_prior": watch_prior, "signal_prior": signal_prior, "plays_at": plays_at,
             "regime": regime, "pinned": None if regime is None else regime == "PINNED",
-            "ivrv": None, "coverage": _coverage()}
+            "ivrv": None, "coverage": _coverage(),
+            # the watched future's expiry (P1-02) and the last UX_OI_N Upstox ladder bars' {t, oi}
+            # (P1-05): the extension's contract match needs an OI that is not GoCharting's own
+            "fut_expiry": ct.get("expiry"),
+            "ux_oi": [{"t": b["t"], "oi": b.get("oi")} for b in _ux_bars(idx, time.strftime("%Y-%m-%d"))[-UX_OI_N:]
+                      if tape_log.bar_t(b) is not None]}
 
 
 TAPE_LIVE_S = 15      # the extension's own FRAME_STALE_MS boundary (orderflow-desk main.js:53)
+UX_OI_N = 24          # Upstox ladder bars {t, oi} carried on the frame for the contract match (P1-05)
+_FRAME_DOOR = {"seen": 0}   # first frame POSTs logged with their headers (P1-07)
 _LADDER_WHY = "extension predates ladders (orderflow-desk < 0.3.1)"
 _NO_FLAGS = {"stacks": None, "unfinished_high": None, "unfinished_low": None, "poc": None}
 
@@ -1351,7 +1370,12 @@ def _tape_reply(idx: str, day: str) -> dict:
         forming = {**{k: v for k, v in forming.items() if k != "ladder"},
                    **(prints.bar_flags(forming, row, anchor) or _NO_FLAGS)}
     prof = prints.profile(raw)
-    prior_days = [(d, tape_log.read_bars(d, idx)) for d in tape_log.prior_days(day, idx, 5)]
+    # THE ROLL (P1-03): a prior day on or before the expired front future's expiry is another
+    # contract's prices, off by the calendar spread; a day whose ux record names another
+    # contract, or none, is dropped the same way. `cut_why` says so when nothing is left.
+    ct = (_SENSES.get("contract") or {}).get(idx) or {}
+    pool, cut_why = tape_log.prior_pool(day, idx, 5, after=ct.get("expired"), ik=ct.get("ik"))
+    prior_days = [(d, tape_log.read_bars(d, idx)) for d in pool]
     prior = prints.prior_levels(prior_days)
     tm, tm_why = prints.tm_marks(raw)
     # rule 6: three facts, three sentences. Live has no marks file to check --
@@ -1370,7 +1394,7 @@ def _tape_reply(idx: str, day: str) -> dict:
         "ok": True, "idx": idx, "day": day, "interval": 5, "src": "live" if live else "file", "tag": "M", **meta,
         "bars": bars, "forming": forming, "forming_why": forming_why, "ladder_why": ladder_why,
         "levels": {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
-                   "prior": prior, "prior_why": None if prior else "no earlier day in the record yet",
+                   "prior": prior, "prior_why": None if prior else cut_why or "no earlier day in the record yet",
                    "naked": prints.naked(prior_days, raw), "nodes": prints.nodes(prof), "tag": "M",
                    "why": (f"no GoCharting record for {idx} on {day} — ux stands alone" if not raw
                            else None if prof else "no bar with a ladder yet")},
@@ -1378,6 +1402,12 @@ def _tape_reply(idx: str, day: str) -> dict:
         "ux": _ux_reply(idx, day, row, anchor, raw),
         "why": None,
     }
+
+
+def _roll_why(idx, day):
+    """P1-02: the sentence that blinds the near future's OI read in its expiry week, or None
+    -- grounds.roll_why on the watched contract's own expiry."""
+    return grounds.roll_why(day, ((_SENSES.get("contract") or {}).get(idx) or {}).get("expiry"))
 
 
 def _calls_for(payloads, poller, idx: str) -> dict:
@@ -1395,7 +1425,8 @@ def _calls_for(payloads, poller, idx: str) -> dict:
             "why": None if last else "no engine bar for this index yet",
             **grounds.ground(last.get("ctx") or {}, (last.get("fut") or {}).get("c"),
                              ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr,
-                             runs_why=(ux.get("marks") or {}).get("runs_why"))}
+                             runs_why=(ux.get("marks") or {}).get("runs_why"),
+                             roll=_roll_why(idx, time.strftime("%Y-%m-%d")), idx=idx)}
 
 
 # ---- BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md §8) ----
@@ -1481,7 +1512,7 @@ def _board_core(poller, idx):
         got = board.first_fold(minutes, evs, opens, peak, g)
         if got:
             first = _BOARD["first"][idx] = dict(got, src="stamped by this process at " + asof)
-    core = {"key": key, "day": day, "asof": asof, "minutes": minutes, "g": g, "evs": evs,
+    core = {"key": key, "idx": idx, "day": day, "asof": asof, "minutes": minutes, "g": g, "evs": evs,
             "opens": opens, "peak": peak, "first": first, "cov": cov}
     _BOARD["core"][idx] = core
     return core
@@ -1502,10 +1533,11 @@ def _board_facts(idx, day, asof, fr):
     ux = tape.get("ux") or {}
     now = board.mm(asof)
     bars = [b for b in ux.get("bars") or []
-            if b.get("t") is not None and board.mm(grounds._hh(b["t"])) + 5 <= now]
+            if b.get("t") is not None and board.mm(grounds._hh(b["t"])) + 4 <= now]  # a bar starting at m has closed by the END of finished minute m + 4 (2026-09-28 audit, bug 9; = board._closed)
     runs = [r for r in (ux.get("marks") or {}).get("runs") or []
             if r.get("from_t") is None or grounds._hh(r["from_t"]) <= asof]
-    facts = grounds.facts(bars, runs, fr, runs_why=(ux.get("marks") or {}).get("runs_why"))
+    facts = grounds.facts(bars, runs, fr, runs_why=(ux.get("marks") or {}).get("runs_why"),
+                          roll=_roll_why(idx, day), idx=idx)
     if not bars and ux.get("why"):
         facts["cvd_why"] = facts["flow_why"] = ux["why"]
     return facts, tape.get("marks")
@@ -1714,13 +1746,14 @@ def _hold_rec(t, core, jx, ux, trd, c1, ix, peaks):
                         for e in evs if j is not None and jx[e["t"]] <= j
                         and board.mm(t) - board.mm(e["t"]) <= hold.FOLD_LIVE]
     now = board.mm(t)
-    bt = [b for b in ux["bars"] if b.get("t") is not None and board.mm(grounds._hh(b["t"])) + 5 <= now]
+    bt = [b for b in ux["bars"] if b.get("t") is not None and board.mm(grounds._hh(b["t"])) + 4 <= now]  # a bar starting at m has closed by the END of finished minute m + 4 (2026-09-28 audit, bug 9; = board._closed)
     rt = [r for r in ux["runs"] if r.get("from_t") is None or grounds._hh(r["from_t"]) <= t]
-    F = grounds.facts(bt, rt, fr, runs_why=ux["runs_why"])
+    F = grounds.facts(bt, rt, fr, runs_why=ux["runs_why"], roll=_roll_why(core.get("idx"), core["day"]), idx=core.get("idx"))
     if not bt and ux["why"]:
         F["cvd_why"] = F["flow_why"] = ux["why"]
     c, fl = F.get("cvd"), F.get("flow")
-    rec["cvd"] = c and {"d": round(c["d"]), "rank": c["rank"], "dpx": c["dpx"], "since": c["since"],
+    rec["cvd"] = c and {"d": round(c["d"]), "rank": c["rank"], "rank_why": c.get("rank_why"),
+                        "dpx": c["dpx"], "since": c["since"],
                         "dt": c["div_top"], "db": c["div_bottom"]}
     rec["cvd_why"] = None if c else board.CC + (F.get("cvd_why") or "no ladder bars")
     rec["flow"] = fl and {"b": fl["buy"], "s": fl["sell"], "rw": fl.get("runs_why")}
@@ -1921,7 +1954,7 @@ def _hold_facts(poller, idx):
         # minute keeps the counts it was read with -- bars closed by t, runs begun by t, _hold_rec's own
         # cuts -- and is read again when they move. Rows already logged stay as written (write-once).
         from bisect import bisect_right
-        ends = sorted(board.mm(grounds._hh(b["t"])) + 5 for b in ux["bars"] if b.get("t") is not None)
+        ends = sorted(board.mm(grounds._hh(b["t"])) + 4 for b in ux["bars"] if b.get("t") is not None)   # = _hold_rec's cut
         starts = sorted(grounds._hh(r["from_t"]) for r in ux["runs"] if r.get("from_t") is not None)
         seen = dict(prev.get("seen") or {}) if prev else {}
         land = _hold_land(idx, day)
@@ -2088,8 +2121,10 @@ def _hold_reply(poller, q):
         "rows": res["rows"] if one("rows") == "1" else None,
         "runs": _hold_runs(res["rows"]) if one("rows") == "brief" else None,
         "absent": {
-            "checked_none": board.NONE + ("nothing un-latches a FOLD; a re-entry is a new trade" if res["fold"]
-                                          else "no FOLD rule has matched since your entry"),
+            # under a latch a FOLD rule HAS matched: no "checked, none" sentence, and the latch rule goes on
+            # its own field (a rule statement, printed plain -- never dressed as an absence)
+            "checked_none": None if res["fold"] else board.NONE + "no FOLD rule has matched since your entry",
+            "rule_note": "nothing un-latches a FOLD; a re-entry is a new trade" if res["fold"] else None,
             "could_not_check": now["blind"],
             "not_shown": [board.NOT_SHOWN + "the engine's own headline word — it read CONTRADICTED on 09-24",
                           board.NOT_SHOWN + "an order, a size, a target, a stop price or a probability — never",
@@ -2797,6 +2832,37 @@ def _hold_import(poller, text):
             "files": [hold_log.path("hold", day), hold_log.path("side", day), hold_log.path("expr", day)]}
 
 
+def _frame_chain(poller, idx):
+    """frame.chain (API-v3, the panel's mark slip): the latest option-chain snapshot as {atm, step, ts,
+    strikes: [{k, ce, pe}]} with ce / pe the LTPs. `atm` sits on the options' own forward -- F* = k + CE - PE at
+    the strike nearest the spot [I] -- never on the chain's spot print (the future trades 30-90 points off the
+    index, HANDOFF §6b). Older than 3 minutes (or rebuilt from the day file): `stale: true`, with the age."""
+    from datetime import datetime
+    from chain_live import IST, _sec_of_day
+    snap = (getattr(poller, "prevs", None) or {}).get(idx) if poller else None
+    rows = sorted((r for r in (snap or {}).get("strikes") or [] if isinstance(r.get("k"), (int, float))), key=lambda r: r["k"])
+    if not rows or not snap.get("ts"):
+        return {"ok": False, "why": board.CC + "no chain snapshot yet"}
+    ks = [r["k"] for r in rows]
+    step = min((b - a for a, b in zip(ks, ks[1:]) if b > a), default=None)
+    spot = snap.get("spot")
+    near = min(rows, key=lambda r: abs(r["k"] - spot)) if isinstance(spot, (int, float)) else rows[len(rows) // 2]
+    ce, pe = (near.get("ce") or {}).get("ltp"), (near.get("pe") or {}).get("ltp")
+    F = near["k"] + ce - pe if isinstance(ce, (int, float)) and isinstance(pe, (int, float)) else None
+    mode = ((getattr(poller, "boxes", None) or {}).get(idx) or {}).get("mode")
+    age = (_sec_of_day(datetime.now(IST)) - snap["sec"]) % 86400 if isinstance(snap.get("sec"), (int, float)) else None
+    out = {"ok": True, "ts": snap["ts"], "step": step, "F": None if F is None else round(F, 1),
+           "atm": min(ks, key=lambda k: abs(k - F)) if F is not None else None,
+           "atm_why": None if F is not None else board.CC + f"no CE and PE price at {near['k']} to set the forward",
+           "strikes": [{"k": r["k"], "ce": (r.get("ce") or {}).get("ltp"), "pe": (r.get("pe") or {}).get("ltp")} for r in rows],
+           "age_s": age, "tag": {"M": ["strikes", "ts"], "I": ["F", "atm"]}}
+    if mode == "restored" or (age is not None and age > 180):
+        out["stale"] = True
+        out["stale_why"] = ("rebuilt from the day file, not a live snapshot" if mode == "restored"
+                            else f"chain snapshot {age // 60} min old")
+    return out
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, payloads=None, late=None, **kw):
         self.payloads = payloads or {}     # idx -> {"payload": bytes, "session": ...}
@@ -2869,8 +2935,11 @@ class Handler(SimpleHTTPRequestHandler):
             # text/plain POST needs no preflight and could mark or unmark trades
             # in her forward record. The UI posts through the Vite proxy
             # (same-origin); a client that sends no Sec-Fetch-Site (curl) passes.
-            site = self.headers.get("Sec-Fetch-Site")
-            if site is not None and site not in ("same-origin", "same-site", "none"):
+            # ...and the one legitimately cross-site sender, the extension's service worker (orderflow-desk
+            # sw.js -> /api/hold/trades, 2026-09-29), let in by its chrome-extension:// Origin, exactly as
+            # the frame door does (P1-07). A web page's Origin is still refused.
+            site, origin = self.headers.get("Sec-Fetch-Site"), self.headers.get("Origin") or ""
+            if site is not None and site not in ("same-origin", "same-site", "none") and not origin.startswith("chrome-extension://"):
                 self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
                 return
             try:
@@ -2959,6 +3028,21 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(b'{"ok":true}')
             return
         if self.path.startswith("/api/frame"):
+            # THE FRAME DOOR (pro-tool P1-07): the hold doors' rule, with the one sender that is
+            # legitimately cross-site let in. A no-cors text/plain POST from any page she visits
+            # needs no preflight, and tape_log writes each bar once by `t`, so a forged bar that
+            # lands first locks the real one out. The extension posts from its SERVICE WORKER
+            # (orderflow-desk sw.js), whose Origin is its own chrome-extension:// id; curl and the
+            # tests send no header at all. The first senders are logged so the first live session
+            # shows what sw.js actually sends. Revert: delete the `if site not in` block.
+            site, origin = self.headers.get("Sec-Fetch-Site"), self.headers.get("Origin") or ""
+            if _FRAME_DOOR["seen"] < 3:
+                _FRAME_DOOR["seen"] += 1
+                log.info("frame door: Sec-Fetch-Site=%r Origin=%r Sec-Fetch-Mode=%r", site, origin,
+                         self.headers.get("Sec-Fetch-Mode"))
+            if site not in (None, "same-origin", "same-site", "none") and not origin.startswith("chrome-extension://"):
+                self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
+                return
             try:
                 n = int(self.headers.get("Content-Length") or 0)
             except ValueError:
@@ -2993,6 +3077,17 @@ class Handler(SimpleHTTPRequestHandler):
                 # new extension mark, once. Fail-soft inside; nothing here can
                 # change `ok`. Before the lock, like the frame write above.
                 tape_log.append(doc, day, idx)
+                # THE REV 6 ENGINE (fold_live.py, API-v3): the panel's `fold` (her open marked trade) and
+                # `flat` reads ride on the frame, from the engine's cache. Isolated twice: a failure is a why.
+                try:
+                    fold_live.push(idx, "tape", doc.get("closed") or [])
+                    fr["fold"], fr["flat"] = fold_live.frame(idx, list(_hold_trades()))
+                except Exception as e:                   # never at the frame's expense
+                    fr["fold"], fr["flat"] = {"ok": False, "why": f"could not check — the engine failed: {e}"}, None
+                try:
+                    fr["chain"] = _frame_chain(self.poller, idx)
+                except Exception as e:
+                    fr["chain"] = {"ok": False, "why": f"could not check — the chain slip failed: {e}"}
                 with _SENSES_LOCK:
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
                     _SENSES["frame"][idx] = fr
@@ -3704,6 +3799,18 @@ class Handler(SimpleHTTPRequestHandler):
             # series null = log unreadable, [] = no completed buckets yet --
             # two different sentences, never collapsed.
             today = time.strftime("%Y-%m-%d")
+            idx = self._idx()
+            if idx != "NIFTY":
+                # P1-02: the gauge is on the NIFTY future only (vpin.py's bucket was measured there);
+                # SENSEX's future prints a median 7-10 lots a 5-min bar [M]. The count is the reason.
+                bars = _ux_bars(idx, today)
+                lots = bars[-1].get("vol") if bars else None
+                self._json(json.dumps({"ok": True, "day": today, "idx": idx, "inst": f"{idx}-FUT", "series": None,
+                                       "state": {}, "fast_series": None, "tag": "[I]", "shadow": True,
+                                       "why": board.CC + (f"{idx} future, {lots:g} lots this bucket"
+                                                          if isinstance(lots, (int, float)) and not isinstance(lots, bool)
+                                                          else f"{idx} future: no closed ladder bar yet")}).encode())
+                return
             # `series` stays None when the LIVE log is unreadable: "we could
             # not check" and "there are no buckets yet" are two sentences and
             # an empty list would say the wrong one.
@@ -3821,6 +3928,14 @@ class Handler(SimpleHTTPRequestHandler):
                              for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
+        elif self.path.startswith("/api/fold"):
+            # THE REV 6 ENGINE'S READS (fold_live.py; docs/pro-tool/API-v3.md): /api/fold?id=, /api/fold/flat?idx=,
+            # /api/fold/ifin?idx=&k=&ty=&side=, /api/fold/record?day=. Every reply is the engine loop's cache --
+            # no request reads a day file -- and a failure inside the engine is a why, never a 500.
+            u = urlsplit(self.path)
+            with HOLD_TRADES_LOCK:
+                trades = list(_hold_trades())
+            self._json(json.dumps(fold_live.reply(u.path, parse_qs(u.query), trades), default=str).encode())
         elif self.path.startswith("/api/hold"):
             # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
             # /api/hold?id= a marked trade, or ?idx=&k=&side=&role=&t0=&p0=&qty=
@@ -4017,6 +4132,25 @@ def _isolate_mock_writers():
     VPIN_FAST_LOG = os.path.join(mock, "vpin_fast.jsonl")
     tape_log.DIR = os.path.join(mock, "tape")
     book_log.DIR = os.path.join(mock, "book")
+    # 2026-09-28 (the correctness pass): the writers this list had missed. Each reads
+    # its constant at call time; trigger_log.log_new is handed PATH at its call site.
+    import chain_live
+    import live
+    frame_log.DIR = os.path.join(mock, "frame")
+    calls_log.DIR = os.path.join(mock, "calls")
+    senses_mod.DIR = os.path.join(mock, "senses")
+    trigger_log.PATH = os.path.join(mock, "trigger_log.jsonl")
+    chain_live.CHAIN_DIR = ROOT / mock / "chain"
+    live.STICK_F = ROOT / mock / "stick_state.json"
+    # 2026-09-28 (pro-tool P1-01): the rev 6 event log (P2-02), guarded until it lands.
+    # conftest.py keeps the same list for pytest; test_leak_guard.py checks both.
+    import chain_backfill
+    chain_backfill.DIR = os.path.join(mock, "chain_backfill")      # the 09:15 REST backfill on disk (P2-06)
+    try:
+        import fold_log
+        fold_log.DIR = os.path.join(mock, "fold")
+    except ImportError:
+        pass
 
 
 def _session_bars(index="NIFTY"):
@@ -4493,7 +4627,8 @@ def main():
                         x, payload_at(payloads[x], DEFAULT_INTERVAL),
                         poller.states.get(x) if poller else None,
                         ones=((_sess.get("day") or {}).get("bars")
-                              if isinstance(_sess, dict) else None))
+                              if isinstance(_sess, dict) else None),
+                        path=trigger_log.PATH)   # read at call time, so a mock run is isolated
                     # The grounded calls, kept (calls_log.py): in session only,
                     # read at most once a minute per index, a row only when the
                     # engine's bar is new. Its own try: the log must never cost
@@ -4545,6 +4680,12 @@ def main():
             log.info("senses thread started -> %s", senses_mod.day_path())
             # THE HOLD WINDOW's forward logs (hold_log.py), on their own thread.
             threading.Thread(target=_hold_loop, args=(poller,), daemon=True, name="hold").start()
+            # THE REV 6 ENGINE, live and incremental (fold_live.py, pro-tool P2-03): one thread, the day's
+            # rows in memory, every read cached. Its seams are read at call time (mock isolation, day roll).
+            threading.Thread(target=fold_live.run, kwargs=dict(
+                day_fn=lambda: _board_clock()[0], trades_fn=lambda: list(_hold_trades()), lot_fn=_hold_lot,
+                contract_fn=lambda i: (_SENSES.get("contract") or {}).get(i), chain_dir_fn=lambda: CHAIN_DIR,
+                vpin_path_fn=lambda: VPIN_FAST_LOG, mock=mock_chain), daemon=True, name="fold").start()
         httpd.serve_forever()          # bound above, before anything was taken
         return
     log.error("usage: python server.py live [port] [--mock-chain]")

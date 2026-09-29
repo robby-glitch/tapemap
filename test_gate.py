@@ -18,4 +18,12 @@ def test_the_calendar_hole_is_permanent_and_named():
 
 def test_worst_reason_leads():
     g = gate.state(ivrv=0.9, expiry_iso="2026-09-15", today_iso="2026-09-15", vpin_pct=0.9, squeeze=False)
-    assert g["would_be"] == "NO NEW RISK" and g["would_be_reason"] in ("vol cheap", "VPIN burst")
+    assert g["would_be"] == "NO NEW RISK" and g["would_be_reason"] == "vol cheap"
+
+
+def test_a_vpin_burst_is_a_shadow_note_never_a_verdict():
+    """The VPIN gauge is shadow: a burst is printed as such and moves no level (plumbing fix e, 2026-09-29)."""
+    g = gate.state(ivrv=1.3, expiry_iso="2026-09-16", today_iso="2026-09-15", vpin_pct=0.9, squeeze=False)
+    assert g["would_be"] == "TRADE" and "VPIN" not in g["would_be_reason"]
+    assert g["shadow"] == ["VPIN burst (shadow gauge, not counted)"]
+    assert gate.state(ivrv=1.3, expiry_iso="2026-09-16", today_iso="2026-09-15", vpin_pct=0.2, squeeze=False)["shadow"] == []

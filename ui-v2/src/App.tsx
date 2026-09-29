@@ -13,8 +13,7 @@ import type { GlanceRead } from './board/BoardRev3'
 import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
 // THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
-import HoldWindow from './hold/HoldWindow'
-import HoldTab from './hold/HoldTab'
+import Float from './pro/Float'   // her order 2026-09-29: the floating window runs the DESK's engine (rev 6), not /api/hold
 // The five-state machine read, shared with the Glass board's MACHINE widget.
 // It moved out of this file so the board could import it without App.tsx and
 // the board importing each other — see machine.ts.
@@ -1928,15 +1927,15 @@ export default function App() {
         {/* Mounted only while active, which is also what stops its 30s poll. */}
         {activeTab === 'War'      && <WarTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
-        {/* the hold window's permanent home: check before the trade, hold it after (docs/hold/) */}
-        {activeTab === 'Validate' && <HoldTab key={activeIndex} index={activeIndex} chain={activeChain} onIndex={setActiveIndex} />}
+        {/* her order 2026-09-29: Validate is the rev 6 DESK (pro.html). A frame, because pro.css styles html/body/:root. */}
+        {activeTab === 'Validate' && <iframe src="/pro.html" title="DESK" style={{ width: '100%', height: 'calc(100vh - 190px)', minHeight: 560, border: 0, display: 'block' }} />}
         {activeTab === 'Map'      && <MapTab index={activeIndex} />}
         {/* No `index` prop, deliberately: the log spans all three indices and
             the operator tracks the strategy, not one tape. The tab carries its
             own index filter, which starts on ALL. */}
         {activeTab === 'Signals'  && <SignalsTab />}
       </div>
-      <HoldWindow hidden={onValidate} />
+      <Float hidden={onValidate} />
     </div>
     </DataCtx.Provider>
   )

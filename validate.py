@@ -223,7 +223,9 @@ def _paying(ck):
     if P.get("state") == "blind" and H.get("state") == "blind":
         return ("neither", CC + "OI " + (hold._strip(P.get("fact")) or "not read"), "blind")
     if (now.get("clock") or {}).get("paid_last") == asof:
-        what = hold._lc(P["fact"]) if P.get("state") == "for" else "flow with you"
+        what = (hold._lc(P["fact"]) if P.get("state") == "for" else           # name what actually paid (audit bug 6)
+                f"the payers' fold of {P['fold_t']}" if P.get("fold_t") else
+                "flow with you" if F.get("state") == "with" else hold._lc(P.get("fact") or ""))
         return ("for", f"paid at {asof}: {what}", None)
     return ("neither", NONE + f"nothing paying at {asof}: {hold._lc(P.get('fact') or '')}; "
                               f"flow {FLOW_WORD.get(F.get('state'), 'could not check')}", "none")
@@ -252,7 +254,7 @@ def word(ck):
         w = "WAIT"
     sentence, needs = _say(w, facts, ck, g, su, d)
     return {"word": w, "rev": REV,
-            "count": f"{n['for']} with · {n['against']} against · {n['neither']} neither — of 4, a count, not odds",
+            "count": f"{n['for']} for · {n['against']} against · {n['neither']} neither — of 4, a count, not odds",
             "n_for": n["for"], "n_against": n["against"], "n_neither": n["neither"], "sentence": sentence,
             "needs": needs, "draft": DRAFT, "tag": "I",
             "writer_note": None if buyer else WRITER_NOTE,

@@ -1,0 +1,1276 @@
+{
+ "09:35:30": {
+  "t": 1790568330000,
+  "ts": "09:35:30",
+  "headline": "HOLD",
+  "clause": "behind you: zone, flow, OI, VPIN",
+  "line2": "out if 22997 is accepted",
+  "chips": {
+   "Z": "WITH",
+   "F": "WITH",
+   "O": "WITH",
+   "V": "WITH"
+  },
+  "sentences": {
+   "Z": "behind you: 22953 (sellers held 207)",
+   "F": "sellers won 09:29 at 22953",
+   "O": "22950 CE 116.2L, writers adding (high 116.2L 09:35) [M]",
+   "V": "3 of 10 buckets one-sided, your way"
+  },
+  "mode": "at entry",
+  "expiry_pm": false,
+  "d": -1,
+  "E": 22941.4,
+  "fut": 22922.7,
+  "F": 22926.4,
+  "G": {
+   "px": 22997,
+   "why": "sellers won at 22952.6 09:29; trapped at 22978; beyond sellers won 416 22991 + w",
+   "set_t": "09:30",
+   "locked": true,
+   "touched": false
+  },
+  "W": {
+   "k": 22950,
+   "side": "CE",
+   "oi": 11616930,
+   "peak": 11616930,
+   "peak_t": "09:35",
+   "state": "building"
+  },
+  "A": {
+   "k": 22900,
+   "side": "PE",
+   "px": 22909,
+   "pts": 14,
+   "oi": 12759695,
+   "peak": 13195650,
+   "peak_t": "09:33"
+  },
+  "epoch": 1,
+  "units": {
+   "bucket": 270.0,
+   "B": 10.849999999998545,
+   "theta": 21.69999999999709,
+   "w": 5.424999999999272,
+   "med_bucket_s": 39.277,
+   "pooled_sessions": 4,
+   "bucket_src": "4 prior session(s)",
+   "basis_minutes": 15,
+   "basis": 8.6
+  },
+  "prem": {
+   "now": 133.65,
+   "pct": 11,
+   "peak": 133.65,
+   "peak_pct": 11,
+   "peak_t": "09:35",
+   "given_back": 0.0,
+   "at_G": 94.4,
+   "at_G_why": "[I]",
+   "at_A": 145.6,
+   "at_A_why": "[I]",
+   "chain_age_s": 10,
+   "intrinsic": 73.6,
+   "time": 60.1,
+   "expiry_day": false,
+   "tag": {
+    "M": [
+     "now",
+     "peak",
+     "given_back"
+    ],
+    "I": [
+     "at_G",
+     "at_A",
+     "intrinsic",
+     "time"
+    ]
+   }
+  },
+  "acc": null,
+  "tally": {
+   "t0": null,
+   "lots": 0,
+   "restarts": 0,
+   "backstop_t0": null
+  },
+  "oi_event": null,
+  "alt": {
+   "plain_accept": null,
+   "flow_oi": null,
+   "held": null,
+   "backstop": null
+  },
+  "sound_id": null,
+  "tag": {
+   "M": [
+    "G",
+    "W",
+    "A",
+    "fut",
+    "prem.now"
+   ],
+   "I": [
+    "F",
+    "chips",
+    "prem.at_G",
+    "prem.at_A"
+   ]
+  },
+  "rows": {
+   "zone": {
+    "chip": "WITH",
+    "sentence": "behind you: 22953 (sellers held 207)"
+   },
+   "flow": {
+    "chip": "WITH",
+    "sentence": "sellers won 09:29 at 22953"
+   },
+   "oi": {
+    "chip": "WITH",
+    "sentence": "22950 CE 116.2L, writers adding (high 116.2L 09:35) [M]"
+   },
+   "vpin": {
+    "chip": "WITH",
+    "sentence": "3 of 10 buckets one-sided, your way"
+   }
+  },
+  "holes": [],
+  "events": [
+   {
+    "seq": 1,
+    "ts": "09:30:29",
+    "kind": "seed",
+    "text": "MARK long 23000 PE @ 120.4; fut 22941.4; give-up 23013 (sellers won at 22963.0 09:25; trapped at 22989; beyond 23000 CE wall 23007 + w)"
+   },
+   {
+    "seq": 2,
+    "ts": "09:30:49",
+    "kind": "reset",
+    "text": "give-up above 22997 (sellers won at 22952.6 09:29; trapped at 22978; beyond sellers won 416 22991 + w)"
+   },
+   {
+    "seq": 3,
+    "ts": "09:30:49",
+    "kind": "clause",
+    "text": "HOLD · behind you: zone, flow, OI, VPIN"
+   },
+   {
+    "seq": 4,
+    "ts": "09:30:49",
+    "kind": "bucket",
+    "text": "bucket closed 09:29:32–09:30:49 at 22946.7"
+   },
+   {
+    "seq": 5,
+    "ts": "09:32:20",
+    "kind": "bucket",
+    "text": "bucket closed 09:30:49–09:32:20 at 22946.8"
+   },
+   {
+    "seq": 6,
+    "ts": "09:33:25",
+    "kind": "bucket",
+    "text": "bucket closed 09:32:20–09:33:25 at 22942.9"
+   },
+   {
+    "seq": 7,
+    "ts": "09:34:43",
+    "kind": "bucket",
+    "text": "bucket closed 09:33:25–09:34:43 at 22935.6"
+   },
+   {
+    "seq": 8,
+    "ts": "09:35:05",
+    "kind": "bucket",
+    "text": "bucket closed 09:34:43–09:35:05 at 22934.0"
+   }
+  ],
+  "trade_id": "NIFTY-23000PE-long-093027",
+  "rev": "6"
+ },
+ "09:56:40": {
+  "t": 1790569600000,
+  "ts": "09:56:40",
+  "headline": "HOLD",
+  "clause": "against you: flow since 09:42 · behind you: zone, OI, VPIN",
+  "line2": "out if 22997 is accepted",
+  "chips": {
+   "Z": "WITH",
+   "F": "AGAINST",
+   "O": "WITH",
+   "V": "WITH"
+  },
+  "sentences": {
+   "Z": "behind you: 22953 (buyers trapped 207)",
+   "F": "buyers won 09:48 at 22920 · pullback since 09:48",
+   "O": "22950 CE 145.6L, writers adding (high 145.8L 09:55) [M]",
+   "V": "4 of 10 buckets one-sided, your way"
+  },
+  "mode": "at entry",
+  "expiry_pm": false,
+  "d": -1,
+  "E": 22941.4,
+  "fut": 22909.8,
+  "F": 22908.0,
+  "G": {
+   "px": 22997,
+   "why": "sellers won at 22952.6 09:29; trapped at 22978; beyond sellers won 416 22991 + w",
+   "set_t": "09:30",
+   "locked": true,
+   "touched": false
+  },
+  "W": {
+   "k": 22950,
+   "side": "CE",
+   "oi": 14561105,
+   "peak": 14576315,
+   "peak_t": "09:55",
+   "state": "building"
+  },
+  "A": {
+   "k": 22900,
+   "side": "PE",
+   "px": 22906,
+   "pts": 4,
+   "oi": 13764660,
+   "peak": 13764660,
+   "peak_t": "09:56"
+  },
+  "epoch": 1,
+  "units": {
+   "bucket": 270.0,
+   "B": 13.900000000001455,
+   "theta": 27.80000000000291,
+   "w": 6.950000000000728,
+   "med_bucket_s": 47.6895,
+   "pooled_sessions": 4,
+   "bucket_src": "4 prior session(s)",
+   "basis_minutes": 15,
+   "basis": 6.1
+  },
+  "prem": {
+   "now": 144.35,
+   "pct": 20,
+   "peak": 159.9,
+   "peak_pct": 33,
+   "peak_t": "09:38",
+   "given_back": 15.6,
+   "at_G": 93.5,
+   "at_G_why": "[I]",
+   "at_A": 145.6,
+   "at_A_why": "[I]",
+   "chain_age_s": 9,
+   "intrinsic": 92.0,
+   "time": 52.3,
+   "expiry_day": false,
+   "tag": {
+    "M": [
+     "now",
+     "peak",
+     "given_back"
+    ],
+    "I": [
+     "at_G",
+     "at_A",
+     "intrinsic",
+     "time"
+    ]
+   }
+  },
+  "acc": null,
+  "tally": {
+   "t0": null,
+   "lots": 0,
+   "restarts": 0,
+   "backstop_t0": null
+  },
+  "oi_event": null,
+  "alt": {
+   "plain_accept": null,
+   "flow_oi": null,
+   "held": null,
+   "backstop": null
+  },
+  "sound_id": null,
+  "tag": {
+   "M": [
+    "G",
+    "W",
+    "A",
+    "fut",
+    "prem.now"
+   ],
+   "I": [
+    "F",
+    "chips",
+    "prem.at_G",
+    "prem.at_A"
+   ]
+  },
+  "rows": {
+   "zone": {
+    "chip": "WITH",
+    "sentence": "behind you: 22953 (buyers trapped 207)"
+   },
+   "flow": {
+    "chip": "AGAINST",
+    "sentence": "buyers won 09:48 at 22920 · pullback since 09:48"
+   },
+   "oi": {
+    "chip": "WITH",
+    "sentence": "22950 CE 145.6L, writers adding (high 145.8L 09:55) [M]"
+   },
+   "vpin": {
+    "chip": "WITH",
+    "sentence": "4 of 10 buckets one-sided, your way"
+   }
+  },
+  "holes": [],
+  "events": [
+   {
+    "seq": 30,
+    "ts": "09:48:40",
+    "kind": "bucket",
+    "text": "bucket closed 09:48:25–09:48:40 at 22920.8"
+   },
+   {
+    "seq": 31,
+    "ts": "09:49:38",
+    "kind": "bucket",
+    "text": "bucket closed 09:48:40–09:49:38 at 22914.1"
+   },
+   {
+    "seq": 32,
+    "ts": "09:50:48",
+    "kind": "bucket",
+    "text": "bucket closed 09:49:38–09:50:48 at 22919.5"
+   },
+   {
+    "seq": 33,
+    "ts": "09:51:43",
+    "kind": "bucket",
+    "text": "bucket closed 09:50:48–09:51:43 at 22922.3"
+   },
+   {
+    "seq": 34,
+    "ts": "09:52:48",
+    "kind": "bucket",
+    "text": "bucket closed 09:51:43–09:52:48 at 22918.2"
+   },
+   {
+    "seq": 35,
+    "ts": "09:54:49",
+    "kind": "bucket",
+    "text": "bucket closed 09:52:48–09:54:49 at 22922.3"
+   },
+   {
+    "seq": 36,
+    "ts": "09:56:05",
+    "kind": "bucket",
+    "text": "bucket closed 09:54:49–09:56:05 at 22913.4"
+   },
+   {
+    "seq": 37,
+    "ts": "09:56:30",
+    "kind": "bucket",
+    "text": "bucket closed 09:56:05–09:56:30 at 22912.4"
+   },
+   {
+    "seq": 38,
+    "ts": "09:56:36",
+    "kind": "chip",
+    "text": "VPIN QUIET -> WITH: 2 of 10 buckets one-sided, your way"
+   },
+   {
+    "seq": 39,
+    "ts": "09:56:36",
+    "kind": "clause",
+    "text": "HOLD · against you: flow since 09:42 · behind you: zone, OI, VPIN"
+   },
+   {
+    "seq": 40,
+    "ts": "09:56:36",
+    "kind": "bucket",
+    "text": "bucket closed 09:56:30–09:56:36 at 22911.0"
+   },
+   {
+    "seq": 41,
+    "ts": "09:56:36",
+    "kind": "bucket",
+    "text": "bucket closed 09:56:36–09:56:36 at 22910.0"
+   }
+  ],
+  "trade_id": "NIFTY-23000PE-long-093027",
+  "rev": "6"
+ },
+ "11:16:00": {
+  "t": 1790574360000,
+  "ts": "11:16:00",
+  "headline": "HOLD",
+  "clause": "behind you: flow, OI, VPIN",
+  "line2": "out if 22925 is accepted and held 2 buckets, or accepted while 22900 CE writers leave · never back through 22947",
+  "chips": {
+   "Z": "QUIET",
+   "F": "WITH",
+   "O": "WITH",
+   "V": "WITH"
+  },
+  "sentences": {
+   "Z": "no level born or broken since 11:06",
+   "F": "sellers won 11:04 at 22879 · tiring 3 min",
+   "O": "22900 CE 230.5L, writers adding (high 230.5L 11:15) [M]",
+   "V": "2 of 10 buckets one-sided, your way"
+  },
+  "mode": "trailed",
+  "expiry_pm": false,
+  "d": -1,
+  "E": 22941.4,
+  "fut": 22874.6,
+  "F": 22871.3,
+  "G": {
+   "px": 22925,
+   "why": "sellers won at 22878.8 11:04; trapped at 22902; beyond buyers trapped 369 22920 + w",
+   "set_t": "11:06",
+   "locked": true,
+   "touched": false
+  },
+  "W": {
+   "k": 22900,
+   "side": "CE",
+   "oi": 23054850,
+   "peak": 23054850,
+   "peak_t": "11:15",
+   "state": "building"
+  },
+  "A": {
+   "k": 22850,
+   "side": "PE",
+   "px": 22853,
+   "pts": 21,
+   "oi": 12345060,
+   "peak": 12345060,
+   "peak_t": "11:15"
+  },
+  "epoch": 6,
+  "units": {
+   "bucket": 270.0,
+   "B": 11.050000000001091,
+   "theta": 22.100000000002183,
+   "w": 5.525000000000546,
+   "med_bucket_s": 67.153,
+   "pooled_sessions": 4,
+   "bucket_src": "4 prior session(s)",
+   "basis_minutes": 15,
+   "basis": 3.3
+  },
+  "prem": {
+   "now": 176.15,
+   "pct": 46,
+   "peak": 179.0,
+   "peak_pct": 49,
+   "peak_t": "11:12",
+   "given_back": 2.8,
+   "at_G": 138.4,
+   "at_G_why": "[I]",
+   "at_A": 190.0,
+   "at_A_why": "[I]",
+   "chain_age_s": 0,
+   "intrinsic": 128.7,
+   "time": 47.5,
+   "expiry_day": false,
+   "tag": {
+    "M": [
+     "now",
+     "peak",
+     "given_back"
+    ],
+    "I": [
+     "at_G",
+     "at_A",
+     "intrinsic",
+     "time"
+    ]
+   }
+  },
+  "acc": null,
+  "tally": {
+   "t0": null,
+   "lots": 0,
+   "restarts": 0,
+   "backstop_t0": null
+  },
+  "oi_event": null,
+  "alt": {
+   "plain_accept": null,
+   "flow_oi": null,
+   "held": null,
+   "backstop": null
+  },
+  "sound_id": null,
+  "tag": {
+   "M": [
+    "G",
+    "W",
+    "A",
+    "fut",
+    "prem.now"
+   ],
+   "I": [
+    "F",
+    "chips",
+    "prem.at_G",
+    "prem.at_A"
+   ]
+  },
+  "rows": {
+   "zone": {
+    "chip": "QUIET",
+    "sentence": "no level born or broken since 11:06"
+   },
+   "flow": {
+    "chip": "WITH",
+    "sentence": "sellers won 11:04 at 22879 · tiring 3 min"
+   },
+   "oi": {
+    "chip": "WITH",
+    "sentence": "22900 CE 230.5L, writers adding (high 230.5L 11:15) [M]"
+   },
+   "vpin": {
+    "chip": "WITH",
+    "sentence": "2 of 10 buckets one-sided, your way"
+   }
+  },
+  "holes": [],
+  "events": [
+   {
+    "seq": 111,
+    "ts": "11:06:13",
+    "kind": "reset",
+    "text": "give-up above 22925 (sellers won at 22878.8 11:04; trapped at 22902; beyond buyers trapped 369 22920 + w)"
+   },
+   {
+    "seq": 112,
+    "ts": "11:06:13",
+    "kind": "chip",
+    "text": "FLOW QUIET -> WITH: sellers won 11:04 at 22879 · tiring 19 min"
+   },
+   {
+    "seq": 113,
+    "ts": "11:06:13",
+    "kind": "clause",
+    "text": "HOLD · behind you: flow, OI"
+   },
+   {
+    "seq": 114,
+    "ts": "11:06:13",
+    "kind": "bucket",
+    "text": "bucket closed 11:04:51–11:06:13 at 22872.5"
+   },
+   {
+    "seq": 115,
+    "ts": "11:08:30",
+    "kind": "bucket",
+    "text": "bucket closed 11:06:13–11:08:30 at 22873.6"
+   },
+   {
+    "seq": 116,
+    "ts": "11:09:46",
+    "kind": "bucket",
+    "text": "bucket closed 11:08:30–11:09:46 at 22876.5"
+   },
+   {
+    "seq": 117,
+    "ts": "11:11:29",
+    "kind": "bucket",
+    "text": "bucket closed 11:09:46–11:11:29 at 22878.0"
+   },
+   {
+    "seq": 118,
+    "ts": "11:12:13",
+    "kind": "bucket",
+    "text": "bucket closed 11:11:29–11:12:13 at 22872.9"
+   },
+   {
+    "seq": 119,
+    "ts": "11:13:04",
+    "kind": "bucket",
+    "text": "bucket closed 11:12:13–11:13:04 at 22870.3"
+   },
+   {
+    "seq": 120,
+    "ts": "11:14:30",
+    "kind": "chip",
+    "text": "VPIN QUIET -> WITH: 2 of 10 buckets one-sided, your way"
+   },
+   {
+    "seq": 121,
+    "ts": "11:14:30",
+    "kind": "clause",
+    "text": "HOLD · behind you: flow, OI, VPIN"
+   },
+   {
+    "seq": 122,
+    "ts": "11:14:30",
+    "kind": "bucket",
+    "text": "bucket closed 11:13:04–11:14:30 at 22868.6"
+   }
+  ],
+  "trade_id": "NIFTY-23000PE-long-093027",
+  "rev": "6"
+ },
+ "11:50:00": {
+  "t": 1790576400000,
+  "ts": "11:50:00",
+  "headline": "HOLD",
+  "clause": "behind you: OI",
+  "line2": "out if 22925 is accepted and held 2 buckets, or accepted while 22900 CE writers leave · never back through 22946",
+  "chips": {
+   "Z": "QUIET",
+   "F": "QUIET",
+   "O": "WITH",
+   "V": "QUIET"
+  },
+  "sentences": {
+   "Z": "no level born or broken since 11:40",
+   "F": "no fight in the last 10 buckets · tiring 37 min",
+   "O": "22900 CE 232.6L, writers adding (high 240.0L 11:41) [M]",
+   "V": "1 of 10 buckets one-sided, no lead"
+  },
+  "mode": "trailed",
+  "expiry_pm": false,
+  "d": -1,
+  "E": 22941.4,
+  "fut": 22886.7,
+  "F": 22885.9,
+  "G": {
+   "px": 22925,
+   "why": "sellers won at 22878.8 11:04; trapped at 22902; beyond buyers trapped 369 22920 + w",
+   "set_t": "11:06",
+   "locked": true,
+   "touched": false
+  },
+  "W": {
+   "k": 22900,
+   "side": "CE",
+   "oi": 23262395,
+   "peak": 24000730,
+   "peak_t": "11:41",
+   "state": "building"
+  },
+  "A": {
+   "k": 22850,
+   "side": "PE",
+   "px": 22854,
+   "pts": 33,
+   "oi": 13092885,
+   "peak": 13092885,
+   "peak_t": "11:49"
+  },
+  "epoch": 6,
+  "units": {
+   "bucket": 270.0,
+   "B": 10.050000000001091,
+   "theta": 20.100000000002183,
+   "w": 5.025000000000546,
+   "med_bucket_s": 74.638,
+   "pooled_sessions": 4,
+   "bucket_src": "4 prior session(s)",
+   "basis_minutes": 15,
+   "basis": 4.0
+  },
+  "prem": {
+   "now": 163.05,
+   "pct": 35,
+   "peak": 184.05,
+   "peak_pct": 53,
+   "peak_t": "11:16",
+   "given_back": 21.0,
+   "at_G": 136.3,
+   "at_G_why": "[I]",
+   "at_A": 187.7,
+   "at_A_why": "[I]",
+   "chain_age_s": 2,
+   "intrinsic": 114.1,
+   "time": 49.0,
+   "expiry_day": false,
+   "tag": {
+    "M": [
+     "now",
+     "peak",
+     "given_back"
+    ],
+    "I": [
+     "at_G",
+     "at_A",
+     "intrinsic",
+     "time"
+    ]
+   }
+  },
+  "acc": null,
+  "tally": {
+   "t0": null,
+   "lots": 0,
+   "restarts": 0,
+   "backstop_t0": null
+  },
+  "oi_event": null,
+  "alt": {
+   "plain_accept": null,
+   "flow_oi": null,
+   "held": null,
+   "backstop": null
+  },
+  "sound_id": null,
+  "tag": {
+   "M": [
+    "G",
+    "W",
+    "A",
+    "fut",
+    "prem.now"
+   ],
+   "I": [
+    "F",
+    "chips",
+    "prem.at_G",
+    "prem.at_A"
+   ]
+  },
+  "rows": {
+   "zone": {
+    "chip": "QUIET",
+    "sentence": "no level born or broken since 11:40"
+   },
+   "flow": {
+    "chip": "QUIET",
+    "sentence": "no fight in the last 10 buckets · tiring 37 min"
+   },
+   "oi": {
+    "chip": "WITH",
+    "sentence": "22900 CE 232.6L, writers adding (high 240.0L 11:41) [M]"
+   },
+   "vpin": {
+    "chip": "QUIET",
+    "sentence": "1 of 10 buckets one-sided, no lead"
+   }
+  },
+  "holes": [],
+  "events": [
+   {
+    "seq": 131,
+    "ts": "11:26:49",
+    "kind": "bucket",
+    "text": "bucket closed 11:24:58–11:26:49 at 22873.7"
+   },
+   {
+    "seq": 132,
+    "ts": "11:29:31",
+    "kind": "bucket",
+    "text": "bucket closed 11:26:49–11:29:31 at 22879.6"
+   },
+   {
+    "seq": 133,
+    "ts": "11:32:39",
+    "kind": "chip",
+    "text": "VPIN WITH -> QUIET: 2 of 10 buckets one-sided, no lead"
+   },
+   {
+    "seq": 134,
+    "ts": "11:32:39",
+    "kind": "clause",
+    "text": "HOLD · behind you: OI"
+   },
+   {
+    "seq": 135,
+    "ts": "11:32:39",
+    "kind": "bucket",
+    "text": "bucket closed 11:29:31–11:32:39 at 22887.1"
+   },
+   {
+    "seq": 136,
+    "ts": "11:34:57",
+    "kind": "bucket",
+    "text": "bucket closed 11:32:39–11:34:57 at 22885.5"
+   },
+   {
+    "seq": 137,
+    "ts": "11:38:06",
+    "kind": "bucket",
+    "text": "bucket closed 11:34:57–11:38:06 at 22882.3"
+   },
+   {
+    "seq": 138,
+    "ts": "11:40:16",
+    "kind": "bucket",
+    "text": "bucket closed 11:38:06–11:40:16 at 22887.0"
+   },
+   {
+    "seq": 139,
+    "ts": "11:41:53",
+    "kind": "bucket",
+    "text": "bucket closed 11:40:16–11:41:53 at 22894.7"
+   },
+   {
+    "seq": 140,
+    "ts": "11:44:24",
+    "kind": "bucket",
+    "text": "bucket closed 11:41:53–11:44:24 at 22894.4"
+   },
+   {
+    "seq": 141,
+    "ts": "11:46:52",
+    "kind": "bucket",
+    "text": "bucket closed 11:44:24–11:46:52 at 22896.2"
+   },
+   {
+    "seq": 142,
+    "ts": "11:48:50",
+    "kind": "bucket",
+    "text": "bucket closed 11:46:52–11:48:50 at 22894.8"
+   }
+  ],
+  "trade_id": "NIFTY-23000PE-long-093027",
+  "rev": "6"
+ },
+ "14:12:00": {
+  "t": 1790584920000,
+  "ts": "14:12:00",
+  "headline": "HOLD",
+  "clause": "against you: OI since 13:31 · behind you: VPIN",
+  "line2": "22900 CE writers left 13:31 (-3.5 %): acceptance past 22913 now takes you out",
+  "chips": {
+   "Z": "QUIET",
+   "F": "QUIET",
+   "O": "AGAINST",
+   "V": "WITH"
+  },
+  "sentences": {
+   "Z": "no level born or broken since 13:34",
+   "F": "no fight in the last 10 buckets · tiring 30 min",
+   "O": "22900 CE writers left 13:31 (-3.5 %): 252.0L -> 243.3L [M]",
+   "V": "2 of 10 buckets one-sided, your way"
+  },
+  "mode": "trailed",
+  "expiry_pm": false,
+  "d": -1,
+  "E": 22941.4,
+  "fut": 22878.0,
+  "F": 22868.9,
+  "G": {
+   "px": 22913,
+   "why": "sellers won at 22871.0 13:07; trapped at 22890; beyond buyers trapped 162 22908 + w",
+   "set_t": "13:09",
+   "locked": true,
+   "touched": false
+  },
+  "W": {
+   "k": 22900,
+   "side": "CE",
+   "oi": 24033750,
+   "peak": 25196210,
+   "peak_t": "13:23",
+   "state": "off"
+  },
+  "A": {
+   "k": 22850,
+   "side": "PE",
+   "px": 22859,
+   "pts": 19,
+   "oi": 14559285,
+   "peak": 15174250,
+   "peak_t": "14:01"
+  },
+  "epoch": 7,
+  "units": {
+   "bucket": 270.0,
+   "B": 9.0,
+   "theta": 18.0,
+   "w": 4.5,
+   "med_bucket_s": 89.258,
+   "pooled_sessions": 4,
+   "bucket_src": "4 prior session(s)",
+   "basis_minutes": 15,
+   "basis": 9.1
+  },
+  "prem": {
+   "now": 164.05,
+   "pct": 36,
+   "peak": 184.05,
+   "peak_pct": 53,
+   "peak_t": "11:16",
+   "given_back": 20.0,
+   "at_G": 132.2,
+   "at_G_why": "[I]",
+   "at_A": 171.8,
+   "at_A_why": "[I]",
+   "chain_age_s": 1,
+   "intrinsic": 131.1,
+   "time": 33.0,
+   "expiry_day": false,
+   "tag": {
+    "M": [
+     "now",
+     "peak",
+     "given_back"
+    ],
+    "I": [
+     "at_G",
+     "at_A",
+     "intrinsic",
+     "time"
+    ]
+   }
+  },
+  "acc": null,
+  "tally": {
+   "t0": null,
+   "lots": 0,
+   "restarts": 0,
+   "backstop_t0": null
+  },
+  "oi_event": {
+   "t": "13:31:36",
+   "z": 3.93,
+   "n": 8,
+   "pct": 3.45,
+   "peak": 25196210,
+   "k": 22900,
+   "side": "CE"
+  },
+  "alt": {
+   "plain_accept": null,
+   "flow_oi": null,
+   "held": null,
+   "backstop": null
+  },
+  "sound_id": null,
+  "tag": {
+   "M": [
+    "G",
+    "W",
+    "A",
+    "fut",
+    "prem.now"
+   ],
+   "I": [
+    "F",
+    "chips",
+    "prem.at_G",
+    "prem.at_A"
+   ]
+  },
+  "rows": {
+   "zone": {
+    "chip": "QUIET",
+    "sentence": "no level born or broken since 13:34"
+   },
+   "flow": {
+    "chip": "QUIET",
+    "sentence": "no fight in the last 10 buckets · tiring 30 min"
+   },
+   "oi": {
+    "chip": "AGAINST",
+    "sentence": "22900 CE writers left 13:31 (-3.5 %): 252.0L -> 243.3L [M]"
+   },
+   "vpin": {
+    "chip": "WITH",
+    "sentence": "2 of 10 buckets one-sided, your way"
+   }
+  },
+  "holes": [],
+  "events": [
+   {
+    "seq": 233,
+    "ts": "13:52:34",
+    "kind": "bucket",
+    "text": "bucket closed 13:50:19–13:52:34 at 22887.5"
+   },
+   {
+    "seq": 234,
+    "ts": "13:54:55",
+    "kind": "chip",
+    "text": "FLOW WITH -> QUIET: no fight in the last 10 buckets · tiring 12 min"
+   },
+   {
+    "seq": 235,
+    "ts": "13:54:55",
+    "kind": "clause",
+    "text": "HOLD · against you: OI since 13:31 · behind you: VPIN"
+   },
+   {
+    "seq": 236,
+    "ts": "13:54:55",
+    "kind": "bucket",
+    "text": "bucket closed 13:52:34–13:54:55 at 22886.8"
+   },
+   {
+    "seq": 237,
+    "ts": "13:57:25",
+    "kind": "bucket",
+    "text": "bucket closed 13:54:55–13:57:25 at 22889.1"
+   },
+   {
+    "seq": 238,
+    "ts": "13:59:59",
+    "kind": "bucket",
+    "text": "bucket closed 13:57:25–13:59:59 at 22889.8"
+   },
+   {
+    "seq": 239,
+    "ts": "14:01:29",
+    "kind": "bucket",
+    "text": "bucket closed 14:00:02–14:01:29 at 22890.5"
+   },
+   {
+    "seq": 240,
+    "ts": "14:03:22",
+    "kind": "bucket",
+    "text": "bucket closed 14:01:29–14:03:22 at 22883.4"
+   },
+   {
+    "seq": 241,
+    "ts": "14:05:31",
+    "kind": "bucket",
+    "text": "bucket closed 14:03:22–14:05:31 at 22882.5"
+   },
+   {
+    "seq": 242,
+    "ts": "14:07:11",
+    "kind": "bucket",
+    "text": "bucket closed 14:05:31–14:07:11 at 22878.7"
+   },
+   {
+    "seq": 243,
+    "ts": "14:08:31",
+    "kind": "bucket",
+    "text": "bucket closed 14:07:11–14:08:31 at 22871.6"
+   },
+   {
+    "seq": 244,
+    "ts": "14:10:45",
+    "kind": "bucket",
+    "text": "bucket closed 14:08:31–14:10:45 at 22875.5"
+   }
+  ],
+  "trade_id": "NIFTY-23000PE-long-093027",
+  "rev": "6"
+ },
+ "14:38:50": {
+  "t": 1790586530000,
+  "ts": "14:38:50",
+  "headline": "HOLD",
+  "clause": "behind you: zone, flow, OI",
+  "line2": "out if 22831 is accepted and held 2 buckets, or accepted while 22800 CE writers leave · never back through 22946",
+  "chips": {
+   "Z": "WITH",
+   "F": "WITH",
+   "O": "WITH",
+   "V": "QUIET"
+  },
+  "sentences": {
+   "Z": "behind you: 22811 (sellers held 170)",
+   "F": "sellers won 14:37 at 22811 · tiring 3 min",
+   "O": "22800 CE 157.9L, writers adding (high 157.9L 14:38) [M]",
+   "V": "0 of 10 buckets one-sided, no lead"
+  },
+  "mode": "trailed",
+  "expiry_pm": false,
+  "d": -1,
+  "E": 22941.4,
+  "fut": 22795.9,
+  "F": 22796.2,
+  "G": {
+   "px": 22831,
+   "why": "sellers won at 22810.8 14:37; trapped at 22829; beyond sellers won 155 22826 + w",
+   "set_t": "14:38",
+   "locked": true,
+   "touched": false
+  },
+  "W": {
+   "k": 22800,
+   "side": "CE",
+   "oi": 15794285,
+   "peak": 15794285,
+   "peak_t": "14:38",
+   "state": "building"
+  },
+  "A": {
+   "k": 22700,
+   "side": "PE",
+   "px": 22706,
+   "pts": 90,
+   "oi": 12714455,
+   "peak": 12714455,
+   "peak_t": "14:37"
+  },
+  "epoch": 9,
+  "units": {
+   "bucket": 270.0,
+   "B": 9.200000000000728,
+   "theta": 18.400000000001455,
+   "w": 4.600000000000364,
+   "med_bucket_s": 85.044,
+   "pooled_sessions": 4,
+   "bucket_src": "4 prior session(s)",
+   "basis_minutes": 15,
+   "basis": 5.8
+  },
+  "prem": {
+   "now": 236.95,
+   "pct": 97,
+   "peak": 236.95,
+   "peak_pct": 97,
+   "peak_t": "14:38",
+   "given_back": 0.0,
+   "at_G": 207.5,
+   "at_G_why": "[I]",
+   "at_A": 317.6,
+   "at_A_why": "[I]",
+   "chain_age_s": 3,
+   "intrinsic": 203.8,
+   "time": 33.1,
+   "expiry_day": false,
+   "tag": {
+    "M": [
+     "now",
+     "peak",
+     "given_back"
+    ],
+    "I": [
+     "at_G",
+     "at_A",
+     "intrinsic",
+     "time"
+    ]
+   }
+  },
+  "acc": null,
+  "tally": {
+   "t0": null,
+   "lots": 0,
+   "restarts": 0,
+   "backstop_t0": null
+  },
+  "oi_event": null,
+  "alt": {
+   "plain_accept": null,
+   "flow_oi": null,
+   "held": null,
+   "backstop": null
+  },
+  "sound_id": null,
+  "tag": {
+   "M": [
+    "G",
+    "W",
+    "A",
+    "fut",
+    "prem.now"
+   ],
+   "I": [
+    "F",
+    "chips",
+    "prem.at_G",
+    "prem.at_A"
+   ]
+  },
+  "rows": {
+   "zone": {
+    "chip": "WITH",
+    "sentence": "behind you: 22811 (sellers held 170)"
+   },
+   "flow": {
+    "chip": "WITH",
+    "sentence": "sellers won 14:37 at 22811 · tiring 3 min"
+   },
+   "oi": {
+    "chip": "WITH",
+    "sentence": "22800 CE 157.9L, writers adding (high 157.9L 14:38) [M]"
+   },
+   "vpin": {
+    "chip": "QUIET",
+    "sentence": "0 of 10 buckets one-sided, no lead"
+   }
+  },
+  "holes": [],
+  "events": [
+   {
+    "seq": 273,
+    "ts": "14:35:39",
+    "kind": "bucket",
+    "text": "bucket closed 14:35:08–14:35:39 at 22819.6"
+   },
+   {
+    "seq": 274,
+    "ts": "14:36:43",
+    "kind": "bucket",
+    "text": "bucket closed 14:35:39–14:36:43 at 22820.9"
+   },
+   {
+    "seq": 275,
+    "ts": "14:37:39",
+    "kind": "bucket",
+    "text": "bucket closed 14:36:43–14:37:39 at 22814.0"
+   },
+   {
+    "seq": 276,
+    "ts": "14:37:56",
+    "kind": "chip",
+    "text": "ZONE QUIET -> AGAINST: at 22809: 22800 PE wall"
+   },
+   {
+    "seq": 277,
+    "ts": "14:37:56",
+    "kind": "chip",
+    "text": "FLOW WITH -> AGAINST: buyers won 14:37 at 22814 · pullback since 14:37"
+   },
+   {
+    "seq": 278,
+    "ts": "14:37:56",
+    "kind": "clause",
+    "text": "HOLD · against you: zone since 14:37, flow since 14:37 · behind you: OI"
+   },
+   {
+    "seq": 279,
+    "ts": "14:37:56",
+    "kind": "bucket",
+    "text": "bucket closed 14:37:39–14:37:56 at 22810.8"
+   },
+   {
+    "seq": 280,
+    "ts": "14:38:42",
+    "kind": "reset",
+    "text": "give-up above 22831 (sellers won at 22810.8 14:37; trapped at 22829; beyond sellers won 155 22826 + w)"
+   },
+   {
+    "seq": 281,
+    "ts": "14:38:42",
+    "kind": "chip",
+    "text": "ZONE AGAINST -> WITH: behind you: 22811 (sellers held 170)"
+   },
+   {
+    "seq": 282,
+    "ts": "14:38:42",
+    "kind": "chip",
+    "text": "FLOW AGAINST -> WITH: sellers won 14:37 at 22811 · tiring 3 min"
+   },
+   {
+    "seq": 283,
+    "ts": "14:38:42",
+    "kind": "clause",
+    "text": "HOLD · behind you: zone, flow, OI"
+   },
+   {
+    "seq": 284,
+    "ts": "14:38:42",
+    "kind": "bucket",
+    "text": "bucket closed 14:37:56–14:38:42 at 22802.8"
+   }
+  ],
+  "trade_id": "NIFTY-23000PE-long-093027",
+  "rev": "6"
+ }
+}

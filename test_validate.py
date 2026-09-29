@@ -80,7 +80,7 @@ def test_no_only_on_a_fold_at_entry():
 def test_plain_words_and_no_percentage_in_the_word():
     v = validate.word(ck())
     assert [f["name"] for f in v["facts"]] == ["Your setup", "Right now", "Room", "Paying"]
-    assert v["count"] == "4 with · 0 against · 0 neither — of 4, a count, not odds" and v["rev"] == "2"
+    assert v["count"] == "4 for · 0 against · 0 neither — of 4, a count, not odds" and v["rev"] == "2"   # one word with the states
     assert "%" not in v["sentence"] + v["count"] and v["draft"].startswith("DRAFT") and all(f["text"] for f in v["facts"])
     assert v["not_shown"] == [validate.NOT_SHOWN + "σ against VWAP: the window's footer, never an input"]   # §1.5
 
@@ -127,7 +127,7 @@ def test_fact_one_is_the_zone_machines_state_on_the_closed_bar():
 # ---------------------------------------------------------------- §7: the new tests owed
 def test_the_0943_saved_reply_reads_wait_on_a_leaving_wall():
     """§6: 09:43 -- the BUY arm is illegal, HOLD, the leaving PE 23,000 is removed so the target is the session
-    low 23,030.0 at 18.8 against a 72.8 line, paid this minute: WAIT, 2 with · 1 against · 1 neither."""
+    low 23,030.0 at 18.8 against a 72.8 line, paid this minute: WAIT, 2 for · 1 against · 1 neither."""
     c = saved("check_0943.json")
     v = validate.word(c)
     assert [f["state"] for f in v["facts"]] == ["neither", "for", "against", "for"]

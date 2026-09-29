@@ -36,9 +36,15 @@ data/paper_desk/
 data/day_state/
 # the toxicity morning REBUILT from 1-minute bars (vpin.from_bars). Derived,
 # regenerable from the same bars any time, and rewritten on every start.
-# data/vpin_log.jsonl -- the forward record it must never be confused with --
-# stays tracked on purpose.
+# data/vpin_log.jsonl is the forward record it must never be confused with.
 data/vpin_backfill.jsonl
+
+# THE LIVE FORWARD RECORDS are never tracked (2026-09-28): a tracked, modified record can be
+# overwritten by any git stash / reset / whole-tree checkout. data/trigger_log.jsonl was tracked
+# since August against the rule in CLAUDE.md and HANDOFF-OPERATOR.md §6; untracked here, file kept.
+data/trigger_log.jsonl
+data/vpin_log.jsonl
+data/vpin_fast.jsonl
 
 # caches / local tooling state
 __pycache__/

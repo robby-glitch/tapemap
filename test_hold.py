@@ -189,7 +189,7 @@ def test_payers_building_in_your_way_outranks_a_live_fold():
          "q_fold": {"side": "PE", "k": 22850.0, "t": "09:52", "off": 0.09, "high_at": "09:39"}}
     p = hold._payers(x, None, True, [], 0, "PE")
     assert p["state"] == "against" and p["fold_t"] == "09:52"
-    assert p["fact"] == ("Put writers at 23,100 adding in your way (held 3 min) — adding again [M]"
+    assert p["fact"] == ("Put writers at 23,100 adding in your way (held 3 min) — adding again [M] (writers: [I])"
                          "; the PE 22,850 fold of 09:52 is still with you")
     assert hold._payers(x, None, False, [], 0, "PE")["state"] == "for"
 

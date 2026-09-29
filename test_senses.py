@@ -7,6 +7,7 @@ land in the file holding the 5c / zone / legacy populations. And
 that cannot be written must cost a counter, never the session.
 """
 import json
+import os
 from pathlib import Path
 
 import senses
@@ -54,8 +55,11 @@ def test_the_trigger_log_is_never_touched(tmp_path):
     """The forward record of 5c / zone / legacy rows is the one irreplaceable
     artefact here. Detector rows are a fourth population and must land
     elsewhere, always."""
-    assert "trigger_log" not in senses.DIR
-    assert "trigger_log" not in senses.day_path("2026-08-20")
+    # under pytest DIR sits inside tmp_path, whose own name carries this test's name (P1-01 leak guard):
+    # the rule is about the record's path, so it is checked past the tmp root
+    rel = os.path.relpath(senses.DIR, str(tmp_path))
+    assert "trigger_log" not in rel
+    assert "trigger_log" not in os.path.relpath(senses.day_path("2026-08-20"), str(tmp_path))
     assert senses.day_path("2026-08-20").endswith("senses_2026-08-20.jsonl")
 
     real = Path(__file__).parent / "data" / "trigger_log.jsonl"

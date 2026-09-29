@@ -147,3 +147,30 @@ def test_lot_tick_reads_the_nearest_future_and_is_none_none_on_an_old_slice(cach
     old = [{k: v for k, v in r.items() if k not in ("lot_size", "tick_size")}
            for r in rows]
     assert ui.lot_tick("NIFTY", rows=old) == (None, None)
+
+
+def test_an_expired_future_is_never_picked():
+    """2026-09-28 audit, bug 13: a cached dump keeps the dead month after its expiry;
+    on the roll morning futs[0] handed the ladder, VPIN and book a contract that no
+    longer trades. The same `now` filter the options use."""
+    rows = [{"instrument_type": "FUTIDX", "instrument_key": "OLD", "expiry": 1_000, "lot_size": 75, "tick_size": 0.05},
+            {"instrument_type": "FUTIDX", "instrument_key": "NEW", "expiry": 3_000, "lot_size": 65, "tick_size": 0.05}]
+    assert ui.fut_key("NIFTY", rows=rows, now_ms=2_000) == "NEW"
+    assert ui.lot_tick("NIFTY", rows=rows, now_ms=2_000) == (65, 0.05)
+    assert ui.fut_key("NIFTY", rows=rows, now_ms=500) == "OLD"          # before its expiry it is still the near month
+    with pytest.raises(RuntimeError, match="no future"):
+        ui.fut_key("NIFTY", rows=rows, now_ms=4_000)
+
+
+def test_the_expired_future_is_named_while_the_dump_still_lists_it():
+    """P1-03 / P1-04: resolve carries the watched future's own expiry and the last expired one,
+    off the same `expiry` field `_futs` reads; None once the dump has dropped the dead month."""
+    rows = [{"instrument_type": "FUTIDX", "instrument_key": "OLD", "expiry": 1_000, "lot_size": 75, "tick_size": 0.05},
+            {"instrument_type": "FUTIDX", "instrument_key": "NEW", "expiry": 3_000, "lot_size": 65, "tick_size": 0.05},
+            {"instrument_type": "CE", "instrument_key": "C1", "strike_price": 100, "expiry": 2_500},
+            {"instrument_type": "PE", "instrument_key": "P1", "strike_price": 100, "expiry": 2_500}]
+    assert ui.fut_expired(rows, now_ms=2_000) == ui._ymd(1_000)
+    assert ui.fut_expired(rows, now_ms=500) is None
+    r = ui.resolve(100, name="NIFTY", rows=rows, now_ms=2_000)
+    assert r["fut_key"] == "NEW" and r["fut_expiry"] == ui._ymd(3_000) and r["fut_expired"] == ui._ymd(1_000)
+    assert ui.resolve(100, name="NIFTY", rows=rows, now_ms=500)["fut_expired"] is None

@@ -37,10 +37,17 @@ Upstox only. Dhan's REST does not serve per-strike option OI history in this
 shape, so on that broker the caller skips this rather than half-filling.
 """
 
+import json
+import os
 import threading
 import time
 
 MARK = "%H:%M"
+# THE BACKFILL ON DISK (pro-tool P2-06): data/chain_backfill/backfill_<IDX>_<day>.jsonl, one row per
+# rebuilt mark, tagged `backfilled: true` (and `src: "backfill"` inside, the live rule). A restart reads
+# these first and fetches only what is still missing, so two processes rebuild the same morning. Never
+# counted as observed. DIR is read at call time (conftest / server._isolate_mock_writers redirect it).
+DIR = os.path.join("data", "chain_backfill")
 # The session's last candle is 15:29. Upstox keeps serving option candles to
 # ~15:39 (post-close OI, no index spot), so a restart after the close used to
 # gain ten minutes the live poller never records -- with spot None on the last
@@ -238,18 +245,69 @@ def minute_grid(index, strikes, tok, gap_s=GAP_S, fetch=None, keys_of=None,
     return grid
 
 
+def path(day, index):
+    return os.path.join(DIR, f"backfill_{index}_{day}.jsonl")
+
+
+def _rec(r):
+    """A file row -> the mark's record, int strikes and (ce, pe) pairs back from JSON."""
+    return {"spot": r.get("spot"), "k": {int(k): tuple(v) for k, v in (r.get("k") or {}).items()},
+            "px": {int(k): tuple(v) for k, v in (r.get("px") or {}).items()}, "src": "backfill"}
+
+
+def read_grid(day, index):
+    """The marks an earlier process rebuilt today, {mark: rec}; {} when there is no file."""
+    out = {}
+    try:
+        with open(path(day, index), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(r, dict) and r.get("t") and r.get("k"):
+                    out[r["t"]] = _rec(r)
+    except OSError:
+        pass
+    return out
+
+
+def write_grid(day, index, grid, have=()):
+    """Append the marks not on disk yet, each tagged backfilled. Fail-soft: a disk fault costs the file, never
+    the grid in memory. Returns rows written."""
+    rows = [{"day": day, "index": index, "t": m, **rec, "backfilled": True} for m, rec in sorted(grid.items()) if m not in have]
+    if not rows:
+        return 0
+    try:
+        os.makedirs(DIR, exist_ok=True)
+        with open(path(day, index), "a", encoding="utf-8") as f:
+            f.write("".join(json.dumps(r) + "\n" for r in rows))
+    except OSError:
+        return 0
+    return len(rows)
+
+
 def backfill_minutes(state, index, strikes, tok, before=None, log=None,
-                     gap_s=GAP_S, fetch=None, keys_of=None):
+                     gap_s=GAP_S, fetch=None, keys_of=None, day=None):
     """Fill `state.minutes` for marks the poller never recorded; returns how
     many were added.
 
     `before` is the earliest mark the poller DID record -- nothing at or after
     it is touched. None means the grid is empty and everything is fair game.
-    An observation is never overwritten by a reconstruction.
+    An observation is never overwritten by a reconstruction. The marks an
+    earlier process rebuilt today (on disk, P2-06) win over a fresh fetch, so a
+    restart holds the same morning; the fetch fills what they lack.
     """
     say = log or (lambda *_a: None)
-    grid = minute_grid(index, strikes, tok, gap_s=gap_s, fetch=fetch,
-                       keys_of=keys_of, log=say)
+    day = day or time.strftime("%Y-%m-%d")
+    disk = read_grid(day, index)
+    try:
+        grid = minute_grid(index, strikes, tok, gap_s=gap_s, fetch=fetch,
+                           keys_of=keys_of, log=say)
+    except Exception as e:                            # noqa: BLE001 -- the disk copy still serves
+        say(f"chain backfill {index}: REST failed ({e}); {len(disk)} mark(s) from disk")
+        grid = {}
+    grid = {**grid, **disk}
     added = 0
     for m, rec in grid.items():
         if before is not None and m >= before:
@@ -260,8 +318,9 @@ def backfill_minutes(state, index, strikes, tok, before=None, log=None,
             continue
         state.minutes[m] = rec
         added += 1
+    write_grid(day, index, {m: r for m, r in grid.items() if m < SESSION_END}, have=disk)
     say(f"chain backfill {index}: added {added} of {len(grid)} REST mark(s) "
-        f"before {before or 'the first recorded one'} ({len(strikes)} strikes)")
+        f"before {before or 'the first recorded one'} ({len(strikes)} strikes; {len(disk)} from disk)")
     return added
 
 

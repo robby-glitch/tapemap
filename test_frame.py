@@ -314,3 +314,21 @@ def test_a_degenerate_sigma_is_not_warm_even_after_the_anchor():
     assert w2["warm"] is True
     assert w2["z"] is not None
     assert w2["zone_why"] is None
+
+
+def test_the_futures_oi_is_blind_in_the_expiry_week():
+    """P1-02: the tape day is 15 Sep; a future expiring 16 Sep is rolling, one expiring 29 Sep is not."""
+    b = _book(); b["fut_expiry"] = "2026-09-16"
+    T = frame.build(_tape(), b, "15:30")["trapped"]
+    assert T["fut_oi"] is None and T["fut_oi_why"] == "the Sep future is rolling into Oct"
+    b["fut_expiry"] = "2026-09-29"
+    assert frame.build(_tape(), b, "15:30")["trapped"]["fut_oi"] == {"d_oi": 13000, "d_px": round(23230 - 23500, 1)}
+
+
+def test_the_frame_carries_the_upstox_oi_reference_with_its_why():
+    """P1-05: the contract match needs an OI that is not GoCharting's own."""
+    f = frame.build(_tape(), _book(), "15:30")
+    assert f["ux_oi"] is None and f["ux_oi_why"] == "no closed Upstox ladder bar yet"
+    b = _book(); b["ux_oi"] = [{"t": 1, "oi": 100}]
+    f = frame.build(_tape(), b, "15:30")
+    assert f["ux_oi"] == [{"t": 1, "oi": 100}] and f["ux_oi_why"] is None

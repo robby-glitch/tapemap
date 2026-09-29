@@ -2,14 +2,14 @@
 // Layout: docs/mockups/validate-2026-09-25/validate-design.html; fixes: docs/hold/REVIEW-2026-09-25.md.
 //
 // Mounted ONCE at the App root; it exists only while she is IN a trade. Every open trade is watched
-// (the header carries the worst word); a FOLD cannot be ✕'d away, only answered with I'M OUT; the
-// qualifier (NOISE / STRUCTURE ONLY / NOTHING PAYING), the quiet clock and the read's age are on the
-// one line. "Pop out" moves the same tree into a Chrome Document Picture-in-Picture window over the
+// (the header carries the worst word); a FOLD keeps I'M OUT in the header and its live read under the
+// word, and the ✕ still closes the window (closing is not exiting); the qualifier (NOISE / STRUCTURE
+// ONLY / NOTHING PAYING), the quiet clock and the read's age are on the one line. "Pop out" moves the same tree into a Chrome Document Picture-in-Picture window over the
 // broker. It reads, it never decides; LIGHT only, no chart, never P&L on the collapsed line, no order path.
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { Abs, Age, Cutoff, Err, Guard, Ico, Mark, N, Qual, Quiet, Rows, SideList, Sigma, WALL, WatchList, cap, inr, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
+import { Abs, Age, Cutoff, Err, Fired, Guard, Ico, Live, Mark, N, Qual, Quiet, Rows, SideList, Sigma, WALL, WatchList, cap, inr, levelNote, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
 import { onFold, rank, tone, tradeOp, useHold } from './store'
 import type { Held } from './store'
 
@@ -20,9 +20,10 @@ export type Trade = { id: string; idx: string; k: number; side: 'CE' | 'PE'; rol
 export type SideRead = { side: string; since: string; text: string; facts: { k: string; state: string; fact: string; tag: string }[]; oi_half: string[]; expiry: { text: string }; agrees?: string }
 export type Now = {
   t: string; verdict: Word; tag: string | null; sentence: string; since: string; fold_rule: number | null
+  unlatched: Word; healed_since?: string | null     // the read NOW with the latch removed (hold.py §7); shown under a latched FOLD
   line: { L?: number; src?: string; room?: number | null; px?: number; broken_at?: string | null; blind?: string | null; tag: string
           level?: number | null; B?: number | null; print?: string | null; to_level?: number | null; next_close?: string | null; clamped?: boolean }
-  payers: Row; holders: Row; flow: Row; trend: Row; count: string; n_for?: number; n_against?: number; against?: string | null
+  payers: Row; holders: Row; flow: Row; trend: Row; count: string; n_for: number; n_against: number; against?: string | null
   clock: { paid_last?: string | null; quiet?: number; of?: number; text: string }
   watch: string | null; watch_items?: string[] | null
   prem: { c?: number; pnl?: number; pct?: number; why?: string; tag?: string }; blind: string[]
@@ -46,14 +47,12 @@ export type PlanRow = {
   exits: { line: string; window: string }
 }
 
-export const RULE: Record<number, string> = { 3: 'the line broke', 4: 'positioning flipped', 5: 'the reason is gone', 6: 'two families against' }
 const W = 400, COLW = 600
 
 function ls(k: string, v?: string): string | null {
   try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v) } catch { /* private window: the window still works */ }
   return null
 }
-export const counts = (n: Now) => n.n_for != null ? [n.n_for, n.n_against ?? 0] : (n.count.match(/(\d+) for · (\d+) against/) || []).slice(1).map(Number)
 const contract = (t: Trade) => `${t.idx} ${t.k} ${t.side}`
 
 export default function HoldWindow(p: { hidden?: boolean }) {
@@ -68,9 +67,11 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   const [pick, setPick] = useState<string | null>(null)
   // a FOLD anywhere takes the head; otherwise her pick, else the worst word
   const cur = folded.length && !folded.some(x => x.t.id === pick) ? folded[0] : open.find(x => x.t.id === pick) || open[0]
-  const [closed, setClosedS] = useState<string[]>(() => { try { return JSON.parse(ls('hold.closed2') || '[]') } catch { return [] } })
-  // ✕ closes it for the trades open now; a new trade, or a FOLD on any trade, brings it back (REVIEW P0-6)
-  const show = open.length > 0 && (folded.length > 0 || open.some(x => !closed.includes(x.t.id)))
+  const [closed, setClosedS] = useState<string[]>(() => { try { return JSON.parse(ls('hold.closed3') || '[]') } catch { return [] } })
+  // ✕ closes it for the trades open now, keyed on whether each is FOLD: a new trade, or a trade TURNING FOLD, brings
+  // it back (REVIEW P0-6); closed under a FOLD it stays closed -- closing the window is not exiting the trade
+  const ck = (x: { t: Trade; rd?: Held }) => x.t.id + (x.rd?.now?.verdict === 'FOLD' ? ':FOLD' : '')
+  const show = open.length > 0 && open.some(x => !closed.includes(ck(x)))
   const [min, setMinS] = useState<boolean>(() => ls('hold.min') === '1')
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => { try { return JSON.parse(ls('hold.pos2') || 'null') } catch { return null } })
   const [beep, setBeepS] = useState<boolean>(() => ls('hold.tone') !== '0')        // default ON (REVIEW P1-13)
@@ -88,9 +89,11 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   useEffect(() => onFold(() => { if (beep) tone() }), [beep])       // one tone, on any trade turning FOLD
   useEffect(() => { if (!show && pip) pip.close() }, [show, pip])   // out of every trade: the pop-out goes too
 
-  // the word in the browser tab title (and the PiP title), so the taskbar carries it behind the broker window
+  // the word in the browser tab title (and the PiP title), so the taskbar carries it behind the broker window;
+  // under a latched FOLD the live read rides along: "[FOLD · live HOLD 23000PE]"
   const now = cur?.rd?.ok ? cur.rd.now : undefined
-  const head = show && cur && now ? `[${now.verdict}${now.tag ? ` · ${now.tag}` : ''} ${cur.t.k}${cur.t.side}] ` : ''
+  const head = show && cur && now
+    ? `[${now.verdict}${now.tag ? ` · ${now.tag}` : ''}${now.verdict === 'FOLD' ? ` · live ${now.unlatched}` : ''} ${cur.t.k}${cur.t.side}] ` : ''
   useEffect(() => {
     const put = () => { document.title = head + document.title.replace(/^\[[^\]]*\] /, '') }
     put()
@@ -152,7 +155,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
     if (!r.ok) setMsg(r.why || 'the undo did not land')
     setUndo(null)
   }
-  const closeIt = () => { const ids = open.map(x => x.t.id); ls('hold.closed2', JSON.stringify(ids)); setClosedS(ids) }
+  const closeIt = () => { const ids = open.map(ck); ls('hold.closed3', JSON.stringify(ids)); setClosedS(ids) }
 
   const toast = undo && createPortal(
     <div className="hv hv-toast">{undo.label} marked out at {nowHMS().slice(0, 5)} <button type="button" onClick={reopen}>Undo</button></div>, document.body)
@@ -162,9 +165,11 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   const rd = cur.rd, t = cur.t, fold = rd?.fold
   const red = now?.verdict === 'FOLD'
   const others = open.filter(x => x.t.id !== t.id)
-  const act = red
-    ? <button type="button" className="btn btn-sm btn-out" disabled={busy} onClick={() => out(t)}>I'M OUT</button>
-    : <button type="button" className="icon-btn" title="Close — it comes back by itself for a new trade, or if any open trade turns FOLD" aria-label="Close" onClick={closeIt}><Ico n="X" /></button>
+  // I'M OUT under a FOLD, and the ✕ always: closing the window is not exiting the trade
+  const act = <>
+    {red && <button type="button" className="btn btn-sm btn-out" disabled={busy} onClick={() => out(t)}>I'M OUT</button>}
+    <button type="button" className="icon-btn" title="Close the window — it comes back by itself for a new trade, or if an open trade turns FOLD; the trade stays watched" aria-label="Close" onClick={closeIt}><Ico n="X" /></button>
+  </>
   const btns = (
     <span className="fl-btns">
       {!pip && <button type="button" className="icon-btn" title="Pop out on top of every window" aria-label="Pop out" onClick={popOut}><Ico n="PiP" /></button>}
@@ -184,14 +189,15 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   // ── collapsed: WORD · contract · line & room · quiet · the one against-fact · rung · since · age — NEVER the P&L (§5)
   const line = min ? (
     <div className="fl-line" {...grip}>
-      {now ? <span className={`word fw ${vcls(now.verdict)}`}>{now.verdict}<Qual tag={now.tag} /></span>
+      {now ? <span className={`word fw ${vcls(now.verdict)}`}>{now.verdict}<Qual tag={now.tag} />
+               {now.verdict === 'FOLD' && <span className="qual live-c"> · live {now.unlatched}</span>}</span>
            : <span className="word fw v-PATA">{rd && !rd.ok ? 'NO READ' : 'READING…'}</span>}
       <span className="mid">
         <span className="c">{contract(t)}</span>
         {now && <><span className="dot">·</span>{lineBit}</>}
         {now && t.role === 'long' && <><span className="dot">·</span><Quiet n={now} /></>}
         {now && <><span className="dot">·</span><Against n={now} fold={fold} /></>}
-        {now && !fold && rd?.plan?.rung?.src === 'wall' && <><span className="dot">·</span><span>rung <N t="M">{`${rd.plan.rung.room} pts`}</N> {rd.plan.rung.word?.toLowerCase()}</span></>}
+        {now && rd?.plan?.rung?.src === 'wall' && <><span className="dot">·</span><span>rung <N t="M">{`${rd.plan.rung.room} pts`}</N> {rd.plan.rung.word?.toLowerCase()}</span></>}
         {others.length > 0 && <><span className="dot">·</span><span>+{others.length} open{others.some(x => x.rd?.now?.verdict === 'FOLD') ? ' · one is FOLD' : ''}</span></>}
       </span>
       {now && <span className="since">since <span className="num">{now.since}</span></span>}
@@ -202,7 +208,6 @@ function Win({ hidden = false }: { hidden?: boolean }) {
     </div>
   ) : null
 
-  const [nf, na] = now ? counts(now) : []
   const pl = rd?.plan
   const entryRoom = pl?.entry?.stop?.room
   const body = min ? null : (
@@ -210,11 +215,12 @@ function Win({ hidden = false }: { hidden?: boolean }) {
       <div className="fl-head" {...grip}>
         <div>
           {now ? <div className={`word fw ${vcls(now.verdict)}`}>{now.verdict}</div> : <div className="none">{rd && !rd.ok ? 'NO READ' : 'READING…'}</div>}
+          {now && <Live n={now} />}
           {now && <div className="since">since <span className="num">{now.since}</span></div>}
         </div>
         <div className="cnt" style={{ minWidth: 0 }}>
           {now && <div className="qline"><Qual tag={now.tag} />{t.role === 'long' && <Quiet n={now} />}</div>}
-          {nf != null && <div className="num">{nf} for · {na} against</div>}
+          {now && <div className="sub"><span className="label">live read</span> {now.count}</div>}
           <div className="c">{contract(t)}<span>{t.role} · qty {t.qty} · in {t.t0.slice(0, 5)}</span></div>
         </div>
         {btns}
@@ -224,7 +230,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
       {st.err && <div className="fl-sec"><Abs text={st.err} /></div>}
       {now && rd && <>
         <div className="fl-sec">
-          <p className="fl-say">{cap(strip(now.sentence))}</p>
+          {fold ? <Fired fold={fold} /> : <p className="fl-say">{cap(strip(now.sentence))}</p>}
           {st.flips[t.id] && st.flips[t.id].rows.length > 0 && <p className="sm flip">changed {st.flips[t.id].t}: {st.flips[t.id].rows.join(' · ')}</p>}
           <WatchList n={now} />
           {rd.entry?.head && <p className="sm" style={{ fontWeight: 600 }}>{rd.entry.text}</p>}
@@ -239,11 +245,10 @@ function Win({ hidden = false }: { hidden?: boolean }) {
                 {pl?.stop.after_fold?.text && <div className="sub">{pl.stop.after_fold.text}</div>}</>
               : pl?.stop.L != null ? <><div className="big"><N t="M">{inr(pl.stop.L, 1)}</N></div>
                 <div className="sub"><N t="M">{pl.stop.room != null ? roomText(pl.stop.room) : '—'}</N>{pl.stop.risk != null && (pl.stop.room ?? 0) >= 0 && <> · ≈ <N t="I">{rs(pl.stop.risk)}</N></>}</div>
-                {pl.stop.level != null && <div className="sub">breaks at <N t="M">{inr(pl.stop.level, 1)}</N>{now.line.B != null ? ` (one candle, ${now.line.B})` : ' (buffer 0 until the candle is read)'}</div>}</>
+                {pl.stop.level_text && <div className="sub">{levelNote(pl.stop.level_text)}</div>}</>
               : <div className="sub"><Abs text={now.line.blind || pl?.stop.risk_why || 'could not check — the line'} /></div>}</div>
           <div><span className="label">Next wall</span>
-            {fold ? <div className="sub">the plan ended at the FOLD</div>
-              : pl?.rung?.src === 'wall' && pl.rung.k != null ? <><div className="big">{pl.rung.side} <N t="M">{inr(pl.rung.k)}</N></div>
+            {pl?.rung?.src === 'wall' && pl.rung.k != null ? <><div className="big">{pl.rung.side} <N t="M">{inr(pl.rung.k)}</N></div>
                 <div className="ww"><Mark st={WALL[pl.rung.word || ''] || 'neither'} />{pl.rung.word}</div><div className="sub"><N t="M">{`${pl.rung.room} pts`}</N></div></>
               : pl?.rung?.src === 'session' && pl.rung.k != null ? <><div className="big"><N t="M">{inr(pl.rung.k, 1)}</N></div><div className="sub">{pl.rung.label}</div></>
               : <div className="sub">{pl?.rung ? pl.rung.label : 'none — a writer: the stop alone'}</div>}</div>
@@ -293,7 +298,8 @@ function Win({ hidden = false }: { hidden?: boolean }) {
 }
 
 function Against({ n, fold }: { n: Now; fold?: Reading['fold'] }) {
-  if (n.verdict === 'FOLD' && fold) return <span className="ag"><Ico n="X" c="m-against" />{RULE[fold.rule] ?? `rule ${fold.rule}`}</span>
+  // the server's own rule phrase heads its reason ("two families against you: …"); no copy of the rule names here
+  if (n.verdict === 'FOLD' && fold) return <span className="ag"><Ico n="X" c="m-against" />{fold.why?.split(': ')[0] || `rule ${fold.rule}`}</span>
   if (n.against) return <span className="ag">{n.against.startsWith('nothing') ? null : <Ico n="X" c="m-against" />}{n.against}</span>
   const a = [n.payers, n.holders, n.flow, n.trend].find(r => r.state === 'against')
   return a ? <span className="ag"><Ico n="X" c="m-against" />{(a.fact || a.rows || '').split(' — ')[0]}</span>

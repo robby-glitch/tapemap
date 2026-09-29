@@ -337,6 +337,13 @@ class ChainPoller(threading.Thread):
         # observation.
         self.boxes[idx]["mode"] = mode
 
+    def _stamped(self, idx, snap, expiry):
+        """P1-04: the chain row names its own contract -- the underlying's key (the Upstox
+        source's resolve) and the option expiry it was polled on. Additive: the readers of
+        the day file (_warm_start, _hold_peaks) take the row's fields by name."""
+        r = (getattr(self.src, "resolved", None) or {}).get(idx) or {}
+        return {**snap, "ik": r.get("idx_key"), "expiry": expiry}
+
     def _fail(self, idx, mode, msg):
         self.boxes[idx]["payload"] = json.dumps(
             {"ok": False, "mode": mode, "index": idx, "error": msg}).encode()
@@ -616,7 +623,7 @@ class ChainPoller(threading.Thread):
                         self.prevs[idx] = snap
                         self._publish(idx, snap, metrics, expiries[idx], "live")
                         with day_files[idx].open("a", encoding="utf-8") as f:
-                            f.write(json.dumps(snap) + "\n")
+                            f.write(json.dumps(self._stamped(idx, snap, expiries[idx])) + "\n")
                         # First good poll for this index: now the strike window
                         # is known, so the morning can be rebuilt behind us.
                         if idx not in self._backfilled:

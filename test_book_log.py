@@ -116,3 +116,18 @@ def test_a_torn_last_line_is_skipped_by_the_reader_and_by_last_t(tmp_path, monke
 
 def test_every_test_runs_with_the_book_record_in_a_temp_dir():
     assert os.path.isabs(book_log.DIR) and "book" in book_log.DIR       # the conftest redirect
+
+
+def test_every_row_carries_the_contract_it_was_measured_on(tmp_path, monkeypatch):
+    """P1-04: the record names its future and expiry; the change signature ignores the stamp."""
+    monkeypatch.setattr(book_log, "DIR", str(tmp_path / "book"))
+    b = book_log.Book(day="2026-09-21")
+    b.watch("NIFTY", FUT, "2026-09-29")
+    assert b.on_frame(FUT, _frame(), now_ms=1) is True and b.on_frame(FUT, _frame(), now_ms=2) is False
+    b.flush()
+    r = list(book_log.read_rows("2026-09-21", "NIFTY"))[0]
+    assert r["ik"] == FUT and r["expiry"] == "2026-09-29"
+    b2 = book_log.Book(day="2026-09-21")
+    b2.watch("NIFTY", FUT)                                    # the two-argument call still works
+    b2.on_frame(FUT, _frame(), now_ms=3)
+    assert b2._q[0][1]["ik"] == FUT and b2._q[0][1]["expiry"] is None

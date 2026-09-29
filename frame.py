@@ -35,6 +35,7 @@ from typing import Dict, List, Optional, Tuple
 import breadth as breadth_mod   # positioning breadth; no direction field exists in that object by construction
 import fronts as fronts_mod     # research-findings §1d: the near-ATM fronts and the fade gate
 import gate as gate_mod
+import grounds as grounds_mod   # roll_why: the near future's OI is blind in its expiry week (P1-02)
 import signals as signal_mod     # the ballot and the state machine; frame.py never measures a vote
 import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
 import visit as visit_mod   # the latched reach and the visit key; frame.py composes, visit.py measures
@@ -232,7 +233,7 @@ def _where(tape: dict, closed: list, now_hhmm: str) -> dict:
     return w
 
 
-def _trapped(book: dict, closed: list, mins: dict, marks: list) -> dict:
+def _trapped(book: dict, closed: list, mins: dict, marks: list, roll: Optional[str] = None) -> dict:
     wm = book.get("warmap") or {}
     heat = wm.get("heat") or []
     t = {**_EMPTY_TRAPPED}
@@ -259,7 +260,9 @@ def _trapped(book: dict, closed: list, mins: dict, marks: list) -> dict:
         t["pace"] = {"ce": rank(ce_p), "pe": rank(pe_p)}
     else:
         t["pace_why"] = _why("fewer than 4 chain minutes; nothing to rank")
-    if closed and closed[0].get("o") is not None and closed[-1].get("c") is not None:
+    if roll:                                   # the expiry week: the number would read the roll, not positioning (P1-02)
+        t["fut_oi_why"] = _why(roll)
+    elif closed and closed[0].get("o") is not None and closed[-1].get("c") is not None:
         t["fut_oi"] = {"d_oi": (closed[-1].get("oi") or 0) - (closed[0].get("oi") or 0), "d_px": round(float(closed[-1]["c"] - closed[0]["o"]), 1)}
     else:
         t["fut_oi_why"] = _why("no joined OHLC yet")
@@ -494,7 +497,7 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     iv_ms = int(tape.get("interval") or 5) * 60000
     clock = _hhmm(closed[-1]["t"] + iv_ms) if closed and closed[-1].get("t") is not None else now_hhmm
     where = _safe(lambda: _where(tape, closed, clock), _EMPTY_WHERE)
-    trapped = _safe(lambda: _trapped(book, closed, mins, marks), _EMPTY_TRAPPED)
+    trapped = _safe(lambda: _trapped(book, closed, mins, marks, grounds_mod.roll_why(day, book.get("fut_expiry"))), _EMPTY_TRAPPED)
     walls = _safe(lambda: _walls(tape, book, broke), _EMPTY_WALLS)
     tape_o = _safe(lambda: _tape(tape, closed, walls["rows"]), _EMPTY_TAPE)
     setup = _safe(lambda: _setup(tape, book, clock, walls), _EMPTY_SETUP)
@@ -597,4 +600,9 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
             "fronts": fronts_rows or None,
             "fronts_why": None if fronts_rows else
                           (fronts_err or ("chain minutes not answered" if not mins else
-                                          "no minute carries a spot and a strike grid yet"))}
+                                          "no minute carries a spot and a strike grid yet")),
+            # THE CONTRACT MATCH'S REFERENCE (P1-05): the last Upstox ladder bars' {t, oi} for the
+            # watched future, so the extension can tell GoCharting's bar OI against a source that is
+            # not GoCharting's own. Null with its why when the ladder has no closed bar yet.
+            "ux_oi": book.get("ux_oi") or None,
+            "ux_oi_why": None if book.get("ux_oi") else "no closed Upstox ladder bar yet"}

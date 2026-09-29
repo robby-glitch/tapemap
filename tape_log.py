@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date
 from typing import Dict, List, Optional, Set, Tuple
 
 DIR = os.path.join("data", "tape")
@@ -47,6 +48,11 @@ def day_path(day: str, idx: str) -> str:
 
 def marks_path(day: str, idx: str) -> str:
     return os.path.join(DIR, f"ofd_marks_{idx}_{day}.jsonl")
+
+
+def ux_path(day: str, idx: str) -> str:
+    """The Upstox ladder record beside the tape (ux_log.day_path reads it from here)."""
+    return os.path.join(DIR, f"ux_{idx}_{day}.jsonl")
 
 
 def _read(path: str) -> List[dict]:
@@ -78,15 +84,46 @@ def read_marks(day: str, idx: str) -> List[dict]:
     return _read(marks_path(day, idx))
 
 
-def prior_days(day: str, idx: str, n: int = 5) -> List[str]:
-    """Days with a bar file before `day`, newest first, at most n."""
+def prior_days(day: str, idx: str, n: int = 5, after: Optional[str] = None) -> List[str]:
+    """Days with a bar file before `day`, newest first, at most n. `after` (YYYY-MM-DD) also
+    drops the days on or before it -- the expired front future's expiry (pro-tool P1-03)."""
     pre, suf = f"tape_{idx}_", ".jsonl"
     try:
         names = os.listdir(DIR)
     except OSError:
         return []
     days = [nm[len(pre):-len(suf)] for nm in names if nm.startswith(pre) and nm.endswith(suf)]
-    return sorted((d for d in days if d < day), reverse=True)[:n]
+    return sorted((d for d in days if d < day and (after is None or d > after)), reverse=True)[:n]
+
+
+def _ux_ik(day: str, idx: str) -> Optional[str]:
+    """The contract key the day's ux record was measured on (P1-04's stamp), or None."""
+    return next((r.get("ik") for r in _read(ux_path(day, idx)) if r.get("ik")), None)
+
+
+def prior_pool(day: str, idx: str, n: int = 5, after: Optional[str] = None,
+               ik: Optional[str] = None) -> Tuple[List[str], Optional[str]]:
+    """THE ROLL (P1-03): the prior days whose prices are this contract's, and why when none are.
+    Sep expired 29 Sep and 30 Sep is the Oct contract, off by the calendar spread: a day on or
+    before `after` is cut. Once the dump no longer lists the expired future (`after` None), a
+    day is kept only when its ux record carries today's `ik`; one recorded before the stamp
+    existed, or on another contract, is cut and named."""
+    cand = prior_days(day, idx, n)
+    days = prior_days(day, idx, n, after) if after else cand
+    why = None
+    if after and len(days) < len(cand):
+        e = date.fromisoformat(after)
+        why = f"the {e:%b} future expired {e.day} {e:%b}; earlier days are another contract"
+    if ik:
+        keep, other, unstamped = [], [], []
+        for d in days:
+            k = _ux_ik(d, idx)
+            (keep if k == ik else other if k else unstamped).append(d)
+        if keep != days:
+            why = (f"earlier days are another contract ({_ux_ik(other[0], idx)}, today {ik})" if other
+                   else "earlier days' contract was not recorded (before the contract stamp)")
+        days = keep
+    return days, why
 
 
 def _mark_key(m: dict) -> tuple:
@@ -138,8 +175,12 @@ def append(doc: dict, day: str, idx: str) -> dict:
     global failed
     _seed(day, idx)
     seen_b, seen_m = _seen_bars[(day, idx)], _seen_marks[(day, idx)]
+    # ik: null on purpose (P1-04): these are GoCharting's continuous NIFTY-I bars; stamping Upstox's
+    # contract on them would be a measured claim the source never made. The why says so on every row.
+    sym = str(doc.get("session") or "").split("|")[0] or f"{idx}-I"
     meta = {"rowSize": doc.get("rowSize"), "rowAnchor": doc.get("rowAnchor", 0), "lot": doc.get("lot"),
-            "session": doc.get("session"), "idx": idx, "day": day}
+            "session": doc.get("session"), "idx": idx, "day": day,
+            "ik": None, "ik_why": f"GoCharting continuous {sym}; contract not declared"}
     bars = []
     for b in doc.get("closed") or []:
         t = bar_t(b)

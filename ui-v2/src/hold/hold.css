@@ -414,6 +414,27 @@
 .hv .mkt-now{font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
 @media (max-width:1240px){ .hv .mkt-grid{grid-template-columns:repeat(3,minmax(0,1fr))} .hv .mc:nth-child(4){border-left:0;padding-left:0} }
 
+/* ── the UI audit, 2026-09-28: the live read under a latched FOLD, the stamped latch, the rows in the band,
+   the live-read label on the count, VPIN under the folded strip. LIGHT only. ── */
+.hv .live{display:flex;align-items:baseline;gap:var(--s2);color:var(--text-secondary)}
+.hv .live .word{font-size:var(--t28);line-height:32px;color:inherit}
+.hv .band .w .live{margin-top:var(--s1)}
+.hv .band .w .live .word{font-size:var(--t40);line-height:40px}
+.hv .band.red .live,.hv .band.red .live .label,.hv .band.red .live .sm{color:var(--on-red-soft)}
+.hv .fl-head .live{margin:var(--s1) 0}
+.hv .fl-head .live .word{font-size:var(--t20);line-height:24px}
+.hv .fl-head .sub{font-size:var(--t12);line-height:16px;color:var(--text-secondary)}
+.hv.float.red .fl-head .live,.hv.float.red .fl-head .live .label,.hv.float.red .fl-head .live .sm,
+.hv.float.red .fl-head .sub,.hv.float.red .fl-head .sub .label{color:var(--on-red)}
+.hv .live-c{color:var(--text-secondary)}
+.hv .band .say p.stamp{font-weight:400;font-size:var(--t14);line-height:20px;color:var(--text-secondary)}
+.hv .band .say .band-rows{display:flex;flex-direction:column;gap:2px;align-self:stretch}
+.hv .band .say .band-rows p{font:400 var(--t12)/16px var(--f-ui);color:var(--text-secondary)}
+.hv .band.red .say p.stamp,.hv .band.red .say .sm,.hv .band.red .band-rows .tx,.hv .band.red .band-rows .st,.hv .band.red .band-rows p{color:var(--on-red-soft)}
+.hv .band.red .band-rows .i,.hv .band.red .flip{color:var(--on-red)}
+.hv .band .cnt .label{margin-bottom:var(--s1)}
+.hv .mkt-vpin{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s1) var(--s3);font-size:var(--t12);line-height:16px}
+
 /* her 15:00 practice (CAS) — a reminder, never a gate */
 .hv .cutoff{flex:none;font:600 var(--t12)/16px var(--f-ui);color:var(--caution);white-space:nowrap}
 .hv.float.red .fl-line .cutoff{color:var(--on-red)}

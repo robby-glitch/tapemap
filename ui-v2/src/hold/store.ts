@@ -33,8 +33,10 @@ export async function j<T>(url: string, body?: unknown, raw?: string): Promise<T
 }
 export const why = (e: unknown) => `could not check — no answer from the server (${(e as Error).name === 'AbortError' ? 'timed out after 8 s' : (e as Error).message})`
 
-// which row changed when the word changed: "PAYERS for → against" (REVIEW §5, a diff instead of a paragraph)
+// which row changed on this read: "PAYERS for → against" (REVIEW §5, a diff instead of a paragraph). Diffed on EVERY
+// poll, not only when the word moves: under a latched FOLD the word never moves again, the rows and the live read do.
 const ROWS: [string, (n: Now) => string][] = [
+  ['LIVE READ', n => n.unlatched],
   ['LINE', n => n.line.blind ? 'blind' : n.line.broken_at ? 'broken' : 'intact'], ['PAYERS', n => n.payers.state],
   ['HOLDERS', n => n.holders.state], ['FLOW', n => n.flow.state], ['TREND', n => n.trend.state]]
 function flip(a: Now, b: Now): Flip {
@@ -55,9 +57,10 @@ async function poll() {
       try {
         const h = await j<Held>(`/api/hold?id=${encodeURIComponent(id)}&rows=brief`)
         const was = reads[id]?.now
-        if (was && h.now && was.verdict !== h.now.verdict) {
-          flips[id] = flip(was, h.now)
-          if (h.now.verdict === 'FOLD') folds.forEach(f => f(id))
+        if (was && h.now) {
+          const f = flip(was, h.now)
+          if (f.rows.length || f.from !== f.to) flips[id] = f      // the last change stays on screen until the next
+          if (f.from !== 'FOLD' && f.to === 'FOLD') folds.forEach(g => g(id))   // the one tone: only the turn into FOLD
         }
         reads[id] = h
       } catch (e) { err = why(e) }           // keep the last good read; the age chip shows it growing old

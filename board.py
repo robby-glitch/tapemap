@@ -87,8 +87,11 @@ def paying(f):
     off = f["peak"] - f["chg"]
     frac = off / max(abs(f["peak"]), 1)
     if f["state"] == fronts.BUILDING:
-        if off >= fronts.UNWIND_FRAC * max(abs(f["peak"]), 1):
-            return "no", f"adding again, still {Lx(off)} under its {f['peak_at']} peak"
+        # BUILDING is the 15-mark slope, not the last few marks: once the front is off its high it says so.
+        # "adding again" / "still adding" were printed while 22,900 PE fell every minute from its 09:33
+        # peak (2026-09-28 trader audit, bug 5).
+        if off >= fronts.STALL_FRAC * max(abs(f["peak"]), 1):
+            return "no", f"up on the 15-min slope ({L(f['chg'])}) but {Lx(off)} under its {f['peak_at']} peak"
         return "no", f"still adding ({L(f['chg'])})"
     if f["state"] == fronts.STALLED:
         return "not yet", f"stopped building at {f['peak_at']}" + (f", {frac:.0%} off" if frac >= 0.005 else "")
@@ -103,6 +106,9 @@ def aggression(facts):
     c, fl = facts.get("cvd"), facts.get("flow")
     if not c:
         return 0, None, None, CC + (facts.get("cvd_why") or "no ladder bars")
+    if c.get("rank") is None:           # too few earlier changes to size it: could not check, never "small"
+        return 0, None, None, CC + (c.get("rank_why") or f"sizing the CVD change needs {grounds.MIN_PRIOR} "
+                                                            "earlier 15-min changes today")
     d = sgn(c["d"])
     fact = f"CVD {c['d']:+,.0f} since {c['since']} (rank {c['rank']:.2f})"
     if not fl:
@@ -242,7 +248,8 @@ def headline(j, fr, facts, s, step, evs, S, RP, near, jx):
                         f"one-minute marks, {j + 1} so far", "fold": None, "next": None, "tag": "M"}
     d, word, _fact, why = aggression(facts)
     lead = (f"{'Buyers' if d > 0 else 'Sellers'} {word}" if d else
-            "Nobody pressing — too thin to read" if (why or "").startswith("too thin") else "Nobody pressing")
+            "Nobody pressing — too thin to read" if (why or "").startswith("too thin") else
+            "Pressure " + why if (why or "").startswith(CC) else "Nobody pressing")
 
     def near_spot(e):
         # [I, display]: within one strike of spot, or spot through the strike on
@@ -316,7 +323,7 @@ def tape_events(marks):
         for m in (marks or {}).get(src) or []:
             if not isinstance(m, dict) or m.get("kind") not in TAPE_KINDS or not m.get("side") or m.get("t") is None:
                 continue
-            e = {"vis": mm(grounds._hh(m["t"])) + 5, "kind": m["kind"], "side": m["side"],
+            e = {"vis": mm(grounds._hh(m["t"])) + 4, "kind": m["kind"], "side": m["side"],   # its bar closed by then (= _closed)
                  "src": "GoCharting" if src == "ofd" else "TapeMap ladder"}
             key = (m["t"], e["kind"], e["side"], m.get("p"), m.get("size"), src)
             if key not in seen:
@@ -363,7 +370,7 @@ def agreement(fr, s, facts, events, have, asof, stg, idx):
                     "the nearer of each side's top 2 by §1d" if v else
                     ("both sides writing" if b_ce and b_pe else "neither side writing")))
     cv = facts.get("cvd")
-    if not cv:
+    if not cv or cv["rank"] is None:
         fam.append(("CVD", None, CC + aggression(facts)[3].replace(CC, ""), "I", None))
     else:
         v = sgn(cv["d"]) if cv["rank"] >= grounds.STRONG else 0
@@ -385,7 +392,7 @@ def agreement(fr, s, facts, events, have, asof, stg, idx):
         v = 1 if dom(nb, ns) else -1 if dom(ns, nb) else 0
         last = w[-1] if w else None
         fam.append(("TAPE", v, f"{ns} bearish / {nb} bullish footprint events" +
-                    (f" · last {last['kind']} {hm(last['vis'] - 5)}" if last else ""), "I",
+                    (f" · last {last['kind']} {hm(last['vis'] - 4)}" if last else ""), "I",
                     "GoCharting + TapeMap marks, 15 min" if w else "checked, none in 15 min"))
     if stg.get("word") is None:
         fam.append(("TREND", None, CC + (stg.get("why") or "trend box not read"), "I", None))

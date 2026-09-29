@@ -207,7 +207,11 @@ def read(D, i, d):
     if P["state"] == "blind" and H["state"] == "blind":
         facts.append(_fact("SPEED", "neither", CC + "OI " + (hold._strip(oi_blind) or "not read"), "blind"))
     elif lr["clock"].get("paid_last") == t:
-        what = hold._lc(P["fact"]) if P["state"] == "for" else "flow with you"
+        # name what actually paid: "flow with you" was printed at 09:38 on 2026-09-28 when the pay was the
+        # payers' fold and flow read against (trader audit, bug 6)
+        what = (hold._lc(P["fact"]) if P["state"] == "for" else
+                f"the payers' fold of {P['fold_t']}" if P.get("fold_t") else
+                "flow with you" if lr["flow"]["state"] == "with" else hold._lc(P["fact"]))
         facts.append(_fact("SPEED", "buy", f"paid at {t}: {what} — a forced move is a fast move, and speed beats the rent"))
     else:
         facts.append(_fact("SPEED", "neither", NONE + f"nothing paying at {t}", "none"))

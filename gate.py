@@ -18,7 +18,7 @@ RANK = {"TRADE": 0, "HALF SIZE": 1, "NO NEW RISK": 2}
 
 def state(ivrv: Optional[float], expiry_iso: Optional[str], today_iso: str,
           vpin_pct: Optional[float], squeeze: Optional[bool]) -> dict:
-    holes = []
+    holes, shadow = [], []
     level, lead = "TRADE", None
 
     def worse(l, why):
@@ -39,11 +39,13 @@ def state(ivrv: Optional[float], expiry_iso: Optional[str], today_iso: str,
     if vpin_pct is None:
         holes.append("VPIN: not measured yet")
     elif vpin_pct >= 0.8:
-        worse("NO NEW RISK", "VPIN burst")
+        # the VPIN gauge is SHADOW (vpin.py: fed, logged, read by nothing): a burst is printed as such,
+        # never as a risk verdict the gate would have given
+        shadow.append("VPIN burst (shadow gauge, not counted)")
     if squeeze is None:
         holes.append("day type: not measured yet")
     elif squeeze:
         worse("NO NEW RISK", "SQUEEZE day")
     holes.append("event calendar not wired")
     return {"level": "PATA NAHI", "reason": "; ".join(holes), "holes": holes,
-            "would_be": level, "would_be_reason": lead or "no block seen"}
+            "would_be": level, "would_be_reason": lead or "no block seen", "shadow": shadow}

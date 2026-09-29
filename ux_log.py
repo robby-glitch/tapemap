@@ -42,7 +42,7 @@ _LOCK = threading.Lock()
 
 
 def day_path(day: str, idx: str) -> str:
-    return os.path.join(tape_log.DIR, f"ux_{idx}_{day}.jsonl")
+    return tape_log.ux_path(day, idx)
 
 
 def _dedupe_by_t(rows: List[dict]) -> List[dict]:
@@ -88,6 +88,14 @@ def state(idx: str, day: str, lot: Optional[int] = None, tick: Optional[float] =
     return st
 
 
+def _stamp(bar: dict, row: dict) -> dict:
+    """P1-04: the contract the book row was measured on rides on the bar it closed (book_log
+    stamps `ik`/`expiry` at the socket). A row from before the stamp leaves them null and says so."""
+    bar["ik"], bar["expiry"] = row.get("ik"), row.get("expiry")
+    bar["ik_why"] = None if bar["ik"] else "book row carries no contract stamp"
+    return bar
+
+
 def _land(st: dict, idx: str, day: str, bar: dict) -> bool:
     """Write one closed bar once. Returns whether it was new."""
     global failed
@@ -117,7 +125,7 @@ def on_frames(rows: List[Tuple[str, dict]], day: str, lot: Optional[int] = None,
         st = state(idx, day, lot, tick)
         with _LOCK:
             closed, fills = st["ladder"].step(row)
-        if closed is not None and _land(st, idx, day, closed):
+        if closed is not None and _land(st, idx, day, _stamp(closed, row)):
             out.append((idx, closed, fills_by.pop(idx, [])))
         if fills:
             st["fills"].extend(fills)
@@ -159,11 +167,11 @@ def rebuild(day: str, idx: str, lot: Optional[int] = None, tick: Optional[float]
         st["fills"].extend(fills)
         if observer is not None:
             observer(idx, row, fills)
-        if closed is not None and _land(st, idx, day, closed):
+        if closed is not None and _land(st, idx, day, _stamp(closed, row)):
             n += 1
     if any_row and close_last:
         with _LOCK:
             last = lad.close_open()
-        if last is not None and _land(st, idx, day, last):
+        if last is not None and _land(st, idx, day, _stamp(last, row)):
             n += 1
     return n

@@ -55,17 +55,24 @@ export default function MarketNow({ index, busy = false }: { index: IndexKey; bu
   const rg = bd.trend?.regime, ag = bd.agreement
   const wall = (side: 'CE' | 'PE') => (bd.fronts || []).filter(f => f.side === side).sort((a, b) => (a.rank ?? 9) - (b.rank ?? 9))[0]
   const walls = [wall('CE'), wall('PE')].filter(Boolean) as Front[]
-  const pcr = bd.pcr?.v
-  const heavy = pcr == null ? null : pcr > 1.05 ? 'put-heavy' : pcr < 0.95 ? 'call-heavy' : 'balanced'
+  const pcr = bd.pcr?.v                       // the number [M] only: no put-heavy / call-heavy line of our own
   const slow = vp && vp.ok ? vp.state?.['NIFTY-FUT'] : undefined, fast = vp && vp.ok ? vp.state?.['NIFTY-FUT:fast'] : undefined
   const legs = (['CE', 'PE'] as const).map(s => [s, bd.mirror?.legs?.[s]] as const).filter(([, l]) => l)
+  // VPIN, the shadow gauge: the same line in the open grid and under the folded header, so a trade never hides it
+  const vpin = index !== 'NIFTY' ? <Abs text="not shown — VPIN runs on NIFTY futures only" />
+    : !vp ? <span className="muted">reading…</span>
+    : !vp.ok ? <Abs text={vp.why} />
+    : slow || fast ? <>{slow && <span className="ms"><b>slow {slow.vpin.toFixed(2)}</b> · rank {slow.pct != null ? slow.pct.toFixed(2) : '—'} of its history<T t="I" /></span>}
+        {fast && <span className="ms"><b>fast {fast.vpin.toFixed(2)}</b> · rank {fast.pct != null ? fast.pct.toFixed(2) : '—'}<T t="I" /></span>}</>
+    : <Abs text="checked, none — no VPIN bucket yet today" />
 
   return (
     <div className="mkt" aria-label="Market now — conditions, not a vote">
       <button type="button" className="mkt-h" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'fold to one line' : 'open'}>
         <span className="label">{open ? '▾' : '▸'} Market now · {index}</span><Age asof={bd.asof} stale={180} />
-        {!open && <span className="ms">{rg ? (rg.word === 'AGREED' ? `${rg.price[0]} agreed` : 'regime not agreed') : ''}{ag ? ` · ${ag.head.dir > 0 ? 'buyers' : ag.head.dir < 0 ? 'sellers' : 'no side'} ${ag.head.n}/${ag.head.of}` : ''}{pcr != null ? ` · PCR ${pcr} ${heavy}` : ''}{slow ? ` · VPIN ${slow.vpin.toFixed(2)}` : ''}</span>}
+        {!open && <span className="ms">{rg ? (rg.word === 'AGREED' ? `${rg.price[0]} agreed` : 'regime not agreed') : ''}{ag ? ` · ${ag.head.dir > 0 ? 'buyers' : ag.head.dir < 0 ? 'sellers' : 'no side'} ${ag.head.n}/${ag.head.of}` : ''}{pcr != null ? ` · PCR ${pcr}` : ''}</span>}
         <span className="fine">conditions, not a vote — GO / WAIT / NO reads only its registered facts</span></button>
+      {!open && <div className="mkt-vpin"><span className="label">VPIN</span>{vpin}<span className="fine">shadow gauge — not counted in any verdict</span></div>}
       {open && <>
       <div className="mkt-grid">
         <div className="mc"><span className="label">Trend or chop</span>
@@ -76,8 +83,8 @@ export default function MarketNow({ index, busy = false }: { index: IndexKey; bu
           {ag ? <><b className="mv">{ag.head.dir > 0 ? 'BUYERS' : ag.head.dir < 0 ? 'SELLERS' : 'NO SIDE'} · {ag.head.n} of {ag.head.of} agree</b>
             <span className="ms">{ag.fam.map(f => <span key={f.k} title={`${f.fact}${f.doubt ? ` — ${f.doubt}` : ''}`} className="fam">{f.k} {ARROW(f.v)}</span>)}</span></>
             : <Abs text="could not check — no agreement read" />}</div>
-        <div className="mc"><span className="label">OI · call or put heavy</span>
-          {pcr != null ? <><b className="mv">PCR <N t={bd.pcr?.tag}>{pcr}</N> · {heavy}</b>
+        <div className="mc"><span className="label">OI · PCR</span>
+          {pcr != null ? <><b className="mv">PCR <N t={bd.pcr?.tag}>{pcr}</N></b>
             <span className="ms" title={bd.pcr?.text}>ΣPE / ΣCE open interest · drifts, no timing</span></>
             : <Abs text={bd.pcr?.text || 'could not check — no PCR'} />}</div>
         <div className="mc"><span className="label">The walls · who built them</span>
@@ -88,13 +95,7 @@ export default function MarketNow({ index, busy = false }: { index: IndexKey; bu
               {l!.pivots?.above ? ` · ${l!.pivots.above.name} ${inr(l!.pivots.above.dist, 1)} above` : ''}{l!.pivots?.below ? ` · ${l!.pivots.below.name} ${inr(l!.pivots.below.dist, 1)} below` : ''}</span>)
             : <Abs text={bd.mirror?.why || 'could not check — no mirror read'} />}</div>
         <div className="mc"><span className="label">VPIN · order-flow toxicity</span>
-          {index !== 'NIFTY' ? <Abs text="not shown — VPIN runs on NIFTY futures only" />
-            : !vp ? <span className="muted">reading…</span>
-            : !vp.ok ? <Abs text={vp.why} />
-            : slow || fast ? <>{slow && <span className="ms"><b>slow {slow.vpin.toFixed(2)}</b> · rank {slow.pct != null ? slow.pct.toFixed(2) : '—'} of its history<T t="I" /></span>}
-                {fast && <span className="ms"><b>fast {fast.vpin.toFixed(2)}</b> · rank {fast.pct != null ? fast.pct.toFixed(2) : '—'}<T t="I" /></span>}
-                <span className="ms muted">shadow gauge — not counted anywhere</span></>
-            : <Abs text="checked, none — no VPIN bucket yet today" />}</div>
+          {vpin}<span className="ms muted">shadow gauge — not counted in any verdict</span></div>
       </div>
       {bd.headline?.text && <div className="mkt-now" title={bd.headline.text}><span className="label">Now</span> {bd.headline.text}<T t={bd.headline.tag} /></div>}
       </>}

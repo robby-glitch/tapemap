@@ -461,3 +461,53 @@ def test_api_tape_ux_agree_why_when_no_ux_bar_shares_a_t_with_gocharting(tmp_pat
     j = cap.sent
     assert j["ux"]["agree"] is None
     assert j["ux"]["agree_why"] == "no GoCharting bar shares a t with any ux bar — nothing to compare"
+
+
+def test_the_frame_door_refuses_another_sites_post_and_admits_the_extension(tmp_path, monkeypatch):
+    """P1-07: sw.js posts cross-site from its chrome-extension:// origin; a web page's cross-site
+    POST is refused before anything is stored or recorded. No header at all (curl) passes."""
+    _isolate(tmp_path, monkeypatch)
+
+    def post(headers):
+        req = _Req("/api/frame", _ladder_doc())
+        req.headers.update(headers)
+        server.Handler.do_POST(req)
+        return req.out[-1]
+    code, j = post({"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example", "Sec-Fetch-Mode": "no-cors"})
+    assert code == 403 and j["ok"] is False and "another site" in j["why"]
+    assert "NIFTY" not in server._SENSES["tape"]
+    for h in ({"Sec-Fetch-Site": "cross-site", "Origin": "chrome-extension://abcdefghijklmnopabcdefghijklmnop"},
+              {"Sec-Fetch-Site": "none", "Origin": "chrome-extension://abcdefghijklmnopabcdefghijklmnop"},
+              {"Sec-Fetch-Site": "none"}, {"Sec-Fetch-Site": "same-origin"}, {"Sec-Fetch-Site": "same-site"}, {}):
+        code, j = post(h)
+        assert code == 200 and j["ok"] is True, h
+
+
+def test_the_frame_carries_the_upstox_oi_reference(tmp_path, monkeypatch):
+    """P1-05: the last UX_OI_N Upstox ladder bars' {t, oi} ride the frame for the extension's
+    contract match, with their why when the ladder has no closed bar."""
+    _isolate(tmp_path, monkeypatch)
+    t0 = 1757563500000
+    monkeypatch.setattr(server, "_ux_bars", lambda idx, day: [{"t": t0 + i * 300000, "oi": 11_654_500 + i, "vol": 3} for i in range(30)])
+    req = _Req("/api/frame", _ladder_doc())
+    server.Handler.do_POST(req)
+    j = req.out[-1][1]
+    assert len(j["ux_oi"]) == server.UX_OI_N and j["ux_oi"][-1] == {"t": t0 + 29 * 300000, "oi": 11_654_529} and j["ux_oi_why"] is None
+    monkeypatch.setattr(server, "_ux_bars", lambda idx, day: [])
+    req = _Req("/api/frame", _ladder_doc())
+    server.Handler.do_POST(req)
+    assert req.out[-1][1]["ux_oi"] is None and req.out[-1][1]["ux_oi_why"] == "no closed Upstox ladder bar yet"
+
+
+def test_api_vpin_is_blind_off_nifty_with_the_lot_count(monkeypatch):
+    """P1-02: the gauge is on the NIFTY future only; SENSEX reads could-not-check with its lots."""
+    monkeypatch.setattr(server, "_ux_bars", lambda idx, day: [{"t": 1, "vol": 8.0}])
+    cap = _Cap("/api/vpin?idx=SENSEX")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["ok"] is True and j["series"] is None and j["state"] == {} and j["inst"] == "SENSEX-FUT"
+    assert j["why"] == "could not check — SENSEX future, 8 lots this bucket"
+    monkeypatch.setattr(server, "_ux_bars", lambda idx, day: [])
+    cap = _Cap("/api/vpin?idx=SENSEX")
+    server.Handler.do_GET(cap)
+    assert cap.sent["why"] == "could not check — SENSEX future: no closed ladder bar yet"

@@ -164,3 +164,43 @@ def test_under_pytest_the_record_dir_is_never_the_live_one(tmp_path):
     cannot write into data/tape/ (the 2026-09-19 leak)."""
     assert tape_log.DIR.startswith(str(tmp_path))
     assert not os.path.normpath(tape_log.DIR).endswith(os.path.join("data", "tape"))
+
+
+def test_a_tape_row_declares_no_contract_and_says_why(tdir):
+    """P1-04: GoCharting's continuous NIFTY-I bars never carry Upstox's contract."""
+    tape_log.append(_doc(1), "2026-09-19", "NIFTY")
+    r = _lines(tape_log.day_path("2026-09-19", "NIFTY"))[0]
+    assert r["ik"] is None and r["ik_why"] == "GoCharting continuous NIFTY-I; contract not declared"
+
+
+def _days(*days):
+    for day in days:
+        tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+        tape_log.append(_doc(2), day, "NIFTY")
+
+
+def test_the_roll_cuts_prior_days_at_the_expired_futures_expiry(tdir):
+    """P1-03: 22-29 Sep are the Sep contract's prices; 30 Sep is the Oct contract's, off by the
+    calendar spread. On 30 Sep nothing is pooled and the why says so; 1 Oct pools 30 Sep alone."""
+    _days("2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25", "2026-09-28", "2026-09-29", "2026-09-30")
+    assert tape_log.prior_days("2026-09-30", "NIFTY", 5, after="2026-09-29") == []
+    days, why = tape_log.prior_pool("2026-09-30", "NIFTY", 5, after="2026-09-29")
+    assert days == [] and why == "the Sep future expired 29 Sep; earlier days are another contract"
+    days, why = tape_log.prior_pool("2026-10-01", "NIFTY", 5, after="2026-09-29")
+    assert days == ["2026-09-30"] and why.startswith("the Sep future expired 29 Sep")
+    assert tape_log.prior_pool("2026-10-01", "NIFTY", 5) == (["2026-09-30", "2026-09-29", "2026-09-28", "2026-09-25", "2026-09-24"], None)
+
+
+def test_prior_days_need_todays_contract_once_the_dump_forgets_the_expiry(tdir):
+    """P1-03, from 1 Oct: the dump no longer lists the Sep future, so a prior day is kept only when
+    its ux record (P1-04's stamp) carries today's contract key; one recorded before the stamp, or
+    on another contract, is cut and named. Without a key nothing is cut."""
+    _days("2026-09-29", "2026-09-30", "2026-10-01")
+    tape_log._write_lines(tape_log.ux_path("2026-09-29", "NIFTY"), [{"t": 1, "ik": "NSE_FO|68407", "src": "ux"}])
+    tape_log._write_lines(tape_log.ux_path("2026-09-30", "NIFTY"), [{"t": 1, "ik": "NSE_FO|48704", "src": "ux"}])
+    days, why = tape_log.prior_pool("2026-10-02", "NIFTY", 5, ik="NSE_FO|48704")     # 1 Oct: no ux record at all
+    assert days == ["2026-09-30"] and why == "earlier days are another contract (NSE_FO|68407, today NSE_FO|48704)"
+    days, why = tape_log.prior_pool("2026-10-02", "NIFTY", 2, ik="NSE_FO|48704")     # only 1 Oct and 30 Sep in reach
+    assert days == ["2026-09-30"] and why == "earlier days' contract was not recorded (before the contract stamp)"
+    assert tape_log.prior_pool("2026-09-30", "NIFTY", 5, ik="NSE_FO|48704")[0] == []
+    assert tape_log.prior_pool("2026-10-02", "NIFTY", 5) == (["2026-10-01", "2026-09-30", "2026-09-29"], None)

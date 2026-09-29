@@ -172,3 +172,13 @@ def test_the_ladder_step_and_the_forming_copy_survive_concurrent_readers(tmp_pat
     for r in readers:
         r.join(timeout=3)
     assert errors == [] and finished
+
+
+def test_bars_carry_the_book_rows_contract_stamp_or_say_they_cannot():
+    """P1-04: a bar closed by a stamped book row names the contract; one from an unstamped row says so."""
+    rows = [dict(r, ik="NSE_FO|48704", expiry="2026-10-27") for r in _rows()]
+    out = ux_log.on_frames([("NIFTY", r) for r in rows], "2026-09-11", lot=65, tick=0.05)
+    assert len(out) == 2 and all(b["ik"] == "NSE_FO|48704" and b["expiry"] == "2026-10-27" and b["ik_why"] is None for _, b, _ in out)
+    assert ux_log.read_bars("2026-09-11", "NIFTY")[0]["ik"] == "NSE_FO|48704"
+    out = ux_log.on_frames([("NIFTY", r) for r in _rows()], "2026-09-12", lot=65, tick=0.05)
+    assert len(out) == 2 and all(b["ik"] is None and b["ik_why"] == "book row carries no contract stamp" for _, b, _ in out)
