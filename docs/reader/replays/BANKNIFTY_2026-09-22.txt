@@ -1,0 +1,63 @@
+BANKNIFTY 2026-09-22 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.2 rupee) · prior sessions for the ruler: none on disk · lot 30
+GoCharting: no GoCharting for this index
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract NSE_FO|68390 · expiry 2026-09-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:17 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 73.8 pts = 3 x today's first 15 minutes' unit 24.60 [M] (median 1-min range (fold's unit)), no prior session: not causal before 09:32
+front contract expiry 2026-09-29 [M, instrument master] · 6 session(s) left
+09:32  ruler 73.8 pts = 3 x today's first 15 minutes' unit 24.60 [M] (median 1-min range (fold's unit)), no prior session: not causal before 09:32
+        Ruler set · 73.8 pts
+10:07  ▲ 09:17→09:30 · +117.4 pts [M] · 13 min · UX Δ+259 [I] (+30%), 453 pts/1k [I] · rank warming 0 of 3 · OI +215 lots [M] (within noise ±64, tol +41..+215) · WHO: rotation, OI flat [I]
+        Upar +117 · Δ+0.3k UX · OI +0.2k · Sirf ghumaav · OI flat
+10:07  TREND UP: first confirmed leg
+        Upar chal raha
+11:00  ▼ 09:30→10:53 · −322.4 pts [M] · 83 min · UX Δ−220 [I] (−7%) · OI +732 lots [M] (moved ±308, tol +732..+769) · WHO: new shorts (delta thin: price × OI only) [I]
+        Neeche −322 · Δ−0.2k UX · OI +0.7k · Naye short · Δ patla
+11:05  ▲ 10:53→10:59 · +90.0 pts [M] · 6 min · UX Δ+116 [I] (+35%), 776 pts/1k [I] · rank warming 1 of 3 · OI +117 lots [M] (moved ±87, tol +113..+142) · WHO: new longs [I]
+        Upar +90 · Δ+0.1k UX · OI +0.1k · Naye long
+11:05  RANGE 56452.6–56775.0: the high 56542.6 did not extend past 56775.0 by δ/2
+        Range 56452.6–56775.0
+11:30  ▼ 10:59→11:08 · −107.6 pts [M] · 9 min · UX Δ−112 [I] (−24%), 961 pts/1k [I] · rank warming 2 of 3 · OI −454 lots [M]: one OI publication step at 11:07 (−502 lots, larger than the volume since the last update): not read as positioning · WHO: sellers pressing
+        Neeche −108 · Δ−0.1k UX · OI −0.5k · Bikri dabav
+11:30  RANGE 56435.0–56775.0: edge widened to 56435.0 (within δ/2)
+        Range 56435.0–56775.0
+11:33  ▲ 11:08→11:14 · +84.0 pts [M] · 6 min · UX Δ+10 [I] (+7%) · OI −17 lots [M] (within noise ±75, tol −22..−4) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +84 · Δ+0.0k UX · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+12:19  ▼ 11:14→11:47 · −144.0 pts [M] · 33 min · UX Δ−154 [I] (−17%), 935 pts/1k [I] · progress per lot 3 of 4 (1 = least) · OI +244 lots [M] (moved ±178, tol +231..+262) · WHO: new shorts [I]
+        Neeche −144 · Δ−0.2k UX · OI +0.2k · Naye short
+12:19  pivot 56375.0 outside the range 56435.0–56775.0, not past it by δ
+        Range ke bahar jhanka 56375
+12:45  ▲ 11:47→12:27 · +87.2 pts [M] · 40 min · UX Δ+8 [I] (+1%) · OI +166 lots [M] (within noise ±182, tol −224..+166) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +87 · Δ+0.0k UX · OI +0.2k · Sirf ghumaav · OI flat · Δ patla
+12:56  BREAKOUT DOWN: traded 56360.0, past 56435.0 − δ
+        Range toota ▼ 56361
+13:42  ▼ 12:27→13:01 · −137.2 pts [M] · 34 min · UX Δ−313 [I] (−26%), 438 pts/1k [I] · least progress per lot, 1 of 5 · OI −1,113 lots [M] (moved ±169, tol −1,113..−729) · WHO: long liquidation, ABSORBED (heavy effort, little progress) [I]
+        Neeche −137 · Δ−0.3k UX · OI −1.1k · Long nikal rahe · bikri dabi
+13:54  ▲ 13:01→13:41 · +85.0 pts [M] · 30 min · UX Δ+219 [I] (+32%), 388 pts/1k [I] · least progress per lot, 1 of 6 · OI +103 lots [M] (within noise ±133, tol +75..+103) · WHO: rotation, OI flat, ABSORBED (heavy effort, little progress) [I] · price hole 13:09–13:14, 13:17–13:20
+        Upar +85 · Δ+0.2k UX · OI +0.1k · Sirf ghumaav · OI flat · kharid dabi
+14:12  ▼ 13:41→14:01 · −140.2 pts [M] · 20 min · UX Δ−499 [I] (−35%), 281 pts/1k [I] · least progress per lot, 1 of 7 · OI +85 lots [M] (within noise ±113, tol +85..+202) · WHO: rotation, OI flat, ABSORBED (heavy effort, little progress) [I]
+        Neeche −140 · Δ−0.5k UX · OI +0.1k · Sirf ghumaav · OI flat · bikri dabi
+14:15  TREND UP: traded 56510.2, above the last lower high 56410.0
+        Trend toota ↑ 56410
+14:19  ▲ 14:01→14:15 · +292.8 pts [M] · 14 min · UX Δ+349 [I] (+36%), 839 pts/1k [I] · progress per lot 6 of 8 (1 = least) · OI −964 lots [M] (moved ±96, tol −1,065..−957) · WHO: short covering [I]
+        Upar +293 · Δ+0.3k UX · OI −1.0k · Short cover
+14:21  ▼ 14:15→14:16 · −106.4 pts [M] · 1 min · UX Δ−36 [I]: too thin to name a side: 24 traded frames in the leg (< 30) · OI +7 lots [M] (within noise ±27, tol +0..+31) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −106 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+14:35  ▲ 14:16→14:32 · +100.8 pts [M] · 16 min · UX Δ+174 [I] (+31%), 579 pts/1k [I] · progress per lot 5 of 9 (1 = least) · OI −106 lots [M] (moved ±100, tol −153..−106) · WHO: short covering [I]
+        Upar +101 · Δ+0.2k UX · OI −0.1k · Short cover
+14:35  RANGE 56456.2–56562.6: the high 56557.0 did not extend past 56562.6 by δ/2
+        Range 56456.2–56562.6
+15:14  ▼ 14:32→14:58 · −157.0 pts [M] · 26 min · UX Δ−22 [I] (−6%) · OI −62 lots [M] (within noise ±113, tol −62..−37) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −157 · Δ−0.0k UX · OI −0.1k · Sirf ghumaav · OI flat · Δ patla
+15:14  pivot 56400.0 outside the range 56456.2–56562.6, not past it by δ
+        Range ke bahar jhanka 56400
+15:30  forming ▲ 14:58→15:15 · +88.0 pts [M] · 17 min · UX Δ+141 [I] (+42%), 624 pts/1k [I] · progress per lot 6 of 10 (1 = least) · OI −356 lots [M]: one OI publication step at 15:12 (−276 lots, larger than the volume since the last update): not read as positioning · WHO: buyers pressing · now 56452.4, 35.6 back of δ 73.8
+        Upar +88 · Δ+0.1k UX · OI −0.4k · Kharid dabav
+
+COUNTS (n, never a rate)
+  minutes read 363 · confirmed legs 14 · auction state changes 5 (bar ≤ 12) · range-edge widenings 1
+  WHO classes: long_liquidation 1, new_longs 1, new_shorts 2, oi_cant 1, rotation 7, short_covering 2
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 0 · GC leg shorter than 2 bars 0
+  prints excluded 0 (none) · OI publication steps 51 of 316 updates
+  integrity audit: 0 violation(s) (bar = 0)

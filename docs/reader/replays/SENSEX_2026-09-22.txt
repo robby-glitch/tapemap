@@ -1,0 +1,37 @@
+SENSEX 2026-09-22 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.05 rupee) · prior sessions for the ruler: none on disk · lot 20
+GoCharting: no GoCharting for this index
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract BSE_FO|864571 · expiry 2026-10-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:18 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 89.2 pts = 3 x today's first 15 minutes' unit 29.74 [M] (median 5-min range / sqrt 5 = 29.74: the 1-min range 0.00 is thin (5 of 8 traded minutes printed one price)), no prior session: not causal before 09:33
+front contract expiry 2026-10-29 [M, instrument master] · 28 session(s) left
+09:33  ruler 89.2 pts = 3 x today's first 15 minutes' unit 29.74 [M] (median 5-min range / sqrt 5 = 29.74: the 1-min range 0.00 is thin (5 of 8 traded minutes printed one price)), no prior session: not causal before 09:33
+        Ruler set · 89.2 pts
+10:22  ▲ 09:20→10:10 · +156.3 pts [M] · 50 min · UX Δ−29 [I] (−34%) · OI −73 lots [M]: OI noise floor warming: 13 of 15 OI updates · WHO: sellers pressing, ABSORBED (price moved against the aggressor)
+        Upar +156 · Δ−0.0k UX · Bikri dabav · bikri dabi
+10:22  TREND UP: first confirmed leg
+        Upar chal raha
+10:44  ▼ 10:10→10:42 · −386.4 pts [M] · 32 min · UX Δ−152 [I] (−84%), 2542 pts/1k [I] · rank warming 0 of 3 · OI +7 lots [M] (within noise ±27, tol +7..+10) · WHO: rotation, OI flat [I]
+        Neeche −386 · Δ−0.2k UX · OI +0.0k · Sirf ghumaav · OI flat
+11:40  ▲ 10:42→10:43 · +121.0 pts [M] · 1 min · UX Δ+1 [I]: too thin to name a side: 5 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±9, tol −1..+1) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +121 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+11:40  RANGE 74669.9–75056.3: the high 74790.9 did not extend past 75056.3 by δ/2
+        Range 74669.9–75056.3
+13:05  BREAKOUT DOWN: traded 74580.0, past 74669.9 − δ
+        Range toota ▼ 74581
+14:13  ▼ 10:43→14:02 · −345.6 pts [M] · 190 min · UX Δ−93 [I] (−46%), 3717 pts/1k [I] · rank warming 1 of 3 · OI −61 lots [M] (within noise ±48, tol −62..−46) · WHO: rotation, OI flat [I] · price hole 13:09–13:14, 13:17–13:19
+        Neeche −346 · Δ−0.1k UX · OI −0.1k · Sirf ghumaav · OI flat
+14:16  TREND UP: traded 74800.0, above the last lower high 74790.9
+        Trend toota ↑ 74791
+14:43  ▲ 14:02→14:21 · +363.6 pts [M] · 19 min · UX Δ+35 [I]: too thin to name a side: 29 traded frames in the leg (< 30) · OI +5 lots [M] (within noise ±20, tol −13..+5) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +364 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+15:30  forming ▼ 14:21→15:00 · −163.3 pts [M] · 39 min · UX Δ−11 [I]: too thin to name a side: 20 traded frames in the leg (< 30) · OI −3 lots [M] (within noise ±24, tol −8..+0) · WHO: rotation, OI flat (delta thin: price × OI only) [I] · now 74725.0, 79.4 back of δ 89.2
+        Neeche −163 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+
+COUNTS (n, never a rate)
+  minutes read 363 · confirmed legs 5 · auction state changes 4 (bar ≤ 12) · range-edge widenings 0
+  WHO classes: oi_cant 1, rotation 4
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 0 · GC leg shorter than 2 bars 0
+  prints excluded 0 (none) · OI publication steps 5 of 66 updates
+  integrity audit: 0 violation(s) (bar = 0)

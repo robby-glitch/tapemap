@@ -296,3 +296,21 @@ def test_fight_events_are_placed_once_with_a_price_and_never_revised():
     fl = fold.flat(inp, upto="09:48:00")
     assert fl["basis"] == v["units"]["basis"] and any(m["kind"] == "won" for m in fl["marks"]) and any(m["kind"] == "wall" for m in fl["marks"])
     assert all(m["t"] <= fold.ms(DAY, "09:48:00") and m["px"] for m in fl["marks"])
+
+
+def test_the_view_carries_the_give_up_staircase_the_wall_behind_px_and_the_wall_ahead_state():
+    """Output fields only (the Trade tab's D.14): G_steps is the give-up's staircase, W sits at K + basis like A,
+    and A carries W's state vocabulary. None of them changes a word, a level or a fold."""
+    v = fold.read(PE, inputs(PATH_A), upto="09:48:00")
+    steps = v["G_steps"]
+    assert steps and all(set(s) == {"t", "px", "why"} for s in steps)
+    path = [g for i, g in enumerate(_g_path(v)) if i == 0 or g != _g_path(v)[i - 1]]
+    assert [s["px"] for s in steps] == path                                  # the same staircase the events carry
+    assert all(b["px"] <= a["px"] for a, b in zip(steps, steps[1:]))         # long PE: it only ever comes down
+    assert steps[-1]["px"] == v["G"]["px"]
+    if v["W"] is not None:
+        assert abs(v["W"]["px"] - (v["W"]["k"] + v["units"]["basis"])) <= 1
+    if v["A"] is not None:
+        assert "state" in v["A"] and v["A"]["state"] in (None, "building", "stopped", "off")
+    before = fold.read(PE, inputs(PATH_A), upto="09:15:10")
+    assert before["headline"] is None and "G_steps" not in before           # nothing before the mark

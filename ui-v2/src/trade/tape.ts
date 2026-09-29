@@ -84,25 +84,6 @@ export interface TapeUx {
   why: string | null
 }
 
-/** The one legend line for the Upstox family (spec 2 §F). Pure: a string off the wire, three
- *  sentences where the wire says so, never a verdict. */
-export function uxLegend(ux: TapeUx | null | undefined, runsDrawn: number, runsServed: number): string {
-  if (!ux) return 'Upstox tape: reply mein ux object nahi aaya'
-  if (ux.why) return `Upstox tape: ${ux.why}`
-  const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)} %`)
-  const head = `Upstox tape (ux · ${ux.bars.length} bars · ${ux.frames_per_s ?? '—'} frames/s · book from ${ux.book_from ?? '—'} · lot ${ux.lot ?? '—'}${ux.lot_src ? ` (${ux.lot_src})` : ''}) [I]${ux.lot_why ? ` · ${ux.lot_why}` : ''}`
-  const a = ux.agree
-  const agree = a
-    ? ` · ux vs ofd: POC ±${a.poc_rows_median ?? '—'} rows (median) · VA overlap ${pct(a.va_overlap)} · delta sign ${pct(a.delta_sign_agree)} · vol ×${a.vol_ratio_median == null ? '—' : a.vol_ratio_median.toFixed(2)} · hidden ${pct(a.hidden_frac)} · unknown ${pct(a.unknown_frac)} [M]`
-    : ` · ${ux.agree_why ?? 'agreement: wajah nahi mili'}`
-  const runs = ` · runs ${runsDrawn} of ${runsServed} bane${runsServed === 0 && ux.marks.runs_why ? ` (${ux.marks.runs_why})` : ''} [I]`
-  const im = ux.impact
-  const lam = im && im.lots_per_tick != null
-    ? ` · λ 1 tick / ~${im.lots_per_tick.toFixed(1)} lots${im.pct != null ? ` (pct ${im.pct.toFixed(2)})` : ''} [I]`
-    : ` · λ: ${im?.why ?? 'gauge nahi mila'}`
-  return head + agree + runs + lam
-}
-
 export function useTape(index: IndexKey): { reply: TapeReply | null; why: string } {
   const [reply, setReply] = useState<TapeReply | null>(null)
   const [why, setWhy] = useState<string>('prints record abhi padha ja raha hai')

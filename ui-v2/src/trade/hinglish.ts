@@ -23,7 +23,8 @@
  * string. A future event type therefore appears untranslated — never
  * mistranslated, and never silently dropped.
  */
-import type { Narration } from './narration'
+/** Which way an event points, as `evDir` (data.ts) decided it; 'structure' is a level event with no direction. */
+type Tone = 'bull' | 'bear' | 'neutral' | 'structure'
 
 export interface Gloss {
   /** Balloon caption. Kept short — it sits in a pill over the candles. */
@@ -230,7 +231,7 @@ export function claimOf(kind: string): Claim {
  *  'structure' is a level event: it has a side on the chart but the engine
  *  called no direction from it, and saying otherwise would invent one. */
 export function dirText(
-  tone: Narration['tone'], kind = '',
+  tone: Tone, kind = '',
 ): { arrow: string; text: string } {
   if (tone === 'structure') return { arrow: '◆', text: 'level ki baat — direction nahi' }
   if (tone !== 'bull' && tone !== 'bear') return { arrow: '—', text: 'direction saaf nahi' }

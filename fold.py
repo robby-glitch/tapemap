@@ -225,6 +225,7 @@ class State:
         # ---- her position (the harness's Fold)
         self.seeded = False
         self.G = self.G_src = self.G_t = None
+        self.G_steps = []                   # output only: the give-up's staircase, one row per step (Trade tab)
         self.G_hit = False
         self.W = self.Ww = self.Aw = None
         self.entry_px = self.best_px = None
@@ -1094,22 +1095,28 @@ class State:
             w_ = self.Ww
             pk = w_.pk if w_ is not None else None
             Wd = dict(k=self.W, side=self.dty, oi=self.cur_oi((self.W, self.dty)), peak=pk,
-                      peak_t=hm(w_.peak_t(self.oiu)) if pk is not None else None, state=w_.state() if w_ else None)
+                      peak_t=hm(w_.peak_t(self.oiu)) if pk is not None else None, state=w_.state() if w_ else None,
+                      px=None if self.bas is None else round(self.W + self.bas))      # at K + basis, as A.px is
         Ad = None
         ak = self.named["A"]
         if ak is not None:
             a_ = self.Aw
             Ad = dict(k=ak, side=self.aty, px=round(ak + self.bas), pts=round(d * (ak + self.bas - self.last_p)),
                       oi=self.cur_oi((ak, self.aty)), peak=a_.pk if a_ else None,
-                      peak_t=hm(a_.peak_t(self.oiu)) if a_ and a_.pk is not None else None)
+                      peak_t=hm(a_.peak_t(self.oiu)) if a_ and a_.pk is not None else None,
+                      state=a_.state() if a_ else None)                                # W's vocabulary: building / stopped / off
         bm = min(15, max(1, round((t - self.basis[0][0]) / 60000))) if self.basis else None
+        # The staircase, output only: a step is recorded when a snapshot sees G at a new price (every change of G
+        # happens at an event, and every event is snapped), so a G set and withdrawn inside one step never shows.
+        if self.G is not None and (not self.G_steps or self.G_steps[-1]["px"] != self.G):
+            self.G_steps.append(dict(t=hm(self.G_t) if self.G_t else None, px=self.G, why=self.G_src))
         return dict(t=t, ts=hms(t), headline=h, clause=cl, line2=self._line2(t),
                     chips=dict(Z=self.shown["ZONE"], F=self.shown["FLOW"], O=self.shown["OI"], V=self.shown["VPIN"]),
                     sentences=dict(Z=self.why["ZONE"], F=self.why["FLOW"], O=self.why["OI"], V=self.why["VPIN"]),
                     mode=("trailed" if self._trailed() else "at entry") if self.G is not None else None,
                     expiry_pm=self._expiry_pm(t), d=d, E=self.entry_px, fut=self.last_p, F=None if self.F is None else round(self.F, 1),
                     G=dict(px=self.G, why=self.G_src, set_t=hm(self.G_t) if self.G_t else None, locked=True, touched=self.G_hit),
-                    W=Wd, A=Ad, epoch=self.epoch,
+                    W=Wd, A=Ad, epoch=self.epoch, G_steps=[dict(x) for x in self.G_steps],
                     units=dict(bucket=self.BK, B=B, theta=None if B is None else 2 * B, w=None if B is None else B / 2,
                                med_bucket_s=self.med_bk_dur() / 1000, pooled_sessions=self.prior_n, bucket_src=self.bk_src,
                                basis_minutes=bm, basis=None if self.bas is None else round(self.bas, 1),

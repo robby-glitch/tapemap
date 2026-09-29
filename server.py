@@ -45,6 +45,9 @@ import calls_log                 # ...and kept, one row per engine bar, in sessi
 import hold                      # the hold / fold window, as registered (PREREG-merged.md rev 4 + PREREG-rev5.md option B)
 import hold_log                  # ...and its forward logs, write-once
 import fold_live                 # the rev 6 engine (fold.py) run live: /api/fold*, the frame's fold / flat (API-v3)
+import feed_health               # is the GoCharting tape alive? from the data (P3): /api/feed/gc, and `feed` on the faces' replies
+import reader_live               # the SHADOW leg engine (reader.py) on its own thread: GET /api/reader, data/reader/
+import xindex_live               # the SHADOW cross-index read (xindex.py) on the reader's pass: GET /api/xindex, data/xindex/
 import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
 import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
 import expression                # ...and THE EXPRESSION, buy or sell, and the writer's word (EXPRESSION-PREREG.md rev e)
@@ -146,6 +149,9 @@ _SENSES = {"rows": None, "obj": None, "err": None, "polls": 0, "started": None,
 # The toxicity forward record. Reassigned by _isolate_mock_writers so a
 # fixture replay can never write into the live record (the 2026-08-24 leak).
 VPIN_LOG = str(ROOT / "data" / "vpin_log.jsonl")
+# FEED HEALTH transitions (feed_health.py): one row per state change of the GoCharting tape, the record the hidden-tab
+# measurement of N is read from. Runtime only; tests leave feed_health.LOG None.
+feed_health.LOG = str(ROOT / "data" / "feed_log.jsonl")
 
 # THE MORNING NOBODY WATCHED, and why it is a DIFFERENT FILE.
 #
@@ -1249,6 +1255,17 @@ def _ux_bars(idx, day):
     return ux_log.read_bars(day, idx)
 
 
+def _feed_read(idx, day):
+    """The GoCharting tape's health (feed_health.py) with Upstox lots per closed bin for the volume check.
+    Fail-soft: a failure anywhere here is a why on the wire, never a 500 and never at the frame's expense."""
+    try:
+        ux = {int(b["t"]): b.get("vol") for b in _ux_bars(idx, day)
+              if isinstance(b, dict) and isinstance(b.get("t"), (int, float))}
+    except Exception:
+        ux = None
+    return feed_health.read(idx, ux_vols=ux or None)
+
+
 _UX_KEEP = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "unknown", "unpriced", "delta", "cvd", "oi",
             "exact", "reconstructed", "hidden", "late_frames", "partial", "partial_why")
 
@@ -2204,6 +2221,18 @@ def _hold_machine(payloads, idx):
         return None, None, None
 
 
+def _xindex_zone(payloads, idx):
+    """xindex's zone seam: the zone machine's per-bar states on /api/data's 3-min payload, with the payload's session
+    label so a stale session is never read as today. None when unreadable. SHADOW; read-only."""
+    try:
+        pl = payload_at((payloads or {}).get(idx), band_rotation.SCORED_INTERVAL)
+        pj = json.loads(pl) if isinstance(pl, (bytes, str)) else (pl or {})
+        d0 = (pj.get("days") or [{}])[0] if isinstance(pj, dict) else {}
+        return {"label": d0.get("day"), "buy": d0.get("zone_state"), "sell": d0.get("zone_state_sell")}
+    except Exception:
+        return None
+
+
 def _hold_setup(payloads, idx, day, asof, d):
     """VALIDATE rev 2 §1.1: Your setup, the zone machine's own state on the last closed 3-min bar, by the
     registered pick, with the §1d gate of its event's logged zone row. Display only; it gates nothing."""
@@ -3064,6 +3093,8 @@ class Handler(SimpleHTTPRequestHandler):
                 # and marks stamped 15:30 or later never reach the build, the
                 # record, the ladder file or the scorer (_session_only)
                 doc = _session_only(doc)
+                # FEED HEALTH (P3): every accepted post is a data point (arrival time, heartbeat, newest bar). Never raises.
+                feed_health.on_post(idx, day, doc)
                 # `fr` is fully built -- including the log-write decision --
                 # BEFORE the lock is taken, and never mutated again once
                 # published: GET /api/frame json.dumps()s this same object
@@ -3072,6 +3103,10 @@ class Handler(SimpleHTTPRequestHandler):
                 # is a race with that serialization.
                 fr = frame.build(doc, _book_for(self, idx), time.strftime("%H:%M"))
                 fr["day"] = day
+                try:                                        # the panel draws the same band as every other face
+                    fr["feed"] = _feed_read(idx, day)
+                except Exception as e:                      # never at the frame's expense
+                    fr["feed"] = {"idx": idx, "state": None, "why": f"could not check — feed health failed: {e}", "alarm": False, "sound": False}
                 fr["record"] = {"written": frame_log.append_if_changed(fr, day, idx)}
                 # THE LADDER RECORD (tape_log.py): each new closed bar and each
                 # new extension mark, once. Fail-soft inside; nothing here can
@@ -3928,6 +3963,21 @@ class Handler(SimpleHTTPRequestHandler):
                              for i, g in sorted(_SENSES["vpin"].items())},
                     "rows": rows[-n:],
                 }).encode())
+        elif self.path.startswith("/api/reader"):
+            # THE SHADOW LEG ENGINE (reader_live.py; docs/reader/8-shadow-build.md): GET /api/reader?idx= -- the reader
+            # thread's cached reply, O(1). Read-only; shadow and unsigned; nothing decides on it.
+            idx = (parse_qs(urlsplit(self.path).query).get("idx") or ["NIFTY"])[0]
+            self._json(json.dumps(reader_live.read(idx), default=str).encode())
+        elif self.path.startswith("/api/xindex"):
+            # THE SHADOW CROSS-INDEX READ (xindex_live.py; docs/reader/10-xindex-build.md): the latest 3-min read and the
+            # day's LOOK HERE changes. Read-only; shadow and unsigned; the glance bar's LOOK HERE chip is untouched.
+            self._json(json.dumps(xindex_live.read(), default=str).encode())
+        elif self.path.startswith("/api/feed"):
+            # FEED HEALTH (P3): GET /api/feed/gc?idx= -- is the GoCharting tape alive, from the data. The DESK, the float and
+            # the Trade tab also get it as `feed` on /api/fold* and /api/tape, which they poll already.
+            q = parse_qs(urlsplit(self.path).query)
+            idx = (q.get("idx") or ["NIFTY"])[0]
+            self._json(json.dumps({"ok": True, **_feed_read(idx, time.strftime("%Y-%m-%d"))}, default=str).encode())
         elif self.path.startswith("/api/fold"):
             # THE REV 6 ENGINE'S READS (fold_live.py; docs/pro-tool/API-v3.md): /api/fold?id=, /api/fold/flat?idx=,
             # /api/fold/ifin?idx=&k=&ty=&side=, /api/fold/record?day=. Every reply is the engine loop's cache --
@@ -3935,7 +3985,10 @@ class Handler(SimpleHTTPRequestHandler):
             u = urlsplit(self.path)
             with HOLD_TRADES_LOCK:
                 trades = list(_hold_trades())
-            self._json(json.dumps(fold_live.reply(u.path, parse_qs(u.query), trades), default=str).encode())
+            out = fold_live.reply(u.path, parse_qs(u.query), trades)
+            if isinstance(out, dict) and u.path != "/api/fold/record":      # the feed band rides the reads the faces poll
+                out["feed"] = _feed_read((parse_qs(u.query).get("idx") or ["NIFTY"])[0], time.strftime("%Y-%m-%d"))
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/hold"):
             # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
             # /api/hold?id= a marked trade, or ?idx=&k=&side=&role=&t0=&p0=&qty=
@@ -3981,7 +4034,9 @@ class Handler(SimpleHTTPRequestHandler):
             # json.load on this thread (record_read.py:1-15).
             q = parse_qs(urlsplit(self.path).query)
             day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
-            self._json(json.dumps(_tape_reply(self._idx(), day), default=str).encode())
+            out = _tape_reply(self._idx(), day)
+            out["feed"] = _feed_read(self._idx(), day)     # the Trade tab's band, on the poll it already makes
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/frame"):
             q = parse_qs(urlsplit(self.path).query)
             idx = (q.get("idx") or ["NIFTY"])[0]
@@ -4132,6 +4187,8 @@ def _isolate_mock_writers():
     VPIN_FAST_LOG = os.path.join(mock, "vpin_fast.jsonl")
     tape_log.DIR = os.path.join(mock, "tape")
     book_log.DIR = os.path.join(mock, "book")
+    reader_live.DIR = os.path.join(mock, "reader")                  # the shadow leg engine's log (docs/reader/8-shadow-build.md)
+    xindex_live.DIR = os.path.join(mock, "xindex")                  # the shadow cross-index log (docs/reader/10-xindex-build.md)
     # 2026-09-28 (the correctness pass): the writers this list had missed. Each reads
     # its constant at call time; trigger_log.log_new is handed PATH at its call site.
     import chain_live
@@ -4686,6 +4743,11 @@ def main():
                 day_fn=lambda: _board_clock()[0], trades_fn=lambda: list(_hold_trades()), lot_fn=_hold_lot,
                 contract_fn=lambda i: (_SENSES.get("contract") or {}).get(i), chain_dir_fn=lambda: CHAIN_DIR,
                 vpin_path_fn=lambda: VPIN_FAST_LOG, mock=mock_chain), daemon=True, name="fold").start()
+            # THE SHADOW LEG ENGINE (reader_live.py): its own thread, tails the book and tape files, never raises.
+            xindex_live._CFG.update(zone=lambda i: _xindex_zone(payloads, i),            # the zone machine's own states
+                                    chain_dir=lambda: str(__import__("chain_live").CHAIN_DIR))
+            threading.Thread(target=reader_live.run, kwargs=dict(day_fn=lambda: _board_clock()[0]),
+                             daemon=True, name="reader").start()
         httpd.serve_forever()          # bound above, before anything was taken
         return
     log.error("usage: python server.py live [port] [--mock-chain]")

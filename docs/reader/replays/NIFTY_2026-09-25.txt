@@ -1,0 +1,45 @@
+NIFTY 2026-09-25 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.1 rupee) · prior sessions for the ruler: 2026-09-22, 2026-09-23, 2026-09-24 · lot 65
+GoCharting: 53 bars; 0 arrived after 15:30 (not live, not read)
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract NSE_FO|68407 · expiry 2026-09-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:17 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 29.7 pts = 3 x prior unit 9.90 [M] (median 1-min range (fold's unit)), frozen at the open
+front contract expiry 2026-09-29 [M, instrument master] · 3 session(s) left · EXPIRING: inside its roll window; OI-down classes read 'or roll'
+09:37  ▲ 09:20→09:30 · +45.7 pts [M] · 10 min · UX Δ+471 [I] (+29%), 97 pts/1k [I] · rank warming 0 of 3 · GC CAN'T CHECK: leg shorter than two GoCharting bars · OI −331 lots [M] (within noise ±408, tol −331..−289) · WHO: rotation, OI flat [I]
+        Upar +46 · Δ+0.5k UX · OI −0.3k · Sirf ghumaav · OI flat · expiring
+09:37  TREND UP: first confirmed leg
+        Upar chal raha
+09:57  ▼ 09:30→09:52 · −88.7 pts [M] · 22 min · UX Δ−1,211 [I] (−20%), 73 pts/1k [I] · rank warming 1 of 3 · GC Δ−313 [I] (−7%) · tapes DIFFER · OI −290 lots [M] (within noise ±960, tol −662..−290) · WHO: rotation, OI flat [I]
+        Neeche −89 · Δ−1.2k UX · OI −0.3k · Sirf ghumaav · OI flat · expiring
+10:29  ▲ 09:52→10:13 · +73.7 pts [M] · 21 min · UX Δ−745 [I] (−24%) · GC Δ+214 [I] (+10%) · tapes SPLIT · OI −1,433 lots [M] (moved ±958, tol −1,436..−1,100) · WHO: short covering (expiring: or roll) (tapes split: no aggressor named) [I]
+        Upar +74 · Δ−0.7k UX · OI −1.4k · Short cover (ya roll) · tape ulte · expiring
+10:29  RANGE 23076.3–23165.0: the high 23150.0 did not extend past 23165.0 by δ/2
+        Range 23076.3–23165.0
+11:03  ▼ 10:13→10:48 · −60.0 pts [M] · 35 min · UX Δ+131 [I] (+2%) · GC CAN'T CHECK: GoCharting bar 10:20 short (540 of 932 lots) · OI −352 lots [M] (within noise ±1,105, tol −362..−349) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −60 · Δ+0.1k UX · OI −0.4k · Sirf ghumaav · OI flat · Δ patla · expiring
+12:03  ▲ 10:48→11:21 · +59.3 pts [M] · 33 min · UX Δ+523 [I] (+13%), 113 pts/1k [I] · rank warming 2 of 3 · GC Δ+583 [I] (+16%), 102 pts/1k [I] · rank warming 0 of 3 · tapes AGREE · OI −477 lots [M] (within noise ±690, tol −477..−460) · WHO: rotation, OI flat [I]
+        Upar +59 · Δ+0.5k UX · OI −0.5k · Sirf ghumaav · OI flat · expiring
+13:02  ▼ 11:21→12:57 · −87.9 pts [M] · 96 min · UX Δ+480 [I] (+5%) · GC CAN'T CHECK: GoCharting bar 12:20 short (655 of 680 lots) · OI −191 lots [M] (within noise ±1,175, tol −234..−191) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −88 · Δ+0.5k UX · OI −0.2k · Sirf ghumaav · OI flat · Δ patla · expiring
+13:02  pivot 23061.4 outside the range 23076.3–23165.0, not past it by δ
+        Range ke bahar jhanka 23061
+14:06  BREAKOUT UP: traded 23226.2, past 23165.0 + δ
+        Range toota ▲ 23195
+14:09  ▲ 12:57→14:05 · +164.8 pts [M] · 66 min · UX Δ+3,946 [I] (+27%), 42 pts/1k [I] · least progress per lot, 1 of 4 · GC CAN'T CHECK: GoCharting bar 13:40 not received as of 14:09 · OI −2,800 lots [M] (moved ±1,147, tol −2,800..−2,719) · WHO: short covering (expiring: or roll) · heavy effort, move paid [I] · price hole 14:03–14:04
+        Upar +165 · Δ+3.9k UX · OI −2.8k · Short cover (ya roll) · zor laga, move mila · expiring
+14:33  ▼ 14:05→14:24 · −51.2 pts [M] · 17 min · UX Δ−693 [I] (−24%), 74 pts/1k [I] · progress per lot 3 of 5 (1 = least) · GC CAN'T CHECK: GoCharting bar 14:10 not received as of 14:33 · OI −400 lots [M] (within noise ±587, tol −483..−400) · WHO: rotation, OI flat [I] · price hole 14:09–14:10
+        Neeche −51 · Δ−0.7k UX · OI −0.4k · Sirf ghumaav · OI flat · expiring
+14:50  ▲ 14:24→14:33 · +34.3 pts [M] · 9 min · UX Δ−169 [I] (−13%) · GC CAN'T CHECK: leg shorter than two GoCharting bars · OI −733 lots [M]: one OI publication step at 14:33 (−373 lots, larger than the volume since the last update): not read as positioning · WHO: sellers pressing, ABSORBED (price moved against the aggressor)
+        Upar +34 · Δ−0.2k UX · OI −0.7k · Bikri dabav · bikri dabi · expiring
+14:50  RANGE 23175.0–23226.2: the high 23209.3 did not extend past 23226.2 by δ/2
+        Range 23175.0–23226.2
+15:30  forming ▼ 14:33→14:51 · −42.3 pts [M] · 18 min · UX Δ−514 [I] (−33%), 82 pts/1k [I] · progress per lot 4 of 6 (1 = least) · GC CAN'T CHECK: GoCharting bar 14:35 not received as of 15:30 · OI −202 lots [M] (within noise ±585, tol −224..−202) · WHO: rotation, OI flat [I] · now 23186.0, 19.0 back of δ 29.7
+        Neeche −42 · Δ−0.5k UX · OI −0.2k · Sirf ghumaav · OI flat · expiring
+
+COUNTS (n, never a rate)
+  minutes read 369 · confirmed legs 9 · auction state changes 4 (bar ≤ 12) · range-edge widenings 0
+  WHO classes: oi_cant 1, rotation 6, short_covering 2
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 4 · GC leg shorter than 2 bars 2
+  prints excluded 0 (none) · OI publication steps 64 of 352 updates
+  integrity audit: 0 violation(s) (bar = 0)

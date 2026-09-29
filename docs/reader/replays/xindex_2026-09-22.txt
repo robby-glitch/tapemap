@@ -1,0 +1,196 @@
+xindex 2026-09-22 · xindex-shadow-1 · SHADOW (unsigned sheet) · counts of lines, never a %
+Sources: reader.py legs (futures; SENSEX = a thin tape: flow/WHO never vote), her zone from trigger_log (arms/triggers; after a trigger the exit is not logged -> CAN'T CHECK), chain walls. [M] price/OI, [I] side/WHO.
+Cash auction: bars after 15:15 read CAN'T CHECK and LOOK HERE is released.
+
+== LOOK HERE changes
+11:15  LOOK HERE · NIFTY ▲ · 3 of 5 line up: zone d2 trigger hua 23,397 · bikri dabi [I] · PE likh rahe 23,400 (+27,860 lots/15m) | against 1: BANKNIFTY alag · akela · SENSEX saath (patla) | check nahi 1: who | Move chal raha hai · start 23,397 · confirm: her trade is on · kill 23,377
+11:39  LOOK HERE: koi saaf jagah nahi · best BANKNIFTY 3/5
+11:51  LOOK HERE · BANKNIFTY ▼ · 4 of 5 line up: bikri dabav [I] · Naye short [I] · CE likh rahe 56,500 (+1,038 lots/15m) · NIFTY/BANKNIFTY ne naya low banaya · SENSEX equal (patla) | against 1: NIFTY alag · akela · SENSEX saath (patla) | check nahi 1: zone | Move ban sakta hai · start 56,361 · confirm: range 56,435–56,775 toota: upar 56,849 / neeche 56,361
+12:21  LOOK HERE: koi saaf jagah nahi · best BANKNIFTY 1/5
+12:57  LOOK HERE · NIFTY ▼ · 4 of 5 line up: bikri dabav [I] · CE likh rahe 23,350 (+79,026 lots/15m) · BANKNIFTY saath · SENSEX saath (patla) · Teeno ne naya low banaya | against 0 | check nahi 1: zone | Move ban sakta hai · start 23,341 · confirm: range 23,374–23,475 toota: upar 23,508 / neeche 23,341
+13:12  LOOK HERE: koi saaf jagah nahi
+13:57  LOOK HERE · BANKNIFTY ▲ · 3 of 6 line up: zone d2 armed 56,210 · bikri dabi [I] · NIFTY saath · SENSEX saath (patla) | against 1: Teeno ne naya low banaya | check nahi 0 | Move ban sakta hai · start 56,350 · confirm: 3-min close upar 56,350 (her trigger) · kill 56,190
+14:21  LOOK HERE: koi saaf jagah nahi · best NIFTY 3/5
+14:39  LOOK HERE · NIFTY ▼ · 4 of 5 line up: bikri dabav [I] · Naye short [I] · CE likh rahe 23,400 (+47,671 lots/15m) · BANKNIFTY saath · SENSEX alag (patla) | against 0 | check nahi 1: zone | Move chal raha hai · start 23,424 · confirm: leg 1.2δ, extreme 23,384 · kill 23,417
+15:09  LOOK HERE: koi saaf jagah nahi · best BANKNIFTY 2/5
+
+== Every bar: LOOK · per index D n_for/n_check (against) word · sync
+09:18 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+09:21 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+09:24 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+09:27 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+09:30 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+09:33 -         | NIFT ▲ 1/6 (1) ban_sakta | BANK ▼ 1/5 (3) ban_sakta | SENS ▲ 1/4 (0) none | CANT
+09:36 -         | NIFT ▲ 1/6 (1) ban_sakta | BANK ▼ 1/6 (3) ban_sakta | SENS ▲ 1/4 (0) none | CANT
+09:39 -         | NIFT ▲ 1/6 (1) ban_sakta | BANK ▼ 1/6 (3) ban_sakta | SENS · 0/4 (0) none | CANT
+09:42 -         | NIFT ▲ 1/6 (1) chal_raha | BANK ▼ 1/6 (3) ban_sakta | SENS · 0/4 (0) none | CANT
+09:45 -         | NIFT ▼ 2/6 (1) ban_sakta | BANK ▼ 2/6 (2) ban_sakta | SENS · 1/4 (1) none | SAATH
+09:48 -         | NIFT ▼ 2/6 (0) ban_sakta | BANK ▼ 2/6 (1) ban_sakta | SENS ▼ 1/4 (0) none | SAATH
+09:51 -         | NIFT ▼ 2/6 (0) ban_sakta | BANK ▼ 2/6 (1) ban_sakta | SENS ▲ 1/4 (1) none | SAATH
+09:54 -         | NIFT ▼ 2/6 (1) ban_sakta | BANK ▼ 2/6 (1) ban_sakta | SENS ▲ 1/4 (1) chal_raha | SAATH
+09:57 -         | NIFT ▼ 2/6 (0) ban_sakta | BANK ▼ 2/6 (1) ban_sakta | SENS ▲ 0/4 (1) chal_raha | SAATH
+10:00 -         | NIFT ▼ 2/6 (0) chal_raha | BANK ▼ 2/6 (1) ban_sakta | SENS ▲ 0/4 (1) chal_raha | SAATH
+10:03 -         | NIFT ▲ 1/5 (1) chal_raha | BANK ▼ 1/6 (2) ban_sakta | SENS ▲ 0/4 (0) chal_raha | SAATH
+10:06 -         | NIFT ▲ 2/5 (0) chal_raha | BANK ▲ 2/6 (0) ban_sakta | SENS ▲ 1/4 (0) chal_raha | SAATH
+10:09 -         | NIFT ▲ 1/5 (1) chal_raha | BANK ▼ 0/6 (1) chal_raha | SENS ▲ 1/4 (0) chal_raha | ALAG
+10:12 -         | NIFT ▲ 1/5 (1) chal_raha | BANK ▲ 1/6 (0) chal_raha | SENS ▼ 1/4 (1) ban_sakta | ALAG
+10:15 -         | NIFT ▲ 2/5 (1) chal_raha | BANK ▲ 1/6 (0) chal_raha | SENS ▼ 1/4 (1) ban_sakta | ALAG
+10:18 -         | NIFT ▲ 2/5 (1) chal_raha | BANK ▼ 0/6 (1) chal_raha | SENS ▼ 1/4 (1) ban_sakta | ALAG
+10:21 -         | NIFT ▲ 1/5 (1) chal_raha | BANK ▼ 0/6 (1) chal_raha | SENS ▼ 1/4 (1) chal_raha | ALAG
+10:24 -         | NIFT ▲ 3/5 (0) chal_raha | BANK ▲ 2/6 (2) ban_sakta | SENS ▼ 0/3 (1) chal_raha | ALAG
+10:27 -         | NIFT ▲ 2/5 (1) chal_raha | BANK ▲ 2/6 (3) ban_sakta | SENS ▼ 1/3 (1) chal_raha | ALAG
+10:30 -         | NIFT ▲ 2/5 (1) chal_raha | BANK ▲ 2/6 (2) ban_sakta | SENS ▼ 1/3 (1) chal_raha | ALAG
+10:33 -         | NIFT ▲ 2/6 (1) ban_sakta | BANK ▲ 2/6 (2) ban_sakta | SENS ▲ 2/4 (0) ban_sakta | SAATH
+10:36 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (1) ban_sakta | SENS ▲ 2/4 (0) ban_sakta | SAATH
+10:39 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (1) ban_sakta | SENS ▲ 2/4 (1) ban_sakta | SAATH
+10:42 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (1) ban_sakta | SENS ▲ 2/4 (1) ban_sakta | SAATH
+10:45 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (1) ban_sakta | SENS ▲ 2/4 (1) ban_sakta | SAATH
+10:48 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (1) ban_sakta | SENS ▲ 2/4 (1) ban_sakta | SAATH
+10:51 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (2) ban_sakta | SENS ▲ 2/4 (1) ban_sakta | SAATH
+10:54 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (2) ban_sakta | SENS ▲ 2/4 (1) ban_sakta | SAATH
+10:57 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 2/6 (1) chal_raha | SENS ▲ 2/4 (1) ban_sakta | SAATH
+11:00 -         | NIFT ▲ 2/6 (2) ban_sakta | BANK ▲ 3/5 (0) chal_raha | SENS ▲ 2/4 (1) ban_sakta | ALAG
+11:03 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/5 (1) chal_raha | SENS ▲ 2/4 (1) ban_sakta | ALAG
+11:06 -         | NIFT ▲ 1/6 (3) ban_sakta | BANK ▼ 2/5 (1) ban_sakta | SENS ▲ 1/4 (0) ban_sakta | SAATH
+11:09 -         | NIFT ▲ 1/6 (3) ban_sakta | BANK ▼ 2/4 (1) ban_sakta | SENS ▲ 1/4 (0) ban_sakta | SAATH
+11:12 -         | NIFT ▲ 1/6 (4) ban_sakta | BANK ▼ 2/4 (1) ban_sakta | SENS ▲ 1/4 (0) ban_sakta | SAATH
+11:15 NIFTY     | NIFT ▲ 3/5 (1) chal_raha | BANK ▼ 2/4 (1) ban_sakta | SENS ▲ 2/4 (0) ban_sakta | ALAG
+11:18 NIFTY     | NIFT ▲ 2/4 (1) chal_raha | BANK ▼ 2/4 (1) ban_sakta | SENS ▲ 1/3 (0) chal_raha | ALAG
+11:21 NIFTY     | NIFT ▲ 2/4 (1) chal_raha | BANK ▼ 2/4 (1) ban_sakta | SENS ▲ 1/3 (0) chal_raha | ALAG
+11:24 NIFTY     | NIFT ▲ 2/4 (1) chal_raha | BANK ▼ 2/4 (1) ban_sakta | SENS ▲ 1/3 (0) chal_raha | ALAG
+11:27 NIFTY     | NIFT ▲ 2/4 (1) chal_raha | BANK · 1/4 (1) ban_sakta | SENS ▲ 0/3 (0) chal_raha | ALAG
+11:30 NIFTY     | NIFT ▲ 3/4 (0) chal_raha | BANK ▲ 1/5 (0) ban_sakta | SENS ▲ 2/3 (0) chal_raha | SAATH
+11:33 NIFTY     | NIFT ▲ 2/4 (1) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▲ 1/3 (0) chal_raha | ALAG
+11:36 NIFTY     | NIFT ▲ 2/4 (1) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▲ 1/3 (0) chal_raha | ALAG
+11:39 -         | NIFT ▼ 2/5 (1) ban_sakta | BANK ▼ 3/5 (0) ban_sakta | SENS ▼ 2/3 (0) chal_raha | SAATH
+11:42 -         | NIFT ▼ 2/5 (1) ban_sakta | BANK ▼ 4/5 (0) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+11:45 -         | NIFT ▼ 2/5 (0) ban_sakta | BANK ▼ 4/5 (0) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+11:48 -         | NIFT ▲ 1/6 (4) ban_sakta | BANK ▼ 3/5 (1) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+11:51 BANKNIFTY | NIFT ▲ 1/6 (4) ban_sakta | BANK ▼ 4/5 (1) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+11:54 BANKNIFTY | NIFT ▲ 1/6 (4) ban_sakta | BANK ▼ 3/5 (1) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+11:57 BANKNIFTY | NIFT ▲ 1/6 (3) ban_sakta | BANK ▼ 3/5 (1) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+12:00 BANKNIFTY | NIFT ▲ 1/6 (3) ban_sakta | BANK ▼ 3/5 (1) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+12:03 BANKNIFTY | NIFT ▲ 1/6 (3) ban_sakta | BANK ▼ 3/5 (1) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+12:06 BANKNIFTY | NIFT ▲ 1/6 (3) chal_raha | BANK ▼ 4/5 (1) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+12:09 BANKNIFTY | NIFT ▼ 2/5 (0) ban_sakta | BANK ▼ 3/5 (0) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+12:12 BANKNIFTY | NIFT ▼ 2/5 (0) ban_sakta | BANK ▼ 3/5 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+12:15 BANKNIFTY | NIFT ▼ 1/5 (0) ban_sakta | BANK ▼ 3/5 (0) ban_sakta | SENS ▼ 1/3 (1) ban_sakta | SAATH
+12:18 BANKNIFTY | NIFT ▼ 1/5 (1) ban_sakta | BANK ▼ 3/5 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+12:21 -         | NIFT ▼ 0/5 (2) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 0/3 (1) ban_sakta | ALAG
+12:24 -         | NIFT ▼ 0/5 (2) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 0/3 (1) ban_sakta | ALAG
+12:27 -         | NIFT ▼ 0/5 (2) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 0/3 (1) ban_sakta | ALAG
+12:30 -         | NIFT ▼ 0/5 (2) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 0/3 (1) ban_sakta | ALAG
+12:33 -         | NIFT ▼ 0/5 (1) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 0/3 (1) ban_sakta | ALAG
+12:36 -         | NIFT ▼ 0/5 (1) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 0/3 (0) ban_sakta | ALAG
+12:39 -         | NIFT ▼ 0/5 (1) ban_sakta | BANK ▼ 1/5 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | ALAG
+12:42 -         | NIFT ▼ 0/5 (1) ban_sakta | BANK ▼ 2/5 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | ALAG
+12:45 -         | NIFT ▼ 2/5 (0) ban_sakta | BANK ▼ 2/4 (0) ban_sakta | SENS ▼ 2/3 (0) ban_sakta | SAATH
+12:48 -         | NIFT ▼ 1/5 (0) ban_sakta | BANK ▼ 3/4 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+12:51 -         | NIFT ▼ 3/4 (0) ban_sakta | BANK ▼ 2/4 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+12:54 -         | NIFT ▼ 2/4 (0) ban_sakta | BANK ▼ 2/4 (0) ban_sakta | SENS ▼ 1/3 (0) ban_sakta | SAATH
+12:57 NIFTY     | NIFT ▼ 4/5 (0) ban_sakta | BANK ▼ 2/4 (1) chal_raha | SENS ▼ 2/3 (0) ban_sakta | SAATH
+13:00 NIFTY     | NIFT ▼ 4/5 (0) ban_sakta | BANK ▼ 2/5 (1) chal_raha | SENS ▼ 2/3 (0) ban_sakta | SAATH
+13:03 NIFTY     | NIFT ▼ 4/5 (0) chal_raha | BANK ▼ 2/5 (1) chal_raha | SENS ▼ 2/3 (0) ban_sakta | SAATH
+13:06 NIFTY     | NIFT ▼ 3/5 (0) chal_raha | BANK ▼ 2/5 (1) chal_raha | SENS ▼ 3/3 (0) chal_raha | SAATH
+13:09 NIFTY     | NIFT ▼ 4/5 (0) chal_raha | BANK ▼ 2/5 (1) chal_raha | SENS ▼ 3/3 (0) chal_raha | SAATH
+13:12 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+13:15 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+13:18 -         | NIFT ▼ 2/5 (0) chal_raha | BANK ▲ 2/5 (1) chal_raha | SENS ▼ 1/3 (1) chal_raha | SAATH
+13:21 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS ▼ 0/1 (0) chal_raha | CANT
+13:24 -         | NIFT ▼ 2/5 (0) chal_raha | BANK ▼ 1/5 (1) chal_raha | SENS ▼ 1/3 (0) chal_raha | SAATH
+13:27 -         | NIFT ▼ 3/5 (0) chal_raha | BANK ▼ 1/5 (1) chal_raha | SENS ▼ 1/3 (0) chal_raha | SAATH
+13:30 -         | NIFT ▼ 3/5 (0) chal_raha | BANK ▼ 1/5 (1) chal_raha | SENS · 1/3 (1) chal_raha | SAATH
+13:33 -         | NIFT ▼ 2/5 (0) chal_raha | BANK ▼ 1/5 (1) chal_raha | SENS ▼ 1/3 (0) ho_gaya | SAATH
+13:36 -         | NIFT ▼ 2/5 (0) ho_gaya | BANK ▼ 2/5 (1) chal_raha | SENS · 1/3 (1) ho_gaya | SAATH
+13:39 -         | NIFT ▼ 2/5 (1) ho_gaya | BANK ▼ 2/5 (1) chal_raha | SENS · 1/3 (1) ho_gaya | SAATH
+13:42 -         | NIFT ▲ 2/5 (1) ho_gaya | BANK ▲ 0/5 (2) chal_raha | SENS ▲ 1/3 (0) ho_gaya | ALAG
+13:45 -         | NIFT ▼ 1/5 (1) ho_gaya | BANK ▼ 3/5 (0) chal_raha | SENS ▲ 1/3 (0) ho_gaya | ALAG
+13:48 -         | NIFT ▼ 1/5 (1) chal_raha | BANK ▼ 3/5 (0) chal_raha | SENS ▲ 1/3 (0) ho_gaya | ALAG
+13:51 -         | NIFT ▼ 2/5 (2) chal_raha | BANK ▼ 3/5 (1) chal_raha | SENS ▼ 1/3 (1) ho_gaya | ALAG
+13:54 -         | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/6 (2) ban_sakta | SENS ▼ 2/3 (1) chal_raha | SAATH
+13:57 BANKNIFTY | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/6 (1) ban_sakta | SENS ▲ 2/4 (2) ban_sakta | SAATH
+14:00 BANKNIFTY | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/6 (2) ban_sakta | SENS ▲ 2/4 (2) ban_sakta | SAATH
+14:03 BANKNIFTY | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/6 (1) ban_sakta | SENS ▲ 2/4 (2) ban_sakta | SAATH
+14:06 BANKNIFTY | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/6 (1) ban_sakta | SENS ▲ 2/4 (2) chal_raha | SAATH
+14:09 BANKNIFTY | NIFT ▲ 2/6 (3) ban_sakta | BANK ▲ 3/6 (1) ban_sakta | SENS ▲ 2/4 (2) ban_sakta | SAATH
+14:12 BANKNIFTY | NIFT ▲ 4/6 (1) chal_raha | BANK ▲ 3/5 (1) chal_raha | SENS ▲ 3/4 (1) chal_raha | SAATH
+14:15 BANKNIFTY | NIFT ▲ 1/5 (1) chal_raha | BANK ▲ 2/5 (1) chal_raha | SENS ▲ 1/3 (1) chal_raha | SAATH
+14:18 BANKNIFTY | NIFT ▲ 3/5 (0) ho_gaya | BANK ▲ 2/5 (0) chal_raha | SENS ▲ 1/3 (0) ho_gaya | SAATH
+14:21 -         | NIFT ▲ 3/5 (0) ho_gaya | BANK ▲ 1/5 (0) chal_raha | SENS ▲ 1/3 (0) ho_gaya | SAATH
+14:24 -         | NIFT ▲ 3/5 (0) chal_raha | BANK ▲ 2/5 (0) chal_raha | SENS ▲ 2/3 (0) ho_gaya | SAATH
+14:27 -         | NIFT ▲ 3/5 (0) chal_raha | BANK ▲ 2/5 (0) chal_raha | SENS ▲ 2/3 (0) ho_gaya | SAATH
+14:30 -         | NIFT ▲ 3/5 (0) chal_raha | BANK ▲ 3/5 (0) chal_raha | SENS ▲ 2/3 (0) ho_gaya | SAATH
+14:33 -         | NIFT ▲ 3/5 (0) chal_raha | BANK ▲ 3/5 (0) chal_raha | SENS ▲ 2/3 (0) chal_raha | SAATH
+14:36 -         | NIFT ▼ 3/5 (1) chal_raha | BANK · 1/5 (1) ban_sakta | SENS ▲ 1/3 (1) chal_raha | SAATH
+14:39 NIFTY     | NIFT ▼ 4/5 (0) chal_raha | BANK ▼ 2/5 (0) ban_sakta | SENS ▲ 0/3 (1) chal_raha | SAATH
+14:42 NIFTY     | NIFT ▼ 3/4 (0) chal_raha | BANK ▼ 2/5 (0) ban_sakta | SENS ▲ 0/3 (2) chal_raha | SAATH
+14:45 NIFTY     | NIFT ▼ 3/5 (1) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▼ 2/3 (1) chal_raha | SAATH
+14:48 NIFTY     | NIFT ▼ 3/5 (1) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▼ 1/3 (1) chal_raha | SAATH
+14:51 NIFTY     | NIFT ▼ 3/5 (1) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▼ 1/3 (1) chal_raha | SAATH
+14:54 NIFTY     | NIFT ▼ 3/5 (0) chal_raha | BANK ▼ 2/5 (0) ban_sakta | SENS ▼ 1/3 (0) chal_raha | SAATH
+14:57 NIFTY     | NIFT ▼ 3/5 (0) chal_raha | BANK ▼ 2/5 (0) ban_sakta | SENS ▼ 1/3 (0) chal_raha | SAATH
+15:00 NIFTY     | NIFT ▼ 3/5 (2) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▼ 2/3 (1) chal_raha | SAATH
+15:03 NIFTY     | NIFT ▼ 3/5 (2) chal_raha | BANK ▼ 1/5 (1) ban_sakta | SENS ▼ 1/3 (1) chal_raha | SAATH
+15:06 NIFTY     | NIFT ▼ 3/5 (2) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▼ 1/3 (1) chal_raha | SAATH
+15:09 -         | NIFT ▼ 2/5 (2) chal_raha | BANK ▼ 2/5 (1) ban_sakta | SENS ▼ 1/3 (1) chal_raha | SAATH
+15:12 -         | NIFT ▼ 2/5 (2) chal_raha | BANK ▼ 1/5 (1) ban_sakta | SENS ▼ 1/3 (1) chal_raha | SAATH
+15:15 -         | NIFT ▲ 2/5 (1) chal_raha | BANK ▼ 1/4 (1) ban_sakta | SENS ▲ 1/3 (0) chal_raha | ALAG
+15:18 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+15:21 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+15:24 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+15:27 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+15:30 -         | NIFT · 0/0 (0) cant | BANK · 0/0 (0) cant | SENS · 0/0 (0) cant | CANT
+
+== Notes: confirmed / divergent / equal extremes, and sync state changes (not size changes)
+09:18  Sync check nahi (NIFTY/BANKNIFTY)
+09:45  NIFTY/BANKNIFTY saath ▲ · NIFTY 1.0δ · BANKNIFTY 1.6δ
+09:51  Teeno saath ▲ · NIFTY 1.2δ · BANKNIFTY 1.6δ · SENSEX 1.1δ
+10:09  BANKNIFTY alag ▼ · NIFTY/SENSEX ▲
+10:24  NIFTY alag ▲ · BANKNIFTY/SENSEX ▼ · SENSEX alag (patla)
+10:33  Teeno saath ▼ · NIFTY 1.6δ · BANKNIFTY 2.5δ · SENSEX 1.8δ
+10:45  NIFTY/BANKNIFTY saath ▼ · NIFTY 3.1δ · BANKNIFTY 3.9δ · SENSEX 1.4δ · SENSEX alag (patla)
+11:00  NIFTY alag ▼ · BANKNIFTY/SENSEX ▲ · SENSEX alag (patla)
+11:06  NIFTY/BANKNIFTY saath ▼ · NIFTY 3.1δ · BANKNIFTY 1.2δ · SENSEX 1.4δ · SENSEX alag (patla)
+11:15  BANKNIFTY alag ▼ · NIFTY/SENSEX ▲
+11:30  Teeno saath ▲ · NIFTY 1.3δ · BANKNIFTY 1.1δ · SENSEX 1.4δ
+11:33  BANKNIFTY alag ▼ · NIFTY/SENSEX ▲
+11:39  Low barabar · koi saaf naya low nahi · Saath mein low · 11:35
+11:39  NIFTY/BANKNIFTY saath ▼ · NIFTY 1.1δ · BANKNIFTY 1.3δ · SENSEX 1.4δ · SENSEX alag (patla)
+11:42  Low barabar · koi saaf naya low nahi · SENSEX equal (patla) · Saath mein low · 11:40
+11:42  Teeno saath ▼ · NIFTY 1.2δ · BANKNIFTY 1.6δ · SENSEX 1.3δ
+11:48  NIFTY/BANKNIFTY ne naya low banaya · SENSEX equal (patla) · SENSEX 7 min pehle (11:40)
+11:57  Teeno ne naya low banaya · BANKNIFTY 9 min pehle (11:47)
+12:21  BANKNIFTY alag ▲ · NIFTY/SENSEX ▼
+12:45  Low barabar · koi saaf naya low nahi · SENSEX nahi (patla)
+12:45  Teeno saath ▼ · NIFTY 2.0δ · BANKNIFTY 1.1δ · SENSEX 2.0δ
+12:51  Low barabar · koi saaf naya low nahi · SENSEX nahi (patla) · BANKNIFTY 5 min pehle (12:45)
+12:54  Low barabar · koi saaf naya low nahi · SENSEX took (patla) · Saath mein low · 12:51
+12:57  Teeno ne naya low banaya · SENSEX 5 min pehle (12:51)
+13:12  Sync check nahi (NIFTY/BANKNIFTY)
+13:18  Teeno saath ▼ · NIFTY 2.5δ · BANKNIFTY 1.9δ · SENSEX 2.4δ
+13:21  Sync check nahi (NIFTY/BANKNIFTY)
+13:24  Teeno saath ▼ · NIFTY 2.5δ · BANKNIFTY 1.9δ · SENSEX 2.5δ
+13:42  BANKNIFTY alag ▲ · NIFTY/SENSEX ▼
+13:51  NIFTY ne naya low banaya, BANKNIFTY ne nahi (chhota) · SENSEX took (patla) · khatam: BANKNIFTY 56,375.0 ke neeche · Saath mein low · 13:49
+13:54  Teeno ne naya low banaya · SENSEX 3 min pehle (13:50)
+13:54  Teeno saath ▼ · NIFTY 3.2δ · BANKNIFTY 1.8δ · SENSEX 2.7δ
+14:12  NIFTY/BANKNIFTY saath ▲ · NIFTY 1.5δ · BANKNIFTY 1.2δ · SENSEX 3.9δ · SENSEX alag (patla)
+14:15  BANKNIFTY ne naya high banaya, NIFTY ne nahi · SENSEX failed (patla) · khatam: NIFTY 23,417.0 ke upar
+14:15  Teeno saath ▲ · NIFTY 3.4δ · BANKNIFTY 3.3δ · SENSEX 3.1δ
+14:18  High barabar · koi saaf naya high nahi · SENSEX equal (patla) · Saath mein high · 14:15
+14:21  High barabar · koi saaf naya high nahi · SENSEX equal (patla) · Saath mein high · 14:15
+14:24  High barabar · koi saaf naya high nahi · SENSEX equal (patla) · BANKNIFTY 2 min pehle (14:21)
+14:33  High barabar · koi saaf naya high nahi · SENSEX nahi (patla) · NIFTY 9 min pehle (14:23)
+14:36  NIFTY/BANKNIFTY saath ▼ · NIFTY 1.2δ · BANKNIFTY 1.1δ · SENSEX 4.1δ · SENSEX alag (patla)
+14:39  Low barabar · koi saaf naya low nahi · SENSEX nahi (patla)
+14:45  BANKNIFTY ne naya low banaya, NIFTY ne nahi · SENSEX failed (patla) · khatam: NIFTY 23,286.0 ke neeche
+14:45  Teeno saath ▼ · NIFTY 1.7δ · BANKNIFTY 1.7δ · SENSEX 1.5δ
+15:00  BANKNIFTY ne naya low banaya, NIFTY ne nahi · SENSEX failed (patla) · khatam: NIFTY 23,286.0 ke neeche
+15:15  BANKNIFTY alag ▲ · NIFTY/SENSEX ▼
+15:18  Cash auction · 15:15 se check nahi
+
+== Counts against the pre-registered bars (9-cross-index-design §4.4; stated before these replays)
+awards 5 (bar <= 10) · changes 10 (bar <= 16) · switches 0 · releases 5 · flips inside 6 min 0 (bar 0)
+state-word changes per index: NIFTY 21, BANKNIFTY 14, SENSEX 19 (bar <= 12)
+bars with a LOOK HERE: 41 of 125
+misdescription audit (automatic): 0 violations (bar 0)

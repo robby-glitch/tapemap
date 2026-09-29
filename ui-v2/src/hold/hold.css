@@ -264,6 +264,8 @@
 .hv .icon-btn:active{background:var(--border)}
 .hv .fl-line{display:flex;align-items:center;gap:var(--s2);height:44px;padding:0 var(--s1) 0 var(--s3);white-space:nowrap;overflow:hidden;cursor:move;user-select:none}
 .hv .fl-line .fw{font-size:var(--t28);line-height:1;margin-right:var(--s1)}
+/* P3: the feed alarm on the collapsed line, when the DESK's own band is out of sight */
+.hv .fl-line .fl-feed{background:#141A22;color:#fff;border-radius:4px;padding:2px 7px;font:600 11px/1.2 inherit;white-space:nowrap}
 .hv .fl-line .c{font:700 var(--t16)/1 var(--f-word);letter-spacing:.04em}
 .hv .fl-line .dot{color:var(--border-strong)}
 .hv .fl-line .abs{padding:2px var(--s2)}

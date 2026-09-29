@@ -16,6 +16,15 @@ b { font-weight: 600; }
 .abs.notshown { color: var(--muted); }
 .abs.none { color: var(--faint); font-style: italic; }
 
+/* THE FEED BAND (P3): DEAD is inverse ink with the fix in its hover; SLOW / STALLED amber and quieter; NOT OPEN / AFTER CLOSE
+   one grey line. Nothing animates, nothing sounds. */
+.feedband { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; padding: 9px 32px; font-size: 14px; letter-spacing: .01em; }
+.feedband.dead { background: var(--ink); color: #fff; }
+.feedband.amber { background: var(--amber-wash); color: var(--amber); border-bottom: 1px solid var(--amber-line); }
+.feedband .sub { font-weight: 400; font-size: 12.5px; opacity: .85; }
+.feedline { margin: 0; padding: 6px 32px; font-size: 12.5px; color: var(--muted); }
+.pro.float .feedband { padding: 8px 12px; font-size: 13px; }
+
 /* the fixture banner (dev only) */
 .fxbar { background: var(--amber-wash); color: var(--amber); border-bottom: 1px solid var(--amber-line); padding: 8px 32px;
   display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; }

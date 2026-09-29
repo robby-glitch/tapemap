@@ -1,0 +1,105 @@
+BANKNIFTY 2026-09-24 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.2 rupee) · prior sessions for the ruler: 2026-09-22, 2026-09-23 · lot 30
+GoCharting: no GoCharting for this index
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract NSE_FO|68390 · expiry 2026-09-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:17 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 49.2 pts = 3 x prior unit 16.40 [M] (median 1-min range (fold's unit)), frozen at the open
+front contract expiry 2026-09-29 [M, instrument master] · 4 session(s) left · EXPIRING: inside its roll window; OI-down classes read 'or roll'
+09:23  ▼ 09:17→09:20 · −174.0 pts [M] · 3 min · UX Δ−235 [I] (−26%), 740 pts/1k [I] · rank warming 0 of 3 · OI +552 lots [M] (moved ±31, tol +245..+642) · WHO: new shorts [I]
+        Neeche −174 · Δ−0.2k UX · OI +0.6k · Naye short · expiring
+09:23  TREND DOWN: first confirmed leg
+        Neeche chal raha
+09:26  ▲ 09:20→09:23 · +96.8 pts [M] · 3 min · UX Δ−15 [I] (−5%) · OI +209 lots [M] (moved ±31, tol +119..+221) · WHO: new longs (delta thin: price × OI only) [I]
+        Upar +97 · Δ−0.0k UX · OI +0.2k · Naye long · Δ patla · expiring
+09:51  ▼ 09:23→09:45 · −297.6 pts [M] · 22 min · UX Δ−1,053 [I] (−30%), 283 pts/1k [I] · rank warming 1 of 3 · OI +1,336 lots [M] (moved ±626, tol +1,324..+1,358) · WHO: new shorts · heavy effort, move paid [I]
+        Neeche −298 · Δ−1.1k UX · OI +1.3k · Naye short · zor laga, move mila · expiring
+10:07  ▲ 09:45→10:04 · +149.8 pts [M] · 19 min · UX Δ+361 [I] (+23%), 415 pts/1k [I] · rank warming 2 of 3 · OI +373 lots [M] (within noise ±407, tol +351..+388) · WHO: rotation, OI flat [I]
+        Upar +150 · Δ+0.4k UX · OI +0.4k · Sirf ghumaav · OI flat · expiring
+10:09  ▼ 10:04→10:07 · −74.8 pts [M] · 3 min · UX Δ+305 [I] (+82%) · OI −272 lots [M]: one OI publication step at 10:07 (−315 lots, larger than the volume since the last update): not read as positioning · WHO: buyers pressing, ABSORBED (price moved against the aggressor)
+        Neeche −75 · Δ+0.3k UX · OI −0.3k · Kharid dabav · kharid dabi · expiring
+10:09  RANGE 55680.2–55830.0: the low 55755.2 did not extend past 55680.2 by δ/2
+        Range 55680.2–55830.0
+10:12  ▲ 10:07→10:09 · +86.6 pts [M] · 2 min · UX Δ+221 [I] (+100%), 392 pts/1k [I] · progress per lot 2 of 4 (1 = least) · OI +48 lots [M] (within noise ±123, tol +33..+88) · WHO: rotation, OI flat [I]
+        Upar +87 · Δ+0.2k UX · OI +0.0k · Sirf ghumaav · OI flat · expiring
+10:12  RANGE 55680.2–55841.8: edge widened to 55841.8 (within δ/2)
+        Range 55680.2–55841.8
+10:35  ▼ 10:09→10:25 · −130.6 pts [M] · 16 min · UX Δ+812 [I] (+68%) · OI −1,207 lots [M] (moved ±320, tol −1,247..−1,193) · WHO: long liquidation (expiring: or roll), ABSORBED (price moved against the aggressor) [I]
+        Neeche −131 · Δ+0.8k UX · OI −1.2k · Long nikal rahe (ya roll) · kharid dabi · expiring
+10:44  ▲ 10:25→10:38 · +92.2 pts [M] · 13 min · UX Δ+103 [I] (+44%), 895 pts/1k [I] · most progress per lot, 5 of 5 · OI −210 lots [M] (within noise ±293, tol −225..−210) · WHO: rotation, OI flat [I]
+        Upar +92 · Δ+0.1k UX · OI −0.2k · Sirf ghumaav · OI flat · expiring
+10:52  ▼ 10:38→10:48 · −63.2 pts [M] · 10 min · UX Δ+55 [I] (+27%) · OI −497 lots [M] (moved ±239, tol −497..−495) · WHO: long liquidation (expiring: or roll), ABSORBED (price moved against the aggressor) [I]
+        Neeche −63 · Δ+0.1k UX · OI −0.5k · Long nikal rahe (ya roll) · kharid dabi · expiring
+11:10  ▲ 10:48→10:55 · +87.8 pts [M] · 7 min · UX Δ+98 [I] (+68%), 896 pts/1k [I] · most progress per lot, 6 of 6 · OI −5 lots [M] (within noise ±200, tol −48..−5) · WHO: rotation, OI flat [I]
+        Upar +88 · Δ+0.1k UX · OI −0.0k · Sirf ghumaav · OI flat · expiring
+11:16  ▼ 10:55→11:13 · −103.8 pts [M] · 18 min · UX Δ−54 [I] (−18%), 1922 pts/1k [I] · most progress per lot, 7 of 7 · OI −56 lots [M] (within noise ±266, tol −56..−10) · WHO: rotation, OI flat [I]
+        Neeche −104 · Δ−0.1k UX · OI −0.1k · Sirf ghumaav · OI flat · expiring
+11:25  ▲ 11:13→11:20 · +113.6 pts [M] · 7 min · UX Δ+25 [I] (+21%), 4544 pts/1k [I] · most progress per lot, 8 of 8 · OI +5 lots [M] (within noise ±163, tol +1..+8) · WHO: rotation, OI flat [I]
+        Upar +114 · Δ+0.0k UX · OI +0.0k · Sirf ghumaav · OI flat · expiring
+11:40  ▼ 11:20→11:33 · −97.8 pts [M] · 13 min · UX Δ−68 [I] (−52%), 1438 pts/1k [I] · progress per lot 7 of 9 (1 = least) · OI −24 lots [M] (within noise ±153, tol −36..−24) · WHO: rotation, OI flat [I]
+        Neeche −98 · Δ−0.1k UX · OI −0.0k · Sirf ghumaav · OI flat · expiring
+11:58  ▲ 11:33→11:42 · +59.8 pts [M] · 9 min · UX Δ−51 [I] (−40%) · OI −56 lots [M] (within noise ±124, tol −62..−47) · WHO: rotation, OI flat, ABSORBED (price moved against the aggressor) [I]
+        Upar +60 · Δ−0.1k UX · OI −0.1k · Sirf ghumaav · OI flat · bikri dabi · expiring
+12:04  ▼ 11:42→11:57 · −59.8 pts [M] · 15 min · UX Δ−18 [I] (−13%), 3322 pts/1k [I] · progress per lot 9 of 10 (1 = least) · OI −43 lots [M] (within noise ±160, tol −48..−37) · WHO: rotation, OI flat [I]
+        Neeche −60 · Δ−0.0k UX · OI −0.0k · Sirf ghumaav · OI flat · expiring
+12:26  ▲ 11:57→12:02 · +60.0 pts [M] · 5 min · UX Δ−11 [I]: too thin to name a side: 23 traded frames in the leg (< 30) · OI −29 lots [M] (within noise ±77, tol −31..−24) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +60 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla · expiring
+12:30  ▼ 12:02→12:26 · −57.4 pts [M] · 24 min · UX Δ−116 [I] (−35%), 495 pts/1k [I] · progress per lot 4 of 11 (1 = least) · OI +26 lots [M] (within noise ±194, tol +20..+28) · WHO: rotation, OI flat, ABSORBED (heavy effort, little progress) [I]
+        Neeche −57 · Δ−0.1k UX · OI +0.0k · Sirf ghumaav · OI flat · bikri dabi · expiring
+12:49  ▲ 12:26→12:42 · +68.6 pts [M] · 16 min · UX Δ−56 [I] (−21%) · OI −14 lots [M] (within noise ±123, tol −14..−7) · WHO: rotation, OI flat, ABSORBED (price moved against the aggressor) [I]
+        Upar +69 · Δ−0.1k UX · OI −0.0k · Sirf ghumaav · OI flat · bikri dabi · expiring
+13:04  ▼ 12:42→12:55 · −61.2 pts [M] · 13 min · UX Δ−42 [I] (−48%), 1457 pts/1k [I] · progress per lot 9 of 12 (1 = least) · OI −12 lots [M] (within noise ±94, tol −13..−11) · WHO: rotation, OI flat [I]
+        Neeche −61 · Δ−0.0k UX · OI −0.0k · Sirf ghumaav · OI flat · expiring
+13:27  ▲ 12:55→13:03 · +70.0 pts [M] · 8 min · UX Δ−71 [I] (−38%) · OI −10 lots [M] (within noise ±71, tol −20..−10) · WHO: rotation, OI flat, ABSORBED (price moved against the aggressor) [I]
+        Upar +70 · Δ−0.1k UX · OI −0.0k · Sirf ghumaav · OI flat · bikri dabi · expiring
+13:31  ▼ 13:03→13:27 · −133.4 pts [M] · 24 min · UX Δ−253 [I] (−39%), 527 pts/1k [I] · progress per lot 5 of 13 (1 = least) · OI +62 lots [M] (within noise ±125, tol +52..+71) · WHO: rotation, OI flat [I]
+        Neeche −133 · Δ−0.3k UX · OI +0.1k · Sirf ghumaav · OI flat · expiring
+13:37  ▲ 13:27→13:32 · +81.4 pts [M] · 5 min · UX Δ−170 [I] (−47%) · OI +247 lots [M] (moved ±53, tol +245..+257) · WHO: new longs, ABSORBED (price moved against the aggressor) [I]
+        Upar +81 · Δ−0.2k UX · OI +0.2k · Naye long · bikri dabi · expiring
+13:45  BREAKOUT DOWN: traded 55549.6, past 55680.2 − δ
+        Range toota ▼ 55631
+13:48  ▼ 13:32→13:46 · −291.6 pts [M] · 14 min · UX Δ−434 [I] (−42%), 672 pts/1k [I] · progress per lot 6 of 14 (1 = least) · OI +83 lots [M] (within noise ±112, tol +83..+99) · WHO: rotation, OI flat [I]
+        Neeche −292 · Δ−0.4k UX · OI +0.1k · Sirf ghumaav · OI flat · expiring
+13:52  ▲ 13:46→13:50 · +133.6 pts [M] · 4 min · UX Δ−67 [I] (−20%) · OI +43 lots [M] (within noise ±62, tol +29..+67) · WHO: rotation, OI flat, ABSORBED (price moved against the aggressor) [I]
+        Upar +134 · Δ−0.1k UX · OI +0.0k · Sirf ghumaav · OI flat · bikri dabi · expiring
+14:01  ▼ 13:50→13:59 · −164.8 pts [M] · 9 min · UX Δ−65 [I] (−14%), 2535 pts/1k [I] · progress per lot 13 of 15 (1 = least) · OI −50 lots [M] (within noise ±82, tol −74..−47) · WHO: rotation, OI flat [I]
+        Neeche −165 · Δ−0.1k UX · OI −0.1k · Sirf ghumaav · OI flat · expiring
+14:04  TREND UP: traded 55623.0, above the last lower high 55610.0
+        Trend toota ↑ 55610
+14:05  ▲ 13:59→14:03 · +177.8 pts [M] · 4 min · UX Δ+158 [I] (+58%), 1125 pts/1k [I] · progress per lot 10 of 16 (1 = least) · OI −64 lots [M] (moved ±58, tol −91..−64) · WHO: short covering (expiring: or roll) · heavy effort, move paid [I]
+        Upar +178 · Δ+0.2k UX · OI −0.1k · Short cover (ya roll) · zor laga, move mila · expiring
+14:09  ▼ 14:03→14:07 · −102.8 pts [M] · 4 min · UX Δ+46 [I] (+10%) · OI +27 lots [M] (within noise ±67, tol +10..+51) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −103 · Δ+0.0k UX · OI +0.0k · Sirf ghumaav · OI flat · Δ patla · expiring
+14:24  ▲ 14:07→14:15 · +82.0 pts [M] · 8 min · UX Δ−7 [I] (−3%) · OI +11 lots [M] (within noise ±82, tol −22..+28) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +82 · Δ−0.0k UX · OI +0.0k · Sirf ghumaav · OI flat · Δ patla · expiring
+14:24  RANGE 55520.2–55623.0: the high 55602.2 did not extend past 55623.0 by δ/2
+        Range 55520.2–55623.0
+14:29  ▼ 14:15→14:24 · −95.2 pts [M] · 9 min · UX Δ−16 [I] (−14%), 5950 pts/1k [I] · most progress per lot, 17 of 17 · OI −226 lots [M]: one OI publication step at 14:23 (−157 lots, larger than the volume since the last update): not read as positioning · WHO: sellers pressing
+        Neeche −95 · Δ−0.0k UX · OI −0.2k · Bikri dabav · expiring
+14:29  RANGE 55507.0–55623.0: edge widened to 55507.0 (within δ/2)
+        Range 55507.0–55623.0
+14:39  BREAKOUT UP: traded 55677.4, past 55623.0 + δ
+        Range toota ▲ 55672
+15:00  ▲ 14:24→14:56 · +228.0 pts [M] · 32 min · UX Δ+218 [I] (+28%), 1046 pts/1k [I] · progress per lot 10 of 18 (1 = least) · OI −150 lots [M] (moved ±139, tol −158..−143) · WHO: short covering (expiring: or roll) [I]
+        Upar +228 · Δ+0.2k UX · OI −0.1k · Short cover (ya roll) · expiring
+15:03  ▼ 14:56→15:01 · −97.4 pts [M] · 5 min · UX Δ+22 [I] (+18%) · OI −26 lots [M] (within noise ±60, tol −26..−18) · WHO: rotation, OI flat, ABSORBED (price moved against the aggressor) [I]
+        Neeche −97 · Δ+0.0k UX · OI −0.0k · Sirf ghumaav · OI flat · kharid dabi · expiring
+15:06  ▲ 15:01→15:04 · +78.8 pts [M] · 3 min · UX Δ+34 [I] (+33%), 2318 pts/1k [I] · progress per lot 15 of 19 (1 = least) · OI −6 lots [M] (within noise ±38, tol −6..+2) · WHO: rotation, OI flat [I]
+        Upar +79 · Δ+0.0k UX · OI −0.0k · Sirf ghumaav · OI flat · expiring
+15:06  RANGE 55637.6–55735.0: the high 55716.4 did not extend past 55735.0 by δ/2
+        Range 55637.6–55735.0
+15:16  BREAKOUT DOWN: traded 55575.2, past 55637.6 − δ
+        Range toota ▼ 55588
+15:20  ▼ 15:04→15:16 · −148.8 pts [M] · 12 min · UX Δ−142 [I] (−36%), 1048 pts/1k [I] · progress per lot 11 of 20 (1 = least) · OI −54 lots [M] (within noise ±80, tol −59..−54) · WHO: rotation, OI flat · heavy effort, move paid [I]
+        Neeche −149 · Δ−0.1k UX · OI −0.1k · Sirf ghumaav · OI flat · zor laga, move mila · expiring
+15:29  ▲ 15:16→15:26 · +130.4 pts [M] · 10 min · UX Δ+75 [I] (+21%), 1739 pts/1k [I] · progress per lot 15 of 21 (1 = least) · OI −73 lots [M] (within noise ±75, tol −96..−69) · WHO: rotation, OI flat [I]
+        Upar +130 · Δ+0.1k UX · OI −0.1k · Sirf ghumaav · OI flat · expiring
+15:30  forming ▼ 15:26→15:29 · −65.4 pts [M] · 3 min · UX Δ−16 [I] (−20%), 4088 pts/1k [I] · progress per lot 20 of 22 (1 = least) · OI −21 lots [M] (within noise ±46, tol −21..+2) · WHO: rotation, OI flat [I] · now 55634.2, 1.6 back of δ 49.2
+        Neeche −65 · Δ−0.0k UX · OI −0.0k · Sirf ghumaav · OI flat · expiring
+
+COUNTS (n, never a rate)
+  minutes read 373 · confirmed legs 34 · auction state changes 8 (bar ≤ 12) · range-edge widenings 2
+  WHO classes: long_liquidation 2, new_longs 2, new_shorts 2, oi_cant 2, rotation 24, short_covering 2
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 0 · GC leg shorter than 2 bars 0
+  prints excluded 0 (none) · OI publication steps 45 of 316 updates
+  integrity audit: 0 violation(s) (bar = 0)

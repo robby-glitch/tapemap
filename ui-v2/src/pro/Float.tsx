@@ -128,6 +128,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   // one line: the word · the contract · the engine's clause (never the P&L here); open: the same line over the DESK's face
   const line = <div className="fl-line" {...grip}>
     <span className={`word fw ${VCLS[word!]}`}>{word}</span>
+    {st.feed?.alarm && <span className="fl-feed" title={[st.feed.why, st.feed.do].filter(Boolean).join('\n')}>{st.feed.chip}</span>}
     <span className="mid"><span className="c">{contract(cur)}</span><span className="dot">·</span>{cur.role} · in {cur.t0.slice(0, 5)}
       {v?.clause && <><span className="dot">·</span>{v.clause}</>}
       {others.map(t => <span key={t.id}><span className="dot">·</span><button type="button" className="link" onClick={() => setPick(t.id)} title="show this trade">

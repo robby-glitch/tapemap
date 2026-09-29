@@ -1,0 +1,39 @@
+NIFTY 2026-09-22 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.1 rupee) · prior sessions for the ruler: none on disk · lot 65
+GoCharting: 78 bars; 4 arrived after 15:30 (not live, not read)
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract NSE_FO|68407 · expiry 2026-09-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:17 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 33.0 pts = 3 x today's first 15 minutes' unit 11.00 [M] (median 1-min range (fold's unit)), no prior session: not causal before 09:32
+front contract expiry 2026-09-29 [M, instrument master] · 6 session(s) left
+09:32  ruler 33.0 pts = 3 x today's first 15 minutes' unit 11.00 [M] (median 1-min range (fold's unit)), no prior session: not causal before 09:32
+        Ruler set · 33.0 pts
+10:31  ▲ 09:27→09:47 · +38.6 pts [M] · 20 min · UX Δ−215 [I] (−8%) · GC Δ−390 [I] (−21%) · tapes DIFFER · OI −7 lots [M] (within noise ±328, tol −7..+48) · WHO: rotation, OI flat, ABSORBED (price moved against the aggressor) [I]
+        Upar +39 · Δ−0.2k UX · OI −0.0k · Sirf ghumaav · OI flat · bikri dabi
+10:31  TREND UP: first confirmed leg
+        Upar chal raha
+11:15  ▼ 09:47→10:42 · −101.1 pts [M] · 55 min · UX Δ−1,600 [I] (−24%), 63 pts/1k [I] · rank warming 0 of 3 · GC Δ−136 [I] (−3%) · tapes DIFFER · OI +1,092 lots [M] (moved ±490, tol +1,053..+1,132) · WHO: new shorts [I]
+        Neeche −101 · Δ−1.6k UX · OI +1.1k · Naye short
+11:39  ▲ 10:42→11:25 · +43.1 pts [M] · 43 min · UX Δ−510 [I] (−13%) · GC Δ+34 [I] (+1%) · tapes DIFFER · OI −934 lots [M]: one OI publication step at 11:07 (−1,074 lots, larger than the volume since the last update): not read as positioning · WHO: sellers pressing, ABSORBED (price moved against the aggressor)
+        Upar +43 · Δ−0.5k UX · OI −0.9k · Bikri dabav · bikri dabi
+11:39  RANGE 23373.9–23475.0: the high 23417.0 did not extend past 23475.0 by δ/2
+        Range 23373.9–23475.0
+13:01  BREAKOUT DOWN: traded 23335.9, past 23373.9 − δ
+        Range toota ▼ 23341
+14:11  ▼ 11:25→14:00 · −131.0 pts [M] · 145 min · UX Δ−3,223 [I] (−26%), 41 pts/1k [I] · rank warming 1 of 3 · GC CAN'T CHECK: GoCharting bar 12:10 short (33 of 337 lots) · OI +1,736 lots [M] (moved ±588, tol +1,724..+1,755) · WHO: new shorts [I] · price hole 13:09–13:14, 13:17–13:20
+        Neeche −131 · Δ−3.2k UX · OI +1.7k · Naye short
+14:16  TREND UP: traded 23419.3, above the last lower high 23417.0
+        Trend toota ↑ 23417
+14:35  ▲ 14:00→14:23 · +137.5 pts [M] · 23 min · UX Δ+340 [I] (+9%) · GC Δ+347 [I] (+13%), 396 pts/1k [I] · rank warming 0 of 3 · tapes DIFFER · OI −3,352 lots [M] (moved ±271, tol −3,371..−3,171) · WHO: short covering [I]
+        Upar +138 · Δ+0.3k UX · OI −3.4k · Short cover
+15:27  ▼ 14:23→15:01 · −63.1 pts [M] · 38 min · UX Δ−5,001 [I] (−64%), 13 pts/1k [I] · rank warming 2 of 3 · GC CAN'T CHECK: GoCharting bar 14:55 short (128 of 2,956 lots) · OI +3,766 lots [M] (moved ±411, tol +3,585..+4,729) · WHO: new shorts, ABSORBED (heavy effort, little progress) [I]
+        Neeche −63 · Δ−5.0k UX · OI +3.8k · Naye short · bikri dabi
+15:30  forming ▲ 15:01→15:29 · +39.5 pts [M] · 28 min · UX Δ−1,193 [I] (−34%) · GC CAN'T CHECK: GoCharting bar 15:25 not received as of 15:30 · OI −760 lots [M]: one OI publication step at 15:11 (−1,146 lots, larger than the volume since the last update): not read as positioning · WHO: sellers pressing, ABSORBED (price moved against the aggressor) · now 23399.4, 0.5 back of δ 33.0
+        Upar +40 · Δ−1.2k UX · OI −0.8k · Bikri dabav · bikri dabi
+
+COUNTS (n, never a rate)
+  minutes read 363 · confirmed legs 6 · auction state changes 4 (bar ≤ 12) · range-edge widenings 0
+  WHO classes: new_shorts 3, oi_cant 1, rotation 1, short_covering 1
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 2 · GC leg shorter than 2 bars 0
+  prints excluded 0 (none) · OI publication steps 24 of 341 updates
+  integrity audit: 0 violation(s) (bar = 0)

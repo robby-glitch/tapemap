@@ -1,0 +1,49 @@
+SENSEX 2026-09-23 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.05 rupee) · prior sessions for the ruler: 2026-09-22 · lot 20
+GoCharting: no GoCharting for this index
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract BSE_FO|864571 · expiry 2026-10-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:17 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 68.7 pts = 2 x the median bid-ask spread 34.4 [M], above 3 x prior unit 13.51 (median 5-min range / sqrt 5 = 13.51: the 1-min range 0.00 is thin (102 of 152 traded minutes printed one price)): the thin book's prints bounce across its spread, frozen at the open
+front contract expiry 2026-10-29 [M, instrument master] · 27 session(s) left
+09:25  ▲ 09:17→09:19 · +108.5 pts [M] · 2 min · UX Δ+6 [I]: too thin to name a side: 6 traded frames in the leg (< 30) · OI −8 lots [M] (within noise ±9, tol −9..+0) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +109 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+09:25  TREND UP: first confirmed leg
+        Upar chal raha
+09:46  ▼ 09:19→09:33 · −155.1 pts [M] · 14 min · UX Δ−33 [I]: too thin to name a side: 22 traded frames in the leg (< 30) · OI −17 lots [M] (within noise ±20, tol −18..−16) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −155 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+09:50  ▲ 09:33→09:47 · +79.5 pts [M] · 14 min · UX Δ+16 [I]: too thin to name a side: 18 traded frames in the leg (< 30) · OI −9 lots [M] (within noise ±18, tol −9..−7) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +79 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+09:50  RANGE 74680.0–74835.1: the high 74759.4 did not extend past 74835.1 by δ/2
+        Range 74680.0–74835.1
+10:00  ▼ 09:47→09:55 · −132.9 pts [M] · 8 min · UX Δ−11 [I]: too thin to name a side: 9 traded frames in the leg (< 30) · OI −3 lots [M] (within noise ±13, tol −10..−3) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −133 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+10:00  pivot 74626.5 outside the range 74680.0–74835.1, not past it by δ
+        Range ke bahar jhanka 74626
+12:06  BREAKOUT UP: traded 74925.0, past 74835.1 + δ
+        Range toota ▲ 74904
+12:49  ▲ 09:55→12:19 · +323.9 pts [M] · 144 min · UX Δ+52 [I] (+14%), 6228 pts/1k [I] · rank warming 0 of 3 · OI −305 lots [M] (moved ±58, tol −306..−299) · WHO: short covering [I]
+        Upar +324 · Δ+0.1k UX · OI −0.3k · Short cover
+13:46  ▼ 12:19→13:37 · −140.3 pts [M] · 78 min · UX Δ−23 [I] (−28%), 6102 pts/1k [I] · rank warming 1 of 3 · OI −61 lots [M] (moved ±40, tol −67..−60) · WHO: long liquidation [I]
+        Neeche −140 · Δ−0.0k UX · OI −0.1k · Long nikal rahe
+14:00  ▲ 13:37→13:45 · +74.0 pts [M] · 8 min · UX Δ+6 [I]: too thin to name a side: 3 traded frames in the leg (< 30) · OI −8 lots [M] (within noise ±13, tol −8..+1) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +74 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+14:00  RANGE 74810.0–74950.4: the high 74883.9 did not extend past 74950.4 by δ/2
+        Range 74810.0–74950.4
+14:12  ▼ 13:45→13:59 · −72.2 pts [M] · 14 min · UX Δ−2 [I]: too thin to name a side: 2 traded frames in the leg (< 30) · OI +3 lots [M] (within noise ±9, tol −4..+3) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −72 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+14:36  ▲ 13:59→14:30 · +137.2 pts [M] · 31 min · UX Δ+35 [I] (+49%), 3920 pts/1k [I] · rank warming 2 of 3 · OI −44 lots [M] (moved ±25, tol −48..−40) · WHO: short covering [I]
+        Upar +137 · Δ+0.0k UX · OI −0.0k · Short cover
+15:19  ▼ 14:30→15:03 · −168.8 pts [M] · 33 min · UX Δ+35 [I] (+27%) · OI −45 lots [M] (moved ±21, tol −50..−41) · WHO: long liquidation, ABSORBED (price moved against the aggressor) [I]
+        Neeche −169 · Δ+0.0k UX · OI −0.0k · Long nikal rahe · kharid dabi
+15:19  RANGE 74780.2–74950.4: edge widened to 74780.2 (within δ/2)
+        Range 74780.2–74950.4
+15:30  forming ▲ 15:03→15:25 · +95.5 pts [M] · 22 min · UX Δ+117 [I]: too thin to name a side: 24 traded frames in the leg (< 30) · OI −25 lots [M] (moved ±20, tol −32..−20) · WHO: short covering (delta thin: price × OI only) [I] · now 74860.0, 15.8 back of δ 68.7
+        Upar +96 · OI −0.0k · Short cover · Δ patla
+
+COUNTS (n, never a rate)
+  minutes read 373 · confirmed legs 10 · auction state changes 4 (bar ≤ 12) · range-edge widenings 1
+  WHO classes: long_liquidation 2, rotation 6, short_covering 2
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 0 · GC leg shorter than 2 bars 0
+  prints excluded 0 (none) · OI publication steps 17 of 102 updates
+  integrity audit: 0 violation(s) (bar = 0)

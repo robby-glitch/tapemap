@@ -1,71 +1,49 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createChartEngine } from '../vendor/candl/chart/engine'
 import type { IChartEngine } from '../vendor/candl/chart/types'
-import type { TapeBar, MapLevel, IndexKey, RotationSignal, Structure } from '../data'
+import type { TapeBar, IndexKey } from '../data'
 import type { Mode } from '../theme'
 import { CHART_UP, CHART_DOWN } from '../theme'
 import { toCandles, buildIndicators } from './indicators'
 import { startLevelsOverlay } from './LevelsOverlay'
+import type { EngineLayer, OverlayData, PocketBar, TradeLayer, ValueLayer, ZoneEntry } from './LevelsOverlay'
 import type { FootEvent } from './footprint'
 import type { TapeReply } from './tape'
-import type { Narration } from './narration'
-import type { Zone } from './zones'
 import Callout from './Callout'
 
 interface Props {
   index: IndexKey
   day: string
   bars: TapeBar[]
-  levels: MapLevel[]
   cursor: number | null // replay bar index; null = live
   mode: Mode
   hover: number | null
   onHover: (i: number | null) => void
-  narrs: (Narration | null)[]
-  /** Market-condition runs for the overlay's zone bands. Optional so a caller
-   *  that has no ctx to group yet renders exactly as before — an absent prop
-   *  means "no bands", never an invented verdict. */
-  zones?: Zone[]
-  /** The backend's SMC structure layer, or null when it is unavailable (no
-   *  such backend, or bar indices that cannot be trusted — see data.ts's skip
-   *  guard). Null draws nothing; TradeTab prints the reason. */
-  structures?: Structure[] | null
-  /** The SMC toggle. False = the operator hid the layer, which is a different
-   *  fact from the layer being unavailable, and is not disclosed as one. */
-  smc?: boolean
-  /** The backend's index band-rotation signals, 1:1 with `bars`, or null when
-   *  they cannot be lined up honestly (data.ts's guard). Null draws nothing;
-   *  TradeTab prints the reason. */
-  rotation?: (RotationSignal | null)[] | null
-  /** The unscored event layers drawn over price — zone/condition bands and
-   *  story balloons. Defaults TRUE so this component renders as it always did
-   *  when the prop is omitted; TradeTab passes the operator's toggle, which
-   *  defaults off. `narrs` still reaches the hover Callout either way — an
-   *  on-demand read is not clutter, and hiding it would remove information the
-   *  operator asked for rather than noise they did not. */
-  story?: boolean
-  /** The day's FOOTPRINT record — the extension's own tape events, from the
-   *  SAME `useFootprint` poll the SETUP CHECK row reads (one fetch, one
-   *  cadence). Drawn as the mark family the operator already reads on
-   *  GoCharting. Null = the record could not be read, which is not the same as
-   *  an empty day and is not drawn as one; TradeTab prints the reason. */
-  marks?: FootEvent[] | null
-  /** The ladder record's levels, flags and marks (`/api/tape`, ./tape.ts), from
-   *  the SAME `useTape` poll TradeTab's legend reads. Null = could not be read,
-   *  which is not an empty day and is not drawn as one; TradeTab prints the why. */
-  prints?: TapeReply | null
-  /** The interval the backend says the bars ARE (TradeTab's `publishedInterval`).
-   *  The delta pane draws only at 5 or 15 — see indicators.alignDelta. */
-  publishedInterval?: number | null
+  /** The interval the backend says these bars ARE (minutes), or null. */
+  interval: number | null
+  /** Her zone's bands, from the 3-minute machine's bars (whatever this chart's interval is). */
+  pockets: PocketBar[] | null
+  /** Her zone machine's entries, each on the chart bar containing its own time. */
+  entries: ZoneEntry[]
+  /** Her footprint marks (P / A / E / C). Null = the record could not be read; TradeTab says why. */
+  marks: FootEvent[] | null
+  /** The ladder record (`/api/tape`), for the Flow pane. Null = could not be read. */
+  prints: TapeReply | null
+  /** The Flow pane toggle (default on; it draws only at 5 and 15 minutes). */
+  flowPane: boolean
+  /** The engine's layers (fights, held, trapped, walls, NEXT FIGHT), on the chart's own clock. Null = no read. */
+  engine: EngineLayer | null
+  /** Her marked trade (entry, give-up, walls behind and ahead), on the chart's own clock. Null = none. */
+  trade: TradeLayer | null
+  /** Floor pivots (Pivots toggle on), else null. */
+  pivots: { label: string; value: number }[] | null
+  /** The Value layer (Value toggle on), else null. */
+  value: ValueLayer | null
+  /** The CHIPS toggle. */
+  chipsOn: boolean
 }
 
-// A shared empty default, so an omitted `zones` prop does not hand the overlay
-// a fresh array identity on every render.
-const NO_ZONES: Zone[] = []
-
-/** Nearest index in a sorted-ascending time array to `t` — the inverse of
- *  toCandles's own `dayBase(day) + minutes*60000` construction. Binary search
- *  since the axis is monotonic (one entry per bar, in bar order). */
+/** Nearest index in a sorted-ascending time array to `t` (binary search). */
 function nearestIndex(times: number[], t: number): number {
   if (!times.length) return 0
   let lo = 0
@@ -83,116 +61,51 @@ function nearestIndex(times: number[], t: number): number {
 }
 
 export default function ContractChart({
-  index, day, bars, levels, cursor, mode, hover, onHover, narrs, zones = NO_ZONES,
-  structures = null, smc = true, rotation = null, story = true, marks = null,
-  prints = null, publishedInterval = null,
+  index, day, bars, cursor, mode, hover, onHover, interval, pockets, entries, marks, prints, flowPane, engine, trade, pivots, value, chipsOn,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<IChartEngine | null>(null)
-  const levelsRef = useRef<MapLevel[]>(levels)
   const modeRef = useRef<Mode>(mode)
-  const prevRef = useRef<{ index: string; day: string; n: number }>({ index: '', day: '', n: 0 })
-  levelsRef.current = levels
   modeRef.current = mode
-
-  // Refs so the single long-lived mousemove listener (attached once, at engine
-  // creation) always reads current data without needing to be re-attached
-  // whenever bars/cursor/onHover change identity.
+  const prevRef = useRef<{ index: string; day: string; n: number }>({ index: '', day: '', n: 0 })
+  // the candle time axis (epoch ms), rebuilt with the data effect below
+  const timesRef = useRef<number[]>([])
   const barsRef = useRef<TapeBar[]>(bars)
   barsRef.current = bars
   const cursorRef = useRef<number | null>(cursor)
   cursorRef.current = cursor
   const onHoverRef = useRef(onHover)
   onHoverRef.current = onHover
-  // Same pattern for the overlay's two new inputs: the rAF loop in
-  // LevelsOverlay is started ONCE (in the []-deps effect below) and reads its
-  // data through getters, so narrations and zones must reach it via refs — a
-  // captured prop would freeze at the values of the first render.
-  const narrsRef = useRef<(Narration | null)[]>(narrs)
-  narrsRef.current = narrs
-  const zonesRef = useRef<Zone[]>(zones)
-  zonesRef.current = zones
-  const structuresRef = useRef<Structure[] | null>(structures)
-  structuresRef.current = structures
-  const smcRef = useRef<boolean>(smc)
-  smcRef.current = smc
-  // Same ref pattern again: the rAF loop reads its data through getters, so a
-  // captured prop would freeze at the first render's value.
-  const rotationRef = useRef<(RotationSignal | null)[] | null>(rotation)
-  rotationRef.current = rotation
-  const storyRef = useRef<boolean>(story)
-  storyRef.current = story
-  // Same ref pattern: the rAF overlay reads its data through getters, so a
-  // captured prop would freeze at the first render's value.
-  const marksRef = useRef<FootEvent[] | null>(marks)
-  marksRef.current = marks
-  const printsRef = useRef<TapeReply | null>(prints ?? null)
-  printsRef.current = prints ?? null
-  // The candle time axis (epoch ms), rebuilt once per data change (the same
-  // [index, day, bars] effect that feeds the engine) — never recomputed
-  // inside the mousemove handler itself.
-  const timesRef = useRef<number[]>([])
-  // The last index this component itself set via mousemove, so the
-  // hover-position effect below can tell "the chart's own cursor moved" apart
-  // from "hover arrived from elsewhere (e.g. the ribbon)".
+  // One ref the rAF overlay reads every frame. `rev` moves whenever an input moves, so the overlay repaints on a
+  // data change and otherwise stays idle.
+  const revRef = useRef(0)
+  const rev = useMemo(() => ++revRef.current, [bars, cursor, interval, pockets, entries, marks, engine, trade, pivots, value, chipsOn, hover])
+  const dataRef = useRef<Omit<OverlayData, 'times'>>({ bars, cursor, interval, pockets, entries, marks, engine, trade, pivots, value, chipsOn, hover, rev })
+  dataRef.current = { bars, cursor, interval, pockets, entries, marks, engine, trade, pivots, value, chipsOn, hover, rev }
   const internalHoverRef = useRef<number | null>(null)
-
-  // Where to anchor the Callout: literal mouse position while hovering the
-  // chart itself; recomputed from the engine's own converters when `hover`
-  // arrives from outside (Ribbon), since there is no mouse position to read
-  // in that case. `w`/`h` are the frame size at the moment of the read, used
-  // for the Callout's own edge-flip math.
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
   useEffect(() => {
     const host = hostRef.current!
     const engine = createChartEngine(host, { theme: mode, pricePrecision: 2, chartType: 'candles' })
     engineRef.current = engine
-    // A newly created engine holds no series, so the next data effect MUST take
-    // the setData path. prevRef survives an effect remount (React StrictMode
-    // re-runs effects in dev), and without this reset the data effect would see
-    // grew === 0 and call updateLast on an empty engine — leaving the chart with
-    // a single candle instead of the whole session.
+    // a new engine holds no series: the next data effect must take the setData path (StrictMode remounts)
     prevRef.current = { index: '', day: '', n: 0 }
-    // setSettings is the library's sanctioned styling hook, so candle colour is
-    // set here rather than by editing the pristine vendor theme. Green/red carry
-    // direction only. In LIGHT mode CHART_UP/DOWN are deliberately the
-    // Kite/TradingView default pair (#26a69a/#ef5350) so these candles match the
-    // ones the operator reads in Kite; dark stays on palette(mode).bull/bear.
     engine.setSettings({
       upColor: CHART_UP[mode], downColor: CHART_DOWN[mode],
       gridVisible: true, crosshairVisible: true,
       alertSound: false, alertTune: 0, alertDuration: 1,
     })
-    // The engine installs its own ResizeObserver, but ours is NOT redundant —
-    // removing it was tried and measurably broke the chart: the host grows once
-    // TradeTab measures its available height, and without this the engine keeps
-    // a stale internal layout and draws the session into ~57% of the canvas
-    // (14 candle clusters instead of 156). Keep it.
+    // not redundant with the engine's own observer: without it the host's growth leaves a stale layout
     const ro = new ResizeObserver(() => engine.resize())
     ro.observe(host)
     const stopOverlay = startLevelsOverlay(
       overlayRef.current!, host, engine,
-      () => levelsRef.current, () => modeRef.current,
-      () => ({
-        bars: barsRef.current, times: timesRef.current,
-        narrs: narrsRef.current, cursor: cursorRef.current,
-        rotation: rotationRef.current,
-      }),
-      () => zonesRef.current,
-      () => structuresRef.current,
-      () => smcRef.current,
-      () => storyRef.current,
-      () => marksRef.current,
-      () => printsRef.current,
+      () => modeRef.current,
+      () => ({ ...dataRef.current, times: timesRef.current }),
     )
-
-    // Hover mapping: clientX -> container-relative x -> engine's own xToTime
-    // -> nearest bar index. The overlay canvas is pointer-events:none, so the
-    // container itself receives these. Converters are re-queried on every
-    // move (never cached — they go stale under pan/zoom).
     const onMove = (e: MouseEvent) => {
       const eng = engineRef.current
       const container = containerRef.current
@@ -203,11 +116,9 @@ export default function ContractChart({
       const rect = container.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
-      const t = conv.xToTime(x)
       const maxIdx = barsRef.current.length - 1
-      let idx = Math.max(0, Math.min(nearestIndex(times, t), maxIdx))
-      // The causality rule: hovering must never reveal a bar the replay
-      // cursor is hiding. Not optional.
+      let idx = Math.max(0, Math.min(nearestIndex(times, conv.xToTime(x)), maxIdx))
+      // causality: hovering never reveals a bar the replay cursor is hiding
       const cur = cursorRef.current
       if (cur != null) idx = Math.min(idx, Math.max(0, Math.min(cur, maxIdx)))
       internalHoverRef.current = idx
@@ -222,7 +133,6 @@ export default function ContractChart({
     const container = containerRef.current!
     container.addEventListener('mousemove', onMove)
     container.addEventListener('mouseleave', onLeave)
-
     return () => {
       container.removeEventListener('mousemove', onMove)
       container.removeEventListener('mouseleave', onLeave)
@@ -242,50 +152,27 @@ export default function ContractChart({
     const n = candles.length
     const same = index === prev.index && day === prev.day
     if (same && grew === 0) {
-      engine.updateLast(candles[n - 1])   // same forming minute, refreshed
+      engine.updateLast(candles[n - 1])
     } else if (same && grew === 1 && n >= 2) {
-      // The minute rolled over. The bar we last pushed was still forming, so
-      // its final OHLC must be written before the new one is appended —
-      // otherwise the closed candle keeps the mid-formation values it had at
-      // the last poll. updateLast replaces on equal open time and appends
-      // otherwise (engine contract), so these two calls do exactly that.
+      // the minute rolled: finalise the forming candle, then append
       engine.updateLast(candles[n - 2])
       engine.updateLast(candles[n - 1])
     } else {
-      engine.setData(candles) // first load, index/day change, or any gap — resync
+      engine.setData(candles)
     }
-    engine.setIndicators(buildIndicators(bars, prints ?? null, publishedInterval ?? null))
+    engine.setIndicators(buildIndicators(bars, prints, interval, flowPane))
     timesRef.current = candles.map((c) => c.time)
     prevRef.current = { index, day, n: bars.length }
-  }, [index, day, bars, prints, publishedInterval])
+  }, [index, day, bars, prints, interval, flowPane])
 
   useEffect(() => {
     engineRef.current?.setReplayCursor(cursor)
   }, [cursor])
 
-  // Mode: repaint the engine's own theme and candle colours whenever it
-  // changes (the toggle in TradeTab), independent of the data effect above.
+  // keep the Callout placed when `hover` arrived from outside this component's own mousemove
   useEffect(() => {
-    const engine = engineRef.current
-    if (!engine) return
-    engine.setTheme(mode)
-    engine.setSettings({
-      upColor: CHART_UP[mode], downColor: CHART_DOWN[mode],
-      gridVisible: true, crosshairVisible: true,
-      alertSound: false, alertTune: 0, alertDuration: 1,
-    })
-  }, [mode])
-
-  // Keep the Callout positioned when `hover` arrived from outside (the
-  // ribbon) rather than from this component's own mousemove — derive its
-  // screen position from the engine's own converters at the hovered bar's
-  // own time/price rather than guessing.
-  useEffect(() => {
-    if (hover == null) {
-      setHoverPos(null)
-      return
-    }
-    if (hover === internalHoverRef.current) return // mousemove already positioned it
+    if (hover == null) { setHoverPos(null); return }
+    if (hover === internalHoverRef.current) return
     const engine = engineRef.current
     const container = containerRef.current
     const conv = engine?.getMainConverters()
@@ -297,19 +184,15 @@ export default function ContractChart({
   }, [hover, bars, day])
 
   const hoverBar = hover != null ? bars[hover] : null
-
-  // The marks whose OWN stamp falls inside the hovered bar's span — never
-  // snapped: a 5-minute mark lists under whichever 3-minute bar contains it.
-  const hoverT = hover != null ? timesRef.current[hover] : null
-  const hoverTNext = hover != null ? (timesRef.current[hover + 1] ?? (hoverT != null ? hoverT + 300000 : null)) : null
-  const tmHere = prints && hoverT != null && hoverTNext != null
-    ? prints.marks.tm.filter((m) => m.t >= hoverT && m.t < hoverTNext) : []
+  const entryHere = hover != null ? (entries.find((e) => e.i === hover) ?? null) : null
+  // what the chart marked inside the hovered bar, each by its own clock
   const ofdHere = marks && hoverBar
-    ? marks.filter((e) => e.t >= hoverBar.t && (hover != null && bars[hover + 1] ? e.t < bars[hover + 1].t : true)) : []
-  const runsHere = prints?.ux && !prints.ux.why && hoverT != null && hoverTNext != null
-    ? prints.ux.marks.runs.filter((r) => r.to_t >= hoverT && r.to_t < hoverTNext) : []
-  const uxBarHere = prints?.ux && !prints.ux.why && hoverT != null
-    ? (prints.ux.bars.find((b) => b.t === hoverT) ?? null) : null
+    ? marks.filter((e) => ['trap', 'absorption', 'exhaustion', 'climax'].includes(e.kind)
+        && e.t >= hoverBar.t && (hover != null && bars[hover + 1] ? e.t < bars[hover + 1].t : true)) : []
+  const t0 = hover != null ? timesRef.current[hover] : undefined
+  const t1 = hover != null ? (timesRef.current[hover + 1] ?? (t0 != null ? t0 + (interval ?? 5) * 60_000 : undefined)) : undefined
+  const fightsHere = engine && t0 != null && t1 != null
+    ? engine.marks.filter((m) => m.kind !== 'wall' && m.t >= t0 && m.t < t1) : []
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -319,14 +202,10 @@ export default function ContractChart({
         <Callout
           mode={mode}
           bar={hoverBar}
-          prevBar={hover > 0 ? bars[hover - 1] : null}
           day={day}
-          narr={narrs[hover] ?? null}
-          rot={rotation?.[hover] ?? null}
-          tm={tmHere}
+          entry={entryHere?.sig ?? null}
           ofd={ofdHere}
-          runs={runsHere}
-          uxBar={uxBarHere}
+          fights={fightsHere}
           x={hoverPos.x}
           y={hoverPos.y}
           boxW={hoverPos.w}

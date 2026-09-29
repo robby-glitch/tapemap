@@ -29,6 +29,8 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "server.VPIN_LOG": "vpin_log.jsonl", "server.VPIN_BACKFILL_LOG": "vpin_backfill.jsonl",
              "server.VPIN_FAST_LOG": "vpin_fast.jsonl",
              "chain_backfill.DIR": "chain_backfill",           # the 09:15 REST backfill on disk (pro-tool P2-06)
+             "reader_live.DIR": "reader",                      # the shadow leg engine's log (docs/reader/8-shadow-build.md)
+             "xindex_live.DIR": "xindex",                      # the shadow cross-index log (docs/reader/10-xindex-build.md)
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",

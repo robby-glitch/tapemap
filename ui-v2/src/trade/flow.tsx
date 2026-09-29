@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react'
-import { MONO } from '../theme'
-import type { palette } from '../theme'
-// The strip and SetupCheck's OI receipt format the same figures with `crl`.
-// One formatter, so two surfaces can never disagree about one number.
-import { crl } from './ZoneRead'
 import type { FlowRow, IndexKey } from '../data'
 
-type Pal = ReturnType<typeof palette>
 
 /**
  * The latest Trending-OI mark, fetched and rendered.
@@ -58,54 +52,4 @@ export function useFlow(index: IndexKey): { last: FlowRow | null; rows: FlowRow[
   // this fetch the header above forbids. Existing callers destructure `last`
   // and are untouched.
   return { last, rows, why }
-}
-
-/**
- * The one-line rendering of that mark. The mark time is ALWAYS shown (the row
- * is the chain AS AT that clock mark, not now), and while replaying the line
- * dims and says it is live rather than pretending it scrubbed.
- *
- * Absence is a sentence, never a blank: "Trending OI nahi mili — {why}".
- */
-export function FlowLine({ pal, flow, flowWhy, replaying }: {
-  pal: Pal
-  flow: FlowRow | null
-  flowWhy: string
-  /** True while the replay cursor is set. This line does not scrub — it says so. */
-  replaying: boolean
-}) {
-  return (
-    <div style={{
-      fontFamily: MONO, fontSize: 11, paddingLeft: 2,
-      color: pal.textSecondary, opacity: replaying ? 0.55 : 1,
-    }}>
-      {flow ? (
-        <>
-          <span style={{ fontWeight: 700, color: pal.textMuted }}>OI {flow.time}</span>
-          {' · CALL '}{crl(flow.call)}
-          {' · PUT '}{crl(flow.put)}
-          {' · DIFF '}{crl(flow.diff)} {flow.diff >= 0 ? 'PUT' : 'CALL'}-heavy{' '}
-          {Math.abs(flow.strength * 100).toFixed(0)}%
-          {flow.pcr != null && <>{' · PCR '}{flow.pcr.toFixed(2)}</>}
-          {flow.chg_dir != null && (
-            <>{' · Δ '}{flow.chg_dir >= 0 ? '▲' : '▼'}{crl(Math.abs(flow.chg_dir)).slice(1)}</>
-          )}
-          {flow.brk && (
-            <span style={{ color: pal.accent, fontWeight: 700 }}>
-              {' · '}{flow.brk} {flow.brk_px != null ? flow.brk_px.toFixed(1) : ''}
-            </span>
-          )}
-          {replaying && (
-            <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
-              {' · live flow — replay cursor ke saath aligned nahi'}
-            </span>
-          )}
-        </>
-      ) : (
-        <span style={{ fontStyle: 'italic', color: pal.textMuted }}>
-          Trending OI nahi mili — {flowWhy}
-        </span>
-      )}
-    </div>
-  )
 }

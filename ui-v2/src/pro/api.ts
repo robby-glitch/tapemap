@@ -28,12 +28,18 @@ export type View = { ts: string; headline: string | null; why?: string; clause: 
                      prem: Prem; rows: Rows; holes: unknown[]; sound_id: string | number | null; tag?: Tag; events?: Ev[]
                      frozen?: boolean; exit_t?: string }
 export type Word = { t: string; headline: string; clause: string; prem?: number | null; pct?: number | null; after_exit?: boolean }
-export type FoldRead = { ok: boolean; why?: string; id?: string; trade?: Trade; view?: View; words?: Word[]; asof?: string }
+export type FoldRead = { ok: boolean; why?: string; id?: string; trade?: Trade; view?: View; words?: Word[]; asof?: string; feed?: Feed }
+// FEED HEALTH (P3, feed_health.py): is the GoCharting tape alive, read by the server from the data; rides every /api/fold* reply
+export type FeedState = 'LIVE' | 'SLOW' | 'STALLED' | 'DEAD' | 'NOT OPEN TODAY' | 'AFTER CLOSE'
+export type Feed = { idx?: string; state: FeedState | null; since?: string | null; age_s?: number | null; why?: string | null; chip?: string | null
+                     do?: string | null; last_post?: string | null; last_bar?: string | null; alarm?: boolean; sound?: boolean
+                     short_bar?: { t: string; gc: number; ux: number } | null; depends_on_gc?: string[]; upstox_only?: string[] }
 export type Fight = { px: number | null; what: string; confirm: string | null }
 export type GaveUp = { text: string; t: string; px: number; k: number; side: string; oi: string; unproven: string }
 export type Reentry = { text: string; unproven: boolean; t?: string; px?: number; prem?: number | null; exit_prem?: number | null; falsifier?: string }
 export type Flat = { ok: boolean; why?: string; next_fight?: { above: Fight | null; below: Fight | null } | null; at?: { px: number; what: string } | null
-                     rows?: Rows; day?: string | null; asof?: string; date?: string; F?: number; gave_up?: GaveUp | null; reentry?: Reentry | null; tag?: Tag }
+                     rows?: Rows; day?: string | null; asof?: string; date?: string; F?: number; gave_up?: GaveUp | null; reentry?: Reentry | null; tag?: Tag
+                     feed?: Feed }
 export type Ifin = { ok: boolean; why?: string; view?: View }
 export type Strike = { k: number; ce: number | null; pe: number | null }
 export type ChainLite = { ok: boolean; why?: string; ts?: string; spot?: number; atm?: number; expiry?: string; strikes: Strike[] }
@@ -44,13 +50,15 @@ export type Side = 'BUY' | 'SELL'
 export type Pick = { k: number; ty: Ty; side: Side }
 
 export type S = { loaded: boolean; trades: Trade[]; tradesWhy: string | null; fold: Record<string, FoldRead>; flat: Flat | null
-                  engineWhy: string | null; ifin: Ifin | null; chain: ChainLite | null }
+                  engineWhy: string | null; ifin: Ifin | null; chain: ChainLite | null
+                  /** the GoCharting tape's health off the last fold/flat reply; null = not read (the engine banner then speaks) */
+                  feed: Feed | null }
 
 export const hms = () => new Date().toTimeString().slice(0, 8)
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 export const notAnswering = (t = hms()) => `could not check — the engine is not answering (${t})`
 
-let s: S = { loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null }
+let s: S = { loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null }
 const subs = new Set<() => void>()
 let busy = false, again = false, timer: number | undefined, ifinKey: Pick | null = null
 
@@ -89,16 +97,18 @@ async function poll() {
   const fail = () => { why ??= s.engineWhy ?? notAnswering(at) }          // the first failure's time stays: no churn
   const refused = (w?: string) => { why ??= `could not check — ${w || 'the engine gave no reason'}` }
   const fold: Record<string, FoldRead> = {}
+  let feed: Feed | null = null                                             // the feed band rides whichever read answered
   const jobs: Promise<unknown>[] = open.map(async t => {
     try {
       const r = await j<FoldRead>(`/api/fold?id=${encodeURIComponent(t.id)}`)
       fold[t.id] = r
+      if (r.feed) feed = r.feed
       if (r.ok) chime(t.id, r.view?.sound_id); else refused(r.why)
     } catch { fail(); if (s.fold[t.id]) fold[t.id] = s.fold[t.id] }     // keep the last read; the banner says it is old
   })
   if (!open.length) {
     jobs.push((async () => {
-      try { const r = await j<Flat>(`/api/fold/flat?idx=${IDX}`); n.flat = r; if (!r.ok) refused(r.why) }
+      try { const r = await j<Flat>(`/api/fold/flat?idx=${IDX}`); n.flat = r; if (r.feed) feed = r.feed; if (!r.ok) refused(r.why) }
       catch { fail(); n.flat = s.flat }
     })())
     if (key) jobs.push((async () => {
@@ -116,7 +126,7 @@ async function poll() {
     } catch { n.chain = s.chain ?? { ok: false, why: notAnswering(at), strikes: [] } }
   })())
   await Promise.all(jobs)
-  n.fold = fold; n.engineWhy = why
+  n.fold = fold; n.engineWhy = why; n.feed = feed                       // no reply, no feed: the engine banner speaks, not a stale band
   put(n)
   busy = false
   if (again) { again = false; poll() }

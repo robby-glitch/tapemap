@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { IndexKey, RunState } from '../data'
+import type { IndexKey } from '../data'
 
 /**
  * The day's FOOTPRINT record, for the one question SETUP CHECK cannot answer
@@ -41,11 +41,38 @@ export interface FootEvent {
   /** Set by record_read.py from `signals.CONFIRMS`. ABSENT on a backend that
    *  predates that line — which is "could not check", never "found nothing". */
   confirm?: boolean
+  /** The side the extension paints the mark in (+1 buyers, -1 sellers, 0 neutral). The record does not carry it;
+   *  `withSide` joins it from `/api/tape`'s ofd marks. Absent = not joined, drawn neutral, never guessed. */
+  side?: number | null
+  /** P only: whether it sits at the swing extreme of the chart's closed bars before it (TradeTab `marks`); null = no. */
+  swing?: 'top' | 'bottom' | null
+}
+
+const IST_MS = 5.5 * 3600_000
+const hhmmIST = (ms: number) => {
+  const d = new Date(ms + IST_MS)
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
+
+/** The record's events with the extension's own `side`, joined on (HH:MM, kind, price) from `/api/tape`'s ofd marks
+ *  (33 of 33 matched on 2026-09-29). These are board.js's RAW sides (the tape posts `m.local.events`, main.js:220 → :269):
+ *  a trap's side is the TRAPPED side. Only the P colour flips it, in chips.paintSide (main.js:169). A presentation
+ *  join: nothing is inferred, and an unmatched event keeps no side. */
+export function withSide(events: FootEvent[] | null,
+                         ofd: { t: number; kind: string; p: number | null; side: number | null }[] | null | undefined): FootEvent[] | null {
+  if (!events) return null
+  if (!ofd || !ofd.length) return events
+  const side = new Map<string, number | null>()
+  for (const m of ofd) side.set(`${hhmmIST(m.t)}|${m.kind}|${m.p}`, m.side)
+  return events.map((e) => {
+    const k = `${e.t}|${e.kind}|${e.p}`
+    return side.has(k) ? { ...e, side: side.get(k) } : e
+  })
 }
 
 export interface Footprint {
   /** null when the record could not be read at all. Empty when this INDEX has
-   *  no events in it — two different sentences, kept apart by `lookUnder`. */
+   *  no events in it — two different sentences. */
   events: FootEvent[] | null
   /** The reason, as a whole sentence when `events` is null (the row prints it
    *  verbatim), and the backend's own `events_why` otherwise. */
@@ -101,81 +128,4 @@ export function useFootprint(index: IndexKey): Footprint {
     return () => { alive = false; window.clearInterval(id) }
   }, [index])
   return { events, why }
-}
-
-/** The three sentences, as the three marks SETUP CHECK already draws. */
-export interface Look {
-  state: 'auto-on' | 'auto-off' | 'auto-unknown'
-  /** Printed verbatim in the panel's receipt slot. */
-  receipt: string
-  warn: boolean
-}
-
-const f1 = (n: number) => n.toFixed(1)
-
-/**
- * Did the footprint see anything confirming under the live reference candle?
- *
- * THE FILTER INTRODUCES NO NEW CONSTANT. Its bounds are two numbers
- * `band_rotation.run_states` already publishes: events stamped at or after the
- * reference bar's own time (`st.t`), priced between the arming band (`st.level`)
- * and the reference candle's own line (`ref_high` on the buy side, `ref_low` on
- * the sell mirror). A bar's own extent is not an invented threshold. Times are
- * compared as zero-padded "HH:MM" strings, which orders them exactly and parses
- * nothing.
- *
- * THREE ANSWERS, NEVER TWO (CLAUDE.md rule 6). Found it, looked and found
- * nothing, could not look. An index whose record holds no events reads COULD
- * NOT LOOK with the reason — the extension is on one index at a time, and
- * reporting its silence about BANKNIFTY as "nothing absorbed" is precisely the
- * lie this panel exists to prevent.
- */
-export function lookUnder(fp: Footprint, st: RunState | null, sell: boolean): Look {
-  if (!fp.events) return { state: 'auto-unknown', receipt: fp.why, warn: true }
-  if (!fp.events.length) {
-    return {
-      state: 'auto-unknown', warn: true,
-      receipt: `is index ka footprint record hi nahi hai — ${fp.why || 'extension kisi aur index par hai'}`,
-    }
-  }
-  // A backend that predates record_read's `confirm` tag. Reading every event as
-  // non-confirming would print "kuch nahi dikha" over a record nobody asked the
-  // question of, so it is the third sentence instead.
-  if (!fp.events.some((e) => 'confirm' in e)) {
-    return {
-      state: 'auto-unknown', warn: true,
-      receipt: 'backend ne events par confirm tag nahi lagaya — server purana chal raha hai',
-    }
-  }
-  const brk = sell ? st?.ref_low : st?.ref_high
-  if (!st || st.t == null || st.level == null || brk == null) {
-    return {
-      state: 'auto-unknown', warn: true,
-      receipt: 'koi live reference candle nahi — jiske neeche dekhna hai wahi nahi bana',
-    }
-  }
-  const lo = Math.min(st.level, brk)
-  const hi = Math.max(st.level, brk)
-  const t0 = st.t
-  const hits = fp.events.filter(
-    (e) => e.confirm && e.t >= t0 && e.p != null && e.p >= lo && e.p <= hi,
-  )
-  if (!hits.length) {
-    return {
-      state: 'auto-off', warn: false,
-      receipt: `reference ke ${sell ? 'oopar' : 'neeche'} footprint pe kuch nahi dikha`
-        + ` — ${f1(lo)}–${f1(hi)}, ${t0} ke baad`,
-    }
-  }
-  // The latest one, in the record's own words. `at` travels verbatim because a
-  // named level is the strongest thing this payload can say, and `footprint` is
-  // stamped on so this can never be read as the engine's own ABSORPTION — two
-  // populations, one word (CLAUDE.md rule 5).
-  const e = hits[hits.length - 1]
-  const more = hits.length - 1
-  return {
-    state: 'auto-on', warn: false,
-    receipt: `${e.t} ${e.kind}${e.at ? ` · ${e.at}` : ''} · footprint`
-      + (more ? ` · +${more} aur` : ''),
-  }
 }

@@ -4,6 +4,7 @@ import type { IndexKey, IndexInfo, Dataset, HeatTone, Chain, MapLevelKind, FlowR
 import { usePalette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
+import { useZone3 } from './trade/zone3'   // her zone is the 3-minute machine on every interval
 import GlassBoard from './one/GlassBoard'
 import SignalsTab from './signals/SignalsTab'
 import FlowTab from './flow/FlowTab'
@@ -1614,6 +1615,7 @@ export default function App() {
   }, [setInterval_])
   const data = useMemo(() => at(scrub), [scrub, liveData])
   const tape = useMemo(() => tapeBars(activeIndex), [tapeBars, activeIndex, liveData])
+  const zone3 = useZone3(activeIndex, interval, tape)   // the strip, the title, Glass and Trade read THIS, never a 5m re-run
   // MAP levels are bar-derived and causal under replay. MAX PAIN and GEX FLIP
   // come from the chain, which is a live snapshot with no per-strike history
   // (the same reason Chain.aligned goes false while scrubbing) — so they are
@@ -1666,7 +1668,7 @@ export default function App() {
   useEffect(() => {
     let title = 'TapeMap — Live'
     if (!error && !idxDead) {
-      const { st } = liveMachine(tape.zoneState, tape.zoneStateSell)     // the zone: her setup (rule 3)
+      const { st } = liveMachine(zone3.buy, zone3.sell)     // the zone: her setup (rule 3), always the 3-minute machine
       if (st) {
         const w = machineWord(st)
         if (w === 'ARMED') title = `● ARMED · ${st.candles_left != null ? `${st.candles_left} baaki` : 'window —'} — TapeMap`
@@ -1679,7 +1681,7 @@ export default function App() {
     }
     document.title = title
     return () => { document.title = 'TapeMap — Live' }
-  }, [tape, error, idxDead])
+  }, [zone3, error, idxDead])
 
   useEffect(() => {
     if (!playing || scrub == null) return
@@ -1761,7 +1763,9 @@ export default function App() {
         </div>
       )}
 
-      {!focusHidesChrome && !onBoard && !onValidate && (
+      {/* not on Trade either (2026-09-29): its left panel is the rev 6 engine's read, and the legacy
+          engine's SPENT / DON'T CHASE beside it would be a second verdict on one screen */}
+      {!focusHidesChrome && !onBoard && !onValidate && activeTab !== 'Trade' && (
         <AnswerBand index={activeIndex} stale={!!error || idxDead} />
       )}
 
@@ -1771,10 +1775,10 @@ export default function App() {
           spec (BOARD rev 3 §8 step 1); the browser-tab title still mirrors
           the machine there. */}
       {!onBoard && <MachineStrip
-        runState={tape.zoneState}
-        runStateWhy={tape.zoneStateWhy}
-        runStateSell={tape.zoneStateSell}
-        lastBar={tape.bars.length ? tape.bars[tape.bars.length - 1] : null}
+        runState={zone3.buy}
+        runStateWhy={zone3.why}
+        runStateSell={zone3.sell}
+        lastBar={zone3.bars.length ? zone3.bars[zone3.bars.length - 1] : null}
         stale={!!error || idxDead}
         replaying={scrub != null}
       />}
@@ -1886,35 +1890,22 @@ export default function App() {
             pane paint the previous index's figures for one frame. */}
         {activeTab === 'Glass'    && <GlassBoard key={activeIndex} index={activeIndex}
                                               chain={activeChain} bars={tape.bars}
-                                              runState={tape.zoneState}
-                                              runStateWhy={tape.zoneStateWhy}
-                                              runStateSell={tape.zoneStateSell}
+                                              runState={zone3.buy}
+                                              runStateWhy={zone3.why}
+                                              runStateSell={zone3.sell}
                                               publishedInterval={tape.interval}
                                               stale={idxDead || !!error} loading={loading}
                                               chainStale={chainStale}
                                               setActiveTab={setActiveTab} />}
         {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
-                                              chain={activeChain} strike={tape.strike}
-                                              optPivots={tape.optPivots} optExpiry={tape.optExpiry}
-                                              levels={tradeLevels} events={data.EVENTS_BY_IDX[activeIndex]} cursor={scrub}
-                                              stale={idxDead || !!error} loading={loading} chainStale={chainStale}
-                                              chainTs={activeChain.ts}
+                                              cursor={scrub}
+                                              stale={idxDead || !!error} loading={loading}
                                               focus={focus} onFocusToggle={() => setFocus(!focus)}
                                               onIndexChange={setActiveIndex}
                                               interval={interval} publishedInterval={tape.interval}
                                               onIntervalChange={changeInterval}
-                                              structures={tape.structures}
-                                              structuresWhy={tape.structuresWhy}
-                                              rotation={tape.rotation}
-                                              rotationWhy={tape.rotationWhy}
-                                              rotationRun={tape.rotationRun}
-                                              rotationRunWhy={tape.rotationRunWhy}
-                                              rotationRunSell={tape.rotationRunSell}
-                                              rotationRunSellWhy={tape.rotationRunSellWhy}
-                                              runState={tape.runState}
-                                              runStateWhy={tape.runStateWhy}
-                                              runStateSell={tape.runStateSell} />}
+                                              zone3={zone3} />}
         {/* key={activeIndex}: the pins are per index, so a switch starts on ATM. */}
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll:

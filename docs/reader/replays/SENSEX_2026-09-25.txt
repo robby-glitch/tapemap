@@ -1,0 +1,105 @@
+SENSEX 2026-09-25 · reader shadow-1 · SHADOW (unsigned thresholds)
+sources: Upstox book (price, volume, OI and side; tick 0.05 rupee) · prior sessions for the ruler: 2026-09-22, 2026-09-23, 2026-09-24 · lot 20
+GoCharting: no GoCharting for this index
+session read 09:15–15:30 (existing constants; 15:30–15:40 not read)
+front contract BSE_FO|864571 · expiry 2026-10-29 from the current instrument dump (book rows not stamped before 29 Sep): unverified for a past day
+first minute read 09:17 (nothing earlier is recorded; the live hook will backfill from REST candles, this replay does not)
+ruler 49.6 pts = 3 x prior unit 16.52 [M] (median 5-min range / sqrt 5 = 16.52: the 1-min range 0.00 is thin (337 of 669 traded minutes printed one price)), frozen at the open
+front contract expiry 2026-10-29 [M, instrument master] · 25 session(s) left
+09:24  ▼ 09:18→09:20 · −98.1 pts [M] · 2 min · UX Δ−5 [I]: too thin to name a side: 6 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±9, tol −7..+7) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −98 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:24  TREND DOWN: first confirmed leg
+        Neeche chal raha
+09:26  ▲ 09:20→09:24 · +73.1 pts [M] · 4 min · UX Δ+4 [I]: too thin to name a side: 14 traded frames in the leg (< 30) · OI +13 lots [M] (within noise ±13, tol +6..+13) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +73 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:28  ▼ 09:24→09:25 · −59.5 pts [M] · 1 min · UX Δ+1 [I]: too thin to name a side: 3 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±9, tol −4..+4) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −60 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:28  RANGE 74450.0–74523.1: the low 74463.6 did not extend past 74450.0 by δ/2
+        Range 74450.0–74523.1
+09:32  ▲ 09:25→09:30 · +101.2 pts [M] · 5 min · UX Δ+9 [I]: too thin to name a side: 9 traded frames in the leg (< 30) · OI +5 lots [M] (within noise ±13, tol +1..+5) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +101 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:32  pivot 74564.7 outside the range 74450.0–74523.1, not past it by δ
+        Range ke bahar jhanka 74565
+09:33  ▼ 09:30→09:31 · −64.7 pts [M] · 1 min · UX Δ−4 [I]: too thin to name a side: 7 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±9, tol −7..+7) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −65 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:37  ▲ 09:31→09:34 · +55.4 pts [M] · 3 min · UX Δ+8 [I]: too thin to name a side: 6 traded frames in the leg (< 30) · OI +7 lots [M] (within noise ±9, tol +0..+13) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +55 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:37  pivot 74555.4 outside the range 74450.0–74523.1, not past it by δ
+        Range ke bahar jhanka 74555
+09:41  BREAKOUT DOWN: traded 74400.0, past 74450.0 − δ
+        Range toota ▼ 74400
+09:46  ▼ 09:34→09:43 · −248.8 pts [M] · 9 min · UX Δ−20 [I]: too thin to name a side: 17 traded frames in the leg (< 30) · OI +10 lots [M] (within noise ±18, tol +4..+14) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −249 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:47  ▲ 09:43→09:44 · +85.1 pts [M] · 1 min · UX Δ+0 [I]: too thin to name a side: 4 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±9, tol −4..+4) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +85 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:48  ▼ 09:44→09:46 · −51.7 pts [M] · 2 min · UX Δ+5 [I]: too thin to name a side: 4 traded frames in the leg (< 30) · OI +4 lots [M] (within noise ±9, tol +0..+4) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −52 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:48  RANGE 74306.6–74391.7: the low 74340.0 did not extend past 74306.6 by δ/2
+        Range 74306.6–74391.7
+09:50  ▲ 09:46→09:48 · +54.1 pts [M] · 2 min · UX Δ+4 [I]: too thin to name a side: 3 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±9, tol +0..+0) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +54 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+09:50  RANGE 74306.6–74394.1: edge widened to 74394.1 (within δ/2)
+        Range 74306.6–74394.1
+10:01  ▼ 09:48→09:53 · −74.2 pts [M] · 5 min · UX Δ−2 [I]: too thin to name a side: 6 traded frames in the leg (< 30) · OI −1 lots [M] (within noise ±9, tol −1..+2) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −74 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+10:07  BREAKOUT UP: traded 74458.1, past 74394.1 + δ
+        Range toota ▲ 74444
+10:22  ▲ 09:53→10:17 · +195.0 pts [M] · 24 min · UX Δ+9 [I]: too thin to name a side: 26 traded frames in the leg (< 30) · OI −2 lots [M] (within noise ±25, tol −4..+0) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +195 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+10:40  ▼ 10:17→10:36 · −174.9 pts [M] · 19 min · UX Δ−84 [I]: too thin to name a side: 29 traded frames in the leg (< 30) · OI +22 lots [M] (within noise ±24, tol +20..+32) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −175 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+10:46  ▲ 10:36→10:42 · +111.0 pts [M] · 6 min · UX Δ+24 [I]: too thin to name a side: 15 traded frames in the leg (< 30) · OI +20 lots [M] (within noise ±15, tol +10..+20) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +111 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+10:46  RANGE 74340.0–74514.9: the high 74450.9 did not extend past 74514.9 by δ/2
+        Range 74340.0–74514.9
+11:01  ▼ 10:42→10:49 · −130.9 pts [M] · 7 min · UX Δ+23 [I]: too thin to name a side: 15 traded frames in the leg (< 30) · OI +52 lots [M] (within noise ±11, tol +0..+67) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −131 · OI +0.1k · Sirf ghumaav · OI flat · Δ patla
+11:01  RANGE 74320.1–74514.9: edge widened to 74320.1 (within δ/2)
+        Range 74320.1–74514.9
+11:28  ▲ 10:49→11:23 · +149.9 pts [M] · 34 min · UX Δ+28 [I]: too thin to name a side: 26 traded frames in the leg (< 30) · OI +25 lots [M] (within noise ±20, tol +10..+28) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +150 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+12:16  ▼ 11:23→12:03 · −91.0 pts [M] · 40 min · UX Δ−80 [I]: too thin to name a side: 22 traded frames in the leg (< 30) · OI −38 lots [M] (moved ±33, tol −41..−37) · WHO: long liquidation (delta thin: price × OI only) [I]
+        Neeche −91 · OI −0.0k · Long nikal rahe · Δ patla
+12:43  ▲ 12:03→12:15 · +65.0 pts [M] · 12 min · UX Δ+5 [I]: too thin to name a side: 7 traded frames in the leg (< 30) · OI +4 lots [M] (within noise ±13, tol +3..+5) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +65 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+12:58  BREAKOUT DOWN: traded 74250.0, past 74320.1 − δ
+        Range toota ▼ 74270
+12:59  ▼ 12:15→12:57 · −194.0 pts [M] · 42 min · UX Δ−5 [I] (−4%) · OI +20 lots [M] (within noise ±25, tol +19..+20) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −194 · Δ−0.0k UX · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+13:16  ▲ 12:57→13:13 · +105.0 pts [M] · 16 min · UX Δ+33 [I]: too thin to name a side: 26 traded frames in the leg (< 30) · OI +12 lots [M] (within noise ±22, tol +10..+12) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +105 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+13:43  ▼ 13:13→13:36 · −89.2 pts [M] · 23 min · UX Δ−2 [I]: too thin to name a side: 21 traded frames in the leg (< 30) · OI +1 lots [M] (within noise ±18, tol +0..+5) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −89 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+13:43  RANGE 74250.0–74355.0: the low 74265.9 did not extend past 74250.0 by δ/2
+        Range 74250.0–74355.0
+14:01  BREAKOUT UP: traded 74459.3, past 74355.0 + δ
+        Range toota ▲ 74405
+14:07  ▲ 13:36→14:05 · +450.4 pts [M] · 27 min · UX Δ+637 [I] (+59%), 707 pts/1k [I] · rank warming 0 of 3 · OI +89 lots [M] (moved ±27, tol +89..+90) · WHO: new longs [I] · price hole 14:03–14:04
+        Upar +450 · Δ+0.6k UX · OI +0.1k · Naye long
+14:19  ▼ 14:05→14:13 · −143.6 pts [M] · 6 min · UX Δ−185 [I]: too thin to name a side: 19 traded frames in the leg (< 30) · OI +3 lots [M] (within noise ±23, tol −22..+3) · WHO: rotation, OI flat (delta thin: price × OI only) [I] · price hole 14:09–14:10
+        Neeche −144 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+14:21  ▲ 14:13→14:18 · +141.7 pts [M] · 5 min · UX Δ+43 [I]: too thin to name a side: 26 traded frames in the leg (< 30) · OI −18 lots [M] (within noise ±19, tol −18..−4) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +142 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+14:21  RANGE 74572.7–74716.3: the high 74714.4 did not extend past 74716.3 by δ/2
+        Range 74572.7–74716.3
+14:27  ▼ 14:18→14:24 · −156.6 pts [M] · 6 min · UX Δ+186 [I]: too thin to name a side: 19 traded frames in the leg (< 30) · OI −2 lots [M] (within noise ±16, tol −6..−2) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Neeche −157 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+14:27  RANGE 74557.8–74716.3: edge widened to 74557.8 (within δ/2)
+        Range 74557.8–74716.3
+14:42  ▲ 14:24→14:38 · +142.1 pts [M] · 14 min · UX Δ+76 [I]: too thin to name a side: 25 traded frames in the leg (< 30) · OI −12 lots [M] (within noise ±30, tol −17..−9) · WHO: rotation, OI flat (delta thin: price × OI only) [I]
+        Upar +142 · OI −0.0k · Sirf ghumaav · OI flat · Δ patla
+15:19  ▼ 14:38→15:02 · −145.2 pts [M] · 24 min · UX Δ−28 [I] (−25%), 5186 pts/1k [I] · rank warming 1 of 3 · OI +6 lots [M] (within noise ±33, tol +6..+13) · WHO: rotation, OI flat [I]
+        Neeche −145 · Δ−0.0k UX · OI +0.0k · Sirf ghumaav · OI flat
+15:19  RANGE 74554.7–74716.3: edge widened to 74554.7 (within δ/2)
+        Range 74554.7–74716.3
+15:22  ▲ 15:02→15:20 · +95.3 pts [M] · 18 min · UX Δ+126 [I] (+56%), 756 pts/1k [I] · rank warming 2 of 3 · OI −6 lots [M] (within noise ±30, tol −8..−6) · WHO: rotation, OI flat [I]
+        Upar +95 · Δ+0.1k UX · OI −0.0k · Sirf ghumaav · OI flat
+15:30  forming ▼ 15:20→15:21 · −53.3 pts [M] · 1 min · UX Δ−1 [I]: too thin to name a side: 3 traded frames in the leg (< 30) · OI +0 lots [M] (within noise ±13, tol −1..+1) · WHO: rotation, OI flat (delta thin: price × OI only) [I] · now 74632.0, 35.3 back of δ 49.6
+        Neeche −53 · OI +0.0k · Sirf ghumaav · OI flat · Δ patla
+
+COUNTS (n, never a rate)
+  minutes read 369 · confirmed legs 28 · auction state changes 10 (bar ≤ 12) · range-edge widenings 4
+  WHO classes: long_liquidation 1, new_longs 1, rotation 26
+  legs with UX CAN'T CHECK 0 · GC CAN'T CHECK 0 · GC leg shorter than 2 bars 0
+  prints excluded 0 (none) · OI publication steps 9 of 97 updates
+  integrity audit: 0 violation(s) (bar = 0)

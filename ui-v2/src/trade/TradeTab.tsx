@@ -1,563 +1,276 @@
+// THE TRADE TAB: the one screen where TapeMap draws a chart, the NIFTY / BANKNIFTY / SENSEX future, and on it only
+// "where we are, our setup, what we look at now" (docs/trade-tab/1-inventory-and-plan.md §C). One engine, one verdict:
+// every level, fight and word is the rev 6 engine's (fold.py) or her own record's; this tab positions them and
+// computes nothing that decides. LIGHT only.
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import ContractChart from './ContractChart'
-import Ribbon from './Ribbon'
-import LegChart from './LegChart'
-import ZoneRead from './ZoneRead'
-import SetupCheck from './SetupCheck'
-import { useFlow, FlowLine } from './flow'
-import { useFootprint } from './footprint'
-import { useTape, uxLegend } from './tape'
-import { buildNarration } from './narration'
-import { dayBase, dayPrecision } from './indicators'
-import { buildZones } from './zones'
-// The overlay owns the cap; the legend below only reports it, so the number the
-// operator reads can never drift from the number actually drawn.
-import { STRUCT_ZONE_LIMIT, markCounts, printsCounts, runDrawPlan } from './LevelsOverlay'
-
-type LegsView = 'split' | 'stacked' | 'off'
-
-/** The panel down the left of the chart, in px.
- *
- *  260, not the 44 this started as: the operator pointed at Kite, where the
- *  left of the chart is a WATCHLIST, not a toolbar. 260 is the narrowest width
- *  that still fits an instrument row -- name, change, last -- without the last
- *  price wrapping, which is the whole point of a watchlist you read at a
- *  glance. It stays a fixed basis rather than a percentage so the chart, not
- *  the panel, absorbs a resize. */
-const CHART_SIDE_W = 260
+import FeedBand from '../pro/FeedBand'
+import LegsPanel from './legs'
+import Side from './Side'
+import { useFootprint, withSide } from './footprint'
+import { useTape } from './tape'
+import { dayBase } from './indicators'
+import type { EngineLayer, PocketBar, TradeLayer, ValueLayer, ZoneEntry } from './LevelsOverlay'
+import { entryPlan, markCounts } from './LevelsOverlay'
+import { TRADEVIEW, useFlat, useStore, useTradeView } from './engine'
+import type { EngMark, TradeView } from './engine'
+import { usePivots } from './zone3'
+import type { Zone3 } from './zone3'
+import { wallState } from './chips'
 import { palette, MONO } from '../theme'
 import type { Mode } from '../theme'
-import type { TapeBar, MapLevel, IndexKey, EventItem, RotationSignal, RunState, Structure, Chain, OptPivots, Interval } from '../data'
+import type { TapeBar, IndexKey, Interval, RotationSignal } from '../data'
 import { INTERVALS } from '../data'
+
+/** The panel down the left of the chart, in px: wide enough for the four rows without wrapping the chips. */
+const CHART_SIDE_W = 270
 
 interface Props {
   index: IndexKey
   day: string
   bars: TapeBar[]
-  levels: MapLevel[]
-  events: EventItem[]
   cursor: number | null
-  /** The live chain snapshot for this index — feeds the ZONE READ's books and
-   *  GEX groups. Live-only (no per-strike history), so during replay the
-   *  panel labels those groups as not cursor-aligned rather than hiding them. */
-  chain: Chain
-  /** The engine's tracked ATM strike (TapeView.strike) — names which strike
-   *  the ce/pe leg panes belong to. Rolling; the panes disclose that. */
-  strike: number | null
-  /** Prior-session floor pivots per leg + the legs' expiry (nearest — the
-   *  contract the operator trades). Null when the backend predates them. */
-  optPivots: OptPivots | null
-  optExpiry: string | null
   stale: boolean
   loading: boolean
-  /** True when the active index's option chain snapshot is past
-   *  CHAIN_STALE_S (data.ts). MAX PAIN and GEX FLIP in `levels` are
-   *  chain-derived, so they still draw — hiding real structure would be its
-   *  own lie — but must be labelled as not-current. */
-  chainStale: boolean
-  /** The chain snapshot's own IST clock ("HH:MM:SS"), for the stale-chain
-   *  disclosure line below. Empty when unknown. */
-  chainTs: string
-  /** FOCUS mode (App.tsx-owned, persisted under `tape.focus`): while on and
-   *  this tab is active, App hides the glance bar + ANSWER band so the chart
-   *  gets that height. The index switcher normally lives in the glance bar,
-   *  so this tab surfaces a small substitute while it's hidden. */
+  /** FOCUS mode (App-owned): hides the glance bar and ANSWER band while this tab is active. */
   focus: boolean
   onFocusToggle: () => void
   onIndexChange: (k: IndexKey) => void
-  /** The bar interval being REQUESTED (what the switcher lights up). */
+  /** The interval being requested (what the switcher lights up). */
   interval: Interval
-  /** The interval the backend says these bars ARE. Read, never assumed — and
-   *  it is this, not the request, that decides whether the §5c score applies.
-   *  null on a backend too old to publish it, which reads as unknown. */
+  /** The interval the backend says these bars ARE; null = unknown. */
   publishedInterval: number | null
   onIntervalChange: (n: Interval) => void
-  /** The backend's SMC structure layer for this day, or null when it cannot be
-   *  drawn honestly. Null is DISCLOSED below, never silently absent. */
-  structures: Structure[] | null
-  /** Why `structures` is null, in data.ts's own words. Empty when it isn't. */
-  structuresWhy: string
-  /** The backend's index band-rotation signals for this day, 1:1 with `bars`,
-   *  or null when they cannot be drawn honestly. Null is DISCLOSED below. */
-  rotation: (RotationSignal | null)[] | null
-  /** Why `rotation` is null, in data.ts's own words. Empty when it isn't. */
-  rotationWhy: string
-  /** §5c's two-candle ENTRIES — the rule the operator actually trades, and
-   *  what this chart marks. `rotation` above is §1's one-candle rule, which
-   *  marks the d3 TOUCH: a different bar, kept only for the record. */
-  rotationRun: (RotationSignal | null)[] | null
-  /** Why `rotationRun` is null. Empty when it isn't. */
-  rotationRunWhy: string
-  /** §5c's SELL mirror: a u3 tag, then a close BELOW the reference candle's
-   *  low. Kept a SEPARATE array from `rotationRun` all the way to the draw
-   *  call, and counted separately in the legend, because the two carry very
-   *  different evidence: the buy side is the one scored edge (68.4%, n=19)
-   *  and the sell side was measured across five datasets and REJECTED
-   *  (CHECKLIST C3). The operator asked for it anyway on 2026-08-08 and that
-   *  stands -- what must not happen is the screen implying they are equals. */
-  rotationRunSell: (RotationSignal | null)[] | null
-  /** Why `rotationRunSell` is null. A SEPARATE string from `rotationRunWhy`
-   *  because one side can arrive while the other cannot, and the setup panel's
-   *  session list must not print "checked, nothing fired" over a side that was
-   *  never checked. Empty when it isn't null. */
-  rotationRunSellWhy: string
-  /** The SAME §5c machine read per BAR rather than per entry — where the setup
-   *  stands right now. `rotationRun` answers "where did it fire"; this answers
-   *  "where does this stand", which is what the SETUP CHECK panel reads. Both
-   *  come out of one loop in `band_rotation.run_states`, so they can never
-   *  disagree. Null on a backend too old to publish it. */
-  runState: RunState[] | null
-  /** Why `runState` is null, in data.ts's own words. Empty when it isn't. */
-  runStateWhy: string
-  /** The SELL mirror's per-bar state. The panel picks whichever side is live
-   *  and NAMES it — sitting on WAITING while the other side is armed would be
-   *  a plain misreport of the machine. */
-  runStateSell: RunState[] | null
+  /** Her zone: the 3-minute machine, whatever this chart's interval (./zone3). */
+  zone3: Zone3
 }
 
 const INDEX_KEYS: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
 
-/** TIMEFRAME. Defined once because it renders in two places — the chart
- *  toolbar, and the no-tape state where it is the ONLY control worth keeping
- *  (it acts on the next fetch, not on candles that do not exist, so the
- *  operator can set their interval before 09:15). Two copies of a control
- *  drift in exactly the way this file's other shared pieces warn about.
- *
- *  3 is lit no differently from the rest by being the default; the
- *  scored-interval sentence lives in SETUP CHECK, once, and is not restated
- *  here. */
 function IntervalSwitch({ pal, interval, onChange }: {
-  pal: ReturnType<typeof palette>
-  interval: Interval
-  onChange: (n: Interval) => void
+  pal: ReturnType<typeof palette>; interval: Interval; onChange: (n: Interval) => void
 }) {
   return (
     <div style={{ display: 'flex', border: `1px solid ${pal.border}`, borderRadius: 4, overflow: 'hidden', width: 'fit-content' }}>
       {INTERVALS.map((n) => (
-        <button
-          key={n}
-          onClick={() => onChange(n)}
-          title={`${n}-minute candles`}
-          aria-pressed={interval === n}
+        <button key={n} onClick={() => onChange(n)} title={`${n}-minute candles`} aria-pressed={interval === n}
           style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-            padding: '3px 8px', cursor: 'pointer', border: 'none',
-            backgroundColor: interval === n ? pal.accent : 'transparent',
-            color: interval === n ? pal.card : pal.textMuted,
-          }}
-        >{n}m</button>
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '3px 8px', cursor: 'pointer', border: 'none',
+            backgroundColor: interval === n ? pal.accent : 'transparent', color: interval === n ? pal.card : pal.textMuted,
+          }}>{n}m</button>
       ))}
     </div>
   )
 }
 
-function Stat({ pal, label, value, color, title }: {
-  pal: ReturnType<typeof palette>; label: string; value: string; color?: string; title?: string
+function Toggle({ pal, on, onClick, label, title }: {
+  pal: ReturnType<typeof palette>; on: boolean; onClick: () => void; label: string; title: string
 }) {
   return (
-    <div title={title} style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-      <span style={{
-        fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase',
-        color: pal.textMuted, whiteSpace: 'nowrap',
-      }}>{label}</span>
-      <span style={{
-        fontFamily: MONO, fontSize: 13, fontWeight: 600,
-        color: color ?? pal.textPrimary, whiteSpace: 'nowrap',
-      }}>{value}</span>
-    </div>
+    <button onClick={onClick} title={title} aria-pressed={on} style={{
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '3px 9px', cursor: 'pointer',
+      border: `1px solid ${pal.border}`, borderRadius: 4,
+      backgroundColor: on ? pal.textPrimary : 'transparent', color: on ? pal.card : pal.textMuted,
+    }}>{label}</button>
   )
 }
 
-// Mirrors zones.ts's own VERDICT_CLS (Task 1 mapping) — kept as a local copy
-// rather than importing, since this panel colours a single bar's live
-// `ctx.verdict` directly and has no zone/run to borrow a `cls` from. Never
-// used to alter what's displayed, only which palette family paints it.
-const VERDICT_CLS: Record<string, 'stand' | 'watch' | 'go'> = {
-  GO: 'go', READY: 'watch', WAIT: 'watch', CAUTION: 'watch',
-  'STAND ASIDE': 'stand', SPENT: 'stand',
-}
-
-function verdictColor(pal: ReturnType<typeof palette>, verdict: string): string {
-  const cls = VERDICT_CLS[verdict]
-  if (cls === 'go') return pal.bull
-  if (cls === 'stand') return pal.bear
-  if (cls === 'watch') return pal.caution
-  return pal.textPrimary // an unrecognised verdict string: neutral, not a guessed direction
-}
-
-// SETUP's status chip: LOADING is still forming (outline, caution), ARMED is
-// live (filled, the setup's own direction colour), EXPIRED/INVALIDATED are
-// dead (struck through, faint). Any other status string still renders —
-// plain outline, no colour claim — rather than being silently dropped.
-function StatusChip({ pal, status, dirColor }: {
-  pal: ReturnType<typeof palette>; status: string; dirColor: string
-}) {
-  const dead = status === 'EXPIRED' || status === 'INVALIDATED'
-  const armed = status === 'ARMED'
-  const loading = status === 'LOADING'
-  return (
-    <span style={{
-      fontSize: 9.5, fontWeight: 700, letterSpacing: '0.05em', padding: '1px 6px',
-      borderRadius: 3, fontFamily: MONO,
-      textDecoration: dead ? 'line-through' : 'none',
-      color: armed ? pal.card : dead ? pal.textMuted : loading ? pal.caution : pal.textSecondary,
-      backgroundColor: armed ? dirColor : 'transparent',
-      border: armed ? 'none' : `1px solid ${dead ? pal.border : loading ? pal.caution : pal.border}`,
-    }}>{status}</span>
-  )
-}
-
-/**
- * The ENGINE READ panel — the operator's requested "suggested trade" slot,
- * built the only honest way it can be: it surfaces the ENGINE's own existing
- * read with its receipts, quoted verbatim, and never invents or strengthens
- * a recommendation of its own. Reads `bar` — always `bars[at]`, the same
- * cursor-clamped bar the stat strip above uses — and nothing else, so a bar
- * with no ctx never borrows a neighbour's read.
- */
-function EngineReadPanel({ pal, bar }: { pal: ReturnType<typeof palette>; bar: TapeBar }) {
-  const ctx = bar.ctx
-  const setup = bar.setup
-  const label: CSSProperties = {
-    fontSize: 9.5, letterSpacing: '0.07em', textTransform: 'uppercase',
-    color: pal.textMuted, fontWeight: 700,
+/** A toggle remembered per browser. A private window keeps it for the page only. */
+function useStored(key: string, dflt: boolean): [boolean, () => void] {
+  const [on, setOn] = useState<boolean>(() => {
+    try { const v = localStorage.getItem(key); return v == null ? dflt : v === 'on' } catch { return dflt }
+  })
+  const flip = () => {
+    const next = !on
+    try { localStorage.setItem(key, next ? 'on' : 'off') } catch { /* private window */ }
+    setOn(next)
   }
-  return (
-    <div style={{
-      padding: '12px 16px', borderRadius: 6, backgroundColor: pal.card,
-      border: `1px solid ${pal.border}`, display: 'flex', flexDirection: 'column', gap: 10,
-    }}>
-      {/* This is the ENGINE's read of the bar under the cursor -- price and OI only, never checked
-          against CVD or order flow. The header grounds the LIVE call (grounds.py); a past bar has no
-          grounding to show, so it is labelled, and its verdict is not coloured like a signal. */}
-      <div style={label}>ENGINE KA READ — UNGROUNDED · live call ka saboot (OI · CVD · order flow) header mein</div>
-
-      {!ctx ? (
-        <div style={{ fontSize: 11, color: pal.textMuted }}>
-          is bar ka engine context nahi mila
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          {/* VERDICT */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 190, flex: '1 1 190px' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: pal.textSecondary }}>
-              {ctx.verdict}
-            </span>
-            <span style={{ fontSize: 11, color: pal.textSecondary }}>{ctx.vwhy}</span>
-            <span style={{ fontFamily: MONO, fontSize: 10.5, color: pal.textMuted }}>{ctx.line}</span>
-            <span style={{ fontSize: 10.5, color: pal.textMuted }}>{ctx.breadth}</span>
-            {ctx.flips.length > 0 && (
-              <div style={{ display: 'flex', gap: 6, fontSize: 10, color: pal.textMuted, marginTop: 2 }}>
-                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Δ15m</span>
-                <span style={{ fontFamily: MONO }}>{ctx.flips.join(' · ')}</span>
-              </div>
-            )}
-          </div>
-
-          {/* SETUP */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 190, flex: '1 1 190px' }}>
-            <span style={label}>SETUP</span>
-            {setup ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <span style={{
-                    fontSize: 12, fontWeight: 700,
-                    // Engine invariant (engine.py:440-442): a conflicted spring's
-                    // `dir` must never be treated as a directional vote, so the
-                    // arrow (the vote) is dropped and the kind goes neutral —
-                    // only an unconflicted setup borrows bull/bear.
-                    color: setup.conflict ? pal.textSecondary : (setup.dir === 'UP' ? pal.bull : pal.bear),
-                  }}>
-                    {setup.conflict ? '' : `${setup.dir === 'UP' ? '▲' : '▼'} `}{setup.kind}
-                  </span>
-                  <StatusChip pal={pal} status={setup.status}
-                              dirColor={setup.conflict ? pal.textSecondary
-                                : (setup.dir === 'UP' ? pal.bull : pal.bear)} />
-                  {/* Age: t0 is the setup's birth time, verbatim. Without this a
-                      40-minute-old LOADING setup and one born this bar look
-                      identical. */}
-                  <span style={{ fontFamily: MONO, fontSize: 9.5, color: pal.textMuted }}>
-                    {setup.t0} se
-                  </span>
-                </div>
-                {setup.conflict && (
-                  <span style={{ fontSize: 11, color: pal.caution }}>
-                    direction tay nahi — books is spring ke ulte ghoom rahi hain
-                  </span>
-                )}
-                <span style={{ fontSize: 11, color: pal.textSecondary }}>
-                  {setup.level_name} @ {setup.level_px.toFixed(1)}
-                </span>
-                <span style={{ fontSize: 11, color: pal.textMuted }}>
-                  {setup.ref.toFixed(1)} ke paar hote hi khatam
-                </span>
-                <span style={{ fontFamily: MONO, fontSize: 10.5, color: pal.textMuted }}>
-                  intensity {setup.intensity.toFixed(2)} · comp {setup.comp.toFixed(2)}
-                </span>
-              </>
-            ) : (
-              <span style={{ fontSize: 11, color: pal.textMuted }}>
-                koi setup taiyaar nahi — engine ne yahan kuch load nahi kiya
-              </span>
-            )}
-          </div>
-
-          {/* PLAYS */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 220, flex: '2 1 220px' }}>
-            <span style={label}>YE DEKHO — ENGINE KE SHARTI PLAYS</span>
-            {ctx.plays.length ? ctx.plays.map((p, i) => (
-              <div key={i} style={{
-                fontFamily: MONO, fontSize: 11, color: pal.textPrimary,
-                display: 'flex', gap: 7, lineHeight: 1.4,
-              }}>
-                <span style={{ color: pal.accent }}>▪</span><span>{p}</span>
-              </div>
-            )) : (
-              <span style={{ fontSize: 11, color: pal.textMuted }}>
-                is bar par koi sharti play nahi
-              </span>
-            )}
-          </div>
-
-          {/* FLOOR / CAP — omitted entirely when both null */}
-          {(ctx.floor || ctx.cap) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 130 }}>
-              <span style={label}>FLOOR / CAP</span>
-              {ctx.floor && (
-                <span style={{
-                  fontFamily: MONO, fontSize: 11, fontWeight: 600, color: pal.accent,
-                  border: `1px solid ${pal.accent}`, borderRadius: 3, padding: '1px 7px', width: 'fit-content',
-                }}>FLOOR {ctx.floor[0]} {ctx.floor[1].toFixed(1)}</span>
-              )}
-              {ctx.cap && (
-                <span style={{
-                  fontFamily: MONO, fontSize: 11, fontWeight: 600, color: pal.accent,
-                  border: `1px solid ${pal.accent}`, borderRadius: 3, padding: '1px 7px', width: 'fit-content',
-                }}>CAP {ctx.cap[0]} {ctx.cap[1].toFixed(1)}</span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ fontSize: 10, color: pal.textMuted, borderTop: `1px solid ${pal.border}`, paddingTop: 8 }}>
-        engine ka apna read, apni receipts ke saath, jaisa ka taisa — sirf bayaan hai, salaah nahi · sirf signals, order kabhi nahi
-      </div>
-    </div>
-  )
+  return [on, flip]
 }
+
+const hm = (t: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(t); return m ? +m[1] * 60 + +m[2] : NaN }
 
 export default function TradeTab({
-  index, day, bars, levels, events, cursor, chain, strike, optPivots, optExpiry,
-  stale, loading, chainStale, chainTs,
-  focus, onFocusToggle, onIndexChange,
-  interval, publishedInterval, onIntervalChange, structures, structuresWhy,
-  rotation, rotationWhy, rotationRun, rotationRunWhy, rotationRunSell,
-  rotationRunSellWhy,
-  runState, runStateWhy, runStateSell,
+  index, day, bars, cursor, stale, loading, focus, onFocusToggle, onIndexChange,
+  interval, publishedInterval, onIntervalChange, zone3,
 }: Props) {
-  // LIGHT only — the operator reads charts in Kite on the light theme and
-  // reported the dark build unreadable. The chart stack still takes `mode`.
   const mode: Mode = 'light'
   const pal = palette(mode)
-
-  // SMC structure layer, now default OFF — reversed 2026-07-31 on measurement,
-  // not taste. On the operator's own 2026-07-30 session structure.py printed 9
-  // EQH and 7 EQL where their LuxAlgo printed 2 and 2 (4x over-firing); ~2/3 of
-  // all structures are UNKNOWN by construction because the payload carries no
-  // per-strike chain OI to confirm them; and the FVG/OB boxes never close, so a
-  // filled gap keeps drawing. ~180 shapes a session buried the candles, which
-  // is the exact noise the spec exists to avoid.
-  //
-  // The gate flipped with the default: `=== 'on'` now, so an absent or corrupt
-  // value fails towards the QUIET chart. That inverts the old convention here
-  // deliberately — with an unscored layer, failing "open" means failing towards
-  // clutter the measurements do not support.
-  const [smc, setSmc] = useState<boolean>(() => localStorage.getItem('tape.smc') === 'on')
-  const toggleSmc = () => {
-    const next = !smc
-    localStorage.setItem('tape.smc', next ? 'on' : 'off')
-    setSmc(next)
-  }
-
-  // STORY — the zone/condition bands and the event balloons, the two layers
-  // drawn OVER the price area from the engine's event stream. Default OFF for
-  // the same reason: signal_review.py scored the engine's own directional
-  // events at -0.1 pts (`risk`, n=16) and -6.2 pts (`lean`, n=16) at +30m
-  // against a +4.1 control — two of three claim-strength buckets did worse than
-  // doing nothing — and the tab renders ~83 events a session at equal weight.
-  //
-  // Nothing is deleted. Unproven is not the same as disproven, the operator can
-  // switch it back on in one click, and the legend below reports how many
-  // events are being withheld so "hidden" never reads as "none found".
-  const [story, setStory] = useState<boolean>(() => localStorage.getItem('tape.story') === 'on')
-  const toggleStory = () => {
-    const next = !story
-    localStorage.setItem('tape.story', next ? 'on' : 'off')
-    setStory(next)
-  }
-
-  // Leg-pane layout. Default SPLIT (side by side) because the operator's setup
-  // is a PAIR read — one leg washed out at its floor while the other unwinds
-  // from stretched — and that comparison wants both legs on screen at once.
-  // STACK gives each pane the full width instead, which buys horizontal
-  // resolution for reading individual candles. Both are tall (LegChart's
-  // PANE_H); the page scrolls, so height costs nothing.
-  // Three states now, not two. The operator asked for the Kite shape -- one
-  // big chart, nothing under it -- so OFF is the default and the legs are
-  // opt-in rather than gone: the pair read is still the setup, and a panel you
-  // cannot get back is a feature removed, not a layout choice.
-  // An existing 'on' still means STACKED, so nobody's saved preference is lost.
-  const [legsView, setLegsView] = useState<LegsView>(() => {
-    const v = localStorage.getItem('tape.legstack')
-    return v === 'on' ? 'stacked' : v === 'split' ? 'split' : 'off'
-  })
-  const cycleLegs = () => {
-    const next: LegsView = legsView === 'off' ? 'split'
-      : legsView === 'split' ? 'stacked' : 'off'
-    localStorage.setItem('tape.legstack', next === 'stacked' ? 'on' : next)
-    setLegsView(next)
-  }
-
-  // Trending OI for the strip + the ZONE READ's flow group. One fetch, three
-  // consumers. The fetch and the strip's own rendering moved into ./flow on
-  // 2026-08-11 so the One tab mounts the SAME line rather than a second copy
-  // of it — behaviour, cadence and wording are unchanged.
-  const { last: lastFlow, why: flowWhy } = useFlow(index)
-
-  // The day's footprint record, for SETUP CHECK's one order-flow row. Per
-  // INDEX, because the extension records one at a time and an index it never
-  // covered must read "could not look", never "nothing there". Text only — the
-  // record is 5-minute and this chart is 3-minute, so none of it is drawn.
   const footprint = useFootprint(index)
   const tape = useTape(index)
+  const [flowPane, toggleFlowPane] = useStored('trade.flowpane', true)
+  const [pivotsOn, togglePivots] = useStored('trade.pivots', true)     // her reference lines: seen, never deciding
+  const [valueOn, toggleValue] = useStored('trade.value', false)
+  const [chipsOn, toggleChips] = useStored('trade.chips', true)     // her ask: every symbol readable without the key
+  const [legsOn, toggleLegs] = useStored('trade.legs', false)       // the SHADOW leg engine (/api/reader): off by default
 
-  // Clamp both ends: a negative cursor would index bars[-1] === undefined and
-  // throw on the first field read. Computed here (rather than only after the
-  // no-tape bail below) so structCounts, which needs the same clamp, never
-  // has to duplicate it — bars.length === 0 just yields at === -1, which is
-  // never read until the bail has already returned.
-  const at = cursor == null
-    ? bars.length - 1
-    : Math.max(0, Math.min(cursor, bars.length - 1))
+  // ── THE ENGINE (rev 6). The flat read for this index, and the open marked trade on it from the DESK's own poller.
+  const { flat, why: flatWhy } = useFlat(index)
+  const desk = useStore()
+  const openTrade = useMemo(() => desk.trades
+    .filter((t) => t.idx === index && !t.exit_t)
+    .sort((a, b) => b.t0.localeCompare(a.t0))[0] ?? null, [desk.trades, index])
+  // `?tradeview=<id>`: a GET-only review of one marked trade (frozen at her exit). It never writes to her record.
+  const reviewRead = useTradeView(TRADEVIEW)
+  const reviewTrade = useMemo(() => desk.trades.find((t) => t.id === TRADEVIEW && t.idx === index) ?? null, [desk.trades, index])
+  const shownTrade = reviewTrade ?? openTrade
+  const shownFold = reviewTrade ? reviewRead : openTrade ? desk.fold[openTrade.id] ?? null : null
 
-  // What the SMC toggle's tooltip and the legend report.
-  //
-  // `withheld` is the load-bearing one. FVG, BOS and CHOCH still arrive in the
-  // payload and are still typed in data.ts — the OVERLAY stopped drawing them
-  // on 2026-08-07 at the operator's call. That makes them "we are not showing
-  // you", which A1 says must never render as "we found nothing", so they are
-  // counted apart and disclosed in the Hidden: line below.
-  //
-  // SWING_H/SWING_L now COUNT AS DRAWN. They were split out while the overlay
-  // suppressed them; it draws them (unlabelled ticks) as of the same day, and a
-  // count still calling them "tracked, not shown" would be a stale lie.
-  //
-  // Causality: while the replay cursor is set, a structure born past `at` has
-  // not happened yet as far as the chart is showing — LevelsOverlay's own
-  // drawStructures filter is `s.born <= cut`, and these counts must describe
-  // the same set it draws, not the whole day's. Live (cursor === null) counts
-  // everything, matching the overlay's unclamped draw there too.
-  const structCounts = useMemo(() => {
-    if (!structures) return null
-    let drawn = 0, withheld = 0, zones = 0
-    for (const s of structures) {
-      if (cursor != null && s.born > at) continue
-      if (s.kind === 'FVG' || s.kind === 'BOS' || s.kind === 'CHOCH') { withheld++; continue }
-      drawn++
-      // OB is the only capped kind (STRUCT_ZONE_LIMIT); counted apart so the
-      // legend can disclose how many of them the chart is holding back.
-      if (s.kind === 'OB') zones++
+  // The engine stamps epoch ms; the chart's axis is the session's local midnight plus the IST clock (toCandles).
+  const base = useMemo(() => dayBase(day), [day])
+  const engine = useMemo<EngineLayer | null>(() => {
+    if (!flat?.marks) return null
+    const toChart = (ms: number) => base + ((ms + 19_800_000) % 86_400_000)
+    const marks: EngMark[] = flat.marks.map((m) => ({ ...m, t: toChart(m.t) }))
+    const live = cursor == null && !flatWhy && !shownTrade
+    const nf = flat.next_fight
+    const gu = flat.gave_up
+    const gt = gu ? /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(gu.t) : null
+    return {
+      marks, walls: !shownTrade,
+      flat: live ? {
+        above: nf?.above?.px ?? null, below: nf?.below?.px ?? null, at: flat.at?.px ?? null,
+        gaveUp: gu && gt ? { t: base + ((+gt[1] * 60 + +gt[2]) * 60 + +(gt[3] ?? 0)) * 1000, px: gu.px,
+                             text: /^(BUYERS|SELLERS) GAVE UP/.test(gu.text)
+                               ? `${gu.text.startsWith('BUYERS') ? 'Buyers' : 'Sellers'} ne haar maani · ${gu.px} · ${gu.t.slice(0, 5)}` : gu.text } : null,
+      } : null,
     }
-    return { drawn, withheld, zones }
-  }, [structures, cursor, at])
+  }, [flat, flatWhy, cursor, shownTrade, base])
 
-  // How many band-rotation signals the chart is actually showing. Causality:
-  // one born past the cursor has not happened yet as far as the chart is
-  // concerned, and the overlay's own draw clamps to the same bar — this count
-  // must describe the same set, never the whole day's.
-  // Counted through the overlay's OWN predicate (rotWithheld), so the number
-  // the operator reads can never drift from the number actually drawn — the
-  // same contract STRUCT_ZONE_LIMIT is imported under.
-  const rotCount = useMemo(() => {
-    if (!rotationRun) return null
-    return runDrawPlan(rotationRun, cursor != null ? at : rotationRun.length - 1)
-  }, [rotationRun, cursor, at])
+  // ── HER TRADE: the engine's view of the open marked trade on this index (or the review). The G line's colour is the
+  // engine's word; W sits at W.px when the server sends it, else at K + units.basis, the rule the engine publishes.
+  const trade = useMemo<TradeLayer | null>(() => {
+    const hms = (t: string | null | undefined) => {
+      const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(t ?? '')
+      return m ? base + ((+m[1] * 60 + +m[2]) * 60 + +(m[3] ?? 0)) * 1000 : NaN
+    }
+    const others = desk.trades.filter((t) => t.idx === index && t.id !== shownTrade?.id)
+    const ticks = others.flatMap((t) => [
+      { t: hms(t.t0), text: `Entry ${t.k} ${t.side} · ${t.t0.slice(0, 5)}` },
+      ...(t.exit_t ? [{ t: hms(t.exit_t), text: `Nikle · ${t.exit_t.slice(0, 5)}` }] : []),
+    ]).filter((x) => Number.isFinite(x.t))
+    const v = shownFold?.ok ? (shownFold.view as TradeView | undefined) : undefined
+    if (!shownTrade || !v || v.headline == null) return ticks.length ? { entry: null, G: null, steps: [], W: null, A: null, oiEvent: null, fold: null, ticks } : null
+    const word = v.headline.toUpperCase()
+    const color = word.startsWith('FOLD') ? '#C42B30' : word.startsWith('PAST GIVE-UP') ? '#B45309' : word.startsWith("CAN'T CHECK") ? '#8A93A1' : '#141A22'
+    const basis = v.units?.basis ?? null
+    const W = v.W, A = v.A
+    const wpx = W ? (W.px ?? (basis != null ? W.k + basis : null)) : null
+    const steps = (v.G_steps ?? []).filter((g) => !g.refused)
+    const fold = (v.events ?? []).filter((e) => e.kind === 'fold' && (e as { px?: number }).px != null).pop() as ({ ts: string; px: number } | undefined)
+    const oe = v.oi_event
+    const st = (x: string | null | undefined) => (wallState(x) ? ` · ${wallState(x)}` : '')
+    return {
+      entry: v.E != null ? { t: hms(shownTrade.t0), px: v.E, chip: `Aapki entry · ${shownTrade.p0 ?? '—'}`, num: String(shownTrade.p0 ?? '') } : null,
+      G: v.G && v.G.px != null ? { px: v.G.px, from: v.G.set_t ? hms(v.G.set_t) : hms(shownTrade.t0), color,
+                                     chip: `Yahan galat · ${v.G.px}`, num: String(v.G.px) } : null,
+      steps: steps.slice(0, -1).map((g, i) => ({ px: g.px, from: hms(g.t), to: hms(steps[i + 1].t) })),
+      W: W && wpx != null ? { px: wpx, chip: `Peeche ki deewar (sahara) · ${W.k} ${W.side}${st(W.state)}`, num: `${W.k} ${W.side}` } : null,
+      A: A && A.px != null ? { px: A.px, chip: `Aage ki deewar · ${A.k} ${A.side}${A.pts != null ? ` · ${A.pts} pts` : ''}${st(A.state)}`,
+                               num: `${A.k} ${A.side}` } : null,
+      oiEvent: oe && wpx != null ? { t: hms(oe.t), px: wpx,
+                                     chip: `${oe.k ?? W?.k ?? ''} ${oe.side ?? W?.side ?? ''} writers hat gaye · ${oe.t.slice(0, 5)} (−${oe.pct}%)` } : null,
+      fold: fold ? { t: hms(fold.ts), px: fold.px, chip: `FOLD yahan · ${fold.ts.slice(0, 5)}` } : null,
+      ticks,
+    }
+  }, [shownTrade, shownFold, desk.trades, index, base])
 
-  // What the chart actually draws: both sides in one array, because the
-  // overlay already branches on `sig.side` (LevelsOverlay's `const buy =
-  // sig.side === 'BUY'`) and has since the old rule emitted u3 SELLs. Merged
-  // HERE and nowhere earlier -- `rotationRun` keeps its meaning for every
-  // other reader, and a buy wins a slot outright if both ever land on one bar
-  // rather than one silently replacing the other.
-  const rotationDraw = useMemo(() => {
-    if (!rotationRun && !rotationRunSell) return null
-    const n = bars.length
-    const out: (RotationSignal | null)[] = new Array(n).fill(null)
-    for (let i = 0; i < n; i++) out[i] = rotationRun?.[i] ?? rotationRunSell?.[i] ?? null
+  // ── HER ZONE: the 3-minute machine's bands and entries, on any chart interval.
+  const pockets = useMemo<PocketBar[] | null>(() => {
+    if (!zone3.bars.length) return null
+    return zone3.bars.map((b) => ({ t: base + hm(b.t) * 60_000, d2: b.d2, d3: b.d3, u2: b.u2, u3: b.u3 }))
+  }, [zone3.bars, base])
+  const entries = useMemo<ZoneEntry[]>(() => {
+    const out: ZoneEntry[] = []
+    const chartMins = bars.map((b) => hm(b.t))
+    const own = publishedInterval === 3
+    for (const states of [zone3.buy, zone3.sell]) {
+      for (const st of states ?? []) {
+        const e = st?.entry as RotationSignal | null | undefined
+        if (!e?.t) continue
+        const m = hm(e.t)
+        // the chart bar that contains the entry's own time
+        let i = -1
+        for (let k = 0; k < chartMins.length && chartMins[k] <= m; k++) i = k
+        if (i < 0) continue
+        out.push({ i, sig: e, label: chipsOn ? `Zone ${e.side} ${e.band} · ${e.t} · 3m` : `${e.side} ${e.band} ${e.t}${own ? '' : ' · 3m'}`,
+                   known: base + (m + 3) * 60_000 })
+      }
+    }
     return out
-  }, [rotationRun, rotationRunSell, bars.length])
+  }, [zone3.buy, zone3.sell, bars, publishedInterval, base, chipsOn])
 
-  // Counted through the overlay's own predicate, exactly as the buy count is,
-  // so the legend can never claim a number the chart did not draw (A5).
-  const sellCount = useMemo(() => {
-    if (!rotationRunSell) return null
-    return runDrawPlan(rotationRunSell, cursor != null ? at : rotationRunSell.length - 1)
-  }, [rotationRunSell, cursor, at])
-
-  // Presentation only (spec §6 Phase 2): joins the payload's own event stream
-  // to bars, tiers and formats — nothing computed about the market.
-  const narrs = useMemo(() => buildNarration(bars, events), [bars, events])
-
-  // How many events the STORY layer is holding back. Same causal clamp as
-  // rotCount: an event past the cursor has not happened yet as far as the
-  // chart is concerned, so it must not be counted into a disclosure that
-  // describes what is being withheld from the CURRENT view.
-  const eventCount = useMemo(() => {
-    let n = 0
-    for (let i = 0; i < narrs.length; i++) {
-      if (cursor != null && i > at) break
-      if (narrs[i]) n++
+  // Reference layers. Pivots: the MAP levels' floor pivots only. Value: the ux family's session value area and HVNs
+  // [I], plus the ladder record's prior days and naked POCs when this contract has them.
+  const pivots = usePivots(index, day, pivotsOn)
+  const value = useMemo<ValueLayer | null>(() => {
+    const r = tape.reply
+    if (!valueOn || !r) return null
+    const u = r.ux && !r.ux.why ? r.ux : null
+    const toChart = (ms: number) => base + ((ms + 19_800_000) % 86_400_000)
+    return {
+      poc: u?.levels.session?.poc ?? null, vah: u?.levels.session?.vah ?? null, val: u?.levels.session?.val ?? null,
+      hvn: (u?.levels.nodes ?? []).filter((n) => n.kind === 'HVN').map((n) => n.p),
+      prior: r.levels.prior.map((p) => ({ day: p.day, poc: p.poc })),
+      naked: r.levels.naked.map((n) => ({ day: n.day, poc: n.poc, to: n.touched_t != null ? toChart(n.touched_t) : null })),
     }
-    return n
-  }, [narrs, cursor, at])
+  }, [valueOn, tape.reply, base])
 
-  // What the mark layer actually draws, counted by the SAME function the
-  // overlay uses, so the legend below can never disagree with the chart.
-  const markCount = useMemo(() => markCounts(footprint.events), [footprint.events])
+  // Her P / A / E / C with the side the extension paints them in (joined from /api/tape's ofd marks).
+  const marks = useMemo(() => {
+    const ev = withSide(footprint.events, tape.reply?.marks.ofd)
+    const row = tape.reply?.rowSize ?? null
+    if (!ev || row == null) return ev
+    const iv = publishedInterval ?? 5
+    return ev.map((e) => {
+      if (e.kind !== 'trap' || e.p == null || !e.side) return e
+      // Labelling, not a verdict, and no look-ahead: only the chart's bars already CLOSED at the P's time (the up-to-12
+      // before it, at least 3). A buyers' P is "top ban sakta" within max(2 × rowSize, 0.25 × their range) of their
+      // highest high; a sellers' P, of their lowest low. Anywhere else it is a "chhota trap".
+      const prior = bars.filter((b) => hm(b.t) + iv <= hm(e.t)).slice(-12)
+      if (prior.length < 3) return { ...e, swing: null }
+      const hi = Math.max(...prior.map((b) => b.h)), lo = Math.min(...prior.map((b) => b.l))
+      const tol = Math.max(2 * row, 0.25 * (hi - lo))
+      const swing = e.side > 0 ? (hi - e.p <= tol ? 'top' : null) : (e.p - lo <= tol ? 'bottom' : null)
+      return { ...e, swing } as typeof e
+    })
+  }, [footprint.events, tape.reply, bars, publishedInterval])
 
-  // The prints layer's own counts, by the same function the overlay draws
-  // with. The causality cut is the cursor's bar read on the RECORD's clock:
-  // the cursor is a bar index and the ladder record is stamped in ms, and the
-  // day's midnight is the one base both agree on (drawMarks' rule). Live
-  // (no cursor) clamps nothing.
-  const printCount = useMemo(() => {
-    let tCut = Infinity
-    if (cursor != null && bars.length) {
-      const m = /^(\d{1,2}):(\d{2})$/.exec(String(bars[at]?.t ?? ''))
-      const base = dayBase(day)   // one copy of the day-midnight rule (indicators.ts)
-      if (m && Number.isFinite(base)) tCut = base + (+m[1] * 60 + +m[2]) * 60_000
+  // ── WHAT IS NOT ON THE CHART, one line, only what applies (three absences, never one).
+  const notShown = useMemo(() => {
+    const out: string[] = []
+    if (!zone3.buy && !zone3.sell) out.push(`your zone: could not check — ${zone3.why || 'no 3-minute machine'}`)
+    const plan = entryPlan(entries)
+    if (plan.unexpected) out.push(`zone entries: ${plan.unexpected} withheld — the backend sent ${plan.why}, which the zone machine cannot emit`)
+    if (!flat) out.push(`engine levels and fights: ${flatWhy ?? 'could not check'}`)
+    else if (cursor != null) out.push('NEXT FIGHT and your trade\'s G / W / A: live only, not shown while replaying')
+    // P3: with the GoCharting tape DEAD or STALLED, everything read off it is CAN'T CHECK with that reason; what is drawn is the
+    // record up to the last GoCharting bar, never live. Upstox-based layers (value, the engine's levels) keep working and say so.
+    const feed = flat?.feed
+    if (feed?.alarm) {
+      out.push(`your P A E C: could not check — ${feed.chip ?? feed.state} · drawn only up to the last GoCharting bar ${feed.last_bar ?? '?'}, not live`)
+      out.push(`GoCharting bars, stacks and the Flow pane: could not check — ${feed.chip ?? feed.state} · Upstox reads continue`)
+    } else if (footprint.events == null) out.push(`your P A E C: ${footprint.why}`)
+    else {
+      const mc = markCounts(marks)
+      if (!footprint.events.length) out.push(footprint.why ? `your P A E C: could not check — ${footprint.why}` : 'your P A E C: checked, none in the record')
+      else if (mc.offLevel) out.push(`${mc.offLevel} A/E away from a named level (not drawn, as on GoCharting)`)
     }
-    return printsCounts(tape.reply, tCut)
-  }, [tape.reply, cursor, at, bars, day])
+    if (flowPane && publishedInterval !== 5 && publishedInterval !== 15) out.push(`Flow pane: not shown at ${publishedInterval ?? '?'}m — the record is 5-minute`)
+    if (!flowPane) out.push('Flow pane: off')
+    if (!pivotsOn) out.push('Pivots: off')
+    else if (pivots && !pivots.length) out.push('Pivots: could not check — the payload carries none')
+    if (!valueOn) out.push('Value: off')
+    else if (!tape.reply) out.push(`Value: ${tape.why}`)
+    else {
+      if (!tape.reply.ux || tape.reply.ux.why) out.push(`Value: could not check — ${tape.reply.ux?.why ?? 'no ux family in the reply'}`)
+      if (!tape.reply.levels.prior.length) out.push(`Value, prior days: ${tape.reply.levels.prior_why ?? 'checked, none'}`)
+    }
+    return out
+  }, [zone3, entries, flat, flatWhy, cursor, footprint, marks, flowPane, publishedInterval, pivotsOn, pivots, valueOn, tape])
 
-  // Causality (binding, Task 2 review): a zone's label/why embed the run's
-  // FULL length, so while the replay cursor is set, buildZones must never
-  // see bars past it — otherwise a band would announce how long a regime
-  // persists beyond where the operator has scrubbed to. Slice first, group
-  // second; buildZones itself has no notion of a cursor.
-  const zones = useMemo(() => {
-    const sliced = cursor == null
-      ? bars
-      : bars.slice(0, Math.max(0, Math.min(cursor, bars.length - 1)) + 1)
-    return buildZones(sliced)
-  }, [bars, cursor])
-
+  const at = cursor == null ? bars.length - 1 : Math.max(0, Math.min(cursor, bars.length - 1))
   const [hover, setHover] = useState<number | null>(null)
-  // Hovering must never reveal a bar the replay cursor is hiding — the
-  // causality rule holds regardless of whether hover came from the chart's
-  // own mousemove or from the ribbon underneath it.
   const handleHover = (i: number | null) => {
     if (i == null || !bars.length) { setHover(null); return }
     const maxIdx = bars.length - 1
@@ -566,49 +279,15 @@ export default function TradeTab({
     setHover(idx)
   }
 
-  // The offset above this tab is content-dependent (the ANSWER band wraps
-  // differently per index, and banners appear conditionally), so a fixed
-  // calc(100vh - Npx) is wrong in some states and pushes the chart below the
-  // fold. Measure the real distance to the viewport bottom instead.
+  // The chart column is a full screenful (the page scrolls); the height is a pure function of the window, so a
+  // measure taken mid-scroll can never latch (CHECKLIST E6). It MUST be a definite height: ContractChart resolves its
+  // own height as a percentage of it.
   const rootRef = useRef<HTMLDivElement>(null)
   const [availH, setAvailH] = useState<number | null>(null)
-  // Size the column to the space actually available. Strictly event-driven:
-  // this effect MUST keep its dependency array, and the observer MUST watch
-  // the parent rather than our own box. A dep-less layout effect that sets
-  // state here does not converge, because our container is `flex:1` inside a
-  // `min-height:100vh` column, so growing our height moves our own top and
-  // the value oscillates. Layout effects run before paint, so that loop
-  // freezes the page outright.
   useLayoutEffect(() => {
     const el = rootRef.current
     if (!el) return
     const measure = () => {
-      const node = rootRef.current
-      if (!node) return
-      // The CHART column fills the viewport exactly. The engine's read is a
-      // sibling BELOW it (see the render), deliberately outside this budget:
-      // the operator asked for a bigger chart plus "the page scrollable a
-      // little bit" with the suggestion at the bottom of it, and that is
-      // precisely a full-height chart followed by one panel's worth of scroll.
-      // A FULL screenful, not "whatever is left under the chrome".
-      //
-      // The old formula subtracted this node's own distance from the top of
-      // the viewport, which made the chart fight the glance bar, the ANSWER
-      // band, the tab row and the scrubber for one screen — and lose. Kite
-      // wins that comparison because it is a fixed-viewport app and never has
-      // to share. This page SCROLLS, so it does not have to share either: the
-      // chart owns a screenful of its own, and anything above it is one scroll
-      // up. The operator's call, 2026-08-07.
-      //
-      // Dropping `rect.top` also kills CHECKLIST E6 outright. That term is
-      // scroll-dependent — it goes negative once the page is scrolled, so a
-      // measure taken mid-scroll set a huge height that then latched (3446px
-      // observed). With the height a pure function of the window there is no
-      // position in the formula, so there is nothing to latch.
-      //
-      // `node` stays referenced by the observer below; it is deliberately no
-      // longer read here.
-      void node
       const next = Math.max(320, window.innerHeight - 12)
       setAvailH((prev) => (prev != null && Math.abs(prev - next) < 2 ? prev : next))
     }
@@ -617,519 +296,116 @@ export default function TradeTab({
     const parent = el.parentElement
     const ro = parent ? new ResizeObserver(measure) : null
     if (parent && ro) ro.observe(parent)
-    return () => {
-      window.removeEventListener('resize', measure)
-      ro?.disconnect()
-    }
+    return () => { window.removeEventListener('resize', measure); ro?.disconnect() }
   }, [index, bars.length === 0])
 
-  // Honesty rule 1: no tape = say so at full width, and chart nothing. A
-  // fallback must never occupy the space where live data goes. But before the
-  // first poll resolves, a healthy index also has zero bars — that transient
-  // state must read as "loading", not "no session", or a fine index looks dead.
+  // No tape: say so at full width and chart nothing. Before the first poll a healthy index also has no bars, and
+  // that must read as loading, not as no session.
   if (!bars.length) {
-    if (loading) {
-      return (
-        <div style={{ padding: 16, backgroundColor: pal.bg }}>
-          <div style={{
-            padding: '14px 18px', borderRadius: 6,
-            backgroundColor: pal.card,
-            border: `1px solid ${pal.border}`, color: pal.textMuted,
-            fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
-          }}>
-            {index} ka tape aa raha hai…
-          </div>
-        </div>
-      )
-    }
     return (
       <div style={{ padding: 16, backgroundColor: pal.bg }}>
-        {/* The ONLY control that survives the no-tape state. It acts on the
-            NEXT fetch rather than on candles that do not exist, so setting the
-            interval before 09:15 is the one useful thing this screen can offer
-            pre-open. It implies no chart: the message below still says there
-            is nothing to draw. */}
-        <IntervalSwitch pal={pal} interval={interval} onChange={onIntervalChange} />
+        {!loading && <IntervalSwitch pal={pal} interval={interval} onChange={onIntervalChange} />}
         <div style={{
-          padding: '14px 18px', borderRadius: 6, marginTop: 10,
-          backgroundColor: pal.card,
-          border: `1px solid ${pal.caution}`, color: pal.caution,
-          fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em',
+          padding: '14px 18px', borderRadius: 6, marginTop: loading ? 0 : 10, backgroundColor: pal.card,
+          border: `1px solid ${loading ? pal.border : pal.caution}`, color: loading ? pal.textMuted : pal.caution,
+          fontSize: 12.5, fontWeight: 600,
         }}>
-          {index} KA TAPE NAHI — backend ke paas is index ka koi session hi nahi,
-          toh chart banane ko kuch nahi hai. Nakli candles dikhane se behtar hai
-          ek bhi na dikhana.
+          {loading ? `Loading the ${index} tape…`
+            : `NO ${index} TAPE: the backend has no session for this index, so there is nothing to chart. No candles is better than invented ones.`}
         </div>
       </div>
     )
   }
 
-  const b = bars[at]                       // causal: the shown bar, not the newest
+  const b = bars[at]
   const live = cursor == null
-  const prec = dayPrecision(day)
-  const dir = b.c >= b.o ? pal.bull : pal.bear // the bar's own direction, same as its candle
   const modeLabel = stale ? 'STALE' : live ? 'LIVE' : 'REPLAY'
   const modeColor = stale || !live ? pal.caution : pal.bull
 
   return (
-    <>
     <div ref={rootRef} style={{
-      display: 'flex', flexDirection: 'column',
-      // MUST be a definite `height`, never minHeight. ContractChart's root is
-      // `height:100%`, and a percentage height cannot resolve against a flex
-      // item whose container is auto-height — switching this to minHeight
-      // collapsed the index chart to zero (measured: CANVAS 0 -> DIV 0 -> DIV 0
-      // inside a 420px container) while the leg panes were unharmed, because
-      // they size from a real pixel minHeight rather than a percentage.
-      // The row-overflow this briefly tried to fix is handled where it belongs
-      // instead — at the chart container's own minHeight, below.
-      height: availH ?? 420, padding: '16px 16px 0', gap: 8,
-      // Hard guarantee: with a fixed height, anything that does not fit must
-      // be CLIPPED, never allowed to paint over the panes below. The chart's
-      // low minHeight above means this should never actually bite — but a
-      // clipped chart edge is a survivable bug, and text printed across the
-      // option charts is not.
-      overflow: 'hidden',
-      backgroundColor: pal.bg,
+      display: 'flex', flexDirection: 'column', height: availH ?? 420, padding: '16px 16px 12px', gap: 8,
+      overflow: 'hidden', backgroundColor: pal.bg,
     }}>
-      {/* Stat strip — one compact row (Task 6's "breathing room"): 11px
-          labels, 13px values. */}
+      <FeedBand feed={flat?.feed} />
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
-        padding: '7px 14px', backgroundColor: pal.card,
-        border: `1px solid ${pal.border}`, borderRadius: 6,
+        display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', padding: '7px 14px',
+        backgroundColor: pal.card, border: `1px solid ${pal.border}`, borderRadius: 6,
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 9.5, letterSpacing: '0.07em', color: pal.textMuted }}>
-            CONTRACT
-          </span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: pal.textPrimary, letterSpacing: '0.02em' }}>
-            {index} FUT
+          <span style={{ fontSize: 9.5, letterSpacing: '0.07em', color: pal.textMuted }}>CONTRACT</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: pal.textPrimary }}>{index} FUT</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 9.5, letterSpacing: '0.07em', color: pal.textMuted }}>LAST</span>
+          <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: b.c >= b.o ? pal.bull : pal.bear }}>
+            {b.t} · {b.c.toFixed(1)}
           </span>
         </div>
-        <Stat pal={pal} label="Session" value={day || '—'}
-              color={prec === 'exact' ? pal.textPrimary : pal.caution}
-              title={prec === 'exact' ? undefined
-                : prec === 'no-year'
-                  ? 'Is session key mein saal likha hi nahi hai, toh chart ka date axis maujuda saal maan leta hai. Mahina, taareekh aur intraday ghadi asli hain.'
-                  : 'Is session key mein koi padhne layak date nahi hai, toh chart ka date axis banawati hai. Intraday ghadi asli hai.'} />
-        <Stat pal={pal} label="Bar" value={b.t} />
-        <Stat pal={pal} label="Band bhaav" value={b.c.toFixed(1)} color={dir} />
-        <Stat pal={pal} label="Open interest" value={`${(b.oi / 1e6).toFixed(2)}M`} />
-        <Stat pal={pal} label="Volume" value={b.v.toLocaleString('en-IN')} />
-        <Stat pal={pal} label="Bars" value={`${at + 1} / ${bars.length}`} />
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-          {/* TIMEFRAME. A segmented control in
-              the strip ABOVE the chart — nothing goes between the toolbar and
-              the chart, and this adds no vertical block of its own: it sits in
-              a row that already exists, so the chart's height budget (a
-              DEFINITE height the chart resolves its own percentage against —
-              see the root style) is untouched. */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           <IntervalSwitch pal={pal} interval={interval} onChange={onIntervalChange} />
-
-          {/* FOCUS: hides the glance bar + ANSWER band (App.tsx-owned state)
-              while this tab is active, so the chart reclaims that height.
-              Palette tokens only. */}
-          <button
-            onClick={onFocusToggle}
-            title="Is tab par glance bar aur ANSWER band chhupa do, taaki chart ko zyada height mile"
+          <Toggle pal={pal} on={chipsOn} onClick={toggleChips} label="CHIPS"
+                  title="Har nishaan ke saath Hinglish chip: wo kya bata raha hai, number ke saath" />
+          <Toggle pal={pal} on={pivotsOn} onClick={togglePivots} label="PIVOTS"
+                  title="Floor pivots as grey reference lines: seen, never deciding" />
+          <Toggle pal={pal} on={valueOn} onClick={toggleValue} label="VALUE"
+                  title="Session value area, POC and high-volume nodes, ux family [I]; prior days when this contract has them" />
+          <Toggle pal={pal} on={flowPane} onClick={toggleFlowPane} label="FLOW PANE"
+                  title="Delta and CVD under the chart, ux family [I]; 5m and 15m only (the record is 5-minute)" />
+          <Toggle pal={pal} on={legsOn} onClick={toggleLegs} label="LEGS · shadow"
+                  title="The leg engine's record (docs/reader/8-shadow-build.md): shadow, unsigned thresholds, decides nothing" />
+          <button onClick={onFocusToggle} title="Hide the glance bar and the ANSWER band on this tab, so the chart gets the height"
             style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-              padding: '3px 9px', cursor: 'pointer',
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '3px 9px', cursor: 'pointer',
               border: `1px solid ${pal.border}`, borderRadius: 4,
-              backgroundColor: focus ? pal.accent : 'transparent',
-              color: focus ? pal.card : pal.textMuted,
-            }}
-          >FOCUS</button>
-
-          {/* SMC: the structure layer (FVG / OB / BOS / CHoCH / EQH / EQL) on
-              the chart. Same styling family as FOCUS. When the
-              layer is unavailable the button still toggles — it is the
-              operator's preference, not a status light; the disclosure line
-              below is what reports availability. */}
-          <button
-            onClick={toggleSmc}
-            title={structCounts
-              ? `Structure layer dikhao — OB, EQH/EQL, swing pivots aur pichhle din ke`
-                + ` levels (${structCounts.drawn} bane`
-                + `${structCounts.withheld ? ` · ${structCounts.withheld} FVG/BOS/CHoCH roke gaye` : ''})`
-              : 'Structure layer dikhao — is session ke liye mil hi nahi raha, neeche wali line dekho'}
-            style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-              padding: '3px 9px', cursor: 'pointer',
-              border: `1px solid ${pal.border}`, borderRadius: 4,
-              backgroundColor: smc ? pal.accent : 'transparent',
-              color: smc ? pal.card : pal.textMuted,
-            }}
-          >SMC</button>
-
-          {/* STORY: the event-derived layers over price (condition bands +
-              balloons). Same styling family. Off by default — see the state
-              above for the measurements. The title names the count so the
-              operator knows what turning it on would add. */}
-          <button
-            onClick={toggleStory}
-            title={narrs.length
-              ? `Engine ke event layers bhaav ke upar dikhao — is session mein ${eventCount} event aur ${zones.length} condition band. Default OFF hai: inka score kabhi nikla hi nahi, aur jinka nikla wo kuch na karne se bhi bure nikle.`
-              : 'Engine ke event layers bhaav ke upar dikhao — is session mein koi event nahi'}
-            style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-              padding: '3px 9px', cursor: 'pointer',
-              border: `1px solid ${pal.border}`, borderRadius: 4,
-              backgroundColor: story ? pal.accent : 'transparent',
-              color: story ? pal.card : pal.textMuted,
-            }}
-          >STORY</button>
-
-          {/* LEGS: how the CE/PE premium panes are laid out. Same styling
-              family; the label names the state you would switch TO is wrong —
-              it names the CURRENT one, so the button reads as
-              a state not a command. */}
-          <button
-            onClick={cycleLegs}
-            title={legsView === 'off'
-              ? 'CE/PE premium panes chhupe hue hain, toh poora page index chart ka hai. Click karo toh dono saath-saath aa jaayenge.'
-              : legsView === 'stacked'
-                ? 'CE aur PE poori chaudai mein ek ke neeche ek — har pane ko zyada horizontal jagah. Click karo toh chhup jaayenge.'
-                : 'CE aur PE saath-saath — dono legs ek saath dikhti hain, jo pair rotation padhne ke liye chahiye. Click karo toh poori chaudai mein ek ke neeche ek ho jaayenge.'}
-            style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-              padding: '3px 9px', cursor: 'pointer',
-              border: `1px solid ${pal.border}`, borderRadius: 4,
-              backgroundColor: 'transparent', color: pal.textMuted,
-            }}
-          >{legsView === 'off' ? 'LEGS OFF'
-            : legsView === 'stacked' ? 'LEGS STACKED' : 'LEGS SPLIT'}</button>
-
-          {/* With the glance bar hidden, its index switcher goes with it —
-              this is just that switcher, not a duplicate of the whole bar. */}
+              backgroundColor: focus ? pal.accent : 'transparent', color: focus ? pal.card : pal.textMuted,
+            }}>FOCUS</button>
           {focus && (
             <div style={{ display: 'flex', gap: 4 }}>
               {INDEX_KEYS.map((k) => (
-                <button
-                  key={k}
-                  onClick={() => onIndexChange(k)}
-                  style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-                    padding: '3px 8px', cursor: 'pointer', borderRadius: 4,
-                    border: `1px solid ${k === index ? pal.accent : pal.border}`,
-                    backgroundColor: 'transparent',
-                    color: k === index ? pal.accent : pal.textMuted,
-                  }}
-                >{k}</button>
+                <button key={k} onClick={() => onIndexChange(k)} style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 8px', cursor: 'pointer', borderRadius: 4,
+                  border: `1px solid ${k === index ? pal.accent : pal.border}`, backgroundColor: 'transparent',
+                  color: k === index ? pal.accent : pal.textMuted,
+                }}>{k}</button>
               ))}
             </div>
           )}
-
-          {/* Amber for REPLAY, matching the no-tape banner and the date
-              disclosure: in this tab amber means "not the data you'd assume".
-              Brass is reserved for structure, so it must not mean "mode".
-              STALE is the same amber — a dead index's last-good tape is
-              exactly as "not what you'd assume" as a replay frame. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: '50%',
-              backgroundColor: modeColor,
-            }} />
-            <span style={{
-              fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
-              color: modeColor,
-            }}>{modeLabel}</span>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: modeColor }} />
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: modeColor }}>{modeLabel}</span>
           </div>
         </div>
       </div>
 
-      {/* One line, not three stacked ones. These are ABOVE the chart on
-          purpose and stay there: they say the tape stopped, or the date is
-          inferred, or the chain is old, and a warning you meet after you have
-          already read the chart is a warning that arrived late. What changed
-          is only the packing — three conditional 17px blocks plus their gaps
-          cost ~75px of a height budget the chart is starved for, and the
-          operator's own comparison against Kite is exactly that the chart owns
-          too little of the screen. Nothing is dropped or shortened; they are
-          joined. `caution` wins the colour whenever any cautionary one is up,
-          because the quieter grey must never soften a live warning. */}
-      {(stale || prec !== 'exact' || chainStale) && (
+      {stale && (
+        <div style={{ fontSize: 11, paddingLeft: 2, color: pal.caution }}>
+          This index stopped updating: the chart is the last tape received, not live. Its last bar is {b.t}.
+        </div>
+      )}
+
+      <div style={{ flex: 1, minHeight: 180, overflow: 'hidden', display: 'flex', gap: 10 }}>
         <div style={{
-          fontSize: 11, paddingLeft: 2, lineHeight: 1.45,
-          color: (stale || chainStale) ? pal.caution : pal.textMuted,
+          width: CHART_SIDE_W, flexShrink: 0, borderRadius: 6, border: `1px solid ${pal.border}`, backgroundColor: pal.card,
+          padding: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0,
         }}>
-          {[
-            stale && `Ye index update hona band ho gaya — neeche ka chart aakhri mila hua tape hai, live nahi. Uska aakhri bar ${b.t} ka hai.`,
-            prec !== 'exact' && (prec === 'no-year'
-              ? 'Session key mein saal nahi hai — date axis maujuda saal maan raha hai; mahina, taareekh aur intraday ghadi asli hain.'
-              : 'Session key mein padhne layak date nahi hai — date axis banawati hai; intraday ghadi asli hai.'),
-            chainStale && `Chain snapshot purana hai — neeche MAX PAIN aur GEX FLIP ${chainTs || 'kisi pichhle waqt'} ke hain, abhi ke nahi.`,
-          ].filter(Boolean).join('  ·  ')}
-        </div>
-      )}
-
-      {/* The layer is missing, so say so rather than let an empty chart read
-          as "no structure found". Faint, one line, and only when SMC is on —
-          with the toggle off the operator already knows why nothing is drawn.
-          Gated on `day` too: an empty day is the tab's own initial-load state
-          (the bail above already covers it with a loading/no-tape message),
-          not a real session whose structures came back absent or misaligned —
-          those two must never share this disclosure line. */}
-      {smc && day && !structures && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Structure layer nahi mila{structuresWhy ? ` — ${structuresWhy}` : ''}. Galat bars par
-          baithne wale boxes dikhane se behtar hai ek bhi box na dikhana.
-        </div>
-      )}
-
-      {/* The band-rotation layer is missing, so say so — an unmarked chart
-          must not read as "your setup never printed today". Gated on `day` for
-          the same reason the structure line above is: an empty day is the
-          tab's own initial-load state, already covered by the bail. */}
-      {day && !rotationRun && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Setup ke markers nahi mile{rotationRunWhy ? ` — ${rotationRunWhy}` : ''}. Galat bars par
-          baithne wale markers dikhane se behtar hai kuch na dikhana — aur purani
-          ek-candle wali layer jaan-bujh kar iski jagah NAHI lagayi ja rahi: wo d3 ke
-          touch ko mark karti hai, entry ko nahi, toh har marker doosre bar par chala jaata.
-        </div>
-      )}
-
-      {/* Chart row: a reserved rail on the left, the chart boxed beside it.
-          A SIDE rail is safe where a row UNDER the chart was not — E2/E3's
-          warning is about vertical space, and this takes none: the row keeps
-          `flex: 1` and the same minHeight the chart box used to carry, so the
-          column's height budget is untouched. The rail is deliberately empty;
-          candl ships 61 drawing tools and ui-v2 wires zero, and beside the
-          chart is where they belong (E3: above or beside, never below). */}
-      <div style={{
-        // 180, not 420: the shock absorber for a column whose height is fixed
-        // (it must be — ContractChart resolves its height as a percentage of
-        // it). availH floors at 320, and the stat strip plus disclosure lines
-        // take ~110 of that, so anything above ~200 here overflows the column
-        // on a very short viewport and paints over what follows. Measured at
-        // innerHeight 450: a 240 floor overflowed by 30px. 180 fits the worst
-        // case; on a real screen flex:1 gives the chart 400+ anyway.
-        flex: 1, minHeight: 180, overflow: 'hidden',
-        display: 'flex', gap: 10,
-      }}>
-        {/* The rail, no longer reserved. A watchlist was the original idea
-            (the operator pointed at Kite), and it was dropped because the
-            three indices already render in App's glance bar from this same
-            payload — a second view of one fetch, not new information. The
-            checklist is: it is the only thing on this screen the operator
-            themselves puts in. `display:flex` + the child's `height:100%`
-            resolve against this box's DEFINITE height, which the row's
-            `align-items: stretch` gives it (E1's rule, same as the chart). */}
-        <div style={{
-          width: CHART_SIDE_W, flexShrink: 0, borderRadius: 6,
-          border: `1px solid ${pal.border}`, backgroundColor: pal.card,
-          padding: 12, overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', minHeight: 0,
-        }}>
-          {/* The `session*` props below are the WHOLE day, not `[at]`.
-              Every other prop here is the cursor's bar, which is exactly why a
-              finished setup used to vanish off this panel; the session list is
-              the day's record and outlives the machine's current state. */}
-          <SetupCheck
-            pal={pal} day={day} bar={b}
-            runState={runState?.[at] ?? null} runStateWhy={runStateWhy}
-            runStateSell={runStateSell?.[at] ?? null}
-            entry={rotationRun?.[at] ?? null}
-            entrySell={rotationRunSell?.[at] ?? null}
-            flow={lastFlow} flowWhy={flowWhy}
-            footprint={footprint}
-            publishedInterval={publishedInterval}
-            sessionRun={rotationRun} sessionRunWhy={rotationRunWhy}
-            sessionRunSell={rotationRunSell} sessionRunSellWhy={rotationRunSellWhy}
-            sessionStates={runState} sessionStatesSell={runStateSell}
-          />
+          <Side pal={pal} index={index}
+                trade={shownTrade} fold={shownFold} review={!!reviewTrade}
+                flat={flat} flatWhy={flatWhy} replaying={cursor != null} notShown={notShown} />
         </div>
         <div style={{
-          // minWidth:0, or a flex item refuses to shrink below its content and
-          // the chart shoulders the rail off the left edge on a narrow
-          // viewport. Height comes from the row's default `align-items:
-          // stretch` — a DEFINITE height, which is exactly what
-          // ContractChart's `height:100%` needs and what minHeight could not
-          // give it.
-          flex: 1, minWidth: 0, borderRadius: 6, overflow: 'hidden',
-          border: `1px solid ${pal.border}`, backgroundColor: pal.card,
+          flex: 1, minWidth: 0, borderRadius: 6, overflow: 'hidden', border: `1px solid ${pal.border}`, backgroundColor: pal.card,
         }}>
           <ContractChart
-            index={index} day={day} bars={bars} levels={levels} cursor={cursor}
-            mode={mode} hover={hover} onHover={handleHover} narrs={narrs} zones={zones}
-            structures={structures} smc={smc} rotation={rotationDraw} story={story}
-            marks={footprint.events}
-            prints={tape.reply}
-            publishedInterval={publishedInterval}
+            index={index} day={day} bars={bars} cursor={cursor}
+            mode={mode} hover={hover} onHover={handleHover} interval={publishedInterval}
+            pockets={pockets} entries={entries} marks={marks}
+            prints={tape.reply} flowPane={flowPane} engine={engine} trade={trade} pivots={pivots} value={value}
+            chipsOn={chipsOn}
           />
         </div>
       </div>
+      {legsOn && <LegsPanel pal={pal} index={index} />}
     </div>
-
-    {/* Everything below the chart lives OUTSIDE the fixed-height column.
-        That column must have a definite height (ContractChart resolves its
-        own height as a percentage of it), which means it cannot grow — so any
-        row placed inside it after the chart competes for the chart's pixels
-        and, once the chart hits its minHeight floor, spills out of the box and
-        paints over whatever follows. That is exactly how the Hidden-layers
-        line ended up printed across the CE premium pane. Out here the page
-        simply scrolls, and the visual order is unchanged. */}
-    <div style={{
-      padding: '0 16px', backgroundColor: pal.bg,
-      display: 'flex', flexDirection: 'column', gap: 8,
-    }}>
-      {/* The last Trending-OI read, directly on the chart — the operator's
-          explicit ask. The mark time is always shown (the row is the chain AS
-          AT that clock mark, not now), and while replaying the strip dims and
-          says it is live rather than pretending it scrubbed. */}
-      <FlowLine pal={pal} flow={lastFlow} flowWhy={flowWhy} replaying={cursor != null} />
-
-      {/* The day's shape at a glance, dimmed past the replay cursor. */}
-      <Ribbon mode={mode} narrs={narrs} cursor={cursor} hover={hover} onHover={handleHover} />
-
-      <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-        σ wash ±1σ gulabi / ±2σ hara / ±3σ neela (sirf rang — lines hata di, level chips right mein hain) · levels · OI
-        {rotCount != null
-          ? ` · ${rotCount.drawnCount} d3 BUY entry`
-            + ` — wo close jisne chhune wale bar ka high toda, touch nahi`
-            + ` (jis σ band ko tag kiya uspar triangle, chaukor pill; halka = index`
-            + ` uske andar sikud nahi raha tha, dashed = ye check hi nahi ho paaya)`
-            // Not a filter count any more: arming at 09:25 and folding a run
-            // into one reference now happen in band_rotation.run_states, where
-            // the rule lives. This says only that the backend sent something
-            // that rule cannot emit — which should never print.
-            + (rotCount.unexpected
-              ? ` · ${rotCount.unexpected} roke gaye: backend ne`
-                + ` ${rotCount.unexpectedWhy} bheja, jo §5c ka detector bana hi nahi sakta`
-              : '')
-          : ''}
-        {sellCount && sellCount.drawnCount
-          ? ` · ${sellCount.drawnCount} u3 SELL entry — d3 wale rule ka ulta`
-            + ` aaina. ISKA KOI SCORE NAHI HAI: upper band pe bechna paanch`
-            + ` datasets pe naapa aur REJECT hua tha; ye tumhare kehne par`
-            + ` banaya gaya hai, aur d3 BUY wali 68.4% ise HAASIL NAHI hai`
-          : ''}
-        {smc && structures && structures.length
-          ? ` · structure (peetal; solid = flow se confirmed aur naam ke saath, halka = confirm nahi hua,`
-            + ` halka dashed = check hi nahi ho paaya; chhote bina-naam ke ticks swing pivots hain)`
-            + `${structCounts && structCounts.zones > STRUCT_ZONE_LIMIT
-              ? ` · ${structCounts.zones} mein se sabse naye ${STRUCT_ZONE_LIMIT} OB zones bane`
-              : ''}`
-          : ''}
-      </div>
-
-      {/* The extension's own marks, and what this chart can and cannot say
-          with them. Only rendered once the session has loaded, so an empty
-          first paint never claims anything either way. */}
-      {day && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Order-flow marks (wahi jo extension GoCharting par banata hai):
-          {' '}P = trap (bhara gola) · C = climax (heera) · A = absorption (shelf)
-          {' '}· E = exhaustion (chevron). Gehra + halo = kisi NAAM WALE level par hua,
-          {' '}halka = level par nahi. Har mark apne khud ke time aur apne khud ke
-          {' '}bhaav par hai — 5-min record hai, yahan 3-min candle hai, isliye mark
-          {' '}kisi candle par chipkaya NAHI gaya.
-          {footprint.events == null
-            ? ` Abhi kuch nahi bana — ${footprint.why}.`
-            : markCount.drawn
-              ? ` ${markCount.drawn} bane, unme ${markCount.heavy} level par.`
-              : ` Ek bhi nahi bana — ${footprint.why || 'is index ke record mein koi aisa event nahi'}.`}
-          {markCount.skipped
-            ? ` ${markCount.skipped} initiative/vacuum chhode gaye: is family mein in dono ka koi shape hi nahi hai (extension bhi inhe nahi banata).`
-            : ''}
-          {' '}Rang SIDE ka hota hai, par record mein side aata hi nahi, isliye sab
-          {' '}neutral hain — side yahan bataya jaata to wo bana hua hota.
-        </div>
-      )}
-
-      {day && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          Prints (ladder record, /api/tape):
-          {tape.reply == null
-            ? ` ${tape.why}`
-            : ` ${tape.reply.src === 'live' ? 'live' : 'record'} · ${tape.reply.bars.length} bars`
-              + (tape.reply.levels.session ? ` · POC ${tape.reply.levels.session.poc} VAH ${tape.reply.levels.session.vah} VAL ${tape.reply.levels.session.val}` : ` · ${tape.reply.levels.why}`)
-              + ` · ${tape.reply.levels.nodes.length} nodes [M]`
-              + ` · tm ${printCount.tmDrawn} of ${printCount.tmServed} bane [I]`
-              // rule 6: a counted zero is "check kiya, 0 mile", never a bare 0
-              // that reads as a layer nobody wired up.
-              + (printCount.stacks ? ` · ${printCount.stacks} stacks [M]` : ' · stacks: check kiya, 0 mile [M]')
-              + (printCount.unfinished ? ` · ${printCount.unfinished} unfinished auction [M]` : ' · unfinished: check kiya, 0 mile [M]')
-              + (tape.reply.forming_why ? ` · ${tape.reply.forming_why}` : '')
-              + (tape.reply.ladder_why ? ` · ${tape.reply.ladder_why}` : '')
-              + (tape.reply.levels.prior_why ? ` · ${tape.reply.levels.prior_why}` : '')
-              + (tape.reply && publishedInterval !== 5 && publishedInterval !== 15
-                  ? ` · delta 5-min record se hai — is chart ke ${publishedInterval ?? '?'}-min bars se nahi jud sakta; 5 ya 15 par dekho`
-                  : '')}
-        </div>
-      )}
-
-      {day && tape.reply && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2 }}>
-          {uxLegend(tape.reply.ux, printCount.runsDrawn, printCount.runsServed)}
-        </div>
-      )}
-
-      {/* What the chart is NOT drawing, and how much of it there is.
-          Honesty rule: "we are not showing you" must never be indistinguishable
-          from "we checked and found nothing". A layer that is merely switched
-          off has to say so, with its count, or a quiet chart reads as a quiet
-          market. Only rendered once the session has loaded (`day`), so an empty
-          first paint never claims anything is being withheld. */}
-      {day && (!story || !smc || !!structCounts?.withheld) && (
-        <div style={{ fontSize: 11, color: pal.textMuted, paddingLeft: 2, opacity: 0.85 }}>
-          Chhupa hua:
-          {!story && ` STORY — ${eventCount} event`
-            + ` aur ${zones.length} condition band nahi bane`}
-          {!story && (!smc || !!structCounts?.withheld) && ' ·'}
-          {/* SMC OFF hides EVERYTHING, so the number here must be the whole
-              set — drawn + withheld — not just the kinds the layer would have
-              rendered had it been on. Reporting only `drawn` would understate
-              what the toggle is holding back. */}
-          {!smc && (structures
-            ? ` STRUCTURE — ${structCounts ? structCounts.drawn + structCounts.withheld : 0} structure nahi bane`
-            : ' STRUCTURE — is session ke liye mila hi nahi, sirf chhupaya nahi gaya')}
-          {/* Withheld REGARDLESS of the toggle, so it is disclosed even with
-              the layer on: FVG/BOS/CHoCH still arrive in the payload and the
-              overlay no longer draws them (operator's call, 2026-08-07). A
-              chart that is quiet because three kinds were dropped must not
-              read as a chart that found nothing. */}
-          {smc && !!structCounts?.withheld && ` FVG/BOS/CHoCH — ${structCounts.withheld}`
-            + ` nahi bane; layer se hata diye gaye, backend abhi bhi bhej raha hai`}
-          {'. '}
-          STORY aur STRUCTURE default OFF hain kyunki inka score kabhi nikala hi
-          nahi gaya ki aage bhaav ne kya kiya; upar ke buttons se wapas on ho
-          jaayenge. Hover abhi bhi har event apne bar par padh leta hai.
-        </div>
-      )}
-    </div>
-
-    {/* Below the full-height chart column, in the operator's reading order:
-        the ATM option legs (where the ±3σ trigger actually lives), then the
-        ZONE READ (what sits at this price), then the engine's own read. All
-        three read the SAME cursor-clamped bar `b` / cursor, so replay scrubs
-        them causally together. */}
-    <div style={{
-      padding: '8px 16px 16px', backgroundColor: pal.bg,
-      display: 'flex', flexDirection: 'column', gap: 10,
-    }}>
-      {legsView !== 'off' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <LegChart day={day} bars={bars} leg="ce" strike={strike} cursor={cursor} mode={mode}
-                    pivots={optPivots?.ce ?? null} pivotsWhy={optPivots?.why?.ce ?? null}
-                    expiry={optExpiry} wide={legsView === 'stacked'} />
-          <LegChart day={day} bars={bars} leg="pe" strike={strike} cursor={cursor} mode={mode}
-                    pivots={optPivots?.pe ?? null} pivotsWhy={optPivots?.why?.pe ?? null}
-                    expiry={optExpiry} wide={legsView === 'stacked'} />
-        </div>
-      )}
-      <ZoneRead
-        pal={pal} bar={b} chain={chain} levels={levels}
-        rot={rotation?.[at] ?? null}
-        structures={structures} structuresWhy={structuresWhy}
-        flow={lastFlow} flowWhy={flowWhy}
-        replaying={cursor != null}
-      />
-      <EngineReadPanel pal={pal} bar={b} />
-    </div>
-    </>
   )
 }

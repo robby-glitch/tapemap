@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { FIXTURE, IDX, setIfin, useStore, type Pick, type Trade } from './api'
 import { FlatFace, IfinFace, InTrade, Premium, Words } from './Desk'
+import FeedBand from './FeedBand'
 import { Slip } from './Mark'
 import Record from './Record'
 import { applyFixture, loadFixture, moments, pickMoment, type Views } from './fixture'
@@ -38,7 +39,7 @@ export default function Pro() {
   const fid = q.get('float')
   if (fid != null) {
     const t = st.trades.find(x => x.id === fid) ?? cur, r = t ? st.fold[t.id] : undefined
-    return <div className="pro float">{t ? <><InTrade t={t} r={r} why={why} />
+    return <div className="pro float"><FeedBand feed={st.feed} compact />{t ? <><InTrade t={t} r={r} why={why} />
       {r?.ok && r.view?.headline != null && <Premium v={r.view} ty={t.side} />}</> : <FlatFace f={st.flat} why={why} />}</div>
   }
 
@@ -56,6 +57,7 @@ export default function Pro() {
         {minute >= '14:45' && minute < '15:30' && <span className="amber">flat by 15:00 · your practice</span>}</div>
       <nav>{(['DESK', 'RECORD'] as const).map(t => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>)}</nav>
     </header>
+    <FeedBand feed={st.feed} />
     {tab === 'RECORD' ? <Record /> : <main className="desk">
       <section className="face">
         {cur ? <InTrade t={cur} r={read} why={why}
