@@ -1,6 +1,6 @@
 // The DESK faces (6-blueprint.md §4.7, §4.8, §5, §6, §7.2): in a trade, IF YOU WERE IN, flat. Presentation only: every
 // word and number here is the engine's; the screen computes nothing. Styles: ./pro.css.
-import type { Fight, Flat, FoldRead, Ifin, Pick, Rows, Trade, View, Word } from './api'
+import { cc, type Fight, type Flat, type FoldRead, type Ifin, type Pick, type Rows, type Trade, type View, type Word } from './api'
 
 export const f2 = (x: number | null | undefined) => x == null ? '—' : x.toFixed(2)
 export const f1 = (x: number | null | undefined) => x == null ? '—' : x.toFixed(1)
@@ -105,7 +105,7 @@ export function InTrade({ t, r, why }: { t: Trade; r?: FoldRead; why: string | n
   const line = <p className="tradeline"><b>{tradeLabel(t)}</b> · in at {f2(t.p0)} · {t.t0.slice(0, 5)}
     {v?.frozen && v.exit_t && <> · <b>out {v.exit_t.slice(0, 5)}</b> · frozen at your exit</>}</p>
   if (!v || v.headline == null) {
-    const reason = why ?? (!r ? 'checking…' : r.ok ? `could not check — ${v?.why ?? 'no view yet'}` : `could not check — ${r.why ?? 'the engine gave no reason'}`)
+    const reason = why ?? (!r ? 'checking…' : r.ok ? cc(v?.why, 'no view yet') : cc(r.why, 'the engine gave no reason'))
     return <>{line}<Cant why={reason} /></>
   }
   return <>{line}<Face v={v} why={why} /></>
@@ -115,7 +115,7 @@ export function IfinFace({ r, pick, why }: { r: Ifin | null; pick: Pick; why: st
   const head = `IF YOU WERE IN · ${pick.side === 'BUY' ? 'long' : 'short'} ${pick.k} ${pick.ty}`
   const v = r?.ok ? r.view : undefined
   if (!v || v.headline == null) {
-    const reason = why ?? (!r ? 'checking…' : `could not check — ${r.why ?? v?.why ?? 'no read'}`)
+    const reason = why ?? (!r ? 'checking…' : cc(r.why ?? v?.why, 'no read'))
     return <><p className="tradeline"><b>{head}</b></p><Cant why={reason} /></>
   }
   return <><p className="tradeline"><b>{head}</b> · at {f2(v.prem.now)} now</p><Face v={v} why={why} /></>
@@ -131,7 +131,7 @@ function FightBox({ label, f }: { label: 'above' | 'below'; f: Fight | null }) {
 }
 
 export function FlatFace({ f, why }: { f: Flat | null; why: string | null }) {
-  if (!f || !f.ok) return <Cant why={why ?? (f?.why ? `could not check — ${f.why}` : 'checking…')} />
+  if (!f || !f.ok) return <Cant why={why ?? (f?.why ? cc(f.why) : 'checking…')} />
   const nf = f.next_fight
   return <>
     <p className="tradeline"><b>FLAT</b>{f.at && <> · at <b className="num">{f.at.px}</b> ({f.at.what})</>}</p>

@@ -1,6 +1,6 @@
 // The pro screen's shell: header, DESK (the face + the slip) and RECORD. ?fixture=1 is the dev viewer, bannered, never live.
 import { useEffect, useState } from 'react'
-import { FIXTURE, IDX, setIfin, useStore, type Pick, type Trade } from './api'
+import { FIXTURE, INDICES, isDown, setIdx, setIfin, useStore, type Pick, type Trade } from './api'
 import { FlatFace, IfinFace, InTrade, Premium, Words } from './Desk'
 import FeedBand from './FeedBand'
 import { Slip } from './Mark'
@@ -30,8 +30,9 @@ export default function Pro() {
   const cur: Trade | null = open.find(t => t.id === sel) ?? open[open.length - 1] ?? null
   const read = cur ? st.fold[cur.id] : undefined
   useEffect(() => { setIfin(!cur && ifinOn && pick ? pick : null) }, [cur, ifinOn, pick])   // flat: the slip's strike is what IF YOU WERE IN reads
+  useEffect(() => { setPick(null) }, [st.idx])                                              // another index: its own strikes, from its ATM
   const asof = read?.asof ?? read?.view?.ts ?? st.flat?.asof ?? null
-  const engine = FIXTURE ? 'fixture' : !st.loaded ? 'checking' : st.engineWhy ? 'down' : 'ok'
+  const engine = FIXTURE ? 'fixture' : !st.loaded ? 'checking' : isDown(st.engineWhy) ? 'down' : st.engineWhy ? 'cant' : 'ok'
   const why = st.engineWhy ?? st.tradesWhy
   const ifinView = !cur && ifinOn && st.ifin?.ok && st.ifin.view?.headline != null && pick ? st.ifin.view : null
 
@@ -52,8 +53,10 @@ export default function Pro() {
     </div>}
     <header className="top">
       <div className="brand">TapeMap <b>DESK</b></div>
-      <div className="mid"><span>{IDX}</span><span className="dot">·</span><span className="num">{asof ?? '—'}</span><span className="dot">·</span>
-        <span className={`eng ${engine}`}>{engine === 'ok' ? 'engine answering' : engine === 'down' ? 'engine not answering' : engine === 'fixture' ? 'fixture, not live' : 'checking…'}</span>
+      <div className="mid">{cur ? <span>{cur.idx}</span>
+          : <div className="seg idx" role="group" aria-label="index">{INDICES.map(i => <button key={i} className={st.idx === i ? 'on' : ''} onClick={() => setIdx(i)}>{i}</button>)}</div>}
+        <span className="dot">·</span><span className="num">{asof ?? '—'}</span><span className="dot">·</span>
+        <span className={`eng ${engine}`}>{engine === 'ok' ? 'engine answering' : engine === 'down' ? 'engine not answering' : engine === 'cant' ? 'engine answering · cannot read yet' : engine === 'fixture' ? 'fixture, not live' : 'checking…'}</span>
         {minute >= '14:45' && minute < '15:30' && <span className="amber">flat by 15:00 · your practice</span>}</div>
       <nav>{(['DESK', 'RECORD'] as const).map(t => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>)}</nav>
     </header>
@@ -64,7 +67,7 @@ export default function Pro() {
           /> : ifinOn && pick ? <IfinFace r={st.ifin} pick={pick} why={why} /> : <FlatFace f={st.flat} why={why} />}
       </section>
       <aside className="side">
-        <Slip chain={st.chain} open={open} cur={cur} onSelect={setSel} pick={pick} setPick={setPick} />
+        <Slip idx={st.idx} chain={st.chain} open={open} cur={cur} onSelect={setSel} pick={pick} setPick={setPick} />
         {!cur && <button className={`toggle ${ifinOn ? 'on' : ''}`} onClick={() => setIfinOn(v => !v)}>{ifinOn ? '◂ back to FLAT' : 'IF YOU WERE IN ▸'}</button>}
         {cur && read?.ok && read.view?.headline != null && <Premium v={read.view} ty={cur.side} />}
         {ifinView && pick && <Premium v={ifinView} ty={pick.ty} />}

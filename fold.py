@@ -1061,7 +1061,7 @@ class State:
         age = t - self.rc_t
         if age > PREM_STALE_MS:
             return None, f"{CC}: chain {age // 1000} s old"
-        kp = self.k + self.F - px
+        kp = self.k + self.F + self.bas - px              # px is a futures-chart price (G, A): back to the forward first
         xs = sorted(((x["k"], x[self.ty]["ltp"]) for x in self.rc["strikes"] if x[self.ty].get("ltp")), key=lambda z: z[0])
         i = bisect.bisect_left([z[0] for z in xs], kp)
         if i == 0 or i >= len(xs):

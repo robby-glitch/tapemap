@@ -177,12 +177,18 @@ FRAME_LOG = os.path.join(os.path.dirname(__file__), "data", "frame", "frame_2026
 @pytest.mark.skipif(not os.path.exists(FRAME_LOG), reason="the 29 Sep frame log is not on this machine")
 def test_replay_2026_09_29_goes_dead_at_about_1227_and_stays_dead_until_1608():
     import re
-    rows = []
+    rows, top = [], 0
     with open(FRAME_LOG, encoding="utf-8") as f:
         for line in f:
             m = re.search(r'"ts":\s*"(\d\d):(\d\d)"', line[:400]); hb = re.search(r'"have_bars":\s*(\d+)', line[:800])
-            if m and 9 <= int(m.group(1)) <= 16:    # the session day only: the live file also gets a midnight re-post
-                rows.append((int(m.group(1)), int(m.group(2)), int(hb.group(1)) if hb else 0))
+            if not m:
+                continue
+            h = int(m.group(1))
+            top = max(top, h)
+            # the session day only: the live file also gets a midnight re-post, and the NEXT morning's pre-open
+            # posts (GoCharting still shows this session before 09:15, so 30 Sep 09:01-09:08 landed here)
+            if 9 <= h <= 16 and not (top >= 15 and h < 12):
+                rows.append((h, int(m.group(2)), int(hb.group(1)) if hb else 0))
     per_min = {}
     for h, m, n in rows:
         per_min.setdefault((h, m), []).append(n)

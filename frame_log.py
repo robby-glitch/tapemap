@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from typing import Optional
 
 DIR = os.path.join("data", "frame")
 _last_sig: dict = {}      # (day, idx) -> last signature written
+LOCK = threading.Lock()   # an append and score_frame's swap of the file never overlap (a row appended mid-rewrite was lost)
 
 
 def day_path(day: str) -> str:
@@ -56,8 +58,9 @@ def append_if_changed(fr: dict, day: str, idx: str = "NIFTY", path: Optional[str
     p = path or day_path(day)
     try:
         os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"day": day, **fr}, default=str) + "\n")
+        line = json.dumps({"day": day, **fr}, default=str) + "\n"
+        with LOCK, open(p, "a", encoding="utf-8") as f:
+            f.write(line)
     except OSError:
         return False          # never drop the feed for a disk error
     _last_sig[key] = s

@@ -314,3 +314,15 @@ def test_the_view_carries_the_give_up_staircase_the_wall_behind_px_and_the_wall_
         assert "state" in v["A"] and v["A"]["state"] in (None, "building", "stopped", "off")
     before = fold.read(PE, inputs(PATH_A), upto="09:15:10")
     assert before["headline"] is None and "G_steps" not in before           # nothing before the mark
+
+
+def test_premium_at_a_futures_price_is_priced_through_the_basis():
+    """G and A are futures-chart prices; F is the options' forward (future minus basis). The premium at the
+    future's own price is today's premium. 2026-10-03: the shift missed the basis, so on 30 Sep (basis 77)
+    "at your give-up" read 152 when the call there was worth ~113, and 178 at the FOLD while it traded 127.55."""
+    inp = inputs(PATH_A)
+    upto = fold.ms(DAY, "09:37:30")
+    st = fold.start(PE, dict(inp, book=[r for r in inp["book"] if r["t"] <= upto], chain=[c for c in inp["chain"] if fold.ms(DAY, c["ts"]) <= upto]))
+    st.bas = 77.0                                         # the fixture's basis is 0, which hid the bug
+    own = next(x["pe"]["ltp"] for x in st.rc["strikes"] if x["k"] == st.k)
+    assert abs(st._prem_at(st.F + st.bas, st.rc_t)[0] - own) < 0.1

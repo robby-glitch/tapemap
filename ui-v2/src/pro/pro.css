@@ -41,6 +41,8 @@ b { font-weight: 600; }
 .mid { display: flex; align-items: center; gap: 10px; color: var(--muted); flex: 1; }
 .mid .dot { color: var(--faint); }
 .eng.ok { color: var(--ink); } .eng.down { color: var(--grey); font-style: italic; } .eng.fixture { color: var(--amber); } .eng.checking { color: var(--faint); }
+.eng.cant { color: var(--muted); }
+.seg.idx button { padding: 4px 10px; font-size: 12px; }
 .top nav { display: flex; gap: 4px; }
 .top nav button { background: none; border: 0; padding: 6px 14px; font: inherit; font-weight: 600; letter-spacing: .04em;
   color: var(--muted); cursor: pointer; border-radius: 6px; }

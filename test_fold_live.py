@@ -13,6 +13,7 @@ import pytest
 
 import fold
 import fold_live
+import day_state
 import fold_log
 import server
 from test_fold import DAY, PATH_A, PE, inputs
@@ -259,11 +260,13 @@ def test_the_loop_makes_the_engine_reads_the_files_once_and_goes_incremental(liv
     fold_live.push("NIFTY", "book", inp["book"])
     fold_live.push("NIFTY", "chain", inp["chain"])
     fold_live.push("NIFTY", "vpin", inp["vpin"])
-    fold_live.push("BANKNIFTY", "book", inp["book"])          # no trade there: dropped at the queue, never held
+    fold_live.push("BANKNIFTY", "book", inp["book"])          # read all day too (she trades all three)
+    fold_live.push("FINNIFTY", "book", inp["book"])           # not hers, no trade there: dropped at the queue, never held
     fold_live.tick(end + fold_live.LAG_MS + 1)
     eng = fold_live._ENG["NIFTY"]
-    assert eng.loaded and len(eng.rows["book"]) == len(inp["book"]) and eng.flat is not None and "BANKNIFTY" not in fold_live._ENG
-    assert not fold_live._Q.get("BANKNIFTY") and eng.flat_read["ok"] and eng.flat_read["asof"] == fold.hms(end + fold_live.LAG_MS + 1)
+    assert eng.loaded and len(eng.rows["book"]) == len(inp["book"]) and eng.flat is not None and "FINNIFTY" not in fold_live._ENG
+    assert list(fold_live._ENG)[:2] == ["NIFTY", "BANKNIFTY"] and len(fold_live._ENG["BANKNIFTY"].rows["book"]) == len(inp["book"])
+    assert not fold_live._Q.get("FINNIFTY") and eng.flat_read["ok"] and eng.flat_read["asof"] == fold.hms(end + fold_live.LAG_MS + 1)
     # a repeat of the same rows (a re-published payload, a re-flushed batch) is not fed twice
     fold_live.push("NIFTY", "chain", inp["chain"][-3:])
     fold_live.tick(end + fold_live.LAG_MS + 5000)
@@ -309,7 +312,16 @@ def test_an_exit_freezes_the_view_at_the_exit_and_a_changed_record_rebuilds(live
     assert rec["ok"] and t["id"] == TID and t["exit"] == {"t": "09:40:00", "prem": ref["prem"]["now"], "pct": ref["prem"]["pct"]}
     assert t["peak_before_exit"]["prem"] == ref["prem"]["peak"] and t["given_back"] == ref["prem"]["given_back"] and t["words"]
     assert all(w["after_exit"] == (w["t"] > "09:40:00") for w in t["words"])   # the engine reads on after her exit, and says so
-    assert fold_live.reply("/api/fold/record", {"day": ["2026-01-02"]}, live)["why"].startswith("could not check — only today's record")
+    # a day gone from memory reads off the files: the same trade, the same words, the exit premium from the logged rows
+    day_state.save(DAY, {"hold_trades": [dict(live[0])]})
+    fold_live._CFG["day_fn"] = lambda: "2026-01-02"
+    past = fold_live.reply("/api/fold/record", {"day": [DAY]}, live)
+    p = past["trades"][0]
+    assert past["ok"] and p["id"] == TID and p["trade"]["exit_t"] == "09:40:00" and p["exit"]["t"] == "09:40:00"
+    assert [(w["t"], w["headline"]) for w in p["words"]] == [(w["t"], w["headline"]) for w in t["words"]]
+    assert all(w["after_exit"] == (w["t"] > "09:40:00") for w in p["words"]) and p["exit"]["at"] <= "09:40:00"
+    assert fold_live.reply("/api/fold/record", {"day": ["2026-01-05"]}, live) == {"ok": True, "day": "2026-01-05", "trades": []}
+    fold_live._CFG["day_fn"] = lambda: DAY
     live[0]["exit_t"] = None                          # reopen: rebuilt again, live again
     eng.sync(live)
     eng.refresh(END + 20000)

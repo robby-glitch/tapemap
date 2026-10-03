@@ -7,7 +7,10 @@ import { j, tone } from '../hold/store'
 import type { Trade } from '../hold/HoldWindow'
 export type { Trade }
 
-export const IDX = 'NIFTY'
+// she trades all three (2026-10-03): the DESK reads the index she picks; a trade's own index rides its record
+export const INDICES = ['NIFTY', 'BANKNIFTY', 'SENSEX'] as const
+export type Idx = typeof INDICES[number]
+const IDX0: Idx = (() => { try { const v = localStorage.getItem('pro.idx'); return INDICES.find(i => i === v) ?? 'NIFTY' } catch { return 'NIFTY' } })()
 export const FIXTURE = new URLSearchParams(location.search).get('fixture') === '1'
 const POLL_MS = 10000
 
@@ -49,16 +52,20 @@ export type Ty = 'CE' | 'PE'
 export type Side = 'BUY' | 'SELL'
 export type Pick = { k: number; ty: Ty; side: Side }
 
-export type S = { loaded: boolean; trades: Trade[]; tradesWhy: string | null; fold: Record<string, FoldRead>; flat: Flat | null
+export type S = { idx: Idx; loaded: boolean; trades: Trade[]; tradesWhy: string | null; fold: Record<string, FoldRead>; flat: Flat | null
                   engineWhy: string | null; ifin: Ifin | null; chain: ChainLite | null
                   /** the GoCharting tape's health off the last fold/flat reply; null = not read (the engine banner then speaks) */
                   feed: Feed | null }
 
 export const hms = () => new Date().toTimeString().slice(0, 8)
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+/** "could not check — <why>", once: the engine's reasons already carry the prefix, and a doubled one read as noise */
+export const cc = (w?: string | null, dflt = 'no reason given') => !w ? `could not check — ${dflt}` : w.startsWith('could not check') ? w : `could not check — ${w}`
 export const notAnswering = (t = hms()) => `could not check — the engine is not answering (${t})`
+/** the engine did not answer at all (down, or slower than the 8 s timeout) -- not the same as answering with a reason */
+export const isDown = (w: string | null) => !!w && w.includes('the engine is not answering')
 
-let s: S = { loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null }
+let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null }
 const subs = new Set<() => void>()
 let busy = false, again = false, timer: number | undefined, ifinKey: Pick | null = null
 
@@ -90,12 +97,12 @@ async function poll() {
   const at = hms(), n: Partial<S> = { loaded: true }
   try {
     const r = await j<{ ok: boolean; trades: Trade[]; why?: string }>('/api/hold/trades')
-    if (r.ok) { n.trades = r.trades; n.tradesWhy = null } else n.tradesWhy = `could not check — ${r.why || 'the trades could not be read'}`
+    if (r.ok) { n.trades = r.trades; n.tradesWhy = null } else n.tradesWhy = cc(r.why, 'the trades could not be read')
   } catch { n.tradesWhy = s.tradesWhy ?? notAnswering(at) }
-  const trades = n.trades ?? s.trades, open = trades.filter(t => !t.exit_t), key = ifinKey
+  const trades = n.trades ?? s.trades, open = trades.filter(t => !t.exit_t), key = ifinKey, idx = s.idx
   let why: string | null = null
   const fail = () => { why ??= s.engineWhy ?? notAnswering(at) }          // the first failure's time stays: no churn
-  const refused = (w?: string) => { why ??= `could not check — ${w || 'the engine gave no reason'}` }
+  const refused = (w?: string) => { why ??= cc(w, 'the engine gave no reason') }
   const fold: Record<string, FoldRead> = {}
   let feed: Feed | null = null                                             // the feed band rides whichever read answered
   const jobs: Promise<unknown>[] = open.map(async t => {
@@ -108,11 +115,11 @@ async function poll() {
   })
   if (!open.length) {
     jobs.push((async () => {
-      try { const r = await j<Flat>(`/api/fold/flat?idx=${IDX}`); n.flat = r; if (r.feed) feed = r.feed; if (!r.ok) refused(r.why) }
+      try { const r = await j<Flat>(`/api/fold/flat?idx=${idx}`); n.flat = r; if (r.feed) feed = r.feed; if (!r.ok) refused(r.why) }
       catch { fail(); n.flat = s.flat }
     })())
     if (key) jobs.push((async () => {
-      try { n.ifin = await j<Ifin>(`/api/fold/ifin?idx=${IDX}&k=${key.k}&ty=${key.ty}&side=${key.side}`) }
+      try { n.ifin = await j<Ifin>(`/api/fold/ifin?idx=${idx}&k=${key.k}&ty=${key.ty}&side=${key.side}`) }
       catch { n.ifin = { ok: false, why: s.ifin?.why ?? notAnswering(at) } }
     })())
     else n.ifin = null
@@ -120,12 +127,13 @@ async function poll() {
   jobs.push((async () => {
     try {
       const c = await j<{ ok: boolean; why?: string; error?: string; ts?: string; spot?: number; atm?: number; expiry?: string
-                          strikes?: { k: number; ce?: { ltp?: number | null }; pe?: { ltp?: number | null } }[] }>(`/api/chain?idx=${IDX}`)
+                          strikes?: { k: number; ce?: { ltp?: number | null }; pe?: { ltp?: number | null } }[] }>(`/api/chain?idx=${idx}`)
       n.chain = { ok: c.ok, why: c.why ?? c.error, ts: c.ts, spot: c.spot, atm: c.atm, expiry: c.expiry,     // /api/chain refuses in `error`
                   strikes: (c.strikes || []).map(x => ({ k: x.k, ce: x.ce?.ltp ?? null, pe: x.pe?.ltp ?? null })) }
     } catch { n.chain = s.chain ?? { ok: false, why: notAnswering(at), strikes: [] } }
   })())
   await Promise.all(jobs)
+  if (idx !== s.idx) { busy = false; again = false; poll(); return }        // she switched index mid-poll: this read is the old one's
   n.fold = fold; n.engineWhy = why; n.feed = feed                       // no reply, no feed: the engine banner speaks, not a stale band
   put(n)
   busy = false
@@ -138,6 +146,15 @@ function subscribe(f: () => void) {
   return () => { subs.delete(f); if (!subs.size) window.clearInterval(timer) }
 }
 export const useStore = () => useSyncExternalStore(subscribe, () => s)
+
+/** the index the DESK reads while she is flat: the slip, the flat read and IF YOU WERE IN follow it */
+export function setIdx(x: Idx) {
+  if (x === s.idx) return
+  try { localStorage.setItem('pro.idx', x) } catch { /* the pick still holds for this page */ }
+  ifinKey = null
+  put({ idx: x, flat: null, ifin: null, chain: null, engineWhy: null })
+  if (!FIXTURE) poll()
+}
 
 /** the strike she is looking at while flat: IF YOU WERE IN reads it now and at every poll */
 export function setIfin(p: Pick | null) {

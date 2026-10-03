@@ -16,7 +16,7 @@ import type { Held } from './store'
 export type Word = 'HOLD' | 'WATCH' | 'FOLD' | 'PATA NAHI'
 type Row = { state: string; fact?: string; rows?: string; why?: string | null; tag: string; label?: string; fold?: string | null }
 export type Trade = { id: string; idx: string; k: number; side: 'CE' | 'PE'; role: 'long' | 'short'; t0: string; p0: number | null; qty: number
-                      exit_t: string | null; exit_t_broker?: string | null }
+                      exit_t: string | null; exit_t_broker?: string | null; src?: string }
 export type SideRead = { side: string; since: string; text: string; facts: { k: string; state: string; fact: string; tag: string }[]; oi_half: string[]; expiry: { text: string }; agrees?: string }
 export type Now = {
   t: string; verdict: Word; tag: string | null; sentence: string; since: string; fold_rule: number | null

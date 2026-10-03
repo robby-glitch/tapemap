@@ -2424,8 +2424,10 @@ def _hold_tick(poller, idx, extra=(), expr=True):
         side_rows.append({"day": day, "t": sd["t"], "idx": idx, "kind": "stamp_track", "side": sd["side"],
                           "stamp_track": {"k": k, "from": sd["t"], "to": hold.hm(end),
                                           "short": hold.mm(sd["t"]) + HOLD_TRACK > hold.mm("15:29"),
-                                          "ce": [{"t": t, "px": px(t, k)[0]} for t in ts],
-                                          "pe": [{"t": t, "px": px(t, k)[1]} for t in ts]},
+                                          # no spot at the stamp (30 Sep BANKNIFTY): no strike, the track says so -- it
+                                          # raised here every minute and took the whole index's hold log down with it
+                                          "ce": [{"t": t, "px": px(t, k)[0] if k else None} for t in ts],
+                                          "pe": [{"t": t, "px": px(t, k)[1] if k else None} for t in ts]},
                           "tag": "I", "src_data": F["src"], "at": round(time.time(), 1)})
     n = hold_log.append("side", day, side_rows)
     with HOLD_TRADES_LOCK:
@@ -3107,7 +3109,12 @@ class Handler(SimpleHTTPRequestHandler):
                     fr["feed"] = _feed_read(idx, day)
                 except Exception as e:                      # never at the frame's expense
                     fr["feed"] = {"idx": idx, "state": None, "why": f"could not check — feed health failed: {e}", "alarm": False, "sound": False}
-                fr["record"] = {"written": frame_log.append_if_changed(fr, day, idx)}
+                # A post outside its own session adds nothing to that session's record: GoCharting shows the last
+                # session before 09:15, all weekend and after the close, stamped with that day. On 3 Oct such posts
+                # rewrote 1 Oct's 244 MB record every minute and tore a line into it; 30 Sep's pre-open landed in 29 Sep's.
+                now_day, now_hm = _board_clock()
+                in_session = day == now_day and now_hm < "15:35"
+                fr["record"] = {"written": frame_log.append_if_changed(fr, day, idx) if in_session else False}
                 # THE LADDER RECORD (tape_log.py): each new closed bar and each
                 # new extension mark, once. Fail-soft inside; nothing here can
                 # change `ok`. Before the lock, like the frame write above.
@@ -3147,7 +3154,7 @@ class Handler(SimpleHTTPRequestHandler):
                 # Make it incremental if the record ever outgrows one bar's
                 # worth of time.
                 nbars = len(doc.get("closed") or [])
-                if nbars != _SCORED_BARS.get(idx):
+                if in_session and nbars != _SCORED_BARS.get(idx):
                     _SCORED_BARS[idx] = nbars
                     try:
                         score_frame.write(day, doc.get("closed") or [])

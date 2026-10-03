@@ -171,8 +171,14 @@ def _upstox_bars(sec_id, instrument, day, name=None):
         key = sec_id
     tok = upstox_feed.read_token()
     today = datetime.now(IST).strftime("%Y-%m-%d")
-    candles = (upstox_rest.intraday(key, tok) if day == today
-               else upstox_rest.historical(key, tok, day))
+    if day == today:
+        # Only today's candles. Just after midnight the intraday endpoint still serves the LAST session, and
+        # build_session labels whatever it gets with today's date: at 00:00:06 on 1 Oct (and 2 Oct, a holiday,
+        # and 26 Sep, a Saturday) the previous day's arms went into trigger_log again under the new date.
+        candles = [c for c in upstox_rest.intraday(key, tok) or []
+                   if isinstance(c, (list, tuple)) and str(c[0])[:10] == day]
+    else:
+        candles = upstox_rest.historical(key, tok, day)
     return upstox_adapter.candles_to_arrays(candles)
 
 

@@ -19,8 +19,8 @@ One Engine per index per day, driven by ONE thread (`run`). What it guarantees, 
 Anytime start: until the files are read and a state is built, a read says "could not check -- the
 engine is catching up (n of m rows)". A marked trade lives in data/day_state/, never here.
 
-ponytail: engines run for NIFTY and for any index with a marked trade; the other indices' rows are
-dropped at the queue (a day's rows are ~25 MB per index in memory). Widen ALWAYS if she marks elsewhere.
+Engines run all day for the three indices she trades (2026-10-03: she marks BANKNIFTY and SENSEX too, and
+the DESK reads each one flat); a day's rows are ~25 MB per index in memory. NIFTY is built first.
 """
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ import threading
 import time
 
 import book_log
+import day_state
 import daylog
 import fold
 import fold_log
@@ -39,7 +40,7 @@ import tape_log
 
 log = logging.getLogger("tapemap.fold")
 CC = fold.CC
-ALWAYS = ("NIFTY",)      # the indices read all day; another index is read while it has a marked trade
+ALWAYS = ("NIFTY", "BANKNIFTY", "SENSEX")   # the indices read all day, in build order; any other index while it has a marked trade
 LAG_MS = 2000            # (h) a row is fed 2 s after its key: a chain row (own ts) lands before later book rows (arrival t)
 READ_EVERY_S = 3         # (h) the cached reads are refreshed this often
 IFIN_EVERY_S = 10        # (h) IF YOU WERE IN is re-read this often while she looks at a strike...
@@ -441,7 +442,7 @@ def tick(now_ms=None):
     for idx in _queued():
         if idx not in want:
             _drain(idx)
-    for idx in sorted(want):
+    for idx in [i for i in ALWAYS if i in want] + sorted(want - set(ALWAYS)):
         try:
             eng = _engine(idx, day, now_ms)
             if eng is None:
@@ -473,6 +474,34 @@ def _one(q, n):
     return (q.get(n) or [None])[0]
 
 
+def past_record(day):
+    """RECORD for a day gone from memory, off the files: her marked trades (day_state) and the words the engine
+    logged for them (fold_log). The same shape as Engine.record(); the premiums are the logged rows' [M]."""
+    trades = (day_state.load(day) or {}).get("hold_trades") or []
+    if not trades:
+        return dict(ok=True, day=day, trades=[])
+    out = []
+    for tr in trades:
+        src = tr.get("src") or "marked"                   # "import": from her tradebook after the day, replayed; shown apart
+        rows = [r for r in fold_log.read(tr["idx"], day) if r.get("trade_id") == tr["id"] and r.get("src", "marked") == src
+                and r.get("event") not in ("outcome", "diverged") and r.get("headline")]
+        ex, words, last = tr.get("exit_t"), [], None
+        for r in rows:
+            p = r.get("prem") or {}
+            if (r["headline"], r.get("clause")) != last:
+                words.append(dict(t=r["ts"], headline=r["headline"], clause=r.get("clause"), prem=p.get("now"), pct=p.get("pct"),
+                                  after_exit=ex is not None and r["ts"] > ex))
+                last = (r["headline"], r.get("clause"))
+        held = [r for r in rows if ex is None or r["ts"] <= ex]
+        p = (held[-1].get("prem") or {}) if held else {}
+        out.append(dict(id=tr["id"], trade=tr, words=words, why=None if rows else f"{CC} — no engine words were logged for {tr['id']}",
+                        exit=dict(t=ex, prem=p.get("now"), pct=p.get("pct"), at=held[-1]["ts"]) if ex and held else None,
+                        best=dict(t=p.get("peak_t"), prem=p.get("peak"), pct=p.get("peak_pct")) if p else None,
+                        peak_before_exit=dict(t=p.get("peak_t"), prem=p.get("peak")) if ex and held else None,
+                        given_back=p.get("given_back") if p else None))
+    return dict(ok=True, day=day, trades=out)
+
+
 def _not_started(eng):
     return eng.err or eng.catching_up() if eng else f"{CC} — the engine has not started on this index"
 
@@ -495,7 +524,7 @@ def reply(path, q, trades):
             today = _CFG["day_fn"]() if _CFG.get("day_fn") else time.strftime("%Y-%m-%d")
             day = _one(q, "day") or today
             if day != today:
-                return dict(ok=False, why=f"{CC} — only today's record is in memory; {day} is not today")
+                return past_record(day)
             engs = [e for e in _ENG.values() if e.day == day]
             if not engs:
                 return dict(ok=False, why=f"{CC} — the engine has not started today")

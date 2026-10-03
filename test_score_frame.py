@@ -74,3 +74,23 @@ def test_old_shape_row_without_setup_or_walls_is_left_byte_identical():
     before = copy.deepcopy(row)
     scored = score_frame.score([row], BARS)
     assert scored[0] == before
+
+
+def test_write_survives_a_torn_line_and_keeps_rows_appended_mid_rewrite(tmp_path, monkeypatch):
+    """3 Oct: one torn line made every later write raise, and a row appended between the read and the swap was
+    lost. Now the torn line is dropped and an append that lands mid-rewrite rides into the new file."""
+    import json
+    import frame_log
+    p = tmp_path / "frame_2026-09-11.jsonl"
+    p.write_text(json.dumps(ROW) + "\n" + 'OSE", "to": "NOT OPEN' + "\n" + json.dumps(dict(ROW, ts="10:00")) + "\n", encoding="utf-8")
+    real = score_frame.score
+
+    def score_then_append(rows, bars):                # another POST appends while this one scores
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(json.dumps(dict(ROW, ts="10:05")) + "\n")
+        return real(rows, bars)
+    monkeypatch.setattr(score_frame, "score", score_then_append)
+    assert score_frame.write("2026-09-11", BARS, path=str(p)) == 2
+    out = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()]
+    assert [r["ts"] for r in out] == ["09:45", "10:00", "10:05"] and out[0]["taps"][0]["ex"]["1"] == 1.0
+    assert not frame_log.LOCK.locked()

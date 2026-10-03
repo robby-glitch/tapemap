@@ -83,14 +83,34 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
 
 
 def write(day: str, bars: List[dict], path: Optional[str] = None) -> int:
+    """Rescore the day's file in place. The read and the scoring run outside frame_log.LOCK (seconds on a 200 MB
+    day); the swap runs inside it and carries over every row appended meanwhile, so no append is lost or cut in
+    half. A torn line is dropped, never fatal: one bad line used to stop all scoring (3 Oct).
+    ponytail: still a whole-file rewrite per closed bar (~7 s CPU on 1 Oct's 244 MB); incremental if it bites."""
     p = path or frame_log.day_path(day)
     if not os.path.exists(p):
         return 0
-    rows = [json.loads(l) for l in open(p, encoding="utf-8") if l.strip()]
+    with open(p, "rb") as f:
+        data = f.read()
+    n = data.rfind(b"\n") + 1                         # whole lines only: a line still being appended rides in the tail
+    rows = []
+    for line in data[:n].splitlines():
+        if line.strip():
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                continue
     rows = score(rows, bars)
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, default=str) + "\n")
-    os.replace(tmp, p)
+    with frame_log.LOCK:
+        with open(p, "rb") as f:
+            f.seek(n)
+            tail = f.read()
+        if tail:
+            with open(tmp, "ab") as f:
+                f.write(tail)
+        os.replace(tmp, p)
     return len(rows)

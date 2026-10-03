@@ -176,3 +176,20 @@ def test_health_answers_with_no_tape_at_all(monkeypatch):
     out = _get("/api/health", payloads={})
     assert out["ok"] is True
     assert out["indices"] == []
+
+
+def test_today_s_bars_are_today_s_only_after_midnight(monkeypatch):
+    """00:00:06 on 1 Oct: the intraday endpoint still served 30 Sep's candles, build_session labelled them
+    with the new date, and 57 of 30 Sep's arms went into trigger_log again as 1 Oct rows."""
+    from datetime import datetime
+    import live
+    import upstox_feed
+    import upstox_rest
+    today = datetime.now(live.IST).strftime("%Y-%m-%d")
+    old = ["2026-09-30T15:29:00+05:30", 1, 2, 0.5, 1.5, 10, 0]
+    monkeypatch.setattr(upstox_feed, "read_token", lambda: "t")
+    monkeypatch.setattr(upstox_rest, "intraday", lambda key, tok: [old])
+    assert not live._upstox_bars("NSE_FO|1", "OPTIDX", today).get("close")       # yesterday's session is not today's
+    new = [f"{today}T09:15:00+05:30", 1, 2, 0.5, 1.5, 10, 0]
+    monkeypatch.setattr(upstox_rest, "intraday", lambda key, tok: [new, old])
+    assert live._upstox_bars("NSE_FO|1", "OPTIDX", today)["close"] == [1.5]
