@@ -12,8 +12,15 @@ REM Absolute interpreter, unlike start.bat's plain `python`: a scheduled task
 REM runs with a different PATH than an interactive shell, and the WindowsApps
 REM python stub can win there and fail without ever reaching this script.
 "C:\Python313\python.exe" eod_capture.py >> data\eod_capture.log 2>&1
+set RC=%ERRORLEVEL%
+
+REM Score the zone / 5c rows against the bars just saved. Idempotent and
+REM additive; it abandons (never forces) if the log grew while it ran. Nothing
+REM ran it automatically before 2026-10-04, so every row since 25 Aug sat unscored.
+"C:\Python313\python.exe" trigger_log.py score >> data\eod_capture.log 2>&1
+if %RC%==0 set RC=%ERRORLEVEL%
 
 REM Propagate the exit code so Task Scheduler's "Last Run Result" shows a
 REM refusal as a failure. A capture that quietly did nothing is the whole
 REM problem this was built to end.
-exit /b %ERRORLEVEL%
+exit /b %RC%

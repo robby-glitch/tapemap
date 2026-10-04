@@ -156,7 +156,8 @@ function glanceLine(b: Board | null): GlanceRead {
   if (!b.ok || !ok(b.spot)) return { line: CC + noCC(b.why ?? 'no board read yet'), title: b.why ?? '' }
   const f = b.headline?.fold
   return {
-    line: `idx ${f0(b.spot)} · ${f ? `fold ${f.side} ${f0(f.k)} ${f.t}` : 'no fold near spot'}`,
+    // "writers left", never "fold": on the DESK, FOLD means get out of your trade.
+    line: `idx ${f0(b.spot)} · ${f ? `${f.side} writers left ${f0(f.k)} ${f.t}` : 'no writers leaving near spot'}`,
     title: `${b.idx} at ${b.asof} (the last finished minute) [I]: ${b.headline?.text ?? ''}`,
   }
 }

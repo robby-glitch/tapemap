@@ -48,6 +48,11 @@ import fold_live                 # the rev 6 engine (fold.py) run live: /api/fol
 import feed_health               # is the GoCharting tape alive? from the data (P3): /api/feed/gc, and `feed` on the faces' replies
 import reader_live               # the SHADOW leg engine (reader.py) on its own thread: GET /api/reader, data/reader/
 import xindex_live               # the SHADOW cross-index read (xindex.py) on the reader's pass: GET /api/xindex, data/xindex/
+import chain_metrics             # ChainState.oi_flow: the OI Flow tab's marks, re-used by /api/sides
+import sides                     # the OI flow split by side against the index move (Board round 4): GET /api/sides
+import sides_log                 # ...and its forward log, once per closed slot, market hours only: data/sides/
+import trap                      # the trap layer, SHADOW (docs/board/TRAP-PREREG-2026-10-04.md): GET /api/trap
+import trap_log                  # ...its forward log (data/trap/) and its incremental readers of the recorders' files
 import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
 import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
 import expression                # ...and THE EXPRESSION, buy or sell, and the writer's word (EXPRESSION-PREREG.md rev e)
@@ -1691,6 +1696,280 @@ def _board_reply(poller, idx, q):
         hit[(kce, kpe)] = out
         _BOARD["reply"][idx] = hit
         return out
+
+
+# ---- THE SIDES READ (sides.py rev sides-2; docs/board/real-vs-fake-2026-10-03.md §2a) ----
+#
+# Per index, per CLOSED 5-minute slot: the call side and the put side on her nine
+# strikes, read separately against the index move, off the SAME grid and marks the
+# OI Flow tab reads (ChainState.minutes and its oi_flow). The forced chip reads the
+# saved chain snapshot at each mark (BookTail on today's data/chain file); the morning
+# is sized against the previous session's saved chain ("kal ka scale"). DISPLAY ONLY:
+# nothing here feeds a gate, the zone machine or trigger_log.
+#
+# ANYTIME START. A restart's warm start replays today's saved chain into the same grid
+# and chain_backfill rebuilds any hole from REST, so a server started at 11:00 reads
+# every slot since 09:15 again, exactly; slots that opened before this process started
+# (or touch a REST-rebuilt minute) say src "backfill", never "live".
+_SIDES_CACHE, _SIDES_TAIL, _SIDES_KAL = {}, {}, {}
+_SIDES_KAL_LOCK = threading.Lock()
+
+
+def _sides_kal(idx, day):
+    """The previous session's scale for `idx` (sides.day_scale on its saved chain), once per day."""
+    from chain_live import CHAIN_DIR
+    with _SIDES_KAL_LOCK:
+        if (idx, day) in _SIDES_KAL:
+            return _SIDES_KAL[(idx, day)]
+        got = None
+        try:
+            prev = sides_log.prev_session_path(CHAIN_DIR, idx, day)
+            if prev:
+                info = {}
+                m, o, _bk = sides_log.load_session(prev[1], info)
+                import chain_backfill   # the REST walk's marks (09:15-09:16) the poller never saw, as the frozen runs read them
+                for t, rec in chain_backfill.read_grid(prev[0], idx).items():
+                    m.setdefault(t, rec)
+                g = chain_metrics.ChainState()
+                g.minutes = m
+                sc = sides.day_scale(sides.read(g.oi_flow(interval=sides.INTERVAL), m, opens=o))
+                # rev sides-3 (B3): a previous session that was this index's expiry day is not a like
+                # for a fresh-series morning; its own saved snapshots say which expiry they were on
+                exp = info.get("expiry")
+                got = dict(sc, day=prev[0], expiry=exp, expiry_day=(exp == prev[0]) if exp else None)
+        except Exception:
+            log.exception("sides previous-session scale %s", idx)
+        _SIDES_KAL[(idx, day)] = got
+        return got
+
+
+def _sides_book(idx, day):
+    """The saved chain snapshot at each 5-minute mark today, followed incrementally."""
+    from chain_live import CHAIN_DIR
+    tail = _SIDES_TAIL.get(idx)
+    if tail is None or tail.day != day:
+        tail = sides_log.BookTail(str(CHAIN_DIR / f"chain_{idx}_{day}.jsonl"))
+        tail.day = day
+        _SIDES_TAIL[idx] = tail
+    return tail.read()
+
+
+def _sides_state(poller, chains, idx, today, hhmm, live_from):
+    """(public reply for one index, the grid and opens it was read from)."""
+    st = (getattr(poller, "states", None) or {}).get(idx) if poller else None
+    if st is None:
+        return {"ok": False, "why": sides.CC + "the chain poller has no state for this index yet"}, None, None
+    chain_ok, chain_why, expiry, grid_day = True, None, None, None
+    box = (chains or {}).get(idx)
+    try:
+        pl = json.loads(box["payload"]) if box and box.get("payload") else None
+    except (ValueError, TypeError):
+        pl = None
+    if pl is None:
+        chain_ok, chain_why = False, "chain poller warming up"
+    else:
+        expiry = pl.get("expiry")
+        if pl.get("ok", True):
+            if isinstance(pl.get("built_at"), (int, float)):
+                grid_day = time.strftime("%Y-%m-%d", time.localtime(pl["built_at"]))
+        else:
+            chain_ok, chain_why = False, pl.get("error") or "the chain is unavailable"
+    mins = dict(getattr(st, "minutes", None) or {})      # one copy: the poller keeps writing
+    day = grid_day or today
+    now = hhmm if day == today else None                 # a past session: every mark is closed
+    lf = live_from if day == today else None
+    opens = _board_opens(poller, idx)
+    book = _sides_book(idx, day)
+    kal = _sides_kal(idx, day)
+    key = (idx, day, len(mins), max(mins) if mins else None, now, lf, len(book), bool(kal), len(opens))
+    hit = _SIDES_CACHE.get(idx)
+    if hit is None or hit["key"] != key:
+        g = chain_metrics.ChainState()
+        g.minutes = mins
+        slots = sides.read(g.oi_flow(interval=sides.INTERVAL), mins, now=now, live_from=lf,
+                           opens=opens, book=book, kal=kal)
+        hit = _SIDES_CACHE[idx] = {"key": key, "slots": slots}
+    slots = hit["slots"]
+    dte = None
+    try:
+        if expiry:
+            from datetime import date
+            dte = (date.fromisoformat(expiry) - date.fromisoformat(day)).days
+    except ValueError:
+        dte = None
+    pub = {"ok": True, "day": day, "grid_day": grid_day, "expiry": expiry, "dte": dte,
+           "expiry_day": bool(expiry) and expiry == day, "chain_ok": chain_ok, "chain_why": chain_why,
+           "live_from": lf, "kal": kal, "kal_why": None if kal else sides.NO_KAL, "slots": slots,
+           "why": None if slots else (sides.CC + (chain_why or "no minute on the grid yet") if not chain_ok
+                                      else "checked, none yet — the first slot closes at 09:20")}
+    return pub, mins, opens
+
+
+def _sides_reply(poller, chains, want=None, _internal=None):
+    """GET /api/sides: every closed slot today per index, and the three indices' two lines."""
+    today, hhmm = _board_clock()
+    up = time.localtime(_STARTED)
+    live_from = time.strftime("%H:%M", up) if time.strftime("%Y-%m-%d", up) == today else None
+    out = {}
+    for i in instruments.ENABLED:
+        if want in (None, i):
+            pub, mins, opens = _sides_state(poller, chains, i, today, hhmm, live_from)
+            out[i] = pub
+            if _internal is not None:
+                _internal[i] = (mins, opens)
+    reads = {i: x["slots"] for i, x in out.items() if x.get("ok")}
+    meta = {i: {"dte": x.get("dte"), "expiry_day": x.get("expiry_day")} for i, x in out.items() if x.get("ok")}
+    return {"ok": True, "rev": sides.REV, "defs": sides.DEFS, "now": hhmm, "indices": out,
+            "three": sides.three(reads, meta) if want is None else None,
+            "note": "display [I] on [M] OI, premiums and prints; counts, never odds; gates nothing"}
+
+
+_SIDES_DROP = ("ce", "pe", "move")       # the face's nested copies; the log keeps the flat fields
+
+
+def _sides_loop(poller, chains):
+    """The forward log (Fable §5's spec): every 10 s in market hours, each index's newly CLOSED slots
+    as kind "slot" rows (every slot, with the three indices' counts and §1d's leader at that mark),
+    and each slot's outcome as a kind "outcome" row once t+30 has closed. Once each; the guard
+    (market hours, weekdays, today's own session) lives in sides_log.append."""
+    from chain_live import IST
+    from datetime import datetime
+    while True:
+        time.sleep(10)
+        now = datetime.now(IST)
+        if not sides_log.may_write(now, now.strftime("%Y-%m-%d"))[0]:
+            continue
+        grids = {}
+        try:
+            rep_ = _sides_reply(poller, chains, None, grids)
+        except Exception:
+            log.exception("sides read failed")
+            continue
+        reads = {i: x["slots"] for i, x in rep_["indices"].items() if x.get("ok")}
+        hm = now.strftime("%H:%M")
+        for idx, x in rep_["indices"].items():
+            if not (x.get("ok") and x.get("grid_day")):      # only a grid the chain built TODAY is written
+                continue
+            try:
+                mins, opens = grids.get(idx) or ({}, {})
+                day = x["grid_day"]
+                new = sides_log.unwritten(day, idx, "slot", [s["t"] for s in x["slots"]])
+                rows = []
+                for s in x["slots"]:
+                    if s["t"] in new:
+                        rows.append({**{k: v for k, v in s.items() if k not in _SIDES_DROP},
+                                     "expiry": x.get("expiry"), "dte": x.get("dte"), "expiry_day": x.get("expiry_day"),
+                                     **sides.cross_at(reads, s["t"]), **sides.board_at(mins, opens, s["t"])})
+                closed = [s for s in x["slots"] if sides._hm(sides._mm(s["t"]) + 30) < hm]
+                todo = sides_log.unwritten(day, idx, "outcome", [s["t"] for s in closed])
+                rows += [sides.outcome(mins, s["t"], s.get("pdir"), x.get("live_from"))
+                         for s in closed if s["t"] in todo]
+                sides_log.append(day, idx, rows, now)
+            except Exception:
+                log.exception("sides log failed %s", idx)
+
+
+# ---- THE TRAP LAYER (trap.py rev trap-1; docs/board/TRAP-PREREG-2026-10-04.md) ----
+#
+# SHADOW, [I]: display and log only; it changes no verdict, word or count. One thread reads every
+# index every TRAP_EVERY_S from the sides slots above (cached) and the recorders' own files --
+# warmap's stamps, the reader's legs, xindex, the NIFTY tape, senses, yesterday's saved chain --
+# followed incrementally by trap_log.Day, so a restart rebuilds the day exactly from disk (the
+# anytime-start rule). The endpoint is a dict lookup. In market hours the same pass writes
+# data/trap/: state rows once per key, slot rows once per closed slot, outcome rows after t+30,
+# under sides_log's guard; an index's rows wait until the war map has rebuilt its morning.
+_TRAP = {"D": None, "reply": None}
+TRAP_EVERY_S = 15
+
+
+def _trap_day(day):
+    """The day's incremental readers, at the recorders' own folders (a mock run's are followed)."""
+    import sequence as sequence_mod
+    from chain_live import CHAIN_DIR
+    D = _TRAP["D"]
+    if D is None or D.day != day:
+        D = _TRAP["D"] = trap_log.Day(day, chain_dir=str(CHAIN_DIR), vpin_path=VPIN_FAST_LOG, dirs={
+            "warmap": sequence_mod.DIR, "reader": reader_live.DIR, "xindex": xindex_live.DIR,
+            "tape": tape_log.DIR, "senses": senses_mod.DIR})
+    return D
+
+
+def _trap_compute(poller, chains):
+    """Every index's trap read now -> (the public reply, {idx: (sides reply, grid minutes, read, war map rebuilt)})."""
+    today, hhmm = _board_clock()
+    grids = {}
+    rep_ = _sides_reply(poller, chains, None, grids)
+    wm = getattr(_SENSES.get("warmap"), "_by", None) or {}
+    out, raw = {}, {}
+    for idx, x in rep_["indices"].items():
+        if not x.get("ok"):
+            out[idx] = {"ok": False, "why": x.get("why") or trap.CC + "the sides read is not ready"}
+            continue
+        day = x["day"]
+        D = _trap_day(day)
+        mins = (grids.get(idx) or ({}, {}))[0] or {}
+        fp = next((mins[t]["spot"] for t in sorted(mins) if (mins[t] or {}).get("spot") is not None), None)
+        lv = _board_levels(idx) if day == today else None
+        prev, legs, xin, tape = D.oi_prev(idx), D.legs(idx), D.xin(), D.tape(idx)
+        stamps = D.stamps()
+        r = trap.read(idx, stamps, x["slots"], now=hhmm if day == today else None,
+                      static={L["kind"]: L["px"] for L in lv} if lv else None, first_print=fp,
+                      legs=legs, xin=xin, tape=tape, pulled=D.pulled(idx), oi_prev=(prev or {}).get("k"),
+                      book=_sides_book(idx, day), live_from=x.get("live_from"))
+        bf = getattr(wm.get(idx), "backfill", None) or {}
+        rebuilt = bool(bf.get("done")) or day != today
+        raw[idx] = (x, mins, r, rebuilt)
+        out[idx] = {
+            "ok": True, "day": day, "live_from": x.get("live_from"), "lines": r["lines"], "events": r["events"],
+            "releases": r["releases"], "slots": r["slots"], "traps": list(r["traps"].values()),
+            "levels": "the war map's static levels" if lv else "from the stamps (the war map's daily levels are not in)",
+            "stamps_why": (None if r["events"] or r["traps"] else trap.CC + "the war map has stamped no level today")
+            if rebuilt else trap.CC + "the war map is still rebuilding the morning (" + str(bf.get("why")) + ")",
+            "who_why": None if legs is not None else "check nahi (reader log nahi)",
+            "xindex_why": None if xin is not None else "check nahi (xindex log nahi)",
+            "tape_why": (trap.TAPE_THIN if idx not in trap.WEEKLY_TAPE else
+                         None if tape else trap.CC + "no NIFTY tape file today"),
+            "oi_prev_day": (prev or {}).get("day"),
+            "oi_prev_why": None if prev else trap.CC + "no saved chain for the previous session",
+        }
+    return {"ok": True, "rev": trap.REV, "fixed_at": trap.FIXED_AT, "now": hhmm, "at": time.strftime("%H:%M:%S"),
+            "indices": out, "tag": "I", "shadow": True,
+            "note": "SHADOW [I] — display and log only; changes no verdict, word or count; f15/f30 are logged, never shown"}, raw
+
+
+def _trap_write(raw, now):
+    """The forward log (prereg §4), once per key, for a grid the chain built TODAY only."""
+    hm = now.strftime("%H:%M")
+    for idx, (x, mins, r, rebuilt) in raw.items():
+        if not (x.get("grid_day") and rebuilt):
+            continue
+        day = x["grid_day"]
+        try:
+            rows = [dict(e, key=f"{e['t']}|{trap.level_key(e['level'], e['px']) if e.get('px') is not None else '-'}"
+                                f"|{e['state']}") for e in r["events"]]
+            rows += r["slots"]
+            closed = [q for q in r["releases"] if sides._hm(sides._mm(q["t"]) + 30) < hm]
+            todo = trap_log.unwritten(day, idx, "outcome", [q["t"] for q in closed])
+            rows += [dict(sides.outcome(mins, q["t"], q["dir"], x.get("live_from")), level=q["level"], px=q["px"],
+                          dir=q["dir"], tag="M") for q in closed if q["t"] in todo]
+            trap_log.append(day, idx, rows, now)
+        except Exception:
+            log.exception("trap log failed %s", idx)
+
+
+def _trap_loop(poller, chains):
+    from chain_live import IST
+    from datetime import datetime
+    while True:
+        try:
+            rep_, raw = _trap_compute(poller, chains)
+            _TRAP["reply"] = rep_
+            now = datetime.now(IST)
+            if sides_log.may_write(now, now.strftime("%Y-%m-%d"))[0]:
+                _trap_write(raw, now)
+        except Exception:
+            log.exception("trap read failed")
+        time.sleep(TRAP_EVERY_S)
 
 
 # ---- THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4; hold.py) ----
@@ -3669,6 +3948,26 @@ class Handler(SimpleHTTPRequestHandler):
                     board.NONE + "no §1d top-2 front has folded yet today" if core and core["cov"]["whole"]
                     else board.CC + "the grid is not whole from the open yet"),
             }, default=str).encode())
+        elif self.path.startswith("/api/sides"):
+            # THE SIDES READ (sides.py): ?idx= for one index, none for all three plus their count.
+            want = (parse_qs(urlsplit(self.path).query).get("idx") or [None])[0]
+            want = want.upper() if want and want.upper() in instruments.ENABLED else None
+            try:
+                out = _sides_reply(self.poller, self.chains, want)
+            except Exception as e:           # a bad read must not 500 the face
+                log.exception("sides")
+                out = {"ok": False, "why": sides.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
+        elif self.path.startswith("/api/trap"):
+            # THE TRAP LAYER, SHADOW (trap.py): the trap thread's last read; ?idx= for one index.
+            want = (parse_qs(urlsplit(self.path).query).get("idx") or [None])[0]
+            want = want.upper() if want and want.upper() in instruments.ENABLED else None
+            out = _TRAP["reply"]
+            if out is None:
+                out = {"ok": False, "rev": trap.REV, "why": trap.CC + "the trap read has not run yet"}
+            elif want:
+                out = dict(out, indices={want: out["indices"].get(want) or {"ok": False, "why": trap.CC + "no read for " + want}})
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/board"):
             # BOARD rev 3's server half (notes §8 steps 2-6): headline, fronts
             # with carried/built, folds and FIRST, agreement, the trend box,
@@ -4196,6 +4495,8 @@ def _isolate_mock_writers():
     book_log.DIR = os.path.join(mock, "book")
     reader_live.DIR = os.path.join(mock, "reader")                  # the shadow leg engine's log (docs/reader/8-shadow-build.md)
     xindex_live.DIR = os.path.join(mock, "xindex")                  # the shadow cross-index log (docs/reader/10-xindex-build.md)
+    sides_log.DIR = os.path.join(mock, "sides")                     # the sides read's forward log (sides_log.py)
+    trap_log.DIR = os.path.join(mock, "trap")                       # the trap layer's forward log (trap_log.py)
     # 2026-09-28 (the correctness pass): the writers this list had missed. Each reads
     # its constant at call time; trigger_log.log_new is handed PATH at its call site.
     import chain_live
@@ -4735,7 +5036,7 @@ def main():
         from chain_live import CHAIN_DIR
         threading.Thread(target=daylog.compress_old, args=(time.strftime("%Y-%m-%d"),),
                          kwargs={"dirs": (senses_mod.DIR, frame_log.DIR, book_log.DIR, str(CHAIN_DIR),
-                                          calls_log.DIR, hold_log.DIR),
+                                          calls_log.DIR, hold_log.DIR, sides_log.DIR, trap_log.DIR),
                                  "log": log.info},
                          daemon=True, name="daylog").start()
         if poller is not None:
@@ -4744,6 +5045,10 @@ def main():
             log.info("senses thread started -> %s", senses_mod.day_path())
             # THE HOLD WINDOW's forward logs (hold_log.py), on their own thread.
             threading.Thread(target=_hold_loop, args=(poller,), daemon=True, name="hold").start()
+            # THE SIDES forward log (sides_log.py): its own thread, market hours only, once per closed slot.
+            threading.Thread(target=_sides_loop, args=(poller, chains), daemon=True, name="sides").start()
+            # THE TRAP LAYER (trap.py, SHADOW): its own thread, read every 15 s, logged in market hours only.
+            threading.Thread(target=_trap_loop, args=(poller, chains), daemon=True, name="trap").start()
             # THE REV 6 ENGINE, live and incremental (fold_live.py, pro-tool P2-03): one thread, the day's
             # rows in memory, every read cached. Its seams are read at call time (mock isolation, day roll).
             threading.Thread(target=fold_live.run, kwargs=dict(

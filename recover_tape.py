@@ -44,7 +44,10 @@ def path_for(index, day):
             else f"{BT}/{index}/fut_{day}.json")
 
 
-def to_payload(candles, index, day, expiry=None, token=None):
+KITE = "kite historical (recover_tape.py)"
+
+
+def to_payload(candles, index, day, expiry=None, token=None, source=KITE):
     """Kite `historical_data` rows -> the arrays `contract_bars.to_bars` reads.
 
     A Kite row is [timestamp, open, high, low, close, volume, oi]; the stamp
@@ -67,18 +70,20 @@ def to_payload(candles, index, day, expiry=None, token=None):
         out["open_interest"].append(float(row[6]) if len(row) > 6 else 0.0)
     out["_meta"] = {"index": index, "expiry": expiry, "fut_id": token,
                     "bars": len(out["timestamp"]),
-                    "source": "kite historical (recover_tape.py)",
+                    "source": source,
                     "recovered_at": datetime.now().isoformat()}
     return out
 
 
-def write(index, day, candles, expiry=None, token=None):
-    """-> (path, bars) on success; raises with the reason on refusal."""
+def write(index, day, candles, expiry=None, token=None, source=KITE):
+    """-> (path, bars) on success; raises with the reason on refusal.
+    `source` lands in `_meta`: Upstox candles share Kite's row shape, and a
+    reader must never be told they came from Kite."""
     dst = path_for(index, day)
     if os.path.exists(dst):
         raise SystemExit(f"refused: {dst} already exists — a live capture is "
                          f"the better record and is never overwritten")
-    payload = to_payload(candles, index, day, expiry, token)
+    payload = to_payload(candles, index, day, expiry, token, source)
     n = len(payload["timestamp"])
     if n < 60:
         raise SystemExit(f"refused: {n} bars for {index} {day} — under 60, "

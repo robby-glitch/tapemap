@@ -11,6 +11,8 @@ import FlowTab from './flow/FlowTab'
 // BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md).
 import BoardRev3, { useBoardGlance } from './board/BoardRev3'
 import type { GlanceRead } from './board/BoardRev3'
+// THE BOARD, overhaul 2026-10-03 (docs/board/BOARD-OVERHAUL-2026-10-03.md). BoardRev3 stays on disk, unmounted.
+import Board from './board/Board'
 import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
 // THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
@@ -1910,7 +1912,7 @@ export default function App() {
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll:
             the tab unmounts and the interval is cleared with it. */}
-        {activeTab === 'Board'    && <BoardRev3 key={activeIndex} index={activeIndex} />}
+        {activeTab === 'Board'    && <Board key={activeIndex} index={activeIndex} />}
         {activeTab === 'Flow'     && <FlowTab index={activeIndex} />}
         {activeTab === 'VPIN'     && <VpinTab key={activeIndex} index={activeIndex} />}
         {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}

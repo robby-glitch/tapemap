@@ -1,0 +1,803 @@
+trap.py trap-1 (fixed 2026-10-04 02:11 IST) frozen, run over every session in data/chain/ — rows only, no rates.
+Levels: static (PDH/PDL/PDC/PWH/PWL/OPEN) and MAJOR rounds, from warmap's own stamps (live + the last restart's replay,
+never both for one stretch). Static levels for the gap clause come from the stamps (PDC must have been stamped).
+Slots: sides.py rev sides-3 per session (kal scale from the previous session on disk, as sides-all-sessions-rev3.txt).
+loaded = the larger positive top-2 ΔOI sum over slots whose close found price AT the level (R2); shown at end of day,
+and at the release on each RELEASED row. f15/f30 = index points from the release mark; mfe30/mae30 = best/worst
+excursion over the next 30 min IN THE RELEASE'S DIRECTION (+ = with it), to 15:15 (sides.outcome).
+kal scale: chained over sessions on disk WITH the REST-backfilled 09:15-09:16 minutes (as sides-all-sessions-rev3.txt);
+the live server's kal reads them too since the 2026-10-04 ~11:30 fix (before it, 1 Oct SENSEX 10:10 read differently live).
+WHO and X2/X3 exist only where the reader / xindex shadow logs exist (30 Sep, 1 Oct); tape_with is not in this file.
+A warmap file covers only the hours a server ran; before 15 Sep there was no restart replay, so a late start has no morning.
+
+SESSIONS: 27 of 27 with chain files (2026-08-20 .. 2026-10-01).
+ROWS: 312 trap records · 182 RELEASED · 355 POWER at no trap · 135 POWER at a trap but not a release.
+PROBLEMS: none
+
+=== 2026-08-20 Thu · expiry (rule): SENSEX
+  note: could not check — no warmap file this day (the war map's level stamps are the trap's input)
+  -- NIFTY · stamps none · first print 24,205.8
+     (no trap: no level in the set was stamped)
+  -- BANKNIFTY · stamps none · first print 57,621.1
+     (no trap: no level in the set was stamped)
+  -- SENSEX · stamps none · first print 77,407.5
+     (no trap: no level in the set was stamped)
+
+=== 2026-08-21 Fri
+  note: could not check — no warmap file this day (the war map's level stamps are the trap's input)
+  -- NIFTY · stamps none · first print 24,220.2
+     (no trap: no level in the set was stamped)
+     POWER at no trap (release_unattached): 10:55 ▲, 12:00 ▼, 13:10 ▲, 14:30 ▲, 14:35 ▲
+  -- BANKNIFTY · stamps none · first print 57,520.8
+     (no trap: no level in the set was stamped)
+     POWER at no trap (release_unattached): 12:20 ▲, 14:30 ▲, 15:25 ▼
+  -- SENSEX · stamps none · first print 77,503.1
+     (no trap: no level in the set was stamped)
+     POWER at no trap (release_unattached): 11:40 ▼, 15:00 ▼
+
+=== 2026-08-24 Mon
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:48–15:29 · first print 24,299.2
+     PDH 24,284.0 · REACHED 09:15 (gap) · tests 10 · DWELL 2× (09:48, 10:23) · INDUCED 09:15 ▲ gap · INDUCED 09:53 ▼ · FAILED 09:53 (gap) · REJECT 10× · loaded PE (CE +16.2L / PE +24.6L, top-2 at the level, end of day)
+     OPEN 24,285.0 · REACHED 10:06 · tests 11 · INDUCED 09:59 ▼ · REJECT 11× · loaded PE (CE +10.3L / PE +15.4L, top-2 at the level, end of day)
+     ROUND 24,300.0 · REACHED 10:37 · tests 2 · REJECT 2× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDC 24,252.0 · REACHED 10:51 · tests 2 · INDUCED 11:03 ▼ · REJECT 1× · loaded CE (CE +5.6L / PE -61.0L, top-2 at the level, end of day)
+        RELEASED 11:05 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · REAL · next level: PDL 24,207 at 11:12 · WHO check nahi (reader log nahi) · f15 -7 f30 -48 mfe30 +48 mae30 -5
+     PDL 24,206.8 · REACHED 11:06 · tests 21 · REJECT 19× · loaded CE (CE +135.6L / PE +6.4L, top-2 at the level, end of day)
+        RELEASED 11:15 ▼ · loaded CE · forced 2/2 · CE likh ×4 · BACKED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -11 f30 -19 mfe30 +36 mae30 -4
+        RELEASED 11:20 ▼ · loaded CE · forced 2/2 · CE likh ×4 · CAPPED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -40 f30 -21 mfe30 +40 mae30 +5
+     ROUND 24,200.0 · REACHED 11:12 · tests 18 · DWELL 1× (11:51) · REJECT 17× · loaded CE (CE +109.9L / PE +19.9L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:30 ▼, 09:35 ▼, 09:40 ▼, 13:10 ▼, 14:35 ▲, 14:45 ▲, 14:55 ▲, 15:05 ▲, 15:10 ▲, 15:20 ▲
+     POWER not a release: 10:00 ▲ at OPEN — koi load nahi (neither top-2 side added at the level); 10:55 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 11:00 ▼ at PDH — POWER ▼ is toward the loaded side (PE)
+  -- BANKNIFTY · stamps 09:22–15:29 · first print 57,807.8
+     PDH 57,772.4 · REACHED 09:15 (gap) · tests 5 · INDUCED 09:15 ▲ gap · INDUCED 09:41 ▼ · FAILED 09:41 (gap) · REJECT 4× · loaded CE (CE +3.3L / PE +1.1L, top-2 at the level, end of day)
+        RELEASED 09:35 ▼ · loaded CE · forced 2/2 · CE likh ×5 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -53 f30 -59 mfe30 +94 mae30 -11
+     PWH 57,772.4 · REACHED 09:15 (gap) · tests 5 · INDUCED 09:15 ▲ gap · INDUCED 09:41 ▼ · FAILED 09:41 (gap) · REJECT 4× · loaded CE (CE +3.3L / PE +1.1L, top-2 at the level, end of day)
+     OPEN 57,828.2 · REACHED 09:22 · tests 1 · REJECT 1× · loaded PE (CE +0.1L / PE +0.4L, top-2 at the level, end of day)
+     PDC 57,761.9 · REACHED 09:24 · tests 2 · INDUCED 09:48 ▼ · REJECT 1× · loaded CE (CE +4.3L / PE +1.3L, top-2 at the level, end of day)
+        RELEASED 09:50 ▼ · loaded CE · forced 2/2 · CE likh ×3 · CAPPED · subah witness · next level: ROUND 57,700 at 09:52 → 4 more · WHO check nahi (reader log nahi) · f15 -7 f30 -42 mfe30 +42 mae30 -8
+     ROUND 57,500.0 · REACHED 11:03 · tests 2 · INDUCED 11:09 ▼ · loaded CE (CE +0.0L / PE -0.5L, top-2 at the level, end of day)
+     PDL 57,481.6 · REACHED 11:04 · tests 1 · INDUCED 11:09 ▼ · loaded CE (CE +0.0L / PE -0.5L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:25 ▼, 13:05 ▼, 15:20 ▲
+     POWER not a release: 09:30 ▼ at OPEN — POWER ▼ is toward the loaded side (PE)
+  -- SENSEX · stamps 09:22–11:13 · first print 77,770.5
+     PDH 77,725.7 · REACHED 09:15 (gap) · tests 5 · INDUCED 09:15 ▲ gap · INDUCED 09:31 ▼ · FAILED 09:31 (gap) · REJECT 4× · loaded CE (CE +2.4L / PE +2.3L, top-2 at the level, end of day)
+     OPEN 77,629.6 · REACHED 09:31 · tests 9 · DWELL 2× (09:57, 10:18) · INDUCED 09:59 ▼ · INDUCED 10:38 ▲ · FAILED 10:49 · REJECT 7× · loaded CE (CE +3.1L / PE +0.5L, top-2 at the level, end of day)
+        RELEASED 09:40 ▼ · loaded CE · forced 2/2 · CE likh ×6 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -38 f30 -51 mfe30 +69 mae30 -6
+        RELEASED 09:45 ▼ · loaded CE · forced 2/2 · CE likh ×3 · WALL · subah witness · next level: PDL 77,446 at 11:04 · WHO check nahi (reader log nahi) · f15 -68 f30 -53 mfe30 +75 mae30 +16
+     PDC 77,540.8 · REACHED 10:52 · tests 3 · INDUCED 11:03 ▼ · REJECT 2× · loaded CE (CE +0.8L / PE +0.4L, top-2 at the level, end of day)
+        RELEASED 11:05 ▼ · loaded CE · forced 2/2 · PE kaat ×10 · REAL · next level: ROUND 77,400 at 11:13 · WHO check nahi (reader log nahi) · f15 -16 f30 -137 mfe30 +142 mae30 -6
+     ROUND 77,500.0 · REACHED 11:00 · tests 1 · INDUCED 11:06 ▼ · loaded CE (CE +2.0L / PE -1.4L, top-2 at the level, end of day)
+     PDL 77,445.9 · REACHED 11:03 · tests 1 · DWELL 1× (11:10) · INDUCED 11:13 ▼ · loaded CE (CE +2.6L / PE -2.7L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▼, 10:05 ▼, 13:05 ▼, 14:35 ▲
+     POWER not a release: 09:30 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 09:35 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 10:20 ▲ at OPEN — POWER ▲ is toward the loaded side (CE)
+
+=== 2026-08-25 Tue · expiry (rule): NIFTY, BANKNIFTY
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:22–14:52 · first print 24,138.7
+     PDL 24,144.3 · REACHED 09:15 (gap) · tests 22 · DWELL 3× (11:06, 11:51, 13:06) · INDUCED 09:15 ▼ gap · INDUCED 10:20 ▼ · INDUCED 11:12 ▼ · INDUCED 13:13 ▼ · FAILED 10:48 · FAILED 11:21 · FAILED 13:53 · REJECT 19× · loaded CE (CE +401.5L / PE +64.6L, top-2 at the level, end of day)
+        RELEASED 09:55 ▼ · loaded CE · forced 2/2 · CE likh ×4 · PE kaat ×8 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +2 f30 -19 mfe30 +19 mae30 -9
+        RELEASED 13:15 ▼ · loaded CE · forced 1/2 · PE kaat ×7 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -0 f30 +12 mfe30 +5 mae30 -15
+     OPEN 24,175.8 · REACHED 09:22 · tests 15 · DWELL 2× (09:27, 12:07) · INDUCED 09:41 ▼ · REJECT 13× · loaded PE (CE -256.5L / PE +306.3L, top-2 at the level, end of day)
+        RELEASED 09:30 ▲ · loaded PE · forced 2/2 · PE likh ×6 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -31 f30 -44 mfe30 +8 mae30 -48
+        RELEASED 09:35 ▲ · loaded PE · forced 2/2 · PE likh ×5 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -35 f30 -43 mfe30 -3 mae30 -58
+        RELEASED 12:00 ▲ · loaded PE · forced 2/2 · CE kaat ×13 · PE likh ×4 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +7 f30 -3 mfe30 +10 mae30 -4
+     PDC 24,219.0 · REACHED 09:22 · tests 11 · INDUCED 14:52 ▲ · REJECT 10× · loaded koi nahi (CE -81.5L / PE -42.3L, top-2 at the level, end of day)
+     ROUND 24,200.0 · REACHED 09:22 · tests 3 · INDUCED 14:48 ▲ · REJECT 2× · loaded PE (CE +66.3L / PE +165.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▲, 10:25 ▼, 13:55 ▲, 15:15 ▼, 15:20 ▼, 15:30 ▼
+     POWER not a release: 09:40 ▼ at ROUND — POWER ▼ is toward the loaded side (PE); 09:45 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 12:45 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 13:05 ▼ at PDL — forced 0/2 — writers in profit; 14:00 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 14:55 ▲ at PDC — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:22–15:28 · first print 57,299.6
+     OPEN 57,360.7 · REACHED 09:22 · tests 44 · DWELL 1× (13:09) · INDUCED 13:10 ▼ · INDUCED 14:01 ▼ · INDUCED 14:39 ▲ · REJECT 41× · loaded CE (CE +8.0L / PE +6.5L, top-2 at the level, end of day)
+     PDC 57,525.9 · REACHED 09:22 · tests 15 · INDUCED 09:54 ▼ · INDUCED 10:51 ▲ · FAILED 11:01 · REJECT 12× · loaded PE (CE +10.2L / PE +24.9L, top-2 at the level, end of day)
+        RELEASED 09:30 ▲ · loaded PE · forced 2/2 · PE likh ×9 · CAPPED · subah witness · next level: ROUND 57,600 at 10:51 → 1 more · WHO check nahi (reader log nahi) · f15 -64 f30 -76 mfe30 +50 mae30 -109
+     ROUND 57,500.0 · REACHED 09:22 · tests 31 · DWELL 1× (09:59) · INDUCED 10:13 ▼ · INDUCED 10:51 ▲ · INDUCED 11:05 ▼ · REJECT 27× · loaded PE (CE +20.2L / PE +36.4L, top-2 at the level, end of day)
+     PDL 57,245.9 · REACHED 09:23 · tests 12 · REJECT 12× · loaded CE (CE +2.8L / PE -4.2L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▲, 13:15 ▼, 13:55 ▲, 14:55 ▲, 15:25 ▼
+     POWER not a release: 09:40 ▼ at PDC — POWER ▼ is toward the loaded side (PE); 10:00 ▲ at ROUND — forced 0/2 — writers in profit
+  -- SENSEX · stamps 09:22–15:30 · first print 77,197.5
+     PDL 77,201.7 · REACHED 09:15 (gap) · tests 23 · DWELL 2× (11:19, 13:06) · INDUCED 09:15 ▼ gap · INDUCED 10:23 ▼ · INDUCED 13:14 ▼ · FAILED 10:47 · FAILED 13:54 · REJECT 21× · loaded CE (CE +5.1L / PE +0.7L, top-2 at the level, end of day)
+        RELEASED 13:15 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -12 f30 +20 mfe30 +33 mae30 -33
+     OPEN 77,295.5 · REACHED 09:22 · tests 25 · INDUCED 09:51 ▼ · INDUCED 11:58 ▲ · INDUCED 14:39 ▲ · REJECT 21× · loaded PE (CE -0.7L / PE +7.9L, top-2 at the level, end of day)
+        RELEASED 09:30 ▲ · loaded PE · forced 2/2 · PE likh ×6 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -123 f30 -170 mfe30 +23 mae30 -190
+     PDC 77,369.1 · REACHED 09:22 · tests 12 · INDUCED 14:41 ▲ · REJECT 11× · loaded PE (CE -1.3L / PE +6.7L, top-2 at the level, end of day)
+        RELEASED 09:40 ▲ · loaded PE · forced 1/2 · PE likh ×4 · CAPPED · subah witness · next level: PDC 77,369 at 11:59 · WHO check nahi (reader log nahi) · f15 -113 f30 -104 mfe30 -16 mae30 -130
+        RELEASED 14:45 ▲ · loaded PE · forced 2/2 · CE kaat ×5 · REAL · next level: ROUND 77,500 at 14:52 · WHO check nahi (reader log nahi) · f15 +112 f30 +112 mfe30 +159 mae30 -12
+     ROUND 77,500.0 · REACHED 09:22 · tests 7 · INDUCED 15:04 ▲ · REJECT 6× · loaded PE (CE -3.8L / PE +3.7L, top-2 at the level, end of day)
+        RELEASED 15:00 ▲ · loaded PE · forced 2/2 · PE likh ×6 · REAL · next level: ROUND 77,600 at 15:12 · WHO check nahi (reader log nahi) · f15 +1 f30 · mfe30 +47 mae30 -26 (15:15 se check nahi — the window crosses the auction freeze)
+     POWER at no trap (release_unattached): 09:25 ▲, 13:20 ▼, 13:55 ▲, 14:55 ▲
+     POWER not a release: 09:55 ▼ at PDL — POWER ▼ is toward the loaded side (PE); 11:55 ▲ at PDL — POWER ▲ is toward the loaded side (CE); 13:05 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 14:00 ▲ at OPEN — forced 0/2 — writers in profit
+
+=== 2026-08-26 Wed
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:22–11:17 · first print 24,323.0
+     OPEN 24,342.0 · REACHED 09:22 · tests 8 · INDUCED 10:17 ▼ · REJECT 7× · loaded CE (CE +41.8L / PE +13.9L, top-2 at the level, end of day)
+     PDC 24,334.5 · REACHED 09:22 · tests 20 · INDUCED 10:18 ▼ · REJECT 19× · loaded CE (CE +33.5L / PE +1.4L, top-2 at the level, end of day)
+     PDH 24,334.5 · REACHED 09:22 · tests 20 · INDUCED 10:18 ▼ · REJECT 19× · loaded CE (CE +33.5L / PE +1.4L, top-2 at the level, end of day)
+     PWH 24,360.1 · REACHED 09:22 · tests 9 · INDUCED 09:46 ▲ · FAILED 10:02 · REJECT 8× · loaded PE (CE +28.0L / PE +28.3L, top-2 at the level, end of day)
+     ROUND 24,300.0 · REACHED 09:22 · tests 6 · DWELL 1× (10:28) · REJECT 5× · loaded CE (CE +25.9L / PE -7.9L, top-2 at the level, end of day)
+  -- BANKNIFTY · stamps 09:22–10:37 · first print 57,834.3
+     PWH 57,772.4 · REACHED 09:22 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 58,000.0 · REACHED 09:22 · tests 15 · REJECT 15× · loaded PE (CE +0.4L / PE +2.8L, top-2 at the level, end of day)
+  -- SENSEX · stamps 09:22–10:28 · first print 77,858.3
+     OPEN 77,892.1 · REACHED 09:22 · tests 7 · INDUCED 10:11 ▼ · REJECT 6× · loaded CE (CE +29.9L / PE +27.7L, top-2 at the level, end of day)
+        RELEASED 10:15 ▼ · loaded CE · forced 2/2 · CE likh ×6 · PE kaat ×11 · PRESSURE · subah witness · next level: ROUND 77,800 at 10:17 · WHO check nahi (reader log nahi) · f15 -123 f30 -79 mfe30 +163 mae30 +17
+     PWH 77,928.7 · REACHED 09:22 · tests 3 · INDUCED 09:48 ▲ · FAILED 10:06 · REJECT 2× · loaded PE (CE +15.8L / PE +34.7L, top-2 at the level, end of day)
+        RELEASED 09:30 ▲ · loaded PE · forced 1/2 · PE likh ×24 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +52 f30 +31 mfe30 +61 mae30 -44
+        RELEASED 09:45 ▲ · loaded PE · forced 2/2 · PE likh ×8 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -21 f30 -102 mfe30 +9 mae30 -134
+     ROUND 78,000.0 · REACHED 09:22 · tests 9 · REJECT 9× · loaded PE (CE +8.4L / PE +20.8L, top-2 at the level, end of day)
+        RELEASED 09:50 ▲ · loaded PE · forced 2/2 · PE likh ×15 · FAKE · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -36 f30 -187 mfe30 +18 mae30 -187
+        RELEASED 10:00 ▲ · loaded PE · forced 1/2 · PE likh ×3 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -80 f30 -204 mfe30 -12 mae30 -244
+     PDH 77,666.4 · REACHED 10:26 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:05 ▼, 10:20 ▼, 10:25 ▼, 10:30 ▼
+     POWER not a release: 10:10 ▼ at OPEN — POWER ▼ is toward the loaded side (PE)
+
+=== 2026-08-27 Thu · expiry (rule): SENSEX
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:23–15:28 · first print 24,246.5
+     PDC 24,207.8 · REACHED 09:23 · tests 13 · INDUCED 09:32 ▼ · INDUCED 09:59 ▼ · FAILED 09:35 · REJECT 11× · loaded CE (CE +44.8L / PE +25.9L, top-2 at the level, end of day)
+     PDL 24,207.8 · REACHED 09:23 · tests 13 · INDUCED 09:32 ▼ · INDUCED 09:59 ▼ · FAILED 09:35 · REJECT 11× · loaded CE (CE +44.8L / PE +25.9L, top-2 at the level, end of day)
+     ROUND 24,200.0 · REACHED 09:23 · tests 21 · INDUCED 10:01 ▼ · REJECT 20× · loaded CE (CE +37.0L / PE +12.9L, top-2 at the level, end of day)
+     ROUND 24,100.0 · REACHED 15:28 · tests 1 · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:55 ▼, 11:20 ▼, 12:40 ▲, 13:50 ▼, 15:15 ▼, 15:20 ▼, 15:25 ▼
+  -- BANKNIFTY · stamps 09:22–15:28 · first print 57,774.3
+     PDC 57,783.8 · REACHED 09:22 · tests 20 · INDUCED 10:50 ▼ · REJECT 19× · loaded CE (CE +0.5L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 09:30 ▼ · loaded CE · forced 2/2 · CE likh ×5 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +50 f30 +38 mfe30 +16 mae30 -93
+        RELEASED 09:40 ▼ · loaded CE · forced 2/2 · CE likh ×4 · CAPPED · subah witness · next level: ROUND 57,700 at 10:51 → 1 more · WHO check nahi (reader log nahi) · f15 +39 f30 +18 mfe30 +22 mae30 -57
+     PWH 57,772.4 · REACHED 09:22 · tests 36 · INDUCED 10:50 ▼ · REJECT 35× · loaded CE (CE +0.5L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 09:35 ▼ · loaded CE · forced 2/2 · CE likh ×4 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +5 f30 +11 mfe30 +49 mae30 -44
+     PDL 57,611.8 · REACHED 12:18 · tests 13 · DWELL 1× (12:32) · INDUCED 12:33 ▼ · INDUCED 14:03 ▼ · INDUCED 14:32 ▼ · INDUCED 15:12 ▼ · FAILED 12:38 · FAILED 14:21 · FAILED 15:01 · REJECT 9× · loaded CE (CE +0.3L / PE +0.0L, top-2 at the level, end of day)
+        RELEASED 12:25 ▼ · loaded CE · forced 2/2 · CE likh ×4 · CAPPED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +61 f30 +68 mfe30 -0 mae30 -68
+        RELEASED 14:00 ▼ · loaded CE · forced 2/2 · CE likh ×4 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -8 f30 +48 mfe30 +41 mae30 -62
+        RELEASED 14:05 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +40 f30 +17 mfe30 +28 mae30 -74
+        RELEASED 15:15 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · SQUEEZE · next level: ROUND 57,500 at 15:28 · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 · mae30 · (15:15 se check nahi — the window crosses the auction freeze)
+     ROUND 57,500.0 · REACHED 15:28 · tests 1 · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:55 ▼, 13:15 ▲, 13:50 ▼, 14:10 ▼, 15:25 ▼
+  -- SENSEX · stamps 09:22–10:11 · first print 77,495.4
+     OPEN 77,576.8 · REACHED 09:22 · tests 12 · REJECT 12× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDC 77,472.9 · REACHED 09:22 · tests 17 · INDUCED 09:31 ▼ · REJECT 16× · loaded CE (CE +61.6L / PE +40.2L, top-2 at the level, end of day)
+     PDL 77,472.9 · REACHED 09:22 · tests 17 · INDUCED 09:31 ▼ · REJECT 16× · loaded CE (CE +61.6L / PE +40.2L, top-2 at the level, end of day)
+        RELEASED 09:35 ▼ · loaded CE · forced 2/2 · CE likh ×5 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +43 f30 -67 mfe30 +89 mae30 -57
+        RELEASED 09:40 ▼ · loaded CE · forced 2/2 · CE likh ×3 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +37 f30 -12 mfe30 +60 mae30 -87
+        RELEASED 10:00 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +25 f30 -9 mfe30 +35 mae30 -39
+     ROUND 77,500.0 · REACHED 09:22 · tests 8 · INDUCED 09:29 ▼ · REJECT 7× · loaded PE (CE +40.7L / PE +45.1L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:05 ▼, 10:45 ▼, 10:55 ▼, 11:20 ▼, 12:45 ▲, 12:55 ▲, 13:50 ▼, 13:55 ▼, 15:20 ▼, 15:25 ▼
+     POWER not a release: 09:30 ▼ at PDL — POWER ▼ is toward the loaded side (PE); 09:50 ▲ at PDL — POWER ▲ is toward the loaded side (CE)
+
+=== 2026-08-31 Mon
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:22–15:29 · first print 24,065.2
+     PDL 24,076.8 · REACHED 09:22 · tests 33 · DWELL 1× (12:55) · INDUCED 14:46 ▲ · INDUCED 15:00 ▼ · REJECT 30× · loaded PE (CE -164.9L / PE +141.2L, top-2 at the level, end of day)
+        RELEASED 12:00 ▲ · loaded PE · forced 2/2 · CE kaat ×6 · PE likh ×4 · FAKE · next level: OPEN 24,118 at 14:47 → 1 more · WHO check nahi (reader log nahi) · f15 -10 f30 -6 mfe30 +10 mae30 -10
+        RELEASED 14:50 ▲ · loaded PE · forced 2/2 · CE kaat ×16 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -29 f30 · mfe30 +12 mae30 -31 (15:15 se check nahi — the window crosses the auction freeze)
+     PWL 24,076.8 · REACHED 09:22 · tests 33 · INDUCED 14:46 ▲ · INDUCED 15:00 ▼ · REJECT 30× · loaded PE (CE -164.9L / PE +141.2L, top-2 at the level, end of day)
+     ROUND 24,100.0 · REACHED 09:22 · tests 3 · INDUCED 14:48 ▼ · REJECT 2× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 24,000.0 · REACHED 09:56 · tests 9 · DWELL 2× (10:41, 11:11) · REJECT 9× · loaded CE (CE +50.3L / PE -26.0L, top-2 at the level, end of day)
+     OPEN 24,117.5 · REACHED 14:46 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:40 ▲, 09:45 ▼, 10:00 ▼, 10:05 ▲, 10:10 ▲, 10:15 ▼, 11:55 ▲, 14:05 ▼, 14:40 ▼, 14:45 ▲, 15:20 ▼
+     POWER not a release: 09:30 ▼ at PDL — POWER ▼ is toward the loaded side (PE)
+  -- BANKNIFTY · stamps 09:22–15:29 · first print 57,420.6
+     OPEN 57,353.8 · REACHED 09:22 · tests 39 · DWELL 4× (09:53, 10:09, 11:47, 12:54) · INDUCED 09:56 ▼ · INDUCED 11:53 ▲ · INDUCED 14:05 ▼ · INDUCED 14:40 ▲ · REJECT 35× · loaded CE (CE +0.6L / PE -0.2L, top-2 at the level, end of day)
+     PDC 57,496.3 · REACHED 09:22 · tests 7 · INDUCED 09:40 ▼ · INDUCED 14:46 ▲ · FAILED 14:47 · REJECT 5× · loaded PE (CE +0.3L / PE +0.8L, top-2 at the level, end of day)
+        RELEASED 14:50 ▲ · loaded PE · forced 2/2 · CE kaat ×12 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -63 f30 · mfe30 +40 mae30 -63 (15:15 se check nahi — the window crosses the auction freeze)
+     PDH 57,596.4 · REACHED 09:22 · tests 2 · REJECT 2× · loaded PE (CE +0.0L / PE +0.4L, top-2 at the level, end of day)
+     ROUND 57,500.0 · REACHED 09:22 · tests 6 · INDUCED 09:40 ▼ · REJECT 5× · loaded PE (CE +0.3L / PE +0.8L, top-2 at the level, end of day)
+        RELEASED 09:30 ▲ · loaded PE · forced 1/2 · PE likh ×5 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -104 f30 -102 mfe30 +47 mae30 -139
+     PDL 57,264.0 · REACHED 09:27 · tests 27 · DWELL 3× (10:20, 10:31, 11:27) · INDUCED 10:25 ▼ · INDUCED 11:28 ▲ · REJECT 25× · loaded CE (CE +0.7L / PE -0.1L, top-2 at the level, end of day)
+     PWL 57,231.2 · REACHED 09:57 · tests 8 · REJECT 8× · loaded CE (CE +0.5L / PE +0.1L, top-2 at the level, end of day)
+        RELEASED 10:30 ▼ · loaded CE · forced 2/2 · CE likh ×3 · CAPPED · subah witness · next level: ROUND 57,300 at 14:05 · WHO check nahi (reader log nahi) · f15 -40 f30 -2 mfe30 +67 mae30 -5
+     PWH 58,012.4 · REACHED 15:29 · tests 1 · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 58,000.0 · REACHED 15:29 · tests 1 · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:00 ▲, 14:10 ▼, 14:45 ▲, 15:15 ▼
+     POWER not a release: 11:55 ▲ at OPEN — POWER ▲ is toward the loaded side (CE); 14:25 ▼ at PDL — forced 0/2 — writers in profit
+  -- SENSEX · stamps 09:23–15:28 · first print 77,001.3
+     PDL 76,988.2 · REACHED 09:23 · tests 27 · DWELL 1× (12:28) · INDUCED 09:29 ▼ · INDUCED 09:42 ▼ · INDUCED 11:56 ▲ · INDUCED 14:46 ▲ · INDUCED 15:05 ▼ · FAILED 09:33 · FAILED 12:01 · REJECT 21× · loaded PE (CE -3.7L / PE +3.9L, top-2 at the level, end of day)
+     ROUND 77,000.0 · REACHED 09:23 · tests 33 · INDUCED 09:28 ▼ · INDUCED 09:42 ▼ · INDUCED 14:46 ▲ · INDUCED 15:04 ▼ · FAILED 09:34 · REJECT 28× · loaded PE (CE -1.7L / PE +9.4L, top-2 at the level, end of day)
+        RELEASED 12:00 ▲ · loaded PE · forced 2/2 · CE kaat ×5 · FAKE · next level: ROUND 77,100 at 14:46 → 2 more · WHO check nahi (reader log nahi) · f15 -39 f30 -35 mfe30 +34 mae30 -39
+     OPEN 77,130.7 · REACHED 09:23 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PWL 76,933.6 · REACHED 09:27 · tests 18 · DWELL 1× (15:20) · INDUCED 09:56 ▼ · INDUCED 11:54 ▲ · INDUCED 14:46 ▲ · FAILED 14:00 · REJECT 14× · loaded CE (CE +3.1L / PE -4.8L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 14:10 ▼, 15:00 ▲
+     POWER not a release: 11:55 ▲ at PWL — POWER ▲ is toward the loaded side (CE); 14:45 ▲ at PWL — POWER ▲ is toward the loaded side (CE); 14:50 ▲ at PWL — POWER ▲ is toward the loaded side (CE); 15:15 ▼ at PWL — forced 0/2 — writers in profit; 15:20 ▼ at PWL — forced 0/2 — writers in profit; 15:30 ▼ at PWL — forced 0/2 — writers in profit
+
+=== 2026-09-01 Tue · expiry (rule): NIFTY
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:26–15:29 · first print 24,034.4
+     PWL 24,076.8 · REACHED 09:15 (gap) · tests 13 · INDUCED 09:15 ▼ gap · INDUCED 11:08 ▲ · INDUCED 13:11 ▼ · FAILED 11:08 (gap) · REJECT 11× · loaded PE (CE -12.0L / PE +301.8L, top-2 at the level, end of day)
+        RELEASED 10:55 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · REAL · next level: PDH 24,129 at 11:20 → 3 more · WHO check nahi (reader log nahi) · f15 +7 f30 +31 mfe30 +36 mae30 -14
+     OPEN 24,077.5 · REACHED 09:26 · tests 14 · INDUCED 11:09 ▲ · INDUCED 13:11 ▼ · REJECT 12× · loaded PE (CE -41.6L / PE +308.8L, top-2 at the level, end of day)
+     PDC 24,080.4 · REACHED 09:26 · tests 17 · INDUCED 11:10 ▲ · INDUCED 13:11 ▼ · REJECT 15× · loaded PE (CE -13.1L / PE +293.6L, top-2 at the level, end of day)
+     ROUND 24,100.0 · REACHED 09:33 · tests 24 · INDUCED 11:16 ▲ · INDUCED 13:01 ▼ · REJECT 22× · loaded PE (CE -147.1L / PE +97.6L, top-2 at the level, end of day)
+     ROUND 24,000.0 · REACHED 09:47 · tests 11 · INDUCED 14:02 ▼ · REJECT 10× · loaded CE (CE +89.5L / PE -193.0L, top-2 at the level, end of day)
+        RELEASED 13:55 ▼ · loaded CE · forced 2/2 · PE kaat ×10 · REAL · next level: ROUND 23,950 at 14:09 → 1 more · WHO check nahi (reader log nahi) · f15 -29 f30 -29 mfe30 +35 mae30 -15
+     PDL 23,993.6 · REACHED 09:47 · tests 17 · DWELL 1× (13:56) · INDUCED 14:03 ▼ · INDUCED 15:29 ▲ · REJECT 15× · loaded koi nahi (CE -133.1L / PE -48.2L, top-2 at the level, end of day)
+     PDH 24,128.7 · REACHED 11:15 · tests 16 · DWELL 1× (12:09) · REJECT 16× · loaded koi nahi (CE -190.6L / PE -11.3L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:30 ▲, 09:45 ▼, 09:50 ▼, 09:55 ▼, 10:20 ▲, 13:20 ▼, 13:45 ▼, 14:10 ▼, 15:15 ▲
+     POWER not a release: 13:10 ▼ at PDC — POWER ▼ is toward the loaded side (PE); 13:15 ▼ at PWL — POWER ▼ is toward the loaded side (PE); 15:20 ▲ at PDL — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:22–15:29 · first print 57,496.3
+     ROUND 57,500.0 · REACHED 09:22 · tests 13 · DWELL 1× (11:03) · INDUCED 11:07 ▲ · INDUCED 13:16 ▼ · REJECT 11× · loaded CE (CE +0.5L / PE +0.5L, top-2 at the level, end of day)
+        RELEASED 11:10 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · REAL · next level: ROUND 57,700 at 11:15 · WHO check nahi (reader log nahi) · f15 +135 f30 +65 mfe30 +184 mae30 +1
+        RELEASED 13:20 ▼ · loaded CE · forced 2/2 · CE likh ×3 · PE kaat ×4 · REAL · next level: ROUND 57,400 at 13:28 · WHO check nahi (reader log nahi) · f15 -18 f30 -193 mfe30 +193 mae30 -14
+     OPEN 57,560.3 · REACHED 09:22 · tests 13 · DWELL 1× (13:06) · INDUCED 11:13 ▲ · INDUCED 13:07 ▼ · REJECT 11× · loaded koi nahi (CE -0.4L / PE -0.3L, top-2 at the level, end of day)
+     PWL 57,231.2 · REACHED 09:25 · tests 7 · DWELL 2× (14:41, 15:11) · INDUCED 14:09 ▼ · FAILED 14:31 · REJECT 6× · loaded CE (CE +0.2L / PE +0.0L, top-2 at the level, end of day)
+     PDL 57,187.3 · REACHED 14:02 · tests 14 · REJECT 14× · loaded CE (CE +0.4L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▼, 11:20 ▲, 11:30 ▲, 13:30 ▼, 13:45 ▼
+     POWER not a release: 09:30 ▲ at ROUND — POWER ▲ is toward the loaded side (CE); 11:15 ▲ at OPEN — koi load nahi (neither top-2 side added at the level)
+  -- SENSEX · stamps 09:23–15:28 · first print 76,882.8
+     PWL 76,933.6 · REACHED 09:15 (gap) · tests 12 · INDUCED 09:15 ▼ gap · INDUCED 09:33 ▲ · INDUCED 10:30 ▲ · INDUCED 13:41 ▼ · FAILED 09:33 (gap) · FAILED 09:36 · FAILED 10:30 (gap) · REJECT 8× · loaded CE (CE +5.3L / PE -5.6L, top-2 at the level, end of day)
+        RELEASED 09:35 ▲ · loaded PE · forced 2/2 · PE likh ×4 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -146 f30 -104 mfe30 -29 mae30 -178
+        RELEASED 10:25 ▲ · loaded PE · forced 2/2 · PE likh ×4 · BACKED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +35 f30 +95 mfe30 +105 mae30 -0
+        RELEASED 13:45 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · PRESSURE · next level: ROUND 76,800 at 13:50 → 1 more · WHO check nahi (reader log nahi) · f15 -118 f30 -201 mfe30 +239 mae30 +7
+     PDC 76,957.3 · REACHED 09:26 · tests 10 · INDUCED 10:50 ▲ · INDUCED 13:40 ▼ · REJECT 7× · loaded PE (CE +6.8L / PE +15.9L, top-2 at the level, end of day)
+        RELEASED 10:30 ▲ · loaded PE · forced 2/2 · PE likh ×4 · BACKED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -21 f30 +63 mfe30 +63 mae30 -22
+        RELEASED 10:40 ▲ · loaded PE · forced 2/2 · PE likh ×3 · WALL · next level: ROUND 77,100 at 11:09 → 3 more · WHO check nahi (reader log nahi) · f15 +61 f30 +103 mfe30 +103 mae30 -14
+     OPEN 76,994.1 · REACHED 09:30 · tests 13 · INDUCED 10:53 ▲ · INDUCED 13:15 ▼ · REJECT 11× · loaded PE (CE +2.2L / PE +17.4L, top-2 at the level, end of day)
+        RELEASED 10:35 ▲ · loaded PE · forced 2/2 · PE likh ×5 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +29 f30 +42 mfe30 +77 mae30 -8
+     ROUND 77,000.0 · REACHED 09:30 · tests 12 · INDUCED 10:53 ▲ · INDUCED 13:15 ▼ · REJECT 10× · loaded PE (CE +0.1L / PE +15.7L, top-2 at the level, end of day)
+     PDL 76,751.3 · REACHED 09:47 · tests 20 · DWELL 2× (14:07, 15:02) · INDUCED 14:08 ▼ · INDUCED 15:28 ▲ · REJECT 18× · loaded CE (CE +1.2L / PE -13.8L, top-2 at the level, end of day)
+        RELEASED 14:05 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · next level: ROUND 76,700 at 14:08 · WHO check nahi (reader log nahi) · f15 -56 f30 -9 mfe30 +93 mae30 +4
+        RELEASED 14:10 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +1 f30 -2 mfe30 +28 mae30 -61
+     PDH 77,177.3 · REACHED 11:13 · tests 8 · DWELL 1× (12:32) · INDUCED 11:30 ▲ · INDUCED 12:07 ▲ · FAILED 11:39 · FAILED 12:23 · REJECT 6× · loaded PE (CE -3.2L / PE +4.7L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▲, 09:30 ▲, 11:00 ▲, 13:50 ▼, 13:55 ▼
+     POWER not a release: 13:15 ▼ at ROUND — POWER ▼ is toward the loaded side (PE); 13:20 ▼ at PWL — POWER ▼ is toward the loaded side (PE); 13:40 ▼ at PDC — POWER ▼ is toward the loaded side (PE)
+
+=== 2026-09-02 Wed
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 11:56–15:14 · first print 23,813.5
+     ROUND 23,800.0 · REACHED 11:56 · tests 5 · REJECT 5× · loaded PE (CE +2.1L / PE +3.3L, top-2 at the level, end of day)
+     OPEN 23,858.0 · REACHED 12:31 · tests 4 · DWELL 1× (12:54) · INDUCED 12:57 ▲ · REJECT 3× · loaded koi nahi (CE -8.7L / PE -6.1L, top-2 at the level, end of day)
+        RELEASED 12:40 ▲ · loaded PE · forced 2/2 · PE likh ×4 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +6 f30 +7 mfe30 +22 mae30 -2
+        RELEASED 12:45 ▲ · loaded PE · forced 2/2 · CE kaat ×6 · PE likh ×6 · PRESSURE · next level: ROUND 23,900 at 14:07 · WHO check nahi (reader log nahi) · f15 +21 f30 +20 mfe30 +24 mae30 +1
+     ROUND 23,900.0 · REACHED 13:36 · tests 10 · DWELL 1× (14:41) · REJECT 10× · loaded koi nahi (CE -18.0L / PE -17.2L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:35 ▲, 13:05 ▲, 15:00 ▼
+     POWER not a release: 14:35 ▲ at ROUND — koi load nahi (neither top-2 side added at the level); 15:05 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 15:10 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 15:15 ▼ at OPEN — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 11:56–15:29 · first print 56,951.9
+     OPEN 57,006.4 · REACHED 11:56 · tests 15 · REJECT 15× · loaded CE (CE +0.2L / PE -0.0L, top-2 at the level, end of day)
+     ROUND 57,000.0 · REACHED 11:56 · tests 13 · REJECT 13× · loaded CE (CE +0.2L / PE +0.1L, top-2 at the level, end of day)
+     PDL 57,150.7 · REACHED 12:43 · tests 21 · REJECT 20× · loaded PE (CE -0.2L / PE +0.1L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:45 ▲, 14:05 ▲, 14:10 ▲, 14:25 ▼, 15:05 ▼, 15:15 ▲
+     POWER not a release: 15:10 ▼ at OPEN — forced 0/2 — writers in profit
+  -- SENSEX · stamps 12:44–15:29 · first print 76,248.5
+     OPEN 76,471.3 · REACHED 12:44 · tests 21 · DWELL 1× (15:18) · INDUCED 14:07 ▲ · INDUCED 14:32 ▲ · INDUCED 15:29 ▲ · FAILED 14:25 · FAILED 14:55 · REJECT 18× · loaded koi nahi (CE -8.1L / PE -5.2L, top-2 at the level, end of day)
+        RELEASED 13:05 ▲ · loaded PE · forced 2/2 · CE kaat ×5 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +20 f30 +39 mfe30 +53 mae30 -30
+        RELEASED 14:10 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -68 f30 +29 mfe30 +39 mae30 -68
+     ROUND 76,500.0 · REACHED 13:02 · tests 13 · DWELL 1× (14:13) · INDUCED 14:35 ▲ · INDUCED 15:29 ▲ · FAILED 14:44 · REJECT 11× · loaded koi nahi (CE -16.2L / PE -7.2L, top-2 at the level, end of day)
+        RELEASED 14:35 ▲ · loaded PE · forced 2/2 · CE kaat ×6 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -65 f30 -169 mfe30 +1 mae30 -169
+     POWER at no trap (release_unattached): 12:35 ▲, 12:45 ▲, 15:10 ▼
+
+=== 2026-09-03 Thu · expiry (rule): SENSEX
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 10:27–15:20 · first print 23,998.8
+     OPEN 23,998.0 · REACHED 10:27 · tests 4 · REJECT 4× · loaded koi nahi (CE -1.6L / PE -5.9L, top-2 at the level, end of day)
+     ROUND 24,000.0 · REACHED 10:27 · tests 4 · REJECT 4× · loaded koi nahi (CE -1.6L / PE -5.9L, top-2 at the level, end of day)
+     PDC 23,914.5 · REACHED 11:14 · tests 15 · INDUCED 13:25 ▼ · INDUCED 13:47 ▼ · INDUCED 14:57 ▼ · FAILED 13:31 · FAILED 13:59 · REJECT 12× · loaded CE (CE +64.1L / PE -18.2L, top-2 at the level, end of day)
+     PDH 23,914.5 · REACHED 11:14 · tests 17 · DWELL 5× (12:35, 13:05, 14:08, 14:26…) · INDUCED 12:35 ▼ · INDUCED 13:25 ▼ · INDUCED 13:47 ▼ · INDUCED 14:15 ▼ · INDUCED 14:40 ▼ · FAILED 12:52 · FAILED 13:31 · FAILED 13:59 · FAILED 14:21 · REJECT 12× · loaded CE (CE +55.3L / PE -14.0L, top-2 at the level, end of day)
+     ROUND 23,900.0 · REACHED 12:22 · tests 44 · DWELL 2× (15:00, 15:20) · INDUCED 15:00 ▼ · FAILED 15:14 · REJECT 42× · loaded CE (CE +2.8L / PE -6.8L, top-2 at the level, end of day)
+        RELEASED 15:00 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · SQUEEZE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +11 f30 · mfe30 +13 mae30 -11 (15:15 se check nahi — the window crosses the auction freeze)
+        RELEASED 15:25 ▼ · loaded CE · forced 2/2 · PE kaat ×3 ·  · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 · mae30 · (15:15 se check nahi — the window crosses the auction freeze)
+     POWER at no trap (release_unattached): 15:10 ▼, 15:15 ▼
+     POWER not a release: 15:20 ▲ at ROUND — POWER ▲ is toward the loaded side (CE)
+  -- BANKNIFTY · stamps 11:09–15:14 · first print 57,705.0
+     OPEN 57,497.8 · REACHED 11:09 · tests 38 · INDUCED 15:00 ▼ · REJECT 37× · loaded CE (CE +0.1L / PE -0.5L, top-2 at the level, end of day)
+        RELEASED 14:20 ▼ · loaded CE · forced 2/2 · CE likh ×8 · CAPPED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +15 f30 +17 mfe30 +19 mae30 -42
+     ROUND 57,500.0 · REACHED 11:09 · tests 39 · INDUCED 15:00 ▼ · REJECT 38× · loaded CE (CE +0.1L / PE -0.5L, top-2 at the level, end of day)
+        RELEASED 15:00 ▼ · loaded CE · forced 2/2 · PE kaat ×8 · SQUEEZE · next level: ROUND 57,400 at 15:06 → 1 more · WHO check nahi (reader log nahi) · f15 -6 f30 · mfe30 +35 mae30 -21 (15:15 se check nahi — the window crosses the auction freeze)
+     POWER at no trap (release_unattached): 11:10 ▼, 13:35 ▲, 14:05 ▼, 15:10 ▼, 15:15 ▲
+  -- SENSEX · stamps 10:27–15:14 · first print 76,848.8
+     OPEN 76,724.9 · REACHED 10:27 · tests 26 · DWELL 1× (10:42) · INDUCED 10:43 ▼ · INDUCED 11:09 ▼ · INDUCED 11:35 ▲ · FAILED 10:45 · FAILED 12:01 · REJECT 23× · loaded CE (CE +64.3L / PE -25.7L, top-2 at the level, end of day)
+        RELEASED 11:10 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · REAL · next level: ROUND 76,600 at 11:15 · WHO check nahi (reader log nahi) · f15 +63 f30 +130 mfe30 +46 mae30 -144
+     PWL 76,933.6 · REACHED 10:28 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDC 76,570.4 · REACHED 11:15 · tests 44 · INDUCED 15:04 ▼ · REJECT 43× · loaded koi nahi (CE -25.1L / PE -31.4L, top-2 at the level, end of day)
+     PDH 76,570.4 · REACHED 11:15 · tests 44 · INDUCED 15:04 ▼ · REJECT 43× · loaded koi nahi (CE -25.1L / PE -31.4L, top-2 at the level, end of day)
+     ROUND 76,500.0 · REACHED 14:57 · tests 6 · REJECT 6× · loaded koi nahi (CE -28.7L / PE -19.9L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:10 ▼, 15:25 ▼
+     POWER not a release: 13:45 ▼ at PDH — koi load nahi (neither top-2 side added at the level); 15:10 ▼ at ROUND — koi load nahi (neither top-2 side added at the level)
+
+=== 2026-09-04 Fri
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:22–11:58 · first print 23,920.3
+     OPEN 23,910.9 · REACHED 09:22 · tests 3 · DWELL 1× (09:27) · INDUCED 09:36 ▼ · FAILED 09:45 · REJECT 2× · loaded PE (CE +37.8L / PE +66.8L, top-2 at the level, end of day)
+        RELEASED 09:55 ▲ · loaded PE · forced 2/2 · CE kaat ×14 · PE likh ×5 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -7 f30 +7 mfe30 +10 mae30 -13
+     ROUND 23,900.0 · REACHED 09:22 · tests 1 · REJECT 1× · loaded PE (CE +52.1L / PE +71.3L, top-2 at the level, end of day)
+     PDC 23,873.5 · REACHED 09:36 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDL 23,873.5 · REACHED 09:36 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 24,000.0 · REACHED 11:26 · tests 17 · REJECT 17× · loaded PE (CE -24.1L / PE +26.7L, top-2 at the level, end of day)
+        RELEASED 11:40 ▲ · loaded PE · forced 2/2 · CE kaat ×7 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -14 f30 -45 mfe30 -6 mae30 -45
+     POWER at no trap (release_unattached): 10:00 ▲, 10:05 ▲, 10:15 ▼, 10:20 ▼, 10:30 ▲, 11:35 ▲, 12:25 ▼
+     POWER not a release: 09:35 ▼ at OPEN — POWER ▼ is toward the loaded side (PE)
+  -- BANKNIFTY · stamps 09:22–14:09 · first print 57,476.4
+     OPEN 57,492.7 · REACHED 09:22 · tests 13 · DWELL 1× (10:42) · INDUCED 11:07 ▲ · REJECT 12× · loaded PE (CE -0.1L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 10:30 ▲ · loaded PE · forced 2/2 · CE kaat ×39 · PRESSURE · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -18 f30 -9 mfe30 +5 mae30 -34
+        RELEASED 11:10 ▲ · loaded PE · forced 2/2 · CE kaat ×8 · REAL · next level: ROUND 57,600 at 11:21 → 1 more · WHO check nahi (reader log nahi) · f15 +62 f30 +93 mfe30 +103 mae30 -29
+     PDC 57,380.6 · REACHED 09:22 · tests 5 · REJECT 5× · loaded CE (CE +0.5L / PE +0.5L, top-2 at the level, end of day)
+     PDL 57,380.6 · REACHED 09:22 · tests 5 · REJECT 5× · loaded CE (CE +0.5L / PE +0.5L, top-2 at the level, end of day)
+        RELEASED 09:30 ▼ · loaded CE · forced 2/2 · CE likh ×56 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +33 f30 +48 mfe30 +10 mae30 -48
+        RELEASED 09:50 ▼ · loaded CE · forced 2/2 · CE likh ×13 · BACKED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +60 f30 +50 mfe30 -4 mae30 -80
+     PWL 57,231.2 · REACHED 09:22 · tests 4 · REJECT 4× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 57,500.0 · REACHED 09:22 · tests 28 · INDUCED 11:08 ▲ · REJECT 27× · loaded PE (CE -0.0L / PE +0.2L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▼, 11:25 ▲, 13:20 ▲
+     POWER not a release: 09:40 ▼ at PDL — forced 0/2 — writers in profit; 09:45 ▼ at PDL — forced 0/2 — writers in profit; 10:20 ▼ at PDL — forced 0/2 — writers in profit; 10:25 ▲ at PDL — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:22–13:50 · first print 76,667.9
+     OPEN 76,657.0 · REACHED 09:22 · tests 25 · DWELL 1× (13:37) · INDUCED 09:55 ▲ · REJECT 23× · loaded CE (CE +3.3L / PE +2.0L, top-2 at the level, end of day)
+     ROUND 76,500.0 · REACHED 09:31 · tests 5 · REJECT 5× · loaded PE (CE +0.9L / PE +1.0L, top-2 at the level, end of day)
+     PDH 76,924.5 · REACHED 11:39 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+
+=== 2026-09-07 Mon
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:55–12:30 · first print 23,834.8
+     ROUND 23,800.0 · REACHED 09:55 · tests 5 · DWELL 1× (10:28) · INDUCED 10:49 ▼ · REJECT 4× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PWL 23,786.8 · REACHED 10:16 · tests 10 · DWELL 1× (11:01) · INDUCED 11:04 ▼ · REJECT 9× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+  -- BANKNIFTY · stamps 11:13–15:14 · first print 57,193.9
+     ROUND 57,000.0 · REACHED 11:13 · tests 10 · REJECT 10× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+  -- SENSEX · stamps 10:17–15:28 · first print 76,325.1
+     PWL 76,135.7 · REACHED 10:17 · tests 7 · INDUCED 11:13 ▼ · REJECT 5× · loaded CE (CE +0.7L / PE -2.0L, top-2 at the level, end of day)
+     ROUND 76,000.0 · REACHED 12:30 · tests 7 · DWELL 1× (12:55) · INDUCED 15:09 ▼ · FAILED 15:13 · REJECT 6× · loaded koi nahi (CE -0.0L / PE -0.6L, top-2 at the level, end of day)
+        RELEASED 12:55 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +42 f30 +42 mfe30 +2 mae30 -42
+     POWER at no trap (release_unattached): 10:00 ▼, 15:15 ▲, 15:20 ▼, 15:30 ▼
+
+=== 2026-09-09 Wed
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 11:28–14:45 · first print 23,516.7
+     OPEN 23,522.0 · REACHED 11:28 · tests 6 · DWELL 1× (11:33) · INDUCED 11:44 ▲ · INDUCED 12:33 ▲ · INDUCED 14:35 ▼ · FAILED 11:50 · REJECT 3× · loaded PE (CE -7.4L / PE +4.6L, top-2 at the level, end of day)
+        RELEASED 12:35 ▲ · loaded PE · forced 2/2 · CE kaat ×11 · PE likh ×5 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -4 f30 -14 mfe30 +4 mae30 -17
+     ROUND 23,500.0 · REACHED 11:37 · tests 8 · DWELL 1× (11:57) · INDUCED 11:59 ▼ · INDUCED 14:45 ▼ · FAILED 12:29 · REJECT 6× · loaded CE (CE +3.4L / PE -27.8L, top-2 at the level, end of day)
+        RELEASED 12:00 ▼ · loaded CE · forced 2/2 · CE likh ×9 · PE kaat ×10 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -4 f30 +25 mfe30 +17 mae30 -25
+        RELEASED 14:45 ▼ · loaded CE · forced 2/2 · CE likh ×3 · PE kaat ×3 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +6 f30 -16 mfe30 +16 mae30 -12
+     POWER at no trap (release_unattached): 12:05 ▼, 12:10 ▼, 12:30 ▲, 12:40 ▲, 14:50 ▼, 15:25 ▼
+     POWER not a release: 14:35 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 14:40 ▼ at ROUND — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 11:55–15:09 · first print 56,569.4
+     OPEN 56,498.8 · REACHED 11:55 · tests 10 · INDUCED 12:06 ▼ · INDUCED 14:46 ▼ · INDUCED 14:56 ▼ · FAILED 12:30 · FAILED 14:50 · REJECT 7× · loaded CE (CE +0.4L / PE -0.4L, top-2 at the level, end of day)
+        RELEASED 12:10 ▼ · loaded CE · forced 2/2 · CE likh ×8 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -3 f30 +219 mfe30 +22 mae30 -231
+     ROUND 56,500.0 · REACHED 11:55 · tests 8 · INDUCED 12:06 ▼ · INDUCED 14:45 ▼ · INDUCED 14:56 ▼ · FAILED 12:30 · FAILED 14:50 · REJECT 5× · loaded CE (CE +0.3L / PE -0.3L, top-2 at the level, end of day)
+        RELEASED 12:05 ▼ · loaded CE · forced 2/2 · PE kaat ×8 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -6 f30 +218 mfe30 +25 mae30 -218
+        RELEASED 14:45 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · REAL · next level: ROUND 56,400 at 15:09 → 1 more · WHO check nahi (reader log nahi) · f15 +6 f30 -86 mfe30 +86 mae30 -50
+     PDL 56,720.4 · REACHED 12:35 · tests 17 · REJECT 17× · loaded PE (CE -0.1L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 12:50 ▲ · loaded PE · forced 2/2 · PE likh ×3 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -22 f30 -65 mfe30 +25 mae30 -65
+        RELEASED 12:55 ▲ · loaded PE · forced 2/2 · PE likh ×3 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -31 f30 -29 mfe30 +28 mae30 -49
+     POWER at no trap (release_unattached): 12:15 ▼, 12:40 ▲, 12:45 ▲, 14:35 ▼, 14:40 ▼, 15:25 ▼
+     POWER not a release: 12:00 ▼ at ROUND — forced 0/2 — writers in profit; 12:35 ▲ at ROUND — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 11:52–14:55 · first print 75,066.3
+     ROUND 75,000.0 · REACHED 11:52 · tests 10 · DWELL 1× (11:59) · INDUCED 11:59 ▼ · INDUCED 12:30 ▲ · INDUCED 14:42 ▼ · REJECT 7× · loaded CE (CE +15.9L / PE -25.7L, top-2 at the level, end of day)
+        RELEASED 12:00 ▼ · loaded CE · forced 2/2 · CE likh ×4 · PE kaat ×20 · REAL · next level: ROUND 74,900 at 12:08 · WHO check nahi (reader log nahi) · f15 -20 f30 +69 mfe30 +52 mae30 -69
+        RELEASED 14:40 ▼ · loaded CE · forced 2/2 · CE likh ×5 · PE kaat ×8 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -12 f30 -63 mfe30 +63 mae30 -6
+        RELEASED 14:45 ▼ · loaded CE · forced 2/2 · CE likh ×4 · REAL · next level: ROUND 74,900 at 14:45 · WHO check nahi (reader log nahi) · f15 +16 f30 -26 mfe30 +47 mae30 -34
+     OPEN 75,216.2 · REACHED 12:34 · tests 18 · REJECT 18× · loaded PE (CE -25.7L / PE +28.6L, top-2 at the level, end of day)
+        RELEASED 12:40 ▲ · loaded PE · forced 2/2 · CE kaat ×12 · PE likh ×10 · PRESSURE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -30 f30 -26 mfe30 +44 mae30 -34
+        RELEASED 12:45 ▲ · loaded PE · forced 2/2 · PE likh ×5 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +8 f30 -50 mfe30 +19 mae30 -57
+        RELEASED 12:50 ▲ · loaded PE · forced 2/2 · PE likh ×4 · BACKED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -37 f30 -69 mfe30 +3 mae30 -71
+     POWER at no trap (release_unattached): 12:05 ▼, 12:35 ▲, 14:35 ▼, 15:20 ▼, 15:25 ▼, 15:30 ▼
+
+=== 2026-09-10 Thu · expiry (rule): SENSEX
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:46–15:29 · first print 23,418.8
+     PDC 23,431.5 · REACHED 09:46 · tests 35 · INDUCED 09:51 ▲ · INDUCED 10:44 ▲ · INDUCED 11:39 ▼ · INDUCED 14:05 ▼ · FAILED 10:01 · FAILED 10:50 · FAILED 11:59 · REJECT 31× · loaded CE (CE +33.6L / PE -39.6L, top-2 at the level, end of day)
+        RELEASED 14:05 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · SQUEEZE · next level: ROUND 23,400 at 14:19 → 1 more · WHO check nahi (reader log nahi) · f15 -2 f30 -5 mfe30 +8 mae30 -9
+     PDL 23,431.5 · REACHED 09:46 · tests 35 · DWELL 3× (10:34, 11:24, 13:31) · INDUCED 09:51 ▲ · INDUCED 10:40 ▲ · INDUCED 10:53 ▼ · INDUCED 11:33 ▼ · INDUCED 13:57 ▼ · FAILED 10:01 · FAILED 11:59 · REJECT 30× · loaded CE (CE +19.9L / PE -25.0L, top-2 at the level, end of day)
+     OPEN 23,446.6 · REACHED 09:48 · tests 22 · INDUCED 12:14 ▲ · FAILED 13:00 · REJECT 21× · loaded PE (CE -17.4L / PE +36.2L, top-2 at the level, end of day)
+        RELEASED 12:05 ▲ · loaded PE · forced 2/2 · PE likh ×4 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +18 f30 +16 mfe30 +24 mae30 -9
+     ROUND 23,400.0 · REACHED 10:02 · tests 19 · INDUCED 15:01 ▼ · FAILED 15:29 · REJECT 18× · loaded CE (CE +12.3L / PE -13.8L, top-2 at the level, end of day)
+        RELEASED 11:00 ▼ · loaded CE · forced 1/2 · PE kaat ×3 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -1 f30 +18 mfe30 +4 mae30 -22
+        RELEASED 15:05 ▼ · loaded CE · forced 2/2 · PE kaat ×6 · PRESSURE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 +6 mae30 -1 (15:15 se check nahi — the window crosses the auction freeze)
+     POWER at no trap (release_unattached): 11:45 ▼, 13:00 ▼, 15:15 ▼
+     POWER not a release: 10:45 ▲ at PDL — POWER ▲ is toward the loaded side (CE)
+  -- BANKNIFTY · stamps 09:46–15:29 · first print 56,486.8
+     ROUND 56,500.0 · REACHED 09:46 · tests 17 · DWELL 1× (12:22) · INDUCED 11:20 ▼ · REJECT 15× · loaded PE (CE -0.1L / PE +1.1L, top-2 at the level, end of day)
+        RELEASED 10:45 ▲ · loaded PE · forced 2/2 · PE likh ×3 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -62 f30 -48 mfe30 -10 mae30 -92
+     PDC 56,295.6 · REACHED 10:09 · tests 16 · INDUCED 15:01 ▼ · FAILED 15:29 · REJECT 15× · loaded CE (CE +0.4L / PE -0.3L, top-2 at the level, end of day)
+     PDL 56,295.6 · REACHED 10:09 · tests 16 · INDUCED 15:01 ▼ · FAILED 15:29 · REJECT 15× · loaded CE (CE +0.4L / PE -0.3L, top-2 at the level, end of day)
+        RELEASED 14:40 ▼ · loaded CE · forced 2/2 · CE likh ×7 · BACKED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +65 f30 -14 mfe30 +25 mae30 -120
+     OPEN 56,262.8 · REACHED 14:36 · tests 3 · DWELL 1× (15:19) · REJECT 3× · loaded CE (CE +0.2L / PE -0.4L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 11:00 ▼, 13:00 ▼, 13:05 ▼, 14:20 ▼
+     POWER not a release: 14:50 ▲ at PDL — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:46–15:29 · first print 74,729.2
+     OPEN 74,742.5 · REACHED 09:46 · tests 37 · DWELL 2× (11:38, 14:57) · INDUCED 10:09 ▼ · INDUCED 10:55 ▼ · INDUCED 11:41 ▼ · INDUCED 14:19 ▼ · INDUCED 14:58 ▼ · INDUCED 15:29 ▲ · FAILED 10:35 · FAILED 11:18 · FAILED 11:47 · FAILED 14:52 · REJECT 31× · loaded CE (CE +47.5L / PE -1.7L, top-2 at the level, end of day)
+     PDC 74,764.2 · REACHED 09:46 · tests 20 · INDUCED 10:08 ▼ · INDUCED 10:51 ▼ · INDUCED 11:41 ▼ · INDUCED 14:05 ▼ · INDUCED 15:29 ▲ · FAILED 10:40 · FAILED 11:18 · FAILED 11:50 · REJECT 15× · loaded PE (CE +29.5L / PE +32.1L, top-2 at the level, end of day)
+     PDL 74,764.2 · REACHED 09:46 · tests 20 · DWELL 1× (13:37) · INDUCED 10:08 ▼ · INDUCED 10:51 ▼ · INDUCED 11:41 ▼ · INDUCED 14:05 ▼ · INDUCED 15:29 ▲ · FAILED 10:40 · FAILED 11:18 · FAILED 11:50 · REJECT 15× · loaded PE (CE +29.5L / PE +32.1L, top-2 at the level, end of day)
+        RELEASED 10:45 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -84 f30 -85 mfe30 -26 mae30 -124
+     POWER at no trap (release_unattached): 11:00 ▼, 15:05 ▼, 15:20 ▲, 15:25 ▲
+     POWER not a release: 14:05 ▼ at PDL — POWER ▼ is toward the loaded side (PE)
+
+=== 2026-09-11 Fri
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:24–15:29 · first print 23,248.8
+     OPEN 23,270.3 · REACHED 09:24 · tests 14 · DWELL 1× (10:08) · INDUCED 10:08 ▲ · REJECT 13× · loaded PE (CE +67.0L / PE +134.8L, top-2 at the level, end of day)
+        RELEASED 09:40 ▲ · loaded PE · forced 1/2 · PE likh ×5 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +2 f30 +32 mfe30 +34 mae30 -11
+        RELEASED 10:05 ▲ · loaded PE · forced 2/2 · PE likh ×6 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +17 f30 +14 mfe30 +35 mae30 -4
+        RELEASED 10:10 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · PE likh ×5 · REAL · subah witness · next level: ROUND 23,300 at 10:13 · WHO check nahi (reader log nahi) · f15 +13 f30 +12 mfe30 +27 mae30 -8
+     ROUND 23,300.0 · REACHED 09:25 · tests 7 · INDUCED 11:12 ▲ · REJECT 6× · loaded PE (CE -32.2L / PE +101.5L, top-2 at the level, end of day)
+        RELEASED 10:20 ▲ · loaded PE · forced 2/2 · PE likh ×8 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -2 f30 -4 mfe30 +18 mae30 -16
+        RELEASED 10:25 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · PE likh ×6 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -1 f30 -17 mfe30 +8 mae30 -21
+        RELEASED 11:15 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · REAL · next level: ROUND 23,350 at 11:17 → 2 more · WHO check nahi (reader log nahi) · f15 +10 f30 +24 mfe30 +28 mae30 +5
+     PDL 23,380.1 · REACHED 13:54 · tests 3 · INDUCED 14:00 ▲ · REJECT 2× · loaded koi nahi (CE -25.3L / PE -13.8L, top-2 at the level, end of day)
+     ROUND 23,400.0 · REACHED 13:57 · tests 19 · INDUCED 14:02 ▲ · REJECT 17× · loaded koi nahi (CE -19.0L / PE -14.6L, top-2 at the level, end of day)
+        RELEASED 14:05 ▲ · loaded PE · forced 2/2 · CE kaat ×11 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -21 f30 +10 mfe30 +10 mae30 -21
+     POWER at no trap (release_unattached): 09:45 ▼, 09:50 ▼, 10:00 ▲, 10:15 ▲, 13:45 ▼, 13:55 ▲, 15:05 ▼
+     POWER not a release: 14:00 ▲ at PDL — koi load nahi (neither top-2 side added at the level); 15:10 ▼ at ROUND — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:25–15:14 · first print 55,746.3
+     PDL 56,231.8 · REACHED 09:15 (gap) · tests 21 · DWELL 1× (12:48) · INDUCED 09:15 ▼ gap · INDUCED 12:52 ▲ · INDUCED 13:11 ▼ · FAILED 12:52 (gap) · FAILED 13:24 · REJECT 19× · loaded PE (CE -0.3L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 13:30 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · REAL · next level: PDH 56,575 at 14:02 → 1 more · WHO check nahi (reader log nahi) · f15 -52 f30 +179 mfe30 +179 mae30 -69
+     OPEN 55,970.2 · REACHED 09:25 · tests 12 · DWELL 2× (10:08, 10:58) · INDUCED 10:13 ▲ · REJECT 11× · loaded CE (CE +0.8L / PE +0.8L, top-2 at the level, end of day)
+     ROUND 56,000.0 · REACHED 09:26 · tests 6 · INDUCED 10:21 ▲ · INDUCED 10:57 ▼ · FAILED 11:09 · REJECT 4× · loaded PE (CE +0.3L / PE +1.2L, top-2 at the level, end of day)
+        RELEASED 10:20 ▲ · loaded PE · forced 2/2 · PE likh ×5 · WALL · subah witness · next level: ROUND 56,100 at 10:22 → 2 more · WHO check nahi (reader log nahi) · f15 -16 f30 -35 mfe30 +63 mae30 -59
+     PDC 56,471.9 · REACHED 13:54 · tests 11 · INDUCED 14:02 ▲ · REJECT 10× · loaded PE (CE -0.4L / PE +0.1L, top-2 at the level, end of day)
+     ROUND 56,500.0 · REACHED 13:54 · tests 11 · INDUCED 14:02 ▲ · REJECT 10× · loaded PE (CE -0.4L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 14:05 ▲ · loaded PE · forced 2/2 · CE kaat ×7 · SQUEEZE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -77 f30 +69 mfe30 +69 mae30 -77
+     PDH 56,575.2 · REACHED 14:02 · tests 9 · INDUCED 14:48 ▲ · INDUCED 15:14 ▲ · FAILED 15:03 · REJECT 7× · loaded PE (CE -0.5L / PE +0.3L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:55 ▲, 10:00 ▲, 11:15 ▲, 13:55 ▲
+     POWER not a release: 10:10 ▲ at OPEN — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:23–15:28 · first print 74,219.1
+     PDL 74,598.5 · REACHED 09:15 (gap) · tests 25 · INDUCED 09:15 ▼ gap · INDUCED 13:56 ▲ · FAILED 13:56 (gap) · REJECT 24× · loaded PE (CE -0.7L / PE +0.7L, top-2 at the level, end of day)
+     OPEN 74,309.2 · REACHED 09:23 · tests 16 · INDUCED 10:12 ▲ · REJECT 15× · loaded PE (CE +2.5L / PE +4.6L, top-2 at the level, end of day)
+     ROUND 74,500.0 · REACHED 11:14 · tests 18 · DWELL 2× (12:27, 13:18) · INDUCED 11:24 ▲ · INDUCED 13:19 ▼ · INDUCED 13:41 ▼ · FAILED 13:26 · FAILED 13:44 · REJECT 15× · loaded PE (CE -0.6L / PE +0.7L, top-2 at the level, end of day)
+     PDC 74,902.6 · REACHED 14:03 · tests 11 · REJECT 11× · loaded koi nahi (CE -1.4L / PE -1.7L, top-2 at the level, end of day)
+     PDH 74,911.0 · REACHED 14:03 · tests 7 · DWELL 1× (15:20) · REJECT 7× · loaded koi nahi (CE -1.3L / PE -1.5L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 11:15 ▲, 14:05 ▲, 15:10 ▼, 15:15 ▲
+     POWER not a release: 13:45 ▼ at ROUND — POWER ▼ is toward the loaded side (PE)
+
+=== 2026-09-15 Tue · expiry (rule): NIFTY
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:21–15:12 · first print 23,455.2
+     PDH 23,448.1 · REACHED 09:15 (gap) · tests 1 · INDUCED 09:15 ▲ gap · INDUCED 09:48 ▼ · INDUCED 13:20 ▼ · FAILED 09:48 (gap) · FAILED 13:20 (gap) · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 23,500.0 · REACHED 09:21 · tests 1 · INDUCED 09:25 ▼ · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 23,400.0 · REACHED 09:49 · tests 2 · INDUCED 10:09 ▼ · REJECT 1× · loaded CE (CE +52.9L / PE -5.4L, top-2 at the level, end of day)
+     PDC 23,398.1 · REACHED 09:52 · tests 1 · INDUCED 10:10 ▼ · loaded CE (CE +52.9L / PE -5.4L, top-2 at the level, end of day)
+     ROUND 23,300.0 · REACHED 11:19 · tests 8 · INDUCED 13:16 ▼ · REJECT 6× · loaded koi nahi (CE -65.7L / PE -109.6L, top-2 at the level, end of day)
+     PDL 23,231.4 · REACHED 14:11 · tests 5 · INDUCED 14:17 ▼ · REJECT 4× · loaded PE (CE +2.5L / PE +4.9L, top-2 at the level, end of day)
+     PWL 23,231.4 · REACHED 14:11 · tests 5 · INDUCED 14:17 ▼ · REJECT 4× · loaded PE (CE +2.5L / PE +4.9L, top-2 at the level, end of day)
+     ROUND 23,200.0 · REACHED 14:17 · tests 10 · INDUCED 14:47 ▼ · REJECT 9× · loaded koi nahi (CE -40.0L / PE -13.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 15:15 ▲, 15:20 ▼
+     POWER not a release: 13:35 ▼ at ROUND — koi load nahi (neither top-2 side added at the level); 14:50 ▼ at ROUND — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:48–14:48 · first print 56,484.2
+     ROUND 56,500.0 · REACHED 09:48 · tests 2 · REJECT 2× · loaded CE (CE +0.1L / PE -0.1L, top-2 at the level, end of day)
+     ROUND 56,000.0 · REACHED 14:10 · tests 2 · INDUCED 14:19 ▼ · INDUCED 14:47 ▼ · FAILED 14:36 · loaded CE (CE +0.2L / PE +0.0L, top-2 at the level, end of day)
+        RELEASED 14:50 ▼ · loaded CE · forced 2/2 · PE kaat ×7 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -7 f30 · mfe30 +44 mae30 -36 (15:15 se check nahi — the window crosses the auction freeze)
+     POWER at no trap (release_unattached): 11:15 ▲, 13:35 ▼
+  -- SENSEX · stamps 09:24–15:29 · first print 75,010.2
+     PDH 74,917.1 · REACHED 09:15 (gap) · tests 1 · INDUCED 09:15 ▲ gap · INDUCED 09:54 ▼ · FAILED 09:54 (gap) · loaded CE (CE +0.6L / PE -0.4L, top-2 at the level, end of day)
+        RELEASED 09:55 ▼ · loaded CE · forced 2/2 · CE likh ×4 · BACKED · subah witness · next level: ROUND 74,800 at 09:55 · WHO check nahi (reader log nahi) · f15 -62 f30 -48 mfe30 +62 mae30 -10
+     ROUND 75,000.0 · REACHED 09:24 · tests 2 · DWELL 1× (09:30) · INDUCED 09:37 ▼ · INDUCED 09:48 ▼ · FAILED 09:43 · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDC 74,781.8 · REACHED 09:55 · tests 2 · DWELL 1× (10:27) · INDUCED 10:28 ▼ · REJECT 1× · loaded CE (CE +6.5L / PE -1.4L, top-2 at the level, end of day)
+        RELEASED 10:00 ▼ · loaded CE · forced 2/2 · CE likh ×4 · REAL · subah witness · next level: ROUND 74,700 at 10:29 · WHO check nahi (reader log nahi) · f15 -18 f30 -75 mfe30 +75 mae30 -24
+     ROUND 74,500.0 · REACHED 13:11 · tests 12 · DWELL 1× (13:26) · INDUCED 13:31 ▼ · REJECT 11× · loaded CE (CE +0.3L / PE -0.5L, top-2 at the level, end of day)
+        RELEASED 13:35 ▼ · loaded CE · forced 2/2 · CE likh ×4 · PE kaat ×7 · REAL · next level: ROUND 74,400 at 13:41 · WHO check nahi (reader log nahi) · f15 +10 f30 -17 mfe30 +35 mae30 -32
+     PDL 74,160.2 · REACHED 14:47 · tests 5 · DWELL 1× (15:19) · INDUCED 14:48 ▼ · INDUCED 15:29 ▼ · FAILED 14:51 · REJECT 3× · loaded PE (CE -0.0L / PE +0.2L, top-2 at the level, end of day)
+     PWL 74,160.2 · REACHED 14:47 · tests 5 · INDUCED 14:48 ▼ · INDUCED 15:29 ▼ · FAILED 14:51 · REJECT 3× · loaded PE (CE -0.0L / PE +0.2L, top-2 at the level, end of day)
+     ROUND 74,000.0 · REACHED 15:29 · tests 1 · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 13:00 ▼, 13:15 ▼
+     POWER not a release: 14:50 ▼ at PDL — koi load nahi (neither top-2 side added at the level)
+
+=== 2026-09-16 Wed
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:12 · first print 23,131.2
+     PWL 23,231.4 · REACHED 09:20 · tests 8 · DWELL 4× (10:30, 12:11, 14:05, 15:12) · INDUCED 09:30 ▼ · INDUCED 10:35 ▲ · INDUCED 12:14 ▲ · INDUCED 14:15 ▲ · FAILED 11:56 · FAILED 13:38 · FAILED 15:06 · REJECT 3× · loaded PE (CE -10.1L / PE +0.0L, top-2 at the level, end of day)
+     OPEN 23,201.6 · REACHED 09:24 · tests 3 · INDUCED 09:38 ▼ · INDUCED 10:32 ▲ · REJECT 1× · loaded PE (CE +1.1L / PE +35.5L, top-2 at the level, end of day)
+     ROUND 23,200.0 · REACHED 09:25 · tests 3 · INDUCED 09:38 ▼ · INDUCED 10:26 ▲ · REJECT 1× · loaded PE (CE +8.7L / PE +31.4L, top-2 at the level, end of day)
+     PDC 23,118.6 · REACHED 09:39 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDL 23,118.6 · REACHED 09:39 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 23,100.0 · REACHED 09:42 · tests 2 · REJECT 2× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 23,300.0 · REACHED 11:02 · tests 2 · REJECT 2× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 13:10 ▲, 13:35 ▼, 13:40 ▼, 15:00 ▲
+     POWER not a release: 15:15 ▼ at PWL — POWER ▼ is toward the loaded side (PE)
+  -- BANKNIFTY · stamps 09:24–10:32 · first print 55,848.1
+     OPEN 56,007.7 · REACHED 09:24 · tests 3 · INDUCED 09:39 ▼ · INDUCED 10:24 ▲ · REJECT 1× · loaded PE (CE +0.2L / PE +0.5L, top-2 at the level, end of day)
+        RELEASED 10:00 ▲ · loaded PE · forced 2/2 · PE likh ×4 · CAPPED · subah witness · next level: ROUND 56,200 at 10:32 → 1 more · WHO check nahi (reader log nahi) · f15 -36 f30 +127 mfe30 +127 mae30 -72
+     ROUND 56,000.0 · REACHED 09:24 · tests 3 · INDUCED 09:39 ▼ · INDUCED 10:24 ▲ · REJECT 1× · loaded PE (CE +0.2L / PE +0.5L, top-2 at the level, end of day)
+     PDC 55,794.8 · REACHED 09:38 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDL 55,794.8 · REACHED 09:38 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:35 ▲, 10:45 ▲, 11:05 ▲, 13:10 ▲, 13:30 ▼, 15:00 ▼, 15:05 ▼, 15:20 ▼, 15:30 ▲
+  -- SENSEX · stamps 09:20–15:29 · first print 74,011.8
+     OPEN 74,249.3 · REACHED 09:20 · tests 39 · INDUCED 09:39 ▼ · INDUCED 10:26 ▲ · REJECT 37× · loaded PE (CE -0.8L / PE +1.9L, top-2 at the level, end of day)
+        RELEASED 10:00 ▲ · loaded PE · forced 2/2 · CE kaat ×7 · PE likh ×31 · PRESSURE · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -117 f30 +25 mfe30 +31 mae30 -142
+        RELEASED 10:25 ▲ · loaded PE · forced 2/2 · PE likh ×7 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +55 f30 +36 mfe30 +116 mae30 -18
+        RELEASED 10:30 ▲ · loaded PE · forced 2/2 · PE likh ×12 · WALL · subah witness · next level: ROUND 74,500 at 10:49 · WHO check nahi (reader log nahi) · f15 +68 f30 +69 mfe30 +112 mae30 -22
+     ROUND 74,500.0 · REACHED 09:20 · tests 21 · REJECT 21× · loaded PE (CE +0.5L / PE +5.9L, top-2 at the level, end of day)
+        RELEASED 13:15 ▲ · loaded PE · forced 2/2 · CE kaat ×5 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -111 f30 -121 mfe30 +45 mae30 -155
+     PWL 74,160.2 · REACHED 09:27 · tests 6 · INDUCED 09:44 ▼ · FAILED 09:53 · REJECT 5× · loaded CE (CE +3.1L / PE +1.1L, top-2 at the level, end of day)
+     PDC 74,003.8 · REACHED 09:37 · tests 2 · REJECT 2× · loaded CE (CE +2.7L / PE +0.1L, top-2 at the level, end of day)
+     PDL 73,994.0 · REACHED 09:38 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 74,000.0 · REACHED 09:38 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 13:10 ▲, 15:10 ▼, 15:15 ▼
+     POWER not a release: 09:50 ▼ at PDC — koi load nahi (neither top-2 side added at the level); 09:55 ▲ at OPEN — POWER ▲ is toward the loaded side (CE); 10:05 ▲ at OPEN — forced 0/2 — writers in profit; 13:35 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 15:20 ▼ at OPEN — POWER ▼ is toward the loaded side (PE)
+
+=== 2026-09-17 Thu · expiry (rule): SENSEX
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:28 · first print 23,280.0
+     PWL 23,231.4 · REACHED 09:15 (gap) · tests 9 · INDUCED 09:15 ▲ gap · REJECT 9× · loaded CE (CE +20.3L / PE -28.3L, top-2 at the level, end of day)
+     PDC 23,217.6 · REACHED 09:22 · tests 8 · REJECT 8× · loaded CE (CE +3.5L / PE -16.1L, top-2 at the level, end of day)
+     PDH 23,284.8 · REACHED 09:30 · tests 21 · DWELL 2× (09:57, 14:23) · INDUCED 10:05 ▲ · INDUCED 13:28 ▼ · INDUCED 14:37 ▲ · FAILED 10:34 · FAILED 15:28 · REJECT 18× · loaded CE (CE +30.8L / PE +16.6L, top-2 at the level, end of day)
+     ROUND 23,300.0 · REACHED 09:32 · tests 30 · DWELL 3× (10:08, 14:54, 15:19) · INDUCED 10:10 ▲ · INDUCED 13:27 ▼ · FAILED 10:31 · REJECT 28× · loaded PE (CE -14.5L / PE +5.6L, top-2 at the level, end of day)
+        RELEASED 10:10 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · PRESSURE · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -28 f30 -38 mfe30 +5 mae30 -43
+     ROUND 23,200.0 · REACHED 11:08 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:15 ▲, 11:05 ▼, 13:35 ▼, 13:40 ▼, 15:15 ▲
+     POWER not a release: 09:45 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 13:30 ▼ at ROUND — POWER ▼ is toward the loaded side (PE); 14:40 ▲ at PDH — POWER ▲ is toward the loaded side (CE)
+  -- BANKNIFTY · stamps 09:20–14:56 · first print 56,442.3
+     PDH 56,368.7 · REACHED 09:15 (gap) · tests 23 · DWELL 2× (12:13, 12:40) · INDUCED 09:15 ▲ gap · INDUCED 09:32 ▲ · INDUCED 10:35 ▼ · INDUCED 12:23 ▲ · FAILED 10:35 (gap) · FAILED 12:26 · REJECT 20× · loaded PE (CE -0.4L / PE +0.9L, top-2 at the level, end of day)
+     PDC 56,292.4 · REACHED 09:20 · tests 14 · DWELL 2× (09:26, 10:55) · INDUCED 10:58 ▼ · INDUCED 12:11 ▲ · INDUCED 13:15 ▼ · REJECT 11× · loaded CE (CE +0.7L / PE -0.7L, top-2 at the level, end of day)
+        RELEASED 10:45 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · REAL · next level: ROUND 56,200 at 11:00 → 2 more · WHO check nahi (reader log nahi) · f15 -57 f30 -186 mfe30 +186 mae30 -26
+     ROUND 56,500.0 · REACHED 09:32 · tests 15 · DWELL 1× (10:16) · REJECT 15× · loaded PE (CE +0.0L / PE +0.6L, top-2 at the level, end of day)
+        RELEASED 10:15 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · PRESSURE · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -88 f30 -220 mfe30 -11 mae30 -220
+     OPEN 56,126.6 · REACHED 11:01 · tests 7 · DWELL 2× (14:13, 14:36) · INDUCED 13:33 ▼ · INDUCED 14:17 ▼ · INDUCED 14:56 ▼ · FAILED 14:07 · FAILED 14:30 · REJECT 4× · loaded CE (CE +0.4L / PE -1.1L, top-2 at the level, end of day)
+        RELEASED 13:30 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -7 f30 +23 mfe30 +36 mae30 -58
+        RELEASED 13:35 ▼ · loaded CE · forced 2/2 · CE likh ×4 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +28 f30 +52 mfe30 +16 mae30 -78
+     ROUND 56,000.0 · REACHED 13:35 · tests 4 · REJECT 4× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 11:05 ▼
+     POWER not a release: 09:40 ▲ at ROUND — koi load nahi (neither top-2 side added at the level); 10:35 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 12:10 ▲ at PDC — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:21–15:28 · first print 74,465.4
+     PDC 74,336.4 · REACHED 09:21 · tests 28 · DWELL 1× (13:35) · INDUCED 11:07 ▼ · INDUCED 13:35 ▼ · FAILED 12:01 · FAILED 13:41 · REJECT 25× · loaded CE (CE +79.4L / PE -15.2L, top-2 at the level, end of day)
+        RELEASED 11:05 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +10 f30 +10 mfe30 +53 mae30 -10
+        RELEASED 13:35 ▼ · loaded CE · forced 2/2 · CE likh ×5 · WALL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +56 f30 +66 mfe30 +17 mae30 -80
+     PDH 74,505.9 · REACHED 09:31 · tests 19 · INDUCED 10:12 ▲ · INDUCED 13:27 ▼ · FAILED 10:31 · REJECT 17× · loaded PE (CE +5.2L / PE +27.0L, top-2 at the level, end of day)
+        RELEASED 10:10 ▲ · loaded PE · forced 2/2 · CE kaat ×3 · PE likh ×6 · PRESSURE · subah witness · next level: ROUND 74,600 at 10:11 · WHO check nahi (reader log nahi) · f15 -63 f30 -101 mfe30 +35 mae30 -106
+        RELEASED 10:15 ▲ · loaded PE · forced 2/2 · PE likh ×6 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -81 f30 -178 mfe30 -22 mae30 -178
+        RELEASED 12:10 ▲ · loaded PE · forced 2/2 · CE kaat ×5 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +49 f30 +53 mfe30 +83 mae30 +1
+     ROUND 74,500.0 · REACHED 09:31 · tests 24 · DWELL 2× (10:02, 10:28) · INDUCED 10:05 ▲ · INDUCED 10:31 ▼ · INDUCED 13:27 ▼ · REJECT 21× · loaded CE (CE +23.2L / PE +16.9L, top-2 at the level, end of day)
+        RELEASED 10:00 ▲ · loaded PE · forced 2/2 · PE likh ×5 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +104 f30 +23 mfe30 +122 mae30 +15
+        RELEASED 10:05 ▲ · loaded PE · forced 2/2 · PE likh ×3 · BACKED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -45 f30 -88 mfe30 +32 mae30 -108
+        RELEASED 13:30 ▼ · loaded CE · forced 1/2 · CE likh ×4 · PE kaat ×13 · REAL · next level: PDC 74,336 at 13:30 · WHO check nahi (reader log nahi) · f15 +29 f30 +37 mfe30 +24 mae30 -74
+     OPEN 74,182.6 · REACHED 11:08 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 15:25 ▼, 15:30 ▼
+     POWER not a release: 09:45 ▼ at ROUND — POWER ▼ is toward the loaded side (PE); 09:50 ▼ at PDC — forced 0/2 — writers in profit; 09:55 ▲ at PDC — POWER ▲ is toward the loaded side (CE); 10:25 ▼ at ROUND — POWER ▼ is toward the loaded side (PE)
+
+=== 2026-09-18 Fri
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:08 · first print 23,310.8
+     OPEN 23,334.7 · REACHED 09:20 · tests 18 · DWELL 2× (12:46, 13:57) · INDUCED 14:05 ▲ · REJECT 16× · loaded koi nahi (CE -21.8L / PE -40.9L, top-2 at the level, end of day)
+     ROUND 23,300.0 · REACHED 09:20 · tests 16 · DWELL 2× (09:30, 10:37) · INDUCED 09:34 ▼ · INDUCED 11:05 ▼ · FAILED 09:36 · FAILED 11:45 · REJECT 14× · loaded CE (CE +29.7L / PE +1.3L, top-2 at the level, end of day)
+     PDH 23,363.5 · REACHED 09:23 · tests 4 · DWELL 1× (14:41) · INDUCED 14:50 ▲ · FAILED 15:04 · REJECT 3× · loaded koi nahi (CE -16.7L / PE -5.2L, top-2 at the level, end of day)
+     PDC 23,270.6 · REACHED 09:27 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 23,400.0 · REACHED 14:58 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:35 ▼, 14:55 ▲
+     POWER not a release: 10:30 ▼ at ROUND — forced 0/2 — writers in profit; 14:50 ▼ at PDH — koi load nahi (neither top-2 side added at the level); 15:10 ▼ at PDH — koi load nahi (neither top-2 side added at the level); 15:15 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 15:20 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 15:25 ▼ at OPEN — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:20–14:59 · first print 56,188.4
+     OPEN 56,172.8 · REACHED 09:20 · tests 8 · DWELL 2× (09:32, 12:09) · INDUCED 10:40 ▼ · FAILED 11:57 · REJECT 7× · loaded CE (CE +0.3L / PE +0.1L, top-2 at the level, end of day)
+        RELEASED 10:35 ▼ · loaded CE · forced 2/2 · CE likh ×3 · BACKED · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -11 f30 -29 mfe30 +36 mae30 -4
+     PDC 56,055.8 · REACHED 09:20 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     PDL 56,038.5 · REACHED 09:20 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 56,500.0 · REACHED 14:34 · tests 3 · REJECT 3× · loaded koi nahi (CE -0.2L / PE -0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 15:05 ▼
+  -- SENSEX · stamps 09:20–15:30 · first print 74,444.3
+     ROUND 74,500.0 · REACHED 09:20 · tests 13 · DWELL 5× (09:26, 09:59, 12:01, 12:16…) · INDUCED 12:43 ▲ · REJECT 12× · loaded PE (CE -0.0L / PE +2.2L, top-2 at the level, end of day)
+     OPEN 74,575.2 · REACHED 09:23 · tests 11 · DWELL 3× (13:07, 15:19, 15:19) · INDUCED 14:09 ▲ · INDUCED 15:30 ▼ · REJECT 9× · loaded koi nahi (CE -1.4L / PE -4.1L, top-2 at the level, end of day)
+     PDC 74,314.6 · REACHED 09:30 · tests 3 · REJECT 2× · loaded koi nahi (CE -0.4L / PE -1.0L, top-2 at the level, end of day)
+     PDH 74,677.6 · REACHED 14:11 · tests 5 · DWELL 1× (14:34) · REJECT 5× · loaded koi nahi (CE -1.3L / PE -0.4L, top-2 at the level, end of day)
+     POWER not a release: 15:10 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 15:15 ▼ at OPEN — koi load nahi (neither top-2 side added at the level); 15:20 ▼ at OPEN — koi load nahi (neither top-2 side added at the level); 15:30 ▼ at OPEN — koi load nahi (neither top-2 side added at the level)
+
+=== 2026-09-22 Tue · expiry (rule): NIFTY
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–14:39 · first print 23,440.8
+     OPEN 23,454.0 · REACHED 09:20 · tests 3 · DWELL 1× (09:49) · INDUCED 10:04 ▲ · FAILED 10:22 · REJECT 2× · loaded CE (CE +249.4L / PE +248.9L, top-2 at the level, end of day)
+     PDC 23,414.3 · REACHED 09:20 · tests 4 · DWELL 1× (10:37) · INDUCED 10:39 ▼ · REJECT 3× · loaded CE (CE +103.4L / PE -41.7L, top-2 at the level, end of day)
+     PDH 23,466.8 · REACHED 09:20 · tests 3 · DWELL 1× (10:13) · REJECT 3× · loaded PE (CE +239.3L / PE +285.8L, top-2 at the level, end of day)
+     ROUND 23,400.0 · REACHED 09:20 · tests 7 · INDUCED 10:42 ▼ · REJECT 6× · loaded CE (CE +115.1L / PE -76.7L, top-2 at the level, end of day)
+        RELEASED 10:45 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · REAL · next level: ROUND 23,350 at 11:51 → 1 more · WHO check nahi (reader log nahi) · f15 +8 f30 +17 mfe30 +9 mae30 -19
+     PDL 23,314.8 · REACHED 13:00 · tests 4 · INDUCED 14:00 ▼ · FAILED 14:11 · REJECT 3× · loaded koi nahi (CE -56.3L / PE -161.7L, top-2 at the level, end of day)
+     ROUND 23,300.0 · REACHED 13:54 · tests 1 · REJECT 1× · loaded koi nahi (CE -56.1L / PE -128.3L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:30 ▼, 10:35 ▼, 14:15 ▲, 14:20 ▲, 15:25 ▼
+     POWER not a release: 09:55 ▼ at OPEN — forced 0/2 — writers in profit; 10:00 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 10:15 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 10:20 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 13:55 ▼ at PDL — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:24–15:28 · first print 56,555.4
+     PDH 56,668.2 · REACHED 09:24 · tests 5 · REJECT 5× · loaded PE (CE -0.1L / PE +0.5L, top-2 at the level, end of day)
+     OPEN 56,489.9 · REACHED 10:21 · tests 1 · INDUCED 10:33 ▼ · loaded CE (CE +0.6L / PE -0.6L, top-2 at the level, end of day)
+        RELEASED 10:35 ▼ · loaded CE · forced 2/2 · PE kaat ×7 · REAL · next level: ROUND 56,400 at 10:35 → 3 more · WHO check nahi (reader log nahi) · f15 -72 f30 -88 mfe30 +88 mae30 -12
+     ROUND 56,500.0 · REACHED 10:21 · tests 1 · DWELL 1× (10:27) · INDUCED 10:31 ▼ · loaded CE (CE +0.6L / PE -0.6L, top-2 at the level, end of day)
+        RELEASED 10:30 ▼ · loaded CE · forced 2/2 · CE likh ×5 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -129 f30 -125 mfe30 +165 mae30 +24
+     PDC 56,470.7 · REACHED 10:22 · tests 3 · INDUCED 10:35 ▼ · REJECT 2× · loaded CE (CE +0.2L / PE -0.3L, top-2 at the level, end of day)
+     PDL 56,269.6 · REACHED 11:07 · tests 7 · DWELL 4× (11:44, 12:16, 14:57, 15:20) · INDUCED 11:46 ▼ · INDUCED 12:43 ▼ · INDUCED 14:59 ▼ · INDUCED 15:28 ▼ · INDUCED 15:28 ▼ · FAILED 12:09 · FAILED 15:14 · REJECT 3× · loaded PE (CE +0.1L / PE +0.4L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:40 ▼, 09:45 ▼, 09:50 ▼, 10:05 ▼, 10:10 ▼, 10:20 ▼, 10:25 ▼, 10:45 ▼, 13:55 ▼, 14:20 ▲, 14:25 ▲
+  -- SENSEX · stamps 09:22–15:28 · first print 74,907.9
+     OPEN 74,901.5 · REACHED 09:22 · tests 3 · DWELL 1× (09:37) · INDUCED 10:33 ▼ · REJECT 2× · loaded CE (CE +6.1L / PE +2.7L, top-2 at the level, end of day)
+        RELEASED 10:30 ▼ · loaded CE · forced 2/2 · CE likh ×5 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -183 f30 -147 mfe30 +217 mae30 +11
+        RELEASED 10:35 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · REAL · next level: ROUND 74,800 at 10:36 · WHO check nahi (reader log nahi) · f15 -133 f30 -124 mfe30 +141 mae30 -7
+     PDH 74,987.4 · REACHED 09:22 · tests 4 · DWELL 1× (09:46) · INDUCED 10:09 ▲ · FAILED 10:22 · REJECT 3× · loaded PE (CE +2.8L / PE +4.5L, top-2 at the level, end of day)
+     ROUND 75,000.0 · REACHED 09:22 · tests 3 · REJECT 3× · loaded PE (CE +3.2L / PE +6.1L, top-2 at the level, end of day)
+     PDC 74,859.0 · REACHED 09:25 · tests 4 · INDUCED 10:39 ▼ · REJECT 3× · loaded CE (CE +5.2L / PE -1.4L, top-2 at the level, end of day)
+        RELEASED 10:40 ▼ · loaded CE · forced 2/2 · CE likh ×4 · PE kaat ×4 · REAL · next level: ROUND 74,700 at 10:42 · WHO check nahi (reader log nahi) · f15 -103 f30 -88 mfe30 +126 mae30 +44
+     ROUND 74,500.0 · REACHED 13:00 · tests 5 · INDUCED 14:00 ▼ · FAILED 14:11 · REJECT 2× · loaded koi nahi (CE -0.6L / PE -2.6L, top-2 at the level, end of day)
+     PDL 74,454.2 · REACHED 13:53 · tests 1 · DWELL 1× (14:06) · REJECT 1× · loaded CE (CE +0.8L / PE -3.3L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▲, 10:45 ▼, 13:55 ▼, 14:20 ▲, 14:25 ▲, 15:15 ▲
+     POWER not a release: 09:40 ▲ at OPEN — POWER ▲ is toward the loaded side (CE)
+
+=== 2026-09-23 Wed
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:05 · first print 23,373.2
+     OPEN 23,352.2 · REACHED 09:20 · tests 8 · REJECT 8× · loaded CE (CE +33.2L / PE +28.9L, top-2 at the level, end of day)
+     ROUND 23,400.0 · REACHED 09:20 · tests 3 · DWELL 2× (09:25, 10:32) · INDUCED 09:26 ▼ · INDUCED 10:37 ▲ · REJECT 2× · loaded PE (CE +4.1L / PE +50.4L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:05 ▲, 14:35 ▲, 15:05 ▼, 15:25 ▲
+  -- BANKNIFTY · stamps 09:59–15:14 · first print 56,360.2
+     ROUND 56,500.0 · REACHED 09:59 · tests 12 · DWELL 2× (10:20, 15:02) · INDUCED 10:28 ▲ · INDUCED 15:03 ▼ · FAILED 15:12 · REJECT 11× · loaded PE (CE +0.5L / PE +0.9L, top-2 at the level, end of day)
+        RELEASED 10:05 ▲ · loaded PE · forced 2/2 · PE likh ×3 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +20 f30 +19 mfe30 +44 mae30 -36
+        RELEASED 10:20 ▲ · loaded PE · forced 2/2 · PE likh ×3 · BACKED · subah witness · next level: ROUND 56,600 at 10:56 · WHO check nahi (reader log nahi) · f15 -0 f30 +48 mfe30 +65 mae30 -16
+     POWER at no trap (release_unattached): 09:35 ▲, 09:45 ▲, 13:05 ▲, 13:10 ▲, 15:15 ▲
+  -- SENSEX · stamps 09:23–12:22 · first print 74,708.1
+     OPEN 74,648.3 · REACHED 09:23 · tests 4 · DWELL 1× (09:32) · REJECT 4× · loaded CE (CE +33.8L / PE +19.4L, top-2 at the level, end of day)
+        RELEASED 09:35 ▼ · loaded CE · forced 2/2 · CE likh ×16 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -17 f30 +36 mfe30 +57 mae30 -49
+     ROUND 75,000.0 · REACHED 12:19 · tests 1 · REJECT 1× · loaded PE (CE -2.8L / PE +1.8L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 10:05 ▲, 10:10 ▲, 10:25 ▲, 11:35 ▲, 12:10 ▲, 13:35 ▼, 15:10 ▼
+     POWER not a release: 09:30 ▼ at OPEN — POWER ▼ is toward the loaded side (PE); 09:45 ▼ at OPEN — forced 0/2 — writers in profit; 09:55 ▲ at OPEN — POWER ▲ is toward the loaded side (CE); 10:00 ▼ at OPEN — forced 0/2 — writers in profit
+
+=== 2026-09-24 Thu · expiry (rule): SENSEX
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:07 · first print 23,237.2
+     OPEN 23,221.8 · REACHED 09:20 · tests 12 · DWELL 4× (09:48, 10:36, 11:14, 11:26) · INDUCED 10:17 ▼ · INDUCED 10:37 ▲ · INDUCED 11:31 ▼ · REJECT 9× · loaded CE (CE +84.8L / PE -3.6L, top-2 at the level, end of day)
+        RELEASED 09:45 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · subah witness · next level: ROUND 23,200 at 10:21 · WHO check nahi (reader log nahi) · f15 -1 f30 -12 mfe30 +14 mae30 -12
+        RELEASED 11:15 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · PRESSURE · next level: ROUND 23,200 at 11:32 → 3 more · WHO check nahi (reader log nahi) · f15 -7 f30 -15 mfe30 +21 mae30 -16
+     ROUND 23,200.0 · REACHED 09:20 · tests 11 · DWELL 2× (11:56, 12:16) · INDUCED 11:57 ▼ · INDUCED 12:23 ▼ · FAILED 12:05 · REJECT 9× · loaded CE (CE +36.3L / PE +12.6L, top-2 at the level, end of day)
+     PWL 23,116.1 · REACHED 13:43 · tests 6 · INDUCED 13:46 ▼ · REJECT 5× · loaded koi nahi (CE -5.6L / PE -7.2L, top-2 at the level, end of day)
+     ROUND 23,100.0 · REACHED 13:44 · tests 5 · DWELL 2× (14:50, 15:04) · INDUCED 13:46 ▼ · INDUCED 14:52 ▲ · INDUCED 15:07 ▼ · REJECT 2× · loaded PE (CE -16.5L / PE +0.1L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:35 ▼, 13:30 ▼, 13:45 ▼, 14:25 ▼
+     POWER not a release: 09:25 ▼ at OPEN — koi load nahi (neither top-2 side added at the level); 13:50 ▼ at ROUND — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:22–15:28 · first print 55,723.2
+     OPEN 55,710.6 · REACHED 09:22 · tests 3 · INDUCED 09:38 ▼ · REJECT 2× · loaded CE (CE +5.0L / PE +0.2L, top-2 at the level, end of day)
+        RELEASED 09:30 ▼ · loaded CE · forced 2/2 · CE likh ×14 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -112 f30 -56 mfe30 +124 mae30 -28
+        RELEASED 09:35 ▼ · loaded CE · forced 2/2 · CE likh ×13 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -77 f30 -39 mfe30 +141 mae30 -11
+        RELEASED 09:40 ▼ · loaded CE · forced 2/2 · CE likh ×10 · CAPPED · subah witness · next level: ROUND 55,500 at 09:44 · WHO check nahi (reader log nahi) · f15 -82 f30 +13 mfe30 +100 mae30 -41
+     PWL 55,794.8 · REACHED 09:22 · tests 1 · REJECT 1× · loaded CE (CE +1.6L / PE +0.3L, top-2 at the level, end of day)
+     ROUND 55,500.0 · REACHED 09:43 · tests 11 · INDUCED 14:39 ▲ · INDUCED 15:28 ▼ · REJECT 9× · loaded CE (CE +0.9L / PE -0.2L, top-2 at the level, end of day)
+        RELEASED 09:50 ▼ · loaded CE · forced 2/2 · CE likh ×6 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +38 f30 -20 mfe30 +53 mae30 -76
+        RELEASED 10:00 ▼ · loaded CE · forced 2/2 · CE likh ×3 · CAPPED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -20 f30 -50 mfe30 +68 mae30 -72
+        RELEASED 15:15 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · SQUEEZE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 · mae30 · (15:15 se check nahi — the window crosses the auction freeze)
+     POWER at no trap (release_unattached): 09:25 ▼, 09:45 ▼, 09:55 ▼, 10:05 ▲, 10:20 ▼, 13:30 ▼, 13:45 ▼, 14:00 ▼, 14:55 ▲
+     POWER not a release: 14:40 ▲ at ROUND — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:22–14:52 · first print 74,223.3
+     OPEN 74,272.4 · REACHED 09:22 · tests 2 · REJECT 2× · loaded CE (CE +54.4L / PE +33.2L, top-2 at the level, end of day)
+        RELEASED 09:40 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -101 f30 -38 mfe30 +101 mae30 +5
+     ROUND 74,000.0 · REACHED 12:23 · tests 1 · DWELL 1× (13:17) · INDUCED 13:25 ▼ · loaded koi nahi (CE -1.7L / PE -27.1L, top-2 at the level, end of day)
+        RELEASED 12:30 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -54 f30 -57 mfe30 +61 mae30 +8
+        RELEASED 12:35 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · REAL · next level: ROUND 73,900 at 13:26 · WHO check nahi (reader log nahi) · f15 +29 f30 +61 mfe30 +9 mae30 -61
+     PWL 73,981.3 · REACHED 12:25 · tests 4 · DWELL 1× (12:37) · INDUCED 12:55 ▼ · INDUCED 13:26 ▼ · FAILED 13:04 · REJECT 2× · loaded CE (CE +1.1L / PE -26.5L, top-2 at the level, end of day)
+        RELEASED 13:30 ▼ · loaded CE · forced 2/2 · PE kaat ×9 · REAL · next level: ROUND 73,800 at 14:52 · WHO check nahi (reader log nahi) · f15 -165 f30 -286 mfe30 +311 mae30 -30
+     POWER at no trap (release_unattached): 09:50 ▼, 10:25 ▼, 12:00 ▼, 13:50 ▼, 14:00 ▼
+     POWER not a release: 09:35 ▲ at OPEN — POWER ▲ is toward the loaded side (CE)
+
+=== 2026-09-25 Fri
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:29 · first print 23,095.8
+     PDC 23,063.1 · REACHED 09:20 · tests 12 · DWELL 2× (10:39, 12:08) · INDUCED 09:52 ▼ · INDUCED 10:48 ▼ · INDUCED 12:49 ▼ · INDUCED 14:00 ▲ · FAILED 10:04 · FAILED 11:02 · REJECT 8× · loaded CE (CE +86.2L / PE -4.5L, top-2 at the level, end of day)
+        RELEASED 09:30 ▲ · loaded PE · forced 2/2 · PE likh ×7 · BACKED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -60 f30 -59 mfe30 +0 mae30 -76
+        RELEASED 09:45 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · REAL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +1 f30 +46 mfe30 +16 mae30 -49
+     ROUND 23,100.0 · REACHED 09:20 · tests 11 · DWELL 2× (10:13, 11:21) · INDUCED 14:03 ▲ · REJECT 10× · loaded PE (CE -9.1L / PE +111.4L, top-2 at the level, end of day)
+        RELEASED 10:15 ▲ · loaded PE · forced 2/2 · PE likh ×4 · WALL · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -16 f30 -41 mfe30 +2 mae30 -41
+        RELEASED 14:05 ▲ · loaded PE · forced 2/2 · CE kaat ×41 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -25 f30 -8 mfe30 +5 mae30 -25
+     PWL 23,116.1 · REACHED 09:28 · tests 9 · DWELL 3× (09:34, 14:25, 14:53) · INDUCED 15:08 ▼ · FAILED 15:14 · REJECT 8× · loaded PE (CE -24.1L / PE +44.1L, top-2 at the level, end of day)
+     PDL 23,046.2 · REACHED 09:41 · tests 7 · INDUCED 12:56 ▼ · INDUCED 13:34 ▼ · FAILED 13:11 · FAILED 13:56 · REJECT 5× · loaded CE (CE +66.0L / PE -29.8L, top-2 at the level, end of day)
+        RELEASED 12:55 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · REAL · next level: OPEN 23,035 at 12:55 · WHO check nahi (reader log nahi) · f15 +11 f30 -5 mfe30 +11 mae30 -14
+     OPEN 23,035.0 · REACHED 09:43 · tests 7 · DWELL 1× (13:32) · REJECT 7× · loaded CE (CE +49.7L / PE -44.2L, top-2 at the level, end of day)
+        RELEASED 13:00 ▼ · loaded CE · forced 2/2 · PE kaat ×7 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -4 f30 -9 mfe30 +14 mae30 -7
+     POWER at no trap (release_unattached): 15:15 ▼
+     POWER not a release: 09:35 ▲ at PWL — forced 0/2 — writers in profit; 10:10 ▲ at PDC — POWER ▲ is toward the loaded side (CE); 14:00 ▼ at OPEN — forced 0/2 — writers in profit; 14:55 ▼ at PWL — POWER ▼ is toward the loaded side (PE)
+  -- BANKNIFTY · stamps 09:22–15:29 · first print 55,618.0
+     ROUND 55,500.0 · REACHED 09:22 · tests 14 · DWELL 3× (10:46, 13:07, 13:52) · INDUCED 09:43 ▼ · INDUCED 12:57 ▼ · INDUCED 13:09 ▲ · INDUCED 13:56 ▲ · INDUCED 15:09 ▼ · FAILED 10:07 · FAILED 13:01 · FAILED 13:33 · FAILED 15:14 · REJECT 10× · loaded CE (CE +2.3L / PE -1.7L, top-2 at the level, end of day)
+        RELEASED 13:00 ▼ · loaded CE · forced 2/2 · PE kaat ×5 · HOLLOW · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -1 f30 -9 mfe30 +17 mae30 -26
+     PDC 55,438.5 · REACHED 09:37 · tests 8 · DWELL 1× (09:59) · REJECT 8× · loaded CE (CE +1.9L / PE -0.7L, top-2 at the level, end of day)
+     OPEN 55,373.8 · REACHED 09:43 · tests 3 · REJECT 3× · loaded CE (CE +0.6L / PE -0.6L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▲, 10:10 ▲, 14:05 ▲, 14:20 ▲, 14:50 ▼
+     POWER not a release: 09:30 ▲ at ROUND — POWER ▲ is toward the loaded side (CE); 09:35 ▲ at ROUND — forced 0/2 — writers in profit; 10:05 ▲ at PDC — POWER ▲ is toward the loaded side (CE); 14:00 ▲ at ROUND — POWER ▲ is toward the loaded side (CE); 15:10 ▼ at ROUND — forced 0/2 — writers in profit
+  -- SENSEX · stamps 09:40–13:59 · first print 73,707.4
+     PDC 73,580.5 · REACHED 09:40 · tests 8 · REJECT 8× · loaded CE (CE +3.6L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 12:55 ▼ · loaded CE · forced 2/2 · CE likh ×3 · REAL · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +25 f30 -11 mfe30 +36 mae30 -48
+        RELEASED 13:00 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · FAKE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -6 f30 -13 mfe30 +36 mae30 -36
+     PDL 73,563.9 · REACHED 09:40 · tests 11 · REJECT 11× · loaded CE (CE +2.6L / PE -0.1L, top-2 at the level, end of day)
+     OPEN 73,525.9 · REACHED 09:43 · tests 7 · REJECT 7× · loaded CE (CE +0.7L / PE +0.5L, top-2 at the level, end of day)
+     ROUND 73,500.0 · REACHED 09:43 · tests 2 · REJECT 2× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 14:05 ▲, 15:15 ▼, 15:20 ▲, 15:30 ▲
+
+=== 2026-09-28 Mon
+  inputs: warmap live + restart replay (backfill) · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:20–15:01 · first print 22,970.3
+     ROUND 22,900.0 · REACHED 09:20 · tests 3 · DWELL 1× (09:31) · INDUCED 09:35 ▼ · REJECT 2× · loaded CE (CE +90.4L / PE +7.6L, top-2 at the level, end of day)
+        RELEASED 09:30 ▼ · loaded CE · forced 2/2 · CE likh ×7 · CAPPED · subah witness · next level: ROUND 22,850 at 09:38 · WHO check nahi (reader log nahi) · f15 -41 f30 -38 mfe30 +50 mae30 +0
+     ROUND 22,800.0 · REACHED 11:16 · tests 5 · DWELL 2× (14:22, 14:59) · INDUCED 14:32 ▼ · INDUCED 15:01 ▼ · INDUCED 15:01 ▼ · FAILED 14:53 · REJECT 3× · loaded koi nahi (CE -34.7L / PE -29.4L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:40 ▼, 09:45 ▼, 12:00 ▼, 14:20 ▼, 14:40 ▼, 15:15 ▲
+     POWER not a release: 09:25 ▼ at ROUND — koi load nahi (neither top-2 side added at the level); 15:05 ▲ at ROUND — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:23–15:02 · first print 55,026.2
+     ROUND 55,000.0 · REACHED 09:23 · tests 2 · REJECT 2× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 54,500.0 · REACHED 10:49 · tests 8 · DWELL 2× (14:37, 15:00) · INDUCED 14:38 ▼ · INDUCED 15:02 ▼ · INDUCED 15:02 ▼ · FAILED 14:50 · REJECT 6× · loaded koi nahi (CE -0.2L / PE -1.3L, top-2 at the level, end of day)
+        RELEASED 14:40 ▼ · loaded CE · forced 2/2 · PE kaat ×6 · SQUEEZE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +46 f30 +40 mfe30 +12 mae30 -70
+     POWER at no trap (release_unattached): 09:25 ▼, 09:30 ▼, 09:35 ▼, 09:40 ▼, 10:10 ▼, 14:20 ▼, 15:20 ▲, 15:25 ▲
+     POWER not a release: 15:00 ▲ at ROUND — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:36–14:01 · first print 73,373.5
+     ROUND 73,000.0 · REACHED 09:36 · tests 11 · DWELL 1× (10:08) · INDUCED 10:09 ▼ · REJECT 10× · loaded PE (CE +2.8L / PE +5.2L, top-2 at the level, end of day)
+        RELEASED 09:45 ▼ · loaded CE · forced 2/2 · CE likh ×3 · WALL · subah witness · next level: ROUND 72,900 at 10:24 · WHO check nahi (reader log nahi) · f15 -2 f30 -20 mfe30 +52 mae30 -55
+     POWER at no trap (release_unattached): 09:25 ▼, 09:30 ▼, 09:35 ▼, 09:40 ▼, 14:20 ▼, 14:25 ▼, 14:40 ▼, 15:20 ▼
+
+=== 2026-09-29 Tue · expiry (rule): NIFTY, BANKNIFTY
+  inputs: warmap live · reader nahi (WHO: check nahi) · xindex nahi (X2/X3: check nahi)
+  -- NIFTY · stamps 09:23–15:24 · first print 22,722.2
+     ROUND 22,700.0 · REACHED 09:23 · tests 42 · INDUCED 11:31 ▲ · INDUCED 12:27 ▼ · REJECT 40× · loaded koi nahi (CE -232.8L / PE -45.3L, top-2 at the level, end of day)
+        RELEASED 11:35 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · PRESSURE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 +1 f30 +30 mfe30 +30 mae30 -6
+        RELEASED 15:15 ▲ · loaded PE · forced 1/2 · CE kaat ×3 · SQUEEZE · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 · mae30 · (15:15 se check nahi — the window crosses the auction freeze)
+     ROUND 22,600.0 · REACHED 09:29 · tests 8 · DWELL 3× (09:48, 10:50, 11:06) · INDUCED 10:06 ▼ · FAILED 10:43 · REJECT 7× · loaded PE (CE +73.0L / PE +136.6L, top-2 at the level, end of day)
+     OPEN 22,732.5 · REACHED 11:30 · tests 5 · INDUCED 12:07 ▲ · FAILED 12:20 · REJECT 4× · loaded PE (CE -96.5L / PE +42.4L, top-2 at the level, end of day)
+     PDL 22,762.2 · REACHED 12:01 · tests 11 · REJECT 11× · loaded PE (CE -25.1L / PE +3.4L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:30 ▼, 09:35 ▼, 11:15 ▲, 12:35 ▼
+     POWER not a release: 09:45 ▲ at ROUND — POWER ▲ is toward the loaded side (CE); 15:20 ▼ at ROUND — POWER ▼ is toward the loaded side (PE)
+  -- BANKNIFTY · stamps 09:22–15:29 · first print 54,392.7
+     ROUND 54,000.0 · REACHED 09:22 · tests 17 · INDUCED 09:34 ▼ · INDUCED 11:10 ▲ · REJECT 15× · loaded CE (CE +7.7L / PE +1.1L, top-2 at the level, end of day)
+        RELEASED 09:30 ▼ · loaded CE · forced 2/2 · CE likh ×6 · BACKED · subah witness · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 -73 f30 -69 mfe30 +140 mae30 -16
+        RELEASED 09:35 ▼ · loaded CE · forced 2/2 · CE likh ×6 · CAPPED · subah witness · next level: ROUND 53,800 at 09:35 → 1 more · WHO check nahi (reader log nahi) · f15 -13 f30 -12 mfe30 +62 mae30 -94
+     OPEN 54,283.6 · REACHED 11:30 · tests 18 · DWELL 1× (13:03) · INDUCED 12:01 ▲ · INDUCED 12:27 ▼ · INDUCED 13:09 ▲ · INDUCED 14:31 ▲ · FAILED 13:14 · REJECT 13× · loaded PE (CE +0.5L / PE +7.1L, top-2 at the level, end of day)
+     PDL 54,437.7 · REACHED 12:05 · tests 7 · REJECT 7× · loaded PE (CE -1.3L / PE +1.4L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▼, 09:40 ▼, 09:55 ▲, 10:30 ▲, 11:15 ▲, 11:35 ▲, 12:35 ▼
+  -- SENSEX · stamps 09:38–15:29 · first print 72,579.1
+     ROUND 72,000.0 · REACHED 09:38 · tests 3 · REJECT 3× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 72,500.0 · REACHED 11:14 · tests 19 · DWELL 1× (15:17) · INDUCED 11:31 ▲ · INDUCED 12:27 ▼ · INDUCED 15:29 ▲ · REJECT 16× · loaded PE (CE -4.4L / PE +2.1L, top-2 at the level, end of day)
+        RELEASED 11:35 ▲ · loaded PE · forced 2/2 · CE kaat ×6 · PRESSURE · next level: OPEN 72,634 at 12:00 · WHO check nahi (reader log nahi) · f15 +18 f30 +111 mfe30 +112 mae30 -14
+        RELEASED 15:15 ▲ · loaded PE · forced 2/2 · CE kaat ×5 · HOLLOW · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 · mae30 · (15:15 se check nahi — the window crosses the auction freeze)
+        RELEASED 15:20 ▲ · loaded PE · forced 2/2 · CE kaat ×6 ·  · next level: not reached before the next release / close · WHO check nahi (reader log nahi) · f15 · f30 · mfe30 · mae30 · (15:15 se check nahi — the window crosses the auction freeze)
+     OPEN 72,633.7 · REACHED 11:31 · tests 9 · DWELL 1× (12:12) · REJECT 9× · loaded PE (CE -1.3L / PE +1.4L, top-2 at the level, end of day)
+     PDL 72,716.2 · REACHED 12:07 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:20 ▼, 09:30 ▼, 09:45 ▲, 11:15 ▲, 12:35 ▼, 14:35 ▲, 15:10 ▲
+
+=== 2026-09-30 Wed
+  inputs: warmap live · reader yes · xindex yes
+  -- NIFTY · stamps 09:22–15:15 · first print 22,667.8
+     PDC 22,716.2 · REACHED 09:22 · tests 16 · DWELL 4× (10:55, 11:08, 11:51, 12:19) · INDUCED 10:06 ▲ · INDUCED 11:56 ▲ · INDUCED 14:21 ▼ · FAILED 10:44 · REJECT 13× · loaded CE (CE +87.3L / PE +48.4L, top-2 at the level, end of day)
+     PDH 22,753.2 · REACHED 09:22 · tests 23 · DWELL 1× (10:19) · INDUCED 10:21 ▲ · INDUCED 12:35 ▲ · INDUCED 13:44 ▼ · FAILED 10:32 · REJECT 20× · loaded PE (CE -18.9L / PE +35.1L, top-2 at the level, end of day)
+     ROUND 22,700.0 · REACHED 09:22 · tests 23 · DWELL 1× (09:39) · INDUCED 11:15 ▼ · INDUCED 14:23 ▼ · FAILED 11:33 · REJECT 21× · loaded CE (CE +101.0L / PE +34.9L, top-2 at the level, end of day)
+        RELEASED 14:20 ▼ · loaded CE · forced 1/2 · CE likh ×3 · FAKE · next level: OPEN 22,665 at 14:24 → 1 more · WHO new_shorts (chalega, 14:49–15:00) · f15 -73 f30 -65 mfe30 +107 mae30 +13
+        RELEASED 14:25 ▼ · loaded CE · forced 2/2 · CE likh ×3 · PE kaat ×5 · REAL · next level: not reached before the next release / close · WHO new_shorts (chalega, 14:49–15:00) · f15 -53 f30 -26 mfe30 +67 mae30 +8
+     OPEN 22,665.0 · REACHED 09:22 · tests 16 · INDUCED 14:28 ▼ · REJECT 15× · loaded CE (CE +32.3L / PE -19.8L, top-2 at the level, end of day)
+        RELEASED 14:30 ▼ · loaded CE · forced 2/2 · CE likh ×4 · REAL · next level: ROUND 22,600 at 14:39 · WHO new_shorts (chalega, 14:49–15:00) · f15 -3 f30 +19 mfe30 +30 mae30 -21
+     ROUND 22,800.0 · REACHED 12:38 · tests 10 · REJECT 10× · loaded PE (CE -12.9L / PE +1.5L, top-2 at the level, end of day)
+     ROUND 22,600.0 · REACHED 14:39 · tests 4 · REJECT 4× · loaded CE (CE +4.1L / PE -11.8L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:40 ▲, 12:50 ▲
+     POWER not a release: 13:45 ▼ at PDH — POWER ▼ is toward the loaded side (PE); 13:50 ▼ at PDC — forced 0/2 — writers in profit
+  -- BANKNIFTY · stamps 09:22–14:15 · first print 54,390.4
+     PDH 54,405.3 · REACHED 09:22 · tests 8 · REJECT 8× · loaded CE (CE +0.4L / PE +0.3L, top-2 at the level, end of day)
+     ROUND 54,500.0 · REACHED 09:22 · tests 2 · DWELL 1× (09:35) · REJECT 2× · loaded CE (CE +0.8L / PE +0.6L, top-2 at the level, end of day)
+     ROUND 55,000.0 · REACHED 12:22 · tests 6 · DWELL 2× (12:29, 13:51) · INDUCED 12:33 ▲ · INDUCED 14:12 ▼ · REJECT 4× · loaded koi nahi (CE -0.3L / PE -0.3L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:05 ▼, 12:25 ▲, 12:50 ▲, 14:25 ▼, 14:40 ▼, 15:10 ▲
+  -- SENSEX · stamps 09:22–15:28 · first print 72,483.8
+     PDC 72,529.1 · REACHED 09:22 · tests 14 · INDUCED 14:31 ▼ · REJECT 13× · loaded CE (CE +21.4L / PE +6.6L, top-2 at the level, end of day)
+     PDH 72,684.9 · REACHED 09:22 · tests 20 · INDUCED 09:59 ▲ · INDUCED 11:15 ▼ · INDUCED 14:23 ▼ · FAILED 11:28 · REJECT 17× · loaded CE (CE +32.8L / PE +19.9L, top-2 at the level, end of day)
+        RELEASED 14:25 ▼ · loaded CE · forced 2/2 · CE likh ×3 · PE kaat ×5 · REAL · next level: OPEN 72,441 at 14:37 → 1 more · WHO rotation (OI flat, 14:32–14:39) · f15 -182 f30 -99 mfe30 +237 mae30 +28
+     ROUND 72,500.0 · REACHED 09:22 · tests 10 · INDUCED 14:37 ▼ · INDUCED 14:52 ▲ · FAILED 15:05 · REJECT 7× · loaded CE (CE +18.2L / PE -5.8L, top-2 at the level, end of day)
+        RELEASED 14:40 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · REAL · next level: not reached before the next release / close · WHO rotation (OI flat, 14:50–14:57) · f15 +83 f30 +34 mfe30 +54 mae30 -127
+     OPEN 72,441.1 · REACHED 09:22 · tests 7 · DWELL 1× (15:20) · INDUCED 14:42 ▼ · FAILED 14:45 · REJECT 5× · loaded koi nahi (CE -9.5L / PE -21.9L, top-2 at the level, end of day)
+        RELEASED 14:45 ▼ · loaded CE · forced 2/2 · CE likh ×3 · FAKE · next level: not reached before the next release / close · WHO rotation (OI flat, 14:50–14:57) · f15 +69 f30 -25 mfe30 +50 mae30 -92
+     ROUND 73,000.0 · REACHED 12:37 · tests 12 · INDUCED 12:48 ▲ · FAILED 12:52 · REJECT 11× · loaded PE (CE -0.3L / PE +5.1L, top-2 at the level, end of day)
+        RELEASED 12:50 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · REAL · next level: not reached before the next release / close · WHO rotation (OI flat, 13:14–13:24) · f15 -39 f30 -71 mfe30 -9 mae30 -74
+     POWER at no trap (release_unattached): 10:10 ▲, 10:15 ▲, 10:20 ▲, 10:30 ▲, 11:20 ▼, 12:25 ▲, 12:40 ▲, 13:45 ▼, 13:50 ▼, 14:30 ▼
+     POWER not a release: 09:45 ▼ at PDH — forced 0/2 — writers in profit; 09:55 ▼ at PDH — forced 0/2 — writers in profit; 10:00 ▲ at PDH — POWER ▲ is toward the loaded side (CE); 10:40 ▼ at PDH — forced 0/2 — writers in profit; 15:30 ▲ at OPEN — koi load nahi (neither top-2 side added at the level)
+
+=== 2026-10-01 Thu · expiry (rule): SENSEX
+  inputs: warmap live · reader yes · xindex yes
+  -- NIFTY · stamps 09:22–15:14 · first print 22,552.0
+     PDL 22,595.2 · REACHED 09:15 (gap) · tests 13 · INDUCED 09:15 ▼ gap · REJECT 13× · loaded PE (CE +7.1L / PE +30.6L, top-2 at the level, end of day)
+     OPEN 22,543.7 · REACHED 09:22 · tests 22 · INDUCED 10:00 ▲ · INDUCED 12:10 ▼ · REJECT 20× · loaded CE (CE +80.0L / PE +5.4L, top-2 at the level, end of day)
+        RELEASED 12:10 ▼ · loaded CE · forced 2/2 · PE kaat ×9 · REAL · next level: ROUND 22,500 at 12:10 · WHO new_shorts (chalega, 12:13–12:59) · f15 -29 f30 -32 mfe30 +46 mae30 -20
+     ROUND 22,500.0 · REACHED 09:22 · tests 5 · INDUCED 12:26 ▼ · REJECT 4× · loaded CE (CE +35.4L / PE -29.7L, top-2 at the level, end of day)
+        RELEASED 12:25 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · REAL · next level: not reached before the next release / close · WHO new_shorts (chalega, 13:09–13:30) · f15 -3 f30 -141 mfe30 +141 mae30 -2
+        RELEASED 12:30 ▼ · loaded CE · forced 2/2 · PE kaat ×4 · REAL · next level: ROUND 22,450 at 12:43 → 1 more · WHO new_shorts (chalega, 13:09–13:30) · f15 -41 f30 -128 mfe30 +157 mae30 -19
+     ROUND 22,600.0 · REACHED 09:30 · tests 11 · REJECT 11× · loaded PE (CE +3.5L / PE +33.4L, top-2 at the level, end of day)
+     PDC 22,620.5 · REACHED 10:01 · tests 2 · REJECT 2× · loaded PE (CE -1.4L / PE +14.1L, top-2 at the level, end of day)
+     ROUND 22,400.0 · REACHED 12:46 · tests 7 · INDUCED 12:49 ▼ · INDUCED 15:06 ▲ · REJECT 5× · loaded koi nahi (CE -21.2L / PE -0.9L, top-2 at the level, end of day)
+     ROUND 22,300.0 · REACHED 12:58 · tests 10 · INDUCED 13:43 ▼ · INDUCED 14:30 ▲ · REJECT 8× · loaded PE (CE +4.9L / PE +7.1L, top-2 at the level, end of day)
+        RELEASED 13:45 ▼ · loaded CE · forced 2/2 · PE kaat ×3 · REAL · next level: ROUND 22,250 at 13:58 · WHO rotation (OI flat, 13:46–14:02) · f15 -50 f30 -15 mfe30 +68 mae30 -14
+     ROUND 22,200.0 · REACHED 14:05 · tests 1 · REJECT 1× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 09:25 ▼, 12:55 ▼, 13:00 ▼, 14:35 ▲, 15:20 ▲
+     POWER not a release: 12:50 ▼ at ROUND — koi load nahi (neither top-2 side added at the level); 15:00 ▲ at ROUND — koi load nahi (neither top-2 side added at the level)
+  -- BANKNIFTY · stamps 09:22–15:29 · first print 54,787.5
+     PDC 54,633.1 · REACHED 09:22 · tests 6 · INDUCED 12:46 ▼ · REJECT 5× · loaded CE (CE +0.1L / PE -0.0L, top-2 at the level, end of day)
+        RELEASED 12:35 ▼ · loaded CE · forced 2/2 · CE likh ×5 · FAKE · next level: ROUND 54,500 at 12:49 · WHO oi_cant (check nahi, 12:40–12:59) · f15 -255 f30 -284 mfe30 +450 mae30 -16
+        RELEASED 12:50 ▼ · loaded CE · forced 2/2 · CE likh ×5 · REAL · next level: ROUND 54,400 at 12:54 → 1 more · WHO rotation (OI flat, 13:09–13:19) · f15 -29 f30 -86 mfe30 +195 mae30 -3
+     OPEN 54,583.1 · REACHED 09:23 · tests 8 · DWELL 1× (15:19) · INDUCED 12:49 ▼ · REJECT 7× · loaded koi nahi (CE -0.7L / PE -0.4L, top-2 at the level, end of day)
+     ROUND 55,000.0 · REACHED 09:30 · tests 21 · DWELL 1× (11:45) · INDUCED 10:36 ▲ · FAILED 10:48 · REJECT 20× · loaded PE (CE +0.3L / PE +0.8L, top-2 at the level, end of day)
+        RELEASED 10:35 ▲ · loaded PE · forced 2/2 · CE kaat ×4 · REAL · next level: not reached before the next release / close · WHO rotation (OI flat, 11:10–11:18) · f15 -71 f30 -174 mfe30 +20 mae30 -174
+     PDH 55,135.5 · REACHED 10:32 · tests 5 · REJECT 5× · loaded koi nahi (CE +0.0L / PE +0.0L, top-2 at the level, end of day)
+     ROUND 54,500.0 · REACHED 12:46 · tests 13 · INDUCED 12:53 ▼ · INDUCED 15:15 ▲ · FAILED 15:29 · REJECT 10× · loaded koi nahi (CE -0.0L / PE -0.0L, top-2 at the level, end of day)
+        RELEASED 12:55 ▼ · loaded CE · forced 2/2 · CE likh ×5 · BACKED · next level: not reached before the next release / close · WHO rotation (OI flat, 13:09–13:19) · f15 +76 f30 +17 mfe30 +83 mae30 -116
+     PDL 54,174.3 · REACHED 13:43 · tests 5 · INDUCED 14:02 ▼ · FAILED 14:07 · REJECT 4× · loaded CE (CE +1.1L / PE +0.3L, top-2 at the level, end of day)
+        RELEASED 14:15 ▼ · loaded CE · forced 2/2 · CE likh ×4 · WALL · next level: not reached before the next release / close · WHO new_shorts (chalega, 14:14–14:16) · f15 +142 f30 +157 mfe30 +21 mae30 -225
+     POWER at no trap (release_unattached): 12:25 ▼, 12:30 ▼, 13:00 ▼, 14:00 ▼, 14:55 ▲
+     POWER not a release: 15:10 ▲ at ROUND — POWER ▲ is toward the loaded side (CE)
+  -- SENSEX · stamps 09:23–15:28 · first print 72,338.2
+     PDL 72,366.4 · REACHED 09:15 (gap) · tests 15 · DWELL 1× (12:00) · INDUCED 09:15 ▼ gap · INDUCED 10:00 ▲ · INDUCED 12:03 ▼ · FAILED 10:00 (gap) · REJECT 13× · loaded CE (CE +101.7L / PE +64.2L, top-2 at the level, end of day)
+     OPEN 72,192.9 · REACHED 09:23 · tests 5 · INDUCED 12:23 ▼ · REJECT 4× · loaded CE (CE +44.7L / PE -17.8L, top-2 at the level, end of day)
+        RELEASED 12:15 ▼ · loaded CE · forced 2/2 · CE likh ×3 · PE kaat ×5 · PRESSURE · next level: not reached before the next release / close · WHO rotation (OI flat, 12:13–12:27) · f15 -187 f30 -302 mfe30 +302 mae30 -15
+        RELEASED 12:25 ▼ · loaded CE · forced 2/2 · CE likh ×4 · PE kaat ×4 · REAL · next level: ROUND 72,000 at 12:29 → 2 more · WHO rotation (OI flat, 12:28–12:29) · f15 -18 f30 -467 mfe30 +467 mae30 +6
+     PDC 72,480.3 · REACHED 09:30 · tests 19 · DWELL 1× (10:43) · INDUCED 10:07 ▲ · FAILED 10:13 · REJECT 18× · loaded CE (CE +20.8L / PE +19.4L, top-2 at the level, end of day)
+        RELEASED 10:05 ▲ · loaded PE · forced 2/2 · CE kaat ×6 · PE likh ×4 · REAL · subah witness · next level: not reached before the next release / close · WHO rotation (OI flat, 10:13–10:18) · f15 -109 f30 -54 mfe30 +23 mae30 -164
+     ROUND 72,500.0 · REACHED 09:30 · tests 15 · REJECT 15× · loaded PE (CE +6.5L / PE +16.6L, top-2 at the level, end of day)
+     ROUND 72,000.0 · REACHED 12:28 · tests 5 · DWELL 1× (15:19) · INDUCED 12:45 ▼ · REJECT 4× · loaded koi nahi (CE -4.6L / PE -6.1L, top-2 at the level, end of day)
+     ROUND 71,500.0 · REACHED 12:58 · tests 6 · DWELL 2× (13:52, 14:24) · INDUCED 13:52 ▼ · INDUCED 14:26 ▲ · REJECT 4× · loaded CE (CE +4.6L / PE -1.6L, top-2 at the level, end of day)
+     POWER at no trap (release_unattached): 12:10 ▼, 12:30 ▼, 12:50 ▼, 13:00 ▼, 14:40 ▲
+     POWER not a release: 09:30 ▼ at OPEN — forced 0/2 — writers in profit; 09:35 ▲ at PDL — POWER ▲ is toward the loaded side (CE); 09:40 ▼ at PDL — POWER ▼ is toward the loaded side (PE); 10:15 ▼ at ROUND — POWER ▼ is toward the loaded side (PE); 15:30 ▼ at ROUND — koi load nahi (neither top-2 side added at the level)
+

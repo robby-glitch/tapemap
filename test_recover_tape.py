@@ -38,6 +38,9 @@ def test_stamps_become_epoch_and_a_stray_day_is_dropped():
     assert out["timestamp"] == sorted(out["timestamp"])
     assert out["open_interest"][0] == 1000.0
     assert out["_meta"]["source"].startswith("kite historical")
+    up = recover_tape.to_payload(rows, "SENSEX", "2026-08-13",
+                                 source="upstox historical")
+    assert up["_meta"]["source"] == "upstox historical"   # never mislabelled Kite
 
 
 def test_a_thin_session_is_refused_not_written(tmp_path, monkeypatch):

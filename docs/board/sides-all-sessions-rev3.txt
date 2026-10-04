@@ -1,0 +1,392 @@
+PUSHTI rows: 279; at or before 10:30: 89 (morning witnesses, never counted).
+SESSIONS READ: 27 of 27 with chain files (2026-08-20 .. 2026-10-01).
+WEEKDAYS WITH NO CHAIN FILE (holiday or server not running — not told apart here): 2026-08-28, 2026-09-08, 2026-09-14, 2026-09-21
+PROBLEMS: 2026-08-20 NIFTY: 12 minutes; 2026-08-20 BANKNIFTY: 13 minutes; 2026-08-20 SENSEX: 11 minutes
+
+sides.py sides-3 (2026-10-03 23:38 IST (sides-1), amended 2026-10-04 00:25 IST (sides-2), 01:25 IST (sides-3, post-hoc)) frozen, run over every session in data/chain/ — rows only, no rates.
+rev sides-3: slots ≤10:30 sized on the previous session's 09:20–10:30 median; a morning PUSHTI is a WITNESS (subah), never counted, and never uses up the day's first sign.
+previous-day expiry: from its own chain file when it carries `expiry`, else the weekday rule (said per note).
+PUSHTI = first POWER slot each way since the last opposite one. forced = the fuel side's top-2 writers underwater (0-2).
+weekly = NIFTY+SENSEX POWER the same way at that slot (Mary's count, BANKNIFTY a witness). f15/f30 = index points from the mark.
+expiry tags by weekday rule (NIFTY Tue, SENSEX Thu, BANKNIFTY last Tue) — holiday shifts not modelled.
+
+=== 2026-08-20 Thu · expiry (rule): SENSEX
+  day: NIFTY 24206→24212 (+6; hi 24237 14:51, lo 24206 11:30) · BANKNIFTY 57621→57444 (-177; hi 57647 11:36, lo 57444 15:16) · SENSEX 77408→77485 (+78; hi 77564 14:51, lo 77408 11:30)
+  note: NIFTY: only 12 minutes on the grid
+  note: NIFTY: no previous session on disk, so ≤10:30 reads CAN'T CHECK (kal ka data nahi)
+  note: BANKNIFTY: only 13 minutes on the grid
+  note: BANKNIFTY: no previous session on disk, so ≤10:30 reads CAN'T CHECK (kal ka data nahi)
+  note: SENSEX: only 11 minutes on the grid
+  note: SENSEX: no previous session on disk, so ≤10:30 reads CAN'T CHECK (kal ka data nahi)
+  (no PUSHTI in any index)
+
+=== 2026-08-21 Fri
+  day: NIFTY 24220→24235 (+15; hi 24266 11:05, lo 24208 09:34) · BANKNIFTY 57521→57648 (+127; hi 57764 09:51, lo 57501 09:25) · SENSEX 77503→77541 (+38; hi 77665 10:54, lo 77451 09:34)
+  note: SENSEX: 2026-08-20 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  10:55 NIFTY     ▲ REAL     forced 2/2  weekly 1/2(▲)  f15    -1 f30    -6
+  11:40 SENSEX    ▼ REAL     forced 0/2  weekly 1/2(▼)  f15   -24 f30   -40
+  12:00 NIFTY     ▼ WALL     forced 0/2  weekly 1/2(▼)  f15    -8 f30    -2
+  12:20 BANKNIFTY ▲ PRESSURE forced 1/2  weekly 0/2  f15   +23 f30   +11
+  13:10 NIFTY     ▲ REAL     forced 1/2  weekly 1/2(▲)  f15   -10 f30   -11
+  15:25 BANKNIFTY ▼ -        forced 1/2  weekly 0/2  f15     · f30     ·
+
+=== 2026-08-24 Mon
+  day: NIFTY 24299→24219 (-80; hi 24309 09:20, lo 24148 14:15) · BANKNIFTY 57808→57526 (-282; hi 57847 09:27, lo 57258 13:08) · SENSEX 77771→77370 (-400; hi 77771 09:17, lo 77207 13:07)
+  09:25 SENSEX    ▼ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   -70 f30  -108
+  09:30 BANKNIFTY ▼ CAPPED   forced 0/2  subah witness 2/2 (gina nahi)  f15   -43 f30   -86
+  09:30 NIFTY     ▼ CAPPED   forced 2/2  subah witness 2/2 (gina nahi)  f15    -3 f30   -16
+  10:00 NIFTY     ▲ SQUEEZE  forced 0/2  subah witness 1/2 (gina nahi)  f15    +3 f30   +10
+  10:20 SENSEX    ▲ PRESSURE forced 0/2  subah witness 1/2 (gina nahi)  f15    +3 f30   -30
+  10:55 NIFTY     ▼ PRESSURE forced 2/2  weekly 1/2(▼)  f15   -50 f30   -70
+  11:05 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -16 f30  -137
+  13:05 BANKNIFTY ▼ SQUEEZE  forced 2/2  weekly 1/2(▼)  f15   +50 f30   +77
+  14:35 NIFTY     ▲ HOLLOW   forced 0/2  weekly 2/2(▲)  f15   -10 f30    -2
+  14:35 SENSEX    ▲ SQUEEZE  forced 0/2  weekly 2/2(▲)  f15   -33 f30   -16
+  15:20 BANKNIFTY ▲ -        forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-08-25 Tue · expiry (rule): NIFTY, BANKNIFTY
+  day: NIFTY 24139→24335 (+196; hi 24335 15:28, lo 24119 10:25) · BANKNIFTY 57300→57514 (+215; hi 57621 09:34, lo 57262 13:25) · SENSEX 77198→77656 (+459; hi 77656 15:30, lo 77130 10:26)
+  09:25 BANKNIFTY ▲ CAPPED   forced 2/2  subah witness 2/2 (gina nahi)  f15    +2 f30   -40
+  09:25 NIFTY     ▲ CAPPED   forced 1/2  subah witness 2/2 (gina nahi)  f15    -6 f30   -37
+  09:25 SENSEX    ▲ CAPPED   forced 2/2  subah witness 2/2 (gina nahi)  f15   -16 f30  -129
+  09:40 BANKNIFTY ▼ BACKED   forced 0/2  subah witness 0/2 (gina nahi)  f15   -42 f30   -31
+  09:40 NIFTY     ▼ CAPPED   forced 0/2  subah witness 0/2 (gina nahi)  f15   -31 f30   -28
+  09:55 SENSEX    ▼ REAL     forced 2/2  subah witness 2/2 (gina nahi)  f15    +9 f30   -43
+  10:00 BANKNIFTY ▲ CAPPED   forced 0/2  subah witness 0/2 (gina nahi)  f15   -34 f30   -78
+  11:55 SENSEX    ▲ REAL     forced 2/2  weekly 1/2(▲)  f15   -27 f30    -9
+  12:00 NIFTY     ▲ FAKE     forced 2/2  weekly 1/2(▲)  f15    +7 f30    -3
+  12:45 NIFTY     ▼ PRESSURE forced 0/2  weekly 1/2(▼)  f15    -7 f30   -32
+  13:05 SENSEX    ▼ REAL     forced 0/2  weekly 2/2(▼)  f15   -45 f30   -49
+  13:15 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -14 f30   +14
+  13:55 BANKNIFTY ▲ SQUEEZE  forced 0/2  weekly 2/2(▲)  f15   -46 f30   -34
+  13:55 NIFTY     ▲ SQUEEZE  forced 1/2  weekly 2/2(▲)  f15    -6 f30    -5
+  13:55 SENSEX    ▲ SQUEEZE  forced 2/2  weekly 2/2(▲)  f15   -38 f30   -34
+  14:00 NIFTY     ▼ CAPPED   forced 0/2  weekly 0/2  f15    +0 f30    +6
+  14:55 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +11 f30     ·
+  15:15 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+  15:25 BANKNIFTY ▼ -        forced 0/2  weekly 0/2  f15     · f30     ·
+
+=== 2026-08-26 Wed
+  day: NIFTY 24323→24312 (-11; hi 24376 09:48, lo 24296 10:26) · BANKNIFTY 57834→57915 (+81; hi 57985 09:41, lo 57806 09:18) · SENSEX 77858→77753 (-106; hi 77978 09:47, lo 77704 10:26)
+  note: NIFTY: 2026-08-25 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  note: BANKNIFTY: 2026-08-25 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:30 SENSEX    ▲ WALL     forced 1/2  subah witness 1/2 (gina nahi)  f15   +52 f30   +31
+  10:05 SENSEX    ▼ CAPPED   forced 1/2  subah witness 1/2 (gina nahi)  f15  -151 f30  -123
+
+=== 2026-08-27 Thu · expiry (rule): SENSEX
+  day: NIFTY 24246→24091 (-156; hi 24256 09:18, lo 24091 15:28) · BANKNIFTY 57774→57510 (-264; hi 57867 09:26, lo 57510 15:28) · SENSEX 77495→76934 (-562; hi 77544 09:18, lo 76934 15:29)
+  09:30 BANKNIFTY ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15   +50 f30   +38
+  09:30 SENSEX    ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   +54 f30   -43
+  09:50 SENSEX    ▲ BACKED   forced 0/2  subah witness 1/2 (gina nahi)  f15  -110 f30  -118
+  10:00 SENSEX    ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   +25 f30    -9
+  10:45 SENSEX    ▼ REAL     forced 2/2  weekly 1/2(▼)  f15   -36 f30   -70
+  10:55 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   +24 f30   +20
+  10:55 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15    +6 f30   -18
+  12:40 NIFTY     ▲ SQUEEZE  forced 1/2  weekly 1/2(▲)  f15   +10 f30    +7
+  12:45 SENSEX    ▲ FAKE     forced 0/2  weekly 1/2(▲)  f15   +56 f30   +87
+  13:15 BANKNIFTY ▲ SQUEEZE  forced 2/2  weekly 0/2  f15   -73 f30  -110
+  13:50 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -66 f30   -26
+  13:50 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -13 f30    +1
+  13:50 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -38 f30   -11
+
+=== 2026-08-31 Mon
+  day: NIFTY 24065→24080 (+15; hi 24103 14:46, lo 23995 11:12) · BANKNIFTY 57421→58025 (+604; hi 58025 15:29, lo 57190 10:42) · SENSEX 77001→76957 (-44; hi 77106 14:46, lo 76758 10:38)
+  note: SENSEX: 2026-08-27 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:30 BANKNIFTY ▲ CAPPED   forced 1/2  subah witness 1/2 (gina nahi)  f15  -104 f30  -102
+  09:30 NIFTY     ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   -29 f30   -19
+  09:40 NIFTY     ▲ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   -28 f30   -30
+  09:45 NIFTY     ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   +10 f30    -3
+  10:05 NIFTY     ▲ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   -30 f30   -27
+  10:15 NIFTY     ▼ PRESSURE forced 2/2  subah witness 1/2 (gina nahi)  f15   +11 f30    -7
+  10:30 BANKNIFTY ▼ CAPPED   forced 2/2  subah witness 0/2 (gina nahi)  f15   -40 f30    -2
+  11:55 BANKNIFTY ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -40 f30   -55
+  11:55 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -14 f30    -7
+  11:55 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -65 f30   -42
+  14:05 NIFTY     ▼ SQUEEZE  forced 1/2  weekly 1/2(▼)  f15    +0 f30    +8
+  14:10 BANKNIFTY ▼ HOLLOW   forced 0/2  weekly 1/2(▼)  f15   -53 f30   +72
+  14:10 SENSEX    ▼ FAKE     forced 0/2  weekly 1/2(▼)  f15   -39 f30   +48
+  14:45 BANKNIFTY ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -20 f30   -24
+  14:45 NIFTY     ▲ SQUEEZE  forced 2/2  weekly 2/2(▲)  f15    -2 f30   -15
+  14:45 SENSEX    ▲ SQUEEZE  forced 2/2  weekly 2/2(▲)  f15   +27 f30   -28
+  15:15 BANKNIFTY ▼ PRESSURE forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+  15:15 SENSEX    ▼ SQUEEZE  forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+  15:20 NIFTY     ▼ -        forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+
+=== 2026-09-01 Tue · expiry (rule): NIFTY
+  day: NIFTY 24034→24056 (+21; hi 24136 11:31, lo 23955 14:28) · BANKNIFTY 57496→57410 (-87; hi 57757 11:30, lo 57151 14:09) · SENSEX 76883→76944 (+62; hi 77229 11:30, lo 76661 14:28)
+  09:25 BANKNIFTY ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15   +16 f30   -22
+  09:25 SENSEX    ▲ WALL     forced 1/2  subah witness 1/2 (gina nahi)  f15   -19 f30   -56
+  09:30 BANKNIFTY ▲ CAPPED   forced 0/2  subah witness 2/2 (gina nahi)  f15   -54 f30   -51
+  09:30 NIFTY     ▲ REAL     forced 2/2  subah witness 2/2 (gina nahi)  f15   -37 f30   -45
+  09:45 NIFTY     ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15    -8 f30   +23
+  10:20 NIFTY     ▲ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15   +18 f30   +27
+  10:35 SENSEX    ▲ WALL     forced 2/2  weekly 1/2(▲)  f15   +29 f30   +42
+  10:55 NIFTY     ▲ REAL     forced 2/2  weekly 1/2(▲)  f15    +7 f30   +31
+  11:10 BANKNIFTY ▲ REAL     forced 2/2  weekly 0/2  f15  +135 f30   +65
+  13:10 NIFTY     ▼ REAL     forced 1/2  weekly 1/2(▼)  f15   -13 f30   -44
+  13:15 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   +23 f30   -41
+  13:20 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -18 f30  -193
+  15:15 NIFTY     ▲ PRESSURE forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-09-02 Wed
+  day: NIFTY 23814→23914 (+101; hi 23914 15:29, lo 23805 12:04) · BANKNIFTY 56952→57172 (+220; hi 57172 15:29, lo 56952 11:51) · SENSEX 76248→76570 (+322; hi 76570 15:29, lo 76240 12:04)
+  note: NIFTY: 2026-09-01 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  12:35 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +11 f30   +17
+  12:35 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +20 f30   +36
+  12:45 BANKNIFTY ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +26 f30   -18
+  14:25 BANKNIFTY ▼ SQUEEZE  forced 0/2  weekly 0/2  f15   +69 f30   -17
+  15:00 NIFTY     ▼ PRESSURE forced 0/2  weekly 1/2(▼)  f15   +13 f30     ·
+  15:10 SENSEX    ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+  15:15 BANKNIFTY ▲ PRESSURE forced 2/2  weekly 1/2(▼)  f15     · f30     ·
+
+=== 2026-09-03 Thu · expiry (rule): SENSEX
+  day: NIFTY 23999→23904 (-95; hi 24000 10:24, lo 23881 15:06) · BANKNIFTY 57705→57434 (-271; hi 57731 10:24, lo 57405 15:08) · SENSEX 76849→76554 (-295; hi 76859 10:24, lo 76474 15:07)
+  11:10 BANKNIFTY ▼ SQUEEZE  forced 2/2  weekly 1/2(▼)  f15   +50 f30  +110
+  11:10 SENSEX    ▼ REAL     forced 2/2  weekly 1/2(▼)  f15   +63 f30  +130
+  13:35 BANKNIFTY ▲ REAL     forced 0/2  weekly 0/2  f15    -9 f30   -27
+  14:05 BANKNIFTY ▼ CAPPED   forced 2/2  weekly 0/2  f15   -34 f30   -19
+  15:00 NIFTY     ▼ SQUEEZE  forced 2/2  weekly 1/2(▼)  f15   +11 f30     ·
+  15:15 BANKNIFTY ▲ SQUEEZE  forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+  15:20 NIFTY     ▲ -        forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+  15:25 NIFTY     ▼ -        forced 2/2  weekly 2/2(▼)  f15     · f30     ·
+
+=== 2026-09-04 Fri
+  day: NIFTY 23920→23947 (+27; hi 24000 11:39, lo 23897 09:36) · BANKNIFTY 57476→57548 (+71; hi 57659 11:39, lo 57343 09:28) · SENSEX 76668→76695 (+27; hi 76869 11:39, lo 76536 09:36)
+  note: SENSEX: 2026-09-03 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:25 BANKNIFTY ▼ CAPPED   forced 0/2  subah witness 0/2 (gina nahi)  f15   -29 f30   -29
+  09:35 NIFTY     ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15   +30 f30   +50
+  09:55 NIFTY     ▲ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15    -7 f30    +7
+  10:15 NIFTY     ▼ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15   +28 f30   +15
+  10:25 BANKNIFTY ▲ SQUEEZE  forced 2/2  subah witness 0/2 (gina nahi)  f15   +34 f30   +35
+  10:30 NIFTY     ▲ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   -13 f30    +4
+  11:10 BANKNIFTY ▲ REAL     forced 2/2  weekly 0/2  f15   +62 f30   +93
+  11:35 NIFTY     ▲ REAL     forced 2/2  weekly 1/2(▲)  f15    -0 f30   -30
+  12:25 NIFTY     ▼ WALL     forced 2/2  weekly 1/2(▼)  f15    +4 f30    -3
+
+=== 2026-09-07 Mon
+  day: NIFTY 23835→23760 (-74; hi 23835 09:47, lo 23740 15:09) · BANKNIFTY 57194→57057 (-137; hi 57194 09:46, lo 57012 12:53) · SENSEX 76325→76133 (-192; hi 76325 09:46, lo 75973 15:09)
+  10:00 SENSEX    ▼ WALL     forced 2/2  subah witness 1/2 (gina nahi)  f15   -28 f30   -51
+  12:55 SENSEX    ▼ REAL     forced 2/2  weekly 1/2(▼)  f15   +42 f30   +42
+  15:15 SENSEX    ▲ SQUEEZE  forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+  15:20 SENSEX    ▼ -        forced 2/2  weekly 1/2(▼)  f15     · f30     ·
+
+=== 2026-09-09 Wed
+  day: NIFTY 23517→23432 (-85; hi 23567 12:42, lo 23432 15:28) · BANKNIFTY 56569→56296 (-274; hi 56736 14:06, lo 56296 15:28) · SENSEX 75066→74764 (-302; hi 75231 12:43, lo 74764 15:28)
+  12:00 BANKNIFTY ▼ WALL     forced 0/2  weekly 2/2(▼)  f15   -52 f30    -8
+  12:00 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15    -4 f30   +25
+  12:00 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -20 f30   +69
+  12:30 NIFTY     ▲ SQUEEZE  forced 0/2  weekly 1/2(▲)  f15   +43 f30   +47
+  12:35 BANKNIFTY ▲ REAL     forced 2/2  weekly 2/2(▲)  f15    +5 f30   -17
+  12:35 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +13 f30   -25
+  14:35 BANKNIFTY ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15   -68 f30  -112
+  14:35 NIFTY     ▼ REAL     forced 0/2  weekly 2/2(▼)  f15   -20 f30   -25
+  14:35 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -63 f30   -80
+
+=== 2026-09-10 Thu · expiry (rule): SENSEX
+  day: NIFTY 23419→23478 (+59; hi 23478 15:29, lo 23385 15:07) · BANKNIFTY 56487→56472 (-15; hi 56521 12:16, lo 56240 15:06) · SENSEX 74729→74903 (+173; hi 74903 15:29, lo 74609 15:08)
+  10:45 BANKNIFTY ▲ WALL     forced 2/2  weekly 2/2(▲)  f15   -62 f30   -48
+  10:45 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -25 f30   -26
+  10:45 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -84 f30   -85
+  11:00 BANKNIFTY ▼ FAKE     forced 0/2  weekly 2/2(▼)  f15   +14 f30   +31
+  11:00 NIFTY     ▼ FAKE     forced 1/2  weekly 2/2(▼)  f15    -1 f30   +18
+  11:00 SENSEX    ▼ FAKE     forced 0/2  weekly 2/2(▼)  f15    -1 f30   +58
+  12:05 NIFTY     ▲ REAL     forced 2/2  weekly 1/2(▲)  f15   +18 f30   +16
+  13:00 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 1/2(▼)  f15    +1 f30   -13
+  14:50 BANKNIFTY ▲ SQUEEZE  forced 0/2  weekly 0/2  f15  -131 f30     ·
+  15:20 SENSEX    ▲ -        forced 1/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-09-11 Fri
+  day: NIFTY 23249→23398 (+149; hi 23439 14:04, lo 23240 09:42) · BANKNIFTY 55746→56607 (+860; hi 56626 15:15, lo 55746 09:18) · SENSEX 74219→74782 (+563; hi 74914 15:15, lo 74217 09:41)
+  note: SENSEX: 2026-09-10 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:40 NIFTY     ▲ CAPPED   forced 1/2  subah witness 1/2 (gina nahi)  f15    +2 f30   +32
+  09:45 NIFTY     ▼ PRESSURE forced 0/2  subah witness 1/2 (gina nahi)  f15    +8 f30   +42
+  09:55 BANKNIFTY ▲ CAPPED   forced 2/2  subah witness 0/2 (gina nahi)  f15   +93 f30  +145
+  10:00 NIFTY     ▲ REAL     forced 0/2  subah witness 1/2 (gina nahi)  f15   +34 f30   +16
+  11:15 BANKNIFTY ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +20 f30   +49
+  11:15 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +10 f30   +24
+  11:15 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +43 f30   +82
+  13:45 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15   +70 f30   +92
+  13:45 SENSEX    ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15  +222 f30  +296
+  13:55 NIFTY     ▲ SQUEEZE  forced 2/2  weekly 1/2(▲)  f15   +32 f30   +33
+  14:05 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -96 f30   +39
+  15:05 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+  15:10 SENSEX    ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+  15:15 SENSEX    ▲ SQUEEZE  forced 2/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-09-15 Tue · expiry (rule): NIFTY
+  day: NIFTY 23455→23119 (-337; hi 23464 09:43, lo 23119 15:29) · BANKNIFTY 56484→55795 (-690; hi 56504 09:43, lo 55795 15:29) · SENSEX 75010→74004 (-1006; hi 75049 09:43, lo 74004 15:29)
+  09:55 SENSEX    ▼ BACKED   forced 2/2  subah witness 1/2 (gina nahi)  f15   -62 f30   -48
+  11:15 BANKNIFTY ▲ CAPPED   forced 0/2  weekly 0/2  f15   -99 f30   -64
+  13:00 SENSEX    ▼ REAL     forced 2/2  weekly 1/2(▼)  f15   -68 f30  -110
+  13:35 BANKNIFTY ▼ PRESSURE forced 2/2  weekly 2/2(▼)  f15    +0 f30   -55
+  13:35 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15    +3 f30    -4
+  15:15 NIFTY     ▲ PRESSURE forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+  15:20 NIFTY     ▼ -        forced 2/2  weekly 1/2(▼)  f15     · f30     ·
+
+=== 2026-09-16 Wed
+  day: NIFTY 23131→23218 (+86; hi 23278 11:03, lo 23119 09:47) · BANKNIFTY 55848→56292 (+444; hi 56351 13:09, lo 55817 09:47) · SENSEX 74012→74336 (+325; hi 74490 11:03, lo 73994 09:47)
+  note: NIFTY: 2026-09-15 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:50 SENSEX    ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15   +36 f30  +120
+  09:55 SENSEX    ▲ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   -97 f30   +27
+  10:00 BANKNIFTY ▲ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15   -36 f30  +127
+  10:35 BANKNIFTY ▲ REAL     forced 2/2  weekly 0/2  f15   +38 f30   +66
+  13:10 NIFTY     ▲ SQUEEZE  forced 2/2  weekly 2/2(▲)  f15   -30 f30   -58
+  13:10 SENSEX    ▲ SQUEEZE  forced 2/2  weekly 2/2(▲)  f15  -101 f30  -192
+  13:30 BANKNIFTY ▼ SQUEEZE  forced 0/2  weekly 0/2  f15   +14 f30   +24
+  13:35 NIFTY     ▼ FAKE     forced 0/2  weekly 2/2(▼)  f15   -16 f30    +0
+  13:35 SENSEX    ▼ FAKE     forced 0/2  weekly 2/2(▼)  f15   -68 f30   -19
+  15:00 NIFTY     ▲ SQUEEZE  forced 0/2  weekly 1/2(▲)  f15    -1 f30     ·
+  15:15 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+  15:30 BANKNIFTY ▲ -        forced 1/2  weekly 0/2  f15     · f30     ·
+
+=== 2026-09-17 Thu · expiry (rule): SENSEX
+  day: NIFTY 23280→23271 (-9; hi 23361 12:23, lo 23218 11:08) · BANKNIFTY 56442→56056 (-387; hi 56556 09:35, lo 56052 13:36) · SENSEX 74465→74315 (-151; hi 74674 12:23, lo 74244 11:08)
+  09:40 BANKNIFTY ▲ FAKE     forced 2/2  subah witness 0/2 (gina nahi)  f15    -1 f30   +22
+  09:45 NIFTY     ▼ REAL     forced 2/2  subah witness 2/2 (gina nahi)  f15   +33 f30   +66
+  09:45 SENSEX    ▼ REAL     forced 2/2  subah witness 2/2 (gina nahi)  f15  +104 f30  +209
+  09:55 SENSEX    ▲ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   +70 f30    +7
+  10:10 NIFTY     ▲ PRESSURE forced 2/2  subah witness 2/2 (gina nahi)  f15   -28 f30   -38
+  10:25 SENSEX    ▼ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15   -38 f30   -69
+  10:35 BANKNIFTY ▼ REAL     forced 1/2  weekly 0/2  f15   -46 f30  -195
+  11:05 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15    +5 f30    +5
+  11:05 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   +10 f30   +10
+  12:10 BANKNIFTY ▲ SQUEEZE  forced 2/2  weekly 1/2(▲)  f15    -1 f30   +19
+  12:10 SENSEX    ▲ REAL     forced 2/2  weekly 1/2(▲)  f15   +49 f30   +53
+  13:30 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15    -7 f30   +23
+  13:30 SENSEX    ▼ REAL     forced 1/2  weekly 2/2(▼)  f15   +29 f30   +37
+  14:40 NIFTY     ▲ SQUEEZE  forced 0/2  weekly 1/2(▲)  f15    -4 f30   -14
+
+=== 2026-09-18 Fri
+  day: NIFTY 23311→23346 (+36; hi 23387 14:58, lo 23296 10:40) · BANKNIFTY 56188→56359 (+170; hi 56490 14:52, lo 56105 10:46) · SENSEX 74444→74295 (-149; hi 74719 14:58, lo 74295 15:30)
+  note: SENSEX: 2026-09-17 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  10:30 NIFTY     ▼ FAKE     forced 0/2  subah witness 1/2 (gina nahi)  f15   -10 f30    -6
+  10:35 BANKNIFTY ▼ BACKED   forced 2/2  weekly 1/2(▼)  f15   -11 f30   -29
+  10:35 NIFTY     ▼ BACKED   forced 2/2  weekly 1/2(▼)  f15    +3 f30    +7
+  14:55 NIFTY     ▲ REAL     forced 2/2  weekly 1/2(▲)  f15   -44 f30     ·
+  15:10 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+  15:10 SENSEX    ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+
+=== 2026-09-22 Tue · expiry (rule): NIFTY
+  day: NIFTY 23441→23329 (-112; hi 23467 10:09, lo 23289 14:00) · BANKNIFTY 56555→56216 (-340; hi 56657 09:30, lo 56113 14:00) · SENSEX 74908→74529 (-379; hi 75024 10:11, lo 74427 14:00)
+  09:25 SENSEX    ▲ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   +24 f30   +51
+  09:40 BANKNIFTY ▼ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15    +1 f30    -1
+  09:55 NIFTY     ▼ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   +12 f30   -14
+  10:30 SENSEX    ▼ REAL     forced 2/2  subah witness 2/2 (gina nahi)  f15  -183 f30  -147
+  10:35 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -72 f30   -88
+  10:35 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -43 f30   -38
+  10:35 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15  -133 f30  -124
+  14:15 NIFTY     ▲ REAL     forced 0/2  weekly 1/2(▲)  f15   +14 f30    +6
+  14:20 BANKNIFTY ▲ PRESSURE forced 1/2  weekly 2/2(▲)  f15   -16 f30   -57
+  14:20 SENSEX    ▲ REAL     forced 1/2  weekly 2/2(▲)  f15   -17 f30   -51
+  15:25 NIFTY     ▼ -        forced 1/2  weekly 1/2(▼)  f15     · f30     ·
+
+=== 2026-09-23 Wed
+  day: NIFTY 23373→23447 (+74; hi 23463 12:19, lo 23352 09:54) · BANKNIFTY 56360→56549 (+189; hi 56613 13:07, lo 56320 09:26) · SENSEX 74708→74827 (+119; hi 74960 12:19, lo 74607 09:54)
+  note: NIFTY: 2026-09-22 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:30 SENSEX    ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15   +49 f30   +53
+  09:35 BANKNIFTY ▲ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15    -6 f30   +97
+  09:55 SENSEX    ▲ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   +46 f30  +108
+  10:00 SENSEX    ▼ FAKE     forced 0/2  subah witness 1/2 (gina nahi)  f15   -37 f30   +55
+  10:05 SENSEX    ▲ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15   +45 f30   +66
+  11:35 SENSEX    ▲ PRESSURE forced 2/2  weekly 1/2(▲)  f15   -19 f30   +36
+  12:05 NIFTY     ▲ SQUEEZE  forced 2/2  weekly 1/2(▲)  f15   +15 f30    +6
+  13:05 BANKNIFTY ▲ SQUEEZE  forced 2/2  weekly 0/2  f15   -20 f30   -56
+  13:35 SENSEX    ▼ REAL     forced 0/2  weekly 1/2(▼)  f15    +6 f30   +13
+  15:05 NIFTY     ▼ SQUEEZE  forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+  15:25 NIFTY     ▲ -        forced 1/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-09-24 Thu · expiry (rule): SENSEX
+  day: NIFTY 23237→23063 (-174; hi 23269 09:36, lo 23049 14:23) · BANKNIFTY 55723→55438 (-285; hi 55760 09:23, lo 55355 13:58) · SENSEX 74223→73581 (-643; hi 74318 09:32, lo 73580 14:23)
+  09:25 BANKNIFTY ▼ WALL     forced 2/2  subah witness 1/2 (gina nahi)  f15   -80 f30  -162
+  09:25 NIFTY     ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15    +0 f30   -28
+  09:35 SENSEX    ▲ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15  -112 f30  -111
+  09:40 SENSEX    ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15  -101 f30   -38
+  10:05 BANKNIFTY ▲ SQUEEZE  forced 0/2  subah witness 0/2 (gina nahi)  f15   -58 f30   -62
+  10:20 BANKNIFTY ▼ WALL     forced 2/2  subah witness 0/2 (gina nahi)  f15    -4 f30    +5
+  11:15 NIFTY     ▼ PRESSURE forced 2/2  weekly 1/2(▼)  f15    -7 f30   -15
+  12:00 SENSEX    ▼ REAL     forced 2/2  weekly 1/2(▼)  f15   +23 f30   -28
+  13:30 BANKNIFTY ▼ REAL     forced 2/2  weekly 2/2(▼)  f15  -141 f30  -179
+  14:40 BANKNIFTY ▲ SQUEEZE  forced 0/2  weekly 0/2  f15   +60 f30   -22
+  15:15 BANKNIFTY ▼ SQUEEZE  forced 2/2  weekly 0/2  f15     · f30     ·
+
+=== 2026-09-25 Fri
+  day: NIFTY 23096→23140 (+45; hi 23142 14:06, lo 23029 12:57) · BANKNIFTY 55618→55580 (-38; hi 55707 14:38, lo 55417 09:53) · SENSEX 73707→73896 (+188; hi 73922 14:06, lo 73540 09:52)
+  note: SENSEX: 2026-09-24 was its expiry day (weekday rule), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:25 BANKNIFTY ▲ WALL     forced 0/2  subah witness 0/2 (gina nahi)  f15   -95 f30  -146
+  09:30 NIFTY     ▲ BACKED   forced 2/2  subah witness 1/2 (gina nahi)  f15   -60 f30   -59
+  09:45 NIFTY     ▼ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15    +1 f30   +46
+  10:10 NIFTY     ▲ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15    -6 f30   -30
+  12:55 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   +11 f30    -5
+  12:55 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   +25 f30   -11
+  13:00 BANKNIFTY ▼ HOLLOW   forced 2/2  weekly 2/2(▼)  f15    -1 f30    -9
+  14:00 BANKNIFTY ▲ SQUEEZE  forced 2/2  weekly 1/2(▼)  f15   +35 f30   +95
+  14:05 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -25 f30    -8
+  14:05 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   -64 f30   -16
+  14:50 BANKNIFTY ▼ SQUEEZE  forced 0/2  weekly 0/2  f15   -71 f30     ·
+  14:55 NIFTY     ▼ HOLLOW   forced 0/2  weekly 1/2(▼)  f15    -0 f30     ·
+  15:15 SENSEX    ▼ SQUEEZE  forced 0/2  weekly 2/2(▼)  f15     · f30     ·
+  15:20 SENSEX    ▲ -        forced 2/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-09-28 Mon
+  day: NIFTY 22970→22780 (-190; hi 22970 09:17, lo 22765 14:38) · BANKNIFTY 55026→54472 (-555; hi 55026 09:17, lo 54443 14:43) · SENSEX 73374→72772 (-602; hi 73374 09:17, lo 72734 14:38)
+  09:25 BANKNIFTY ▼ CAPPED   forced 2/2  subah witness 2/2 (gina nahi)  f15  -161 f30  -162
+  09:25 NIFTY     ▼ CAPPED   forced 2/2  subah witness 2/2 (gina nahi)  f15   -53 f30   -44
+  09:25 SENSEX    ▼ CAPPED   forced 2/2  subah witness 2/2 (gina nahi)  f15  -181 f30  -177
+  12:00 NIFTY     ▼ PRESSURE forced 2/2  weekly 1/2(▼)  f15    +3 f30   +24
+  14:20 BANKNIFTY ▼ SQUEEZE  forced 2/2  weekly 2/2(▼)  f15   -35 f30    +8
+  14:20 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -51 f30   +25
+  15:00 BANKNIFTY ▲ PRESSURE forced 0/2  weekly 0/2  f15   -23 f30     ·
+  15:05 NIFTY     ▲ SQUEEZE  forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-09-29 Tue · expiry (rule): NIFTY, BANKNIFTY
+  day: NIFTY 22722→22716 (-6; hi 22750 12:07, lo 22574 10:21) · BANKNIFTY 54393→54260 (-133; hi 54393 09:15, lo 53795 10:21) · SENSEX 72579→72529 (-50; hi 72656 12:06, lo 72071 09:39)
+  09:20 SENSEX    ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15  -207 f30  -260
+  09:25 BANKNIFTY ▼ CAPPED   forced 2/2  subah witness 0/2 (gina nahi)  f15  -174 f30   -61
+  09:30 NIFTY     ▼ REAL     forced 2/2  subah witness 2/2 (gina nahi)  f15   -25 f30   -29
+  09:45 NIFTY     ▲ BACKED   forced 0/2  subah witness 2/2 (gina nahi)  f15    -4 f30   -26
+  09:45 SENSEX    ▲ BACKED   forced 0/2  subah witness 2/2 (gina nahi)  f15    -5 f30   -63
+  09:55 BANKNIFTY ▲ BACKED   forced 1/2  subah witness 0/2 (gina nahi)  f15  -118 f30  -123
+  11:15 BANKNIFTY ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +43 f30  +103
+  11:15 NIFTY     ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +26 f30   +30
+  11:15 SENSEX    ▲ REAL     forced 2/2  weekly 2/2(▲)  f15   +73 f30   +75
+  12:35 BANKNIFTY ▼ REAL     forced 0/2  weekly 2/2(▼)  f15   +87 f30  +159
+  12:35 NIFTY     ▼ PRESSURE forced 1/2  weekly 2/2(▼)  f15   +15 f30   +18
+  12:35 SENSEX    ▼ PRESSURE forced 1/2  weekly 2/2(▼)  f15   +62 f30   +73
+  14:35 SENSEX    ▲ PRESSURE forced 2/2  weekly 1/2(▲)  f15    +1 f30   +20
+  15:15 NIFTY     ▲ SQUEEZE  forced 1/2  weekly 2/2(▲)  f15     · f30     ·
+  15:20 NIFTY     ▼ -        forced 1/2  weekly 0/2  f15     · f30     ·
+
+=== 2026-09-30 Wed
+  day: NIFTY 22668→22620 (-47; hi 22808 12:48, lo 22601 14:42) · BANKNIFTY 54390→54633 (+243; hi 55129 13:31, lo 54390 09:17) · SENSEX 72484→72480 (-3; hi 73045 12:48, lo 72376 14:43)
+  note: NIFTY: 2026-09-29 was its expiry day (file), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  note: BANKNIFTY: 2026-09-29 was its expiry day (file), so ≤10:30 reads CAN'T CHECK (kal expiry din tha)
+  09:45 SENSEX    ▼ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   -18 f30   +99
+  10:00 SENSEX    ▲ PRESSURE forced 2/2  subah witness 1/2 (gina nahi)  f15  +117 f30  +112
+  10:40 SENSEX    ▼ FAKE     forced 0/2  weekly 1/2(▼)  f15   -38 f30   -16
+  12:05 BANKNIFTY ▼ CAPPED   forced 0/2  weekly 0/2  f15    -5 f30  +136
+  12:25 BANKNIFTY ▲ REAL     forced 2/2  weekly 1/2(▲)  f15   +42 f30   +94
+  12:25 SENSEX    ▲ SQUEEZE  forced 2/2  weekly 1/2(▲)  f15   +91 f30  +108
+  12:40 NIFTY     ▲ PRESSURE forced 2/2  weekly 2/2(▲)  f15   +14 f30   +14
+  13:45 NIFTY     ▼ REAL     forced 0/2  weekly 2/2(▼)  f15   +13 f30   -14
+  13:45 SENSEX    ▼ REAL     forced 1/2  weekly 2/2(▼)  f15   +45 f30   -31
+  14:25 BANKNIFTY ▼ SQUEEZE  forced 1/2  weekly 2/2(▼)  f15  -150 f30   -95
+  15:10 BANKNIFTY ▲ SQUEEZE  forced 0/2  weekly 0/2  f15     · f30     ·
+  15:30 SENSEX    ▲ -        forced 0/2  weekly 1/2(▲)  f15     · f30     ·
+
+=== 2026-10-01 Thu · expiry (rule): SENSEX
+  day: NIFTY 22552→22422 (-130; hi 22608 10:07, lo 22223 14:04) · BANKNIFTY 54788→54451 (-337; hi 55079 10:36, lo 54087 14:04) · SENSEX 72338→71910 (-429; hi 72565 10:07, lo 71312 14:03)
+  09:25 NIFTY     ▼ CAPPED   forced 2/2  subah witness 1/2 (gina nahi)  f15   +49 f30   +34
+  09:30 SENSEX    ▼ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   -62 f30   +76
+  09:35 SENSEX    ▲ FAKE     forced 0/2  subah witness 1/2 (gina nahi)  f15   +74 f30  +216
+  09:40 SENSEX    ▼ CAPPED   forced 0/2  subah witness 1/2 (gina nahi)  f15   -35 f30   +71
+  10:05 SENSEX    ▲ REAL     forced 2/2  subah witness 1/2 (gina nahi)  f15  -109 f30   -54
+  10:15 SENSEX    ▼ WALL     forced 0/2  subah witness 1/2 (gina nahi)  f15   -24 f30    -5
+  10:35 BANKNIFTY ▲ REAL     forced 2/2  weekly 0/2  f15   -71 f30  -174
+  12:10 NIFTY     ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -29 f30   -32
+  12:10 SENSEX    ▼ REAL     forced 2/2  weekly 2/2(▼)  f15   -88 f30  -107
+  12:25 BANKNIFTY ▼ SQUEEZE  forced 2/2  weekly 2/2(▼)  f15   +47 f30  -336
+  14:35 NIFTY     ▲ REAL     forced 0/2  weekly 1/2(▲)  f15   +11 f30   +54
+  14:40 SENSEX    ▲ WALL     forced 0/2  weekly 1/2(▲)  f15  +172 f30  +242
+  14:55 BANKNIFTY ▲ SQUEEZE  forced 0/2  weekly 0/2  f15   +13 f30     ·
+  15:30 SENSEX    ▼ -        forced 0/2  weekly 1/2(▼)  f15     · f30     ·
+
