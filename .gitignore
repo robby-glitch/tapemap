@@ -85,3 +85,4 @@ graphify-out/
 .impeccable/
 tape_desktop.png
 data/fixtures-private/
+ui-v2/tsconfig.tsbuildinfo
