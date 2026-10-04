@@ -33,6 +33,7 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "xindex_live.DIR": "xindex",                      # the shadow cross-index log (docs/reader/10-xindex-build.md)
              "sides_log.DIR": "sides",                         # the sides read's forward log (sides_log.py)
              "trap_log.DIR": "trap",                           # the trap layer's forward log (trap_log.py)
+             "decoder_log.DIR": "decoder",                     # the decoder's forward log (decoder_log.py)
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",
@@ -55,6 +56,8 @@ def _tape_record_in_tmp(tmp_path, monkeypatch):
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()
     ux_log._STATE.clear()
+    import decoder_log
+    decoder_log._SEEN.clear()
     yield
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()

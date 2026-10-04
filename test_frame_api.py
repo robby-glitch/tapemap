@@ -110,6 +110,8 @@ def test_the_record_is_rescored_once_per_closed_bar_not_once_per_post(monkeypatc
 
 def test_frame_post_records_the_ladder_bars_and_marks(tmp_path, monkeypatch):
     import tape_log
+    # the marks writer runs only in TODAY's session (server._market_hours, 2026-10-04): hold the clock on the tape's day
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-09-11", "10:00"))
     monkeypatch.setattr(server.frame_log, "day_path", lambda day: str(tmp_path / f"frame_{day}.jsonl"))
     monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
     tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
@@ -156,6 +158,9 @@ def _isolate(tmp_path, monkeypatch):
     monkeypatch.setattr(tape_log, "DIR", str(tmp_path / "tape"))
     tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
     server._SENSES["tape"].pop("NIFTY", None)
+    # these tests read back what the POST recorded: the record is written only in TODAY's session (server._market_hours,
+    # 2026-10-04), so the clock is held on the tape's own day, a Friday, mid-session
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-09-11", "10:00"))
 
 
 def test_api_tape_live_when_the_extension_posted_within_15s(tmp_path, monkeypatch):
@@ -200,8 +205,10 @@ def test_api_tape_prior_days_and_naked_from_the_record(tmp_path, monkeypatch):
     _isolate(tmp_path, monkeypatch)
     for day in ("2026-09-09", "2026-09-10"):
         tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+        monkeypatch.setattr(server, "_board_clock", lambda d=day: (d, "10:00"))   # each day recorded in its own session
         server.Handler.do_POST(_Req("/api/frame", _ladder_doc(day=day)))
     tape_log._seen_bars.clear(); tape_log._seen_marks.clear()
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-09-11", "10:00"))
     server.Handler.do_POST(_Req("/api/frame", _ladder_doc(day="2026-09-11")))
     cap = _Cap("/api/tape?idx=NIFTY&day=2026-09-11")
     server.Handler.do_GET(cap)

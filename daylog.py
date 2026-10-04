@@ -27,7 +27,7 @@ import os
 import re
 from datetime import date, timedelta
 
-DIRS = tuple(os.path.join("data", d) for d in ("senses", "frame", "book", "chain", "calls", "hold", "sides", "trap"))
+DIRS = tuple(os.path.join("data", d) for d in ("senses", "frame", "book", "chain", "calls", "hold", "sides", "trap", "decoder"))
 KEEP_PLAIN_DAYS = 7
 _DAY = re.compile(r"_(\d{4}-\d{2}-\d{2})\.jsonl$")
 

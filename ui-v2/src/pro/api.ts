@@ -52,10 +52,13 @@ export type Ty = 'CE' | 'PE'
 export type Side = 'BUY' | 'SELL'
 export type Pick = { k: number; ty: Ty; side: Side }
 
+// THE DECODER'S ONE SENTENCE (story.py over the events the GoCharting extension posted; /api/story). Display only: it never
+// enters a hold / fold read.
+export type Story = { ok: boolean; sentence: string | null; sentence_why?: string | null; chips?: string[]; asof?: string | null }
 export type S = { idx: Idx; loaded: boolean; trades: Trade[]; tradesWhy: string | null; fold: Record<string, FoldRead>; flat: Flat | null
                   engineWhy: string | null; ifin: Ifin | null; chain: ChainLite | null
                   /** the GoCharting tape's health off the last fold/flat reply; null = not read (the engine banner then speaks) */
-                  feed: Feed | null }
+                  feed: Feed | null; story: Story | null }
 
 export const hms = () => new Date().toTimeString().slice(0, 8)
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -65,7 +68,7 @@ export const notAnswering = (t = hms()) => `could not check — the engine is no
 /** the engine did not answer at all (down, or slower than the 8 s timeout) -- not the same as answering with a reason */
 export const isDown = (w: string | null) => !!w && w.includes('the engine is not answering')
 
-let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null }
+let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null, story: null }
 const subs = new Set<() => void>()
 let busy = false, again = false, timer: number | undefined, ifinKey: Pick | null = null
 
@@ -131,6 +134,9 @@ async function poll() {
       n.chain = { ok: c.ok, why: c.why ?? c.error, ts: c.ts, spot: c.spot, atm: c.atm, expiry: c.expiry,     // /api/chain refuses in `error`
                   strikes: (c.strikes || []).map(x => ({ k: x.k, ce: x.ce?.ltp ?? null, pe: x.pe?.ltp ?? null })) }
     } catch { n.chain = s.chain ?? { ok: false, why: notAnswering(at), strikes: [] } }
+  })())
+  jobs.push((async () => {                                               // the decoder's line: never a hold / fold input
+    try { n.story = await j<Story>(`/api/story?idx=${idx}`) } catch { n.story = null }
   })())
   await Promise.all(jobs)
   if (idx !== s.idx) { busy = false; again = false; poll(); return }        // she switched index mid-poll: this read is the old one's

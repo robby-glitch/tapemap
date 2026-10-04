@@ -61,6 +61,7 @@ export default function Pro() {
       <nav>{(['DESK', 'RECORD'] as const).map(t => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>)}</nav>
     </header>
     <FeedBand feed={st.feed} />
+    {st.story?.sentence && <p className="storyline" title={(st.story.chips ?? []).join(' · ')}><b>PADHAI</b>{st.story.asof ? ` ${st.story.asof} · ` : ' '}{st.story.sentence}</p>}
     {tab === 'RECORD' ? <Record /> : <main className="desk">
       <section className="face">
         {cur ? <InTrade t={cur} r={read} why={why}

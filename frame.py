@@ -37,6 +37,7 @@ import fronts as fronts_mod     # research-findings §1d: the near-ATM fronts an
 import gate as gate_mod
 import grounds as grounds_mod   # roll_why: the near future's OI is blind in its expiry week (P1-02)
 import signals as signal_mod     # the ballot and the state machine; frame.py never measures a vote
+import story as story_mod        # the decoder's one sentence, over the events the extension posted (never re-derived)
 import structure   # prior_day_hlc: the payload's floor pivots inverted back to the prior session's H/L/C
 import visit as visit_mod   # the latched reach and the visit key; frame.py composes, visit.py measures
 import watch as watch_mod       # the ladder rows worth watching; none of them is an entry
@@ -129,6 +130,13 @@ def window_change(minutes: Optional[dict], t0: str, t1: str) -> Dict[int, Tuple[
 
 
 def basis(tape: dict, book: dict) -> Optional[float]:
+    """Where a strike sits on her futures chart: K + basis. ONE basis since 2026-10-04 -- the fold engine's (future minus
+    the options' own forward, a 15-minute median; book["basis"], server._book_for), the same one her W / A lines use.
+    Only when the engine has no forward yet does it fall back to future minus the chain's spot, which swung 8-12 pts
+    inside a minute and sat 20-45 pts away (CHECK M1)."""
+    b = book.get("basis")
+    if b is not None:
+        return round(float(b), 1)
     fut, spot = tape.get("futPx"), book.get("spot")
     return round(fut - spot, 1) if fut is not None and spot is not None else None
 
@@ -575,6 +583,7 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
                 + [{"t": w["since"], "kind": "wall"} for w in walls_in if w.get("since")]
                 + [{"t": _hhmm(b["brokenT"]), "kind": "lost"} for b in broke if b.get("brokenT")] + armed)
     events, events_why = _safe_list(_events_and_armed)
+    story = _safe(lambda: story_mod.compose(tape.get("decoder"), tape.get("futPx")), dict(story_mod._EMPTY))
     # POSITIONING BREADTH (spec §C.2), a TOP-LEVEL object because it is a
     # property of the session and not of the setup in play. The watched
     # strikes are the ladder's own OI rows, so breadth and the war map are
@@ -588,6 +597,8 @@ def build(tape: dict, book: dict, now_hhmm: str) -> dict:
     return {"ok": True, "idx": tape.get("idx") or "NIFTY", "ts": now_hhmm, "day": day, "interval": sess[1] if len(sess) >= 3 else None,
             "have_bars": len(closed), "lot": tape.get("lot"), "missing": missing, "coverage": book.get("coverage") or {},
             "events": events, "events_why": events_why, "taps": tape.get("taps") or [], "head": head, "record": {"written": False},
+            # the decoder's one sentence (story.py): the panel's PADHAI line and the DESK's, from the page's own events
+            "story": story,
             "where": where, "trapped": trapped, "walls": walls, "tape": tape_o, "setup": setup, "breadth": breadth_o,
             # §1d. `trapped` answers "who is in pain" off max(pain) over every
             # leg; this answers "who stopped adding first, near the money".

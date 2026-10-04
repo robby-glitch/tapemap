@@ -53,6 +53,7 @@ import sides                     # the OI flow split by side against the index m
 import sides_log                 # ...and its forward log, once per closed slot, market hours only: data/sides/
 import trap                      # the trap layer, SHADOW (docs/board/TRAP-PREREG-2026-10-04.md): GET /api/trap
 import trap_log                  # ...its forward log (data/trap/) and its incremental readers of the recorders' files
+import decoder_log               # the decoder's forward log (data/decoder/), from the events the extension posts (Fable §6.1)
 import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
 import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
 import expression                # ...and THE EXPRESSION, buy or sell, and the writer's word (EXPRESSION-PREREG.md rev e)
@@ -1102,6 +1103,9 @@ def _book_for(handler, idx):
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
+            # ONE BASIS (2026-10-04): the fold engine's, so a strike's OI row and her W / A lines sit at one height. fut - spot
+            # swung 8-12 pts inside a minute and sat 20-45 pts from it (CHECK M1); None until the engine has a forward.
+            "basis": fold_live.basis(idx),
             "pivots": _day0.get("pivots"),      # the prior session's floor pivots; frame._walls inverts them to PDH/PDL/PDC
             "vpin_pct": vpin_pct, "senses": senses, "sweeps": sweeps,
             "watch_prior": watch_prior, "signal_prior": signal_prior, "plays_at": plays_at,
@@ -1475,6 +1479,20 @@ _BOARD = _board_fresh()
 def _board_clock():
     """(day, HH:MM) now. One seam, so a test can hold the clock."""
     return time.strftime("%Y-%m-%d"), time.strftime("%H:%M")
+
+
+def _market_hours(day, now_day, now_hm):
+    """THE ONE GATE for every forward record a tape post reaches: the frame log, the scorer, the marks writer
+    (tape_log) and the decoder log. True only for TODAY's session: the posted day is today, a weekday, and
+    09:15 <= now < 15:35 (the 15:25 bar closes at 15:30 and is written by the post right after it; _session_only has
+    already stripped anything stamped 15:30 or later). On 3-4 Oct a GoCharting tab left open on 1 Oct wrote 144 marks
+    into 1 Oct's record on a Sunday and BANKNIFTY-priced marks into NIFTY's on a Saturday: the marks writer had no gate."""
+    from datetime import date as _date
+    try:
+        weekday = _date.fromisoformat(now_day).weekday()
+    except (TypeError, ValueError):
+        return False
+    return day == now_day and weekday < 5 and "09:15" <= now_hm < "15:35"
 
 
 def _board_asof(minutes, now):
@@ -3392,12 +3410,17 @@ class Handler(SimpleHTTPRequestHandler):
                 # session before 09:15, all weekend and after the close, stamped with that day. On 3 Oct such posts
                 # rewrote 1 Oct's 244 MB record every minute and tore a line into it; 30 Sep's pre-open landed in 29 Sep's.
                 now_day, now_hm = _board_clock()
-                in_session = day == now_day and now_hm < "15:35"
+                in_session = _market_hours(day, now_day, now_hm)
                 fr["record"] = {"written": frame_log.append_if_changed(fr, day, idx) if in_session else False}
                 # THE LADDER RECORD (tape_log.py): each new closed bar and each
                 # new extension mark, once. Fail-soft inside; nothing here can
                 # change `ok`. Before the lock, like the frame write above.
-                tape_log.append(doc, day, idx)
+                if in_session:                           # the marks writer behind the same gate (nothing on a weekend, another day, or off hours)
+                    tape_log.append(doc, day, idx)
+                    try:                                 # the decoder's forward log: once per event, state and outcome
+                        decoder_log.append(doc.get("decoder"), doc.get("closed") or [], day, idx)
+                    except Exception:
+                        log.exception("decoder_log append")
                 # THE REV 6 ENGINE (fold_live.py, API-v3): the panel's `fold` (her open marked trade) and
                 # `flat` reads ride on the frame, from the engine's cache. Isolated twice: a failure is a why.
                 try:
@@ -4350,6 +4373,17 @@ class Handler(SimpleHTTPRequestHandler):
                 fr = _SENSES["frame"].get(idx)
             self._json(json.dumps(fr or {"ok": False, "why": "no frame yet: the extension has not posted"},
                                   default=str).encode())
+        elif self.path.startswith("/api/story"):
+            # THE DECODER'S ONE SENTENCE for the DESK (story.py over the events the extension posted): the last frame's,
+            # never recomputed here. ok:false with its reason when the extension has not posted or sent no decoder.
+            q = parse_qs(urlsplit(self.path).query)
+            idx = (q.get("idx") or ["NIFTY"])[0]
+            with _SENSES_LOCK:
+                fr = _SENSES["frame"].get(idx)
+            st = (fr or {}).get("story") if isinstance(fr, dict) else None
+            body = ({"ok": st.get("sentence") is not None, "idx": idx, "day": fr.get("day"), "ts": fr.get("ts"), **st} if st
+                    else {"ok": False, "idx": idx, "sentence": None, "sentence_why": "no frame yet: the extension has not posted"})
+            self._json(json.dumps(body, default=str).encode())
         else:
             super().do_GET()
 
@@ -4497,6 +4531,7 @@ def _isolate_mock_writers():
     xindex_live.DIR = os.path.join(mock, "xindex")                  # the shadow cross-index log (docs/reader/10-xindex-build.md)
     sides_log.DIR = os.path.join(mock, "sides")                     # the sides read's forward log (sides_log.py)
     trap_log.DIR = os.path.join(mock, "trap")                       # the trap layer's forward log (trap_log.py)
+    decoder_log.DIR = os.path.join(mock, "decoder")                 # the decoder's forward log (decoder_log.py)
     # 2026-09-28 (the correctness pass): the writers this list had missed. Each reads
     # its constant at call time; trigger_log.log_new is handed PATH at its call site.
     import chain_live

@@ -542,6 +542,14 @@ def reply(path, q, trades):
         return dict(ok=False, why=_fail(e))
 
 
+def basis(idx):
+    """The engine's basis for idx (future minus the options' own forward, a 15-minute median: fold.State.bas), rounded,
+    or None before the engine has one. Read-only: frame.basis places every strike with it (ONE basis, 2026-10-04)."""
+    eng = _ENG.get(idx)
+    b = getattr(getattr(eng, "flat", None), "bas", None) if eng else None
+    return None if b is None else round(float(b), 1)
+
+
 def frame(idx, trades):
     """POST /api/frame's two extra fields: `fold` for the open marked trade on idx (else None), `flat` when none."""
     try:
