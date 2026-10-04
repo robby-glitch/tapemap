@@ -70,7 +70,28 @@ export type Story = { ok: boolean; sentence: string | null; sentence_why?: strin
 export type S = { idx: Idx; loaded: boolean; trades: Trade[]; tradesWhy: string | null; fold: Record<string, FoldRead>; flat: Flat | null
                   engineWhy: string | null; ifin: Record<string, Ifin> | null; chain: ChainLite | null
                   /** the GoCharting tape's health off the last fold/flat reply; null = not read (the engine banner then speaks) */
-                  feed: Feed | null; story: Story | null }
+                  feed: Feed | null; story: Story | null
+                  /** the live in-trade read (GET /api/validate?idx=, the GoCharting round's validate_live); null when flat */
+                  validate: Validate | null
+                  /** contract size per index, off /api/hold/trades `lots` (the slip's lots -> qty) */
+                  lot: Record<string, number> }
+
+// THE LIVE IN-TRADE READ (validate_live.read; validate-tab-spec adapted 2026-10-05). The engine's word stays the decision;
+// lamps, prompt and shadow are reads beside it. Every missing piece arrives with its `_why`.
+export type LampState = 'G' | 'A' | 'R' | 'X'
+export type Lamp = { state: LampState; text?: string | null; since?: string | null; from?: LampState | null; acked?: boolean }
+export type Validate = { ok: boolean; why?: string; in_trade?: boolean; trade_id?: string; asof?: string
+  word?: string | null; word_why?: string | null; prompt?: string | null; prompt_why?: string | null; prompt_because?: string | null
+  lamps?: Record<string, Lamp> | null
+  level?: { t1: number | null; t2: number | null; inval: number | null; to_t1: number | null; to_t2: number | null; to_inval: number | null
+            t1_why?: string | null; t2_why?: string | null; inval_why?: string | null; units?: string; t1_hit?: boolean; t2_hit?: boolean; state?: LampState } | null
+  reversal?: { met: number; of: number; unknown?: number; items?: { key: string; met: boolean | null; text: string }[] } | null
+  /** the engine's clause (word_why stays null while there is a word: the why-pair rule) */
+  clause?: string | null
+  noise_floor?: number | null; trail_unlock?: unknown; timer?: { in_trade_s?: number; green_since?: string | null; typical_s?: number; fear_zone?: boolean } | null
+  cooldown?: Timer | null; flip?: Timer | null; shadow?: { word?: string | null } | null }
+/** a WARNING, never a block (no order path): 10 min after a STOPPED / RED exit; 60 s after any exit (a FLIP) */
+export type Timer = { until: number; left_s: number; why: string; from_d?: number }
 
 export const hms = () => new Date().toTimeString().slice(0, 8)
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -80,7 +101,7 @@ export const notAnswering = (t = hms()) => `could not check — the engine is no
 /** the engine did not answer at all (down, or slower than the 8 s timeout) -- not the same as answering with a reason */
 export const isDown = (w: string | null) => !!w && w.includes('the engine is not answering')
 
-let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null, story: null }
+let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null, story: null, validate: null, lot: {} }
 const subs = new Set<() => void>()
 let busy = false, again = false, timer: number | undefined, ifinK: number | null = null
 
@@ -111,8 +132,8 @@ async function poll() {
   busy = true
   const at = hms(), n: Partial<S> = { loaded: true }
   try {
-    const r = await j<{ ok: boolean; trades: Trade[]; why?: string }>('/api/hold/trades')
-    if (r.ok) { n.trades = r.trades; n.tradesWhy = null } else n.tradesWhy = cc(r.why, 'the trades could not be read')
+    const r = await j<{ ok: boolean; trades: Trade[]; why?: string; lots?: Record<string, number> }>('/api/hold/trades')
+    if (r.ok) { n.trades = r.trades; n.tradesWhy = null; n.lot = r.lots ?? s.lot } else n.tradesWhy = cc(r.why, 'the trades could not be read')
   } catch { n.tradesWhy = s.tradesWhy ?? notAnswering(at) }
   const trades = n.trades ?? s.trades, open = trades.filter(t => !t.exit_t), k = ifinK, idx = s.idx
   let why: string | null = null
@@ -150,6 +171,10 @@ async function poll() {
       n.chain = { ok: c.ok, why: c.why ?? c.error, ts: c.ts, spot: c.spot, atm: c.atm, expiry: c.expiry,     // /api/chain refuses in `error`
                   strikes: (c.strikes || []).map(x => ({ k: x.k, ce: x.ce?.ltp ?? null, pe: x.pe?.ltp ?? null })) }
     } catch { n.chain = s.chain ?? { ok: false, why: notAnswering(at), strikes: [] } }
+  })())
+  jobs.push((async () => {                     // the live in-trade read (flat: the cooldown / flip timers); /api/fold stays the fallback
+    try { n.validate = await j<Validate>(`/api/validate?idx=${open[0]?.idx ?? idx}`) }
+    catch { n.validate = { ok: false, why: `could not check — the server did not answer /api/validate (${at})` } }
   })())
   jobs.push((async () => {                                               // the decoder: never a hold / fold input
     try { n.story = await j<Story>(`/api/story?idx=${open[0]?.idx ?? idx}`) }
@@ -195,6 +220,30 @@ export async function tradeOp(body: Record<string, unknown>): Promise<{ ok: bool
     poll()
     return r
   } catch { return { ok: false, why: notAnswering() } }
+}
+
+// RECEIPTS (receipts.py; validate-tab-spec §7): every closed trade's receipt + the scoreboard; and the tradebook import
+export type Receipt = { id: string; day: string; hold_s: number | null; pts: number | null; exit_px: number | null; exit_px_src: string
+  result: 'win' | 'loss' | 'flat' | null; left_on_table_pts: number | null
+  post: { p10?: number | null; p20?: number | null; p30?: number | null; max_fav?: number; max_fav_t?: string; complete?: boolean; why?: string | null }
+  adds_dumped: { t: string; after_s: number }[]; engine_at_exit: string | null; reversal_at_exit: number | null
+  lamps_at_exit: Record<string, string> | null; tags: string[]; fear: boolean; fear_clock_only: boolean; amber: boolean; amber_unverified: boolean; src: string }
+export type Board = { n: number; n_win: number; n_loss: number; n_flat: number; n_unpriced: number; avg_hold_win_s: number | null; avg_hold_loss_s: number | null
+  median_hold_win_s: number | null; fear_exits: number; fear_left_pts: number; fear_clock_only: number; fear_clock_only_left_pts: number
+  reentries: number; reentry_tax_events: number; reentry_tax_pts: number; amber_exits: number; amber_unverified: number; adds_dumped: number; left_on_table_pts: number }
+export type ReTax = { from: string; to: string; day: string; gap_s: number; same_leg: boolean; exit_px: number | null; reentry_px: number | null; tax: number | null; why: string | null }
+export type Receipts = { ok: boolean; why?: string; today?: string; typical_s?: number; typical_src?: string; receipts?: Receipt[]; reentries?: ReTax[]
+  scoreboard?: { today: Board; week: Board; all: Board } }
+export type ImportOut = { ok: boolean; why?: string; confirm?: boolean; fills?: number; skipped?: string[]
+  days?: Record<string, { new: { id: string; t0: string; exit_t: string | null; qty: number; p0: number | null; exit_px: number | null }[]; have: string[]; refused: string[] }>
+  wrote?: Record<string, string[]>; backups?: string[] }
+export async function receiptsGet(): Promise<Receipts> {
+  try { return await j<Receipts>('/api/receipts') } catch { return { ok: false, why: notAnswering() } }
+}
+/** her tradebook: a preview unless confirm; the server backs every touched day file up before it writes. Never an order. */
+export async function importBook(csv: string, confirm: boolean): Promise<ImportOut> {
+  if (FIXTURE) return { ok: false, why: 'FIXTURE — nothing is imported from this viewer' }
+  try { return await j<ImportOut>('/api/receipts/import', { csv, confirm }) } catch { return { ok: false, why: notAnswering() } }
 }
 
 export async function record(day: string): Promise<Rec> {

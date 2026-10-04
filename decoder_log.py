@@ -158,9 +158,10 @@ def minute_path(day: str) -> str:
     return os.path.join(DIR, f"hold_vs_decoder_{day}.jsonl")
 
 
-def minute(day: str, idx: str, hhmm: str, fold: Optional[dict], read: Optional[dict]) -> bool:
-    """One row per (trade, minute): the engine's headline / clause / chips and the decoder's against / behind / word.
-    Called behind the server's market-hours gate only. Rows, never a rate: which of the two was early is hers to read."""
+def minute(day: str, idx: str, hhmm: str, fold: Optional[dict], read: Optional[dict], val: Optional[dict] = None) -> bool:
+    """One row per (trade, minute): the engine's headline / clause / chips, the decoder's against / behind / word, and
+    the Validate read beside them (validate_live: the lamp states, reversal N/4, the role prompt, the spec's shadow words,
+    her acks). Called behind the server's market-hours gate only. Rows, never a rate: which was early is hers to read."""
     v = (fold or {}).get("view") or {}
     tid = (fold or {}).get("id") or v.get("trade_id")
     if not (fold or {}).get("ok") or not tid or v.get("headline") is None:
@@ -186,6 +187,11 @@ def minute(day: str, idx: str, hhmm: str, fold: Optional[dict], read: Optional[d
                "decoder": {"against": r.get("against"), "behind": r.get("behind"), "word": r.get("word"), "word_t": r.get("word_t"),
                            "chips": [x.get("chip") for x in (r.get("items") or [])][-6:]} if read else None,
                "decoder_why": None if read else "the decoder had no read (no events posted since her entry)",
+               "validate": {"lamps": {k: x.get("state") for k, x in (val.get("lamps") or {}).items()},
+                            "level": (val.get("level") or {}).get("state"), "reversal_met": (val.get("reversal") or {}).get("met"),
+                            "prompt": val.get("prompt"), "shadow": {k: (val.get("shadow") or {}).get(k) for k in ("word", "amber_no_exit", "cut_2of4")},
+                            "acks": val.get("acks") or []} if (val or {}).get("lamps") else None,
+               "validate_why": None if (val or {}).get("lamps") else ((val or {}).get("word_why") or "no validate read this minute"),
                "tag": {"M": ["engine.fut"], "I": ["engine.headline", "decoder"]}}
         os.makedirs(DIR, exist_ok=True)
         with open(minute_path(day), "a", encoding="utf-8") as f:

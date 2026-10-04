@@ -4,7 +4,7 @@
 // HOLD / FOLD never shows in two big places. Presentation only: every word and number is the engine's or the decoder's; the
 // screen counts the engine's own chips and nothing else. Styles: ./pro.css.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { cc, FIXTURE, LEGS, legKey, type Feed, type FoldRead, type Hi, type Ifin, type Rows, type Story, type Tier, type Trade, type View } from './api'
+import { cc, FIXTURE, LEGS, legKey, type Feed, type FoldRead, type Hi, type Ifin, type Rows, type Story, type Tier, type Trade, type Validate, type View } from './api'
 
 export const f2 = (x: number | null | undefined) => x == null ? '—' : x.toFixed(2)
 export const pct = (x: number | null | undefined) => x == null ? '' : `${x > 0 ? '+' : ''}${x}%`
@@ -95,18 +95,27 @@ export function Block({ hs, clear, className = '', children, onClick }: { hs: Hi
   </div>
 }
 
-// ---- THE FLOAT'S BODY: the panel's top three lines, when the chart is hidden. /api/fold first (it works with the extension
-// dead: the engine's word and the give-up are Upstox reads), /api/story for the decoder's sentence and count when present.
-export function FloatBody({ t, r, story, feed, why }: { t: Trade; r?: FoldRead; story: Story | null; feed: Feed | null; why: string | null }) {
+// ---- THE FLOAT'S BODY: the panel's in-trade top lines, when the chart is hidden. /api/validate first (the big word, the
+// role prompt, N/4 reversal, points to T1 and to the invalidation, the lamp changes she has not acknowledged); /api/fold
+// alone when /api/validate is missing or the extension is dead (the engine's word and the give-up are Upstox reads);
+// /api/story for the decoder's count and sentence when present. Points to a level, never rupees.
+const LAMP_HI: Record<string, string> = { G: 'saath', A: 'ruko', R: 'khilaaf', X: 'check nahi' }
+const pts = (x: number | null | undefined) => x == null ? '—' : `${x > 0 ? '+' : ''}${Math.round(x)}`
+
+export function FloatBody({ t, r, story, feed, why, va, onAck }: { t: Trade; r?: FoldRead; story: Story | null; feed: Feed | null; why: string | null
+                                                                  va?: Validate | null; onAck?: (lamp: string, from: string | null, to: string) => void }) {
   const v: View | undefined = r?.ok ? r.view : undefined
-  const word = wordOf(v?.headline)
+  const live = va?.ok && va.in_trade !== false && va.word != null ? va : null          // the live read, or the engine alone
+  const word = wordOf(live?.word ?? v?.headline)
   const reason = why ?? (!r ? 'checking…' : r.ok ? cc(v?.why, 'no view yet') : cc(r.why, 'the engine gave no reason'))
   const now = clockOf(story), stale = storyStale(story, now)
   const server = !stale ? (story?.highlights ?? []).filter(h => ['trade', 'feed', 'abhi', 'ledger'].includes(h.block ?? 'trade')) : []
   const at = FIXTURE ? now : Date.now()
   const [hs, clear] = useKya(r ? { word, rows: v?.rows ?? null, feed: feed?.state ?? null } : null, at, (v?.ts ?? '').slice(0, 5) || new Date(at).toTimeString().slice(0, 5), true, reason, server)
-  const rest = v?.headline ? v.headline.slice(word.length).replace(/^\s*·\s*/, '') : ''
-  const p = v?.prem
+  const head = live?.word ?? v?.headline ?? ''
+  const rest = head ? head.slice(word.length).replace(/^\s*·\s*/, '') : ''
+  const p = v?.prem, lv = live?.level, rv = live?.reversal
+  const unacked = Object.entries(live?.lamps ?? {}).filter(([, l]) => l.acked === false)
   const tr = story?.trade_read
   const dec = !story ? 'could not check — /api/story not read yet'
     : stale ? `could not check — the decoder last posted ${new Date(story.now_ms!).toTimeString().slice(0, 5)} (the GoCharting extension is not posting)`
@@ -115,15 +124,27 @@ export function FloatBody({ t, r, story, feed, why }: { t: Trade; r?: FoldRead; 
   return <Block hs={hs} clear={clear} className="fbody">
     <p className="tradeline"><b>{t.idx} {tradeLabel(t)}</b> · in at {f2(t.p0)} · {t.t0.slice(0, 5)}{v?.ts ? <> · read {v.ts.slice(0, 8)}</> : null}</p>
     <div className={`f1 ${WCLS[word] ?? 'hold'}`}><span className="word">{word}</span>
-      <span className="clause">{v ? <>{rest && <b>{rest}{v.clause ? ' · ' : ''}</b>}{v.clause}</> : <Abs text={reason} />}</span></div>
-    {v && <p className="f2"><span>{v.line2 || <Abs text="could not check — no give-up line yet" />}</span>
-      {p && <span className="num prem"><b>{f2(p.now)}</b> <span className={(p.pct ?? 0) > 0 ? 'up' : (p.pct ?? 0) < 0 ? 'dn' : ''}>{pct(p.pct)}</span>
-        {p.peak != null && <span className="muted"> · peak {f2(p.peak)}{p.peak_t ? ` ${p.peak_t}` : ''}</span>}</span>}</p>}
+      <span className="clause">{v || live?.clause ? <>{rest && <b>{rest}{(v?.clause ?? live?.clause) ? ' · ' : ''}</b>}{v?.clause ?? live?.clause}</> : <Abs text={reason} />}</span></div>
+    {live ? <>
+      {live.prompt && <p className="fp"><b>{live.prompt}</b>{live.prompt_because ? ` — ${live.prompt_because}` : ''}
+        <span className="muted"> · role prompt, beside the engine's word</span></p>}
+      <p className="fl num"><span className="rv" title={(rv?.items ?? []).map(x => `${x.met ? '✓' : x.met === false ? '·' : '?'} ${x.text}`).join('\n')}>
+          <b>{rv ? `${rv.met}/${rv.of}` : '—'}</b> reversal{rv?.unknown ? <span className="muted"> ({rv.unknown} check nahi)</span> : null}</span>
+        <span>T1 {lv?.t1 != null ? lv.t1_hit ? <b className="up">touched</b> : <><b>{pts(lv.to_t1)}</b> pts</> : <Abs text={cc(lv?.t1_why, 'no T1')} />}</span>
+        <span>inval {lv?.inval != null ? <><b className={(lv.to_inval ?? 1) <= 0 ? 'dn' : ''}>{pts(lv.to_inval)}</b> pts</> : <Abs text={cc(lv?.inval_why, 'no invalidation')} />}</span>
+        {v?.line2 && <span className="muted l2s">{v.line2}</span>}</p>
+      {unacked.length > 0 && <p className="acks">{unacked.map(([k, l]) =>
+        <button key={k} className={`ack ${l.state}`} title={`${l.text ?? ''}\nclick: seen — recorded on the trade (ack)`}
+          onClick={e => { e.stopPropagation(); onAck?.(k, l.from ?? null, l.state) }}>
+          {k.toUpperCase()} {l.from ? `${LAMP_HI[l.from]} → ` : ''}{LAMP_HI[l.state]}{l.since ? ` · ${l.since.slice(0, 5)}` : ''} · ack</button>)}</p>}
+    </> : v && <>
+      <p className="f2"><span>{v.line2 || <Abs text="could not check — no give-up line yet" />}</span>
+        {p && <span className="num prem"><b>{f2(p.now)}</b>{p.peak != null && <span className="muted"> · peak {f2(p.peak)}{p.peak_t ? ` ${p.peak_t}` : ''}</span>}</span>}</p>
+      <p className="fl"><Abs text={cc(va?.why ?? va?.word_why, '/api/validate not read')} /></p></>}
     <p className="f3"><b className="k">DECODER</b>{dec ? <Abs text={dec} /> : <>
       <span className="dcnt"><b className="num a">{tr!.against}</b> khilaaf · <b className="num w">{tr!.behind}</b> saath{tr!.since ? <span className="muted"> · since {tr!.since}</span> : null}
         {' '}<span className="tag" title="the decoder's read, beside the engine's word; it changes no HOLD / FOLD (P1–P7 unsigned)">I</span></span>
-      {tr!.word && <span className={`dw ${tr!.word === 'GAVE UP' ? 'red' : 'blue'}`}>{tr!.word}{tr!.word_t ? ` ${tr!.word_t}` : ''}</span>}
-      {tr!.word_why && <span className="muted why">{tr!.word_why}</span>}</>}</p>
+      {tr!.word && <span className={`dw ${tr!.word === 'GAVE UP' ? 'red' : 'blue'}`}>{tr!.word}{tr!.word_t ? ` ${tr!.word_t}` : ''}</span>}</>}</p>
     {story?.sentence && !stale && <p className="f4">{story.asof ? <span className="num muted">{story.asof} · </span> : null}{story.sentence}</p>}
   </Block>
 }

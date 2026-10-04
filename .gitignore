@@ -84,3 +84,4 @@ tapemap.log*
 graphify-out/
 .impeccable/
 tape_desktop.png
+data/fixtures-private/

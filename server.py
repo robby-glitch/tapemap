@@ -45,6 +45,9 @@ import calls_log                 # ...and kept, one row per engine bar, in sessi
 import hold                      # the hold / fold window, as registered (PREREG-merged.md rev 4 + PREREG-rev5.md option B)
 import hold_log                  # ...and its forward logs, write-once
 import fold_live                 # the rev 6 engine (fold.py) run live: /api/fold*, the frame's fold / flat (API-v3)
+import receipts                  # her trades' receipts + the KPI (validate-tab-spec §7): GET /api/receipts, POST /api/receipts/import
+import trade_record              # her trade's thesis / roles / acks / re-plans / tags on /api/hold/trades (Validate spec §2, §7)
+import validate_live             # the live in-trade read: /api/validate, frame.validate (Validate spec, adapted 2026-10-05)
 import feed_health               # is the GoCharting tape alive? from the data (P3): /api/feed/gc, and `feed` on the faces' replies
 import reader_live               # the SHADOW leg engine (reader.py) on its own thread: GET /api/reader, data/reader/
 import xindex_live               # the SHADOW cross-index read (xindex.py) on the reader's pass: GET /api/xindex, data/xindex/
@@ -1535,6 +1538,59 @@ def _story_for(idx, day, doc, fr, now_ms):
         logged = []
     return story_mod.compose_all(doc.get("decoder"), doc.get("futPx"), day, now_ms, doc.get("closed") or [],
                                  fr.get("fold"), trap, three, fr.get("feed"), vp, logged, m["cant"])
+
+
+_VAL_LAST = {}       # trade id -> its last live read: tags her exits (FEAR_EXIT / AMBER_EXIT), never blocks them
+_TYPICAL = {"at": 0.0, "v": None}
+
+
+def _record_days(today_trades):
+    """Her trades by day for the typical time-to-target: the saved days, today's from memory (not its file)."""
+    import glob
+    today = _board_clock()[0]
+    out = [list(today_trades)]
+    for p in sorted(glob.glob(os.path.join(str(day_state.DIR), "day_*.json")))[-60:]:
+        if today in os.path.basename(p):
+            continue
+        try:
+            with open(p, encoding="utf-8") as f:
+                out.append(json.load(f).get("hold_trades") or [])
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def _validate_for(idx, day, doc, fr, now_ms):
+    """THE LIVE IN-TRADE READ (validate_live.read) for this post: her open trade on idx with the frame's fold, the posted
+    bars / VWAP / decoder, the engine's chain snapshots and the frame's walls. Fills her thesis once from the engine's
+    levels where she left them blank (src engine), then locks them."""
+    with HOLD_TRADES_LOCK:
+        trades = [dict(t) for t in _hold_trades()]
+    tr = next((t for t in trades if t.get("idx") == idx and not t.get("exit_t")), None)
+    if time.time() - _TYPICAL["at"] > 60:
+        _TYPICAL.update(at=time.time(), v=validate_live.typical_s(_record_days(trades)))
+    eng = fold_live._ENG.get(idx)
+    chain = list((eng.rows.get("chain") if eng and eng.day == day else None) or [])[-80:]
+    bands = doc.get("bands") or []
+    v = validate_live.read(tr, fr.get("fold"), day, now_ms, doc.get("closed") or [], doc.get("decoder"),
+                           (bands[-1] or {}).get("vwap") if bands else None, doc.get("forming"), chain,
+                           (fr.get("walls") or {}).get("rows"), trades, _TYPICAL["v"], idx)
+    if tr is not None and v.get("level"):
+        _VAL_LAST[tr["id"]] = v
+        lv, th = v["level"], tr.get("thesis") or {}
+        fill = {k: lv[k] for k in ("t1", "t2", "inval") if th.get(k) is None and lv.get(k) is not None}
+        if fill:
+            with HOLD_TRADES_LOCK:
+                live = next((t for t in _hold_trades() if t["id"] == tr["id"]), None)
+                if live is not None:
+                    t_ = live.setdefault("thesis", {"why": None, "t1": None, "t2": None, "inval": None, "src": {},
+                                                    "locked_at": time.strftime("%H:%M:%S")})
+                    for k, x in fill.items():
+                        if t_.get(k) is None:
+                            t_[k] = x
+                            t_.setdefault("src", {})[k] = "engine"
+            _save_day_state()
+    return v
 
 
 def _story_past(idx, day):
@@ -3231,6 +3287,46 @@ def _hold_import(poller, text):
             "files": [hold_log.path("hold", day), hold_log.path("side", day), hold_log.path("expr", day)]}
 
 
+def _receipts_words(day):
+    """The engine's words per trade for a day (fold_live's RECORD: today from the engines, a past day off the files) --
+    RECEIPTS reads the word at her exit for amber exits. Additive: no words, no amber read."""
+    r = fold_live.reply("/api/fold/record", {"day": [day]}, [])
+    return {t["id"]: t.get("words") or [] for t in r.get("trades") or []} if isinstance(r, dict) and r.get("ok") else {}
+
+
+def _receipts_get():
+    """GET /api/receipts: every closed trade's receipt and the scoreboard (today / this week / all time). Read-only."""
+    from chain_live import CHAIN_DIR
+    day = _board_clock()[0]
+    with HOLD_TRADES_LOCK:
+        live = [dict(t) for t in _hold_trades()]
+    return receipts.build(day_state.DIR, str(CHAIN_DIR), day, words_fn=_receipts_words, extra_today=live)
+
+
+def _receipts_import(text, confirm):
+    """POST /api/receipts/import {csv, confirm}: her Zerodha tradebook -> round trips (src import), checked at the mark's
+    door (_hold_trade). Without confirm: the preview. With it: each touched day file is backed up, past days written,
+    today's trips appended to the live list (and saved). Idempotent on the trip id and every fill's trade_id. Never an order."""
+    day = _board_clock()[0]
+    plan = receipts.import_plan(text, day_state.DIR, door=_hold_trade)
+    slim = {d: {"new": [{k: t.get(k) for k in ("id", "t0", "exit_t", "qty", "p0", "exit_px")} for t in x["new"]],
+                "have": x["have"], "refused": x["refused"]} for d, x in plan["days"].items()}
+    out = {"ok": True, "confirm": bool(confirm), "fills": plan["fills"], "skipped": plan["skipped"], "days": slim}
+    if not confirm:
+        return out
+    with HOLD_TRADES_LOCK:
+        w = receipts.import_write(plan, day_state.DIR, day)
+        trades = _hold_trades()
+        have = {t["id"] for t in trades}
+        add = [t for t in w["for_today"] if t["id"] not in have]
+        trades += add
+        if add:
+            _HOLD["dirty"] = True
+    if add:
+        _save_day_state()
+    return {**out, "wrote": {**w["wrote"], **({day: [t["id"] for t in add]} if add else {})}, "backups": w["backups"]}
+
+
 def _frame_chain(poller, idx):
     """frame.chain (API-v3, the panel's mark slip): the latest option-chain snapshot as {atm, step, ts,
     strikes: [{k, ce, pe}]} with ce / pe the LTPs. `atm` sits on the options' own forward -- F* = k + CE - PE at
@@ -3318,6 +3414,25 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path.startswith("/api/receipts/import"):
+            # RECEIPTS' tradebook import (receipts.py): {csv, confirm}; a preview unless confirm, and every touched day
+            # file backed up before a write. Same-origin only, as the hold doors; CAPPED; never an order.
+            site, origin = self.headers.get("Sec-Fetch-Site"), self.headers.get("Origin") or ""
+            if site is not None and site not in ("same-origin", "same-site", "none") and not origin.startswith("chrome-extension://"):
+                self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
+                return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                if not 0 < n < 2097152:
+                    self._json(b'{"ok":false,"why":"bad request"}', 400)
+                    return
+                doc = json.loads(self.rfile.read(n) or b"{}")
+                out = _receipts_import(str(doc.get("csv") or ""), bool(doc.get("confirm")))
+            except Exception as e:           # never 500 the RECORD
+                log.exception("receipts import")
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
+            return
         # PaperDesk's paper fills, tagged with the tape context they were
         # taken in. A SEPARATE file from trigger_log.jsonl on purpose:
         # trigger_log counts rule populations under a quarantine discipline,
@@ -3370,7 +3485,16 @@ class Handler(SimpleHTTPRequestHandler):
                                 out = {"ok": False, "why": f"already marked — {dup['idx']} {dup['k']:g} {dup['side']} "
                                                            f"{dup['role']} in at {dup['t0']} is open"}
                             elif tr is not None:
-                                trades[:] = [t for t in trades if t["id"] != tr["id"]] + [dict(tr, at=time.time())]
+                                th, why1 = trade_record.thesis_from(doc, time.strftime("%H:%M:%S"))
+                                rs, why2 = trade_record.roles_from(doc, tr)
+                                if why1 or why2:
+                                    out = {"ok": False, "why": board.CC + (why1 or why2)}
+                                else:
+                                    tr = dict(tr, at=time.time(), **({"thesis": th} if th else {}), **({"roles": rs} if rs else {}))
+                                    tags = trade_record.entry_tags(tr, trades, time.time())   # FLIP / COOLDOWN: warned, never refused
+                                    if tags:
+                                        tr["tags"] = tags
+                                    trades[:] = [t for t in trades if t["id"] != tr["id"]] + [tr]
                         elif op in ("exit", "unmark", "reopen"):
                             tr = next((t for t in trades if t["id"] == doc.get("id")), None)
                             ex = str(doc.get("exit_t") or time.strftime("%H:%M:%S"))      # none given: now
@@ -3392,8 +3516,20 @@ class Handler(SimpleHTTPRequestHandler):
                                 out = {"ok": False, "why": board.CC + "exit time must be HH:MM[:SS], not before the entry"}
                             else:
                                 tr["exit_t"], tr["exit_at"] = ex, time.time()
+                                rd = _VAL_LAST.get(tr["id"])          # the whole trade out at once: its lamps, its tags
+                                trade_record.snap_exit(tr, rd)
+                                for tag in trade_record.exit_tags("MANUAL", rd):
+                                    if tag not in tr.setdefault("tags", []):
+                                        tr["tags"].append(tag)
+                        elif op in trade_record.OPS:
+                            # her record (Validate spec): thesis, role_add, role_exit, ack, replan, peek. A RECORD of
+                            # what she did on her broker -- never an order. More lots out than a role holds is refused.
+                            tr = next((t for t in trades if t["id"] == doc.get("id")), None)
+                            why = (board.CC + f"no marked trade {doc.get('id')} today" if tr is None else
+                                   trade_record.apply(tr, op, doc, time.strftime("%H:%M:%S"), time.time(), _VAL_LAST.get(tr["id"])))
+                            out = {"ok": False, "why": why} if why else None
                         else:
-                            out = {"ok": False, "why": board.CC + "op must be mark, exit, reopen or unmark"}
+                            out = {"ok": False, "why": board.CC + "op must be mark, exit, reopen, unmark or " + ", ".join(trade_record.OPS)}
                         out = out or {"ok": True, "trades": list(trades)}
                     if out["ok"]:
                         _HOLD["dirty"] = True
@@ -3507,9 +3643,16 @@ class Handler(SimpleHTTPRequestHandler):
                     fr["story"] = _story_for(idx, day, doc, fr, int(time.time() * 1000))
                 except Exception:
                     log.exception("story compose")
+                try:                                     # the live in-trade read (Validate): lamps, level, N/4, prompt
+                    fr["validate"] = _validate_for(idx, day, doc, fr, int(time.time() * 1000))
+                    if isinstance((fr.get("story") or {}).get("trade_read"), dict):
+                        fr["story"]["trade_read"]["validate"] = fr["validate"]
+                except Exception as e:
+                    log.exception("validate read")
+                    fr["validate"] = {"ok": False, "why": f"could not check — the validate read failed: {e}"}
                 if in_session and isinstance(fr.get("fold"), dict) and fr["fold"].get("ok"):
                     try:                                 # HOLD vs DECODER, once a minute while she is marked
-                        decoder_log.minute(day, idx, now_hm, fr["fold"], (fr.get("story") or {}).get("trade_read"))
+                        decoder_log.minute(day, idx, now_hm, fr["fold"], (fr.get("story") or {}).get("trade_read"), fr.get("validate"))
                     except Exception:
                         log.exception("decoder_log minute")
                 with _SENSES_LOCK:
@@ -4387,6 +4530,14 @@ class Handler(SimpleHTTPRequestHandler):
             q = parse_qs(urlsplit(self.path).query)
             idx = (q.get("idx") or ["NIFTY"])[0]
             self._json(json.dumps({"ok": True, **_feed_read(idx, time.strftime("%Y-%m-%d"))}, default=str).encode())
+        elif self.path.startswith("/api/receipts"):
+            # RECEIPTS (receipts.py; validate-tab-spec §7): her closed trades' receipts and the scoreboard. Read-only.
+            try:
+                out = _receipts_get()
+            except Exception as e:           # never 500 the RECORD
+                log.exception("receipts")
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/fold"):
             # THE REV 6 ENGINE'S READS (fold_live.py; docs/pro-tool/API-v3.md): /api/fold?id=, /api/fold/flat?idx=,
             # /api/fold/ifin?idx=&k=&ty=&side=, /api/fold/record?day=. Every reply is the engine loop's cache --
@@ -4473,6 +4624,21 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 body = ({"ok": st.get("sentence") is not None, "idx": idx, "day": fr.get("day"), "ts": fr.get("ts"), **st} if st
                         else {"ok": False, "idx": idx, "sentence": None, "sentence_why": "no frame yet: the extension has not posted"})
+            self._json(json.dumps(body, default=str).encode())
+        elif self.path.startswith("/api/validate"):
+            # THE LIVE IN-TRADE READ (validate_live.py): the last frame's, never recomputed here. No frame yet: the
+            # cooldown / flip timers still answer, and the trade says why it has no lamps.
+            q = parse_qs(urlsplit(self.path).query)
+            idx = (q.get("idx") or ["NIFTY"])[0]
+            with _SENSES_LOCK:
+                fr = _SENSES["frame"].get(idx)
+            body = (fr or {}).get("validate") if isinstance(fr, dict) else None
+            if body is None:
+                with HOLD_TRADES_LOCK:
+                    trades = [dict(t) for t in _hold_trades()]
+                tr = next((t for t in trades if t.get("idx") == idx and not t.get("exit_t")), None)
+                body = validate_live.read(tr, {"ok": False, "why": "no frame yet: the extension has not posted"}, _board_clock()[0],
+                                          int(time.time() * 1000), trades=trades, idx=idx)
             self._json(json.dumps(body, default=str).encode())
         else:
             super().do_GET()

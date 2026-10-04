@@ -3,7 +3,7 @@
 // engine's word is on the GoCharting panel and in the Float (?float=<id> is the Float's body), never here as well. During the
 // session PEHLE comes first, after the close BAAD. ?fixture=1 is the dev viewer, bannered, never live.
 import { useEffect, useState } from 'react'
-import { FIXTURE, INDICES, isDown, setIdx, setIfin, useStore, type Pick, type Trade } from './api'
+import { FIXTURE, INDICES, hms, isDown, legKey, setIdx, setIfin, tradeOp, useStore, type Pick, type Trade } from './api'
 import { Abs, Block, FloatBody, IfinCards, clockOf, f2, storyStale, tradeLabel } from './Desk'
 import FeedBand from './FeedBand'
 import { Slip } from './Mark'
@@ -39,11 +39,12 @@ export default function Pro() {
   if (fid != null) {
     const t = st.trades.find(x => x.id === fid) ?? cur
     return <div className="pro float"><FeedBand feed={st.feed} compact />
-      {t ? <FloatBody t={t} r={st.fold[t.id]} story={st.story} feed={st.feed} why={why} />
+      {t ? <FloatBody t={t} r={st.fold[t.id]} story={st.story} feed={st.feed} why={why} va={st.validate?.trade_id == null || st.validate.trade_id === t.id ? st.validate : null}
+          onAck={(lamp, from, to) => { void tradeOp({ op: 'ack', id: t.id, lamp, from, to, t: hms() }) }} />
          : <p className="tradeline"><Abs text={st.loaded ? 'not shown — no open marked trade (the window closes when you are out)' : 'checking…'} /></p>}</div>
   }
 
-  const after = !FIXTURE && (minute >= '15:30' || minute < '09:15')
+  const after = q.get('tab') === 'record' || (!FIXTURE && (minute >= '15:30' || minute < '09:15'))   // ?tab=record: BAAD first
   const fxWhy = FIXTURE && pick && st.chain?.atm != null && pick.k !== st.chain.atm ? `could not check — the fixture holds ${st.chain.atm} only` : null
   const pehle = <section className="pehle" key="pehle">
     <h2 className="sec"><b>PEHLE · IF YOU WERE IN</b>{pick && <> · <span className="num">{st.idx} {pick.k}</span>{st.chain?.atm === pick.k ? ' (ATM)' : ''}</>}
@@ -56,7 +57,8 @@ export default function Pro() {
       <div className="pgrid">
         <IfinCards legs={fxWhy ? null : st.ifin} k={pick?.k ?? null} story={st.story} pick={pick} why={fxWhy}
           onPick={(ty, side) => pick && setPick({ ...pick, ty, side })} />
-        <aside className="side"><Slip idx={st.idx} chain={st.chain} open={open} cur={cur} onSelect={setSel} pick={pick} setPick={setPick} /></aside>
+        <aside className="side"><Slip idx={st.idx} chain={st.chain} open={open} cur={cur} onSelect={setSel} pick={pick} setPick={setPick}
+          leg={pick && !fxWhy ? st.ifin?.[legKey(pick.ty, pick.side)]?.view ?? null : null} lot={st.lot[st.idx] ?? null} /></aside>
       </div></>}
     {cur && <div className="pgrid one"><aside className="side"><Slip idx={st.idx} chain={st.chain} open={open} cur={cur} onSelect={setSel} pick={pick} setPick={setPick} /></aside></div>}
   </section>

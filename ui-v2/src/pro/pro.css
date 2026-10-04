@@ -137,7 +137,7 @@ h3.sub { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; margin: 18px
   padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--wash); }
 .tbl td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; transition: background-color 1.2s ease; }
 .tbl th:nth-child(1), .tbl td:nth-child(1) { width: 34px; }
-.tbl th:nth-child(2) { width: 150px; } .tbl th:nth-child(3) { width: 104px; } .tbl th:nth-child(4) { width: 19%; } .tbl th:nth-child(5) { width: 30%; }
+.tbl th:nth-child(2) { width: 150px; } .tbl th:nth-child(3) { width: 104px; } .tbl th:nth-child(4) { width: 15%; } .tbl th:nth-child(5) { width: 20%; } .tbl th:nth-child(6) { width: 14%; }
 .tbl tr.rr { cursor: pointer; }
 .tbl tr.rr:hover > td { background: rgba(20, 26, 34, .025); }
 .tbl .src { margin-left: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; color: var(--amber); border: 1px solid var(--amber-line); border-radius: 3px; padding: 0 4px; }
@@ -174,3 +174,49 @@ h3.sub { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; margin: 18px
 .f3 .dcnt b { font-size: 16px; } .f3 .dcnt .a { color: var(--red); } .f3 .dcnt .w { color: var(--blue); } .f3 .why { flex-basis: 100%; font-size: 12.5px; }
 .dw { font-weight: 700; letter-spacing: .03em; } .dw.red { color: var(--red); } .dw.blue { color: var(--blue); }
 .f4 { margin: 0; font-size: 12.5px; color: var(--ink); line-height: 1.4; }
+
+/* THE THESIS LOCK + LOTS BY ROLE on the slip (validate-tab-spec §2.2-§2.3) */
+.thesis, .lots { border-top: 1px solid var(--line); padding-top: 10px; margin-bottom: 10px; }
+.lvl { display: grid; grid-template-columns: 44px 96px minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 5px; }
+.lvl .n { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+.lvl input, .thesis .why { font: inherit; font-size: 14px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; width: 100%; color: var(--ink); font-variant-numeric: tabular-nums; }
+.lvl .src { font-size: 11.5px; color: var(--muted); } .lvl .src.her { color: var(--ink); font-weight: 600; }
+.thesis .why { margin-top: 2px; font-size: 13px; }
+.lots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lots .k { flex-basis: 100%; }
+.lrole { font: inherit; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+button.lrole { cursor: pointer; }
+.lrole.on { border-color: var(--ink); color: var(--ink); }
+.lrole.add button { font: inherit; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 50%; background: #fff; cursor: pointer; line-height: 1; padding: 0; }
+.lrole.add button:disabled { color: var(--faint); cursor: default; }
+.warn { margin: 0 0 10px; padding: 6px 10px; font-size: 12.5px; color: var(--amber); background: var(--amber-wash); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0; }
+
+/* THE SCOREBOARD (spec §7.1) */
+.score { width: 100%; border-collapse: collapse; margin: 4px 0 14px; font-size: 13px; table-layout: fixed; }
+.score th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--wash); }
+.score th:first-child { width: 30%; }
+.score td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.score tr.kpi td { padding: 10px; }
+.score tr.kpi .w, .score tr.kpi .l { display: inline-block; margin-right: 14px; font-size: 13px; }
+.score tr.kpi .w b { font-size: 26px; color: var(--blue); } .score tr.kpi .l b { font-size: 26px; color: var(--red); }
+.score tr.kpi .small { display: block; }
+.lnkbtn { font: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; margin-left: 10px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); cursor: pointer; }
+.lnkbtn input[type=file] { display: none; }
+.import { display: inline; }
+.import .pv { margin: 6px 0; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 8px; font-size: 12.5px; }
+.import .pv p { margin: 0 0 6px; }
+.btn.sm { width: auto; padding: 6px 12px; font-size: 12.5px; }
+.tbl td.rcpt { font-size: 12.5px; }
+.tbl .up { color: var(--blue); } .tbl .dn { color: var(--red); }
+.xtag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; color: var(--red); border: 1px solid var(--red); border-radius: 3px; padding: 0 4px; margin: 2px 4px 0 0; }
+.xtag.soft { color: var(--amber); border-color: var(--amber-line); }
+
+/* the Float's live lines (/api/validate) */
+.fp { margin: 0 0 6px; font-size: 14px; } .fp b { letter-spacing: .03em; }
+.fl { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; margin: 0 0 6px; padding: 6px 8px; font-size: 13.5px; background: var(--wash); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0; }
+.fl b { font-size: 17px; } .fl .dn { color: var(--red); } .fl .up { color: var(--blue); } .fl .l2s { flex-basis: 100%; font-size: 12.5px; }
+.acks { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.ack { font: inherit; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 12px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+.ack.R { color: var(--red); border-color: var(--red); } .ack.A { color: var(--amber); border-color: var(--amber-line); }
+.ack.G { color: var(--blue); border-color: var(--blue); } .ack.X { color: var(--grey); border-style: dashed; }
+
