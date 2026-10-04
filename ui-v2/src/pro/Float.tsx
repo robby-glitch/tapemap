@@ -1,7 +1,8 @@
 // THE FLOATING WINDOW on the rev 6 engine (her order 2026-09-29: "the old hold window needs to be replaced by this one ...
 // it follows the pro.html logic"). The chrome of the old window (drag, collapse, ✕, pop out over the broker, the word in the
-// tab title) around the DESK's own face: an iframe of /pro.html?float=<id>, so the words, rows and premium are the DESK's,
-// never a second rendering. It exists only while she is in a trade; the tone is the DESK poller's (sound_id). No order path.
+// tab title) around the panel's top three lines (2026-10-04 split: the engine's word, give-up / out-if, the decoder's count):
+// an iframe of /pro.html?float=<id> (Desk.tsx FloatBody), on every tab, the Validate tab too -- the DESK no longer draws the
+// in-trade face. It exists only while she is in a trade; the tone is the DESK poller's (sound_id). No order path.
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
@@ -15,11 +16,11 @@ const RANK: Record<string, number> = { FOLD: 0, 'PAST GIVE-UP': 1, "CAN'T CHECK"
 const ls = (k: string, v?: string) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v) } catch { /* private window */ } return null }
 const contract = (t: Trade) => `${t.k} ${t.side}`
 
-export default function Float(p: { hidden?: boolean }) {
-  return <Guard name="floating window"><Win {...p} /></Guard>
+export default function Float() {
+  return <Guard name="floating window"><Win /></Guard>
 }
 
-function Win({ hidden = false }: { hidden?: boolean }) {
+function Win() {
   const st = useStore()
   const wordOf = (t: Trade) => {
     const r = st.fold[t.id], h = r?.ok ? r.view?.headline : null
@@ -115,7 +116,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   }
   const closeIt = () => { const ids = open.map(ck); ls('pro.float.closed', JSON.stringify(ids)); setClosed(ids) }
 
-  if (!show || !cur || (hidden && !pip)) return null            // on the Validate tab the DESK itself is the full read
+  if (!show || !cur) return null
 
   const others = open.filter(t => t.id !== cur.id)
   const btns = <span className="fl-btns">
@@ -130,7 +131,7 @@ function Win({ hidden = false }: { hidden?: boolean }) {
     <span className={`word fw ${VCLS[word!]}`}>{word}</span>
     {st.feed?.alarm && <span className="fl-feed" title={[st.feed.why, st.feed.do].filter(Boolean).join('\n')}>{st.feed.chip}</span>}
     <span className="mid"><span className="c">{contract(cur)}</span><span className="dot">·</span>{cur.role} · in {cur.t0.slice(0, 5)}
-      {v?.clause && <><span className="dot">·</span>{v.clause}</>}
+      {min && v?.clause && <><span className="dot">·</span>{v.clause}</>}{/* open: the body's first line carries it */}
       {others.map(t => <span key={t.id}><span className="dot">·</span><button type="button" className="link" onClick={() => setPick(t.id)} title="show this trade">
         <b className={VCLS[wordOf(t)]}>{wordOf(t)}</b> {contract(t)}</button></span>)}</span>
     {btns}
@@ -145,6 +146,6 @@ function Win({ hidden = false }: { hidden?: boolean }) {
     {msg && <p className="fine" style={{ padding: '4px 12px' }}>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></p>}
     {!min && <iframe ref={frame} key={cur.id} src={src} title="DESK" style={{ display: 'block', width: '100%', border: 0, height: pip ? 'calc(100vh - 44px)' : Math.min(h, window.innerHeight - 90) }} />}
   </div>
-  if (pip) return <>{createPortal(win, pip.document.body)}{!hidden && <div className="hv-back">The DESK is popped out on top <button type="button" onClick={() => pip.close()}>bring it back</button></div>}</>
+  if (pip) return <>{createPortal(win, pip.document.body)}{<div className="hv-back">The DESK is popped out on top <button type="button" onClick={() => pip.close()}>bring it back</button></div>}</>
   return win
 }

@@ -58,6 +58,8 @@ def _tape_record_in_tmp(tmp_path, monkeypatch):
     ux_log._STATE.clear()
     import decoder_log
     decoder_log._SEEN.clear()
+    decoder_log._MIN_SEEN.clear()
+    decoder_log._EV_CACHE.clear()
     yield
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()

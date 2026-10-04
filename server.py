@@ -1495,6 +1495,77 @@ def _market_hours(day, now_day, now_hm):
     return day == now_day and weekday < 5 and "09:15" <= now_hm < "15:35"
 
 
+_STORY_MEM = {}      # idx -> the two things with no time of their own: VPIN crossing 0.8, a flat read going to CAN'T CHECK
+
+
+def _story_for(idx, day, doc, fr, now_ms):
+    """THE PANEL'S STORY (story.compose_all) for this post: the decoder's sentence, the day as chapters, the decoder's
+    count beside her trade, and the out-of-the-ordinary highlights. Reads what the server already publishes -- the
+    posted decoder, the frame's fold / flat / feed, the trap reply (/api/trap, its sides-3 `three`), the VPIN gauge --
+    and the decoder log for the events a restarted page did not post again (anytime-start). Re-derives nothing."""
+    import story as story_mod
+    m = _STORY_MEM.get(idx)
+    if m is None or m["day"] != day:
+        m = _STORY_MEM[idx] = {"day": day, "vpin": None, "vpin_since": None, "flat": None, "cant": []}
+    rep = _TRAP.get("reply") or {}
+    trap = (rep.get("indices") or {}).get(idx)
+    three = rep.get("three")
+    if not (trap or {}).get("ok") or trap.get("day") != day:
+        trap = {"why": (trap or {}).get("why") or "trap-1 abhi nahi (the trap read has not run for this day)"}
+        three = None
+    with _SENSES_LOCK:
+        g = (_SENSES.get("vpin") or {}).get(f"{idx}-FUT")
+        pct = g.state().get("pct") if g else None
+    hi = None if pct is None else pct >= 0.8
+    if hi and m["vpin"] is False:               # a crossing this process SAW; a restart already above 0.8 is no change
+        m["vpin_since"] = now_ms
+    m["vpin"] = hi
+    vp = None if pct is None else {"pct": pct, "since_ms": m["vpin_since"] if hi else None, "shadow": True, "tag": "I"}
+    flat = fr.get("flat") if isinstance(fr.get("flat"), dict) else {}
+    chips = {k: (v or {}).get("chip") for k, v in (flat.get("rows") or {}).items()}
+    for k, c in chips.items():
+        o = (m["flat"] or {}).get(k)
+        if c == "CAN'T CHECK" and o not in (None, "CAN'T CHECK"):
+            m["cant"].append({"what": k.upper(), "t_ms": now_ms, "block": "flat"})
+    m["flat"] = chips or m["flat"]
+    m["cant"] = [c for c in m["cant"] if now_ms - c["t_ms"] <= story_mod.HOLD_MS]
+    try:
+        logged = decoder_log.read_events(day, idx)
+    except Exception:
+        logged = []
+    return story_mod.compose_all(doc.get("decoder"), doc.get("futPx"), day, now_ms, doc.get("closed") or [],
+                                 fr.get("fold"), trap, three, fr.get("feed"), vp, logged, m["cant"])
+
+
+def _story_past(idx, day):
+    """GET /api/story?day=: a day's chapters from the SAVED logs only -- the decoder's forward log (its events, tagged
+    "log"), the trap log's state stamps and the ladder record's bars (for asar). For RECORD on the DESK. Never the live
+    page's events, never re-derived; a day without those logs says so."""
+    import story as story_mod
+    logged = decoder_log.read_events(day, idx)
+    trap, slots = {"events": []}, []
+    try:
+        with daylog.open_text(os.path.join(trap_log.DIR, f"trap_{day}.jsonl")) as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if r.get("idx") == idx and r.get("kind") == "state":
+                    trap["events"].append(r)
+                elif r.get("idx") == idx and r.get("kind") == "slot":
+                    slots.append(r)
+    except OSError:
+        trap = None
+    bars = [b for b in tape_log.read_bars(day, idx) if b.get("t") is not None]
+    ch = story_mod.chapters(None, bars, day, trap, slots, logged)
+    if not logged and not (trap or {}).get("events"):
+        ch = {**ch, "items_why": f"no decoder log and no trap log for {idx} on {day} (both forward logs start with the "
+                                  f"server that has them; nothing is rebuilt from a re-cut cache)" if not ch["items"] else ch["items_why"]}
+    return {"ok": bool(ch["items"]), "idx": idx, "day": day, "past": True, "chapters": ch, "src": "log",
+            "events_logged": len(logged), "trap_stamps": len((trap or {}).get("events") or []),
+            "trap_why": None if trap is not None else f"no trap log for {day}"}
+
 def _board_asof(minutes, now):
     """The latest FINISHED minute on the grid -- never the one in progress
     (`now`), never 15:30 or later -- or None before the day's first mark."""
@@ -1951,7 +2022,7 @@ def _trap_compute(poller, chains):
             "oi_prev_why": None if prev else trap.CC + "no saved chain for the previous session",
         }
     return {"ok": True, "rev": trap.REV, "fixed_at": trap.FIXED_AT, "now": hhmm, "at": time.strftime("%H:%M:%S"),
-            "indices": out, "tag": "I", "shadow": True,
+            "indices": out, "three": rep_.get("three"), "tag": "I", "shadow": True,
             "note": "SHADOW [I] — display and log only; changes no verdict, word or count; f15/f30 are logged, never shown"}, raw
 
 
@@ -3432,6 +3503,15 @@ class Handler(SimpleHTTPRequestHandler):
                     fr["chain"] = _frame_chain(self.poller, idx)
                 except Exception as e:
                     fr["chain"] = {"ok": False, "why": f"could not check — the chain slip failed: {e}"}
+                try:                                     # the panel's story; frame.build's sentence stays if this fails
+                    fr["story"] = _story_for(idx, day, doc, fr, int(time.time() * 1000))
+                except Exception:
+                    log.exception("story compose")
+                if in_session and isinstance(fr.get("fold"), dict) and fr["fold"].get("ok"):
+                    try:                                 # HOLD vs DECODER, once a minute while she is marked
+                        decoder_log.minute(day, idx, now_hm, fr["fold"], (fr.get("story") or {}).get("trade_read"))
+                    except Exception:
+                        log.exception("decoder_log minute")
                 with _SENSES_LOCK:
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
                     _SENSES["frame"][idx] = fr
@@ -4374,15 +4454,25 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(json.dumps(fr or {"ok": False, "why": "no frame yet: the extension has not posted"},
                                   default=str).encode())
         elif self.path.startswith("/api/story"):
-            # THE DECODER'S ONE SENTENCE for the DESK (story.py over the events the extension posted): the last frame's,
-            # never recomputed here. ok:false with its reason when the extension has not posted or sent no decoder.
+            # THE STORY for the panel, the Float and the DESK (story.compose_all over the events the extension posted, the
+            # fold / trap / sides-3 / VPIN reads): sentence, chapters, trade_read, lean, highlights, now_ms -- the last
+            # frame's, never recomputed here. ?day= a past day: its chapters off the saved logs (_story_past).
             q = parse_qs(urlsplit(self.path).query)
             idx = (q.get("idx") or ["NIFTY"])[0]
+            want = (q.get("day") or [None])[0]
             with _SENSES_LOCK:
                 fr = _SENSES["frame"].get(idx)
             st = (fr or {}).get("story") if isinstance(fr, dict) else None
-            body = ({"ok": st.get("sentence") is not None, "idx": idx, "day": fr.get("day"), "ts": fr.get("ts"), **st} if st
-                    else {"ok": False, "idx": idx, "sentence": None, "sentence_why": "no frame yet: the extension has not posted"})
+            if want and not re.match(r"^\d{4}-\d{2}-\d{2}$", want):
+                body = {"ok": False, "idx": idx, "why": "day must be YYYY-MM-DD"}
+            elif want and want != (fr or {}).get("day"):      # a past day (RECORD): its chapters off the saved logs
+                try:
+                    body = _story_past(idx, want)
+                except Exception as e:
+                    body = {"ok": False, "idx": idx, "day": want, "why": f"could not check — {e}"}
+            else:
+                body = ({"ok": st.get("sentence") is not None, "idx": idx, "day": fr.get("day"), "ts": fr.get("ts"), **st} if st
+                        else {"ok": False, "idx": idx, "sentence": None, "sentence_why": "no frame yet: the extension has not posted"})
             self._json(json.dumps(body, default=str).encode())
         else:
             super().do_GET()

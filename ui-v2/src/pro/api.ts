@@ -1,5 +1,6 @@
 // THE PRO SCREEN'S ONE POLLER (docs/pro-tool/API-v3.md). Every 10 s: /api/hold/trades, then /api/fold?id= for each open
-// trade, or /api/fold/flat (+ /api/fold/ifin when she is looking at a strike) when flat, and /api/chain for the mark slip.
+// trade, or /api/fold/flat (+ /api/fold/ifin for the four legs at her strike, IF YOU WERE IN) when flat, /api/chain for the
+// strike picker, and /api/story (the decoder: sentence, count, highlights) for the open trade's index, else the picked one.
 // It reads and renders; fold.py decides. An endpoint that is missing or down is "could not check — the engine is not
 // answering (hh:mm:ss)", never a fixture (the fixture viewer is ?fixture=1, bannered, and never polls).
 import { useSyncExternalStore } from 'react'
@@ -46,17 +47,28 @@ export type Flat = { ok: boolean; why?: string; next_fight?: { above: Fight | nu
 export type Ifin = { ok: boolean; why?: string; view?: View }
 export type Strike = { k: number; ce: number | null; pe: number | null }
 export type ChainLite = { ok: boolean; why?: string; ts?: string; spot?: number; atm?: number; expiry?: string; strikes: Strike[] }
-export type RecTrade = { id: string; trade: Trade; words: Word[]; exit: unknown; best: unknown; peak_before_exit: unknown; given_back: unknown }
+export type RecTrade = { id: string; trade: Trade; words: Word[]; why?: string | null; exit: unknown; best: unknown; peak_before_exit: unknown; given_back: unknown }
 export type Rec = { ok: boolean; why?: string; trades?: RecTrade[] }
 export type Ty = 'CE' | 'PE'
 export type Side = 'BUY' | 'SELL'
 export type Pick = { k: number; ty: Ty; side: Side }
+/** IF YOU WERE IN: the four at-the-money legs, a buyer's and a writer's of each, in a fixed order (CE row, PE row) */
+export const LEGS = [['CE', 'BUY'], ['CE', 'SELL'], ['PE', 'BUY'], ['PE', 'SELL']] as const
+export const legKey = (ty: string, side: string) => `${ty}:${side}`
 
-// THE DECODER'S ONE SENTENCE (story.py over the events the GoCharting extension posted; /api/story). Display only: it never
-// enters a hold / fold read.
-export type Story = { ok: boolean; sentence: string | null; sentence_why?: string | null; chips?: string[]; asof?: string | null }
+// THE DECODER (story.py over the events the GoCharting extension posted; /api/story). Display only: it never enters a hold /
+// fold read. Everything past `asof` is the panel round's (story.compose_all) and may be absent on an older server.
+export type Tier = 'red' | 'amber' | 'blue'
+export type Hi = { tier: Tier; kind: string; what: string; t_ms: number; time: string; id?: string; block?: string }
+export type TradeRead = { against: number; behind: number; d: number; since?: string; word?: string | null; word_t?: string | null; word_why?: string | null
+                          items?: { side: number; chip: string; time: string; kind: string }[]; note?: string }
+export type Chapter = { start: string; end: string; current: boolean; name: string; sentence: string; chips: string[]; side: number; asar: number | null }
+export type Story = { ok: boolean; sentence: string | null; sentence_why?: string | null; chips?: string[]; asof?: string | null
+                      idx?: string; day?: string; ts?: string | null; now_ms?: number; open_prints?: number; event?: { kind: string; side?: number; state?: string; p?: number } | null
+                      trade_read?: TradeRead | null; trade_read_why?: string | null; highlights?: Hi[]
+                      chapters?: { items: Chapter[]; items_why?: string | null; trap_why?: string | null } }
 export type S = { idx: Idx; loaded: boolean; trades: Trade[]; tradesWhy: string | null; fold: Record<string, FoldRead>; flat: Flat | null
-                  engineWhy: string | null; ifin: Ifin | null; chain: ChainLite | null
+                  engineWhy: string | null; ifin: Record<string, Ifin> | null; chain: ChainLite | null
                   /** the GoCharting tape's health off the last fold/flat reply; null = not read (the engine banner then speaks) */
                   feed: Feed | null; story: Story | null }
 
@@ -70,7 +82,7 @@ export const isDown = (w: string | null) => !!w && w.includes('the engine is not
 
 let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null, story: null }
 const subs = new Set<() => void>()
-let busy = false, again = false, timer: number | undefined, ifinKey: Pick | null = null
+let busy = false, again = false, timer: number | undefined, ifinK: number | null = null
 
 /** render only on change: a read identical to the last one never notifies a subscriber */
 export function put(p: Partial<S>) {
@@ -102,7 +114,7 @@ async function poll() {
     const r = await j<{ ok: boolean; trades: Trade[]; why?: string }>('/api/hold/trades')
     if (r.ok) { n.trades = r.trades; n.tradesWhy = null } else n.tradesWhy = cc(r.why, 'the trades could not be read')
   } catch { n.tradesWhy = s.tradesWhy ?? notAnswering(at) }
-  const trades = n.trades ?? s.trades, open = trades.filter(t => !t.exit_t), key = ifinKey, idx = s.idx
+  const trades = n.trades ?? s.trades, open = trades.filter(t => !t.exit_t), k = ifinK, idx = s.idx
   let why: string | null = null
   const fail = () => { why ??= s.engineWhy ?? notAnswering(at) }          // the first failure's time stays: no churn
   const refused = (w?: string) => { why ??= cc(w, 'the engine gave no reason') }
@@ -121,11 +133,15 @@ async function poll() {
       try { const r = await j<Flat>(`/api/fold/flat?idx=${idx}`); n.flat = r; if (r.feed) feed = r.feed; if (!r.ok) refused(r.why) }
       catch { fail(); n.flat = s.flat }
     })())
-    if (key) jobs.push((async () => {
-      try { n.ifin = await j<Ifin>(`/api/fold/ifin?idx=${idx}&k=${key.k}&ty=${key.ty}&side=${key.side}`) }
-      catch { n.ifin = { ok: false, why: s.ifin?.why ?? notAnswering(at) } }
-    })())
-    else n.ifin = null
+    const legs: Record<string, Ifin> = {}
+    if (k != null) {
+      n.ifin = legs
+      for (const [ty, side] of LEGS) jobs.push((async () => {
+        const lk = legKey(ty, side)
+        try { legs[lk] = await j<Ifin>(`/api/fold/ifin?idx=${idx}&k=${k}&ty=${ty}&side=${side}`) }
+        catch { legs[lk] = { ok: false, why: s.ifin?.[lk]?.why ?? notAnswering(at) } }
+      })())
+    } else n.ifin = null
   } else { n.flat = null; n.ifin = null }
   jobs.push((async () => {
     try {
@@ -135,8 +151,9 @@ async function poll() {
                   strikes: (c.strikes || []).map(x => ({ k: x.k, ce: x.ce?.ltp ?? null, pe: x.pe?.ltp ?? null })) }
     } catch { n.chain = s.chain ?? { ok: false, why: notAnswering(at), strikes: [] } }
   })())
-  jobs.push((async () => {                                               // the decoder's line: never a hold / fold input
-    try { n.story = await j<Story>(`/api/story?idx=${idx}`) } catch { n.story = null }
+  jobs.push((async () => {                                               // the decoder: never a hold / fold input
+    try { n.story = await j<Story>(`/api/story?idx=${open[0]?.idx ?? idx}`) }
+    catch { n.story = { ok: false, sentence: null, sentence_why: `the server did not answer /api/story (${at})` } }
   })())
   await Promise.all(jobs)
   if (idx !== s.idx) { busy = false; again = false; poll(); return }        // she switched index mid-poll: this read is the old one's
@@ -157,15 +174,15 @@ export const useStore = () => useSyncExternalStore(subscribe, () => s)
 export function setIdx(x: Idx) {
   if (x === s.idx) return
   try { localStorage.setItem('pro.idx', x) } catch { /* the pick still holds for this page */ }
-  ifinKey = null
+  ifinK = null
   put({ idx: x, flat: null, ifin: null, chain: null, engineWhy: null })
   if (!FIXTURE) poll()
 }
 
-/** the strike she is looking at while flat: IF YOU WERE IN reads it now and at every poll */
-export function setIfin(p: Pick | null) {
-  if (JSON.stringify(p) === JSON.stringify(ifinKey)) return
-  ifinKey = p
+/** the strike she is looking at while flat: IF YOU WERE IN reads its four legs now and at every poll */
+export function setIfin(k: number | null) {
+  if (k === ifinK) return
+  ifinK = k
   if (!FIXTURE) poll()
 }
 

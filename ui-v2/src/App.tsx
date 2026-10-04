@@ -1928,7 +1928,7 @@ export default function App() {
             own index filter, which starts on ALL. */}
         {activeTab === 'Signals'  && <SignalsTab />}
       </div>
-      <Float hidden={onValidate} />
+      <Float />{/* every tab, Validate too: the DESK no longer draws the in-trade face (2026-10-04) */}
     </div>
     </DataCtx.Provider>
   )

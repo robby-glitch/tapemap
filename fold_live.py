@@ -111,6 +111,51 @@ def _sig(tr):
     return (tr.get("exit_t"), tr.get("p0"), tr.get("qty"))
 
 
+AFTER_EXIT_MIN = (20, 40)   # RECORD: her strike's premium this long after her exit (she exits winners early)
+
+
+def _plus(hms, minutes):
+    """'HH:MM[:SS]' + minutes -> 'HH:MM:SS'."""
+    p = [int(x) for x in str(hms).split(":")] + [0]
+    t = p[0] * 3600 + p[1] * 60 + p[2] + minutes * 60
+    return f"{t // 3600:02d}:{t // 60 % 60:02d}:{t % 60:02d}"
+
+
+def prem_after_exit(chain, tr, exit_prem):
+    """Her strike's chain premium +20 and +40 min after her exit [M], and the move from the premium at her exit. Her own
+    exit fill is not stored: the engine's last read at her exit stands for it, so the move is [I]. The first snapshot
+    inside 3 minutes of each mark; no snapshot there is a why, never a zero. `chain` is the day's rows, oldest first."""
+    ex = tr.get("exit_t")
+    if not ex:
+        return None, "still open"
+    ty, k = str(tr.get("side") or "").lower(), int(float(tr["k"]))
+    out = []
+    for m in AFTER_EXIT_MIN:
+        lo, hi = _plus(ex, m), _plus(ex, m + 3)
+        c = next((r for r in chain if lo <= str(r.get("ts")) <= hi), None)
+        x = next((x for x in (c or {}).get("strikes") or [] if int(float(x.get("k"))) == k), None)
+        p = ((x or {}).get(ty) or {}).get("ltp")
+        out.append(dict(min=m, t=c["ts"] if c else None, prem=p,
+                        vs_exit=round(p - exit_prem, 2) if p is not None and exit_prem is not None else None,
+                        why=None if p is not None else (f"{CC} — no chain snapshot {lo[:5]}–{hi[:5]}" if c is None
+                                                        else f"{CC} — no {k} {ty.upper()} in the chain at {c['ts']}"),
+                        tag=dict(M=["prem"], I=["vs_exit"])))
+    return out, None
+
+
+_PAST_CHAIN = {}
+
+
+def _past_chain(idx, day):
+    """A gone day's chain rows, read once per (idx, day) for RECORD (a day file is ~13 MB)."""
+    if (idx, day) not in _PAST_CHAIN:
+        d = _CFG["chain_dir_fn"]() if _CFG.get("chain_dir_fn") else os.path.join("data", "chain")
+        rows = _jsonl(os.path.join(str(d), f"chain_{idx}_{day}.jsonl"), lambda r: r.get("ts") and r.get("strikes"))
+        _PAST_CHAIN.clear()                               # ponytail: one day kept; RECORD looks at one day at a time
+        _PAST_CHAIN[(idx, day)] = sorted(rows, key=lambda r: r["ts"])
+    return _PAST_CHAIN[(idx, day)]
+
+
 def _trim(v):
     out = {k: x for k, x in v.items() if k != "new_events"}
     out["events"] = list(v.get("events") or [])[-EVENTS_SHOWN:]
@@ -403,7 +448,9 @@ class Engine:
             v = r.get("view") or {}
             p = v.get("prem") or {}
             ex = e["tr"].get("exit_t")
+            later, later_why = prem_after_exit(self.rows["chain"], e["tr"], p.get("now") if ex and v.get("frozen") else None)
             out.append(dict(id=tid, trade=e["tr"], words=r.get("words") or [], why=None if r.get("ok") else r.get("why"),
+                            prem_after_exit=later, prem_after_exit_why=later_why,
                             exit=dict(t=ex, prem=p.get("now"), pct=p.get("pct")) if ex and v.get("frozen") else None,
                             best=dict(t=p.get("peak_t"), prem=p.get("peak"), pct=p.get("peak_pct")) if p else None,
                             peak_before_exit=dict(t=p.get("peak_t"), prem=p.get("peak")) if ex and v.get("frozen") else None,
@@ -494,7 +541,12 @@ def past_record(day):
                 last = (r["headline"], r.get("clause"))
         held = [r for r in rows if ex is None or r["ts"] <= ex]
         p = (held[-1].get("prem") or {}) if held else {}
+        try:
+            later, later_why = prem_after_exit(_past_chain(tr["idx"], day), tr, p.get("now") if ex and held else None)
+        except Exception as x:
+            later, later_why = None, _fail(x)
         out.append(dict(id=tr["id"], trade=tr, words=words, why=None if rows else f"{CC} — no engine words were logged for {tr['id']}",
+                        prem_after_exit=later, prem_after_exit_why=later_why,
                         exit=dict(t=ex, prem=p.get("now"), pct=p.get("pct"), at=held[-1]["ts"]) if ex and held else None,
                         best=dict(t=p.get("peak_t"), prem=p.get("peak"), pct=p.get("peak_pct")) if p else None,
                         peak_before_exit=dict(t=p.get("peak_t"), prem=p.get("peak")) if ex and held else None,
