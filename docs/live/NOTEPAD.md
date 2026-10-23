@@ -195,6 +195,10 @@
 - **Kill clocks (docs/live/KILL-CLOCKS-2026-10-22.md):** §1d KILL or CANNOT CHECK · VPIN define-or-retire · direction.py log-bias-or-retire.
 - **Data leftovers:** 14 BANKNIFTY 21–22 Aug trigger_log near-copies; 77 ambiguous feed_log rows. Both kept until she decides.
 - 22 Oct after close: "fix everything" — §1o ONE-SIDED METER registered (sha 60ba8f8f…2f14, forward from 23 Oct); four agents running: day review, TapeMap reads, TapeMap plumbing, extension v2.7.
-- **Commit:** nothing has been committed since 19 Oct.
+- **Committed 23 Oct ~19:55, on her word** ("update all the docs with latest commits"):
+  - TapeMap `feature/operator-objects`: **5b9ed44** (code) + **ab4191d** (docs);
+  - extension `one-tool`: **f257405** (v2.3–v2.8 + dist-v2 0.5.8) + **b0b11ab** (docs).
+  - **Not committed:** `data/` (by design: trigger_log and the recordings) and `oi-lab/` (it sits in the top-level folder, which has no repo history).
+  - **Not pushed.**
 - **Fix A1, A2, A16, A17** after the close (they need her OK).
 - **Clean data, A20 and A17** (needs her OK to touch data).
