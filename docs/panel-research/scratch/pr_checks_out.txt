@@ -1,0 +1,18 @@
+1 matched bars 857
+  buy: Pearson 0.91, median UX/GC 0.94, |log ratio| p50 0.19 p90 0.58
+  sell: Pearson 0.90, median UX/GC 1.07, |log ratio| p50 0.17 p90 0.46
+  delta sign agrees 601 of 851; buy share Pearson 0.58, median GC 0.495 UX 0.451
+2 GC: |dOI| > bar volume in 30 of 813 NIFTY 5-min bars
+2 UX: |dOI| > bar volume in 29 of 889 NIFTY 5-min bars
+3 NIFTY: 19 full chain days, 39901 rows: ATM+/-2 off the window 0.9%, ATM+/-4 off 4.6%
+3 BANKNIFTY: 19 full chain days, 39908 rows: ATM+/-2 off the window 2.2%, ATM+/-4 off 12.1%
+3 SENSEX: 19 full chain days, 39905 rows: ATM+/-2 off the window 6.8%, ATM+/-4 off 18.9%
+4 NIFTY 19 Oct: since last trade p50 1.15s p90 5.1s; arrival - feed ts p50 0.46s p90 0.70s
+4 BANKNIFTY 19 Oct: since last trade p50 3.72s p90 18.6s; arrival - feed ts p50 0.45s p90 0.70s
+4 SENSEX 19 Oct: since last trade p50 41.99s p90 186.8s; arrival - feed ts p50 0.46s p90 0.70s
+5 NIFTY-22900PE: swept traded / chain day volume = 0.54
+5 NIFTY-22800PE: swept traded / chain day volume = 0.56
+5 NIFTY-22850PE: swept traded / chain day volume = 0.56
+5 NIFTY-22900CE: swept traded / chain day volume = 0.54
+5 NIFTY-22950CE: swept traded / chain day volume = 0.47
+5 NIFTY-23000PE: swept traded / chain day volume = 0.50

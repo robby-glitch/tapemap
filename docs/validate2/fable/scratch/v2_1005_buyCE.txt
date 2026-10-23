@@ -1,0 +1,62 @@
+=== 2026-10-05 NIFTY her BUY 22600 CE @ 94.25 at 09:28:13
+  NIFTY BUY 22600 CE @ 94.25  ->  **WAIT**  4 with · 2 against · 3 neither · 1 could not check (of 10)
+    engine: HOLD · against you: flow · behind you: OI, VPIN · out if 22574 is accepted
+    fut 22687.0 · F 22605.4 · basis_ix 117.5 · give-up 22574 (prem there ~45.8) · wall ahead 22700 CE 131 pts (prem there ~153.5)
+    RIGHT NOW      WITH             HOLD · against you: flow · behind you: OI, VPIN
+    DAY / TREND    NEITHER          EARLY since 09:15 [I] · VWAP se -1 pts · cross 1 / 2 bar · IB ban raha hai: 22,621–22,678 (57) abhi tak · fut OI +0.6L · bhav -16 → naye short (09:15 se)
+    EXPRESSION     NEITHER          STAND ASIDE · led at 09:26 (and the other way: STAND ASIDE · led)
+    WALL BEHIND    WITH             22500 PE writers 152.5L, BUILDING on the day's watch (day peak 09:28, 0.0 % off it) [M]
+    WALL AHEAD     NEITHER          22700 CE writers 140.7L, BUILDING (day peak 09:28, 0.0 % off), 131 pts ahead (fut) [M]
+    ORDER FLOW     AGAINST          sellers won 09:21 at 22658 · pullback since 09:21 · CVD -189 (peak 09:19, price extreme 09:28, NOT paid for in the last hour) [I]
+    VPIN           WITH             3 of 10 buckets one-sided, your way · toxicity pct 1.00 (shadow)
+    CROSS-INDEX    could not check  could not check - no prior swing yet (fewer than 30 min of prints)
+    ROOM           WITH             invalid at 22574 fut (113 pts; one candle B = 15) · next wall 131 pts [M]
+    PAYING         AGAINST          CE 22600 BUILDING (day peak 09:27, 1.0 % off) · CE 22700 BUILDING (day peak 09:28, 0.0 % off) [M]
+      MONEYNESS      NEITHER          delta 0.4618 · intrinsic 5.4 · time value 88.8 of 94.25 [I]
+      SPREAD         NEITHER          bid 94.05 / ask 94.3 = 0.25 (5 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          09:28 · expiry 2026-10-06
+      WHO IS IN PAIN NEITHER          22600 CE ltp 94.25 vs day avg 85.73: writers near their avg · 22500 PE ltp 59.5 vs day avg 67.49: writers near their avg · 22700 CE ltp 49.7 vs day avg 45.66: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.78 · CE 734L · PE 576L [M]
+
+=== THE BOARD at 09:28:13 (ranked: word, then with-count, then fewer against, then fewer could-not-check, then NIFTY > BANKNIFTY > SENSEX)
+  WAIT BANKNIFTY BUY  55100 CE ATM @ 987.25  4w/1a/3n/2c  against: PAYING
+  WAIT BANKNIFTY SELL 55100 PE ATM @ 692.75  4w/1a/2n/2c  against: PAYING
+  WAIT BANKNIFTY BUY  55100 PE ATM @ 692.75  4w/1a/3n/2c  against: ORDER FLOW
+  WAIT BANKNIFTY SELL 55100 CE ATM @ 987.25  4w/1a/2n/2c  against: ORDER FLOW
+  WAIT BANKNIFTY SELL 55200 PE ITM @ 736.5  4w/1a/2n/2c  against: PAYING
+  WAIT BANKNIFTY SELL 55000 CE ITM @ 1047.8  4w/1a/2n/2c  against: ORDER FLOW
+  WAIT SENSEX    BUY  72400 CE ATM @ 549.4  4w/1a/3n/2c  against: PAYING
+  WAIT SENSEX    SELL 72400 PE ATM @ 425.65  4w/1a/2n/2c  against: PAYING
+  WAIT SENSEX    SELL 72500 PE ITM @ 470.25  4w/1a/2n/2c  against: PAYING
+  WAIT NIFTY     BUY  22550 CE ATM @ 123.65  4w/2a/3n/1c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     SELL 22550 PE ATM @ 75.7  4w/2a/2n/1c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     SELL 22550 CE ATM @ 123.65  4w/2a/2n/1c  against: VPIN, PAYING
+  WAIT NIFTY     SELL 22600 PE ITM @ 96.3  4w/2a/2n/1c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     SELL 22500 CE ITM @ 157.1  4w/2a/2n/1c  against: VPIN, PAYING
+  WAIT SENSEX    SELL 72400 CE ATM @ 549.4  3w/2a/2n/2c  against: ORDER FLOW, PAYING
+  WAIT SENSEX    SELL 72300 CE ITM @ 609.25  3w/2a/2n/2c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     BUY  22550 PE ATM @ 75.7  3w/3a/3n/1c  against: VPIN, ROOM, PAYING
+  WAIT SENSEX    BUY  72400 PE ATM @ 425.65  2w/3a/3n/2c  against: ORDER FLOW, ROOM, PAYING
+
+  BETTER than hers: BANKNIFTY BUY 55100 CE (WAIT, 4w/1a); BANKNIFTY SELL 55100 PE (WAIT, 4w/1a); BANKNIFTY BUY 55100 PE (WAIT, 4w/1a)
+  TOP of the board: BANKNIFTY BUY 55100 CE (WAIT)
+
+  top candidate in full:
+  BANKNIFTY BUY 55100 CE @ 987.25  ->  **WAIT**  4 with · 1 against · 3 neither · 2 could not check (of 10)
+    engine: HOLD · behind you: flow, OI · out if 55243 is accepted
+    fut 55380.0 · F 55386.9 · basis_ix 240.6 · give-up 55243 (prem there ~908.8) · wall ahead 55500 CE 361 pts (prem there ~1055.8)
+    RIGHT NOW      WITH             HOLD · behind you: flow, OI
+    DAY / TREND    NEITHER          EARLY since 09:15 [I] · VWAP se -3 pts · cross 1 / 2 bar · IB ban raha hai: 55,263–55,425 (162) abhi tak · fut OI -0.1L · bhav -22 → long nikal rahe (09:15 se)
+    EXPRESSION     NEITHER          STAND ASIDE · led at 09:26 (and the other way: STAND ASIDE · led)
+    WALL BEHIND    WITH             55300 PE writers 0.8L, BUILDING on the day's watch (day peak 09:28, 0.0 % off it) [M]
+    WALL AHEAD     NEITHER          55500 CE writers 6.4L, BUILDING (day peak 09:28, 0.0 % off), 361 pts ahead (fut) [M]
+    ORDER FLOW     WITH             buyers won 09:27 at 55348 · CVD -2 (peak 09:21, price extreme 09:21) [I]
+    VPIN           could not check  could not check: 0 of 10 VPIN buckets · no percentile (NIFTY-only gauge)
+    CROSS-INDEX    could not check  could not check - no prior swing yet (fewer than 30 min of prints)
+    ROOM           WITH             invalid at 55243 fut (137 pts; one candle B = 52) · next wall 361 pts [M]
+    PAYING         AGAINST          CE 55500 BUILDING (day peak 09:28, 0.0 % off) · CE 55200 BUILDING (day peak 09:28, 0.0 % off) [M]
+      MONEYNESS      NEITHER          delta 0.5601 · intrinsic 286.9 · time value 700.4 of 987.25 [I]
+      SPREAD         NEITHER          bid 985.0 / ask 987.7 = 2.70 (54 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          09:28 · expiry 2026-10-27
+      WHO IS IN PAIN NEITHER          55100 CE ltp 987.25 vs day avg 969.42: writers near their avg · 55300 PE ltp 779.0 vs day avg 804.35: writers near their avg · 55500 CE ltp 765.45 vs day avg 746.54: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.93 · CE 20L · PE 19L [M]

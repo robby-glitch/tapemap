@@ -1,0 +1,86 @@
+=== bars 1169 days 17
+
+[1] serial correlation of the 5-min delta, within days (adjacent bars only)
+  lag 1: pairs 1139  pearson(d) 0.108  pearson(d/sqrt v) 0.140  same-sign 636 of 1139
+  lag 2: pairs 1110  pearson(d) 0.086  pearson(d/sqrt v) 0.076  same-sign 573 of 1110
+  lag 3: pairs 1081  pearson(d) 0.120  pearson(d/sqrt v) 0.135  same-sign 570 of 1081
+  flips (sign change vs previous bar): 498 of 1152 bars with a previous bar
+  of the flips, current |delta| below the 30th pct (37 lots): 151
+
+[2] how |delta| scales with volume (is delta/volume the right scale-free measure?)
+  log|d| on log v slope beta = 0.97 (0.5 = pure sampling noise; 1.0 = delta share is constant)
+  spearman(|d|, v) 0.63   spearman(|d|/v, v) 0.00   spearman(|d|/sqrt v, v) 0.40
+  volume terciles cut at 341 / 702 lots; |delta/vol| p50 / p90 by tercile:
+    low  n 390  median 0.18  p90 0.43   |d| median 32 p90 92
+    mid  n 389  median 0.17  p90 0.44   |d| median 82 p90 220
+    high n 390  median 0.17  p90 0.44   |d| median 188 p90 697
+  bars with |d/v| >= pooled p90 (0.43): 117; of them in the lowest volume tercile 35, mid 42, top 40
+  same for |d|/sqrt(v) >= its p90 (11.13): 117; terciles low 3, mid 23, top 91
+
+[3] overlap between delta, flip, slope, acceleration (pooled p90 of |.|, in-sample)
+  bars |delta| >= p90: 118
+    of those with a slope defined (104): slope >= p90 in 49
+    of those with a acc defined (94): acc >= p90 in 29
+    of those with a flip defined (32): flip >= p90 in 23
+    of those with a dv defined (118): dv >= p90 in 48
+    RVOL >= p70 in 105 of 118; vacc >= p90 in 42 of 101 defined
+  among all bars where slope is defined (1110): slope >= p90 in 112, of which |delta| >= p90 in 49
+  among all bars where acc is defined (1023): acc >= p90 in 104, of which |delta| >= p90 in 29
+  among all bars where flip is defined (498): flip >= p90 in 51, of which |delta| >= p90 in 23
+  spearman on the 442 bars where all are defined (|.| for signed ones):
+             d     dv   flip  slope    acc     rv   vacc
+  d       1.00   0.67   0.75   0.28   0.20   0.62   0.41
+  dv      0.67   1.00   0.38   0.01  -0.03  -0.03   0.04
+  flip    0.75   0.38   1.00   0.51   0.29   0.60   0.19
+  slope   0.28   0.01   0.51   1.00   0.29   0.37  -0.05
+  acc     0.20  -0.03   0.29   0.29   1.00   0.28  -0.09
+  rv      0.62  -0.03   0.60   0.37   0.28   1.00   0.55
+  vacc    0.41   0.04   0.19  -0.05  -0.09   0.55   1.00
+  flip swing = |d_now| + |d_prev| exactly (sign change); corr(|flip|, |d_now|) = 0.65
+  slope = (d_i + d_i-1 + d_i-2)/15: the current bar is 1 of 3 terms; corr(slope, d) = 0.31; acc = slope - slope0: corr(acc, slope) = 0.60, corr(acc, slope0) = -0.69
+
+[4] sign-shuffle null (keep every bar |delta| and time slot, give each bar a random sign; 300 shuffles) - p90 of |slope|, |acc|, |flip| real vs shuffled
+  p90 |slope| real 48.6   shuffled mean 42.6 (5-95%: 39.9-44.6)
+  p90 |acc|   real 64.0   shuffled mean 62.3 (5-95%: 58.5-66.3)
+  p90 |flip|  real 550.8   shuffled mean 629.2 (5-95%: 579.2-674.9); flips per sample real 498 shuffled mean 560
+
+[5] share of bars flagged by pooled thresholds, by time of day (pooled ranks are not slot-normalised except RVOL)
+  slot          bars | |d|>=p90 | slope>=p90 | acc>=p90 | flip>=p90 | dv>=p90 | rv>=p70 | rv>=p90
+  09:15-09:44    101 |  18/101  |  14/67   |   2/16   |   9/41   |   2/101  |  30/101  |  11/101 
+  09:45-10:29    153 |  22/153  |  16/153  |  19/153  |  12/73   |  12/153  |  43/153  |   9/153 
+  10:30-11:29    202 |  15/202  |  21/198  |  13/196  |   5/89   |  31/202  |  57/202  |  21/202 
+  11:30-12:59    302 |  23/302  |  22/294  |  22/279  |   6/129  |  35/302  |  86/302  |  26/302 
+  13:00-13:59    188 |  10/188  |  11/180  |  19/172  |   4/74   |  21/188  |  69/188  |  31/188 
+  14:00-15:15    223 |  30/223  |  28/218  |  29/207  |  15/92   |  17/223  |  67/223  |  20/223 
+
+  tail uniformity: share of the top-10% bars per slot under each scaling (expected 10% in every slot; first slot = 9% of bars)
+   |d| raw                      09:15 18% 09:45 14% 10:30  7% 11:30  8% 13:00  5% 14:00 13%
+   |d|/v                        09:15  2% 09:45  8% 10:30 15% 11:30 12% 13:00 11% 14:00  7%
+   |d|/sqrt(v)                  09:15 15% 09:45 14% 10:30  8% 11:30  9% 13:00  7% 14:00 11%
+   |d|/slot-median|d| (LODO)    09:15 12% 09:45 12% 10:30 10% 11:30  8% 13:00 11% 14:00  9%
+
+[6] day level: what share of each day's bars is RVOL >= p70 / delta >= p90 (a neutral reference gives 30% / 10%)
+  day        wd  bars  day vol  RVOL>=p70  |d|>=p90  |dv|>=p90  note
+  2026-09-11 Fri   73    47645   21%         4%        0%   
+  2026-09-18 Fri   73    20713    3%         1%       19%   
+  2026-09-21 Mon   73    22473    4%         3%        5%   
+  2026-09-22 Tue   73    37464   21%         8%       10%   Tue weekly expiry
+  2026-09-23 Wed   73    25622    7%         3%       11%   
+  2026-09-24 Thu   73    62063   55%         7%        3%   
+  2026-09-25 Fri   53    37963   40%         4%       11%   
+  2026-09-28 Mon   73    65816   59%        12%        3%   
+  2026-09-29 Tue   73    71153   49%        18%       14%   Tue expiry of Sep fut (roll)
+  2026-09-30 Wed   69    54425   35%        14%        9%   first day on Oct fut
+  2026-10-01 Thu   73    84011   53%        23%       15%   
+  2026-10-05 Mon   73    54945   30%        12%       10%   
+  2026-10-06 Tue   73    37723   11%         5%       10%   Tue weekly expiry
+  2026-10-07 Wed   71    46269   23%        15%       17%   
+  2026-10-08 Thu   66    57518   47%        15%       12%   
+  2026-10-09 Fri   54    45640   43%        17%       13%   
+  2026-10-12 Mon   53    27988   17%         9%       13%   
+  spearman(day mean bar volume, share RVOL>=p70) = 0.95 over 17 days; day volume range 284 - 1151 lots per bar-mean
+  adaptive RVOL12 (bar volume / median of previous 12 bars, same day) >= its p70: per-day share min 18% max 44% (slot-median RVOL: min 3% max 59%)
+
+[7] GC rows by provenance (fromTicks flag) - same distribution?
+  fromTicks=True: n 844  median |delta| 80  median |d/v| 0.17  median vol 540
+  fromTicks=False: n 325  median |delta| 66  median |d/v| 0.19  median vol 414

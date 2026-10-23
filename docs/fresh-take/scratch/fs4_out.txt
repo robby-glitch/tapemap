@@ -1,0 +1,81 @@
+
+Upstox NIFTY: 11 days, 802 bars; bar volume median 577 lots (p10 209, p90 1443)
+   |5-min delta| lots         median   123.00  p70   221.00  p90   492.00  (n 802)
+   |delta/vol|                median     0.24  p70     0.36  p90     0.53  (n 802)
+   |flip swing| lots          median   235.00  p70   379.00  p90   758.00  (n 268)
+   |CVD slope| lots/min       median    20.47  p70    38.47  p90    79.53  (n 778)
+   |slope change| lots/min    median    24.27  p70    42.87  p90    90.73  (n 742)
+   RVOL                       median     1.00  p70     1.44  p90     2.37  (n 802)
+   vol acceleration           median     0.90  p70     1.21  p90     1.94  (n 766)
+   thin bars: volume <= 5 lots 0, <= 10 lots 0, <= 20 lots 0 of 802; |d/v| exactly 1.0 in 0 bars; exactly 0 in 1
+   log|d| on log v slope beta = 1.04 ; spearman(|d/v|, v) = 0.04
+   lag-1 pearson of 5-min delta 0.154 (pairs 790)
+   states (LODO, concrete rules): PUSH 24 CLIMAX_a 27 CLIMAX_b 42 PATLA 49 NOISE 233 NONE 427 of 802
+   per-day share RVOL>=p70: min 3% max 52%  (neutral 30%)
+
+Upstox BANKNIFTY: 11 days, 802 bars; bar volume median 182 lots (p10 53, p90 507)
+   |5-min delta| lots         median    47.00  p70    90.00  p90   207.00  (n 802)
+   |delta/vol|                median     0.31  p70     0.44  p90     0.63  (n 802)
+   |flip swing| lots          median    89.00  p70   154.00  p90   289.00  (n 291)
+   |CVD slope| lots/min       median     8.53  p70    15.67  p90    31.33  (n 778)
+   |slope change| lots/min    median    10.87  p70    18.00  p90    40.73  (n 742)
+   RVOL                       median     1.00  p70     1.62  p90     2.85  (n 802)
+   vol acceleration           median     0.86  p70     1.19  p90     2.08  (n 766)
+   thin bars: volume <= 5 lots 0, <= 10 lots 0, <= 20 lots 6 of 802; |d/v| exactly 1.0 in 1 bars; exactly 0 in 3
+   log|d| on log v slope beta = 1.02 ; spearman(|d/v|, v) = 0.02
+   lag-1 pearson of 5-min delta 0.226 (pairs 790)
+   states (LODO, concrete rules): PUSH 24 CLIMAX_a 23 CLIMAX_b 34 PATLA 49 NOISE 220 NONE 452 of 802
+   per-day share RVOL>=p70: min 5% max 71%  (neutral 30%)
+
+Upstox SENSEX: 7 days, 501 bars; bar volume median 13 lots (p10 3, p90 51)
+   |5-min delta| lots         median     5.00  p70    11.00  p90    26.00  (n 501)
+   |delta/vol|                median     0.44  p70     0.67  p90     1.00  (n 501)
+   |flip swing| lots          median    16.00  p70    24.00  p90    50.00  (n 178)
+   |CVD slope| lots/min       median     0.93  p70     1.67  p90     3.87  (n 467)
+   |slope change| lots/min    median     1.47  p70     2.47  p90     5.93  (n 419)
+   RVOL                       median     1.00  p70     1.73  p90     4.62  (n 501)
+   vol acceleration           median     0.77  p70     1.33  p90     2.83  (n 450)
+   thin bars: volume <= 5 lots 102, <= 10 lots 208, <= 20 lots 325 of 501; |d/v| exactly 1.0 in 66 bars; exactly 0 in 32
+   log|d| on log v slope beta = 0.83 ; spearman(|d/v|, v) = -0.10
+   lag-1 pearson of 5-min delta 0.086 (pairs 484)
+   states (LODO, concrete rules): PUSH 13 CLIMAX_a 26 CLIMAX_b 19 PATLA 64 NOISE 134 NONE 245 of 501
+   per-day share RVOL>=p70: min 13% max 52%  (neutral 30%)
+
+=== NIFTY: GoCharting vs Upstox, same bars, same price source (GC OHLC), thresholds from each source's own history on the SAME reference days ===
+days in both: 11 ['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-05', '2026-10-06', '2026-10-08']
+matched bars: 771
+bar delta: pearson 0.69, sign agree 543 of 766 (zero-delta bars excluded 5); volume: pearson 0.928, median ratio ux/gc 1.000
+median per-day (ux - gc) delta: -4726 lots; per-day delta correlation on 5-min bars, min/median/max over days: 0.16 / 0.59 / 0.94
+  GC rows with fromTicks=True: 628 bars, delta sign agreement with Upstox 442 of 624, pearson 0.68
+  GC rows with fromTicks=False: 143 bars, delta sign agreement with Upstox 101 of 142, pearson 0.75
+
+single-metric flags (GC rank vs Upstox rank, each against its own LODO threshold):
+   metric        both   GC only   Ux only   neither
+   |delta|>=p90    43       38        39       651
+   |delta|>=p70   143       91        95       442
+   |d/v|>=p90      25       53        58       635
+   slope>=p90      37       38        42       615
+   acc>=p90        42       30        28       575
+   RVOL>=p70      216       11        18       526
+   RVOL>=p90       73        3         6       689
+   vacc>=p90       69        3         3       638
+spec rule (both >= p70, same sign): GC |d|>=p90 bars 81, of which Upstox >= p70 same sign 61; Upstox |d|>=p90 bars 82, of which GC >= p70 same sign 50
+
+state confusion, rows = GC, columns = Upstox (matched bars 771)
+             PUSH  CLIMAX   PATLA   NOISE    NONE   GC total
+  PUSH          9       2       0       0      14   25
+  CLIMAX        4      34       2       2      15   57
+  PATLA         0       2      13      10      20   45
+  NOISE         0       2      10     148      53   213
+  NONE         10      29      22      70     300   431
+  Upstox total 23 69 47 230 402
+  same state in 504 of 771 bars; same state excluding bars where both say NONE or NOISE: 56 of 200
+  both PUSH 9; same direction in 9
+  bars where GC is in an active state (PUSH/CLIMAX/PATLA): 127; Upstox in the same state 56, in another active state 10, NOISE/NONE 61
+
+threshold comparison on the same 11 reference days (in-sample pooled): GC vs Upstox
+   |delta|   GC median   81.00 p70  157.00 p90  357.00 | Ux median  123.00 p70  230.00 p90  501.00
+   |d/v|     GC median    0.17 p70    0.26 p90    0.43 | Ux median    0.25 p70    0.36 p90    0.53
+   |slope|   GC median   14.67 p70   24.93 p90   51.80 | Ux median   20.27 p70   40.07 p90   79.53
+   |acc|     GC median   19.00 p70   32.73 p90   68.00 | Ux median   24.60 p70   42.47 p90   90.40
+   RVOL      GC median    1.02 p70    1.47 p90    2.40 | Ux median    1.02 p70    1.45 p90    2.36

@@ -1,0 +1,93 @@
+STUDY 2: coverage (bars used; gaps = missing 5-min bars inside the span)
+  NIFTY     09-28 dir -1 09:15..15:25 bars 75 gaps 0 | qualified pullbacks 4 | new-extreme bars 14
+  NIFTY     10-06 dir +1 09:15..15:25 bars 75 gaps 0 | qualified pullbacks 5 | new-extreme bars 13
+  NIFTY     10-08 dir -1 09:20..15:25 bars 68 gaps 5 | qualified pullbacks 5 | new-extreme bars 22
+  NIFTY     10-09 dir +1 09:15..13:55 bars 54 gaps 3 | qualified pullbacks 4 | new-extreme bars 13
+  NIFTY     10-12 dir -1 09:15..13:35 bars 53 gaps 0 | qualified pullbacks 3 | new-extreme bars 17
+  NIFTY     10-13 dir +1 09:15..09:55 bars 9 gaps 0 | qualified pullbacks 1 | new-extreme bars 7
+  NIFTY     10-16 dir +1 09:15..11:10 bars 24 gaps 0 | qualified pullbacks 3 | new-extreme bars 3
+  BANKNIFTY 09-28 dir -1 09:15..15:25 bars 75 gaps 0 | qualified pullbacks 4 | new-extreme bars 16
+  BANKNIFTY 10-06 dir +1 09:15..15:25 bars 75 gaps 0 | qualified pullbacks 7 | new-extreme bars 9
+  BANKNIFTY 10-08 dir -1 09:15..15:25 bars 75 gaps 0 | qualified pullbacks 7 | new-extreme bars 11
+  BANKNIFTY 10-09 dir +1 10:10..14:00 bars 47 gaps 0 | qualified pullbacks 8 | new-extreme bars 2
+  BANKNIFTY 10-12 dir -1 09:15..13:35 bars 35 gaps 1 | qualified pullbacks 6 | new-extreme bars 13
+
+=== NIFTY: qualified pullbacks (depth >= max(0.75 sigma, 15 pts)), no data gap inside: n=19 ===
+  HELD  n=18 | CVD moved AGAINST the trend during the pullback 9 | CVD moved WITH the trend 9 | CVD made a new 60-min extreme against the trend 1 | CVD held inside its prior 60-min range 17
+  BROKE n= 1 | CVD moved AGAINST the trend during the pullback 0 | CVD moved WITH the trend 1 | CVD made a new 60-min extreme against the trend 0 | CVD held inside its prior 60-min range 1
+  rows:
+    09-28 09:35..09:55 depth 39 HELD | cvd_dir -72 newCVDext False
+    09-28 11:15..11:45 depth 46 HELD | cvd_dir -254 newCVDext False
+    09-28 11:55..12:25 depth 55 HELD | cvd_dir +185 newCVDext False
+    10-06 09:15..09:20 depth 40 HELD | cvd_dir +134 newCVDext False
+    10-06 10:00..10:10 depth 66 HELD | cvd_dir -198 newCVDext False
+    10-06 11:05..11:35 depth 31 HELD | cvd_dir +178 newCVDext False
+    10-06 11:45..12:10 depth 36 HELD | cvd_dir +141 newCVDext False
+    10-08 09:25..09:30 depth 50 HELD | cvd_dir +81 newCVDext False
+    10-08 09:45..10:10 depth 61 HELD | cvd_dir -195 newCVDext False
+    10-08 10:30..10:35 depth 28 HELD | cvd_dir +136 newCVDext False
+    10-08 10:40..10:50 depth 45 HELD | cvd_dir -187 newCVDext False
+    10-09 09:15..09:20 depth 60 HELD | cvd_dir -288 newCVDext True
+    10-09 09:55..10:00 depth 44 HELD | cvd_dir -184 newCVDext False
+    10-09 10:10..10:15 depth 54 HELD | cvd_dir -104 newCVDext False
+    10-12 09:20..09:30 depth 62 HELD | cvd_dir +156 newCVDext False
+    10-12 09:50..10:00 depth 66 HELD | cvd_dir +24 newCVDext False
+    10-13 09:15..09:20 depth 45 HELD | cvd_dir +343 newCVDext False
+    10-16 09:15..09:20 depth 118 BROKE(VWAP) | cvd_dir +14 newCVDext False
+    10-16 09:40..09:45 depth 44 HELD | cvd_dir -86 newCVDext False
+
+=== NIFTY: new trend-extreme bars: CVD confirmed vs diverged x further extreme within 60 min ===
+  CVD confirmed n= 54 | price made a further extreme within 60 min  54 | did not   0
+  CVD DIVERGED  n= 13 | price made a further extreme within 60 min  11 | did not   2
+  the DAY-FINAL extreme of each day (within the bars we have): 
+    09-28 final extreme 14:35 | CVD DIVERGED | within data 09:15..15:25 (gap near: False)
+    10-06 final extreme 12:45 | CVD confirmed | within data 09:15..15:25 (gap near: False)
+    10-08 final extreme 15:05 | CVD DIVERGED | within data 09:20..15:25 (gap near: False)
+    10-09 final extreme 13:55 | CVD confirmed | within data 09:15..13:55 (gap near: True)
+    10-12 final extreme 12:10 | CVD confirmed | within data 09:15..13:35 (gap near: False)
+    10-13 final extreme 09:55 | CVD DIVERGED | within data 09:15..09:55 (gap near: False)
+    10-16 final extreme 10:15 | CVD confirmed | within data 09:15..11:10 (gap near: False)
+
+=== BANKNIFTY: qualified pullbacks (depth >= max(0.75 sigma, 15 pts)), no data gap inside: n=29 ===
+  HELD  n=18 | CVD moved AGAINST the trend during the pullback 7 | CVD moved WITH the trend 11 | CVD made a new 60-min extreme against the trend 0 | CVD held inside its prior 60-min range 18
+  BROKE n=11 | CVD moved AGAINST the trend during the pullback 6 | CVD moved WITH the trend 5 | CVD made a new 60-min extreme against the trend 1 | CVD held inside its prior 60-min range 10
+  rows:
+    09-28 10:15..10:20 depth 89 HELD | cvd_dir +149 newCVDext False
+    09-28 10:50..10:55 depth 100 HELD | cvd_dir +64 newCVDext False
+    09-28 11:15..11:40 depth 134 BROKE(prev swing) | cvd_dir +511 newCVDext False
+    09-28 13:05..13:25 depth 105 HELD | cvd_dir +122 newCVDext False
+    10-06 09:15..09:20 depth 124 BROKE(VWAP) | cvd_dir -29 newCVDext True
+    10-06 09:40..09:45 depth 58 HELD | cvd_dir +5 newCVDext False
+    10-06 09:55..10:00 depth 144 BROKE(prev swing) | cvd_dir -95 newCVDext False
+    10-06 10:15..10:20 depth 69 HELD | cvd_dir -42 newCVDext False
+    10-06 10:30..10:50 depth 97 HELD | cvd_dir +32 newCVDext False
+    10-06 11:05..11:35 depth 100 HELD | cvd_dir +76 newCVDext False
+    10-06 12:45..15:00 depth 250 BROKE(VWAP) | cvd_dir -696 newCVDext False
+    10-08 09:20..09:25 depth 80 BROKE(VWAP) | cvd_dir +143 newCVDext False
+    10-08 09:45..09:55 depth 133 BROKE(VWAP) | cvd_dir -72 newCVDext False
+    10-08 10:40..10:45 depth 97 BROKE(VWAP) | cvd_dir -17 newCVDext False
+    10-08 11:25..11:55 depth 186 HELD | cvd_dir +102 newCVDext False
+    10-08 12:30..12:45 depth 119 HELD | cvd_dir +10 newCVDext False
+    10-08 13:20..13:35 depth 165 HELD | cvd_dir -56 newCVDext False
+    10-09 10:10..10:15 depth 155 BROKE(VWAP) | cvd_dir +26 newCVDext False
+    10-09 10:25..10:35 depth 61 HELD | cvd_dir +20 newCVDext False
+    10-09 10:50..11:05 depth 82 BROKE(VWAP) | cvd_dir +76 newCVDext False
+    10-09 11:20..11:35 depth 145 BROKE(VWAP) | cvd_dir +69 newCVDext False
+    10-09 12:05..12:15 depth 100 BROKE(VWAP) | cvd_dir -21 newCVDext False
+    10-09 12:55..13:05 depth 80 HELD | cvd_dir -49 newCVDext False
+    10-09 13:20..13:30 depth 71 HELD | cvd_dir -1 newCVDext False
+    10-12 09:20..09:25 depth 119 HELD | cvd_dir -57 newCVDext False
+    10-12 09:40..09:45 depth 47 HELD | cvd_dir -69 newCVDext False
+    10-12 09:55..10:00 depth 125 HELD | cvd_dir +187 newCVDext False
+    10-12 10:15..10:20 depth 80 HELD | cvd_dir +12 newCVDext False
+    10-12 10:30..10:40 depth 109 HELD | cvd_dir -9 newCVDext False
+
+=== BANKNIFTY: new trend-extreme bars: CVD confirmed vs diverged x further extreme within 60 min ===
+  CVD confirmed n= 40 | price made a further extreme within 60 min  35 | did not   5
+  CVD DIVERGED  n=  6 | price made a further extreme within 60 min   5 | did not   1
+  the DAY-FINAL extreme of each day (within the bars we have): 
+    09-28 final extreme 14:40 | CVD confirmed | within data 09:15..15:25 (gap near: False)
+    10-06 final extreme 12:45 | CVD DIVERGED | within data 09:15..15:25 (gap near: False)
+    10-08 final extreme 14:10 | CVD confirmed | within data 09:15..15:25 (gap near: False)
+    10-09 final extreme 13:40 | CVD confirmed | within data 10:10..14:00 (gap near: False)
+    10-12 final extreme 11:05 | CVD confirmed | within data 09:15..13:35 (gap near: False)

@@ -1,0 +1,43 @@
+=== DRIFT CHECK: observed WITH-first vs the WITH count expected if the mark carried no information (baseline UP/DOWN-first of the same era, same winner mix) ===
+  baseline A: UP-first 210 DOWN-first 276 | baseline B: UP-first 223 DOWN-first 205
+  A trap        decided n= 98 (buyer-winner  41, seller-winner  57) | observed WITH  55 | expected-from-drift WITH  50.1
+  A absorption  decided n=181 (buyer-winner  87, seller-winner  94) | observed WITH 106 | expected-from-drift WITH  91.0
+  A exhaustion  decided n= 64 (buyer-winner  36, seller-winner  28) | observed WITH  32 | expected-from-drift WITH  31.5
+  A initiative  decided n= 84 (buyer-winner  34, seller-winner  50) | observed WITH  55 | expected-from-drift WITH  43.1
+  A vacuum      decided n= 35 (buyer-winner  19, seller-winner  16) | observed WITH  19 | expected-from-drift WITH  17.3
+  B trap        decided n= 29 (buyer-winner  17, seller-winner  12) | observed WITH  15 | expected-from-drift WITH  14.6
+  B absorption  decided n= 55 (buyer-winner  26, seller-winner  29) | observed WITH  28 | expected-from-drift WITH  27.4
+  B exhaustion  decided n= 26 (buyer-winner  13, seller-winner  13) | observed WITH   9 | expected-from-drift WITH  13.0
+  B initiative  decided n= 51 (buyer-winner  29, seller-winner  22) | observed WITH  27 | expected-from-drift WITH  25.6
+  B vacuum      decided n= 20 (buyer-winner  10, seller-winner  10) | observed WITH  10 | expected-from-drift WITH  10.0
+
+=== DAY EXTREMES CAUGHT: a trap / absorption / exhaustion mark whose winner is opposite the extreme, within 10 pts of it, dated 5 min before to 20 min after the extreme bar (hindsight: the extremes are the final ones) ===
+  09-22: low 23286@14:00 CAUGHT by absorption | high 23475@09:45 CAUGHT by absorption,trap | trap/absorption/exhaustion marks that day: 49
+  09-23: low 23371@09:54 CAUGHT by exhaustion | high 23484@12:12 not marked | trap/absorption/exhaustion marks that day: 38
+  09-24: low 23056@13:57 not marked | high 23277@09:15 CAUGHT by absorption | trap/absorption/exhaustion marks that day: 46
+  09-25: low 23060@12:57 not marked | high 23226@14:03 outside mark coverage | trap/absorption/exhaustion marks that day: 42
+  09-28: low 22793@14:39 CAUGHT by absorption | high 23003@09:15 not marked | trap/absorption/exhaustion marks that day: 70
+  09-29: low 22580@09:36 not marked | high 22765@12:00 CAUGHT by absorption | trap/absorption/exhaustion marks that day: 30
+  09-30: low 22694@14:42 CAUGHT by absorption,trap | high 22935@12:48 CAUGHT by absorption,trap | trap/absorption/exhaustion marks that day: 47
+  10-01: low 22321@14:00 not marked | high 22702@10:00 CAUGHT by absorption,trap | trap/absorption/exhaustion marks that day: 47
+  10-05: low 22510@12:06 CAUGHT by absorption,trap | high 22729@09:48 not marked | trap/absorption/exhaustion marks that day: 20
+  10-06: low 22638@09:15 not marked | high 22830@12:48 not marked | trap/absorption/exhaustion marks that day: 19
+  10-07: low 22592@13:09 CAUGHT by absorption,trap | high 22782@12:03 CAUGHT by absorption,trap | trap/absorption/exhaustion marks that day: 26
+  10-08: low 22271@15:06 not marked | high 22614@09:15 not marked | trap/absorption/exhaustion marks that day: 19
+  10-09: low 22351@09:15 not marked | high 22665@14:18 outside mark coverage | trap/absorption/exhaustion marks that day: 22
+  10-12: low 22371@15:18 outside mark coverage | high 22720@09:15 not marked | trap/absorption/exhaustion marks that day: 12
+  10-13: low 22368@09:15 not marked | high 22848@15:27 outside mark coverage | trap/absorption/exhaustion marks that day: 1
+  10-16: low 22908@09:36 CAUGHT by absorption,trap | high 23155@10:18 not marked | trap/absorption/exhaustion marks that day: 7
+  TOTAL covered day extremes 28 | caught 13 | trap+absorption+exhaustion marks on those days 495
+
+=== THE DAYS THE MARKS FAILED: 12 Oct (down-trend) buyer-winner marks and what price did ===
+  10:15 absorption winner buyers p 22525.0 size 406 | 0.5U: AGAINST | ctx counter-trend
+  10:20 trap       winner buyers p 22525.0 size 406 | 0.5U: AGAINST | ctx counter-trend
+  10:30 absorption winner buyers p 22502.0 size 303 | 0.5U: WITH | ctx counter-trend
+  10:45 absorption winner buyers p 22500.0 size 324 | 0.5U: AGAINST | ctx counter-trend
+  11:15 absorption winner buyers p 22410.0 size 274 | 0.5U: NONE | ctx counter-trend
+  11:20 trap       winner buyers p 22415.0 size 169 | 0.5U: AGAINST | ctx counter-trend
+
+=== counter-trend vs with-trend initiative (the only kind where the split looked different) ===
+  initiative with-trend    n=109 | WITH 59 / AGAINST 43 / other 7
+  initiative counter-trend n= 26 | WITH 17 / AGAINST 6 / other 3

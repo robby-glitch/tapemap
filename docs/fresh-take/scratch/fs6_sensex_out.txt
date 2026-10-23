@@ -1,0 +1,16 @@
+=== sign-shuffle null (each bar keeps |delta|, volume, price; delta sign random; thresholds rebuilt; 100 shuffles)
+
+=== SENSEX
+  rows per day (09:15-15:15) / of which vol==0: {'09-22': (72, 10), '09-23': (73, 4), '09-24': (73, 0), '09-25': (73, 5), '09-28': (73, 4), '09-29': (73, 3), '09-30': (73, 2), '10-01': (73, 0), '10-05': (73, 1), '10-06': (73, 3), '10-08': (73, 1)}
+  empty bars kept: 11 days, 802 bars, volume median 11 lots, zero-volume bars 33
+   |5-min delta|    median    4.00 p70    9.00 p90   25.00
+   |delta/vol|      median    0.44 p70    0.67 p90    1.00
+   |slope| lots/min median    0.73 p70    1.53 p90    3.67
+   |acc| lots/min   median    1.27 p70    2.33 p90    5.93
+   RVOL             median    1.00 p70    1.91 p90    5.00
+   vol accel        median    0.75 p70    1.43 p90    3.38
+  states 5-min: {'NOISE': 222, 'PATLA': 122, 'NONE': 365, 'CLIMAX_b': 30, 'PUSH': 22, 'CLIMAX_a': 41}
+  15-min bars: 275, volume median 42 lots (p10 9), <=10 lots in 30
+   |delta| median 10.0 p70 22.0 p90 51.8 ; |d/v| median 0.33 p70 0.49 p90 0.73 ; |d/v| exactly 1.0 in 7 bars
+  (NIFTY Upstox 15-min for scale: |delta| median 294 p70 578 p90 1342 ; volume median 1836 lots)
+  (BANKNIFTY Upstox 15-min for scale: |delta| median 131 p70 238 p90 524 ; volume median 599 lots)

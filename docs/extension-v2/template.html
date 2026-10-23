@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order-flow v2 mockup</title>
+<style>
+:root{color-scheme:light;--bg:#fff;--ink:#1c2026;--mut:#5c6675;--faint:#8b94a1;--line:#e2e5e9;--grid:#f0f2f4;--panel:#fbfbfa;
+  --buy:#0f7b6c;--sell:#c0392b;--amber:#b45309;--violet:#6a4bc4;--ok:#0f7b6c;--bad:#c0392b;--warn:#b45309}
+*{box-sizing:border-box}
+body{margin:0;background:#eef0f2;color:var(--ink);font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.app{width:1366px;height:768px;margin:0 auto;background:var(--bg);display:grid;grid-template-rows:34px 1fr 28px;grid-template-columns:930px 436px;box-shadow:0 0 0 1px var(--line)}
+.tabs{grid-column:1/3;display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:#f7f8f9}
+.tabs button{all:unset;cursor:pointer;padding:0 16px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut);border-right:1px solid var(--line)}
+.tabs button[aria-selected=true]{background:var(--bg);color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--ink)}
+.tabs button:focus-visible{outline:2px solid #1d4ed8;outline-offset:-2px}
+.tabs .note{margin-left:auto;padding:0 14px;display:flex;align-items:center;color:var(--faint);font-size:11.5px}
+#chart{grid-row:2;grid-column:1;display:block}
+.foot{grid-row:3;grid-column:1;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 10px;font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden}
+.foot b{color:var(--ink)}
+.lg{display:inline-flex;align-items:center;gap:4px}
+.sw{display:inline-block;width:14px;height:4px;border-radius:1px}
+.panel{grid-row:2/4;grid-column:2;border-left:1px solid var(--line);background:var(--panel);font:12px/1.45 Consolas,"Cascadia Mono",ui-monospace,monospace;padding:8px 10px 6px;overflow:hidden;display:flex;flex-direction:column;gap:6px}
+.sec{display:grid;grid-template-columns:58px 1fr;column-gap:6px;border-top:1px solid var(--line);padding-top:5px}
+.sec:first-child{border-top:0;padding-top:0}
+.k{color:var(--faint);font-size:10.5px;letter-spacing:.06em;padding-top:1px}
+.v div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head .v{display:flex;flex-direction:column;gap:2px}
+.big{font-size:15px;font-weight:700;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.pill{display:inline-block;padding:0 6px;border-radius:3px;font-weight:700}
+.p-ride-up{background:#e3f2ef;color:var(--buy)}.p-ride-dn{background:#fbe9e7;color:var(--sell)}.p-fade{background:#fdf1e2;color:var(--amber)}.p-q{background:#eceef1;color:var(--mut)}
+.mut{color:var(--mut)}.faint{color:var(--faint)}
+.row{display:grid;grid-template-columns:40px 1fr 34px 46px;gap:4px}
+.row .st-TIKA{color:var(--ink);font-weight:700}.row .st-TOOTA{color:var(--faint);text-decoration:line-through}
+.dot{color:#1d4ed8}
+.fold{display:grid;grid-template-columns:40px 1fr 1fr 44px;gap:2px 6px}
+.fold .bad{color:var(--bad);font-weight:700}.fold .ok{color:var(--ok)}
+.verdict{margin-top:3px;font-weight:700}
+.v-HOLD{color:var(--ok)}.v-WATCH{color:var(--warn)}.v-FOLD{color:var(--bad)}
+.cov{color:var(--mut);font-size:11px;line-height:1.4}
+.cov div{white-space:normal}
+.trace{width:1366px;margin:14px auto 40px;background:var(--bg);box-shadow:0 0 0 1px var(--line);padding:12px 14px;font-size:12px}
+.trace h2{font-size:13px;margin:0 0 6px}
+.trace table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.trace td,.trace th{border-bottom:1px solid var(--grid);padding:3px 6px;text-align:left;vertical-align:top}
+.trace th{color:var(--mut);font-weight:600;font-size:11px}
+.trace .y{color:var(--ok);font-weight:700}.trace .n{color:var(--faint)}
+.trace p{margin:4px 0;color:var(--mut)}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <svg id="chart" width="930" height="706" viewBox="0 0 930 706" role="img" aria-label="footprint chart with marks and lines"></svg>
+  <div class="foot" id="foot"></div>
+  <div class="panel" id="panel"></div>
+</div>
+<div class="trace" id="trace"></div>
+<script id="data" type="application/json">/*DATA*/</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+const C = { buy: '#0f7b6c', sell: '#c0392b', ink: '#1c2026', mut: '#5c6675', faint: '#8b94a1', grid: '#f0f2f4', line: '#e2e5e9',
+  cb: '37,99,235', cs: '220,38,38', amber: '#b45309', violet: '#6a4bc4' };
+const fmt = (p) => p == null ? '?' : Math.round(p).toLocaleString('en-IN');
+const el = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function tabs(sel) {
+  const t = document.getElementById('tabs'); t.innerHTML = '';
+  DATA.frames.forEach((f, i) => {
+    const b = document.createElement('button'); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', i === sel);
+    const d = new Date(f.day + 'T00:00:00');
+    b.textContent = d.getDate() + ' Oct ' + f.T + ' · ' + f.why;
+    b.onclick = () => show(i); t.appendChild(b);
+  });
+  const n = document.createElement('div'); n.className = 'note'; n.textContent = 'mockup · har cheez rule se · T tak ka data'; t.appendChild(n);
+}
+
+function chart(f) {
+  const svg = document.getElementById('chart'); svg.innerHTML = '';
+  const W = 930, H = 706, L = 8, R = W - 62, TOP = 26, BOT = H - 24;
+  const ch = f.chart, bars = ch.bars;
+  const lo = Math.floor((ch.lo - 12) / 5) * 5, hi = Math.ceil((ch.hi + 12) / 5) * 5;
+  const y = (p) => TOP + (hi - p) / (hi - lo) * (BOT - TOP);
+  const rowPx = 5 / (hi - lo) * (BOT - TOP);
+  const pitch = Math.min(66, (R - L - 190) / Math.max(1, bars.length));
+  const x0 = (i) => L + 10 + i * pitch;
+  // background grid + price axis
+  el('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' }, svg);
+  for (let p = Math.ceil(lo / 25) * 25; p <= hi; p += 25) {
+    el('line', { x1: L, x2: R, y1: y(p), y2: y(p), stroke: C.grid }, svg);
+    el('text', { x: W - 6, y: y(p) + 4, 'text-anchor': 'end', 'font-size': 11, fill: C.mut }, svg, fmt(p));
+  }
+  el('line', { x1: R, x2: R, y1: TOP - 6, y2: BOT, stroke: C.line }, svg);
+  el('text', { x: L + 2, y: 15, 'font-size': 11.5, fill: C.mut }, svg, 'NIFTY-I fut · 5m footprint (GoCharting) · ' + f.day.slice(8) + ' Oct · T ' + f.T + ' · forming bar nahi dikhaya');
+  // zone shading (KHEL)
+  const zc = ch.khel === 'FADE' ? 'rgba(180,83,9,0.10)' : ch.khel_dir > 0 ? 'rgba(15,123,108,0.10)' : 'rgba(192,57,43,0.08)';
+  ch.zones.forEach((z) => { const i = bars.findIndex((b) => b.t === z.t); if (i < 0) return;
+    z.bands.forEach(([a, b]) => el('rect', { x: x0(i) - 2, y: y(Math.max(a, b)), width: pitch, height: Math.abs(y(a) - y(b)), fill: zc }, svg)); });
+  // bars: wick + body + cells "b x s"
+  bars.forEach((b, i) => {
+    const x = x0(i), cx = x + 7, cw = pitch - 9;
+    const mx = Math.max(1, ...b.cells.map((c) => c[1] + c[2]));
+    b.cells.forEach(([p, bb, ss]) => {
+      const tot = bb + ss, a = 0.08 + 0.42 * tot / mx, col = bb >= ss ? C.cb : C.cs;
+      el('rect', { x: cx, y: y(p) - rowPx / 2 + 0.5, width: cw, height: Math.max(1, rowPx - 1), fill: `rgba(${col},${a.toFixed(2)})` }, svg);
+      if (rowPx >= 8.5 && cw >= 26) { const fs = Math.min(9.5, rowPx - 1.5), s = bb + ' x ' + ss, est = s.length * fs * 0.56;
+        const t = el('text', { x: cx + cw / 2, y: y(p) + fs * 0.36, 'text-anchor': 'middle', 'font-size': fs, fill: '#26303b' }, svg, s);
+        if (est > cw - 3) { t.setAttribute('textLength', cw - 3); t.setAttribute('lengthAdjust', 'spacingAndGlyphs'); } }
+    });
+    const up = b.c >= b.o;
+    el('line', { x1: x + 3, x2: x + 3, y1: y(b.h), y2: y(b.l), stroke: '#9aa3ad', 'stroke-width': 1 }, svg);
+    el('line', { x1: x + 3, x2: x + 3, y1: y(b.o), y2: y(b.c) + (b.o === b.c ? 1 : 0), stroke: up ? `rgb(${C.cb})` : `rgb(${C.cs})`, 'stroke-width': 4, 'stroke-dasharray': b.filled ? '2 1.5' : null }, svg);
+    if (b.tint) el('rect', { x: cx, y: y(b.l) + rowPx / 2 + 3, width: cw, height: 4, rx: 1, fill: b.tint === 'CLIMAX' ? C.amber : C.violet }, svg)
+      .appendChild(Object.assign(document.createElementNS(NS, 'title'), { textContent: b.t + ' ' + b.tint + ' · SIZE p' + b.gc.size_p + ' · R ' + b.gc.R + ' · ' + (b.tint_src || '') }));
+    if (i % 3 === 0) el('text', { x: x + pitch / 2, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: C.mut }, svg, b.t);
+  });
+  // yesterday's HVN / LVN: small ticks at the axis edge
+  ch.edge_ticks.forEach((n) => { if (n.p < lo || n.p > hi) return;
+    el('line', { x1: R - (n.kind === 'HVN' ? 9 : 5), x2: R, y1: y(n.p), y2: y(n.p), stroke: n.kind === 'HVN' ? '#4b5563' : '#a8b0ba', 'stroke-width': n.kind === 'HVN' ? 2 : 1.5 }, svg); });
+  const boxes = [];
+  const hit = (q) => boxes.some((b) => q.x0 < b.x1 && q.x1 > b.x0 && q.y0 < b.y1 && q.y1 > b.y0);
+  // lines: one chip each at the right edge
+  const style = { kill: [C.ink, '6 4', 1.5], target: [C.buy, '2 3', 1.5], entry: [C.ink, '', 1.4], flip: ['#6b7280', '1 3', 1.6], box: ['#6b7280', '1 3', 1.6], prior: ['#6b7280', '5 4', 1.2], value: ['#6b7280', '5 4', 1.2], strike: ['#6b7280', '1 3', 1.4] };
+  const lastC = bars.length ? bars[bars.length - 1].c : null;
+  const lineChips = [];
+  f.lines.filter((l) => l.drawn).forEach((l) => {
+    const [col, dash, lw] = style[l.kind] || [C.mut, '4 3', 1.2];
+    const lab = l.chip + ' · ' + fmt(l.p) + 'f|' + (l.spot != null ? fmt(l.spot) : '?') + 's';
+    if (l.p < lo || l.p > hi) { lineChips.push({ y0: l.p > hi ? TOP + 2 : BOT - 18, text: (l.p > hi ? '↑ ' : '↓ ') + lab, col, off: true }); return; }
+    el('line', { x1: L, x2: R, y1: y(l.p), y2: y(l.p), stroke: col, 'stroke-dasharray': dash, 'stroke-width': lw, opacity: 0.9 }, svg);
+    lineChips.push({ y: y(l.p), text: lab, col, p: l.p });
+  });
+  lineChips.sort((a, b) => (a.off ? 1 : 0) - (b.off ? 1 : 0) || Math.abs((a.p ?? 0) - lastC) - Math.abs((b.p ?? 0) - lastC));
+  for (const c of lineChips) {
+    const w = c.text.length * 6.1 + 12, h = 16; let yy = c.off ? c.y0 : c.y - h / 2;
+    for (let g = 0; g < 30 && hit({ x0: R - w - 2, x1: R - 2, y0: yy, y1: yy + h }); g++) yy += ((c.p ?? 0) >= lastC ? -1 : 1) * (h + 1);
+    const q = { x0: R - w - 2, x1: R - 2, y0: yy, y1: yy + h }; boxes.push(q);
+    el('rect', { x: q.x0, y: q.y0, width: w, height: h, rx: 2, fill: '#fff', stroke: c.col, 'stroke-width': 1 }, svg);
+    el('text', { x: q.x0 + 6, y: q.y0 + 11.5, 'font-size': 11, 'font-weight': 600, fill: c.col }, svg, c.text);
+  }
+  // marks: glyph always, chip for the first six (at a level first, biggest first)
+  const drawn = f.marks.filter((m) => m.drawn);
+  drawn.forEach((m) => {
+    const i = bars.findIndex((b) => b.t === m.t); if (i < 0) return;
+    const x = x0(i) + 7 + (pitch - 9) / 2, yy = y(m.p), col = m.w > 0 ? C.buy : C.sell, solid = m.status !== 'TOOTA';
+    const r = m.kind === 'E1' ? 7 + Math.max(0, (m.rank - 90)) * 0.35 : 7.5;
+    const g = el('g', {}, svg);
+    if (m.kind === 'trap') el('circle', { cx: x, cy: yy, r, fill: solid ? col : '#fff', stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke' }, g);
+    else if (m.kind === 'absorption') el('rect', { x: x - r * 1.5, y: yy - r * 0.75, width: r * 3, height: r * 1.5, rx: r * 0.75, fill: solid ? col : '#fff', stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke' }, g);
+    else el('rect', { x: x - r, y: yy - r, width: 2 * r, height: 2 * r, rx: 3, fill: solid ? col : '#fff', stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke' }, g);
+    const shape = g.lastChild.cloneNode(); shape.setAttribute('fill', 'none'); shape.setAttribute('stroke', col); shape.setAttribute('stroke-width', 1.6); g.appendChild(shape);
+    el('text', { x, y: yy + 3.8, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 800, fill: solid ? '#fff' : col }, g, { trap: 'P', absorption: 'A', E1: 'B' }[m.kind]);
+    if (!solid) el('path', { d: `M${x + r - 2},${yy - r - 4} l6,6 m0,-6 l-6,6`, stroke: col, 'stroke-width': 1.6 }, g);
+    g.appendChild(Object.assign(document.createElementNS(NS, 'title'), { textContent: m.chip + '\n' + 'place: ' + (m.place ? m.place.name + ' ' + m.place.dist + ' pts (tol ' + m.place.tol + ')' : '?') + ' · flow ' + m.flow.gc }));
+    boxes.push({ x0: x - r - 2, x1: x + r + 2, y0: yy - r - 2, y1: yy + r + 2 });
+    m._x = x; m._y = yy; m._r = r; m._col = col;
+  });
+  drawn.filter((m) => m.chip_shown && m._x != null).forEach((m) => {
+    const w = m.chip.length * 6.2 + 12, h = 17, gp = m._r * 1.6 + 4;
+    const tries = [[m._x + gp, m._y - h / 2], [m._x + gp, m._y - h - gp], [m._x + gp, m._y + gp], [m._x - gp - w, m._y - h / 2], [m._x - gp - w, m._y - h - gp], [m._x - gp - w, m._y + gp]];
+    const q = tries.map(([a, b]) => ({ x0: a, x1: a + w, y0: b, y1: b + h })).find((q) => q.x1 < R - 4 && q.x0 > L && q.y0 > TOP && q.y1 < BOT && !hit(q));
+    if (!q) return; boxes.push(q);
+    el('rect', { x: q.x0, y: q.y0, width: w, height: h, rx: 2, fill: '#fff', stroke: m._col, 'stroke-width': 1.2 }, svg);
+    el('text', { x: q.x0 + 6, y: q.y0 + 12, 'font-size': 11, 'font-weight': 700, fill: m._col }, svg, m.chip);
+  });
+}
+
+function panel(f) {
+  const P = f.panel, h = P.head;
+  const kc = /RIDE ▲/.test(h.khel) ? 'p-ride-up' : /RIDE ▼/.test(h.khel) ? 'p-ride-dn' : /FADE/.test(h.khel) ? 'p-fade' : 'p-q';
+  let s = `<div class="sec head"><div class="k">NIFTY</div><div class="v">
+    <div><span class="big pill ${kc}">${esc(h.khel === '?' ? 'KHEL ?' : h.khel)}</span> SIZE <b>${esc(h.size)}</b> · ${esc(h.prem)}</div>
+    <div><b>${esc(h.px)}</b> <span class="mut">· ${esc(h.day)} ${esc(h.T)}</span></div>
+    <div class="mut">${esc(h.word)}</div></div></div>`;
+  s += `<div class="sec"><div class="k">DIN</div><div class="v">${P.din.map((x) => `<div>${esc(x)}</div>`).join('')}</div></div>`;
+  s += `<div class="sec"><div class="k">ABHI</div><div class="v">${P.abhi.map((x, i) => `<div class="${i ? 'mut' : ''}">${esc(x)}</div>`).join('')}</div></div>`;
+  s += `<div class="sec"><div class="k">SIRF<br>BADE</div><div class="v">${P.sirf.map((r) => `<div class="row" title="${esc(r.tag)}"><span>${esc(r.t)}</span><span>${r.chart ? '<span class="dot">◆</span> ' : ''}${esc(r.ev)}</span><span>${esc(r.rank)}</span><span class="st-${esc(r.status)}">${esc(r.status)}</span></div>`).join('') || '<div class="mut">— koi bada nahi</div>'}<div class="mut">${esc(P.baaki)}</div></div></div>`;
+  if (P.trade) {
+    const t = P.trade;
+    s += `<div class="sec"><div class="k">TRADE</div><div class="v"><div><b>${esc(t.title)}</b></div>
+      <div class="fold"><span class="faint">kya</span><span class="faint">entry</span><span class="faint">abhi</span><span></span>
+      ${t.rows.map((r) => `<span>${esc(r.k)}</span><span>${esc(r.a)}</span><span>${esc(r.b)}</span><span class="${r.bad ? 'bad' : 'ok'}">${esc(r.note)}</span>`).join('')}</div>
+      <div class="verdict v-${t.verdict}">→ ${esc(t.verdict)} · ${esc(t.why)}</div><div class="mut">${esc(t.kill)}</div></div></div>`;
+  } else {
+    s += `<div class="sec"><div class="k">PLAN</div><div class="v">${P.plan.map((x) => `<div title="${esc(x)}">${esc(x)}</div>`).join('')}</div></div>`;
+  }
+  s += `<div class="sec"><div class="k">?</div><div class="v cov">${P.cov.map((x) => `<div>${esc(x)}</div>`).join('')}</div></div>`;
+  document.getElementById('panel').innerHTML = s;
+  document.getElementById('foot').innerHTML = `<span><b>pehle → ab:</b> ${esc(P.count)}</span>
+    <span class="lg"><span class="sw" style="background:${C.amber}"></span>CLIMAX</span><span class="lg"><span class="sw" style="background:${C.violet}"></span>ROKA</span>
+    <span class="lg">● P phanse · ▬ A roka · ■ B bada print · khokhla ✕ = TOOTA</span>`;
+}
+
+function trace(f) {
+  const rows = f.marks.map((m) => `<tr><td>${esc(m.t)}</td><td>${esc(m.kind)}</td><td>${fmt(m.p)}</td><td>${m.size ?? '?'}</td>
+    <td>${m.rank == null ? '?' : 'p' + m.rank} <span class="n">N=${m.rank_n}</span></td>
+    <td>${m.place ? esc(m.place.name) + ' ' + m.place.dist + '/' + m.place.tol : (m.nearest ? '<span class="n">' + esc(m.nearest.name) + ' ' + m.nearest.dist + '/' + m.nearest.tol + '</span>' : '?')}</td>
+    <td>${esc(m.flow.gc || '?')} / ${esc(m.flow.ux || '—')}</td><td>${esc(m.status || '—')}</td>
+    <td class="${m.drawn ? 'y' : 'n'}">${m.drawn ? 'DRAWN' : esc(m.why.join('; '))}</td></tr>`).join('');
+  const lines = f.lines.map((l) => `<tr><td>${esc(l.kind)}</td><td>${fmt(l.p)}f | ${l.spot == null ? '?' : fmt(l.spot)}s</td><td>${esc(l.chip)}</td><td>${esc(l.rule)}</td><td class="${l.drawn ? 'y' : 'n'}">${l.drawn ? 'DRAWN' : 'over the line budget'}</td></tr>`).join('');
+  const bef = f.before.map((g) => `${g.time} ${g.kind}${g.chip ? ' (' + g.chip + ')' : ''}`).join(' · ') + (f.before_lines.length ? ' · lines: ' + f.before_lines.map((l) => l.why + ' ' + fmt(l.p)).join(', ') : '');
+  const c = f.checks;
+  document.getElementById('trace').innerHTML = `<h2>Rule trace · ${esc(f.id)} · ${esc(f.day)} ${esc(f.T)} (every candidate, every line; nothing placed by hand)</h2>
+    <table><tr><th>bar</th><th>kind</th><th>price</th><th>lots</th><th>rank vs era-B</th><th>place (dist/tol pts)</th><th>flow GC/UX</th><th>status at T</th><th>result</th></tr>${rows}</table>
+    <p style="margin-top:10px"><b>Lines</b> (flat ≤ 2, trade ≤ 5)</p><table><tr><th>kind</th><th>price</th><th>chip</th><th>rule</th><th>result</th></tr>${lines}</table>
+    <p><b>Today's extension at T</b> (board.js + decoder.js on the same bars, overlay.js selection): ${esc(bef || 'nothing')}</p>
+    <p><b>Checks:</b> bands from ${esc(c.band)} · VWAP index ${c.vwap ? c.vwap.ix_vwap + ' vs GC ' + c.vwap.gc_vwap + ' (Δ ' + c.vwap.d_vwap_sig + 'σ), σ ' + c.vwap.ix_sig + ' vs ' + c.vwap.gc_sig : '?'} ·
+      15-min bars index vs GC: max hi/lo diff ${c.ix.max_px_diff} pts, max vol diff ${c.ix.max_vol_diff}% over ${c.ix.windows} windows ·
+      basis ${c.basis.used == null ? '? (' + esc(c.basis.why) + ')' : '+' + c.basis.used} ${f.read_patch.length ? '· READ inputs filled: ' + esc(f.read_patch.join('; ')) : ''}</p>`;
+}
+
+function show(i) { const f = DATA.frames[i]; tabs(i); chart(f); panel(f); trace(f); try { localStorage.setItem('ofv2-tab', i); } catch (e) {} }
+let start = 0; try { start = +(new URLSearchParams(location.search).get('f') ?? localStorage.getItem('ofv2-tab') ?? 0) || 0; } catch (e) {}
+show(Math.min(start, DATA.frames.length - 1));
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+=== 2026-09-22 NIFTY her BUY 23550 PE @ 134.8 at 10:32:00
+  NIFTY BUY 23550 PE @ 130.1  ->  **WAIT**  5 with · 0 against · 3 neither · 2 could not check (of 10)
+    engine: HOLD · behind you: OI · out if 23466 is accepted
+    fut 23442.9 · F 23434.2 · basis_ix 7.8 · give-up 23466 (prem there ~111.4) · wall ahead 23400 PE 35 pts (prem there ~161.6)
+    RIGHT NOW      WITH             HOLD · behind you: OI
+    DAY / TREND    NEITHER          TWO-SIDED (no trap log that day: the FAIL ender is absent) since 09:50 [I] · VWAP se -11 pts · cross 1 / 12 bar · IB 23,436–23,475 (39) · IB ke andar · could not check — fut OI: bar mein contract ka naam nahi, roll check nahi ho sakta
+    EXPRESSION     could not check  could not check - no expression log for 2026-09-22
+    WALL BEHIND    WITH             23450 CE writers 335.4L, BUILDING on the day's watch (day peak 10:31, 0.0 % off it) [M]
+    WALL AHEAD     WITH             23400 PE writers 373.9L, UNWINDING (day peak 10:19, 7.2 % off), 35 pts ahead (fut) [M]
+    ORDER FLOW     NEITHER          no fight in the last 10 buckets · sellers won 09:36 at 23446 · CVD -721 (peak 09:37, price extreme 10:31, NOT paid for in the last hour) [I]
+    VPIN           could not check  could not check: 0 of 10 VPIN buckets · no percentile (NIFTY-only gauge)
+    CROSS-INDEX    NEITHER          NIFTY latest push DOWN to 23426 at 10:31 (with you) · 2 of 3 took their prior swing · NIFTY: TOOK its own prior low 23436 · BANKNIFTY: TOOK its own prior low 56658 (10:31 at 56590) · SENSEX: FAILED its own prior low 74900 (10:25 at 74930) (thin tape: witness)
+    ROOM           WITH             invalid at 23466 fut (23 pts; one candle B = 10) · next wall 35 pts [M]
+    PAYING         WITH             PE 23400 UNWINDING (day peak 10:19, 7.2 % off) · PE 23300 STALLED (day peak 10:25, 2.2 % off) [M]
+      MONEYNESS      NEITHER          delta -0.8688 · intrinsic 115.8 · time value 14.3 of 130.1 [I] · deep ITM: a futures position in option's clothing
+      SPREAD         NEITHER          bid 130.1 / ask 130.45 = 0.35 (7 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          10:32 · expiry None
+      WHO IS IN PAIN NEITHER          23550 PE ltp 130.1 vs day avg 114.92: writers near their avg · 23450 CE ltp 32.5 vs day avg 45.59: writers comfortable · 23400 PE ltp 33.0 vs day avg 28.89: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.92 (was 0.94 an hour ago) · CE 1559L · PE 1434L [M]
+
+=== THE BOARD at 10:32:00 (ranked: word, then with-count, then fewer against, then fewer could-not-check, then NIFTY > BANKNIFTY > SENSEX)
+  WAIT NIFTY     BUY  23450 PE ATM @ 55.0  5w/0a/3n/2c  against: —
+  WAIT SENSEX    SELL 74900 CE ATM @ 275.9  5w/0a/2n/2c  against: —
+  WAIT SENSEX    SELL 74800 CE ITM @ 331.95  5w/0a/2n/2c  against: —
+  WAIT SENSEX    BUY  74900 PE ATM @ 289.55  5w/1a/2n/2c  against: ROOM
+  WAIT NIFTY     SELL 23450 CE ATM @ 32.5  4w/0a/3n/2c  against: —
+  WAIT NIFTY     SELL 23400 CE ITM @ 60.55  4w/0a/3n/2c  against: —
+  WAIT BANKNIFTY SELL 56500 CE ATM @ 419.65  4w/0a/3n/2c  against: —
+  WAIT BANKNIFTY SELL 56400 CE ITM @ 477.85  4w/0a/3n/2c  against: —
+  WAIT BANKNIFTY BUY  56500 PE ATM @ 327.95  4w/1a/3n/2c  against: ROOM
+  WAIT NIFTY     SELL 23450 PE ATM @ 55.0  2w/1a/4n/2c  against: WALL BEHIND
+  WAIT NIFTY     SELL 23500 PE ITM @ 89.55  2w/1a/4n/2c  against: WALL BEHIND
+  NO   BANKNIFTY BUY  56500 CE ATM @ 419.65  2w/2a/4n/2c  against: WALL BEHIND, ORDER FLOW
+  NO   BANKNIFTY SELL 56500 PE ATM @ 327.95  2w/2a/3n/2c  against: WALL BEHIND, ORDER FLOW
+  NO   BANKNIFTY SELL 56600 PE ITM @ 374.25  2w/2a/3n/2c  against: WALL BEHIND, ORDER FLOW
+  NO   SENSEX    BUY  74900 CE ATM @ 275.9  2w/3a/3n/2c  against: WALL BEHIND, ORDER FLOW, PAYING
+  NO   SENSEX    SELL 74900 PE ATM @ 289.55  2w/3a/2n/2c  against: WALL BEHIND, ORDER FLOW, PAYING
+  NO   SENSEX    SELL 75000 PE ITM @ 341.35  2w/3a/2n/2c  against: WALL BEHIND, ORDER FLOW, PAYING
+  NO   NIFTY     BUY  23450 CE ATM @ 32.5  1w/3a/4n/2c  against: WALL BEHIND, WALL AHEAD, ROOM
+
+  BETTER than hers: none — your trade is the best on the board
+  TOP of the board: NIFTY BUY 23450 PE (WAIT)
+
+  top candidate in full:
+  NIFTY BUY 23450 PE @ 55.0  ->  **WAIT**  5 with · 0 against · 3 neither · 2 could not check (of 10)
+    engine: HOLD · behind you: OI · out if 23466 is accepted
+    fut 23442.9 · F 23434.2 · basis_ix 7.8 · give-up 23466 (prem there ~44.8) · wall ahead 23400 PE 35 pts (prem there ~78.6)
+    RIGHT NOW      WITH             HOLD · behind you: OI
+    DAY / TREND    NEITHER          TWO-SIDED (no trap log that day: the FAIL ender is absent) since 09:50 [I] · VWAP se -11 pts · cross 1 / 12 bar · IB 23,436–23,475 (39) · IB ke andar · could not check — fut OI: bar mein contract ka naam nahi, roll check nahi ho sakta
+    EXPRESSION     could not check  could not check - no expression log for 2026-09-22
+    WALL BEHIND    WITH             23450 CE writers 335.4L, BUILDING on the day's watch (day peak 10:31, 0.0 % off it) [M]
+    WALL AHEAD     WITH             23400 PE writers 373.9L, UNWINDING (day peak 10:19, 7.2 % off), 35 pts ahead (fut) [M]
+    ORDER FLOW     NEITHER          no fight in the last 10 buckets · sellers won 09:36 at 23446 · CVD -721 (peak 09:37, price extreme 10:31, NOT paid for in the last hour) [I]
+    VPIN           could not check  could not check: 0 of 10 VPIN buckets · no percentile (NIFTY-only gauge)
+    CROSS-INDEX    NEITHER          NIFTY latest push DOWN to 23426 at 10:31 (with you) · 2 of 3 took their prior swing · NIFTY: TOOK its own prior low 23436 · BANKNIFTY: TOOK its own prior low 56658 (10:31 at 56590) · SENSEX: FAILED its own prior low 74900 (10:25 at 74930) (thin tape: witness)
+    ROOM           WITH             invalid at 23466 fut (23 pts; one candle B = 10) · next wall 35 pts [M]
+    PAYING         WITH             PE 23400 UNWINDING (day peak 10:19, 7.2 % off) · PE 23300 STALLED (day peak 10:25, 2.2 % off) [M]
+      MONEYNESS      NEITHER          delta -0.5885 · intrinsic 15.8 · time value 39.2 of 55.0 [I]
+      SPREAD         NEITHER          bid 55.0 / ask 55.15 = 0.15 (3 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          10:32 · expiry None
+      WHO IS IN PAIN NEITHER          23450 PE ltp 55.0 vs day avg 47.52: writers near their avg · 23450 CE ltp 32.5 vs day avg 45.59: writers comfortable · 23400 PE ltp 33.0 vs day avg 28.89: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.92 (was 0.94 an hour ago) · CE 1559L · PE 1434L [M]

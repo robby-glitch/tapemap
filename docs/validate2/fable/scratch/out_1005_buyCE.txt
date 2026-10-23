@@ -1,0 +1,62 @@
+=== 2026-10-05 NIFTY her BUY 22600 CE @ 94.25 at 09:28:13
+  NIFTY BUY 22600 CE @ 94.25  ->  **WAIT**  5 with · 2 against · 3 neither · 0 could not check (of 10)
+    engine: HOLD · against you: flow · behind you: OI, VPIN · out if 22574 is accepted
+    fut 22687.0 · F 22605.4 · basis_ix 117.5 · give-up 22574 (prem there ~45.8) · wall ahead 22700 CE 131 pts (prem there ~153.5)
+    RIGHT NOW      WITH             HOLD · against you: flow · behind you: OI, VPIN
+    DAY / TREND    NEITHER          5m UP · 15m RANGE · 1h RANGE [I] (side log 09:28)
+    EXPRESSION     NEITHER          STAND ASIDE · led at 09:26 (and the other way: STAND ASIDE · led)
+    WALL BEHIND    WITH             22500 PE writers 152.5L, building (peak 152.5L 09:28, 0.0 % off) [M]
+    WALL AHEAD     NEITHER          22700 CE writers 140.7L, building, 131 pts ahead (fut) [M]
+    ORDER FLOW     AGAINST          sellers won 09:21 at 22658 · pullback since 09:21 · CVD -189 (peak 09:19, price extreme 09:28, NOT paid for in the last hour) [I]
+    VPIN           WITH             3 of 10 buckets one-sided, your way · toxicity pct 1.00 (shadow)
+    CROSS-INDEX    WITH             NIFTY latest push UP to 22688 at 09:28 (with you) · BANKNIFTY: TOOK its high 09:20 at 55425 · SENSEX: TOOK its high 09:28 at 72926 (thin tape: witness)
+    ROOM           WITH             invalid at 22574 fut (113 pts; one candle B = 15) · next wall 131 pts [M]
+    PAYING         AGAINST          CE 22600 BUILDING (peak 09:27, -1.5L from it) · CE 22700 BUILDING (peak 09:28, +0.0L from it) [M]
+      MONEYNESS      NEITHER          delta 0.4618 · intrinsic 5.4 · time value 88.8 of 94.25 [I]
+      SPREAD         NEITHER          bid 94.05 / ask 94.3 = 0.25 (5 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          09:28 · expiry 2026-10-06
+      WHO IS IN PAIN NEITHER          22600 CE ltp 94.25 vs day avg 85.73: writers near their avg · 22500 PE ltp 59.5 vs day avg 67.49: writers near their avg · 22700 CE ltp 49.7 vs day avg 45.66: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.78 · CE 734L · PE 576L [M]
+
+=== THE BOARD at 09:28:13 (ranked: word, then with-count, then fewer against, then fewer could-not-check, then NIFTY > BANKNIFTY > SENSEX)
+  WAIT SENSEX    BUY  72400 CE ATM @ 549.4  5w/1a/3n/1c  against: PAYING
+  WAIT SENSEX    SELL 72400 PE ATM @ 425.65  5w/1a/2n/1c  against: PAYING
+  WAIT SENSEX    SELL 72500 PE ITM @ 470.25  5w/1a/2n/1c  against: PAYING
+  WAIT NIFTY     BUY  22550 CE ATM @ 123.65  5w/2a/3n/0c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     SELL 22550 PE ATM @ 75.7  5w/2a/2n/0c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     SELL 22600 PE ITM @ 96.3  5w/2a/2n/0c  against: ORDER FLOW, PAYING
+  WAIT BANKNIFTY BUY  55100 CE ATM @ 987.25  4w/2a/3n/1c  against: CROSS-INDEX, PAYING
+  WAIT BANKNIFTY SELL 55100 PE ATM @ 692.75  4w/2a/2n/1c  against: CROSS-INDEX, PAYING
+  WAIT BANKNIFTY BUY  55100 PE ATM @ 692.75  4w/2a/3n/1c  against: ORDER FLOW, PAYING
+  WAIT BANKNIFTY SELL 55100 CE ATM @ 987.25  4w/2a/2n/1c  against: ORDER FLOW, PAYING
+  WAIT BANKNIFTY SELL 55200 PE ITM @ 736.5  4w/2a/2n/1c  against: CROSS-INDEX, PAYING
+  WAIT BANKNIFTY SELL 55000 CE ITM @ 1047.8  4w/2a/2n/1c  against: ORDER FLOW, PAYING
+  WAIT NIFTY     SELL 22550 CE ATM @ 123.65  4w/3a/2n/0c  against: VPIN, CROSS-INDEX, PAYING
+  WAIT NIFTY     SELL 22500 CE ITM @ 157.1  4w/3a/2n/0c  against: VPIN, CROSS-INDEX, PAYING
+  WAIT NIFTY     BUY  22550 PE ATM @ 75.7  3w/4a/3n/0c  against: VPIN, CROSS-INDEX, ROOM, PAYING
+  NO   SENSEX    SELL 72400 CE ATM @ 549.4  3w/3a/2n/1c  against: ORDER FLOW, CROSS-INDEX, PAYING
+  NO   SENSEX    SELL 72300 CE ITM @ 609.25  3w/3a/2n/1c  against: ORDER FLOW, CROSS-INDEX, PAYING
+  NO   SENSEX    BUY  72400 PE ATM @ 425.65  2w/4a/3n/1c  against: ORDER FLOW, CROSS-INDEX, ROOM, PAYING
+
+  BETTER than hers: SENSEX BUY 72400 CE (WAIT, 5w/1a); SENSEX SELL 72400 PE (WAIT, 5w/1a); SENSEX SELL 72500 PE (WAIT, 5w/1a)
+  TOP of the board: SENSEX BUY 72400 CE (WAIT)
+
+  top candidate in full:
+  SENSEX BUY 72400 CE @ 549.4  ->  **WAIT**  5 with · 1 against · 3 neither · 1 could not check (of 10)
+    engine: HOLD · behind you: flow, OI · out if 72813 is accepted
+    fut 72926.0 · F 72514.2 · basis_ix 542.9 · give-up 72813 (prem there ~489.0) · wall ahead 72700 CE 317 pts (prem there ~660.1)
+    RIGHT NOW      WITH             HOLD · behind you: flow, OI
+    DAY / TREND    NEITHER          5m UP · 15m RANGE · 1h RANGE [I] (side log 09:28)
+    EXPRESSION     NEITHER          STAND ASIDE · led at 09:26 (and the other way: STAND ASIDE · led)
+    WALL BEHIND    WITH             72500 PE writers 5.9L, building (peak 5.9L 09:27, 0.0 % off) [M]
+    WALL AHEAD     NEITHER          72700 CE writers 2.4L, building, 317 pts ahead (fut) [M]
+    ORDER FLOW     WITH             buyers won 09:25 at 72910 · CVD -238 (peak 09:18, price extreme 09:18) [I]
+    VPIN           could not check  could not check: 0 of 10 VPIN buckets · no percentile (NIFTY-only gauge)
+    CROSS-INDEX    WITH             SENSEX latest push UP to 72926 at 09:28 (with you) · NIFTY: TOOK its high 09:28 at 22688 · BANKNIFTY: TOOK its high 09:20 at 55425
+    ROOM           WITH             invalid at 72813 fut (113 pts; one candle B = 35) · next wall 317 pts [M]
+    PAYING         AGAINST          CE 72500 BUILDING (peak 09:27, +0.0L from it) · CE 72000 BUILDING (peak 09:21, -0.0L from it) [M]
+      MONEYNESS      NEITHER          delta 0.5283 · intrinsic 114.2 · time value 435.2 of 549.4 [I]
+      SPREAD         NEITHER          bid 549.4 / ask 549.95 = 0.55 (11 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          09:28 · expiry 2026-10-08
+      WHO IS IN PAIN NEITHER          72400 CE ltp 549.4 vs day avg 519.1: writers near their avg · 72500 PE ltp 470.25 vs day avg 501.19: writers near their avg · 72700 CE ltp 396.45 vs day avg 373.91: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.79 · CE 30L · PE 24L [M]

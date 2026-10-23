@@ -1,0 +1,150 @@
+=== 17 days, 1169 bars. State counts (priority PUSH > CLIMAX_a > CLIMAX_b > PATLA > NOISE > NONE):
+  PUSH        39
+  CLIMAX_a    26
+  CLIMAX_b    61
+  PATLA       74
+  NOISE      310
+  NONE       659
+  bars satisfying 2+ rules before priority: 3 {('CLIMAX_b', 'PATLA'): 1, ('CLIMAX_a', 'PATLA'): 2}
+  bars with no price result (missing o/c or range base): 0
+  price result R (signed, in slot-typical ranges): p10 -0.48 p25 -0.14 p50 0.23 p75 0.63 p90 1.14; share R<0.25: 603 of 1169; R<0 (price against the delta): 375
+  bars with |delta|>=p90 (LODO) and a price result: 121; R<0.25 in 26; R<0 in 17; R>=0.25 in 95
+  sensitivity res_min=0.00: PUSH 44 CLIMAX_a 17 CLIMAX_b 61 PATLA 74 NOISE 310 NONE 663
+  sensitivity res_min=0.50: PUSH 34 CLIMAX_a 39 CLIMAX_b 61 PATLA 72 NOISE 310 NONE 653
+  without the sign-agreement requirement on slope/acc: PUSH 43 (vs 39)
+
+per-day state counts
+  day        wd   bars PUSH CL_a CL_b PATLA NOISE NONE
+  2026-09-11 Fri    73    1    0    7     0    28   37
+  2026-09-18 Fri    73    0    1    5    15    30   22
+  2026-09-21 Mon    73    0    0    5     3    33   32
+  2026-09-22 Tue    73    1    4    3     3    25   37
+  2026-09-23 Wed    73    0    0    3     4    28   38
+  2026-09-24 Thu    73    0    1    3     2    17   50
+  2026-09-25 Fri    53    1    1    5     6     8   32
+  2026-09-28 Mon    73    2    2    3     0    12   54
+  2026-09-29 Tue    73    6    4    3     1     9   50
+  2026-09-30 Wed    69    5    1    2     1    16   44
+  2026-10-01 Thu    73    7    3   10     7    13   33
+  2026-10-05 Mon    73    3    2    4     6    19   39
+  2026-10-06 Tue    73    2    0    1     5    21   44
+  2026-10-07 Wed    71    3    2    1     8    12   45
+  2026-10-08 Thu    66    2    1    3     2    15   43
+  2026-10-09 Fri    54    5    2    2     7    11   27
+  2026-10-12 Mon    53    1    2    1     4    13   32
+
+spec illustrative moments under the concrete rules (SEEN; LODO thresholds; GC rows)
+  2026-10-09 10:15 state NONE     hit [] | d  -104 (p61) rv 1.7 (p73) vacc 0.9 slope 9.5 acc -32.1 R 1.22
+  2026-10-09 11:20 state NONE     hit [] | d  -316 (p90) rv 2.9 (p92) vacc None slope None acc None R 0.64
+  2026-10-09 12:00 state CLIMAX_b hit ['CLIMAX_b'] | d  -111 (p63) rv 3.1 (p94) vacc 3.2 slope -18.4 acc -19.6 R -0.56
+  2026-10-09 12:30 state PATLA    hit ['PATLA'] | d  +340 (p90) rv 1.1 (p55) vacc 1.3 slope 23.3 acc 20.8 R 0.35
+  2026-10-12 09:50 state PATLA    hit ['PATLA'] | d  -450 (p94) rv 1.2 (p61) vacc 1.4 slope -22.7 acc -1.1 R 2.09
+  2026-10-12 10:15 state CLIMAX_a hit ['CLIMAX_a', 'PATLA'] | d  -362 (p91) rv 1.5 (p69) vacc 2.2 slope -34.5 acc -2.9 R -0.15
+  2026-10-12 10:30 state NONE     hit [] | d  -303 (p89) rv 2.0 (p81) vacc 1.6 slope -15.8 acc 18.7 R 0.24
+  2026-10-13 09:15 state NONE     hit [] | d +2089 rv 3.5 vacc None slope None acc None R 1.59
+  2026-10-13 09:45 state PUSH     hit ['PUSH'] | d +1083 rv 2.4 vacc 1.1 slope 118.8 acc 22.3 R 0.93
+  2026-10-16 09:15 state NONE     hit [] | d  -653 rv 2.0 vacc None slope None acc None R 1.77
+  2026-10-16 09:35 state CLIMAX_a hit ['CLIMAX_a'] | d  -656 rv 1.8 vacc 1.4 slope -13.4 acc None R 0.07
+  2026-10-16 10:10 state PUSH     hit ['PUSH'] | d  +928 rv 2.7 vacc 1.5 slope 86.7 acc 82.0 R 1.31
+  2026-10-16 10:15 state PUSH     hit ['PUSH'] | d  +559 rv 5.2 vacc 2.4 slope 104.5 acc 74.6 R 1.34
+
+=== OUTCOMES (0.5U first within 60 min, U = max(VWAP sigma, 0.1% of price); direction w = sign of the effort; WITH = price goes w; days 2026-09-22..2026-10-12) ===
+PUSH hypothesis: WITH (continuation).  CLIMAX hypothesis: AGAINST (a turn against the spent / absorbed side).
+  PUSH (state)                       n  38  WITH  22  AGAINST  13  TIE  0  NONE/END   3 | fwd30 median +0.33U, IQR -0.48..+0.76, positive 20 of 33
+  PUSH shifted +-30/60 min           n 136  WITH  73  AGAINST  44  TIE  1  NONE/END  18 | fwd30 median +0.25U, IQR -0.34..+0.86, positive 79 of 122
+  CLIMAX_a (state)                   n  25  WITH  13  AGAINST  10  TIE  0  NONE/END   2 | fwd30 median +0.00U, IQR -0.67..+0.39, positive 11 of 21
+  CLIMAX_a shifted +-30/60 min       n  90  WITH  43  AGAINST  31  TIE  0  NONE/END  16 | fwd30 median +0.18U, IQR -0.50..+0.72, positive 44 of 74
+  CLIMAX_b (state)                   n  43  WITH  18  AGAINST  21  TIE  1  NONE/END   3 | fwd30 median -0.05U, IQR -0.45..+0.20, positive 18 of 42
+  CLIMAX_b shifted +-30/60 min       n 170  WITH  80  AGAINST  76  TIE  0  NONE/END  14 | fwd30 median +0.12U, IQR -0.43..+0.79, positive 91 of 159
+  PATLA (state)                      n  56  WITH  28  AGAINST  27  TIE  0  NONE/END   1 | fwd30 median -0.06U, IQR -0.64..+0.58, positive 26 of 55
+  PATLA shifted +-30/60 min          n 219  WITH 112  AGAINST  96  TIE  2  NONE/END   9 | fwd30 median +0.02U, IQR -0.40..+0.59, positive 111 of 213
+  BIG_other (comparator)             n  52  WITH  28  AGAINST  18  TIE  1  NONE/END   5 | fwd30 median +0.21U, IQR -0.30..+0.76, positive 29 of 51
+  VOL_other (comparator)             n  93  WITH  46  AGAINST  41  TIE  0  NONE/END   6 | fwd30 median -0.03U, IQR -0.53..+0.49, positive 40 of 87
+  LOWVOL_other (comparator)          n 561  WITH 257  AGAINST 268  TIE  4  NONE/END  32 | fwd30 median -0.00U, IQR -0.59..+0.58, positive 266 of 536
+  ALL (comparator)                   n 943  WITH 449  AGAINST 429  TIE  6  NONE/END  59 | fwd30 median +0.02U, IQR -0.53..+0.61, positive 464 of 904
+  (BIG_other = |delta|>=p90, price result >= 0.25, not PUSH. VOL_other = volume spike with |delta|>p70, not CLIMAX_b. LOWVOL_other = RVOL<p70, not PATLA. ALL = every bar with a price result; direction = sign(delta), or prior-15-min price move for the CLIMAX_b and VOL_other rows.)
+
+at a 60-min extreme in the effort direction (high >= prior 12 bars highs when w>0 / low <= prior 12 lows when w<0)
+  PUSH AT extreme                    n  17  WITH  10  AGAINST   7  TIE  0  NONE/END   0 | fwd30 median +0.32U, IQR -0.48..+0.48, positive 10 of 17
+  PUSH not at extreme                n  11  WITH   5  AGAINST   3  TIE  0  NONE/END   3 | fwd30 median +0.45U, IQR -0.17..+1.07, positive 4 of 6
+  CLIMAX_a AT extreme                n   6  WITH   4  AGAINST   2  TIE  0  NONE/END   0 | fwd30 median +0.29U, IQR -0.10..+0.50, positive 4 of 6
+  CLIMAX_a not at extreme            n  11  WITH   4  AGAINST   5  TIE  0  NONE/END   2 | fwd30 median -0.03U, IQR -0.47..+0.23, positive 3 of 7
+  CLIMAX_b AT extreme                n  20  WITH   6  AGAINST  12  TIE  0  NONE/END   2 | fwd30 median -0.10U, IQR -0.50..+0.19, positive 8 of 19
+  CLIMAX_b not at extreme            n  21  WITH  12  AGAINST   8  TIE  0  NONE/END   1 | fwd30 median -0.05U, IQR -0.39..+0.14, positive 9 of 21
+  BIG_other AT extreme               n  22  WITH  14  AGAINST   6  TIE  0  NONE/END   2 | fwd30 median +0.00U, IQR -0.57..+0.57, positive 10 of 21
+  BIG_other not at extreme           n  14  WITH   9  AGAINST   2  TIE  0  NONE/END   3 | fwd30 median +0.37U, IQR +0.02..+0.71, positive 10 of 14
+  ALL AT extreme                     n 171  WITH  75  AGAINST  84  TIE  0  NONE/END  12 | fwd30 median +0.01U, IQR -0.37..+0.57, positive 85 of 168
+  ALL not at extreme                 n 604  WITH 305  AGAINST 252  TIE  0  NONE/END  47 | fwd30 median +0.04U, IQR -0.47..+0.58, positive 297 of 568
+
+sensitivity to the price-result cut (res_min) - PUSH and CLIMAX_a only
+  res_min 0.00 PUSH      n  42 WITH  25 AGAINST  14 TIE  0 NONE/END   3
+  res_min 0.00 CLIMAX_a  n  17 WITH   8 AGAINST   8 TIE  0 NONE/END   1
+  res_min 0.50 PUSH      n  33 WITH  19 AGAINST  12 TIE  0 NONE/END   2
+  res_min 0.50 CLIMAX_a  n  37 WITH  21 AGAINST  13 TIE  0 NONE/END   3
+
+CLIMAX_a and PUSH bars on test days (day time delta R rv  -> outcome w=sign(d))
+  PUSH
+    09-22 10:40 d  -693 R +1.08 rv 3.4 AGAINST
+    09-25 12:50 d  -489 R +0.42 rv 2.6 WITH
+    09-28 10:05 d  -746 R +0.69 rv 2.6 AGAINST
+    09-28 10:15 d  -619 R +0.60 rv 2.9 AGAINST
+    09-29 11:10 d +1671 R +3.40 rv 6.1 AGAINST
+    09-29 12:15 d  -402 R +0.36 rv 2.7 WITH
+    09-29 12:20 d  -351 R +1.11 rv 2.9 WITH
+    09-29 12:30 d  -999 R +1.38 rv 4.5 AGAINST
+    09-29 13:45 d  +435 R +0.86 rv 1.8 WITH
+    09-29 15:05 d  +878 R +1.31 rv 2.1 WITH
+    09-30 10:55 d  -557 R +1.40 rv 1.8 AGAINST
+    09-30 12:45 d  +774 R +1.36 rv 3.2 WITH
+    09-30 14:25 d  -507 R +1.19 rv 2.3 WITH
+    09-30 14:35 d  -421 R +1.43 rv 1.9 WITH
+    09-30 15:05 d  -483 R +0.30 rv 2.9 END
+    10-01 12:15 d  -346 R +0.65 rv 2.2 WITH
+    10-01 12:20 d  -348 R +1.17 rv 5.4 WITH
+    10-01 12:45 d -1266 R +3.06 rv 11.0 WITH
+    10-01 13:00 d  +797 R +3.95 rv 8.8 AGAINST
+    10-01 13:30 d  +345 R +1.82 rv 6.0 AGAINST
+    10-01 14:30 d +1113 R +2.35 rv 4.8 WITH
+    10-01 15:10 d  +756 R +1.24 rv 1.8 END
+    10-05 09:25 d  +613 R +0.68 rv 1.9 WITH
+    10-05 09:30 d  +838 R +0.56 rv 2.2 AGAINST
+    10-05 15:00 d  -803 R +1.35 rv 1.9 AGAINST
+    10-06 09:55 d  +685 R +0.44 rv 2.2 AGAINST
+    10-06 12:35 d  +773 R +0.95 rv 2.6 WITH
+    10-07 09:35 d  -845 R +1.08 rv 1.5 WITH
+    10-07 10:25 d  +744 R +1.93 rv 2.3 AGAINST
+    10-07 13:05 d -1068 R +2.76 rv 6.8 WITH
+    10-08 11:25 d -1502 R +3.28 rv 9.8 AGAINST
+    10-08 15:10 d  +822 R +0.55 rv 3.0 END
+    10-09 09:25 d +1035 R +1.40 rv 2.3 WITH
+    10-09 09:35 d  +748 R +1.72 rv 2.4 WITH
+    10-09 09:40 d  +700 R +0.66 rv 2.9 WITH
+    10-09 09:50 d  +461 R +0.34 rv 2.1 WITH
+    10-09 09:55 d  +346 R +0.67 rv 2.6 WITH
+    10-12 11:10 d  -617 R +1.34 rv 2.9 WITH
+  CLIMAX_a
+    09-22 12:50 d  -462 R -0.22 rv 1.7 WITH
+    09-22 14:15 d  +394 R -0.13 rv 2.1 AGAINST
+    09-22 15:00 d  -850 R +0.18 rv 2.6 AGAINST
+    09-22 15:15 d  -398 R -0.49 rv 0.7 AGAINST
+    09-24 10:45 d  -361 R -0.26 rv 4.0 WITH
+    09-25 09:45 d  -378 R +0.07 rv 3.0 WITH
+    09-28 09:55 d  -697 R -0.00 rv 2.1 WITH
+    09-28 15:10 d  +531 R +0.10 rv 1.4 END
+    09-29 09:45 d  +354 R -0.55 rv 1.7 AGAINST
+    09-29 10:05 d +4483 R -0.10 rv 11.8 AGAINST
+    09-29 15:00 d +2084 R -0.70 rv 4.2 WITH
+    09-29 15:15 d +1171 R -0.76 rv 3.9 AGAINST
+    09-30 12:50 d -3007 R +0.16 rv 7.3 WITH
+    10-01 13:40 d +1311 R -1.71 rv 13.8 AGAINST
+    10-01 13:50 d -1156 R +0.13 rv 4.3 WITH
+    10-01 14:35 d  +529 R -0.55 rv 2.7 WITH
+    10-05 10:25 d  -748 R -0.57 rv 3.5 AGAINST
+    10-05 12:00 d  -343 R -1.12 rv 3.2 WITH
+    10-07 10:05 d  -399 R -1.70 rv 2.0 WITH
+    10-07 14:30 d  +562 R -1.20 rv 1.6 AGAINST
+    10-08 14:15 d  +339 R -0.59 rv 1.9 NONE
+    10-09 09:30 d  +940 R +0.13 rv 2.6 WITH
+    10-09 09:45 d  +551 R +0.22 rv 2.5 WITH
+    10-12 09:15 d  +537 R +0.00 rv 1.6 AGAINST
+    10-12 10:15 d  -362 R -0.15 rv 1.5 WITH

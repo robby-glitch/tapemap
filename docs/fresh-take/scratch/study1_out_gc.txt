@@ -1,0 +1,76 @@
+STUDY 1 [gc] rows: 34 first-touches from outside, on 7 test days (SEEN, 5-min).
+
+=== node kind x outcome within 30 min (ACCEPT = 2 consecutive 5-min closes beyond the FAR edge; REJECT = turn >= max(0.5 sigma, 10 pts) away from the NEAR edge, no close beyond; else NEITHER) ===
+  POC  touches  4 | ACCEPT  1 | REJECT  3 | NEITHER  0 | accept bar-lag (0 = touch bar, 1 = +5 min..): [5] | dwell bars in zone, summed over touches: 4
+  VAH  touches  5 | ACCEPT  2 | REJECT  3 | NEITHER  0 | accept bar-lag (0 = touch bar, 1 = +5 min..): [3, 4] | dwell bars in zone, summed over touches: 7
+  VAL  touches  3 | ACCEPT  1 | REJECT  2 | NEITHER  0 | accept bar-lag (0 = touch bar, 1 = +5 min..): [2] | dwell bars in zone, summed over touches: 3
+  HVN  touches  7 | ACCEPT  3 | REJECT  3 | NEITHER  1 | accept bar-lag (0 = touch bar, 1 = +5 min..): [2, 3, 4] | dwell bars in zone, summed over touches: 7
+  LVN  touches 15 | ACCEPT  3 | REJECT 11 | NEITHER  1 | accept bar-lag (0 = touch bar, 1 = +5 min..): [1, 2, 3] | dwell bars in zone, summed over touches: 19
+
+=== by approach direction (from below = up-approach) ===
+  POC  from below n= 2 | ACCEPT  0 | REJECT  2 | NEITHER  0
+  POC  from above n= 2 | ACCEPT  1 | REJECT  1 | NEITHER  0
+  VAH  from below n= 4 | ACCEPT  1 | REJECT  3 | NEITHER  0
+  VAH  from above n= 1 | ACCEPT  1 | REJECT  0 | NEITHER  0
+  VAL  from below n= 2 | ACCEPT  0 | REJECT  2 | NEITHER  0
+  VAL  from above n= 1 | ACCEPT  1 | REJECT  0 | NEITHER  0
+  HVN  from below n= 3 | ACCEPT  2 | REJECT  1 | NEITHER  0
+  HVN  from above n= 4 | ACCEPT  1 | REJECT  2 | NEITHER  1
+  LVN  from below n= 8 | ACCEPT  3 | REJECT  4 | NEITHER  1
+  LVN  from above n= 7 | ACCEPT  0 | REJECT  7 | NEITHER  0
+
+=== SPLIT 1: ranked delta at the touch bar (rank among the session bars so far; big = >= p80) ===
+  big WITH the approach      n= 7 | ACCEPT  3 | REJECT  4 | NEITHER  0
+  big AGAINST the approach   n= 0 | ACCEPT  0 | REJECT  0 | NEITHER  0
+  noise(<p80 / <6 bars)      n=27 | ACCEPT  7 | REJECT 18 | NEITHER  2
+
+=== SPLIT 2: day type (full-day VWAP crosses: trend <=4 / mid 5-8 / chop >=9; only 7 Oct is chop on the test days) ===
+  trend(<=4)  days ['09-23', '10-06', '10-09'] | n=14 | ACCEPT  7 | REJECT  6 | NEITHER  1
+  mid(5-8)    days ['09-22', '09-25', '10-05'] | n=15 | ACCEPT  3 | REJECT 11 | NEITHER  1
+  chop(>=9)   days ['10-07'] | n= 5 | ACCEPT  0 | REJECT  5 | NEITHER  0
+
+=== MAGNET check: nodes within 0.75 x prior-day range of the 09:15 open: touched during the day / eligible ===
+  POC  touched  4 of  9 eligible
+  VAH  touched  5 of  8 eligible
+  VAL  touched  3 of  9 eligible
+  HVN  touched  8 of 18 eligible
+  LVN  touched 16 of 27 eligible
+
+=== PLACEBO (added after the first run; same zones shifted -30 and +30 pts, same rules): first-touches 65 | ACCEPT 18 | REJECT 44 | NEITHER 3 | dwell bars 64 | touched 63 of 139 eligible ===
+  placebo by day type: chop(>=9): ACCEPT 3 / REJECT 5 / NEITHER 0; mid(5-8): ACCEPT 6 / REJECT 21 / NEITHER 2; trend(<=4): ACCEPT 9 / REJECT 18 / NEITHER 1
+
+=== every row ===
+  09-22 09:30 POC 23450-23450 dn-approach | REJECT  lag 2 | noise(<p80 / <6 bars) | dwell 0 | mid(5-8)
+  09-22 09:30 HVN 23445-23450 dn-approach | REJECT  lag 2 | noise(<p80 / <6 bars) | dwell 0 | mid(5-8)
+  09-22 09:40 VAH 23475-23475 up-approach | REJECT  lag 2 | noise(<p80 / <6 bars) | dwell 1 | mid(5-8)
+  09-22 09:40 LVN 23470-23475 up-approach | NEITHER lag None | noise(<p80 / <6 bars) | dwell 4 | mid(5-8)
+  09-22 10:30 HVN 23425-23425 dn-approach | ACCEPT  lag 2 | big WITH the approach | dwell 0 | mid(5-8)
+  09-22 10:35 VAL 23410-23410 dn-approach | ACCEPT  lag 2 | big WITH the approach | dwell 0 | mid(5-8)
+  09-22 10:40 LVN 23360-23375 dn-approach | REJECT  lag 1 | big WITH the approach | dwell 0 | mid(5-8)
+  09-23 09:20 LVN 23430-23435 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | trend(<=4)
+  09-23 09:25 POC 23400-23400 dn-approach | ACCEPT  lag 5 | noise(<p80 / <6 bars) | dwell 4 | trend(<=4)
+  09-23 09:25 HVN 23395-23400 dn-approach | NEITHER lag None | noise(<p80 / <6 bars) | dwell 5 | trend(<=4)
+  09-23 09:50 HVN 23370-23370 dn-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | trend(<=4)
+  09-23 12:00 VAH 23466-23466 up-approach | ACCEPT  lag 3 | noise(<p80 / <6 bars) | dwell 4 | trend(<=4)
+  09-25 09:20 VAL 23150-23150 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 2 | mid(5-8)
+  09-25 12:55 LVN 23060-23060 dn-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | mid(5-8)
+  10-05 09:30 LVN 22700-22700 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 2 | mid(5-8)
+  10-05 10:25 LVN 22595-22595 dn-approach | REJECT  lag 1 | big WITH the approach | dwell 2 | mid(5-8)
+  10-05 10:25 LVN 22605-22605 dn-approach | REJECT  lag 1 | big WITH the approach | dwell 2 | mid(5-8)
+  10-05 10:45 LVN 22585-22585 dn-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | mid(5-8)
+  10-05 10:55 LVN 22575-22575 dn-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | mid(5-8)
+  10-05 11:50 VAH 22559-22559 dn-approach | ACCEPT  lag 4 | noise(<p80 / <6 bars) | dwell 1 | mid(5-8)
+  10-06 09:20 VAH 22678-22678 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 1 | trend(<=4)
+  10-06 09:20 HVN 22660-22660 up-approach | ACCEPT  lag 3 | noise(<p80 / <6 bars) | dwell 1 | trend(<=4)
+  10-06 09:20 HVN 22670-22670 up-approach | ACCEPT  lag 4 | noise(<p80 / <6 bars) | dwell 1 | trend(<=4)
+  10-06 09:35 LVN 22705-22710 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 2 | trend(<=4)
+  10-06 09:50 LVN 22730-22730 up-approach | ACCEPT  lag 2 | big WITH the approach | dwell 3 | trend(<=4)
+  10-07 09:20 LVN 22675-22680 up-approach | REJECT  lag 3 | noise(<p80 / <6 bars) | dwell 3 | chop(>=9)
+  10-07 09:35 LVN 22640-22645 dn-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | chop(>=9)
+  10-07 10:15 VAL 22742-22742 up-approach | REJECT  lag 1 | big WITH the approach | dwell 1 | chop(>=9)
+  10-07 11:05 HVN 22770-22780 up-approach | REJECT  lag 2 | noise(<p80 / <6 bars) | dwell 0 | chop(>=9)
+  10-07 12:00 POC 22777-22777 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | chop(>=9)
+  10-09 09:25 LVN 22430-22435 up-approach | ACCEPT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | trend(<=4)
+  10-09 09:25 LVN 22445-22470 up-approach | ACCEPT  lag 3 | noise(<p80 / <6 bars) | dwell 1 | trend(<=4)
+  10-09 10:10 POC 22584-22584 up-approach | REJECT  lag 1 | noise(<p80 / <6 bars) | dwell 0 | trend(<=4)
+  10-09 11:20 VAH 22596-22596 up-approach | REJECT  lag 4 | noise(<p80 / <6 bars) | dwell 0 | trend(<=4)

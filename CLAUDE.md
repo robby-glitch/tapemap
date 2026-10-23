@@ -4,6 +4,25 @@
 repo — and if your task touches the DESK, read [HANDOFF-DESK.md](HANDOFF-DESK.md)
 in full too.** Everything else is history or detail. Verified 2026-08-22.
 
+## Current state (2026-10-23): read these before anything newer than 19 Oct
+
+- **`docs/live/NOTEPAD.md`** is the live backlog. Every gap A1–A49 has a status, there are day observations, and it lists the decisions pending on Mary's word. Read it first.
+- **Locked setups and registrations:** `context/research-findings.md`:
+  - §1i FADE, §1j RIDE, §1l READ-2, §1m HOLD v2, §1n FADE-D, §1o One-Sided Meter;
+  - full texts in `docs/setup-review/` and `docs/read/`, with sha256 anchors in §1.
+  - Never change one; a change is a new registration.
+- **The live read stack:** `read.py` (THE READ), `decode.py` (the DECODE block: swing legs, 7 signs, lines incl. EFFORT), `onesided.py` (day type), `effort.py` (effort per point, Fable's tested definition, [I]), `confluence*.py` / `ride.py` / `faded.py` / `hold2.py`. Forward logs: `data/read/`, `data/decode/`, `data/onesided/`, `data/confluence_log.jsonl`, `data/grade/`.
+- **Market facts that changed:**
+  - **The CAS closing auction (3 Aug 2026)** freezes the cash index at ~15:15. PD levels come from bars ≤ 15:15 (`levels.fetch_daily`), not the auction print.
+  - **F&O trades until 15:40.** The futures recorders stop at 15:40; the option chain still stops at 15:30.
+  - **SENSEX futures are too thin** for order-flow reads ("patla" stamps).
+- **The face:** the GoCharting extension v2.8 (0.5.8) in `C:\Users\kaam\Desktop\Go charting\orderflow-desk\dist-v2`. See its `docs/V2-BUILD-REPORT.md`.
+- **Clean-room research:** `C:\Users\kaam\Desktop\operator mode\oi-lab\` (Fable): the OI and order-flow world maps, the flow AUDIT (291 variants, two holdouts), and the Edge Reader weave. Its conclusions:
+  - only effort per point survived;
+  - CVD divergence at highs is inverted;
+  - OI speed at extremes does not separate holds from breaks.
+- **The end-of-day job** (`eod_capture.bat`, 15:35): capture, the trigger_log scorer, then `tools/mark_grade.py`. The move to 15:45 awaits her OK.
+
 ## Which of the two instruments are you working on?
 
 They share one server and one repo and answer opposite questions. Confusing
@@ -55,7 +74,7 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 1377 collected, 1377 passing, as of 2026-09-28 (the ponytail cleanup)
+python -m pytest -q            # 1897 collected: 1895 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-23
 ```
 
 **Launch the server DETACHED, never as a child of an assistant/terminal

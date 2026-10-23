@@ -710,6 +710,256 @@ are LEANS. The 09-24 sold calls still fold at 14:38, by her answer.
 word is judged. Four adversarial reviews; the last found all three parts
 signable.
 
+## 1i. PRE-REGISTERED: THE CONFLUENCE SETUP (zone + OI + order flow) and its pass bar (signed 2026-10-21 00:45, UNTESTED)
+
+**The full text** is `docs/setup-review/CONFLUENCE-PREREG.md`, sha256
+`d5c4937fde3f20ffc772a22d22701200ed67f93bed990b4708841a5f2c31aa73`. Never edit it; amend it here instead.
+
+**What it registers:**
+- **Mary's actual trade** is the zone ONLY when OI and order flow also match ("when everything matches thats when those
+  become buy or sell zones"). It is split into POCKET and EXHAUSTION.
+- **The pass bar,** owed since §5e (2026-08-08) and set by Claude on her delegation ("you decide the pass bar as a
+  trader"), applies per cell:
+  - n ≥ 20;
+  - mean R ≥ +0.25;
+  - mean R still > 0 with the best trade removed;
+  - beats zone-alone by ≥ +0.20R;
+  - no day supplies > 40% of the total.
+- **Her binding corrections:**
+  - no time rule before the 15:00 new-trade cutoff;
+  - holds run to 15:20;
+  - no expiry rule;
+  - buying and selling options get equal weight.
+- **The one-shot first look** runs once, after this anchor.
+
+**AMENDMENT 1 (2026-10-21 ~01:45, before any outcome was computed): the one-shot is DEFERRED, not run.**
+- **The dry run printed counts only.** Across 26 scorable index-days (22 Sep → 19 Oct), it found:
+  - 116 zone entries;
+  - OI ✓ 52, FLOW ✓ 67, both on one bar 14;
+  - **full confluence 7**; the largest cell holds 2.
+- **Why defer:** running now would spend the record's blindness on n ≤ 2 per cell, a guaranteed INCONCLUSIVE, while
+  exposing outcomes that would tempt redefinition.
+- **What happens instead:**
+  - the recorded days stay blind;
+  - they are scored ONCE, pooled with the forward rows from `data/confluence_log.jsonl`, when any cell first reaches
+    n ≥ 20;
+  - definitions are unchanged.
+- **Builder's readings 1–12:** listed in `tools/confluence_score.py`'s output header. They are adopted as written.
+
+---
+
+## 1j. PRE-REGISTERED: RIDE, her second setup (signed 2026-10-21 ~02:30, UNTESTED)
+
+**The full text** is `docs/setup-review/RIDE-PREREG.md`, sha256
+`dcb306a11ad662291a25094e7db3288aeacc3367be403d2364900302843aff7e`. Never edit it.
+
+**What it registers.** Her words: "register RIDE as second setup with same three checks".
+- **LOCATION:** READ-V2 §E's trend-pullback ENTRY, unchanged.
+- **OI:** the trend-side front is BUILDING and the defending front is not BUILDING.
+- **FLOW:** the pullback was not led by strong counter-trend aggression, and the trend side is back.
+- **Her hold, with no candle close and no fixed target.** It exits on the first of:
+  - a hard line plus 0.25σ, trailing to FLIP;
+  - the trend-side front UNWINDING ("somebody gave up");
+  - 15:20.
+- **Control:** §E ENTRY alone.
+- **Pass bar:** the same as §1i, over 4 cells.
+- **Expressions:** buy ATM, buy 1-ITM and sell the opposite ATM are all recorded, with equal weight.
+- **Run policy:** the same as §1i Amendment 1. Dry counts only until a cell can reach n ≥ 20 with forward rows.
+
+**BUILT 2026-10-21 (uncommitted; live at her restart).** `ride.py`, `test_ride.py`, `tools/ride_score.py`,
+`confluence_log.ride_inputs / build_ride / log_ride` (FADE rows now carry `setup: "FADE"`), `frame_v2.bars3(width=)`
+(default unchanged), and a fail-soft server hook beside `log_new`. pytest 1728 passed, 1 skipped.
+- **§E is never re-implemented:** `ride.entries` calls `frame_v2.plan` at each 3-min close with the bars, READ rows
+  and basis band as of that close. With one fixed band it equals a single full-day `plan()` call's ENTRY rows on all 25
+  index-days where that call returns rows. The band as of each close matters on one day (24 Sep NIFTY: the day-end band
+  would add an 11:51 ENTRY the frame could not show then); the causal band is used.
+- **Dry counts (51 index-days, 22 Sep → 19 Oct), never an outcome:** §E entries 73, OI ✓ 30, FLOW ✓ 48, both on one
+  bar 18, **RIDE 18**; per cell ▼ NIFTY+SENSEX 7, ▼ BANKNIFTY 5, ▲ NIFTY+SENSEX 2, ▲ BANKNIFTY 4. Gate SHUT; `--run`
+  refuses.
+
+---
+
+## 1k. AMENDMENT 2 to §1i and §1j: the past is looked at on Mary's request (2026-10-21, before any outcome was computed)
+
+**Her words:** "can you tell me when these condition met what happened in the market afterwards".
+
+**What this changes.** It lifts the blindness that §1i Amendment 1 and §1j §6 placed on the recorded days. FADE (7
+confluence entries) and RIDE (18 entries), with their controls, are scored once and described row by row.
+
+**The conditions:**
+1. **The rules are frozen exactly as registered.** That includes:
+   - the builders' readings;
+   - the RIDE review fixes (`docs/setup-review/RIDE-REVIEW.md`), all made before this look;
+   - the trail's FLIP→fut conversion using the READ row's own measured basis even when the plausibility band flags
+     it, a reading declared here.
+2. **Any rule change after this look is a NEW registration,** judged only on forward rows logged after its own anchor.
+   The recorded days can never test it.
+3. **The pass bar is unchanged:** n ≥ 20 per cell, past and forward pooled, under the frozen rules.
+4. **No hit rate is printed.** The output is rows, plus §4's fields per cell (n, mean R, mean R without the best trade,
+   the control's mean R, the largest day's share), marked INCONCLUSIVE where n < 20.
+5. **Descriptive extras that are not in any bar:** MFE and MAE in points from entry to exit; the move 30 and 60 minutes
+   after entry in the trade's direction; the option expressions in premium points.
+
+---
+
+## 1l. PRE-REGISTERED: READ-2, a trend led by flow and fuel, plus JAGAH (signed 2026-10-21 ~13:15 on her word "yes build all three", UNTESTED)
+
+**The full text** is `docs/read/READ-2-PREREG.md`, sha256
+`182aa67db3f7b8dc949f56cbe8231c847b69e7e1ea250ff85a16adbfacefb6ae`.
+
+**What it registers:**
+- **A FUEL vote:** 40-min futures ΔOI ranked ≥ p80, voting with the sign of the price move.
+- **A LEG FLOW vote:** since the leg's extreme, ≥ 6 bars, sell share S ≥ 0.70 and the sell/buy bar-size ratio M ≥ 2.0.
+- **LEAN + FUEL + LEG FLOW** → `TREND · flow+fuel`, at full size.
+- **JAGAH,** a placement line: room to the next reaction point, the obstacle behind, and fuel/flow in words. Never a
+  probability.
+
+**Logging and the kill condition:**
+- read-1.1's word is logged beside it.
+- The forward check runs from 2026-10-22.
+- Kill at 20 upgrades if more than half saw price close back past FLIP first.
+
+**21 Oct is in-sample** (it motivated the rule) and is not evidence.
+
+**AMENDMENT 1 to READ-2 (2026-10-21 ~14:10, before the forward check starts on 22 Oct): persistence, not thresholds.**
+- **The problem.** The literal "downgrade when FUEL or LEG FLOW stops" flickered on the in-sample replay of 21 Oct
+  NIFTY:
+  - up at 10:10, down at 10:25, up at 10:30, down at 10:40, up at 10:45, down at 10:50;
+  - then LEAN for the rest of a day that kept trending down. FUEL is a rolling 40-min OI burst, so it fades while the
+    trend continues.
+- **This is a structural error, like read-1.1's LEAN-break fix of 2026-10-08,** not a number to tune.
+- **The fix:**
+  - **FUEL is the TRIGGER and is latched:** a FUEL = d vote at any mark since the leg began counts for the rest of
+    that leg.
+  - **LEG FLOW is the condition that keeps it:** TREND · flow+fuel drops to LEAN only after LEG FLOW has failed to
+    vote d at **3 consecutive marks** (15 min), or on a LEAN break.
+  - **No threshold changes.**
+  - **JAGAH's fuel words show the leg's latched fuel** (its kind, its max rank and when it happened), plus "abhi"
+    (the current 40-min rank).
+- **The kill condition and the forward start date (2026-10-22) are unchanged.**
+- **Disclosure:** 21 Oct was looked at to find this flaw. It remains in-sample.
+
+---
+
+## 1m. PRE-REGISTERED: HOLD v2, the push trail, the profit lock and FADE → RIDE (signed 2026-10-21 ~16:00 on her word, UNTESTED)
+
+**The full text** is `docs/setup-review/HOLD-V2-PREREG.md`, sha256
+`fca358a2b66337f4e51b38edec55281c87f9b16a62be895ad9a58f2548f5d9a6`.
+
+**What it registers:**
+- **A second exit, scored beside v1 on the same FADE (§1i) and RIDE (§1j) entries:**
+  - a line trailing to the last PUSH origin + 0.25U, intrabar and never a close;
+  - a breakeven lock once MFE ≥ 2R;
+  - "gave up" (trend front UNWINDING);
+  - 15:20.
+- **FADE → RIDE at VWAP:** a fade that reaches VWAP while RIDE's OI and FLOW checks agree continues under v2.
+
+**Pass bar, paired on ΔR:** n ≥ 20 per setup group, mean ΔR ≥ +0.20, drop-best > 0, max day share 40%.
+
+**AMENDMENT 1 to HOLD v2 (2026-10-21 ~18:30, before its forward start on 22 Oct): a logic fix to "somebody gave up".
+No number changes.**
+- **The flaw.** As written, the exit fires whenever the trend-side front reads UNWINDING, whichever way price is going.
+  The in-sample description showed it firing on call writers *buying back while price kept falling*, i.e. profit-taking
+  by the winners, not capitulation. Examples: 21 Oct SENSEX FADE at 09:48, and Mary's 23000 PE at 10:54, after which
+  the move ran a long way.
+- **Her own rule** (§1d, 22 Sep) is about the side being **forced**: "which side stops first increasing their positions
+  and then unwinding". A writer who unwinds while price moves in their favour is not forced.
+- **The fix.** In HOLD v2, "gave up" requires the trend-side front to read UNWINDING **and** price at that 3-min close to
+  be on the writers' losing side of the price at the front's peak time:
+  - ▼ / CE writers: close > spot at the peak minute;
+  - ▲ / PE writers: close < spot at the peak minute.
+- **Unwinding with price still moving in the writers' favour** is stamped "munafa booking", never an exit.
+- **RIDE v1 (§1j) is NOT changed.** It stays frozen as the baseline v2 is judged against.
+- **Disclosure:** found on the in-sample description (§1k days and 21 Oct). Those days remain in-sample.
+
+**AMENDMENT 2 to HOLD v2 (2026-10-21 ~19:15, before forward start): the "losing side" uses the system's standard break
+distance.**
+- **The problem.** Amendment 1's test "spot above the peak-minute spot" had no buffer. It fired on Mary's 23000 PE at
+  10:54 on a **3.9-pt** excursion during chop at the peak level. That is noise.
+- **The fix.** The losing side now means beyond the peak-minute spot by **0.25U** (U = max(σ, 0.1% of price)). This is
+  **the same break distance the whole stack already uses:** marks TOOTA, push fail and the HOLD v2 line itself. No new
+  number.
+- **This is the LAST change before forward data.** From 2026-10-22 HOLD v2 is frozen as amended. Any further change is a
+  new registration.
+- **Disclosure:** found on her 21 Oct trade, which is in-sample.
+
+**Scope:** forward only from 2026-10-22. Days up to 21 Oct are in-sample and never counted. Her hold window shows the v2
+line for display only.
+
+**BUILT 2026-10-21 (uncommitted; live at her restart).** `hold2.py` (pure: the PUSH port, `exit_v2`, `fade_convert`, the
+window's line), `test_hold2.py`, `tools/hold2_score.py` (dry · `--run` gated on forward rows from 22 Oct, each group judged
+once at n ≥ 20 · `--describe-in-sample [--trade ID]`, IN-SAMPLE, never counted), `tools/gen_push_expected.mjs` +
+`test/fixtures/push_expected.json`, `confluence_log.push_bars / push_refs`, `fold_live.hold2_rows`, `server._hold2` (a
+`hold2` block on `/api/fold?id=`, display only) and the float's HOLD v2 line (`ui-v2/src/pro/Desk.tsx`, `api.ts`). The
+scorer's 12 readings are its own header.
+- **Amendment 1 built the same evening:** `hold2.close_read` / `closes` (the front's peak minute and the chain spot then,
+  cut causally); munafa booking is stamped, and the window reads "CE 23000 munafa booking (unwinding, price still neeche)".
+  RIDE v1 is untouched: the v1 R column is identical on all 28 in-sample rows.
+- **Amendment 2 built the same evening:** `hold2.losing` is "lose" only beyond 0.25U, using the line's own U (5-min
+  vwapSeries σ via `sigma_at`, floored at 0.1% of spot). Inside the buffer it stamps "munafa / chop (within 0.25U)". The v1
+  column is unchanged. pytest 1781 passed, 1 skipped. HOLD v2 is frozen as of here.
+- **Port check:** v2.js flowState run through node on 9, 12, 13, 16, 19 and 21 Oct gives the same state on every bar. That
+  is 289 tape bars with 27 PUSH, and 253 of the extension's own fixture bars with 33 PUSH. There were 0 differences.
+- **References:** NIFTY has them (GoCharting, plus Upstox for the bars GC lacks) and so does BANKNIFTY (Upstox). SENSEX has
+  none, because its 5-min bars are not rankable (FLOW-STATE §5), so its trail reads "push ? ref nahi".
+
+---
+
+## 1n. PRE-REGISTERED: FADE-D, the deceleration fade at an extreme (signed 2026-10-21 ~20:00 on her "offcourse", UNTESTED)
+
+**The full text** is `docs/setup-review/FADE-D-PREREG.md`, sha256
+`3fd5e84ed3b7fb2a2972a3bb64a4ff719a1313f0909ee45b0f8b1316ea31f237`.
+
+**What it registers.** Her own "build-rate deceleration" at the zone or an extreme, never encoded in §1i:
+- **Fading effort:** a new extreme made on delta ≤ 25% of the leg's biggest bar.
+- **CVD turned:** the last bar's delta is against the move, and CVD is below its leg peak.
+- **The winning side's OI lead breaks:** ≥ 10 points off its session peak within 15 min.
+- **Entry:** all within 30 min of the location bar.
+- **Exit:** HOLD v2.
+- **Control:** the location alone.
+- **Pass bar:** §1i §4.
+
+**Scope:** forward only from 2026-10-22. 21 Oct is in-sample.
+
+**AMENDMENT 1 to FADE-D (2026-10-21 ~21:30, before its forward start): remove the VWAP-room condition.**
+- **The inconsistency.** §4's "close still above VWAP (room to target)" was carried over from FADE §1i, whose target
+  *is* VWAP. FADE-D's exit is HOLD v2, which has no VWAP target, so the condition has no job.
+- **What it does wrong.** It blocks a reversal exactly when price confirms it by crossing VWAP. On 21 Oct (in-sample)
+  it blocked the NIFTY top entry at 10:00, when all four conditions held.
+- **The fix.** The VWAP side becomes a **stamp**, not a condition.
+- **Unchanged:** every number, including the 10-point lead drop. That drop read 9.8 at 09:55 on 21 Oct, and it stays
+  at 10 because changing a number to fit the day that inspired it is fitting.
+- **This is the last change before forward data.**
+
+---
+
+## 1o. PRE-REGISTERED: THE ONE-SIDED METER, the day type from vote consistency (signed 2026-10-22 ~15:45 on her "fix everything", UNTESTED)
+
+**The full text** is `docs/setup-review/ONESIDED-PREREG.md`, sha256 `60ba8f8f7d0bb8bd5333a78f70010d86219c12aea42dc8861073f5be632b2f14`.
+
+**What it registers:**
+- **7 votes per 5-min bar:** delta, CVD 15m, VWAP side, writers, writers 15m (on a fixed strike set), futures OI × price, peers.
+- **One-sided bar:** 5 or more votes agree.
+- **Day type:**
+  - **TREND:** ≥ 10 one-sided bars, ≥ 80% of them one way, flips ≤ 1, VWAP crosses ≤ 2.
+  - **PIN:** range < 0.5% of the open and crosses ≥ 4.
+  - **CHOP:** crosses ≥ 4 or flips ≥ 3.
+  - **MIXED:** anything else.
+
+**Scope:**
+- **Display only;** it gates nothing.
+- **Forward from 2026-10-23.**
+- **Daily 15:30 log** beside the day's realised shape.
+- **Kill condition:** if the 11:30 type matches the afternoon no better than the 11:30 READ word.
+- **In-sample:** 21 and 22 Oct.
+
+**BUILT 2026-10-22** (`onesided.py`; display only; live from the 23 Oct restart). It is exposed as `decode.onesided` on /api/read and `frame.decode`, the Read-tab DIN row and the extension's DIN line. It writes a daily row to `data/onesided/onesided_log.jsonl` (with the 11:30 type for the clock).
+- The writers' 15-min vote uses a fixed strike set (A24).
+- SENSEX bars under 20 lots are stamped "patla".
+- In-sample replay: 21 Oct NIFTY TREND ▼, 22 Oct CHOP. **Watch (A37):** the counts are whole-day, so CHOP is sticky; TREND came late on 21 Oct.
+
+---
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

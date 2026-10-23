@@ -1,0 +1,65 @@
+marks on 16 days (2026-09-22..2026-10-16): 742 collapsed marks
+  era A: marks 521, with a GC bar (state available) 503, without 18
+  era B: marks 221, with a GC bar (state available) 218, without 3
+  kind counts era A: {'vacuum': 37, 'climax': 25, 'absorption': 200, 'initiative': 90, 'trap': 103, 'exhaustion': 66}
+  kind counts era B: {'initiative': 56, 'exhaustion': 28, 'vacuum': 22, 'absorption': 64, 'trap': 34, 'climax': 17}
+  (ORDERFLOW-STUDY era A: trap 103 absorption 200 exhaustion 66 initiative 90 vacuum 37 climax 25 ; era B: 34 / 64 / 28 / 56 / 22 / 17 - the 21 Sep rows are excluded here)
+
+state of the bar a mark sits on, vs the state of all bars on the same days (GC-covered)
+  era A marks on a GC bar 503 | PUSH 32 CLIMAX_a 27 CLIMAX_b 26 PATLA 22 NOISE 73 NONE 323   || all bars 560 | PUSH 22 CLIMAX_a 16 CLIMAX_b 32 PATLA 24 NOISE 128 NONE 338
+  era B marks on a GC bar 218 | PUSH 16 CLIMAX_a 10 CLIMAX_b 9 PATLA 22 NOISE 26 NONE 135   || all bars 423 | PUSH 22 CLIMAX_a 11 CLIMAX_b 13 PATLA 34 NOISE 93 NONE 250
+
+=== reversal-type marks (trap, absorption, exhaustion): on a CLIMAX bar vs not ===
+ era A
+  on CLIMAX_a/b bar                                    n  46  WITH  27  AGAINST  18  TIE  0  NONE/END   1
+    of which CLIMAX_a                                  n  26  WITH  14  AGAINST  11  TIE  0  NONE/END   1
+    of which CLIMAX_b                                  n  20  WITH  13  AGAINST   7  TIE  0  NONE/END   0
+  on a PUSH bar                                        n  10  WITH   3  AGAINST   6  TIE  0  NONE/END   1
+  on a PATLA bar                                       n  11  WITH   7  AGAINST   4  TIE  0  NONE/END   0
+  on a NOISE / NONE bar                                n 287  WITH 156  AGAINST 121  TIE  2  NONE/END   8
+ era B
+  on CLIMAX_a/b bar                                    n  17  WITH   3  AGAINST   9  TIE  0  NONE/END   5
+    of which CLIMAX_a                                  n  10  WITH   2  AGAINST   7  TIE  0  NONE/END   1
+    of which CLIMAX_b                                  n   7  WITH   1  AGAINST   2  TIE  0  NONE/END   4
+  on a PUSH bar                                        n   6  WITH   3  AGAINST   3  TIE  0  NONE/END   0
+  on a PATLA bar                                       n   8  WITH   0  AGAINST   7  TIE  0  NONE/END   1
+  on a NOISE / NONE bar                                n  93  WITH  46  AGAINST  39  TIE  0  NONE/END   8
+ era AB
+  on CLIMAX_a/b bar                                    n  63  WITH  30  AGAINST  27  TIE  0  NONE/END   6
+    of which CLIMAX_a                                  n  36  WITH  16  AGAINST  18  TIE  0  NONE/END   2
+    of which CLIMAX_b                                  n  27  WITH  14  AGAINST   9  TIE  0  NONE/END   4
+  on a PUSH bar                                        n  16  WITH   6  AGAINST   9  TIE  0  NONE/END   1
+  on a PATLA bar                                       n  19  WITH   7  AGAINST  11  TIE  0  NONE/END   1
+  on a NOISE / NONE bar                                n 380  WITH 202  AGAINST 160  TIE  2  NONE/END  16
+
+=== each reversal kind, era A and B, on CLIMAX vs not (counts only; n small) ===
+  trap era A on CLIMAX_a/b                             n   8  WITH   5  AGAINST   3  TIE  0  NONE/END   0
+  trap era A not on CLIMAX                             n  91  WITH  50  AGAINST  39  TIE  0  NONE/END   2
+  trap era B on CLIMAX_a/b                             n   4  WITH   0  AGAINST   3  TIE  0  NONE/END   1
+  trap era B not on CLIMAX                             n  29  WITH  15  AGAINST  11  TIE  0  NONE/END   3
+  absorption era A on CLIMAX_a/b                       n  34  WITH  20  AGAINST  13  TIE  0  NONE/END   1
+  absorption era A not on CLIMAX                       n 156  WITH  86  AGAINST  62  TIE  2  NONE/END   6
+  absorption era B on CLIMAX_a/b                       n  12  WITH   3  AGAINST   5  TIE  0  NONE/END   4
+  absorption era B not on CLIMAX                       n  51  WITH  25  AGAINST  22  TIE  0  NONE/END   4
+  exhaustion era A on CLIMAX_a/b                       n   4  WITH   2  AGAINST   2  TIE  0  NONE/END   0
+  exhaustion era A not on CLIMAX                       n  61  WITH  30  AGAINST  30  TIE  0  NONE/END   1
+  exhaustion era B on CLIMAX_a/b                       n   1  WITH   0  AGAINST   1  TIE  0  NONE/END   0
+  exhaustion era B not on CLIMAX                       n  27  WITH   9  AGAINST  16  TIE  0  NONE/END   2
+
+=== initiative / vacuum marks on a PUSH bar vs not ===
+  initiative era A on PUSH                             n  18  WITH  10  AGAINST   7  TIE  0  NONE/END   1
+  initiative era A not on PUSH                         n  70  WITH  45  AGAINST  22  TIE  0  NONE/END   3
+  initiative era B on PUSH                             n   9  WITH   4  AGAINST   4  TIE  0  NONE/END   1
+  initiative era B not on PUSH                         n  47  WITH  23  AGAINST  20  TIE  1  NONE/END   3
+  vacuum era A on PUSH                                 n   0  WITH   0  AGAINST   0  TIE  0  NONE/END   0
+  vacuum era A not on PUSH                             n  37  WITH  19  AGAINST  16  TIE  2  NONE/END   0
+  vacuum era B on PUSH                                 n   0  WITH   0  AGAINST   0  TIE  0  NONE/END   0
+  vacuum era B not on PUSH                             n  22  WITH  10  AGAINST  10  TIE  1  NONE/END   1
+
+coherence on CLIMAX_a bars: reversal-type mark winner vs the bar delta (spent side = sign of delta; a reversal mark should be won by the opposite side)
+  era A: 26 marks; winner opposite the spent delta 16, same side 10
+  era B: 10 marks; winner opposite the spent delta 9, same side 1
+
+level hold of the bar extreme the winner needs (0.25U beyond it within 60 min = BROKE) - reversal-type marks, eras pooled
+  on CLIMAX_a/b    n  63 HELD  23 BROKE  40
+  not on CLIMAX    n 415 HELD 163 BROKE 252

@@ -1,0 +1,5994 @@
+{
+ "built": "2026-10-19T08:10:10",
+ "rules": {
+  "mark": "drawn only if (1) BIG: size rank >= p90 against era-B marks of the same kind (5 Oct on, days before the frame); (2) AT A PLACE: within 0.25 sigma of VWAP / +-1,2,3 sigma, yesterday H/L/C, today developing POC/VAH/VAL, or a fresh-writing strike in fut; (3) FLOW AGREES: the GC flow state of its bar is PUSH, CLIMAX or ROKA.",
+  "lines": "at most 2 flat, 5 in a trade: trade kill/target/entry > FLIP or RANGE box > nearest real level each side.",
+  "flow_state": "FLOW-STATE-STUDY §6: PUSH SIZE>=p90 & R>=0.25; CLIMAX SIZE>=p90 & R<0.25; ROKA RVOL12>=p90 & SIZE<=p70; noise all <=p70; else no read. Thin bars cannot be PUSH/CLIMAX.",
+  "status": "TIKA until a 3-min futures close beyond the mark price (against its winner) by more than one 5-pt row; then TOOTA."
+ },
+ "frames": [
+  {
+   "id": "F1",
+   "day": "2026-10-16",
+   "T": "09:40",
+   "why": "around the day low",
+   "window": {
+    "start": "09:15",
+    "end": "09:40",
+    "bars": 5
+   },
+   "checks": {
+    "index_vs_gc": {
+     "windows": 1,
+     "max_px_diff": 0.0,
+     "max_vol_diff": 0.0,
+     "agree": true,
+     "rows": [
+      {
+       "w": "09:15",
+       "ix_hl": [
+        23084.0,
+        22945.6
+       ],
+       "gc_hl": [
+        23084,
+        22945.6
+       ],
+       "ix_vol": 4586,
+       "gc_vol": 4584
+      }
+     ]
+    },
+    "vwap": {
+     "ix_vwap": 22973.2,
+     "gc_vwap": 22975.5,
+     "ix_sig": 36.1,
+     "gc_sig": 32.6,
+     "d_vwap": -2.4,
+     "d_vwap_sig": -0.07,
+     "sig_ratio": 0.9,
+     "agree": true
+    },
+    "band_source": "index_series (3m fut)",
+    "basis": {
+     "used": null,
+     "measured": 6.9,
+     "why": "basis +7 implausible (other days +53..+89)"
+    },
+    "flow_ref": {
+     "gc_days": 17,
+     "ux_days": 11,
+     "gc_th": {
+      "size": {
+       "70": 1.830188679245283,
+       "90": 4.673469387755102
+      },
+      "share": {
+       "70": 0.26900584795321636,
+       "90": 0.43322475570032576
+      },
+      "rv12": {
+       "70": 1.3872598584428717,
+       "90": 2.6739856801909307
+      }
+     },
+     "ux_th": {
+      "size": {
+       "70": 1.8073654390934843,
+       "90": 3.9302325581395348
+      },
+      "share": {
+       "70": 0.36134453781512604,
+       "90": 0.5272244355909694
+      },
+      "rv12": {
+       "70": 1.4048140043763677,
+       "90": 2.461215932914046
+      }
+     }
+    },
+    "fresh_ref": {
+     "days": [
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09",
+      "2026-10-12",
+      "2026-10-13"
+     ],
+     "n": 4796,
+     "p90": 2434.2
+    }
+   },
+   "read": {
+    "row": {
+     "t": "09:40",
+     "word": "BAN RAHA",
+     "dir": 0,
+     "since": null,
+     "agree": null,
+     "spot": 22940.2,
+     "basis": 4.2,
+     "flip": null,
+     "targets": [],
+     "box": null,
+     "warn": [],
+     "writers": {
+      "cls": "BOTH_WRITE",
+      "vote": 0,
+      "A": 0.13,
+      "ce": 35353,
+      "pe": 27313,
+      "ce30": null,
+      "pe30": null,
+      "act": 0.797,
+      "why": null
+     },
+     "price": {
+      "vote": 0,
+      "word": "DONO TARAF",
+      "raw": "TWO",
+      "dir": 0,
+      "why": null
+     },
+     "flow": {
+      "vote": -1,
+      "cvd": -1037,
+      "buy": 2989,
+      "sell": 4026,
+      "vol": 7015,
+      "gc": "09:20",
+      "why": null
+     }
+    },
+    "events": [],
+    "patched": []
+   },
+   "chart": {
+    "bars": [
+     {
+      "t": "09:15",
+      "s": 33300,
+      "o": 23058.0,
+      "h": 23084,
+      "l": 22963.3,
+      "c": 22993.3,
+      "filled": true,
+      "vol": 2785,
+      "delta": -653,
+      "cells": [
+       [
+        22965,
+        27,
+        163
+       ],
+       [
+        22970,
+        134,
+        202
+       ],
+       [
+        22975,
+        85,
+        203
+       ],
+       [
+        22980,
+        0,
+        9
+       ],
+       [
+        22985,
+        21,
+        11
+       ],
+       [
+        22990,
+        8,
+        27
+       ],
+       [
+        22995,
+        11,
+        83
+       ],
+       [
+        23000,
+        5,
+        116
+       ],
+       [
+        23005,
+        198,
+        134
+       ],
+       [
+        23010,
+        0,
+        33
+       ],
+       [
+        23015,
+        20,
+        77
+       ],
+       [
+        23020,
+        83,
+        42
+       ],
+       [
+        23025,
+        8,
+        21
+       ],
+       [
+        23030,
+        55,
+        108
+       ],
+       [
+        23035,
+        62,
+        11
+       ],
+       [
+        23040,
+        0,
+        91
+       ],
+       [
+        23045,
+        23,
+        113
+       ],
+       [
+        23050,
+        40,
+        42
+       ],
+       [
+        23055,
+        97,
+        37
+       ],
+       [
+        23060,
+        33,
+        68
+       ],
+       [
+        23065,
+        80,
+        0
+       ],
+       [
+        23070,
+        24,
+        54
+       ],
+       [
+        23075,
+        30,
+        44
+       ],
+       [
+        23080,
+        22,
+        30
+       ],
+       [
+        23085,
+        0,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 4.55,
+       "size_p": 89,
+       "share": 0.23,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.77,
+       "thin": false,
+       "d": -653,
+       "v": 2785,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:20",
+      "s": 33600,
+      "o": 22988.2,
+      "h": 23007.8,
+      "l": 22966,
+      "c": 22996.7,
+      "filled": false,
+      "vol": 964,
+      "delta": 14,
+      "cells": [
+       [
+        22965,
+        0,
+        15
+       ],
+       [
+        22970,
+        36,
+        97
+       ],
+       [
+        22975,
+        57,
+        42
+       ],
+       [
+        22980,
+        31,
+        32
+       ],
+       [
+        22985,
+        120,
+        67
+       ],
+       [
+        22990,
+        147,
+        125
+       ],
+       [
+        22995,
+        34,
+        41
+       ],
+       [
+        23000,
+        55,
+        44
+       ],
+       [
+        23005,
+        7,
+        12
+       ],
+       [
+        23010,
+        2,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 0.1,
+       "size_p": 6,
+       "share": 0.01,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.23,
+       "thin": false,
+       "d": 14,
+       "v": 964,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:25",
+      "s": 33900,
+      "o": 22992,
+      "h": 22996.6,
+      "l": 22945.6,
+      "c": 22951.5,
+      "filled": false,
+      "vol": 835,
+      "delta": -241,
+      "cells": [
+       [
+        22945,
+        0,
+        11
+       ],
+       [
+        22950,
+        16,
+        106
+       ],
+       [
+        22955,
+        16,
+        169
+       ],
+       [
+        22960,
+        76,
+        54
+       ],
+       [
+        22965,
+        62,
+        39
+       ],
+       [
+        22970,
+        26,
+        26
+       ],
+       [
+        22975,
+        7,
+        21
+       ],
+       [
+        22980,
+        10,
+        34
+       ],
+       [
+        22985,
+        68,
+        13
+       ],
+       [
+        22990,
+        4,
+        65
+       ],
+       [
+        22995,
+        12,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 1.68,
+       "size_p": 66,
+       "share": 0.29,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.11,
+       "thin": false,
+       "d": -241,
+       "v": 835,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:30",
+      "s": 34200,
+      "o": 22951.5,
+      "h": 22969.9,
+      "l": 22931,
+      "c": 22940.7,
+      "filled": false,
+      "vol": 1608,
+      "delta": 696,
+      "cells": [
+       [
+        22930,
+        1,
+        30
+       ],
+       [
+        22935,
+        23,
+        49
+       ],
+       [
+        22940,
+        86,
+        161
+       ],
+       [
+        22945,
+        164,
+        91
+       ],
+       [
+        22950,
+        728,
+        92
+       ],
+       [
+        22955,
+        8,
+        2
+       ],
+       [
+        22960,
+        111,
+        23
+       ],
+       [
+        22965,
+        11,
+        8
+       ],
+       [
+        22970,
+        20,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 5.75,
+       "size_p": 93,
+       "share": 0.43,
+       "rv12": null,
+       "rv12_p": null,
+       "R": -0.43,
+       "thin": false,
+       "d": 696,
+       "v": 1608,
+       "dir": 1,
+       "state": "CLIMAX",
+       "why": []
+      },
+      "ux": "no read",
+      "tint": "CLIMAX",
+      "tint_src": "GC only"
+     },
+     {
+      "t": "09:35",
+      "s": 34500,
+      "o": 22940.9,
+      "h": 22957,
+      "l": 22908.1,
+      "c": 22939,
+      "filled": false,
+      "vol": 1600,
+      "delta": -656,
+      "cells": [
+       [
+        22910,
+        0,
+        292
+       ],
+       [
+        22915,
+        21,
+        365
+       ],
+       [
+        22920,
+        52,
+        46
+       ],
+       [
+        22925,
+        25,
+        82
+       ],
+       [
+        22930,
+        71,
+        97
+       ],
+       [
+        22935,
+        21,
+        77
+       ],
+       [
+        22940,
+        144,
+        58
+       ],
+       [
+        22945,
+        33,
+        7
+       ],
+       [
+        22950,
+        91,
+        101
+       ],
+       [
+        22955,
+        14,
+        3
+       ]
+      ],
+      "gc": {
+       "size": 5.42,
+       "size_p": 92,
+       "share": 0.41,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.07,
+       "thin": false,
+       "d": -656,
+       "v": 1600,
+       "dir": -1,
+       "state": "CLIMAX",
+       "why": []
+      },
+      "ux": "CLIMAX",
+      "tint": "CLIMAX",
+      "tint_src": "GC+UX ✓"
+     }
+    ],
+    "lo": 22908.1,
+    "hi": 23084,
+    "zones": [],
+    "khel": null,
+    "khel_dir": 0,
+    "edge_ticks": [],
+    "edge_note": null,
+    "vwap": 22973.2,
+    "sig": 36.1
+   },
+   "marks": [
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 34500,
+     "t": "09:35",
+     "p": 22915,
+     "size": 657,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 34800,
+     "rank": 92,
+     "rank_n": 63,
+     "sigma": 36.1,
+     "place": null,
+     "nearest": {
+      "name": "−2σ",
+      "p": 22901.0,
+      "dist": 14.0,
+      "tol": 9.0
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 92,
+      "R": 0.07,
+      "ux": "CLIMAX",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": false,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "no place within 0.25σ (nearest −2σ 14.0 pts, tol 9.0)"
+     ],
+     "chip": "KHAREEDAR NE ROKA ▲ · p92 · TIKA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 34500,
+     "t": "09:35",
+     "p": 22908.1,
+     "size": 656,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 34800,
+     "rank": 92,
+     "rank_n": 63,
+     "sigma": 36.1,
+     "place": {
+      "name": "−2σ",
+      "p": 22901.0,
+      "dist": 7.1,
+      "tol": 9.0
+     },
+     "nearest": {
+      "name": "−2σ",
+      "p": 22901.0,
+      "dist": 7.1,
+      "tol": 9.0
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 92,
+      "R": 0.07,
+      "ux": "CLIMAX",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": true,
+     "why_not": [],
+     "chip": "KHAREEDAR NE ROKA ▲ · p92 · TIKA",
+     "chip_shown": true
+    },
+    {
+     "src": "ofd log",
+     "kind": "vacuum",
+     "s": 33600,
+     "t": "09:20",
+     "p": 22996.7,
+     "size": 964,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": false,
+     "t_close": 33900,
+     "rank": 90,
+     "rank_n": 21,
+     "sigma": 26.6,
+     "place": {
+      "name": "KAL CLOSE",
+      "p": 22998.8,
+      "dist": 2.1,
+      "tol": 6.7
+     },
+     "nearest": {
+      "name": "KAL CLOSE",
+      "p": 22998.8,
+      "dist": 2.1,
+      "tol": 6.7
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 6,
+      "R": 0.23,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TOOTA",
+     "broke_at": "09:27",
+     "rules": {
+      "kind_drawable": false,
+      "big": true,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "vacuum: never drawn"
+     ],
+     "chip": "KHALI ▲ · p90 · TOOTA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "initiative",
+     "s": 33900,
+     "t": "09:25",
+     "p": 22992,
+     "size": 241,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": false,
+     "t_close": 34200,
+     "rank": 35,
+     "rank_n": 56,
+     "sigma": 28.5,
+     "place": {
+      "name": "VWAP",
+      "p": 22996.8,
+      "dist": 4.8,
+      "tol": 7.1
+     },
+     "nearest": {
+      "name": "VWAP",
+      "p": 22996.8,
+      "dist": 4.8,
+      "tol": 7.1
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": -1,
+      "size_p": 66,
+      "R": 1.11,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "initiative: not a drawn kind"
+     ],
+     "chip": "PEHAL ▼ · p35 · TIKA"
+    }
+   ],
+   "lines": [
+    {
+     "kind": "value",
+     "p": 22947.1,
+     "spot": null,
+     "chip": "VAL aaj",
+     "rule": "nearest real level above price",
+     "pri": 4,
+     "drawn": true
+    },
+    {
+     "kind": "prior",
+     "p": 22671.0,
+     "spot": null,
+     "chip": "KAL KA LOW",
+     "rule": "nearest real level below price",
+     "pri": 4,
+     "drawn": true
+    }
+   ],
+   "panel": {
+    "head": {
+     "idx": "NIFTY",
+     "khel": "?",
+     "size": "—",
+     "prem": "PREM ?",
+     "fut": 22935.0,
+     "spot": null,
+     "T": "09:40",
+     "day": "2026-10-16",
+     "word": "BAN RAHA",
+     "dir": 0,
+     "since": null
+    },
+    "din": {
+     "A": 0.13,
+     "absent": "dono likh rahe",
+     "cls": "BOTH_WRITE",
+     "ce": 35353,
+     "pe": 27313,
+     "crosses": 0,
+     "fuel": "naye short",
+     "oi_pct": 0.42,
+     "px": -123
+    },
+    "abhi": {
+     "t": "09:35",
+     "gc": "CLIMAX",
+     "dir": -1,
+     "size_p": 92,
+     "R": 0.07,
+     "rv12": null,
+     "ux": "CLIMAX",
+     "ux_dir": -1,
+     "agree": "GC+UX ✓"
+    },
+    "sirf": [
+     {
+      "t": "09:35",
+      "ev": "KHAREEDAR NE ROKA ▲",
+      "rank": 92,
+      "status": "TIKA",
+      "drawn": true,
+      "tag": "GC+UX ✓",
+      "n": 2
+     }
+    ],
+    "baaki": 2,
+    "plan": [
+     "09:45 se pehle zone nahi · §E",
+     "—"
+    ],
+    "fold": null,
+    "entry_rows": [],
+    "prem": null,
+    "cov": [
+     "basis ? (+7, normal +53..+89) · spot ?",
+     "KHEL ? · 09:45 se pehle word nahi",
+     "PREM ? · 30 min pure nahi",
+     "15 Oct ka footprint nahi · HVN/LVN ?",
+     "GC o/c 1 bars 3m fut se [I]",
+     "likhna strike ? (09:45 se pehle) · 09:35 marks"
+    ],
+    "text": {
+     "head": {
+      "idx": "NIFTY",
+      "khel": "?",
+      "size": "—",
+      "prem": "PREM ?",
+      "px": "22,935f | ?s",
+      "T": "09:40",
+      "day": "16 Oct",
+      "word": "READ BAN RAHA"
+     },
+     "din": [
+      "A +0.13 · dono likh rahe",
+      "VWAP cross 0 · FUEL naye short",
+      "fut OI +0.42% · px -123"
+     ],
+     "abhi": [
+      "FLOW CLIMAX ▼ · p92 · GC+UX ✓",
+      "09:35 bar · R 0.07 · RVOL ?"
+     ],
+     "sirf": [
+      {
+       "t": "09:35",
+       "ev": "KHAREEDAR NE ROKA ▲ ×2",
+       "rank": "p92",
+       "status": "TIKA",
+       "chart": true,
+       "tag": "GC+UX ✓"
+      }
+     ],
+     "baaki": "baaki 2 chhote · noise",
+     "plan": [
+      "09:45 se pehle zone nahi · §E",
+      "—"
+     ],
+     "cov": [
+      "basis ? (+7, normal +53..+89) · spot ?",
+      "KHEL ? · 09:45 se pehle word nahi",
+      "PREM ? · 30 min pure nahi",
+      "15 Oct ka footprint nahi · HVN/LVN ?",
+      "GC o/c 1 bars 3m fut se [I]",
+      "likhna strike ? (09:45 se pehle) · 09:35 marks"
+     ],
+     "count": "Aaj ka extension 2 (0 glyph · 2 line) → naya 3 (1 glyph · 2 line) · +2 tint"
+    }
+   },
+   "counts": {
+    "before": {
+     "glyphs": 0,
+     "lines": 2,
+     "chips": 2,
+     "objects": 2
+    },
+    "after": {
+     "glyphs": 1,
+     "lines": 2,
+     "chips": 3,
+     "tints": 2,
+     "objects": 3
+    }
+   },
+   "before": {
+    "glyphs": [],
+    "lines": [
+     {
+      "cls": 1,
+      "p": 22950,
+      "why": "wall"
+     },
+     {
+      "cls": 2,
+      "p": 22671,
+      "why": "Kal ka low"
+     }
+    ],
+    "marks_engine_at_T": [
+     {
+      "t": 1792122900000,
+      "time": "09:25",
+      "kind": "exhaustion",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22945.6,
+      "size": 241
+     },
+     {
+      "t": 1792123500000,
+      "time": "09:35",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22915,
+      "size": 657
+     },
+     {
+      "t": 1792123500000,
+      "time": "09:35",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22908.1,
+      "size": 656
+     }
+    ]
+   }
+  },
+  {
+   "id": "F2",
+   "day": "2026-10-16",
+   "T": "10:25",
+   "why": "just after the high (23,155 at 10:18)",
+   "window": {
+    "start": "09:15",
+    "end": "10:25",
+    "bars": 14
+   },
+   "checks": {
+    "index_vs_gc": {
+     "windows": 4,
+     "max_px_diff": 1.0,
+     "max_vol_diff": 14.8,
+     "agree": false,
+     "rows": [
+      {
+       "w": "09:15",
+       "ix_hl": [
+        23084.0,
+        22945.6
+       ],
+       "gc_hl": [
+        23084,
+        22945.6
+       ],
+       "ix_vol": 4586,
+       "gc_vol": 4584
+      },
+      {
+       "w": "09:30",
+       "ix_hl": [
+        22982.0,
+        22908.0
+       ],
+       "gc_hl": [
+        22981,
+        22908.1
+       ],
+       "ix_vol": 3931,
+       "gc_vol": 3931
+      },
+      {
+       "w": "09:45",
+       "ix_hl": [
+        23035.0,
+        22937.2
+       ],
+       "gc_hl": [
+        23035,
+        22937.2
+       ],
+       "ix_vol": 1861,
+       "gc_vol": 1621
+      },
+      {
+       "w": "10:00",
+       "ix_hl": [
+        23104.0,
+        23027.0
+       ],
+       "gc_hl": [
+        23104,
+        23027
+       ],
+       "ix_vol": 3556,
+       "gc_vol": 3553
+      }
+     ]
+    },
+    "vwap": {
+     "ix_vwap": 23026.4,
+     "gc_vwap": 23029.4,
+     "ix_sig": 69.6,
+     "gc_sig": 68.5,
+     "d_vwap": -3.0,
+     "d_vwap_sig": -0.04,
+     "sig_ratio": 0.99,
+     "agree": true
+    },
+    "band_source": "index_series (3m fut)",
+    "basis": {
+     "used": null,
+     "measured": 6.2,
+     "why": "basis +6 implausible (other days +53..+89)"
+    },
+    "flow_ref": {
+     "gc_days": 17,
+     "ux_days": 11,
+     "gc_th": {
+      "size": {
+       "70": 1.830188679245283,
+       "90": 4.673469387755102
+      },
+      "share": {
+       "70": 0.26900584795321636,
+       "90": 0.43322475570032576
+      },
+      "rv12": {
+       "70": 1.3872598584428717,
+       "90": 2.6739856801909307
+      }
+     },
+     "ux_th": {
+      "size": {
+       "70": 1.8073654390934843,
+       "90": 3.9302325581395348
+      },
+      "share": {
+       "70": 0.36134453781512604,
+       "90": 0.5272244355909694
+      },
+      "rv12": {
+       "70": 1.4048140043763677,
+       "90": 2.461215932914046
+      }
+     }
+    },
+    "fresh_ref": {
+     "days": [
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09",
+      "2026-10-12",
+      "2026-10-13"
+     ],
+     "n": 4796,
+     "p90": 2434.2
+    }
+   },
+   "read": {
+    "row": {
+     "t": "10:25",
+     "word": "LEAN",
+     "dir": 1,
+     "since": "10:20",
+     "agree": 2,
+     "spot": 23133.8,
+     "basis": -2.8,
+     "flip": 23000.0,
+     "targets": [
+      {
+       "k": 23150.0,
+       "oi": 9573,
+       "side": "CE"
+      },
+      {
+       "k": 23200.0,
+       "oi": 12622,
+       "side": "CE"
+      }
+     ],
+     "box": null,
+     "warn": [],
+     "writers": {
+      "cls": "BOTH_WRITE",
+      "vote": 0,
+      "A": -0.04,
+      "ce": 32559,
+      "pe": 35282,
+      "ce30": -17594,
+      "pe30": 21359,
+      "act": 1.086,
+      "why": null
+     },
+     "price": {
+      "vote": 1,
+      "word": "TREND ▲",
+      "raw": "TREND",
+      "dir": 1,
+      "why": null
+     },
+     "flow": {
+      "vote": 1,
+      "cvd": 1008,
+      "buy": 8841,
+      "sell": 7833,
+      "vol": 16674,
+      "gc": "09:20",
+      "why": null
+     }
+    },
+    "events": [
+     {
+      "t": "09:45",
+      "kind": "FORM",
+      "dir": 0,
+      "tag": "I",
+      "text": "RANGE bana",
+      "en": "the read formed"
+     },
+     {
+      "t": "10:00",
+      "kind": "BREAK",
+      "dir": 0,
+      "tag": "I",
+      "text": "RANGE khatam · spot 23,033 box ke upar (23,000)",
+      "en": "the read broke"
+     },
+     {
+      "t": "10:00",
+      "kind": "FORM",
+      "dir": 0,
+      "tag": "I",
+      "text": "RANGE bana",
+      "en": "the read formed"
+     },
+     {
+      "t": "10:20",
+      "kind": "QUIT",
+      "k": 23050.0,
+      "side": "CE",
+      "dir": 1,
+      "text": "23,050 CE likhne wale bhage · +58.1L → +19.6L",
+      "en": "23,050 CE ceiling gone",
+      "tag": "M"
+     },
+     {
+      "t": "10:20",
+      "kind": "BREAK",
+      "dir": 0,
+      "tag": "I",
+      "text": "RANGE khatam · spot 23,134 box ke upar (23,100)",
+      "en": "the read broke"
+     },
+     {
+      "t": "10:20",
+      "kind": "FORM",
+      "dir": 1,
+      "tag": "I",
+      "text": "LEAN ▲ bana · FLIP 23,000",
+      "en": "the read formed"
+     }
+    ],
+    "patched": [
+     "chain 09:48-10:25: 36 REST minutes [I]",
+     "futures ticks 09:48-10:25: 7 GC 5-min bars as flow [I]",
+     "5-min price bars 09:50-10:25: 7 GC bars after ux stopped [I]"
+    ]
+   },
+   "chart": {
+    "bars": [
+     {
+      "t": "09:15",
+      "s": 33300,
+      "o": 23058.0,
+      "h": 23084,
+      "l": 22963.3,
+      "c": 22993.3,
+      "filled": true,
+      "vol": 2785,
+      "delta": -653,
+      "cells": [
+       [
+        22965,
+        27,
+        163
+       ],
+       [
+        22970,
+        134,
+        202
+       ],
+       [
+        22975,
+        85,
+        203
+       ],
+       [
+        22980,
+        0,
+        9
+       ],
+       [
+        22985,
+        21,
+        11
+       ],
+       [
+        22990,
+        8,
+        27
+       ],
+       [
+        22995,
+        11,
+        83
+       ],
+       [
+        23000,
+        5,
+        116
+       ],
+       [
+        23005,
+        198,
+        134
+       ],
+       [
+        23010,
+        0,
+        33
+       ],
+       [
+        23015,
+        20,
+        77
+       ],
+       [
+        23020,
+        83,
+        42
+       ],
+       [
+        23025,
+        8,
+        21
+       ],
+       [
+        23030,
+        55,
+        108
+       ],
+       [
+        23035,
+        62,
+        11
+       ],
+       [
+        23040,
+        0,
+        91
+       ],
+       [
+        23045,
+        23,
+        113
+       ],
+       [
+        23050,
+        40,
+        42
+       ],
+       [
+        23055,
+        97,
+        37
+       ],
+       [
+        23060,
+        33,
+        68
+       ],
+       [
+        23065,
+        80,
+        0
+       ],
+       [
+        23070,
+        24,
+        54
+       ],
+       [
+        23075,
+        30,
+        44
+       ],
+       [
+        23080,
+        22,
+        30
+       ],
+       [
+        23085,
+        0,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 4.55,
+       "size_p": 89,
+       "share": 0.23,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.77,
+       "thin": false,
+       "d": -653,
+       "v": 2785,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:20",
+      "s": 33600,
+      "o": 22988.2,
+      "h": 23007.8,
+      "l": 22966,
+      "c": 22996.7,
+      "filled": false,
+      "vol": 964,
+      "delta": 14,
+      "cells": [
+       [
+        22965,
+        0,
+        15
+       ],
+       [
+        22970,
+        36,
+        97
+       ],
+       [
+        22975,
+        57,
+        42
+       ],
+       [
+        22980,
+        31,
+        32
+       ],
+       [
+        22985,
+        120,
+        67
+       ],
+       [
+        22990,
+        147,
+        125
+       ],
+       [
+        22995,
+        34,
+        41
+       ],
+       [
+        23000,
+        55,
+        44
+       ],
+       [
+        23005,
+        7,
+        12
+       ],
+       [
+        23010,
+        2,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 0.1,
+       "size_p": 6,
+       "share": 0.01,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.23,
+       "thin": false,
+       "d": 14,
+       "v": 964,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:25",
+      "s": 33900,
+      "o": 22992,
+      "h": 22996.6,
+      "l": 22945.6,
+      "c": 22951.5,
+      "filled": false,
+      "vol": 835,
+      "delta": -241,
+      "cells": [
+       [
+        22945,
+        0,
+        11
+       ],
+       [
+        22950,
+        16,
+        106
+       ],
+       [
+        22955,
+        16,
+        169
+       ],
+       [
+        22960,
+        76,
+        54
+       ],
+       [
+        22965,
+        62,
+        39
+       ],
+       [
+        22970,
+        26,
+        26
+       ],
+       [
+        22975,
+        7,
+        21
+       ],
+       [
+        22980,
+        10,
+        34
+       ],
+       [
+        22985,
+        68,
+        13
+       ],
+       [
+        22990,
+        4,
+        65
+       ],
+       [
+        22995,
+        12,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 1.68,
+       "size_p": 66,
+       "share": 0.29,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.11,
+       "thin": false,
+       "d": -241,
+       "v": 835,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:30",
+      "s": 34200,
+      "o": 22951.5,
+      "h": 22969.9,
+      "l": 22931,
+      "c": 22940.7,
+      "filled": false,
+      "vol": 1608,
+      "delta": 696,
+      "cells": [
+       [
+        22930,
+        1,
+        30
+       ],
+       [
+        22935,
+        23,
+        49
+       ],
+       [
+        22940,
+        86,
+        161
+       ],
+       [
+        22945,
+        164,
+        91
+       ],
+       [
+        22950,
+        728,
+        92
+       ],
+       [
+        22955,
+        8,
+        2
+       ],
+       [
+        22960,
+        111,
+        23
+       ],
+       [
+        22965,
+        11,
+        8
+       ],
+       [
+        22970,
+        20,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 5.75,
+       "size_p": 93,
+       "share": 0.43,
+       "rv12": null,
+       "rv12_p": null,
+       "R": -0.43,
+       "thin": false,
+       "d": 696,
+       "v": 1608,
+       "dir": 1,
+       "state": "CLIMAX",
+       "why": []
+      },
+      "ux": "no read",
+      "tint": "CLIMAX",
+      "tint_src": "GC only"
+     },
+     {
+      "t": "09:35",
+      "s": 34500,
+      "o": 22940.9,
+      "h": 22957,
+      "l": 22908.1,
+      "c": 22939,
+      "filled": false,
+      "vol": 1600,
+      "delta": -656,
+      "cells": [
+       [
+        22910,
+        0,
+        292
+       ],
+       [
+        22915,
+        21,
+        365
+       ],
+       [
+        22920,
+        52,
+        46
+       ],
+       [
+        22925,
+        25,
+        82
+       ],
+       [
+        22930,
+        71,
+        97
+       ],
+       [
+        22935,
+        21,
+        77
+       ],
+       [
+        22940,
+        144,
+        58
+       ],
+       [
+        22945,
+        33,
+        7
+       ],
+       [
+        22950,
+        91,
+        101
+       ],
+       [
+        22955,
+        14,
+        3
+       ]
+      ],
+      "gc": {
+       "size": 5.42,
+       "size_p": 92,
+       "share": 0.41,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.07,
+       "thin": false,
+       "d": -656,
+       "v": 1600,
+       "dir": -1,
+       "state": "CLIMAX",
+       "why": []
+      },
+      "ux": "CLIMAX",
+      "tint": "CLIMAX",
+      "tint_src": "GC+UX ✓"
+     },
+     {
+      "t": "09:40",
+      "s": 34800,
+      "o": 22940,
+      "h": 22981,
+      "l": 22934.6,
+      "c": 22977.1,
+      "filled": false,
+      "vol": 723,
+      "delta": 261,
+      "cells": [
+       [
+        22935,
+        2,
+        2
+       ],
+       [
+        22940,
+        38,
+        3
+       ],
+       [
+        22945,
+        16,
+        0
+       ],
+       [
+        22950,
+        13,
+        0
+       ],
+       [
+        22955,
+        20,
+        26
+       ],
+       [
+        22960,
+        35,
+        35
+       ],
+       [
+        22965,
+        85,
+        50
+       ],
+       [
+        22970,
+        132,
+        78
+       ],
+       [
+        22975,
+        89,
+        27
+       ],
+       [
+        22980,
+        62,
+        10
+       ]
+      ],
+      "gc": {
+       "size": 2.16,
+       "size_p": 73,
+       "share": 0.36,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.46,
+       "thin": false,
+       "d": 261,
+       "v": 723,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:45",
+      "s": 35100,
+      "o": 22974.2,
+      "h": 22977.9,
+      "l": 22937.2,
+      "c": 22937.2,
+      "filled": false,
+      "vol": 282,
+      "delta": -86,
+      "cells": [
+       [
+        22935,
+        0,
+        2
+       ],
+       [
+        22940,
+        0,
+        17
+       ],
+       [
+        22945,
+        4,
+        11
+       ],
+       [
+        22950,
+        14,
+        76
+       ],
+       [
+        22955,
+        14,
+        18
+       ],
+       [
+        22960,
+        23,
+        40
+       ],
+       [
+        22965,
+        10,
+        14
+       ],
+       [
+        22970,
+        20,
+        2
+       ],
+       [
+        22975,
+        4,
+        4
+       ],
+       [
+        22980,
+        9,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 1.02,
+       "size_p": 50,
+       "share": 0.3,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.63,
+       "thin": false,
+       "d": -86,
+       "v": 282,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:50",
+      "s": 35400,
+      "o": 22949.9,
+      "h": 22995.7,
+      "l": 22958.2,
+      "c": 22982.8,
+      "filled": true,
+      "vol": 410,
+      "delta": 88,
+      "cells": [
+       [
+        22960,
+        6,
+        37
+       ],
+       [
+        22965,
+        17,
+        14
+       ],
+       [
+        22970,
+        51,
+        2
+       ],
+       [
+        22975,
+        9,
+        2
+       ],
+       [
+        22980,
+        106,
+        27
+       ],
+       [
+        22985,
+        21,
+        79
+       ],
+       [
+        22990,
+        16,
+        0
+       ],
+       [
+        22995,
+        23,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 1.05,
+       "size_p": 51,
+       "share": 0.21,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.45,
+       "thin": false,
+       "d": 88,
+       "v": 410,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:55",
+      "s": 35700,
+      "o": 22982.8,
+      "h": 23035,
+      "l": 22984.9,
+      "c": 23034.5,
+      "filled": true,
+      "vol": 929,
+      "delta": 69,
+      "cells": [
+       [
+        22985,
+        0,
+        1
+       ],
+       [
+        22990,
+        9,
+        75
+       ],
+       [
+        22995,
+        87,
+        47
+       ],
+       [
+        23000,
+        28,
+        35
+       ],
+       [
+        23005,
+        64,
+        39
+       ],
+       [
+        23010,
+        35,
+        20
+       ],
+       [
+        23015,
+        33,
+        103
+       ],
+       [
+        23020,
+        63,
+        45
+       ],
+       [
+        23025,
+        89,
+        37
+       ],
+       [
+        23030,
+        60,
+        13
+       ],
+       [
+        23035,
+        31,
+        15
+       ]
+      ],
+      "gc": {
+       "size": 0.82,
+       "size_p": 43,
+       "share": 0.07,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 2.28,
+       "thin": false,
+       "d": 69,
+       "v": 929,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:00",
+      "s": 36000,
+      "o": 23028.0,
+      "h": 23070,
+      "l": 23027,
+      "c": 23050.0,
+      "filled": true,
+      "vol": 1354,
+      "delta": 292,
+      "cells": [
+       [
+        23025,
+        0,
+        21
+       ],
+       [
+        23030,
+        0,
+        107
+       ],
+       [
+        23035,
+        33,
+        10
+       ],
+       [
+        23040,
+        52,
+        84
+       ],
+       [
+        23045,
+        236,
+        62
+       ],
+       [
+        23050,
+        142,
+        41
+       ],
+       [
+        23055,
+        44,
+        88
+       ],
+       [
+        23060,
+        99,
+        18
+       ],
+       [
+        23065,
+        183,
+        93
+       ],
+       [
+        23070,
+        34,
+        7
+       ]
+      ],
+      "gc": {
+       "size": 3.6,
+       "size_p": 84,
+       "share": 0.22,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.94,
+       "thin": false,
+       "d": 292,
+       "v": 1354,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:05",
+      "s": 36300,
+      "o": 23049.0,
+      "h": 23077,
+      "l": 23054.8,
+      "c": 23074.8,
+      "filled": true,
+      "vol": 727,
+      "delta": 81,
+      "cells": [
+       [
+        23055,
+        0,
+        38
+       ],
+       [
+        23060,
+        24,
+        45
+       ],
+       [
+        23065,
+        89,
+        104
+       ],
+       [
+        23070,
+        193,
+        135
+       ],
+       [
+        23075,
+        98,
+        1
+       ]
+      ],
+      "gc": {
+       "size": 1.0,
+       "size_p": 50,
+       "share": 0.11,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.1,
+       "thin": false,
+       "d": 81,
+       "v": 727,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:10",
+      "s": 36600,
+      "o": 23070.1,
+      "h": 23104,
+      "l": 23057.5,
+      "c": 23101.0,
+      "filled": true,
+      "vol": 1472,
+      "delta": 928,
+      "cells": [
+       [
+        23060,
+        0,
+        23
+       ],
+       [
+        23065,
+        19,
+        6
+       ],
+       [
+        23070,
+        81,
+        23
+       ],
+       [
+        23075,
+        127,
+        141
+       ],
+       [
+        23080,
+        142,
+        39
+       ],
+       [
+        23085,
+        127,
+        28
+       ],
+       [
+        23095,
+        0,
+        12
+       ],
+       [
+        23100,
+        704,
+        0
+       ],
+       [
+        23105,
+        0,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 11.46,
+       "size_p": 98,
+       "share": 0.63,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.31,
+       "thin": false,
+       "d": 928,
+       "v": 1472,
+       "dir": 1,
+       "state": "PUSH",
+       "why": []
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:15",
+      "s": 36900,
+      "o": 23100.9,
+      "h": 23154.6,
+      "l": 23095.6,
+      "c": 23131.0,
+      "filled": true,
+      "vol": 2817,
+      "delta": 559,
+      "cells": [
+       [
+        23095,
+        0,
+        12
+       ],
+       [
+        23100,
+        32,
+        7
+       ],
+       [
+        23105,
+        70,
+        205
+       ],
+       [
+        23110,
+        211,
+        120
+       ],
+       [
+        23115,
+        135,
+        57
+       ],
+       [
+        23120,
+        105,
+        45
+       ],
+       [
+        23125,
+        208,
+        0
+       ],
+       [
+        23130,
+        18,
+        98
+       ],
+       [
+        23135,
+        95,
+        201
+       ],
+       [
+        23140,
+        573,
+        72
+       ],
+       [
+        23145,
+        77,
+        177
+       ],
+       [
+        23150,
+        164,
+        135
+       ],
+       [
+        23155,
+        0,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 6.99,
+       "size_p": 95,
+       "share": 0.2,
+       "rv12": 2.98,
+       "rv12_p": 91,
+       "R": 1.34,
+       "thin": false,
+       "d": 559,
+       "v": 2817,
+       "dir": 1,
+       "state": "PUSH",
+       "why": []
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:20",
+      "s": 37200,
+      "o": 23133.4,
+      "h": 23149.9,
+      "l": 23125.1,
+      "c": 23145.0,
+      "filled": true,
+      "vol": 951,
+      "delta": 35,
+      "cells": [
+       [
+        23125,
+        10,
+        49
+       ],
+       [
+        23130,
+        20,
+        51
+       ],
+       [
+        23135,
+        86,
+        66
+       ],
+       [
+        23140,
+        92,
+        194
+       ],
+       [
+        23145,
+        224,
+        98
+       ],
+       [
+        23150,
+        61,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 0.44,
+       "size_p": 27,
+       "share": 0.04,
+       "rv12": 1.0,
+       "rv12_p": 52,
+       "R": 0.52,
+       "thin": false,
+       "d": 35,
+       "v": 951,
+       "dir": 1,
+       "state": "noise",
+       "why": []
+      },
+      "ux": null,
+      "tint": null,
+      "tint_src": null
+     }
+    ],
+    "lo": 22908.1,
+    "hi": 23154.6,
+    "zones": [
+     {
+      "t": "10:15",
+      "bands": [
+       [
+        23071.86646757371,
+        23131.999191399827
+       ]
+      ]
+     },
+     {
+      "t": "10:20",
+      "bands": [
+       [
+        23096.008706258464,
+        23165.58403941313
+       ]
+      ]
+     }
+    ],
+    "khel": "RIDE",
+    "khel_dir": 1,
+    "edge_ticks": [],
+    "edge_note": null,
+    "vwap": 23026.4,
+    "sig": 69.6
+   },
+   "marks": [
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 34500,
+     "t": "09:35",
+     "p": 22915,
+     "size": 657,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 34800,
+     "rank": 92,
+     "rank_n": 63,
+     "sigma": 36.1,
+     "place": null,
+     "nearest": {
+      "name": "−2σ",
+      "p": 22901.0,
+      "dist": 14.0,
+      "tol": 9.0
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 92,
+      "R": 0.07,
+      "ux": "CLIMAX",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": false,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "no place within 0.25σ (nearest −2σ 14.0 pts, tol 9.0)"
+     ],
+     "chip": "KHAREEDAR NE ROKA ▲ · p92 · TIKA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 34500,
+     "t": "09:35",
+     "p": 22908.1,
+     "size": 656,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 34800,
+     "rank": 92,
+     "rank_n": 63,
+     "sigma": 36.1,
+     "place": {
+      "name": "−2σ",
+      "p": 22901.0,
+      "dist": 7.1,
+      "tol": 9.0
+     },
+     "nearest": {
+      "name": "−2σ",
+      "p": 22901.0,
+      "dist": 7.1,
+      "tol": 9.0
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 92,
+      "R": 0.07,
+      "ux": "CLIMAX",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": true,
+     "why_not": [],
+     "chip": "KHAREEDAR NE ROKA ▲ · p92 · TIKA",
+     "chip_shown": true
+    },
+    {
+     "src": "ofd log",
+     "kind": "trap",
+     "s": 34800,
+     "t": "09:40",
+     "p": 22915,
+     "size": 657,
+     "w": 1,
+     "logged_side": -1,
+     "engine_at_T": true,
+     "t_close": 35100,
+     "rank": 100,
+     "rank_n": 32,
+     "sigma": 34.6,
+     "place": null,
+     "nearest": {
+      "name": "−2σ",
+      "p": 22902.5,
+      "dist": 12.5,
+      "tol": 8.7
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 73,
+      "R": 1.46,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": false,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "no place within 0.25σ (nearest −2σ 12.5 pts, tol 8.7)",
+      "bar flow no read"
+     ],
+     "chip": "BECHNE WALE PHANSE ▲ · p100 · TIKA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "vacuum",
+     "s": 33600,
+     "t": "09:20",
+     "p": 22996.7,
+     "size": 964,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": false,
+     "t_close": 33900,
+     "rank": 90,
+     "rank_n": 21,
+     "sigma": 26.6,
+     "place": {
+      "name": "KAL CLOSE",
+      "p": 22998.8,
+      "dist": 2.1,
+      "tol": 6.7
+     },
+     "nearest": {
+      "name": "KAL CLOSE",
+      "p": 22998.8,
+      "dist": 2.1,
+      "tol": 6.7
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 6,
+      "R": 0.23,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TOOTA",
+     "broke_at": "09:27",
+     "rules": {
+      "kind_drawable": false,
+      "big": true,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "vacuum: never drawn"
+     ],
+     "chip": "KHALI ▲ · p90 · TOOTA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "initiative",
+     "s": 33900,
+     "t": "09:25",
+     "p": 22992,
+     "size": 241,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": false,
+     "t_close": 34200,
+     "rank": 35,
+     "rank_n": 56,
+     "sigma": 28.5,
+     "place": {
+      "name": "VWAP",
+      "p": 22996.8,
+      "dist": 4.8,
+      "tol": 7.1
+     },
+     "nearest": {
+      "name": "VWAP",
+      "p": 22996.8,
+      "dist": 4.8,
+      "tol": 7.1
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": -1,
+      "size_p": 66,
+      "R": 1.11,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:00",
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "initiative: not a drawn kind"
+     ],
+     "chip": "PEHAL ▼ · p35 · TOOTA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 36000,
+     "t": "10:00",
+     "p": 23060,
+     "size": 99,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": true,
+     "t_close": 36300,
+     "rank": 9,
+     "rank_n": 63,
+     "sigma": 36.4,
+     "place": {
+      "name": "+2σ",
+      "p": 23052.0,
+      "dist": 8.0,
+      "tol": 9.1
+     },
+     "nearest": {
+      "name": "+2σ",
+      "p": 23052.0,
+      "dist": 8.0,
+      "tol": 9.1
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 84,
+      "R": 0.94,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:06",
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p9 < p90 (N=63)",
+      "bar flow no read"
+     ],
+     "chip": "BECHNE WALE NE ROKA ▼ · p9 · TOOTA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 36900,
+     "t": "10:15",
+     "p": 23140,
+     "size": 573,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": true,
+     "t_close": 37200,
+     "rank": 88,
+     "rank_n": 63,
+     "sigma": 60.1,
+     "place": {
+      "name": "+2σ",
+      "p": 23132.0,
+      "dist": 8.0,
+      "tol": 15.0
+     },
+     "nearest": {
+      "name": "+2σ",
+      "p": 23132.0,
+      "dist": 8.0,
+      "tol": 15.0
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "PUSH",
+      "gc_dir": 1,
+      "size_p": 95,
+      "R": 1.34,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p88 < p90 (N=63)"
+     ],
+     "chip": "BECHNE WALE NE ROKA ▼ · p88 · TIKA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 36900,
+     "t": "10:15",
+     "p": 23125,
+     "size": 208,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": false,
+     "t_close": 37200,
+     "rank": 36,
+     "rank_n": 63,
+     "sigma": 60.1,
+     "place": {
+      "name": "+2σ",
+      "p": 23132.0,
+      "dist": 7.0,
+      "tol": 15.0
+     },
+     "nearest": {
+      "name": "+2σ",
+      "p": 23132.0,
+      "dist": 7.0,
+      "tol": 15.0
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "PUSH",
+      "gc_dir": 1,
+      "size_p": 95,
+      "R": 1.34,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:21",
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p36 < p90 (N=63)"
+     ],
+     "chip": "BECHNE WALE NE ROKA ▼ · p36 · TOOTA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "climax",
+     "s": 36900,
+     "t": "10:15",
+     "p": 23095.6,
+     "size": 2817,
+     "w": 0,
+     "logged_side": 0,
+     "engine_at_T": false,
+     "t_close": 37200,
+     "rank": 100,
+     "rank_n": 16,
+     "sigma": 60.1,
+     "place": {
+      "name": "KAL HIGH",
+      "p": 23095.0,
+      "dist": 0.6,
+      "tol": 15.0
+     },
+     "nearest": {
+      "name": "KAL HIGH",
+      "p": 23095.0,
+      "dist": 0.6,
+      "tol": 15.0
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "PUSH",
+      "gc_dir": 1,
+      "size_p": 95,
+      "R": 1.34,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": null,
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": false,
+      "big": true,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "climax mark: dropped (bar tint instead)"
+     ],
+     "chip": "CLIMAX · p100 · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "trap",
+     "s": 37200,
+     "t": "10:20",
+     "p": 23140,
+     "size": 573,
+     "w": -1,
+     "logged_side": 1,
+     "engine_at_T": false,
+     "t_close": 37500,
+     "rank": 96,
+     "rank_n": 32,
+     "sigma": 69.6,
+     "place": null,
+     "nearest": {
+      "name": "+2σ",
+      "p": 23165.6,
+      "dist": 25.6,
+      "tol": 17.4
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "noise",
+      "gc_dir": 1,
+      "size_p": 27,
+      "R": 0.52,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": false,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "no place within 0.25σ (nearest +2σ 25.6 pts, tol 17.4)",
+      "bar flow noise"
+     ],
+     "chip": "KHARIDNE WALE PHANSE ▼ · p96 · TIKA · GC only"
+    },
+    {
+     "src": "decoder (node, bars <= T)",
+     "kind": "E5",
+     "s": 36300,
+     "t": "10:05",
+     "p": 23077,
+     "size": null,
+     "w": 1,
+     "unranked": true,
+     "t_close": 36600,
+     "rank": null,
+     "rank_n": 0,
+     "sigma": 42.6,
+     "place": {
+      "name": "+2σ",
+      "p": 23072.7,
+      "dist": 4.3,
+      "tol": 10.7
+     },
+     "nearest": {
+      "name": "+2σ",
+      "p": 23072.7,
+      "dist": 4.3,
+      "tol": 10.7
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 50,
+      "R": 1.1,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "E5: not a drawn kind"
+     ],
+     "chip": "E5 ▲ · TIKA · GC only"
+    },
+    {
+     "src": "decoder (node, bars <= T)",
+     "kind": "E1",
+     "s": 36600,
+     "t": "10:10",
+     "p": 23100,
+     "size": 606,
+     "w": 1,
+     "t_close": 36900,
+     "rank": 100,
+     "rank_n": 6,
+     "sigma": 50.5,
+     "place": {
+      "name": "+2σ",
+      "p": 23099.9,
+      "dist": 0.1,
+      "tol": 12.6
+     },
+     "nearest": {
+      "name": "+2σ",
+      "p": 23099.9,
+      "dist": 0.1,
+      "tol": 12.6
+     },
+     "place_notes": [
+      "likhna strike ? (basis +6 implausible (other days +53..+89))"
+     ],
+     "flow": {
+      "gc": "PUSH",
+      "gc_dir": 1,
+      "size_p": 98,
+      "R": 1.31,
+      "ux": null,
+      "tag": "GC only"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": true,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": true,
+     "why_not": [],
+     "chip": "BADA KHARIDAR 606 @23,100 · p100 · TIKA · GC only",
+     "chip_shown": true
+    }
+   ],
+   "lines": [
+    {
+     "kind": "value",
+     "p": 23111.0,
+     "spot": null,
+     "chip": "VAH aaj",
+     "rule": "nearest real level below price",
+     "pri": 4,
+     "drawn": true
+    }
+   ],
+   "panel": {
+    "head": {
+     "idx": "NIFTY",
+     "khel": "RIDE ▲",
+     "size": "ADHA",
+     "prem": "PREM 2.98 KHARIDO",
+     "fut": 23145.0,
+     "spot": null,
+     "T": "10:25",
+     "day": "2026-10-16",
+     "word": "LEAN",
+     "dir": 1,
+     "since": "10:20"
+    },
+    "din": {
+     "A": -0.04,
+     "absent": "dono likh rahe",
+     "cls": "BOTH_WRITE",
+     "ce": 32559,
+     "pe": 35282,
+     "crosses": 1,
+     "fuel": "naye long",
+     "oi_pct": 0.03,
+     "px": 87
+    },
+    "abhi": {
+     "t": "10:20",
+     "gc": "noise",
+     "dir": 1,
+     "size_p": 27,
+     "R": 0.52,
+     "rv12": 1.0,
+     "ux": null,
+     "ux_dir": null,
+     "agree": "GC only"
+    },
+    "sirf": [
+     {
+      "t": "10:20",
+      "ev": "KHARIDNE WALE PHANSE ▼",
+      "rank": 96,
+      "status": "TIKA",
+      "drawn": false,
+      "tag": "GC only",
+      "n": 1
+     },
+     {
+      "t": "10:15",
+      "ev": "BECHNE WALE NE ROKA ▼",
+      "rank": 88,
+      "status": "TIKA",
+      "drawn": false,
+      "tag": "GC only",
+      "n": 1
+     },
+     {
+      "t": "10:10",
+      "ev": "BADA KHARIDAR 606 @23,100",
+      "rank": 100,
+      "status": "TIKA",
+      "drawn": true,
+      "tag": "GC only",
+      "n": 1
+     },
+     {
+      "t": "09:40",
+      "ev": "BECHNE WALE PHANSE ▲",
+      "rank": 100,
+      "status": "TIKA",
+      "drawn": false,
+      "tag": "GC+UX ✓",
+      "n": 1
+     },
+     {
+      "t": "09:35",
+      "ev": "KHAREEDAR NE ROKA ▲",
+      "rank": 92,
+      "status": "TIKA",
+      "drawn": true,
+      "tag": "GC+UX ✓",
+      "n": 2
+     }
+    ],
+    "baaki": 6,
+    "plan": [
+     "BUY chhota · 3m low ≤ +1σ 23,096f|?s",
+     "close upar, Δ+ · KILL VWAP 23,026f|?s",
+     "T1 +2σ 23,166f|?s"
+    ],
+    "fold": null,
+    "entry_rows": [],
+    "prem": {
+     "moved": 162.2,
+     "priced": 54.5,
+     "ratio": 2.98,
+     "iv": 0.1321,
+     "iv_at": "09:48",
+     "call": "KHARIDO"
+    },
+    "cov": [
+     "UX 09:48 se band · GC only",
+     "READ 09:48-10:25: chain REST, flow/price GC [I]",
+     "basis ? (+6, normal +53..+89) · spot ?",
+     "PREM ka IV 09:48 ka [I]",
+     "FLIP 23,000s · fut ? (basis)",
+     "15 Oct ka footprint nahi · HVN/LVN ?",
+     "GC o/c 8 bars 3m fut se [I]",
+     "likhna strike ? (09:45 se pehle) · 09:35 marks",
+     "likhna strike ? (basis) · 09:40,10:10,10:20 marks"
+    ],
+    "text": {
+     "head": {
+      "idx": "NIFTY",
+      "khel": "RIDE ▲",
+      "size": "ADHA",
+      "prem": "PREM 2.98 KHARIDO",
+      "px": "23,145f | ?s",
+      "T": "10:25",
+      "day": "16 Oct",
+      "word": "READ LEAN ▲ · 10:20 se [I]"
+     },
+     "din": [
+      "A -0.04 · dono likh rahe",
+      "VWAP cross 1 · FUEL naye long",
+      "fut OI +0.03% · px +87"
+     ],
+     "abhi": [
+      "FLOW noise · p27 · GC only",
+      "10:20 bar · R 0.52 · RVOL 1.0"
+     ],
+     "sirf": [
+      {
+       "t": "10:20",
+       "ev": "KHARIDNE WALE PHANSE ▼",
+       "rank": "p96",
+       "status": "TIKA",
+       "chart": false,
+       "tag": "GC only"
+      },
+      {
+       "t": "10:15",
+       "ev": "BECHNE WALE NE ROKA ▼",
+       "rank": "p88",
+       "status": "TIKA",
+       "chart": false,
+       "tag": "GC only"
+      },
+      {
+       "t": "10:10",
+       "ev": "BADA KHARIDAR 606 @23,100",
+       "rank": "p100",
+       "status": "TIKA",
+       "chart": true,
+       "tag": "GC only"
+      },
+      {
+       "t": "09:40",
+       "ev": "BECHNE WALE PHANSE ▲",
+       "rank": "p100",
+       "status": "TIKA",
+       "chart": false,
+       "tag": "GC+UX ✓"
+      }
+     ],
+     "baaki": "+1 bade upar · baaki 6 chhote · noise",
+     "plan": [
+      "BUY chhota · 3m low ≤ +1σ 23,096f|?s",
+      "close upar, Δ+ · KILL VWAP 23,026f|?s",
+      "T1 +2σ 23,166f|?s"
+     ],
+     "cov": [
+      "UX 09:48 se band · GC only",
+      "READ 09:48-10:25: chain REST, flow/price GC [I]",
+      "basis ? (+6, normal +53..+89) · spot ?",
+      "PREM ka IV 09:48 ka [I]",
+      "FLIP 23,000s · fut ? (basis)",
+      "15 Oct ka footprint nahi · HVN/LVN ?",
+      "GC o/c 8 bars 3m fut se [I]",
+      "likhna strike ? (09:45 se pehle) · 09:35 marks",
+      "likhna strike ? (basis) · 09:40,10:10,10:20 marks"
+     ],
+     "count": "Aaj ka extension 5 (4 glyph · 1 line) → naya 3 (2 glyph · 1 line) · +2 tint"
+    }
+   },
+   "counts": {
+    "before": {
+     "glyphs": 4,
+     "lines": 1,
+     "chips": 5,
+     "objects": 5
+    },
+    "after": {
+     "glyphs": 2,
+     "lines": 1,
+     "chips": 3,
+     "tints": 2,
+     "objects": 3
+    }
+   },
+   "before": {
+    "glyphs": [
+     {
+      "src": "decoder",
+      "kind": "E5",
+      "time": "10:05",
+      "p": 23077,
+      "side": 1,
+      "lots": null,
+      "chip": "KHULA upar · 23,077 · wapas aaya",
+      "state": "CONFIRMED"
+     },
+     {
+      "src": "decoder",
+      "kind": "E1",
+      "time": "10:10",
+      "p": 23100,
+      "side": 1,
+      "lots": 606,
+      "chip": "BADA BUYER 39K @23,100 · ek haath · buyer ka level hold · 10:20",
+      "state": "CONFIRMED"
+     },
+     {
+      "src": "board",
+      "kind": "P",
+      "time": "09:40",
+      "p": 22915,
+      "side": 1,
+      "lots": 657
+     },
+     {
+      "src": "board",
+      "kind": "X",
+      "time": "10:05",
+      "p": 23060,
+      "side": -1
+     }
+    ],
+    "lines": [
+     {
+      "cls": 1,
+      "p": 23140,
+      "why": "wall"
+     }
+    ],
+    "marks_engine_at_T": [
+     {
+      "t": 1792122900000,
+      "time": "09:25",
+      "kind": "exhaustion",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22945.6,
+      "size": 241
+     },
+     {
+      "t": 1792123500000,
+      "time": "09:35",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22915,
+      "size": 657
+     },
+     {
+      "t": 1792123500000,
+      "time": "09:35",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22908.1,
+      "size": 656
+     },
+     {
+      "t": 1792123800000,
+      "time": "09:40",
+      "kind": "trap",
+      "side": 1,
+      "logged_side": -1,
+      "p": 22915,
+      "size": 657
+     },
+     {
+      "t": 1792125000000,
+      "time": "10:00",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 23030,
+      "size": 107
+     },
+     {
+      "t": 1792125000000,
+      "time": "10:00",
+      "kind": "absorption",
+      "side": -1,
+      "logged_side": -1,
+      "p": 23060,
+      "size": 99
+     },
+     {
+      "t": 1792125300000,
+      "time": "10:05",
+      "kind": "exhaustion",
+      "side": -1,
+      "logged_side": -1,
+      "p": 23077,
+      "size": 81
+     },
+     {
+      "t": 1792125900000,
+      "time": "10:15",
+      "kind": "absorption",
+      "side": -1,
+      "logged_side": -1,
+      "p": 23140,
+      "size": 573
+     },
+     {
+      "t": 1792125900000,
+      "time": "10:15",
+      "kind": "climax",
+      "side": 0,
+      "logged_side": 0,
+      "p": 23154.6,
+      "size": 2817
+     }
+    ]
+   }
+  },
+  {
+   "id": "F3",
+   "day": "2026-10-12",
+   "T": "10:30",
+   "why": "down day; buyer marks at 22,500-22,525 later failed",
+   "window": {
+    "start": "09:15",
+    "end": "10:30",
+    "bars": 15
+   },
+   "checks": {
+    "index_vs_gc": {
+     "windows": 5,
+     "max_px_diff": 8.0,
+     "max_vol_diff": 0.2,
+     "agree": false,
+     "rows": [
+      {
+       "w": "09:15",
+       "ix_hl": [
+        22720.0,
+        22575.0
+       ],
+       "gc_hl": [
+        22719,
+        22583
+       ],
+       "ix_vol": 4588,
+       "gc_vol": 4588
+      },
+      {
+       "w": "09:30",
+       "ix_hl": [
+        22645.0,
+        22558.4
+       ],
+       "gc_hl": [
+        22645,
+        22559.7
+       ],
+       "ix_vol": 2724,
+       "gc_vol": 2724
+      },
+      {
+       "w": "09:45",
+       "ix_hl": [
+        22589.5,
+        22521.1
+       ],
+       "gc_hl": [
+        22589.4,
+        22521.1
+       ],
+       "ix_vol": 1772,
+       "gc_vol": 1772
+      },
+      {
+       "w": "10:00",
+       "ix_hl": [
+        22590.7,
+        22530.0
+       ],
+       "gc_hl": [
+        22587.6,
+        22530
+       ],
+       "ix_vol": 1078,
+       "gc_vol": 1076
+      },
+      {
+       "w": "10:15",
+       "ix_hl": [
+        22554.1,
+        22508.4
+       ],
+       "gc_hl": [
+        22553.2,
+        22510
+       ],
+       "ix_vol": 1768,
+       "gc_vol": 1770
+      }
+     ]
+    },
+    "vwap": {
+     "ix_vwap": 22599.1,
+     "gc_vwap": 22595.4,
+     "ix_sig": 54.6,
+     "gc_sig": 50.7,
+     "d_vwap": 3.6,
+     "d_vwap_sig": 0.07,
+     "sig_ratio": 0.93,
+     "agree": true
+    },
+    "band_source": "index_series (3m fut)",
+    "basis": {
+     "used": 46.1,
+     "measured": 46.1,
+     "why": null
+    },
+    "flow_ref": {
+     "gc_days": 16,
+     "ux_days": 11,
+     "gc_th": {
+      "size": {
+       "70": 1.894736842105263,
+       "90": 4.5576923076923075
+      },
+      "share": {
+       "70": 0.2688821752265861,
+       "90": 0.4319526627218935
+      },
+      "rv12": {
+       "70": 1.4018264840182648,
+       "90": 2.727954971857411
+      }
+     },
+     "ux_th": {
+      "size": {
+       "70": 1.8073654390934843,
+       "90": 3.9302325581395348
+      },
+      "share": {
+       "70": 0.36134453781512604,
+       "90": 0.5272244355909694
+      },
+      "rv12": {
+       "70": 1.4048140043763677,
+       "90": 2.461215932914046
+      }
+     }
+    },
+    "fresh_ref": {
+     "days": [
+      "2026-09-25",
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09"
+     ],
+     "n": 5846,
+     "p90": 2191.0
+    }
+   },
+   "read": {
+    "row": {
+     "t": "10:30",
+     "word": "LEAN",
+     "dir": -1,
+     "since": "09:50",
+     "agree": 2,
+     "spot": 22466.7,
+     "basis": 49.6,
+     "flip": 22600.0,
+     "targets": [
+      {
+       "k": 22450.0,
+       "oi": 11745,
+       "side": "PE"
+      },
+      {
+       "k": 22400.0,
+       "oi": 17279,
+       "side": "PE"
+      }
+     ],
+     "box": null,
+     "warn": [],
+     "writers": {
+      "cls": "BOTH_WRITE",
+      "vote": 0,
+      "A": 0.19,
+      "ce": 55027,
+      "pe": 37438,
+      "ce30": 9829,
+      "pe30": 1033,
+      "act": 0.992,
+      "why": null
+     },
+     "price": {
+      "vote": -1,
+      "word": "TREND ▼",
+      "raw": "TREND",
+      "dir": -1,
+      "why": null
+     },
+     "flow": {
+      "vote": -1,
+      "cvd": -1289,
+      "buy": 4389,
+      "sell": 5678,
+      "vol": 10067,
+      "gc": null,
+      "why": null
+     }
+    },
+    "events": [
+     {
+      "t": "09:45",
+      "kind": "FORM",
+      "dir": 0,
+      "tag": "I",
+      "text": "RANGE bana",
+      "en": "the read formed"
+     },
+     {
+      "t": "09:50",
+      "kind": "BREAK",
+      "dir": 0,
+      "tag": "I",
+      "text": "RANGE khatam · LEAN ▼ bana",
+      "en": "the read broke"
+     },
+     {
+      "t": "09:50",
+      "kind": "FORM",
+      "dir": -1,
+      "tag": "I",
+      "text": "LEAN ▼ bana · FLIP 22,600",
+      "en": "the read formed"
+     }
+    ],
+    "patched": []
+   },
+   "chart": {
+    "bars": [
+     {
+      "t": "09:15",
+      "s": 33300,
+      "o": 22665,
+      "h": 22719,
+      "l": 22653.5,
+      "c": 22665,
+      "filled": false,
+      "vol": 2339,
+      "delta": 537,
+      "cells": [
+       [
+        22655,
+        2,
+        43
+       ],
+       [
+        22660,
+        31,
+        4
+       ],
+       [
+        22665,
+        174,
+        21
+       ],
+       [
+        22670,
+        27,
+        12
+       ],
+       [
+        22675,
+        15,
+        4
+       ],
+       [
+        22680,
+        18,
+        55
+       ],
+       [
+        22685,
+        4,
+        140
+       ],
+       [
+        22690,
+        441,
+        124
+       ],
+       [
+        22695,
+        117,
+        132
+       ],
+       [
+        22700,
+        322,
+        299
+       ],
+       [
+        22705,
+        138,
+        54
+       ],
+       [
+        22710,
+        110,
+        13
+       ],
+       [
+        22715,
+        15,
+        0
+       ],
+       [
+        22720,
+        24,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 3.86,
+       "size_p": 86,
+       "share": 0.23,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.0,
+       "thin": false,
+       "d": 537,
+       "v": 2339,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:20",
+      "s": 33600,
+      "o": 22664.6,
+      "h": 22675,
+      "l": 22583,
+      "c": 22593.9,
+      "filled": false,
+      "vol": 1281,
+      "delta": -253,
+      "cells": [
+       [
+        22585,
+        35,
+        40
+       ],
+       [
+        22590,
+        0,
+        40
+       ],
+       [
+        22595,
+        44,
+        117
+       ],
+       [
+        22600,
+        99,
+        104
+       ],
+       [
+        22605,
+        15,
+        24
+       ],
+       [
+        22610,
+        25,
+        72
+       ],
+       [
+        22615,
+        20,
+        0
+       ],
+       [
+        22620,
+        0,
+        20
+       ],
+       [
+        22625,
+        0,
+        33
+       ],
+       [
+        22630,
+        0,
+        12
+       ],
+       [
+        22635,
+        25,
+        17
+       ],
+       [
+        22640,
+        1,
+        41
+       ],
+       [
+        22645,
+        15,
+        118
+       ],
+       [
+        22650,
+        1,
+        0
+       ],
+       [
+        22655,
+        28,
+        39
+       ],
+       [
+        22660,
+        31,
+        15
+       ],
+       [
+        22665,
+        67,
+        69
+       ],
+       [
+        22670,
+        82,
+        6
+       ],
+       [
+        22675,
+        26,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 1.82,
+       "size_p": 69,
+       "share": 0.2,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 2.03,
+       "thin": false,
+       "d": -253,
+       "v": 1281,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:25",
+      "s": 33900,
+      "o": 22591,
+      "h": 22640,
+      "l": 22586.5,
+      "c": 22639.5,
+      "filled": false,
+      "vol": 968,
+      "delta": 8,
+      "cells": [
+       [
+        22585,
+        0,
+        17
+       ],
+       [
+        22590,
+        79,
+        73
+       ],
+       [
+        22595,
+        5,
+        34
+       ],
+       [
+        22600,
+        55,
+        5
+       ],
+       [
+        22605,
+        12,
+        69
+       ],
+       [
+        22610,
+        0,
+        50
+       ],
+       [
+        22615,
+        60,
+        45
+       ],
+       [
+        22620,
+        138,
+        68
+       ],
+       [
+        22625,
+        12,
+        10
+       ],
+       [
+        22630,
+        73,
+        62
+       ],
+       [
+        22635,
+        39,
+        0
+       ],
+       [
+        22640,
+        15,
+        47
+       ]
+      ],
+      "gc": {
+       "size": 0.06,
+       "size_p": 3,
+       "share": 0.01,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.39,
+       "thin": false,
+       "d": 8,
+       "v": 968,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:30",
+      "s": 34200,
+      "o": 22640.1,
+      "h": 22645,
+      "l": 22585,
+      "c": 22594.5,
+      "filled": false,
+      "vol": 956,
+      "delta": -164,
+      "cells": [
+       [
+        22585,
+        0,
+        31
+       ],
+       [
+        22590,
+        0,
+        32
+       ],
+       [
+        22595,
+        16,
+        18
+       ],
+       [
+        22600,
+        4,
+        71
+       ],
+       [
+        22605,
+        44,
+        104
+       ],
+       [
+        22610,
+        40,
+        23
+       ],
+       [
+        22615,
+        51,
+        27
+       ],
+       [
+        22620,
+        18,
+        90
+       ],
+       [
+        22625,
+        6,
+        6
+       ],
+       [
+        22630,
+        56,
+        34
+       ],
+       [
+        22635,
+        82,
+        103
+       ],
+       [
+        22640,
+        33,
+        21
+       ],
+       [
+        22645,
+        46,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 1.42,
+       "size_p": 60,
+       "share": 0.17,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.83,
+       "thin": false,
+       "d": -164,
+       "v": 956,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:35",
+      "s": 34500,
+      "o": 22594.4,
+      "h": 22600.8,
+      "l": 22570.1,
+      "c": 22576.8,
+      "filled": false,
+      "vol": 765,
+      "delta": -169,
+      "cells": [
+       [
+        22570,
+        10,
+        99
+       ],
+       [
+        22575,
+        24,
+        103
+       ],
+       [
+        22580,
+        47,
+        136
+       ],
+       [
+        22585,
+        49,
+        77
+       ],
+       [
+        22590,
+        101,
+        19
+       ],
+       [
+        22595,
+        30,
+        15
+       ],
+       [
+        22600,
+        37,
+        18
+       ]
+      ],
+      "gc": {
+       "size": 1.46,
+       "size_p": 61,
+       "share": 0.22,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.71,
+       "thin": false,
+       "d": -169,
+       "v": 765,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:40",
+      "s": 34800,
+      "o": 22576.5,
+      "h": 22589.9,
+      "l": 22559.7,
+      "c": 22568.9,
+      "filled": false,
+      "vol": 1003,
+      "delta": 49,
+      "cells": [
+       [
+        22560,
+        0,
+        56
+       ],
+       [
+        22565,
+        7,
+        26
+       ],
+       [
+        22570,
+        88,
+        184
+       ],
+       [
+        22575,
+        34,
+        88
+       ],
+       [
+        22580,
+        209,
+        112
+       ],
+       [
+        22585,
+        184,
+        11
+       ],
+       [
+        22590,
+        4,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 0.42,
+       "size_p": 26,
+       "share": 0.05,
+       "rv12": null,
+       "rv12_p": null,
+       "R": -0.3,
+       "thin": false,
+       "d": 49,
+       "v": 1003,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:45",
+      "s": 35100,
+      "o": 22562,
+      "h": 22589.4,
+      "l": 22560,
+      "c": 22575.6,
+      "filled": false,
+      "vol": 352,
+      "delta": 60,
+      "cells": [
+       [
+        22560,
+        5,
+        8
+       ],
+       [
+        22565,
+        15,
+        28
+       ],
+       [
+        22570,
+        65,
+        28
+       ],
+       [
+        22575,
+        37,
+        29
+       ],
+       [
+        22580,
+        22,
+        25
+       ],
+       [
+        22585,
+        18,
+        27
+       ],
+       [
+        22590,
+        44,
+        1
+       ]
+      ],
+      "gc": {
+       "size": 0.71,
+       "size_p": 39,
+       "share": 0.17,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.62,
+       "thin": false,
+       "d": 60,
+       "v": 352,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:50",
+      "s": 35400,
+      "o": 22573.2,
+      "h": 22575.2,
+      "l": 22521.1,
+      "c": 22527.5,
+      "filled": false,
+      "vol": 966,
+      "delta": -450,
+      "cells": [
+       [
+        22520,
+        0,
+        17
+       ],
+       [
+        22525,
+        22,
+        59
+       ],
+       [
+        22530,
+        34,
+        122
+       ],
+       [
+        22535,
+        20,
+        76
+       ],
+       [
+        22540,
+        32,
+        91
+       ],
+       [
+        22545,
+        37,
+        80
+       ],
+       [
+        22550,
+        0,
+        113
+       ],
+       [
+        22555,
+        37,
+        83
+       ],
+       [
+        22560,
+        32,
+        46
+       ],
+       [
+        22565,
+        21,
+        7
+       ],
+       [
+        22570,
+        16,
+        13
+       ],
+       [
+        22575,
+        7,
+        1
+       ]
+      ],
+      "gc": {
+       "size": 5.36,
+       "size_p": 92,
+       "share": 0.47,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 2.09,
+       "thin": false,
+       "d": -450,
+       "v": 966,
+       "dir": -1,
+       "state": "PUSH",
+       "why": []
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "09:55",
+      "s": 35700,
+      "o": 22527.3,
+      "h": 22576.9,
+      "l": 22527.3,
+      "c": 22566.2,
+      "filled": false,
+      "vol": 454,
+      "delta": 36,
+      "cells": [
+       [
+        22525,
+        0,
+        3
+       ],
+       [
+        22530,
+        19,
+        0
+       ],
+       [
+        22535,
+        15,
+        0
+       ],
+       [
+        22540,
+        12,
+        8
+       ],
+       [
+        22545,
+        20,
+        11
+       ],
+       [
+        22550,
+        33,
+        12
+       ],
+       [
+        22555,
+        4,
+        14
+       ],
+       [
+        22560,
+        13,
+        38
+       ],
+       [
+        22565,
+        33,
+        67
+       ],
+       [
+        22570,
+        25,
+        43
+       ],
+       [
+        22575,
+        71,
+        13
+       ]
+      ],
+      "gc": {
+       "size": 0.43,
+       "size_p": 27,
+       "share": 0.08,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 1.78,
+       "thin": false,
+       "d": 36,
+       "v": 454,
+       "dir": 1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:00",
+      "s": 36000,
+      "o": 22550.3,
+      "h": 22587.6,
+      "l": 22550.3,
+      "c": 22558.6,
+      "filled": false,
+      "vol": 402,
+      "delta": -60,
+      "cells": [
+       [
+        22550,
+        0,
+        27
+       ],
+       [
+        22555,
+        0,
+        2
+       ],
+       [
+        22560,
+        24,
+        34
+       ],
+       [
+        22565,
+        17,
+        3
+       ],
+       [
+        22570,
+        9,
+        26
+       ],
+       [
+        22575,
+        17,
+        33
+       ],
+       [
+        22580,
+        49,
+        48
+       ],
+       [
+        22585,
+        53,
+        58
+       ],
+       [
+        22590,
+        2,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 0.74,
+       "size_p": 40,
+       "share": 0.15,
+       "rv12": null,
+       "rv12_p": null,
+       "R": -0.36,
+       "thin": false,
+       "d": -60,
+       "v": 402,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:05",
+      "s": 36300,
+      "o": 22558.6,
+      "h": 22559.3,
+      "l": 22530,
+      "c": 22551.4,
+      "filled": false,
+      "vol": 343,
+      "delta": -99,
+      "cells": [
+       [
+        22530,
+        3,
+        25
+       ],
+       [
+        22535,
+        0,
+        2
+       ],
+       [
+        22540,
+        18,
+        55
+       ],
+       [
+        22545,
+        9,
+        54
+       ],
+       [
+        22550,
+        46,
+        63
+       ],
+       [
+        22555,
+        31,
+        17
+       ],
+       [
+        22560,
+        15,
+        5
+       ]
+      ],
+      "gc": {
+       "size": 1.22,
+       "size_p": 56,
+       "share": 0.29,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.31,
+       "thin": false,
+       "d": -99,
+       "v": 343,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:10",
+      "s": 36600,
+      "o": 22557.1,
+      "h": 22560,
+      "l": 22536,
+      "c": 22539.7,
+      "filled": false,
+      "vol": 331,
+      "delta": -57,
+      "cells": [
+       [
+        22535,
+        0,
+        4
+       ],
+       [
+        22540,
+        24,
+        63
+       ],
+       [
+        22545,
+        20,
+        75
+       ],
+       [
+        22550,
+        81,
+        40
+       ],
+       [
+        22555,
+        7,
+        11
+       ],
+       [
+        22560,
+        5,
+        1
+       ]
+      ],
+      "gc": {
+       "size": 0.7,
+       "size_p": 39,
+       "share": 0.17,
+       "rv12": null,
+       "rv12_p": null,
+       "R": 0.75,
+       "thin": false,
+       "d": -57,
+       "v": 331,
+       "dir": -1,
+       "state": "no read",
+       "why": [
+        "RVOL12 ? (fewer than 12 bars today)"
+       ]
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:15",
+      "s": 36900,
+      "o": 22539.7,
+      "h": 22547.7,
+      "l": 22520,
+      "c": 22543,
+      "filled": false,
+      "vol": 796,
+      "delta": -362,
+      "cells": [
+       [
+        22520,
+        0,
+        74
+       ],
+       [
+        22525,
+        52,
+        332
+       ],
+       [
+        22530,
+        27,
+        17
+       ],
+       [
+        22535,
+        29,
+        89
+       ],
+       [
+        22540,
+        71,
+        53
+       ],
+       [
+        22545,
+        36,
+        14
+       ],
+       [
+        22550,
+        2,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 4.96,
+       "size_p": 91,
+       "share": 0.45,
+       "rv12": 0.93,
+       "rv12_p": 45,
+       "R": -0.15,
+       "thin": false,
+       "d": -362,
+       "v": 796,
+       "dir": -1,
+       "state": "CLIMAX",
+       "why": []
+      },
+      "ux": "noise",
+      "tint": "CLIMAX",
+      "tint_src": "GC only"
+     },
+     {
+      "t": "10:20",
+      "s": 37200,
+      "o": 22540,
+      "h": 22553.2,
+      "l": 22523.6,
+      "c": 22550,
+      "filled": false,
+      "vol": 503,
+      "delta": 175,
+      "cells": [
+       [
+        22525,
+        0,
+        11
+       ],
+       [
+        22530,
+        10,
+        21
+       ],
+       [
+        22535,
+        10,
+        37
+       ],
+       [
+        22540,
+        207,
+        39
+       ],
+       [
+        22545,
+        52,
+        34
+       ],
+       [
+        22550,
+        55,
+        22
+       ],
+       [
+        22555,
+        5,
+        0
+       ]
+      ],
+      "gc": {
+       "size": 2.4,
+       "size_p": 76,
+       "share": 0.35,
+       "rv12": 0.64,
+       "rv12_p": 23,
+       "R": 0.46,
+       "thin": false,
+       "d": 175,
+       "v": 503,
+       "dir": 1,
+       "state": "no read",
+       "why": []
+      },
+      "ux": "no read",
+      "tint": null,
+      "tint_src": null
+     },
+     {
+      "t": "10:25",
+      "s": 37500,
+      "o": 22551.3,
+      "h": 22551.3,
+      "l": 22510,
+      "c": 22511,
+      "filled": false,
+      "vol": 471,
+      "delta": -109,
+      "cells": [
+       [
+        22510,
+        1,
+        152
+       ],
+       [
+        22515,
+        24,
+        1
+       ],
+       [
+        22520,
+        5,
+        11
+       ],
+       [
+        22525,
+        12,
+        30
+       ],
+       [
+        22530,
+        11,
+        20
+       ],
+       [
+        22535,
+        11,
+        34
+       ],
+       [
+        22540,
+        106,
+        16
+       ],
+       [
+        22545,
+        9,
+        23
+       ],
+       [
+        22550,
+        2,
+        3
+       ]
+      ],
+      "gc": {
+       "size": 1.49,
+       "size_p": 63,
+       "share": 0.23,
+       "rv12": 0.74,
+       "rv12_p": 32,
+       "R": 1.85,
+       "thin": false,
+       "d": -109,
+       "v": 471,
+       "dir": -1,
+       "state": "noise",
+       "why": []
+      },
+      "ux": "noise",
+      "tint": null,
+      "tint_src": null
+     }
+    ],
+    "lo": 22489.9,
+    "hi": 22719,
+    "zones": [
+     {
+      "t": "09:45",
+      "bands": [
+       [
+        22542.1742610915,
+        22586.270523418647
+       ]
+      ]
+     },
+     {
+      "t": "09:50",
+      "bands": [
+       [
+        22524.595930507647,
+        22573.15200541921
+       ]
+      ]
+     },
+     {
+      "t": "09:55",
+      "bands": [
+       [
+        22516.3059023288,
+        22566.588543047565
+       ]
+      ]
+     },
+     {
+      "t": "10:00",
+      "bands": [
+       [
+        22515.616552970758,
+        22565.552418715157
+       ]
+      ]
+     },
+     {
+      "t": "10:05",
+      "bands": [
+       [
+        22511.884286240263,
+        22562.46101632114
+       ]
+      ]
+     },
+     {
+      "t": "10:10",
+      "bands": [
+       [
+        22508.095892244,
+        22559.29898922375
+       ]
+      ]
+     },
+     {
+      "t": "10:15",
+      "bands": [
+       [
+        22505.498444988654,
+        22557.202223937325
+       ]
+      ]
+     },
+     {
+      "t": "10:20",
+      "bands": [
+       [
+        22495.027825787445,
+        22548.638969801443
+       ]
+      ]
+     },
+     {
+      "t": "10:25",
+      "bands": [
+       [
+        22489.856468573136,
+        22544.460789469576
+       ]
+      ]
+     }
+    ],
+    "khel": "RIDE",
+    "khel_dir": -1,
+    "edge_ticks": [
+     {
+      "p": 22350,
+      "vol": 189,
+      "kind": "LVN"
+     },
+     {
+      "p": 22355,
+      "vol": 0,
+      "kind": "LVN"
+     },
+     {
+      "p": 22360,
+      "vol": 75,
+      "kind": "LVN"
+     },
+     {
+      "p": 22365,
+      "vol": 26,
+      "kind": "LVN"
+     },
+     {
+      "p": 22460,
+      "vol": 177,
+      "kind": "LVN"
+     },
+     {
+      "p": 22485,
+      "vol": 173,
+      "kind": "LVN"
+     },
+     {
+      "p": 22540,
+      "vol": 2186,
+      "kind": "HVN"
+     },
+     {
+      "p": 22555,
+      "vol": 2200,
+      "kind": "HVN"
+     },
+     {
+      "p": 22570,
+      "vol": 2093,
+      "kind": "HVN"
+     },
+     {
+      "p": 22625,
+      "vol": 159,
+      "kind": "LVN"
+     },
+     {
+      "p": 22630,
+      "vol": 29,
+      "kind": "LVN"
+     }
+    ],
+    "edge_note": "09 Oct footprint 14:00 tak (adhoora)",
+    "vwap": 22599.1,
+    "sig": 54.6
+   },
+   "marks": [
+    {
+     "src": "ofd log",
+     "kind": "vacuum",
+     "s": 33900,
+     "t": "09:25",
+     "p": 22639.5,
+     "size": 968,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": false,
+     "t_close": 34200,
+     "rank": 94,
+     "rank_n": 18,
+     "sigma": 37.8,
+     "place": null,
+     "nearest": {
+      "name": "VWAP",
+      "p": 22655.5,
+      "dist": 16.0,
+      "tol": 9.4
+     },
+     "place_notes": [
+      "likhna strike ? (30-min window opens 09:45)"
+     ],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 3,
+      "R": 1.39,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TOOTA",
+     "broke_at": "09:33",
+     "rules": {
+      "kind_drawable": false,
+      "big": true,
+      "at_place": false,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "vacuum: never drawn"
+     ],
+     "chip": "KHALI ▲ · p94 · TOOTA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 34800,
+     "t": "09:40",
+     "p": 22585,
+     "size": 184,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": true,
+     "t_close": 35100,
+     "rank": 29,
+     "rank_n": 54,
+     "sigma": 43.8,
+     "place": {
+      "name": "−1σ",
+      "p": 22588.3,
+      "dist": 3.3,
+      "tol": 10.9
+     },
+     "nearest": {
+      "name": "−1σ",
+      "p": 22588.3,
+      "dist": 3.3,
+      "tol": 10.9
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 26,
+      "R": -0.3,
+      "ux": "no read",
+      "tag": "GC only"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p29 < p90 (N=54)",
+      "bar flow no read"
+     ],
+     "chip": "BECHNE WALE NE ROKA ▼ · p29 · TIKA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "exhaustion",
+     "s": 34800,
+     "t": "09:40",
+     "p": 22559.7,
+     "size": 0,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 35100,
+     "rank": 0,
+     "rank_n": 24,
+     "sigma": 43.8,
+     "place": {
+      "name": "22,500 CE likha",
+      "p": 22557.5,
+      "dist": 2.2,
+      "tol": 10.9
+     },
+     "nearest": {
+      "name": "22,500 CE likha",
+      "p": 22557.5,
+      "dist": 2.2,
+      "tol": 10.9
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 26,
+      "R": -0.3,
+      "ux": "no read",
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "09:54",
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "exhaustion: no chip (never on trend days)"
+     ],
+     "chip": "THAKAAN ▲ · p0 · TOOTA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "initiative",
+     "s": 35400,
+     "t": "09:50",
+     "p": 22573.2,
+     "size": 450,
+     "w": -1,
+     "logged_side": -1,
+     "engine_at_T": false,
+     "t_close": 35700,
+     "rank": 77,
+     "rank_n": 49,
+     "sigma": 48.6,
+     "place": {
+      "name": "−1σ",
+      "p": 22573.2,
+      "dist": 0.0,
+      "tol": 12.1
+     },
+     "nearest": {
+      "name": "−1σ",
+      "p": 22573.2,
+      "dist": 0.0,
+      "tol": 12.1
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "PUSH",
+      "gc_dir": -1,
+      "size_p": 92,
+      "R": 2.09,
+      "ux": "no read",
+      "tag": "GC only"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "initiative: not a drawn kind"
+     ],
+     "chip": "PEHAL ▼ · p77 · TIKA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "vacuum",
+     "s": 35700,
+     "t": "09:55",
+     "p": 22566.2,
+     "size": 454,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": false,
+     "t_close": 36000,
+     "rank": 61,
+     "rank_n": 18,
+     "sigma": 50.3,
+     "place": {
+      "name": "−1σ",
+      "p": 22566.6,
+      "dist": 0.4,
+      "tol": 12.6
+     },
+     "nearest": {
+      "name": "−1σ",
+      "p": 22566.6,
+      "dist": 0.4,
+      "tol": 12.6
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 27,
+      "R": 1.78,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:06",
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "vacuum: never drawn"
+     ],
+     "chip": "KHALI ▲ · p61 · TOOTA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 36900,
+     "t": "10:15",
+     "p": 22525,
+     "size": 406,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 37200,
+     "rank": 75,
+     "rank_n": 54,
+     "sigma": 51.7,
+     "place": null,
+     "nearest": {
+      "name": "−2σ",
+      "p": 22505.5,
+      "dist": 19.5,
+      "tol": 12.9
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 91,
+      "R": -0.15,
+      "ux": "noise",
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:30",
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": false,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p75 < p90 (N=54)",
+      "no place within 0.25σ (nearest −2σ 19.5 pts, tol 12.9)"
+     ],
+     "chip": "KHAREEDAR NE ROKA ▲ · p75 · TOOTA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "absorption",
+     "s": 36900,
+     "t": "10:15",
+     "p": 22520,
+     "size": 362,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 37200,
+     "rank": 72,
+     "rank_n": 54,
+     "sigma": 51.7,
+     "place": null,
+     "nearest": {
+      "name": "−2σ",
+      "p": 22505.5,
+      "dist": 14.5,
+      "tol": 12.9
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 91,
+      "R": -0.15,
+      "ux": "noise",
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:30",
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": false,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p72 < p90 (N=54)",
+      "no place within 0.25σ (nearest −2σ 14.5 pts, tol 12.9)"
+     ],
+     "chip": "KHAREEDAR NE ROKA ▲ · p72 · TOOTA · GC only"
+    },
+    {
+     "src": "ofd log",
+     "kind": "trap",
+     "s": 37200,
+     "t": "10:20",
+     "p": 22525,
+     "size": 406,
+     "w": 1,
+     "logged_side": -1,
+     "engine_at_T": true,
+     "t_close": 37500,
+     "rank": 79,
+     "rank_n": 29,
+     "sigma": 53.6,
+     "place": {
+      "name": "VAL aaj",
+      "p": 22533.7,
+      "dist": 8.7,
+      "tol": 13.4
+     },
+     "nearest": {
+      "name": "VAL aaj",
+      "p": 22533.7,
+      "dist": 8.7,
+      "tol": 13.4
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "no read",
+      "gc_dir": 1,
+      "size_p": 76,
+      "R": 0.46,
+      "ux": "no read",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:30",
+     "rules": {
+      "kind_drawable": true,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "rank p79 < p90 (N=29)",
+      "bar flow no read"
+     ],
+     "chip": "BECHNE WALE PHANSE ▲ · p79 · TOOTA"
+    },
+    {
+     "src": "ofd log",
+     "kind": "exhaustion",
+     "s": 37500,
+     "t": "10:25",
+     "p": 22510,
+     "size": 109,
+     "w": 1,
+     "logged_side": 1,
+     "engine_at_T": true,
+     "t_close": 37800,
+     "rank": 75,
+     "rank_n": 24,
+     "sigma": 54.6,
+     "place": {
+      "name": "VAL aaj",
+      "p": 22510.0,
+      "dist": 0.0,
+      "tol": 13.7
+     },
+     "nearest": {
+      "name": "VAL aaj",
+      "p": 22510.0,
+      "dist": 0.0,
+      "tol": 13.7
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "noise",
+      "gc_dir": -1,
+      "size_p": 63,
+      "R": 1.85,
+      "ux": "noise",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "exhaustion: no chip (never on trend days)"
+     ],
+     "chip": "THAKAAN ▲ · p75 · TIKA"
+    },
+    {
+     "src": "decoder (node, bars <= T)",
+     "kind": "E2",
+     "s": 35400,
+     "t": "09:50",
+     "p": 22521.1,
+     "size": 450,
+     "w": -1,
+     "unranked": true,
+     "t_close": 35700,
+     "rank": null,
+     "rank_n": 0,
+     "sigma": 48.6,
+     "place": {
+      "name": "−2σ",
+      "p": 22524.6,
+      "dist": 3.5,
+      "tol": 12.1
+     },
+     "nearest": {
+      "name": "−2σ",
+      "p": 22524.6,
+      "dist": 3.5,
+      "tol": 12.1
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "PUSH",
+      "gc_dir": -1,
+      "size_p": 92,
+      "R": 2.09,
+      "ux": "no read",
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "09:57",
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "E2: not a drawn kind"
+     ],
+     "chip": "E2 ▼ · TOOTA · GC only"
+    },
+    {
+     "src": "decoder (node, bars <= T)",
+     "kind": "E3",
+     "s": 36900,
+     "t": "10:15",
+     "p": 22520,
+     "size": 362,
+     "w": -1,
+     "unranked": true,
+     "t_close": 37200,
+     "rank": null,
+     "rank_n": 0,
+     "sigma": 51.7,
+     "place": null,
+     "nearest": {
+      "name": "−2σ",
+      "p": 22505.5,
+      "dist": 14.5,
+      "tol": 12.9
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "CLIMAX",
+      "gc_dir": -1,
+      "size_p": 91,
+      "R": -0.15,
+      "ux": "noise",
+      "tag": "GC only"
+     },
+     "status": "TOOTA",
+     "broke_at": "10:21",
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": false,
+      "flow_agrees": true
+     },
+     "drawn": false,
+     "why_not": [
+      "E3: not a drawn kind"
+     ],
+     "chip": "E3 ▼ · TOOTA · GC only"
+    },
+    {
+     "src": "decoder (node, bars <= T)",
+     "kind": "E5",
+     "s": 37500,
+     "t": "10:25",
+     "p": 22510,
+     "size": null,
+     "w": -1,
+     "unranked": true,
+     "t_close": 37800,
+     "rank": null,
+     "rank_n": 0,
+     "sigma": 54.6,
+     "place": {
+      "name": "VAL aaj",
+      "p": 22510.0,
+      "dist": 0.0,
+      "tol": 13.7
+     },
+     "nearest": {
+      "name": "VAL aaj",
+      "p": 22510.0,
+      "dist": 0.0,
+      "tol": 13.7
+     },
+     "place_notes": [],
+     "flow": {
+      "gc": "noise",
+      "gc_dir": -1,
+      "size_p": 63,
+      "R": 1.85,
+      "ux": "noise",
+      "tag": "GC+UX ✓"
+     },
+     "status": "TIKA",
+     "broke_at": null,
+     "rules": {
+      "kind_drawable": false,
+      "big": false,
+      "at_place": true,
+      "flow_agrees": false
+     },
+     "drawn": false,
+     "why_not": [
+      "E5: not a drawn kind"
+     ],
+     "chip": "E5 ▼ · TIKA"
+    }
+   ],
+   "lines": [
+    {
+     "kind": "kill",
+     "p": 22599.1,
+     "spot": 22553,
+     "chip": "KILL · 3m close upar VWAP",
+     "rule": "trade: stop = 3-min close beyond VWAP (value at T)",
+     "pri": 0,
+     "drawn": true
+    },
+    {
+     "kind": "target",
+     "p": 22489.9,
+     "spot": 22444,
+     "chip": "T1 · −2σ",
+     "rule": "trade: T1 = 2σ (value at T)",
+     "pri": 1,
+     "drawn": true
+    },
+    {
+     "kind": "entry",
+     "p": 22566.2,
+     "spot": 22520,
+     "chip": "ENTRY · SELL LEAN ▼",
+     "rule": "trade: entry at the trigger bar close 10:00",
+     "pri": 2,
+     "drawn": true
+    },
+    {
+     "kind": "flip",
+     "p": 22646.1,
+     "spot": 22600.0,
+     "chip": "FLIP · CE 22,600 likhne wale",
+     "rule": "READ FLIP strike (spot) + basis",
+     "pri": 3,
+     "drawn": true
+    },
+    {
+     "kind": "value",
+     "p": 22540.0,
+     "spot": 22494,
+     "chip": "POC aaj",
+     "rule": "nearest real level above price",
+     "pri": 4,
+     "drawn": true
+    },
+    {
+     "kind": "value",
+     "p": 22510.0,
+     "spot": 22464,
+     "chip": "VAL aaj",
+     "rule": "nearest real level below price",
+     "pri": 4,
+     "drawn": false
+    }
+   ],
+   "panel": {
+    "head": {
+     "idx": "NIFTY",
+     "khel": "RIDE ▼",
+     "size": "ADHA",
+     "prem": "PREM 0.73 koi call nahi",
+     "fut": 22511.0,
+     "spot": 22465,
+     "T": "10:30",
+     "day": "2026-10-12",
+     "word": "LEAN",
+     "dir": -1,
+     "since": "09:50"
+    },
+    "din": {
+     "A": 0.19,
+     "absent": "dono likh rahe",
+     "cls": "BOTH_WRITE",
+     "ce": 55027,
+     "pe": 37438,
+     "crosses": 0,
+     "fuel": "naye short",
+     "oi_pct": 0.43,
+     "px": -146
+    },
+    "abhi": {
+     "t": "10:25",
+     "gc": "noise",
+     "dir": -1,
+     "size_p": 63,
+     "R": 1.85,
+     "rv12": 0.74,
+     "ux": "noise",
+     "ux_dir": -1,
+     "agree": "GC+UX ✓"
+    },
+    "sirf": [
+     {
+      "t": "10:20",
+      "ev": "BECHNE WALE PHANSE ▲",
+      "rank": 79,
+      "status": "TOOTA",
+      "drawn": false,
+      "tag": "GC+UX ✓",
+      "n": 1
+     },
+     {
+      "t": "10:15",
+      "ev": "KHAREEDAR NE ROKA ▲",
+      "rank": 75,
+      "status": "TOOTA",
+      "drawn": false,
+      "tag": "GC only",
+      "n": 2
+     },
+     {
+      "t": "09:50",
+      "ev": "PEHAL ▼",
+      "rank": 77,
+      "status": "TIKA",
+      "drawn": false,
+      "tag": "GC only",
+      "n": 1
+     }
+    ],
+    "baaki": 8,
+    "plan": [],
+    "fold": {
+     "rows": [
+      {
+       "k": "ZONE",
+       "a": "-1.0σ",
+       "b": "-1.6σ",
+       "bad": false,
+       "why": "lane mein"
+      },
+      {
+       "k": "FLOW",
+       "a": "-354",
+       "b": "-296",
+       "rank": 46,
+       "bad": false,
+       "why": "15m delta, aaj ke 15m windows mein p46"
+      },
+      {
+       "k": "OI",
+       "a": "189.9L",
+       "b": "190.1L naye short",
+       "bad": false,
+       "rank": null,
+       "why": "OI rank bana nahi: against nahi gina"
+      },
+      {
+       "k": "VPIN",
+       "a": "0.25",
+       "b": "0.28 · p84 ▲",
+       "bad": true,
+       "why": "p70+ aur ulta side"
+      }
+     ],
+     "verdict": "WATCH",
+     "against": 1,
+     "entry": {
+      "d": -1,
+      "word": "LEAN",
+      "t": "10:00",
+      "sec": 36000,
+      "px": 22566.2,
+      "delta": -52,
+      "vwap": 22616.87118376633,
+      "sig": 50.282640718764014,
+      "t2_fut": 22466.023261610037,
+      "t2_why": "−3σ",
+      "t1": null
+     }
+    },
+    "entry_rows": [
+     {
+      "t": "10:00",
+      "what": "ENTRY",
+      "px": 22566.2,
+      "why": "LEAN ▼: high 22,578 >= −1σ 22,567, close < −1σ, 3m delta -52"
+     }
+    ],
+    "prem": {
+     "moved": 55.2,
+     "priced": 75.4,
+     "ratio": 0.73,
+     "iv": 0.1879,
+     "iv_at": "10:29",
+     "call": "koi call nahi"
+    },
+    "cov": [
+     "HVN/LVN: 09 Oct footprint 14:00 tak (adhoora)"
+    ],
+    "text": {
+     "head": {
+      "idx": "NIFTY",
+      "khel": "RIDE ▼",
+      "size": "ADHA",
+      "prem": "PREM 0.73 koi call nahi",
+      "px": "22,511f | 22,465s",
+      "T": "10:30",
+      "day": "12 Oct",
+      "word": "READ LEAN ▼ · 09:50 se"
+     },
+     "din": [
+      "A +0.19 · dono likh rahe",
+      "VWAP cross 0 · FUEL naye short",
+      "fut OI +0.43% · px -146"
+     ],
+     "abhi": [
+      "FLOW noise · p63 · GC+UX ✓",
+      "10:25 bar · R 1.85 · RVOL 0.74"
+     ],
+     "sirf": [
+      {
+       "t": "10:20",
+       "ev": "BECHNE WALE PHANSE ▲",
+       "rank": "p79",
+       "status": "TOOTA",
+       "chart": false,
+       "tag": "GC+UX ✓"
+      },
+      {
+       "t": "10:15",
+       "ev": "KHAREEDAR NE ROKA ▲ ×2",
+       "rank": "p75",
+       "status": "TOOTA",
+       "chart": false,
+       "tag": "GC only"
+      },
+      {
+       "t": "09:50",
+       "ev": "PEHAL ▼",
+       "rank": "p77",
+       "status": "TIKA",
+       "chart": false,
+       "tag": "GC only"
+      }
+     ],
+     "baaki": "baaki 8 chhote · noise",
+     "trade": {
+      "title": "SELL LEAN ▼ · 10:00 @22,566f|22,520s",
+      "rows": [
+       {
+        "k": "ZONE",
+        "a": "-1.0σ",
+        "b": "-1.6σ",
+        "bad": false,
+        "note": "theek"
+       },
+       {
+        "k": "FLOW",
+        "a": "-354",
+        "b": "-296",
+        "bad": false,
+        "note": "theek"
+       },
+       {
+        "k": "OI",
+        "a": "189.9L",
+        "b": "190.1L naye short",
+        "bad": false,
+        "note": "rank ?"
+       },
+       {
+        "k": "VPIN",
+        "a": "0.25",
+        "b": "0.28 · p84 ▲",
+        "bad": true,
+        "note": "ULTA"
+       }
+      ],
+      "verdict": "WATCH",
+      "why": "1 ulta",
+      "kill": "KILL 3m close > VWAP 22,599f|22,553s"
+     },
+     "cov": [
+      "HVN/LVN: 09 Oct footprint 14:00 tak (adhoora)"
+     ],
+     "count": "Aaj ka extension 7 (5 glyph · 2 line) → naya 5 (0 glyph · 5 line) · +1 tint"
+    }
+   },
+   "counts": {
+    "before": {
+     "glyphs": 5,
+     "lines": 2,
+     "chips": 6,
+     "objects": 7
+    },
+    "after": {
+     "glyphs": 0,
+     "lines": 5,
+     "chips": 5,
+     "tints": 1,
+     "objects": 5
+    }
+   },
+   "before": {
+    "glyphs": [
+     {
+      "src": "decoder",
+      "kind": "E2",
+      "time": "09:50",
+      "p": 22521.1,
+      "side": -1,
+      "lots": 450,
+      "chip": "PEHAL ▼ · rotation",
+      "state": "CONFIRMED"
+     },
+     {
+      "src": "decoder",
+      "kind": "E3",
+      "time": "10:15",
+      "p": 22520,
+      "side": -1,
+      "lots": 362,
+      "chip": "DABAAV ▼ · OI confirm baaki",
+      "state": "BAAKI"
+     },
+     {
+      "src": "decoder",
+      "kind": "E5",
+      "time": "10:25",
+      "p": 22510,
+      "side": -1,
+      "lots": null,
+      "chip": "KHULA neeche · 22,510",
+      "state": "BAAKI"
+     },
+     {
+      "src": "board",
+      "kind": "P",
+      "time": "10:20",
+      "p": 22525,
+      "side": 1,
+      "lots": 406
+     },
+     {
+      "src": "board",
+      "kind": "X",
+      "time": "10:25",
+      "p": 22525,
+      "side": 1
+     }
+    ],
+    "lines": [
+     {
+      "cls": 1,
+      "p": 22525,
+      "why": "wall"
+     },
+     {
+      "cls": 2,
+      "p": 22351,
+      "why": "Kal ka low"
+     }
+    ],
+    "marks_engine_at_T": [
+     {
+      "t": 1791778200000,
+      "time": "09:40",
+      "kind": "absorption",
+      "side": -1,
+      "logged_side": -1,
+      "p": 22585,
+      "size": 184
+     },
+     {
+      "t": 1791778200000,
+      "time": "09:40",
+      "kind": "exhaustion",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22559.7,
+      "size": 0
+     },
+     {
+      "t": 1791780300000,
+      "time": "10:15",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22525,
+      "size": 406
+     },
+     {
+      "t": 1791780300000,
+      "time": "10:15",
+      "kind": "absorption",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22520,
+      "size": 362
+     },
+     {
+      "t": 1791780600000,
+      "time": "10:20",
+      "kind": "trap",
+      "side": 1,
+      "logged_side": -1,
+      "p": 22525,
+      "size": 406
+     },
+     {
+      "t": 1791780900000,
+      "time": "10:25",
+      "kind": "exhaustion",
+      "side": 1,
+      "logged_side": 1,
+      "p": 22510,
+      "size": 109
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,200 @@
+# NOTEPAD: live observations and what the app lacks
+
+**Rules for this file:**
+- Claude appends to it during every live session and after every review. Nothing gets lost in chat.
+- Newest entries go at the top of each section.
+- Each gap carries a status: **OPEN** / **FIXING** / **FIXED (date)** / **WONTFIX (why)**.
+- A fix to a locked rule (§1i–§1n) is never made here. It becomes a new registration.
+
+---
+
+## A. What the app lacks (gaps found live or in review)
+
+| # | Found | Gap | Evidence | Proposed fix | Status |
+|---|---|---|---|---|---|
+| A1 | 22 Oct 12:25 | **DECODE legs start only at the session high or low.** A turn in the middle of the range is invisible until a new day extreme. | NIFTY read "▲ mila-jula 3/3" while a down-leg ran (long liquidation p96, CVD −1,051, PE lead −32, below VWAP) | Legs from swing highs and lows (zigzag, the same 50-pt / 0.5σ rule the panel research used), not only day extremes | FIXED (22 Oct, uncommitted, live at her restart): `decode.swing_of`, the panel's rule max(50 pts × price/22,700, 0.5 × IV-priced 30-min σ) on 5-min closes; 22 Oct 12:25 NIFTY now "▼ leg jaari 5/7" from 22,812 (11:10). FADE-D keeps §1n's leg. WATCH: SENSEX expiry after 15:00 the 0-DTE IV pushes the reversal to 338–548 pts |
+| A2 | 22 Oct 11:04 | **TapeMap's yesterday close (PDC) is wrong:** 22,811 vs a real close of about 22,730–22,738s (the chart's "Kal ka close 22,745f"). Probably confused by the 20 Oct holiday or the data source. | My 22 Oct opening read gave a 190-pt gap (really about 120) and a "gap fill to 22,811" target that was wrong | Trace where `read` gets PD levels; check them against the chain's last 15:29 spot | FIXED (22 Oct, live at restart): root cause = the CLOSING AUCTION print on the 15:29 1-min bar (since 3 Aug 2026: NIFTY 21 Oct auction 22,811.35 vs 15:15 freeze 22,738.45). `levels.fetch_daily` now takes PD H/L/C from 1-min bars ≤ 15:15; labels show both ("PDC 22,738.5 spot · auction close 22,811.3"). The day review's "11:52 snapshot" was a coincidence. PDH can be polluted the same way (3 Aug auction above the traded high) |
+| A3 | 22 Oct 11:04 | **SAB MARKS left ticked in her extension,** so the chart floods with chips again ("Khali chaal" only shows with SAB on) | Her screen at 11:04 | Tell her to untick it. Consider SAB auto-off on page load | FIXED, verified 23 Oct: it loaded OFF; she turned it on herself |
+| A4 | 22 Oct 04:30 | **The old PLAN block contradicts the DECODE call** (21 Oct 09:58: PLAN "BUY 23,030–23,050" vs DECODE "▲ leg thak raha 6/7") | The v2.6 screenshot | Hide or grey the PLAN's FADE zones when DECODE says the leg is tiring against them, or show the conflict in words | FIXED (v2.7): PLAN zone greyed + chip "DECODE: ▼ leg jaari" when DECODE argues against it (THAK: zone with the tiring leg; JAARI: zone fading the running leg); never hidden |
+| A5 | 22 Oct 04:30 | **The panel overflows 820 px** with the DECODE block; PLAN is below the fold | v2.6 report | Compact SIRF BADE further, or collapse DIN | FIXED (v2.7): DIN one line (click opens), SIRF BADE one-line rows; PLAN fits 820 px in all 5 test frames (v2.6: 4 of 5 below the fold) |
+| A6 | 20 Oct | **SIRF BADE rows still read like code** ("p88 N9 · −2σ @11:40 · PUSH ↓") | Panel screenshots | Plain-words rows, like the v2.4 chips | FIXED (v2.7): rows read like chips ("11:40 Z Sellers ka zor 22,865f · −2σ"); rank/flow/status in the hover |
+| A7 | 21 Oct | **E3 "Naye short / long" (positioning) still carries the R (roka) letter** | v2.5 report | Give positioning its own family or letter | FIXED (v2.7): positioning has its own letter O ("Naye long / short") |
+| A8 | 21 Oct | **MARKS-EXPLAINED.md is stale for v2.5** (R / P thresholds, episode direction, words) | v2.5 report | Regenerate from the code | FIXED (v2.7): MARKS-EXPLAINED.md regenerated from the code (v2.5 thresholds, v2.6 DECODE, v2.7) |
+| A9 | 21 Oct | **Exhaustion is ranked by the follow-through that came,** so the purest exhaustion ranks p0 and is never drawn solid | MARKS §12 item 3 | Change the rank pool in TapeMap `rank_build` | HELD (22 Oct): both halves built (TapeMap exhaustion_fade + extension fade rank), switch OFF by default — the rank is a step (a third of exhaustions jump to p100; the newly solid 22 Oct 09:50 T broke by 10:20). Needs a tiebreak before it goes on |
+| A10 | 21–22 Oct | **BANKNIFTY's PE/CE lead pins at ±100** on quiet mornings (one side's aaj likha is negative) | decode_now, FADE-D replay | Use a gross-adds denominator, or mark the reading "one-sided, thin" | FIXED (22 Oct, display only): a ±100 lead in the DECODE LEAD line and the "peak pe" chip reads "(ek-tarfa, patla)"; the number stays |
+| A11 | 21 Oct | **SENSEX 5-min bars can't be ranked,** so there is no push trail and flow ranks are thin | HOLD v2 build | Accept, or use 15-min SENSEX bars for pushes | WONTFIX for now (data limit) |
+| A12 | 22 Oct | **FUEL reads "?" until about 09:55** (needs 40 min of futures OI) and **"abhi ?" after 15:15** | Live | Accept, or add a 20-min early fuel stamped "early" | PARTIAL (22 Oct): before 10:00 the DECODE line reads "FUEL ? · 40 min OI chahiye · 10:00 se" (the first 40-min window closes at 10:00, not 09:55). Early fuel WONTFIX (§1l locked). "abhi ?" after 15:15 not touched |
+| A13 | 22 Oct | **The DECODE call updates 60–70 s after each close,** and its time shows small and grey | Live | Make the time stand out when it's more than 6 min old | FIXED (22 Oct): `age_s` on the decode block (/api/read and frame.decode, set when served); Read tab time bold amber past 6 min. Extension: FIXED v2.7 (bold amber past 6 min) |
+| A14 | 21 Oct | **FADE-D enters about 25 min after a top** (it waits for the full 10-pt lead drop) and takes counter-trend buys on trend days | 21 Oct in-sample replay | Judge forward. Any change is a new registration | WATCH (locked) |
+| A15 | 21 Oct | **HOLD v2's profit lock** turned 6 Oct SENSEX +2.99R into 0. **"Gave up"** fired on her 21 Oct PE at 11:06 by a 0.43-pt margin. | In-sample | Judge forward; frozen | WATCH (locked) |
+| A16 | 21 Oct | **The live read log writes a mark before the last data lands** (NIFTY 10:05 21 Oct: the log says RANGE, a replay says LEAN) | READ-2 build | Write the mark one cycle later, or rewrite it once the data has landed | FIXED (22 Oct): marks and events for T written from T+60 s; replay of 21–22 Oct found only NIFTY 21 Oct 10:05 wrong |
+| A17 | 21 Oct | **Tests leak "NOT OPEN TODAY" rows** into `data/feed_log.jsonl` (197 rows): conftest doesn't redirect `feed_health.LOG` | FADE-D build | One line in conftest, and clean those rows on her OK | FIXED (22 Oct): conftest + --mock-chain redirect feed_health.LOG; 107 provable test rows removed (backup data/backup/feed_log.jsonl.20261022-2034.bak.gz), 77 ambiguous kept |
+| A18 | 21 Oct | **The recorders start at 09:17,** so the open's first 2 minutes of Upstox data are missing | Panel research G10 | Investigate the start trigger | FIXED for futures (23 Oct: first book_NIFTY row 09:15:00); chain still starts 09:17:02 (expected ~09:16): PARTIAL |
+| A19 | 21 Oct | **16 index-days had no cached 1-min futures series** (expired Sep future, 9 Oct), so they couldn't be scored | Confluence dry run | Make sure the daily futures series is saved, roll-aware | FIXED going forward (22 Oct): eod_capture falls back to Upstox 1-min candles, roll-aware. RECOVERY of 9, 12, 13, 14, 15, 16 Oct possible only until 27 Oct (NIFTY/BNF) / 29 Oct (SENSEX) expiry: needs her OK |
+| A20 | 21 Oct | **trigger_log:** 375 midnight copies plus 1 torn line still in the file | Evidence audit | Clean up on her OK | FIXED (22 Oct): 361 exact midnight copies + 1 torn line removed (backup data/backup/trigger_log.jsonl.20261022-2108.bak.gz; torn line in trigger_log.jsonl.torn.txt); 14 BANKNIFTY 21–22 Aug near-copies kept: her call. Writer fixed 3 Oct (55c8449) |
+| A21 | 21 Oct | **Overdue kill-clock reads:** §1d falsifier (15/10 sessions), VPIN (32/30), `direction.py` (34/30) | Evidence audit | Read them, on her OK | READ (22 Oct, docs/live/KILL-CLOCKS-2026-10-22.md): §1d falsifier met NIFTY + BNF, not SENSEX (MAE window never fixed); VPIN CANNOT CHECK (A35); direction.py CANNOT CHECK (A34). Her decision |
+| A22 | 21 Oct | **Her trade marking stopped after 6 Oct.** The HOLD v2 line only shows for marked trades. | Evidence audit | Ask her to mark trades in the hold window | OPEN (habit) |
+| A24 | 22 Oct 13:00 | **The PE/CE lead jumps when the nine-strike window re-centres** as price moves (SENSEX −29 in one bar at 13:00), so it reads as fake writing | SENSEX 12:55→13:00 | Lead on a fixed strike set per leg, or flag "window shifted" on that bar | FIXED for DECODE + the meter (22 Oct): `onesided.lead15` re-sums the start's nine; DECODE LEAD Δ15 and its "lead +x in 15m" chip use it and stamp "window shifted". WATCH (locked): FADE-D 3 has the same artefact — 21/22 Oct, 36–49 closes per index-day had a re-centre inside 15 min; its 10-pt-fall test reads differently on 11–46 side-closes per index-day |
+| A23 | 22 Oct | **No live "one-sided vs mixed" day-type meter in the app** (trend / chop / pin from vote consistency) | One-Sided Meter mockup: 21 Oct NIFTY dom 91%, 1 flip, 1 VWAP cross vs 22 Oct dom 67%, 3 flips, 7 crosses | Register the vote and day-type rule, then build it as a live block in the Read tab and panel | BUILT (22 Oct, §1o, uncommitted): `onesided.py`, `decode.onesided` on /api/read + frame.decode, Read-tab DIN row, daily row `data/onesided/onesided_log.jsonl` at the first live read ≥ 15:30. In-sample replay: 21 Oct NIFTY TREND ▼ (90%, 1 flip, 1 cross), 22 Oct CHOP (67%, 5 flips, 10 crosses). Panel: FIXED v2.7 ("DIN · CHOP · palte 3 · VWAP cross 7", hover = numbers + strip; "TapeMap restart chahiye" until restart) |
+| A25 | 22 Oct review | **SENSEX futures are too thin for fut-based reads** (FADE-D stop/flow, HOLD v2 line, meter delta/CVD, DECODE effort); A11 covers ranking only | 22 Oct: 109/375 1-min bars zero volume, median 2 lots/min; FADE-D BUY 09:35 (E 73,152.45) stopped 09:36 by one 1-lot print, then fut +563.5 in 60 min; basis drifted +123 → +228 | Stamp "patla" with lots/bar on SENSEX fut-based reads and rows; show the stop in spot too. Rule change = new registration | FIXED (23 Oct, display only, uncommitted, live at her restart): `decode.patla_of` — SENSEX DECODE Δ / CVD / EFFORT lines end "patla (med N lot/5m)" (the median lots of its closed 5-min bars), its FADE-D chip carries `thin`, the HOLD v2 window text gets the same stamp (server._hold2_run); DECODE's FADE-D HOLD v2 chip shows the line as spot\|fut ("line 73,480s\|73,612f") for every index, the window's line already did. No rule touched. UI chip render of `thin` QUEUED after 15:30 (scratchpad patch) |
+| A26 | 22 Oct review | **DECODE keeps "FADE-D [MATCH]" after the entry has exited** under HOLD v2 | SENSEX SELL 10:30, out 10:34, MATCH till 11:50; BNF 10:55, gave up 10:57, MATCH till 11:15 | After entry, show the HOLD v2 state (line · lock · gave up · out @time, R) | FIXED (22 Oct): after entry the setup state shows HOLD v2 (out @10:34 −1.0R etc.), via hold2.exit_v2; display only |
+| A27 | 22 Oct review | **`tools/decode_now.py` crashes** when FADE-D's fading row has no biggest bar | `--at 09:30`..`10:10`: TypeError at line ~116 | Guard like line ~113 | FIXED (22 Oct): guarded; --at 09:30 exits 0 |
+| A28 | 22 Oct review | **READ QUIT ("ceiling/floor gone") fires after price is already through the strike** | 16 of 21 QUIT events on strikes ITM by 31–195 pts | Stamp ITM distance ("paar +83") on the chip | FIXED (22 Oct): QUIT chip appends "paar +83"; logic unchanged |
+| A29 | 22 Oct review | **FADE-D can enter while HOLD v2 gave-up is already true** → out at the next close | BNF SELL 10:55, CE 55000 front UNWINDING since 09:48, out 10:57 −0.08R; side then +212 in 60 min | Stamp "gave-up already true" on row + chip; judge forward | WATCH (locked) |
+| A30 | 22 Oct review | **The One-Sided mockup is not §1o's text and is blind on SENSEX** | SENSEX 22 Oct: 10 ▲ / 0 ▼ while fut fell 73,830 → 73,180; PE-lead votes on 3–10-lot bars | Build from §1o text only (fixed strike set) + SENSEX "patla" flag | FIXED (22 Oct): built from §1o text, fixed strike set; `thin`/`lots_med` + amber "patla" chip (display only) |
+| A31 | 22 Oct review | **DECODE has no forward log,** so "what the app said" can't be audited | Live 12:25 "▲ mila-jula 3/3" vs replay "▲ thak 4/7" | Write-once `data/decode/decode_<day>.jsonl` per index per 5-min close | FIXED (22 Oct): write-once data/decode/decode_<day>.jsonl per index per 5-min close, computed 1 min after close |
+| A32 | 22 Oct review | **DECODE counts 8 signs on a 7-sign scale** (effort sign counted as thak and jaari) | 10 closes with thak + jaari > 7, e.g. BNF 10:40 | One effort sign per call: the latest extreme's | FIXED (22 Oct): one effort sign per call (latest extreme); split peers count neither side; test thak+jaari ≤ 7 |
+| A33 | 22 Oct review | **trigger_log's outcome scorer hasn't run since 8 Oct** (224 rows, no MFE/MAE, no reason) | 9–22 Oct gated rows | Run `trigger_log.score` after each close (writes data) | OPEN (her OK): root cause = score() re-counted raw lines vs parsed rows; the 9 Oct torn line made it abort every run. With the torn line gone, TOMORROW 15:35 eod_capture.bat:20 will score and rewrite trigger_log outcome fields (backup taken). To hold it, comment out line 20 before 15:35 |
+| A34 | 22 Oct review | **direction.py never logs the named direction,** so its kill clock can't be read | desk_log has no bias field; FORCED only on 24 Aug | Log `bias` and restart the clock, or retire | OPEN (her call) |
+| A35 | 22 Oct review | **VPIN's kill condition has no definition** (range expansion, window, base rate) | 34 sessions unreadable | Register the three definitions, count forward from then | OPEN (her call) |
+| A36 | 22 Oct review | **SENSEX READ-2 FUEL couldn't vote all day** | FUEL "could not check: only 3 UX days" at 60/75 marks | Show "ref 3 din"; fill the reference from the eod 1-min caches | PARTIAL (23 Oct): the DECODE FUEL line shows the depth always ("FUEL ? · ref 3 din — only 3 UX day(s)…", "… · ref 12 din"). The fill is WATCH: the 1-min caches would change §1l's numbers — 44 of 68 SENSEX caches carry no source, others are Kite / Upstox-history; on days with both, the 40-min ΔOI differs from the ux bars' at p90 by 0.06–0.10 pts and up to 5.4; and more days re-rank the NORMAL pool (12 days). The 22 Oct gap was the EXPIRY pool (4 days < 5). A new registration if she wants it |
+| A37 | 22 Oct 22:30 | **The meter's counts are whole-day cumulative.** Once VWAP crosses reach 4, the day is CHOP for good, so it can never call a chop-then-trend day. The 22 Oct CHOP at 09:45 rested on 4 opening crosses (09:20–09:35). On 21 Oct, TREND ▼ came only at 11:20 BNF / 12:15 NIFTY / 13:50 SENSEX, after most of the fall (10:05–12:20). | meter replay, in-sample | Judge forward per §1o (the 11:30 clock). A rolling-window or after-the-opening-range variant would be a NEW registration. Use: CHOP = "don't hold for a trend"; trend start comes from READ / DECODE, not the meter | WATCH (locked §1o) |
+| A38 | 22 Oct 22:30 | **HOLD v2 converts FADE → RIDE at VWAP whatever the day type.** On a CHOP / RANGE day VWAP is the take-profit, not a launch point. | Her label for 22 Oct, plus my chart: every push died at a wall | Candidate registration: "on a CHOP-typed day, FADE exits at VWAP, no RIDE convert". Needs forward days first; §1m is locked | WATCH (locked §1m) |
+| A39 | 22 Oct 22:45 | **No strike-level OI SPEED at the extreme.** Her core read (OI change at the turning strike, how fast vs its normal pace, accelerating or not) is not measured. DECODE uses the nine-strike lead and fut OI; the fronts give a state, not a speed. | 22 Oct: lows defended at 4–13× put-writing pace; the 10:35 / BNF 10:37 highs defended at 7–9× call-writing; the 11:14 top and the 12:54 covering pop NOT defended | At each new swing high / low, show the wall strikes' 15-min OI change, ×normal pace and accel / decel, with a word: DEFENDED / COVERING / CHASED / QUIET (in-sample thresholds, tag [I]). Display only; forward judging before any rule uses it | REFRAMED (22 Oct 23:55): Fable found OI speed at live extremes does not separate holds from breaks (38 days); build his "ladder + read" (composition, trapped, ROLLING, futures leg, forward log) instead. Mockup oi-lab/mockup/oi_edge.html. Build on her yes |
+| A40 | 22 Oct 23:55 | **Recorders may stop 10 min early.** Fable cites broker sources that NSE F&O trades to 15:40 since 3 Aug 2026 (CAS 15:15–15:35); our recorders stop at 15:30:01 | oi-lab/RESEARCH.md §facts (web sources, unverified in our data) | Verify first: check Upstox 1-min candles for 15:30–15:40 on one day; if real, extend the recorders to 15:40 | VERIFIED + FIXED in code (23 Oct, live at her restart): ONE Upstox historical request (eod_capture.from_upstox's path, nothing written): NIFTY fut 22 Oct has 385 1-min candles, the last 15:39, 2,340–21,190 qty a minute after 15:30, OI moving. `server._feed_session` (FEED_CLOSE_S 15:40) now gates the FEED's recorders in `_senses_loop` — the book record (book_log via _hook_book, and the ux 5-min bars drained from it), the senses legs, VPIN, pools. The chain poller stays at chain_live.in_session's 15:30 (options / spot after 15:30 unverified). NEEDS HER OK: the 15:35 EOD task now runs while recorders write until 15:40 — move it to 15:45 |
+| A41 | 23 Oct 01:00 | **Our extension shows reads Fable's flow study calls noise:** E7 "CVD ulta" (CVD divergence held 15/35, worse than a coin on 19 days), and "big print" as a single trade (largest single NIFTY fut print in a month = 38 lots; her 198K/300K are volume-at-price over a bar). A stacked bid at a low is a warning (18/50 held, −16 median), not support | oi-lab/flow/DETECTOR.md, RESEARCH.md | Review after the close: demote E7 to the hover; define BADA PRINT as volume-at-price over a bar (adaptive p99); never call a stack "support". FADE-D 2b (CVD below peak) is locked: WATCH | FIXED (v2.8, 23 Oct): E7 CVD ulta off the default chart (hover + SAB only, note "19-din test me kaam nahi kiya"); BADA PRINT already volume-at-price vs the day (threshold ≈ p99.6–99.9), unchanged |
+| A42 | 23 Oct 01:00 | **Fable's "Edge Reader" (OI + tape woven) is not live.** The tape says WHEN, OI says WHO; reads only at extremes: TOP / BOTTOM / RUN / TEST; refuses a direction between extremes. | oi-lab/combined/WEAVE.md, mockup/weave.html | Build live in SHADOW with a forward log; colour only the 4 cells that separated (n 10–20, hypotheses); add an options-aggressor column from Upstox option ticks; judge per the pass bar | OPEN (build on her yes) |
+| A43 | 23 Oct 08:55 | **Fable's flow audit** (`oi-lab/flow/AUDIT.md`: ~110 reads, 291 variants, NIFTY 19 days, two holdouts) **found classic CVD divergence at highs INVERTED** (reversed 47% vs a 60% base; "CVD confirms" held 75%). Our extension's E7 "CVD ulta" and FADE-D's 2b (CVD below peak, §1n) lean on it | AUDIT.md §3 / §6 | Extension: demote E7 to the hover (after close). FADE-D 2b is locked: WATCH forward; any change is a new registration. Only survivors: effort per point (Kyle λ) — an expensive high reverses, a cheap low continues | OPEN (after close) / WATCH (locked) |
+| A44 | 23 Oct 09:50 | **Effort per point (lots per point vs the day median, Kyle λ), the only flow read that survived Fable's holdouts, is not shown anywhere** | flow/AUDIT.md: a ≥2× expensive high reverses 75% vs 60% base; a ≤0.5× cheap low continues 77% vs 54% | Add a "λ" number to DECODE and the extension's ABSORB / initiative hover: "lots/pt 2.3× din ka" | FIXED (23 Oct, live Monday): effort.py = Fable's exact definition (reproduces his 21/22 Oct events 35/35, 30/30); DECODE line EFFORT ×N din ka; extension hover lots/pt on R/Z/T |
+| A45 | 23 Oct 09:50 | **The extension's opening bars (09:15–09:35) use fixed points**, not normalised. TapeMap's rank already uses same-15-min-slot medians from other days | MARKS-EXPLAINED §NR | Use the same-slot median range from prior days until NR has 5 bars | FIXED (23 Oct): rank file slot_range + frame.slot_range_now; extension uses slot NR until NR has 5 bars (hover: slot NR / fixed pts) |
+| A46 | 23 Oct 09:50 | **Extension marks are never graded.** No nightly MFE / MAE per mark type, level type or time of day; Fable's audit was a one-off | — | A nightly forward-grading job over ofd_marks2 (description only; pass bars before any mark is promoted or demoted) | FIXED (23 Oct): tools/mark_grade.py (counts + medians, never a rate) hooked into eod_capture.bat after the scorer (backup data/backup/eod_capture.bat.20261023.bak); 22 + 23 Oct graded |
+| A47 | 23 Oct 15:30 | **The tired high is labelled wrong.** 22 Oct 11:15, the day's top (new high on Δ81, no new longs), is drawn as E5 "Khula high" (ranked by bar size) and breaks to a grey ✕; the right trap and exhaustion sit only in its hover | v2.8 replay shots (docs/v2-shots/v28) | At a fresh high or low, prefer the exhaustion / trap reading over E5 when both fire on the same bar | OPEN |
+| A48 | 23 Oct 15:30 | **Correction to my "61 marks" claim:** the default chart drew only 6–8 marks a day in v2.7. The 61 were every logged mark, which SAB MARKS draws, and she had SAB on. v2.8 changes WHICH marks the default draws (p90 at a level, or a record; cap 12) more than how many | v2.8 build report | — | NOTED |
+| A49 | 23 Oct 19:45 | **Flaky test:** `test_v2feed.py::test_serve_caches_full_and_answers_delta` failed once in the full run (1 failed / 1895 passed) and passes alone (8/8). It asserts two serves return the same cached bytes; a second-boundary "now" between the calls likely breaks the identity. Not touched by today's changes | full-suite run 23 Oct after close | Freeze time in the test (monkeypatch v2feed's clock) | OPEN (small) |
+
+---
+
+## B. Live observations (market behaviour, by day)
+
+### 2026-10-23 (Friday)
+- **09:37 · Fable's live read** (weave + detector on today's files):
+  - **NIFTY: TEST at the low.** BOTTOM prints at 09:20 / 09:31 / 09:35 each went lower; 22700 PE writers already trapped (38.9L ITM); fut OI flat; sellers hitting. Bias down to 22,600s while below VWAP 22,774f.
+  - **BANKNIFTY: new shorts** (fut OI +1.4%, δ −81%), the heaviest selling.
+  - **SENSEX:** call wall migrated 74000 → 73500 (bearish); tape too thin to read.
+  - **09:41:** bounce. NIFTY 22,707s (+40 off 22,667), BNF +64, SENSEX +148. DECODE "▼ leg jaari" 5/7, 6/7, 5/7; DIN MIXED.
+  - **Fable stopped** at her request (usage). AUDIT_OI.md has the taxonomy of 62 reads; population tests not run.
+- **09:23 · first live check after the restart:**
+  - **Working:** futures recorder from 09:15:00; DECODE log written (`data/decode/decode_2026-10-23.jsonl`); DIN meter live (MIXED, 1 bar); FUEL "? · 40 min OI chahiye · 10:00 se"; PDC from the 15:15 traded close (NIFTY 22,666.5s / 22,721f).
+  - **Extension v2.7 on her screen:** DIN line, O letter, PLAN visible.
+- **Open:** gap-up. NIFTY fut opened ~22,790 (PDC 22,721f), first bar high 22,841f.
+  - **Flow:** the opening bar was a buy climax (GoCharting Δ +92K, buy 68%; TapeMap "FLOW CLIMAX ↑ · nateeja nahi"), then the 09:20 bar sold (Δ −15.5K).
+  - **OI:** PE lead +47.6 (puts written), "CE gayab" (calls leaving), fut OI flat.
+  - **VWAP:** all three below VWAP by 09:22. DECODE: saaf nahi.
+
+### 2026-10-22 (Thursday)
+- **23:55 · CORRECTION from Fable's clean-room study (`oi-lab/DETECTOR.md` §5–6): my 22:45 OI-speed table had look-ahead bias.**
+  - It measured at swing pivots known only afterwards. Done that way, *slow* OI pivots also "held" (40/40 highs).
+  - **At live extremes over 38 NIFTY days** (1,982 episodes), no OI-speed state separated holds from breaks. DEFENDED highs held 53% vs QUIET 59%; DEFENDED lows 48% vs QUIET 40%. Same on BANKNIFTY and SENSEX.
+  - **What OI does show** (description, not timing):
+    - composition: both sides writing = RANGE, one side running = FRAGILE / PRESSING, a wall retreating = ROLLING;
+    - trapped inventory, which explains the size of a pop.
+  - **The timing came from the futures leg.** At highs, "fut OI flat + buyers hitting" held 66/93 (median +17) vs "new longs + buyers hitting" 9/24 (median −30). That is a candidate for forward judging; the pass bar is in DETECTOR §5.
+- **22:45 · OI speed at the strike where price turned** (her question: "arent you looking at oi and its change and speed… at the high or lows"; `scratchpad/oi_speed_extremes.py`; one day, in-sample, descriptive).
+  - **Lows that held were OI-defended:** put writers wrote at the low strike 4–13× faster than that strike's normal 15-min pace, accelerating.
+    - NIFTY 09:24: 22550 PE +11.1L (10×), then +106 in 30 min.
+    - NIFTY 09:34: 22550 PE +14.2L (13×), then +103.
+    - SENSEX 09:24 / 09:34: 73100 PE 7.6–7.9×, then +320 / +344.
+  - **Some highs were OI-defended:**
+    - NIFTY 10:35: 22750 CE +9.5L (6.9×), then −85.
+    - BNF 10:37 (day top): 55200 CE 8.6×, accelerating, then −337.
+  - **The day's top was NOT OI-defended:**
+    - NIFTY 11:14: calls covering (22750 CE −3.1L) and puts chasing (22750 PE +6.9L, 5.4×), yet −94.
+    - SENSEX 11:14: 73600 PE 10.6× chasing, yet −322.
+    - The turn came from flow (Δ81, no new longs). Calls wrote only after (22800 CE +4.3L, 2.4×).
+  - **Short-covering pops show as calls unwinding fast into the high:**
+    - NIFTY 12:54: 22700 CE −4.8L in the last 5 min, accelerating, then −98.
+    - SENSEX 12:55: 73500 CE −1,709 in the last 5 min, accelerating, then −366. **Her 73400 CE at 13:00 was bought into covering, not new buying.**
+  - **The chop signature after 13:30:** OI pace ≤ 2× at almost every NIFTY extreme. Nobody defended or attacked the levels.
+- **22:30 · Mary's own label for the day: "range day, chop on both sides".** Her word is the ground truth for this day.
+  - **The app agreed early** (all in-sample, because 22 Oct helped choose §1o):
+    - READ said RANGE from 09:45;
+    - meter replay: NIFTY CHOP from 09:45, SENSEX 09:55, BANKNIFTY 10:15, and it never changed after.
+  - **Both sides chopped:**
+    - FADE-D BUY SENSEX −1R, 09:36;
+    - FADE-D SELL SENSEX −1R, 10:34;
+    - BNF SELL gave up at −0.08R;
+    - NIFTY SELL −0.13R;
+    - the 10:20 up-push stalled at the CE 22800s wall, the 11:45 break stopped at the PE 22600s wall, and the 12:50 and 14:40 pops faded.
+- **After close · NIFTY chart labelled as a trader would** (`https://claude.ai/artifact/M4ZpTt9cTKZWKFVkgfb2hx`; scripts `scratchpad/chart22.py`, `label22_fill.py`).
+  - **The day:** BALANCE.
+    - Gap −125f below PDL (vs the real 21 Oct 15:29 fut close 22,745f), then a sweep to 22,556.
+    - Gap filled by 10:30: spot 22,763 against the real PDC of 22,738s.
+    - The 11:15 high, 22,813f, came on Δ81 with no new longs, 16 pts under the CE 22800s wall.
+    - The box broke at 11:40; the PE 22600s wall held at 12:15.
+    - Short-covering pop at 12:50, rejected at PDC by a 607-lot seller, the day's biggest print.
+    - VWAP chop after 13:25. 10 VWAP crosses (fut), close +32 over VWAP.
+  - **The app drew 61 marks (34 TOOTA). A trader needs 13 price labels plus 7 pane labels.** Gap candidate: marks should tell the phase story; everything else goes in the hover.
+  - **Observation, one day, in-sample, NOT a rule change:**
+    - **OI agreed only with or after the move each time:**
+      - 10:05 buy: calls were writing, lead −9;
+      - 10:20: calls covered inside the push bar;
+      - 11:40 box break: PE lead 41, so OI disagreed; it flipped at 11:50, already 8 pts from the put wall;
+      - 12:55 PDC reject: OI mixed, puts adding.
+    - **Location plus flow at the extremes** gave three clean hindsight trades: T1 +115 (2.9R), T2 +76 (1.3R), T3 +101 (2.0R). Her three-check rule would have stood aside all day.
+    - **Watch whether this repeats on balance days** before any registration.
+  - **Fut OI −4.8% on the day,** with −1.5% in a single 14:10 bar while price was flat. Oct expiry is 27 Oct, so this is rollover [I]. Fut OI × price votes are contaminated this week (fresh longs vs liquidation can't be read cleanly).
+- **13:00–13:25 · her SENSEX 73400 CE (expiry day):**
+  - **13:00:** spot 73,443, CE 191. A short-covering pop (CE −90L in 30 min, CE 73500/73200 fronts unwinding) into the 73,500 box top, with a −181 seller bar at 12:55.
+  - **13:25:** spot 73,251, **CE 76**.
+    - Both fold conditions from 13:00 are now true: spot below 73,300, and **CE 73200 front BUILDING again** (call writers back).
+    - SENSEX is below VWAP (−35) while NIFTY and BANKNIFTY are still above, i.e. **SENSEX diverging down.**
+  - **App:** ▲ leg thak raha 4/7. Expiry time decay is the main enemy.
+- **12:47 · One-Sided Meter mockup** (artifact `https://claude.ai/artifact/GZzeADmMVPzUnZwo7ujpRL`; script `scratchpad/oneside.py`).
+  - **The rule:** 7 votes per 5-min bar; a bar is one-sided when 5+ agree.
+  - **The 2-day finding** (not proof):
+
+    | Day | NIFTY one-sided bars | Same direction | Flips | VWAP crosses |
+    |---|---|---|---|---|
+    | 21 Oct (trend) | 45% | 91% | 1 | 1 |
+    | 22 Oct | 37% | 67% | 3 | 7 |
+
+  - So **the share of one-sided bars alone doesn't separate trend from chop. Direction consistency, flips and VWAP crosses do.**
+  - **Day-type rule (proposal):** TREND = dom ≥ 80%, flips ≤ 1, crosses ≤ 2; CHOP = crosses ≥ 4 or flips ≥ 3.
+  - It needs registering plus forward logging before use. **Gap A23:** this meter isn't in the app yet.
+- **09:15–09:30:** gap-down. NIFTY opened below yesterday's low (PDL 22,650) at **22,543 (09:15–09:20)**, sweeping yesterday's long stops. Sellers led early (09:20 Δ −491).
+- **09:30–10:25: the reclaim.**
+  - CVD swung from −557 to +494, so buyers absorbed the gap-down.
+  - **10:20 push Δ +2,477, the day's biggest,** with **fresh longs** (futures OI +0.75%, p92) and **call writers covering** (CE −19L in 30 min).
+  - All three indices rose in sync. Sweep-and-reclaim of PDL.
+- **10:35–11:35: a stall under the 22,800 box top.**
+  - New highs on 16%, then 3% effort; pushes at 10:30 and 11:10 failed.
+  - Put writers built underneath (PE lead to +35.8 at 11:35).
+  - **The app rightly refused FADE-D SELL on NIFTY while OI disagreed.**
+- **11:35–12:25: the OI flip.**
+  - The PE lead collapsed 35.8 → 3.8; call writers added +31L in 30 min.
+  - **FADE-D SELL fired: SENSEX 10:30 (73,582f), BANKNIFTY 10:55 (55,033f), NIFTY 11:50 (22,637f).**
+  - By 12:25: long liquidation p96 (OI −1.74%), all three below VWAP, NIFTY back below PDL.
+- **First live FADE-D BUY:** SENSEX 09:35 at 73,152f, the morning low.
+- **My errors:**
+  - the opening gap size (190 vs about 120), from the PDC bug (A2);
+  - the 11:40 lean "pullback to VWAP, buy there" was wrong; the conditional "sell only if OI flips" was right and fired.
+
+### 2026-10-21 (Wednesday, a trend-down day)
+- **Top 09:35** (23,135f), and every deceleration sign appeared:
+  - delta per bar +2,139 → +52 at the high (2% effort);
+  - CVD peak at 09:40, then a roll;
+  - PE lead 36 → 26 at 09:50–09:55;
+  - SELL zone at 09:30/09:45;
+  - SENSEX FADE SELL at 09:42.
+- **My 09:58 read missed it.** I called a range and a buy at 23,000. That led to the rule [[read-changes-not-levels]] and the DECODE block.
+- **Fall:** 10:05–12:20, −400+ pts, long liquidation p96–100.
+- **Her trade:** 23000 PE, 174.85 → about 350.
+- **The first live FADE** (SENSEX SELL at 09:42) hit VWAP, then ran another 500+ pts. That's the motivation for HOLD v2's FADE→RIDE.
+
+---
+
+## C. Pending decisions for Mary
+- **23 Oct 13:45 · A40 verified:** NSE F&O trades to **15:40** (Upstox 22 Oct NIFTY fut: 385 one-minute candles, the last at 15:39, OI still moving). Recorders now stop at 15:40 (code, live Monday). **Needs her OK:** move the end-of-day task from 15:35 to 15:45 (`schtasks /Change /TN "TapeMap EOD capture" /ST 15:45`) so it doesn't run while the futures still trade.
+- **23 Oct 01:30 · "do the same depth for oi as well":** a second Fable instance is doing the exhaustive OI world map + audit in parallel (`oi-lab/RESEARCH.md` rewritten, `AUDIT_OI.md`; it re-tests what was dismissed on argument: GEX, vanna, charm, PCR, max pain). The flow instance keeps `flow/` and `combined/`. Re-weave once both audits are in.
+- **23 Oct 01:20 · her verdict: the flow research was incomplete** ("how is it research when he didn't consider all that"). Fable is re-briefed for an exhaustive world map: every platform, school and academic read (40+), each decoded, with variants, causally tested, holdout days, and no "not tested" without a reason. Output: `oi-lab/flow/RESEARCH.md` (rewritten) + `AUDIT.md`. Lesson for me: check coverage before relaying research as complete.
+- **23 Oct 01:00:** Fable finished order flow (`oi-lab/flow/`) and the weave (`oi-lab/combined/`, "Edge Reader"). Decide: build Edge Reader live in shadow after Friday's close?
+- **23 Oct ~00:15:** Fable (same agent, clean room) is doing the same for ORDER FLOW (`oi-lab/flow/`), then weaving OI + flow into one tool (`oi-lab/combined/WEAVE.md` + mockup). Heavy compute finishes before 09:00; it never touches today's files or the live server.
+- **22 Oct ~23:00:** Fable is designing a clean-room, world-class OI analysis tool (a 20–30+ method catalogue, a live OI-at-extremes detector, a professional mockup on real data). Output goes to `oi-lab/`; he sees none of our design. A39 waits on this.
+- **BY 27 OCT (time-sensitive):** recover the missing Oct futures 1-min series (9, 13, 14, 15 Oct missing; 12, 16 Oct partial) with `recover_tape.py` from Upstox history, before the Oct contract expires (NIFTY/BNF 27 Oct, SENSEX 29 Oct). After expiry they are gone, as September's were. Needs her OK (writes new data files).
+- **Tomorrow 15:35:** the trigger_log scorer resumes on its own and fills outcome fields for ~224 rows (backup taken). Say "hold" to comment out `eod_capture.bat` line 20 first.
+- **Kill clocks (docs/live/KILL-CLOCKS-2026-10-22.md):** §1d KILL or CANNOT CHECK · VPIN define-or-retire · direction.py log-bias-or-retire.
+- **Data leftovers:** 14 BANKNIFTY 21–22 Aug trigger_log near-copies; 77 ambiguous feed_log rows. Both kept until she decides.
+- 22 Oct after close: "fix everything" — §1o ONE-SIDED METER registered (sha 60ba8f8f…2f14, forward from 23 Oct); four agents running: day review, TapeMap reads, TapeMap plumbing, extension v2.7.
+- **Commit:** nothing has been committed since 19 Oct.
+- **Fix A1, A2, A16, A17** after the close (they need her OK).
+- **Clean data, A20 and A17** (needs her OK to touch data).

@@ -1,0 +1,239 @@
+RAW ROWS: after collapse 742 marks on 16 days (NIFTY, SEEN / FORWARD-LOGGED)
+
+BASELINE (every 5-min bar close 09:30-14:30 on the same days, +0.5U vs -0.5U, 60 min):
+  A pre-0.4.0 (to 1 Oct): UP-first 210 | DOWN-first 276 | TIE 2 | NONE 0 | END 0 | total 488
+  B 0.4.0 (5 Oct on): UP-first 223 | DOWN-first 205 | TIE 1 | NONE 59 | END 0 | total 488
+
+=== ERA A pre-0.4.0 (to 1 Oct) ===
+mark counts by kind: {'vacuum': 37, 'climax': 25, 'absorption': 200, 'initiative': 90, 'trap': 103, 'exhaustion': 66}
+  trap       : n=103 | WITH-first 55 | AGAINST-first 43 | TIE 0 | NONE 0 | END 5
+     (same trap rows read the OTHER way, winner = logged side: WITH 43 | AGAINST 55)
+  absorption : n=200 | WITH-first 106 | AGAINST-first 75 | TIE 2 | NONE 0 | END 17
+  exhaustion : n=66 | WITH-first 32 | AGAINST-first 32 | TIE 0 | NONE 0 | END 2
+  initiative : n=90 | WITH-first 55 | AGAINST-first 29 | TIE 0 | NONE 0 | END 6
+  vacuum     : n=37 | WITH-first 19 | AGAINST-first 16 | TIE 2 | NONE 0 | END 0
+  climax      : n=25 | UP-first 8 | DOWN-first 15 | TIE 0 | NONE 0 | END 2
+=== ERA B 0.4.0 (5 Oct on) ===
+mark counts by kind: {'initiative': 56, 'exhaustion': 28, 'vacuum': 22, 'absorption': 64, 'trap': 34, 'climax': 17}
+  trap       : n=34 | WITH-first 15 | AGAINST-first 14 | TIE 0 | NONE 3 | END 2
+     (same trap rows read the OTHER way, winner = logged side: WITH 14 | AGAINST 15)
+  absorption : n=64 | WITH-first 28 | AGAINST-first 27 | TIE 0 | NONE 6 | END 3
+  exhaustion : n=28 | WITH-first 9 | AGAINST-first 17 | TIE 0 | NONE 1 | END 1
+  initiative : n=56 | WITH-first 27 | AGAINST-first 24 | TIE 1 | NONE 2 | END 2
+  vacuum     : n=22 | WITH-first 10 | AGAINST-first 10 | TIE 1 | NONE 1 | END 0
+  climax      : n=17 | UP-first 5 | DOWN-first 10 | TIE 0 | NONE 0 | END 2
+
+=== BY KIND x CONTEXT (both eras; WITH-first / AGAINST-first / TIE / NONE+END) ===
+  trap        with-trend    n= 57 |  29 /  22 /  0 /  6
+  trap        counter-trend n= 62 |  34 /  26 /  0 /  2
+  trap        flat          n= 18 |   7 /   9 /  0 /  2
+  absorption  with-trend    n= 83 |  40 /  29 /  2 / 12
+  absorption  counter-trend n=150 |  77 /  61 /  0 / 12
+  absorption  flat          n= 31 |  17 /  12 /  0 /  2
+  exhaustion  with-trend    n= 17 |  10 /   7 /  0 /  0
+  exhaustion  counter-trend n= 67 |  29 /  34 /  0 /  4
+  exhaustion  flat          n= 10 |   2 /   8 /  0 /  0
+  initiative  with-trend    n=109 |  59 /  43 /  1 /  6
+  initiative  counter-trend n= 26 |  17 /   6 /  0 /  3
+  initiative  flat          n= 11 |   6 /   4 /  0 /  1
+  vacuum      with-trend    n= 22 |   8 /  13 /  1 /  0
+  vacuum      counter-trend n= 28 |  14 /  11 /  2 /  1
+  vacuum      flat          n=  9 |   7 /   2 /  0 /  0
+
+=== BY KIND x LOCATION (days with a prior-day profile only; node/level = POC/VAH/VAL/HVN/LVN/PDH/PDL/PDC within 10 pts) ===
+  trap        node/level  n= 35 |  16 /  16 /  0 /  3
+  trap        sigma ring  n= 16 |   7 /   9 /  0 /  0
+  trap        at VWAP     n=  5 |   1 /   4 /  0 /  0
+  trap        nowhere     n= 36 |  20 /  12 /  0 /  4
+  absorption  node/level  n= 73 |  34 /  33 /  1 /  5
+  absorption  sigma ring  n= 42 |  22 /  19 /  0 /  1
+  absorption  at VWAP     n= 10 |   5 /   4 /  0 /  1
+  absorption  nowhere     n= 62 |  33 /  19 /  1 /  9
+  exhaustion  node/level  n= 31 |  16 /  15 /  0 /  0
+  exhaustion  sigma ring  n= 21 |   9 /  11 /  0 /  1
+  exhaustion  at VWAP     n=  3 |   1 /   2 /  0 /  0
+  exhaustion  nowhere     n= 24 |  11 /  11 /  0 /  2
+  initiative  node/level  n= 30 |  19 /  11 /  0 /  0
+  initiative  sigma ring  n= 23 |  15 /   7 /  0 /  1
+  initiative  at VWAP     n= 10 |   4 /   4 /  0 /  2
+  initiative  nowhere     n= 54 |  30 /  19 /  0 /  5
+  vacuum      node/level  n= 15 |   9 /   5 /  1 /  0
+  vacuum      sigma ring  n=  6 |   1 /   4 /  1 /  0
+  vacuum      at VWAP     n=  5 |   4 /   1 /  0 /  0
+  vacuum      nowhere     n= 23 |  13 /  10 /  0 /  0
+
+=== BY KIND x DAY TYPE (full-day VWAP crosses after 09:30: trend <=4, mid 5-8, chop >=9) ===
+  trap        trend(<=4)  n= 56 |  29 /  22 /  0 /  5
+  trap        mid(5-8)    n= 76 |  39 /  33 /  0 /  4
+  trap        chop(>=9)   n=  5 |   2 /   2 /  0 /  1
+  absorption  trend(<=4)  n= 97 |  47 /  38 /  1 / 11
+  absorption  mid(5-8)    n=149 |  79 /  56 /  1 / 13
+  absorption  chop(>=9)   n= 18 |   8 /   8 /  0 /  2
+  exhaustion  trend(<=4)  n= 35 |  10 /  22 /  0 /  3
+  exhaustion  mid(5-8)    n= 56 |  30 /  25 /  0 /  1
+  exhaustion  chop(>=9)   n=  3 |   1 /   2 /  0 /  0
+  initiative  trend(<=4)  n= 60 |  37 /  18 /  1 /  4
+  initiative  mid(5-8)    n= 80 |  43 /  31 /  0 /  6
+  initiative  chop(>=9)   n=  6 |   2 /   4 /  0 /  0
+  vacuum      trend(<=4)  n= 24 |   9 /  12 /  2 /  1
+  vacuum      mid(5-8)    n= 35 |  20 /  14 /  1 /  0
+
+=== NEAR AN EXTREME (winner-opposite extreme; local = last 30 min, causal; day = final day extreme, hindsight) ===
+  trap        n=137 | within 10 pts of local extreme 79 | within 10 pts of the DAY extreme 13 | within 20 pts of day extreme 19
+  absorption  n=264 | within 10 pts of local extreme 154 | within 10 pts of the DAY extreme 17 | within 20 pts of day extreme 29
+  exhaustion  n= 94 | within 10 pts of local extreme 75 | within 10 pts of the DAY extreme 6 | within 20 pts of day extreme 10
+  initiative  n=146 | within 10 pts of local extreme 20 | within 10 pts of the DAY extreme 5 | within 20 pts of day extreme 12
+  vacuum      n= 59 | within 10 pts of local extreme 1 | within 10 pts of the DAY extreme 0 | within 20 pts of day extreme 0
+
+=== SEQUENCE: absorption followed by a trap at the same price within 10 pts in the next bar (winner of both = same side) ===
+  pairs: 120 | outcome of the trap bar: WITH 60 / AGAINST 50 / TIE 0 / NONE+END 10
+    ('2026-09-22', '09:25', 1, 23437, '09:30', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '09:45', -1, 23473, '09:50', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '10:40', 1, 23380, '10:45', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '10:45', -1, 23395, '10:50', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '11:45', -1, 23378, '11:50', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '12:15', -1, 23385, '12:20', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '14:15', -1, 23405, '14:20', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '14:15', -1, 23419, '14:25', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '14:20', -1, 23420, '14:25', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '14:30', -1, 23410, '14:35', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '15:15', 1, 23370, '15:20', 'WITH', 'END', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-22', '15:35', -1, 23415, '15:40', 'END', 'END', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '10:20', -1, 23430, '10:25', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '10:35', -1, 23442, '10:40', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '10:55', -1, 23450, '11:00', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '11:30', -1, 23460, '11:35', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '12:00', 1, 23452.5, '12:05', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '14:45', 1, 23440, '14:50', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '14:50', -1, 23456, '14:55', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '14:50', -1, 23456, '15:00', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-23', '14:55', -1, 23456, '15:00', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '09:35', -1, 23267.5, '09:40', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '09:40', -1, 23246, '09:45', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '09:45', 1, 23226, '09:50', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '09:55', 1, 23224, '10:00', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '10:25', 1, 23220, '10:30', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '10:40', 1, 23230, '10:50', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '10:45', 1, 23240, '10:50', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '12:05', -1, 23230, '12:10', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '13:25', 1, 23158, '13:30', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '14:25', 1, 23076, '14:30', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-24', '14:55', -1, 23140, '15:00', 'END', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '09:40', -1, 23105, '09:45', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '09:40', 1, 23087.5, '09:50', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '10:05', 1, 23120, '10:10', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '10:10', -1, 23150, '10:20', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '10:15', -1, 23147.5, '10:20', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '10:45', 1, 23095, '10:50', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '12:15', -1, 23122, '12:20', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-25', '12:40', -1, 23110, '12:45', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '09:20', -1, 22974, '09:25', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '09:50', -1, 22925, '09:55', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '09:55', 1, 22907.2, '10:00', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '10:40', 1, 22862, '10:45', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '10:45', -1, 22880, '10:50', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '11:20', 1, 22865, '11:25', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '11:30', -1, 22900, '11:35', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '11:40', -1, 22900, '11:45', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '11:40', -1, 22900, '11:50', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '11:45', -1, 22900, '11:50', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '11:55', 1, 22852, '12:00', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '13:05', 1, 22860, '13:10', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '13:05', 1, 22860, '13:15', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '13:10', 1, 22865.9, '13:15', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '13:25', -1, 22900, '13:30', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '13:40', -1, 22891, '13:45', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '14:15', -1, 22858, '14:20', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '14:15', 1, 22822.5, '14:20', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '14:20', -1, 22840, '14:25', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '14:30', -1, 22840, '14:35', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '14:50', -1, 22830, '15:00', 'WITH', 'END', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-28', '14:55', -1, 22840, '15:00', 'WITH', 'END', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '10:00', -1, 22618, '10:05', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '10:00', -1, 22618, '10:10', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '10:05', -1, 22615, '10:10', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '14:15', -1, 22695, '14:20', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '14:35', -1, 22690, '14:40', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '15:10', -1, 22700, '15:20', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-29', '15:15', -1, 22705, '15:20', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '09:30', 1, 22825, '09:35', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '09:50', 1, 22820, '09:55', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '09:55', -1, 22865, '10:00', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '09:55', 1, 22845, '10:00', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '10:15', -1, 22885, '10:20', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '10:20', -1, 22896, '10:25', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '11:15', 1, 22776.6, '11:20', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '11:15', 1, 22790, '11:20', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '12:35', -1, 22900, '12:40', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '12:45', -1, 22925, '12:50', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '12:50', 1, 22905, '12:55', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '12:55', -1, 22920, '13:00', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '14:35', 1, 22706, '14:45', 'AGAINST', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '14:40', 1, 22700, '14:45', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-09-30', '15:20', 1, 22695, '15:25', 'END', 'END', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '09:30', -1, 22675, '09:35', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '09:35', 1, 22636, '09:40', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '09:55', 1, 22635, '10:00', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '10:00', -1, 22700, '10:05', 'WITH', 'WITH', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '10:00', -1, 22700, '10:10', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '10:05', -1, 22700, '10:10', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '12:20', 1, 22560, '12:30', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '12:50', -1, 22460, '12:55', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '13:40', 1, 22370, '13:45', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '13:50', -1, 22385, '13:55', 'WITH', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-01', '14:35', -1, 22490, '14:40', 'AGAINST', 'AGAINST', 'A pre-0.4.0 (to 1 Oct)')
+    ('2026-10-05', '10:25', 1, 22595, '10:30', 'WITH', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-05', '10:55', 1, 22580, '11:00', 'AGAINST', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-05', '12:05', 1, 22515, '12:10', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-05', '14:00', -1, 22650, '14:05', 'WITH', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-06', '10:00', -1, 22760, '10:05', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-06', '14:10', -1, 22819.2, '14:15', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-07', '10:25', -1, 22750, '10:30', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-07', '12:00', -1, 22782.1, '12:05', 'AGAINST', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-07', '13:10', 1, 22600, '13:15', 'AGAINST', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-07', '15:15', -1, 22650, '15:20', 'END', 'END', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-08', '09:40', 1, 22500, '09:45', 'AGAINST', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-08', '13:00', 1, 22320, '13:05', 'NONE', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-08', '14:15', -1, 22325, '14:20', 'NONE', 'NONE', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-08', '14:20', 1, 22280, '14:25', 'NONE', 'NONE', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-08', '14:50', -1, 22300, '14:55', 'END', 'END', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-09', '09:25', -1, 22440, '09:30', 'AGAINST', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-09', '11:05', 1, 22555, '11:10', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-09', '11:30', -1, 22595, '11:35', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-09', '11:40', 1, 22545, '11:45', 'AGAINST', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-09', '13:45', -1, 22620, '13:50', 'AGAINST', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-12', '10:15', 1, 22525, '10:20', 'AGAINST', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-12', '11:15', 1, 22410, '11:20', 'NONE', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-12', '13:05', -1, 22485, '13:10', 'NONE', 'NONE', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-16', '09:35', 1, 22915, '09:40', 'WITH', 'AGAINST', 'B 0.4.0 (5 Oct on)')
+    ('2026-10-16', '10:15', -1, 23140, '10:20', 'WITH', 'WITH', 'B 0.4.0 (5 Oct on)')
+
+=== 16 OCT SEQUENCE (as logged; winner = trap side flipped) ===
+  09:20 vacuum     logged side +1 winner +1 p 22996.7 size 964 | TIE in 3 min | ctx counter-trend loc nowhere | gap local 33 day 89
+  09:25 initiative logged side -1 winner -1 p 22992.0 size 241 | AGAINST in 3 min | ctx with-trend loc at VWAP | gap local 92 day 163
+  09:30 exhaustion logged side +1 winner +1 p 22931.0 size 0 | AGAINST in 6 min | ctx counter-trend loc sigma ring | gap local 11 day 23
+  09:35 absorption logged side +1 winner +1 p 22915.0 size 657 | WITH in 3 min | ctx counter-trend loc sigma ring | gap local 7 day 7
+  09:40 trap       logged side -1 winner +1 p 22915.0 size 657 | AGAINST in 3 min | ctx flat loc sigma ring | gap local 7 day 7
+  10:00 absorption logged side -1 winner -1 p 23060.0 size 99 | AGAINST in 3 min | ctx counter-trend loc sigma ring | gap local 10 day 95
+  10:15 absorption logged side -1 winner -1 p 23125.0 size 208 | WITH in 27 min | ctx counter-trend loc sigma ring | gap local 23 day 30
+  10:15 absorption logged side -1 winner -1 p 23140.0 size 573 | WITH in 27 min | ctx counter-trend loc sigma ring | gap local 8 day 15
+  10:15 climax     logged side +0 winner +0 p 23095.6 size 2817 | DOWN-first in 27 min | ctx flat loc nowhere | gap local None day None
+  10:20 trap       logged side +1 winner -1 p 23140.0 size 573 | WITH in 21 min | ctx counter-trend loc sigma ring | gap local 15 day 15
+
+=== PER DAY: all sided marks WITH / AGAINST / TIE / NONE+END ===
+  09-22 mid(5-8)   A           n= 64 |  38 /  20 /  0 /  6
+  09-23 trend(<=4) A           n= 56 |  28 /  23 /  2 /  3
+  09-24 mid(5-8)   A           n= 57 |  32 /  19 /  1 /  5
+  09-25 mid(5-8)   A           n= 53 |  33 /  20 /  0 /  0
+  09-28 trend(<=4) A           n= 82 |  47 /  32 /  0 /  3
+  09-29 mid(5-8)   A           n= 51 |  27 /  22 /  1 /  1
+  09-30 mid(5-8)   A           n= 62 |  29 /  25 /  0 /  8
+  10-01 mid(5-8)   A           n= 71 |  33 /  34 /  0 /  4
+  10-05 mid(5-8)   B           n= 38 |  19 /  19 /  0 /  0
+  10-06 trend(<=4) B           n= 33 |  16 /  17 /  0 /  0
+  10-07 chop(>=9)  B           n= 32 |  13 /  16 /  0 /  3
+  10-08 trend(<=4) B           n= 34 |  12 /  10 /  0 / 12
+  10-09 trend(<=4) B           n= 35 |  19 /  16 /  0 /  0
+  10-12 trend(<=4) B           n= 19 |   5 /   8 /  0 /  6
+  10-13 trend(<=4) B           n=  4 |   1 /   2 /  1 /  0
+  10-16 trend(<=4) B           n=  9 |   4 /   4 /  1 /  0

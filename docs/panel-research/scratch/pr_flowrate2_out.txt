@@ -1,0 +1,50 @@
+C:\Users\kaam\Desktop\operator mode\tapemap\docs\panel-research\scratch\pr_flowrate2.py:28: RuntimeWarning: Mean of empty slice
+  r[i, cols] = L[i, cols] - np.nanmean(L[i, cols])
+
+=== NIFTY ===
+variance of log rate_W around its own day x block mean: real vs minute-shuffled (same block); ratio = the share i.i.d. minutes reproduce
+  BUY W= 1 block 30m: real 0.659 null 0.659 -> i.i.d. share 1.00
+  BUY W= 3 block 30m: real 0.367 null 0.272 -> i.i.d. share 0.74
+  BUY W= 5 block 30m: real 0.273 null 0.177 -> i.i.d. share 0.65
+  BUY W=15 block 60m: real 0.159 null 0.082 -> i.i.d. share 0.51
+  SELL W= 1 block 30m: real 0.616 null 0.616 -> i.i.d. share 1.00
+  SELL W= 3 block 30m: real 0.335 null 0.248 -> i.i.d. share 0.74
+  SELL W= 5 block 30m: real 0.251 null 0.163 -> i.i.d. share 0.65
+  SELL W=15 block 60m: real 0.173 null 0.079 -> i.i.d. share 0.46
+  delta rate W=1: lag-1 (adjacent) Pearson 0.12, sign kept 0.61
+  delta rate W=3: lag-3 (adjacent) Pearson 0.18, sign kept 0.64
+  delta rate W=5: lag-5 (adjacent) Pearson 0.16, sign kept 0.64
+  accD r5D(t)-r5D(t-5): lag-5 Pearson -0.47, sign kept at +5 0.37, r with its base -0.65, p90 |x| real 110.200 vs sign-shuffle 99.199 [94.587-103.617]
+  shift D5/V5 - D30/V30: lag-5 Pearson 0.30, sign kept at +5 0.57, r with its base -0.20, p90 |x| real 0.472 vs sign-shuffle 0.387 [0.378-0.398]
+
+=== BANKNIFTY ===
+variance of log rate_W around its own day x block mean: real vs minute-shuffled (same block); ratio = the share i.i.d. minutes reproduce
+  BUY W= 1 block 30m: real 0.986 null 0.986 -> i.i.d. share 1.00
+  BUY W= 3 block 30m: real 0.490 null 0.390 -> i.i.d. share 0.79
+  BUY W= 5 block 30m: real 0.352 null 0.248 -> i.i.d. share 0.70
+  BUY W=15 block 60m: real 0.219 null 0.113 -> i.i.d. share 0.52
+  SELL W= 1 block 30m: real 0.876 null 0.876 -> i.i.d. share 1.00
+  SELL W= 3 block 30m: real 0.446 null 0.356 -> i.i.d. share 0.80
+  SELL W= 5 block 30m: real 0.317 null 0.230 -> i.i.d. share 0.73
+  SELL W=15 block 60m: real 0.213 null 0.101 -> i.i.d. share 0.48
+  delta rate W=1: lag-1 (adjacent) Pearson 0.21, sign kept 0.57
+  delta rate W=3: lag-3 (adjacent) Pearson 0.24, sign kept 0.61
+  delta rate W=5: lag-5 (adjacent) Pearson 0.26, sign kept 0.62
+  accD r5D(t)-r5D(t-5): lag-5 Pearson -0.41, sign kept at +5 0.38, r with its base -0.61, p90 |x| real 47.400 vs sign-shuffle 43.543 [41.780-45.343]
+  shift D5/V5 - D30/V30: lag-5 Pearson 0.24, sign kept at +5 0.56, r with its base -0.23, p90 |x| real 0.584 vs sign-shuffle 0.509 [0.492-0.526]
+
+=== SENSEX ===
+variance of log rate_W around its own day x block mean: real vs minute-shuffled (same block); ratio = the share i.i.d. minutes reproduce
+  BUY W= 1 block 30m: real 0.579 null 0.579 -> i.i.d. share 1.00
+  BUY W= 3 block 30m: real 0.398 null 0.372 -> i.i.d. share 0.93
+  BUY W= 5 block 30m: real 0.313 null 0.274 -> i.i.d. share 0.88
+  BUY W=15 block 60m: real 0.184 null 0.143 -> i.i.d. share 0.78
+  SELL W= 1 block 30m: real 0.587 null 0.587 -> i.i.d. share 1.00
+  SELL W= 3 block 30m: real 0.404 null 0.368 -> i.i.d. share 0.91
+  SELL W= 5 block 30m: real 0.321 null 0.273 -> i.i.d. share 0.85
+  SELL W=15 block 60m: real 0.203 null 0.154 -> i.i.d. share 0.76
+  delta rate W=1: lag-1 (adjacent) Pearson 0.09, sign kept 0.43
+  delta rate W=3: lag-3 (adjacent) Pearson 0.07, sign kept 0.41
+  delta rate W=5: lag-5 (adjacent) Pearson 0.06, sign kept 0.46
+  accD r5D(t)-r5D(t-5): lag-5 Pearson -0.44, sign kept at +5 0.31, r with its base -0.71, p90 |x| real 7.200 vs sign-shuffle 6.760 [6.400-7.010]
+  shift D5/V5 - D30/V30: lag-5 Pearson 0.13, sign kept at +5 0.53, r with its base -0.25, p90 |x| real 1.000 vs sign-shuffle 0.966 [0.931-1.000]

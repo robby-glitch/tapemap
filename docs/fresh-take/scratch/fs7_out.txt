@@ -1,0 +1,20 @@
+=== day-block bootstrap (1,000 resamples of the 17 days) 5-95%% interval of the pooled thresholds
+  |delta|  median   77.00 [  63.00 -   89.00]  p70  139.00 [ 122.00 -  164.00]  p90  338.20 [ 281.00 -  397.25]
+  |d/v|    median    0.18 [   0.17 -    0.19]  p70    0.27 [   0.25 -    0.28]  p90    0.43 [   0.41 -    0.45]
+  |flip|   median  173.00 [ 150.47 -  195.00]  p70  271.70 [ 229.00 -  321.00]  p90  550.80 [ 470.97 -  656.00]
+  |slope|  median   11.97 [   9.53 -   14.43]  p70   21.75 [  18.09 -   25.63]  p90   48.58 [  36.72 -   62.26]
+  |acc|    median   16.47 [  13.70 -   19.50]  p70   29.29 [  25.33 -   34.04]  p90   64.01 [  47.10 -   77.40]
+  RVOL     median    1.01 [   0.82 -    1.18]  p70    1.50 [   1.23 -    1.75]  p90    2.58 [   2.20 -    2.92]
+  vacc     median    0.88 [   0.86 -    0.90]  p70    1.20 [   1.16 -    1.23]  p90    1.94 [   1.79 -    2.09]
+
+=== RVOL reference: slot median of the other days - how stable?  (25 slots of 15 min; bootstrap over reference days, 300 resamples)
+  slots 25; half-width of the 90% interval of the slot median, relative to the median: median 0.30, max 0.59
+  leave-one-day-out range of the slot median / its median: median 0.12, max 0.19
+
+=== delta-price coupling (what "result" has to be scaled by)
+  spearman(delta, bar move c-o) = 0.48 over 1169 bars; spearman(|delta/vol|, |move|/slot-range) = 0.15
+  |d/v| < p30    n 351  price result R (signed with delta): p25 -0.34 median +0.00 p75 +0.37 ; R<0 in 167
+  |d/v| p30-p70  n 467  price result R (signed with delta): p25 -0.15 median +0.21 p75 +0.60 ; R<0 in 153
+  |d/v| > p70    n 351  price result R (signed with delta): p25 +0.15 median +0.43 p75 +0.96 ; R<0 in 55
+  across the 17 days: spearman(day median |d|, day median volume) 0.84 ; (day median |d/v|, day median bar range) 0.06 ; (day median |d|, day median range) 0.58
+  day median bar range (pts): min 14 max 32 ; day median |delta|: min 41 max 129 ; day median bar volume: min 172 max 955

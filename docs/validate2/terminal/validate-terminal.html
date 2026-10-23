@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validate Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F5; --panel:#FFFFFF; --head:#F7F8FA; --line:#DDE2E9; --line2:#EEF1F4;
+  --ink:#0F141B; --ink2:#465163; --faint:#8B95A4;
+  --blue:#1D4ED8; --blue-w:#E7EEFD; --blue-b:#BFD0FA;
+  --red:#C42B30;  --red-w:#FCEBEC;  --red-b:#F3C4C6;
+  --amber:#A8520A; --amber-w:#FDF2DF; --amber-b:#F0D3A4;
+  --grey-w:#F1F3F6;
+  --ui:Inter,'Segoe UI',system-ui,sans-serif; --num:'JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:12px/1.35 var(--ui);-webkit-font-smoothing:antialiased}
+.n{font-family:var(--num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.f{color:var(--faint)} .i2{color:var(--ink2)}
+.cb{color:var(--blue)} .cr{color:var(--red)} .ca{color:var(--amber)}
+.app{width:1229px;margin:0 auto;padding:6px;display:grid;gap:6px}
+
+/* ticker */
+.tk{display:grid;grid-template-columns:repeat(3,auto) 1fr auto;align-items:stretch;background:var(--panel);border:1px solid var(--line)}
+.tk>div{padding:5px 12px;white-space:nowrap;border-right:1px solid var(--line2);display:flex;flex-direction:column;justify-content:center}
+.tk .sym{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--ink2)}
+.tk .px{font:600 15px var(--num)} .tk .sub{font:500 10.5px var(--num);color:var(--faint)}
+.tk .meta{align-items:flex-end;border-right:0;gap:3px} .tk .meta .row{display:flex;gap:10px;align-items:center}
+.age{font:500 10.5px var(--num);color:var(--ink2)} .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#16A34A;margin-right:4px;vertical-align:1px}
+.dot.slow{background:#D97706}
+.clock{font:700 15px var(--num)}
+.cut{font:700 10px var(--ui);letter-spacing:.05em;color:var(--amber);background:var(--amber-w);border:1px solid var(--amber-b);padding:2px 6px}
+
+/* command bar */
+.cmd{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);padding:5px 6px}
+.seg{display:flex;border:1px solid var(--line)}
+.seg button{font:700 11px var(--ui);letter-spacing:.04em;border:0;background:var(--panel);color:var(--ink2);padding:6px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:#fff}
+.seg button:focus-visible,.go:focus-visible,.fld:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.sp{flex:1}
+.fld{font:600 12px var(--num);border:1px solid var(--line);background:var(--head);padding:5px 8px;color:var(--ink)}
+.fld.sel{font-family:var(--ui)}
+.tog{display:flex;border:1px solid var(--line)}
+.tog span{font:700 11px var(--ui);padding:5px 9px;color:var(--faint);cursor:pointer}
+.tog span.on{background:var(--ink);color:#fff}
+.go{font:800 11px var(--ui);letter-spacing:.06em;border:0;background:var(--blue);color:#fff;padding:7px 14px;cursor:pointer}
+.go.alt{background:var(--panel);color:var(--ink);border:1px solid var(--ink)}
+.kbd{font:600 10px var(--num);color:var(--faint);border:1px solid var(--line);padding:0 4px}
+
+/* panels */
+.main{display:grid;grid-template-columns:350px 470px 1fr;gap:6px;align-items:start}
+.pn{background:var(--panel);border:1px solid var(--line)}
+.ph{display:flex;align-items:center;gap:8px;height:24px;padding:0 9px;background:var(--head);border-bottom:1px solid var(--line);
+  font:700 10px var(--ui);letter-spacing:.08em;color:var(--ink2);text-transform:uppercase}
+.ph .r{margin-left:auto;font:500 10px var(--num);letter-spacing:0;text-transform:none;color:var(--faint)}
+.stack{display:grid;gap:6px;min-width:0} .main>*,.pn{min-width:0}
+
+/* pills */
+.p{display:inline-block;font:700 9.5px var(--ui);letter-spacing:.05em;padding:2px 5px;border:1px solid;text-transform:uppercase;white-space:nowrap}
+.p.w{color:var(--blue);background:var(--blue-w);border-color:var(--blue-b)}
+.p.a{color:var(--red);background:var(--red-w);border-color:var(--red-b)}
+.p.m{color:var(--amber);background:var(--amber-w);border-color:var(--amber-b)}
+.p.n{color:var(--ink2);background:var(--grey-w);border-color:var(--line)}
+.p.c{color:var(--faint);background:#fff;border-color:var(--line);border-style:dashed;font-style:italic}
+
+/* verdict */
+.vd{display:grid;grid-template-columns:auto 1fr;gap:0 12px;padding:9px 10px;border-bottom:1px solid var(--line)}
+.vd .word{font:800 38px/1 var(--ui);letter-spacing:-.02em}
+.vd .hing{font:600 11px var(--ui);margin-top:3px}
+.vd.no .word,.vd.no .hing{color:var(--red)} .vd.no{background:var(--red-w)}
+.vd.wait .word,.vd.wait .hing{color:var(--amber)} .vd.wait{background:var(--amber-w)}
+.vd.go .word,.vd.go .hing{color:var(--blue)} .vd.go{background:var(--blue-w)}
+.cnt{display:grid;grid-template-columns:repeat(4,1fr);align-self:center;border:1px solid var(--line);background:#fff}
+.cnt div{padding:4px 6px;border-right:1px solid var(--line2);text-align:center}
+.cnt div:last-child{border-right:0}
+.cnt b{display:block;font:700 17px var(--num)} .cnt span{font:700 8.5px var(--ui);letter-spacing:.06em;color:var(--faint)}
+.vd .why{grid-column:1/-1;margin-top:7px;font-size:11.5px;color:var(--ink2)}
+.vd .why b{color:var(--ink)}
+
+/* tables */
+table{border-collapse:collapse;width:100%}
+td,th{padding:3px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;text-align:left;vertical-align:middle}
+th{font:700 9px var(--ui);letter-spacing:.07em;color:var(--faint);text-transform:uppercase;background:#fff;padding-top:5px}
+td.n,th.n{text-align:right}
+tr:last-child td{border-bottom:0}
+.chk td:first-child{color:var(--faint);font:500 10px var(--num);width:18px;padding-right:0}
+.chk td:nth-child(2){font-weight:600}
+.chk td:last-child{font:500 11px var(--num);color:var(--ink2);white-space:normal;width:100%}
+.lv td{font:500 12px var(--num)} .lv td:first-child{font:700 10px var(--ui);letter-spacing:.05em}
+.lv tr.inv td:first-child{color:var(--red)} .lv tr.tgt td:first-child{color:var(--blue)} .lv tr.now td{background:var(--head);font-weight:700}
+.cond{font:500 10px var(--ui);color:var(--faint);white-space:normal}
+
+/* ladder */
+.lad td,.lad th{padding:2px 4px;font:500 11px var(--num)} .lad th{font:700 8.5px var(--ui)}
+.lad .k{text-align:center;font-weight:700;background:var(--head);border-left:1px solid var(--line);border-right:1px solid var(--line);width:84px}
+.lad .k small{display:block;font:500 9.5px var(--num);color:var(--faint)}
+.bar{position:relative;height:16px;width:76px}
+.bar i{position:absolute;top:2px;bottom:2px;display:block}
+.bar.ce i{right:0} .bar.pe i{left:0}
+.bar em{position:absolute;top:0;font:600 10.5px/16px var(--num);font-style:normal}
+.bar.ce em{right:4px} .bar.pe em{left:4px}
+.bar i.ag{background:var(--red-b)} .bar i.wi{background:var(--blue-b)} .bar i.ne{background:#D9DEE6}
+.d{font:500 10.5px var(--num);width:38px;text-align:right} .lad td.d.pe{text-align:left}
+.lad tr.mk td{padding:0 6px;height:17px;border-bottom:1px dashed var(--line);background:#FBFCFD;font:600 9.5px var(--ui);letter-spacing:.05em}
+.lad tr.mk.spot td{background:var(--ink);color:#fff;border-bottom:0}
+.lad tr.mk.inv td{color:var(--red);background:var(--red-w)}
+.lad tr.mk.hi td{color:var(--ink2)}
+.lad tr.mk.you td{color:var(--blue);background:var(--blue-w)}
+.k .p{font-size:8px;padding:0 3px;margin-top:1px}
+
+/* board */
+.bd td,.bd th{padding:3px 5px} .bd td{font:500 11px var(--num)} .bd td.t{font:600 11px var(--ui)}
+.bd tr.you td{background:var(--red-w)} .bd tr.top td{background:var(--blue-w)}
+.bd .rk{color:var(--faint);width:16px;padding-right:0}
+.better{padding:7px 9px;border-top:1px solid var(--line);font-size:11.5px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.better b{font-weight:700}
+
+/* read grid */
+.rd td{font-size:11.5px} .rd td:first-child{font:700 9.5px var(--ui);letter-spacing:.07em;color:var(--faint);width:62px}
+.rd td.v{font:500 11.5px var(--num);color:var(--ink2);white-space:normal}
+.bias{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:9px 10px;border-bottom:1px solid var(--line);background:var(--amber-w)}
+.bias .big{font:800 22px/1.05 var(--ui);color:var(--amber);grid-row:span 2}
+.bias .s{font:600 11.5px var(--ui)} .bias .s2{font:500 11px var(--num);color:var(--ink2)}
+.diff{display:flex;gap:4px;flex-wrap:wrap;padding:6px 9px}
+.diff span{font:600 10.5px var(--num);padding:2px 6px;background:var(--grey-w);border:1px solid var(--line)}
+.diff span.a{color:var(--red);background:var(--red-w);border-color:var(--red-b)}
+.diff span.w{color:var(--blue);background:var(--blue-w);border-color:var(--blue-b)}
+
+/* in trade */
+.pos{display:grid;grid-template-columns:1fr auto;padding:8px 10px;border-bottom:1px solid var(--line)}
+.pos .leg{font:800 15px var(--ui)} .pos .leg span{color:var(--red)}
+.pos .pl{font:700 20px var(--num);text-align:right}
+.pos .s{font:500 10.5px var(--num);color:var(--faint)}
+.eng{display:flex;align-items:center;gap:12px;padding:9px 10px;border-bottom:1px solid var(--line);background:var(--amber-w)}
+.eng .word{font:800 30px/1 var(--ui);color:var(--amber)}
+.eng .s{font:600 11px var(--ui);color:var(--amber)} .eng .s2{font:500 11px var(--num);color:var(--ink2)}
+.four{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.four div{padding:6px 8px;border-right:1px solid var(--line2)} .four div:last-child{border-right:0}
+.four .l{font:700 9px var(--ui);letter-spacing:.07em;color:var(--faint);display:block;margin-bottom:3px}
+.four .x{display:block;font:500 10.5px var(--num);color:var(--ink2);margin-top:3px}
+.gave{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:9px 10px;background:var(--red-w);border-bottom:1px solid var(--red-b)}
+.gave .word{font:800 20px/1.05 var(--ui);color:var(--red);grid-row:span 2}
+.gave .s{font:600 11.5px var(--ui);color:var(--red)} .gave .s2{font:500 11px var(--num);color:var(--ink2)}
+.gauge{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line)}
+.gauge .t{height:8px;background:var(--grey-w);border:1px solid var(--line);position:relative}
+.gauge .t i{position:absolute;left:0;top:0;bottom:0;background:var(--red)} .gauge .t u{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink)}
+.led td,.led th{padding:3px 5px} .led td{font:500 10.5px var(--num)} .led td:first-child{font:600 10.5px var(--ui)}
+
+.foot{font:500 10px var(--ui);color:var(--faint);padding:2px 4px;display:flex;gap:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TICKER -->
+  <div class="tk">
+    <div><span class="sym">NIFTY · 0DTE</span><span class="px">22,709.0</span><span class="sub">fut 22,775 · <span class="cb">+125</span> · hi 22,730 14:07</span></div>
+    <div><span class="sym">BANKNIFTY · 21D</span><span class="px">55,044.4</span><span class="sub"><span class="cb">+141</span> · hi 55,198 12:48</span></div>
+    <div><span class="sym">SENSEX · 2D</span><span class="px">72,892.1</span><span class="sub"><span class="cb">+440</span> · hi 72,983 14:07</span></div>
+    <div><span class="sym">NIFTY DAY</span><span class="sub" style="font-size:11.5px;color:var(--ink)"><b>BUYERS 7–3</b> · <span class="ca"><b>BOX</b> 22,676–22,730s</span></span><span class="sub">PCR <b style="color:var(--ink)">1.52</b> <span class="cr">1.75 @14:00</span> · VWAP above</span></div>
+    <div class="meta">
+      <div class="row"><span class="cut" title="3 baje ke baad naya trade nahi — aapki practice">EXP 33m · 15:00 CUTOFF</span><span class="clock">14:57:12</span></div>
+      <div class="row"><span class="age"><span class="dot"></span>book 0.2s</span><span class="age"><span class="dot"></span>chain 8s</span><span class="age"><span class="dot slow"></span>GC 21s</span></div>
+    </div>
+  </div>
+
+  <!-- COMMAND BAR -->
+  <div class="cmd">
+    <div class="seg" role="tablist">
+      <button data-m="read">MARKET READ</button>
+      <button data-m="val" class="on">VALIDATE</button>
+      <button data-m="in">IN TRADE <span style="opacity:.6">· 1</span></button>
+    </div>
+    <span class="sp"></span>
+    <select class="fld sel" aria-label="index"><option>NIFTY</option><option>BANKNIFTY</option><option>SENSEX</option></select>
+    <input class="fld" aria-label="strike" value="22600" size="6">
+    <div class="tog"><span class="on">CE</span><span>PE</span></div>
+    <div class="tog"><span class="on">BUY</span><span>SELL</span></div>
+    <input class="fld" aria-label="price" value="111.30" size="6">
+    <button class="go">VALIDATE</button>
+    <button class="go alt">READ</button>
+    <span class="kbd">↵</span>
+  </div>
+
+  <div class="main">
+
+    <!-- LEFT : swaps by mode -->
+    <div class="stack">
+
+      <!-- VALIDATE -->
+      <section class="pn" data-v="val">
+        <div class="ph">Verdict · BUY NIFTY 22600 CE @111.30<span class="r">14:57:12</span></div>
+        <div class="vd no">
+          <div><div class="word">NO</div><div class="hing">mat lo</div></div>
+          <div class="cnt">
+            <div><b class="cb">4</b><span>WITH</span></div>
+            <div><b class="cr">4</b><span>AGAINST</span></div>
+            <div><b>2</b><span>NEUTRAL</span></div>
+            <div><b class="f">0</b><span>N/C</span></div>
+          </div>
+          <div class="why"><b>3 structural against</b> → NO</div>
+        </div>
+        <table class="chk">
+          <tr><td>1</td><td>Engine now</td><td><span class="p w">with</span></td><td>HOLD · out 22,764f</td></tr>
+          <tr><td>2</td><td>Day / trend</td><td><span class="p n">neutral</span></td><td>box since 12:40</td></tr>
+          <tr><td>3</td><td>Instrument</td><td><span class="p a">against</span></td><td>δ1.00 · = fut long</td></tr>
+          <tr><td>4</td><td>Wall behind</td><td><span class="p w">with</span></td><td>22700 PE 407L bldg</td></tr>
+          <tr><td>5</td><td>Wall ahead</td><td><span class="p n">neutral</span></td><td>22750 CE 296L · 43p</td></tr>
+          <tr><td>6</td><td>Order flow</td><td><span class="p a">against</span></td><td>sellers 14:46 · −53K</td></tr>
+          <tr><td>7</td><td>VPIN</td><td><span class="p w">with</span></td><td>2/10 buyers</td></tr>
+          <tr><td>8</td><td>Cross-index</td><td><span class="p a">against</span></td><td>0/3 broke 14:07 high</td></tr>
+          <tr><td>9</td><td>Room</td><td><span class="p w">with</span></td><td>−11 / +43 pts f</td></tr>
+          <tr><td>10</td><td>Payers</td><td><span class="p a">against</span></td><td>CE writers holding</td></tr>
+        </table>
+      </section>
+      <section class="pn" data-v="val">
+        <div class="ph">Levels · if taken<span class="r">prem ≈ [I]</span></div>
+        <table class="lv">
+          <tr><th></th><th class="n">spot</th><th class="n">fut</th><th class="n">prem</th><th class="n">pts</th><th></th></tr>
+          <tr class="tgt"><td>T2</td><td class="n">22,750</td><td class="n">22,818</td><td class="n">~150</td><td class="n cb">+41</td><td class="cond">if CE wall leaves</td></tr>
+          <tr class="tgt"><td>T1</td><td class="n">22,730</td><td class="n">22,796</td><td class="n">~130</td><td class="n cb">+21</td><td class="cond">day high</td></tr>
+          <tr class="now"><td>NOW</td><td class="n">22,709</td><td class="n">22,775</td><td class="n">111.3</td><td class="n">0</td><td></td></tr>
+          <tr class="inv"><td>STOP</td><td class="n">22,696</td><td class="n">22,764</td><td class="n">~101</td><td class="n cr">−11</td><td class="cond">PE writers</td></tr>
+        </table>
+      </section>
+
+      <!-- MARKET READ -->
+      <section class="pn" data-v="read" hidden>
+        <div class="ph">Market read · NIFTY<span class="r">pressed 14:57:12 · prev 14:40</span></div>
+        <div class="bias">
+          <div class="big">RANGE<br>→ PIN</div>
+          <div class="s">22,700 pin · ceiling holds · floor leaving</div>
+          <div class="s2">best: SELL 22700 CE @30.35</div>
+        </div>
+        <table class="rd">
+          <tr><td>DAY</td><td><span class="p w">buyers 7–3</span></td><td class="v">22,569 → 22,730s · now 22,709</td></tr>
+          <tr><td>SHAPE</td><td><span class="p m">box</span></td><td class="v">22,676–22,730s since 12:40 · 14:07 hi failed</td></tr>
+          <tr><td>SYNC</td><td><span class="p m">split</span></td><td class="v">NIFTY+SENSEX top 14:07 · BANK 12:48</td></tr>
+          <tr><td>PIN</td><td><span class="p m">22,700</span></td><td class="v">CE 309L · PE 407L — max both</td></tr>
+          <tr><td>CEILING</td><td><span class="p n">holding</span></td><td class="v">22750 CE 296L · 22800 CE 309L · flat 1h</td></tr>
+          <tr><td>FLOOR</td><td><span class="p a">leaving</span></td><td class="v">PE −541L since 14:00 · PCR 1.75→1.52</td></tr>
+          <tr><td>FLOW</td><td><span class="p a">sellers</span></td><td class="v">CVD lower hi 14:39 · −53K since · px held</td></tr>
+          <tr><td>VWAP</td><td><span class="p w">above</span></td><td class="v">22,775f vs 22,756f</td></tr>
+          <tr><td>VPIN</td><td><span class="p n">quiet</span></td><td class="v">2/10 buyers</td></tr>
+          <tr><td>CLOCK</td><td><span class="p m">expiry</span></td><td class="v">33 min · straddle 52 · cutoff 15:00</td></tr>
+        </table>
+      </section>
+      <section class="pn" data-v="read" hidden>
+        <div class="ph">Changed since 14:40</div>
+        <div class="diff">
+          <span class="a">CVD −53K</span><span class="a">PE OI −120L</span><span class="a">sellers won 14:46</span><span>22750 CE +4L</span><span class="w">px held 22,775f</span>
+        </div>
+      </section>
+
+      <!-- IN TRADE -->
+      <section class="pn" data-v="in" hidden>
+        <div class="ph">Position<span class="r">replay 10:48:08</span></div>
+        <div class="pos">
+          <div><div class="leg">LONG NIFTY 22650 <span>PE</span></div><div class="s">in 10:03 @55.00 · 45m · peak 65.20 10:22</div></div>
+          <div><div class="pl cr">48.35</div><div class="s">−6.65 · given back 16.85</div></div>
+        </div>
+        <div class="eng">
+          <div class="word">HOLD</div>
+          <div><div class="s">sirf zone · OI + flow not with you</div><div class="s2">out if 22,770f (22,704s) accepted · prem ~38</div></div>
+        </div>
+        <div class="four">
+          <div><span class="l">ZONE</span><span class="p w">with</span><span class="x">22,788f wall</span></div>
+          <div><span class="l">FLOW</span><span class="p a">against</span><span class="x">since 10:43</span></div>
+          <div><span class="l">OI</span><span class="p a">gave up</span><span class="x">W −12.6%</span></div>
+          <div><span class="l">VPIN</span><span class="p n">quiet</span><span class="x">1/10</span></div>
+        </div>
+        <div class="gave">
+          <div class="word">GAVE<br>UP</div>
+          <div class="s">your wall's writers are leaving · since 10:48</div>
+          <div class="s2">22650 CE 200.7L (10:32) → 175.5L · 15 updates · no new peak</div>
+        </div>
+        <div class="gauge">
+          <span class="f" style="font:700 9px var(--ui);letter-spacing:.07em">W OFF PEAK</span>
+          <div class="t"><i style="width:63%"></i><u style="left:50%" title="10% line"></u></div>
+          <span class="n cr" style="font-weight:700">−12.6%</span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- CENTER : OI ladder (always) -->
+    <section class="pn">
+      <div class="ph"><span id="ladT">NIFTY ladder · OI writers</span><span class="r" id="ladR">Δ since 14:00 · bars by meaning for your trade</span></div>
+      <table class="lad" id="lad"></table>
+    </section>
+
+    <!-- RIGHT : board (always) + what flips -->
+    <div class="stack">
+      <section class="pn" data-v="in" hidden>
+        <div class="ph">Kya badla · since entry<span class="r">10:03 → 10:48</span></div>
+        <table class="led">
+          <tr><th>fact</th><th class="n">entry</th><th class="n">now</th><th>read</th></tr>
+          <tr><td>Fut / spot</td><td class="n">22,741 / 22,657</td><td class="n">22,749 / 22,665</td><td><span class="p a">+8 vs</span></td></tr>
+          <tr><td>Wall behind</td><td class="n">22700 CE 229L</td><td class="n">22650 CE 176L</td><td><span class="p a">−12.6%</span></td></tr>
+          <tr><td>PE under you</td><td class="n">189.0L</td><td class="n">266.4L</td><td><span class="p a">+77L</span></td></tr>
+          <tr><td>Fights since</td><td class="n">—</td><td class="n">B 2 · S 1</td><td><span class="p a">buyers</span></td></tr>
+          <tr><td>VWAP side</td><td class="n">above</td><td class="n">above</td><td><span class="p a">vs</span></td></tr>
+          <tr><td>Zone</td><td class="n">22,788f</td><td class="n">22,770f</td><td><span class="p w">with</span></td></tr>
+          <tr><td>Premium</td><td class="n">55.00</td><td class="n">48.35</td><td class="n f">pk 65.20</td></tr>
+        </table>
+        <div class="better"><span class="p a">6 of 7</span><b>moved against you</b><span class="i2">only the zone holds</span></div>
+      </section>
+      <section class="pn" data-v="val read">
+        <div class="ph">Best on the board<span class="r">18 scanned · counts, not odds</span></div>
+        <table class="bd">
+          <tr><th></th><th>trade</th><th>word</th><th class="n">w·a·n</th><th class="n">prem</th><th class="n">stop</th></tr>
+          <tr class="top"><td class="rk">1</td><td class="t">SELL NIFTY 22700 CE</td><td><span class="p m">wait</span></td><td class="n">6·1·3</td><td class="n">30.35</td><td class="n">22,730</td></tr>
+          <tr><td class="rk">2</td><td class="t">SELL NIFTY 22700 PE</td><td><span class="p m">wait</span></td><td class="n">5·2·3</td><td class="n">21.75</td><td class="n">22,678</td></tr>
+          <tr><td class="rk">3</td><td class="t">SELL SX 72900 CE</td><td><span class="p m">wait</span></td><td class="n">4·2·4</td><td class="n">339.45</td><td class="n">73,000</td></tr>
+          <tr><td class="rk">4</td><td class="t">SELL BNF 55000 PE</td><td><span class="p m">wait</span></td><td class="n">4·3·3</td><td class="n">679.40</td><td class="n">54,846</td></tr>
+          <tr><td class="rk">5</td><td class="t">BUY NIFTY 22700 PE</td><td><span class="p a">no</span></td><td class="n">3·3·4</td><td class="n">21.75</td><td class="n">22,730</td></tr>
+          <tr class="you"><td class="rk">9</td><td class="t">BUY NIFTY 22600 CE <span class="p a">you</span></td><td><span class="p a">no</span></td><td class="n">4·4·2</td><td class="n">111.30</td><td class="n">22,696</td></tr>
+        </table>
+        <div class="better"><span class="p w">better</span><b>SELL 22700 CE</b><span class="i2">same index · ceiling holding, floor leaving</span><span class="f">vs #1: day trend up (7–3)</span></div>
+      </section>
+      <section class="pn" data-v="val read">
+        <div class="ph">What flips it</div>
+        <table class="rd">
+          <tr><td>BUY CE</td><td><span class="p w">→ go</span></td><td class="v">22750 CE ≥10% off peak + CVD new hi</td></tr>
+          <tr><td>SELL CE</td><td><span class="p a">→ out</span></td><td class="v">accepted &gt; 22,730s / 22,796f</td></tr>
+          <tr><td>SELL PE</td><td><span class="p a">→ out</span></td><td class="v">22700 PE writers leave · &lt; 22,690s</td></tr>
+        </table>
+      </section>
+      <div class="foot" data-v="val read"><span>prices [M] chain 14:55</span><span>SENSEX/BANK counts: mockup</span><span>no odds · counts only</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ladder rows: [strike, ceLtp, ceOI, ceD, peLtp, peOI, peD, tag]
+const L = {
+  val: {t:'OI ladder · NIFTY 14:55', r:'Δ since 14:00 · red = against you', basis:66, side:'buyCE',
+    rows:[[22850,0.55,119.9,-34.8,142.5,11.5,-2.4,''],[22800,2.2,308.6,-7.9,94.25,64.2,-14.7,'CEIL'],[22750,9.65,296.0,0.2,51.65,111.0,-10.1,'CEIL'],
+          [22700,30.35,309.1,0.9,21.75,407.0,-25.8,'PIN'],[22650,66.0,105.9,-21.5,7.45,339.3,-36.7,''],[22600,111.3,71.9,-9.0,2.55,381.9,-88.0,'FLOOR'],[22550,159.75,23.8,-3.8,0.95,185.4,-54.8,'']],
+    marks:[[22750,'T2 · 22,750s / 22,818f','hi'],[22730,'DAY HI 14:07 · 22,730s / 22,796f','hi'],[22709,'SPOT 22,709 · FUT 22,775','spot'],[22696,'STOP · 22,696s / 22,764f','inv'],[22690,'VWAP · 22,690s / 22,756f','hi']]},
+  read: null,
+  in: {t:'OI ladder · NIFTY 10:48', r:'Δ since entry 10:03 · red = against you', basis:84, side:'buyPE',
+    rows:[[22850,5.7,120.0,13.3,193.15,6.9,0.4,''],[22800,11.25,227.7,15.9,148.8,42.3,4.9,''],[22750,21.2,162.0,37.1,108.3,45.9,7.4,''],
+          [22700,38.0,262.2,35.8,74.55,153.3,30.2,'ZONE'],[22650,61.95,175.5,25.0,48.35,266.4,75.3,'W −12.6%'],[22600,94.35,152.4,-21.8,30.9,437.1,54.2,''],[22550,132.85,53.7,-4.9,19.55,280.1,12.3,'']],
+    marks:[[22704,'OUT · 22,704s / 22,770f accepted','inv'],[22666,'SPOT 22,666 · FUT 22,749','spot'],[22656,'YOU IN 10:03 · 22,656s / 22,740f','you']]}
+};
+L.read = Object.assign({}, L.val, {r:'Δ since 14:00 · no trade: neutral', side:'none'});
+
+const fmt = (x,d=1)=>x.toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+function cls(side, leg, d){            // meaning for HER: who is with / against
+  if(side==='none') return 'ne';
+  const up = side==='buyCE';           // she wants up
+  const building = d >= 0;
+  // CE writers building = ceiling (against an up trade); PE writers building = floor (with an up trade)
+  const withHer = leg==='ce' ? (up ? !building : building) : (up ? building : !building);
+  return withHer ? 'wi' : 'ag';
+}
+function draw(m){
+  const c = L[m], tb = document.getElementById('lad'), max = 440;
+  document.getElementById('ladT').textContent = c.t; document.getElementById('ladR').textContent = c.r;
+  let h = '<tr><th class="n">Δ</th><th class="n">CE OI L</th><th class="n">CE</th><th style="text-align:center">strike s<br><span style="font-weight:500">fut</span></th><th>PE</th><th>PE OI L</th><th>Δ</th></tr>';
+  const marks = c.marks.slice();
+  for(const [k,cl,co,cd,pl,po,pd,tag] of c.rows){
+    while(marks.length && marks[0][0] >= k){ const [,txt,kind]=marks.shift(); h += `<tr class="mk ${kind}"><td colspan="7">${txt}</td></tr>`; }
+    const tg = tag==='PIN'?'<span class="p m">pin</span>':tag==='CEIL'?'<span class="p n">ceiling</span>':tag==='FLOOR'?'<span class="p a">floor ↓</span>'
+             :tag==='ZONE'?'<span class="p w">zone</span>':tag?`<span class="p a">${tag}</span>`:'';
+    const dc = d=>d>0?'+'+fmt(d):fmt(d);
+    const ccl = cls(c.side,'ce',cd), pcl = cls(c.side,'pe',pd);
+    h += `<tr><td class="d ${ccl==='ag'?'cr':ccl==='wi'?'cb':'f'}">${dc(cd)}</td>
+      <td><div class="bar ce"><i class="${cls(c.side,'ce',1)}" style="width:${co/max*76}px"></i><em>${fmt(co)}</em></div></td>
+      <td class="n">${fmt(cl,2)}</td>
+      <td class="k">${k}<small>${(k+c.basis).toLocaleString('en-IN')}f</small>${tg}</td>
+      <td>${fmt(pl,2)}</td>
+      <td><div class="bar pe"><i class="${cls(c.side,'pe',1)}" style="width:${po/max*76}px"></i><em>${fmt(po)}</em></div></td>
+      <td class="d pe ${pcl==='ag'?'cr':pcl==='wi'?'cb':'f'}">${dc(pd)}</td></tr>`;
+  }
+  for(const [,txt,kind] of marks) h += `<tr class="mk ${kind}"><td colspan="7">${txt}</td></tr>`;
+  tb.innerHTML = h;
+}
+function mode(m){
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on', b.dataset.m===m));
+  document.querySelectorAll('[data-v]').forEach(s=>s.hidden = !s.dataset.v.split(' ').includes(m));
+  draw(m);
+}
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>mode(b.dataset.m));
+mode('val');
+</script>
+</body>
+</html>

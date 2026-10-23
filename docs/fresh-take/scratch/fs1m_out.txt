@@ -1,0 +1,20 @@
+=== NIFTY: 11 full days, 825 aligned 5-min bars; pooled |5-min delta| p70 226 p90 496 lots
+(a) inside the 5-min bar: share of the five 1-min |delta| carried by the largest minute
+    all bars (823): median 0.42 ; bars with |d5|>=p90 (83): median 0.47, one minute >= 50% of the bar in 36 of 83
+    minutes agreeing with the bar sign (of 5): bars |d5|>=p90: 5 of 5 in 44, 4 in 22, 3 in 13, <=2 in 4 of 83 ; all bars: 5 in 172, 4 in 288, 3 in 233, <=2 in 130 of 823
+(b) aligned bars with |d5|>=p90: 83.  Minutes before the bar close at which a rolling 5-min window (1-min step) first showed the same sign and >= p90:
+    lead 4 min 29, 3 min 11, 2 min 12, 1 min 12, 0 (only at the close) 19, never inside the bar 0
+    rolling-window episodes (consecutive minutes |roll5|>=p90, same sign): 108 (median length 4 min); episodes with NO aligned bar >= p90 of the same sign overlapping them: 34
+    for aligned bars with |d5|>=p70: the largest rolling window ending inside the bar / the aligned bar |d5|: median 1.05, p90 1.91 (>=1 by construction when the aligned window is one of the five)
+    1-min volume >= its pooled p99 (756 lots): inside 34 5-min bars, of which the 5-min bar volume is below the pooled p70 5-min volume in 0
+
+=== BANKNIFTY: 11 full days, 825 aligned 5-min bars; pooled |5-min delta| p70 90 p90 204 lots
+(a) inside the 5-min bar: share of the five 1-min |delta| carried by the largest minute
+    all bars (821): median 0.47 ; bars with |d5|>=p90 (83): median 0.50, one minute >= 50% of the bar in 42 of 83
+    minutes agreeing with the bar sign (of 5): bars |d5|>=p90: 5 of 5 in 28, 4 in 36, 3 in 15, <=2 in 4 of 83 ; all bars: 5 in 128, 4 in 266, 3 in 245, <=2 in 182 of 821
+(b) aligned bars with |d5|>=p90: 83.  Minutes before the bar close at which a rolling 5-min window (1-min step) first showed the same sign and >= p90:
+    lead 4 min 26, 3 min 7, 2 min 21, 1 min 10, 0 (only at the close) 19, never inside the bar 0
+    rolling-window episodes (consecutive minutes |roll5|>=p90, same sign): 121 (median length 3 min); episodes with NO aligned bar >= p90 of the same sign overlapping them: 37
+    for aligned bars with |d5|>=p70: the largest rolling window ending inside the bar / the aligned bar |d5|: median 1.05, p90 1.76 (>=1 by construction when the aligned window is one of the five)
+    1-min volume >= its pooled p99 (312 lots): inside 35 5-min bars, of which the 5-min bar volume is below the pooled p70 5-min volume in 0
+

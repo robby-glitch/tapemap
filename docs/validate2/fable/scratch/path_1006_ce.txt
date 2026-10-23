@@ -1,0 +1,12 @@
+=== path 2026-10-06 NIFTY BUY 22600 CE @ 133.0 from 14:12:07 (a row per change: min · word · Z/F/O/V · W · W state · W % off peak · fut · prem · G)
+   14:13 HOLD                   WITH/WITH/WITH/QUIET               22700 PE building  0.0 22816.0 129.45 22764
+   14:28 HOLD                   WITH/WITH/WITH/QUIET               22700 PE building  6.6 22771.0 98.45 22764
+   14:30 HOLD                   WITH/WITH/AGAINST/QUIET            22700 PE off       9.4 22774.0 95.0 22764
+   14:33 HOLD                   WITH/WITH/AGAINST/QUIET            22700 PE off       11.4 22773.0 101.05 22764
+   14:35 HOLD                   WITH/QUIET/AGAINST/QUIET           22700 PE off       11.5 22774.9 97.75 22764
+   14:50 HOLD                   WITH/AGAINST/AGAINST/QUIET         22700 PE off       10.4 22775.9 110.25 22764
+   14:57 HOLD                   WITH/AGAINST/AGAINST/WITH          22700 PE off       12.8 22779.0 113.95 22764
+   14:59 CAN'T CHECK since 14:5 WITH/AGAINST/AGAINST/WITH          22700 PE off       12.5 22775.0 110.25 22764
+   15:00 HOLD                   WITH/WITH/WITH/WITH                22700 PE building  0.4 22766.0 103.8 22764
+   15:06 HOLD                   WITH/WITH/AGAINST/AGAINST          22700 PE off       7.2 22779.9 113.4 22764
+   15:12 HOLD                   WITH/WITH/AGAINST/AGAINST          22700 PE off       12.0 22780.0 114.4 22764

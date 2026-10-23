@@ -6,6 +6,15 @@ this project up, read this file to the end before touching anything. It exists
 because handovers kept starting from stale assumptions and re-doing work that
 is finished, dead, or forbidden.
 
+**Newest first (2026-10-23):** read `CLAUDE.md`'s "Current state" section and `docs/live/NOTEPAD.md`. They cover:
+- the READ / DECODE stack;
+- the locked setups §1i–§1o;
+- the CAS / 15:40 market facts;
+- the extension v2.8;
+- the oi-lab research.
+
+Everything below is older history, still true where it isn't superseded.
+
 **For anything newer than 2026-08-22 — and a lot is newer — the current
 picture lives in `context/HANDOFF.md`'s "STATE OF THE APP" section** (the
 VPIN shadow module and its first validated live day, the rejected desk and
@@ -236,7 +245,7 @@ start-v2.bat              # THE way to start. Upstox, port 8765.
 start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
-python -m pytest -q       # 1377 collected, 1377 passing, as of 2026-09-28 (the ponytail cleanup: desk.py, the paper desk, desk.html and toolb.html are deleted -- docs/review/PONYTAIL-REVIEW-2026-09-28.md; older mentions of them below are history)
+python -m pytest -q       # 1897 collected: 1895 pass, 1 skipped, 1 known flaky (NOTEPAD A49), as of 2026-10-23; earlier: 1377 as of 2026-09-28 (the ponytail cleanup: desk.py, the paper desk, desk.html and toolb.html are deleted -- docs/review/PONYTAIL-REVIEW-2026-09-28.md; older mentions of them below are history)
 ```
 
 **The token expires daily at 03:30 IST.** A dead token looks exactly like a

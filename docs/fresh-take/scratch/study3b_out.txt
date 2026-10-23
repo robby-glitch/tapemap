@@ -1,0 +1,31 @@
+=== (a) POST-HOC (added after the first table mis-scored the 16 Oct 09:40 trap): LEVEL HOLD within 60 min: BROKE = price trades 0.25U beyond the mark price against the winner; HELD = it does not (>=45 min seen); MFE>=1U = best excursion with the winner >= 1.0 unit ===
+  A trap        n=103 | HELD  40 | BROKE  54 | END  9 | MFE>=1U in 36 of 103
+  A absorption  n=200 | HELD  58 | BROKE 121 | END 21 | MFE>=1U in 62 of 200
+  A exhaustion  n= 66 | HELD  17 | BROKE  45 | END  4 | MFE>=1U in 20 of 66
+  A initiative  n= 90 | HELD  42 | BROKE  42 | END  6 | MFE>=1U in 42 of 90
+  A vacuum      n= 37 | HELD   2 | BROKE  35 | END  0 | MFE>=1U in 1 of 37
+  B trap        n= 34 | HELD  16 | BROKE  16 | END  2 | MFE>=1U in 10 of 34
+  B absorption  n= 64 | HELD  22 | BROKE  38 | END  4 | MFE>=1U in 17 of 64
+  B exhaustion  n= 28 | HELD   5 | BROKE  21 | END  2 | MFE>=1U in 6 of 28
+  B initiative  n= 56 | HELD  29 | BROKE  24 | END  3 | MFE>=1U in 18 of 56
+  B vacuum      n= 22 | HELD   4 | BROKE  18 | END  0 | MFE>=1U in 2 of 22
+  BASELINE (every 5-min bar, winner = buyers at the bar low / sellers at the bar high; same days): buyers-at-low HELD 243 BROKE 599 END 0 | sellers-at-high HELD 349 BROKE 493 END 0
+  PROXIMITY BASELINE (every 5-min bar 09:30-14:30, both ends: bar low vs 30-min low, bar high vs 30-min high): 1684 readings | within 10 pts of the 30-min extreme 721 | within 10 pts of the DAY extreme 62
+
+=== (c) DECODER EVENTS (5-13 Oct, FORWARD-LOGGED, 0.4.0): counts, and 0.5U WITH/AGAINST in the hypothesised direction ===
+  winner map (fixed before counting): E1 BADA PRINT = printer side; E2 PEHAL = side; E3 DABAAV absorbed = -side, positioning = +side; E4 DHER = side; E5 KHULA = side (the unfinished high/low gets revisited); E6 THAKAAN = -side (the side that ran out loses); E7 CVD ulta = side (warns against the other)
+  E1 BADA PRINT n=  6 (unsided 0) | WITH 5 / AGAINST 1 / TIE 0 / NONE+END 0 | level HELD 2 / BROKE 4 / END 0 | at: {'band': 6}
+  E2 PEHAL     n= 28 (unsided 0) | WITH 9 / AGAINST 12 / TIE 0 / NONE+END 7 | level HELD 3 / BROKE 24 / END 1 | at: {'band': 17, None: 11}
+  E3 DABAAV    n= 30 (unsided 28) | WITH 2 / AGAINST 0 / TIE 0 / NONE+END 0 | level HELD 1 / BROKE 1 / END 0 | at: {'band': 18, None: 12}
+  E4 DHER      n=  1 (unsided 0) | WITH 1 / AGAINST 0 / TIE 0 / NONE+END 0 | level HELD 1 / BROKE 0 / END 0 | at: {'band': 1}
+  E5 KHULA     n= 38 (unsided 0) | WITH 16 / AGAINST 17 / TIE 0 / NONE+END 5 | level HELD 2 / BROKE 35 / END 1 | at: {'band': 24, 'extreme': 13, 'level': 1}
+  E6 THAKAAN   n=  1 (unsided 0) | WITH 0 / AGAINST 1 / TIE 0 / NONE+END 0 | level HELD 0 / BROKE 1 / END 0 | at: {'band': 1}
+  E7 CVD ulta  n= 12 (unsided 0) | WITH 5 / AGAINST 4 / TIE 0 / NONE+END 3 | level HELD 3 / BROKE 9 / END 0 | at: {'band': 11, 'level': 1}
+
+  E1 BADA PRINT rows (all):
+    10-06 11:05 BUYER    385 lots @22777.0 at=band state=FAILED | 0.5U WITH | hold BROKE | trend(<=4)
+    10-06 12:35 BUYER    353 lots @22808.0 at=band state=FAILED | 0.5U WITH | hold BROKE | trend(<=4)
+    10-07 14:30 BUYER    385 lots @22720.0 at=band state=FAILED | 0.5U AGAINST | hold BROKE | chop(>=9)
+    10-08 12:20 SELLER   254 lots @22370.0 at=band state=CONFIRMED | 0.5U WITH | hold HELD | trend(<=4)
+    10-09 13:55 BUYER    394 lots @22635.0 at=band state=BAAKI | 0.5U WITH | hold BROKE | trend(<=4)
+    10-12 10:50 SELLER   311 lots @22492.5 at=band state=CONFIRMED | 0.5U WITH | hold HELD | trend(<=4)

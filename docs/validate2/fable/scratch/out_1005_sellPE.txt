@@ -1,0 +1,62 @@
+=== 2026-10-05 NIFTY her SELL 22650 PE @ 131.35 at 13:41:38
+  NIFTY SELL 22650 PE @ 130.25  ->  **GO**  8 with · 0 against · 1 neither · 0 could not check (of 9)
+    engine: HOLD · behind you: flow, OI, VPIN · out if 22532 is accepted
+    fut 22671.4 · F 22571.8 · basis_ix 120.6 · give-up 22532 (prem there ~232.2) · wall ahead 22600 CE 50 pts (prem there ~114.5)
+    RIGHT NOW      WITH             HOLD · behind you: flow, OI, VPIN
+    DAY / TREND    NEITHER          5m UP · 15m RANGE · 1h RANGE [I] (side log 13:41)
+    EXPRESSION     WITH             EITHER at 13:41: buy or sell, both read
+    WALL BEHIND    WITH             22500 PE writers 180.2L, building (peak 180.2L 13:41, 0.0 % off) [M]
+      WALL AHEAD     NEITHER          not shown — a writer has no next wall; time is her target
+    ORDER FLOW     WITH             buyers won 13:09 at 22578 · behind you: the move away from your strike · CVD -3,084 (peak 09:50, price extreme 09:51) [I]
+    VPIN           WITH             4 of 10 buckets one-sided, your way · toxicity pct 0.98 (shadow)
+    CROSS-INDEX    WITH             NIFTY latest push UP to 22675 at 13:41 (with you) · BANKNIFTY: TOOK its high 13:41 at 55138 · SENSEX: TOOK its high 13:41 at 72839 (thin tape: witness)
+    ROOM           WITH             invalid at 22532 fut (139 pts; one candle B = 12) [M]
+    PAYING         WITH             CE 22600 UNWINDING (peak 12:17, -52.8L from it) · CE 22500 UNWINDING (peak 12:48, -48.6L from it) [M]
+      MONEYNESS      NEITHER          delta -0.7003 · intrinsic 78.2 · time value 52.0 of 130.25 [I]
+      SPREAD         NEITHER          bid 129.2 / ask 129.6 = 0.40 (8 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          13:41 · expiry 2026-10-06
+      WHO IS IN PAIN NEITHER          22650 PE ltp 130.25 vs day avg 152.88: writers near their avg · 22500 PE ltp 60.95 vs day avg 88.64: writers comfortable · 22600 CE ltp 80.45 vs day avg 69.96: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.74 (was 0.89 an hour ago) · CE 954L · PE 709L [M]
+
+=== THE BOARD at 13:41:38 (ranked: word, then with-count, then fewer against, then fewer could-not-check, then NIFTY > BANKNIFTY > SENSEX)
+  GO   NIFTY     SELL 22550 PE ATM @ 79.7  8w/0a/1n/0c  against: —
+  GO   NIFTY     SELL 22600 PE ITM @ 102.3  8w/0a/1n/0c  against: —
+  GO   BANKNIFTY BUY  54800 CE ATM @ 1026.7  7w/0a/2n/1c  against: —
+  GO   SENSEX    BUY  72300 CE ATM @ 566.1  7w/0a/2n/1c  against: —
+  GO   SENSEX    SELL 72300 PE ATM @ 408.0  7w/0a/1n/1c  against: —
+  GO   SENSEX    SELL 72400 PE ITM @ 451.0  7w/0a/1n/1c  against: —
+  WAIT NIFTY     BUY  22550 CE ATM @ 107.3  7w/1a/2n/0c  against: ROOM
+  WAIT BANKNIFTY SELL 54800 PE ATM @ 717.9  6w/1a/1n/1c  against: EXPRESSION
+  WAIT BANKNIFTY SELL 54900 PE ITM @ 757.6  6w/1a/1n/1c  against: EXPRESSION
+  NO   SENSEX    BUY  72300 PE ATM @ 408.0  5w/2a/2n/1c  against: ORDER FLOW, CROSS-INDEX
+  NO   NIFTY     BUY  22550 PE ATM @ 79.7  4w/3a/3n/0c  against: ORDER FLOW, VPIN, CROSS-INDEX
+  NO   NIFTY     SELL 22550 CE ATM @ 107.3  4w/3a/2n/0c  against: ORDER FLOW, VPIN, CROSS-INDEX
+  NO   NIFTY     SELL 22500 CE ITM @ 139.1  4w/3a/2n/0c  against: ORDER FLOW, VPIN, CROSS-INDEX
+  NO   SENSEX    SELL 72300 CE ATM @ 566.1  4w/3a/1n/1c  against: EXPRESSION, ORDER FLOW, CROSS-INDEX
+  NO   SENSEX    SELL 72200 CE ITM @ 615.9  4w/3a/1n/1c  against: EXPRESSION, ORDER FLOW, CROSS-INDEX
+  NO   BANKNIFTY SELL 54800 CE ATM @ 1026.7  3w/3a/2n/1c  against: EXPRESSION, ORDER FLOW, CROSS-INDEX
+  NO   BANKNIFTY SELL 54700 CE ITM @ 1083.65  3w/3a/2n/1c  against: EXPRESSION, ORDER FLOW, CROSS-INDEX
+  NO   BANKNIFTY BUY  54800 PE ATM @ 717.9  3w/4a/2n/1c  against: WALL AHEAD, ORDER FLOW, CROSS-INDEX, ROOM
+
+  BETTER than hers: none — your trade is the best on the board
+  TOP of the board: NIFTY SELL 22550 PE (GO)
+
+  top candidate in full:
+  NIFTY SELL 22550 PE @ 79.7  ->  **GO**  8 with · 0 against · 1 neither · 0 could not check (of 9)
+    engine: HOLD · behind you: flow, OI, VPIN · out if 22532 is accepted
+    fut 22671.4 · F 22571.8 · basis_ix 120.6 · give-up 22532 (prem there ~156.2) · wall ahead 22600 CE 50 pts (prem there ~69.1)
+    RIGHT NOW      WITH             HOLD · behind you: flow, OI, VPIN
+    DAY / TREND    NEITHER          5m UP · 15m RANGE · 1h RANGE [I] (side log 13:41)
+    EXPRESSION     WITH             EITHER at 13:41: buy or sell, both read
+    WALL BEHIND    WITH             22500 PE writers 180.2L, building (peak 180.2L 13:41, 0.0 % off) [M]
+      WALL AHEAD     NEITHER          not shown — a writer has no next wall; time is her target
+    ORDER FLOW     WITH             buyers won 13:09 at 22578 · behind you: the move away from your strike · CVD -3,084 (peak 09:50, price extreme 09:51) [I]
+    VPIN           WITH             4 of 10 buckets one-sided, your way · toxicity pct 0.98 (shadow)
+    CROSS-INDEX    WITH             NIFTY latest push UP to 22675 at 13:41 (with you) · BANKNIFTY: TOOK its high 13:41 at 55138 · SENSEX: TOOK its high 13:41 at 72839 (thin tape: witness)
+    ROOM           WITH             invalid at 22532 fut (139 pts; one candle B = 12) [M]
+    PAYING         WITH             CE 22600 UNWINDING (peak 12:17, -52.8L from it) · CE 22500 UNWINDING (peak 12:48, -48.6L from it) [M]
+      MONEYNESS      NEITHER          delta -0.4886 · intrinsic 0.0 · time value 79.7 of 79.7 [I]
+      SPREAD         NEITHER          bid 79.25 / ask 79.4 = 0.15 (3 ticks) — you post, so it is revenue
+      CLOCK          NEITHER          13:41 · expiry 2026-10-06
+      WHO IS IN PAIN NEITHER          22550 PE ltp 79.7 vs day avg 102.61: writers comfortable · 22500 PE ltp 60.95 vs day avg 88.64: writers comfortable · 22600 CE ltp 80.45 vs day avg 69.96: writers near their avg [I: avg is the day's traded average, chain_metrics' proxy]
+      PCR near-ATM   NEITHER          PCR(9) 0.74 (was 0.89 an hour ago) · CE 954L · PE 709L [M]

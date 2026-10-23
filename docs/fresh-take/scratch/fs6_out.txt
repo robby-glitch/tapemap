@@ -1,0 +1,14 @@
+=== sign-shuffle null (each bar keeps |delta|, volume, price; delta sign random; thresholds rebuilt; 100 shuffles)
+  PUSH      real  39   shuffled mean   19.4  (5-95%:  14 -  24)
+  CLIMAX_a  real  26   shuffled mean   67.4  (5-95%:  58 -  75)
+  CLIMAX_b  real  61   shuffled mean   61.0  (5-95%:  61 -  61)
+  PATLA     real  74   shuffled mean   72.0  (5-95%:  70 -  74)
+  NOISE     real 310   shuffled mean  318.3  (5-95%: 310 - 327)
+  NONE      real 659   shuffled mean  631.0  (5-95%: 618 - 642)
+
+=== SENSEX
+Traceback (most recent call last):
+  File "C:\Users\kaam\Desktop\operator mode\tapemap\docs\fresh-take\scratch\fs6.py", line 19, in <module>
+    day = p[-16:-6]; rs = [r for r in _rows(p) if 33300 <= sec(r['t']) <= 54900]
+                                      ^^^^^
+NameError: name '_rows' is not defined

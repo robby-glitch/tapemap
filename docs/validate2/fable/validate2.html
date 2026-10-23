@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VALIDATE 2 mockup</title>
+<style>
+  /* LIGHT ONLY. pro.css tokens. blue = with her · red = against / act now · amber = look now · grey = absence. No charts. */
+  :root { --ink:#141A22; --muted:#5C6675; --faint:#9AA3B0; --line:#E3E7ED; --bg:#FFFFFF; --wash:#F6F7F9;
+          --blue:#1D4ED8; --blue-wash:#EEF3FE; --red:#C42B30; --red-wash:#FDF0F0; --amber:#B45309; --amber-wash:#FDF4E4; --amber-line:#F0D9AE; --grey:#8A93A1; }
+  html, body { margin:0; background:var(--wash); color:var(--ink); font:13.5px/1.42 Inter,'Segoe UI',system-ui,sans-serif; }
+  * { box-sizing:border-box; }
+  .num, .tbl, td.n { font-variant-numeric: tabular-nums; }
+  .page { width:760px; margin:0 auto; background:var(--bg); min-height:100vh; display:flex; flex-direction:column; }
+  .muted { color:var(--muted); } .faint { color:var(--faint); } .small { font-size:12px; } b { font-weight:600; }
+  .tag { display:inline-block; font-size:10px; font-weight:700; color:var(--faint); border:1px solid var(--line); border-radius:3px; padding:0 4px; line-height:15px; vertical-align:middle; }
+  .hi { display:inline-block; font-size:10.5px; color:var(--muted); background:var(--wash); border:1px solid var(--line); border-radius:9px; padding:0 6px; line-height:16px; margin-left:4px; }
+  .chip { display:inline-block; font-weight:700; font-size:11.5px; padding:1px 7px; border-radius:4px; border:1px solid var(--line); margin-right:3px; }
+  .chip.w { color:var(--blue); background:var(--blue-wash); border-color:#C9D8FB; }
+  .chip.a { color:var(--red); background:var(--red-wash); border-color:#F3C9CB; }
+  .chip.q { color:var(--muted); background:var(--wash); }
+  .chip.x { color:var(--muted); background:#fff; border-style:dashed; }
+  .chip.m { color:var(--amber); background:var(--amber-wash); border-color:var(--amber-line); }
+  .abs.cant { color:var(--muted); font-style:italic; } .abs.notshown { color:var(--muted); } .abs.none { color:var(--faint); font-style:italic; }
+  /* mockup switcher (not part of the product) */
+  .fxbar { background:var(--amber-wash); color:var(--amber); border-bottom:1px solid var(--amber-line); padding:7px 16px; display:flex; gap:8px; align-items:center; font-size:12.5px; font-weight:600; }
+  .fxbar button { font:inherit; font-size:12px; border:1px solid var(--amber-line); background:#fff; color:var(--amber); border-radius:5px; padding:3px 9px; cursor:pointer; }
+  .fxbar button.on { background:var(--amber); color:#fff; border-color:var(--amber); }
+  /* ABHI strip */
+  .abhi { border-bottom:1px solid var(--line); padding:8px 16px 6px; }
+  .abhi .top { display:flex; justify-content:space-between; align-items:baseline; font-size:12px; color:var(--muted); }
+  .abhi .top b { color:var(--ink); }
+  .abhi table { width:100%; border-collapse:collapse; margin-top:4px; }
+  .abhi td { padding:3px 4px 3px 0; vertical-align:top; border-top:1px solid var(--line); font-size:12.5px; }
+  .abhi tr:first-child td { border-top:0; }
+  .abhi td.idx { width:132px; font-weight:600; }
+  .abhi td.idx .num { font-weight:400; }
+  .ages { font-size:11.5px; color:var(--muted); }
+  .ages .dead { color:#fff; background:var(--ink); padding:0 6px; border-radius:3px; }
+  .practice { color:var(--amber); font-weight:600; }
+  /* the mode card */
+  .mode { padding:10px 16px 12px; border-bottom:1px solid var(--line); flex:1; }
+  .slip { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .slip input, .slip select { font:inherit; font-size:13px; padding:4px 7px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .btn { font:inherit; font-size:13px; font-weight:600; padding:5px 12px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .btn.primary { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .btn.read { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .sec { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:12px 0 4px; }
+  .sec:first-child { margin-top:0; }
+  .line { margin:0 0 3px; }
+  .line .t { color:var(--faint); font-size:11px; margin-right:6px; }
+  .card { border:1px solid var(--line); border-radius:10px; padding:8px 11px; margin:6px 0; }
+  .card.red { border-color:#F3C9CB; background:var(--red-wash); }
+  .card.amber { border-color:var(--amber-line); background:var(--amber-wash); }
+  .card.blue { border-color:#C9D8FB; background:var(--blue-wash); }
+  .word { font-size:30px; font-weight:800; letter-spacing:.02em; line-height:1; }
+  .word.no { color:var(--red); } .word.wait { color:var(--amber); } .word.go { color:var(--blue); } .word.hold { color:var(--blue); }
+  .count { font-size:12.5px; color:var(--muted); }
+  table.tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.tbl td { padding:3px 6px 3px 0; border-top:1px solid var(--line); vertical-align:top; }
+  table.tbl tr:first-child td { border-top:0; }
+  table.tbl td.k { width:118px; font-weight:600; white-space:nowrap; }
+  table.tbl td.s { width:88px; white-space:nowrap; }
+  table.tbl tr.printed td { color:var(--muted); }
+  table.tbl tr.rule td { border-top:1px dashed var(--grey); }
+  .levels { padding:8px 16px; border-bottom:1px solid var(--line); background:var(--wash); }
+  .levels table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .levels td { padding:2px 6px 2px 0; vertical-align:top; }
+  .levels td.px { width:150px; white-space:nowrap; font-weight:600; }
+  .levels td.px .fut { color:var(--muted); font-weight:400; }
+  .levels tr.near td { background:var(--amber-wash); }
+  .foot { padding:8px 16px 14px; font-size:11.5px; color:var(--muted); }
+  .foot p { margin:2px 0; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .ledger td.d { color:var(--muted); }
+  .ledger td.a { color:var(--red); font-weight:600; } .ledger td.w { color:var(--blue); font-weight:600; }
+  .kbd { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; border:1px solid var(--line); border-radius:3px; padding:0 4px; color:var(--muted); }
+  .view { display:none; } .view.on { display:block; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="fxbar"><span>MOCKUP · real numbers from 2026-10-06 (NIFTY expiry) · not live · nothing here marks, logs or orders</span>
+    <span style="flex:1"></span>
+    <button class="on" data-v="read">MARKET READ 14:57</button><button data-v="val">VALIDATE 14:57</button><button data-v="in">IN TRADE 10:48</button></div>
+
+  <!-- ABHI · always visible · every second -->
+  <div class="abhi" id="abhi-read">
+    <div class="top"><span><b>ABHI</b> · <span class="num">14:57:03</span> · <span class="ages">ages: book <span class="num">0.2 s</span> · chain <span class="num">6 s</span> · VPIN <span class="num">1:40</span> · GoCharting <span class="num">live 14:56</span></span></span>
+      <span class="practice">your 15:00 practice · 3 min</span></div>
+    <table>
+      <tr><td class="idx">NIFTY <span class="hi">0DTE</span><br><span class="num">22,709 spot · 22,778 fut</span><br><span class="small muted">basis 67</span></td>
+          <td><b>TWO-SIDED</b> since 13:28 <span class="hi">do taraf</span> · buyers' day (7 fights to 3) [M] · boxed 22,676–22,730 spot since 12:40 · value 22,740–22,810 fut [I] · above VWAP 22,756 fut since 11:05<br>
+              <span class="chip q">ZONE</span><span class="hi">beech mein 22,779–22,824</span> <span class="chip a">FLOW SELLERS</span><span class="hi">14:46 at 22,775</span> <span class="chip q">OI</span><span class="hi">22750 CE ruka · 22700 PE −13 %</span> <span class="chip q">VPIN</span><span class="hi">2 of 10 · pct 0.28</span></td></tr>
+      <tr><td class="idx">BANKNIFTY <span class="hi">21 DTE</span><br><span class="num">55,146 spot · 55,405 fut</span><br><span class="small muted">basis 259</span></td>
+          <td><b>PIN/CHOP</b> since 14:25 <span class="hi">atka</span> · buyers' day (13 to 10) [M] · boxed 55,190–55,300 fut [I]<br>
+              <span class="chip q">ZONE</span> <span class="chip w">FLOW BUYERS</span> <span class="chip q">OI</span><span class="hi">CE likh rahe 55,300</span> <span class="chip x">VPIN</span><span class="hi">no gauge (NIFTY only)</span></td></tr>
+      <tr><td class="idx">SENSEX <span class="hi">2 DTE</span><br><span class="num">72,915 spot · 73,260 fut</span><br><span class="small muted">basis 345 · thin tape</span></td>
+          <td><b>TREND ▲</b> since 09:20 <span class="hi">upar ka din</span> · sellers' day (22 to 19) [M] · above value 72,865–73,265 fut [I] · topped 14:07 with NIFTY, failed 73,350 at 14:42<br>
+              <span class="chip q">ZONE</span> <span class="chip a">FLOW SELLERS</span> <span class="chip q">OI</span> <span class="chip x">VPIN</span><span class="hi">no gauge</span></td></tr>
+    </table>
+  </div>
+
+  <!-- ===================== MARKET READ ===================== -->
+  <div class="mode view on" id="v-read">
+    <div class="slip"><button class="btn read">MARKET READ</button> <span class="muted small">pressed 14:57:03 · NIFTY leads · <span class="kbd">Enter</span> again to re-read · the read is composed, every number [M]/[I]</span></div>
+
+    <div class="sec">1 · Aaj ka din <span class="hi">the day in one line</span></div>
+    <p class="line">NIFTY: a buyers' day that stopped buying — 22,569 → 22,730 spot by 14:07, then boxed 22,676–22,730 since 12:40; the 14:07 high failed and the 14:42 push to 22,792 fut was a lower high [M]. Daytype TWO-SIDED since 13:28 (the trend ended on the FAIL at ROUND 22,700, buyers phanse) [I].</p>
+    <p class="line">BANKNIFTY: PIN/CHOP since 14:25, boxed 55,190–55,300; its high was 12:48 and it did not confirm NIFTY's 14:07 [M]. SENSEX: TREND ▲ since 09:20 on a thin tape (witness, never a decider); topped 14:07 with NIFTY, failed 73,350 at 14:42 [M].</p>
+
+    <div class="sec">2 · Kahani <span class="hi">chapters, asar = pts moved inside</span></div>
+    <p class="line"><span class="t">09:15–09:35</span>SHURU · ruka at ROUND 22,600 (−6) · <span class="t">09:35–09:47</span>TOOTA ▲ ROUND 22,600, then OPEN (+25) · <span class="t">09:47–11:05</span>TOOTA ▲ PDH 22,622; unfinished auction at the high 22,761 (+68) · <span class="t">11:05–11:45</span>BADA BUYER 25K @22,777, 2 haath, trapped (+22) · <span class="t">11:45–12:39</span>PEHAL ▲ covering, effort without result at 22,791 (+7) · <span class="t">12:39–13:28</span>BADA BUYER 23K @22,808, trapped (+16) · <span class="t">13:28–13:39</span>FAIL ROUND 22,700 · buyers phanse (−10) · <span class="t">13:39–14:15</span>TOOTA ▲ ROUND 22,700; 8.8K bought near 22,818 absorbed (+24) · <span class="t">14:15–14:27</span>DABAAV ▲ naye long, 10K near 22,819 (−21) · <span class="t">14:27–14:48</span>FAIL ROUND 22,700 · buyers phanse again (−21) · <span class="t">14:48–abhi</span>TOOTA ▲ ROUND 22,700 (+2 so far) [I on M].</p>
+
+    <div class="sec">3 · Teeno <span class="hi">the three against each other</span></div>
+    <p class="line">The latest push is UP (14:42) and <b>0 of 3 took their own prior swing</b>: NIFTY failed 22,830 fut (its 14:07 high) · BANKNIFTY failed 55,425 (its 12:48 high) · SENSEX failed 73,350 (witness) [M]. A push nobody confirms is the kind that fails [I].</p>
+
+    <div class="sec">4 · OI <span class="hi">pin · ceiling · floor · who left since when</span></div>
+    <p class="line"><b>Pin 22,700</b> (CE 309L · PE 407L at 14:57) [M]. <b>Ceiling:</b> 22750 CE 301L STALLED (peak 14:46, 5 % off) · 22800 CE STALLED (peak 14:10, 10 % off) — flat since 14:00, nobody leaving up there [M]. <b>Floor:</b> 22700 PE 402L STALLED (peak 14:17, 13 % off) · 22600 PE UNWINDING (peak 12:37, 24 % off) — <b>the floor is what is leaving</b> [M]. PCR(9) 1.18, was 1.31 an hour ago [M]. Built today: CE 22700 66 % · PE 22700 95 % [M].</p>
+
+    <div class="sec">5 · Order flow (fut) <span class="hi">fights · CVD · VWAP · big prints</span></div>
+    <p class="line">Sellers won the last fight 14:46 at 22,775 (387 lots); buyers held 407 lots at 22,775 at 14:56 — absorbed, a line in the sand both ways [M]. CVD +461 for the day, peaked 14:37; the 14:42 push to 22,792 was not paid for; net selling since [I]. Price 22,778 above VWAP 22,756 fut since 11:05, this minute opened above it [M]. Big prints: BADA BUYER 23K @22,808 (12:39) is 30 pts under water, still open [M].</p>
+
+    <div class="sec">6 · VPIN <span class="hi">shadow</span></div>
+    <p class="line">Toxicity 0.28 pct of today · 2 of 10 buckets one-sided, no lead [I, shadow].</p>
+
+    <div class="sec">7 · Ghadi <span class="hi">expiry and time</span></div>
+    <p class="line">NIFTY 0DTE — 33 min to close; the ATM 22,700 straddle holds 43 of time value (CE 21.8 · PE 21.5) that burns to 0 by 15:30 [I]; expiry afternoon: give-ups follow the best print. BANKNIFTY 21 DTE · SENSEX 2 DTE. <span class="practice">Your 15:00 practice: 3 min.</span></p>
+
+    <div class="sec">8 · Best trade now <span class="hi">18 candidates, both ways, all three</span></div>
+    <div class="card">
+      <p class="line"><b>Nothing reads GO.</b> The cleanest three (word · with · against · neither):</p>
+      <p class="line">1 · <b>SENSEX BUY 72900 PE @ 338.55</b> (ATM) — WAIT · 7 · 2 · 0 — against: day/trend (TREND ▲), room · thin tape</p>
+      <p class="line">2 · <b>NIFTY SELL 22700 CE @ 31.9</b> (ATM) — WAIT · 6 · 1 · 2 — against: VPIN (2 of 10 buckets) · with: flow, cross-index (the up push failed everywhere), paying (floor leaving), room · keep all if close ≤ 22,700 spot · breakeven 22,732 spot · invalid 22,794 fut / 22,727 spot accepted, or 22750 CE off its peak</p>
+      <p class="line">3 · NIFTY SELL 22650 CE @ 67.9 (ITM) — WAIT · 6 · 1 · 2 — the same read one strike in</p>
+      <p class="line muted small">worst of the board: NIFTY BUY 22700 PE — NO (5 against) · SENSEX SELL 72900 CE — NO (day/trend, expression, cross-index, room)</p>
+    </div>
+
+    <div class="sec">9 · Yeh read badlega agar <span class="hi">what changes it</span></div>
+    <p class="line">22750 CE comes off its 14:46 peak by 15 % · a buyers' win above 22,831 fut (22,764 spot) · 22700 PE rebuilt above its 14:17 peak · BANKNIFTY takes 55,425.</p>
+  </div>
+
+  <!-- ===================== VALIDATE ===================== -->
+  <div class="mode view" id="v-val">
+    <div class="slip"><select><option>NIFTY</option></select><input value="22600" size="6"><select><option>CE</option></select><select><option>BUY</option></select><input value="111" size="5" placeholder="price"><button class="btn primary">VALIDATE</button><button class="btn">MARKET READ</button><span class="muted small">pressed 14:57:03 · chain 14:56:58 · <span class="kbd">Enter</span></span></div>
+    <div class="card red">
+      <div style="display:flex;align-items:baseline;gap:14px"><span class="word no">NO</span><span class="tag">DRAFT</span>
+        <span class="count">4 with · 2 against · 4 neither · 0 could not check — of 10, a count, not odds</span></div>
+      <p class="line" style="margin-top:6px">Two families are against this call: order flow (sellers won the last fight 14:46) and the three indices (the 14:42 push up failed its prior swing everywhere). And it is a futures long in option's clothing — delta 1.00, 2.5 of time value.</p>
+    </div>
+    <table class="tbl">
+      <tr><td class="k">RIGHT NOW</td><td class="s"><span class="chip w">WITH</span><span class="hi">saath</span></td><td>HOLD · against you: flow · behind you: OI, VPIN · out if 22,764 is accepted</td></tr>
+      <tr><td class="k">DAY / TREND</td><td class="s"><span class="chip q">NEITHER</span></td><td>TWO-SIDED since 13:28 (trend ended: FAIL at ROUND 22,700, buyers phanse) [I]</td></tr>
+      <tr><td class="k">EXPRESSION</td><td class="s"><span class="chip w">WITH</span></td><td>BUY CE at 14:56 (3 buy · 1 sell facts) — the option is the right instrument for an up view</td></tr>
+      <tr><td class="k">WALL BEHIND</td><td class="s"><span class="chip q">NEITHER</span><span class="hi">ruka</span></td><td>22700 PE writers 402L, STALLED (day peak 14:17, 12.8 % off) [M]</td></tr>
+      <tr><td class="k">WALL AHEAD</td><td class="s"><span class="chip q">NEITHER</span></td><td>22750 CE writers 301L, STALLED (peak 14:46, 5 % off), 39 pts ahead (fut) — your T1 needs it to leave [M]</td></tr>
+      <tr><td class="k">ORDER FLOW</td><td class="s"><span class="chip a">AGAINST</span><span class="hi">khilaaf</span></td><td>sellers won 14:46 at 22,775 (387 lots) · CVD +461, peak 14:37, the 14:42 push not paid for [I]</td></tr>
+      <tr><td class="k">VPIN</td><td class="s"><span class="chip w">WITH</span></td><td>2 of 10 buckets one-sided your way · pct 0.28 (shadow)</td></tr>
+      <tr><td class="k">CROSS-INDEX</td><td class="s"><span class="chip a">AGAINST</span></td><td>the 14:42 push UP to 22,792 is yours and 0 of 3 took their prior swing: NIFTY failed 22,830 · BANKNIFTY failed 55,425 · SENSEX failed 73,350 (witness) [M]</td></tr>
+      <tr><td class="k">ROOM</td><td class="s"><span class="chip w">WITH</span></td><td>invalid 22,764 fut, 14 pts away (one candle B = 9) · next wall 39 pts [M]</td></tr>
+      <tr><td class="k">PAYING</td><td class="s"><span class="chip q">NEITHER</span></td><td>CE 22800 STALLED (10 % off its 14:10 peak) · CE 22750 STALLED (5 % off) — nobody above is paying yet [M]</td></tr>
+      <tr class="printed rule"><td class="k">MONEYNESS</td><td class="s">printed</td><td>delta 1.00 · intrinsic 110.1 · time value 2.5 of 112.55 — <b>deep ITM: a futures long in option's clothing</b> [I]</td></tr>
+      <tr class="printed"><td class="k">SPREAD</td><td class="s">printed</td><td>112.70 / 113.00 = 0.30 (6 ticks) — you post, so it is revenue</td></tr>
+      <tr class="printed"><td class="k">CLOCK</td><td class="s">printed</td><td>14:57 · EXPIRY DAY: 33 min to close · the 2.5 of time value burns to 0 · your 15:00 practice in 3 min</td></tr>
+      <tr class="printed"><td class="k">WHO IS IN PAIN</td><td class="s">printed</td><td>22600 CE: ltp 112.55 vs avg 90.07 — writers near their avg · 22700 PE: 21.5 vs 45.5 — writers comfortable (the floor holds easily) · 22750 CE: 11.05 vs 19.28 — writers comfortable (the ceiling holds easily) [I]</td></tr>
+      <tr class="printed"><td class="k">PCR near-ATM</td><td class="s">printed</td><td>PCR(9) 1.18, was 1.31 an hour ago · CE 1,413L · PE 1,674L [M]</td></tr>
+    </table>
+    <div class="two" style="margin-top:8px">
+      <div class="card">
+        <div class="sec">Levels if taken anyway</div>
+        <table class="tbl">
+          <tr><td class="k">invalid</td><td><b>22,697 spot</b> · 22,764 fut — where the 22700 PE writers stand; premium there ≈ 99.7 [I] · <b>−14 pts</b></td></tr>
+          <tr><td class="k">T1</td><td><b>22,750 spot</b> · 22,817 fut — the 22750 CE wall (301L, stalled); premium there ≈ 151.6 [I] · <b>+39 pts</b> · only if 22750 CE comes off its peak</td></tr>
+          <tr><td class="k">T2</td><td><b>22,800 spot</b> · 22,867 fut — 22800 CE (stalled, 10 % off); premium there: <span class="abs cant">could not check — beyond the chain's interpolation</span></td></tr>
+          <tr><td class="k">reward v invalid</td><td>+39 for −14 (fut) — two numbers, no ratio</td></tr>
+        </table>
+      </div>
+      <div class="card blue">
+        <div class="sec">Better trade <span class="hi">the board, 18 candidates</span></div>
+        <p class="line"><b>Better than yours:</b> SENSEX BUY 72900 PE @ 338.55 — WAIT · 7 with · 2 against (day/trend, room) · other index, thin tape.</p>
+        <p class="line"><b>Opposite thesis on NIFTY:</b> SELL 22700 CE @ 31.9 — WAIT · 6 with · 1 against (VPIN) · the ceiling is holding, the floor is leaving, sellers won the last fight · keep all if close ≤ 22,700 spot, breakeven 22,732 · invalid 22,794 fut / 22,727 spot accepted, or 22750 CE off its peak.</p>
+        <p class="line"><b>Same thesis, other expression:</b> SELL 22700 PE @ 21.5 — NO (expression, order flow against; its support is what has been leaving).</p>
+        <p class="line muted small">nothing reads GO at 14:57 · top three: SENSEX BUY 72900 PE · NIFTY SELL 22700 CE · NIFTY SELL 22650 CE</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== IN TRADE ===================== -->
+  <div class="mode view" id="v-in">
+    <div class="slip"><span class="muted small">in a trade: <b>NIFTY long 22650 PE @ 55.0 · in 10:03:21</b> · read 10:48:02 · every second</span><span style="flex:1"></span><button class="btn">VALIDATE another</button><button class="btn read">MARKET READ</button></div>
+    <div class="card">
+      <div style="display:flex;align-items:baseline;gap:14px"><span class="word hold">HOLD</span>
+        <span class="count">against you: flow since 10:43 · behind you: zone, OI</span></div>
+      <p class="line" style="margin-top:6px">out if 22,770 is accepted and held 2 buckets, or accepted while 22650 CE writers leave · never back through 22,735 · premium <b class="num">48.65</b> (−12 %) · peak 65.2 at 10:22 · given back 16.5 · 45 min in</p>
+      <p class="line ages">ages: book <span class="num">0.3 s</span> · chain <span class="num">9 s</span> · VPIN <span class="num">2:10</span> · GoCharting <span class="num">live 10:47</span></p>
+      <p class="line"><span class="chip w">ZONE</span><span class="hi">saath · behind you 22,770 (sellers won 10:22)</span> <span class="chip a">FLOW</span><span class="hi">khilaaf since 10:43 · buyers won 10:43 at 22,745</span> <span class="chip w">OI</span><span class="hi">saath · 22650 CE 175.5L, writers adding (the chip waits 2 closes; the number below is now)</span> <span class="chip q">VPIN</span><span class="hi">ruko · no lead</span></p>
+    </div>
+
+    <div class="card amber">
+      <div class="sec">W-bleed <span class="hi">the slow leak</span></div>
+      <p class="line"><b>22650 CE (your wall since 10:28): peak 200.7L → 175.5L now (−12.6 %) over 20 min, 15 updates — no new peak</b> [M] <span class="chip m">BLEEDING</span><span class="hi">dheere-dheere nikal rahe</span></p>
+      <div class="sec">Pullback or gave up? <span class="hi">her definition · a read beside the word, unsigned</span></div>
+      <p class="line"><b>GAVE UP</b><span class="hi">koi haar gaya</span> · price is +8 against you (22,749 vs 22,741) · the wall behind you is ≥ 10 % off its peak with 15 updates and has not rebuilt · buyers won 10:43 at 22,745 inside the last 10 buckets · <span class="muted">turns back to PULLBACK if 22650 CE makes a new peak above 200.7L</span></p>
+      <p class="line muted small">ZONE ALONE: not on — OI still reads WITH (it turns on when the zone is the only chip behind you; today that is 11:05).</p>
+    </div>
+
+    <div class="sec">Kya badla since entry <span class="hi">10:03 → now, each row by your direction</span></div>
+    <table class="tbl ledger">
+      <tr><td class="k">fut / spot</td><td class="d n">22,741 / 22,657</td><td class="n">22,749 / 22,665</td><td class="a">+8 against</td></tr>
+      <tr><td class="k">W · the wall behind you</td><td class="d n">22700 CE 229.4L</td><td class="n">22650 CE since 10:28 · 175.5L · −12.6 % off its 200.7L peak · no new peak</td><td class="a">AGAINST</td></tr>
+      <tr><td class="k">writers under you · 22650 PE</td><td class="d n">189.0L</td><td class="n">266.4L · +77L</td><td class="a">AGAINST</td></tr>
+      <tr><td class="k">fights since entry</td><td class="d">—</td><td>buyers 2 (10:22, 10:43) · sellers 1 (10:27)</td><td class="a">AGAINST</td></tr>
+      <tr><td class="k">VWAP side</td><td class="d">above (against)</td><td>above · 22,749 vs 22,728</td><td class="a">AGAINST</td></tr>
+      <tr><td class="k">zone</td><td class="d">behind you 22,788</td><td>behind you 22,770 (sellers won 10:22)</td><td class="w">WITH</td></tr>
+      <tr><td class="k">premium</td><td class="d n">55.0</td><td class="n">48.65 · peak 65.2 (10:22) · given back 16.5</td><td class="d">—</td></tr>
+      <tr><td class="k">day type</td><td class="d">EARLY</td><td>EARLY (IB 22,640–22,761 built 10:15)</td><td class="d">—</td></tr>
+      <tr class="printed"><td class="k">PCR(9) · CVD since entry</td><td colspan="3"><span class="abs notshown">not shown in this mockup — computed live from the grid and the ladder</span></td></tr>
+    </table>
+    <p class="line muted small" style="margin-top:6px">reversal N/4 (GoCharting frame): initiation against you 10:43 · CVD swing not broken · VWAP accepted against you · fresh writing against you: 22650 PE +113L — <b>3/4</b> · expiry theta: 56 of time value at entry, ~8 per 15 min [I] · 15:00 practice: 4 h 12 min</p>
+  </div>
+
+  <!-- LEVELS TO WATCH · always -->
+  <div class="levels">
+    <div class="sec" style="margin-top:0">Levels to watch · NIFTY <span class="hi">spot · fut · confirms · denies</span></div>
+    <table>
+      <tr><td class="px">▲ 22,763 <span class="fut">· 22,831 fut</span></td><td>22750 CE writers 301L — the ceiling, stalled 5 % off its 14:46 peak · <b>confirms up:</b> lifts 22,831–22,836 followed by price and 22750 CE off its peak · <b>denies:</b> 22750 CE building, or sellers win a fight there</td></tr>
+      <tr><td class="px">▲ 22,741 <span class="fut">· 22,808 fut</span></td><td>BADA BUYER 23K trapped 12:39 · <b>confirms up:</b> a close beyond him releases him · <b>denies:</b> absorbed again at 22,808</td></tr>
+      <tr><td class="px">▲ 22,730 <span class="fut">· 22,797 fut</span></td><td>the day high 14:07 (failed at 14:42) · <b>confirms up:</b> taken with BANKNIFTY taking 55,425 · <b>denies:</b> another lower high</td></tr>
+      <tr class="near"><td class="px">▼ 22,708 <span class="fut">· 22,775 fut</span></td><td>407 lots of buyers held at 14:56 · sellers won 14:46 here · <b>price is here now</b> · <b>confirms down:</b> hits 22,770–22,775 followed by price and no absorption · <b>denies:</b> buyers hold it again</td></tr>
+      <tr><td class="px">▼ 22,697 <span class="fut">· 22,764 fut</span></td><td>22700 PE writers 402L — the floor, stalled 13 % off its 14:17 peak; the give-up for a CE buy · <b>confirms down:</b> accepted below with 22700 PE leaving · <b>denies:</b> 22700 PE rebuilt above its peak</td></tr>
+      <tr><td class="px">▼ 22,689 <span class="fut">· 22,756 fut</span></td><td>VWAP (fut) · above since 11:05 · <b>confirms down:</b> a minute opens under it · <b>denies:</b> buyers win a fight at it</td></tr>
+    </table>
+  </div>
+
+  <div class="foot">
+    <p><b>checked, nothing</b> · no open marked trade at 14:57 · no feed hole today · no GAVE UP at a wall yet</p>
+    <p><b>could not check</b> · T2's premium (beyond the chain's interpolation) · VPIN on BANKNIFTY / SENSEX (no gauge) · SENSEX flow and WHO (thin tape, witness)</p>
+    <p><b>not shown</b> · odds, a size, an order path (never) · the hold window's 3-min line (it keeps logging) · the LLM polish (no key on this machine; the template is the read)</p>
+  </div>
+</div>
+<script>
+  // the mockup's view switcher only; the product has no tabs — the mode card swaps on press / on a marked trade
+  document.querySelectorAll('.fxbar button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.fxbar button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
+    const inTrade = b.dataset.v === 'in';
+    document.querySelector('#abhi-read .top .num').textContent = inTrade ? '10:48:02' : '14:57:03';
+    document.querySelector('#abhi-read .practice').textContent = inTrade ? 'your 15:00 practice · 4 h 12 min' : 'your 15:00 practice · 3 min';
+  }));
+</script>
+</body>
+</html>

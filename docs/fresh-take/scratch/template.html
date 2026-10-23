@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Desk - fresh take mockup</title>
+<meta name="viewport" content="width=1245">
+<style>
+:root{
+  --bg:#f3f5f8; --card:#fff; --line:#dde2ea; --line2:#eceff4; --ink:#17202b; --mut:#66738a; --faint:#9aa5b6;
+  --up:#0b8a5c; --upbg:#e3f4ec; --dn:#c62f3a; --dnbg:#fbe9eb; --amb:#a8650a; --ambbg:#fdf1dd;
+  --blue:#2358c7; --bluebg:#e7eefb; --grey:#8a95a6; --greybg:#eef0f4; --orange:#d9731a; --orbg:#fdeede;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font:13px/1.3 "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums}
+body{width:1245px;height:720px;overflow:hidden}
+#app{width:1245px;overflow:hidden;grid-template-columns:minmax(0,1fr);height:720px;display:grid;grid-template-rows:36px 78px minmax(0,1fr) 70px 28px;gap:6px;padding:6px 10px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 12px;overflow:hidden;position:relative}
+.h{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);font-weight:600;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.h small{letter-spacing:0;text-transform:none;font-weight:400;color:var(--faint);font-size:10.5px}
+/* top bar */
+#top{display:flex;align-items:center;gap:10px;padding:0 2px}
+#top .brand{font-weight:700;letter-spacing:.04em;font-size:14px}
+#top .clock{font-size:15px;font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--mut);white-space:nowrap}
+.chip.b{background:var(--bluebg);border-color:#c5d4f4;color:var(--blue)}
+.chip.a{background:var(--ambbg);border-color:#f1d9a8;color:var(--amb)}
+.chip.o{background:var(--orbg);border-color:#f3cfa5;color:var(--orange)}
+.chip.g{background:var(--greybg);color:var(--mut)}
+.chip.up{background:var(--upbg);border-color:#b8e3cf;color:var(--up)}
+.chip.dn{background:var(--dnbg);border-color:#f1c0c4;color:var(--dn)}
+.sp{flex:1}
+/* index strip */
+#strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ix{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;position:relative;display:flex;flex-direction:column;justify-content:space-between}
+.ix.sel{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.ix .r1,.ix .r2{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.ix .nm{font-weight:700;font-size:13.5px}
+.ix .px{color:var(--mut);font-size:11.5px}
+.ix .st{font-size:17px;font-weight:700;letter-spacing:.01em}
+.ix .age{font-size:11px;color:var(--mut)}
+.ix .star{position:absolute;right:8px;top:-8px;background:var(--ink);color:#fff;font-size:10px;padding:1px 7px;border-radius:9px;font-weight:600;letter-spacing:.03em}
+.wbar{display:inline-flex;width:70px;height:7px;border-radius:4px;overflow:hidden;background:var(--greybg);vertical-align:middle}
+.wbar i{display:block;height:100%}
+.c-pu{color:#7e57c2} .c-up{color:var(--up)} .c-dn{color:var(--dn)} .c-am{color:var(--amb)} .c-bl{color:var(--blue)} .c-gr{color:var(--grey)} .c-or{color:var(--orange)}
+/* main grid */
+#main{display:grid;grid-template-columns:392px 430px minmax(0,1fr);gap:8px;min-height:0}
+#main .card{display:flex;flex-direction:column;min-height:0}
+/* col1 */
+.big{display:flex;align-items:baseline;gap:10px}
+.big .w{font-size:30px;font-weight:800;letter-spacing:.01em;line-height:1}
+.big .s{font-size:12.5px;color:var(--mut)}
+.since{font-size:11.5px;color:var(--mut);margin:3px 0 6px;line-height:1.35}
+.ev{display:grid;grid-template-columns:18px 78px 1fr;gap:0 6px;padding:4px 0;border-top:1px solid var(--line2);align-items:start}
+.ev .k{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:600;line-height:1.2;padding-top:3px}
+.ev .v{font-size:12.5px;font-weight:700;line-height:1.25}
+.ev .u{font-size:11px;color:var(--mut);line-height:1.25}
+.lt{width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;line-height:1;margin-top:2px}
+.lt.g{background:var(--up);color:#fff}
+.lt.a{background:var(--ambbg);color:var(--amb);border:1.5px solid #e2b768}
+.lt.r{background:var(--dn);color:#fff}
+.lt.n{background:#fff;color:var(--faint);border:1.5px dashed #b9c1ce}
+.lt.i{background:var(--bluebg);color:var(--blue);border:1.5px solid #bcd0f3}
+.flipbox{margin-top:auto;border:1px solid var(--line);border-radius:6px;padding:5px 9px;background:#fafbfc;font-size:11.5px;line-height:1.3}
+.flipbox b{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}
+/* col2 */
+.banner{border-radius:7px;padding:8px 11px;margin-bottom:7px;display:flex;align-items:center;gap:10px}
+.banner .t{font-size:17px;font-weight:800;letter-spacing:.01em}
+.banner .d{font-size:12px;color:#33404f}
+.banner.OK{background:var(--upbg);border:1px solid #b8e3cf}
+.banner.HALF{background:#eaf5df;border:1px solid #cfe5b2}
+.banner.WAIT{background:var(--ambbg);border:1px solid #f1d9a8}
+.banner.NO{background:var(--greybg);border:1px solid var(--line)}
+.banner.HOLD{background:var(--upbg);border:1px solid #b8e3cf}
+.banner.WATCH{background:var(--ambbg);border:1px solid #f1d9a8}
+.banner.FOLD{background:var(--dnbg);border:1px solid #f1c0c4}
+.pl{display:grid;grid-template-columns:54px 1fr 150px;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line2)}
+.pill{display:inline-block;text-align:center;padding:2px 0;border-radius:5px;font-size:11px;font-weight:800;letter-spacing:.04em;width:50px}
+.pill.OK{background:var(--up);color:#fff}.pill.HALF{background:#7cb342;color:#fff}.pill.WAIT{background:var(--ambbg);color:var(--amb);border:1px solid #e2b768}.pill.NO{background:var(--greybg);color:var(--grey)}
+.pl .n{font-weight:700;font-size:13px}
+.pl .n small{font-weight:400;color:var(--mut);font-size:11px;margin-left:4px}
+.pl .y{font-size:11.5px;color:var(--mut)}
+.lights{display:flex;gap:5px;justify-content:flex-end}
+.lights span{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:8.5px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
+.lights .lt{margin:0;width:15px;height:15px;font-size:9px}
+.wait{margin-top:7px;font-size:12px}
+.wait b{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}
+.wait div{padding:2px 0}
+.note{margin-top:auto;padding-top:6px;font-size:11px;color:var(--mut);border-top:1px solid var(--line2)}
+.cap{background:var(--ambbg);border:1px solid #f1d9a8;color:var(--amb);border-radius:6px;padding:4px 8px;font-size:11.5px;margin-bottom:6px}
+/* trade board */
+.pos{border:1px solid var(--line);border-radius:7px;padding:7px 10px;margin-bottom:7px;background:#fafbfc}
+.pos .a{display:flex;justify-content:space-between;align-items:baseline}
+.pos .a b{font-size:14px}
+.pos .pnl{font-size:16px;font-weight:800}
+.pos .b{font-size:11.5px;color:var(--mut);margin-top:2px}
+.fb{display:grid;grid-template-columns:20px 62px 1fr 56px;gap:0 7px;align-items:start;padding:6px 0;border-top:1px solid var(--line2)}
+.fb .k{font-size:11px;font-weight:700;letter-spacing:.05em}
+.fb .v{font-size:12px}
+.fb .v small{display:block;color:var(--mut);font-size:11px}
+.fb .s{font-size:11px;font-weight:700;text-align:right}
+/* col3 ladder */
+.basis{font-size:11.5px;background:var(--bluebg);border:1px solid #c5d4f4;border-radius:6px;padding:4px 8px;margin-bottom:6px;color:#1d3f8f}
+.lad{display:grid;grid-template-columns:48px 1fr 62px 46px 34px;gap:0 6px;align-items:center;font-size:12px}
+.lad .row{display:contents}
+.lad .row>*{padding:3px 0;border-top:1px solid var(--line2)}
+.lad .tg{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-align:center;border-radius:4px;padding:1px 0;align-self:center}
+.tg.FUT{background:var(--greybg);color:#4b586c}
+.tg.STRIKE{background:var(--orbg);color:var(--orange)}
+.lad .nm small{color:var(--mut);font-size:10.5px;margin-left:3px}
+.lad .px{text-align:right;font-weight:600}
+.lad .ds{text-align:right;color:var(--mut)}
+.lad .sg{text-align:right;color:var(--faint);font-size:11px}
+.lad .cur>*{background:#fff4c9;border-top:1px solid #e3c35a;border-bottom:1px solid #e3c35a;font-weight:800}
+.lad .cur .tg{background:#17202b;color:#fff}
+.lad .vw .nm{font-weight:800}
+.wl{margin-top:8px;font-size:11.5px}
+.wl table{width:100%;border-collapse:collapse}
+.wl td,.wl th{padding:2px 4px;text-align:right;font-weight:500}
+.wl th{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.wl td:first-child,.wl th:first-child{text-align:left}
+/* ribbon */
+#rib{padding:6px 12px}
+.rrow{display:flex;align-items:center;height:14px;margin-top:2px}
+.rrow .l{width:78px;font-size:10px;color:var(--mut);font-weight:600}
+.track{position:relative;flex:1;height:11px;background:repeating-linear-gradient(45deg,#f5f6f9,#f5f6f9 4px,#eef0f4 4px,#eef0f4 8px);border-radius:3px;overflow:hidden}
+.track i{position:absolute;top:0;bottom:0;display:block}
+.axis{position:relative;margin-left:78px;height:12px;font-size:9.5px;color:var(--faint)}
+.axis span{position:absolute;transform:translateX(-50%)}
+.mk{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.mk.cut{background:var(--dn);opacity:.7;width:1px}
+/* controls */
+#ctl{display:flex;align-items:center;gap:4px;border-top:1px dashed #c7cedb;padding-top:3px}
+#ctl .lbl{font-size:10px;color:var(--faint);margin-right:2px;white-space:nowrap}
+#ctl button{border:1px solid var(--line);background:#fff;border-radius:5px;font:inherit;font-size:11px;padding:1px 6px;cursor:pointer;color:var(--ink);height:21px;white-space:nowrap}
+#ctl button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#ctl .cp{font-size:11px;color:var(--ink);margin-left:8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.leg{display:flex;gap:9px;font-size:10.5px;color:var(--mut);align-items:center;margin-right:6px}
+.leg span{display:inline-flex;align-items:center;gap:3px}
+.leg i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.pre td,.pre th{padding:4px 6px;text-align:right;border-top:1px solid var(--line2);font-size:12px}
+.pre th{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;font-weight:600;border-top:none}
+.pre td:first-child,.pre th:first-child{text-align:left;font-weight:700}
+.pre{width:100%;border-collapse:collapse}
+.tl{display:grid;grid-template-columns:48px 1fr;gap:3px 8px;font-size:12px;margin-top:4px}
+.tl b{color:var(--ink)}
+.tl span{color:var(--mut)}
+.mini{font-size:11.5px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top"></div>
+  <div id="strip"></div>
+  <div id="main"><div class="card" id="c1"></div><div class="card" id="c2"></div><div class="card" id="c3"></div></div>
+  <div class="card" id="rib"></div>
+  <div id="ctl"></div>
+</div>
+<script>
+const FR = /*FRAMES_JSON*/;
+let fi = 1, sel = 'NIFTY', EARLYCLOCK = false;
+const IDX = ['NIFTY','BANKNIFTY','SENSEX'];
+const $ = id => document.getElementById(id);
+const fm = (n,d=0) => (n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sg = (n,d=0) => (n==null||isNaN(n)) ? '—' : (n>0?'+':n<0?'−':'')+fm(Math.abs(n),d);
+const Lk = n => n/1e5;
+const DIRA = {1:'↑','-1':'↓',0:''};
+const REGCOL = {TREND:'#0b8a5c',LEAN:'#8fd0b3',CHOP:'#e0b340',PIN:'#6f86d6',TURN:'#e8892b',DRIVE:'#7e57c2',UNCLEAR:'#cfd5de'};
+function regColor(reg,dir){
+  if(reg==='TREND') return dir>0?'#0b8a5c':'#c62f3a';
+  if(reg==='LEAN') return dir>0?'#8fd0b3':'#f0a4a9';
+  return REGCOL[reg]||'#cfd5de';
+}
+function meta(x){
+  const d=x.dir, a=DIRA[d];
+  switch(x.reg){
+    case 'TREND': return {w:'TREND '+a, s:d<0?'Neeche ka din':'Upar ka din', cls:d<0?'c-dn':'c-up'};
+    case 'LEAN':  return {w:'JHUKAAV '+a, s:'Price '+(d<0?'VWAP ke niche':'VWAP ke upar')+' · writers abhi saath nahi', cls:d<0?'c-dn':'c-up'};
+    case 'CHOP':  return {w:'CHOP', s:'VWAP ke aar-paar ghoom raha', cls:'c-am'};
+    case 'PIN':   return {w:'PIN '+fm(x.pin), s:'Is strike par atka · range chhoti', cls:'c-bl'};
+    case 'DRIVE': return {w:'DRIVE '+a, s:'Open se tez chaal · OI abhi padh nahi sakte (early lane)', cls:'c-pu'};
+    case 'TURN':  return {w:'PALAT '+DIRA[-d]+'?', s:'Price '+(d<0?'niche':'upar')+' hai, par writers ulte taraf', cls:'c-or'};
+    default:      return {w:'SAAF NAHI', s:x.partial?'Feed der se shuru · adhoora data':(x.early?'Jaldi hai · data kam':'Koi side nahi · ruko'), cls:'c-gr'};
+  }
+}
+const lt = (c,t) => `<span class="lt ${c}">${t!=null?t:({g:'✓',a:'~',r:'✕',n:'?',i:'i'})[c]}</span>`;
+function agree(v,d){ return v==null||v==='dry' && false ? 'n' : (v===d?'g':(v===0||v==='dry'?'a':'r')); }
+
+/* ---------- evidence rows (col 1) ---------- */
+function evidence(x){
+  const rows=[]; const d=x.dir; const isTr = x.reg==='TREND'||x.reg==='LEAN'||x.reg==='TURN';
+  // 1 KAHAN
+  const dv = x.F-x.vwap;
+  let l1='n', u1='';
+  const sh = d>0?x.up_share:x.dn_share;
+  if(isTr){ l1 = sh>=0.8?'g':'a'; u1=`30m me ${Math.round(sh*100)}% VWAP ke ${d>0?'upar':'niche'}`; }
+  else if(x.reg==='CHOP'){ l1 = (x.cross||0)>=2?'g':'a'; u1=`VWAP ${x.cross} baar paar (45m)`; }
+  else if(x.reg==='PIN'){ l1='g'; u1=`spot ${fm(Math.abs(x.spot-x.pin))} pt pin se`; }
+  else { u1 = x.nwin<10?`sirf ${x.nwin} min ka data`:`30m me ${Math.round(x.up_share*100)}% upar / ${Math.round(x.dn_share*100)}% niche`; }
+  rows.push({k:'Kahan<br>VWAP se', v: `${sg(dv)} pt`+(x.ready?` (${sg(x.z,1)}σ)`:` · σ bands ban rahe`), u:u1, l:l1});
+  // 2 KAUN LIKH RAHA
+  const ce=Lk(x.ce30), pe=Lk(x.pe30);
+  let l2='n', u2;
+  if(x.wr==null){ u2=`OI flow ke liye ${Math.max(0,10-Math.round(x.span))} min aur`; }
+  else if(x.wr===-1) u2='Sirf call likh rahe'; else if(x.wr===1) u2='Sirf put likh rahe'; else if(x.wr===0) u2='Dono taraf likh rahe'; else u2='Koi khaas nahi likh raha';
+  if(x.wr!=null){
+    if(isTr) l2 = x.wr===d?'g':(x.wr===0||x.wr==='dry'?'a':'r');
+    else if(x.reg==='CHOP'||x.reg==='PIN') l2 = (x.wr===0||x.wr==='dry')?'g':'a';
+    else l2='n';
+  }
+  rows.push({k:'Kaun likh<br>raha · 30m', v:`CE ${sg(ce)}L · PE ${sg(pe)}L`, u:u2, l:l2});
+  // 3 FLOW
+  let v3,u3,l3='n';
+  if(x.fl15==null){ v3='— (5-min bar ka intezaar)'; u3='delta bar band hone par aata hai'; }
+  else { v3=`${x.fl15>0?'Buyers haavi':x.fl15<0?'Sellers haavi':'Barabar'} ${sg(x.d15)} lots`; u3=`15m · 30m me ${sg(x.d30)} lots`; if(isTr) l3 = x.fl15===d?'g':(x.fl15===0?'a':'r'); else l3='n'; }
+  rows.push({k:'Flow<br>futures delta', v:v3, u:u3, l:l3});
+  // 4 FUT OI
+  let v4='—',u4='',l4='n';
+  if(x.foi){
+    const p=x.foi.pd, o=x.foi.od;
+    v4 = p<0&&o>0?'Naye short bane':p>0&&o>0?'Naye long bane':p>0&&o<0?'Short cover':p<0&&o<0?'Long exit':'Flat';
+    u4=`30m: price ${sg(x.foi.dp)} pt · OI ${sg(Lk(x.foi.doi),1)}L`;
+    if(isTr&&d!==0){ l4 = (p===d&&o>0)||(d<0&&p<0&&o>0)||(d>0&&p>0&&o>0)?'g':((p===d&&o<0)?'a':'r'); }
+  } else { v4='— (30m ka data nahi)'; }
+  rows.push({k:'Futures OI<br>vs price', v:v4, u:u4, l:l4});
+  // 5 range
+  let v5,u5,l5='n';
+  if(x.used==null){ v5='— (poora din nahi dekha)'; u5= x.partial?'feed 13:05 se; subah ka range pata nahi':'pichle din ka data nahi'; }
+  else { v5=`${fm(x.hi-x.lo)} pt · ${fm(x.used,2)}× normal`; u5=`normal-to-date = ${fm(x.ruler)}×√(waqt); pichle 3 din avg`;
+    if(x.reg==='TREND') l5 = x.used>=0.9?'g':'a'; else if(x.reg==='PIN') l5 = x.used<0.6?'g':'a'; else if(x.reg==='CHOP') l5 = (x.used>=0.5&&x.used<=1.4)?'g':'a'; }
+  rows.push({k:'Din ki chaal<br>range used', v:v5, u:u5, l:l5});
+  // 6 option priced
+  let v6='—',u6='';
+  if(x.moved30!=null){ v6=`Market ne ${fm(x.moved30,1)}× kiya jo options ne price kiya`; u6 = x.moved30>=0.8?'options sasti → buy ka edge':(x.moved30<=0.5?'options mehngi → sell ka edge':'barabar · koi edge nahi')+` (30m, IV ${fm(x.iv*100,1)}%)`; if(x.moved30>=0.8) u6+=` (30m, IV ${fm(x.iv*100,1)}%)`; }
+  if(EARLYCLOCK && x.drive && x.drive.ratio!=null){
+    const dv=x.drive; const ok=Math.abs(dv.ratio)>=1.0 && dv.d5*dv.pts>0;
+    rows.push({k:'Drive<br>open se', v:`${sg(dv.pts)} pt · ${fm(Math.abs(dv.ratio),2)}× 30m-priced`, u:`delta 5m ${sg(dv.d5)} lots · ${ok?'drive: tez + delta saath':'koi drive nahi (≥1.0× aur delta saath chahiye)'}`, l:ok?'g':'a'});
+  } else rows.push({k:'Option<br>sasta/mehnga', v:v6, u:u6, l:x.moved30==null?'n':'i'});
+  return rows;
+}
+function palat(x){
+  const d=x.dir, supp = d<0?'call':'put', opp = d<0?'put':'call';
+  switch(x.reg){
+    case 'TREND': return `Chalta rahega jab tak ${supp} likhte rahe aur price VWAP (${fm(x.vwap)} F) ke ${d<0?'niche':'upar'}. <b>Palat ka pehla ishara:</b> ${supp} writing 20 min ruke${x.flip?' <span class="c-or">(abhi ruki hui dikh rahi)</span>':''}, phir ${opp} writing shuru.`;
+    case 'LEAN': return `<b>Trend ban jaye</b> jab ${supp} akele likhne lage aur price din ki normal chaal ka ${fm(0.6,1)}× door ho. Tab tak sirf ${d<0?'bechne':'kharidne'} wali taraf, aadhe size me.`;
+    case 'CHOP': return `<b>Trend tab</b> jab price ±1σ (${fm(x.vwap-x.sig)}–${fm(x.vwap+x.sig)} F) ke bahar 10 min tike aur ek hi side likhe. Tab tak bands par fade, VWAP target.`;
+    case 'PIN':  return `<b>Pin tootega</b> jab spot ${fm(x.pin-x.step/2)}–${fm(x.pin+x.step/2)} se bahar jaye aur ek side ki writing shuru ho. Buy mat karo jab tak na toote.`;
+    case 'DRIVE': return `<b>Early lane ka rule:</b> aadha size. Nikal agar 5-min delta ${x.dir<0?'upar':'neeche'} palte ya price open print (${fm(x.open)} F) par 3 min wapas. ~10 min baad OI flow aayegi, tab TREND/JHUKAAV me badlo ya chhodo.`;
+    case 'TURN': return `<b>Palat pakka</b> jab price VWAP (${fm(x.vwap)} F) ${d<0?'ke upar':'ke niche'} 3 min tike. Tab tak purani taraf mat chhedo, nayi taraf tabhi jab VWAP paar ho.`;
+    default: return x.early||x.partial ? `<b>Kab saaf hoga:</b> OI flow ~10 min baad, σ bands ~30 min baad${x.partial?' (subah ka data nahi: poora din nahi padh sakte)':''}. Tab tak koi trade nahi.` : `<b>Saaf tab:</b> price VWAP ke ek taraf 30 min <u>aur</u> ek hi side ki writing. Ya ±1σ ke aar-paar 2 baar → CHOP.`;
+  }
+}
+/* ---------- plays ---------- */
+const ST_RANK={OK:3,HALF:2,WAIT:1,NO:0};
+function bestPlay(x){ return x.plays.slice().sort((a,b)=>ST_RANK[b.status]-ST_RANK[a.status])[0]; }
+function whyText(x,p){
+  const miss=(p.why||'').split('/').filter(Boolean);
+  if(p.status==='NO'){
+    if(x.reg==='UNCLEAR') return 'koi side nahi';
+    if(p.why==='time khatam') return '15:00 paas · naya trade nahi';
+    if(p.why==='writers ulte') return 'writers ulte taraf';
+    if(p.why==='pin me buy nahi') return 'pin me kharidna = decay dena';
+    return 'din ki taraf ulta';
+  }
+  if(p.status==='HALF'){ if(x.reg==='DRIVE') return 'early lane · aadha size · OI abhi nahi'; return 'aadha size · '+(x.partial?'adhoora data':x.early?'jaldi':x.reg==='TURN'?'palat pakka nahi':x.reg==='PIN'?'pin toot sakta hai':'jhukaav, trend nahi'); }
+  if(p.status==='OK') return 'place + OI + flow saath';
+  const m={place:'sahi jagah',flow:(p.dir<0?'sellers':'buyers')+' wapas',oi:'writers saaf'};
+  return 'chahiye: '+miss.map(k=>m[k]||k).join(' + ');
+}
+function strikeText(x,p){ const pr=p.side==='ce'?x.cost.ce:x.cost.pe; return `${fm(x.atm)} ${p.side.toUpperCase()} <small>ATM · ₹${fm(pr,1)} · lot ₹${fm(pr*x.lot)}</small>`; }
+function lights5(p){ const L=p.lights; const lab={place:'jagah',oi:'OI',flow:'flow',price:'prem',clock:'time'};
+  return `<div class="lights">${['place','oi','flow','price','clock'].map(k=>`<span>${lt(L[k])}${lab[k]}</span>`).join('')}</div>`; }
+function waitFor(x){
+  const out=[]; const best=bestPlay(x);
+  if(x.reg==='DRIVE'){ out.push(`<b>Fold plan:</b> 5-min delta palte ya price ${fm(x.open)} F (open print) par 3 min wapas.`); out.push(`OI flow ~${Math.max(0,10-Math.round(x.span))} min baad; bands ~30 min baad. Tab tak sirf aadha.`); }
+  else if(x.reg==='UNCLEAR'||x.partial||x.early){
+    if(x.early) out.push(`Pehle 10 min OI flow nahi banta; σ bands ~${x.ready?'ready':'30 min'} · abhi sirf <b>early lane</b>: aadha size, delta palte to nikal.`);
+    if(x.partial) out.push('Feed 13:05 se: subah ka VWAP/range/OI-flow nahi. Jo nahi pata uska light <b>?</b> hai, andaaza nahi.');
+    if(!x.early&&!x.partial) out.push('Jab tak ek side ka dabaav <b>aur</b> OI ek taraf nahi, koi trade nahi.');
+  }
+  if(best && best.status==='WAIT'){
+    const miss=(best.why||'').split('/');
+    if(miss.includes('place')) out.push(x.reg==='TREND'||x.reg==='LEAN'?`<b>Jagah:</b> bounce ≥0.4σ (${fm(x.sig*0.4)} pt) low se, ya VWAP ${fm(x.vwap)} F retest.`:x.reg==='CHOP'?`<b>Jagah:</b> price ±1σ par: ${fm(x.vwap+x.sig)} F (sell CE) ya ${fm(x.vwap-x.sig)} F (sell PE).`:x.reg==='TURN'?`<b>Jagah:</b> VWAP ${fm(x.vwap)} F paar karke 3 min tike.`:`<b>Jagah:</b> pin ke aas-paas se hatke aaye, phir wapas.`);
+    if(miss.includes('flow')) out.push(`<b>Flow:</b> 15m me ${best.dir<0?'sellers':'buyers'} wapas aayein (abhi ${x.d15!=null?sg(x.d15)+' lots':'—'}).`);
+    if(miss.includes('oi')) out.push(`<b>OI:</b> ek hi side likhe (abhi CE ${sg(Lk(x.ce30))}L / PE ${sg(Lk(x.pe30))}L).`);
+  }
+  if(x.flip) out.push(`<span class="c-or"><b>Palat-watch:</b></span> ${x.dir<0?'call':'put'} writing 20 min se ruki hui.`);
+  return out.slice(0,3);
+}
+/* ---------- pick ---------- */
+function rank(x){
+  const base={TREND:6,LEAN:4,CHOP:3,PIN:3,TURN:2,UNCLEAR:0}[x.reg]||0;
+  const bp=bestPlay(x); return base + ST_RANK[bp.status]*0.5 + Math.min(Math.abs(x.z),2)*0.1;
+}
+function pickOf(f){ let b=null,r=-1; IDX.forEach(i=>{const x=f.idxs[i]; if(!x)return; const rr=rank(x); if(rr>r){r=rr;b=i;}}); const x=f.idxs[b]; return (x.reg==='UNCLEAR')?null:b; }
+/* ---------- phase ---------- */
+function clockPhase(hm){
+  const [h,m]=hm.split(':').map(Number); const t=h*60+m;
+  if(t<9*60+15) return ['PRE-OPEN','b'];
+  if(t<9*60+47) return ['SHURU · bands ban rahe','a'];
+  if(t<11*60+30) return ['SUBAH','g'];
+  if(t<13*60+30) return ['DOPAHAR','g'];
+  if(t<14*60+30) return ['DOPAHAR BAAD','g'];
+  if(t<15*60) return ['CLOSE-OUT · 15:00 tak','o'];
+  return ['15:00 ke baad · naya trade nahi (aadat)','dn'];
+}
+function left(hm){ const [h,m]=hm.split(':').map(Number); const mins=15*60-(h*60+m); return mins>0?`${Math.floor(mins/60)}h ${mins%60}m`:'0'; }
+/* ---------- render ---------- */
+function renderTop(f){
+  const [cp,cc]=clockPhase(f.time); const dnames={Mon:'Mon',Tue:'Tue',Wed:'Wed',Thu:'Thu',Fri:'Fri'};
+  const d=f.day.split('-'); const pre=!!f.pre;
+  const exp = pre? Object.values(f.pre).filter(p=>p.expiry===f.day).map(p=>p.idx) : IDX.filter(i=>f.idxs[i]&&f.idxs[i].expiry===f.day);
+  $('top').innerHTML = `<span class="brand">DESK</span><span class="clock">${d[2]}/${d[1]} ${f.dow} · ${f.time}</span><span class="chip ${cc}">${cp}</span>`
+   + (exp.length?`<span class="chip a">EXPIRY AAJ: ${exp.join(', ')}</span>`:'')
+   + `<span class="chip g">15:00 me ${left(f.time)}</span><span class="sp"></span>`
+   + `<span class="leg"><span>${lt('g')}saath</span><span>${lt('a')}aadha</span><span>${lt('r')}ulta</span><span>${lt('n')}pata nahi</span></span>`
+   + `<span class="chip g">feed ${pre?'—':'1s'}</span><span class="chip b">sirf salaah · koi order nahi</span>`;
+}
+function renderStrip(f){
+  if(f.pre){ $('strip').innerHTML = IDX.map(i=>{const p=f.pre[i]; return `<div class="ix ${i===sel?'sel':''}" onclick="selIdx('${i}')"><div class="r1"><span class="nm">${i}</span><span class="px">kal close (F) ${fm(p.prev.close)}</span></div><div class="r2"><span class="st c-gr">KHULA NAHI</span><span class="age">value ${fm(p.prev.val)}–${fm(p.prev.vah)} F</span></div></div>`;}).join(''); return; }
+  const pk=pickOf(f);
+  $('strip').innerHTML = IDX.map(i=>{ const x=f.idxs[i]; if(!x) return '<div class="ix"></div>'; const m=meta(x);
+    const tot=Math.max(1,Math.abs(x.ce30)+Math.abs(x.pe30)); const cs=Math.max(0,x.ce30)/Math.max(1,Math.max(0,x.ce30)+Math.max(0,x.pe30))*100;
+    const hasW = x.wr!=null;
+    return `<div class="ix ${i===sel?'sel':''}" onclick="selIdx('${i}')">
+     ${pk===i?'<span class="star">★ SABSE SAAF</span>':''}
+     <div class="r1"><span class="nm">${i} ${x.expiry===f.day?'<span class="chip a">EXPIRY</span>':''}</span><span class="px">F ${fm(x.F)} · spot ${fm(x.spot)}</span></div>
+     <div class="r2"><span class="st ${m.cls}">${m.w}</span><span class="age">${x.reg==='UNCLEAR'?'':x.since+' se · '+x.held+'m'}</span>
+       <span class="px">${hasW?`<span class="wbar" title="CE vs PE writing 30m"><i style="width:${cs}%;background:#c62f3a"></i><i style="width:${100-cs}%;background:#0b8a5c"></i></span> ${sg(x.z,1)}σ`:'OI ?'}</span></div></div>`; }).join('');
+}
+function renderC1(f){
+  if(f.pre) return preC1(f);
+  const x=f.idxs[sel]; const m=meta(x);
+  let h=`<div class="h">Kaisa din · ${sel}<small>har light ek naapa hua fact hai</small></div>
+   <div class="big"><span class="w ${m.cls}">${m.w}</span></div>
+   <div class="since">${m.s} · ${x.reg==='UNCLEAR'?'abhi tak koi side nahi bani':'shuru '+x.since+' · '+x.held+' min se yahi'} ${x.early?'<span class="chip a">JALDI</span>':''} ${x.partial?'<span class="chip a">ADHOORA DATA</span>':''} ${x.reg!==x.raw||x.dir!==x.rawdir?'<span class="chip o">badal raha: '+x.raw+' '+DIRA[x.rawdir]+'</span>':''}</div>`;
+  evidence(x).forEach(r=>{ h+=`<div class="ev">${lt(r.l)}<div class="k">${r.k}</div><div><div class="v">${r.v}</div><div class="u">${r.u}</div></div></div>`; });
+  h+=`<div class="flipbox">${palat(x)}</div>`;
+  $('c1').innerHTML=h;
+}
+function renderC2(f){
+  if(f.pre) return preC2(f);
+  const x=f.idxs[sel];
+  if(f.trade && f.trade.idx===sel) return tradeC2(f,x);
+  const bp=bestPlay(x); const st=bp.status;
+  const ttl={OK:'KARO',HALF:x.reg==='DRIVE'?'EARLY LANE · AADHA':'AADHA SIZE',WAIT:'RUKO',NO:'RUKO · KOI TRADE NAHI'}[st];
+  const names = x.plays.filter(p=>p.status===st).map(p=>p.name).join(' / ');
+  let h=`<div class="h">Kya karna hai · ${sel}<small>jagah · OI · flow · premium · time</small></div>`;
+  h+=`<div class="banner ${st}"><span class="t">${ttl}</span><span class="d">${st==='NO'?(x.reg==='UNCLEAR'?'Din ki taraf saaf nahi.':'Is waqt koi expression legal nahi.'):names}</span></div>`;
+  if(x.early||x.partial) h+=`<div class="cap">${x.partial?'Adhoora data: ':'Jaldi (pehle 30 min): '}OK ki jagah max <b>AADHA</b>.</div>`;
+  const order=x.plays.slice().sort((a,b)=>ST_RANK[b.status]-ST_RANK[a.status]);
+  const live=order.filter(p=>p.status!=='NO'), dead=order.filter(p=>p.status==='NO');
+  live.forEach(p=>{ h+=`<div class="pl"><span class="pill ${p.status}">${p.status}</span><div><div class="n">${p.name.replace(' ',' ')} <small></small></div><div style="font-size:11.5px;color:var(--mut)">${strikeText(x,p)}</div><div class="y">${whyText(x,p)}</div></div>${lights5(p)}</div>`; });
+  if(dead.length) h+=`<div class="pl" style="grid-template-columns:54px 1fr"><span class="pill NO">NO</span><div class="y"><b>${dead.map(p=>p.name).join(' · ')}</b> — ${live.length?'is waqt legal nahi (din ki taraf ulta)':whyText(x,dead[0])}</div></div>`;
+  const wf=waitFor(x);
+  if(wf.length) h+=`<div class="wait"><b>Intezaar / kya chahiye</b>${wf.map(s=>`<div>${s}</div>`).join('')}</div>`;
+  if((st==='OK'||st==='HALF')&&x.reg!=='DRIVE'){ const dd=bp.dir, side=dd<0?'call':'put', opp=dd<0?'put':'call';
+    h+=`<div class="flipbox" style="margin-top:8px"><b>Ghusa to nikalna kab · 4 kaaran, candle nahi</b><div style="margin-top:3px"><b class="c-dn">ZONE</b> price VWAP ${fm(x.vwap)} F ke ${dd<0?'upar':'niche'} 3 min tike · <b class="c-dn">FLOW</b> 15m me ${dd<0?'buyers':'sellers'} haavi · <b class="c-dn">OI</b> ${side} ruke ya ${opp} akele likhe · <b class="c-dn">VPIN</b> ${x.vpin!=null?'badhe aur flow ulta':'(sirf NIFTY)'}. Zone gaya ya do ulte → FOLD.</div></div>`; }
+  h+=`<div class="note">Buy vs sell: <b>prem</b> light batata hai options sasti (buy edge) ya mehngi (sell edge). ATM ya ek strike ITM — tumhari marzi.</div>`;
+  $('c2').innerHTML=h;
+}
+const FSTAT={g:'theek',a:'kamzor',r:'gaya',n:'?'};
+function tradeC2(f,x){
+  const t=f.trade; const vcls=t.verdict;
+  const entryTxt = t.thesis? ['place','oi','flow'].map(k=>`${k==='place'?'jagah':k==='oi'?'OI':'flow'} ${lt(t.thesis[k])}`).join(' &nbsp; ') : '';
+  let h=`<div class="h">Trade mein · ${sel}<small>kaarn jinpe ghusa tha, wahi dekho</small></div>`;
+  h+=`<div class="pos"><div class="a"><b>${t.kind==='SELL'?'BECHA':'KHAREEDA'} ${fm(t.strike)} ${t.side} <small style="font-weight:400;color:var(--mut)">ATM${t.entry_status==='HALF'?' · aadha size':''}</small></b><span class="pnl ${t.pts>=0?'c-up':'c-dn'}">${sg(t.pts,1)} pt</span></div>
+    <div class="b">${t.entry_t} @ ₹${fm(t.entry_prem,1)} → abhi ₹${fm(t.now_prem,1)} · ${t.mins} min · ≈ ${sg(t.rupees)} ₹/lot · <i>udaharan, salaah nahi</i></div>
+    <div class="b">Ghuse the: ${entryTxt} · price F ${fm(t.entry_F)} (${sg(t.entry_z,1)}σ)</div></div>`;
+  const dn=t.dirn, wrTxt=v=>v==null?'?':v===-1?'sirf call':v===1?'sirf put':v===0?'dono':'koi nahi';
+  const flTxt=v=>v==null?'?':v===1?'buyers':v===-1?'sellers':'barabar';
+  h+=`<div class="banner ${vcls}"><span class="t">${vcls}</span><span class="d">${vcls==='FOLD'?'Zone gaya ya do kaaran ulte (3 min tike) — nikal.':vcls==='WATCH'?'Ek kaaran ulta / do kamzor — nazar rakho.':'Saare kaaran saath.'}</span></div>`;
+  const rows=[
+   ['ZONE', t.fold.zone, `VWAP ${fm(x.vwap)} F · ghuse ${sg(t.entry_z,1)}σ → ab ${sg(x.z,1)}σ`, dn>0?'VWAP ke upar rehna':'VWAP ke niche rehna'],
+   ['FLOW', t.fold.flow, `ghuse: ${flTxt(t.entry_fl)} → ab: ${flTxt(x.fl15)} ${x.d15!=null?sg(x.d15)+' lots (15m)':''}`, '15 min delta'],
+   ['OI', t.fold.oi, `ghuse: ${wrTxt(t.entry_wr)} → ab: ${wrTxt(x.wr)} (CE ${sg(Lk(x.ce30))}L / PE ${sg(Lk(x.pe30))}L)`, '30 min writing'],
+   ['VPIN', t.fold.vpin, t.vpin_e!=null&&t.vpin_n!=null?`${fm(t.vpin_e,3)} → ${fm(t.vpin_n,3)}`:'— sirf NIFTY futures par', 'toxicity']
+  ];
+  rows.forEach(r=>{ h+=`<div class="fb">${lt(r[1])}<span class="k">${r[0]}</span><div class="v">${r[2]}<small>${r[3]}</small></div><span class="s ${r[1]==='r'?'c-dn':r[1]==='a'?'c-am':r[1]==='g'?'c-up':'c-gr'}">${FSTAT[r[1]]}</span></div>`; });
+  const tg = x.levels.filter(l=>(dn<0? l.p<x.F : l.p>x.F)).sort((a,b)=>dn<0?b.p-a.p:a.p-b.p)[0];
+  h+=`<div class="note">Pehla target: <b>${tg?tg.nm+' '+fm(tg.p)+' '+tg.tag:'—'}</b> ${tg?'('+sg(tg.p-x.F)+' pt)':''} · 15:00 me ${left(f.time)} baaki. FOLD kisi candle close par nahi — 3 min ki lagatar halat par.</div>`;
+  $('c2').innerHTML=h;
+}
+function ladder(f,x){
+  const F=x.F, sig=x.ready?x.sig:null;
+  let L=x.levels.slice();
+  const near=L.slice().sort((a,b)=>Math.abs(a.p-F)-Math.abs(b.p-F)).slice(0,11);
+  near.push({p:F,tag:'FUT',nm:'ABHI',kind:'cur'});
+  near.sort((a,b)=>b.p-a.p);
+  let h=`<div class="lad">`;
+  near.forEach(l=>{
+    const cur=l.kind==='cur', ds=l.p-F;
+    const extra = l.kind==='wall' ? '' : (l.kind==='prev'? `<small>${x.prev?x.prev.day.slice(8)+'/'+x.prev.day.slice(5,7):''}</small>`:(l.kind==='pin'?'<small>spot strike</small>':''));
+    const nm = l.kind==='wall'? `${l.side==='ce'?'CE':'PE'} wall ${fm(l.strike)}` : l.nm;
+    h+=`<div class="row ${cur?'cur':''} ${l.kind==='vwap'?'vw':''}"><span class="tg ${l.tag}">${l.tag}</span><span class="nm">${nm}${extra}</span><span class="px">${fm(l.p)}</span><span class="ds">${cur?'':sg(ds)}</span><span class="sg">${cur||sig==null?'':sg(ds/sig,1)+'σ'}</span></div>`;
+  });
+  return h+`</div>`;
+}
+function renderC3(f){
+  if(f.pre) return preC3(f);
+  const x=f.idxs[sel];
+  let h=`<div class="h">Kahan · levels<small>sab FUT ke hisaab se, ek hi paimana</small></div>`;
+  h+=`<div class="basis"><b>FUT = SPOT ${sg(x.basis)}</b> (abhi). STRIKE wale: strike + ${fm(x.basis)} = FUT barabar. Dono alag cheez hain.</div>`;
+  h+=ladder(f,x);
+  h+=`<div class="wl"><table><tr><th>OI deewar (spot strike)</th><th>OI</th><th>30m</th><th>FUT barabar</th></tr>`
+   + x.walls.ce.map(w=>`<tr><td>CE ${fm(w[0])} <span class="c-dn">cap</span></td><td>${fm(Lk(w[1]))}L</td><td class="${w[2]>0?'c-dn':'c-gr'}">${sg(Lk(w[2]),1)}L</td><td>${fm(w[0]+x.basis)}</td></tr>`).join('')
+   + x.walls.pe.map(w=>`<tr><td>PE ${fm(w[0])} <span class="c-up">floor</span></td><td>${fm(Lk(w[1]))}L</td><td class="${w[2]>0?'c-up':'c-gr'}">${sg(Lk(w[2]),1)}L</td><td>${fm(w[0]+x.basis)}</td></tr>`).join('')
+   + `</table><div class="mini" style="margin-top:3px">Chain: subah ke ATM ±8 strike hi; bahar ki deewar nahi dikhti.</div></div>`;
+  $('c3').innerHTML=h;
+}
+/* ---------- pre-open ---------- */
+function preC1(f){
+  let h=`<div class="h">Kal ka din · pichla poora session<small>kal subah ka data nahi → 6 Oct</small></div><table class="pre"><tr><th></th><th>Close F</th><th>Value (VAL–VAH)</th><th>POC</th></tr>`;
+  IDX.forEach(i=>{const p=f.pre[i].prev; h+=`<tr><td>${i}</td><td>${fm(p.close)}</td><td>${fm(p.val)}–${fm(p.vah)}</td><td>${fm(p.poc)}</td></tr>`;});
+  h+=`</table><div class="flipbox" style="margin-top:10px"><b>Khulte hi pehla sawaal</b><br>Open kal ki value (VAL–VAH) <b>ke bahar</b> aur wahin tike → trend ka mauka. Value <b>ke andar</b> → rotation, VWAP±σ par kaam. Gap kitna? <b>09:15 par hi pata chalega</b> — abhi nahi.</div>`;
+  h+=`<div class="ev" style="margin-top:8px">${lt('n')}<div><div class="k">Aaj ki khabar / event</div><div class="v" style="color:var(--faint)">tum likho: ________</div><div class="u">tool ko khabar nahi pata — ye jagah tumhari</div></div></div>`;
+  h+=`<div class="ev">${lt('n')}<div><div class="k">Kal raat ki OI deewar</div><div class="v">${IDX.map(i=>{const w=f.pre[i].walls;return i.slice(0,3)+' '+fm(w.pe[0][0])+'PE / '+fm(w.ce[0][0])+'CE';}).join(' · ')}</div><div class="u">spot strikes, 7 Oct close (chain ±8 strike)</div></div></div>`;
+  $('c1').innerHTML=h;
+}
+function preC2(f){
+  const exp=IDX.filter(i=>f.pre[i].expiry===f.day);
+  let h=`<div class="h">Aaj kab kya pata chalega<small>jaldi ka matlab kam jaankari</small></div><div class="tl">
+   <b>09:15</b><span>Open. Gap + kal ki value se. <i>Recorder 09:17 se</i> (pehle 2 min ka data nahi)</span>
+   <b>09:17</b><span>Feed live: bhav, delta, OI. <b>Early lane</b> shuru — sirf aadha size, delta palte to nikal.</span>
+   <b>~09:27</b><span>10 min ki OI flow → "kaun likh raha" pehli baar.</span>
+   <b>~09:47</b><span>30 min: σ bands, VWAP side-time, crossing. Poora reading.</span>
+   <b>10:15+</b><span>PIN ka faisla ab hi (range-used pehle jhootha).</span>
+   <b>15:00</b><span>Sab band. Naya trade nahi (tumhari aadat; tool sirf yaad dilata hai).</span></div>`;
+  h+=`<div class="flipbox" style="margin-top:12px"><b>Kaun sa index?</b><br>Pehle jisme din saaf ho; baraabar to jo pehle band toda. ${exp.length?`Aaj <b>${exp.join(', ')}</b> expiry — gamma tez: buy me zyada paisa per point, sell me theta tez par jhatka bhi.`:''}</div>`;
+  h+=`<div class="note">Kal ke levels aur OI deewar: right panel. Pre-open me live OI nahi, isliye koi "state" nahi dikhta — jhoothi taraf mat jhuko.</div>`;
+  $('c2').innerHTML=h;
+}
+function preC3(f){
+  const p=f.pre[sel]; const cl=p.prev.close;
+  const rows=[['Kal VAH',p.prev.vah],['Kal POC',p.prev.poc],['Kal VAL',p.prev.val],['Kal low',p.prev.lo],['Kal high',p.prev.hi],['Kal close',p.prev.close]].concat(p.prev.hvn.map(v=>['Kal HVN',v])).concat(p.prev.lvn.map(v=>['Kal LVN',v]));
+  const bs=p.prev.close-p.spot_close;
+  p.walls.ce.forEach(w=>rows.push(['CE wall '+w[0]+' (OI '+fm(Lk(w[1]))+'L)',w[0]+bs,'STRIKE']));
+  p.walls.pe.forEach(w=>rows.push(['PE wall '+w[0]+' (OI '+fm(Lk(w[1]))+'L)',w[0]+bs,'STRIKE']));
+  rows.sort((a,b)=>b[1]-a[1]);
+  let h=`<div class="h">Kahan · kal ke levels · ${sel}<small>sab FUT ke hisaab se</small></div><div class="basis">Basis kal close par ≈ <b>FUT = SPOT ${sg(p.prev.close-p.spot_close)}</b>. Aaj subah naya naapo — ye roz badalta hai.</div><div class="lad">`;
+  rows.forEach(r=>{const tag=r[2]||'FUT'; h+=`<div class="row"><span class="tg ${tag}">${tag}</span><span class="nm">${r[0]}</span><span class="px">${fm(r[1])}</span><span class="ds"></span><span class="sg"></span></div>`;});
+  $('c3').innerHTML=h+`</div><div class="mini" style="margin-top:6px">${p.prev.day===f.day?'':'Pichla poora din '+p.prev.day.slice(8)+'/'+p.prev.day.slice(5,7)+' (7 Oct me subah ka data nahi).'}</div>`;
+}
+/* ---------- ribbon ---------- */
+function renderRib(f){
+  const t0=9*60+15, t1=15*60+30, W=t1-t0; const pct=m=>((m-t0)/W*100);
+  const [h,mm]=f.time.split(':').map(Number); const nowm=h*60+mm;
+  let hh=`<div class="h" style="margin-bottom:3px">Din ka safar · kab kya state thi<small>sirf ab tak ka — aage ka koi andaaza nahi</small></div>`;
+  if(f.pre){ $('rib').innerHTML=hh+`<div class="mini">Pre-open: abhi koi safar nahi.</div>`; return; }
+  const ticks=[9,10,11,12,13,14,15].map(H=>`<span style="left:${pct(H*60)}%">${H}:00</span>`).join('');
+  IDX.forEach(i=>{ const x=f.idxs[i]; if(!x) return; const segs=x.ribbon.map(s=>{const a=s[0]/60,b=s[1]/60; return `<i title="${s[2]} ${DIRA[s[3]]}" style="left:${pct(a)}%;width:${pct(b)-pct(a)}%;background:${regColor(s[2],s[3])}"></i>`;}).join('');
+    hh+=`<div class="rrow"><span class="l" style="${i===sel?'color:var(--ink)':''}">${i}</span><div class="track" ${i===sel?'style="height:13px"':''}>${segs}<span class="mk cut" style="left:${pct(15*60)}%"></span><span class="mk" style="left:${pct(nowm)}%"></span></div></div>`; });
+  hh+=`<div class="axis">${ticks}</div>`;
+  $('rib').innerHTML=hh;
+}
+function renderCtl(){
+  const lab={PRE:'Pre',A:'A',B:'B',C:'C',D:'D',E:'E',F:'F',G:'G',H:'H',I:'I',J:'J'};
+  let h=`<span class="lbl">MOCKUP · asli recorded minute (sirf tab tak ka data) →</span>`+FR.map((f,i)=>`<button class="${i===fi?'on':''}" onclick="setF(${i})" title="${f.label}">${lab[f.id]}·${f.pre?'pre':f.time}</button>`).join('');
+  h+=`<span class="cp">${CAP[FR[fi].id]||''}</span>`;
+  $('ctl').innerHTML=h;
+}
+const CAP={
+ PRE:'Pre-open: sirf kal ka sach. Koi state nahi, jaan-boojh kar.',
+ A:'8 Oct 09:20: teeno SAAF NAHI. 3 min ka data; kya kab pata chalega.',
+ B:'8 Oct 09:50: NIFTY JHUKAAV ↓, aadha size. Baaki abhi saaf nahi.',
+ C:'8 Oct 11:32: TREND ↓, entry check OK. BANKNIFTY ulta (↑), SENSEX aadha.',
+ D:'8 Oct 12:10: udaharan trade. Flow ulta, zone+OI theek: WATCH, fold nahi.',
+ E:'5 Oct 10:30: NIFTY/SENSEX saaf nahi, BANKNIFTY CHOP. Side nahi chunta.',
+ F:'29 Sep 10:50: price VWAP ke niche par sirf put likh rahe: PALAT? (pehla ishara).',
+ G:'30 Sep 13:46: udaharan trade, aadha size. Zone/flow/OI ulte: FOLD.',
+ H:'25 Sep 12:35: NIFTY PIN 23,100. Sirf bechne wali taraf, wo bhi aadha.',
+ I:'7 Oct 13:30: feed der se. Andaaza nahi, sawaal-chinh (?) dikhata hai.',
+ J:'24 Sep 09:22: BANKNIFTY open se 1.3x tez + delta saath: early lane, aadha.'
+};
+function selIdx(i){ sel=i; render(); }
+const DEFSEL={E:'BANKNIFTY',J:'BANKNIFTY'};
+function setF(i){ fi=i; const f=FR[i]; if(f.trade) sel=f.trade.idx; else if(!f.pre){ sel=DEFSEL[f.id]||'NIFTY'; if(!f.idxs[sel]) sel='NIFTY'; } render(); }
+function render(){ const f=FR[fi]; const hm=f.time.split(':').map(Number); EARLYCLOCK=(hm[0]*60+hm[1])<10*60+15; renderTop(f); renderStrip(f); renderC1(f); renderC2(f); renderC3(f); renderRib(f); renderCtl(); }
+(function(){ const m=location.hash.match(/f=(\d+)/); const si=location.hash.match(/s=(\w+)/); setF(m?+m[1]:1); if(si&&FR[fi].idxs&&FR[fi].idxs[si[1]]){ sel=si[1]; render(); } })();
+</script>
+</body>
+</html>
