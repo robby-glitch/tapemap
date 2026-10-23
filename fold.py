@@ -217,6 +217,7 @@ class State:
         self.bars, self.ft, self.fp, self.flo, self.fhi, self.pre = [], [], [], [], [], []
         self.bk, self.cur, self.runs, self.marks = [], None, [], []
         self.basis, self.oiu, self.rc, self.rc_t, self.F, self.bas = [], {}, None, None, None, None
+        self.basis_ix, self.bas_ix = [], None      # DISPLAY ONLY: future minus the index (her one basis, 2026-10-05)
         self.named, self.cand, self.wall_px = {"CE": None, "PE": None, "A": None}, {"CE": None, "PE": None, "A": None}, {}
         self.sess_lo = self.sess_hi = self.last_p = self.open_p = None
         self.volp, self.vp, self.gc = {}, [], []
@@ -539,6 +540,16 @@ class State:
                 lv.append((self.wall_px[ty], 4, f"{k} {ty} writers {_L(self.cur_oi((k, ty)))}", sd, k, ty))
         return lv
 
+    def _px(self, k):
+        """Where strike k is DRAWN and PRINTED on her futures chart: K + her basis (future minus the index), the forward's
+        until the index basis exists. Output only; the engine's own wall_px / G stay on the forward basis."""
+        b = self.bas_ix if self.bas_ix is not None else self.bas
+        return None if k is None or b is None else round(k + b)
+
+    def _lvpx(self, x):
+        """A levels() tuple's printed price: a named wall at its drawn price, any other level at its own futures price."""
+        return self._px(x[4]) if x[1] == 4 and x[4] is not None and self._px(x[4]) is not None else round(x[0])
+
     def _rank(self, ty, sd, F, w, beyond=None):
         """blueprint §4.4: current OI (not day-high), near-ATM, beyond F* by w; the nearer of the top two."""
         near = sorted((x["k"] for x in self.rc["strikes"]), key=lambda k: abs(k - F))[:NEAR_ATM]
@@ -569,6 +580,13 @@ class State:
         if fw:
             self.basis.append((t, f - st.median(fw)))
         self.basis = [x for x in self.basis if x[0] >= t - FWD_MS]
+        # Her basis (2026-10-05): future minus the INDEX, the row's own spot paired with the same future, a 15-min median like
+        # the forward's (a raw fut - spot swung 8-12 pts a minute, CHECK M1). It places and labels; it decides nothing --
+        # G, the walls' ZONE reads and every premium stay on the forward basis above (the signed rule's).
+        if r.get("spot"):
+            self.basis_ix.append((t, f - r["spot"]))
+        self.basis_ix = [x for x in self.basis_ix if x[0] >= t - FWD_MS]
+        self.bas_ix = st.median([x[1] for x in self.basis_ix]) if self.basis_ix else None
         if not self.basis:
             return
         self.bas = st.median([x[1] for x in self.basis])
@@ -913,9 +931,9 @@ class State:
                 if not strong:
                     out["ZONE"] = ("CAN'T CHECK", f"{CC}: no levels yet")
                 elif at:
-                    out["ZONE"] = ("AGAINST", f"at {at[0]:.0f}: {at[2]}")
+                    out["ZONE"] = ("AGAINST", f"at {self._lvpx(at)}: {at[2]}")
                 elif beh and beh[0][3] == d:
-                    out["ZONE"] = ("WITH", f"behind you: {beh[0][0]:.0f} ({beh[0][2]})")
+                    out["ZONE"] = ("WITH", f"behind you: {self._lvpx(beh[0])} ({beh[0][2]})")
                 else:
                     out["ZONE"] = ("QUIET", f"no level born or broken since {hm(t)}")
         # FLOW: the newest fixed fight within 10 buckets, plus the tape word; event-born, no gate
@@ -1096,12 +1114,12 @@ class State:
             pk = w_.pk if w_ is not None else None
             Wd = dict(k=self.W, side=self.dty, oi=self.cur_oi((self.W, self.dty)), peak=pk,
                       peak_t=hm(w_.peak_t(self.oiu)) if pk is not None else None, state=w_.state() if w_ else None,
-                      px=None if self.bas is None else round(self.W + self.bas))      # at K + basis, as A.px is
+                      px=self._px(self.W))                                         # at K + her basis, as A.px is
         Ad = None
         ak = self.named["A"]
         if ak is not None:
             a_ = self.Aw
-            Ad = dict(k=ak, side=self.aty, px=round(ak + self.bas), pts=round(d * (ak + self.bas - self.last_p)),
+            Ad = dict(k=ak, side=self.aty, px=self._px(ak), pts=round(d * (self._px(ak) - self.last_p)),
                       oi=self.cur_oi((ak, self.aty)), peak=a_.pk if a_ else None,
                       peak_t=hm(a_.peak_t(self.oiu)) if a_ and a_.pk is not None else None,
                       state=a_.state() if a_ else None)                                # W's vocabulary: building / stopped / off
@@ -1121,7 +1139,10 @@ class State:
                                med_bucket_s=self.med_bk_dur() / 1000, pooled_sessions=self.prior_n, bucket_src=self.bk_src,
                                basis_minutes=bm, basis=None if self.bas is None else round(self.bas, 1),
                                basis_of="future minus the options' own forward (K + CE - PE, both |delta| > 0.3), median over 15 min; "
-                                        "a strike sits at K + basis on the futures chart"),
+                                        "the engine's own: G, the zone reads and the premiums",
+                               basis_ix=None if self.bas_ix is None else round(self.bas_ix, 1),
+                               basis_ix_of="future minus the index, median over 15 min: where a strike is drawn (K + basis_ix) "
+                                           "and how a futures price is printed as spot (fut - basis_ix)"),
                     prem=self._prem(t),
                     acc=None if self.acc is None else dict(t=hms(self.acc["t"]), G=self.acc["G"], lots=round(self.acc["lots"]), n=self.acc_n),
                     tally=dict(t0=hms(self.tally_t0) if self.tally_t0 else None, lots=round(self.tally), restarts=max(0, self.tally_n - 1),
@@ -1162,7 +1183,7 @@ class State:
     def flat_view(self, t):
         out = dict(date=self.day, asof=hms(t), next_fight=None, at=None, gave_up=None, reentry=None,
                    marks=[m for m in self.marks if m["t"] <= t],
-                   basis=None if self.bas is None else round(self.bas, 1),
+                   basis=None if self.bas is None else round(self.bas, 1), basis_ix=None,
                    frame="flat: a row's chip names the side it favours -- BUYERS, SELLERS, QUIET, CAN'T CHECK",
                    rows={}, day=None, tag=dict(M=["next_fight.px", "what", "day"], I=["confirm", "F"]))
         B = self.B_at(t)
@@ -1173,8 +1194,11 @@ class State:
             out["day"] = why
             return out
         w, F = B / 2, self.F
-        out["F"] = round(F, 1)
-        strong = [x for x in self.levels(t) if x[1] in (1, 2, 4, 5)]
+        out["F"], out["basis_ix"] = round(F, 1), None if self.bas_ix is None else round(self.bas_ix, 1)
+        # Every level here is a futures-chart price, so it is sorted against the FUTURE (2026-10-05: it was sorted
+        # against F, the forward ~94 below, and called 22,565 "upar" with the future at 22,640). Walls at her drawn price.
+        P = self.last_p
+        strong = [((self._lvpx(x),) + x[1:]) for x in self.levels(t) if x[1] in (1, 2, 4, 5)]
 
         rank = {4: 0, 1: 1, 2: 2, 5: 3}                                # walls, trapped, held, yesterday's; two facts at most
 
@@ -1189,9 +1213,9 @@ class State:
             flow = f"lifts at {px:.0f}–{px + w:.0f} followed by price" if up else f"hits at {px - w:.0f}–{px:.0f} followed by price"
             return f"{flow}{oi} · VPIN turning {'buyers' if up else 'sellers'}' way: {'calls' if up else 'puts'}"
 
-        at = next((x for x in sorted(strong, key=lambda x: abs(x[0] - F)) if abs(x[0] - F) <= w), None)
-        above = sorted((x for x in strong if x[0] > F + w), key=lambda x: x[0])
-        below = sorted((x for x in strong if x[0] < F - w), key=lambda x: -x[0])
+        at = next((x for x in sorted(strong, key=lambda x: abs(x[0] - P)) if abs(x[0] - P) <= w), None)
+        above = sorted((x for x in strong if x[0] > P + w), key=lambda x: x[0])
+        below = sorted((x for x in strong if x[0] < P - w), key=lambda x: -x[0])
         if at:
             out["at"] = dict(px=round(at[0]), what=group(at))
         if strong:

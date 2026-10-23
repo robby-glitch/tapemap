@@ -476,3 +476,13 @@ def test_levels_landing_after_the_close_reach_the_squares(route, monkeypatch):
     b = _get("/api/board?idx=NIFTY", route["poller"])
     assert b["squares"]["levels_why"] is None and b["headline"] == a["headline"]
     assert "PWL 23,116.1" in json.dumps(b["squares"])
+
+
+
+def test_d6_the_squares_take_the_days_high_and_low_from_every_row_not_the_grid():
+    """The grid's minute marks saw 23,050 as the low; every chain row saw 22,908 at 09:36 (16 Oct's real low)."""
+    hl = {"hi": 23155.0, "hi_t": "10:18", "lo": 22908.0, "lo_t": "09:36"}
+    grid = str(board.squares([], 23000.0, 50.0, None, None, [23100.0, 23050.0], ["10:15", "10:20"]))
+    rows = str(board.squares([], 23000.0, 50.0, None, None, [23100.0, 23050.0], ["10:15", "10:20"], hl))
+    assert "day low 10:20" in grid and "day high 10:15" in grid                 # the old answer: the grid's marks
+    assert "day low 09:36" in rows and "22908" in rows and "day high 10:15" not in rows and "day low 10:20" not in rows

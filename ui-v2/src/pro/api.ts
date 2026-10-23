@@ -32,7 +32,10 @@ export type View = { ts: string; headline: string | null; why?: string; clause: 
                      prem: Prem; rows: Rows; holes: unknown[]; sound_id: string | number | null; tag?: Tag; events?: Ev[]
                      frozen?: boolean; exit_t?: string }
 export type Word = { t: string; headline: string; clause: string; prem?: number | null; pct?: number | null; after_exit?: boolean }
-export type FoldRead = { ok: boolean; why?: string; id?: string; trade?: Trade; view?: View; words?: Word[]; asof?: string; feed?: Feed }
+// HOLD v2 (hold2.py, research-findings §1m): the push-trail line beside the word, DISPLAY ONLY -- it never changes the word
+export type Hold2 = { ok: boolean; why?: string; text?: string | null; note?: string; line_fut?: number; line_spot?: number | null
+                      why_short?: string; pts?: number | null; front?: { side: string; k: number; state: string } | null; tag?: string }
+export type FoldRead = { ok: boolean; why?: string; id?: string; trade?: Trade; view?: View; words?: Word[]; asof?: string; feed?: Feed; hold2?: Hold2 | null }
 // FEED HEALTH (P3, feed_health.py): is the GoCharting tape alive, read by the server from the data; rides every /api/fold* reply
 export type FeedState = 'LIVE' | 'SLOW' | 'STALLED' | 'DEAD' | 'NOT OPEN TODAY' | 'AFTER CLOSE'
 export type Feed = { idx?: string; state: FeedState | null; since?: string | null; age_s?: number | null; why?: string | null; chip?: string | null

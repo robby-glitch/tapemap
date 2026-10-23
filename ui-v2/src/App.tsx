@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react'
 import { useLiveData, HEAT_COLS, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatTone, Chain, MapLevelKind, FlowRow, RunState, TapeBar, Interval, GroundedCall } from './data'
+import type { IndexKey, IndexInfo, Dataset, HeatTone, Chain, MapLevelKind, FlowRow, RunState, TapeBar, Interval, GroundedCall, Read, DayType } from './data'
 import { usePalette, rgbOf } from './theme'
 import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
@@ -13,6 +13,9 @@ import BoardRev3, { useBoardGlance } from './board/BoardRev3'
 import type { GlanceRead } from './board/BoardRev3'
 // THE BOARD, overhaul 2026-10-03 (docs/board/BOARD-OVERHAUL-2026-10-03.md). BoardRev3 stays on disk, unmounted.
 import Board from './board/Board'
+// THE READ (read.py, /api/read; docs/review/DAY-TEST-2026-10-08.md): one held read per index, OI first -- the first
+// tab and the landing screen; its one-row form heads the ANSWER band on every other tab.
+import ReadTab, { ReadLine, useRead, engineVsRead } from './read/ReadTab'
 import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
 // THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
@@ -64,7 +67,7 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'VPIN' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals'
+export type Tab = 'Read' | 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'VPIN' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals'
 
 // ── Empty dataset (first paint, and any index never read this session) ──────
 // Nothing in it is invented: a live read replaces it within one poll. Until
@@ -213,6 +216,10 @@ function IndexCell({ idx, data, active, onClick, read }: {
   const pal = usePalette()
   const isUp = data.pct >= 0
   const color = Math.abs(data.pct) < 0.1 ? pal.textSecondary : isUp ? pal.bull : pal.bear
+  // THE READ's held word heads each index cell; the engine's own word only when the read is not there (one headline).
+  const rd = useRead().data?.indices?.[idx]
+  const word = rd?.ok ? `${rd.word}${rd.arrow ? ` ${rd.arrow}` : ''}${rd.src === 'flow+fuel' ? ' · flow+fuel' : ''}` : data.state
+  const wordCol = rd?.ok && rd.dir ? (rd.dir < 0 ? pal.bear : pal.bull) : rd?.ok && rd.word === 'RANGE' ? pal.accent : pal.textMuted
 
   return (
     <button
@@ -255,7 +262,8 @@ function IndexCell({ idx, data, active, onClick, read }: {
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: pal.textPrimary }}>{idx}</span>
-        <span style={{ fontSize: 10, color: pal.textMuted }}>{data.state}</span>
+        <span style={{ fontSize: 10, color: wordCol, fontWeight: rd?.ok ? 700 : 400 }}
+          title={rd?.ok ? `THE READ since ${rd.since} [I]` : 'the engine word (the read is not there)'}>{word}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span className="mono" style={{ fontSize: 15, fontWeight: 600, color: pal.textPrimary }}>
@@ -1348,7 +1356,48 @@ function OiFlowTab({ index }: { index: IndexKey }) {
    took a click to reach. Price, the verdict, the sentence and — crucially —
    what would invalidate it now own the top of the screen at a scale nothing
    else competes with. Everything below is evidence for this band.          */
-function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
+/* AAJ KA DIN (daytype.py): the day's type is the band's main line now. The engine's verdict
+   changed 66 times on 2026-10-05 and never named the trend leg; it stays, collapsed, below. */
+const DT_HOLD_MS = 15 * 60_000
+
+function DayTypeLine({ dt, pal }: { dt: DayType; pal: Palette }) {
+  if (!dt.ok) return (
+    <div style={{ fontSize: 13, color: pal.textMuted }}>
+      <span className="micro-label" style={{ marginRight: 8 }}>Aaj ka din</span>{dt.why ?? 'not shown — no reason given'}
+    </div>)
+  const col = dt.type === 'TREND' ? ((dt.dir ?? 0) > 0 ? pal.bull : pal.bear)
+    : dt.type === 'PIN/CHOP' ? pal.accent : dt.type === 'TWO-SIDED' ? pal.textSecondary : pal.textMuted
+  const absent = (c: string) => c.startsWith('could not check') || c.startsWith('checked, none') || c.startsWith('not shown')
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <span className="micro-label">Aaj ka din</span>
+        <span style={{ fontSize: 20, fontWeight: 700, color: col, letterSpacing: '0.02em' }}>{dt.word}</span>
+        <span title="the type is inferred [I]; every chip is measured [M]" className="mono"
+          style={{ fontSize: 10, color: pal.textMuted }}>[I]</span>
+        <span style={{ fontSize: 12.5, color: pal.textSecondary }}>
+          since <b className="mono">{dt.since}</b> · screen pe <span className="mono">{dt.named}</span> se
+          {dt.switches != null && <> · aaj {dt.switches} badlav</>}
+        </span>
+      </div>
+      {dt.why && <div style={{ fontSize: 12, color: pal.textMuted, marginTop: 2 }}>{dt.why}</div>}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
+        {(dt.evidence ?? []).map((e) => (
+          <span key={e.chip} className="mono" style={{
+            fontSize: 10.5, padding: '2px 7px', borderRadius: 3, border: `1px solid ${pal.border}`,
+            color: absent(e.chip) ? pal.textMuted : pal.textPrimary, background: pal.card,
+          }}>{e.chip} <span style={{ color: pal.textMuted }}>[{e.tag}]</span></span>))}
+      </div>
+      {!!dt.day_so_far?.length && (
+        <div className="mono" style={{ fontSize: 11, color: pal.textSecondary, marginTop: 6, lineHeight: 1.5 }}>
+          <span className="micro-label" style={{ marginRight: 6 }}>Din ab tak</span>
+          {dt.day_so_far.map((g, k) => (
+            <span key={g.from + g.type}>{k ? ' · ' : ''}{g.from}–{g.to} <b>{g.type}</b> {g.net > 0 ? '+' : g.net < 0 ? '−' : ''}{Math.abs(g.net)}</span>))}
+        </div>)}
+    </div>)
+}
+
+function AnswerBand({ index, stale, replaying }: { index: IndexKey; stale: boolean; replaying: boolean }) {
   const { INDICES, READS, CHAIN_DATA, KEY_LEVELS } = useData()
   const pal = usePalette()
   const info = INDICES[index]
@@ -1356,11 +1405,29 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
   const chain = CHAIN_DATA[index]
   const levels = KEY_LEVELS[index] ?? []
   const has = hasRead(info)
+  const dt = read.daytype
+  const [engineOpen, setEngineOpen] = useState(false)
+  const theRead = useRead().data?.indices?.[index]
+  const vsRead = engineVsRead(read.ground, theRead?.ok ? theRead.dir : undefined)   // the engine argues with THE READ?
 
   const dirCol = info.change > 0 ? pal.bull : info.change < 0 ? pal.bear : pal.textSecondary
   const above = levels.filter(l => l.value > info.price).sort((a, b) => a.value - b.value)[0]
   const below = levels.filter(l => l.value < info.price).sort((a, b) => b.value - a.value)[0]
   const mpDist = Math.round(chain.maxPain - info.price)
+
+  // The engine's verdict, HELD: live, it may change on screen at most once per 15 min unless
+  // price goes past a level that verdict's own "changes if" named. Replay shows it as it was.
+  const held = useRef<Partial<Record<IndexKey, { key: string; read: Read; at: number; up?: number; dn?: number }>>>({})
+  const vkey = `${read.timing}|${read.direction}|${read.headline}|${read.ground?.status ?? ''}`
+  let old: Read = read
+  if (!has || replaying || stale) delete held.current[index]
+  else {
+    const h = held.current[index]
+    const broke = h != null && ((h.up != null && info.price > h.up) || (h.dn != null && info.price < h.dn))
+    if (!h || (h.key !== vkey && (Date.now() - h.at >= DT_HOLD_MS || broke)))
+      held.current[index] = { key: vkey, read, at: Date.now(), up: above?.value, dn: below?.value }
+    old = held.current[index]!.read
+  }
 
   const chip = (label: string, tone: 'structure' | 'quiet' = 'quiet') => (
     <span key={label} className="mono" style={{
@@ -1370,6 +1437,19 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
       color: tone === 'structure' ? pal.accent : pal.textMuted,
     }}>{label}</span>
   )
+
+  const oldLevels = !has ? <span style={{ color: pal.textMuted }}>{NOT_SHOWN}</span> : <>
+    {above
+      ? <span>breaks <span className="mono" style={{ color: pal.accent }}>{above.value}</span>
+          <span style={{ color: pal.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
+      : <span style={{ color: pal.textMuted }}>no level mapped above</span>}
+    <span style={{ color: pal.textMuted }}>·</span>
+    {below
+      ? <span>or loses <span className="mono" style={{ color: pal.accent }}>{below.value}</span>
+          <span style={{ color: pal.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
+      : <span style={{ color: pal.textMuted }}>no level mapped below</span>}
+  </>
+  const ci = dt?.ok ? dt.changes_if : undefined
 
   return (
     <div style={{ backgroundColor: pal.bg, borderBottom: `1px solid ${pal.border}`, flexShrink: 0 }}>
@@ -1400,25 +1480,40 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
         </div>
 
         <div style={{ minWidth: 0 }}>
-          {stale ? (
+          {stale && (
             <div style={{
               fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase',
               color: pal.bear, fontWeight: 700, marginBottom: 4,
             }}>
               No live data — do not trade from this screen
             </div>
-          ) : has && (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-              <DirectionChip value={read.direction} />
-              <TimingChip value={read.timing} />
-            </div>
           )}
-          <div style={{ fontSize: 14.5, lineHeight: 1.45, maxWidth: '62ch' }}>
-            {read.headline}
-          </div>
-          {has && <Grounds g={read.ground} />}
-          {read.sub && (
-            <div style={{ fontSize: 12.5, color: pal.textSecondary, marginTop: 3 }}>{read.sub}</div>
+          <ReadLine index={index} />
+          {dt ? <DayTypeLine dt={dt} pal={pal} />
+            : <div style={{ fontSize: 13, color: pal.textMuted }}>{NOT_SHOWN}</div>}
+          <button onClick={() => setEngineOpen((v) => !v)} style={{
+            marginTop: 6, fontSize: 11, color: pal.textMuted, background: 'none', border: 'none',
+            padding: 0, cursor: 'pointer', textAlign: 'left',
+          }}>
+            {engineOpen ? '▾' : '▸'} engine ka verdict{has && !engineOpen ? ` (${old.timing} · ${old.direction})` : ''}
+            {vsRead === 'khilaaf' ? ' · read ke khilaaf — chup' : ''}
+            {has && !replaying && !stale ? ' — 15 min mein ek baar badlega, level toote to pehle' : ''}
+          </button>
+          {engineOpen && (
+            <div style={{ marginTop: 4, paddingLeft: 10, borderLeft: `2px solid ${pal.border}` }}>
+              {!stale && has && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                  <DirectionChip value={old.direction} />
+                  <TimingChip value={old.timing} />
+                </div>
+              )}
+              <div style={{ fontSize: 14, lineHeight: 1.45, maxWidth: '62ch' }}>{old.headline}</div>
+              {has && <Grounds g={old.ground} />}
+              {old.sub && <div style={{ fontSize: 12.5, color: pal.textSecondary, marginTop: 3 }}>{old.sub}</div>}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 12, marginTop: 4 }}>
+                <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Engine changes if</span>{oldLevels}
+              </div>
+            </div>
           )}
         </div>
 
@@ -1441,16 +1536,16 @@ function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
         borderTop: `1px solid ${pal.border}`, fontSize: 12.5,
       }}>
         <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Changes if</span>
-        {!has ? <span style={{ color: pal.textMuted }}>{NOT_SHOWN}</span> : <>
-        {above
-          ? <span>breaks <span className="mono" style={{ color: pal.accent }}>{above.value}</span>
-              <span style={{ color: pal.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
-          : <span style={{ color: pal.textMuted }}>no level mapped above</span>}
-        <span style={{ color: pal.textMuted }}>·</span>
-        {below
-          ? <span>or loses <span className="mono" style={{ color: pal.accent }}>{below.value}</span>
-              <span style={{ color: pal.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
-          : <span style={{ color: pal.textMuted }}>no level mapped below</span>}
+        {!ci ? <span style={{ color: pal.textMuted }}>{dt && !dt.ok ? dt.why : NOT_SHOWN}</span> : <>
+        {(['up', 'down'] as const).map((k, n) => {
+          const L = ci[k]
+          return <span key={k}>{n ? <span style={{ color: pal.textMuted }}>· </span> : null}
+            {L ? <>{k === 'up' ? '▲' : '▼'} <span className="mono" style={{ color: pal.accent }}>{L.text}</span>
+              <span style={{ color: pal.textMuted }}> ({L.why})</span></>
+              : <span style={{ color: pal.textMuted }}>{k === 'up' ? 'upar' : 'neeche'} koi level nahi</span>}
+          </span>
+        })}
+        {dt?.basis_why && <span style={{ color: pal.textMuted }}>· {dt.basis_why}</span>}
         </>}
       </div>
     </div>
@@ -1575,7 +1670,7 @@ function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, rep
 export default function App() {
   const pal = usePalette()
   const [activeIndex, setActiveIndex] = useState<IndexKey>('NIFTY')
-  const [activeTab, setActiveTab] = useState<Tab>('Heat')
+  const [activeTab, setActiveTab] = useState<Tab>('Read')
   // FOCUS: while on and the Trade tab is active, hide the glance bar + ANSWER
   // band so the chart reclaims that ~417px of chrome (Kite gives the chart
   // nearly the whole viewport; this dashboard didn't). Persisted in
@@ -1595,7 +1690,8 @@ export default function App() {
   // there, as on the Board. The MACHINE strip stays: it is her setup.
   const onValidate = activeTab === 'Validate'
   const boardReads = useBoardGlance(onBoard)
-  const tabs: Tab[] = ['Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals']
+  const onRead = activeTab === 'Read'      // THE READ is its own answer: the ANSWER band steps aside there too
+  const tabs: Tab[] = ['Read', 'Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals']
   const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
@@ -1767,8 +1863,8 @@ export default function App() {
 
       {/* not on Trade either (2026-09-29): its left panel is the rev 6 engine's read, and the legacy
           engine's SPENT / DON'T CHASE beside it would be a second verdict on one screen */}
-      {!focusHidesChrome && !onBoard && !onValidate && activeTab !== 'Trade' && (
-        <AnswerBand index={activeIndex} stale={!!error || idxDead} />
+      {!focusHidesChrome && !onBoard && !onValidate && !onRead && activeTab !== 'Trade' && (
+        <AnswerBand index={activeIndex} stale={!!error || idxDead} replaying={scrub != null} />
       )}
 
       {/* The machine strip renders on every tab, and even under FOCUS. It is
@@ -1824,7 +1920,7 @@ export default function App() {
       </div>
 
       {/* Replay transport. Hidden until there are bars to scrub. */}
-      {nBars > 1 && !onBoard && !onValidate && (
+      {nBars > 1 && !onBoard && !onValidate && !onRead && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px',
           borderBottom: `1px solid ${pal.border}`,
@@ -1912,6 +2008,7 @@ export default function App() {
         {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll:
             the tab unmounts and the interval is cleared with it. */}
+        {activeTab === 'Read'     && <ReadTab reads={data.READS} />}
         {activeTab === 'Board'    && <Board key={activeIndex} index={activeIndex} />}
         {activeTab === 'Flow'     && <FlowTab index={activeIndex} />}
         {activeTab === 'VPIN'     && <VpinTab key={activeIndex} index={activeIndex} />}
@@ -1921,7 +2018,7 @@ export default function App() {
         {activeTab === 'War'      && <WarTab index={activeIndex} />}
         {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
         {/* her order 2026-09-29: Validate is the rev 6 DESK (pro.html). A frame, because pro.css styles html/body/:root. */}
-        {activeTab === 'Validate' && <iframe src="/pro.html" title="DESK" style={{ width: '100%', height: 'calc(100vh - 190px)', minHeight: 560, border: 0, display: 'block' }} />}
+        {activeTab === 'Validate' && <iframe src="/validate2/index.html" title="VALIDATE" style={{ width: '100%', height: 'calc(100vh - 190px)', minHeight: 560, border: 0, display: 'block' }} />}
         {activeTab === 'Map'      && <MapTab index={activeIndex} />}
         {/* No `index` prop, deliberately: the log spans all three indices and
             the operator tracks the strategy, not one tape. The tab carries its

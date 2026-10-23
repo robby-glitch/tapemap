@@ -594,11 +594,25 @@ def reply(path, q, trades):
         return dict(ok=False, why=_fail(e))
 
 
-def basis(idx):
-    """The engine's basis for idx (future minus the options' own forward, a 15-minute median: fold.State.bas), rounded,
-    or None before the engine has one. Read-only: frame.basis places every strike with it (ONE basis, 2026-10-04)."""
+def hold2_rows(idx):
+    """HOLD v2's memory inputs for idx (server._hold2_run, display only): (day, the market read's 1-min futures bars, the
+    chain rows, the GoCharting bars handed in) -- copies of what the loop holds, or None before a market read exists.
+    Read-only: nothing here feeds the engine."""
     eng = _ENG.get(idx)
-    b = getattr(getattr(eng, "flat", None), "bas", None) if eng else None
+    fl = getattr(eng, "flat", None) if eng else None
+    if fl is None:
+        return None
+    return eng.day, list(fl.bars), list(eng.rows["chain"]), list(eng.rows["tape"])
+
+
+def basis(idx):
+    """Her basis for idx: future minus the INDEX, a 15-minute median (fold.State.bas_ix; the forward's, State.bas, until
+    it has one), rounded, or None. Read-only: frame.basis places every strike with it, so the OI rows and her W / A lines
+    sit at one height (ONE basis 2026-10-04; the index's since 2026-10-05, her word)."""
+    eng = _ENG.get(idx)
+    fl = getattr(eng, "flat", None) if eng else None
+    b = getattr(fl, "bas_ix", None)
+    b = getattr(fl, "bas", None) if b is None else b
     return None if b is None else round(float(b), 1)
 
 

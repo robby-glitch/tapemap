@@ -29,7 +29,7 @@ import os
 import sys
 import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from contract_bars import IST
 
@@ -221,6 +221,57 @@ def capture(idx, host=HOST, fetch=None, force=False, root=BT):
     return path, out["_meta"]["bars"], None
 
 
+UPSTOX = "upstox 1-min candles (eod_capture fallback)"
+
+
+def session_day(now=None):
+    """The session a run is for: today once it has closed, else the weekday before (Task Scheduler's late catch-up run
+    after a missed 15:35). A weekday holiday is a day with no candles, and says so."""
+    now = now or datetime.now(IST)
+    d = now.date() if now.hour * 60 + now.minute >= 15 * 60 + 30 else now.date() - timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d.isoformat()
+
+
+def from_upstox(idx, day, today=None):
+    """A19 (9 Oct, 12-16 Oct and all of September lost): the capture read ONLY the running server, so a server that was
+    down, or a run that came late, lost the session -- and once its future expires Upstox serves it to no one
+    (RECOVERED-2026-10-04.md). This reads the same Upstox 1-min candles the live tape is built from
+    (live._upstox_bars), for the run's own session only. Roll-aware: the contract is the book record's own stamp for
+    that day (P1-04 `ik`), or for today with no book the near-month the tape watches -- never guessed across a roll.
+    -> (path, bars, None) or (None, 0, why)."""
+    import book_log
+    import daylog
+    import recover_tape
+    import upstox_feed
+    import upstox_instruments
+    import upstox_rest
+    today = today or datetime.now(IST).strftime("%Y-%m-%d")
+    ik = exp = None
+    try:
+        with daylog.open_text(book_log.day_path(day, idx)) as f:
+            first = json.loads(f.readline())
+        ik, exp = first.get("ik"), first.get("expiry")
+    except (OSError, ValueError):
+        pass
+    try:
+        if ik is None and day == today:
+            ik = upstox_instruments.fut_key(idx)
+        if ik is None:
+            return None, 0, (f"no book record for {idx} on {day}, so the contract the tape watched is unknown -- "
+                             f"refusing to guess across a roll")
+        tok = upstox_feed.read_token()
+        rows = ([c for c in upstox_rest.intraday(ik, tok) or [] if str(c[0])[:10] == day] if day == today
+                else upstox_rest.historical(ik, tok, day))
+        path, n = recover_tape.write(idx, day, rows, exp, ik, source=UPSTOX)
+    except SystemExit as e:                    # recover_tape's refusals: a file already there, under 60 bars
+        return None, 0, str(e)
+    except Exception as e:                     # noqa: BLE001 -- reported
+        return None, 0, f"Upstox candles for {idx} {day} not fetched ({type(e).__name__}: {e})"
+    return path, n, None
+
+
 def main(argv):
     force = "--force" in argv
     idxs = [a for a in argv[1:] if not a.startswith("-")] or [
@@ -228,6 +279,9 @@ def main(argv):
     bad = 0
     for idx in idxs:
         path, n, why = capture(idx, force=force)
+        if why and "already exists" not in why:      # A19: the server could not serve it -- the session's own candles
+            p2, n2, why2 = from_upstox(idx, session_day())
+            path, n, why = (p2, n2, None) if why2 is None else (None, 0, f"{why}; Upstox fallback: {why2}")
         if why:
             bad += 1
             print(f"{idx:10} NOT CAPTURED -- {why}")

@@ -25,15 +25,21 @@ import ux_log
 STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "day_state",
              "hold_log.DIR": "hold", "calls_log.DIR": "calls", "frame_log.DIR": "frame",
              "senses.DIR": "senses", "trigger_log.PATH": "trigger_log.jsonl",
+             "confluence_log.PATH": "confluence_log.jsonl",   # §1i's forward log (confluence_log.py)
+             "onesided.PATH": "onesided_log.jsonl",           # §1o's daily row (onesided.py)
+             "server.DECODE_DIR": "decode",                   # N7: the DECODE block's forward log (server._decode_log)
              "sequence.DIR": "warmap", "desk_log.SURF_DIR": "surface", "desk_log.DESK_LOG_PATH": "desk_log.jsonl",
              "server.VPIN_LOG": "vpin_log.jsonl", "server.VPIN_BACKFILL_LOG": "vpin_backfill.jsonl",
              "server.VPIN_FAST_LOG": "vpin_fast.jsonl",
+             "server.RANK_DIR": "rank",                        # the extension v2's rank_ref files (server._rank_ref)
              "chain_backfill.DIR": "chain_backfill",           # the 09:15 REST backfill on disk (pro-tool P2-06)
              "reader_live.DIR": "reader",                      # the shadow leg engine's log (docs/reader/8-shadow-build.md)
              "xindex_live.DIR": "xindex",                      # the shadow cross-index log (docs/reader/10-xindex-build.md)
              "sides_log.DIR": "sides",                         # the sides read's forward log (sides_log.py)
              "trap_log.DIR": "trap",                           # the trap layer's forward log (trap_log.py)
              "decoder_log.DIR": "decoder",                     # the decoder's forward log (decoder_log.py)
+             "dext_log.DIR": "dext",                           # the Dext record, gate 3 (dext_log.py)
+             "feed_health.LOG": "feed_log.jsonl",              # A17: server.py sets it at import; tests wrote 197 rows
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",
@@ -55,6 +61,7 @@ def _tape_record_in_tmp(tmp_path, monkeypatch):
         pass
     tape_log._seen_bars.clear()
     tape_log._seen_marks.clear()
+    tape_log._seen_marks2.clear()
     ux_log._STATE.clear()
     import decoder_log
     decoder_log._SEEN.clear()

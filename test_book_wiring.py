@@ -124,7 +124,7 @@ def test_ux_drain_resets_runs_and_impact_even_when_ofd_lot_raises(monkeypatch):
 
 def test_the_book_record_is_hooked_only_inside_the_session():
     """After the close the feed ran on to ~15:40 and every recorder wrote a
-    closed book down (2026-09-23). Outside 09:15-15:30 the hook is off and
+    closed book down (2026-09-23). Outside 09:15-15:40 (A40) the hook is off and
     nothing is observed -- but `watch()` still runs first, because a restart
     after the close rebuilds the day's ladder and runs from the watched set."""
     class Feed:
@@ -135,8 +135,17 @@ def test_the_book_record_is_hooked_only_inside_the_session():
     server._hook_book(f, False)
     assert f.on_frame is None
     src = inspect.getsource(server._senses_loop)
-    assert (src.index("in_session(") < src.index("_hook_book(") < src.index('_SENSES["book"].watch(')
+    assert (src.index("_feed_session(") < src.index("_hook_book(") < src.index('_SENSES["book"].watch(')
             < src.index("if not live") < src.index("obj.observe("))
+
+
+def test_a40_the_feeds_recorders_run_to_1540_the_fo_close():
+    """A40 (2026-10-23): F&O trades to 15:40 (22 Oct NIFTY futures' 1-min candles run to 15:39), so the feed's
+    recorders stop at 15:40, not 15:30; the open and the weekend are chain_live.in_session's."""
+    from datetime import datetime
+    on = lambda hms, d=23: server._feed_session(datetime(2026, 10, d, *map(int, hms.split(":"))))   # noqa: E731
+    assert not on("09:14:59") and on("09:15:00") and on("15:30:01") and on("15:40:00") and not on("15:40:01")
+    assert not on("11:00:00", d=24)                                                      # a Saturday
 
 
 def test_ux_drain_keeps_the_machines_the_rebuild_fed(monkeypatch):

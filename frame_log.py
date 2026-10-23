@@ -28,9 +28,12 @@ def day_path(day: str) -> str:
 
 
 def sig(fr: dict) -> str:
-    rows = [(r.get("p"), r.get("kind"), r.get("state")) for r in (fr.get("walls") or {}).get("rows") or []]
+    # A wall and a tell are their STRIKE, not their futures-frame price: p = strike + the live basis, and the basis
+    # drifts every tick, so signing on p appended a whole ~30 KB frame per wiggle with no state change (8 Oct: 1,009
+    # repeat rows for 344 slots, 46 MB; ~650 of them a p-only change). Rows without a strike keep their price.
+    rows = [(r.get("strike", r.get("p")), r.get("kind"), r.get("state")) for r in (fr.get("walls") or {}).get("rows") or []]
     s = fr.get("setup") or {}
-    tells = [(t.get("name"), t.get("target")) for t in s.get("tells") or []]
+    tells = [(t.get("name"), t.get("k", t.get("target"))) for t in s.get("tells") or []]
     # THE SIGNAL IS PART OF THE SIGNATURE (spec §A.10). Without this a visit
     # could go REACHED -> ARMED -> LIVE with the ladder unchanged and the
     # record would hold one row for the whole thing -- the scorer fills

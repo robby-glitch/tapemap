@@ -42,6 +42,8 @@ import grounds                   # every engine call held against OI, CVD and or
 import board                     # BOARD rev 3's read, one index at one finished minute (display only)
 import trendbox                  # ...and its trend box, on the index's own candles
 import calls_log                 # ...and kept, one row per engine bar, in session only
+import daytype                   # AAJ KA DIN: trend or pin/chop, on /api/calls for the answer band (display only)
+import read                      # THE READ: one held read per index, OI first (GET /api/read; display only)
 import hold                      # the hold / fold window, as registered (PREREG-merged.md rev 4 + PREREG-rev5.md option B)
 import hold_log                  # ...and its forward logs, write-once
 import fold_live                 # the rev 6 engine (fold.py) run live: /api/fold*, the frame's fold / flat (API-v3)
@@ -57,6 +59,9 @@ import sides_log                 # ...and its forward log, once per closed slot,
 import trap                      # the trap layer, SHADOW (docs/board/TRAP-PREREG-2026-10-04.md): GET /api/trap
 import trap_log                  # ...its forward log (data/trap/) and its incremental readers of the recorders' files
 import decoder_log               # the decoder's forward log (data/decoder/), from the events the extension posts (Fable §6.1)
+import effort                    # A44: effort per point (Kyle lambda) at a fresh extreme, DECODE's EFFORT line (display only)
+import dext_log                  # GATE 3: the Dext extension's 1m candles + getData rows, recorded only (data/dext/)
+import dext_parity               # ...and the three-way parity (Dext / Upstox / GoCharting): GET /api/dext/parity
 import plan                      # THE PLAN beside the window (docs/hold/PLAN-PREREG.md rev 2a, §1f)
 import validate                  # ...and the Validate tab's GO / WAIT / NO (docs/hold/VALIDATE-PREREG.md rev 2)
 import expression                # ...and THE EXPRESSION, buy or sell, and the writer's word (EXPRESSION-PREREG.md rev e)
@@ -80,6 +85,8 @@ _SCORED_BARS = {}
 import senses as senses_mod
 import surface as surface_mod
 import trigger_log
+import confluence_log            # research-findings §1i: the confluence setup's forward log, beside trigger_log
+import hold2                     # research-findings §1m: HOLD v2's line beside the hold window's word (display only)
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -766,9 +773,14 @@ def _senses_loop(poller, payloads, period=0.5):
                 if feed_ok:
                     # NOTHING IS RECORDED OUTSIDE THE SESSION (operator,
                     # 2026-09-23). The feed runs on to ~15:40 and every recorder
-                    # below wrote it down -- ~6 MB of a closed book a day. Same
-                    # clock the chain poller stops on (chain_live.in_session).
-                    live = in_session(datetime.now(IST))
+                    # below wrote it down -- ~6 MB of a closed book a day.
+                    # A40 (2026-10-23): F&O's session now IS 15:40 -- NIFTY
+                    # futures' 1-min candles for 22 Oct run to 15:39 (385 bars,
+                    # 36-326 lots a minute after 15:30), so the FEED's recorders
+                    # (book, senses legs, VPIN, pools) stop at 15:40. The chain
+                    # poller keeps chain_live.in_session's 15:30 (options and
+                    # the index spot after 15:30 are not verified).
+                    live = _feed_session(datetime.now(IST))
                     # The record's hook: on inside the session, off outside it,
                     # re-set every pass so a reconnect that rebuilds the feed re-hooks.
                     _hook_book(feed, live)
@@ -1106,8 +1118,8 @@ def _book_for(handler, idx):
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
-            # ONE BASIS (2026-10-04): the fold engine's, so a strike's OI row and her W / A lines sit at one height. fut - spot
-            # swung 8-12 pts inside a minute and sat 20-45 pts from it (CHECK M1); None until the engine has a forward.
+            # ONE BASIS: the fold engine's display basis (future minus the index, 15-min median of paired samples, her
+            # word 2026-10-05), so a strike's OI row and her W / A lines sit at one height; None until the engine has one.
             "basis": fold_live.basis(idx),
             "pivots": _day0.get("pivots"),      # the prior session's floor pivots; frame._walls inverts them to PDH/PDL/PDC
             "vpin_pct": vpin_pct, "senses": senses, "sweeps": sweeps,
@@ -1160,6 +1172,15 @@ def _session_only(doc: dict) -> dict:
     return {**doc, "closed": [b for b in doc.get("closed") or [] if session(b)],
             "events": [e for e in doc.get("events") or [] if session(e)],
             "forming": fm if isinstance(fm, dict) and session(fm) else None}
+
+
+FEED_CLOSE_S = 15 * 3600 + 40 * 60   # A40: the futures feed's recorders run to 15:40 (F&O's session since 3 Aug 2026)
+
+
+def _feed_session(now) -> bool:
+    """chain_live.in_session's weekday 09:15 open, with the F&O close of 15:40 (A40) instead of 15:30."""
+    import chain_live
+    return now.weekday() < 5 and chain_live.SESS_OPEN <= now.hour * 3600 + now.minute * 60 + now.second <= FEED_CLOSE_S
 
 
 def _hook_book(feed, live: bool) -> None:
@@ -1456,6 +1477,732 @@ def _calls_for(payloads, poller, idx: str) -> dict:
                              ux.get("bars"), (ux.get("marks") or {}).get("runs"), fr,
                              runs_why=(ux.get("marks") or {}).get("runs_why"),
                              roll=_roll_why(idx, time.strftime("%Y-%m-%d")), idx=idx)}
+
+
+_DAYTYPE = {}       # idx -> (key, reply): one read per index per closed 5-min bar
+_IBREF = {}         # (idx, day) -> the prior 5 sessions' median initial balance: daytype's SIZE yardstick, once a day
+
+
+def _ib_ref(idx, day):
+    if (idx, day) not in _IBREF:
+        pre = f"ux_{idx}_"
+        try:
+            days = sorted({n[len(pre):len(pre) + 10] for n in os.listdir(tape_log.DIR) if n.startswith(pre)})
+        except OSError:
+            days = []
+        v = [daytype.ib_of(daytype._bars(ux_log.read_bars(d, idx))) for d in [d for d in days if d < day][-5:]]
+        v = sorted(x for x in v if x)
+        _IBREF[(idx, day)] = (v[len(v) // 2] + v[(len(v) - 1) // 2]) / 2 if v else None
+    return _IBREF[(idx, day)]
+
+
+def _trap_logged(idx, day):
+    """The trap layer's state stamps for idx as they were written live (data/trap/trap_<day>.jsonl), oldest first; []
+    when there is no log."""
+    out = []
+    try:
+        with daylog.open_text(os.path.join(trap_log.DIR, f"trap_{day}.jsonl")) as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if r.get("idx") == idx and r.get("kind") == "state":
+                    out.append(r)
+    except OSError:
+        return []
+    return sorted(out, key=lambda r: str(r.get("t") or ""))
+
+
+def _daytype_reply(poller, idx):
+    """AAJ KA DIN (daytype.py) for the answer band, riding on /api/calls. Rebuilt whole from today's ux bars, the
+    chain grid and the sides slots each time a 5-min bar closes (so it is the same whenever the server started),
+    a dict lookup in between. Display only."""
+    day, hm = _board_clock()
+    now = board.mm(hm)
+    bars = _ux_bars(idx, day)
+    n = sum(1 for b in bars if isinstance(b.get("t"), (int, float)) and board.mm(grounds._hh(b["t"])) + 5 <= now)
+    st = (getattr(poller, "states", None) or {}).get(idx) if poller else None
+    mins = dict(getattr(st, "minutes", None) or {})
+    tr = ((_TRAP.get("reply") or {}).get("indices") or {}).get(idx) or {}     # the trap layer's stamps (its FAILs end a trend)
+    rev = [e for e in tr.get("events") or () if e.get("kind") == "state"] if tr.get("ok") and tr.get("day") == day else []
+    # What the trap layer SAID live is its forward log; a restart's backfill re-derives the morning from the minute grid and
+    # can miss a fail it called on ticks (5 Oct: 12:18 "FAIL · PDC" gone after the 17:01 restart). Log first, then only
+    # the live stamps since; the backfill alone only when nothing was logged (a late start).
+    logged = _trap_logged(idx, day)
+    tev = (logged + [e for e in rev if e.get("src") == "live" and e.get("t", "") > (logged[-1].get("t") or "")]
+           if logged else rev or None)
+    key = (day, n, len(mins) > 0, None if tev is None else len(tev))   # a warming grid / trap read is not kept
+    hit = _DAYTYPE.get(idx)
+    if hit and hit[0] == key:
+        return hit[1]
+    sd = _sides_reply(poller, getattr(poller, "boxes", None), idx)["indices"].get(idx) or {}
+    out = daytype.read(idx, day, bars, now, mins, _board_opens(poller, idx),
+                       sd.get("dte"), sd.get("slots") if sd.get("ok") else None,
+                       {k: _ux_bars(k, day) for k in instruments.ENABLED if k != idx}, tev, _ib_ref(idx, day))
+    _DAYTYPE[idx] = (key, out)
+    return out
+
+
+# ---- THE READ (read.py; docs/review/DAY-TEST-2026-10-08.md) ----
+#
+# One HELD read per index: the word, the FLIP line, the targets, what would make it wrong, and the trade. Computed
+# whole from the day files v2feed already tails (so a restart at any hour gives the same marks), cached per change of
+# those files and of the 5-min mark. Every closed mark is kept once in data/read/read_<day>.jsonl, market hours only
+# (the one gate, _market_hours). DISPLAY ONLY: nothing here feeds the engine, the zone machine, the fade gate or
+# trigger_log.
+_READ = {"cache": {}, "seen": {}}
+_READ_LOCK = threading.Lock()
+READ_DIR = os.path.join("data", "read")
+_READ_LOG_GRACE = 60      # A16: a mark is logged a minute after its close, once its 5-min bar has landed (decode's grace)
+# READ-2's JAGAH (docs/read/READ-2-PREREG.md): the extension's last-push origins, from POST /api/frame's optional `push`,
+# the latest per index, memory only -- an obstacle candidate on the live card alone (read.card), never in a row.
+_PUSH = {}
+
+
+def _push_clean(p):
+    """The frame's `push` -> {"down", "up"}, each {t: epoch ms, px: futures price, rank: int, failed: bool} or None;
+    None when it is not that shape (one malformed side refuses the whole push). Never raises."""
+    if not isinstance(p, dict):
+        return None
+
+    def num(x):
+        return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+    out = {}
+    for k in ("down", "up"):
+        x = p.get(k)
+        if x is None:
+            out[k] = None
+        elif (isinstance(x, dict) and num(x.get("t")) and x["t"] > 0 and num(x.get("px")) and x["px"] > 0
+              and num(x.get("rank")) and isinstance(x.get("failed"), bool)):
+            out[k] = {"t": int(x["t"]), "px": float(x["px"]), "rank": int(round(x["rank"])), "failed": x["failed"]}
+        else:
+            return None
+    return out
+
+
+def _push_for(idx, day):
+    """The latest push the extension sent for (idx, day), or None."""
+    hit = _PUSH.get(idx)
+    return hit["push"] if hit and hit.get("day") == day else None
+
+
+def _read_levels(idx):
+    """PDH / PDL / PDC (index prices) off the war map's daily candles, memory only; None until they land."""
+    lv = _board_levels(idx) or []
+    return {x["kind"]: x["px"] for x in lv if x.get("kind") in ("PDH", "PDL", "PDC")} or None
+
+
+def _read_expr(idx, day, d):
+    """expression.py's latest word for direction d -- the hold window's own read, never recomputed here."""
+    C = (_HOLD.get("expr") or {}).get(idx)
+    if not d or not C or C.get("day") != day:
+        return None
+    ks = [k for k, e in C["reads"].items() if k[1] == d and (e or {}).get("word")]
+    if not ks:
+        return None
+    k = max(ks)
+    return {"word": C["reads"][k]["word"], "t": k[0], "d": d, "tag": "I"}
+
+
+def _read_log(day, idx, tl, now=None):
+    """Each closed mark once per (day, idx, t), and each event once: the forward record the read is judged on.
+    `now` (live, sec of day): a mark or event at T waits until T + _READ_LOG_GRACE, when T's 5-min bar has landed --
+    A16, 21 Oct NIFTY 10:05 was logged RANGE before the 10:00 bar closed, and the day replays LEAN. None = no wait."""
+    os.makedirs(READ_DIR, exist_ok=True)
+    path = os.path.join(READ_DIR, f"read_{day}.jsonl")
+    seen = _READ["seen"].get(day)
+    if seen is None:
+        seen = set()
+        try:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    seen.add((r.get("idx"), r.get("kind"), r.get("t"), r.get("text")))
+        except FileNotFoundError:
+            pass
+        _READ["seen"] = {day: seen}
+    out = []
+    early = lambda t: now is not None and int(t[:2]) * 3600 + int(t[3:5]) * 60 + _READ_LOG_GRACE > now  # noqa: E731
+    for r in tl["rows"]:
+        key = (idx, "mark", r["t"], None)
+        if key not in seen and not early(r["t"]):
+            seen.add(key)
+            out.append({"day": day, "idx": idx, "kind": "mark", "t": r["t"], "word": r["word"], "dir": r["dir"],
+                        "since": r["since"], "agree": r["agree"], "spot": r["spot"], "flip": r["flip"],
+                        "targets": [x["k"] for x in r["targets"]], "box": r["box"], "warn": r["warn"],
+                        "writers": r["writers"], "price": r["price"].get("word"), "flow": r["flow"].get("cvd"),
+                        # READ-2: read-1.1's word beside READ-2's, and the two new votes and JAGAH as the row had them
+                        "word_r1": r.get("word_r1"), "src": r.get("src"), "fuel": r.get("fuel"),
+                        "fuel_leg": r.get("fuel_leg"), "legflow": r.get("legflow"), "jagah": r.get("jagah"),
+                        "rev": read.REV, "tag": "I"})
+    for e in tl["events"]:
+        key = (idx, "event", e["t"], e["text"])
+        if key not in seen and not early(e["t"]):
+            seen.add(key)
+            out.append(dict(e, day=day, idx=idx, kind="event", event=e["kind"], rev=read.REV))
+    if out:
+        with open(path, "a", encoding="utf-8") as f:
+            for r in out:
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+
+
+def _read_gc_pre(idx, day, s, lot, rows=None):
+    """GoCharting's bars (tape_log: lots, the extension's own delta) that CLOSED before this process's first future
+    tick -> [(sec, vol, buy vol)] in units at each bar's last second: THE READ's flow on a late start. Bar width from
+    the session tag ("NIFTY-I|5m|day"); a bar of unknown width is skipped, never guessed. `rows`: the day's tape rows
+    when the caller already read them."""
+    first = s.bars[0][0] if s.bars else 86400
+    out = []
+    for b in tape_log.read_bars(day, idx) if rows is None else rows:
+        t, m = tape_log.bar_t(b), re.search(r"\|(\d+)m\|", str(b.get("session") or ""))
+        if t is None or m is None or not isinstance(b.get("vol"), (int, float)) or not isinstance(b.get("buy"), (int, float)):
+            continue
+        t0, w = int(t // 1000 + 19800) % 86400, int(m.group(1)) * 60
+        if t0 + w <= first:
+            out.append((t0 + w - 1, round(b["vol"] * lot), round(b["buy"] * lot)))
+    return sorted(set(out))
+
+
+def _closed_by(rows, now):
+    """5-min bar rows (t ms) closed by `now` (sec of day); all of them when now is None."""
+    if now is None:
+        return list(rows or ())
+    return [b for b in rows or () if isinstance(b, dict) and isinstance(b.get("t"), (int, float))
+            and int(b["t"] // 1000 + 19800) % 86400 + 300 <= now]
+
+
+def _read_decode(idx, day, s, X, tl, c, ux, gc, now, live, levels):
+    """Decode-loop Phases 0-1 on one READ card (display only, nothing here reaches read.timeline): the basis with its
+    carry band and the options' witness (D6), the ranks beside every number (rank.py, Phase 1), COVERAGE (§5.1)."""
+    import frame_v2
+    import rank
+    import coverage
+    c["basis_band"] = frame_v2.basis_band(c.get("spot"), c.get("basis"), frame_v2.dte(day, s.fut_expiry),
+                                          frame_v2.parity_basis(X, now, day))
+    ref, _ref_id, ref_why = _rank_ref(idx, day, need_read=True)
+    ik = next((b.get("ik") for b in reversed(ux or []) if b.get("ik")), None)
+    try:
+        c["ranks"] = rank.card_ranks(ref, idx, day, X, c, tl["rows"], ux, gc, ik)
+    except Exception as e:                       # a rank failure is a why on the card, never the card's failure
+        log.exception("read ranks")
+        c["ranks"] = {"why": f"could not check — the rank read failed: {type(e).__name__}: {e}"}
+    kind = (c["ranks"] or {}).get("kind")
+    kinds = ((ref or {}).get("read") or {}).get("kinds") or {}
+    c["coverage"] = coverage.build(idx, X, c, ux, gc, now, live, ref, ref_why, c["basis_band"], levels, kind,
+                                   sum(1 for k in kinds.values() if k == kind) if kind else None)
+
+
+def _read_reply(day, want=None, at=None):
+    """GET /api/read: the card per index (read.card) and the day's events. A past ?day= replays through the same
+    door (no levels, no log); ?at=HH:MM cuts a past day to that time (nothing after it is read)."""
+    import v2feed
+    import frame_v2
+    import rank
+    today = time.strftime("%Y-%m-%d")
+    live = day == today
+    lt = time.localtime()
+    now = lt.tm_hour * 3600 + lt.tm_min * 60 + lt.tm_sec if live else None
+    if not live and at:
+        now = int(at[:2]) * 3600 + int(at[3:5]) * 60
+    hm_now = time.strftime("%H:%M")
+    idxs = [want] if want else [i for i in v2feed.IDXS if i in instruments.ENABLED]
+
+    def go(D):
+        res = {}
+        for idx in idxs:
+            s = D.idx[idx]
+            ux = _closed_by(_ux_bars(idx, day) if live else ux_log.read_bars(day, idx), None if live else now)
+            levels = _read_levels(idx) if live else None
+            gc = _closed_by(tape_log.read_bars(day, idx), None if live else now) if idx == "NIFTY" else None
+            pre = _read_gc_pre(idx, day, s, v2feed.LOTS.get(idx) or 1, gc or [])
+            rr = _rank_ref(idx, day, need_read=True)
+            ref_id = rr[1:]
+            push = _push_for(idx, day) if live else None
+            key = (day, idx, s.chain.signature(), s.book.signature(), len(ux), None if now is None else now // read.MARK,
+                   None if levels is None else tuple(sorted(levels.items())), len(pre), len(gc or ()), ref_id,
+                   json.dumps(push, sort_keys=True),
+                   None if now is None else (now - _READ_LOG_GRACE) // read.MARK)    # A16: the log's own tick, 15:31 too
+            hit = _READ["cache"].get((day, idx))
+            if hit and hit[0] == key:
+                res[idx] = hit[1]
+                continue
+            X = read.from_v2(s, v2feed.LOTS.get(idx), pre)
+            if not live and now is not None:
+                X = frame_v2.cut(X, now)
+            tl = read.timeline(X, ux, levels, now, rank.fuel_ref(rr[0], day, X, ux))
+            c = read.card(X, tl, levels, now, push)
+            if c.get("ok"):
+                c["expr"] = _read_expr(idx, day, c["dir"]) if live else None
+                c["events"] = tl["events"][-12:]
+                last = tl["rows"][-1]
+                c["blind"] = [f"{k}: {r.get('why')}" for k, r in (("WRITERS", last["writers"]), ("PRICE", last["price"]),
+                                                                    ("FLOW", last["flow"])) if r.get("vote") is None]
+                if s.bf:
+                    c["blind"].append(f"CHAIN: the first {s.bf} minutes ({s.bf_from}-{s.bf_to}) are REST-rebuilt [I]")
+                try:
+                    _read_decode(idx, day, s, X, tl, c, ux, gc, now, live, levels)
+                except Exception as e:           # never at the READ's expense
+                    log.exception("read decode")
+                    c["coverage"] = [{"src": "DECODE", "kind": "cnc", "text": f"could not check — {type(e).__name__}: {e}",
+                                      "tag": "M"}]
+            res[idx] = c
+            _READ["cache"][(day, idx)] = (key, c)
+            if live and c.get("ok") and _market_hours(day, today, hm_now):
+                try:
+                    _read_log(day, idx, tl, now)
+                except OSError:
+                    log.exception("read log")
+        return res
+
+    with _READ_LOCK:
+        cards = v2feed.with_day(day, go)
+        try:                                     # THE DECODE block (decode.py): additive, never at the card's expense
+            dec = _decode_for(day, now, live)
+        except Exception as e:
+            log.exception("decode")
+            dec = {"why": f"could not check — the decode read failed: {type(e).__name__}: {e}"}
+        for idx, c in cards.items():
+            c["decode"] = _decode_aged((dec or {}).get(idx), now)
+            c["decode_why"] = None if c["decode"] else ((dec or {}).get("why")
+                                                        or "could not check — the decode block is reading the day")
+    return {"ok": True, "rev": read.REV, "day": day, "live": live, "asof": hm_now if live else (at or None),
+            "indices": cards, "tag": "I"}
+
+
+# ---- THE DECODE block (decode.py; memory read-changes-not-levels): the trajectories, then one combined call ------------
+#
+# ONE compute per 5-min close for all indices together (the peers read each other), never per request: live, a daemon
+# thread fills the cache a GRACE minute after the close (GoCharting's bar and the chain's last row land seconds after
+# it) and the previous close's block is served meanwhile; a replay (?day= / ?at=) computes in the caller's thread.
+# DISPLAY ONLY: nothing here reaches a gate, a beep, a log row or trigger_log.
+_DECODE = {"out": {}, "last": {}, "busy": set(), "replay": {}}
+_DECODE_LOCK = threading.Lock()
+_DECODE_GRACE = 60
+DECODE_DIR = os.path.join("data", "decode")     # N7: the DECODE block's forward log, decode_<day>.jsonl (_decode_log)
+_DECODE_SEEN = {}                  # path -> {(idx, close)} already on disk
+_PAYLOADS = {}                     # main()'s payload boxes: FADE's live 3-min band bars (the zone machine's own)
+
+
+def _decode_bars3(idx, day, T, live):
+    """The zone machine's closed 3-min band bars at T: live, the refresh loop's payload (confluence_log.log_new's own
+    bars); a past day, the cached 1-min session (the scorer's). [] when neither exists."""
+    import confluence
+    if live:
+        box = _PAYLOADS.get(idx)
+        raw = payload_at(box, confluence.INTERVAL) if box else None
+        js = json.loads(raw) if raw else {}
+        d = (js.get("days") or [None])[-1] or {}
+        if not str(d.get("day") or "").startswith(time.strftime("%b %d")):
+            return []
+        bars = d.get("bars") or []
+    else:
+        bars = (confluence_log.session(idx, day) or {}).get("bars") or []
+    return [b for b in bars if (confluence.close_of(confluence.flat(b).get("t")) or 10 ** 9) * 60 <= T]
+
+
+def _decode_files(idx, day, T, live):
+    """The recorders' side of one index's facts at T, read OUTSIDE v2feed's lock: the 5-min push bars, the Upstox bars,
+    the rank reference, the push tables (cached per index-day), the zone rows whose 3-min bar had closed."""
+    import decode
+    ux = _closed_by(_ux_bars(idx, day) if live else ux_log.read_bars(day, idx), T)
+    bars5 = [b for b in confluence_log.push_bars(idx, day, ux_rows=_ux_bars(idx, day) if live else None)
+             if b["s"] + 300 <= T]
+    if live:
+        ref = _rank_ref(idx, day, need_read=True)[0]
+    else:
+        try:
+            with open(os.path.join(RANK_DIR, f"rank_ref_{idx}_{day}.json"), encoding="utf-8") as f:
+                ref = json.load(f)
+        except (OSError, ValueError):
+            ref = None
+    if (idx, day) not in _HOLD2["refs"]:
+        _HOLD2["refs"][(idx, day)] = confluence_log.push_refs(idx, day)
+    refs, pwhy = _HOLD2["refs"][(idx, day)]
+    zone = [z for z in confluence_log.zone_rows(idx, day) if (decode._min(z["t"]) + 3) * 60 <= T]
+    return {"ux": ux, "bars5": bars5, "ref": ref, "pushes": hold2.pushes(bars5, refs) if refs else None, "pwhy": pwhy,
+            "zone": zone}
+
+
+def _decode_facts(idx, day, T, live, D, F, keep=False):
+    """decode.facts for one index at the close T (sec of day), under v2feed's lock (D): THE READ's arrays, READ-2's
+    FUEL and the card's basis at T, beside `F` (_decode_files). `keep` adds what tools/decode_now.py prints beside the
+    block (the card, its rows)."""
+    import decode
+    import frame_v2
+    import rank
+    import v2feed
+    s, lot = D.idx[idx], v2feed.LOTS.get(idx) or 1
+    X = frame_v2.cut(read.from_v2(s, lot, _read_gc_pre(idx, day, s, lot)), T)
+    fref = rank.fuel_ref(F["ref"], day, X, F["ux"]) if F["ref"] else None
+    tl = read.timeline(X, F["ux"], None, T, fref)
+    card = read.card(X, tl, None, T, None)
+    fuel = read.fuel(rank.bars_of(F["ux"], 5), T, fref, lot) if fref else {"vote": None, "why": f"no rank_ref for {day}"}
+    g = decode.facts(idx, T, F["bars5"], read.from_v2(s, lot), F["zone"], card.get("basis") if card.get("ok") else None,
+                     fuel, F["pushes"], F["pwhy"], _push_for(idx, day) if live else None)
+    if keep:
+        g.update(card=card, rows=tl.get("rows") or [])
+    return g
+
+
+def _decode_all(day, now, live, keep=False):
+    """{idx: the decode block} at `now`'s 5-min close (decode.at_close), every enabled index, the peers read together.
+    With keep, also {"_facts": {idx: facts}} for the tool. One index's failure is its own block's "?"."""
+    import decode
+    import v2feed
+    T = decode.at_close(min(now if now is not None else read.CLOSE_S, read.CLOSE_S))
+    idxs = [i for i in v2feed.IDXS if i in instruments.ENABLED]
+    if T <= decode.OPEN_S:
+        return {i: decode.empty("the session has not opened (09:15)") for i in idxs}
+
+    files = {}
+    for i in idxs:
+        try:
+            files[i] = _decode_files(i, day, T, live)
+        except Exception as e:
+            log.exception("decode files %s", i)
+            files[i] = e
+
+    def go(D):
+        out = {}
+        for i in idxs:
+            try:
+                if isinstance(files[i], Exception):
+                    raise files[i]
+                out[i] = _decode_facts(i, day, T, live, D, files[i], keep)
+            except Exception as e:
+                log.exception("decode facts %s", i)
+                out[i] = e
+        return out
+    G = v2feed.with_day(day, go)
+    res = {}
+    for i in idxs:
+        g = G[i]
+        if isinstance(g, Exception):
+            res[i] = decode.empty(f"could not check — {type(g).__name__}: {g}")
+            continue
+        peers = [G[k] for k in idxs if k != i and not isinstance(G[k], Exception)]
+        fin = rin = f = None
+        # ponytail: the chain + book records are re-read whole once per close per index (~2 s each by 15:00, off the
+        # request thread); an incremental reader (trap_log's byte offsets) if that ever shows on the tape
+        try:                                     # the setups' heavy inputs: §1i's own loaders, cut at T by their readers
+            f = confluence_log.inputs(i, day, lg={})
+            fin = {"bars3": _decode_bars3(i, day, T, live), "chain": f["chain"], "book": f["book"], "gc": f["gc"]}
+        except Exception:
+            log.exception("decode FADE inputs %s", i)
+        try:
+            if f is not None:
+                rin = dict(confluence_log.ride_inputs(i, day, T, light=True), chain=f["chain"], book=f["book"], gc=f["gc"])
+        except Exception:
+            log.exception("decode RIDE inputs %s", i)
+        try:                                     # A44: the EFFORT line's read, its own "?" on failure
+            g["effort"] = _decode_effort(i, day, T, f)
+        except Exception as e:
+            log.exception("decode effort %s", i)
+            g["effort"] = effort.blank(f"could not check — {type(e).__name__}: {e}")
+        try:
+            res[i] = decode.decode(g, peers, fin, rin)
+        except Exception as e:
+            log.exception("decode %s", i)
+            res[i] = decode.empty(f"could not check — {type(e).__name__}: {e}")
+    if keep:
+        res["_facts"] = G
+    return res
+
+
+def _decode_effort(idx, day, T, f):
+    """A44: effort.read at the close T, on Fable's sources -- the futures book record (book_log) and the chain
+    recorder's spot per minute (`f` = confluence_log.inputs: its chain grid, REST-backfilled minutes left out as his
+    harness never saw them). SENSEX is not read (A25) and says so."""
+    import v2feed
+    if idx not in effort.STEP:
+        return effort.read(idx, {}, {}, 0)
+    if f is None:
+        return effort.blank("could not check — the chain record could not be read")
+    # ponytail: the whole book record is re-read once per close per index (~0.4 s by 15:00, in the decode thread);
+    # an incremental (byte-offset) reader if it ever shows on the tape
+    fm = effort.minutes(book_log.read_rows(day, idx), v2feed.LOTS.get(idx) or 1)
+    spot = {int(m[:2]) * 60 + int(m[3:5]): r["spot"] for m, r in f["chain"][0].items() if r.get("src") != "backfill"}
+    return effort.read(idx, fm, spot, T // 60 - 1)
+
+
+def _decode_for(day, now, live):
+    """The blocks for /api/read and the frame: live from the cache (filled once per close by a daemon thread; the last
+    close's blocks meanwhile, None before the first), a replay computed here."""
+    import decode
+    if not live:                                 # a past day's files no longer change: computed once per close
+        key = (day, decode.at_close(min(now if now is not None else read.CLOSE_S, read.CLOSE_S)))
+        with _DECODE_LOCK:
+            hit = _DECODE["replay"].get(key)
+        if hit is None:
+            hit = _decode_all(day, key[1], False)
+            with _DECODE_LOCK:
+                if len(_DECODE["replay"]) >= 64:
+                    _DECODE["replay"].clear()
+                _DECODE["replay"][key] = hit
+        return hit
+    T = decode.at_close(min(max(now - _DECODE_GRACE, 0), read.CLOSE_S))
+    key = (day, T)
+    th = None
+    with _DECODE_LOCK:
+        hit = _DECODE["out"].get(key)
+        if hit is None and key not in _DECODE["busy"]:
+            _DECODE["busy"].add(key)
+            th = threading.Thread(target=_decode_run, args=(day, T, key), name="decode", daemon=True)
+        last = hit or _DECODE["last"].get(day)
+    if th is not None:
+        th.start()
+    return last
+
+
+def _decode_run(day, T, key):
+    try:
+        out = _decode_all(day, T, True, keep=T >= read.CLOSE_S)
+    except Exception as e:
+        log.exception("decode run")
+        out = {"why": f"could not check — the decode read failed: {type(e).__name__}: {e}"}
+    G = out.pop("_facts", None)
+    if G:
+        _onesided_log(day, G)
+    _decode_log(day, T, out)
+    with _DECODE_LOCK:
+        _DECODE["out"] = {k: v for k, v in _DECODE["out"].items() if k[0] == day and k[1] >= T - 900}
+        _DECODE["out"][key] = out
+        _DECODE["last"] = {day: out}
+        _DECODE["busy"].discard(key)
+
+
+def _decode_aged(blk, now):
+    """A13: a copy of the block with age_s = now (sec of day) minus the close it reads, set when it is SERVED (the block
+    is cached per close); None when either is unknown. The extension reads it too."""
+    if not isinstance(blk, dict):
+        return blk
+    t = blk.get("t")
+    return dict(blk, age_s=None if now is None or not t else now - (int(t[:2]) * 3600 + int(t[3:5]) * 60))
+
+
+def _decode_log(day, T, out):
+    """N7: each index's DECODE block once per 5-min close, to DECODE_DIR/decode_<day>.jsonl -- the block AS SERVED, from
+    the one live compute a grace minute after the close (A16's read-log timing: the bar and the chain row have landed),
+    never rewritten by a later compute. A close the server was not up for stays absent (a replay is not what the app
+    said); a row computed late says so by its `at`. Fail-soft."""
+    import decode
+    import onesided
+    if T <= decode.OPEN_S:                       # before the first close: the blocks are "?", nothing to record
+        return
+    try:
+        path = os.path.join(DECODE_DIR, f"decode_{day}.jsonl")
+        seen = _DECODE_SEEN.get(path)
+        if seen is None:
+            seen = _DECODE_SEEN[path] = {(r.get("idx"), r.get("T")) for r in confluence_log._rows(path)}
+        t = decode.hm(T // 60)
+        rows = [dict(b, day=day, idx=i, T=t, rev=decode.REV, rev_onesided=onesided.REV, at=time.time())
+                for i, b in out.items() if isinstance(b, dict) and "call" in b and (i, t) not in seen]
+        if rows:
+            os.makedirs(DECODE_DIR, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows))
+            seen.update((r["idx"], t) for r in rows)
+    except Exception:
+        log.exception("decode log")
+
+
+def _onesided_log(day, G):
+    """§1o's daily row per index (onesided.log: once per day + index, fail-soft), from the facts of the first live
+    compute at or after the 15:30 close -- so a server started after the close writes it on its first read (the
+    anytime-start rule). An index whose facts failed writes nothing; a later start that day can still write it."""
+    import onesided
+    try:
+        ok = {i: g for i, g in G.items() if isinstance(g, dict)}
+        onesided.log([onesided.row(day, i, g["bars5"], g["l5"], g["l15"], [p["bars5"] for k, p in ok.items() if k != i])
+                      for i, g in ok.items()])
+    except Exception:
+        log.exception("onesided log")
+
+
+# ---- EXTENSION V2 (docs/superpowers/specs/2026-10-19-extension-v2-design.md §7; orderflow-desk V2-PLAN "Frame contract")
+#
+# read / plan / writers / ux_flow / rank_ref_id ride the frame of a v2 page -- one that sends `rank_have` or `build`;
+# today's page sends neither and gets none of it, so her live extension costs nothing new. NEVER PER POST (the
+# 2026-09-18 wedge was per-POST work): one compute per (day, idx) at most every V2_EVERY s, in a daemon thread; a
+# POST reads the cache (only the very first one waits, at most V2_WAIT s). rank_ref = RANK_DIR/rank_ref_<idx>_<day>.json
+# (tools/rank_build.py, days < day), loaded once per (idx, day); when it is missing it is built ONCE in a daemon thread
+# and the newest earlier file is served meanwhile, flagged stale_from (still days < day: no look-ahead). Nothing here
+# enters the frame record (it runs after frame_log), and DISPLAY ONLY: frame_v2.py gates nothing.
+_V2 = {"parts": {}, "busy": set(), "ref": {}, "building": set()}
+_V2_LOCK = threading.Lock()
+V2_EVERY, V2_WAIT = 20, 2.0
+RANK_DIR = os.path.join("data", "rank")
+_V2_NONE = ("read", "plan", "writers", "ux_flow", "decode")
+
+
+def _rank_mod():
+    """tools/rank_build.py, loaded by path (tools/ is not a package)."""
+    m = sys.modules.get("rank_build")
+    if m is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("rank_build", str(ROOT / "tools" / "rank_build.py"))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        sys.modules["rank_build"] = m
+    return m
+
+
+def _rank_build_bg(idx, day):
+    """Build day's reference once per process, in a daemon thread, into the RANK_DIR of the moment it was asked."""
+    key, out_dir = (idx, day), RANK_DIR
+    with _V2_LOCK:
+        if key in _V2["building"]:
+            return
+        _V2["building"].add(key)
+
+    def run():
+        try:
+            m = _rank_mod()
+            ref = m.build(idx, day)
+            m.write(ref, out_dir)
+            hit = (ref, ref["id"], None)
+        except Exception as e:
+            log.exception("rank_ref build")
+            old = _V2["ref"].get(key) or (None, None, None)
+            hit = (old[0], old[1], f"could not check — the rank_ref build failed: {e}")
+        with _V2_LOCK:
+            _V2["ref"][key] = hit
+    threading.Thread(target=run, name=f"rank-{idx}-{day}", daemon=True).start()
+
+
+def _rank_ref(idx, day, need_read=False):
+    """(ref, id, why) for (idx, day): the day's file, else the newest earlier one (stale_from) while it builds.
+    need_read (THE READ's ranks, decode-loop Phase 1): a reference built before its `read` section existed is rebuilt
+    once in the background and served meanwhile -- its tables are the extension's, unchanged."""
+    hit = _rank_ref_load(idx, day)
+    ref = hit[0]
+    if need_read and ref is not None and "read" not in ref and not ref.get("stale_from"):
+        _rank_build_bg(idx, day)
+        return ref, hit[1], "stale — this reference predates THE READ's ranks; rebuilding it"
+    return hit
+
+
+def _rank_ref_load(idx, day):
+    key = (idx, day)
+    with _V2_LOCK:
+        hit = _V2["ref"].get(key)
+    if hit is not None:
+        return hit
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", day):
+        return None, None, f"could not check — no session day ({day!r})"
+
+    def load(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                r = json.load(f)
+            return r if isinstance(r, dict) and r.get("id") else None
+        except (OSError, ValueError):
+            return None
+    ref = load(os.path.join(RANK_DIR, f"rank_ref_{idx}_{day}.json"))
+    if ref is not None:
+        hit = (ref, ref["id"], None)
+    else:
+        _rank_build_bg(idx, day)
+        try:
+            names = sorted(n for n in os.listdir(RANK_DIR) if re.match(rf"^rank_ref_{re.escape(idx)}_\d{{4}}-\d{{2}}-\d{{2}}\.json$", n)
+                           and n[-15:-5] < day)
+        except OSError:
+            names = []
+        old = load(os.path.join(RANK_DIR, names[-1])) if names else None
+        hit = ((dict(old, stale_from=old.get("before")), old["id"], f"stale — the {old.get('before')} reference while {day}'s builds")
+               if old else (None, None, f"building — no reference for {day} yet"))
+    with _V2_LOCK:
+        return _V2["ref"].setdefault(key, hit)
+
+
+def _v2_parts(idx, day, s, now, now_ms, ux, ref, live=False):
+    """frame_v2.compose for one index at `now` (sec of day; None = the recorded day's end), from v2feed's IdxState `s`.
+    Call under v2feed's lock (read.from_v2 references its arrays). tools/frame_v2_replay.py calls this too."""
+    import v2feed
+    import frame_v2
+    import rank
+    lot = v2feed.LOTS.get(idx) or 1
+    X = frame_v2.cut(read.from_v2(s, lot, _read_gc_pre(idx, day, s, lot)), now)
+    # READ-2: FUEL's reference, and live, JAGAH's PDL / PDH and the extension's last push (the card's alone)
+    tl = read.timeline(X, ux, _read_levels(idx) if live else None, now, rank.fuel_ref(ref, day, X, ux))
+    c = read.card(X, tl, None, now, _push_for(idx, day) if live else None)
+    bf = f"CHAIN: the first {s.bf} minutes ({s.bf_from}-{s.bf_to}) are REST-rebuilt [I]" if s.bf else None
+    expr = _read_expr(idx, day, c.get("dir")) if live and c.get("ok") else None
+    return frame_v2.compose(X, tl, c, ux, ref, now, now_ms, frame_v2.dte(day, s.fut_expiry), bf, expr, day=day)
+
+
+def _v2_refresh(idx, day, ref, ref_id):
+    try:
+        import v2feed
+        live = day == time.strftime("%Y-%m-%d")
+        lt = time.localtime()
+        now = lt.tm_hour * 3600 + lt.tm_min * 60 + lt.tm_sec if live else None
+        ux = _ux_bars(idx, day) if live else ux_log.read_bars(day, idx)
+        parts = v2feed.with_day(day, lambda D: _v2_parts(idx, day, D.idx[idx], now, int(time.time() * 1000) if live else None,
+                                                         ux, ref, live))
+    except Exception as e:
+        log.exception("frame v2")
+        parts = {}
+        for k in _V2_NONE:
+            parts[k], parts[k + "_why"] = None, f"could not check — the v2 read failed: {type(e).__name__}: {e}"
+    try:                                         # THE DECODE block, outside v2feed's lock (a replay takes it itself)
+        dec = _decode_for(day, now, live) or {}
+        parts["decode"] = dec.get(idx)
+        parts["decode_why"] = None if parts["decode"] else (dec.get("why") or "could not check — the decode block is "
+                                                                                "reading the day")
+    except Exception as e:
+        log.exception("frame decode")
+        parts["decode"], parts["decode_why"] = None, f"could not check — the decode read failed: {type(e).__name__}: {e}"
+    with _V2_LOCK:
+        _V2["parts"][(day, idx)] = (time.time(), parts, ref_id)
+        _V2["busy"].discard((day, idx))
+
+
+def _frame_v2(idx, day):
+    """(the v2 frame keys, rank_ref) for one POST: a cache read; the compute runs at most every V2_EVERY s."""
+    ref, ref_id, ref_why = _rank_ref(idx, day)
+    key, th = (day, idx), None
+    with _V2_LOCK:
+        hit = _V2["parts"].get(key)
+        if (hit is None or time.time() - hit[0] >= V2_EVERY or hit[2] != ref_id) and key not in _V2["busy"]:
+            _V2["busy"].add(key)
+            th = threading.Thread(target=_v2_refresh, args=(idx, day, ref, ref_id), name=f"v2-{idx}", daemon=True)
+    if th is not None:
+        th.start()
+        if hit is None:
+            th.join(V2_WAIT)
+    with _V2_LOCK:
+        hit = _V2["parts"].get(key)
+    if hit is None:
+        parts = {}
+        for k in _V2_NONE:
+            parts[k], parts[k + "_why"] = None, "could not check — the first v2 read of this day is still loading"
+    else:
+        parts = hit[1]
+    lt = time.localtime()                        # A13: the decode block's age at THIS post (the parts are cached)
+    now = lt.tm_hour * 3600 + lt.tm_min * 60 + lt.tm_sec if day == time.strftime("%Y-%m-%d") else None
+    srn, srw = _slot_range_now(ref, now)
+    return dict(parts, decode=_decode_aged(parts.get("decode"), now), rank_ref_id=ref_id, rank_ref_why=ref_why,
+                slot_range_now=srn, slot_range_why=srw), ref
+
+
+def _slot_range_now(ref, now):
+    """A45: ({"HHMM": pts, ...}, None) -- the reference days' median high - low (rank_build.slot_range) of the 5-min
+    slot `now` (sec of day) is in and of the one before it (the bar that just closed), the map shape the extension's
+    slotNR reads (orderflow-desk v2.js), for its bars judged before its NR has 5 bars; else (None, why)."""
+    if now is None or not read.OPEN_S <= now < read.CLOSE_S:
+        return None, "not shown — outside today's 09:15-15:30 session"
+    tab = (ref or {}).get("slot_range")
+    if not tab:
+        return None, "could not check — this rank_ref has no slot_range (built before 2026-10-23)"
+    s = now // 300 * 300
+    keys = [f"{x // 3600:02d}{x // 60 % 60:02d}" for x in (s - 300, s) if x >= read.OPEN_S]
+    out = {k: tab[k] for k in keys if k in tab}
+    return (out, None) if out else (None, f"could not check — no reference bar in the {keys[-1][:2]}:{keys[-1][2:]} slot")
 
 
 # ---- BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md §8) ----
@@ -1796,6 +2543,18 @@ _BOARD_NOT_SHOWN = {
 }
 
 
+def _board_hilo(idx, day, asof):
+    """The day's spot high / low to `asof`'s minute off every recorded chain row (read.day_hl, decode-loop D6), or
+    None -- the squares then fall back to the grid's marks. Fail-soft: never at the board's expense."""
+    try:
+        import v2feed
+        end = int(asof[:2]) * 3600 + int(asof[3:5]) * 60 + 59
+        return v2feed.with_day(day, lambda D: read.day_hl(read.from_v2(D.idx[idx]), end).get("spot"))
+    except Exception:                          # noqa: BLE001
+        log.exception("board hilo")
+        return None
+
+
 def _board_reply(poller, idx, q):
     """GET /api/board's bytes for one index at its latest finished minute."""
     core = _board_core(poller, idx)
@@ -1828,7 +2587,7 @@ def _board_reply(poller, idx, q):
             tr, tr_why = _board_trend(idx, day, asof)
             doc = board.read(core["minutes"], core["peak"], core["opens"], facts, marks, tr,
                              first=core["first"], idx=idx, g=core["g"], evs=core["evs"], trend_why=tr_why,
-                             levels=lv)
+                             levels=lv, hilo=_board_hilo(idx, day, asof))
             base = _BOARD["base"][idx] = {"key": key, "doc": doc}
         mir = ({"ok": False, "why": far, "tag": "M"} if far else _board_mirror(idx, asof, kce, kpe))
         mir.update(strikes={"CE": kce, "PE": kpe}, atm=atm, span=BOARD_MIRROR_SPAN)
@@ -2485,6 +3244,55 @@ def _hold_trades():
     if _HOLD["trades_day"] != day:
         _HOLD["trades"], _HOLD["trades_day"] = [], day
     return _HOLD["trades"]
+
+
+_HOLD2 = {"refs": {}, "closes": {}, "out": {}, "busy": set()}
+_HOLD2_LOCK = threading.Lock()
+
+
+def _hold2(rep, trades):
+    """HOLD v2 (hold2.py, research-findings §1m) for her open marked trade on /api/fold?id=: DISPLAY ONLY -- a block
+    beside the reply, which never reads or changes the window's HOLD / FOLD word. Computed off the request thread at most
+    once a minute per trade, from memory (the fold engine's 1-min bars and chain rows, the ux / GoCharting 5-min bars) and
+    the push references (the prior days' tape files, read once per index-day); a request gets the last block, or why
+    there is none yet."""
+    tr = next((t for t in trades if t["id"] == rep.get("id")), None)
+    if tr is None or tr.get("exit_t") or not rep.get("ok") or (rep.get("view") or {}).get("frozen"):
+        return None
+    lt = time.localtime()
+    m, key = lt.tm_hour * 60 + lt.tm_min, tr["id"]
+    with _HOLD2_LOCK:
+        hit = _HOLD2["out"].get(key)
+        if (hit is None or hit[0] != m) and key not in _HOLD2["busy"]:
+            _HOLD2["busy"].add(key)
+            threading.Thread(target=_hold2_run, args=(tr, rep["view"], m), name=f"hold2-{key}", daemon=True).start()
+    return hit[1] if hit else {"ok": False, "tag": "I", "text": None,
+                               "why": "could not check — HOLD v2 is reading the day (first look)"}
+
+
+def _hold2_run(tr, view, m):
+    key, idx = tr["id"], tr["idx"]
+    try:
+        got = fold_live.hold2_rows(idx)
+        if got is None:
+            out = {"ok": False, "tag": "I", "text": None, "why": "could not check — the fold engine has no market read yet"}
+        else:
+            day, bars1, chain_rows, tape = got
+            if (idx, day) not in _HOLD2["refs"]:
+                _HOLD2["refs"][(idx, day)] = confluence_log.push_refs(idx, day)
+            refs, rwhy = _HOLD2["refs"][(idx, day)]
+            bars5 = confluence_log.push_bars(idx, day, gc_rows=tape, ux_rows=_ux_bars(idx, day))
+            out = hold2.live(tr, view, m, bars1, chain_rows, bars5, refs, rwhy,
+                             _HOLD2["closes"].setdefault((day, key), {}))
+            if out.get("text"):                  # A25, display only: SENSEX futures are too thin (the line is spot|fut)
+                import decode
+                out["text"] += decode.patla_of(idx, bars5)
+    except Exception as e:
+        log.exception("hold2")
+        out = {"ok": False, "tag": "I", "text": None, "why": f"could not check — HOLD v2 failed: {type(e).__name__}: {e}"}
+    with _HOLD2_LOCK:
+        _HOLD2["out"][key] = (m, out)
+        _HOLD2["busy"].discard(key)
 
 
 _HOLD_T = re.compile(r"^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$")      # a real clock time: "09:99" is refused
@@ -3540,6 +4348,30 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(json.dumps({"ok": False, "why": f"{type(e).__name__}: {e}"}).encode())
             return
 
+        if self.path.startswith("/api/dext/candles"):
+            # GATE 3 (dext_log.py; docs/dext/README.md): the Dext extension's closed 1m candles + getData rows, RECORDED and
+            # nothing else -- no frame build, no engine, append only (the 2026-09-18 wedge was a whole-file rewrite per
+            # POST). The hold doors' rule: a web page's Origin is refused, the extension's service worker is let in.
+            site, origin = self.headers.get("Sec-Fetch-Site"), self.headers.get("Origin") or ""
+            if site not in (None, "same-origin", "same-site", "none") and not origin.startswith("chrome-extension://"):
+                self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
+                return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                n = 0
+            if not 0 < n < 4194304:              # the extension sends <= 1,500 candles and <= 3 MB a batch
+                self._json(b'{"ok":false,"why":"bad request"}', 400)
+                return
+            try:
+                out, code = dext_log.store(json.loads(self.rfile.read(n))), 200
+            except ValueError as e:              # dext_log.Refused, or a malformed body: nothing stored
+                out, code = {"ok": False, "why": f"refused — {e}"}, 400
+            except Exception as e:               # a disk failure: said, never a 500
+                log.exception("dext candles")
+                out, code = {"ok": False, "why": f"could not store — {type(e).__name__}: {e}"}, 200
+            self._json(json.dumps(out).encode(), code)
+            return
         if self.path.startswith("/api/paper_fill"):
             try:
                 n = int(self.headers.get("Content-Length") or 0)
@@ -3601,6 +4433,10 @@ class Handler(SimpleHTTPRequestHandler):
                 doc = _session_only(doc)
                 # FEED HEALTH (P3): every accepted post is a data point (arrival time, heartbeat, newest bar). Never raises.
                 feed_health.on_post(idx, day, doc)
+                if "push" in doc:                        # READ-2's JAGAH: optional; absent or malformed keeps the last
+                    pc = _push_clean(doc.get("push"))
+                    if pc is not None:
+                        _PUSH[idx] = {"day": day, "push": pc}
                 # `fr` is fully built -- including the log-write decision --
                 # BEFORE the lock is taken, and never mutated again once
                 # published: GET /api/frame json.dumps()s this same object
@@ -3624,6 +4460,10 @@ class Handler(SimpleHTTPRequestHandler):
                 # change `ok`. Before the lock, like the frame write above.
                 if in_session:                           # the marks writer behind the same gate (nothing on a weekend, another day, or off hours)
                     tape_log.append(doc, day, idx)
+                    try:                                 # the v2 page's own mark log (doc.marks2), behind the same gate
+                        tape_log.append_marks2(doc, day, idx)
+                    except Exception:
+                        log.exception("tape_log marks2")
                     try:                                 # the decoder's forward log: once per event, state and outcome
                         decoder_log.append(doc.get("decoder"), doc.get("closed") or [], day, idx)
                     except Exception:
@@ -3650,6 +4490,17 @@ class Handler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     log.exception("validate read")
                     fr["validate"] = {"ok": False, "why": f"could not check — the validate read failed: {e}"}
+                v2_ref = None                            # EXTENSION V2 (_frame_v2): a v2 page only; after the record
+                if "rank_have" in doc or "build" in doc:
+                    try:
+                        v2, v2_ref = _frame_v2(idx, day)
+                        fr.update(v2)
+                    except Exception as e:               # never at the frame's expense
+                        log.exception("frame v2")
+                        for k in _V2_NONE + ("rank_ref_id",):
+                            fr[k] = None
+                        for k in ("read_why", "plan_why", "rank_ref_why"):
+                            fr[k] = f"could not check — the v2 read failed: {e}"
                 if in_session and isinstance(fr.get("fold"), dict) and fr["fold"].get("ok"):
                     try:                                 # HOLD vs DECODER, once a minute while she is marked
                         decoder_log.minute(day, idx, now_hm, fr["fold"], (fr.get("story") or {}).get("trade_read"), fr.get("validate"))
@@ -3658,7 +4509,12 @@ class Handler(SimpleHTTPRequestHandler):
                 with _SENSES_LOCK:
                     _SENSES["tape"][idx] = {"doc": doc, "at": time.time()}
                     _SENSES["frame"][idx] = fr
-                self._json(json.dumps({"ok": True, **fr}, default=str).encode())
+                reply = {"ok": True, **fr}
+                if v2_ref is not None and "rank_have" in doc and doc.get("rank_have") != fr.get("rank_ref_id"):
+                    # once per session: the page sends back the id it holds. `read` is TapeMap's own (the READ's
+                    # ranks, ~200 KB) -- the page never reads it, so it does not travel
+                    reply["rank_ref"] = {k: v for k, v in v2_ref.items() if k != "read"}
+                self._json(json.dumps(reply, default=str).encode())
                 # forward-fills the day's log rows (taps, tells, control) so
                 # the §8 kill conditions have something to execute against;
                 # its own try/except -- a scoring failure must never touch
@@ -4548,6 +5404,12 @@ class Handler(SimpleHTTPRequestHandler):
             out = fold_live.reply(u.path, parse_qs(u.query), trades)
             if isinstance(out, dict) and u.path != "/api/fold/record":      # the feed band rides the reads the faces poll
                 out["feed"] = _feed_read((parse_qs(u.query).get("idx") or ["NIFTY"])[0], time.strftime("%Y-%m-%d"))
+            if isinstance(out, dict) and u.path == "/api/fold" and out.get("ok"):
+                try:                                                  # HOLD v2 beside the word, display only (§1m);
+                    h2 = _hold2(out, trades)                          # a copy: the engine's cached reply is untouched
+                except Exception as e:
+                    h2 = {"ok": False, "tag": "I", "text": None, "why": f"could not check — HOLD v2 failed: {type(e).__name__}: {e}"}
+                out = dict(out, hold2=h2)
             self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/hold"):
             # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
@@ -4575,6 +5437,21 @@ class Handler(SimpleHTTPRequestHandler):
                 log.exception("hold %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, default=str).encode())
+        elif urlsplit(self.path).path == "/api/read":
+            # THE READ (read.py): one held read per index -- word, FLIP, targets, wrong-if, the trade. ?idx= one
+            # index, ?day= a past day through the same door. Display only; a failure is a why, never a 500.
+            q = parse_qs(urlsplit(self.path).query)
+            day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
+            want = (q.get("idx") or [None])[0]
+            want = want.upper() if want and want.upper() in instruments.ENABLED else None
+            at = (q.get("at") or [None])[0]               # a past day as of HH:MM (decode-loop replays)
+            try:
+                out = (_read_reply(day, want, at if at and re.match(r"^\d{2}:\d{2}$", at) else None)
+                       if re.match(r"^\d{4}-\d{2}-\d{2}$", day) else {"ok": False, "why": "day must be YYYY-MM-DD"})
+            except Exception as e:               # never 500
+                log.exception("read %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, ensure_ascii=False, default=str).encode())
         elif self.path.startswith("/api/calls"):
             # EVERY ENGINE CALL, GROUNDED (grounds.py). The engine's verdict,
             # episode, breadth and plays on its latest 3-min bar, each held
@@ -4586,6 +5463,11 @@ class Handler(SimpleHTTPRequestHandler):
                 out = _calls_for(self.payloads, self.poller, idx)
             except Exception as e:           # a bad read must not 500 the face
                 out = {"ok": False, "idx": idx, "why": f"{type(e).__name__}: {e}", "calls": []}
+            try:                             # AAJ KA DIN rides here, so the band needs no new poll
+                out["daytype"] = _daytype_reply(self.poller, idx)
+            except Exception as e:
+                log.exception("daytype %s", idx)
+                out["daytype"] = {"ok": False, "idx": idx, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/tape"):
             # the ladder record and what prints.py reads off it (spec §D) --
@@ -4625,6 +5507,20 @@ class Handler(SimpleHTTPRequestHandler):
                 body = ({"ok": st.get("sentence") is not None, "idx": idx, "day": fr.get("day"), "ts": fr.get("ts"), **st} if st
                         else {"ok": False, "idx": idx, "sentence": None, "sentence_why": "no frame yet: the extension has not posted"})
             self._json(json.dumps(body, default=str).encode())
+        elif self.path.startswith("/api/v2/data"):
+            # THE VALIDATE FACE'S FEED (v2feed.py; ui-v2/public/validate2): the day files tailed by byte offset, one
+            # payload cached per (day, file sizes) -- full on the first call, a delta with since=<sec of day> after.
+            # Read-only; a past day (?day=) replays through the same door; a failure inside is a why, never a 500.
+            import v2feed
+            q = parse_qs(urlsplit(self.path).query)
+            day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
+            try:
+                out = (v2feed.serve(day, (q.get("since") or [None])[0]) if re.match(r"^\d{4}-\d{2}-\d{2}$", day)
+                       else {"ok": False, "why": "day must be YYYY-MM-DD"})
+            except Exception as e:               # never 500
+                log.exception("v2feed %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(out if isinstance(out, bytes) else json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/validate"):
             # THE LIVE IN-TRADE READ (validate_live.py): the last frame's, never recomputed here. No frame yet: the
             # cooldown / flip timers still answer, and the trade says why it has no lamps.
@@ -4640,6 +5536,15 @@ class Handler(SimpleHTTPRequestHandler):
                 body = validate_live.read(tr, {"ok": False, "why": "no frame yet: the extension has not posted"}, _board_clock()[0],
                                           int(time.time() * 1000), trades=trades, idx=idx)
             self._json(json.dumps(body, default=str).encode())
+        elif self.path.startswith("/api/dext/parity"):
+            # GATE 3's three-way check (dext_parity.py), computed on request: counts and ratios only, never a verdict
+            day = (parse_qs(urlsplit(self.path).query).get("day") or [time.strftime("%Y-%m-%d")])[0]
+            try:
+                out = dext_parity.report(day) if re.match(r"^\d{4}-\d{2}-\d{2}$", day) else {"ok": False, "why": "day must be YYYY-MM-DD"}
+            except Exception as e:               # never 500
+                log.exception("dext parity")
+                out = {"ok": False, "day": day, "why": f"could not check — {type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
         else:
             super().do_GET()
 
@@ -4777,7 +5682,8 @@ def _isolate_mock_writers():
     desk_log.DESK_LOG_PATH = os.path.join(mock, "desk_log.jsonl")
     day_state.DIR = os.path.join(mock, "day_state")
     hold_log.DIR = os.path.join(mock, "hold")
-    global VPIN_LOG, VPIN_BACKFILL_LOG, VPIN_FAST_LOG
+    global VPIN_LOG, VPIN_BACKFILL_LOG, VPIN_FAST_LOG, RANK_DIR
+    RANK_DIR = os.path.join(mock, "rank")                           # the extension v2's rank_ref files (_rank_ref)
     VPIN_LOG = os.path.join(mock, "vpin_log.jsonl")
     VPIN_BACKFILL_LOG = os.path.join(mock, "vpin_backfill.jsonl")
     VPIN_FAST_LOG = os.path.join(mock, "vpin_fast.jsonl")
@@ -4788,6 +5694,7 @@ def _isolate_mock_writers():
     sides_log.DIR = os.path.join(mock, "sides")                     # the sides read's forward log (sides_log.py)
     trap_log.DIR = os.path.join(mock, "trap")                       # the trap layer's forward log (trap_log.py)
     decoder_log.DIR = os.path.join(mock, "decoder")                 # the decoder's forward log (decoder_log.py)
+    dext_log.DIR = os.path.join(mock, "dext")                       # the Dext record (dext_log.py)
     # 2026-09-28 (the correctness pass): the writers this list had missed. Each reads
     # its constant at call time; trigger_log.log_new is handed PATH at its call site.
     import chain_live
@@ -4796,8 +5703,14 @@ def _isolate_mock_writers():
     calls_log.DIR = os.path.join(mock, "calls")
     senses_mod.DIR = os.path.join(mock, "senses")
     trigger_log.PATH = os.path.join(mock, "trigger_log.jsonl")
+    confluence_log.PATH = os.path.join(mock, "confluence_log.jsonl")
+    import onesided
+    onesided.PATH = os.path.join(mock, "onesided_log.jsonl")         # §1o's daily row (onesided.py)
+    global DECODE_DIR
+    DECODE_DIR = os.path.join(mock, "decode")                       # N7: the DECODE block's forward log (_decode_log)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
+    feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)
     # 2026-09-28 (pro-tool P1-01): the rev 6 event log (P2-02), guarded until it lands.
     # conftest.py keeps the same list for pytest; test_leak_guard.py checks both.
     import chain_backfill
@@ -5193,6 +6106,7 @@ def main():
         cfgs = {x: instruments.get(x) for x in instruments.ENABLED}
         payloads = {x: {"payload": _waiting(x, "starting up — resolving…")}
                     for x in instruments.ENABLED}
+        globals()["_PAYLOADS"] = payloads        # THE DECODE block's FADE reads the same boxes (display only)
         have = {x: False for x in instruments.ENABLED}
         # BIND FIRST -- before the chain poller opens a websocket. The poller
         # used to start here, so a second server that went on to lose the port
@@ -5285,6 +6199,17 @@ def main():
                         ones=((_sess.get("day") or {}).get("bars")
                               if isinstance(_sess, dict) else None),
                         path=trigger_log.PATH)   # read at call time, so a mock run is isolated
+                    # §1i's forward log: one row per zone entry once its window has closed. Fail-soft, its own
+                    # file only -- it changes no row, gate or beep above.
+                    confluence_log.log_new(x, payload_at(payloads[x], DEFAULT_INTERVAL), path=confluence_log.PATH)
+                    try:
+                        confluence_log.log_ride(x, path=confluence_log.PATH)   # §1j RIDE forward log: fail-soft, its own rows only
+                    except Exception:
+                        pass
+                    try:
+                        confluence_log.log_faded(x, path=confluence_log.PATH)  # §1n FADE-D forward log: fail-soft, its own rows only
+                    except Exception:
+                        pass
                     # The grounded calls, kept (calls_log.py): in session only,
                     # read at most once a minute per index, a row only when the
                     # engine's bar is new. Its own try: the log must never cost

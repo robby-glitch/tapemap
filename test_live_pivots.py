@@ -55,3 +55,36 @@ def test_session_run_survives_pivotless_bars_end_to_end():
     s.run()
     js = engine.session_json(s)
     assert js["pivots"]["P"] is None
+
+
+def test_no_common_minute_yet_is_a_why_not_an_indexerror(monkeypatch):
+    """8 Oct 09:12-09:16: the future had its first bar, the ATM legs not yet -> zero common minutes -> IndexError in
+    engine.session_json and a traceback per index per cycle. Now the same honest 'no bars yet' payload as before 09:15."""
+    t0 = 1791431100                                            # 2026-10-08 09:15 IST
+    fut = {"open": [22600.0], "high": [22610.0], "low": [22590.0], "close": [22605.0], "volume": [100.0], "timestamp": [t0]}
+    empty = {"open": [], "high": [], "low": [], "close": [], "volume": [], "timestamp": []}
+    monkeypatch.setattr(live, "_token", lambda: "tok")
+    monkeypatch.setattr(live, "_intraday", lambda tok, sid, kind, day, **k: fut if kind == "FUTIDX" else empty)
+    monkeypatch.setattr(live, "_nearest_opt_expiry", lambda *a: "2026-10-13")
+    monkeypatch.setattr(live, "_atm_ids", lambda *a: {"CE": "c", "PE": "p"})
+    monkeypatch.setattr(live, "_pivots", lambda *a: None)
+    monkeypatch.setattr(live.time, "sleep", lambda s: None)
+    cfg = {"under_sym": "NIFTY", "fut_id": "f", "fut_seg": "NSE_FO", "expiry": "2026-10-27", "step": 50}
+    out = live.build_session(cfg, spot=22550.0)
+    assert "error" in out and b"first minute is forming" in out["error"]
+
+
+def test_a_holiday_prior_weekday_steps_back_to_the_last_session(monkeypatch):
+    """5 Oct 2026: prev_day was Fri 2 Oct, a holiday -- no bars, no pivots all day and a warning every 16 s. The prior
+    SESSION (Thu 1 Oct) has bars: the pivots come from it."""
+    asked = []
+
+    def intraday(tok, sid, kind, day, **k):
+        asked.append(day)
+        return {"high": [22500.0, 22600.0], "low": [22300.0, 22400.0], "close": [22400.0, 22422.0]} if day == "2026-10-01" \
+            else {"high": [], "low": [], "close": []}
+    monkeypatch.setattr(live, "_intraday", intraday)
+    live._piv_cache.clear()
+    piv = live._pivots("tok", {"under_sym": "NIFTY", "prev_day": "2026-10-02", "fut_id": "x", "fut_seg": "NSE_FO"})
+    assert asked == ["2026-10-02", "2026-10-01"] and piv is not None
+    assert abs(piv["P"] - (22600.0 + 22300.0 + 22422.0) / 3) < 1e-6

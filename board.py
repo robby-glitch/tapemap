@@ -438,7 +438,7 @@ SQ_CLEAR = 3          # a square must sit more than this far from spot
 SQ_ROUNDS = 3         # round strikes within this many steps of spot
 
 
-def squares(fr, s, step, facts, levels, spots, times):
+def squares(fr, s, step, facts, levels, spots, times, hilo=None):
     """WHAT CAN HAPPEN: the next square up and down, who pays there, are they
     paying now, is anyone pressing, and what would refuse the move. Conditions
     only, never odds. [I] on [M] facts.
@@ -455,7 +455,11 @@ def squares(fr, s, step, facts, levels, spots, times):
     if step:
         cand += [(r * step, f"round {r * step:,.0f}")
                  for r in range(int((s - SQ_ROUNDS * step) // step), int((s + SQ_ROUNDS * step) // step) + 1)]
-    if spots:
+    if hilo and hilo.get("hi") is not None and hilo.get("lo") is not None:
+        # decode-loop D6: the day's high / low from every chain row (read.day_hl), never the minute grid's marks --
+        # a high printed between two marks was invisible to the grid
+        cand += [(hilo["hi"], f"day high {hilo['hi_t']}"), (hilo["lo"], f"day low {hilo['lo_t']}")]
+    elif spots:
         hj = max(range(len(spots)), key=lambda i: spots[i])
         lj = min(range(len(spots)), key=lambda i: spots[i])
         cand += [(spots[hj], f"day high {times[hj]}"), (spots[lj], f"day low {times[lj]}")]
@@ -516,7 +520,7 @@ def _short(label):
 
 # ---------------------------------------------------------------- the whole read
 def read(minutes, peak=None, opens=None, facts=None, marks=None, trend=None, first=None,
-         idx=None, g=None, evs=None, trend_why=None, levels=None):
+         idx=None, g=None, evs=None, trend_why=None, levels=None, hilo=None):
     """The board at the grid's last mark (a FINISHED minute).
 
     minutes  the chain grid cut to that minute (`fronts.cut`)
@@ -529,6 +533,7 @@ def read(minutes, peak=None, opens=None, facts=None, marks=None, trend=None, fir
              `first_fold` on a whole grid -- day_state keeps it), or None
     g, evs   `fronts.grid` / `fronts.folds` of `minutes`, when already in hand
     levels   levels.static_levels rows (PDH/PDL/PDC/PWH/PWL/OPEN) for the squares, or None
+    hilo     read.day_hl(...)["spot"] -- the day's high / low off every chain row -- or None (the grid's marks then)
     """
     g = g or fronts.grid(minutes)
     times, spots, ks, S, RP = g
@@ -570,7 +575,7 @@ def read(minutes, peak=None, opens=None, facts=None, marks=None, trend=None, fir
                      {"px": None, "rows": None, "why": CC + (trend_why or "no index candle yet")}),
                   "strong": stg, "regime": rg, "tag": "I", "src": "the index's own Upstox candles"},
         "pcr": pcr(last_k, opens),
-        "squares": squares(fr, s, step, facts, levels, spots, times),
+        "squares": squares(fr, s, step, facts, levels, spots, times, hilo),
         "grid": cov,
     }
 

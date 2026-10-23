@@ -273,8 +273,12 @@ def _pivots(tok, cfg):
     key = (cfg["under_sym"], cfg["prev_day"])
     if key in _piv_cache:
         return _piv_cache[key]
-    d = _intraday(tok, cfg["fut_id"], "FUTIDX", cfg["prev_day"], oi=False,
-                  seg=cfg["fut_seg"], name=cfg["under_sym"])
+    day = cfg["prev_day"]
+    for _ in range(4):        # prev_day is the prior WEEKDAY: a holiday (2 Oct 2026) has no bars -- step back to the session
+        d = _intraday(tok, cfg["fut_id"], "FUTIDX", day, oi=False, seg=cfg["fut_seg"], name=cfg["under_sym"])
+        if d and d.get("high") and d.get("low") and d.get("close"):
+            break
+        day = instruments._prev_trading_day(day)
     if not (d and d.get("high") and d.get("low") and d.get("close")):
         log.warning("pivots: no prior-session bars for %s %s -- pivot levels "
                     "absent, stated; not cached", cfg["under_sym"], cfg["prev_day"])
@@ -1189,6 +1193,10 @@ def build_session(cfg, spot=None):
     fut = [b for b in fut if b["T"] in keep]
     ce = [b for b in ce if b["T"] in keep]
     pe = [b for b in pe if b["T"] in keep]
+    if not fut:     # 09:12-09:16 on 8 Oct: the future had a bar, the ATM legs not yet -> IndexError in session_json
+        return {"error": json.dumps(
+            {"index": cfg["under_sym"], "strike": strike, "days": [], "built_at": time.time(),
+             "live_error": "no minute yet where the future and both ATM legs have a bar (the first minute is forming)"}).encode()}
 
     # t_days prices the legs we actually chart — the nearest expiry's — so the
     # greeks and gamma.t now describe the operator's own contract. Note the

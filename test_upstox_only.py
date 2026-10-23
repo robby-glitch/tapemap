@@ -193,3 +193,88 @@ def test_today_s_bars_are_today_s_only_after_midnight(monkeypatch):
     new = [f"{today}T09:15:00+05:30", 1, 2, 0.5, 1.5, 10, 0]
     monkeypatch.setattr(upstox_rest, "intraday", lambda key, tok: [new, old])
     assert live._upstox_bars("NSE_FO|1", "OPTIDX", today)["close"] == [1.5]
+
+
+
+def test_d1_each_poll_recentres_the_window_on_the_live_spot():
+    """The socket carries +/- 16 strikes; a poll hands downstream the 17 nearest the LIVE spot (8 Oct: the opening
+    window ended two strikes from spot's side). Old code: the opening 17, lopsided once spot walks 300 points."""
+    import upstox_instruments
+    ks = [22000 + 50 * n for n in range(33)]                         # 22,000 .. 23,600, opened at 22,800
+    meta = {f"k{k}{s}": (k, s) for k in ks for s in ("ce", "pe")}
+
+    def leg(k, s):
+        return {"fullFeed": {"marketFF": {"ltpc": {"ltp": 10.0}, "oi": 1000.0, "vtt": 1.0}}}
+    feeds = {key: leg(*who) for key, who in meta.items()}
+    feeds["idx"] = {"fullFeed": {"indexFF": {"ltpc": {"ltp": 22500.0}}}}
+    src = upstox_chain.UpstoxChainSource.__new__(upstox_chain.UpstoxChainSource)
+    src.each_side, src.prev_oi = upstox_instruments.STRIKES_EACH_SIDE, {}
+    src.resolved = {"NIFTY": {"idx_key": "idx", "meta": meta}}
+    src.feed = type("_F", (), {"connected": True, "last_error": None, "age": lambda self: 1.0,
+                               "snapshot": lambda self: feeds})()
+    import datetime
+    snap = src.poll({"under_sym": "NIFTY"}, "2026-10-20", datetime.datetime(2026, 10, 20, 11, 0))
+    got = [r["k"] for r in snap["strikes"]]
+    assert got == list(range(22100, 22901, 50)) and snap["atm"] == 22500
+    assert upstox_instruments.SUBSCRIBE_EACH_SIDE >= 2 * upstox_instruments.STRIKES_EACH_SIDE
+
+
+def test_a18_the_socket_is_up_for_0915_and_the_baselines_wait_for_the_0915_bar(monkeypatch):
+    """A18: every recorder began at ~09:17 -- the socket waited for the first 1-min index bar (~09:16) to centre its
+    strikes, then for ~200 per-leg REST baselines. From 09:14 the prior close centres it; the 09:15 OI baselines are
+    fetched once the 09:15 bar exists (from 09:16), by the first poll after it. Before 09:14 nothing changes."""
+    import datetime as dt
+    import chain_live
+    import upstox_feed
+    import upstox_instruments
+    import upstox_rest
+    clock = {"now": dt.datetime(2026, 10, 23, 9, 14, 30, tzinfo=chain_live.IST)}       # a Friday
+    monkeypatch.setattr(upstox_chain, "datetime", type("_D", (), {"now": staticmethod(lambda tz=None: clock["now"])}))
+    centred, based = [], []
+    monkeypatch.setattr(upstox_rest, "intraday", lambda key, tok, interval="1minute": [])          # no bar yet
+    monkeypatch.setattr(upstox_rest, "daily_range", lambda key, tok, frm, to, interval="day":
+                        [["2026-10-22T00:00:00+05:30", 0, 0, 0, 22811.35, 0, 0]])
+    meta = {f"k{k}{s}": (k, s) for k in range(22400, 23201, 50) for s in ("ce", "pe")}
+    monkeypatch.setattr(upstox_instruments, "index_key", lambda idx: "idx")
+    monkeypatch.setattr(upstox_instruments, "resolve", lambda spot, name, each_side:
+                        centred.append(spot) or {"keys": ["idx", *meta], "meta": meta, "expiry": "2026-10-27",
+                                                 "idx_key": "idx"})
+    monkeypatch.setattr(upstox_rest, "baselines", lambda m, tok, on_error=None: based.append(len(m)) or {})
+    feeds = {key: {"fullFeed": {"marketFF": {"ltpc": {"ltp": 10.0}, "oi": 1000.0, "vtt": 1.0}}} for key in meta}
+    feeds["idx"] = {"fullFeed": {"indexFF": {"ltpc": {"ltp": 22700.0}}}}
+
+    class Feed:
+        connected, last_error = True, None
+
+        def __init__(self, keys, token=None):
+            self.keys = keys
+
+        def start(self):
+            pass
+
+        def age(self):
+            return 1.0
+
+        def snapshot(self):
+            return feeds
+    monkeypatch.setattr(upstox_feed, "UpstoxFeed", Feed)
+    src = upstox_chain.UpstoxChainSource(token="tok")
+    assert src.start([{"under_sym": "NIFTY"}]) == {"NIFTY": "2026-10-27"}
+    assert centred == [22811.35] and src.feed.keys[0] == "idx" and based == []     # socket up, no baselines yet
+    with pytest.raises(RuntimeError, match="wait for the 09:15 bar"):
+        src.poll({"under_sym": "NIFTY"}, "2026-10-27", dt.datetime(2026, 10, 23, 9, 15, 30))
+    assert based == []
+    snap = src.poll({"under_sym": "NIFTY"}, "2026-10-27", dt.datetime(2026, 10, 23, 9, 16, 5))
+    assert based == [len(meta)] and snap["atm"] == 22700
+    src.poll({"under_sym": "NIFTY"}, "2026-10-27", dt.datetime(2026, 10, 23, 9, 16, 15))
+    assert based == [len(meta)]                                                       # once a day
+    clock["now"] = dt.datetime(2026, 10, 23, 9, 13, 59, tzinfo=chain_live.IST)
+    with pytest.raises(RuntimeError, match="Before 09:15"):                          # overnight: unchanged
+        upstox_chain.UpstoxChainSource(token="tok").start([{"under_sym": "NIFTY"}])
+    clock["now"] = dt.datetime(2026, 10, 23, 11, 0, tzinfo=chain_live.IST)            # a mid-day start: eager
+    centred.clear()
+    monkeypatch.setattr(upstox_rest, "intraday", lambda key, tok, interval="1minute":
+                        [["2026-10-23T10:59:00+05:30", 22650.0, 22660.0, 22640.0, 22655.0, 0, 0]])
+    src2 = upstox_chain.UpstoxChainSource(token="tok")
+    src2.start([{"under_sym": "NIFTY"}])
+    assert centred == [22655.0] and based == [len(meta), len(meta)] and not src2._deferred

@@ -326,3 +326,36 @@ def test_premium_at_a_futures_price_is_priced_through_the_basis():
     st.bas = 77.0                                         # the fixture's basis is 0, which hid the bug
     own = next(x["pe"]["ltp"] for x in st.rc["strikes"] if x["k"] == st.k)
     assert abs(st._prem_at(st.F + st.bas, st.rc_t)[0] - own) < 0.1
+
+
+def _index_under(inp, d):
+    """The chain's index sits d under the future the options are priced off (the live gap: index 117, forward 94)."""
+    return dict(inp, chain=[dict(c, spot=c["spot"] - d) for c in inp["chain"]])
+
+
+def test_her_basis_draws_and_prints_a_strike_but_decides_nothing():
+    """2026-10-05, ONE BASIS (her word): a strike is drawn and printed at K + (future - index); the engine's words,
+    give-up, events and chips stay on the forward basis -- the signed rule does not move."""
+    a = fold.read(PE, inputs(PATH_A), upto="09:48:00")
+    b = fold.read(PE, _index_under(inputs(PATH_A), 40), upto="09:48:00")
+    same = lambda v: (v["headline"], v["clause"], v["G"], v["G_steps"], v["chips"],    # noqa: E731
+                      [(e["kind"], e["t"], e.get("px"), e.get("side")) for e in v["events"]])
+    assert same(a) == same(b)
+    assert b["units"]["basis"] == a["units"]["basis"] and b["units"]["basis_ix"] == round(a["units"]["basis_ix"] + 40, 1)
+    for w in ("W", "A"):
+        if b[w] is not None:
+            assert abs(b[w]["px"] - (b[w]["k"] + b["units"]["basis_ix"])) <= 1
+    assert b["W"] is not None or b["A"] is not None
+
+
+def test_the_flat_read_sorts_its_futures_levels_against_the_future():
+    """2026-10-05 live: every flat level is a futures-chart price, but they were sorted against F, the forward ~94
+    under the future, so 22,565 read "upar" with the future at 22,640. Above means above the future now."""
+    inp = inputs(PATH_A)
+    upto = fold.ms(DAY, "09:48:00")
+    st = fold.start(PE, dict(inp, book=[r for r in inp["book"] if r["t"] <= upto],
+                             chain=[c for c in inp["chain"] if fold.ms(DAY, c["ts"]) <= upto]))
+    st.bas, st.F = 94.0, st.last_p - 94.0
+    nf = st.flat_view(upto)["next_fight"]
+    assert nf and nf["below"]["px"] is not None and nf["below"]["px"] < st.last_p
+    assert nf["above"]["px"] is None or nf["above"]["px"] > st.last_p

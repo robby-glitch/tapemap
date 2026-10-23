@@ -39,7 +39,7 @@ failed = 0
 _seen_bars: Dict[Tuple[str, str], Set[int]] = {}
 _seen_marks: Dict[Tuple[str, str], Set[tuple]] = {}
 
-_BAR_KEYS = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "delta", "oi", "fromTicks")
+_BAR_KEYS = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "delta", "oi", "fromTicks", "partial")   # partial: v2.2 D4, a bar the page joined late
 
 
 def day_path(day: str, idx: str) -> str:
@@ -216,3 +216,53 @@ def append(doc: dict, day: str, idx: str) -> dict:
             seen_b.update(bar_t(r) for r in rows)
         out[key] = len(rows)
     return out
+
+
+# THE V2 PAGE'S MARK LOG (extension v2 spec §3.8): doc.marks2, one row per drawn or ghost mark per status change,
+# written once per (id, status, tier) into its own file -- a third population beside the bars and the old marks.
+_seen_marks2: Dict[Tuple[str, str], Set[tuple]] = {}
+M2_KEYS = ("id", "t", "kind", "name", "p", "lots", "trapped", "winner", "rank", "n", "prov", "ring", "ring_px",
+           "sigma", "flow", "flow_dir", "tier", "status", "status_t", "break_px", "build", "row", "merged", "src",
+           "khel", "hold", "first")            # v2.3: the forward record -- the KHEL it was born under, the 60-min hold, 0.5U-first
+M2_CAP = 2000                                  # rows read per post: v2.1 logs EVERY mark the board and decoder produce
+
+
+def marks2_path(day: str, idx: str) -> str:
+    return os.path.join(DIR, f"ofd_marks2_{idx}_{day}.jsonl")
+
+
+def _m2_key(m: dict) -> tuple:
+    # v2.3: a row is written again when its forward record resolves (hold / first move on from "open"); an older page sends
+    # neither field, so its rows key exactly as before
+    return (str(m.get("id")), str(m.get("status")), str(m.get("tier")), str(m.get("hold")), str(m.get("first")), str(m.get("khel")))
+
+
+def append_marks2(doc: dict, day: str, idx: str) -> int:
+    """Write the post's new v2 mark rows (whitelisted fields + day/idx). Returns how many landed."""
+    global failed
+    rows = doc.get("marks2")
+    if not isinstance(rows, list) or not rows:
+        return 0
+    key = (day, idx)
+    if key not in _seen_marks2:                # anytime-start: what the file already holds is not written again
+        _seen_marks2[key] = {_m2_key(r) for r in _read(marks2_path(day, idx))}
+    seen = _seen_marks2[key]
+    out = []
+    for m in rows[:M2_CAP]:
+        if not isinstance(m, dict) or m.get("id") is None:
+            continue
+        k = _m2_key(m)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(dict({f: m[f] for f in M2_KEYS if f in m}, day=day, idx=idx))
+    if not out:
+        return 0
+    try:
+        _write_lines(marks2_path(day, idx), out)
+    except Exception:                          # never take the tape down
+        failed += len(out)
+        for r in out:
+            seen.discard(_m2_key(r))
+        return 0
+    return len(out)

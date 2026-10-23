@@ -32,8 +32,9 @@ approaches (sequence.py refuses unstable levels for exactly this reason).
 
 THE ONE I/O FUNCTION. `fetch_daily` is the single function here that touches
 the network (same division as senses.py being its group's one disk-toucher).
-It costs two REST calls per index per day -- daily candles for PDH/PDL/PWH/
-PWL, intraday 1-minute for the opening print -- and is called from a
+It costs three REST calls per index per day -- daily candles for PWH/PWL,
+the prior session's 1-minute for PDH/PDL/PDC (before the closing auction),
+intraday 1-minute for the opening print -- and is called from a
 background thread the orchestrator owns, never from the senses loop or a
 request handler. Everything else in this file is pure computation.
 
@@ -56,6 +57,8 @@ ROUND_STEPS = {"NIFTY": (50, 100), "BANKNIFTY": (100, 500),
 # Rounds only within this fraction of spot either side -- beyond it a round
 # number is not "near" and would bury the map in gridlines. [I]
 ROUND_WINDOW = 0.008
+# The last continuously traded minute of the cash session: the closing auction (CAS, 2026-08-03) begins after it.
+LAST_CONTINUOUS = "15:15"
 
 
 def round_levels(idx: str, spot: Optional[float]) -> List[dict]:
@@ -85,9 +88,11 @@ def static_levels(daily: Optional[dict]) -> List[dict]:
     pd_ = daily.get("pd") or {}
     for kind, key in (("PDH", "h"), ("PDL", "l"), ("PDC", "c")):
         if pd_.get(key) is not None:
+            auc = (f" · auction close {pd_['auction_c']:,.1f}" if kind == "PDC" and pd_.get("auction_c") is not None
+                   else f" · {pd_['c_why']}" if kind == "PDC" and pd_.get("c_why") else "")
             out.append({"kind": kind, "px": float(pd_[key]), "frame": "index",
                         "tag": "M", "stable": True,
-                        "label": f"{kind} {pd_[key]:,.1f} ({pd_.get('date', '?')})"})
+                        "label": f"{kind} {pd_[key]:,.1f} spot ({pd_.get('date', '?')}{auc})"})
     pw = daily.get("pw") or {}
     for kind, key in (("PWH", "h"), ("PWL", "l")):
         if pw.get(key) is not None:
@@ -167,8 +172,9 @@ class Levels:
 def fetch_daily(idx: str, tok: Optional[str] = None) -> dict:
     """Prior-day OHLC, prior-week H/L and today's open for one index. [M]
 
-    Two REST calls: ~10 daily candles in one range request, plus today's
-    1-minute candles for the opening print. Raises on transport/auth failure
+    Three REST calls: ~10 daily candles in one range request, the prior
+    session's 1-minute candles (its H/L/C before the closing auction), plus
+    today's 1-minute candles for the opening print. Raises on transport/auth failure
     -- the caller (warmap's fetch thread) owns retry and the stated absence.
     """
     from datetime import datetime, timedelta
@@ -188,6 +194,20 @@ def fetch_daily(idx: str, tok: Optional[str] = None) -> dict:
     if days:
         c = days[0]
         out["pd"] = {"date": str(c[0])[:10], "h": c[2], "l": c[3], "c": c[4]}
+        # THE CLOSING AUCTION (NSE/BSE CAS, since 2026-08-03): continuous trading stops at 15:15, the index
+        # freezes there, and the official close -- the daily candle's c, and its h/l when the auction prints past
+        # the range -- lands on the 15:29 bar (21 Oct NIFTY: 22,738.45 at 15:15, auction 22,811.35, futures 22,745.3
+        # at 15:29). The futures and options trade on against the 15:15 level, so the prior session's H/L/C here
+        # are its continuous bars'; the auction close rides along, named.
+        try:
+            cont = [b for b in upstox_rest.historical(key, tok, out["pd"]["date"])
+                    if str(b[0])[11:16] <= LAST_CONTINUOUS]           # newest first
+        except Exception:                                             # noqa: BLE001 -- the candle still stands
+            cont = []
+        if cont:
+            out["pd"].update(h=max(b[2] for b in cont), l=min(b[3] for b in cont), c=cont[0][4], auction_c=c[4])
+        else:
+            out["pd"]["c_why"] = "auction close: the 1-min bars did not land"
         # prior ISO week, relative to today's week
         this_week = datetime.now().isocalendar()[:2]
         wk = {}

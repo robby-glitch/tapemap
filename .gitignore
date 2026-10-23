@@ -86,3 +86,7 @@ graphify-out/
 tape_desktop.png
 data/fixtures-private/
 ui-v2/tsconfig.tsbuildinfo
+
+# agents' scratch caches (validate2 alone was 319MB of .pkl) -- never commit
+**/scratch/_cache/
+*.pkl

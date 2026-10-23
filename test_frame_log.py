@@ -25,6 +25,18 @@ def test_signature_changes_when_a_tells_target_changes():
     assert frame_log.sig(_fr(tell_target="23400")) != frame_log.sig(_fr(tell_target="23300"))
 
 
+def test_signature_ignores_a_walls_basis_drift_but_not_its_state():
+    """8 Oct: p = strike + the live basis; signing on p wrote ~650 whole frames that only the basis had moved."""
+    a, b = _fr(), _fr()
+    a["walls"]["rows"][0].update(p=23450.4, strike=23400.0)
+    b["walls"]["rows"][0].update(p=23452.9, strike=23400.0)
+    a["setup"]["tells"][0].update(k=23400.0, target="23450")
+    b["setup"]["tells"][0].update(k=23400.0, target="23453")
+    assert frame_log.sig(a) == frame_log.sig(b)
+    b["walls"]["rows"][0]["state"] = "broken"
+    assert frame_log.sig(a) != frame_log.sig(b)
+
+
 def test_signature_changes_when_missing_changes():
     assert frame_log.sig(_fr(missing=[])) != frame_log.sig(_fr(missing=["warmap"]))
 

@@ -24,6 +24,18 @@ export interface Read {
   /** The headline call held against OI, CVD and order flow (/api/calls, grounds.py).
    *  null = the server did not ground it (older server, or a replay position). */
   ground?: GroundedCall | null
+  /** AAJ KA DIN (daytype.py, on /api/calls): trend or pin/chop, live only. */
+  daytype?: DayType | null
+}
+/** daytype.read's reply. `ok: false` carries one of the three sentences in `why`. Chips are [M], the type [I]. */
+export interface DayTypeLevel { fut: number; spot: number | null; text: string; why: string; flips: boolean }
+export interface DayType {
+  ok: boolean; why?: string | null
+  type?: string; dir?: number; word?: string; since?: string; named?: string; asof?: string
+  evidence?: { chip: string; tag: 'M' | 'I' }[]
+  day_so_far?: { from: string; to: string; type: string; net: number; named: string }[]
+  changes_if?: { up?: DayTypeLevel; down?: DayTypeLevel }
+  basis?: number | null; basis_why?: string | null; switches?: number
 }
 /** One engine call with its three evidence families (grounds.py). Never a score. */
 export interface GroundedCall {
@@ -783,6 +795,9 @@ function mapIndex(D: any, C: any, at?: number, G?: any): PerIndex {
     sub: bestPlay ? `${bestPlay.status === 'BACKED' ? '' : bestPlay.status === 'CONTRADICTED' ? '✗ not backed: ' : '? thin: '}${bestPlay.text}`
       : calls ? '' : (ctx.plays?.[0] ? `? ungrounded: ${ctx.plays[0]}` : ''),
     ground: head,
+    daytype: at != null ? { ok: false, why: 'not shown — replay position: AAJ KA DIN sirf live hai' }
+      : !G ? { ok: false, why: 'could not check — /api/calls ka jawab nahi aaya' }
+      : (G.daytype ?? { ok: false, why: 'not shown — is server ke /api/calls mein daytype nahi (restart ke baad aayega)' }),
   }
   // the card's one-word state is the same engine call: it carries the same mark
   index.state = state + mark(head)

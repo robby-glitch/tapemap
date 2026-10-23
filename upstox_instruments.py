@@ -63,6 +63,13 @@ MAX_AGE_H = 20                     # one trading day; the dump changes overnight
 # operator reads walls themselves and accepted that trade-off on 2026-08-05;
 # raising this to 15 fixes it at the cost of ~20s more startup.
 STRIKES_EACH_SIDE = 8
+# SUBSCRIBED, NOT SHOWN (decode-loop D1, 2026-10-19). The window above was decided once, at the OPENING spot, and kept
+# all day: on 8 Oct NIFTY's 22,150-22,950 window ended the day with spot at 22,232, two strikes from its floor, and
+# THE READ's "nine nearest" went lopsided (25% of TREND samples changed under a symmetric window, docs/fresh-take/
+# DEBATE.md). So the socket subscribes +/- SUBSCRIBE_EACH_SIDE once (3 x 68 keys, far under the 2,000-key `full` cap;
+# ~16 s more of baseline calls at startup per index), and every poll hands downstream the STRIKES_EACH_SIDE window
+# around the LIVE spot (upstox_chain.near). The downstream width -- chain_metrics, walls, GEX -- is unchanged.
+SUBSCRIBE_EACH_SIDE = 16
 FUT_TYPES = ("FUT", "FUTIDX")      # NSE says FUTIDX, BSE says FUT
 
 EXCHANGE = {"NIFTY": "NSE", "BANKNIFTY": "NSE", "SENSEX": "BSE"}

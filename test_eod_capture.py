@@ -13,6 +13,7 @@ does, and assert the clock survived.
 """
 import json
 import os
+from datetime import timedelta
 
 import contract_bars as cb
 import eod_capture as EC
@@ -230,3 +231,41 @@ def test_capture_desk_record_does_not_clobber_without_force(tmp_path,
     third = EC.capture_desk_record("2026-08-24", root=root, force=True)
     assert third["desk_log"][1] is None
     assert open(dst, encoding="utf-8").read() == '{"a": 1}\n{"a": 2}\n'
+
+
+def test_a19_a_dead_server_falls_back_to_the_sessions_own_upstox_candles(tmp_path, monkeypatch):
+    """A19: 9 Oct was lost because the only source was the running server. With the server down the run reads the
+    same Upstox 1-min candles the tape is built from, for the contract the book record stamped that day (roll-aware),
+    and writes the file the loader reads; with no book on a past day it refuses rather than guess across a roll."""
+    import book_log
+    import recover_tape
+    import upstox_feed
+    import upstox_rest
+    monkeypatch.setattr(recover_tape, "BT", str(tmp_path / "bt"))
+    monkeypatch.setattr(EC, "capture", lambda idx, force=False: (None, 0, "could not read the live tape -- is the server up?"))
+    monkeypatch.setattr(EC, "session_day", lambda now=None: "2026-10-09")
+    monkeypatch.setattr(upstox_feed, "read_token", lambda path=None: "tok")
+    asked = []
+
+    def historical(key, tok, day, interval="1minute"):          # newest first, Upstox's own shape
+        asked.append((key, day))
+        t0 = cb.datetime(2026, 10, 9, 9, 15, tzinfo=cb.IST)
+        return [[(t0 + timedelta(minutes=i)).isoformat(), 1.0, 2.0, 0.5, 1.5, 10, 100] for i in range(375)][::-1]
+    monkeypatch.setattr(upstox_rest, "historical", historical)
+    os.makedirs(book_log.DIR, exist_ok=True)
+    with open(book_log.day_path("2026-10-09", "NIFTY"), "w", encoding="utf-8") as f:
+        f.write(json.dumps({"t": 1, "ik": "NSE_FO|48704", "expiry": "2026-10-27"}) + "\n")
+    assert EC.main(["eod_capture.py", "NIFTY", "BANKNIFTY"]) == 1                        # BANKNIFTY: no book
+    assert asked == [("NSE_FO|48704", "2026-10-09")]
+    got = json.load(open(recover_tape.path_for("NIFTY", "2026-10-09"), encoding="utf-8"))
+    assert got["_meta"]["fut_id"] == "NSE_FO|48704" and got["_meta"]["expiry"] == "2026-10-27"
+    assert got["_meta"]["source"] == EC.UPSTOX and len(got["timestamp"]) >= EC.MIN_BARS
+    assert not os.path.exists(recover_tape.path_for("BANKNIFTY", "2026-10-09"))
+
+
+def test_a19_the_session_a_run_is_for():
+    at = lambda *a: cb.datetime(*a, tzinfo=cb.IST)                                    # noqa: E731
+    assert EC.session_day(at(2026, 10, 22, 15, 35)) == "2026-10-22"                    # the 15:35 run
+    assert EC.session_day(at(2026, 10, 23, 9, 20)) == "2026-10-22"                     # a late catch-up run
+    assert EC.session_day(at(2026, 10, 24, 16, 10)) == "2026-10-23"                    # Saturday: Friday's
+    assert EC.session_day(at(2026, 10, 26, 11, 0)) == "2026-10-23"                     # Monday morning: Friday's

@@ -130,10 +130,10 @@ def window_change(minutes: Optional[dict], t0: str, t1: str) -> Dict[int, Tuple[
 
 
 def basis(tape: dict, book: dict) -> Optional[float]:
-    """Where a strike sits on her futures chart: K + basis. ONE basis since 2026-10-04 -- the fold engine's (future minus
-    the options' own forward, a 15-minute median; book["basis"], server._book_for), the same one her W / A lines use.
-    Only when the engine has no forward yet does it fall back to future minus the chain's spot, which swung 8-12 pts
-    inside a minute and sat 20-45 pts away (CHECK M1)."""
+    """Where a strike sits on her futures chart: K + basis. ONE basis -- since 2026-10-05 future minus the INDEX, a
+    15-minute median of paired samples (fold.State.bas_ix via book["basis"], server._book_for), the same one her W / A
+    lines use. Only before the engine has one does it fall back to an instantaneous future minus the chain's spot,
+    which swung 8-12 pts inside a minute (CHECK M1)."""
     b = book.get("basis")
     if b is not None:
         return round(float(b), 1)
@@ -396,12 +396,16 @@ def _tells(book: dict, closed: list, b: Optional[float], bn: Optional[dict]) -> 
         below = sorted((h for h in heat if h.get("pe_oi") and h["k"] + b < px), key=lambda h: -h["pe_oi"])
         if below:
             k = below[0]["k"]
-            tells.append({"name": "DOWN", "predicate": f"close < {k + b:.0f} AND PE {k:.0f} OI falling",
-                          "target": f"{bn['d3']:.0f}", "negation": f"close back above {k + b:.0f}", "tag": "I"})
+            # the target sits BELOW the trigger: the next PE pool under the floor, else -3 sigma when it is under it, else
+            # none. (8 Oct 09:30: trigger 22,250, target the -3 sigma band 22,524 -- above it, scored as an UP tell.)
+            under = [h for h in below if h["k"] < k]
+            tgt = under[0]["k"] + b if under else (bn["d3"] if bn["d3"] < k + b else None)
+            tells.append({"name": "DOWN", "k": k, "predicate": f"close < {k + b:.0f} AND PE {k:.0f} OI falling",
+                          "target": None if tgt is None else f"{tgt:.0f}", "negation": f"close back above {k + b:.0f}", "tag": "I"})
         above = sorted((h for h in heat if h.get("ce_oi") and h["k"] + b > px), key=lambda h: h["k"])
         if above:
             k = above[0]["k"]
-            tells.append({"name": "PIN", "predicate": f"PE writing continues AND CE {k:.0f} OI falling",
+            tells.append({"name": "PIN", "k": k, "predicate": f"PE writing continues AND CE {k:.0f} OI falling",
                           "target": f"{k + b:.0f}", "negation": f"CE {k:.0f} OI still building", "tag": "I"})
     return tells
 

@@ -148,6 +148,21 @@ def test_tape_event_at_a_prior_day_level_is_a_level_not_a_wall():
     assert Tp["events"][0]["at"] == {"kind": "level", "label": "at PDL 23300"}
 
 
+def test_a_down_tell_targets_below_its_own_trigger():
+    """8 Oct 09:30: the DOWN tell's trigger was the biggest PE pool 300 pts away (close < 22,250) and its target the
+    -3 sigma band 22,524 -- above the trigger, so score_frame scored it as an UP tell and called it falsified."""
+    heat = [{"k": 22200, "pe_oi": 7e6, "ce_oi": 1e6}, {"k": 22400, "pe_oi": 5.7e6, "ce_oi": 1e6},
+            {"k": 22100, "pe_oi": 4e6, "ce_oi": 1e6}, {"k": 22600, "pe_oi": 1e6, "ce_oi": 9e6}]
+    closed, bn = [{"c": 22510.0}], {"d3": 22524.0}
+    down = [t for t in frame._tells({"warmap": {"heat": heat}}, closed, 50.0, bn) if t["name"] == "DOWN"][0]
+    trig = float(down["negation"].split()[-1])
+    assert down["k"] == 22200 and trig == 22250.0
+    assert float(down["target"]) == 22150.0 < trig                 # the next pool under the floor, not the band above
+    alone = [h for h in heat if h["k"] != 22100]                     # no pool under the floor and -3 sigma above it
+    down = [t for t in frame._tells({"warmap": {"heat": alone}}, closed, 50.0, bn) if t["name"] == "DOWN"][0]
+    assert down["target"] is None
+
+
 def test_setup_falsifier_carries_the_number_and_no_else_tell():
     S = frame.build(_tape(), _book(), "15:30")["setup"]
     assert S["side"] == "buy" and S["state"] == "PATA NAHI" and "run_states" in S["state_why"]
