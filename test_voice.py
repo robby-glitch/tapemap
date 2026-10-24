@@ -34,25 +34,27 @@ def run(r, h, now="10:30:00", mem=None):
 def test_hold_reads_the_two_strongest_with_facts_oi_first():
     v = run(rep(), h2())
     assert v["state"] == "HOLD" and v["l3"] == "why: CE 23100 writers building · flow saath"
-    assert v["l1"] == "▼ 23000 PE · 22 min · +0.3R (₹+15)"
+    assert v["l1"] == "▼ 23000 PE · 22 min · +13 pts (₹+15)"                 # futures points: d × (fut − E)
+    assert v["r_now"] == 0.27 and v["pts"] == 13                            # R stays in the fields (and the map's detail)
     assert v["l2"] == "stop 23,040f / 23,010s ≈ ₹154 · BE lock at 22,905f" and v["stop_src"] == "HOLD v2"   # E − 2R
 
 
 def test_the_ladder_shows_the_highest_state():
     W = {"k": 23100, "side": "CE", "oi": 8.8e6, "peak": 10.0e6, "upd": 20, "off": 0.12, "bleed_t": "10:20:00"}
-    assert run(rep(W=W), h2())["state"] == "WARN"
-    v = run(rep(W=W, headline="FOLD · 23052 accepted · 10:29", words=[{"t": "10:29:00", "headline": "FOLD · 23052 accepted · 10:29"}]), h2())
+    v = run(rep(W=W), h2())                                               # price WITH her: munafa booking, a gauge (A61)
+    assert v["state"] == "HOLD" and v["gauge"].startswith("W-BLEED 23100 CE −12.0% off 100.0L peak · 20 upd")
+    assert run(rep(W=W, fut=23010.0), h2())["state"] == "WARN"            # price against her + the wall off: GAVE UP
+    v = run(rep(W=W, fut=23010.0, headline="FOLD · 23052 accepted · 10:29", words=[{"t": "10:29:00", "headline": "FOLD · 23052 accepted · 10:29"}]), h2())
     assert v["state"] == "EXIT" and v["reason"] == "FOLD — 23,052 accepted (fold engine)"
     assert [a["state"] for a in v["active"]] == ["EXIT", "WARN"]          # both run; the cautious one shows
 
 
 def test_warn_names_the_first_trigger_with_its_number():
-    W = {"k": 23100, "side": "CE", "oi": 8.8e6, "peak": 10.0e6, "upd": 20, "off": 0.12, "bleed_t": "10:20:00"}
-    zone = {"Z": "WITH", "F": "QUIET", "O": "QUIET", "V": "QUIET"}
-    v = run(rep(W=W, chips=zone, chip_since={"Z": "10:25:00", "F": "10:24:00", "O": "10:26:00"}), h2())
-    assert v["state"] == "WARN" and v["reason"].startswith("W-BLEED — 23100 CE −12.0% off 100.0L peak · 20 upd")
-    assert v["trig_t"] == "10:20"
-    v = run(rep(W=dict(W, bleed_t="10:28:00"), chips=zone, chip_since={"Z": "10:25:00", "F": "10:24:00", "O": "10:26:00"}), h2())
+    zone, since = {"Z": "WITH", "F": "QUIET", "O": "QUIET", "V": "QUIET"}, {"Z": "10:25:00", "F": "10:24:00", "O": "10:26:00"}
+    words = [{"t": "10:20:00", "headline": "PAST GIVE-UP · 23,052 crossed"}]
+    v = run(rep(headline=words[0]["headline"], clause="23,052 crossed · fut 23,060", words=words, chips=zone, chip_since=since), h2())
+    assert v["state"] == "WARN" and v["reason"].startswith("PAST GIVE-UP — 23,052 crossed · fut 23,060") and v["trig_t"] == "10:20"
+    v = run(rep(chips=zone, chip_since=since), h2())
     assert v["reason"].startswith("ZONE ALONE — OI quiet · flow quiet") and v["trig_t"] == "10:26"
 
 
@@ -62,6 +64,8 @@ def test_exit_names_its_source_and_the_earlier_rule_wins():
     assert v["reason"] == "stop hit 23,040f (HOLD v2)" and v["src"] == "HOLD v2" and v["trig_t"] == "10:27"
     v = run(rep(headline=words[0]["headline"], words=words), h2(how="line_push", touched_t="10:33"))
     assert v["reason"] == "FOLD — 23,052 accepted (fold engine)" and v["src"] == "fold engine"
+    v = run(rep(), h2(how="mark"))
+    assert v["state"] == "EXIT" and v["reason"] == "15:20 — spot 15:15 se frozen (HOLD v2)" and v["trig_t"] == "15:20"   # the CAS freeze
 
 
 def test_v2_gave_up_warns_never_exits_and_a_later_trail_or_lock_answers_it():
@@ -90,16 +94,18 @@ def test_tighten_is_an_event_for_60_s_and_the_first_look_is_the_baseline():
 
 def test_seq_moves_only_on_a_state_change():
     mem, W = {}, {"k": 23100, "side": "CE", "oi": 8.8e6, "peak": 10.0e6, "upd": 20, "off": 0.12, "bleed_t": "10:20:00"}
-    seqs = [run(r, h2(), "10:30:00", mem)["seq"] for r in (rep(), rep(), rep(W=W), rep(W=W), rep(W=dict(W, upd=21)), rep())]
+    a = 23010.0                                                           # price against her: GAVE UP is the WARN
+    seqs = [run(r, h2(), "10:30:00", mem)["seq"] for r in (rep(), rep(), rep(W=W, fut=a), rep(W=W, fut=a), rep(W=dict(W, upd=21), fut=a), rep())]
     assert seqs == [1, 1, 2, 2, 2, 3]
 
 
 def test_gave_up_needs_price_against_her_and_the_wall_off():
     W = {"k": 23100, "side": "CE", "oi": 8.8e6, "peak": 10.0e6, "upd": 20, "off": 0.12, "bleed_t": "10:20:00"}
     v = run(rep(W=W, fut=23010.0), h2())
-    assert [a["key"] for a in v["active"]] == ["BLEED", "GAVEUP"]          # W-BLEED came first
-    assert "GAVE UP — 23100 CE writers −12.0% off its 100.0L peak · fut -7 vs entry" in [a["reason"] for a in v["active"]]
-    assert [a["key"] for a in run(rep(W=W), h2())["active"]] == ["BLEED"]   # price with her: no GAVE UP
+    assert [a["key"] for a in v["active"]] == ["GAVEUP"]                   # W-BLEED alone is never a WARN (A61)
+    assert v["reason"] == "GAVE UP — 23100 CE writers −12.0% off its 100.0L peak · fut -7 vs entry"
+    v = run(rep(W=W), h2())                                                # price with her: munafa booking, no WARN
+    assert v["active"] == [] and v["state"] == "HOLD" and v["gauge"].endswith("· gauge, not a give-up alone")
 
 
 def test_not_read_yet_says_why_and_receipt_names_the_shadow_lines():

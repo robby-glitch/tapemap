@@ -12,7 +12,7 @@ const out = calls.map(c => {
       E.load(c.payload);
       for (const [i, b] of Object.entries(c.decode || {})) E.setDecode(i, b);
       const v = E.validate(...c.call);
-      return { ok: true, out: { rev: v.rev, word: v.word, counts: v.counts, checks: (v.checks || []).map(q => ({ name: q.name, st: q.st, cell: q.cell })) } };
+      return { ok: true, out: { rev: v.rev, word: v.word, counts: v.counts, checks: (v.checks || []).map(q => ({ name: q.name, st: q.st, cell: q.cell })), levels: (v.levels || []).map(l => ({ name: l.name, cond: l.cond })) } };
     }
     if (c.fn === "REV") return { ok: true, out: E.REV };
     return { ok: true, out: E.votes[c.fn](...c.args) ?? null };

@@ -364,5 +364,6 @@ kbd.k { font: 600 9.5px/1 var(--mono); padding: 2px 4px; border: 1px solid var(-
 .voice.v-WARN { border-left-color: var(--amber); background: var(--amber-w); } .voice.v-EXIT { border-left-color: var(--red); background: var(--red-w); }
 .voice > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 500 12px/1.6 var(--mono); }
 .voice .v1 { font-weight: 600; } .voice .v3 { font-family: var(--ui); color: var(--ink2); padding-right: 76px; }
+.voice .v4, .voice .v5 { white-space: normal; }   /* the TRADE MAP's lines wrap: l5's survivor read is never cut off */
 .voice .vw { font: 700 18px/1 var(--ui); margin-right: 8px; color: #1a7641; } .voice.v-TIGHTEN .vw { color: var(--blue-ink); } .voice.v-WARN .vw { color: var(--amber-ink); } .voice.v-EXIT .vw { color: var(--red-ink); }
 .voice .vd { position: absolute; right: 10px; bottom: 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); color: var(--ink2); font: 11px/16px var(--mono); padding: 0 6px; cursor: pointer; }

@@ -25,6 +25,7 @@
   const S = { T: OPEN, playing: false, speed: 1, mode: "read", focus: "NIFTY", slip: { idx: "NIFTY", K: 22600, ty: "CE", side: "BUY", px: "" },
     pressed: null, trades: [], feed: "boot", feedWhy: "", feedSince: null, consoleMin: false, pal: null, oiRef: "15m", about: false, loaded: false, sel: "NIFTY", follow: true, win: 6,
     day: DAY, live: false, liveFollow: true, srvNow: null, srvAt: 0, closed: false, fold: {}, foldWords: {}, flat: {}, arm: null, apiWhy: "",
+    vpath: {},                                                        // A56 trade id -> GET /api/voice_path's reply
     vOpen: (() => { try { return localStorage.getItem("v2.vdet") === "1"; } catch (e) { return false; } })() };   // A52 the voice's detail
   const feedT = () => S.T;                                          // the data is whatever the feed delivered; its age is printed, never faked
   const nowSec = () => S.srvNow == null ? S.T : Math.min(CLOSE, Math.round(S.srvNow + (performance.now() - S.srvAt) / 1000));
@@ -133,8 +134,9 @@
       const ff = s.lateFlow ? ` ${s.flowFrom.slice(0, 5)}+` : "";          // the futures high/low only since the ticks began
       lines.push({ k: "hi", y: yOf(s.sHi), side: "L", a: `HI ${fmt(s.sHi)} ${hm(s.sHiT)}`, b: `${ff ? "f" : "fut"} ${fmt(s.fHi)}${ff}`, off: off(s.sHi) });
       lines.push({ k: "lo", y: yOf(s.sLo), side: "L", a: `LO ${fmt(s.sLo)} ${hm(s.sLoT)}`, b: `${ff ? "f" : "fut"} ${fmt(s.fLo)}${ff}`, off: off(s.sLo) });
-      if (F.val && F.val.ok && F.val.idx === S.focus && S.mode === "validate") for (const lv of F.val.levels) if (lv.spot != null) lines.push({ k: lv.name === "STOP" ? "stop" : lv.name === "T1" || lv.name === "KEEP ALL" ? "t1" : "t2", y: yOf(lv.spot), side: "R", a: `${lv.name} ${fmt(lv.spot)}`, b: `fut ${fmt(lv.fut)}`, off: off(lv.spot) });
-      if (F.open && F.open.t.idx === S.focus && S.mode === "trade") { const r = F.open.r; lines.push({ k: "entry", y: yOf(r.e.spot), side: "R", a: `ENTRY ${fmt(r.e.spot)} ${hm(r.e.t0)}`, b: `fut ${fmt(r.e.fut)}`, off: off(r.e.spot) }); lines.push({ k: "g", y: yOf(r.dist.Gspot), side: "R", a: `STOP ${fmt(r.dist.Gspot)}`, b: `fut ${fmt(r.dist.G)}`, off: off(r.dist.Gspot) }); }
+      if (F.val && F.val.ok && F.val.idx === S.focus && S.mode === "validate") for (const lv of F.val.levels) if (lv.spot != null) lines.push({ k: lv.name === "STOP" ? "stop" : lv.name === "PULLBACK" || lv.name === "KEEP ALL" ? "t1" : "t2", y: yOf(lv.spot), side: "R", a: `${lv.name} ${fmt(lv.spot)}`, b: `fut ${fmt(lv.fut)}`, off: off(lv.spot) });
+      if (F.open && F.open.t.idx === S.focus && S.mode === "trade") { const r = F.open.r, vs = voiceAt(F.open.t, F.T), on = vs && vs.stop_f != null && vs.stop_s != null, gs = on ? vs.stop_s : r.dist.Gspot, gf = on ? vs.stop_f : r.dist.G;   // A55: one stop on the screen
+        lines.push({ k: "entry", y: yOf(r.e.spot), side: "R", a: `ENTRY ${fmt(r.e.spot)} ${hm(r.e.t0)}`, b: `fut ${fmt(r.e.fut)}`, off: off(r.e.spot) }); lines.push({ k: "g", y: yOf(gs), side: "R", a: `STOP ${fmt(gs)}`, b: `fut ${fmt(gf)}`, off: off(gs) }); }
       // labels: nudge apart per side so none overlap (the line itself stays at its true price)
       const gap = 29 / Math.max(300, innerHeight - (S.consoleMin ? 120 : 254)) * 100;
       for (const sd of ["ALL"]) { const ls = lines.slice().sort((p, q) => p.y - q.y); for (const l of ls) l.ly = l.y; for (let n = 1; n < ls.length; n++) if (ls[n].ly - ls[n - 1].ly < gap) ls[n].ly = ls[n - 1].ly + gap; for (let n = ls.length - 1; n >= 0; n--) { if (ls[n].ly > 100 - gap / 2) ls[n].ly = 100 - gap / 2; if (n < ls.length - 1 && ls[n + 1].ly - ls[n].ly < gap) ls[n].ly = ls[n + 1].ly - gap; } }
@@ -242,7 +244,7 @@
         </div>
         <div class="sec">Levels <span class="r">spot · fut · premium [I]</span></div>
         <div class="lv h"><span></span><span>spot</span><span>fut</span><span>prem ≈</span></div>
-        ${v.levels.map(l => html`<div key=${l.name} class="lv" data-tip=${l.absence ? `checked, found nothing: ${l.why}` : `${l.name} · ${l.why}${l.who ? " · " + l.who : ""}${l.cond ? " · " + l.cond : ""} · ${l.pts != null ? (l.pts > 0 ? "+" : "") + fmt(l.pts) + " pts fut" : ""} · premium there ≈ ${l.prem == null ? "—" : fmt(l.prem, 1)} [I: delta-interpolated]`}><span class=${`nm ${l.name === "STOP" ? "stop" : "t"}`}>${l.name}</span>${l.absence ? html`<span class="abs" style="grid-column:2/-1"><${Chip} st="NEITHER" text="checked · none"/> ${l.why}</span>` : html`<span><${Val} v=${fmt(l.spot)}/></span><span><${Val} v=${fmt(l.fut)}/></span><span><${Val} v=${l.prem == null ? "—" : fmt(l.prem, 1)}/></span><span class="why ell">${l.why}${l.cond ? ` · ${l.cond}` : ""}${l.pts != null ? ` · ${l.pts > 0 ? "+" : ""}${fmt(l.pts)} pts` : ""}</span>`}</div>`)}
+        ${v.levels.map(l => html`<div key=${l.name} class="lv" data-tip=${l.absence ? `checked, found nothing: ${l.why}` : `${l.name} · ${l.why}${l.who ? " · " + l.who : ""} · ${l.pts != null ? (l.pts > 0 ? "+" : "") + fmt(l.pts) + " pts fut" : ""} · premium there ≈ ${l.prem == null ? "—" : fmt(l.prem, 1)} [I: delta-interpolated]`}><span class=${`nm ${l.name === "STOP" ? "stop" : "t"}`}>${l.name}</span>${l.absence ? html`<span class="abs" style="grid-column:2/-1"><${Chip} st="NEITHER" text="checked · none"/> ${l.why}</span>` : html`<span><${Val} v=${fmt(l.spot)}/></span><span><${Val} v=${fmt(l.fut)}/></span><span><${Val} v=${l.prem == null ? "—" : fmt(l.prem, 1)}/></span><span class="why ell">${l.why}${l.pts != null ? ` · ${l.pts > 0 ? "+" : ""}${fmt(l.pts)} pts` : ""}</span>`}</div>`)}
         <${Board} F=${F}/>`}
     </div>`;
   }
@@ -290,15 +292,18 @@
     }
     const r = o.r, t = o.t, W = r.W, offPct = W ? W.off : 0;
     const chipTip = { ZONE: "zone: your side's last win, intact or accepted against you", FLOW: "order flow: who won the last fight (30 min)", OI: "the wall behind you: building / off / stopped", VPIN: "toxic one-sided flow in the last 10 buckets (NIFTY-only, shadow)" };
-    // A52 THE ONE VOICE (server voice.py, on /api/fold?id=): one word, one stop, one reason on top; [detail ▸] opens the rest
-    const vc = S.live && S.fold[t.id] && S.fold[t.id].voice && S.fold[t.id].voice.ok ? S.fold[t.id].voice : null;
+    // A52 THE ONE VOICE (server voice.py, on /api/fold?id=): one word, one stop, one reason on top; [detail ▸] opens the rest.
+    // A56: off the live clock it is the replayed path's latest minute ≤ T (GET /api/voice_path), what she saw live
+    const vc = voiceAt(t, F.T), vp = !(S.live && S.liveFollow) && S.vpath[t.id];
     const voiceEl = vc ? html`<div class=${`voice v-${vc.state}`} data-tip=${(vc.active || []).map(a => `${a.t} ${a.state} · ${a.reason}`).join(" | ") || vc.note}>
       <div class="v1 n">${vc.l1}</div><div class="v2 n"><b class="vw">${vc.state}</b>${vc.l2}</div>
-      <div class="v3">${vc.l3}${vc.trig_t && vc.state !== "HOLD" ? ` · ${vc.trig_t}` : ""}</div>
+      <div class="v3">${vc.l3}${vc.trig_t && vc.state !== "HOLD" ? ` · ${vc.trig_t}` : ""}</div>${vc.l4 ? html`<div class="v3 v4">${vc.l4}</div>` : null}${vc.l5 ? html`<div class="v3 v5">${vc.l5}</div>` : null}
       <button class="vd" onClick=${() => { S.vOpen = !S.vOpen; try { localStorage.setItem("v2.vdet", S.vOpen ? "1" : "0"); } catch (e) { /* storage blocked */ } up(); }}>detail ${S.vOpen ? "▾" : "▸"}</button></div>` : null;
+    const mapEl = vc && vc.detail && vc.detail.length ? html`<div class="rows">${vc.detail.map(x => html`<div key=${x.text} class="row" data-tip=${x.tip || "the trade map [I] · display only"}><span class="c" style="grid-column:1/-1">${x.text}</span></div>`)}</div>` : null;
+    const vWhy = !vc && vp && !vp.ok ? html`<div class="counts" data-tip="A56: the voice replayed over this trade, GET /api/voice_path"><span class="ca">voice: ${vp.why || "could not check — no replay yet"}</span></div>` : null;
     const actions = html`<div style="display:flex;gap:6px;padding:8px 12px 0"><button class="btn" onClick=${() => setMode("read")}>${icon("radio")} market read</button><button class="btn" onClick=${() => setMode("validate")}>${icon("check")} validate another</button>${S.live && !S.closed ? html`<button class=${`btn ${S.arm === t.id ? "pri" : ""}`} onClick=${() => exitTrade(t)} data-tip="I'M OUT: two presses 5 s apart · the same /api/hold/trades door the DESK uses · a record of what you did on your broker, never an order">${icon("flag-off")} ${S.arm === t.id ? "press again: I'm out" : "I'm out"}</button>` : null}</div>`;
     if (vc && !S.vOpen) return html`<div>${voiceEl}${actions}</div>`;   // I'M OUT and the two buttons stay one press away
-    return html`<div>${voiceEl}
+    return html`<div>${voiceEl}${mapEl}${vWhy}
       ${(() => { const ew = engineWord(t, F.T, r); return html`
       <div class="word"><span class=${`w ${ew.key}`}><${Val} v=${F.stale ? "CAN'T CHECK" : ew.headline} tone=${TONE[ew.key]}/></span><span class="hi" data-tip=${ew.tip}>${ew.src}${E.HI[ew.key] ? " · " + E.HI[ew.key] : ""}</span><span class="sub"><${Val} v=${ew.sub} tone="n"/></span></div>
       <div class="counts" data-tip="the prototype's own reads (engine.js, labelled [I]): never the decision, printed beside the engine's word"><span class="f">prototype:</span><${Chip} st=${r.word === "GAVE UP" ? "AGAINST" : r.word === "FOLD" ? "FOLD" : r.word === "HOLD" ? "WITH" : "NEITHER"} text=${r.word === "OUT" ? "OUT · her exit" : r.word}/><span class="n f">${r.folded ? (t.exitWhy || "give-up accepted") : r.pb ? `${r.pb} · fut ${sgn(Math.round(r.s.fut - r.e.fut))} vs entry` : `out if ${fmt(r.dist.G)} fut accepted`}</span></div>`; })()}
@@ -311,10 +316,12 @@
       ${r.zoneAlone ? html`<div class="zone" data-tip="the zone is the only thing behind you: OI quiet and flow not with you for 2+ buckets · shown, never a fold (DESIGN §5.3) · losers held here and winners ran from here · your call"><span class="l">zone alone</span><span style="min-width:0">only the zone behind you · OI ${r.chips.OI.toLowerCase()} · flow ${r.chips.FLOW.toLowerCase()} · the engine's fold has not come</span></div>` : null}
       <div class="sec">W off peak <span class="r">${W ? `${W.k} ${W.leg.toUpperCase()} · peak ${L(W.peak)} ${hm(W.peakT)}` : "no wall"}</span></div>
       <div class="meter" data-tip=${W ? `${W.k} ${W.leg.toUpperCase()} writers ${L(W.oi)} vs peak ${L(W.peak)} at ${hm(W.peakT)} · ${pct(W.off)} off · ${W.upd} updates since · amber at ≥ 10 % with ≥ 15 updates: the slow leak the z/√n event misses [M]` : "no wall behind"}><span class="l">${W ? `${W.k} ${W.leg.toUpperCase()}` : "—"}</span><div class="trk"><i class=${W && W.bleed ? "a" : W && W.state === "UNWINDING" ? "r" : ""} style=${`transform:scaleX(${Math.min(1, offPct / 0.25).toFixed(4)})`}></i><b style="left:40%"></b></div><span class="v2"><${Val} v=${W ? `−${(offPct * 100).toFixed(1)} %` : "—"} tone=${W && W.bleed ? "a" : "n"}/> <span class="f">${W ? `${W.upd} upd` : ""}</span></span></div>
-      <div class="dist">
-        <div class="cell" data-tip=${`give-up ${fmt(r.dist.G)} fut / ${fmt(r.dist.Gspot)} spot · ${r.g.Gwhy} · out if accepted`}><div class="l">to stop · spot</div><div class="n"><${Val} v=${fmt(Math.round(r.dist.spot))} tone=${r.dist.spot <= r.s.B ? "r" : "n"}/> <span class="f" style="font-size:10px">→ ${fmt(r.dist.Gspot)}</span></div></div>
-        <div class="cell" data-tip=${`give-up ${fmt(r.dist.G)} fut · one candle B = ${fmt(r.s.B, 1)}`}><div class="l">to stop · fut</div><div class="n"><${Val} v=${fmt(Math.round(r.dist.fut))} tone=${r.dist.fut <= r.s.B ? "r" : "n"}/> <span class="f" style="font-size:10px">→ ${fmt(r.dist.G)}</span></div></div>
-      </div>
+      ${(() => { const on = vc && vc.stop_f != null && vc.stop_s != null, gf = on ? vc.stop_f : r.dist.G, gs = on ? vc.stop_s : r.dist.Gspot;   // A55: one stop
+        const df = on ? Math.abs(r.s.fut - gf) : r.dist.fut, ds = on ? Math.abs(r.s.spot - gs) : r.dist.spot, who = on ? `the voice's stop: ${vc.stop_src} line` : `give-up · ${r.g.Gwhy} · out if accepted`;
+        return html`<div class="dist">
+        <div class="cell" data-tip=${`${who} ${fmt(gf)} fut / ${fmt(gs)} spot`}><div class="l">to stop · spot</div><div class="n"><${Val} v=${fmt(Math.round(ds))} tone=${ds <= r.s.B ? "r" : "n"}/> <span class="f" style="font-size:10px">→ ${fmt(gs)}</span></div></div>
+        <div class="cell" data-tip=${`${who} ${fmt(gf)} fut · one candle B = ${fmt(r.s.B, 1)}`}><div class="l">to stop · fut</div><div class="n"><${Val} v=${fmt(Math.round(df))} tone=${df <= r.s.B ? "r" : "n"}/> <span class="f" style="font-size:10px">→ ${fmt(gf)}</span></div></div>
+      </div>`; })()}
       <div class="sec">Kya badla since entry <span class="r">${hm(t.t0)} → now</span></div>
       <div class="ledg h"><span>fact · at entry → now</span><span>read</span></div>
       ${r.ledger.map(l => html`<div key=${l.fact} class=${`ledg ${l.st}`} data-tip=${l.tip + " · " + (E.HI[l.st] || "")}><span class="fa ell">${l.fact}</span><${Chip} st=${l.st} text=${l.st === "NEITHER" ? "—" : null}/><span class="vals"><span class="e">${l.entry}</span> <span class="f">→</span> <${Val} v=${l.now} tone=${TONE[l.st]}/></span></div>`)}
@@ -463,6 +470,14 @@
   function openPal(q) { S.pal = { q, i: 0 }; up(); }
   let toastT = 0; function toast(msg) { const el = document.getElementById("toast"); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2400); }
 
+  // ---------- A56: the voice at T -- live from /api/fold?id= while following the clock, else the replayed path's latest minute ≤ T ----------
+  function voiceAt(t, T) {
+    if (S.live && S.liveFollow) { const f = S.fold[t.id]; return f && f.voice && f.voice.ok ? f.voice : null; }
+    const p = S.vpath[t.id]; if (!p || !p.ok) return null;
+    let v = null; for (const x of p.path || []) { if (secOf(x.at || x.t) <= T) v = x.voice; else break; }   // x.at: the read's own second
+    return v && v.ok ? v : null;
+  }
+
   // ---------- ONE TRUTH: the engine's word (GET /api/fold?id= view.headline, or the record's headline history) ----------
   function engineWord(t, T, r) {
     const proto = { headline: r && r.ok ? r.word : "—", key: r && r.ok ? r.word.split(" ")[0] : "", src: "prototype", sub: r && r.ok ? (r.folded ? (t.exitWhy || "give-up accepted") : r.pb ? `${r.pb} · fut ${sgn(Math.round(r.s.fut - r.e.fut))} vs entry` : `out if ${fmt(r.dist.G)} fut accepted`) : "", tip: "engine.js prototype logic [I] — the live engine has not answered for this trade" };
@@ -540,7 +555,7 @@
     try {
       if (S.live) { const r = await fetch("/api/hold/trades"); const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok"); S.trades = (d.trades || []).map(mapTrade); S.apiWhy = ""; }
       else { const r = await fetch(`/api/fold/record?day=${E.data.day}`); const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok");
-        S.trades = (d.trades || []).map(x => { const tr = x.trade || x; const id = x.id || tr.id || `${tr.idx}-${tr.k}${tr.ty || tr.side}-${tr.entry_t || tr.t0}`; if (x.words) S.foldWords[id] = x.words; return x.trade ? { id, idx: tr.idx, K: Number(tr.k), ty: tr.ty, side: tr.side, px: tr.p0 == null ? null : Number(tr.p0), t0: secOf(tr.entry_t), exitT: tr.exit_t ? secOf(tr.exit_t) : null, exitWhy: tr.exit_t ? `her exit ${tr.exit_t} (record)` : null, label: "record" } : mapTrade(tr); }); S.apiWhy = ""; }
+        S.trades = (d.trades || []).map(x => { const tr = x.trade || x; const id = x.id || tr.id || `${tr.idx}-${tr.k}${tr.ty || tr.side}-${tr.entry_t || tr.t0}`; if (x.words) S.foldWords[id] = x.words; return x.trade && x.trade.entry_t ? { id, idx: tr.idx, K: Number(tr.k), ty: tr.ty, side: tr.side, px: tr.p0 == null ? null : Number(tr.p0), t0: secOf(tr.entry_t), exitT: tr.exit_t ? secOf(tr.exit_t) : null, exitWhy: tr.exit_t ? `her exit ${tr.exit_t} (record)` : null, label: "record" } : mapTrade(tr); }); S.apiWhy = ""; }   // a past day's record carries her day_state mark (t0, side = CE|PE, role): mapTrade's shape
     } catch (e) { S.apiWhy = `trades: ${e.message || e} (GET ${S.live ? "/api/hold/trades" : "/api/fold/record?day=" + E.data.day})`; }
     up();
   }
@@ -551,6 +566,16 @@
     const want = S.trades.filter(t => t === o || !(S.fold[t.id] && S.fold[t.id].ok));
     for (const t of want) {
       try { const r = await fetch(`/api/fold?id=${encodeURIComponent(t.id)}`); const d = await r.json(); S.fold[t.id] = d; if (d && d.words) S.foldWords[t.id] = d.words; } catch (e) { S.fold[t.id] = { ok: false, why: "not answering" }; }
+    }
+    up();
+  }
+  async function pollVpath() {
+    if (!S.loaded || (S.live && S.liveFollow)) return;
+    for (const t of S.trades.filter(x => x.t0 <= S.T)) {
+      const p = S.vpath[t.id]; if (p && (p.ok || performance.now() - p.at < (p.busy ? 10000 : 60000))) continue;
+      S.vpath[t.id] = { ok: false, busy: true, at: performance.now(), why: "could not check — asking for the replay" };
+      try { S.vpath[t.id] = Object.assign(await (await fetch(`/api/voice_path?id=${encodeURIComponent(t.id)}&day=${E.data.day}`)).json(), { at: performance.now() }); }
+      catch (e) { S.vpath[t.id] = { ok: false, busy: true, at: performance.now(), why: "could not check — /api/voice_path not answering" }; }
     }
     up();
   }
@@ -589,7 +614,7 @@
       if (S.live) { const n = d.now; S.closed = n >= CLOSE; S.T = Math.max(OPEN, Math.min(CLOSE, S.closed ? Math.max(lastDataSec(d), CLOSE) : n)); S.liveFollow = true; S.playing = !S.closed; }
       else { S.T = Math.min(CLOSE, Math.max(OPEN, lastDataSec(d))); S.closed = true; S.playing = false; S.liveFollow = false; }
       setTimeout(() => { for (const i of IDX) E.events(i); }, 50);
-      draw(); setInterval(tick, 1000); setInterval(() => poll(false), 1000); setInterval(pollTrades, 5000); setInterval(pollFold, 1000); setInterval(pollFlat, 3000); setInterval(pollDecode, 1000);
+      draw(); setInterval(tick, 1000); setInterval(() => poll(false), 1000); setInterval(pollTrades, 5000); setInterval(pollFold, 1000); setInterval(pollVpath, 2000); setInterval(pollFlat, 3000); setInterval(pollDecode, 1000);
       pollTrades(); pollFlat();
       const health = async () => { try { const h = await (await fetch("/api/health")).json(); const c = h.coverage || {}; const fr = c.book && c.book.from ? Object.values(c.book.from).sort()[0] : null;
         S.late = c.late_min > 0 ? { up: c.server_up, min: c.late_min, from: fr ? fr.slice(0, 5) : c.server_up } : null; up(); } catch (e) {} };

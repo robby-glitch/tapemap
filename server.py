@@ -89,6 +89,8 @@ import confluence_log            # research-findings §1i: the confluence setup'
 import hold2                     # research-findings §1m: HOLD v2's line beside the hold window's word (display only)
 import holdshadow                # three HOLD v3 candidate lines beside HOLD v2 (NOTEPAD), shadow + forward log only
 import voice                     # THE ONE VOICE in a trade (A52): one state ladder over the word + HOLD v2, display only
+import trademap                  # THE TRADE MAP (A53-A59): the voice's l4 / l5 / [detail], display only
+import voice_path                # the voice replayed over a past marked trade (A56), GET /api/voice_path
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -3296,9 +3298,21 @@ def _hold2_run(tr, view, m):
             if out.get("text"):                  # A25, display only: SENSEX futures are too thin (the line is spot|fut)
                 import decode
                 out["text"] += decode.patla_of(idx, bars5)
+            try:
+                dec = holdshadow.dec_rows(confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")), idx)
+            except Exception:                    # a torn DECODE log costs the effort reads, never HOLD v2
+                log.exception("decode rows")
+                dec = {}
+            try:                                 # THE TRADE MAP (trademap.py): l4 / l5 / detail for the one voice, display only
+                gc_t = max((b["t"] for b in tape or () if isinstance(b.get("t"), (int, float))), default=None)   # the GoCharting tab alive?
+                out["map"] = trademap.read(tr, view, chain_rows, bars5, refs, dec, _read_levels(idx), m,
+                                           decoder_log.read_events(day, idx), gc_t)     # A61: her BADA PRINTs at the zone
+                _map_log(day, tr, view, out["map"])
+            except Exception as e:
+                log.exception("trade map")
+                out["map"] = {"ok": False, "why": f"could not check — the map failed: {type(e).__name__}: {e}"}
             if out.get("ok"):                    # the HOLD v3 candidates (holdshadow.py): shadow, never the word or v2
                 try:
-                    dec = holdshadow.dec_rows(confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")), idx)
                     out["shadow"] = holdshadow.live(tr, view, out, m, bars1, chain_rows, bars5, dec,
                                                     _HOLD2["shadow"].setdefault((day, key), {}))
                     _shadow_log(day, tr, out["shadow"])
@@ -3333,20 +3347,46 @@ def _shadow_log(day, tr, lines, at_exit=False):
         log.exception("shadow log")
 
 
+MAP_DIR = os.path.join("data", "hold")           # trademap's forward log, map_<day>.jsonl (_map_log)
+_MAP_SEEN = {}                                   # path -> {(trade id, event, key)} already on disk
+
+
+def _map_log(day, tr, view, m):
+    """trademap's forward log, data/hold/map_<day>.jsonl: one row per (trade, event, key), WRITE-ONCE -- each ulta push
+    (t, origin, fut) and the first minute within one step of each wall ahead (k, leg, fut, OI, the effort read or null,
+    her pts). No outcome is written; scoring is later and separate. Anytime-start: the rows on disk are read before the
+    first write, and the events are rebuilt from the record, so a restart backfills them. Fail-soft."""
+    try:
+        path = os.path.join(MAP_DIR, f"map_{day}.jsonl")
+        seen = _MAP_SEEN.get(path)
+        if seen is None:
+            seen = _MAP_SEEN[path] = {(r.get("id"), r.get("event"), r.get("key")) for r in confluence_log._rows(path)}
+        rows = [dict(e, day=day, id=tr["id"], idx=tr["idx"], d=view.get("d"), E=view.get("E"), rev=trademap.REV, at=time.time())
+                for e in (m or {}).get("events") or () if (tr["id"], e["event"], e["key"]) not in seen]
+        if rows:
+            os.makedirs(MAP_DIR, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows))
+            seen.update((r["id"], r["event"], r["key"]) for r in rows)
+    except Exception:
+        log.exception("map log")
+
+
 _VOICE, _VOICE_LOCK = {}, threading.Lock()      # trade id -> voice.ladder's memory (state, seq, first sights)
 
 
 def _in_trade(rep, trades):
     """The in-trade reply's companions, on a COPY of the engine's cached reply (A52): HOLD v2 beside the word (§1m) with
     the shadow lines kept OFF it while the trade is open (their log, _shadow_log, is unchanged), and THE ONE VOICE
-    (voice.py) computed once here, so the panel, the hold window and Validate render the same block; after her exit, the
-    receipt instead. Display only, fail-soft: a failure is a why, never the reply's."""
+    (voice.py) computed once here, with the TRADE MAP's lines (trademap.py, read in _hold2_run, kept off hold2), so the
+    panel, the hold window and Validate render the same block; after her exit, the receipt instead. Display only,
+    fail-soft: a failure is a why, never the reply's."""
     tr = next((t for t in trades if t["id"] == rep.get("id")), None)
     try:
         h2 = _hold2(rep, trades)
     except Exception as e:
         h2 = {"ok": False, "tag": "I", "text": None, "why": f"could not check — HOLD v2 failed: {type(e).__name__}: {e}"}
-    out = dict(rep, hold2={k: x for k, x in h2.items() if k not in ("shadow", "shadow_why")} if isinstance(h2, dict) else h2)
+    out = dict(rep, hold2={k: x for k, x in h2.items() if k not in ("shadow", "shadow_why", "map")} if isinstance(h2, dict) else h2)
     try:
         if tr is not None and tr.get("exit_t"):
             p = ((rep.get("view") or {}).get("prem") or {}).get("now")
@@ -3356,10 +3396,68 @@ def _in_trade(rep, trades):
             with _VOICE_LOCK:
                 out["voice"] = voice.ladder(rep, h2, int(time.time() * 1000), _VOICE.setdefault(tr["id"], {}),
                                             lambda px: fold_live.prem_at(tr["idx"], tr["id"], px))
+            trademap.into(out["voice"], (h2 or {}).get("map") if isinstance(h2, dict) else None)   # l4 / l5 / detail
     except Exception as e:
         log.exception("voice")
         out["voice"] = {"ok": False, "why": f"could not check — the voice failed: {type(e).__name__}: {e}"}
     return out
+
+
+VOICE_DIR = os.path.join("data", "voice")        # the voice replayed per marked trade, path_<day>_<id>.json (_voice_path)
+VPATH_FROM = "15:40"                             # F&O closes: today's trade replays after it; never in market hours
+_VPATH = {"busy": set(), "why": {}}
+
+
+def _voice_path(day, tid):
+    """GET /api/voice_path?id=&day= (A56): the one voice and its map, minute by minute, over her marked trade of a PAST
+    day, or today's after 15:40 -- voice_path.run, computed once off the request thread and kept at
+    data/voice/path_<day>_<id>.json; a request meanwhile gets why. Never computed in market hours."""
+    path = os.path.join(VOICE_DIR, f"path_{day}_{re.sub(r'[^A-Za-z0-9_.-]', '_', tid)}.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            hit = json.load(f)
+        if hit.get("rev") == trademap.REV:
+            return hit
+    lt = time.localtime()
+    now, today = time.strftime("%H:%M", lt), time.strftime("%Y-%m-%d", lt)
+    if day == today and now < VPATH_FROM:
+        return {"ok": False, "why": "could not check — replay of today's trade after 15:40"}
+    if day > today or (lt.tm_wday < 5 and "09:15" <= now < VPATH_FROM):
+        return {"ok": False, "why": "could not check — " + ("that day has not happened" if day > today
+                                                            else "a replay is computed after 15:40, never in market hours")}
+    trs = list(_hold_trades()) if day == today else (day_state.load(day) or {}).get("hold_trades") or []
+    tr = next((t for t in trs if t.get("id") == tid), None)
+    if tr is None:
+        return {"ok": False, "why": f"could not check — no marked trade {tid} on {day}"}
+    with _HOLD2_LOCK:
+        if path in _VPATH["why"]:
+            return {"ok": False, "why": _VPATH["why"][path]}
+        if path in _VPATH["busy"]:
+            return {"ok": False, "busy": True, "why": "could not check — the replay is being computed"}
+        _VPATH["busy"].add(path)
+    threading.Thread(target=_voice_path_run, args=(day, tr, path), name="voice-path", daemon=True).start()
+    return {"ok": False, "busy": True, "why": "could not check — the replay is being computed (first ask)"}
+
+
+def _voice_path_run(day, tr, path):
+    try:
+        ex = tr.get("exit_t")
+        end = min(hold2.MARK, int(ex[:2]) * 60 + int(ex[3:5]) + 1) if ex else hold2.MARK    # her exit, then the recap
+        c = {"day": day, "tr": tr, "end": hold2.hm(end) + ":00"}
+        p = voice_path.run(c)
+        out = {"ok": True, "day": day, "id": tr["id"], "rev": trademap.REV, "dec_src": c.get("dec_src"),
+               "receipt": c.get("receipt"), "path": [{"t": x["t"], "at": x["at"], "voice": x["voice"]} for x in p], "at": time.time()}
+        os.makedirs(VOICE_DIR, exist_ok=True)
+        with open(path + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, default=str)
+        os.replace(path + ".tmp", path)
+    except Exception as e:
+        log.exception("voice path")
+        with _HOLD2_LOCK:                        # said once, not retried until a restart
+            _VPATH["why"][path] = f"could not check — the replay failed: {type(e).__name__}: {e}"
+    finally:
+        with _HOLD2_LOCK:
+            _VPATH["busy"].discard(path)
 
 
 def _receipt_for(idx, trades):
@@ -5526,6 +5624,17 @@ class Handler(SimpleHTTPRequestHandler):
                 log.exception("hold %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, default=str).encode())
+        elif urlsplit(self.path).path == "/api/voice_path":
+            # A56: the one voice + its map replayed over a marked trade of a past day (or today's after 15:40), once
+            q = parse_qs(urlsplit(self.path).query)
+            day, tid = (q.get("day") or [time.strftime("%Y-%m-%d")])[0], (q.get("id") or [""])[0]
+            try:
+                out = (_voice_path(day, tid) if re.match(r"^\d{4}-\d{2}-\d{2}$", day) and tid
+                       else {"ok": False, "why": "could not check — voice_path needs id and day YYYY-MM-DD"})
+            except Exception as e:               # never 500
+                log.exception("voice path %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, ensure_ascii=False, default=str).encode())
         elif urlsplit(self.path).path == "/api/read":
             # THE READ (read.py): one held read per index -- word, FLIP, targets, wrong-if, the trade. ?idx= one
             # index, ?day= a past day through the same door. Display only; a failure is a why, never a 500.
@@ -5820,8 +5929,10 @@ def _isolate_mock_writers():
     confluence_log.PATH = os.path.join(mock, "confluence_log.jsonl")
     import onesided
     onesided.PATH = os.path.join(mock, "onesided_log.jsonl")         # §1o's daily row (onesided.py)
-    global DECODE_DIR
+    global DECODE_DIR, MAP_DIR, VOICE_DIR, SHADOW_DIR
     DECODE_DIR = os.path.join(mock, "decode")                       # N7: the DECODE block's forward log (_decode_log)
+    MAP_DIR = SHADOW_DIR = os.path.join(mock, "hold")               # the TRADE MAP's and holdshadow's forward logs
+    VOICE_DIR = os.path.join(mock, "voice")                         # the voice replayed per marked trade (_voice_path)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)

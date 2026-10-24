@@ -4,8 +4,8 @@ per open marked trade, the highest that is active:
 
   EXIT     the fold engine says FOLD, or HOLD v2's line is hit / 15:20 -- whichever came FIRST, named
   WARN     PAST GIVE-UP, HOLD v2's front gave up (until the line trails or locks after it), GAVE UP
-           (docs/validate2/fable/DESIGN.md §5.4), W-BLEED (>= 10 % off the peak with >= 15 updates, §5.5), ZONE ALONE
-           (§5.3) -- the FIRST that triggered, with its number
+           (docs/validate2/fable/DESIGN.md §5.4), ZONE ALONE (§5.3) -- the FIRST that triggered, with its number.
+           W-BLEED (>= 10 % off the peak with >= 15 updates, §5.5) is a gauge (`gauge`), never a WARN alone (A61)
   TIGHTEN  HOLD v2's line moved her way, or its breakeven lock engaged: an event, shown 60 s
   HOLD     nothing above
 
@@ -71,7 +71,7 @@ def _triggers(rep, h2, base, d, W):
         how, x = str(h2.get("how") or ""), h2.get("v2_exit") or {}
         if how.startswith("line_") or how == "mark":      # the line alone: it keeps trailing past a gave-up, and is her stop
             out.append(("EXIT", "V2", _at(base, h2.get("touched_t") or "15:20"),
-                        "15:20 — din khatam (HOLD v2)" if how == "mark" else f"stop hit {_n(h2.get('line_fut'))}f (HOLD v2)",
+                        "15:20 — spot 15:15 se frozen (HOLD v2)" if how == "mark" else f"stop hit {_n(h2.get('line_fut'))}f (HOLD v2)",
                         "HOLD v2"))
         # its front gave up: WARN, never EXIT. §1m.12: v2 never changes her window's word, and in-sample (28 rows) its
         # gave-up cut winners as often as it saved losers (her 21 Oct PE: 11:07, then +5R). Answered once the line trails
@@ -93,9 +93,9 @@ def _triggers(rep, h2, base, d, W):
         off = f"−{100 * W['off']:.1f}% off its {_L(W.get('peak'))} peak" if W.get("off") is not None else "off its peak"
         out.append(("WARN", "GAVEUP", None, f"GAVE UP — {W.get('k')} {W.get('side')} writers {off} · fut {d * (fut - E):+.0f} vs entry",
                     "§5.4"))
-    if bleed(W):
-        out.append(("WARN", "BLEED", _at(base, W.get("bleed_t")),
-                    f"W-BLEED — {W.get('k')} {W.get('side')} −{100 * W['off']:.1f}% off {_L(W.get('peak'))} peak · {W['upd']} upd", "§5.5"))
+    # W-BLEED alone is a gauge, never a WARN (A61, 24 Oct, her "do whichever you think best"): §5.5 "does not fold; it feeds
+    # §5.4", and a wall bleeding while price is still with her is munafa booking, not a give-up (how-she-sells). Its number
+    # rides `gauge`; with price against her GAVE UP above already fires on it.
     ch, since = v.get("chips") or {}, v.get("chip_since") or {}
     if ch.get("Z") == "WITH" and ch.get("F") != "WITH" and ch.get("O") != "WITH":
         ts = [since.get(k) for k in ("Z", "F", "O") if since.get(k)]
@@ -166,6 +166,7 @@ def ladder(rep, h2, now_ms, mem, prem_at=None):
     line0 = (h2 or {}).get("line0") if h2ok else G
     risk = abs(line0 - E) if None not in (line0, E) and line0 != E else None
     r_now = None if risk is None or fut is None else round(d * (fut - E) / risk, 2)
+    pts = None if fut is None or E is None else round(d * (fut - E))   # l1's number: futures points [M] (R moved to detail)
     tr = rep.get("trade") or {}
     own = -1 if tr.get("side") == "SELL" else 1
     pn, p0 = (v.get("prem") or {}).get("now"), tr.get("p0")
@@ -176,7 +177,7 @@ def ladder(rep, h2, now_ms, mem, prem_at=None):
     lock_on = None if lock_f is None or risk is None else round(E + d * 2.0 * risk, 1)    # hold2.LOCK_R: MFE >= 2R
     side = f" {tr.get('ty') or ''}" + (" short" if own < 0 else "")
     l1 = (f"{'▲' if d > 0 else '▼'} {'?' if tr.get('k') is None else int(float(tr['k']))}{side} · {'?' if mins is None else mins} min · "
-          f"{'?' if r_now is None else f'{r_now:+.1f}'}R ({'₹?' if pnl is None else f'₹{pnl:+.0f}'})")
+          f"{'?' if pts is None else f'{pts:+d}'} pts ({'₹?' if pnl is None else f'₹{pnl:+.0f}'})")
     l2 = (f"stop {_n(sf)}f / {_n(ss)}s ≈ {'₹?' if sp is None else f'₹{sp:.0f}'}"
           + ("" if lock_f is None else f" · BE lock ✓ {lock_t}" if lock_t else      # where the lock ENGAGES (MFE 2R), not E
              "" if lock_on is None else f" · BE lock at {_n(lock_on)}f"))
@@ -186,7 +187,9 @@ def ladder(rep, h2, now_ms, mem, prem_at=None):
             "trig_t": _hm(base, top["t"]) if top else None, "seen": bool(top and top["seen"]),
             "l1": l1, "l2": l2, "l3": "why: " + " · ".join(why), "why": why,
             "stop_f": sf, "stop_s": ss, "stop_src": ssrc, "stop_prem": sp, "stop_prem_why": None if sp is not None else spw,
-            "lock_f": lock_f, "lock_on_f": lock_on, "lock_t": lock_t, "r_now": r_now, "prem_now": pn, "pnl": pnl, "min": mins, "d": d,
+            "gauge": (f"W-BLEED {W.get('k')} {W.get('side')} −{100 * W['off']:.1f}% off {_L(W.get('peak'))} peak · {W['upd']} upd "
+                      f"[M] · gauge, not a give-up alone" if bleed(W) else None),
+            "lock_f": lock_f, "lock_on_f": lock_on, "lock_t": lock_t, "r_now": r_now, "pts": pts, "prem_now": pn, "pnl": pnl, "min": mins, "d": d,
             "active": [dict(a, t=_hm(base, a["t"])) for a in sorted(act, key=lambda a: (-ORDER.index(a["state"]), a["t"]))],
             "tag": "I", "note": "one voice, display only: the engine's word and HOLD v2 run as registered"}
 

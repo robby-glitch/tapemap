@@ -185,6 +185,8 @@ def test_validate_rev3_counts_nine_or_eight_prints_vpin_and_says_no_on_a_spent_c
     assert st(sell, "DAY / TREND")["st"] == "AGAINST"                     # SELL PE = long the extension
     assert st(buy, "ORDER FLOW")["st"] == "AGAINST" and st(buy, "ORDER FLOW")["cell"] == "high 2.3× mehenga"
     assert buy["word"] == "NO" and sell["word"] == "NO"
+    assert [lv["name"] for lv in buy["levels"]] == ["STOP", "PULLBACK", "NEXT WALL"]   # A54: never "T1" / a target
+    assert all(lv.get("cond") is None for lv in buy["levels"])                       # the OI condition is dropped
     assert st(sx, "ORDER FLOW")["st"] == "CNC" and st(sx, "DAY / TREND")["cell"].endswith("chal chuka")
     early, = run({"fn": "validate", "payload": P, "decode": {}, "call": ["NIFTY", 22600, "CE", "BUY", None, 9 * 3600 + 18 * 60, 11 * 3600]})
     assert "EM ?" in st(early, "DAY / TREND")["cell"]                    # causal: the 09:20 row is not read at 09:18

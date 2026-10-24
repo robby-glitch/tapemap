@@ -4,7 +4,7 @@
 repo — and if your task touches the DESK, read [HANDOFF-DESK.md](HANDOFF-DESK.md)
 in full too.** Everything else is history or detail. Verified 2026-08-22.
 
-## Current state (2026-10-23): read these before anything newer than 19 Oct
+## Current state (2026-10-24): read these before anything newer than 19 Oct
 
 - **`docs/live/NOTEPAD.md`** is the live backlog. Every gap A1–A49 has a status, there are day observations, and it lists the decisions pending on Mary's word. Read it first.
 - **Locked setups and registrations:** `context/research-findings.md`:
@@ -16,7 +16,16 @@ in full too.** Everything else is history or detail. Verified 2026-08-22.
   - **The CAS closing auction (3 Aug 2026)** freezes the cash index at ~15:15. PD levels come from bars ≤ 15:15 (`levels.fetch_daily`), not the auction print.
   - **F&O trades until 15:40.** The futures recorders stop at 15:40; the option chain still stops at 15:30.
   - **SENSEX futures are too thin** for order-flow reads ("patla" stamps).
-- **The face:** the GoCharting extension v2.8 (0.5.8) in `C:\Users\kaam\Desktop\Go charting\orderflow-desk\dist-v2`. See its `docs/V2-BUILD-REPORT.md`.
+- **In a trade (24 Oct):** her open marked trade gets ONE block, display only, computed once in the server and rendered verbatim on the panel, the hold window and Validate.
+  - **`voice.py`** is THE ONE VOICE: the ladder EXIT > WARN > TIGHTEN > HOLD, with one stop (HOLD v2's line).
+  - **`trademap.py`** adds two lines and a detail list:
+    - l4: push, ulta push, and the day's range used in EM;
+    - l5: the pullback zone (the wall ahead, never a "target"), plus a survivor EFFORT read and her BADA PRINT when at it;
+    - [detail]: fuel pinned at entry, levels, R, a sale's premium path and the W-BLEED gauge.
+  - **Where it runs:** `server._hold2_run` and `_in_trade`; forward log `data/hold/map_<day>.jsonl`.
+  - **Replay:** `voice_path.py` and `GET /api/voice_path` replay it over a past marked trade, never in market hours.
+  - **Docs:** `docs/trade-map/` (Fable's critique and the build report), the spec `docs/superpowers/specs/2026-10-24-trade-map-design.md`, and NOTEPAD A52–A62.
+- **The face:** the GoCharting extension v2.10 (0.5.10) in `C:\Users\kaam\Desktop\Go charting\orderflow-desk\dist-v2`. See its `docs/V2-BUILD-REPORT.md`.
 - **Clean-room research:** `C:\Users\kaam\Desktop\operator mode\oi-lab\` (Fable): the OI and order-flow world maps, the flow AUDIT (291 variants, two holdouts), and the Edge Reader weave. Its conclusions:
   - only effort per point survived;
   - CVD divergence at highs is inverted;
@@ -74,7 +83,7 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 1921 collected: 1919 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-23 night (VALIDATE rev 3)
+python -m pytest -q            # 1944 collected: 1942 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-24 (TRADE MAP)
 ```
 
 **Launch the server DETACHED, never as a child of an assistant/terminal

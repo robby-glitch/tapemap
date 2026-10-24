@@ -28,6 +28,8 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "confluence_log.PATH": "confluence_log.jsonl",   # §1i's forward log (confluence_log.py)
              "onesided.PATH": "onesided_log.jsonl",           # §1o's daily row (onesided.py)
              "server.DECODE_DIR": "decode",                   # N7: the DECODE block's forward log (server._decode_log)
+             "server.MAP_DIR": "hold", "server.VOICE_DIR": "voice",   # the TRADE MAP's log (_map_log), the voice paths (_voice_path)
+             "server.SHADOW_DIR": "hold",                     # holdshadow's log (_shadow_log): a toy trade wrote shadow_2026-09-30 on 23 Oct
              "sequence.DIR": "warmap", "desk_log.SURF_DIR": "surface", "desk_log.DESK_LOG_PATH": "desk_log.jsonl",
              "server.VPIN_LOG": "vpin_log.jsonl", "server.VPIN_BACKFILL_LOG": "vpin_backfill.jsonl",
              "server.VPIN_FAST_LOG": "vpin_fast.jsonl",

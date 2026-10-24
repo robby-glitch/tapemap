@@ -39,7 +39,8 @@ export type Reading = {
 }
 // A52 THE ONE VOICE (server voice.py, on /api/hold?id=): one word, one stop, one reason; the same block as the panel's
 export type Voice = { ok: boolean; why?: string; state: 'HOLD' | 'TIGHTEN' | 'WARN' | 'EXIT'; seq: number; l1: string; l2: string; l3: string
-                      trig_t?: string | null; note?: string; active?: { t: string; state: string; reason: string }[] }
+                      trig_t?: string | null; note?: string; active?: { t: string; state: string; reason: string }[]
+                      l4?: string; l5?: string; detail?: { text: string; tip?: string | null }[]; map_why?: string }   // the TRADE MAP (trademap.py)
 export type PlanRow = {
   t: string
   stop: { L?: number; room?: number | null; risk?: number | null; risk_why?: string | null; text?: string | null; level?: number | null
@@ -303,6 +304,8 @@ function Win({ hidden = false }: { hidden?: boolean }) {
       <div className="v1">{vc.l1}</div>
       <div className="v2"><span className="vw">{vc.state}</span>{vc.l2}</div>
       <div className="v3">{vc.l3}{vc.trig_t && vc.state !== 'HOLD' ? ` · ${vc.trig_t}` : ''}</div>
+      {vc.l4 && <div className="v3 v4">{vc.l4}</div>}
+      {vc.l5 && <div className="v3 v5">{vc.l5}</div>}
       {!vOpen && <span className="vbtns" onClick={e => e.stopPropagation()}>{btns}</span>}
       <button type="button" className="vd" onClick={e => { e.stopPropagation(); setVOpen(!vOpen) }}>detail {vOpen ? '▾' : '▸'}</button>
     </div>)
@@ -311,7 +314,9 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   const style: CSSProperties | undefined = pip ? undefined
     : pos ? { left: Math.max(0, Math.min(pos.x, window.innerWidth - (min ? Math.min(COLW, window.innerWidth - 16) : W) - 8)), top: pos.y, right: 'auto', bottom: 'auto' }
     : undefined
-  const win = <div ref={box} className={cls} style={style}>{voiceEl}{vc && !vOpen ? null : <>{line}{body}</>}</div>
+  const mapEl = vc && vOpen && !!vc.detail?.length && (     // the map's [detail] lines, first in the opened view
+    <div className="fl-sec">{vc.detail.map(x => <p className="sm" key={x.text} title={x.tip ?? undefined}>{x.text}</p>)}</div>)
+  const win = <div ref={box} className={cls} style={style}>{voiceEl}{vc && !vOpen ? null : <>{mapEl}{line}{body}</>}</div>
   if (pip) return <>{createPortal(win, pip.document.body)}{!hidden && <div className="hv-back">HOLD / FOLD is popped out on top <button type="button" onClick={() => pip.close()}>bring it back</button></div>}{toast}</>
   return <>{win}{toast}</>
 }

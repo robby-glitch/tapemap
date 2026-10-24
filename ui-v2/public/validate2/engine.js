@@ -499,11 +499,12 @@ const Engine = (() => {
     const sp = f => f - s.basis, out = [];
     out.push({ name: "STOP", fut: g.G, spot: Math.round(sp(g.G)), prem: premAt(g, s, sp(g.G)), why: g.Gwhy, who: g.W ? `${g.W.k} ${g.W.leg.toUpperCase()} writers` : null, pts: -g.toG });
     if (g.role === "buy") {
-      if (g.A) out.push({ name: "T1", fut: Math.round(g.A.k + s.basis), spot: g.A.k, prem: premAt(g, s, g.A.k), why: `${g.A.k} ${g.A.leg.toUpperCase()} wall · ${g.A.state.toLowerCase()}`, pts: g.toA, cond: g.A.state === "BUILDING" ? `only if ${g.A.k} ${g.A.leg.toUpperCase()} comes off its peak` : null });
-      else out.push({ name: "T1", fut: null, spot: null, prem: null, why: "no wall ahead inside ±8", absence: "checked" });
+      // A54: where the pullback comes, never a target; the OI condition did not separate stop from break (A54, Fable A1)
+      if (g.A) out.push({ name: "PULLBACK", fut: Math.round(g.A.k + s.basis), spot: g.A.k, prem: premAt(g, s, g.A.k), why: `${g.A.k} ${g.A.leg.toUpperCase()} wall · ${g.A.state.toLowerCase()}`, pts: g.toA });
+      else out.push({ name: "PULLBACK", fut: null, spot: null, prem: null, why: "no wall ahead inside ±8", absence: "checked" });
       const beyond = g.payers.find(f => g.A && (g.d > 0 ? f.k > g.A.k : f.k < g.A.k));
-      if (beyond) out.push({ name: "T2", fut: Math.round(beyond.k + s.basis), spot: beyond.k, prem: premAt(g, s, beyond.k), why: `${beyond.k} ${beyond.leg.toUpperCase()} · ${beyond.state.toLowerCase()}`, pts: Math.round(Math.abs(beyond.k + s.basis - s.fut)), cond: beyond.state === "BUILDING" ? `only if ${beyond.k} comes off its peak` : null });
-      else out.push({ name: "T2", fut: null, spot: null, prem: null, why: "no second front beyond T1", absence: "checked" });
+      if (beyond) out.push({ name: "NEXT WALL", fut: Math.round(beyond.k + s.basis), spot: beyond.k, prem: premAt(g, s, beyond.k), why: `${beyond.k} ${beyond.leg.toUpperCase()} · ${beyond.state.toLowerCase()}`, pts: Math.round(Math.abs(beyond.k + s.basis - s.fut)) });
+      else out.push({ name: "NEXT WALL", fut: null, spot: null, prem: null, why: "no second front beyond the pullback", absence: "checked" });
     } else {
       const be = g.ty === "CE" ? g.K + (g.px || 0) : g.K - (g.px || 0);
       out.push({ name: "KEEP ALL", fut: Math.round(g.K + s.basis), spot: g.K, prem: 0, why: `close ${g.ty === "CE" ? "≤" : "≥"} ${fmt(g.K)} spot`, pts: Math.round(Math.abs(g.K + s.basis - s.fut)) });

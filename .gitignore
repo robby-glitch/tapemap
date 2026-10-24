@@ -90,3 +90,5 @@ ui-v2/tsconfig.tsbuildinfo
 # agents' scratch caches (validate2 alone was 319MB of .pkl) -- never commit
 **/scratch/_cache/
 *.pkl
+# the voice replayed per marked trade (voice_path.py, GET /api/voice_path): a cache, recomputed on a new trademap REV
+data/voice/
