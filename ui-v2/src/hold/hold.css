@@ -486,3 +486,16 @@
   .hv .xp-leans{font-size:28px;line-height:28px}
   .hv .xp-fr{grid-template-columns:88px repeat(3,56px)}
 }
+
+/* ── A52 THE ONE VOICE: one word, one stop, one reason, on top while she is in a trade (voice.py); the word is the colour ── */
+.hv .voice{position:relative;border-left:4px solid var(--positive);border-bottom:1px solid var(--border);padding:var(--s2) var(--s3) var(--s2) var(--s3);cursor:pointer;background:var(--surface-raised)}
+.hv .voice.v-TIGHTEN{border-left-color:var(--accent);background:#EEF2FB}
+.hv .voice.v-WARN{border-left-color:var(--caution);background:#FBF1E1}
+.hv .voice.v-EXIT{border-left-color:var(--negative);background:#FBEAE8}
+.hv .voice>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:500 var(--t12)/20px var(--f-num)}
+.hv .voice .v1{font-weight:600;padding-right:120px}
+.hv .voice .vw{font:700 var(--t20)/1 var(--f-word);letter-spacing:.04em;margin-right:var(--s2);color:var(--positive)}
+.hv .voice.v-TIGHTEN .vw{color:var(--accent)}.hv .voice.v-WARN .vw{color:var(--caution)}.hv .voice.v-EXIT .vw{color:var(--negative)}
+.hv .voice .v3{color:var(--text-secondary);font-family:var(--f-ui);padding-right:76px}
+.hv .voice .vbtns{position:absolute;top:0;right:0}
+.hv .voice .vd{position:absolute;right:var(--s2);bottom:var(--s2);border:1px solid var(--border-strong);border-radius:var(--r);background:var(--surface-raised);font:var(--t11)/16px var(--f-num);padding:0 6px;color:var(--text-secondary)}

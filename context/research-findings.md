@@ -960,6 +960,48 @@ scorer's 12 readings are its own header.
 
 ---
 
+## 1p. AMENDMENT: VALIDATE rev 3, the Validate tab's word (signed 2026-10-23 ~22:30 on her "send to a subagent opus 5.5 to build it", UNTESTED)
+
+**The full text** is `docs/hold/VALIDATE-PREREG-rev3.md`, sha256
+`a41863060880b5843293aff7660d3adee6a615056fc67895fabee2a1ef5f82a5`.
+
+**Her verdict before it:** *Validate first, because her 22 Oct loss was the ENTRY, not the hold.*
+
+**The base ("rev 2" in her instruction)** is the Validate tab's ten checks as built: `ui-v2/public/validate2/engine.js` at
+5b9ed44, sha256 `8d143379…04cb`, i.e. DESIGN.md §3.3–§3.5. It is **not** §1g's five-fact word: `validate.py` REV "2",
+`/api/hold/check` and its clock are untouched.
+
+**What changes** (everything else stays as the base):
+- **#2 DAY / TREND:** §1o's type plus the share of the day's straddle move used, `u`. The day's 1σ is the 09:20 ATM
+  straddle ÷ 0.8 ÷ √(weekdays to expiry); `u` is measured in her direction.
+  - TREND her way → WITH; TREND against → AGAINST.
+  - CHOP / PIN:
+    - `u ≥ 0.90` → AGAINST, buyer and writer;
+    - `u ≤ −0.90` → WITH;
+    - otherwise a writer WITH, a buyer NEITHER.
+  - MIXED → the base's daytype row.
+- **#4 / #5 walls:** ROLLING (Fable's `detector.rolling`, today's ATM pace) → NEITHER. Only a building wall that is not
+  rolling counts as DEFENDING.
+- **#6 ORDER FLOW:** CVD and the fight winner are dropped.
+  - Effort per point first: an expensive high (≥ 2×) is AGAINST a long and WITH a short; a cheap low (≤ 0.5×) is WITH a
+    short and AGAINST a long.
+  - Then the futures quadrant: new money her way WITH, against AGAINST, covering or liquidation only NEITHER.
+  - SENSEX: could not check.
+- **#7 VPIN:** printed, never counted. A buyer is counted on 9 checks, a writer on 8. GO stays **≥ 6 WITH**, 0 against,
+  ≤ 1 could not check: the base's bar rounded up, and the bar BANKNIFTY and SENSEX already had.
+- **#10 PAYING:** the payers covering at a fresh extreme in her direction, with the tape exhausted (EXHAUST / ABSORB /
+  effort ≥ 2× at a high), → AGAINST "pop khatam". On SENSEX the tape is not read, so it cannot fire there.
+
+**Every reply carries `rev`.** Display only; nothing gated.
+
+**Evidence:** Fable's oi-lab audits (NIFTY, 19–38 days, in-sample candidates except effort's two holdouts). Fable's
+EM-USED was insufficient n, so **0.90 is a trader's number.**
+
+**Disclosed:** written after the 22 Oct facts and one offline DECODE read (§6 of the file). No rev 3 vote was run before
+hashing.
+
+---
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

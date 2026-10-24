@@ -13,7 +13,12 @@ const Engine = (() => {
   const HI = { WITH: "saath", AGAINST: "khilaaf", NEITHER: "kuch nahi", CNC: "check nahi", NS: "nahi dikha",
                GO: "le lo", WAIT: "ruko", NO: "mat lo", HOLD: "ruko", FOLD: "nikal lo", "PAST GIVE-UP": "zone gaya",
                "GAVE UP": "chhod diya", OUT: "nikal gaye", PULLBACK: "pullback", UNDECIDED: "tay nahi",
-               BUILDING: "likh rahe", UNWINDING: "bhag rahe", STALLED: "ruke hue", QUIET: "shaant" };
+               BUILDING: "likh rahe", UNWINDING: "bhag rahe", STALLED: "ruke hue", QUIET: "shaant", PR: "sirf dikhaya, gina nahi" };
+  // VALIDATE rev 3 (docs/hold/VALIDATE-PREREG-rev3.md, sha256 a4186306…, research-findings §1p): every number is that file's
+  const REV = "3 (VALIDATE-PREREG-rev3 a4186306)";
+  const R3 = { USED: 0.90, X_ON: 1.5, X_OFF: -1.0, W: 600, PACE_N: 4, FLAT: 0.0015, ROLL_DTE: 3, RUN: 1800, FRESH: 300, TOL: 0.25,
+               TAPE_W: 900, HI: 2.0, LO: 0.5, GRACE: 60, STALE: 600, EM_FROM: 9 * 3600 + 20 * 60, EM_TO: 9 * 3600 + 30 * 60, PACE_FROM: 9 * 3600 + 30 * 60 };
+  const DEC = {};                                                  // idx -> [[close sec, DECODE block]]: GET /api/decode (app.js) or a replay
   let D = null; const X = {};
   const memo = new Map();
 
@@ -30,7 +35,7 @@ const Engine = (() => {
 
   // ---------- load + precompute ----------
   function load(data) {
-    D = data; memo.clear();
+    D = data; memo.clear(); for (const k in DEC) delete DEC[k];     // a day's DECODE blocks belong to that day
     for (const idx of IDX) prep(idx);
     return D;
   }
@@ -98,7 +103,7 @@ const Engine = (() => {
     const key = `s|${idx}|${T}|${feedT}`; if (memo.has(key)) return memo.get(key);
     const x = D.idx[idx], tf = Math.min(T, feedT);
     const i = lastLE(x.t, tf), j = lastLE(x.bt, tf);
-    const s = { idx, x, T, i, j, ok: i >= 0 && j >= 0, lot: x.lot, step: x.step, dte: x.dte, expiry: x.expiry, thin: !!THIN[idx] };
+    const s = { idx, x, T, tf, i, j, ok: i >= 0 && j >= 0, lot: x.lot, step: x.step, dte: x.dte, expiry: x.expiry, thin: !!THIN[idx] };
     s.ages = { chain: i >= 0 ? T - x.t[i] : null, book: j >= 0 ? T - x.bt[j] : null };
     if (!s.ok) { memo.set(key, s); return s; }
     s.spot = x.spot[i]; s.atm = x.atm[i]; s.fut = x.bars[j][1] / 10; s.basis = s.fut - s.spot;
@@ -285,19 +290,135 @@ const Engine = (() => {
   }
   const premAt = (g, s, spotTarget) => { if (g.ltp == null || g.delta == null) return null; const intr = Math.max(0, g.ty === "CE" ? spotTarget - g.K : g.K - spotTarget); return Math.max(intr, 0.05, g.ltp + g.delta * (spotTarget - s.spot)); };
 
-  // ---------- the ten checks + the word ----------
+  // ---------- VALIDATE rev 3: the DECODE store and the new inputs (VALIDATE-PREREG-rev3.md §1) ----------
+  function setDecode(idx, block) {                                 // one DECODE block (decode.decode's dict; t = its close "HH:MM")
+    if (!block || !block.t) return;
+    const c = secOfHms(block.t), a = DEC[idx] || (DEC[idx] = []), k = a.findIndex(r => r[0] === c);
+    if (k >= 0) a[k] = [c, block]; else { a.push([c, block]); a.sort((p, q) => p[0] - q[0]); }
+  }
+  function decAt(idx, T) {                                         // the latest close readable at T (close + 60 s), fresh ≤ 10 min
+    let r = null; for (const x of DEC[idx] || []) { if (x[0] + R3.GRACE <= T) r = x; else break; }
+    if (!r) return { why: "DECODE not loaded" };
+    return T - r[0] > R3.STALE ? { why: `DECODE stale (${hm(r[0])})` } : { c: r[0], b: r[1] };
+  }
+  const calDays = (a, b) => Math.round((Date.UTC(...b.split("-").map((v, n) => n === 1 ? v - 1 : +v)) - Date.UTC(...a.split("-").map((v, n) => n === 1 ? v - 1 : +v))) / 864e5);
+  function weekdays(a, b) {                                        // Mon–Fri from a to b, both counted; holidays not removed [I]
+    if (!a || !b || b < a) return null; let n = 0;
+    for (const d = new Date(a + "T12:00:00Z"), e = new Date(b + "T12:00:00Z"); d <= e; d.setUTCDate(d.getUTCDate() + 1)) { const w = d.getUTCDay(); if (w && w !== 6) n++; }
+    return n || null;
+  }
+  function emOf(x) {                                               // the day's 1σ: the 09:20 ATM straddle / 0.8 / √N
+    const key = `em|${x.idx}|${x.n}`; if (memo.has(key)) return memo.get(key);
+    let i = -1; for (let q = 0; q < x.n; q++) if (x.t[q] >= R3.EM_FROM) { i = q; break; }
+    let r;
+    if (i < 0 || x.t[i] >= R3.EM_TO) r = { why: "no chain row 09:20–09:30" };
+    else { const k = x.ks.indexOf(x.atm[i]), ce = k >= 0 ? ltpAt(x, "ce", i, k) : null, pe = k >= 0 ? ltpAt(x, "pe", i, k) : null, N = weekdays(D.day, x.expiry);
+      r = ce == null || pe == null ? { why: "no ATM straddle on the 09:20 row" } : !N ? { why: "no expiry" }
+        : { em: (ce + pe) / 0.8 / Math.sqrt(N), straddle: ce + pe, K: x.atm[i], t: x.t[i], spot0: x.spot[i], N }; }
+    memo.set(key, r); return r;
+  }
+  function doiOf(x, leg, k, T) {                                   // OI change over (T − 10 min, T]; from the first row if earlier
+    const i1 = lastLE(x.t, T); if (i1 < 0) return null;
+    let i0 = lastLE(x.t, T - R3.W), cov = R3.W; if (i0 < 0) { i0 = 0; cov = T - x.t[0]; }
+    if (i0 >= i1 || cov <= 0) return null;
+    const a = x[leg].oi[i0][k], b = x[leg].oi[i1][k]; return a == null || b == null ? null : { d: b - a, cov: Math.min(R3.W, cov) };
+  }
+  function paceOf(x, leg, T) {                                     // today's normal ATM pace: median |10-min ΔOI| at the ATM strike, every 5 min from 09:30
+    const key = `pc|${x.idx}|${leg}|${Math.floor(T / 300)}`; if (memo.has(key)) return memo.get(key);
+    const xs = [];
+    for (let s = R3.PACE_FROM; s <= T - R3.W; s += 300) { if (s - R3.W < x.t[0]) continue; const i = lastLE(x.t, s); if (i < 0) continue;
+      const k = x.ks.indexOf(x.atm[i]); if (k < 0) continue; const q = doiOf(x, leg, k, s); if (q && q.cov === R3.W) xs.push(Math.abs(q.d)); }
+    const r = xs.length >= R3.PACE_N ? (med(xs) || 1) : null; memo.set(key, r); return r;
+  }
+  function rollOf(x, T, leg, K) {                                  // Fable's detector.rolling on the wall's band
+    const base = paceOf(x, leg, T); if (base == null) return { roll: null, why: "pace 09:55 se" };
+    const a = leg === "ce" ? 1 : -1, xs = [];
+    for (const Kb of [K - a * x.step, K, K + a * x.step, K + 2 * a * x.step]) { const k = x.ks.indexOf(Kb); if (k < 0) continue; const q = doiOf(x, leg, k, T); if (q) xs.push({ K: Kb, x: q.d / (base * q.cov / R3.W) }); }
+    for (const f of xs) for (const t of xs) if (a * (t.K - f.K) > 0 && f.x <= R3.X_OFF && t.x >= R3.X_ON) return { roll: true, from: f.K, to: t.K, xf: f.x, xt: t.x };
+    return { roll: false, xs };
+  }
+  function quadOf(s) {                                             // Fable's futures leg over 10 min: ΔOI and the price move
+    const x = s.x, fo = lastLE(x.futoiT, s.tf), fo10 = lastLE(x.futoiT, s.tf - R3.W), j10 = lastLE(x.bt, s.tf - R3.W);
+    if (fo < 0 || fo10 < 0 || fo10 === fo || j10 < 0 || x.futoi[fo][1] == null || x.futoi[fo10][1] == null) return null;
+    return { doi: x.futoi[fo][1] - x.futoi[fo10][1], oi: x.futoi[fo][1], px10: s.fut - x.bars[j10][1] / 10, B: s.B,
+             roll: !!x.futExpiry && calDays(D.day, x.futExpiry) <= R3.ROLL_DTE };
+  }
+  function freshOf(s, d) {                                         // a fresh extreme her way: ¼ step of the 30-min running extreme, set ≤ 5 min ago
+    const x = s.x; let e = null, et = null;
+    for (let q = Math.max(0, lastLE(x.t, s.tf - R3.RUN) + 1); q <= s.i; q++) { const v = x.spot[q]; if (v != null && (e == null || (d > 0 ? v > e : v < e))) { e = v; et = x.t[q]; } }
+    return e == null ? { fresh: false } : { fresh: (d > 0 ? s.spot >= e - R3.TOL * s.step : s.spot <= e + R3.TOL * s.step) && s.tf - et <= R3.FRESH, ext: e, at: et };
+  }
+  function tapeOf(s, d, dq) {                                      // the tape exhausted her way: EXHAUST / ABSORB / a long's expensive high, ≤ 15 min
+    if (s.thin) return { names: [], unread: `${s.idx} tape patla` };
+    const names = [], ab = s.fights.filter(f => f.side === d && f.res === "ABSORBED" && s.tf - f.t <= R3.TAPE_W).pop();
+    if (ab) names.push(`ABSORB ${hm(ab.t)}`);
+    if (!dq.b) return { names, unread: names.length ? null : dq.why };
+    const ex = dq.b.exhaust, e = dq.b.effort;
+    if (ex && ex.d === d && ex.close && s.tf - secOfHms(ex.close) <= R3.TAPE_W) names.push(`EXHAUST ${ex.bar || ex.close}`);
+    if (d > 0 && e && e.at === "HIGH" && e.x != null && e.x >= R3.HI && e.t && s.tf - secOfHms(e.t) <= R3.TAPE_W) names.push(`effort ${e.x.toFixed(1)}×`);
+    return { names, unread: null };
+  }
+  // the votes, pure (VALIDATE-PREREG-rev3.md §2); test_validate3.py drives them through node
+  function dayVote(E, dir, u, role, d) {                           // E: TREND | RANGE (PIN / CHOP) | OTHER
+    if (E === "TREND") return dir === d ? "WITH" : "AGAINST";
+    if (E === "RANGE") return u != null && u >= R3.USED ? "AGAINST" : u != null && u <= -R3.USED ? "WITH" : role === "sell" ? "WITH" : "NEITHER";
+    return "NEITHER";
+  }
+  function wallVote(state, roll, ahead, near) {                    // roll true = NEITHER; else the base (roll null: the base, stamped)
+    if (roll === true || !state) return "NEITHER";
+    if (ahead) return state === "UNWINDING" ? "WITH" : state === "BUILDING" && near ? "AGAINST" : "NEITHER";
+    return state === "BUILDING" ? "WITH" : state === "UNWINDING" ? "AGAINST" : "NEITHER";
+  }
+  function effortVote(e, d) {                                      // an expensive high / a cheap low, else no vote (null)
+    if (!e || e.x == null) return null;
+    if (e.at === "HIGH" && e.x >= R3.HI) return d > 0 ? "AGAINST" : "WITH";
+    if (e.at === "LOW" && e.x <= R3.LO) return d < 0 ? "WITH" : "AGAINST";
+    return null;
+  }
+  function quadVote(q, d) {                                        // new money her way WITH, against AGAINST; covering / liquidation / flat NEITHER
+    if (q == null) return { st: "CNC", word: "fut OI ?" };
+    if (q.roll && q.doi < 0) return { st: "CNC", word: "roll week" };
+    const m = Math.abs(q.px10) < q.B ? 0 : Math.sign(q.px10);
+    if (!m) return { st: "NEITHER", word: "chaal nahi" };
+    if (Math.abs(q.doi) < R3.FLAT * q.oi) return { st: "NEITHER", word: "fut OI flat" };
+    if (q.doi > 0) return { st: m === d ? "WITH" : "AGAINST", word: m > 0 ? "naye long" : "naye short" };
+    return { st: "NEITHER", word: m > 0 ? "short covering" : "long liquidation" };
+  }
+  function flowVote(ev, effUnread, qv) {                           // effort first, then the quadrant; CNC only when both are unread
+    if (ev) return ev;
+    if (qv.st === "CNC") return effUnread ? "CNC" : "NEITHER";
+    return qv.st;
+  }
+  function payVote(states, spent) {                                // the base, with the spent pop read first
+    if (!states.length) return "NEITHER";
+    const cov = states.includes("UNWINDING");
+    return cov && spent ? "AGAINST" : cov ? "WITH" : states.every(q => q === "BUILDING") ? "AGAINST" : "NEITHER";
+  }
+
+  // ---------- the checks + the word (rev 3: nine counted, eight for a writer; VPIN printed) ----------
   function validate(idx, K, ty, side, p0, T, feedT, g0) {
     const s = snap(idx, T, feedT);
-    if (!s.ok) return { ok: false, idx, K, ty, side, word: "—", why: "no chain row yet", checks: [], counts: { w: 0, a: 0, n: 0, c: 10 } };
+    if (!s.ok) return { ok: false, rev: REV, idx, K, ty, side, word: "—", why: "no chain row yet", checks: [], counts: { w: 0, a: 0, n: 0, c: 9 } };
     const g = geom(s, K, ty, side, p0, g0), d = g.d, her = d > 0 ? "up" : "down";
     const C = [];
     const row = (name, st, cell, tip, extra) => C.push(Object.assign({ name, st, cell, tip: tip + ` · ${HI[st] || ""}` }, extra));
     // 1 RIGHT NOW
     row("RIGHT NOW", g.now === "HOLD" ? "WITH" : "AGAINST", `${g.now} · out if ${fmt(g.G)}f`, `engine-now proxy for a mark made now [I]: ${g.now}; give-up ${fmt(g.G)} fut (${g.Gwhy}); chips Z ${g.chips.ZONE} · F ${g.chips.FLOW} · O ${g.chips.OI} · V ${g.chips.VPIN}`, { chips: g.chips });
-    // 2 DAY / TREND
-    const dy = s.day; let st2 = "NEITHER";
-    if (dy.type === "TREND") st2 = dy.dir === d ? "WITH" : "AGAINST"; else if (dy.type === "PIN/CHOP") st2 = g.role === "sell" ? "WITH" : "NEITHER";
-    row("DAY / TREND", st2, `${dy.type}${dy.type === "TREND" ? (dy.dir > 0 ? " ▲" : " ▼") : ""} since ${hm(dy.since)}`, `daytype [I]: ${dy.type} since ${hm(dy.since)} (${dy.why || "IB building"}); ${s.whose.text}; a buyer needs a leg, a seller sells with the trend or into a pin`);
+    // 2 DAY / TREND (rev 3: §1o's type, else the IB row; plus the day's 1σ used her way)
+    const dy = s.day, dq = decAt(idx, s.tf), met = dq.b && dq.b.onesided ? dq.b.onesided.type : null;
+    const em0 = emOf(s.x), em = em0.em && em0.t > s.tf ? { why: "EM from the 09:20 row" } : em0;   // causal: never a later row
+    const u = em.em ? d * (s.spot - em.spot0) / em.em : null;
+    let E2 = "OTHER", dir2 = 0, src2 = met ? "meter" : "IB";
+    if (met && /^TREND/.test(met)) { E2 = "TREND"; dir2 = met.includes("▲") ? 1 : -1; }
+    else if (met === "PIN" || met === "CHOP") E2 = "RANGE";
+    else if (dy.type === "TREND") { E2 = "TREND"; dir2 = dy.dir; src2 = "IB"; }
+    else if (dy.type === "PIN/CHOP") { E2 = "RANGE"; src2 = "IB"; }
+    const st2 = dayVote(E2, dir2, u, g.role, d);
+    const typ2 = src2 === "meter" ? met : `${dy.type}${dy.type === "TREND" ? (dy.dir > 0 ? " ▲" : " ▼") : ""}`;
+    row("DAY / TREND", st2, `${typ2} · EM ${u == null ? "?" : Math.round(u * 100) + "%"} chal chuka`,
+      `[I] type ${typ2} from the ${src2 === "meter" ? `One-Sided Meter §1o (DECODE ${dq.b.t}${dq.b.onesided.dom != null ? `, dom ${dq.b.onesided.dom}%, flips ${dq.b.onesided.flips}, VWAP crosses ${dq.b.onesided.crosses}` : ""})` : `IB row (${dy.type} since ${hm(dy.since)}: ${dy.why || "IB building"}; meter ${met || dq.why || "not read"})`}` +
+      ` · EM used her way ${u == null ? `? (${em.why})` : `${Math.round(u * 100)}%: spot ${fmt(s.spot)} vs ${fmt(em.spot0)} at ${hm(em.t)}, 1σ ${fmt(em.em)} pts = ${em.K} straddle ${fmt(em.straddle, 1)} / 0.8 / √${em.N}`} [I]` +
+      ` · CHOP/PIN: ≥ 90% her way = against, ≤ −90% = with; a writer sells into chop · ${s.whose.text}`);
     // 3 INSTRUMENT (expression word + moneyness)
     const ex = expression(s, d), exo = expression(s, -d); let st3 = "NEITHER", c3 = "", t3 = "";
     if (g.role === "buy" && g.deep) { st3 = "AGAINST"; c3 = `δ ${g.delta.toFixed(2)} · TV ${fmt(g.tv, 1)} of ${fmt(g.ltp, 2)}`; t3 = `deep ITM: a futures position in option's clothing — delta ${g.delta.toFixed(2)}, intrinsic ${fmt(g.intrinsic, 1)}, time value ${fmt(g.tv, 1)} [I]; the expression word was ${ex.word}`; }
@@ -307,22 +428,35 @@ const Engine = (() => {
     row("INSTRUMENT", st3, c3, t3, { expr: ex, exprOther: exo });
     // 4 WALL BEHIND
     if (!g.W) row("WALL BEHIND", "NEITHER", "no front behind you", "no strike behind price holds ≥ ½ of its side's largest OI [M]");
-    else { const W = g.W, st4 = W.state === "BUILDING" ? "WITH" : W.state === "UNWINDING" ? "AGAINST" : "NEITHER";
-      row("WALL BEHIND", st4, `${W.k} ${W.leg.toUpperCase()} ${L0(W.oi)} ${W.state === "BUILDING" ? "building" : W.state === "STALLED" ? "flat" : "leaving"}${W.bleed ? ` −${(W.off * 100).toFixed(0)}%` : ""}`, `${W.k} ${W.leg.toUpperCase()} writers ${L(W.oi)}, ${W.state} (peak ${L(W.peak)} at ${hm(W.peakT)}, ${pct(W.off)} off, ${W.upd} updates since)${W.bleed ? " · W-BLEED: the slow leak, amber, not a fold" : ""} [M]; they defend you — if they leave nobody holds the ${d > 0 ? "floor" : "ceiling"}`, { front: W, flag: W.bleed ? "a" : null }); }
+    else { const W = g.W, rw = rollOf(s.x, s.tf, W.leg, W.k), st4 = wallVote(W.state, rw.roll, false), LG = W.leg.toUpperCase();
+      row("WALL BEHIND", st4, rw.roll ? `${rw.from}→${rw.to} ${LG} roll ho rahe` : `${W.k} ${LG} ${L0(W.oi)} ${W.state === "BUILDING" ? "defending" : W.state === "STALLED" ? "flat" : "leaving"}${W.bleed ? ` −${(W.off * 100).toFixed(0)}%` : ""}${rw.roll == null ? " · roll ?" : ""}`,
+        `${W.k} ${LG} writers ${L(W.oi)}, ${W.state} (peak ${L(W.peak)} at ${hm(W.peakT)}, ${pct(W.off)} off, ${W.upd} updates since)${W.bleed ? " · W-BLEED: the slow leak, amber, not a fold" : ""} [M]` +
+        ` · ROLLING [I] ${rw.roll ? `${rw.from} ${LG} ${rw.xf.toFixed(1)}× unwinding while ${rw.to} ${LG} ${rw.xt.toFixed(1)}× adds: the ${d > 0 ? "floor" : "ceiling"} moved away from you, it is not building` : rw.roll == null ? `could not check (${rw.why})` : "no"}; they defend you — if they leave nobody holds the ${d > 0 ? "floor" : "ceiling"}`, { front: W, roll: rw, flag: W.bleed ? "a" : null }); }
     // 5 WALL AHEAD (buyer only)
     if (g.role === "sell") row("WALL AHEAD", "NS", "not shown — time is your target", "a writer has no next wall; time is her target", {});
     else if (!g.A) row("WALL AHEAD", "NEITHER", "no front ahead inside ±8", "no strike ahead holds ≥ ½ of its side's largest OI [M]");
-    else { const A = g.A, near = g.toA <= 2 * s.B, st5 = A.state === "UNWINDING" ? "WITH" : A.state === "BUILDING" && near ? "AGAINST" : "NEITHER";
-      row("WALL AHEAD", st5, `${A.k} ${A.leg.toUpperCase()} ${L0(A.oi)} ${A.state === "BUILDING" ? "building" : A.state === "STALLED" ? "flat" : "leaving"} · ${g.toA} pts`, `${A.k} ${A.leg.toUpperCase()} writers ${L(A.oi)}, ${A.state} (peak ${L(A.peak)} at ${hm(A.peakT)}, ${pct(A.off)} off), ${g.toA} pts ahead (fut) [M]; the next wall caps the move, writers leaving there pay you`, { front: A }); }
+    else { const A = g.A, near = g.toA <= 2 * s.B, ra = rollOf(s.x, s.tf, A.leg, A.k), st5 = wallVote(A.state, ra.roll, true, near), LG = A.leg.toUpperCase();
+      row("WALL AHEAD", st5, ra.roll ? `${ra.from}→${ra.to} ${LG} roll · ${g.toA} pts` : `${A.k} ${LG} ${L0(A.oi)} ${A.state === "BUILDING" ? "building" : A.state === "STALLED" ? "flat" : "leaving"} · ${g.toA} pts${ra.roll == null ? " · roll ?" : ""}`,
+        `${A.k} ${LG} writers ${L(A.oi)}, ${A.state} (peak ${L(A.peak)} at ${hm(A.peakT)}, ${pct(A.off)} off), ${g.toA} pts ahead (fut) [M]` +
+        ` · ROLLING [I] ${ra.roll ? `${ra.from} ${LG} ${ra.xf.toFixed(1)}× unwinding while ${ra.to} ${LG} ${ra.xt.toFixed(1)}× adds: the cap moved out, it did not break` : ra.roll == null ? `could not check (${ra.why})` : "no"}; the next wall caps the move, writers leaving there pay you`, { front: A, roll: ra }); }
     // 6 ORDER FLOW
+    // rev 3: effort per point first, then the futures quadrant; CVD and the fight winner leave the vote (hover only)
     const lf = s.last, fresh = lf && s.T - lf.t <= 1800;
-    if (!fresh) row("ORDER FLOW", "NEITHER", `quiet · CVD15 ${sgn(Math.round(s.cvd15))}`, `no fight inside 30 min [I]; CVD over 15 min ${sgn(Math.round(s.cvd15))} with price ${sgn(Math.round(s.px15))}`);
-    else row("ORDER FLOW", lf.winner === d ? "WITH" : "AGAINST", `${lf.who} won ${hm(lf.t)} @${fmt(lf.vw)}f`, `${lf.who} won at ${fmt(lf.vw)} ${hm(lf.t)} (${lf.res.toLowerCase()}, ${fmt(lf.lots)} lots) [M lots / I side]; CVD 15 min ${sgn(Math.round(s.cvd15))}, day peak ${hm(s.cvdPeakT)}`, { fight: lf });
-    // 7 VPIN
+    const fightTip = fresh ? `fight (printed, not counted): ${lf.who} won at ${fmt(lf.vw)} ${hm(lf.t)} (${lf.res.toLowerCase()}, ${fmt(lf.lots)} lots)` : "no fight inside 30 min";
+    if (s.thin) row("ORDER FLOW", "CNC", `${idx} fut patla`, `could not check: ${idx} futures are too thin for a flow read (A25; Fable refuses SENSEX futures flow) · ${fightTip}`);
+    else {
+      const e = dq.b ? dq.b.effort : null, eRead = !!(e && e.x != null), eNow = eRead && e.at && e.t && s.tf - secOfHms(e.t) <= R3.TAPE_W;
+      const ev = eNow ? effortVote(e, d) : null, q = quadOf(s), qv = quadVote(q, d), st6 = flowVote(ev, !eRead, qv);
+      const eTag = idx === "NIFTY" ? "[I]" : "[I · BNF test nahi]";
+      row("ORDER FLOW", st6, ev ? `${e.at === "HIGH" ? "high" : "low"} ${e.x.toFixed(1)}× ${e.at === "HIGH" ? "mehenga" : "sasta"}` : `${qv.word} · effort ${eRead ? e.x.toFixed(1) + "×" : "?"}`,
+        `EFFORT ${eTag}: ${!dq.b ? `could not check (${dq.why})` : !eRead ? `could not check (${(e && e.why) || "not read"})` : `${e.x.toFixed(2)}× the day's lots/pt${e.at ? ` at a fresh ${e.at.toLowerCase()} ${e.t}` : " (no fresh extreme)"}${eNow ? "" : " — older than 15 min or no extreme: no vote"}`}` +
+        ` · QUADRANT [M/I]: ${q == null ? "could not check (fut OI 10 min chahiye)" : `fut OI ${sgn(q.doi)} (${(100 * q.doi / q.oi).toFixed(2)}%) over 10 min, price ${sgn(Math.round(q.px10))} → ${qv.word}${q.roll ? " · roll week" : ""}`}` +
+        ` · effort first, then the quadrant; covering-only fuel is not paid for · ${fightTip}`, { fight: lf, effort: e, quad: q });
+    }
+    // 7 VPIN: printed, never counted (rev 3)
     const v = s.vpin;
-    if (!v || v.n < VPIN_N) row("VPIN", "CNC", v ? `${v.n} of ${VPIN_N} buckets` : "NIFTY-only gauge", v ? `could not check: ${v.n} of ${VPIN_N} buckets so far (shadow)` : "could not check: VPIN runs on NIFTY futures only");
-    else { const st7 = v.one === 0 ? "NEITHER" : v.lean === d ? "WITH" : v.lean === -d ? "AGAINST" : "NEITHER";
-      row("VPIN", st7, `${v.one}/${VPIN_N} one-sided · pct ${v.pct == null ? "—" : v.pct.toFixed(2)}`, `${v.one} of ${VPIN_N} buckets one-sided (${v.b} buyers · ${v.s} sellers), toxicity pct ${v.pct == null ? "—" : v.pct.toFixed(2)} of today (shadow) [I]`, { vpin: v }); }
+    if (!v || v.n < VPIN_N) row("VPIN", "PR", v ? `${v.n} of ${VPIN_N} buckets` : "NIFTY-only gauge", `printed, never counted (rev 3: the audit found VPIN noise) · ${v ? `${v.n} of ${VPIN_N} buckets so far (shadow)` : "VPIN runs on NIFTY futures only"}`);
+    else row("VPIN", "PR", `${v.one}/${VPIN_N} one-sided · pct ${v.pct == null ? "—" : v.pct.toFixed(2)}`, `printed, never counted (rev 3) · ${v.one} of ${VPIN_N} buckets one-sided (${v.b} buyers · ${v.s} sellers), toxicity pct ${v.pct == null ? "—" : v.pct.toFixed(2)} of today (shadow) [I]`, { vpin: v });
     // 8 CROSS-INDEX
     const xi = xindex(T, feedT, idx);
     if (!xi.push) row("CROSS-INDEX", "CNC", "no push yet", "could not check: no swing on the 5-min bars yet");
@@ -335,10 +469,15 @@ const Engine = (() => {
     // 10 PAYING
     const pay = g.payers;
     if (!pay.length) row("PAYING", "NEITHER", "no payers' front", "no front on the payers' side inside ±8 [M]");
-    else { const st10 = pay.some(f => f.state === "UNWINDING") ? "WITH" : pay.every(f => f.state === "BUILDING") ? "AGAINST" : "NEITHER";
-      row("PAYING", st10, pay.map(f => `${f.k} ${f.state === "UNWINDING" ? "leaving" : f.state === "BUILDING" ? "building" : "flat"}`).join(" · "), pay.map(f => `${f.leg.toUpperCase()} ${f.k} ${f.state} (peak ${L(f.peak)} at ${hm(f.peakT)}, ${pct(f.off)} off)`).join(" · ") + " [M]; the move needs somebody forced to pay for it", { fronts: pay }); }
-    // counts + word
-    const counted = C.filter(c => c.st !== "NS");
+    else { const states = pay.map(f => f.state), cov = states.includes("UNWINDING");
+      const fr = cov ? freshOf(s, d) : null, tp = fr && fr.fresh ? tapeOf(s, d, dq) : null, spent = !!(tp && tp.names.length);
+      const st10 = payVote(states, spent), base = pay.map(f => `${f.k} ${f.state === "UNWINDING" ? "leaving" : f.state === "BUILDING" ? "building" : "flat"}`).join(" · ");
+      row("PAYING", st10, spent ? "covering · pop khatam" : base + (tp && tp.unread ? " · pop ?" : ""),
+        pay.map(f => `${f.leg.toUpperCase()} ${f.k} ${f.state} (peak ${L(f.peak)} at ${hm(f.peakT)}, ${pct(f.off)} off)`).join(" · ") + " [M]; the move needs somebody forced to pay for it" +
+        (!cov ? "" : ` · SPENT POP [I]: fresh extreme ${fr.fresh ? `yes (${fmt(fr.ext)} spot ${hm(fr.at)})` : `no${fr.ext != null ? ` (30-min ${d > 0 ? "high" : "low"} ${fmt(fr.ext)} spot ${hm(fr.at)})` : ""}`}` +
+          (tp ? ` · tape ${spent ? `exhausted: ${tp.names.join(", ")} — the covering is the last of it, pop khatam` : tp.unread ? `pop khatam? check nahi (${tp.unread})` : "not exhausted"}` : "")), { fronts: pay, fresh: fr, tape: tp }); }
+    // counts + word (rev 3: VPIN printed, never counted; GO still needs 6 WITH: of 9 for a buyer, of 8 for a writer)
+    const counted = C.filter(c => c.st !== "NS" && c.st !== "PR");
     const w = counted.filter(c => c.st === "WITH").length, a = counted.filter(c => c.st === "AGAINST").length, n = counted.filter(c => c.st === "NEITHER").length, c = counted.filter(c => c.st === "CNC").length;
     const structA = C.filter(q => STRUCT.includes(q.name) && q.st === "AGAINST").length;
     const rn = C[0].st;
@@ -354,7 +493,7 @@ const Engine = (() => {
       pain: [g.own, g.other, g.W, g.A].filter(Boolean).map(f => ({ k: f.k, leg: f.leg.toUpperCase(), ltp: f.ltp, avg: f.avg, word: f.avg == null || f.ltp == null ? "—" : f.ltp >= 1.3 * f.avg ? "under water" : f.ltp <= 0.8 * f.avg ? "comfortable" : "near their avg" })),
       pcr: s.pcr,
     };
-    return { ok: true, idx, K, ty, side, px: g.px, ltp: g.ltp, d, role: g.role, word, why, counts: { w, a, n, c, of: counted.length }, checks: C, strongest, levels: lv, printed, g, s, hi: HI[word] };
+    return { ok: true, rev: REV, idx, K, ty, side, px: g.px, ltp: g.ltp, d, role: g.role, word, why, counts: { w, a, n, c, of: counted.length }, checks: C, strongest, levels: lv, printed, g, s, hi: HI[word] };
   }
   function levels(s, g) {
     const sp = f => f - s.basis, out = [];
@@ -588,5 +727,5 @@ const Engine = (() => {
     ev.sort((a, b) => a.t - b.t); memo.set(key, ev); return ev;
   }
 
-  return { load, apply, snap, validate, board, read, inTrade, entrySnap, tradePath, events, tradeEvents, premAtTime, xindex, reason, premAt, hm, hms, fmt, sgn, pct, L, L0, IDX, OPEN, CLOSE, PRACTICE, HI, get data() { return D; } };
+  return { REV, R3, setDecode, decAt, votes: { dayVote, wallVote, effortVote, quadVote, flowVote, payVote, weekdays, freshOf, tapeOf, rollOf, emOf }, load, apply, snap, validate, board, read, inTrade, entrySnap, tradePath, events, tradeEvents, premAtTime, xindex, reason, premAt, hm, hms, fmt, sgn, pct, L, L0, IDX, OPEN, CLOSE, PRACTICE, HI, get data() { return D; } };
 })();

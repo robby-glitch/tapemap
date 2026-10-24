@@ -591,21 +591,34 @@ def _onesided(g, peers):
         return onesided.blank(f"could not check — {type(e).__name__}: {e}")
 
 
+def exhaust_of(g):
+    """VALIDATE rev 3's EXHAUST (docs/hold/VALIDATE-PREREG-rev3.md §1): FADE-D 2a's fading-effort test on the DECODE
+    leg's latest new extreme -- the very reading `signs` turns into its effort decel sign -- as {d, bar, close, ratio},
+    else None (no leg, no new extreme in the window, or the effort did not fade). Display only."""
+    leg, fd = g.get("dleg"), g.get("dfd")
+    a = (fd or {}).get("a") or ()
+    r = a[-1] if a else None
+    if not leg or not r or not r.get("ok"):
+        return None
+    return {"d": leg["d"], "bar": r.get("bar"), "close": r.get("close"), "ratio": r.get("ratio")}
+
+
 def decode(g, peers, fade_in=None, ride_in=None):
     """The contract (shared with the extension): {call, lines (<= 6, EFFORT last), setups, leg, t, tag, onesided,
-    effort}. `g` = facts(...) for this index plus g["effort"] (effort.read, set by the server), `peers` = the other
-    indices' facts. The server adds `age_s` when it serves the block (A13)."""
+    effort, exhaust}. `g` = facts(...) for this index plus g["effort"] (effort.read, set by the server), `peers` = the
+    other indices' facts. The server adds `age_s` when it serves the block (A13)."""
     dec, con = signs(g, peers)
     return {"call": call(g["dleg"], dec, con), "lines": lines(g, peers)[:NLINES], "setups": setups(g, fade_in, ride_in),
             "leg": leg_out(g), "t": hm(g["c_last"]) if g["c_last"] is not None else None, "tag": "I",
-            "onesided": _onesided(g, peers), "effort": g.get("effort") or effort.blank("could not check — not read")}
+            "onesided": _onesided(g, peers), "effort": g.get("effort") or effort.blank("could not check — not read"),
+            "exhaust": exhaust_of(g)}
 
 
 def empty(why):
     """The block when an index cannot be read at all: every field present, the call "?"."""
     return {"call": {"text": "?", "kind": "SAAF_NAHI", "d": 0, "c": 0, "of": OF, "signs": []},
             "lines": [f"? — {why}"], "setups": [], "leg": None, "t": None, "tag": "I", "onesided": onesided.blank(why),
-            "effort": effort.blank(why)}
+            "effort": effort.blank(why), "exhaust": None}
 
 
 def at_close(now):

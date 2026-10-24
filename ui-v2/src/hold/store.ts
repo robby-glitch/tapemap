@@ -17,6 +17,7 @@ export const rank = (w?: string) => RANK[w ?? 'HOLD'] ?? 3
 
 let s: State = { trades: [], lots: {}, reads: {}, flips: {}, err: null, loaded: false }
 const subs = new Set<() => void>(), folds = new Set<(id: string) => void>()
+const voices = new Set<(id: string, state: string, seq: number) => void>()
 let follow: string | null = null, busy = false, timer: number | undefined
 const put = (p: Partial<State>) => { s = { ...s, ...p }; subs.forEach(f => f()) }
 
@@ -60,8 +61,11 @@ async function poll() {
         if (was && h.now) {
           const f = flip(was, h.now)
           if (f.rows.length || f.from !== f.to) flips[id] = f      // the last change stays on screen until the next
-          if (f.from !== 'FOLD' && f.to === 'FOLD') folds.forEach(g => g(id))   // the one tone: only the turn into FOLD
+          if (!h.voice?.ok && f.from !== 'FOLD' && f.to === 'FOLD') folds.forEach(g => g(id))   // a server before A52: the FOLD tone
         }
+        // A52 THE LADDER: a sound only when the voice's seq moves to a NEW state (the first read is the baseline)
+        const v0 = reads[id]?.voice, v1 = h.voice
+        if (v0?.ok && v1?.ok && v1.seq !== v0.seq && v1.state !== v0.state) voices.forEach(g => g(id, v1.state, v1.seq))
         reads[id] = h
       } catch (e) { err = why(e) }           // keep the last good read; the age chip shows it growing old
     }))
@@ -80,6 +84,7 @@ export const refresh = () => poll()
 /** a view reviewing a closed trade asks for it to be read too */
 export const followTrade = (id: string | null) => { if (id !== follow) { follow = id; poll() } }
 export const onFold = (f: (id: string) => void) => { folds.add(f); return () => { folds.delete(f) } }
+export const onVoice = (f: (id: string, state: string, seq: number) => void) => { voices.add(f); return () => { voices.delete(f) } }
 
 /** the trade doors: mark · exit (with its time) · reopen (the 10 s undo). Nothing reaches a broker. */
 export async function tradeOp(body: Record<string, unknown>): Promise<{ ok: boolean; why?: string; trades?: Trade[] }> {
@@ -94,13 +99,22 @@ export async function tradeOp(body: Record<string, unknown>): Promise<{ ok: bool
 // one tone on a transition into FOLD, default ON (REVIEW P1-13); one AudioContext, unlocked by her first click
 let ctx: AudioContext | null = null
 if (typeof window !== 'undefined') window.addEventListener('pointerdown', () => { try { ctx ??= new AudioContext(); ctx.resume() } catch { /* no audio */ } }, { once: true })
-export function tone() {
+export function tone(hz = 520, ms = 450) {
   try {
     ctx ??= new AudioContext()
     const o = ctx.createOscillator(), g = ctx.createGain()
-    o.frequency.value = 520; g.gain.value = 0.08
-    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.45)
+    o.frequency.value = hz; g.gain.value = 0.08
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + ms / 1000)
   } catch { /* no audio: the red header still says it */ }
+}
+// A52 the ladder's sounds: a soft tick for TIGHTEN, two tones for WARN, the alarm for EXIT -- once more after 10 s unless
+// her click on the block acked that EXIT (ackVoice). HOLD is silent.
+const RING: Record<string, [number, number][]> = { TIGHTEN: [[1320, 45]], WARN: [[660, 170], [520, 170]], EXIT: [[330, 220], [330, 220], [330, 220]] }
+const acked = new Set<string>()
+export const ackVoice = (id: string, seq: number) => { acked.add(`${id}|${seq}`) }
+export function ring(state: string, id: string, seq: number, again = false) {
+  ;(RING[state] ?? []).forEach(([hz, ms], i) => setTimeout(() => tone(hz, ms), i * 300))
+  if (state === 'EXIT' && !again) setTimeout(() => { if (!acked.has(`${id}|${seq}`)) ring(state, id, seq, true) }, 10000)
 }
 
 /** seconds since the read minute FINISHED (a minute HH:MM is complete at HH:MM+1) */

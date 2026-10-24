@@ -144,6 +144,7 @@ export function FloatBody({ t, r, story, feed, why, va, onAck }: { t: Trade; r?:
     {r?.hold2 && <p className="f3 num" title={r.hold2.why ?? r.hold2.note ?? undefined}><b className="k">HOLD v2</b>
       {r.hold2.ok && r.hold2.text ? <span>{r.hold2.text.replace(/^HOLD v2 · /, '')}</span> : <Abs text={cc(r.hold2.why, 'no HOLD v2 line')} />}
       {r.hold2.note && <span className="muted why">{r.hold2.note}</span>}</p>}{/* §1m, display only: never the word */}
+    {/* A52: the CHOP / POP / EFFORT shadow lines are not shown while she is in; the server logs them and puts them on the receipt */}
     <p className="f3"><b className="k">DECODER</b>{dec ? <Abs text={dec} /> : <>
       <span className="dcnt"><b className="num a">{tr!.against}</b> khilaaf · <b className="num w">{tr!.behind}</b> saath{tr!.since ? <span className="muted"> · since {tr!.since}</span> : null}
         {' '}<span className="tag" title="the decoder's read, beside the engine's word; it changes no HOLD / FOLD (P1–P7 unsigned)">I</span></span>

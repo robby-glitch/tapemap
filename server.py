@@ -87,6 +87,8 @@ import surface as surface_mod
 import trigger_log
 import confluence_log            # research-findings §1i: the confluence setup's forward log, beside trigger_log
 import hold2                     # research-findings §1m: HOLD v2's line beside the hold window's word (display only)
+import holdshadow                # three HOLD v3 candidate lines beside HOLD v2 (NOTEPAD), shadow + forward log only
+import voice                     # THE ONE VOICE in a trade (A52): one state ladder over the word + HOLD v2, display only
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -3246,7 +3248,9 @@ def _hold_trades():
     return _HOLD["trades"]
 
 
-_HOLD2 = {"refs": {}, "closes": {}, "out": {}, "busy": set()}
+_HOLD2 = {"refs": {}, "closes": {}, "out": {}, "busy": set(), "shadow": {}}
+SHADOW_DIR = os.path.join("data", "hold")        # holdshadow's forward log, shadow_<day>.jsonl (_shadow_log)
+_SHADOW_SEEN = {}                                # path -> {(trade id, line)} already on disk
 _HOLD2_LOCK = threading.Lock()
 
 
@@ -3257,6 +3261,11 @@ def _hold2(rep, trades):
     the push references (the prior days' tape files, read once per index-day); a request gets the last block, or why
     there is none yet."""
     tr = next((t for t in trades if t["id"] == rep.get("id")), None)
+    if tr is not None and tr.get("exit_t"):          # her exit: the shadow lines still undecided are logged as they stood
+        with _HOLD2_LOCK:
+            hit = _HOLD2["out"].get(tr["id"])
+        if hit and (hit[1] or {}).get("shadow"):
+            _shadow_log(_board_clock()[0], tr, hit[1]["shadow"], at_exit=True)
     if tr is None or tr.get("exit_t") or not rep.get("ok") or (rep.get("view") or {}).get("frozen"):
         return None
     lt = time.localtime()
@@ -3287,12 +3296,79 @@ def _hold2_run(tr, view, m):
             if out.get("text"):                  # A25, display only: SENSEX futures are too thin (the line is spot|fut)
                 import decode
                 out["text"] += decode.patla_of(idx, bars5)
+            if out.get("ok"):                    # the HOLD v3 candidates (holdshadow.py): shadow, never the word or v2
+                try:
+                    dec = holdshadow.dec_rows(confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")), idx)
+                    out["shadow"] = holdshadow.live(tr, view, out, m, bars1, chain_rows, bars5, dec,
+                                                    _HOLD2["shadow"].setdefault((day, key), {}))
+                    _shadow_log(day, tr, out["shadow"])
+                except Exception as e:
+                    log.exception("hold shadow")
+                    out["shadow"], out["shadow_why"] = None, f"could not check — the shadow lines failed: {type(e).__name__}: {e}"
     except Exception as e:
         log.exception("hold2")
         out = {"ok": False, "tag": "I", "text": None, "why": f"could not check — HOLD v2 failed: {type(e).__name__}: {e}"}
     with _HOLD2_LOCK:
         _HOLD2["out"][key] = (m, out)
         _HOLD2["busy"].discard(key)
+
+
+def _shadow_log(day, tr, lines, at_exit=False):
+    """holdshadow's forward log, data/hold/shadow_<day>.jsonl: one row per trade per line, WRITE-ONCE, when both its exit
+    and HOLD v2's are decided (`final`), or at her exit as the lines stood (final False). Anytime-start: the rows already
+    on disk are read before the first write, so a restart never writes a line twice. Fail-soft."""
+    try:
+        path = os.path.join(SHADOW_DIR, f"shadow_{day}.jsonl")
+        seen = _SHADOW_SEEN.get(path)
+        if seen is None:
+            seen = _SHADOW_SEEN[path] = {(r.get("id"), r.get("line")) for r in confluence_log._rows(path)}
+        rows = [holdshadow.row(day, tr, L, time.time()) for L in lines or ()
+                if (tr["id"], L["line"]) not in seen and (L.get("final") or at_exit)]
+        if rows:
+            os.makedirs(SHADOW_DIR, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows))
+            seen.update((r["id"], r["line"]) for r in rows)
+    except Exception:
+        log.exception("shadow log")
+
+
+_VOICE, _VOICE_LOCK = {}, threading.Lock()      # trade id -> voice.ladder's memory (state, seq, first sights)
+
+
+def _in_trade(rep, trades):
+    """The in-trade reply's companions, on a COPY of the engine's cached reply (A52): HOLD v2 beside the word (§1m) with
+    the shadow lines kept OFF it while the trade is open (their log, _shadow_log, is unchanged), and THE ONE VOICE
+    (voice.py) computed once here, so the panel, the hold window and Validate render the same block; after her exit, the
+    receipt instead. Display only, fail-soft: a failure is a why, never the reply's."""
+    tr = next((t for t in trades if t["id"] == rep.get("id")), None)
+    try:
+        h2 = _hold2(rep, trades)
+    except Exception as e:
+        h2 = {"ok": False, "tag": "I", "text": None, "why": f"could not check — HOLD v2 failed: {type(e).__name__}: {e}"}
+    out = dict(rep, hold2={k: x for k, x in h2.items() if k not in ("shadow", "shadow_why")} if isinstance(h2, dict) else h2)
+    try:
+        if tr is not None and tr.get("exit_t"):
+            p = ((rep.get("view") or {}).get("prem") or {}).get("now")
+            path = os.path.join(SHADOW_DIR, f"shadow_{_board_clock()[0]}.jsonl")
+            out["receipt"] = voice.receipt(tr, p, confluence_log._rows(path))
+        elif tr is not None:
+            with _VOICE_LOCK:
+                out["voice"] = voice.ladder(rep, h2, int(time.time() * 1000), _VOICE.setdefault(tr["id"], {}),
+                                            lambda px: fold_live.prem_at(tr["idx"], tr["id"], px))
+    except Exception as e:
+        log.exception("voice")
+        out["voice"] = {"ok": False, "why": f"could not check — the voice failed: {type(e).__name__}: {e}"}
+    return out
+
+
+def _receipt_for(idx, trades):
+    """The panel's post-trade receipt: her last exited trade on idx today (the frame has no `fold` once she is out)."""
+    done = sorted((t for t in trades if t["idx"] == idx and t.get("exit_t")), key=lambda t: t["exit_t"])
+    if not done:
+        return None
+    rep = fold_live.reply("/api/fold", {"id": [done[-1]["id"]]}, trades)
+    return dict(_in_trade(rep, trades).get("receipt") or {}, id=done[-1]["id"]) if rep.get("ok") else None
 
 
 _HOLD_T = re.compile(r"^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$")      # a real clock time: "09:99" is refused
@@ -3324,9 +3400,12 @@ def _hold_trade(doc, src="marked"):
         return None, "entry time must be HH:MM or HH:MM:SS inside 09:15-15:29"
     if ex is not None and (not _HOLD_T.match(str(ex)) or str(ex) < t0):
         return None, "exit time must be HH:MM or HH:MM:SS, not before the entry"
+    va = doc.get("validate") if isinstance(doc.get("validate"), dict) else None     # VALIDATE rev 3 §3: the entry stamp
+    va = None if va is None else {k: (str(va[k])[:80] if k in ("rev", "word") else int(va[k]) if isinstance(va[k], (int, float)) else None)
+                                  for k in ("rev", "word", "w", "a", "n", "c", "of") if k in va}
     return {"id": f"{idx}-{k:g}{side}-{role}-{t0.replace(':', '')}", "idx": idx, "k": k, "side": side,
             "role": role, "t0": t0, "p0": p0, "qty": qty, "exit_t": ex, "src": src,
-            "expiry": doc.get("expiry")}, None
+            "expiry": doc.get("expiry"), "validate": va}, None
 
 
 def _hold_reply(poller, q):
@@ -4472,7 +4551,12 @@ class Handler(SimpleHTTPRequestHandler):
                 # `flat` reads ride on the frame, from the engine's cache. Isolated twice: a failure is a why.
                 try:
                     fold_live.push(idx, "tape", doc.get("closed") or [])
-                    fr["fold"], fr["flat"] = fold_live.frame(idx, list(_hold_trades()))
+                    trs = list(_hold_trades())
+                    fr["fold"], fr["flat"] = fold_live.frame(idx, trs)
+                    if isinstance(fr["fold"], dict) and fr["fold"].get("ok"):    # the panel's one voice (A52)
+                        fr["fold"] = _in_trade(fr["fold"], trs)
+                    elif fr["fold"] is None:
+                        fr["receipt"] = _receipt_for(idx, trs)
                 except Exception as e:                   # never at the frame's expense
                     fr["fold"], fr["flat"] = {"ok": False, "why": f"could not check — the engine failed: {e}"}, None
                 try:
@@ -5405,11 +5489,7 @@ class Handler(SimpleHTTPRequestHandler):
             if isinstance(out, dict) and u.path != "/api/fold/record":      # the feed band rides the reads the faces poll
                 out["feed"] = _feed_read((parse_qs(u.query).get("idx") or ["NIFTY"])[0], time.strftime("%Y-%m-%d"))
             if isinstance(out, dict) and u.path == "/api/fold" and out.get("ok"):
-                try:                                                  # HOLD v2 beside the word, display only (§1m);
-                    h2 = _hold2(out, trades)                          # a copy: the engine's cached reply is untouched
-                except Exception as e:
-                    h2 = {"ok": False, "tag": "I", "text": None, "why": f"could not check — HOLD v2 failed: {type(e).__name__}: {e}"}
-                out = dict(out, hold2=h2)
+                out = _in_trade(out, trades)                          # HOLD v2 + the one voice, on a copy (A52)
             self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/hold"):
             # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
@@ -5433,6 +5513,15 @@ class Handler(SimpleHTTPRequestHandler):
                                        F["asof"]) if F else {"why": board.CC + "no finished minute yet", "tag": "M"})
                 else:
                     out = _hold_reply(self.poller, q)
+                    tid = (q.get("id") or [None])[0]
+                    if tid and isinstance(out, dict):            # the hold window's one voice (A52), the same block
+                        with HOLD_TRADES_LOCK:
+                            trs = list(_hold_trades())
+                        rep = fold_live.reply("/api/fold", {"id": [tid]}, trs)
+                        fv = _in_trade(rep, trs) if isinstance(rep, dict) and rep.get("ok") else {}
+                        out["voice"] = fv.get("voice") or {"ok": False, "why": (rep or {}).get("why") or "could not check — no engine read"}
+                        if fv.get("receipt"):
+                            out["receipt"] = fv["receipt"]
             except Exception as e:           # a bad read must not 500 the window
                 log.exception("hold %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
@@ -5450,6 +5539,31 @@ class Handler(SimpleHTTPRequestHandler):
                        if re.match(r"^\d{4}-\d{2}-\d{2}$", day) else {"ok": False, "why": "day must be YYYY-MM-DD"})
             except Exception as e:               # never 500
                 log.exception("read %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, ensure_ascii=False, default=str).encode())
+        elif urlsplit(self.path).path == "/api/decode":
+            # VALIDATE rev 3's DECODE inputs (docs/hold/VALIDATE-PREREG-rev3.md §1): the DECODE block per index -- live,
+            # the loop's cache (never computed on the request); a past ?day=&at=HH:MM, once per close (_decode_for).
+            q = parse_qs(urlsplit(self.path).query)
+            day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
+            at = (q.get("at") or [None])[0]
+            try:
+                if not re.match(r"^\d{4}-\d{2}-\d{2}$", day) or (at and not re.match(r"^\d{2}:\d{2}$", at)):
+                    out = {"ok": False, "why": "day must be YYYY-MM-DD, at HH:MM"}
+                else:
+                    live = day == time.strftime("%Y-%m-%d")
+                    lt = time.localtime()
+                    now = (int(at[:2]) * 3600 + int(at[3:5]) * 60 if at
+                           else lt.tm_hour * 3600 + lt.tm_min * 60 + lt.tm_sec if live else None)
+                    if live and at:                  # today, a scrubbed close: what the app said then (the write-once log)
+                        dec = {r["idx"]: r for r in confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl"))
+                               if r.get("T") == at and r.get("idx")}
+                    else:
+                        dec = _decode_for(day, now, live) or {}
+                    out = {"ok": True, "day": day, "live": live, "why": dec.get("why"),
+                           "indices": {i: _decode_aged(dec.get(i), now) for i in instruments.ENABLED if isinstance(dec.get(i), dict)}}
+            except Exception as e:               # never 500
+                log.exception("decode door")
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, ensure_ascii=False, default=str).encode())
         elif self.path.startswith("/api/calls"):

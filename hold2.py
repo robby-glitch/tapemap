@@ -379,7 +379,9 @@ def window_line(d, E, line0, start, ones, pushes_, closes, end, fut, basis, fron
     out.update(ok=True, line_fut=line, line_spot=sp, line_src=q["line_src"], why=q["line_why"],
                why_short=short_why(q["line_src"], q["moves"]), pts=pts, moves=q["moves"], lock_t=q["lock_t"],
                how=q["how"], touched_t=q["exit_t"] if q["how"].startswith("line_") else None, gave_up_t=gave,
-               munafa=r["munafa"] if r else [], trail=q["trail"], mfe=q["mfe"])
+               munafa=r["munafa"] if r else [], trail=q["trail"], mfe=q["mfe"],
+               # the whole rule's exit as it stands (how "open" until one fires): the hold shadow lines pair with it
+               v2_exit=None if r is None else {"how": r["how"], "t": r["exit_t"], "px": r["exit"], "R": r["R"]})
     at = f"{'?' if sp is None else f'{sp:,.0f}'}s|{line:,.0f}f"
     touched = out["touched_t"]
     parts = ["HOLD v2", f"line {at}" + (f" touched {touched}" if touched else "") + f" ({out['why_short']})"]

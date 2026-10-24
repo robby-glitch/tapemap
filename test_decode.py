@@ -168,7 +168,7 @@ def test_a_down_leg_carries_its_arrow():
 
 def test_the_block_keeps_the_shared_contract():
     out = decode.decode(g_top(basis=12.0), [peer("SENSEX", -1)])
-    assert set(out) == {"call", "lines", "setups", "leg", "t", "tag", "onesided", "effort"} and out["tag"] == "I" and out["t"] == "09:45"
+    assert set(out) == {"call", "lines", "setups", "leg", "t", "tag", "onesided", "effort", "exhaust"} and out["tag"] == "I" and out["t"] == "09:45"
     assert set(out["onesided"]) == set(decode.onesided.blank("x"))
     assert set(out["call"]) == {"text", "kind", "d", "c", "of", "signs"} and out["call"]["kind"] in decode.KINDS
     assert out["call"]["text"] == "▲ leg thak raha · 6/7"
@@ -434,7 +434,7 @@ def test_a_broken_setup_is_that_chips_absence_only(monkeypatch):
 
 def test_the_empty_block_has_every_field():
     e = decode.empty("x")
-    assert set(e) == {"call", "lines", "setups", "leg", "t", "tag", "onesided", "effort"} and e["call"]["of"] == 7 and e["lines"] == ["? — x"]
+    assert set(e) == {"call", "lines", "setups", "leg", "t", "tag", "onesided", "effort", "exhaust"} and e["call"]["of"] == 7 and e["lines"] == ["? — x"]
     assert e["effort"]["why"] == "x" and e["effort"]["x"] is None
     assert e["onesided"]["type"] is None and e["onesided"]["why"] == "x"
 

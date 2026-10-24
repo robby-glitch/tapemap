@@ -74,7 +74,7 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 1897 collected: 1895 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-23
+python -m pytest -q            # 1921 collected: 1919 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-23 night (VALIDATE rev 3)
 ```
 
 **Launch the server DETACHED, never as a child of an assistant/terminal

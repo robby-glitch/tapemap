@@ -37,8 +37,9 @@ import daylog
 import fold
 import fold_log
 import tape_log
+import voice
 
-log = logging.getLogger("tapemap.fold")
+log =logging.getLogger("tapemap.fold")
 CC = fold.CC
 ALWAYS = ("NIFTY", "BANKNIFTY", "SENSEX")   # the indices read all day, in build order; any other index while it has a marked trade
 LAG_MS = 2000            # (h) a row is fed 2 s after its key: a chain row (own ts) lands before later book rows (arrival t)
@@ -186,6 +187,34 @@ def _as_trade(st, tr):
     st.dty, st.aty = ("CE", "PE") if st.d < 0 else ("PE", "CE")
     st.p0, st.entry_t, st.exit_t, st.trade_id = float(tr["p0"]), int(tr["entry_t"]), None, tr["trade_id"]
     st.nfixed = len([r for r in st.runs if "fixed_t" in r])
+
+
+def _voice_facts(st, v):
+    """Two State facts the view does not carry, for the one voice (voice.py, display only; fold.py untouched): when each
+    chip took its value (`chip_since`), and the wall behind her as the W-BLEED gauge reads it (validate2 DESIGN §5.5:
+    `upd` updates since its peak, `off` its share off the peak, `bleed_t` the first update of the bleed now running)."""
+    v["chip_since"] = {c[0]: fold.hms(t) if t else None for c, t in st.since.items()}
+    w, W = getattr(st, "Ww", None), v.get("W")
+    u = st.oiu.get(w.key) if w is not None and w.pk else None
+    if not W or not u or w.j is None or w.j >= len(u):
+        return
+    off = lambda i: (w.pk - u[i][1]) / w.pk                    # noqa: E731
+    i = w.j
+    while i - 1 - w.pk_i >= voice.BLEED_N and off(i - 1) >= voice.BLEED_OFF and off(i) >= voice.BLEED_OFF:
+        i -= 1                                                  # back to the start of the run that is bleeding now
+    on = off(w.j) >= voice.BLEED_OFF and w.j - w.pk_i >= voice.BLEED_N
+    v["W"] = dict(W, upd=w.j - w.pk_i, off=round(off(w.j), 4), bleed_t=fold.hms(u[i][0]) if on else None)
+
+
+def prem_at(idx, tid, px):
+    """Her strike's premium at a futures price on the engine's own chain interpolation (fold.State._prem_at, [I]), for
+    the voice's stop; (None, why) when it cannot."""
+    eng = _ENG.get(idx)
+    e = eng.trades.get(tid) if eng else None
+    st = e["st"] if e else None
+    if st is None or st.last_key is None or px is None:
+        return None, f"{CC} — the engine has no read for {tid}"
+    return st._prem_at(px, st.last_key)
 
 
 def _fail(e):
@@ -394,8 +423,10 @@ class Engine:
         if e["st"] is None:
             return dict(ok=False, why=self.catching_up(), **head)
         try:
-            v = fold_log.words(e["st"].view(now), e["res"])
-            return dict(ok=True, view=_trim(v), words=_words(e["st"], e["logged"]), asof=fold.hms(now), **head)
+            v = _trim(fold_log.words(e["st"].view(now), e["res"]))
+            if v.get("headline") is not None and not v.get("frozen"):
+                _voice_facts(e["st"], v)
+            return dict(ok=True, view=v, words=_words(e["st"], e["logged"]), asof=fold.hms(now), **head)
         except Exception as x:
             return dict(ok=False, why=_fail(x), **head)
 

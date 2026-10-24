@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Abs, Age, Cutoff, Err, Fired, Guard, Ico, Live, Mark, N, Qual, Quiet, Rows, SideList, Sigma, WALL, WatchList, cap, inr, levelNote, nowHMS, roomText, rs, span, strip, twoLegs, vcls } from './parts'
-import { onFold, rank, tone, tradeOp, useHold } from './store'
+import { ackVoice, onFold, onVoice, rank, ring, tone, tradeOp, useHold } from './store'
 import type { Held } from './store'
 
 export type Word = 'HOLD' | 'WATCH' | 'FOLD' | 'PATA NAHI'
@@ -35,7 +35,11 @@ export type Reading = {
   sigma?: { z?: number | null; vwap?: number; why?: string } | null
   absent?: { checked_none: string; could_not_check: string[]; not_shown: string[] }
   plan?: PlanRow & { entry: PlanRow; draft: string; not_shown: string[] }
+  voice?: Voice; receipt?: { ok: boolean; text: string; why?: string | null }
 }
+// A52 THE ONE VOICE (server voice.py, on /api/hold?id=): one word, one stop, one reason; the same block as the panel's
+export type Voice = { ok: boolean; why?: string; state: 'HOLD' | 'TIGHTEN' | 'WARN' | 'EXIT'; seq: number; l1: string; l2: string; l3: string
+                      trig_t?: string | null; note?: string; active?: { t: string; state: string; reason: string }[] }
 export type PlanRow = {
   t: string
   stop: { L?: number; room?: number | null; risk?: number | null; risk_why?: string | null; text?: string | null; level?: number | null
@@ -75,6 +79,8 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   const [min, setMinS] = useState<boolean>(() => ls('hold.min') === '1')
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => { try { return JSON.parse(ls('hold.pos2') || 'null') } catch { return null } })
   const [beep, setBeepS] = useState<boolean>(() => ls('hold.tone') !== '0')        // default ON (REVIEW P1-13)
+  const [vOpen, setVOpenS] = useState<boolean>(() => ls('hold.vdet') === '1')     // A52 [detail ▸]: shut by default, remembered
+  const setVOpen = (v: boolean) => { ls('hold.vdet', v ? '1' : '0'); setVOpenS(v) }
   const [pip, setPip] = useState<Window | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -86,7 +92,8 @@ function Win({ hidden = false }: { hidden?: boolean }) {
   }
   const setBeep = (v: boolean) => { ls('hold.tone', v ? '1' : '0'); setBeepS(v); if (v) tone() }
 
-  useEffect(() => onFold(() => { if (beep) tone() }), [beep])       // one tone, on any trade turning FOLD
+  useEffect(() => onFold(() => { if (beep) tone() }), [beep])       // a server before A52: one tone, on a trade turning FOLD
+  useEffect(() => onVoice((id, st, seq) => { if (beep) ring(st, id, seq) }), [beep])   // A52: the ladder, on a state change
   useEffect(() => { if (!show && pip) pip.close() }, [show, pip])   // out of every trade: the pop-out goes too
 
   // the word in the browser tab title (and the PiP title), so the taskbar carries it behind the broker window;
@@ -281,18 +288,30 @@ function Win({ hidden = false }: { hidden?: boolean }) {
       )}
       <div className="fl-sec fl-tools">
         {!red && <button type="button" className="btn btn-sm" disabled={busy} onClick={() => out(t)}>I'm out of {contract(t)}</button>}
-        <label style={{ marginLeft: 'auto' }}><input type="checkbox" checked={beep} onChange={e => setBeep(e.target.checked)} /> tone on FOLD</label>
+        <label style={{ marginLeft: 'auto' }}><input type="checkbox" checked={beep} onChange={e => setBeep(e.target.checked)} /> sound: EXIT · WARN · TIGHTEN</label>
         {msg && <Err>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></Err>}
       </div>
       <div className="fl-foot"><span className="draft" title={rd?.draft || 'pre-registered, untested'}>DRAFT</span><Age asof={rd?.asof} /><Cutoff open /><span>nothing is sent to your broker</span></div>
     </>
   )
 
+  // A52 THE ONE VOICE on top; [detail ▸] opens everything the window shows today. A click on it acks an EXIT's second ring.
+  const vc = rd?.voice?.ok ? rd.voice : null
+  const voiceEl = vc && (
+    <div className={`voice v-${vc.state}`} {...grip} onClick={() => ackVoice(t.id, vc.seq)}
+         title={(vc.active ?? []).map(a => `${a.t} ${a.state} · ${a.reason}`).join(String.fromCharCode(10)) || vc.note}>
+      <div className="v1">{vc.l1}</div>
+      <div className="v2"><span className="vw">{vc.state}</span>{vc.l2}</div>
+      <div className="v3">{vc.l3}{vc.trig_t && vc.state !== 'HOLD' ? ` · ${vc.trig_t}` : ''}</div>
+      {!vOpen && <span className="vbtns" onClick={e => e.stopPropagation()}>{btns}</span>}
+      <button type="button" className="vd" onClick={e => { e.stopPropagation(); setVOpen(!vOpen) }}>detail {vOpen ? '▾' : '▸'}</button>
+    </div>)
+
   const cls = `hv float ${min ? 'col' : 'open'}${red ? ' red' : ''}${pip ? ' in-pip' : ''}`
   const style: CSSProperties | undefined = pip ? undefined
     : pos ? { left: Math.max(0, Math.min(pos.x, window.innerWidth - (min ? Math.min(COLW, window.innerWidth - 16) : W) - 8)), top: pos.y, right: 'auto', bottom: 'auto' }
     : undefined
-  const win = <div ref={box} className={cls} style={style}>{line}{body}</div>
+  const win = <div ref={box} className={cls} style={style}>{voiceEl}{vc && !vOpen ? null : <>{line}{body}</>}</div>
   if (pip) return <>{createPortal(win, pip.document.body)}{!hidden && <div className="hv-back">HOLD / FOLD is popped out on top <button type="button" onClick={() => pip.close()}>bring it back</button></div>}{toast}</>
   return <>{win}{toast}</>
 }
