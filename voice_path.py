@@ -19,6 +19,7 @@ import fold
 import fold_live
 import hold2
 import holdshadow
+import sensex_flow
 import tape_log
 import trademap
 import ux_log
@@ -69,9 +70,26 @@ def effort_dec(idx, book, chain, lot):
     return {c: {"effort": effort.read(idx, fm, spot, c - 1), "T": hold2.hm(c)} for c in range(9 * 60 + 20, 15 * 60 + 31, 5)}
 
 
+def nifty_side(day, after):
+    """SENSEX-NIFTY-FLOW (signed 25 Oct, sensex_flow.ON): the all-day NIFTY engine's flat State (fold.State(None), fed like
+    fold_live's) and NIFTY's push inputs for a SENSEX trade's replay -> {st, keys, i, b5, refs, why}."""
+    lot = v2feed.LOTS.get("NIFTY")
+    book = list(book_log.read_rows(day, "NIFTY"))
+    chain = rows(os.path.join(DATA, "chain", f"chain_NIFTY_{day}.jsonl"))
+    tape = [b for b in tape_log.read_bars(day, "NIFTY") if b.get("t") is not None]
+    days, _ = tape_log.prior_pool(day, "NIFTY", fold.PRIOR_N, after=after)
+    prior = [fold.session_from_book(list(book_log.read_rows(d, "NIFTY")), lot=lot, idx="NIFTY", day=d) for d in reversed(days)]
+    st = fold.State(None, dict(day=day, idx="NIFTY", lot=lot, prior=prior, expiry=chain[-1].get("expiry") if chain else None))
+    st.feed(vpin=[r for r in rows(os.path.join(DATA, "vpin_fast.jsonl")) if r.get("day") == day], tape=tape)
+    keys = sorted([(r["t"], 1, r) for r in book] + [(fold.ms(day, r["ts"]), 0, r) for r in chain], key=lambda x: (x[0], x[1]))
+    refs, why = confluence_log.push_refs("NIFTY", day)
+    return dict(st=st, keys=keys, i=0, refs=refs, why=why,
+                b5=confluence_log.push_bars("NIFTY", day, gc_rows=tape, ux_rows=ux_log.read_bars(day, "NIFTY")))
+
+
 def run(c):
     """c = {day, tr (her day_state record), lot?, end "HH:MM:SS"} -> the path [{t "HH:MM", at "HH:MM:SS" (the read's own
-    second: everything fed is before it), voice, headline, clause, chips, W, hold2_text, shadow, map, view, words}];
+    second: everything fed is before it), voice, headline, clause, chips, W, hold2_text, hold2, shadow, map, view, words}];
     c["receipt"] at her exit, c["dec_src"] "log" | "rebuilt"."""
     day, tr, idx = c["day"], dict(c["tr"]), c["tr"]["idx"]
     lot = c.get("lot") or v2feed.LOTS.get(idx)
@@ -101,6 +119,8 @@ def run(c):
     mdec, c["dec_src"] = (dec, "log") if dec else (effort_dec(idx, book, chain, lot), "rebuilt")
     lv = c["levels"] if "levels" in c else prior_levels(idx, day)
     prints = decoder_log.read_events(day, idx)                  # A61: her BADA PRINTs (logged from 5 Oct, GoCharting tab open)
+    nx = nifty_side(day, c.get("after") or roll(day)) if sensex_flow.on(idx) else None   # SENSEX-NIFTY-FLOW (signed 25 Oct)
+    fmem = {}
     while t <= t_end and i < len(keys):
         b, ch = [], []
         while i < len(keys) and keys[i][0] < t + 60000:
@@ -109,6 +129,12 @@ def run(c):
         seen_chain += ch
         now = t + 60000
         fold.step(st, dict(book=b, chain=ch), now=now)
+        if nx:                                                  # the NIFTY engine, fed the same minute
+            nb, nch = [], []
+            while nx["i"] < len(nx["keys"]) and nx["keys"][nx["i"]][0] < now:
+                (nb if nx["keys"][nx["i"]][1] else nch).append(nx["keys"][nx["i"]][2])
+                nx["i"] += 1
+            nx["st"].feed(book=nb, chain=nch)
         t = now
         if now < t0 + 60000:
             continue
@@ -119,16 +145,26 @@ def run(c):
         rep = dict(ok=True, id=tr["id"], trade=fold_live.api_trade(tr), view=v, words=fold_live._words(st, {}))
         m = ((now // 1000 + 19800) % 86400) // 60
         b5 = [x for x in bars5_all if x["e"] // 60 <= m]
-        h2 = hold2.live(live, v, m, st.bars, seen_chain, b5, refs, rwhy, cache)
+        P = skip = pwhy = None
+        if nx:                                                  # §1.3 FLOW shown = NIFTY's; §1.2 the line on NIFTY's pushes
+            rep = sensex_flow.flow_view(rep, dict(ok=True, **nx["st"].flat_view(now)), fmem)
+            v = rep["view"]
+            nb5 = [x for x in nx["b5"] if x["e"] // 60 <= m]
+            P, pwhy, skip = sensex_flow.line(hold2.pushes(nb5, nx["refs"]) if nx["refs"] else None, nx["why"], b5)
+        h2 = hold2.live(live, v, m, st.bars, seen_chain, b5, None if nx else refs, pwhy if nx else rwhy, cache, pushes_=P)
+        if nx:
+            sensex_flow.stamp(h2, skip, tr["t0"], m)
         vc = voice.ladder(rep, h2, now, mem, lambda px: st._prem_at(px, st.last_key))
         gc_t = max((x["t"] for x in tape if x["t"] + 300000 <= now), default=None)    # the GoCharting bars closed by now
-        mp = trademap.read(live, v, seen_chain, b5, refs, mdec, lv, m, prints, gc_t)
+        mp = trademap.read(live, v, seen_chain, b5, refs, mdec, lv, m, prints, gc_t, flow={"P": P, "why": pwhy} if nx else None)
         trademap.into(vc, mp)
+        if nx:
+            sensex_flow.relabel(vc)
         sh = None
         if h2.get("ok"):
             sh = holdshadow.live(live, v, h2, m, st.bars, seen_chain, b5, dec, shadow_cache)
         out.append(dict(t=fold.hm(now), at=fold.hms(now), voice=vc, headline=v.get("headline"), clause=v.get("clause"), chips=v.get("chips"),
-                        W=v.get("W"), hold2_text=h2.get("text"), shadow=sh, map=mp, view=v, words=rep["words"]))
+                        W=v.get("W"), hold2_text=h2.get("text"), hold2=h2, shadow=sh, map=mp, view=v, words=rep["words"]))
         if t_exit is not None and now >= t_exit and "receipt" not in c:
             rows_ = [holdshadow.row(day, tr, L, 0) for L in sh or ()]
             c["receipt"] = voice.receipt(tr, (v.get("prem") or {}).get("now"), rows_)

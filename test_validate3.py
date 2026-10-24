@@ -190,3 +190,67 @@ def test_validate_rev3_counts_nine_or_eight_prints_vpin_and_says_no_on_a_spent_c
     assert st(sx, "ORDER FLOW")["st"] == "CNC" and st(sx, "DAY / TREND")["cell"].endswith("chal chuka")
     early, = run({"fn": "validate", "payload": P, "decode": {}, "call": ["NIFTY", 22600, "CE", "BUY", None, 9 * 3600 + 18 * 60, 11 * 3600]})
     assert "EM ?" in st(early, "DAY / TREND")["cell"]                    # causal: the 09:20 row is not read at 09:18
+
+
+# ---- rev 3.1 (docs/hold/SENSEX-NIFTY-FLOW-PREREG.md, §1q, signed 2026-10-25 "sign without 5": §2 FRESH-AFTER struck) ----
+
+def test_rev31_is_signed_on_and_names_its_text():
+    default, off, on = run({"fn": "R31_DEFAULT"}, {"fn": "REV"}, {"fn": "REV", "r31": True})
+    assert default is True and off.startswith("3 (VALIDATE-PREREG-rev3") and on == "3.1 (SENSEX-NIFTY-FLOW 9e2831b5)"
+
+
+def _payload31(fall=40):
+    """_payload's day, but a covering pop: spot 22,600 -> 22,700 at 10:54, then `fall` pts lower by 11:00 (40: 6 min after
+    the high and 40 pts off it, not FRESH; 0: still at the high); every CE strike's OI 40 % off its peak from 10:30."""
+    P = _payload()
+    x = json.loads(json.dumps(P["idx"]["NIFTY"]))
+    a, top, t1 = 9 * 3600 + 20 * 60, 10 * 3600 + 54 * 60, 11 * 3600
+    sp = lambda t: 22600 + 100 * max(0, t - a) / (top - a) if t <= top else 22700 - fall * (t - top) / (t1 - top)  # noqa: E731
+    cut = lambda t: 1 - 0.4 * min(1, max(0, t - 10 * 3600 - 1800) / 1800)                                    # noqa: E731
+    x["spot"] = [sp(t) for t in x["t"]]
+    x["atm"] = [round(s / 50) * 50 for s in x["spot"]]
+    x["bars"] = [[b[0], round((sp(b[0]) + 20) * 10), 10, 6] for b in x["bars"]]
+    x["ce"]["oi"] = [[round((1000 + 10 * j) * cut(t)) for j in range(8)] for t in x["t"]]
+    return dict(P, idx={i: json.loads(json.dumps(x)) for i in ("NIFTY", "BANKNIFTY", "SENSEX")})
+
+
+DEC31 = {"t": "10:55", "onesided": {"type": "MIXED"}, "effort": {"at": "HIGH", "x": 2.3, "t": "10:54"},
+         "exhaust": {"d": 1, "bar": "10:50", "close": "10:55", "ratio": -1.2}}
+
+
+def test_rev31_sensex_order_flow_and_tape_are_niftys_labelled_and_off_is_rev3():
+    P, T = _payload31(fall=0), 10 * 3600 + 58 * 60                      # 4 min after the high, still at it: FRESH
+    call = ["SENSEX", 22650, "CE", "BUY", None, T, T]
+    off, on = run({"fn": "validate", "payload": P, "decode": {"NIFTY": DEC31}, "call": call},
+                  {"fn": "validate", "payload": P, "decode": {"NIFTY": DEC31}, "call": call, "r31": True})
+    st = lambda r, n: next(c for c in r["checks"] if c["name"] == n)  # noqa: E731
+    assert off["rev"].startswith("3 (") and off["flowSrc"] is None
+    assert st(off, "ORDER FLOW")["st"] == "CNC" and st(off, "ORDER FLOW")["cell"] == "SENSEX fut patla"
+    assert st(off, "PAYING")["st"] == "WITH" and st(off, "PAYING")["cell"].endswith(" · pop ?")   # rev 3: SENSEX tape unread
+    assert on["rev"] == "3.1 (SENSEX-NIFTY-FLOW 9e2831b5)" and on["flowSrc"] == "NIFTY"
+    assert st(on, "ORDER FLOW")["st"] == "AGAINST" and st(on, "ORDER FLOW")["cell"] == "NIFTY high 2.3× mehenga"
+    assert st(on, "PAYING")["st"] == "AGAINST" and st(on, "PAYING")["cell"] == "covering · pop khatam"
+    assert "NIFTY EXHAUST 10:50" in st(on, "PAYING")["tip"] and "NIFTY effort 2.3×" in st(on, "PAYING")["tip"]
+    assert " · F NIFTY " in st(on, "RIGHT NOW")["tip"]
+    for n in ("DAY / TREND", "INSTRUMENT", "WALL BEHIND", "WALL AHEAD", "CROSS-INDEX", "ROOM", "VPIN"):   # OI and the rest: SENSEX's own
+        assert st(on, n)["st"] == st(off, n)["st"] and st(on, n)["cell"] == st(off, n)["cell"]
+
+
+def test_rev31_struck_fresh_after_changes_nothing_and_a_missing_nifty_read_is_could_not_check_never_sensexs():
+    P, T = _payload31(), 11 * 3600
+    st = lambda r, n: next(c for c in r["checks"] if c["name"] == n)  # noqa: E731
+    nf_off, nf_on, sx_nodec = run(
+        {"fn": "validate", "payload": P, "decode": {"NIFTY": DEC31}, "call": ["NIFTY", 22650, "CE", "BUY", None, T, T]},
+        {"fn": "validate", "payload": P, "decode": {"NIFTY": DEC31}, "call": ["NIFTY", 22650, "CE", "BUY", None, T, T], "r31": True},
+        {"fn": "validate", "payload": P, "decode": {"SENSEX": DEC31}, "call": ["SENSEX", 22650, "CE", "BUY", None, T, T], "r31": True})
+    assert st(nf_on, "PAYING") == st(nf_off, "PAYING") and st(nf_on, "PAYING")["st"] == "WITH"   # 6 min after: no pop (§2 struck)
+    assert st(nf_on, "ORDER FLOW")["cell"] == st(nf_off, "ORDER FLOW")["cell"] and nf_on["flowSrc"] is None
+    of = st(sx_nodec, "ORDER FLOW")                                    # SENSEX's own block is never read for flow
+    assert "could not check — NIFTY flow not read (DECODE not loaded)" in of["tip"] and of["cell"].startswith("NIFTY ")
+    assert st(sx_nodec, "PAYING")["st"] == "WITH" and "pop" not in st(sx_nodec, "PAYING")["cell"]
+    Q = json.loads(json.dumps(P))
+    Q["idx"]["NIFTY"].update(t=[], spot=[], atm=[], bars=[], futoi=[], ce={"oi": [], "ltp": [], "d": [], "avg": []},
+                             pe={"oi": [], "ltp": [], "d": [], "avg": []})
+    gone, = run({"fn": "validate", "payload": Q, "decode": {}, "call": ["SENSEX", 22650, "CE", "BUY", None, T, T], "r31": True})
+    assert st(gone, "ORDER FLOW")["st"] == "CNC" and st(gone, "ORDER FLOW")["cell"] == "NIFTY flow ?"
+    assert "could not check — NIFTY flow not read" in st(gone, "ORDER FLOW")["tip"]

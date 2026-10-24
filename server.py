@@ -88,6 +88,7 @@ import trigger_log
 import confluence_log            # research-findings §1i: the confluence setup's forward log, beside trigger_log
 import hold2                     # research-findings §1m: HOLD v2's line beside the hold window's word (display only)
 import holdshadow                # three HOLD v3 candidate lines beside HOLD v2 (NOTEPAD), shadow + forward log only
+import sensex_flow               # SENSEX reads NIFTY's order flow (SENSEX-NIFTY-FLOW-PREREG §1q, signed 25 Oct)
 import voice                     # THE ONE VOICE in a trade (A52): one state ladder over the word + HOLD v2, display only
 import trademap                  # THE TRADE MAP (A53-A59): the voice's l4 / l5 / [detail], display only
 import voice_path                # the voice replayed over a past marked trade (A56), GET /api/voice_path
@@ -3293,8 +3294,13 @@ def _hold2_run(tr, view, m):
                 _HOLD2["refs"][(idx, day)] = confluence_log.push_refs(idx, day)
             refs, rwhy = _HOLD2["refs"][(idx, day)]
             bars5 = confluence_log.push_bars(idx, day, gc_rows=tape, ux_rows=_ux_bars(idx, day))
-            out = hold2.live(tr, view, m, bars1, chain_rows, bars5, refs, rwhy,
-                             _HOLD2["closes"].setdefault((day, key), {}))
+            fl = sensex_flow.on(idx)             # SENSEX-NIFTY-FLOW §1.2 (signed 25 Oct): NIFTY's pushes move the SENSEX line
+            if fl:
+                P, pwhy, skip = sensex_flow.line(*_nifty_pushes(day), bars5)
+            out = hold2.live(tr, view, m, bars1, chain_rows, bars5, None if fl else refs, pwhy if fl else rwhy,
+                             _HOLD2["closes"].setdefault((day, key), {}), pushes_=P if fl else None)
+            if fl:
+                sensex_flow.stamp(out, skip, tr["t0"], m)
             if out.get("text"):                  # A25, display only: SENSEX futures are too thin (the line is spot|fut)
                 import decode
                 out["text"] += decode.patla_of(idx, bars5)
@@ -3306,7 +3312,8 @@ def _hold2_run(tr, view, m):
             try:                                 # THE TRADE MAP (trademap.py): l4 / l5 / detail for the one voice, display only
                 gc_t = max((b["t"] for b in tape or () if isinstance(b.get("t"), (int, float))), default=None)   # the GoCharting tab alive?
                 out["map"] = trademap.read(tr, view, chain_rows, bars5, refs, dec, _read_levels(idx), m,
-                                           decoder_log.read_events(day, idx), gc_t)     # A61: her BADA PRINTs at the zone
+                                           decoder_log.read_events(day, idx), gc_t,     # A61: her BADA PRINTs at the zone
+                                           flow={"P": P, "why": pwhy} if fl else None)   # §1.4: l4's pushes NIFTY's
                 _map_log(day, tr, view, out["map"])
             except Exception as e:
                 log.exception("trade map")
@@ -3325,6 +3332,20 @@ def _hold2_run(tr, view, m):
     with _HOLD2_LOCK:
         _HOLD2["out"][key] = (m, out)
         _HOLD2["busy"].discard(key)
+
+
+def _nifty_pushes(day):
+    """NIFTY's pushes for a SENSEX line (sensex_flow.ON only): NIFTY's own 5-min bars (GoCharting from the NIFTY engine's
+    memory, else Upstox) ranked on NIFTY's own history -> (pushes, None) or (None, why)."""
+    if ("NIFTY", day) not in _HOLD2["refs"]:
+        _HOLD2["refs"][("NIFTY", day)] = confluence_log.push_refs("NIFTY", day)
+    nrefs, nwhy = _HOLD2["refs"][("NIFTY", day)]
+    if not nrefs:
+        return None, nwhy
+    got = fold_live.hold2_rows("NIFTY")
+    nb5 = confluence_log.push_bars("NIFTY", day, gc_rows=got[3] if got and got[0] == day else None,
+                                   ux_rows=_ux_bars("NIFTY", day))
+    return hold2.pushes(nb5, nrefs), None
 
 
 def _shadow_log(day, tr, lines, at_exit=False):
@@ -3373,6 +3394,7 @@ def _map_log(day, tr, view, m):
 
 
 _VOICE, _VOICE_LOCK = {}, threading.Lock()      # trade id -> voice.ladder's memory (state, seq, first sights)
+_FLOWMEM = {}                                    # trade id -> sensex_flow.flow_view's chip_since (SENSEX-NIFTY-FLOW, OFF)
 
 
 def _in_trade(rep, trades):
@@ -3382,6 +3404,13 @@ def _in_trade(rep, trades):
     panel, the hold window and Validate render the same block; after her exit, the receipt instead. Display only,
     fail-soft: a failure is a why, never the reply's."""
     tr = next((t for t in trades if t["id"] == rep.get("id")), None)
+    if tr is not None and sensex_flow.on(tr["idx"]):    # SENSEX-NIFTY-FLOW §1.3 (signed 25 Oct): the FLOW shown is NIFTY's, on a copy
+        try:
+            nflat = fold_live.reply("/api/fold/flat", {"idx": ["NIFTY"]}, trades)
+        except Exception as e:                   # never SENSEX's own flow: an unread NIFTY is CAN'T CHECK with why
+            nflat = {"ok": False, "why": f"{type(e).__name__}: {e}"}
+        with _VOICE_LOCK:
+            rep = sensex_flow.flow_view(rep, nflat, _FLOWMEM.setdefault(tr["id"], {}))
     try:
         h2 = _hold2(rep, trades)
     except Exception as e:
@@ -3397,6 +3426,8 @@ def _in_trade(rep, trades):
                 out["voice"] = voice.ladder(rep, h2, int(time.time() * 1000), _VOICE.setdefault(tr["id"], {}),
                                             lambda px: fold_live.prem_at(tr["idx"], tr["id"], px))
             trademap.into(out["voice"], (h2 or {}).get("map") if isinstance(h2, dict) else None)   # l4 / l5 / detail
+            if rep.get("flow_src"):
+                sensex_flow.relabel(out["voice"])
     except Exception as e:
         log.exception("voice")
         out["voice"] = {"ok": False, "why": f"could not check — the voice failed: {type(e).__name__}: {e}"}
@@ -5620,6 +5651,8 @@ class Handler(SimpleHTTPRequestHandler):
                         out["voice"] = fv.get("voice") or {"ok": False, "why": (rep or {}).get("why") or "could not check — no engine read"}
                         if fv.get("receipt"):
                             out["receipt"] = fv["receipt"]
+                        if fv.get("flow_src"):           # SENSEX-NIFTY-FLOW §3 (signed 25 Oct): the hold reply names its flow
+                            out["flow_src"] = fv["flow_src"]
             except Exception as e:           # a bad read must not 500 the window
                 log.exception("hold %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}

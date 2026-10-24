@@ -399,13 +399,15 @@ def window_line(d, E, line0, start, ones, pushes_, closes, end, fut, basis, fron
     return out
 
 
-def live(tr, view, now_m, bars1, chain_rows, bars5, refs, trail_why, cache):
+def live(tr, view, now_m, bars1, chain_rows, bars5, refs, trail_why, cache, pushes_=None):
     """window_line from the live server's memory, for her marked trade `tr` (server._hold_trade's record) and the fold
     engine's view of it: d and E are the engine's, the line starts at her thesis invalidation, else the engine's give-up G
     (the window's own `inval`, validate_live's rule). `bars1` = the engine's 1-min futures bars (ladder rows, t in ms),
     `chain_rows` = its chain rows, `bars5` = confluence_log.push_bars(...), `refs` = push_refs' tables. `cache` carries
     the 3-min closes' reads across calls: a close is read once, a minute after it (its last bar and chain minute are in by
-    then), and never again. Reads `view`, never writes it: the window's word is untouched."""
+    then), and never again. Reads `view`, never writes it: the window's word is untouched. `pushes_` (optional, default
+    None = pushes(bars5, refs) as registered): the line's pushes handed in, SENSEX-NIFTY-FLOW §1.2's NIFTY pushes in
+    SENSEX prices (sensex_flow.line) -- bars5 still makes U for gave-up's buffer."""
     d, E = view.get("d"), view.get("E")
     th = tr.get("thesis") or {}
     line0 = th.get("inval") if th.get("inval") is not None else (view.get("G") or {}).get("px")
@@ -421,7 +423,7 @@ def live(tr, view, now_m, bars1, chain_rows, bars5, refs, trail_why, cache):
         k = b["e"] // 60
         if start < k < min(now_m, MARK + 1) and k not in cache:
             cache[k] = close_read(d, chain, k, b["c"], sigma_at(bars5, k))
-    P = pushes(bars5, refs) if refs else None
+    P = pushes_ if pushes_ is not None else pushes(bars5, refs) if refs else None
     return window_line(d, E, line0, start, ones, P, cache, now_m, view.get("fut"),
                        (view.get("units") or {}).get("basis_ix"), front_now(d, chain, now_m, sigma_at(bars5, now_m)), trail_why,
                        str(tr["t0"])[:5])

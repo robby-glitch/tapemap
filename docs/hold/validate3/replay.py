@@ -75,7 +75,8 @@ def sec(t):
     return int(t[:2]) * 3600 + int(t[3:5]) * 60 + int(t[6:8] or 0)
 
 
-def main(out_dir):
+def main(out_dir, r31=False):
+    """r31: rev 3 (R31 OFF) vs rev 3.1 (R31 ON, docs/hold/SENSEX-NIFTY-FLOW-PREREG.md, DRAFT) on the same entries."""
     logging.disable(logging.CRITICAL)
     import server
     import v2feed
@@ -99,12 +100,13 @@ def main(out_dir):
         f.write(rev2)
     with open(os.path.join(out_dir, "trades.json"), "w", encoding="utf-8") as f:
         json.dump([{"day": d, "idx": i, "K": k, "ty": ty, "side": sd, "p0": p, "t": t, "src": s} for d, i, k, ty, sd, p, t, s in trades], f)
-    r = subprocess.run(["node", os.path.join(HERE, "replay.cjs"), out_dir, os.path.join(ROOT, "ui-v2", "public", "validate2", "engine.js")],
-                       capture_output=True, text=True, encoding="utf-8")
+    r = subprocess.run(["node", os.path.join(HERE, "replay.cjs"), out_dir, os.path.join(ROOT, "ui-v2", "public", "validate2", "engine.js")]
+                       + (["r31"] if r31 else []), capture_output=True, text=True, encoding="utf-8")
     sys.stdout.write(r.stdout)
     sys.stderr.write(r.stderr)
     return r.returncode
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix="validate3_")))
+    a = [x for x in sys.argv[1:] if x != "--r31"]
+    sys.exit(main(a[0] if a else tempfile.mkdtemp(prefix="validate3_"), "--r31" in sys.argv[1:]))

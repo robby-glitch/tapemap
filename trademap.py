@@ -134,17 +134,22 @@ def _push(d, P, start, now_m):
     return xs[-1] if xs else None
 
 
-def l4_line(d, start, now_m, bars5, refs, rows, day):
+def l4_line(d, start, now_m, bars5, refs, rows, day, flow=None):
+    """`flow` (SENSEX-NIFTY-FLOW §1.4, sensex_flow.ON only): {"P": NIFTY's pushes in SENSEX prices (sensex_flow.line) or
+    None, "why"}, printed "NIFTY push"; None = this index's own pushes, as today."""
     arr, ul = ("▼", "▲") if d < 0 else ("▲", "▼")
-    P = hold2.pushes(bars5, refs) if refs and bars5 else []
-    if not refs:
+    n = "NIFTY " if flow else ""
+    P = (flow.get("P") or []) if flow else hold2.pushes(bars5, refs) if refs and bars5 else []
+    if flow and flow.get("P") is None:
+        push, ulta, ptxt = None, None, flow.get("why") or f"NIFTY {hold2.NO_REF}"   # could not check, never SENSEX's
+    elif not flow and not refs:
         push, ulta, ptxt = None, None, hold2.NO_REF               # could not check: never "none"
-    elif not bars5:
+    elif not flow and not bars5:
         push, ulta, ptxt = None, None, "push ? — no 5-min bars"
     else:
         push, ulta = _push(d, P, start, now_m), _push(-d, P, start, now_m)
-        ptxt = (f"push {arr} {push['t']} ({now_m - push['close']} min)" if push else f"push {arr} abhi nahi") + " · " + (
-            f"ulta push {ul} {ulta['t']} @ {_n(ulta['origin'])}f" if ulta else "ulta push: none")
+        ptxt = (f"{n}push {arr} {push['t']} ({now_m - push['close']} min)" if push else f"{n}push {arr} abhi nahi") + " · " + (
+            f"ulta {n}push {ul} {ulta['t']} @ {_n(ulta['origin'])}f" if ulta else f"ulta {n}push: none")
     E1, why = em(rows, day)
     sp = [r["spot"] for r in rows]
     rg = {"hi": max(sp), "lo": min(sp)} if sp else {}
@@ -276,12 +281,13 @@ def zone_events(d, rows, t0, basis, E, dec):
     return out
 
 
-def read(tr, view, chain_rows, bars5, refs, dec, levels, now_m, prints=None, gc_t=None):
+def read(tr, view, chain_rows, bars5, refs, dec, levels, now_m, prints=None, gc_t=None, flow=None):
     """The map for her open marked trade at minute now_m: {ok, l4, l5, detail [{text, tip}], push, ulta, range, zone, fuel,
     levels, prem, events, tag "I", why}, or {ok False, why}. `tr` = server._hold_trade's record, `view` the fold engine's
     (d, E, fut, units.basis_ix, t), `chain_rows` the chain recorder's snapshots, `bars5` / `refs` hold2's push inputs,
     `dec` holdshadow.dec_rows(...), `levels` {"PDH", "PDL"} (index prices) or None, `prints` decoder_log.read_events
-    (her BADA PRINTs), `gc_t` the last GoCharting bar's open ms seen by now (None: the tab never posted)."""
+    (her BADA PRINTs), `gc_t` the last GoCharting bar's open ms seen by now (None: the tab never posted), `flow` l4_line's
+    (SENSEX-NIFTY-FLOW, OFF: None)."""
     d, E = view.get("d"), view.get("E")
     if d not in (1, -1) or view.get("t") is None or not tr.get("t0"):
         return {"ok": False, "tag": "I", "why": "could not check — the engine has no direction for the trade yet"}
@@ -290,7 +296,7 @@ def read(tr, view, chain_rows, bars5, refs, dec, levels, now_m, prints=None, gc_
     t0 = str(tr["t0"])
     start = _sec(t0) // 60 + 1                                    # hold2.live's: the first whole minute after her entry
     rows = snaps(chain_rows, now_m)
-    l4, push, ulta, rg, P = l4_line(d, start, now_m, bars5, refs, rows, day)
+    l4, push, ulta, rg, P = l4_line(d, start, now_m, bars5, refs, rows, day, flow)
     out = {"ok": True, "rev": REV, "l4": l4, "push": push, "ulta": ulta, "range": rg, "tag": "I", "why": None}
     if not rows:
         return dict(out, l5="pullback zone ? — could not check: no chain row", zone=None, fuel=None, levels=None, prem=None,
@@ -321,7 +327,7 @@ def read(tr, view, chain_rows, bars5, refs, dec, levels, now_m, prints=None, gc_
     if tr.get("role") == "short":
         p, pr = prem_path(tr, rows, zone, day, now_m)
         detail.append(p)
-    ev = [{"event": "ulta_push", "key": p["t"], "t": p["t"], "origin": p["origin"], "fut": p["c"]}
+    ev = [dict({"event": "ulta_push", "key": p["t"], "t": p["t"], "origin": p["origin"], "fut": p["c"]}, **({"push_src": "NIFTY"} if flow else {}))
           for p in P if p["d"] == -d and start < p["close"] <= now_m]
     ev += zone_events(d, rows, t0, basis, E, dec)
     return dict(out, l5=l5, zone=zone, fuel=fd, levels=lvs, prem=pr, detail=detail, events=ev)

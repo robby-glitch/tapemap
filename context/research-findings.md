@@ -1002,6 +1002,49 @@ hashing.
 
 ---
 
+## 1q. AMENDMENT: SENSEX reads NIFTY's order flow — VALIDATE rev 3.1 and HOLD v2 Amendment 3 (signed 2026-10-25 on her "sign without 5", UNTESTED)
+
+**The full text** is `docs/hold/SENSEX-NIFTY-FLOW-PREREG.md`, sha256
+`9e2831b5b72a12a4f4a6e9fa6ed37d8ea81ca0a770ffa71d7d7ace80a47342e1` (signed, §9).
+- Its draft was hashed `552d6927…73c9` before any replay.
+- Revision 1 (§8: facts only, no rule changed) was hashed `7284a18b…8a93` after the replay.
+
+**Her method, verbatim:** "i dont consider sensex oderflow i take nifty oder flow and trade in sensex they almost work in
+sync so leave or remove sensex oderflow chart . but i consider its oi".
+
+**What changes, for a SENSEX trade or slip.** Every ORDER-FLOW read is NIFTY futures', labelled NIFTY. Every OI read stays
+SENSEX's own.
+- **Validate rev 3.1** (amends §1p):
+  - #6's effort and quadrant come from NIFTY;
+  - #10's tape part (EXHAUST / ABSORB / EXPENSIVE) comes from NIFTY, so a SENSEX spent pop can fire;
+  - #1's flow chip comes from NIFTY.
+  - Rev string: `3.1 (SENSEX-NIFTY-FLOW 9e2831b5)`.
+- **HOLD v2 Amendment 3** (amends §1m's push source): a SENSEX line moves on NIFTY's pushes, to SENSEX's own same-slot
+  5-min open + 0.25U (U = SENSEX's σ, 0.1 % floor).
+  - Applies live and to forward scoring from 2026-10-25.
+  - Rows are stamped `push_src` (`SENSEX-ux` before, `NIFTY` after).
+- **The FLOW read shown in a SENSEX trade** is the NIFTY engine's flat flow chip, mapped to her direction. fold rev 6's
+  word, G and acceptance are untouched.
+- **The trade map's l4** for SENSEX prints `NIFTY push`.
+
+**Struck at signing:** §2 FRESH-AFTER (the post-high pop window), her "without 5". #10 keeps rev 3's FRESH.
+
+**Not changed:**
+- the price mechanics that use SENSEX's own trades (Validate's give-up G and #9 ROOM, #3, fold's G and acceptance);
+- NIFTY and BANKNIFTY;
+- every OI read;
+- the SENSEX order-flow chart.
+
+**Replay before signing** (`docs/hold/validate3/REPLAY-rev3.1.md`, IN-SAMPLE, described only):
+- no Validate word changed on 51 entries;
+- no in-trade state changed on her 10 SENSEX trades;
+- on 22 Oct, NIFTY's flow turned against her at 13:14, nine minutes after SENSEX's own tape (13:05).
+
+**Code:** `sensex_flow.ON = True`, `FROM = "2026-10-25"` (`sensex_flow.py`) and `R31.ON = true` (`engine.js`). OFF
+restores rev 3 / §1m exactly; that is tested.
+
+---
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

@@ -8,7 +8,8 @@ in full too.** Everything else is history or detail. Verified 2026-08-22.
 
 - **`docs/live/NOTEPAD.md`** is the live backlog. Every gap A1–A49 has a status, there are day observations, and it lists the decisions pending on Mary's word. Read it first.
 - **Locked setups and registrations:** `context/research-findings.md`:
-  - §1i FADE, §1j RIDE, §1l READ-2, §1m HOLD v2, §1n FADE-D, §1o One-Sided Meter;
+  - §1i FADE, §1j RIDE, §1l READ-2, §1m HOLD v2, §1n FADE-D, §1o One-Sided Meter, §1p VALIDATE rev 3, §1q SENSEX reads NIFTY's
+    order flow (VALIDATE rev 3.1 + HOLD v2 Amendment 3, `sensex_flow.py`, signed 25 Oct);
   - full texts in `docs/setup-review/` and `docs/read/`, with sha256 anchors in §1.
   - Never change one; a change is a new registration.
 - **The live read stack:** `read.py` (THE READ), `decode.py` (the DECODE block: swing legs, 7 signs, lines incl. EFFORT), `onesided.py` (day type), `effort.py` (effort per point, Fable's tested definition, [I]), `confluence*.py` / `ride.py` / `faded.py` / `hold2.py`. Forward logs: `data/read/`, `data/decode/`, `data/onesided/`, `data/confluence_log.jsonl`, `data/grade/`.

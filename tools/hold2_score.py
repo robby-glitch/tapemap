@@ -42,6 +42,7 @@ import fronts            # noqa: E402
 import hold2             # noqa: E402
 import ladder            # noqa: E402
 import ride              # noqa: E402
+import sensex_flow       # noqa: E402
 
 PREREG = os.path.join(HERE, "docs", "setup-review", "HOLD-V2-PREREG.md")
 SHA = "fca358a2b66337f4e51b38edec55281c87f9b16a62be895ad9a58f2548f5d9a6"
@@ -67,8 +68,9 @@ READINGS = [
     "Sources: NIFTY's GoCharting bar where it has a candle, delta and volume, else the Upstox (ux) bar of the same slot, "
     "ranked against the Upstox table; BANKNIFTY Upstox. The Upstox table is rank_build.flow_ref over the ux record's "
     "days before the day -- the read section's slot reference carries no median range, which R needs. SENSEX has no "
-    "usable 5-min reference (rank.BAR_MIN 15: its 5-min bars are not rankable, FLOW-STATE §5): its push trail is "
-    "inactive and every SENSEX v2 row says 'push ? ref nahi'.",
+    "usable 5-min reference (rank.BAR_MIN 15: its 5-min bars are not rankable, FLOW-STATE §5): before 2026-10-25 its "
+    "push trail is inactive ('push ? ref nahi', push_src SENSEX-ux); from 2026-10-25 (§1q, HOLD v2 Amendment 3) a "
+    "SENSEX line moves on NIFTY's pushes, at SENSEX's own same-slot 5-min open + 0.25U (push_src NIFTY).",
     "U = max(sigma, 0.1% of the origin), sigma = market.js vwapSeries (hlc3, volume-weighted from the first bar) over the "
     "same 5-min source bars at the push bar: the extension's push-line unit, so the v2 line sits where her chart's PUSH "
     "line fails.",
@@ -84,7 +86,7 @@ READINGS = [
     "CE above, PE below (strictly). Unwinding with price level or still in their favour is stamped 'munafa booking', "
     "never an exit; a spot that cannot be read is stamped too, never a verdict. AMENDMENT 2: 'losing' means beyond the "
     "peak-minute spot by more than 0.25U, U = max(sigma, 0.1% of the spot at the close), sigma = the 5-min vwapSeries "
-    "sigma of the push source bars closed by then (the line's own U; on SENSEX too, whose push trail is inactive); "
+    "sigma of the push source bars closed by then (the line's own U; on SENSEX its own bars' sigma); "
     "inside the buffer is stamped 'munafa / chop (within 0.25U)', never an exit. RIDE v1 is unchanged (the frozen "
     "baseline). A close in a 1-min hole is read at the next bar's open, never skipped. At one minute: the FADE -> RIDE "
     "restart, then gave-up, then pushes.",
@@ -227,6 +229,10 @@ def _ride(e, S, P, pwhy, b5):
 def score(e, D):
     """One pair: {"v1", "v2", "dR", "expr", "refs", "why"} -- why is set when either side cannot be scored."""
     P, pwhy, refs, b5 = D.pushes(e["index"], e["day"])
+    src = sensex_flow.push_src(e["index"], e["day"])        # SENSEX-NIFTY-FLOW §1.2 (signed 25 Oct; None only if OFF)
+    if src == sensex_flow.SRC:                              # from her signing day: the line moves on NIFTY's pushes
+        nP, nwhy, _nrefs, _nb5 = D.pushes("NIFTY", e["day"])
+        P, pwhy, _skip = sensex_flow.line(nP, nwhy, b5)
     if e["setup"] == "FADE":
         S = D.fade(e["index"], e["day"])
         if S is None:
@@ -238,8 +244,9 @@ def score(e, D):
             return {"why": "no 1-min futures bar from the ticks", "refs": refs}
         v1, v2, x = _ride(e, S, P, pwhy, b5)
     ok = v1 and v2 and v1.get("R") is not None and v2.get("R") is not None
-    return {"v1": v1, "v2": v2, "expr": x, "refs": refs, "dR": round(v2["R"] - v1["R"], 4) if ok else None,
-            "why": None if ok else "v1 or v2 could not be scored (no 1-min bar after the entry)"}
+    out = {"v1": v1, "v2": v2, "expr": x, "refs": refs, "dR": round(v2["R"] - v1["R"], 4) if ok else None,
+           "why": None if ok else "v1 or v2 could not be scored (no 1-min bar after the entry)"}
+    return dict(out, push_src=src) if src else out
 
 
 # ---- §1m's bar -------------------------------------------------------------------------------------------------------

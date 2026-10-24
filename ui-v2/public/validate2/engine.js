@@ -16,6 +16,12 @@ const Engine = (() => {
                BUILDING: "likh rahe", UNWINDING: "bhag rahe", STALLED: "ruke hue", QUIET: "shaant", PR: "sirf dikhaya, gina nahi" };
   // VALIDATE rev 3 (docs/hold/VALIDATE-PREREG-rev3.md, sha256 a4186306…, research-findings §1p): every number is that file's
   const REV = "3 (VALIDATE-PREREG-rev3 a4186306)";
+  // rev 3.1 (docs/hold/SENSEX-NIFTY-FLOW-PREREG.md, sha256 9e2831b5…, research-findings §1q): SIGNED 2026-10-25, "sign without 5".
+  // For SENSEX every order-flow read (#1's FLOW chip, #6, #10's tape) is NIFTY futures', labelled NIFTY; OI stays SENSEX's.
+  // §2 FRESH-AFTER was struck: #10 keeps rev 3's FRESH. ON false restores rev 3 exactly.
+  const R31 = { ON: true };
+  const REV31 = "3.1 (SENSEX-NIFTY-FLOW 9e2831b5)", rev = () => R31.ON ? REV31 : REV;
+  const flowIdx = idx => R31.ON && idx === "SENSEX" ? "NIFTY" : null;   // where #1 / #6 / #10's tape read flow
   const R3 = { USED: 0.90, X_ON: 1.5, X_OFF: -1.0, W: 600, PACE_N: 4, FLAT: 0.0015, ROLL_DTE: 3, RUN: 1800, FRESH: 300, TOL: 0.25,
                TAPE_W: 900, HI: 2.0, LO: 0.5, GRACE: 60, STALE: 600, EM_FROM: 9 * 3600 + 20 * 60, EM_TO: 9 * 3600 + 30 * 60, PACE_FROM: 9 * 3600 + 30 * 60 };
   const DEC = {};                                                  // idx -> [[close sec, DECODE block]]: GET /api/decode (app.js) or a replay
@@ -259,7 +265,7 @@ const Engine = (() => {
     for (let q = s.j; q >= 0 && x.bt[q] >= s.T - 600; q--) { const [, p10, v] = x.bars[q]; tot += v; if (d * (p10 / 10 - G) < 0) accVol += v; }
     return { acc: tot > 0 && accVol >= 0.7 * tot && d * (s.fut - G) < 0, share: tot ? accVol / tot : 0 };
   }
-  function geom(s, K, ty, side, p0, g0) {   // g0: a sticky {W, G, Gwhy} carried by an open trade
+  function geom(s, K, ty, side, p0, g0, fs) {   // g0: a sticky {W, G, Gwhy} carried by an open trade; fs: rev 3.1's NIFTY flow snap
     const x = s.x, i = s.i, d = (ty === "CE") === (side === "BUY") ? 1 : -1, role = side === "BUY" ? "buy" : "sell";
     const ki = x.ks.indexOf(K), leg = ty.toLowerCase();
     const own = ki >= 0 ? front(x, leg, i, ki) : null, other = ki >= 0 ? front(x, leg === "ce" ? "pe" : "ce", i, ki) : null;
@@ -281,7 +287,7 @@ const Engine = (() => {
     const now = acc ? "FOLD" : beyond ? "PAST GIVE-UP" : "HOLD";
     const chips = {
       ZONE: beyond ? "AGAINST" : toG > s.B ? "WITH" : "QUIET",
-      FLOW: !s.last || s.T - s.last.t > 1800 ? "QUIET" : s.last.winner === d ? "WITH" : "AGAINST",
+      FLOW: fs && !fs.ok ? "CNC" : !(fs || s).last || s.T - (fs || s).last.t > 1800 ? "QUIET" : (fs || s).last.winner === d ? "WITH" : "AGAINST",
       OI: !W ? "QUIET" : W.state === "BUILDING" ? "WITH" : W.state === "UNWINDING" ? "AGAINST" : "QUIET",
       VPIN: !s.vpin ? "CNC" : s.vpin.n < VPIN_N ? "CNC" : s.vpin.one === 0 ? "QUIET" : s.vpin.lean === d ? "WITH" : s.vpin.lean === -d ? "AGAINST" : "QUIET",
     };
@@ -358,6 +364,11 @@ const Engine = (() => {
     if (d > 0 && e && e.at === "HIGH" && e.x != null && e.x >= R3.HI && e.t && s.tf - secOfHms(e.t) <= R3.TAPE_W) names.push(`effort ${e.x.toFixed(1)}×`);
     return { names, unread: null };
   }
+  function tape31(fs, d) {                                         // rev 3.1: SENSEX's tape part is NIFTY's (EXHAUST / ABSORB / EXPENSIVE), labelled
+    if (!fs.ok) return { names: [], unread: "NIFTY flow not read — no NIFTY row" };
+    const t = tapeOf(fs, d, decAt("NIFTY", fs.tf));
+    return { names: t.names.map(n => "NIFTY " + n), unread: t.unread ? `NIFTY flow not read — ${t.unread}` : null };
+  }
   // the votes, pure (VALIDATE-PREREG-rev3.md §2); test_validate3.py drives them through node
   function dayVote(E, dir, u, role, d) {                           // E: TREND | RANGE (PIN / CHOP) | OTHER
     if (E === "TREND") return dir === d ? "WITH" : "AGAINST";
@@ -398,12 +409,13 @@ const Engine = (() => {
   // ---------- the checks + the word (rev 3: nine counted, eight for a writer; VPIN printed) ----------
   function validate(idx, K, ty, side, p0, T, feedT, g0) {
     const s = snap(idx, T, feedT);
-    if (!s.ok) return { ok: false, rev: REV, idx, K, ty, side, word: "—", why: "no chain row yet", checks: [], counts: { w: 0, a: 0, n: 0, c: 9 } };
-    const g = geom(s, K, ty, side, p0, g0), d = g.d, her = d > 0 ? "up" : "down";
+    if (!s.ok) return { ok: false, rev: rev(), idx, K, ty, side, word: "—", why: "no chain row yet", checks: [], counts: { w: 0, a: 0, n: 0, c: 9 } };
+    const nf = flowIdx(idx), fs = nf ? snap(nf, T, feedT) : undefined, NF = nf ? "NIFTY " : "";   // rev 3.1: SENSEX's flow is NIFTY's
+    const g = geom(s, K, ty, side, p0, g0, fs), d = g.d, her = d > 0 ? "up" : "down";
     const C = [];
     const row = (name, st, cell, tip, extra) => C.push(Object.assign({ name, st, cell, tip: tip + ` · ${HI[st] || ""}` }, extra));
     // 1 RIGHT NOW
-    row("RIGHT NOW", g.now === "HOLD" ? "WITH" : "AGAINST", `${g.now} · out if ${fmt(g.G)}f`, `engine-now proxy for a mark made now [I]: ${g.now}; give-up ${fmt(g.G)} fut (${g.Gwhy}); chips Z ${g.chips.ZONE} · F ${g.chips.FLOW} · O ${g.chips.OI} · V ${g.chips.VPIN}`, { chips: g.chips });
+    row("RIGHT NOW", g.now === "HOLD" ? "WITH" : "AGAINST", `${g.now} · out if ${fmt(g.G)}f`, `engine-now proxy for a mark made now [I]: ${g.now}; give-up ${fmt(g.G)} fut (${g.Gwhy}); chips Z ${g.chips.ZONE} · F ${NF}${g.chips.FLOW}${fs && !fs.ok ? " (could not check — NIFTY flow not read: no NIFTY row)" : ""} · O ${g.chips.OI} · V ${g.chips.VPIN}`, { chips: g.chips });
     // 2 DAY / TREND (rev 3: §1o's type, else the IB row; plus the day's 1σ used her way)
     const dy = s.day, dq = decAt(idx, s.tf), met = dq.b && dq.b.onesided ? dq.b.onesided.type : null;
     const em0 = emOf(s.x), em = em0.em && em0.t > s.tf ? { why: "EM from the 09:20 row" } : em0;   // causal: never a later row
@@ -441,16 +453,19 @@ const Engine = (() => {
         ` · ROLLING [I] ${ra.roll ? `${ra.from} ${LG} ${ra.xf.toFixed(1)}× unwinding while ${ra.to} ${LG} ${ra.xt.toFixed(1)}× adds: the cap moved out, it did not break` : ra.roll == null ? `could not check (${ra.why})` : "no"}; the next wall caps the move, writers leaving there pay you`, { front: A, roll: ra }); }
     // 6 ORDER FLOW
     // rev 3: effort per point first, then the futures quadrant; CVD and the fight winner leave the vote (hover only)
-    const lf = s.last, fresh = lf && s.T - lf.t <= 1800;
-    const fightTip = fresh ? `fight (printed, not counted): ${lf.who} won at ${fmt(lf.vw)} ${hm(lf.t)} (${lf.res.toLowerCase()}, ${fmt(lf.lots)} lots)` : "no fight inside 30 min";
-    if (s.thin) row("ORDER FLOW", "CNC", `${idx} fut patla`, `could not check: ${idx} futures are too thin for a flow read (A25; Fable refuses SENSEX futures flow) · ${fightTip}`);
+    const f6 = fs || s, lf = f6.ok ? f6.last : null, fresh = lf && s.T - lf.t <= 1800;
+    const cnc = why => nf ? `could not check — NIFTY flow not read (${why})` : `could not check (${why})`;   // rev 3.1: never SENSEX's
+    const fightTip = fresh ? `${NF}fight (printed, not counted): ${lf.who} won at ${fmt(lf.vw)} ${hm(lf.t)} (${lf.res.toLowerCase()}, ${fmt(lf.lots)} lots)` : `${NF}no fight inside 30 min`;
+    if (s.thin && !nf) row("ORDER FLOW", "CNC", `${idx} fut patla`, `could not check: ${idx} futures are too thin for a flow read (A25; Fable refuses SENSEX futures flow) · ${fightTip}`);
+    else if (nf && !fs.ok) row("ORDER FLOW", "CNC", "NIFTY flow ?", `${cnc("no NIFTY chain / futures row yet")} · rev 3.1: SENSEX's order flow is NIFTY futures', never SENSEX's`);
     else {
-      const e = dq.b ? dq.b.effort : null, eRead = !!(e && e.x != null), eNow = eRead && e.at && e.t && s.tf - secOfHms(e.t) <= R3.TAPE_W;
-      const ev = eNow ? effortVote(e, d) : null, q = quadOf(s), qv = quadVote(q, d), st6 = flowVote(ev, !eRead, qv);
-      const eTag = idx === "NIFTY" ? "[I]" : "[I · BNF test nahi]";
-      row("ORDER FLOW", st6, ev ? `${e.at === "HIGH" ? "high" : "low"} ${e.x.toFixed(1)}× ${e.at === "HIGH" ? "mehenga" : "sasta"}` : `${qv.word} · effort ${eRead ? e.x.toFixed(1) + "×" : "?"}`,
-        `EFFORT ${eTag}: ${!dq.b ? `could not check (${dq.why})` : !eRead ? `could not check (${(e && e.why) || "not read"})` : `${e.x.toFixed(2)}× the day's lots/pt${e.at ? ` at a fresh ${e.at.toLowerCase()} ${e.t}` : " (no fresh extreme)"}${eNow ? "" : " — older than 15 min or no extreme: no vote"}`}` +
-        ` · QUADRANT [M/I]: ${q == null ? "could not check (fut OI 10 min chahiye)" : `fut OI ${sgn(q.doi)} (${(100 * q.doi / q.oi).toFixed(2)}%) over 10 min, price ${sgn(Math.round(q.px10))} → ${qv.word}${q.roll ? " · roll week" : ""}`}` +
+      const dq6 = nf ? decAt(nf, s.tf) : dq;
+      const e = dq6.b ? dq6.b.effort : null, eRead = !!(e && e.x != null), eNow = eRead && e.at && e.t && s.tf - secOfHms(e.t) <= R3.TAPE_W;
+      const ev = eNow ? effortVote(e, d) : null, q = quadOf(f6), qv = quadVote(q, d), st6 = flowVote(ev, !eRead, qv);
+      const eTag = (nf || idx) === "NIFTY" ? "[I]" : "[I · BNF test nahi]";
+      row("ORDER FLOW", st6, NF + (ev ? `${e.at === "HIGH" ? "high" : "low"} ${e.x.toFixed(1)}× ${e.at === "HIGH" ? "mehenga" : "sasta"}` : `${qv.word} · effort ${eRead ? e.x.toFixed(1) + "×" : "?"}`),
+        `EFFORT ${NF}${eTag}: ${!dq6.b ? cnc(dq6.why) : !eRead ? cnc((e && e.why) || "not read") : `${e.x.toFixed(2)}× the day's lots/pt${e.at ? ` at a fresh ${e.at.toLowerCase()} ${e.t}` : " (no fresh extreme)"}${eNow ? "" : " — older than 15 min or no extreme: no vote"}`}` +
+        ` · QUADRANT ${NF}[M/I]: ${q == null ? cnc("fut OI 10 min chahiye") : `${NF}fut OI ${sgn(q.doi)} (${(100 * q.doi / q.oi).toFixed(2)}%) over 10 min, price ${sgn(Math.round(q.px10))} → ${qv.word}${q.roll ? " · roll week" : ""}`}` +
         ` · effort first, then the quadrant; covering-only fuel is not paid for · ${fightTip}`, { fight: lf, effort: e, quad: q });
     }
     // 7 VPIN: printed, never counted (rev 3)
@@ -470,7 +485,8 @@ const Engine = (() => {
     const pay = g.payers;
     if (!pay.length) row("PAYING", "NEITHER", "no payers' front", "no front on the payers' side inside ±8 [M]");
     else { const states = pay.map(f => f.state), cov = states.includes("UNWINDING");
-      const fr = cov ? freshOf(s, d) : null, tp = fr && fr.fresh ? tapeOf(s, d, dq) : null, spent = !!(tp && tp.names.length);
+      const fr = cov ? freshOf(s, d) : null;
+      const tp = fr && fr.fresh ? (nf ? tape31(fs, d) : tapeOf(s, d, dq)) : null, spent = !!(tp && tp.names.length);
       const st10 = payVote(states, spent), base = pay.map(f => `${f.k} ${f.state === "UNWINDING" ? "leaving" : f.state === "BUILDING" ? "building" : "flat"}`).join(" · ");
       row("PAYING", st10, spent ? "covering · pop khatam" : base + (tp && tp.unread ? " · pop ?" : ""),
         pay.map(f => `${f.leg.toUpperCase()} ${f.k} ${f.state} (peak ${L(f.peak)} at ${hm(f.peakT)}, ${pct(f.off)} off)`).join(" · ") + " [M]; the move needs somebody forced to pay for it" +
@@ -493,7 +509,7 @@ const Engine = (() => {
       pain: [g.own, g.other, g.W, g.A].filter(Boolean).map(f => ({ k: f.k, leg: f.leg.toUpperCase(), ltp: f.ltp, avg: f.avg, word: f.avg == null || f.ltp == null ? "—" : f.ltp >= 1.3 * f.avg ? "under water" : f.ltp <= 0.8 * f.avg ? "comfortable" : "near their avg" })),
       pcr: s.pcr,
     };
-    return { ok: true, rev: REV, idx, K, ty, side, px: g.px, ltp: g.ltp, d, role: g.role, word, why, counts: { w, a, n, c, of: counted.length }, checks: C, strongest, levels: lv, printed, g, s, hi: HI[word] };
+    return Object.assign({ ok: true, rev: rev(), idx, K, ty, side, px: g.px, ltp: g.ltp, d, role: g.role, word, why, counts: { w, a, n, c, of: counted.length }, checks: C, strongest, levels: lv, printed, g, s, hi: HI[word] }, nf ? { flowSrc: nf } : null);
   }
   function levels(s, g) {
     const sp = f => f - s.basis, out = [];
@@ -669,7 +685,7 @@ const Engine = (() => {
     row("PCR(9) · CVD since entry", `${e.pcr == null ? "—" : e.pcr.toFixed(2)} · 0`, `${pcrNow == null ? "—" : pcrNow.toFixed(2)} · ${sgn(dc)}`, dc === 0 ? "NEITHER" : Math.sign(dc) === d ? "WITH" : "AGAINST", "PCR over the nine around ATM [M] · CVD of the futures since your mark [I side]");
     if (s.vpin) row("VPIN pct", e.vpin == null ? "—" : e.vpin.toFixed(2), s.vpin.pct == null ? "—" : `${s.vpin.pct.toFixed(2)} · ${s.vpin.one}/10 ${s.vpin.lean > 0 ? "buyers" : s.vpin.lean < 0 ? "sellers" : "even"}`, chips.VPIN === "WITH" ? "WITH" : chips.VPIN === "AGAINST" ? "AGAINST" : "NEITHER", "toxicity percentile of today (shadow) [I]");
     const theta = s.dte === 0 && g.tv != null ? g.tv / Math.max(1, (CLOSE - T) / 900) : null;
-    return { ok: true, trade, e, v, word, now, pb, zoneAlone, folded, foldT, W, off, prem, peakP, ledger: Ld, dist: { fut: Math.abs(s.fut - g.G), spot: Math.abs(s.spot - (g.G - s.basis)), G: g.G, Gspot: Math.round(g.G - s.basis) }, chips, theta, tInTrade: T - e.t0, hi: HI[word], s, g, path: P };
+    return Object.assign({ ok: true, trade, e, v, word, now, pb, zoneAlone, folded, foldT, W, off, prem, peakP, ledger: Ld, dist: { fut: Math.abs(s.fut - g.G), spot: Math.abs(s.spot - (g.G - s.basis)), G: g.G, Gspot: Math.round(g.G - s.basis) }, chips, theta, tInTrade: T - e.t0, hi: HI[word], s, g, path: P }, v.flowSrc ? { flowSrc: v.flowSrc } : null);
   }
   function premAtTime(trade, t, feedT) { const x = D.idx[trade.idx], ki = x.ks.indexOf(trade.K), i = lastLE(x.t, Math.min(t, feedT)); const p = i >= 0 ? x[trade.ty.toLowerCase()].ltp[i][ki] : null; return p == null ? null : p / 20; }
   function premPeak(trade, feedT, T) {
@@ -728,5 +744,5 @@ const Engine = (() => {
     ev.sort((a, b) => a.t - b.t); memo.set(key, ev); return ev;
   }
 
-  return { REV, R3, setDecode, decAt, votes: { dayVote, wallVote, effortVote, quadVote, flowVote, payVote, weekdays, freshOf, tapeOf, rollOf, emOf }, load, apply, snap, validate, board, read, inTrade, entrySnap, tradePath, events, tradeEvents, premAtTime, xindex, reason, premAt, hm, hms, fmt, sgn, pct, L, L0, IDX, OPEN, CLOSE, PRACTICE, HI, get data() { return D; } };
+  return { get REV() { return rev(); }, R3, R31, setDecode, decAt, votes: { dayVote, wallVote, effortVote, quadVote, flowVote, payVote, weekdays, freshOf, tapeOf, rollOf, emOf }, load, apply, snap, validate, board, read, inTrade, entrySnap, tradePath, events, tradeEvents, premAtTime, xindex, reason, premAt, hm, hms, fmt, sgn, pct, L, L0, IDX, OPEN, CLOSE, PRACTICE, HI, get data() { return D; } };
 })();
