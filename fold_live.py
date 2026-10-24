@@ -637,7 +637,7 @@ def hold2_rows(idx):
 
 
 def basis(idx):
-    """Her basis for idx: future minus the INDEX, a 15-minute median (fold.State.bas_ix; the forward's, State.bas, until
+    """Her basis for idx: future minus the INDEX, a 3-minute median (A60) (fold.State.bas_ix; the forward's, State.bas, until
     it has one), rounded, or None. Read-only: frame.basis places every strike with it, so the OI rows and her W / A lines
     sit at one height (ONE basis 2026-10-04; the index's since 2026-10-05, her word)."""
     eng = _ENG.get(idx)

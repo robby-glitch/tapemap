@@ -41,6 +41,8 @@ ACCEPT_BK = 1                        # (h) acceptance = one bucket of lots beyon
 HELD_N = 2                           # (h) the held breach: 2 more closes and 2 x the median bucket duration
 VPIN_WIN, VPIN_LEAD = 10, 2          # (h)
 FWD_MS = 15 * 60000                  # (h) F*'s basis window
+BIX_MS = 3 * 60000                   # her display basis (bas_ix), A60 24 Oct: the 15-min median lagged the local basis p90
+                                     # 5-6 / max 16 pts over 6 days [M]; 3 min: p90 3 / max 8. Places and labels only
 HOLE_MS = 30000                      # (h) order flow silent >= 30 s in hours = CAN'T CHECK
 CHAIN_STALE_MS = 180000              # (h) chain older than 180 s blinds the OI row
 PREM_STALE_MS = 60000                # (h) premium at G / A needs a chain <= 60 s old
@@ -580,12 +582,12 @@ class State:
         if fw:
             self.basis.append((t, f - st.median(fw)))
         self.basis = [x for x in self.basis if x[0] >= t - FWD_MS]
-        # Her basis (2026-10-05): future minus the INDEX, the row's own spot paired with the same future, a 15-min median like
-        # the forward's (a raw fut - spot swung 8-12 pts a minute, CHECK M1). It places and labels; it decides nothing --
+        # Her basis (2026-10-05): future minus the INDEX, the row's own spot paired with the same future, a 3-min median
+        # (a raw fut - spot swung 8-12 pts a minute, CHECK M1; 15 min lagged, A60). It places and labels; it decides nothing --
         # G, the walls' ZONE reads and every premium stay on the forward basis above (the signed rule's).
         if r.get("spot"):
             self.basis_ix.append((t, f - r["spot"]))
-        self.basis_ix = [x for x in self.basis_ix if x[0] >= t - FWD_MS]
+        self.basis_ix = [x for x in self.basis_ix if x[0] >= t - BIX_MS]
         self.bas_ix = st.median([x[1] for x in self.basis_ix]) if self.basis_ix else None
         if not self.basis:
             return
@@ -1141,7 +1143,7 @@ class State:
                                basis_of="future minus the options' own forward (K + CE - PE, both |delta| > 0.3), median over 15 min; "
                                         "the engine's own: G, the zone reads and the premiums",
                                basis_ix=None if self.bas_ix is None else round(self.bas_ix, 1),
-                               basis_ix_of="future minus the index, median over 15 min: where a strike is drawn (K + basis_ix) "
+                               basis_ix_of="future minus the index, median over 3 min: where a strike is drawn (K + basis_ix) "
                                            "and how a futures price is printed as spot (fut - basis_ix)"),
                     prem=self._prem(t),
                     acc=None if self.acc is None else dict(t=hms(self.acc["t"]), G=self.acc["G"], lots=round(self.acc["lots"]), n=self.acc_n),

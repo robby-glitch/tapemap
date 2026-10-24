@@ -499,4 +499,5 @@
 .hv .voice .v3{color:var(--text-secondary);font-family:var(--f-ui);padding-right:76px}
 .hv .voice .v4,.hv .voice .v5{white-space:normal}   /* the TRADE MAP's lines wrap: l5's survivor read is never cut off */
 .hv .voice .vbtns{position:absolute;top:0;right:0}
+.hv.float .voice .v1{white-space:normal;padding-right:180px}   /* the float's four buttons are ~171px: l1 wraps, its ₹ never hides under them */
 .hv .voice .vd{position:absolute;right:var(--s2);bottom:var(--s2);border:1px solid var(--border-strong);border-radius:var(--r);background:var(--surface-raised);font:var(--t11)/16px var(--f-num);padding:0 6px;color:var(--text-secondary)}

@@ -5,7 +5,7 @@
 // answering (hh:mm:ss)", never a fixture (the fixture viewer is ?fixture=1, bannered, and never polls).
 import { useSyncExternalStore } from 'react'
 import { j, tone } from '../hold/store'
-import type { Trade } from '../hold/HoldWindow'
+import type { Trade, Voice } from '../hold/HoldWindow'
 export type { Trade }
 
 // she trades all three (2026-10-03): the DESK reads the index she picks; a trade's own index rides its record
@@ -36,7 +36,8 @@ export type Word = { t: string; headline: string; clause: string; prem?: number 
 export type Hold2 = { ok: boolean; why?: string; text?: string | null; note?: string; line_fut?: number; line_spot?: number | null
                       why_short?: string; pts?: number | null; front?: { side: string; k: number; state: string } | null; tag?: string }
 // (A52: the three HOLD v3 shadow lines ride no in-trade reply any more; they are logged, then shown on the receipt)
-export type FoldRead = { ok: boolean; why?: string; id?: string; trade?: Trade; view?: View; words?: Word[]; asof?: string; feed?: Feed; hold2?: Hold2 | null }
+export type FoldRead = { ok: boolean; why?: string; id?: string; trade?: Trade; view?: View; words?: Word[]; asof?: string; feed?: Feed; hold2?: Hold2 | null
+                         voice?: Voice }   // A52 THE ONE VOICE + the TRADE MAP (server._in_trade), the floating window's face
 // FEED HEALTH (P3, feed_health.py): is the GoCharting tape alive, read by the server from the data; rides every /api/fold* reply
 export type FeedState = 'LIVE' | 'SLOW' | 'STALLED' | 'DEAD' | 'NOT OPEN TODAY' | 'AFTER CLOSE'
 export type Feed = { idx?: string; state: FeedState | null; since?: string | null; age_s?: number | null; why?: string | null; chip?: string | null

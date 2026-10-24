@@ -13,6 +13,7 @@ const W = 440
 const WORDS = ['HOLD', 'PAST GIVE-UP', 'FOLD', "CAN'T CHECK"]
 const VCLS: Record<string, string> = { HOLD: 'v-HOLD', 'PAST GIVE-UP': 'v-WATCH', FOLD: 'v-FOLD', "CAN'T CHECK": 'v-PATA' }
 const RANK: Record<string, number> = { FOLD: 0, 'PAST GIVE-UP': 1, "CAN'T CHECK": 2, HOLD: 3 }
+const VSTATE: Record<string, string> = { HOLD: 'v-HOLD', TIGHTEN: 'v-HOLD', WARN: 'v-WATCH', EXIT: 'v-FOLD' }   // the voice's word, collapsed
 const ls = (k: string, v?: string) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v) } catch { /* private window */ } return null }
 const contract = (t: Trade) => `${t.k} ${t.side}`
 
@@ -40,14 +41,18 @@ function Win() {
   const [arm, setArm] = useState<string | null>(null), [busy, setBusy] = useState(false), [msg, setMsg] = useState<string | null>(null)
   const [h, setH] = useState(420)
   const frame = useRef<HTMLIFrameElement>(null)
+  // THE ONE VOICE (A52) + the TRADE MAP (A53-A62) on top, as on the panel and Validate; [detail ▸] opens the DESK's face below
+  const [vOpen, setVOpenS] = useState(() => ls('pro.float.vdet') === '1')
+  const setVOpen = (x: boolean) => { ls('pro.float.vdet', x ? '1' : '0'); setVOpenS(x) }
 
   const word = cur ? wordOf(cur) : null
   const v = cur && st.fold[cur.id]?.ok ? st.fold[cur.id].view : undefined
-  const red = word === 'FOLD'
+  const vc = cur && st.fold[cur.id]?.ok && st.fold[cur.id].voice?.ok ? st.fold[cur.id].voice! : null
+  const red = word === 'FOLD' || vc?.state === 'EXIT'
   const setMin = (x: boolean) => { ls('pro.float.min', x ? '1' : '0'); setMinS(x); try { pip?.resizeTo(pip.outerWidth, x ? 110 : 640) } catch { /* the OS keeps its size */ } }
 
   // the word in the browser tab title (and the pop-out's), so the taskbar carries it behind the broker window
-  const head = show && cur && word ? `[${word} ${contract(cur).replace(' ', '')}] ` : ''
+  const head = show && cur && word ? `[${vc ? vc.state : word} ${contract(cur).replace(' ', '')}] ` : ''
   useEffect(() => {
     const put = () => { document.title = head + document.title.replace(/^\[[^\]]*\] /, '') }
     put()
@@ -71,7 +76,7 @@ function Win() {
     }
     f.addEventListener('load', hook); hook()
     return () => { f.removeEventListener('load', hook); ro?.disconnect() }
-  }, [cur?.id, min, pip])
+  }, [cur?.id, min, pip, vOpen])
 
   // drag by the bar (the in-tab float only; the OS moves a pop-out); double-click re-docks it
   const drag = useRef<{ dx: number; dy: number } | null>(null)
@@ -128,10 +133,11 @@ function Win() {
   </span>
   // one line: the word · the contract · the engine's clause (never the P&L here); open: the same line over the DESK's face
   const line = <div className="fl-line" {...grip}>
-    <span className={`word fw ${VCLS[word!]}`}>{word}</span>
+    {vc && min ? <span className={`word fw ${VSTATE[vc.state]}`}>{vc.state}</span> : <span className={`word fw ${VCLS[word!]}`}>{word}</span>}
     {st.feed?.alarm && <span className="fl-feed" title={[st.feed.why, st.feed.do].filter(Boolean).join('\n')}>{st.feed.chip}</span>}
     <span className="mid"><span className="c">{contract(cur)}</span><span className="dot">·</span>{cur.role} · in {cur.t0.slice(0, 5)}
-      {min && v?.clause && <><span className="dot">·</span>{v.clause}</>}{/* open: the body's first line carries it */}
+      {min && (vc ? <><span className="dot">·</span>{vc.l3.replace(/^why: /, '')}</>                  // collapsed: the voice's own reason, one voice
+                  : v?.clause && <><span className="dot">·</span>{v.clause}</>)}{/* open: the body's first line carries it */}
       {others.map(t => <span key={t.id}><span className="dot">·</span><button type="button" className="link" onClick={() => setPick(t.id)} title="show this trade">
         <b className={VCLS[wordOf(t)]}>{wordOf(t)}</b> {contract(t)}</button></span>)}</span>
     {btns}
@@ -141,10 +147,22 @@ function Win() {
     : pos ? { left: Math.max(0, Math.min(pos.x, window.innerWidth - W - 8)), top: pos.y, right: 'auto', bottom: 'auto', ...(min ? {} : { width: W, maxHeight: 'calc(100vh - 32px)' }) }
     : min ? undefined : { width: W, maxHeight: 'calc(100vh - 32px)' }
   const src = new URL(`/pro.html?float=${encodeURIComponent(cur.id)}`, location.href).href   // absolute: a pop-out document has no base
+  const voiceEl = vc && <div className={`voice v-${vc.state}`} {...grip}
+      title={(vc.active ?? []).map(a => `${a.t} ${a.state} · ${a.reason}`).join(String.fromCharCode(10)) || vc.note}>
+    <div className="v1">{vc.l1}</div>
+    <div className="v2"><span className="vw">{vc.state}</span>{vc.l2}</div>
+    <div className="v3">{vc.l3}{vc.trig_t && vc.state !== 'HOLD' ? ` · ${vc.trig_t}` : ''}</div>
+    {vc.l4 && <div className="v3 v4">{vc.l4}</div>}
+    {vc.l5 && <div className="v3 v5">{vc.l5}</div>}
+    {!vOpen && <span className="vbtns">{btns}</span>}{/* open: the DESK's line below carries them */}
+    <button type="button" className="vd" onClick={() => setVOpen(!vOpen)}>detail {vOpen ? '▾' : '▸'}</button>
+  </div>
+  const mapEl = vc && !!vc.detail?.length && <div className="fl-sec">{vc.detail.map(x => <p className="sm" key={x.text} title={x.tip ?? undefined}>{x.text}</p>)}</div>
   const win = <div ref={box} className={cls} style={style}>
-    {line}
+    {vc && !min ? voiceEl : line}
     {msg && <p className="fine" style={{ padding: '4px 12px' }}>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></p>}
-    {!min && <iframe ref={frame} key={cur.id} src={src} title="DESK" style={{ display: 'block', width: '100%', border: 0, height: pip ? 'calc(100vh - 44px)' : Math.min(h, window.innerHeight - 90) }} />}
+    {!min && (!vc || vOpen) && <>{vc && mapEl}{vc && line}
+      <iframe ref={frame} key={cur.id} src={src} title="DESK" style={{ display: 'block', width: '100%', border: 0, height: pip ? 'calc(100vh - 44px)' : Math.min(h, window.innerHeight - 90) }} /></>}
   </div>
   if (pip) return <>{createPortal(win, pip.document.body)}{<div className="hv-back">The DESK is popped out on top <button type="button" onClick={() => pip.close()}>bring it back</button></div>}</>
   return win

@@ -180,3 +180,15 @@ Known, not fixed: the chart's own pts on a line are fut-native (its price vs K +
 | A62 the gave-up alarms | **W-BLEED alone is no longer a WARN**; its number is `voice.gauge`, first in [detail]. HOLD v2's front gave up and GAVE UP (both need price against her) stay | `voice.py` `_triggers` / `ladder`, `trademap.into` | 30 Sep 10:46 detail `W-BLEED 22800 PE −18.4% off 66.5L peak · 15 upd [M] · gauge, not a give-up alone`, state EXIT as before; 21 Oct state sequence unchanged |
 
 Tests: pytest 1942 passed, 1 skipped (A49 deselected), no rows leaked; `test_voice.py` (gauge, price-with-her = HOLD), `test_trademap.py` +1 (BADA since entry / bar closed / within a step / shown / tab nahi; the gauge line). The faces render `l5` and `detail` verbatim: no extension rebuild needed.
+
+## 9. A60 one basis, and the floating window (24 Oct, her "do A60 … nothing is left")
+
+- **A60**: every f/s on every face already came from one number, `fold.State.bas_ix` (`fold_live.basis` → the frame,
+  `view.units.basis_ix` → the voice / map / HOLD v2 spot). Its 15-min median lagged; measured on 6 days against the ±2-min local
+  median of time-aligned fut − index pairs: 15 min p50 2 / p90 5–6 / max 16 pts, 3 min p50 1 / p90 3 / max 8 [M]. `fold.BIX_MS`
+  = 3 min (display only; `bas`, the forward basis behind G / zone reads / premiums, unchanged). 30 Sep 10:30 121.1 vs 121.3 local,
+  11:16 111.0 vs 111.2; in a fast push the future leads the index and a 3–6 pt gap remains for a minute.
+- **A63**: the floating window is `ui-v2/src/pro/Float.tsx` (App.tsx), not `hold/HoldWindow.tsx` (not mounted). It now shows the
+  voice block with l4 / l5 on top, the map's detail then the DESK's face under [detail ▸], the voice's word + reason when
+  collapsed, the voice's state in the tab title; l1 wraps under the float's 171-px buttons (`hold.css`). Rendered against a
+  mock API (21 Oct 11:21 HOLD; 13:45 EXIT with `BADA BUYER 625 lots @22,727f 13:40`). `tsc` clean; pytest 1942 passed.

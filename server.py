@@ -1122,7 +1122,7 @@ def _book_for(handler, idx):
             "spot": box.get("spot") if box else None,
             "expiry": (box or {}).get("expiry") or (pj.get("expiry") if isinstance(pj, dict) else None),
             "zone_state": _day0.get("zone_state"), "zone_state_sell": _day0.get("zone_state_sell"),
-            # ONE BASIS: the fold engine's display basis (future minus the index, 15-min median of paired samples, her
+            # ONE BASIS: the fold engine's display basis (future minus the index, 3-min median of paired samples (A60), her
             # word 2026-10-05), so a strike's OI row and her W / A lines sit at one height; None until the engine has one.
             "basis": fold_live.basis(idx),
             "pivots": _day0.get("pivots"),      # the prior session's floor pivots; frame._walls inverts them to PDH/PDL/PDC

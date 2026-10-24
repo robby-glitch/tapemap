@@ -16,7 +16,7 @@ in full too.** Everything else is history or detail. Verified 2026-08-22.
   - **The CAS closing auction (3 Aug 2026)** freezes the cash index at ~15:15. PD levels come from bars ≤ 15:15 (`levels.fetch_daily`), not the auction print.
   - **F&O trades until 15:40.** The futures recorders stop at 15:40; the option chain still stops at 15:30.
   - **SENSEX futures are too thin** for order-flow reads ("patla" stamps).
-- **In a trade (24 Oct):** her open marked trade gets ONE block, display only, computed once in the server and rendered verbatim on the panel, the hold window and Validate.
+- **In a trade (24 Oct):** her open marked trade gets ONE block, display only, computed once in the server and rendered verbatim on the panel, the floating window (`ui-v2/src/pro/Float.tsx`; `hold/HoldWindow.tsx`'s window is not mounted) and Validate.
   - **`voice.py`** is THE ONE VOICE: the ladder EXIT > WARN > TIGHTEN > HOLD, with one stop (HOLD v2's line).
   - **`trademap.py`** adds two lines and a detail list:
     - l4: push, ulta push, and the day's range used in EM;
@@ -24,7 +24,7 @@ in full too.** Everything else is history or detail. Verified 2026-08-22.
     - [detail]: fuel pinned at entry, levels, R, a sale's premium path and the W-BLEED gauge.
   - **Where it runs:** `server._hold2_run` and `_in_trade`; forward log `data/hold/map_<day>.jsonl`.
   - **Replay:** `voice_path.py` and `GET /api/voice_path` replay it over a past marked trade, never in market hours.
-  - **Docs:** `docs/trade-map/` (Fable's critique and the build report), the spec `docs/superpowers/specs/2026-10-24-trade-map-design.md`, and NOTEPAD A52–A62.
+  - **Docs:** `docs/trade-map/` (Fable's critique and the build report), the spec `docs/superpowers/specs/2026-10-24-trade-map-design.md`, and NOTEPAD A52–A63. Her display basis `fold.BIX_MS` is a 3-min median (A60).
 - **The face:** the GoCharting extension v2.10 (0.5.10) in `C:\Users\kaam\Desktop\Go charting\orderflow-desk\dist-v2`. See its `docs/V2-BUILD-REPORT.md`.
 - **Clean-room research:** `C:\Users\kaam\Desktop\operator mode\oi-lab\` (Fable): the OI and order-flow world maps, the flow AUDIT (291 variants, two holdouts), and the Edge Reader weave. Its conclusions:
   - only effort per point survived;
