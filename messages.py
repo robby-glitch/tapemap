@@ -1,0 +1,201 @@
+"""messages.py -- THE MESSAGE STREAM: what the tool already said, one line per CHANGE, for the floating window and
+Telegram (spec docs/superpowers/specs/2026-10-25-message-window-telegram-design.md; NOTEPAD A101).
+
+Mary, 25 Oct: "sometime i miss the signals it genrate and not able to decipher whats its telling, on these many screen".
+NOTHING NEW IS READ: every message is a change in a read the server already logs, write-once.
+  READ    THE READ's held word or arrow changes at a closed mark; a QUIT event                   data/read/read_<day>.jsonl
+  LEG     DECODE's call turns JAARI <-> THAK or its leg flips; MILA / saaf nahi keep the last    data/decode/decode_<day>.jsonl
+  SETUP   a FADE / RIDE / FADE-D chip turns MATCH, or an entry's HOLD v2 state                   the same DECODE rows
+  DIN     the one-sided meter's day type changes (TREND ▲ / ▼, CHOP, MIXED)                      the same DECODE rows
+  TRADE   the one voice turns TIGHTEN / WARN / EXIT (server._in_trade -> `trade`)
+  HEALTH  RECORDING NAHI starts / clears; the day's first look says "TapeMap live" (server._recording -> `health`)
+SETUP reads DECODE's chips, not confluence_log: that log writes a row once the setup's window has CLOSED (23 Oct [M]:
+FADE-D rows 30-36 min after the start) and 12 of its 14 rows that day never fired; the two that did (BANKNIFTY RIDE
+10:45, FADE-D 13:15) are exactly DECODE's two chip turns, at the same close, logged a grace minute after it.
+AGREE is DECODE's count at that close, never a %. DECODE's call.d / call.c are the decel / continuation COUNTS; the way is
+the leg's d. JAARI reads the leg's way with c/7, THAK against it with d/7: "saath" when that way is the message's,
+"khilaaf" when against; a message with no way shows DECODE's arrow and count. "mila d/c" (checked, mixed), "saaf nahi"
+(checked, no leg) and "?" (no DECODE row for that close) stay separate sentences.
+PURE: no I/O, no clock -- the server hands in the day's rows, so a restart rebuilds the same stream (anytime-start).
+DISPLAY ONLY: gates nothing; the faces and Telegram show `line` verbatim. [I]
+"""
+from __future__ import annotations
+
+import re
+
+ARROW = {1: "▲", -1: "▼", 0: ""}
+KINDS = ("HEALTH", "READ", "SETUP", "LEG", "DIN", "TRADE")    # the order of one close's lines
+OFF = ("—", "ARMED")                                          # a setup chip that has not fired
+TRADE_ON = ("TIGHTEN", "WARN", "EXIT")
+SKIPPED = {"n": 0}                                            # rows the LAST build skipped as malformed (a bad dir, text for a number)
+
+
+def _n(x):
+    return "?" if x is None else f"{x:,.0f}"
+
+
+def key(m):
+    """The write-once key within a day: idx | kind | t | word, and the trade id for TRADE."""
+    return "|".join(str(x) for x in (m["idx"], m["kind"], m["t"], m["word"]) + ((m["id"],) if m.get("id") else ()))
+
+
+def line(m):
+    """The one line every face and Telegram show: HH:MM  IDX  what · agree · level. TRADE / HEALTH: the kind, and the why's
+    first clause."""
+    lbl = m["kind"] if m["kind"] in ("TRADE", "HEALTH") else m["idx"]
+    head = m["word"]
+    if m["kind"] in ("TRADE", "HEALTH") and m.get("why"):
+        head += " · " + re.sub(r"\s*\([^)]*\)\s*$", "", str(m["why"]).split(" · ")[0])
+    return f"{m['t']}  {lbl}  " + " · ".join(x for x in (head, m.get("agree"), m.get("level")) if x)
+
+
+def _msg(t, idx, kind, d, word, agree_, level, why, **extra):
+    if d not in ARROW:
+        raise ValueError(f"dir {d!r}")
+    m = dict(t=t, idx=idx, kind=kind, dir=d, word=word, agree=agree_, level=level, why=why, **extra)
+    m["key"], m["line"] = key(m), line(m)
+    return m
+
+
+def name(word, d=0, ff=False):
+    """THE READ's held word as the faces say it (read._name): "TREND ▼ · flow+fuel", "LEAN ▲", "RANGE"."""
+    return f"{word}{' ' + ARROW[d] if d else ''}{' · flow+fuel' if ff else ''}"
+
+
+def agree(row, d):
+    """DECODE's count at this close against direction d (module docstring). Never blank, never a 0."""
+    c = (row or {}).get("call") or {}
+    k, ld = c.get("kind"), ((row or {}).get("leg") or {}).get("d")
+    if not row or c.get("text") in (None, "?"):
+        return "?"
+    if k == "SAAF_NAHI":
+        return "saaf nahi"
+    if k == "MILA":
+        return f"mila {c.get('d')}/{c.get('c')}"
+    if k not in ("JAARI", "THAK") or ld not in (1, -1):
+        return "?"
+    way, n = (ld, c.get("c")) if k == "JAARI" else (-ld, c.get("d"))
+    of = c.get("of") or 7
+    return f"{ARROW[way]}{n}/{of}" if not d else f"{n}/{of} {'saath' if way == d else 'khilaaf'}"
+
+
+def _level(r):
+    """THE READ's level: a TREND / LEAN's FLIP, a RANGE's box walls -- spot, as the READ reads them."""
+    if r.get("flip") is not None:
+        return f"flip {_n(r['flip'])}s"
+    bx = r.get("box") or {}
+    lo, hi = (bx.get("bottom") or {}).get("k"), (bx.get("top") or {}).get("k")
+    return f"box {_n(lo)}–{_n(hi)}s" if lo is not None and hi is not None else None
+
+
+def _ok(r, k):
+    """A log row with a text index and a text close `k` (they are sort keys and key parts); anything else is not a row."""
+    return isinstance(r.get("idx"), str) and r["idx"] != "" and isinstance(r.get(k), str) and r[k] != ""
+
+
+def build(read_rows, decode_rows):
+    """The day's market messages (READ, LEG, SETUP, DIN) from its READ and DECODE log rows, oldest first: each a change
+    from the close before it. A row without an index or a close is skipped. So is a MALFORMED row (a dir that is not -1 / 0
+    / 1, text for a number): skipped and counted in SKIPPED, never raised -- one bad row must not freeze the stream, and the
+    state the next row is compared with moves only after a row's message is made."""
+    bad = 0
+    dec = sorted((r for r in decode_rows if _ok(r, "T")), key=lambda r: (r["T"], r["idx"]))
+    at = {(r["idx"], r["T"]): r for r in dec}
+    evs = [e for e in read_rows if e.get("kind") == "event" and _ok(e, "t")]
+    out, held = [], {}
+    for r in sorted((r for r in read_rows if r.get("kind") == "mark" and _ok(r, "t")), key=lambda r: (r["t"], r["idx"])):
+        if r.get("word") in (None, "BAN RAHA"):              # the first 30 minutes are read, never named
+            continue
+        try:
+            i, t, s = r["idx"], r["t"], (r["word"], r.get("dir") or 0, r.get("src") == "flow+fuel")
+            was = held.get(i, ("WAIT", 0, False))
+            if s[:2] != was[:2]:                             # same word, same arrow: flow+fuel coming or going is churn
+                here = [e for e in evs if (e["idx"], e["t"]) == (i, t)]
+                why = (next((e.get("text") for e in here if e.get("event") == "BREAK"), None)
+                       or next((e.get("en") for e in here if e.get("event") in ("FORM", "UP", "DOWN")), None))
+                out.append(_msg(t, i, "READ", s[1], f"{name(*was)} → {name(*s)}", agree(at.get((i, t)), s[1]), _level(r), why,
+                                ev="WORD"))
+            held[i] = s
+        except Exception:                                    # noqa: BLE001 -- a malformed row is skipped, never raised
+            bad += 1
+    for e in evs:
+        if e.get("event") == "QUIT":                         # a big writer wall near spot gave back half its build
+            try:
+                d = e.get("dir") or 0
+                out.append(_msg(e["t"], e["idx"], "READ", d, f"{_n(e.get('k'))} {e.get('side')} likhne wale bhage",
+                                agree(at.get((e["idx"], e["t"])), d), None, e.get("text"), ev="QUIT"))
+            except Exception:                                # noqa: BLE001
+                bad += 1
+    leg, live, din = {}, {}, {}
+    for r in dec:
+        try:
+            i, t, c, lg = r["idx"], r["T"], r.get("call") or {}, r.get("leg") or {}
+            ld = lg.get("d")
+            if c.get("kind") in ("JAARI", "THAK") and ld in (1, -1) and leg.get(i) != (c["kind"], ld):
+                out.append(_msg(t, i, "LEG", ld, f"{ARROW[ld]} leg {'jaari' if c['kind'] == 'JAARI' else 'thak raha'}",
+                                agree(r, ld), None, " · ".join((c.get("signs") or [])[:2]) or None))
+                leg[i] = (c["kind"], ld)                     # MILA / saaf nahi / ? keep the last leg read
+            on = {(s.get("name"), s.get("side")): str(s.get("state")) for s in r.get("setups") or ()
+                  if s.get("name") and s.get("side") in ("BUY", "SELL") and str(s.get("state") or "—") not in OFF}
+            ext = lg.get("ext") or {}
+            for (nm, side), state in on.items():
+                if (nm, side) not in live.get(i, {}):
+                    d = 1 if side == "BUY" else -1
+                    out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", agree(r, d),
+                                    None if ext.get("fut") is None else f"{_n(ext['fut'])}f", state))
+            live[i] = on
+            ty = (r.get("onesided") or {}).get("type")
+            if ty and din.get(i) != ty:                      # None (could not check) keeps the last type
+                d = 1 if "▲" in ty else -1 if "▼" in ty else 0
+                out.append(_msg(t, i, "DIN", d, f"din {ty}", agree(r, d), None, None if din.get(i) is None else f"pehle {din[i]}"))
+                din[i] = ty
+        except Exception:                                    # noqa: BLE001
+            bad += 1
+    SKIPPED["n"] = bad
+    return sorted(out, key=lambda m: (m["t"], KINDS.index(m["kind"]), m["idx"], m["word"]))
+
+
+def now_rows(read_rows, decode_rows, idxs):
+    """NOW, one line per index: THE READ's latest logged mark, DECODE's count at that close, since when."""
+    dec = {(r.get("idx"), r.get("T")): r for r in decode_rows}
+    last = {}
+    for r in read_rows:
+        if r.get("kind") == "mark" and r.get("idx") and r.get("t") and r["t"] >= (last.get(r["idx"]) or {}).get("t", ""):
+            last[r["idx"]] = r
+    out = []
+    for i in idxs:
+        r = last.get(i)
+        if r is None:
+            out.append({"idx": i, "dir": 0, "word": None, "line": f"{i}  read abhi nahi",
+                        "why": "could not check — no READ mark logged yet today"})
+            continue
+        d = r.get("dir") or 0
+        parts = [name(r.get("word") or "?", d, r.get("src") == "flow+fuel"), agree(dec.get((i, r["t"])), d)]
+        if r.get("since"):
+            parts.append(f"since {r['since']}")
+        out.append({"idx": i, "dir": d, "word": r.get("word"), "line": f"{i}  " + " · ".join(parts), "why": f"mark {r['t']}"})
+    return out
+
+
+def trade(tr, v, was, row, hm):
+    """THE ONE VOICE's turn into TIGHTEN / WARN / EXIT as a message (`was`: its last state for this trade; `row`: the
+    trade index's latest DECODE row), else None -- the same state, HOLD, or no voice."""
+    st = (v or {}).get("state")
+    if not (v or {}).get("ok") or st == was or st not in TRADE_ON:
+        return None
+    d = v.get("d") or 0
+    return _msg(v.get("trig_t") or hm, tr["idx"], "TRADE", d, st, agree(row, d),
+                None if v.get("stop_f") is None else f"stop {_n(v['stop_f'])}f", v.get("reason"), id=tr["id"])
+
+
+def health(rec, was, hm):
+    """server._recording ({ok, missing, text}; None outside 09:20-15:30) as a message, else None: the day's first look
+    says "TapeMap live", then RECORDING NAHI once when it starts and RECORDING OK once when it clears."""
+    if rec is None:
+        return None
+    if not rec.get("ok"):
+        return None if was == "RECORDING NAHI" else _msg(hm, "ALL", "HEALTH", 0, "RECORDING NAHI", None, None,
+                                                           ", ".join(rec.get("missing") or ()) or None)
+    if was is None:
+        return _msg(hm, "ALL", "HEALTH", 0, "TapeMap live", None, None, "recording ok")
+    return _msg(hm, "ALL", "HEALTH", 0, "RECORDING OK", None, None, None) if was == "RECORDING NAHI" else None

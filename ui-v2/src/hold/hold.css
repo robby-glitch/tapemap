@@ -507,3 +507,14 @@
 /* F13 (25 Oct): the record's alarms on the window -- RECORDING NAHI and, after 15:30, the tradebook import */
 .hv .fl-rec{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);padding:var(--s1) var(--s3);border-bottom:1px solid var(--border-strong);background:var(--surface-raised);font:600 var(--t12)/1.4 var(--f-ui)}
 .hv .fl-rec .no{color:var(--negative)}.hv .fl-rec a{color:var(--caution)}
+/* THE MESSAGE WINDOW (26 Oct; spec 2026-10-25-message-window-telegram §3): NOW per index, then the stream -- the server's lines */
+.hv .fl-msgs{display:flex;flex-direction:column;gap:2px;padding:var(--s2) var(--s3);border-bottom:1px solid var(--border);font:400 var(--t12)/18px var(--f-num);max-height:360px;overflow-y:auto}
+.hv .fl-msgs .now{font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hv .fl-msgs .ml{color:var(--text-primary);overflow-wrap:anywhere}
+.hv .fl-msgs .ml.k-LEG,.hv .fl-msgs .ml.k-DIN{color:var(--text-muted)}
+.hv .fl-msgs .ml.k-SETUP{color:var(--accent)}
+.hv .fl-msgs .ml.w-WARN{color:var(--caution)}.hv .fl-msgs .ml.w-EXIT{color:var(--negative)}
+.hv .fl-msgs .ml.new{font-weight:700}
+.hv .fl-msgs .ml.why{color:var(--text-muted)}
+.hv .fl-msgs hr{border:0;border-top:1px solid var(--border);margin:2px 0}
+button.hv-back{cursor:pointer}

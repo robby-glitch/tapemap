@@ -92,3 +92,6 @@ ui-v2/tsconfig.tsbuildinfo
 *.pkl
 # the voice replayed per marked trade (voice_path.py, GET /api/voice_path): a cache, recomputed on a new trademap REV
 data/voice/
+
+# her Telegram bot token + chat id (25 Oct): never committed
+telegr/

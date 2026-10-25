@@ -92,6 +92,8 @@ import sensex_flow               # SENSEX reads NIFTY's order flow (SENSEX-NIFTY
 import voice                     # THE ONE VOICE in a trade (A52): one state ladder over the word + HOLD v2, display only
 import trademap                  # THE TRADE MAP (A53-A59): the voice's l4 / l5 / [detail], display only
 import voice_path                # the voice replayed over a past marked trade (A56), GET /api/voice_path
+import messages                  # THE MESSAGE STREAM (A101): one line per change of an existing read, GET /api/messages
+import telegram_out              # ...and its outbound Telegram subset (telegr/; OFF without chat.txt, never under --mock-chain)
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -3435,6 +3437,7 @@ def _in_trade(rep, trades):
             trademap.into(out["voice"], (h2 or {}).get("map") if isinstance(h2, dict) else None)   # l4 / l5 / detail
             if rep.get("flow_src"):
                 sensex_flow.relabel(out["voice"])
+            _msg_voice(tr, out["voice"])                 # the stream's TRADE kind: a change of state, once (fail-soft)
     except Exception as e:
         log.exception("voice")
         out["voice"] = {"ok": False, "why": f"could not check — the voice failed: {type(e).__name__}: {e}"}
@@ -4463,6 +4466,132 @@ def _health_safe(fn):
     except Exception:
         log.exception("/api/health: %s", fn.__name__)
         return None
+
+
+# ---- THE MESSAGE STREAM (messages.py; spec 2026-10-25-message-window-telegram, NOTEPAD A101) --------------------------
+#
+# What the tool already said, one line per CHANGE, for the floating window and Telegram. A pass every MSG_EVERY_S on its own
+# thread (_msg_loop) reads today's READ and DECODE logs and the recording check; _in_trade hands in the voice. Each message
+# is written ONCE to MSG_DIR/msg_<day>.jsonl (weekdays from 09:15; a late start writes the morning late, and its `at` says
+# so) and kept in memory with NOW; GET /api/messages serves that memory and never computes. DISPLAY ONLY: nothing here
+# reaches a gate, a beep rule, the engine or trigger_log.
+MSG_DIR = os.path.join("data", "messages")         # the stream's write-once record, msg_<day>.jsonl (_msg_write)
+MSG_EVERY_S = 20                                   # close + the read log's 60 s grace + <= 20 s: a line ~1.5 min after its close
+_MSG_LOCK = threading.Lock()
+
+
+def _msg_fresh():
+    return {"day": None, "items": [], "keys": set(), "voice": {}, "health": None, "now": [], "asof": None}
+
+
+_MSG = _msg_fresh()
+
+
+def _msg_load(day):
+    """(the caller holds _MSG_LOCK) Today's record into memory, once per day: a restart knows what was already said, the last
+    voice state per trade and the last HEALTH word."""
+    if _MSG["day"] == day:
+        return
+    items = [r for r in confluence_log._rows(os.path.join(MSG_DIR, f"msg_{day}.jsonl")) if r.get("key")]
+    _MSG.update(_msg_fresh(), day=day, items=items, keys={r["key"] for r in items},
+                voice={r["id"]: r["word"] for r in items if r.get("kind") == "TRADE" and r.get("id")},
+                health=next((r["word"] for r in reversed(items) if r.get("kind") == "HEALTH"), None))
+
+
+def _msg_write(day, msgs, now=None):
+    """Each message whose key is not in today's record: stamped `at` (epoch s), appended to MSG_DIR/msg_<day>.jsonl ONCE and
+    kept in memory. Weekdays from 09:15 only: a Sunday's stray DECODE rows are not a session. -> the new ones. Fail-soft: a
+    disk error is logged and nothing is kept, so the next pass tries again."""
+    from datetime import date as _date
+    if _date.fromisoformat(day).weekday() >= 5 or _ist(now).strftime("%H:%M") < "09:15":
+        return []
+    t = round(time.time() if now is None else now, 3)
+    with _MSG_LOCK:
+        _msg_load(day)
+        new, seen = [], set(_MSG["keys"])
+        for m in msgs:
+            if m["key"] not in seen:
+                seen.add(m["key"])
+                new.append(dict(m, at=t))
+        if not new:
+            return []
+        try:
+            os.makedirs(MSG_DIR, exist_ok=True)
+            with open(os.path.join(MSG_DIR, f"msg_{day}.jsonl"), "a", encoding="utf-8") as f:
+                f.write("".join(json.dumps(m, ensure_ascii=False) + "\n" for m in new))
+        except OSError:
+            log.exception("message log")
+            return []
+        _MSG["items"].extend(new)
+        _MSG["keys"].update(m["key"] for m in new)
+    try:
+        telegram_out.offer(new, now)               # the alert subset, gated and capped there; a no-op until start()
+    except Exception:
+        log.exception("telegram offer")            # the lines are already written: a raise here must not skip the pass's HEALTH / NOW
+    return new
+
+
+def _msg_pass(now=None):
+    """One pass: today's READ and DECODE logs -> the market messages (messages.build, pure: a restart rebuilds the same
+    stream), the recording check -> HEALTH, each written once; NOW rebuilt for the faces."""
+    d = _ist(now)
+    day, hm = d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+    rr = list(confluence_log._rows(os.path.join(READ_DIR, f"read_{day}.jsonl")))
+    dr = list(confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")))
+    rec = _health_safe(lambda: _recording(now))
+    if rec and rec.get("missing") == ["GoCharting"] and time.time() - _STARTED < FRAME_QUIET_S:
+        rec = None                                 # feed_health.last_post is memory-only: the extension has not had one quiet window to post since this start
+    with _MSG_LOCK:
+        _msg_load(day)
+        h = messages.health(rec, _MSG["health"], hm)
+    _msg_write(day, messages.build(rr, dr) + ([h] if h else []), now)
+    with _MSG_LOCK:
+        if h and h["key"] in _MSG["keys"]:
+            _MSG["health"] = h["word"]
+        _MSG.update(now=messages.now_rows(rr, dr, instruments.ENABLED), asof=d.strftime("%H:%M:%S"))
+
+
+def _msg_voice(tr, v, now=None):
+    """THE ONE VOICE's turn into TIGHTEN / WARN / EXIT, once, into the stream (messages.trade). The last state per trade is
+    memory, seeded from today's record (_msg_load), so a restart does not say it twice. Called by _in_trade on every fold
+    read and frame POST: O(1) unless the state changed. Fail-soft: never the voice's failure."""
+    try:
+        if not (v or {}).get("ok"):
+            return
+        d = _ist(now)
+        day, hm = d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+        with _MSG_LOCK:
+            _msg_load(day)
+            was = _MSG["voice"].get(tr["id"])
+            _MSG["voice"][tr["id"]] = v["state"]
+        if was == v["state"] or v["state"] not in messages.TRADE_ON:
+            return
+        rows = [r for r in confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")) if r.get("idx") == tr["idx"]]
+        m = messages.trade(tr, v, was, max(rows, key=lambda r: str(r.get("T")), default=None), hm)
+        if m:
+            _msg_write(day, [m], now)
+    except Exception:
+        log.exception("message voice")
+
+
+def _msg_reply(since=0.0):
+    """GET /api/messages: NOW per index and today's messages written after `since` (epoch s), from the pass's memory."""
+    with _MSG_LOCK:
+        if _MSG["asof"] is None:
+            return {"ok": False, "why": "could not check — the message stream has not read today yet (its first pass runs "
+                                        "at the start)"}
+        return {"ok": True, "day": _MSG["day"], "asof": _MSG["asof"], "now": list(_MSG["now"]),
+                "msgs": [m for m in _MSG["items"] if (m.get("at") or 0) > since], "tag": "I"}
+
+
+def _msg_loop():
+    """The pass at the start, then every MSG_EVERY_S; never raises (a failed pass is logged, the next one retries)."""
+    while True:
+        try:
+            _msg_pass()
+        except Exception:
+            log.exception("message pass")
+        time.sleep(MSG_EVERY_S)
 
 
 def _frame_chain(poller, idx):
@@ -5732,6 +5861,14 @@ class Handler(SimpleHTTPRequestHandler):
                 log.exception("voice path %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, ensure_ascii=False, default=str).encode())
+        elif urlsplit(self.path).path == "/api/messages":
+            # THE MESSAGE STREAM (messages.py, A101): NOW per index + today's messages written after ?since= (epoch s), from
+            # the pass's memory -- never computed on the request. Display only; never a 500.
+            try:
+                since = float((parse_qs(urlsplit(self.path).query).get("since") or ["0"])[0])
+            except ValueError:
+                since = 0.0
+            self._json(json.dumps(_msg_reply(since), ensure_ascii=False, default=str).encode())
         elif urlsplit(self.path).path == "/api/read":
             # THE READ (read.py): one held read per index -- word, FLIP, targets, wrong-if, the trade. ?idx= one
             # index, ?day= a past day through the same door. Display only; a failure is a why, never a 500.
@@ -6030,9 +6167,11 @@ def _isolate_mock_writers():
     DECODE_DIR = os.path.join(mock, "decode")                       # N7: the DECODE block's forward log (_decode_log)
     MAP_DIR = SHADOW_DIR = os.path.join(mock, "hold")               # the TRADE MAP's and holdshadow's forward logs
     VOICE_DIR = os.path.join(mock, "voice")                         # the voice replayed per marked trade (_voice_path)
-    global VALIDATE_DIR, IMPORT_DIR
+    global VALIDATE_DIR, IMPORT_DIR, MSG_DIR
     VALIDATE_DIR = os.path.join(mock, "validate")                   # F12: Validate's press log (_validate_press)
     IMPORT_DIR = os.path.join(mock, "receipts")                     # F13a: the tradebook import marks (_receipts_import)
+    MSG_DIR = os.path.join(mock, "messages")                        # A101: the message stream's record (_msg_write)
+    telegram_out.DIR = os.path.join(mock, "telegr")                 # A101: a rehearsal never finds her chat (and never starts)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)
@@ -6581,6 +6720,11 @@ def main():
                                           calls_log.DIR, hold_log.DIR, sides_log.DIR, trap_log.DIR),
                                  "log": log.info},
                          daemon=True, name="daylog").start()
+        # THE MESSAGE STREAM (A101): its pass on its own thread, live and --mock-chain alike (a mock run's record is under
+        # data/mock/, _isolate_mock_writers)
+        threading.Thread(target=_msg_loop, daemon=True, name="messages").start()
+        if not mock_chain:                           # a rehearsal never reaches her phone
+            telegram_out.start()
         if poller is not None:
             threading.Thread(target=_senses_loop, args=(poller, payloads),
                              daemon=True, name="senses").start()

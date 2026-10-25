@@ -11,6 +11,11 @@ export type Trade = { id: string; idx: string; k: number; side: 'CE' | 'PE'; rol
 export type Voice = { ok: boolean; why?: string; state: 'HOLD' | 'TIGHTEN' | 'WARN' | 'EXIT'; seq: number; l1: string; l2: string; l3: string
                       trig_t?: string | null; note?: string; active?: { t: string; state: string; reason: string }[]
                       l4?: string; l5?: string; detail?: { text: string; tip?: string | null }[]; map_why?: string }   // the TRADE MAP (trademap.py)
+// THE MESSAGE STREAM (server messages.py, GET /api/messages; spec 2026-10-25-message-window-telegram): the server's lines, verbatim
+export type Msg = { key: string; t: string; idx: string; kind: string; dir: number; word: string; agree: string | null; level: string | null
+                    why: string | null; at: number; line: string; id?: string }
+export type NowRow = { idx: string; dir: number; word: string | null; line: string; why?: string | null }
+export type Msgs = { day: string | null; asof: string | null; now: NowRow[]; items: Msg[]; last: number; why: string | null }
 
 // she trades all three (2026-10-03): the DESK reads the index she picks; a trade's own index rides its record
 export const INDICES = ['NIFTY', 'BANKNIFTY', 'SENSEX'] as const
@@ -83,7 +88,9 @@ export type S = { idx: Idx; loaded: boolean; trades: Trade[]; tradesWhy: string 
                   /** the live in-trade read (GET /api/validate?idx=, the GoCharting round's validate_live); null when flat */
                   validate: Validate | null
                   /** contract size per index, off /api/hold/trades `lots` (the slip's lots -> qty) */
-                  lot: Record<string, number> }
+                  lot: Record<string, number>
+                  /** THE MESSAGE STREAM (/api/messages): NOW + today's lines, newest first; polled only where the Float is mounted */
+                  msgs: Msgs | null }
 
 // THE LIVE IN-TRADE READ (validate_live.read; validate-tab-spec adapted 2026-10-05). The engine's word stays the decision;
 // lamps, prompt and shadow are reads beside it. Every missing piece arrives with its `_why`.
@@ -110,9 +117,12 @@ export const notAnswering = (t = hms()) => `could not check — the engine is no
 /** the engine did not answer at all (down, or slower than the 8 s timeout) -- not the same as answering with a reason */
 export const isDown = (w: string | null) => !!w && w.includes('the engine is not answering')
 
-let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null, story: null, validate: null, lot: {} }
+let s: S = { idx: IDX0, loaded: false, trades: [], tradesWhy: null, fold: {}, flat: null, engineWhy: null, ifin: null, chain: null, feed: null, story: null, validate: null, lot: {}, msgs: null }
 const subs = new Set<() => void>()
 let busy = false, again = false, timer: number | undefined, ifinK: number | null = null
+let wantMsgs = false                                                     // msgsOn(): only the page with the Float polls the stream
+const MSG0: Msgs = { day: null, asof: null, now: [], items: [], last: 0, why: null }
+const MSG_OLD = 'could not check — messages nahi aaye (server restart karein)'
 
 /** render only on change: a read identical to the last one never notifies a subscriber */
 export function put(p: Partial<S>) {
@@ -189,6 +199,20 @@ async function poll() {
     try { n.story = await j<Story>(`/api/story?idx=${open[0]?.idx ?? idx}`) }
     catch { n.story = { ok: false, sentence: null, sentence_why: `the server did not answer /api/story (${at})` } }
   })())
+  if (wantMsgs) jobs.push((async () => {                                  // THE MESSAGE STREAM: the lines after the last one seen
+    const old = s.msgs
+    try {
+      const r = await j<{ ok: boolean; why?: string; day?: string; asof?: string; now?: NowRow[]; msgs?: Msg[] }>(`/api/messages?since=${old?.last ?? 0}`)
+      if (!r.ok) { n.msgs = { ...(old ?? MSG0), why: cc(r.why) }; return }
+      const warm = !!old && old.day === r.day, keep = warm ? old!.items : [], have = new Set(keep.map(m => m.key))
+      const add = (r.msgs ?? []).filter(m => !have.has(m.key))
+      n.msgs = { day: r.day ?? null, asof: r.asof ?? null, now: r.now ?? [], why: null,
+                 last: Math.max(warm ? old!.last : 0, ...add.map(m => m.at)),
+                 items: [...keep, ...add].sort((a, b) => b.t.localeCompare(a.t) || b.at - a.at).slice(0, 200) }
+      const loud = warm ? add.filter(m => m.kind === 'SETUP' || (m.kind === 'TRADE' && (m.word === 'WARN' || m.word === 'EXIT'))) : []
+      if (loud.length) chime('msg', loud[loud.length - 1].key)           // the existing tone, once a line across pages; a first read is silent
+    } catch { n.msgs = { ...(old ?? MSG0), why: MSG_OLD } }
+  })())
   await Promise.all(jobs)
   if (idx !== s.idx) { busy = false; again = false; poll(); return }        // she switched index mid-poll: this read is the old one's
   n.fold = fold; n.engineWhy = why; n.feed = feed                       // no reply, no feed: the engine banner speaks, not a stale band
@@ -217,6 +241,13 @@ export function setIdx(x: Idx) {
 export function setIfin(k: number | null) {
   if (k === ifinK) return
   ifinK = k
+  if (!FIXTURE) poll()
+}
+
+/** the Float (flat or in a trade) shows THE MESSAGE STREAM: only the page that mounts it polls /api/messages */
+export function msgsOn() {
+  if (wantMsgs) return
+  wantMsgs = true
   if (!FIXTURE) poll()
 }
 

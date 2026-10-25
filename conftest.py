@@ -44,6 +44,8 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "feed_health.LOG": "feed_log.jsonl",              # A17: server.py sets it at import; tests wrote 197 rows
              "server.VALIDATE_DIR": "validate",               # F12: Validate's press log (server._validate_press)
              "server.IMPORT_DIR": "receipts",                 # F13a: the tradebook import marks (server._receipts_import)
+             "server.MSG_DIR": "messages",                    # A101: the message stream's record (server._msg_write)
+             "telegram_out.DIR": "telegr",                    # A101: her token + chat id -- no test can read the real ones
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",

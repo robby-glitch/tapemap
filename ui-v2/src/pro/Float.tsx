@@ -2,13 +2,15 @@
 // it follows the pro.html logic"). The chrome of the old window (drag, collapse, ✕, pop out over the broker, the word in the
 // tab title) around the panel's top three lines (2026-10-04 split: the engine's word, give-up / out-if, the decoder's count):
 // an iframe of /pro.html?float=<id> (Desk.tsx FloatBody), on every tab, the Validate tab too -- the DESK no longer draws the
-// in-trade face. It exists only while she is in a trade; the tone is the DESK poller's (sound_id). No order path.
+// in-trade face. In a trade the voice is on top; flat (26 Oct, docs/superpowers/specs/2026-10-25-message-window-telegram-
+// design.md §3) it is the MESSAGE WINDOW: NOW per index and the last 10 changes, the server's lines verbatim (messages.py),
+// with the lines below the voice in a trade too. The tone is the DESK poller's (sound_id; a SETUP / WARN / EXIT line). No order path.
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Guard, Ico } from '../hold/parts'
 import type { Intake } from '../data'
-import { hms, isDown, tradeOp, useStore, type Trade } from './api'
+import { hms, isDown, msgsOn, tradeOp, useStore, type Trade } from './api'
 
 const W = 440
 const WORDS = ['HOLD', 'PAST GIVE-UP', 'FOLD', "CAN'T CHECK"]
@@ -45,6 +47,13 @@ function Win({ intake }: { intake?: Intake | null }) {
   const ck = (t: Trade) => t.id + (wordOf(t) === 'FOLD' ? ':FOLD' : '')
   const [closed, setClosed] = useState<string[]>(() => { try { return JSON.parse(ls('pro.float.closed') || '[]') } catch { return [] } })
   const show = open.some(t => !closed.includes(ck(t)))
+  // flat: the message window, open unless her ✕ (remembered); the pill bottom-right brings it back
+  const [mOpen, setMOpenS] = useState(() => ls('pro.float.msgs') !== '0')
+  const setMOpen = (x: boolean) => { ls('pro.float.msgs', x ? '1' : '0'); setMOpenS(x) }
+  // unread = written after her last look (the window focused, or the pointer over the lines); kept across reloads
+  const [seen, setSeen] = useState(() => Number(ls('pro.float.seen') || 0))
+  const lastAt = st.msgs?.last ?? 0
+  const look = () => { if (lastAt > seen) { ls('pro.float.seen', String(lastAt)); setSeen(lastAt) } }
   const [min, setMinS] = useState(() => ls('pro.float.min') === '1')
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => { try { return JSON.parse(ls('pro.float.pos') || 'null') } catch { return null } })
   const [pip, setPip] = useState<Window | null>(null)
@@ -75,7 +84,13 @@ function Win({ intake }: { intake?: Intake | null }) {
     return () => { clearInterval(t); document.title = document.title.replace(/^\[[^\]]*\] /, '') }
   }, [head])
   useEffect(() => { if (pip) pip.document.title = head || 'DESK' }, [pip, head])
-  useEffect(() => { if (!show && pip) pip.close() }, [show, pip])
+  useEffect(() => { if (pip && (open.length ? !show : !mOpen)) pip.close() }, [show, pip, open.length, mOpen])   // flat, her ✕ shuts the pop-out too
+  useEffect(() => msgsOn(), [])                                         // this page polls the stream
+  useEffect(() => {                                                     // unread lines stay bold until the window is focused
+    const ws = [window, pip].filter((w): w is Window => !!w)
+    ws.forEach(w => w.addEventListener('focus', look))
+    return () => ws.forEach(w => w.removeEventListener('focus', look))
+  })
 
   // the face's own height, so the window is as tall as the read (capped by the screen)
   useEffect(() => {
@@ -136,14 +151,58 @@ function Win({ intake }: { intake?: Intake | null }) {
   }
   const closeIt = () => { const ids = open.map(ck); ls('pro.float.closed', JSON.stringify(ids)); setClosed(ids) }
 
+  // the chrome both faces share: pop out over the broker window, collapse to one line
+  const chrome = <>
+    {!pip ? <button type="button" className="icon-btn" title="Pop out on top of every window" aria-label="Pop out" onClick={popOut}><Ico n="PiP" /></button>
+          : <button type="button" className="icon-btn" title="Back into the tab" aria-label="Back into the tab" onClick={() => pip.close()}><Ico n="Undo" /></button>}
+    <button type="button" className="icon-btn" title={min ? 'Open' : 'Collapse to one line'} aria-label={min ? 'Open' : 'Collapse'} onClick={() => setMin(!min)}><Ico n={min ? 'ChevronUp' : 'ChevronDown'} /></button>
+  </>
+  const style: CSSProperties | undefined = pip ? undefined
+    : pos ? { left: Math.max(0, Math.min(pos.x, window.innerWidth - W - 8)), top: pos.y, right: 'auto', bottom: 'auto', ...(min ? {} : { width: W, maxHeight: 'calc(100vh - 32px)' }) }
+    : min ? undefined : { width: W, maxHeight: 'calc(100vh - 32px)' }
+  // F13 (25 Oct review, A76): the record's two alarms ride the window, flat and in a trade -- RECORDING NAHI (the server's
+  // words) and, after 15:30, the tradebook import
+  const rec = intake?.recording && !intake.recording.ok ? intake.recording.text : null
+  const alarm = (rec || intake?.tradebook?.due) && <div className="fl-rec">
+    {rec && <b className="no">{rec}</b>}
+    {intake?.tradebook?.due && <a href={new URL('/pro.html?tab=record', location.href).href} target="_blank" rel="noopener">tradebook aaj import nahi</a>}
+  </div>
+  // THE MESSAGE STREAM (§3): NOW per index, then the last 10 changes, newest first, the server's lines verbatim; bold =
+  // written after her last look. LEG / DIN are the background (muted); READ / SETUP / TRADE / HEALTH are the news
+  const items = (st.msgs?.items ?? []).slice(0, 10)
+  const msgsEl = <div className="fl-msgs" onPointerEnter={look}>
+    {!st.msgs && <p className="ml">messages padh rahe…</p>}
+    {st.msgs?.why && <p className="ml why">{st.msgs.why}</p>}
+    {(st.msgs?.now ?? []).map(r => <div key={r.idx} className="now" title={r.why ?? undefined}>{r.line}</div>)}
+    {!!items.length && <hr />}
+    {items.map(m => <div key={m.key} title={m.why ?? undefined}
+      className={`ml k-${m.kind}${m.kind === 'TRADE' ? ` w-${m.word}` : ''}${m.at > seen ? ' new' : ''}`}>{m.line}</div>)}
+    {st.msgs && !st.msgs.why && !items.length && <p className="ml">aaj abhi koi message nahi</p>}
+  </div>
+  if (!open.length) {                                                  // FLAT: the message window (§3)
+    const unread = (st.msgs?.items ?? []).filter(m => m.at > seen).length
+    if (!mOpen) return <button type="button" className="hv-back" onClick={() => setMOpen(true)}>messages{unread ? ` · ${unread} naye` : ''}</button>
+    const fwin = <div ref={box} className={`hv float ${min ? 'col' : 'open'}${pip ? ' in-pip' : ''}`} style={style}>
+      {alarm}
+      <div className="fl-line" {...grip}>
+        <span className="word fw">MESSAGES</span>
+        <span className={`vage${down ? ' dead' : ''}`}>{down ? `NOT LIVE since ${since}` : ageOf(st.msgs?.asof ?? undefined, now)}</span>
+        {min && <span className="mid">{items[0]?.line}</span>}
+        <span className="fl-btns">{chrome}
+          <button type="button" className="icon-btn" title="Close the messages — the pill bottom-right brings them back" aria-label="Close" onClick={() => setMOpen(false)}><Ico n="X" /></button></span>
+      </div>
+      {msg && <p className="fine" style={{ padding: '4px 12px' }}>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></p>}
+      {!min && msgsEl}
+    </div>
+    if (pip) return <>{createPortal(fwin, pip.document.body)}<div className="hv-back">The messages are popped out on top <button type="button" onClick={() => pip.close()}>bring them back</button></div></>
+    return fwin
+  }
   if (!show || !cur) return null
 
   const others = open.filter(t => t.id !== cur.id)
   const btns = <span className="fl-btns">
     <button type="button" className={`btn btn-sm ${red ? 'btn-out' : ''}`} disabled={busy} onClick={() => out(cur)}>{arm === cur.id ? 'CONFIRM OUT' : "I'M OUT"}</button>
-    {!pip ? <button type="button" className="icon-btn" title="Pop out on top of every window" aria-label="Pop out" onClick={popOut}><Ico n="PiP" /></button>
-          : <button type="button" className="icon-btn" title="Back into the tab" aria-label="Back into the tab" onClick={() => pip.close()}><Ico n="Undo" /></button>}
-    <button type="button" className="icon-btn" title={min ? 'Open' : 'Collapse to one line'} aria-label={min ? 'Open' : 'Collapse'} onClick={() => setMin(!min)}><Ico n={min ? 'ChevronUp' : 'ChevronDown'} /></button>
+    {chrome}
     <button type="button" className="icon-btn" title="Close the window — it comes back for a new trade, or if an open trade turns FOLD; the trade stays watched" aria-label="Close" onClick={closeIt}><Ico n="X" /></button>
   </span>
   // one line: the word · the contract · the engine's clause (never the P&L here); open: the same line over the DESK's face
@@ -159,9 +218,6 @@ function Win({ intake }: { intake?: Intake | null }) {
     {btns}
   </div>
   const cls = `hv float ${min ? 'col' : 'open'}${red ? ' red' : ''}${pip ? ' in-pip' : ''}`
-  const style: CSSProperties | undefined = pip ? undefined
-    : pos ? { left: Math.max(0, Math.min(pos.x, window.innerWidth - W - 8)), top: pos.y, right: 'auto', bottom: 'auto', ...(min ? {} : { width: W, maxHeight: 'calc(100vh - 32px)' }) }
-    : min ? undefined : { width: W, maxHeight: 'calc(100vh - 32px)' }
   const src = new URL(`/pro.html?float=${encodeURIComponent(cur.id)}`, location.href).href   // absolute: a pop-out document has no base
   const voiceEl = vc && <div className={`voice v-${vc.state}`} {...grip}
       title={(vc.active ?? []).map(a => `${a.t} ${a.state} · ${a.reason}`).join(String.fromCharCode(10)) || vc.note}>
@@ -174,17 +230,11 @@ function Win({ intake }: { intake?: Intake | null }) {
     <button type="button" className="vd" onClick={() => setVOpen(!vOpen)}>detail {vOpen ? '▾' : '▸'}</button>
   </div>
   const mapEl = vc && !!vc.detail?.length && <div className="fl-sec">{vc.detail.map(x => <p className="sm" key={x.text} title={x.tip ?? undefined}>{x.text}</p>)}</div>
-  // F13 (25 Oct review, A76): the record's two alarms ride the window too, above the voice -- RECORDING NAHI (the server's
-  // words) and, after 15:30, the tradebook import; the window exists only in a trade, so flat the 5173 bar carries both
-  const rec = intake?.recording && !intake.recording.ok ? intake.recording.text : null
-  const alarm = (rec || intake?.tradebook?.due) && <div className="fl-rec">
-    {rec && <b className="no">{rec}</b>}
-    {intake?.tradebook?.due && <a href={new URL('/pro.html?tab=record', location.href).href} target="_blank" rel="noopener">tradebook aaj import nahi</a>}
-  </div>
   const win = <div ref={box} className={cls} style={style}>
     {alarm}
     {vc && !min ? voiceEl : line}
     {msg && <p className="fine" style={{ padding: '4px 12px' }}>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></p>}
+    {!min && msgsEl}{/* the message stream, below the voice (§3) */}
     {!min && (!vc || vOpen) && <>{vc && mapEl}{vc && line}
       <iframe ref={frame} key={cur.id} src={src} title="DESK" style={{ display: 'block', width: '100%', border: 0, height: pip ? 'calc(100vh - 44px)' : Math.min(h, window.innerHeight - 90) }} /></>}
   </div>
