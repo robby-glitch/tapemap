@@ -57,6 +57,9 @@ def _tape_record_in_tmp(tmp_path, monkeypatch):
         monkeypatch.setattr(target, str(tmp_path / name))
     for target, name in PATH_PATHS.items():
         monkeypatch.setattr(target, tmp_path / name)
+    # C10 (25 Oct review): the shipped default is upstox; the suite keeps running on the mocked Dhan path it was written on,
+    # whatever the shell has set. A test of the unset default delenv's it (test_broker_switch, test_upstox_only)
+    monkeypatch.setenv("TAPEMAP_BROKER", "dhan")
     # the rev 6 event log (P2-02) is being written beside this; guarded until it lands
     try:
         import fold_log

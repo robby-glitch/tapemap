@@ -96,7 +96,7 @@ export function Block({ hs, clear, className = '', children, onClick }: { hs: Hi
 }
 
 // ---- THE FLOAT'S BODY: the panel's in-trade top lines, when the chart is hidden. /api/validate first (the big word, the
-// role prompt, N/4 reversal, points to T1 and to the invalidation, the lamp changes she has not acknowledged); /api/fold
+// role prompt, N/4 reversal, the lamp changes she has not acknowledged; no T1 / inval, C6); /api/fold
 // alone when /api/validate is missing or the extension is dead (the engine's word and the give-up are Upstox reads);
 // /api/story for the decoder's count and sentence when present. Points to a level, never rupees.
 const LAMP_HI: Record<string, string> = { G: 'saath', A: 'ruko', R: 'khilaaf', X: 'check nahi' }
@@ -114,7 +114,7 @@ export function FloatBody({ t, r, story, feed, why, va, onAck }: { t: Trade; r?:
   const [hs, clear] = useKya(r ? { word, rows: v?.rows ?? null, feed: feed?.state ?? null } : null, at, (v?.ts ?? '').slice(0, 5) || new Date(at).toTimeString().slice(0, 5), true, reason, server)
   const head = live?.word ?? v?.headline ?? ''
   const rest = head ? head.slice(word.length).replace(/^\s*·\s*/, '') : ''
-  const p = v?.prem, lv = live?.level, rv = live?.reversal
+  const p = v?.prem, rv = live?.reversal
   const unacked = Object.entries(live?.lamps ?? {}).filter(([, l]) => l.acked === false)
   const tr = story?.trade_read
   const dec = !story ? 'could not check — /api/story not read yet'
@@ -130,10 +130,9 @@ export function FloatBody({ t, r, story, feed, why, va, onAck }: { t: Trade; r?:
         <span className="muted"> · role prompt, beside the engine's word</span></p>}
       <p className="fl num"><span className="rv" title={(rv?.items ?? []).map(x => `${x.met ? '✓' : x.met === false ? '·' : '?'} ${x.text}`).join('\n')}>
           <b>{rv ? `${rv.met}/${rv.of}` : '—'}</b> reversal{rv?.unknown ? <span className="muted"> ({rv.unknown} check nahi)</span> : null}</span>
-        <span>T1 {lv?.t1 != null ? lv.t1_hit ? <b className="up">touched</b> : <><b>{pts(lv.to_t1)}</b> pts</> : <Abs text={cc(lv?.t1_why, 'no T1')} />}</span>
-        {/* F9 (25 Oct): no stop but the voice's -- when it cannot speak this says why, never validate's inval in its place */}
-        <span>{r?.voice?.ok ? <>inval {lv?.inval != null ? <><b className={(lv.to_inval ?? 1) <= 0 ? 'dn' : ''}>{pts(lv.to_inval)}</b> pts</> : <Abs text={cc(lv?.inval_why, 'no invalidation')} />}</>
-          : <>stop: <Abs text={cc(r?.voice?.why ?? (r && !r.ok ? r.why : null), 'TapeMap ki voice nahi aayi')} /></>}</span>
+        {/* C6 (25 Oct review): no T1 and no inval here -- the voice's l2 is the one stop and its l5 PULLBACK the one level
+            ahead; with the voice down this says why (F9), never a level in its place */}
+        {!r?.voice?.ok && <span>stop: <Abs text={cc(r?.voice?.why ?? (r && !r.ok ? r.why : null), 'TapeMap ki voice nahi aayi')} /></span>}
         {v?.line2 && <span className="muted l2s">{v.line2}</span>}</p>
       {unacked.length > 0 && <p className="acks">{unacked.map(([k, l]) =>
         <button key={k} className={`ack ${l.state}`} title={`${l.text ?? ''}\nclick: seen — recorded on the trade (ack)`}

@@ -95,7 +95,7 @@ sides of the same trade, and neither supersedes the other:
 |---|---|---|
 | question | *when is a move coming* | *which instrument, and which structure* |
 | side | a BUYER's question | a SELLER's desk |
-| screen | `/console.html`, the Kite overlay | `/desk.html` |
+| screen | ui-v2 on 5173 and the GoCharting panel (`/console.html` cut 25 Oct) | `/desk.html` (deleted 28 Sep) |
 | entry point | `engine.py` / `band_rotation.py` | `desk.py` / `surface.py` |
 | record | `data/trigger_log.jsonl` | forward-only, none yet |
 | read | this file, then §5 | **`HANDOFF-DESK.md` in full** |
@@ -242,7 +242,7 @@ postponed · `context/CHECKLIST.md` = the rules register · `PRODUCT.md` and
 
 ```bash
 start-v2.bat              # THE way to start. Upstox, port 8765.
-start.bat                 # legacy: brings it up on DHAN (dead source) — avoid
+                          # (start.bat, the Dhan launcher, was deleted 25 Oct; the default broker is upstox)
 stop.bat                  # kills only the process holding port 8765
 python upstox_auth.py     # daily OAuth; opens a browser, catches the redirect
 python -m pytest -q       # 1897 collected: 1895 pass, 1 skipped, 1 known flaky (NOTEPAD A49), as of 2026-10-23; earlier: 1377 as of 2026-09-28 (the ponytail cleanup: desk.py, the paper desk, desk.html and toolb.html are deleted -- docs/review/PONYTAIL-REVIEW-2026-09-28.md; older mentions of them below are history)

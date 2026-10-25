@@ -317,12 +317,12 @@ def _payload(day, n=5, base=100.0):
             "timestamp": [t0 + 60 * i for i in range(n)]}
 
 
-def test_default_broker_still_builds_the_contract_through_dhan(monkeypatch):
-    """Setting nothing keeps the behaviour that has been running -- including
-    the Dhan token gate and the Dhan expiry resolve."""
+def test_the_dhan_fallback_still_builds_the_contract_through_dhan(monkeypatch):
+    """Dhan chosen by name keeps its behaviour -- including the Dhan token
+    gate and the Dhan expiry resolve (the documented fallback, C10)."""
     import chain_live
 
-    monkeypatch.delenv("TAPEMAP_BROKER", raising=False)
+    monkeypatch.setenv("TAPEMAP_BROKER", "dhan")
     seen = []
     monkeypatch.setattr(chain_live, "read_token",
                         lambda: seen.append("token") or "tok")
@@ -348,7 +348,7 @@ def test_default_broker_still_builds_the_contract_through_dhan(monkeypatch):
 def test_an_expired_dhan_token_still_fails_loudly(monkeypatch):
     import chain_live
 
-    monkeypatch.delenv("TAPEMAP_BROKER", raising=False)
+    monkeypatch.setenv("TAPEMAP_BROKER", "dhan")
     monkeypatch.setattr(chain_live, "read_token", lambda: "tok")
     monkeypatch.setattr(chain_live, "token_status",
                         lambda t: {"ok": False, "msg": "Dhan token EXPIRED"})

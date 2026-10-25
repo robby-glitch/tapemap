@@ -1,32 +1,70 @@
 import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react'
-import { useLiveData, HEAT_COLS, chainAgeS, CHAIN_STALE_S } from './data'
-import type { IndexKey, IndexInfo, Dataset, HeatTone, Chain, MapLevelKind, FlowRow, RunState, TapeBar, Interval, GroundedCall, Read, DayType } from './data'
+import { useLiveData, chainAgeS, CHAIN_STALE_S } from './data'
+import type { IndexKey, IndexInfo, Dataset, Chain, FlowRow, RunState, TapeBar, Interval } from './data'
 import { usePalette, rgbOf } from './theme'
-import type { Palette } from './theme'
 import TradeTab from './trade/TradeTab'
 import { useZone3 } from './trade/zone3'   // her zone is the 3-minute machine on every interval
-import GlassBoard from './one/GlassBoard'
 import SignalsTab from './signals/SignalsTab'
 import FlowTab from './flow/FlowTab'
-// BOARD rev 3 (docs/mockups/board-chess-rev3-2026-09-24-notes.md).
-import BoardRev3, { useBoardGlance } from './board/BoardRev3'
-import type { GlanceRead } from './board/BoardRev3'
-// THE BOARD, overhaul 2026-10-03 (docs/board/BOARD-OVERHAUL-2026-10-03.md). BoardRev3 stays on disk, unmounted.
+// THE BOARD, overhaul 2026-10-03 (docs/board/BOARD-OVERHAUL-2026-10-03.md).
 import Board from './board/Board'
 // THE READ (read.py, /api/read; docs/review/DAY-TEST-2026-10-08.md): one held read per index, OI first -- the first
 // tab and the landing screen; its one-row form heads the ANSWER band on every other tab.
-import ReadTab, { ReadLine, useRead, engineVsRead } from './read/ReadTab'
+import ReadTab, { ReadLine, useRead } from './read/ReadTab'
 import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
 // THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
 import Float from './pro/Float'   // her order 2026-09-29: the floating window runs the DESK's engine (rev 6), not /api/hold
-// The five-state machine read, shared with the Glass board's MACHINE widget.
-// It moved out of this file so the board could import it without App.tsx and
-// the board importing each other — see machine.ts.
+// The five-state machine read — see machine.ts.
 import { liveMachine, machineWord, MACHINE_WORDS, lockNote } from './machine'
-// Same Hinglish layer the Trade tab's balloons and callout use — one source of
-// captions, so a kind cannot read one way on the chart and another in the feed.
-import { glossOf, pillText, dirText } from './trade/hinglish'
+
+// THE GlanceBar's one line per index on the Board tab, off /api/board's headline. Moved here from board/BoardRev3.tsx, the
+// unmounted rev 3 board, when it was deleted (25 Oct review C8); unchanged: one gentle poll of all three, only while the Board
+// tab shows; a failed poll keeps the last good line for that index and retries.
+type GlanceRead = { line: string; title: string }
+type BoardHead = { ok: boolean; why?: string; idx?: string; asof?: string | null; spot?: number
+                   headline?: { text: string; fold: { k: number; side: string; t: string } | null } }
+const GLANCE_CC = 'could not check — '
+function glanceLine(b: BoardHead | null): GlanceRead {
+  const f0 = (x: number) => Math.round(x).toLocaleString('en-IN')
+  if (!b) return { line: GLANCE_CC + 'the backend did not answer', title: '' }
+  if (!b.ok || typeof b.spot !== 'number' || !Number.isFinite(b.spot))
+    return { line: GLANCE_CC + String(b.why ?? 'no board read yet').replace(/^could not check — /, ''), title: b.why ?? '' }
+  const f = b.headline?.fold
+  return {
+    // "writers left", never "fold": on the DESK, FOLD means get out of your trade.
+    line: `idx ${f0(b.spot)} · ${f ? `${f.side} writers left ${f0(f.k)} ${f.t}` : 'no writers leaving near spot'}`,
+    title: `${b.idx} at ${b.asof} (the last finished minute) [I]: ${b.headline?.text ?? ''}`,
+  }
+}
+function useBoardGlance(on: boolean): Partial<Record<IndexKey, GlanceRead>> {
+  const [reads, setReads] = useState<Partial<Record<IndexKey, GlanceRead>>>({})
+  useEffect(() => {
+    if (!on) return
+    let alive = true, retry = 0
+    const load = async () => {
+      // one after another, not a burst: the dev proxy drops the odd request
+      // when several land at once (a 502 with an empty body, measured 23:20)
+      let failed = false
+      for (const k of ['NIFTY', 'BANKNIFTY', 'SENSEX'] as IndexKey[]) {
+        let r: GlanceRead, bad = false
+        try {
+          const res = await fetch(`/api/board?idx=${k}`)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          r = glanceLine((await res.json()) as BoardHead)
+        } catch { r = glanceLine(null); bad = failed = true }
+        if (!alive) return
+        // a failed poll keeps the last good line for that index, and retries soon
+        setReads((p) => (bad && p[k] ? p : { ...p, [k]: r }))
+      }
+      if (failed && alive) retry = window.setTimeout(load, 5000)
+    }
+    load()
+    const id = window.setInterval(() => { if (!document.hidden) load() }, 60000)
+    return () => { alive = false; window.clearInterval(id); window.clearTimeout(retry) }
+  }, [on])
+  return reads
+}
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 // Colour carries exactly one meaning each. Before this, hue did two jobs at
@@ -36,28 +74,15 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // IndexKey now comes from ./data (single source of truth for the live layer).
-// 'Glass' is the glance BOARD (src/one/GlassBoard.tsx): the machine and seven
-// instruments as movable panes of glass, each one a launcher into the tab that
-// owns its evidence. It replaces the one-screen chart trial that used to sit
-// here — that trial answered "what has to happen next" with a bigger chart,
-// which is the thing the operator already has in Kite.
-//
-// It is listed FIRST and is NOT the default tab — the operator judges it
-// against the nine that already exist, and a board that seizes the landing
-// screen would be judging itself.
-//
-// Exported because GlassBoard takes `setActiveTab` and must name the tab each
-// pane opens. A type-only import is erased at compile time, so this does not
-// make the two modules cyclic at runtime.
+// Nine tabs since the 25 Oct review (C2): Heat, Glass, Tape, Events, Map and Chain are cut (the 3 Oct cut list, F28).
 // 'Signals' is the accumulating live RECORD — every row trigger_log.py has
 // written, served by /api/signals. It is a log, not a read: it shows what
 // fired and the context it fired in, and deliberately computes nothing from
 // them, because no row has an outcome until `python trigger_log.py score`
 // fills one. See src/signals/SignalsTab.tsx.
 // 'Flow' draws the day's ORDER FLOW on a time axis — the tape events at their
-// own time and price, from /api/day/record. It sits beside Tape because it
-// answers the same question from the other end: Tape is what is happening now,
-// Flow is the shape of what already happened. Its axis is the SESSION
+// own time and price, from /api/day/record: the shape of what already
+// happened. Its axis is the SESSION
 // (09:15–15:30), not the record's first row: the extension replays the chart's
 // loaded footprint, so events reach back before the server started.
 // See src/flow/FlowTab.tsx.
@@ -67,7 +92,7 @@ import { glossOf, pillText, dirText } from './trade/hinglish'
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Read' | 'Board' | 'Glass' | 'Heat' | 'Trade' | 'Tape' | 'Flow' | 'VPIN' | 'Chain' | 'OI Flow' | 'War' | 'Events' | 'Validate' | 'Map' | 'Signals'
+export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Validate' | 'Signals'
 
 // ── Empty dataset (first paint, and any index never read this session) ──────
 // Nothing in it is invented: a live read replaces it within one poll. Until
@@ -99,20 +124,6 @@ const EMPTY: Dataset = {
  *  is never 0 — only the empty dataset carries 0. */
 const hasRead = (i: IndexInfo) => i.price > 0
 
-/** The empty dataset's rendering for a whole tab: "not shown", which is not
- *  "checked and found nothing" and not "could not check". */
-function NotShown({ what }: { what: string }) {
-  const pal = usePalette()
-  return (
-    <div style={{ padding: 24 }}>
-      <div style={{
-        background: pal.card, border: `1px solid ${pal.border}`, borderRadius: 12,
-        padding: 20, fontSize: 13, color: pal.textMuted,
-      }}>{what}: {NOT_SHOWN}.</div>
-    </div>
-  )
-}
-
 const DataCtx = createContext<Dataset>(EMPTY)
 function useData(): Dataset {
   return useContext(DataCtx)
@@ -123,87 +134,8 @@ const fmt = (n: number) => n.toLocaleString('en-IN')
 /** `rgba()` from a palette token — the only route by which a colour in this
  *  file acquires an alpha channel. */
 const wash = (token: string, alpha: number | string) => `rgba(${rgbOf(token)},${alpha})`
-// Real OI is large (millions of units). Show in lakhs (L), or thousands (K) below 1L.
-const formatOI = (n: number) => n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : `${(n / 1e3).toFixed(1)}K`
-
-// Heat-tile hue per tone, as the `r,g,b` triplet the alpha ramp needs.
-const heatRgb = (pal: Palette): Record<HeatTone, string> => ({
-  bull: rgbOf(pal.bull), bear: rgbOf(pal.bear), neutral: rgbOf(pal.textMuted),
-})
-// Spike-radar cell background: hue by direction, alpha ramps with intensity (0..1).
-const heatColor = (pal: Palette, dir: HeatTone, intensity: number) =>
-  `rgba(${heatRgb(pal)[dir]}, ${(0.08 + 0.55 * Math.max(0, Math.min(1, intensity))).toFixed(3)})`
-// Levels-map per-kind styling (wall color resolves to CALL=bear / PUT=bull at render).
-const kindStyle = (pal: Palette): Record<MapLevelKind, { color: string; dot: number; marker?: string }> => ({
-  now:     { color: pal.accent, dot: 9 },
-  wall:    { color: pal.textSecondary, dot: 8 },
-  pin:     { color: pal.accent, dot: 8, marker: '◎' },
-  pivot:   { color: pal.textMuted, dot: 5 },
-  vwap:    { color: pal.caution, dot: 6 },
-  band:    { color: `rgba(${rgbOf(pal.accent)},0.6)`, dot: 4 },
-  floor:   { color: pal.bull, dot: 6 },
-  cap:     { color: pal.bear, dot: 6 },
-  strike:  { color: pal.strike, dot: 6 },
-  session: { color: pal.textMuted, dot: 4 },
-  trap:    { color: pal.caution, dot: 6, marker: '⚑' },
-})
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function TimingChip({ value }: { value: string }) {
-  // Palette tokens, never literals: on white these are TL's darkened
-  // variants, not the neon pair that vanishes there.
-  const pal = usePalette()
-  const colors: Record<string, [string, string]> = {
-    WAIT:  [wash(pal.caution, 0.12), pal.caution],
-    READY: [wash(pal.accent, 0.15), pal.accent],
-    GO:    [wash(pal.bull, 0.15), pal.bull],
-    CAUTION: [wash(pal.bear, 0.12), pal.bear],
-  }
-  const [bg, fg] = colors[value] ?? [wash(pal.textMuted, 0.15), pal.textMuted]
-  return (
-    <span className="chip" style={{ backgroundColor: bg, color: fg }}>
-      {value === 'WAIT' && '⏸ '}{value === 'READY' && '⚡ '}{value === 'GO' && '▶ '}
-      {value}
-    </span>
-  )
-}
-
-/** The headline call's evidence (grounds.py): OI, CVD and order flow, each FOR /
- *  AGAINST / FLAT / BLIND with the fact behind it. A status, never a score. */
-function Grounds({ g }: { g?: GroundedCall | null }) {
-  const pal = usePalette()
-  if (!g) return (
-    <div style={{ fontSize: 11.5, color: pal.textMuted, marginTop: 4 }}>
-      UNGROUNDED — this call was not checked against OI, CVD or order flow (server predates /api/calls, or a replay position)
-    </div>)
-  const col = g.status === 'BACKED' ? pal.textPrimary : g.status === 'CONTRADICTED' ? pal.caution : pal.textMuted
-  const sym: Record<string, string> = { for: '✓', against: '✗', flat: '–', blind: '?' }
-  return (
-    <div style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }}>
-      <b style={{ color: col, letterSpacing: '0.04em' }}>{g.status}</b>
-      {(['oi', 'cvd', 'flow'] as const).map((k) => (
-        <div key={k} style={{ color: g[k].state === 'against' ? pal.caution : pal.textSecondary }}>
-          <span className="mono">{sym[g[k].state] ?? '?'} {k.toUpperCase()}</span> {g[k].fact?.replace(/^CVD /, '')}
-        </div>))}
-    </div>)
-}
-
-function DirectionChip({ value }: { value: string }) {
-  const pal = usePalette()
-  const colors: Record<string, [string, string]> = {
-    BEARISH: [wash(pal.bear, 0.12), pal.bear],
-    BULLISH: [wash(pal.bull, 0.12), pal.bull],
-    NEUTRAL: [wash(pal.textMuted, 0.12), pal.textSecondary],
-  }
-  const [bg, fg] = colors[value] ?? [wash(pal.textMuted, 0.12), pal.textSecondary]
-  return (
-    <span className="chip" style={{ backgroundColor: bg, color: fg }}>
-      {value === 'BEARISH' && '▼ '}{value === 'BULLISH' && '▲ '}{value === 'NEUTRAL' && '〰 '}
-      {value}
-    </span>
-  )
-}
 
 function IndexCell({ idx, data, active, onClick, read }: {
   idx: IndexKey
@@ -224,15 +156,11 @@ function IndexCell({ idx, data, active, onClick, read }: {
   return (
     <button
       onClick={onClick}
-      className={data.highlight ? 'trending-glow' : ''}
       style={{
         // #1B2130 / #141926 were the dark palette's inset and card, inlined.
         backgroundColor: active ? pal.inset : pal.card,
-        border: data.highlight
-          ? `1px solid ${pal.accent}`
-          : active
-          ? `1px solid ${wash(pal.ink, 0.12)}`
-          : `1px solid ${pal.border}`,
+        // C7 (25 Oct review): no LOOK HERE and no glow -- the active cell is the only one marked
+        border: active ? `1px solid ${wash(pal.ink, 0.12)}` : `1px solid ${pal.border}`,
         borderRadius: 10,
         padding: '8px 14px',
         cursor: 'pointer',
@@ -242,24 +170,6 @@ function IndexCell({ idx, data, active, onClick, read }: {
         transition: 'border-color 150ms, background 150ms',
       }}
     >
-      {data.highlight && (
-        <span style={{
-          position: 'absolute',
-          top: -7,
-          right: 10,
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          backgroundColor: pal.accent,
-          // On light brass, ink (#141A22) measures 4.4:1 — just under the
-          // line. The darker page-black is 4.9:1.
-          color: '#0B0E14',
-          padding: '1px 7px',
-          borderRadius: 4,
-        }}>
-          LOOK HERE
-        </span>
-      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: pal.textPrimary }}>{idx}</span>
         <span style={{ fontSize: 10, color: wordCol, fontWeight: rd?.ok ? 700 : 400 }}
@@ -459,649 +369,6 @@ function GlanceBar({ active, setActive, lastUpdated, error, reads }: {
       {/* THE READ used to be repeated here. It now lives once, in the ANSWER
           band directly below, at a scale that actually ranks it. Saying the
           same thing in four places is what made the old screen unreadable. */}
-    </div>
-  )
-}
-
-function TapeTab({ index }: { index: IndexKey }) {
-  const { INDICES, KEY_LEVELS, ORDER_FLOW, PRESSURE } = useData()
-  const pal = usePalette()
-  if (!hasRead(INDICES[index])) return <NotShown what={`${index} tape`} />
-  const levels = KEY_LEVELS[index]
-  const flow = ORDER_FLOW[index]
-  const pressure = PRESSURE[index]
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px', gap: 16, padding: 24, flex: 1 }}>
-      {/* Left: Key Levels */}
-      <div style={{
-        backgroundColor: pal.card,
-        border: `1px solid ${pal.border}`,
-        borderRadius: 14,
-        padding: '16px 0',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-      }}>
-        <div className="micro-label" style={{ padding: '0 16px', marginBottom: 12 }}>Key Levels</div>
-        {levels.map((lvl) => {
-          const isHere = lvl.dir === 'here'
-          const isUp = lvl.dir === 'up'
-          return (
-            <div
-              key={lvl.label}
-              style={{
-                padding: '10px 16px',
-                borderLeft: isHere ? `3px solid ${pal.accent}` : '3px solid transparent',
-                backgroundColor: isHere ? wash(pal.accent, 0.06) : 'transparent',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: pal.textMuted, letterSpacing: '0.06em' }}>{lvl.label}</span>
-                {!isHere && (
-                  <span className="mono" style={{
-                    fontSize: 10,
-                    color: isUp ? pal.bull : pal.bear,
-                    fontWeight: 600,
-                  }}>
-                    {isUp ? '▲' : '▼'} {isUp ? '+' : ''}{lvl.dist}
-                  </span>
-                )}
-              </div>
-              <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: isHere ? pal.accent : pal.textPrimary }}>
-                {fmt(lvl.value)}
-              </div>
-              <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 1 }}>{lvl.note}</div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Center: the Pressure Tape. The price/VWAP chart that sat above it is
-          gone (no charts, reads only: she has the chart on her broker screen). */}
-      <div style={{
-        backgroundColor: pal.card,
-        border: `1px solid ${pal.border}`,
-        borderRadius: 14,
-        padding: '16px 8px 8px 4px',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        {/* Pressure Tape — diverging net-flow histogram (bars grow up=buying / down=selling) */}
-        <div style={{ padding: '10px 12px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <div className="micro-label">Pressure Tape — net order-flow (bucketed)</div>
-            <div style={{ display: 'flex', gap: 12, fontSize: 10, color: pal.textMuted }}>
-              <span style={{ color: pal.bull }}>▲ buying</span>
-              <span style={{ color: pal.bear }}>▼ selling</span>
-              <span style={{ color: pal.textMuted }}>· balanced</span>
-            </div>
-          </div>
-          <div style={{ position: 'relative', height: 64, paddingLeft: 62, paddingRight: 78 }}>
-            {/* zero centerline */}
-            <div style={{ position: 'absolute', left: 62, right: 78, top: '50%', height: 1, background: wash(pal.ink, 0.06) }} />
-            <div style={{ position: 'relative', display: 'flex', gap: 2, height: '100%', alignItems: 'stretch' }}>
-              {pressure.map((c, i) => {
-                const up = c.val > 0.03
-                const dn = c.val < -0.03
-                const h = Math.min(46, Math.abs(c.val) * 46)
-                const alpha = (0.35 + 0.5 * Math.abs(c.val)).toFixed(3)
-                const green = wash(pal.bull, alpha)
-                const red = wash(pal.bear, alpha)
-                return (
-                  <div key={i} title={c.note} style={{ flex: 1, minWidth: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    {/* top half — buying grows up from the centerline */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                      {up && <div style={{ width: '100%', height: h, background: green, borderRadius: '3px 3px 0 0' }} />}
-                      {!up && !dn && <div style={{ width: '100%', height: 3, background: wash(pal.textMuted, 0.35) }} />}
-                    </div>
-                    {/* bottom half — selling grows down from the centerline */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-                      {dn && <div style={{ width: '100%', height: h, background: red, borderRadius: '0 0 3px 3px' }} />}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right: Order Flow */}
-      <div style={{
-        backgroundColor: pal.card,
-        border: `1px solid ${pal.border}`,
-        borderRadius: 14,
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-      }}>
-        <div>
-          <div className="micro-label" style={{ marginBottom: 10 }}>Order Flow</div>
-          <p style={{ fontSize: 13, color: pal.textPrimary, lineHeight: 1.65, margin: 0 }}>
-            {flow.main.split('. ').map((sentence, i, arr) => (
-              <span key={i}>
-                <span style={{ color: i === 0 ? pal.textPrimary : pal.textSecondary }}>{sentence}{i < arr.length - 1 ? '. ' : ''}</span>
-              </span>
-            ))}
-          </p>
-        </div>
-
-        <div>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 10,
-            fontWeight: 600,
-            color: pal.caution,
-            backgroundColor: wash(pal.caution, 0.08),
-            border: `1px solid ${wash(pal.caution, 0.15)}`,
-            borderRadius: 6,
-            padding: '2px 8px',
-            marginBottom: 8,
-          }}>
-            ● {flow.main.includes('decelerating') ? 'decelerating' : 'building'}
-          </div>
-          <div className="micro-label" style={{ marginBottom: 6 }}>MM Perspective</div>
-          <p style={{ fontSize: 12, color: pal.textSecondary, margin: 0, lineHeight: 1.55 }}>
-            {flow.mm}
-          </p>
-        </div>
-
-        <div style={{ marginTop: 'auto' }}>
-          <div className="micro-label" style={{ marginBottom: 10 }}>Volatility</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {flow.stats.map(s => (
-              <div key={s.label} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 10px',
-                backgroundColor: pal.inset,
-                borderRadius: 8,
-                border: `1px solid ${pal.border}`,
-              }}>
-                <span style={{ fontSize: 11, color: pal.textMuted }}>{s.label}</span>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: pal.textPrimary }}>{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* How far a book has fallen from its own session high. A wall at full strength
-   and a wall that has quietly lost a third of its defenders look identical if
-   you only print current OI — and that difference is the whole game. Shown
-   only once it is worth reacting to. */
-function OffPeak({ oi, pk }: { oi: number; pk: number }) {
-  const pal = usePalette()
-  if (!pk || pk <= 0) return null
-  const off = 1 - oi / pk
-  if (off < 0.08) return null
-  return (
-    <span className="mono" title={`session peak ${Math.round(pk).toLocaleString('en-IN')}`}
-      style={{
-        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.02em',
-        color: off >= 0.30 ? pal.caution : pal.textSecondary, opacity: 0.95,
-      }}>
-      −{Math.round(off * 100)}%
-    </span>
-  )
-}
-
-function ChainTab({ index }: { index: IndexKey }) {
-  const { CHAIN_DATA, INDICES } = useData()
-  const pal = usePalette()
-  if (!hasRead(INDICES[index])) return <NotShown what={`${index} option chain`} />
-  const chain = CHAIN_DATA[index]
-  const maxCeOI = Math.max(1, ...chain.strikes.map(s => s.ceOI))
-  const maxPeOI = Math.max(1, ...chain.strikes.map(s => s.peOI))
-  const maxAbsGex = Math.max(1, ...chain.strikes.map(s => Math.abs(s.gex)))
-
-  return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        {[
-          { label: 'Put/Call Ratio', value: chain.pcr, note: Number(chain.pcr) < 1 ? 'Bearish lean' : 'Bullish lean' },
-          { label: 'Max Pain', value: fmt(chain.maxPain), note: 'Expiry magnet' },
-          { label: 'GEX', value: chain.gex, note: chain.gex === 'Negative' ? 'Amplifies moves' : chain.gex === 'Positive' ? 'Dampens moves' : 'Balanced' },
-          { label: 'Squeeze Fuel', value: chain.squeeze, note: chain.squeeze === 'High' ? 'Large short base' : 'Limited short' },
-        ].map(stat => (
-          <div key={stat.label} style={{
-            backgroundColor: pal.card,
-            border: `1px solid ${pal.border}`,
-            borderRadius: 14,
-            padding: '16px 20px',
-          }}>
-            <div className="micro-label" style={{ marginBottom: 8 }}>{stat.label}</div>
-            <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: pal.textPrimary, marginBottom: 4 }}>{stat.value}</div>
-            <div style={{ fontSize: 11, color: pal.textMuted }}>{stat.note}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Strike heatmap */}
-      <div style={{
-        backgroundColor: pal.card,
-        border: `1px solid ${pal.border}`,
-        borderRadius: 14,
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${pal.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="micro-label">
-            Strike Heatmap — CE OI · GEX · PE OI
-            {!chain.aligned && (
-              <span style={{ color: pal.caution, marginLeft: 10, letterSpacing: 0, textTransform: 'none' }}>
-                live snapshot — the ladder has no per-strike history, so it is not replayed
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 10, color: pal.textMuted }}>
-            <span style={{ color: pal.bear }}>■ CE writers</span>
-            <span style={{ color: pal.bull }}>■ PE writers</span>
-            <span style={{ color: pal.accent }}>■ +GEX</span>
-            <span style={{ color: pal.caution }}>■ −GEX</span>
-          </div>
-        </div>
-        {/* Column header */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderBottom: `1px solid ${pal.border}` }}>
-          <div style={{ flex: 1, fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>CE OI</div>
-          <div style={{ width: 48, textAlign: 'center', fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>GEX</div>
-          <div style={{ width: 160, textAlign: 'center', fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>STRIKE</div>
-          <div style={{ flex: 1, textAlign: 'right', fontSize: 10, color: pal.textMuted, fontWeight: 600, letterSpacing: '0.08em' }}>PE OI</div>
-        </div>
-        {/* Rows */}
-        {chain.strikes.map(s => {
-          const isWall = s.type === 'callwall' || s.type === 'putwall'
-          const isATM = s.type === 'atm'
-          const ceA = Math.min(1, s.ceOI / maxCeOI)
-          const peA = Math.min(1, s.peOI / maxPeOI)
-          const gexA = Math.min(1, Math.abs(s.gex) / maxAbsGex)
-          const gexRGB = rgbOf(s.gex > 0 ? pal.accent : pal.caution)
-          return (
-            <div key={s.strike} style={{
-              display: 'flex',
-              alignItems: 'stretch',
-              borderBottom: `1px solid ${pal.border}`,
-              backgroundColor: isATM ? wash(pal.accent, 0.06) : 'transparent',
-            }}>
-              {/* CE OI heat cell */}
-              <div style={{
-                flex: 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
-                padding: '10px 14px',
-                backgroundColor: wash(pal.bear, (0.06 + 0.64 * ceA).toFixed(3)),
-              }}>
-                <OffPeak oi={s.ceOI} pk={s.cePk} />
-                <span className="mono" style={{ fontSize: 12, color: pal.textPrimary, fontWeight: 600 }}>{formatOI(s.ceOI)}</span>
-              </div>
-              {/* GEX strip */}
-              <div title={`GEX ${Math.round(s.gex).toLocaleString('en-IN')}`} style={{
-                width: 48,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: `rgba(${gexRGB},${(0.10 + 0.80 * gexA).toFixed(3)})`,
-                borderLeft: `1px solid ${pal.border}`,
-                borderRight: `1px solid ${pal.border}`,
-              }}>
-                <span className="mono" style={{ fontSize: 9, color: pal.textPrimary, opacity: 0.85 }}>{s.gex > 0 ? '+' : '−'}</span>
-              </div>
-              {/* Strike */}
-              <div style={{ width: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 4px' }}>
-                <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: isATM ? pal.accent : isWall ? pal.textPrimary : pal.textSecondary }}>
-                  {fmt(s.strike)}
-                </span>
-                {s.type === 'callwall' && <span style={{ fontSize: 9, color: pal.bear, marginLeft: 6, fontWeight: 600 }}>▲</span>}
-                {s.type === 'putwall' && <span style={{ fontSize: 9, color: pal.bull, marginLeft: 6, fontWeight: 600 }}>▼</span>}
-                {isATM && <span style={{ fontSize: 9, color: pal.accent, marginLeft: 6, fontWeight: 600 }}>◉</span>}
-              </div>
-              {/* PE OI heat cell */}
-              <div style={{
-                flex: 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8,
-                padding: '10px 14px',
-                backgroundColor: wash(pal.bull, (0.06 + 0.64 * peA).toFixed(3)),
-              }}>
-                <span className="mono" style={{ fontSize: 12, color: pal.textPrimary, fontWeight: 600 }}>{formatOI(s.peOI)}</span>
-                <OffPeak oi={s.peOI} pk={s.pePk} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function EventsTab({ index }: { index: IndexKey }) {
-  const { EVENTS_BY_IDX, FOCUS_BY_IDX, INDICES } = useData()
-  const pal = usePalette()
-  // FOCUS is the default: on a live expiry day the raw log repeats itself so
-  // often that the signal is buried. Preference persists, as it does in v1.
-  const [focus, setFocus] = useState(() => localStorage.getItem('focus') !== '0')
-  const events = focus ? FOCUS_BY_IDX[index] : EVENTS_BY_IDX[index]
-  const full = EVENTS_BY_IDX[index]
-  const hidden = Math.max(0, full.length - events.length)
-  const [hovered, setHovered] = useState<number | null>(null)
-  if (!hasRead(INDICES[index])) return <NotShown what={`${index} events`} />
-  return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 760 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        <span className="micro-label">Event Feed — {index} — newest first</span>
-        <button
-          onClick={() => { const n = !focus; setFocus(n); localStorage.setItem('focus', n ? '1' : '0') }}
-          title="FOCUS drops state churn and low-grade band tags, silences a kind repeating itself inside 10 minutes or echoing the log's direction inside 8, and collapses a contradictory minute into one CONFLICT line. Panels always show everything."
-          style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', padding: '3px 9px',
-            borderRadius: 3, cursor: 'pointer', background: 'transparent',
-            border: `1px solid ${focus ? pal.accent : pal.border}`,
-            color: focus ? pal.accent : pal.textMuted,
-          }}
-        >FOCUS</button>
-        {focus && hidden > 0 && (
-          <span style={{ fontSize: 11, color: pal.textMuted }}>{hidden} repeat{hidden === 1 ? '' : 's'} hidden</span>
-        )}
-      </div>
-      {events.map((ev, i) => {
-        const accent = ev.dir === 'bull' ? pal.bull : ev.dir === 'bear' ? pal.bear : pal.textMuted
-        return (
-          <div
-            key={i}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-            style={{
-              display: 'flex',
-              gap: 16,
-              padding: '14px 18px',
-              backgroundColor: hovered === i ? pal.inset : pal.card,
-              borderTop: `1px solid ${hovered === i ? wash(pal.ink, 0.1) : pal.border}`,
-              borderRight: `1px solid ${hovered === i ? wash(pal.ink, 0.1) : pal.border}`,
-              borderBottom: `1px solid ${hovered === i ? wash(pal.ink, 0.1) : pal.border}`,
-              borderLeft: `3px solid ${accent}`,
-              borderRadius: 10,
-              cursor: 'pointer',
-              transition: 'all 150ms',
-            }}
-          >
-            <span className="mono" style={{ fontSize: 11, color: pal.textMuted, whiteSpace: 'nowrap', marginTop: 1 }}>{ev.time}</span>
-            {/* Hinglish caption + the direction the engine already decided
-                (data.ts's evDir), then the engine's own sentence underneath,
-                verbatim. The gloss names the KIND — it never restates the
-                claim, so the original line has to stay visible beside it. An
-                unglossed kind falls back to the engine's own tag. */}
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-              <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{
-                  fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                  textTransform: 'uppercase', color: accent,
-                }}>
-                  {pillText(ev.tag)}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: accent }}>
-                  {dirText(ev.dir, ev.tag).arrow} {dirText(ev.dir, ev.tag).text}
-                </span>
-              </span>
-              {glossOf(ev.tag) && (
-                <span style={{ fontSize: 12.5, color: pal.textPrimary, lineHeight: 1.45 }}>
-                  {glossOf(ev.tag)!.line}
-                </span>
-              )}
-              <span style={{ fontSize: 12, color: pal.textSecondary, lineHeight: 1.5 }}>{ev.text}</span>
-            </span>
-            {hovered === i && (
-              <span style={{
-                marginLeft: 'auto',
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: accent,
-                backgroundColor: wash(accent, 0.1),
-                padding: '2px 8px',
-                borderRadius: 4,
-                alignSelf: 'flex-start',
-                whiteSpace: 'nowrap',
-              }}>
-                {ev.tag}
-              </span>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function MapTab({ index }: { index: IndexKey }) {
-  const { MAP, INDICES } = useData()
-  const pal = usePalette()
-  if (!hasRead(INDICES[index])) return <NotShown what={`${index} levels map`} />
-  const m = MAP[index]
-  const H = 520
-  const span = Math.max(1, m.zoneHi - m.zoneLo)
-  const yOf = (v: number) => Math.max(0, Math.min(H, ((m.zoneHi - v) / span) * H))
-
-  const bandHi = m.levels.find(l => l.label === '+1σ')?.value
-  const bandLo = m.levels.find(l => l.label === '−1σ')?.value
-  const nowY = yOf(m.now)
-
-  const legendItem = (color: string, label: string) => (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 9, height: 9, borderRadius: '50%', background: color }} />{label}
-    </span>
-  )
-
-  return (
-    <div style={{ padding: 24, maxWidth: 720 }}>
-      <div className="micro-label" style={{ marginBottom: 4 }}>Levels Map — {index} · action zone</div>
-      <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 16 }}>
-        Real levels around price — pivots, OI walls, VWAP, ±1σ, dealer pin, floor/cap, traps. Zoomed to where the fight is now.
-      </div>
-      <div style={{ backgroundColor: pal.card, border: `1px solid ${pal.border}`, borderRadius: 14, padding: '20px 24px' }}>
-        <div style={{ position: 'relative', height: H }}>
-          {/* ±1σ band shade */}
-          {bandHi != null && bandLo != null && (
-            <div style={{
-              position: 'absolute', left: 0, right: 0,
-              top: yOf(bandHi), height: Math.max(1, yOf(bandLo) - yOf(bandHi)),
-              background: wash(pal.accent, 0.06), borderRadius: 4,
-            }} />
-          )}
-          {/* NOW line */}
-          <div style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 0, borderTop: `1px solid ${pal.accent}`, zIndex: 4 }}>
-            <span className="mono" style={{ position: 'absolute', right: 0, top: -9, fontSize: 10, color: pal.accent, fontWeight: 700 }}>
-              NOW {fmt(Math.round(m.now))}
-            </span>
-          </div>
-          {/* Levels */}
-          {m.levels.map((lvl, i) => {
-            if (lvl.kind === 'now') return null
-            const st = kindStyle(pal)[lvl.kind]
-            const color = lvl.kind === 'wall' ? (lvl.label === 'CALL' ? pal.bear : pal.bull) : st.color
-            const off = lvl.value > m.zoneHi ? 'up' : lvl.value < m.zoneLo ? 'down' : null
-            const y = yOf(lvl.value)
-            const above = lvl.value >= m.now
-            const note = lvl.note + (off === 'up' ? ' ↑ off-scale' : off === 'down' ? ' ↓ off-scale' : '')
-            return (
-              <div key={i} style={{
-                position: 'absolute', left: 0, right: 0, top: y,
-                display: 'flex', alignItems: 'center', gap: 10, transform: 'translateY(-50%)',
-              }}>
-                <div style={{
-                  width: st.dot, height: st.dot, borderRadius: '50%', backgroundColor: color, flexShrink: 0,
-                  boxShadow: lvl.kind === 'pin' ? `0 0 8px ${pal.accent}` : undefined,
-                }} />
-                <div style={{ flex: 1, height: 0, borderTop: `1px dashed ${wash(above ? pal.bear : pal.bull, 0.14)}` }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 280 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: pal.textMuted, width: 46, textAlign: 'right' }}>
-                    {st.marker ? `${st.marker} ` : ''}{lvl.label}
-                  </span>
-                  <span className="mono" style={{ fontSize: 13, fontWeight: 700, color, width: 66 }}>
-                    {fmt(Math.round(lvl.value))}
-                  </span>
-                  <span style={{ fontSize: 11, color: pal.textMuted }}>{note}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap', fontSize: 10, color: pal.textMuted, alignItems: 'center' }}>
-          {legendItem(pal.bear, 'call wall')}
-          {legendItem(pal.bull, 'put wall')}
-          {legendItem(pal.accent, 'dealer pin')}
-          {legendItem(pal.textMuted, 'pivot / session')}
-          {legendItem(pal.caution, 'vwap · trap')}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function HeatTab({ active, setActive, dead }: {
-  active: IndexKey; setActive: (k: IndexKey) => void; dead: IndexKey[]
-}) {
-  const { HEAT, INDICES } = useData()
-  const pal = usePalette()
-  const keys: IndexKey[] = ['NIFTY', 'BANKNIFTY', 'SENSEX']
-  // This is the one view read across all three indices at once, so a dead one
-  // must not sit here looking identical to a live one. Its row would otherwise
-  // show its last good read and get counted in the spike badge as though it
-  // were happening now.
-  const isDead = (k: IndexKey) => dead.includes(k)
-  const spikeCount = keys.reduce(
-    (n, k) => n + (isDead(k) ? 0 : HEAT[k].filter(c => c.spike).length), 0)
-
-  const legend = (dir: HeatTone, glyph: string, label: string) => (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ color: `rgb(${heatRgb(pal)[dir]})`, fontSize: 11 }}>{glyph}</span>{label}
-    </span>
-  )
-
-  return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-        <div className="micro-label">Live Spike Radar</div>
-        {spikeCount > 0 && (
-          <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: pal.caution,
-            background: wash(pal.caution, 0.12), border: `1px solid ${wash(pal.caution, 0.25)}`,
-            borderRadius: 4, padding: '1px 7px',
-          }}>
-            ⚡ {spikeCount} spikes live
-          </span>
-        )}
-      </div>
-      <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 16 }}>
-        Live spike radar — volume, OI, gamma &amp; squeeze across futures + both option legs. Brighter = bigger; glowing ⚡ = spiking.
-      </div>
-      <div style={{ backgroundColor: pal.card, border: `1px solid ${pal.border}`, borderRadius: 14, padding: 16 }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-          <div style={{ width: 132 }} />
-          {HEAT_COLS.map(c => (
-            <div key={c} className="micro-label" style={{ flex: 1, textAlign: 'center' }}>{c}</div>
-          ))}
-        </div>
-        {/* Index rows */}
-        {keys.map(k => {
-          const cells = HEAT[k]
-          const hot = INDICES[k].highlight
-          const isActive = active === k
-          return (
-            <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'stretch', marginBottom: 8 }}>
-              <button
-                onClick={() => setActive(k)}
-                className={hot ? 'trending-glow' : ''}
-                style={{
-                  width: 132,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  background: isActive ? pal.inset : 'transparent',
-                  borderTop: `1px solid ${isActive ? wash(pal.ink, 0.12) : pal.border}`,
-                  borderRight: `1px solid ${isActive ? wash(pal.ink, 0.12) : pal.border}`,
-                  borderBottom: `1px solid ${isActive ? wash(pal.ink, 0.12) : pal.border}`,
-                  borderLeft: hot ? `3px solid ${pal.accent}` : '3px solid transparent',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: pal.textPrimary,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  gap: 2,
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 700, color: isDead(k) ? pal.textMuted : pal.textPrimary }}>{k}</span>
-                <span className="mono" style={{
-                  fontSize: 11, color: pal.textMuted,
-                  textDecoration: isDead(k) ? 'line-through' : 'none',
-                }}>{hasRead(INDICES[k]) ? fmt(INDICES[k].price) : '—'}</span>
-              </button>
-              {isDead(k) ? (
-                <div style={{
-                  flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-                  border: `1px dashed ${pal.border}`, borderRadius: 8, padding: '8px 14px',
-                  fontSize: 11.5, color: pal.caution,
-                }}>
-                  no {k} tape — nothing to read here
-                </div>
-              ) : !hasRead(INDICES[k]) ? (
-                <div style={{
-                  flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-                  border: `1px dashed ${pal.border}`, borderRadius: 8, padding: '8px 14px',
-                  fontSize: 11.5, color: pal.textMuted,
-                }}>
-                  {k}: {NOT_SHOWN}
-                </div>
-              ) : cells.map((cell, i) => {
-                const hue = heatRgb(pal)[cell.dir]
-                const arrow = cell.dir === 'bull' ? '▲' : cell.dir === 'bear' ? '▼' : '·'
-                return (
-                  <div
-                    key={i}
-                    title={`${HEAT_COLS[i]}: ${cell.label}${cell.spike ? ' — SPIKE' : ''}`}
-                    style={{
-                      flex: 1,
-                      height: 46,
-                      borderRadius: 8,
-                      backgroundColor: heatColor(pal, cell.dir, cell.intensity),
-                      border: cell.spike ? `1px solid rgba(${hue},0.9)` : `1px solid ${pal.border}`,
-                      boxShadow: cell.spike ? `0 0 10px 1px rgba(${hue},0.55)` : undefined,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 1,
-                      textAlign: 'center',
-                      padding: '0 4px',
-                    }}
-                  >
-                    <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.1, color: cell.intensity > 0.5 ? pal.textPrimary : pal.textSecondary }}>
-                      {cell.spike ? '⚡ ' : ''}{cell.label}
-                    </span>
-                    {/* Ink, not the tile's own hue: on white the wash goes
-                        saturated and a same-hue glyph disappears into it
-                        (measured 1.5–2.8:1). Direction is already carried by
-                        the tile colour and the arrow's shape. */}
-                    <span style={{ fontSize: 9, color: pal.textPrimary, opacity: 0.9 }}>{arrow}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })}
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 10, color: pal.textMuted, alignItems: 'center', flexWrap: 'wrap' }}>
-          {legend('bull', '▲', 'bullish')}
-          {legend('bear', '▼', 'bearish')}
-          {legend('neutral', '·', 'neutral')}
-          <span style={{ color: pal.caution }}>⚡ spike</span>
-          <span>brighter = stronger</span>
-        </div>
-      </div>
     </div>
   )
 }
@@ -1350,106 +617,16 @@ function OiFlowTab({ index }: { index: IndexKey }) {
   )
 }
 
-/* ── ANSWER band ───────────────────────────────────────────────────────────
-   Always visible, above the tabs. v2 inherited v1's worst structural habit:
-   the read lived behind a tab, so the one thing worth seeing on a live tape
-   took a click to reach. Price, the verdict, the sentence and — crucially —
-   what would invalidate it now own the top of the screen at a scale nothing
-   else competes with. Everything below is evidence for this band.          */
-/* AAJ KA DIN (daytype.py): the day's type is the band's main line now. The engine's verdict
-   changed 66 times on 2026-10-05 and never named the trend leg; it stays, collapsed, below. */
-const DT_HOLD_MS = 15 * 60_000
-
-function DayTypeLine({ dt, pal }: { dt: DayType; pal: Palette }) {
-  if (!dt.ok) return (
-    <div style={{ fontSize: 13, color: pal.textMuted }}>
-      <span className="micro-label" style={{ marginRight: 8 }}>Aaj ka din</span>{dt.why ?? 'not shown — no reason given'}
-    </div>)
-  const col = dt.type === 'TREND' ? ((dt.dir ?? 0) > 0 ? pal.bull : pal.bear)
-    : dt.type === 'PIN/CHOP' ? pal.accent : dt.type === 'TWO-SIDED' ? pal.textSecondary : pal.textMuted
-  const absent = (c: string) => c.startsWith('could not check') || c.startsWith('checked, none') || c.startsWith('not shown')
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <span className="micro-label">Aaj ka din</span>
-        <span style={{ fontSize: 20, fontWeight: 700, color: col, letterSpacing: '0.02em' }}>{dt.word}</span>
-        <span title="the type is inferred [I]; every chip is measured [M]" className="mono"
-          style={{ fontSize: 10, color: pal.textMuted }}>[I]</span>
-        <span style={{ fontSize: 12.5, color: pal.textSecondary }}>
-          since <b className="mono">{dt.since}</b> · screen pe <span className="mono">{dt.named}</span> se
-          {dt.switches != null && <> · aaj {dt.switches} badlav</>}
-        </span>
-      </div>
-      {dt.why && <div style={{ fontSize: 12, color: pal.textMuted, marginTop: 2 }}>{dt.why}</div>}
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
-        {(dt.evidence ?? []).map((e) => (
-          <span key={e.chip} className="mono" style={{
-            fontSize: 10.5, padding: '2px 7px', borderRadius: 3, border: `1px solid ${pal.border}`,
-            color: absent(e.chip) ? pal.textMuted : pal.textPrimary, background: pal.card,
-          }}>{e.chip} <span style={{ color: pal.textMuted }}>[{e.tag}]</span></span>))}
-      </div>
-      {!!dt.day_so_far?.length && (
-        <div className="mono" style={{ fontSize: 11, color: pal.textSecondary, marginTop: 6, lineHeight: 1.5 }}>
-          <span className="micro-label" style={{ marginRight: 6 }}>Din ab tak</span>
-          {dt.day_so_far.map((g, k) => (
-            <span key={g.from + g.type}>{k ? ' · ' : ''}{g.from}–{g.to} <b>{g.type}</b> {g.net > 0 ? '+' : g.net < 0 ? '−' : ''}{Math.abs(g.net)}</span>))}
-        </div>)}
-    </div>)
-}
-
-function AnswerBand({ index, stale, replaying }: { index: IndexKey; stale: boolean; replaying: boolean }) {
-  const { INDICES, READS, CHAIN_DATA, KEY_LEVELS } = useData()
+/* ANSWER band: above the tabs on every tab but Read, Board, Validate and Trade -- the price and THE READ's one row (read.py).
+   Since the 25 Oct review (C1 + C4, A74) nothing else: the engine's verdict said GO up, CONTRADICTED, at 13:00 on 22 Oct into
+   her 73400 CE, so the verdict, its timing and direction chips and headline, MAX PAIN / PCR / GEX / SQUEEZE, AAJ KA DIN and
+   max pain as a chart level are cut. The `calls` forward log keeps writing (calls_log.py); DIN (§1o) is the day type kept. */
+function AnswerBand({ index, stale }: { index: IndexKey; stale: boolean }) {
+  const { INDICES } = useData()
   const pal = usePalette()
   const info = INDICES[index]
-  const read = READS[index]
-  const chain = CHAIN_DATA[index]
-  const levels = KEY_LEVELS[index] ?? []
   const has = hasRead(info)
-  const dt = read.daytype
-  const [engineOpen, setEngineOpen] = useState(false)
-  const theRead = useRead().data?.indices?.[index]
-  const vsRead = engineVsRead(read.ground, theRead?.ok ? theRead.dir : undefined)   // the engine argues with THE READ?
-
   const dirCol = info.change > 0 ? pal.bull : info.change < 0 ? pal.bear : pal.textSecondary
-  const above = levels.filter(l => l.value > info.price).sort((a, b) => a.value - b.value)[0]
-  const below = levels.filter(l => l.value < info.price).sort((a, b) => b.value - a.value)[0]
-  const mpDist = Math.round(chain.maxPain - info.price)
-
-  // The engine's verdict, HELD: live, it may change on screen at most once per 15 min unless
-  // price goes past a level that verdict's own "changes if" named. Replay shows it as it was.
-  const held = useRef<Partial<Record<IndexKey, { key: string; read: Read; at: number; up?: number; dn?: number }>>>({})
-  const vkey = `${read.timing}|${read.direction}|${read.headline}|${read.ground?.status ?? ''}`
-  let old: Read = read
-  if (!has || replaying || stale) delete held.current[index]
-  else {
-    const h = held.current[index]
-    const broke = h != null && ((h.up != null && info.price > h.up) || (h.dn != null && info.price < h.dn))
-    if (!h || (h.key !== vkey && (Date.now() - h.at >= DT_HOLD_MS || broke)))
-      held.current[index] = { key: vkey, read, at: Date.now(), up: above?.value, dn: below?.value }
-    old = held.current[index]!.read
-  }
-
-  const chip = (label: string, tone: 'structure' | 'quiet' = 'quiet') => (
-    <span key={label} className="mono" style={{
-      fontSize: 10.5, letterSpacing: '0.05em', padding: '3px 8px', borderRadius: 3,
-      whiteSpace: 'nowrap',
-      border: `1px solid ${tone === 'structure' ? wash(pal.accent, 0.45) : pal.border}`,
-      color: tone === 'structure' ? pal.accent : pal.textMuted,
-    }}>{label}</span>
-  )
-
-  const oldLevels = !has ? <span style={{ color: pal.textMuted }}>{NOT_SHOWN}</span> : <>
-    {above
-      ? <span>breaks <span className="mono" style={{ color: pal.accent }}>{above.value}</span>
-          <span style={{ color: pal.textMuted }}> ({above.label}{above.note ? ` · ${above.note}` : ''})</span></span>
-      : <span style={{ color: pal.textMuted }}>no level mapped above</span>}
-    <span style={{ color: pal.textMuted }}>·</span>
-    {below
-      ? <span>or loses <span className="mono" style={{ color: pal.accent }}>{below.value}</span>
-          <span style={{ color: pal.textMuted }}> ({below.label}{below.note ? ` · ${below.note}` : ''})</span></span>
-      : <span style={{ color: pal.textMuted }}>no level mapped below</span>}
-  </>
-  const ci = dt?.ok ? dt.changes_if : undefined
 
   return (
     <div style={{ backgroundColor: pal.bg, borderBottom: `1px solid ${pal.border}`, flexShrink: 0 }}>
@@ -1489,64 +666,7 @@ function AnswerBand({ index, stale, replaying }: { index: IndexKey; stale: boole
             </div>
           )}
           <ReadLine index={index} />
-          {dt ? <DayTypeLine dt={dt} pal={pal} />
-            : <div style={{ fontSize: 13, color: pal.textMuted }}>{NOT_SHOWN}</div>}
-          <button onClick={() => setEngineOpen((v) => !v)} style={{
-            marginTop: 6, fontSize: 11, color: pal.textMuted, background: 'none', border: 'none',
-            padding: 0, cursor: 'pointer', textAlign: 'left',
-          }}>
-            {engineOpen ? '▾' : '▸'} engine ka verdict{has && !engineOpen ? ` (${old.timing} · ${old.direction})` : ''}
-            {vsRead === 'khilaaf' ? ' · read ke khilaaf — chup' : ''}
-            {has && !replaying && !stale ? ' — 15 min mein ek baar badlega, level toote to pehle' : ''}
-          </button>
-          {engineOpen && (
-            <div style={{ marginTop: 4, paddingLeft: 10, borderLeft: `2px solid ${pal.border}` }}>
-              {!stale && has && (
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-                  <DirectionChip value={old.direction} />
-                  <TimingChip value={old.timing} />
-                </div>
-              )}
-              <div style={{ fontSize: 14, lineHeight: 1.45, maxWidth: '62ch' }}>{old.headline}</div>
-              {has && <Grounds g={old.ground} />}
-              {old.sub && <div style={{ fontSize: 12.5, color: pal.textSecondary, marginTop: 3 }}>{old.sub}</div>}
-              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 12, marginTop: 4 }}>
-                <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Engine changes if</span>{oldLevels}
-              </div>
-            </div>
-          )}
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
-          {has && <>
-          {chip(`MAX PAIN ${chain.maxPain} · ${mpDist >= 0 ? '+' : ''}${mpDist}`, 'structure')}
-          {/* A GEX reading without "where is price relative to the books" is
-              the single most misleading number on the screen. */}
-          {chain.inBookZone
-            ? chip(`GEX ${chain.gex} · in book zone`)
-            : chip(`GEX ${chain.gex} · OUTSIDE BOOKS — SNAP-BACK RISK`, 'structure')}
-          {chip(`PCR ${chain.pcr} · SQUEEZE ${chain.squeeze}`)}
-          </>}
-        </div>
-      </div>
-
-      <div style={{
-        display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap',
-        padding: '8px 24px', backgroundColor: pal.card,
-        borderTop: `1px solid ${pal.border}`, fontSize: 12.5,
-      }}>
-        <span className="micro-label" style={{ whiteSpace: 'nowrap' }}>Changes if</span>
-        {!ci ? <span style={{ color: pal.textMuted }}>{dt && !dt.ok ? dt.why : NOT_SHOWN}</span> : <>
-        {(['up', 'down'] as const).map((k, n) => {
-          const L = ci[k]
-          return <span key={k}>{n ? <span style={{ color: pal.textMuted }}>· </span> : null}
-            {L ? <>{k === 'up' ? '▲' : '▼'} <span className="mono" style={{ color: pal.accent }}>{L.text}</span>
-              <span style={{ color: pal.textMuted }}> ({L.why})</span></>
-              : <span style={{ color: pal.textMuted }}>{k === 'up' ? 'upar' : 'neeche'} koi level nahi</span>}
-          </span>
-        })}
-        {dt?.basis_why && <span style={{ color: pal.textMuted }}>· {dt.basis_why}</span>}
-        </>}
       </div>
     </div>
   )
@@ -1567,8 +687,8 @@ function AnswerBand({ index, stale, replaying }: { index: IndexKey; stale: boole
    the chart these levels are drawn on. */
 
 /* `liveMachine`, `MACHINE_WORDS` and `machineWord` moved to ./machine.ts —
-   unchanged — so the Glass board's MACHINE widget can read the machine the
-   same single way this strip does. */
+   unchanged — so every reader gets the machine the same single way this
+   strip does. */
 
 function MachineStrip({ runState, runStateWhy, runStateSell, lastBar, stale, replaying }: {
   runState: RunState[] | null
@@ -1691,7 +811,7 @@ export default function App() {
   const onValidate = activeTab === 'Validate'
   const boardReads = useBoardGlance(onBoard)
   const onRead = activeTab === 'Read'      // THE READ is its own answer: the ANSWER band steps aside there too
-  const tabs: Tab[] = ['Read', 'Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals']
+  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Validate', 'Signals']
   const { data: liveData, loading, error, errorWhy, broker, intake, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
@@ -1713,38 +833,7 @@ export default function App() {
   }, [setInterval_])
   const data = useMemo(() => at(scrub), [scrub, liveData])
   const tape = useMemo(() => tapeBars(activeIndex), [tapeBars, activeIndex, liveData])
-  const zone3 = useZone3(activeIndex, interval, tape)   // the strip, the title, Glass and Trade read THIS, never a 5m re-run
-  // MAP levels are bar-derived and causal under replay. MAX PAIN and GEX FLIP
-  // come from the chain, which is a live snapshot with no per-strike history
-  // (the same reason Chain.aligned goes false while scrubbing) — so they are
-  // drawn only when live, never during replay (honesty rule 6).
-  // VWAP and the ±1σ bands are DROPPED from the chart's level list, by the
-  // operator's instruction 2026-08-11 and again 2026-08-12: "there are lines
-  // for vwap and +1 std deviation as well not required at all because i can
-  // see there levels on the right side of chart". Those two arrive as MAP
-  // LEVELS -- horizontal lines with a price chip -- built in data.ts
-  // (`addLvl(f.vwap, 'VWAP', 'vwap' …)`, `addLvl(f.u1, '+1σ', 'band' …)`).
-  // They are a SEPARATE layer from the VWAP polyline and the σ ribbon edges
-  // that came off earlier; removing those left these standing, which is why
-  // the chart still drew them after the first pass.
-  //
-  // Filtered HERE, at the chart's boundary, rather than in data.ts: the Map
-  // tab reads the same array as a table, where a named level with its price
-  // is the entire point and costs no chart ink. Pivots, MAX PAIN, PIN, walls,
-  // CAP/FLR, HI/LO, STK and traps all stay -- the operator named those as
-  // the ones to keep.
-  const tradeLevels = useMemo(() => {
-    const lv = [...(data.MAP[activeIndex]?.levels ?? [])]
-      .filter((l) => l.kind !== 'vwap' && l.kind !== 'band')
-    if (scrub == null) {
-      const ch = data.CHAIN_DATA[activeIndex]
-      if (ch && Number.isFinite(ch.maxPain) && ch.maxPain > 0)
-        lv.push({ label: 'MAX PAIN', value: ch.maxPain, kind: 'strike', note: 'chain snapshot' })
-      if (ch?.flipPx != null && ch.flipPx > 0)
-        lv.push({ label: 'GEX FLIP', value: ch.flipPx, kind: 'strike', note: 'chain snapshot' })
-    }
-    return lv
-  }, [data, activeIndex, scrub])
+  const zone3 = useZone3(activeIndex, interval, tape)   // the strip, the title and Trade read THIS, never a 5m re-run
   const barTime = data.CHART_DATA[activeIndex]?.slice(-1)[0]?.time ?? '--:--'
 
   // A stale chain is a separate failure from a dead tape or an unreachable
@@ -1856,7 +945,7 @@ export default function App() {
           fontSize: 12.5, fontWeight: 600,
         }}>
           CHAIN STALE — last option-chain snapshot {activeChain.ts || '--:--:--'} ({Math.floor((chainAge as number) / 60)}m old).
-          Max pain, GEX, PCR and the chain-derived chart levels below are from that moment, not now.
+          OI and the chain-derived reads below are from that moment, not now.
           Candles, VWAP and the σ bands are unaffected.
         </div>
       )}
@@ -1886,7 +975,7 @@ export default function App() {
       {/* not on Trade either (2026-09-29): its left panel is the rev 6 engine's read, and the legacy
           engine's SPENT / DON'T CHASE beside it would be a second verdict on one screen */}
       {!focusHidesChrome && !onBoard && !onValidate && !onRead && activeTab !== 'Trade' && (
-        <AnswerBand index={activeIndex} stale={!!error || idxDead} replaying={scrub != null} />
+        <AnswerBand index={activeIndex} stale={!!error || idxDead} />
       )}
 
       {/* The machine strip renders on every tab, and even under FOCUS. It is
@@ -2001,23 +1090,6 @@ export default function App() {
 
       {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {/* key={activeIndex} for the same reason TradeTab carries one: the
-            chart engine is rebuilt per contract rather than mutated across an
-            index switch. Passed the SAME tape/chain/level props TradeTab gets,
-            from the same memos — one payload, two presentations. */}
-        {/* The board reads the glance-bar's active index all the way down —
-            key={activeIndex} so a switch remounts it rather than letting a
-            pane paint the previous index's figures for one frame. */}
-        {activeTab === 'Glass'    && <GlassBoard key={activeIndex} index={activeIndex}
-                                              chain={activeChain} bars={tape.bars}
-                                              runState={zone3.buy}
-                                              runStateWhy={zone3.why}
-                                              runStateSell={zone3.sell}
-                                              publishedInterval={tape.interval}
-                                              stale={idxDead || !!error} loading={loading}
-                                              chainStale={chainStale}
-                                              setActiveTab={setActiveTab} />}
-        {activeTab === 'Heat'     && <HeatTab active={activeIndex} setActive={setActiveIndex} dead={dead} />}
         {activeTab === 'Trade'    && <TradeTab key={activeIndex} index={activeIndex} day={tape.day} bars={tape.bars}
                                               cursor={scrub}
                                               stale={idxDead || !!error} loading={loading}
@@ -2026,22 +1098,17 @@ export default function App() {
                                               interval={interval} publishedInterval={tape.interval}
                                               onIntervalChange={changeInterval}
                                               zone3={zone3} />}
-        {/* key={activeIndex}: the pins are per index, so a switch starts on ATM. */}
-        {activeTab === 'Tape'     && <TapeTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll:
             the tab unmounts and the interval is cleared with it. */}
         {activeTab === 'Read'     && <ReadTab reads={data.READS} />}
         {activeTab === 'Board'    && <Board key={activeIndex} index={activeIndex} />}
         {activeTab === 'Flow'     && <FlowTab index={activeIndex} />}
         {activeTab === 'VPIN'     && <VpinTab key={activeIndex} index={activeIndex} />}
-        {activeTab === 'Chain'    && <ChainTab index={activeIndex} />}
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll. */}
         {activeTab === 'War'      && <WarTab index={activeIndex} />}
-        {activeTab === 'Events'   && <EventsTab index={activeIndex} />}
         {/* her order 2026-09-29: Validate is the rev 6 DESK (pro.html). A frame, because pro.css styles html/body/:root. */}
         {activeTab === 'Validate' && <iframe src="/validate2/index.html" title="VALIDATE" style={{ width: '100%', height: 'calc(100vh - 190px)', minHeight: 560, border: 0, display: 'block' }} />}
-        {activeTab === 'Map'      && <MapTab index={activeIndex} />}
         {/* No `index` prop, deliberately: the log spans all three indices and
             the operator tracks the strategy, not one tape. The tab carries its
             own index filter, which starts on ALL. */}

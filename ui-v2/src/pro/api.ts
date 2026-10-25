@@ -5,8 +5,12 @@
 // answering (hh:mm:ss)", never a fixture (the fixture viewer is ?fixture=1, bannered, and never polls).
 import { useSyncExternalStore } from 'react'
 import { j, tone } from '../hold/store'
-import type { Trade, Voice } from '../hold/HoldWindow'
-export type { Trade }
+// her trade and THE ONE VOICE (A52, server voice.py): the shapes that lived in hold/HoldWindow.tsx until the 25 Oct review (C8)
+export type Trade = { id: string; idx: string; k: number; side: 'CE' | 'PE'; role: 'long' | 'short'; t0: string; p0: number | null; qty: number
+                      exit_t: string | null; exit_t_broker?: string | null; src?: string }
+export type Voice = { ok: boolean; why?: string; state: 'HOLD' | 'TIGHTEN' | 'WARN' | 'EXIT'; seq: number; l1: string; l2: string; l3: string
+                      trig_t?: string | null; note?: string; active?: { t: string; state: string; reason: string }[]
+                      l4?: string; l5?: string; detail?: { text: string; tip?: string | null }[]; map_why?: string }   // the TRADE MAP (trademap.py)
 
 // she trades all three (2026-10-03): the DESK reads the index she picks; a trade's own index rides its record
 export const INDICES = ['NIFTY', 'BANKNIFTY', 'SENSEX'] as const

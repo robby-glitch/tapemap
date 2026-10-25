@@ -58,7 +58,7 @@ def test_a_real_feed_error_is_passed_through_untouched():
 
 def _broker(monkeypatch, value):
     """Select the broker for one test. `None` means "leave it unset", which
-    is the shipped default and must stay Dhan."""
+    is the shipped default: upstox since 25 Oct (review C10)."""
     if value is None:
         monkeypatch.delenv("TAPEMAP_BROKER", raising=False)
     else:
@@ -80,7 +80,7 @@ def test_the_tape_still_reads_the_dhan_token_on_dhan(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".dhan_token").write_text(
         "  eyJtest.token.value  \n", encoding="utf-8")
-    _broker(monkeypatch, None)                    # unset == dhan
+    _broker(monkeypatch, "dhan")                  # the Dhan fallback, chosen by name (C10)
     assert live._token() == "eyJtest.token.value"
 
 
@@ -88,7 +88,7 @@ def test_a_missing_dhan_token_still_fails_loudly_on_dhan(tmp_path, monkeypatch):
     """Returning "" for everyone would have been the easy fix, and it would
     have turned a real Dhan misconfiguration into a silently empty chart."""
     monkeypatch.chdir(tmp_path)
-    _broker(monkeypatch, None)
+    _broker(monkeypatch, "dhan")
     with pytest.raises(FileNotFoundError):
         live._token()
 
@@ -146,10 +146,13 @@ def test_health_reports_the_broker_actually_in_force(monkeypatch):
     assert isinstance(out["started_at"], float)
 
 
-def test_health_says_dhan_when_nothing_selected_it(monkeypatch):
+def test_health_says_upstox_when_nothing_selected_it(monkeypatch):
     """It must report what is TRUE, not what the launcher intended -- the
-    launcher's whole check depends on this being able to say "dhan"."""
+    launcher's whole check depends on it. Since 25 Oct (review C10) setting
+    nothing is upstox; dhan is said only when chosen."""
     monkeypatch.delenv("TAPEMAP_BROKER", raising=False)
+    assert _get("/api/health")["broker"] == "upstox"
+    monkeypatch.setenv("TAPEMAP_BROKER", "dhan")
     assert _get("/api/health")["broker"] == "dhan"
 
 

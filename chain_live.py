@@ -140,14 +140,15 @@ def _client(tok):
 
 
 def _broker():
-    """Which data source the live poller uses. Dhan unless told otherwise.
+    """Which data source the live poller uses. Upstox unless told otherwise
+    (25 Oct review C10: Dhan's Data API lapsed 2026-08-05, and start.bat, the
+    one launcher that set nothing, is deleted).
 
-    `TAPEMAP_BROKER=upstox` switches the chain to the Upstox socket. Default
-    is dhan so that setting nothing keeps the behaviour that has been running,
-    and so a missing or misspelled env var can never silently move the tool
-    onto a different broker mid-session.
+    `TAPEMAP_BROKER=dhan` selects the documented Dhan fallback. Anything that
+    is not exactly "upstox" after trimming and lower-casing is NOT upstox, so a
+    misspelling never silently becomes the live socket.
     """
-    return os.environ.get("TAPEMAP_BROKER", "dhan").strip().lower()
+    return os.environ.get("TAPEMAP_BROKER", "upstox").strip().lower()
 
 
 def _upstox_source(existing=None):

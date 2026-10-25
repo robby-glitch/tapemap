@@ -5,6 +5,7 @@ what the rules SAY is test_hold.py's job, whether they are right is §7's."""
 import io
 import json
 import os
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -38,10 +39,26 @@ def _post(path, body, poller, headers=None):
     return cap.sent
 
 
+_CUT = ("/api/hold", "/api/hold/check", "/api/hold/expr")
+
+
 def _get(path, poller):
+    """25 Oct review C8: /api/hold?id=, /api/hold/check and /api/hold/expr are no longer served (their one caller, the hold/*
+    UI, is deleted). The functions behind them stay -- the rev 5 loop's signed §1e/§1g/§1h population is judged ~6 Nov --
+    so the tests that read them call them as the routes did, through the same JSON."""
+    u = urlsplit(path)
     cap = _Cap(path, poller=poller)
-    server.Handler.do_GET(cap)
-    return cap.sent
+    if u.path not in _CUT:
+        server.Handler.do_GET(cap)
+        return cap.sent
+    q = parse_qs(u.query)
+    try:
+        out = (server._hold_check(poller, q, cap.payloads) if u.path == "/api/hold/check"
+               else server._expr_reply(poller, cap.payloads, cap._idx()) if u.path == "/api/hold/expr"
+               else server._hold_reply(poller, q))
+    except Exception as e:                   # as the route did: a bad read is a why
+        out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+    return json.loads(json.dumps(out, default=str))
 
 
 def _fresh():
@@ -656,3 +673,14 @@ def test_a_validate_press_is_logged_once_and_another_sites_post_is_refused(monke
     monkeypatch.setattr(server, "_board_clock", lambda: ("2026-10-26", "15:50"))
     late = _post("/api/validate/log", dict(press, t="15:50:00"), None)
     assert away["ok"] is False and "another site" in away["why"] and bad["ok"] is False and late["ok"] is False and len(rows()) == 3
+
+
+def test_the_cut_hold_routes_are_not_served():
+    """25 Oct review C8 (DEV-FACES F14, F27): /api/hold?id=, /api/hold/check (VALIDATE rev 2) and /api/hold/expr had one caller,
+    the unmounted hold/* UI, now deleted. The routes answer `not served`; the functions behind them stay for the rev 5
+    judgement, and this file's tests call them directly (_get)."""
+    for path in ("/api/hold?id=NIFTY-23200PE-long-122030", "/api/hold/check?idx=NIFTY&k=23200&side=PE&role=long&p0=100",
+                 "/api/hold/expr?idx=NIFTY"):
+        cap = _Cap(path, poller=None)
+        server.Handler.do_GET(cap)
+        assert cap.sent["ok"] is False and cap.sent["why"].startswith("not served"), path

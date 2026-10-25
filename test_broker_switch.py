@@ -29,9 +29,10 @@ def _with(value):
             os.environ.pop("TAPEMAP_BROKER", None)
 
 
-def test_setting_nothing_keeps_dhan():
-    """The behaviour that has been running stays the behaviour that runs."""
-    assert _with(None) == "dhan"
+def test_setting_nothing_is_upstox():
+    """25 Oct review C10: Dhan's Data API lapsed 2026-08-05 and the one launcher that set nothing (start.bat) is deleted, so
+    setting nothing is the live source. Dhan is chosen by name."""
+    assert _with(None) == "upstox" and _with("dhan") == "dhan"
 
 
 def test_upstox_is_selected_explicitly():

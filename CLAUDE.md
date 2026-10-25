@@ -26,7 +26,7 @@ in full too.** Everything else is history or detail. Verified 2026-08-22.
   - **Where it runs:** `server._hold2_run` and `_in_trade`; forward log `data/hold/map_<day>.jsonl`.
   - **Replay:** `voice_path.py` and `GET /api/voice_path` replay it over a past marked trade, never in market hours.
   - **Docs:** `docs/trade-map/` (Fable's critique and the build report), the spec `docs/superpowers/specs/2026-10-24-trade-map-design.md`, and NOTEPAD A52–A63. Her display basis `fold.BIX_MS` is a 3-min median (A60).
-- **The face:** the GoCharting extension v2.11 (0.5.11) in `C:\Users\kaam\Desktop\Go charting\orderflow-desk\dist-v2`. See its `docs/V2-BUILD-REPORT.md`.
+- **The face:** the GoCharting extension v2.12 (0.5.12) in `C:\Users\kaam\Desktop\Go charting\orderflow-desk\dist-v2`. See its `docs/V2-BUILD-REPORT.md`.
 - **Clean-room research:** `C:\Users\kaam\Desktop\operator mode\oi-lab\` (Fable): the OI and order-flow world maps, the flow AUDIT (291 variants, two holdouts), and the Edge Reader weave. Its conclusions:
   - only effort per point survived;
   - CVD divergence at highs is inverted;
@@ -39,8 +39,8 @@ They share one server and one repo and answer opposite questions. Confusing
 them is the fastest way to waste a session.
 
 - **THE TAPE** — *when is a move coming*, a buyer's question. `engine.py`,
-  `band_rotation.py`, the zone machine, `data/trigger_log.jsonl`,
-  `/console.html`. START-HERE.md is its document.
+  `band_rotation.py`, the zone machine, `data/trigger_log.jsonl`.
+  START-HERE.md is its document. (`/console.html` was cut 25 Oct, review C9.)
 - **THE DESK** — *which instrument, and which structure*, a seller's desk.
   `surface.py`, `direction.py`, `drag.py`, the war map (`warmap.py` +
   friends). HANDOFF-DESK.md is its document. **Deleted 2026-09-28** (the
@@ -84,7 +84,7 @@ them is the fastest way to waste a session.
 
 ```bash
 .\stop.bat; .\start-v2.bat     # THE way to start. Upstox, port 8765.
-python -m pytest -q            # 1992 collected: 1990 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-25 (review Phase 3, the evidence)
+python -m pytest -q            # 1993 collected: 1991 pass, 1 skipped, 1 known flaky (test_v2feed serve-cache, NOTEPAD A49), as of 2026-10-25 (review Phase 4, the cuts)
 ```
 
 **Launch the server DETACHED, never as a child of an assistant/terminal
@@ -92,10 +92,9 @@ session** (2026-08-25: a host-process restart killed a child server mid-market
 and cost 30 minutes of every forward log):
 `Start-Process -FilePath '...\start-v2.bat' -WorkingDirectory '...\tapemap' -WindowStyle Minimized`
 
-Screens: ui-v2 on `http://127.0.0.1:5173/` (the live UI; `/` redirects there) ·
-`/console.html` (the tape detectors).
+Screens: ui-v2 on `http://127.0.0.1:5173/` (the live UI; `/` redirects there).
 APIs: `/api/surface` · `/api/drag` (both read by her PaperDesk extension) ·
-`/api/chain` · `/api/senses` · `/api/vpin` · `/api/oiflow` · `/api/warmap` ·
+`/api/chain` · `/api/vpin` · `/api/oiflow` · `/api/warmap` ·
 `/api/paper_fill` (PaperDesk's POST) · `/api/health` (its `coverage` says what this process can
 and cannot know about today — render it, never paper over it).
 

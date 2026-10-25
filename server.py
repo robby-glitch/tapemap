@@ -5663,76 +5663,6 @@ class Handler(SimpleHTTPRequestHandler):
                                        "never written into data/vpin_log."
                                        "jsonl, which is the promotion record")},
                  "coverage": _coverage()}).encode())
-        elif self.path.startswith("/api/senses"):
-            # A WINDOW, NOT THE RECORD. The forward record is
-            # data/senses_log.jsonl; this renders the tail of the ring so a
-            # panel can show what the book just did. `err` and `polls` are
-            # here for the same reason /api/health names the broker: a thread
-            # that has quietly stopped must not look like a quiet market.
-            q = parse_qs(urlsplit(self.path).query)
-            n = min(int((q.get("n") or ["100"])[0] or 100), 2000)
-            inst = (q.get("inst") or [None])[0]
-            with _SENSES_LOCK:
-                rows = list(_SENSES["rows"] or ())
-                if inst:
-                    rows = [r for r in rows if r.get("inst") == inst]
-                obj = _SENSES["obj"]
-                # The READING, kept separate from the rows. `gear` is [I] and
-                # SHADOW -- `would_block` is what it WOULD refuse, and nothing in
-                # this stack enforces it. A panel that renders this as a block is
-                # reading it wrong.
-                book = _SENSES["fuse"]
-                read = {}
-                if book is not None:
-                    for i, f in sorted(book._by.items()):
-                        if inst and i != inst:
-                            continue
-                        idx_i = i.split("-")[0]
-                        # The chain half, matched to this instrument's index. All
-                        # three conditions finally meet here: fuel and drain from
-                        # the chain, ignition from the book. Absent chain -> the
-                        # gate simply cannot reach CASCADE, which is correct.
-                        c = _SENSES["chain"].get(idx_i) or {}
-                        # The other two dead gears -- see _regime_engine_read
-                        # and _walls_holding for why these were None until
-                        # 2026-08-22 and where each value actually comes from.
-                        sigma_pctl, vwap_flips_per_hr, eng_why = \
-                            _regime_engine_read(self.payloads, idx_i)
-                        walls_holding, walls_why = _walls_holding(
-                            _SENSES["pools"].get(i))
-                        v = f.verdict(fuel_rank=c.get("fuel_rank"),
-                                      drain=bool(c.get("drain")),
-                                      one_sided=c.get("one_sided"),
-                                      sigma_pctl=sigma_pctl,
-                                      vwap_flips_per_hr=vwap_flips_per_hr,
-                                      walls_holding=walls_holding)
-                        read[i] = {"gear": v.gear, "why": v.why, "chain": c,
-                                   "would_block": v.would_block, "shadow": v.shadow,
-                                   "tag": v.tag, "evidence": f.ev.__dict__,
-                                   "regime_inputs": {
-                                       "sigma_pctl": sigma_pctl,
-                                       "vwap_flips_per_hr": vwap_flips_per_hr,
-                                       "walls_holding": walls_holding,
-                                       "why": [w for w in (eng_why, walls_why) if w],
-                                   }}
-                self._json(json.dumps({
-                    "ok": _SENSES["err"] is None,
-                    "error": _SENSES["err"],
-                    "polls": _SENSES["polls"],
-                    "up_s": (round(time.time() - _SENSES["started"], 1)
-                             if _SENSES["started"] else None),
-                    "written": getattr(obj, "written", 0),
-                    "failed": getattr(obj, "failed", 0),
-                    "log": getattr(obj, "path", None) or senses_mod.day_path(),
-                    "pending": obj.pending() if obj else {},
-                    "read": read,
-                    "pools": _SENSES["pools"],
-                    # SHADOW, [I]: percentile-so-far of flow toxicity on the
-                    # NIFTY future. A panel renders it; nothing acts on it.
-                    "vpin": {i: g.state()
-                             for i, g in sorted(_SENSES["vpin"].items())},
-                    "rows": rows[-n:],
-                }).encode())
         elif self.path.startswith("/api/reader"):
             # THE SHADOW LEG ENGINE (reader_live.py; docs/reader/8-shadow-build.md): GET /api/reader?idx= -- the reader
             # thread's cached reply, O(1). Read-only; shadow and unsigned; nothing decides on it.
@@ -5770,9 +5700,8 @@ class Handler(SimpleHTTPRequestHandler):
                 out = _in_trade(out, trades)                          # HOLD v2 + the one voice, on a copy (A52)
             self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/hold"):
-            # THE HOLD / FOLD WINDOW (hold.py; docs/hold/PREREG-merged.md rev 4):
-            # /api/hold?id= a marked trade, or ?idx=&k=&side=&role=&t0=&p0=&qty=
-            # [&asof=HH:MM][&rows=1]; /api/hold/trades today's marked trades.
+            # THE HOLD DOOR's reads: /api/hold/trades (today's marked trades) and /api/hold/sigma. Since 25 Oct (review C8)
+            # /api/hold?id=, /api/hold/check and /api/hold/expr are not served: their one caller, the hold/* UI, is deleted.
             # GET only here.
             q = parse_qs(urlsplit(self.path).query)
             path = urlsplit(self.path).path
@@ -5781,27 +5710,13 @@ class Handler(SimpleHTTPRequestHandler):
                     with HOLD_TRADES_LOCK:
                         out = {"ok": True, "trades": list(_hold_trades()), "draft": hold.DRAFT}
                     out["lots"] = {i: _hold_lot(i) for i in instruments.ENABLED}     # before any answer (REVIEW P1-7)
-                elif path == "/api/hold/check":
-                    out = _hold_check(self.poller, q, self.payloads)
-                elif path == "/api/hold/expr":
-                    out = _expr_reply(self.poller, self.payloads, self._idx())
                 elif path == "/api/hold/sigma":      # a leg's σ vs its VWAP (§F.1, printed): off the press's path
                     F = _hold_facts(self.poller, self._idx())
                     out = (_hold_sigma(self._idx(), float((q.get("k") or ["0"])[0]), (q.get("side") or ["CE"])[0].upper(),
                                        F["asof"]) if F else {"why": board.CC + "no finished minute yet", "tag": "M"})
                 else:
-                    out = _hold_reply(self.poller, q)
-                    tid = (q.get("id") or [None])[0]
-                    if tid and isinstance(out, dict):            # the hold window's one voice (A52), the same block
-                        with HOLD_TRADES_LOCK:
-                            trs = list(_hold_trades())
-                        rep = fold_live.reply("/api/fold", {"id": [tid]}, trs)
-                        fv = _in_trade(rep, trs) if isinstance(rep, dict) and rep.get("ok") else {}
-                        out["voice"] = fv.get("voice") or {"ok": False, "why": (rep or {}).get("why") or "could not check — no engine read"}
-                        if fv.get("receipt"):
-                            out["receipt"] = fv["receipt"]
-                        if fv.get("flow_src"):           # SENSEX-NIFTY-FLOW §3 (signed 25 Oct): the hold reply names its flow
-                            out["flow_src"] = fv["flow_src"]
+                    # C8 (25 Oct review): not served. _hold_reply / _hold_check / _expr_reply stay for the rev 5 judgement (~6 Nov)
+                    out = {"ok": False, "why": f"not served: {path} (cut 25 Oct, review C8)"}
             except Exception as e:           # a bad read must not 500 the window
                 log.exception("hold %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
@@ -6177,7 +6092,8 @@ def _backfill_vpin():
     """
     _VPIN_BF["n"], _VPIN_BF["rows"] = 0, []
     today = time.strftime("%Y-%m-%d")
-    if os.environ.get("TAPEMAP_BROKER", "dhan").strip().lower() != "upstox":
+    from chain_live import _broker
+    if _broker() != "upstox":                     # C10 (25 Oct): the one broker default, chain_live._broker's
         _VPIN_BF["why"] = ("not attempted: bars come from Upstox and this "
                            "server is not on the Upstox path")
         return
