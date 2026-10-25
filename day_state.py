@@ -36,10 +36,15 @@ formats and stores what the caller already computed.
 """
 
 import json
+import logging
 import os
+import tempfile
+import threading
 import time
 
 DIR = os.path.join("data", "day_state")
+log = logging.getLogger("tapemap")
+_LOCK = threading.Lock()   # ponytail: one lock for every day file -- six server threads save (25 Oct review D2)
 
 
 def path_for(day, dir_=None):
@@ -54,29 +59,49 @@ def save(day, state, dir_=None):
     `state` is merged under the envelope (`day`, `saved_at`), so a caller adds
     a new series by adding a key -- no schema change here, and an older reader
     that does not know the key simply ignores it.
+
+    One writer at a time, through a temp file of its own: six server threads
+    call this, and a shared `.tmp` let two of them collide (25 Oct review D2).
     """
     p = path_for(day, dir_)
     parent = os.path.dirname(p)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(dict(state, day=day, saved_at=time.time()), fh)
-    os.replace(tmp, p)
+    with _LOCK:
+        fd, tmp = tempfile.mkstemp(prefix=os.path.basename(p) + ".", suffix=".tmp", dir=parent or ".")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(dict(state, day=day, saved_at=time.time()), fh)
+            os.replace(tmp, p)
+        except BaseException:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
     return p
 
 
 def load(day, dir_=None):
     """Today's saved state, or `{}`.
 
-    `{}` for all three of missing, unreadable and belongs-to-another-day. The
-    caller cannot act differently on any of them -- in every case there is
-    nothing to restore and the day starts cold -- so they are not split into
-    three returns that no branch would ever read apart.
+    `{}` for missing, unreadable and belongs-to-another-day: in every case the
+    day starts cold. But an UNREADABLE file is not a missing one -- it held her
+    marked trades -- so it is moved aside as `<name>.corrupt-HHMMSS` and logged
+    as an ERROR, never overwritten by the next save (25 Oct review D2).
     """
+    p = path_for(day, dir_)
     try:
-        with open(path_for(day, dir_), encoding="utf-8") as fh:
+        with open(p, encoding="utf-8") as fh:
             doc = json.load(fh)
-    except (OSError, ValueError):
+    except OSError:
+        return {}
+    except ValueError:
+        bad = f"{p}.corrupt-{time.strftime('%H%M%S')}"
+        try:
+            os.replace(p, bad)
+        except OSError:
+            bad = p
+        log.error("day state %s is unreadable -- kept as %s; the day starts cold", p, bad)
         return {}
     return doc if isinstance(doc, dict) and doc.get("day") == day else {}

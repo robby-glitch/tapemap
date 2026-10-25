@@ -369,3 +369,9 @@ def test_every_real_option_leg_carries_a_full_book():
     books = [l for l in ladders if l]
     assert len(books) == len(d["frames"]) - 1        # all but the index
     assert all(len(l["bid"]) == 5 and len(l["ask"]) == 5 for l in books)
+
+
+def test_ltt_of_reads_the_exchange_trade_time_in_ms():
+    assert ua.ltt_of({"fullFeed": {"marketFF": {"ltpc": {"ltp": 1.0, "ltt": "1789098300000"}}}}) == 1789098300000
+    assert ua.ltt_of({"fullFeed": {"marketFF": {"ltpc": {}}}}) is None
+    assert ua.ltt_of(None) is None

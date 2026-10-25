@@ -214,6 +214,17 @@ def test_book_minutes_side_by_the_rupee_tick():
     assert cm[0]["src"] == "book" and cm[0]["bk"] and cm[0]["oi"] == 100.0
 
 
+def test_book_minutes_counts_a_feed_gap_and_books_it_to_no_side():
+    """25 Oct A67: the feed's own clock (cts) jumped 90 s between two rows. The volume traded unseen is counted on
+    the minute it lands in, in lots, and is never a buy, a sell or an unknown."""
+    def R(t, vtt):
+        return {"t": t, "cts": t, "ltt": t, "ltp": 100.05, "ltq": 65, "vtt": vtt, "oi": 6500,
+                "b": [[100.0, 650]], "a": [[100.05, 650]]}
+    mins = reader.book_minutes([R(T0 + 1000, 1000), R(T0 + 91_000, 14_975)], 65, 0.05)
+    assert [(m["gaps"], m["gap_v"]) for m in mins] == [(0, 0.0), (1, 215.0)]
+    assert all(m["bvol"] == m["buy"] == m["sell"] == m["unk"] == 0 for m in mins)
+
+
 def test_the_threshold_sheet_is_one_place_and_has_no_lot_counts():
     keys = [k for k, _, _ in reader.SHEET]
     assert len(keys) == len(set(keys)) and set(keys) == set(reader.TH)

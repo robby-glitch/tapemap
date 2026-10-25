@@ -234,3 +234,34 @@ def test_a_vtt_reset_inside_the_bar_marks_it_partial():
 
 def test_close_open_is_none_before_any_frame():
     assert ladder.Ladder().close_open() is None
+
+
+def test_a_feed_gap_books_nothing_and_marks_the_bar_partial():
+    """25 Oct review D3 / A67: after a dropped socket, the whole gap's volume used to land as ONE print on one
+    side (16 Oct 11:10: delta +14,461 lots against a 779-lot median bar). The feed's own clock says it was a gap."""
+    prev = dict(R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]]), cts=T0 + 1000)
+    cur = dict(R(T0 + 91_000, 14_975, 100.05, 65, [[100.00, 65]], [[100.05, 65]]), cts=T0 + 91_000)
+    r = ladder.attribute(prev, cur, 0.05)
+    assert r["kind"] == "gap" and r["V"] == 13_975 and r["fills"] == [] and r["gap_s"] == 90
+    L = ladder.Ladder(lot=65, tick=0.05, idx="NIFTY", day="2026-09-11")
+    L.step(prev)
+    L.step(cur)
+    bar = L.close_open()
+    assert bar["vol"] == 0 and bar["delta"] == 0 and bar["feed_gaps"] == 1 and bar["gap_vol"] == 215
+    assert bar["partial"] is True and bar["partial_why"].startswith("feed gap 90s")
+    assert bar["ladder"] == [] and bar["o"] is None
+    # the gap's volume never reaches the lot gcd (13,976 is not a multiple of 65: it would drag the lot to 1), and
+    # the pair after a gap is measured from the post-gap row: a normal 65 here is one lot.
+    after = dict(R(T0 + 92_000, 15_041, 100.05, 65, [[100.00, 65]], [[100.05, 65]]), cts=T0 + 92_000)
+    L2 = ladder.Ladder(tick=0.05)
+    for row in (prev, dict(cur, vtt=14_976), after):
+        L2.step(row)
+    bar = L2.close_open()
+    assert bar["lot_src"] == "gcd" and bar["lot"] == 65 and bar["vol"] == 1 and bar["feed_gaps"] == 1
+
+
+def test_rows_without_the_feed_clock_never_read_as_a_gap():
+    """Guard: test rows and old files carry cts None, so the rule stays off rather than guess from arrival time."""
+    prev = R(T0 + 1000, 1000, 100.00, 65, [[100.00, 65]], [[100.05, 65]])
+    cur = R(T0 + 291_000, 1065, 100.05, 65, [[100.00, 65]], [[100.05, 65]])
+    assert ladder.attribute(prev, cur, 0.05)["kind"] == "exact"

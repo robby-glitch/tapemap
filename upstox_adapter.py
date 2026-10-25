@@ -130,6 +130,15 @@ def ltp_of(feed):
     return _num((core.get("ltpc") or {}).get("ltp"))
 
 
+def ltt_of(feed):
+    """Last trade time (exchange epoch ms) out of any feed shape, or None -- VPIN's gap clock (A67)."""
+    core = _core(feed)
+    if not core:
+        return None
+    v = _num((core.get("ltpc") or {}).get("ltt"))
+    return None if v is None else int(v)
+
+
 def _levels(core):
     """The bid/ask ladder as the socket sent it, best level first.
 

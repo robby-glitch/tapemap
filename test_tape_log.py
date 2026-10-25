@@ -204,3 +204,53 @@ def test_prior_days_need_todays_contract_once_the_dump_forgets_the_expiry(tdir):
     assert days == ["2026-09-30"] and why == "earlier days' contract was not recorded (before the contract stamp)"
     assert tape_log.prior_pool("2026-09-30", "NIFTY", 5, ik="NSE_FO|48704")[0] == []
     assert tape_log.prior_pool("2026-10-02", "NIFTY", 5) == (["2026-10-01", "2026-09-30", "2026-09-29"], None)
+
+
+def test_two_posts_at_once_write_each_bar_once(tdir, monkeypatch):
+    """25 Oct review D6 / A69: the seen-set was updated only after the write, so two frame POSTs on two server
+    threads both wrote the same bars (41 duplicate rows over 8 NIFTY days)."""
+    import threading
+    import time
+    real = tape_log._write_lines
+
+    def slow(path, rows):
+        time.sleep(0.05)                                 # widen the check-then-append window
+        real(path, rows)
+    monkeypatch.setattr(tape_log, "_write_lines", slow)
+    doc = _doc(n=3)
+    ts = [threading.Thread(target=tape_log.append, args=(doc, "2026-09-19", "NIFTY")) for _ in range(2)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    rows = _lines(tape_log.day_path("2026-09-19", "NIFTY"))
+    assert sorted(r["t"] for r in rows) == sorted(b["t"] for b in doc["closed"])
+
+
+def test_two_posts_at_once_write_each_marks2_row_once(tdir, monkeypatch):
+    """Same race as the bars (25 Oct review D6), on the marks2 writer: on a cold start both threads seed their own
+    seen-set from the file, the later one replaces the earlier, and each writes the rows. A restart is the cold start,
+    so the set is cleared here and the seed read is slowed to make the threads overlap."""
+    import threading
+    import time
+    real_read, real_write = tape_log._read, tape_log._write_lines
+
+    def slow_read(path):
+        time.sleep(0.05)                                 # widen the seed's check-then-assign window
+        return real_read(path)
+
+    def slow_write(path, rows):
+        time.sleep(0.05)
+        real_write(path, rows)
+    monkeypatch.setattr(tape_log, "_read", slow_read)
+    monkeypatch.setattr(tape_log, "_write_lines", slow_write)
+    tape_log._seen_marks2.clear()
+    doc = {"marks2": [{"id": f"trap@{i}", "t": 1789726200000 + i, "kind": "trap", "p": 23380.0, "status": "TIKA", "tier": "solid"}
+                      for i in range(3)]}
+    ts = [threading.Thread(target=tape_log.append_marks2, args=(doc, "2026-09-19", "NIFTY")) for _ in range(2)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    rows = real_read(tape_log.marks2_path("2026-09-19", "NIFTY"))
+    assert sorted(r["id"] for r in rows) == ["trap@0", "trap@1", "trap@2"]

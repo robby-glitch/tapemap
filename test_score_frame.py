@@ -94,3 +94,52 @@ def test_write_survives_a_torn_line_and_keeps_rows_appended_mid_rewrite(tmp_path
     out = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()]
     assert [r["ts"] for r in out] == ["09:45", "10:00", "10:05"] and out[0]["taps"][0]["ex"]["1"] == 1.0
     assert not frame_log.LOCK.locked()
+
+
+def test_write_scores_only_the_posting_index_rows(tmp_path):
+    """25 Oct review D1 / A65: the day file holds every index, but the POST's bars belong to one. A SENSEX row
+    filled from NIFTY's bars is a wrong outcome, written once and never corrected."""
+    import json
+    p = tmp_path / "frame_2026-09-11.jsonl"
+    p.write_text(json.dumps(ROW) + "\n" + json.dumps(dict(ROW, idx="SENSEX")) + "\n", encoding="utf-8")
+    score_frame.write("2026-09-11", BARS, path=str(p), idx="NIFTY")
+    out = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines()]
+    assert out[0]["taps"][0]["ex"]["1"] == 1.0
+    assert out[1]["taps"][0]["ex"] == {} and "resolved" not in out[1]["setup"]["tells"][0]
+
+
+def test_a_hollow_bar_skips_its_own_cell_and_never_stops_the_rest():
+    """25 Oct review D4 / A66: one bar with no close made every write that day raise (45 failures on 9 Oct,
+    19 on 19 Oct), so nothing after it was ever scored."""
+    bars = copy.deepcopy(BARS)
+    bars[8]["c"] = None                                   # the tap's i0 5 + 3
+    out = score_frame.score([copy.deepcopy(ROW)], bars)
+    ex = out[0]["taps"][0]["ex"]
+    assert ex["1"] == 1.0 and ex["6"] == 6.0 and "3" not in ex
+    assert out[0]["setup"]["tells"][0]["resolved"] == "target"
+
+
+def test_a_hollow_tap_bar_leaves_the_cells_empty_and_raises_nothing():
+    """25 Oct review D4: no close at the tap's own bar means nothing to measure from; ex stays {}."""
+    bars = copy.deepcopy(BARS)
+    bars[5]["c"] = None                                   # the tap's own bar (i0 = 5)
+    out = score_frame.score([copy.deepcopy(ROW)], bars)
+    assert out[0]["taps"][0]["ex"] == {}
+
+
+def test_a_hollow_minute_horizon_bar_skips_only_that_cell():
+    """25 Oct review D4: the +90m cell reads bars[5 + 90 // 5]; a hollow one leaves "90m" absent, "1" still fills."""
+    bars = copy.deepcopy(BARS)
+    bars[23]["c"] = None                                  # the tap's i0 5 + 90 min / 5
+    ex = score_frame.score([copy.deepcopy(ROW)], bars)[0]["taps"][0]["ex"]
+    assert "90m" not in ex and ex["1"] == 1.0
+
+
+def test_a_hollow_first_bar_after_the_row_does_not_leave_its_tells_unscored():
+    """25 Oct review D4: px0 was after[0]["o"]; a hollow first bar (o and c None) left the tell and control unscored
+    forever. ROW.ts 09:45 -> BARS[3] (09:50) is the first bar after it."""
+    bars = copy.deepcopy(BARS)
+    bars[3]["o"] = bars[3]["c"] = None
+    out = score_frame.score([copy.deepcopy(ROW)], bars)
+    assert out[0]["setup"]["tells"][0]["resolved"] == "target"
+    assert out[0]["setup"]["control"]

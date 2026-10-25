@@ -151,3 +151,44 @@ def test_a_save_and_a_restore_close_the_loop(monkeypatch, tmp_path):
     server._load_day_state()
     assert list(server._SENSES["drag_day"]["NIFTY"])[0]["frac"] == 0.88
     server._SENSES["drag_day"], server._SENSES["day_restored"] = {}, 0
+
+
+# ---- one writer at a time; a torn file is evidence, not a missing one (25 Oct review D2 / A68) ------------
+
+def test_two_threads_saving_at_once_leave_one_valid_file(tmp_path, monkeypatch):
+    """Six server threads call save, and every one used the same .tmp name with no lock. On Windows a second
+    open handle makes os.replace fail, or interleaved writes tear the file -- which then loads as {}."""
+    import threading
+    import time as _t
+    real = day_state.json.dump
+
+    def slow_dump(obj, fh):
+        _t.sleep(0.05)                                  # hold the temp file open long enough to collide
+        real(obj, fh)
+    monkeypatch.setattr(day_state.json, "dump", slow_dump)
+    errors = []
+
+    def go(i):
+        try:
+            day_state.save("2026-08-25", {"hold_trades": [i]}, dir_=tmp_path)
+        except Exception as e:                          # noqa: BLE001 -- the test collects whatever a thread raised
+            errors.append(e)
+    ts = [threading.Thread(target=go, args=(i,)) for i in range(4)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert errors == []
+    assert day_state.load("2026-08-25", dir_=tmp_path)["hold_trades"] in ([0], [1], [2], [3])
+    assert [p.name for p in tmp_path.iterdir()] == ["day_2026-08-25.json"]
+
+
+def test_a_torn_file_is_kept_aside_and_logged_not_silently_lost(tmp_path, caplog):
+    """A torn file used to load as {} with no log line, and the next save overwrote the trades it held. It
+    still starts the day cold, but the file is kept and the log says so."""
+    (tmp_path / "day_2026-08-25.json").write_text('{"day": "2026-08-25", "hold_trades": [{"id"', encoding="utf-8")
+    with caplog.at_level("ERROR", logger="tapemap"):
+        assert day_state.load("2026-08-25", dir_=tmp_path) == {}
+    kept = [p.name for p in tmp_path.iterdir()]
+    assert len(kept) == 1 and kept[0].startswith("day_2026-08-25.json.corrupt-")
+    assert "unreadable" in caplog.text

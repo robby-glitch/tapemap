@@ -842,7 +842,7 @@ def _senses_loop(poller, payloads, period=0.5):
                                         gv = _SENSES["vpin"][name] = vpin_mod.Gauge()
                                     for ev in gv.on_frame(
                                             upstox_adapter.ltp_of(frame),
-                                            _v, stamp):
+                                            _v, stamp, t_ms=upstox_adapter.ltt_of(frame)):
                                         vpin_due.append(
                                             dict(ev, inst=name,
                                                  day=time.strftime("%Y-%m-%d")))
@@ -857,7 +857,7 @@ def _senses_loop(poller, payloads, period=0.5):
                                             vpin_mod.Gauge(vpin_mod.FAST_BUCKET_V)
                                     for ev in gf.on_frame(
                                             upstox_adapter.ltp_of(frame),
-                                            _v, stamp):
+                                            _v, stamp, t_ms=upstox_adapter.ltt_of(frame)):
                                         vpin_fast_due.append(
                                             dict(ev, inst=VPIN_FAST_INST,
                                                  day=time.strftime("%Y-%m-%d")))
@@ -1305,7 +1305,7 @@ def _feed_read(idx, day):
 
 
 _UX_KEEP = ("t", "o", "h", "l", "c", "vol", "buy", "sell", "unknown", "unpriced", "delta", "cvd", "oi",
-            "exact", "reconstructed", "hidden", "late_frames", "partial", "partial_why")
+            "exact", "reconstructed", "hidden", "late_frames", "partial", "partial_why", "feed_gaps", "gap_vol")
 
 
 def _ux_reply(idx, day, row, anchor, ofd_raw):
@@ -4751,7 +4751,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if in_session and nbars != _SCORED_BARS.get(idx):
                     _SCORED_BARS[idx] = nbars
                     try:
-                        score_frame.write(day, doc.get("closed") or [])
+                        score_frame.write(day, doc.get("closed") or [], idx=idx)
                     except Exception:
                         log.exception("score_frame write")
             except Exception as e:               # never 500 at a browser extension

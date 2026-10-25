@@ -147,13 +147,16 @@ class BookMinutes:
         if x is None:
             x = self.out[m] = {"t": m, "o": None, "h": None, "l": None, "c": None, "bvol": 0.0, "buy": 0.0,
                                "sell": 0.0, "unk": 0.0, "oi": None, "prints": [], "nx": 0, "lx": 0.0, "nf": 0,
-                               "spr": None, "_s": 0.0, "_n": 0}
+                               "spr": None, "_s": 0.0, "_n": 0, "gaps": 0, "gap_v": 0.0}
         if r.get("oi") is not None:
             x["oi"] = r["oi"] / lot
         if r.get("b") and r.get("a") and r["a"][0][0] is not None and r["b"][0][0] is not None:
             x["_s"] += r["a"][0][0] - r["b"][0][0]
             x["_n"] += 1
             x["spr"] = x["_s"] / x["_n"]
+        if res is not None and res["kind"] == "gap":      # A67: traded unseen -- counted in lots, booked to no side
+            x["gaps"] += 1
+            x["gap_v"] += res["V"] / lot
         if not traded:
             return
         ltp = r.get("ltp")

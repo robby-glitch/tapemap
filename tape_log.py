@@ -30,11 +30,13 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from datetime import date
 from typing import Dict, List, Optional, Set, Tuple
 
 DIR = os.path.join("data", "tape")
 failed = 0
+_LOCK = threading.Lock()   # frame POSTs run on server threads: the seen-check and the append are one step (D6)
 
 _seen_bars: Dict[Tuple[str, str], Set[int]] = {}
 _seen_marks: Dict[Tuple[str, str], Set[tuple]] = {}
@@ -171,7 +173,13 @@ def _write_lines(path: str, rows: List[dict]) -> None:
 
 
 def append(doc: dict, day: str, idx: str) -> dict:
-    """Write the doc's new closed bars and new marks. Returns how many landed."""
+    """Write the doc's new closed bars and new marks. Returns how many landed. Frame POSTs run on server
+    threads, so the seen-check and the append happen as one step under _LOCK (25 Oct review D6)."""
+    with _LOCK:
+        return _append(doc, day, idx)
+
+
+def _append(doc: dict, day: str, idx: str) -> dict:
     global failed
     _seed(day, idx)
     seen_b, seen_m = _seen_bars[(day, idx)], _seen_marks[(day, idx)]
@@ -238,7 +246,12 @@ def _m2_key(m: dict) -> tuple:
 
 
 def append_marks2(doc: dict, day: str, idx: str) -> int:
-    """Write the post's new v2 mark rows (whitelisted fields + day/idx). Returns how many landed."""
+    """Write the post's new v2 mark rows (whitelisted fields + day/idx). Returns how many landed. Under _LOCK, like append."""
+    with _LOCK:
+        return _append_marks2(doc, day, idx)
+
+
+def _append_marks2(doc: dict, day: str, idx: str) -> int:
     global failed
     rows = doc.get("marks2")
     if not isinstance(rows, list) or not rows:

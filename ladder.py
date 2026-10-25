@@ -6,6 +6,9 @@ orderflow.html:1478-1511, with this repo's side rule). Per consecutive pair
 
   V < 0        the feed reset: skipped, counted.
   V == 0       nothing traded: nothing attributed (depth_pull owns the book).
+  cts jump     a GAP (25 Oct, A67): the feed's own clock moved > GAP_MS between the
+               two rows -- a dropped socket or a restart. V traded unseen: booked to
+               no side and no price, counted, and the bar is marked partial.
   V == ltq     EXACT: one trade of V at cur.ltp. Price/size [M]; side [I] by the
                touch it hit, judged against prev's book (per-trade quote rule --
                NOT the interval rule sweep.py killed: each print against the
@@ -35,6 +38,7 @@ from typing import Dict, List, Optional, Tuple
 
 HALF_TICK = 0.55          # Order Flow Lab's tick*0.55: past this, the trade could not have reached the level
 INTERVAL_S = 300
+GAP_MS = 30_000           # ponytail: one bound for every index; 0 such gaps on 23 Oct, the 12/16 Oct slugs caught [M]
 
 
 def side_of(ltp: float, prev: dict) -> int:
@@ -90,6 +94,10 @@ def attribute(prev: Optional[dict], cur: dict, tick: float) -> dict:
         return _empty("reset", V)
     if V == 0:
         return _empty("quiet")
+    if prev.get("cts") is not None and cur.get("cts") is not None and cur["cts"] - prev["cts"] > GAP_MS:
+        r = _empty("gap", V)
+        r["gap_s"] = int((cur["cts"] - prev["cts"]) // 1000)
+        return r
     ltp = cur.get("ltp")
     if ltp is None:
         ltp = prev.get("ltp")
@@ -195,7 +203,8 @@ class Ladder:
         self.acc = {"t": b, "o": None, "h": None, "l": None, "c": None, "oi": None,
                     "vol": 0, "buy": 0, "sell": 0, "unknown": 0, "unpriced": 0, "hidden": 0,
                     "lad": {}, "frames": 0, "exact": 0, "reconstructed": 0,
-                    "vtt_resets": 0, "levels_seen": 0, "first_ms": None, "late_frames": 0}
+                    "vtt_resets": 0, "levels_seen": 0, "first_ms": None, "late_frames": 0,
+                    "gaps": 0, "gap_vol": 0, "gap_s": 0}
 
     def _close(self) -> Optional[dict]:
         a = self.acc
@@ -213,6 +222,8 @@ class Ladder:
         why = None
         if a["vtt_resets"]:
             why = f"vtt reset {a['vtt_resets']} time(s) inside the bar"
+        elif a["gaps"]:
+            why = f"feed gap {a['gap_s']}s: {round(a['gap_vol'] / div, 1)} lots traded unseen, not placed"
         elif a["first_ms"] is not None and self.first_ms == a["first_ms"] and a["first_ms"] > a["t"] + 1000:
             why = f"record starts at {hms_ist(a['first_ms'])}, bar opened at {hms_ist(a['t'])}"
         bar = {"t": a["t"], "o": a["o"], "h": a["h"], "l": a["l"], "c": a["c"],
@@ -223,6 +234,7 @@ class Ladder:
                "lot": lot, "lot_src": lot_src, "lot_why": lot_why, "tick": tick, "tick_src": tick_src,
                "frames": a["frames"], "exact": a["exact"], "reconstructed": a["reconstructed"],
                "hidden": a["hidden"] / div, "vtt_resets": a["vtt_resets"], "lot_mismatch": mismatch,
+               "feed_gaps": a["gaps"], "gap_vol": a["gap_vol"] / div,
                "levels_seen": a["levels_seen"], "late_frames": a["late_frames"],
                "partial": why is not None, "partial_why": why,
                "src": "ux", "idx": self.idx, "day": self.day}
@@ -263,6 +275,10 @@ class Ladder:
             a["oi"] = row["oi"]
         if res["kind"] == "reset":
             a["vtt_resets"] += 1
+        if res["kind"] == "gap":                      # A67: no side, no price, no ladder row -- counted and said
+            a["gaps"] += 1
+            a["gap_vol"] += res["V"]
+            a["gap_s"] = max(a["gap_s"], res["gap_s"])
         fills: List[dict] = []
         if traded:
             V = res["V"]

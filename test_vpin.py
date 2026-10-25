@@ -189,3 +189,13 @@ def test_a_fast_log_that_exists_is_filtered_to_the_day_and_the_instrument(tmp_pa
     rows = server._vpin_fast_rows(str(p), "2026-09-23", "NIFTY-FUT:fast")
     assert [r["t"] for r in rows] == ["09:24"]
     assert rows[0]["backfill"] is False and rows[0]["src"] == "live_frames"
+
+
+def test_a_feed_gap_rearms_and_books_nothing():
+    """25 Oct review D3 / A67: on reconnect, the whole gap's volume used to close buckets on one side."""
+    g = _gauge(v=100)
+    g.on_frame(100.0, 0, t_ms=0)
+    g.on_frame(101.0, 0, t_ms=1_000)                      # uptick: sign = buy
+    assert g.on_frame(101.0, 5_000, t_ms=91_000) == []    # 90 s on the exchange clock: 50 buckets' worth, booked nowhere
+    assert g.gaps == 1 and g.buckets == 0
+    assert len(g.on_frame(101.0, 5_100, t_ms=92_000)) == 1  # the next 100 close one bucket, as normal

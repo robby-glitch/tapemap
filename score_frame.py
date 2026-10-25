@@ -31,20 +31,24 @@ def _fill_tap(tp: dict, bars: List[dict]) -> None:
     if i0 is None or i0 >= len(bars):
         return
     c0, side = bars[i0]["c"], tp.get("side") or 1
+    if c0 is None:
+        return                                        # a hollow tap bar: nothing to measure from (D4)
     ex = tp.setdefault("ex", {})
     for n in HORIZ_BARS:
         key = str(n)
-        if key not in ex and i0 + n < len(bars):
+        if key not in ex and i0 + n < len(bars) and bars[i0 + n]["c"] is not None:
             ex[key] = round(side * (bars[i0 + n]["c"] - c0), 1)
     for mins in HORIZ_MIN:
         key = f"{mins}m"
         j = i0 + mins // 5
-        if key not in ex and j < len(bars):
+        if key not in ex and j < len(bars) and bars[j]["c"] is not None:
             ex[key] = round(side * (bars[j]["c"] - c0), 1)
 
 
 def _resolve(target, negation, after: List[dict], up: bool):
     for b in after:
+        if b["c"] is None:
+            continue                                  # a hollow bar answers nothing (D4)
         if target is not None and ((up and b["c"] >= target) or (not up and b["c"] <= target)):
             return "target"
         if negation is not None and ((up and b["c"] <= negation) or (not up and b["c"] >= negation)):
@@ -59,7 +63,7 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
             _fill_tap(tp, bars)
         w = r.get("setup") or {}
         after = [b for b in bars if _hhmm(b["t"]) > (r.get("ts") or "00:00")]
-        px0 = after[0]["o"] if after else None
+        px0 = next((b["o"] for b in after if b.get("o") is not None), None)  # first bar with an open: a hollow first bar must not leave the row unscored forever (D4)
         for tell in w.get("tells") or []:
             if "resolved" in tell:
                 continue
@@ -82,8 +86,9 @@ def score(rows: List[dict], bars: List[dict]) -> List[dict]:
     return rows
 
 
-def write(day: str, bars: List[dict], path: Optional[str] = None) -> int:
-    """Rescore the day's file in place. The read and the scoring run outside frame_log.LOCK (seconds on a 200 MB
+def write(day: str, bars: List[dict], path: Optional[str] = None, idx: Optional[str] = None) -> int:
+    """Rescore the day's file in place, only the rows of `idx` (the index whose bars these are; the day file holds
+    every index -- 25 Oct review D1). The read and the scoring run outside frame_log.LOCK (seconds on a 200 MB
     day); the swap runs inside it and carries over every row appended meanwhile, so no append is lost or cut in
     half. A torn line is dropped, never fatal: one bad line used to stop all scoring (3 Oct).
     ponytail: still a whole-file rewrite per closed bar (~7 s CPU on 1 Oct's 244 MB); incremental if it bites."""
@@ -100,7 +105,8 @@ def write(day: str, bars: List[dict], path: Optional[str] = None) -> int:
                 rows.append(json.loads(line))
             except ValueError:
                 continue
-    rows = score(rows, bars)
+    mine = rows if idx is None else [r for r in rows if r.get("idx") == idx]
+    score(mine, bars)                                 # in place: another index's rows are written back untouched
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         for r in rows:

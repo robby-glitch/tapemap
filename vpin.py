@@ -60,6 +60,8 @@ from bisect import bisect_right, insort
 from collections import deque
 from typing import Dict, List, Optional
 
+from ladder import GAP_MS
+
 # --- the [I] layer ---------------------------------------------------------
 BUCKET_V = 60_000    # units per bucket: median-of-30-sessions ADV/50 (docstring)
 # THE FAST LINE (operator, 2026-09-23: "we need a fast line and a slow line ...
@@ -130,12 +132,14 @@ class Gauge:
         self._rank = Rank()
         self.buckets = 0               # completed, lifetime
         self.resets = 0                # vtt went backwards
+        self.gaps = 0                  # the exchange clock jumped > GAP_MS: re-armed, booked nowhere (A67)
+        self._t_ms: Optional[int] = None
         self.last: Optional[Dict] = None          # last completed event
 
     # -- feeding ------------------------------------------------------------
 
     def on_frame(self, ltp: Optional[float], vtt: Optional[float],
-                 stamp: str = "") -> List[Dict]:
+                 stamp: str = "", t_ms: Optional[int] = None) -> List[Dict]:
         if ltp is not None and self._ltp is not None:
             if ltp > self._ltp:
                 self._sign = 1
@@ -145,9 +149,17 @@ class Gauge:
             self._ltp = ltp
         if vtt is None:
             return []
+        last_t = self._t_ms
+        if t_ms is not None:
+            self._t_ms = t_ms
         if self._vtt is None or vtt < self._vtt:   # first frame, or feed reset
             if self._vtt is not None:
                 self.resets += 1
+            self._vtt = vtt
+            return []
+        if t_ms is not None and last_t is not None and vtt > self._vtt and t_ms - last_t > GAP_MS:
+            # A67: a dropped socket's whole gap would close buckets on one side. Re-arm, book nothing.
+            self.gaps += 1
             self._vtt = vtt
             return []
         dv, self._vtt = vtt - self._vtt, vtt
