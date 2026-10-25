@@ -183,7 +183,7 @@ def test_minute_log_writes_once_per_trade_per_minute():
 
 def _post_marked(monkeypatch, now_day, now_hm):
     import fold_live
-    monkeypatch.setattr(fold_live, "frame", lambda idx, trades: (_fold(), None))
+    monkeypatch.setattr(fold_live, "frame", lambda idx, trades, **k: (_fold(), None))
     return _post_at(monkeypatch, now_day, now_hm)
 
 

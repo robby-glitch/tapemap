@@ -131,7 +131,9 @@ export function FloatBody({ t, r, story, feed, why, va, onAck }: { t: Trade; r?:
       <p className="fl num"><span className="rv" title={(rv?.items ?? []).map(x => `${x.met ? '✓' : x.met === false ? '·' : '?'} ${x.text}`).join('\n')}>
           <b>{rv ? `${rv.met}/${rv.of}` : '—'}</b> reversal{rv?.unknown ? <span className="muted"> ({rv.unknown} check nahi)</span> : null}</span>
         <span>T1 {lv?.t1 != null ? lv.t1_hit ? <b className="up">touched</b> : <><b>{pts(lv.to_t1)}</b> pts</> : <Abs text={cc(lv?.t1_why, 'no T1')} />}</span>
-        <span>inval {lv?.inval != null ? <><b className={(lv.to_inval ?? 1) <= 0 ? 'dn' : ''}>{pts(lv.to_inval)}</b> pts</> : <Abs text={cc(lv?.inval_why, 'no invalidation')} />}</span>
+        {/* F9 (25 Oct): no stop but the voice's -- when it cannot speak this says why, never validate's inval in its place */}
+        <span>{r?.voice?.ok ? <>inval {lv?.inval != null ? <><b className={(lv.to_inval ?? 1) <= 0 ? 'dn' : ''}>{pts(lv.to_inval)}</b> pts</> : <Abs text={cc(lv?.inval_why, 'no invalidation')} />}</>
+          : <>stop: <Abs text={cc(r?.voice?.why ?? (r && !r.ok ? r.why : null), 'TapeMap ki voice nahi aayi')} /></>}</span>
         {v?.line2 && <span className="muted l2s">{v.line2}</span>}</p>
       {unacked.length > 0 && <p className="acks">{unacked.map(([k, l]) =>
         <button key={k} className={`ack ${l.state}`} title={`${l.text ?? ''}\nclick: seen — recorded on the trade (ack)`}

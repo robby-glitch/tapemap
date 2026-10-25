@@ -647,12 +647,20 @@ def basis(idx):
     return None if b is None else round(float(b), 1)
 
 
-def frame(idx, trades):
-    """POST /api/frame's two extra fields: `fold` for the open marked trade on idx (else None), `flat` when none."""
+def frame(idx, trades, any_idx=False):
+    """POST /api/frame's two extra fields: `fold` for the open trade on idx -- else, when the page opted in (`any_idx`, its
+    `away: 1`, extension 0.5.11+; an older page would draw another index's levels on this chart), her most recent open MARKED
+    trade on any index, its own idx in fold.trade (25 Oct review F6: she trades SENSEX on the NIFTY chart, §1q, and NIFTY's
+    page is the one that posts) -- with `open_n`, every trade she has open; `flat`, this index's read, unless the trade is
+    this index's."""
     try:
-        open_ = [t for t in trades if t["idx"] == idx and not t.get("exit_t")]
-        if open_:
-            return reply("/api/fold", {"id": [open_[0]["id"]]}, trades), None
-        return None, reply("/api/fold/flat", {"idx": [idx]}, trades)
+        live = [t for t in trades if not t.get("exit_t")]
+        mine = [t for t in live if t["idx"] == idx]
+        away = [t for t in live if any_idx and t.get("src", "marked") == "marked"]
+        flat = None if mine else reply("/api/fold/flat", {"idx": [idx]}, trades)
+        if not (mine or away):
+            return None, flat
+        tr = mine[0] if mine else max(away, key=lambda t: t.get("t0") or "")
+        return dict(reply("/api/fold", {"id": [tr["id"]]}, trades), open_n=len(live)), flat
     except Exception as e:
         return dict(ok=False, why=_fail(e)), None

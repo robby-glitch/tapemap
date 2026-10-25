@@ -11,7 +11,8 @@ export type Flip = { t: string; from: Word; to: Word; rows: string[] }
 type State = { trades: Trade[]; lots: Record<string, number | null>; reads: Record<string, Held>; flips: Record<string, Flip>
                err: string | null; loaded: boolean }
 
-const POLL_MS = 15000, TIMEOUT_MS = 8000
+const POLL_MS = 15000
+export const TIMEOUT_MS = 8000   // the one fetch bound: j() below, and data.ts's 5 s poll (25 Oct review F10)
 const RANK: Record<string, number> = { FOLD: 0, 'PATA NAHI': 1, WATCH: 2, HOLD: 3 }
 export const rank = (w?: string) => RANK[w ?? 'HOLD'] ?? 3
 

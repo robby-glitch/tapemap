@@ -2253,6 +2253,13 @@ def _market_hours(day, now_day, now_hm):
 _STORY_MEM = {}      # idx -> the two things with no time of their own: VPIN crossing 0.8, a flat read going to CAN'T CHECK
 
 
+def _own_fold(fold, idx):
+    """The frame's fold when it is THIS index's trade (or names none), else None. Since 25 Oct (F6) the frame can carry her
+    open trade on another index for the panel's voice; the story's count and the HOLD-vs-DECODER log read this index's
+    decoder, so a SENSEX trade riding NIFTY's POST never enters them."""
+    return fold if ((fold or {}).get("trade") or {}).get("idx") in (None, idx) else None
+
+
 def _story_for(idx, day, doc, fr, now_ms):
     """THE PANEL'S STORY (story.compose_all) for this post: the decoder's sentence, the day as chapters, the decoder's
     count beside her trade, and the out-of-the-ordinary highlights. Reads what the server already publishes -- the
@@ -2289,7 +2296,7 @@ def _story_for(idx, day, doc, fr, now_ms):
     except Exception:
         logged = []
     return story_mod.compose_all(doc.get("decoder"), doc.get("futPx"), day, now_ms, doc.get("closed") or [],
-                                 fr.get("fold"), trap, three, fr.get("feed"), vp, logged, m["cant"])
+                                 _own_fold(fr.get("fold"), idx), trap, three, fr.get("feed"), vp, logged, m["cant"])
 
 
 _VAL_LAST = {}       # trade id -> its last live read: tags her exits (FEAR_EXIT / AMBER_EXIT), never blocks them
@@ -4528,6 +4535,12 @@ class Handler(SimpleHTTPRequestHandler):
                                     tr["exit_t"] = None
                                     tr.pop("exit_t_broker", None)
                                     tr.pop("exit_at", None)
+                            elif (op == "exit" and tr.get("exit_t") and time.time() - (tr.get("exit_at") or 0) < 60
+                                  and (not doc.get("exit_t") or ex >= tr["exit_t"])):
+                                # her second click on a slow answer (the client gives up in 8 s): the first exit stands, untouched (25 Oct F10).
+                                # Every face: Validate sends no exit_t, the panel / Float / Mark send the click time -- a later one is the same
+                                # click; an EARLIER exit_t is a correction, and any exit 60 s or more after the first passes
+                                out = {"ok": True, "why": f"already out at {tr['exit_t']}", "trades": list(trades)}
                             elif not _HOLD_T.match(ex) or ex < tr["t0"]:
                                 out = {"ok": False, "why": board.CC + "exit time must be HH:MM[:SS], not before the entry"}
                             else:
@@ -4681,7 +4694,7 @@ class Handler(SimpleHTTPRequestHandler):
                 try:
                     fold_live.push(idx, "tape", doc.get("closed") or [])
                     trs = list(_hold_trades())
-                    fr["fold"], fr["flat"] = fold_live.frame(idx, trs)
+                    fr["fold"], fr["flat"] = fold_live.frame(idx, trs, any_idx=bool(doc.get("away")) and idx in instruments.ENABLED)
                     if isinstance(fr["fold"], dict) and fr["fold"].get("ok"):    # the panel's one voice (A52)
                         fr["fold"] = _in_trade(fr["fold"], trs)
                     elif fr["fold"] is None:
@@ -4714,7 +4727,7 @@ class Handler(SimpleHTTPRequestHandler):
                             fr[k] = None
                         for k in ("read_why", "plan_why", "rank_ref_why"):
                             fr[k] = f"could not check — the v2 read failed: {e}"
-                if in_session and isinstance(fr.get("fold"), dict) and fr["fold"].get("ok"):
+                if in_session and isinstance(_own_fold(fr.get("fold"), idx), dict) and fr["fold"].get("ok"):
                     try:                                 # HOLD vs DECODER, once a minute while she is marked
                         decoder_log.minute(day, idx, now_hm, fr["fold"], (fr.get("story") or {}).get("trade_read"), fr.get("validate"))
                     except Exception:

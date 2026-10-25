@@ -177,7 +177,7 @@ def test_an_engine_failure_is_a_why_and_never_breaks_the_hold_window_or_the_fram
     server.Handler.do_POST(req)
     code, fr = req.out[-1]
     assert fr["ok"] and fr["fold"]["ok"] is False and "the engine failed" in fr["fold"]["why"] and fr["flat"] is None
-    monkeypatch.setattr(fold_live, "frame", lambda *a: (_ for _ in ()).throw(RuntimeError("frame boom")))
+    monkeypatch.setattr(fold_live, "frame", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("frame boom")))
     req = _Req("/api/frame", _tape(n=3))
     server.Handler.do_POST(req)
     code, fr = req.out[-1]
@@ -210,6 +210,40 @@ def test_the_frame_carries_the_open_trades_view_whole(live, monkeypatch, tmp_pat
     assert v["units"]["basis"] is not None and v["d"] == -1 and v["G"]["px"] and v["W"]["k"] and "A" in v
     assert 0 < len(v["events"]) <= fold_live.EVENTS_SHOWN and all(e["ts"] and e["t"] and e["kind"] for e in v["events"])
     assert set(v["rows"]) == {"zone", "flow", "oi", "vpin"} and v["prem"]["now"] and v["sound_id"]
+
+
+def test_the_frame_carries_her_open_trade_on_another_index_and_this_index_never_reads_it(live, monkeypatch, tmp_path):
+    """25 Oct review F6 / A70 (DEV-FACES F04): she trades SENSEX on the NIFTY chart (§1q), and NIFTY's page is the one that
+    posts. The frame carried `fold` only for an open trade on the POST's own index, so the panel read FLAT mid-trade with
+    NIFTY MARK buttons. Now: her most recent open marked trade on any index, its idx in fold.trade, and open_n. NIFTY's own
+    flat read still rides, and NIFTY's story (and the HOLD-vs-DECODER log) never take the SENSEX trade."""
+    import story
+    sx = dict(REC, id="SENSEX-81200CE-long-100500", idx="SENSEX", k=81200.0, side="CE", t0="10:05:00")
+    bn = dict(REC, id="BANKNIFTY-54000PE-long-094000", idx="BANKNIFTY", k=54000.0, t0="09:40:00")
+    live.extend([dict(REC, exit_t="09:30:00"), bn, sx])          # NIFTY's own trade is closed: nothing open on this index
+    told = []
+    monkeypatch.setattr(story, "compose_all", lambda *a, **k: told.append(a[5]) or {})   # a[5]: the fold the story reads
+    monkeypatch.setattr(server.frame_log, "day_path", lambda day: str(tmp_path / f"frame_{day}.jsonl"))
+    old = _Req("/api/frame", _tape(n=3))                         # a 0.5.10 page: no `away` -- it must never get another index's trade
+    server.Handler.do_POST(old)
+    assert old.out[-1][1]["fold"] is None
+    req = _Req("/api/frame", dict(_tape(n=3), away=1))           # a 0.5.11 page opts in
+    server.Handler.do_POST(req)
+    fr = req.out[-1][1]
+    assert fr["ok"] and fr["fold"]["id"] == sx["id"] and fr["fold"]["trade"]["idx"] == "SENSEX" and fr["fold"]["open_n"] == 2
+    assert fr["flat"] is not None                                # NIFTY's flat read is this chart's own
+    assert told == [None, None]                                  # the NIFTY story never reads the SENSEX trade
+
+
+def test_a_chart_symbol_that_does_not_parse_to_an_index_never_gets_another_indexs_trade(live, monkeypatch, tmp_path):
+    """25 Oct final review (F6): an `away` page whose chart symbol did not parse posts idx NIFTY26OCTFUT. No trade is
+    "mine" there, so the opt-in handed it her SENSEX trade -- and an extension that cannot parse the chart's index would
+    treat it as its own and draw its lines. The opt-in counts only on a known index."""
+    live.append(dict(REC, id="SENSEX-81200CE-long-100500", idx="SENSEX", k=81200.0, side="CE", t0="10:05:00"))
+    monkeypatch.setattr(server.frame_log, "day_path", lambda day: str(tmp_path / f"frame_{day}.jsonl"))
+    req = _Req("/api/frame", dict(_tape(n=3), away=1, idx="NIFTY26OCTFUT"))
+    server.Handler.do_POST(req)
+    assert req.out[-1][1]["ok"] and req.out[-1][1]["fold"] is None
 
 
 class _ChainPoller:

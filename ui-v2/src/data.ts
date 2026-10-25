@@ -4,6 +4,7 @@
 // every 5s it pulls /api/data and /api/chain for all three indices in parallel,
 // tolerating a failing index (keeps last-good / mock fallback per index).
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { TIMEOUT_MS } from './hold/store'   // F05 (25 Oct): the one fetch bound, j()'s 8 s
 
 // ── Target types (what the components read) ─────────────────────────────────────
 export type IndexKey = 'NIFTY' | 'BANKNIFTY' | 'SENSEX'
@@ -1264,11 +1265,11 @@ export function useLiveData(fallback: Dataset) {
       let cr: Response
       // the grounding of this index's calls rides in PARALLEL and is optional:
       // an older server has no route, and a slow read never delays the price
-      const gP = fetch('/api/calls?idx=' + k).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+      const gP = fetch('/api/calls?idx=' + k, { signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
       try {
         ;[dr, cr] = await Promise.all([
-          fetch('/api/data?idx=' + k + '&interval=' + interval),
-          fetch('/api/chain?idx=' + k),
+          fetch('/api/data?idx=' + k + '&interval=' + interval, { signal: AbortSignal.timeout(TIMEOUT_MS) }),
+          fetch('/api/chain?idx=' + k, { signal: AbortSignal.timeout(TIMEOUT_MS) }),
         ])
       } catch {
         // fetch() rejects ONLY on a transport failure — nothing listening, or
@@ -1305,13 +1306,13 @@ export function useLiveData(fallback: Dataset) {
       return { ok: true, per: mapIndex(D, C, undefined, await gP) }
     }
 
-    async function tick() {
+    async function read() {
       const [results, health] = await Promise.all([
         Promise.all(KEYS.map(fetchIdx)),
         // Cheap, and answers whatever the tape is doing. It is the only route
         // that can say WHICH broker is serving, which the banner needs so it
         // stops naming a Dhan token while the tool runs on Upstox.
-        fetch('/api/health').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/health', { signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ])
       if (!alive) return
       setBroker(health?.broker ?? null)
@@ -1346,6 +1347,10 @@ export function useLiveData(fallback: Dataset) {
       }
     }
 
+    // F05 (25 Oct): one read in flight, and every fetch in it gives up after 8 s, so a wedged server turns the bar NOT LIVE
+    // (fetchIdx's catch: no answer on 8765) instead of freezing every number while the polls stack up
+    let busy = false
+    const tick = async () => { if (busy) return; busy = true; try { await read() } finally { busy = false } }
     tick()
     const id = window.setInterval(tick, 5000)
     return () => {

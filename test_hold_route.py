@@ -381,6 +381,57 @@ def test_i_am_out_defaults_to_now_is_checked_and_can_be_undone(srv, monkeypatch)
     assert _get("/api/hold/trades", srv)["trades"][0]["exit_t"] == "13:00"
 
 
+def test_a_second_i_am_out_keeps_the_first_exit_time(srv, monkeypatch):
+    """25 Oct review F10 round 1: the client gives up on a slow POST in 8 s, and her second click re-sent op exit with no exit_t --
+    which moved the recorded exit to the later click. A "now" exit on a trade already out answers ok with the existing exit and
+    changes nothing (no new snap, no new tags). The faces that send exit_t, and the corrections, are the tests below."""
+    clock, snaps, real = ["13:10:05"], [], server.time.strftime
+    monkeypatch.setattr(server.time, "strftime", lambda f, *a: clock[0] if f == "%H:%M:%S" else real(f, *a))
+    snap = server.trade_record.snap_exit
+    monkeypatch.setattr(server.trade_record, "snap_exit", lambda tr, rd: (snaps.append(tr["id"]), snap(tr, rd))[1])
+    tid = _post("/api/hold/trades", MARK, srv)["trades"][0]["id"]
+    first = _post("/api/hold/trades", {"op": "exit", "id": tid}, srv)["trades"][0]
+    clock[0] = "13:10:40"
+    got = _post("/api/hold/trades", {"op": "exit", "id": tid}, srv)
+    assert got["ok"] and got["why"] == "already out at 13:10:05"
+    assert got["trades"][0] == first and server._HOLD["trades"][0]["exit_t"] == "13:10:05" and snaps == [tid]
+
+
+def _out_with_click_time(srv, monkeypatch):
+    """A trade whose first I'M OUT came from the panel / Float / Mark: an explicit exit_t (the click time), 13:10:05.
+    Returns (id, the snap_exit calls so far)."""
+    snaps, snap = [], server.trade_record.snap_exit
+    monkeypatch.setattr(server.trade_record, "snap_exit", lambda tr, rd: (snaps.append(tr["id"]), snap(tr, rd))[1])
+    tid = _post("/api/hold/trades", MARK, srv)["trades"][0]["id"]
+    _post("/api/hold/trades", {"op": "exit", "id": tid, "exit_t": "13:10:05"}, srv)
+    return tid, snaps
+
+
+def test_a_second_i_am_out_that_carries_its_own_click_time_keeps_the_first_too(srv, monkeypatch):
+    """25 Oct final review (F10 round 2): the panel, the Float and Mark always send exit_t -- the click time -- so the
+    no-exit_t guard never saw their second click, and the exit moved to the later one. Within 60 s of the first exit, a
+    second exit at the same or a later time answers ok with the existing exit and changes nothing."""
+    tid, snaps = _out_with_click_time(srv, monkeypatch)
+    first = dict(server._HOLD["trades"][0])
+    for later in ("13:10:40", "13:10:05"):
+        got = _post("/api/hold/trades", {"op": "exit", "id": tid, "exit_t": later}, srv)
+        assert got["ok"] and got["why"] == "already out at 13:10:05", later
+    assert server._HOLD["trades"][0] == first and snaps == [tid]
+
+
+def test_a_correction_to_an_earlier_exit_time_overwrites_inside_the_60_s(srv, monkeypatch):
+    tid, snaps = _out_with_click_time(srv, monkeypatch)
+    got = _post("/api/hold/trades", {"op": "exit", "id": tid, "exit_t": "13:05:00"}, srv)
+    assert got["ok"] and got["trades"][0]["exit_t"] == "13:05:00" and snaps == [tid, tid]
+
+
+def test_an_exit_sent_a_minute_after_the_first_overwrites(srv, monkeypatch):
+    tid, snaps = _out_with_click_time(srv, monkeypatch)
+    server._HOLD["trades"][0]["exit_at"] -= 61
+    got = _post("/api/hold/trades", {"op": "exit", "id": tid, "exit_t": "13:20:00"}, srv)
+    assert got["ok"] and got["trades"][0]["exit_t"] == "13:20:00" and snaps == [tid, tid]
+
+
 def test_a_post_from_another_site_is_refused(srv):
     """REVIEW §P2 (CSRF): a cross-site POST changes nothing; the Vite proxy's same-origin passes."""
     for path, body in (("/api/hold/trades", MARK), ("/api/hold/import", b"")):

@@ -347,7 +347,7 @@ with
     const t0 = T ? String(T.t0 || T.entry_t || '').slice(0, 5) : null;
     // F6 (25 Oct): the frame can carry her trade on ANOTHER index (fold_live.frame, §1q: SENSEX on the NIFTY chart). Its levels
     // are that index's futures: no line of it is drawn on this chart (frame discipline); the block says where they are
-    const away = T && T.idx && T.idx !== idxOf(d.key) ? T.idx : null, more = fd && fd.open_n > 1 ? fd.open_n - 1 : 0;
+    const ci = idxOf(d.key), away = T && T.idx && /^(NIFTY|BANKNIFTY|SENSEX)$/.test(ci) && T.idx !== ci ? T.idx : null, more = fd && fd.open_n > 1 ? fd.open_n - 1 : 0;   // review fix: a parse miss never hides her own lines
 ```
 
 Replace

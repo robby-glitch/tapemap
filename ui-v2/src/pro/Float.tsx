@@ -7,15 +7,24 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Guard, Ico } from '../hold/parts'
-import { hms, tradeOp, useStore, type Trade } from './api'
+import { hms, isDown, tradeOp, useStore, type Trade } from './api'
 
 const W = 440
 const WORDS = ['HOLD', 'PAST GIVE-UP', 'FOLD', "CAN'T CHECK"]
-const VCLS: Record<string, string> = { HOLD: 'v-HOLD', 'PAST GIVE-UP': 'v-WATCH', FOLD: 'v-FOLD', "CAN'T CHECK": 'v-PATA' }
-const RANK: Record<string, number> = { FOLD: 0, 'PAST GIVE-UP': 1, "CAN'T CHECK": 2, HOLD: 3 }
+const VCLS: Record<string, string> = { HOLD: 'v-HOLD', 'PAST GIVE-UP': 'v-WATCH', FOLD: 'v-FOLD', "CAN'T CHECK": 'v-PATA', '?': 'v-PATA' }
+const RANK: Record<string, number> = { FOLD: 0, 'PAST GIVE-UP': 1, "CAN'T CHECK": 2, '?': 2, HOLD: 3 }
 const VSTATE: Record<string, string> = { HOLD: 'v-HOLD', TIGHTEN: 'v-HOLD', WARN: 'v-WATCH', EXIT: 'v-FOLD' }   // the voice's word, collapsed
 const ls = (k: string, v?: string) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v) } catch { /* private window */ } return null }
 const contract = (t: Trade) => `${t.k} ${t.side}`
+// F8 (25 Oct): the read's age off its own clock (/api/fold's asof, HH:MM:SS today), beside l1
+const ageOf = (asof: string | undefined, now: number) => {
+  const q = /^(\d\d):(\d\d):(\d\d)/.exec(asof ?? '')
+  if (!q) return '?'
+  const d = new Date(now)
+  d.setHours(+q[1], +q[2], +q[3], 0)
+  const s = Math.round((now - d.getTime()) / 1000)
+  return s < 0 ? '?' : s < 90 ? `${s}s` : `${Math.round(s / 60)} min`
+}
 
 export default function Float() {
   return <Guard name="floating window"><Win /></Guard>
@@ -25,7 +34,7 @@ function Win() {
   const st = useStore()
   const wordOf = (t: Trade) => {
     const r = st.fold[t.id], h = r?.ok ? r.view?.headline : null
-    return h == null ? "CAN'T CHECK" : WORDS.find(w => h.toUpperCase().startsWith(w)) ?? 'HOLD'
+    return h == null ? "CAN'T CHECK" : WORDS.find(w => h.toUpperCase().startsWith(w)) ?? '?'   // F8 (25 Oct, F09): an unknown word is ?, never the safe-looking HOLD
   }
   const open = st.trades.filter(t => !t.exit_t).sort((a, b) => RANK[wordOf(a)] - RANK[wordOf(b)] || b.t0.localeCompare(a.t0))
   const [pick, setPick] = useState<string | null>(null)
@@ -40,6 +49,8 @@ function Win() {
   const [pip, setPip] = useState<Window | null>(null)
   const [arm, setArm] = useState<string | null>(null), [busy, setBusy] = useState(false), [msg, setMsg] = useState<string | null>(null)
   const [h, setH] = useState(420)
+  const [now, setNow] = useState(() => Date.now())                     // F8: the age ticks while the poller is quiet
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t) }, [])
   const frame = useRef<HTMLIFrameElement>(null)
   // THE ONE VOICE (A52) + the TRADE MAP (A53-A62) on top, as on the panel and Validate; [detail ▸] opens the DESK's face below
   const [vOpen, setVOpenS] = useState(() => ls('pro.float.vdet') === '1')
@@ -49,6 +60,9 @@ function Win() {
   const v = cur && st.fold[cur.id]?.ok ? st.fold[cur.id].view : undefined
   const vc = cur && st.fold[cur.id]?.ok && st.fold[cur.id].voice?.ok ? st.fold[cur.id].voice! : null
   const red = word === 'FOLD' || vc?.state === 'EXIT'
+  // F8 (25 Oct, F02): api.ts keeps the last read when a poll fails; say so -- NOT LIVE since the first failure (Pro.tsx:35's isDown)
+  const down = isDown(st.engineWhy), since = /\((\d\d:\d\d:\d\d)\)$/.exec(st.engineWhy ?? '')?.[1] ?? '?'
+  const liveEl = cur && <span className={`vage${down ? ' dead' : ''}`}>{down ? `NOT LIVE since ${since}` : ageOf(st.fold[cur.id]?.asof, now)}</span>
   const setMin = (x: boolean) => { ls('pro.float.min', x ? '1' : '0'); setMinS(x); try { pip?.resizeTo(pip.outerWidth, x ? 110 : 640) } catch { /* the OS keeps its size */ } }
 
   // the word in the browser tab title (and the pop-out's), so the taskbar carries it behind the broker window
@@ -134,6 +148,7 @@ function Win() {
   // one line: the word · the contract · the engine's clause (never the P&L here); open: the same line over the DESK's face
   const line = <div className="fl-line" {...grip}>
     {vc && min ? <span className={`word fw ${VSTATE[vc.state]}`}>{vc.state}</span> : <span className={`word fw ${VCLS[word!]}`}>{word}</span>}
+    {(!vc || min) && liveEl}
     {st.feed?.alarm && <span className="fl-feed" title={[st.feed.why, st.feed.do].filter(Boolean).join('\n')}>{st.feed.chip}</span>}
     <span className="mid"><span className="c">{contract(cur)}</span><span className="dot">·</span>{cur.role} · in {cur.t0.slice(0, 5)}
       {min && (vc ? <><span className="dot">·</span>{vc.l3.replace(/^why: /, '')}</>                  // collapsed: the voice's own reason, one voice
@@ -149,7 +164,7 @@ function Win() {
   const src = new URL(`/pro.html?float=${encodeURIComponent(cur.id)}`, location.href).href   // absolute: a pop-out document has no base
   const voiceEl = vc && <div className={`voice v-${vc.state}`} {...grip}
       title={(vc.active ?? []).map(a => `${a.t} ${a.state} · ${a.reason}`).join(String.fromCharCode(10)) || vc.note}>
-    <div className="v1">{vc.l1}</div>
+    <div className="v1">{vc.l1}{liveEl}</div>
     <div className="v2"><span className="vw">{vc.state}</span>{vc.l2}</div>
     <div className="v3">{vc.l3}{vc.trig_t && vc.state !== 'HOLD' ? ` · ${vc.trig_t}` : ''}</div>
     {vc.l4 && <div className="v3 v4">{vc.l4}</div>}

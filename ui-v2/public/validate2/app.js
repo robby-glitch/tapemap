@@ -135,8 +135,8 @@
       lines.push({ k: "hi", y: yOf(s.sHi), side: "L", a: `HI ${fmt(s.sHi)} ${hm(s.sHiT)}`, b: `${ff ? "f" : "fut"} ${fmt(s.fHi)}${ff}`, off: off(s.sHi) });
       lines.push({ k: "lo", y: yOf(s.sLo), side: "L", a: `LO ${fmt(s.sLo)} ${hm(s.sLoT)}`, b: `${ff ? "f" : "fut"} ${fmt(s.fLo)}${ff}`, off: off(s.sLo) });
       if (F.val && F.val.ok && F.val.idx === S.focus && S.mode === "validate") for (const lv of F.val.levels) if (lv.spot != null) lines.push({ k: lv.name === "STOP" ? "stop" : lv.name === "PULLBACK" || lv.name === "KEEP ALL" ? "t1" : "t2", y: yOf(lv.spot), side: "R", a: `${lv.name} ${fmt(lv.spot)}`, b: `fut ${fmt(lv.fut)}`, off: off(lv.spot) });
-      if (F.open && F.open.t.idx === S.focus && S.mode === "trade") { const r = F.open.r, vs = voiceAt(F.open.t, F.T), on = vs && vs.stop_f != null && vs.stop_s != null, gs = on ? vs.stop_s : r.dist.Gspot, gf = on ? vs.stop_f : r.dist.G;   // A55: one stop on the screen
-        lines.push({ k: "entry", y: yOf(r.e.spot), side: "R", a: `ENTRY ${fmt(r.e.spot)} ${hm(r.e.t0)}`, b: `fut ${fmt(r.e.fut)}`, off: off(r.e.spot) }); lines.push({ k: "g", y: yOf(gs), side: "R", a: `STOP ${fmt(gs)}`, b: `fut ${fmt(gf)}`, off: off(gs) }); }
+      if (F.open && F.open.t.idx === S.focus && S.mode === "trade") { const r = F.open.r, vs = voiceStop(F.open.t, F.T);   // A55 + F9 (25 Oct): the voice's stop, or no STOP line
+        lines.push({ k: "entry", y: yOf(r.e.spot), side: "R", a: `ENTRY ${fmt(r.e.spot)} ${hm(r.e.t0)}`, b: `fut ${fmt(r.e.fut)}`, off: off(r.e.spot) }); if (vs.s != null) lines.push({ k: "g", y: yOf(vs.s), side: "R", a: `STOP ${fmt(vs.s)}`, b: `fut ${fmt(vs.f)}`, off: off(vs.s) }); }
       // labels: nudge apart per side so none overlap (the line itself stays at its true price)
       const gap = 29 / Math.max(300, innerHeight - (S.consoleMin ? 120 : 254)) * 100;
       for (const sd of ["ALL"]) { const ls = lines.slice().sort((p, q) => p.y - q.y); for (const l of ls) l.ly = l.y; for (let n = 1; n < ls.length; n++) if (ls[n].ly - ls[n - 1].ly < gap) ls[n].ly = ls[n - 1].ly + gap; for (let n = ls.length - 1; n >= 0; n--) { if (ls[n].ly > 100 - gap / 2) ls[n].ly = 100 - gap / 2; if (n < ls.length - 1 && ls[n + 1].ly - ls[n].ly < gap) ls[n].ly = ls[n + 1].ly - gap; } }
@@ -306,7 +306,7 @@
     return html`<div>${voiceEl}${mapEl}${vWhy}
       ${(() => { const ew = engineWord(t, F.T, r); return html`
       <div class="word"><span class=${`w ${ew.key}`}><${Val} v=${F.stale ? "CAN'T CHECK" : ew.headline} tone=${TONE[ew.key]}/></span><span class="hi" data-tip=${ew.tip}>${ew.src}${E.HI[ew.key] ? " · " + E.HI[ew.key] : ""}</span><span class="sub"><${Val} v=${ew.sub} tone="n"/></span></div>
-      <div class="counts" data-tip="the prototype's own reads (engine.js, labelled [I]): never the decision, printed beside the engine's word"><span class="f">prototype:</span><${Chip} st=${r.word === "GAVE UP" ? "AGAINST" : r.word === "FOLD" ? "FOLD" : r.word === "HOLD" ? "WITH" : "NEITHER"} text=${r.word === "OUT" ? "OUT · her exit" : r.word}/><span class="n f">${r.folded ? (t.exitWhy || "give-up accepted") : r.pb ? `${r.pb} · fut ${sgn(Math.round(r.s.fut - r.e.fut))} vs entry` : `out if ${fmt(r.dist.G)} fut accepted`}</span></div>`; })()}
+      <div class="counts" data-tip="the prototype's own reads (engine.js, labelled [I]): never the decision, printed beside the engine's word"><span class="f">prototype:</span><${Chip} st=${r.word === "GAVE UP" ? "AGAINST" : r.word === "FOLD" ? "FOLD" : r.word === "HOLD" ? "WITH" : "NEITHER"} text=${r.word === "OUT" ? "OUT · her exit" : r.word}/><span class="n f">${protoSub(t, F.T, r)}</span></div>`; })()}
       <div class="counts" style="font-size:12.5px"><span class="n b">${t.side === "BUY" ? "LONG" : "SHORT"} ${t.idx} ${fmt(t.K)} ${t.ty}</span><span class="n">@${fmt(r.e.prem, 2)} → <${Val} v=${fmt(r.prem, 2)} tone=${pnlOf(t, r) >= 0 ? "b" : "r"}/> <span class=${pnlOf(t, r) >= 0 ? "cb" : "cr"}><${Val} v=${sgn(pnlOf(t, r))} tone=${pnlOf(t, r) >= 0 ? "b" : "r"}/></span></span><span class="n f">peak ${fmt(r.peakP.v, 2)} ${hm(r.peakP.t)}</span><span class="n f">${hm(t.t0)} · ${fmtAge(r.tInTrade)}</span></div>
       <div class="fr">${["ZONE", "FLOW", "OI", "VPIN"].map(k => html`<div key=${k} class=${`cell ${r.chips[k]}`} data-tip=${`${chipTip[k]} · ${E.HI[r.chips[k]] || ""}`}><span class="l">${k === "FLOW" && r.flowSrc ? `${r.flowSrc} FLOW` : k}</span><span class="b" style="font-size:11px"><${Val} v=${r.chips[k] === "CNC" ? "can't" : r.chips[k].toLowerCase()} tone=${TONE[r.chips[k]]}/></span></div>`)}</div>
       ${(() => { const f = S.fold[t.id], h2 = S.live && f && f.ok ? f.hold2 : null; if (!h2) return null;
@@ -316,8 +316,10 @@
       ${r.zoneAlone ? html`<div class="zone" data-tip="the zone is the only thing behind you: OI quiet and flow not with you for 2+ buckets · shown, never a fold (DESIGN §5.3) · losers held here and winners ran from here · your call"><span class="l">zone alone</span><span style="min-width:0">only the zone behind you · OI ${r.chips.OI.toLowerCase()} · ${r.flowSrc ? `${r.flowSrc} flow` : "flow"} ${r.chips.FLOW.toLowerCase()} · the engine's fold has not come</span></div>` : null}
       <div class="sec">W off peak <span class="r">${W ? `${W.k} ${W.leg.toUpperCase()} · peak ${L(W.peak)} ${hm(W.peakT)}` : "no wall"}</span></div>
       <div class="meter" data-tip=${W ? `${W.k} ${W.leg.toUpperCase()} writers ${L(W.oi)} vs peak ${L(W.peak)} at ${hm(W.peakT)} · ${pct(W.off)} off · ${W.upd} updates since · amber at ≥ 10 % with ≥ 15 updates: the slow leak the z/√n event misses [M]` : "no wall behind"}><span class="l">${W ? `${W.k} ${W.leg.toUpperCase()}` : "—"}</span><div class="trk"><i class=${W && W.bleed ? "a" : W && W.state === "UNWINDING" ? "r" : ""} style=${`transform:scaleX(${Math.min(1, offPct / 0.25).toFixed(4)})`}></i><b style="left:40%"></b></div><span class="v2"><${Val} v=${W ? `−${(offPct * 100).toFixed(1)} %` : "—"} tone=${W && W.bleed ? "a" : "n"}/> <span class="f">${W ? `${W.upd} upd` : ""}</span></span></div>
-      ${(() => { const on = vc && vc.stop_f != null && vc.stop_s != null, gf = on ? vc.stop_f : r.dist.G, gs = on ? vc.stop_s : r.dist.Gspot;   // A55: one stop
-        const df = on ? Math.abs(r.s.fut - gf) : r.dist.fut, ds = on ? Math.abs(r.s.spot - gs) : r.dist.spot, who = on ? `the voice's stop: ${vc.stop_src} line` : `give-up · ${r.g.Gwhy} · out if accepted`;
+      ${(() => { const vs = voiceStop(t, F.T);   // A55 + F9 (25 Oct): one stop, the voice's; without it the screen says why, never engine.js's G
+        if (vs.f == null) return html`<div class="counts" data-tip="F9: the stop is the voice's (voice.py); engine.js's give-up is never shown as one"><span class="ca">stop: ${vs.why}</span></div>`;
+        if (vs.s == null) { const df = Math.abs(r.s.fut - vs.f); return html`<div class="counts" data-tip=${`the voice's stop (${vs.src}) is in futures only: no spot line, none made up · one candle B = ${fmt(r.s.B, 1)}`}><span class="ca">${vs.txt}</span><span class="n f">to stop · fut <${Val} v=${fmt(Math.round(df))} tone=${df <= r.s.B ? "r" : "n"}/></span></div>`; }
+        const gf = vs.f, gs = vs.s, df = Math.abs(r.s.fut - gf), ds = Math.abs(r.s.spot - gs), who = `the voice's stop: ${vs.src} line`;
         return html`<div class="dist">
         <div class="cell" data-tip=${`${who} ${fmt(gf)} fut / ${fmt(gs)} spot`}><div class="l">to stop · spot</div><div class="n"><${Val} v=${fmt(Math.round(ds))} tone=${ds <= r.s.B ? "r" : "n"}/> <span class="f" style="font-size:10px">→ ${fmt(gs)}</span></div></div>
         <div class="cell" data-tip=${`${who} ${fmt(gf)} fut · one candle B = ${fmt(r.s.B, 1)}`}><div class="l">to stop · fut</div><div class="n"><${Val} v=${fmt(Math.round(df))} tone=${df <= r.s.B ? "r" : "n"}/> <span class="f" style="font-size:10px">→ ${fmt(gf)}</span></div></div>
@@ -452,14 +454,14 @@
                    validate: { rev: v.rev, word: v.word, w: v.counts.w, a: v.counts.a, n: v.counts.n, c: v.counts.c, of: v.counts.of } };   // rev 3 §3: the entry stamp
     const r = await post("/api/hold/trades", body);
     if (!r.ok) { toast(r.why || "the mark did not land"); return; }
-    await pollTrades(); S.mode = "trade"; S.focus = S.slip.idx; const o = openTrade(); if (o) S.sel = o.id; up();
+    await refreshTrades(); S.mode = "trade"; S.focus = S.slip.idx; const o = openTrade(); if (o) S.sel = o.id; up();
   }
   async function exitTrade(t) {
     if (!S.live || S.closed) return;
     if (S.arm !== t.id) { S.arm = t.id; setTimeout(() => { if (S.arm === t.id) { S.arm = null; up(); } }, 5000); up(); return; }
     S.arm = null;
     const r = await post("/api/hold/trades", { op: "exit", id: t.id });
-    if (!r.ok) toast(r.why || "the exit did not land"); else await pollTrades(); up();
+    if (!r.ok) toast(r.why || "the exit did not land"); else await refreshTrades(); up();
   }
   async function post(url, body) { try { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return await r.json(); } catch (e) { return { ok: false, why: "the server is not answering" }; } }
   function replayTrade(t) { S.T = t.t0; S.speed = 1; S.playing = true; S.liveFollow = false; S.mode = "trade"; S.about = false; S.sel = t.id; S.focus = t.idx; S.follow = true; up(); }
@@ -474,13 +476,29 @@
   function voiceAt(t, T) {
     if (S.live && S.liveFollow) { const f = S.fold[t.id]; return f && f.voice && f.voice.ok ? f.voice : null; }
     const p = S.vpath[t.id]; if (!p || !p.ok) return null;
-    let v = null; for (const x of p.path || []) { if (secOf(x.at || x.t) <= T) v = x.voice; else break; }   // x.at: the read's own second
+    const v = (pathAt(p, T) || {}).voice;
     return v && v.ok ? v : null;
+  }
+  function pathAt(p, T) { let e = null; for (const x of (p && p.path) || []) { if (secOf(x.at || x.t) <= T) e = x; else break; } return e; }   // x.at: the read's own second
+
+  // F9 (25 Oct): THE stop is the voice's -- {f, s, src} -- or why there is none; never engine.js's own give-up G (with the voice
+  // refused, the three faces showed three different stops: DEV-FACES F03)
+  function voiceStop(t, T) {
+    const v = voiceAt(t, T);
+    if (v && v.stop_f != null) return v.stop_s != null ? { f: v.stop_f, s: v.stop_s, src: v.stop_src } : { f: v.stop_f, s: null, src: v.stop_src, txt: `stop ${fmt(v.stop_f)}f · spot ?` };   // fut only: the voice has no spot stop; none is made up
+    const live = S.live && S.liveFollow, r = live ? S.fold[t.id] : S.vpath[t.id], e = live ? r : pathAt(r, T);
+    const w = String((e && e.voice && e.voice.why) || (r && !r.ok && r.why) || (v ? "the voice has no stop yet" : "TapeMap ki voice nahi aayi"));
+    return { why: /^could not check/.test(w) ? w : "could not check — " + w };
+  }
+
+  // the prototype row's sub-line. Its old "out if G fut accepted" was a second stop beside the voice's: never printed (F9, DEV-FACES F12)
+  function protoSub(t, T, r) {
+    return r.folded ? (t.exitWhy || "give-up accepted") : r.pb ? `${r.pb} · fut ${sgn(Math.round(r.s.fut - r.e.fut))} vs entry` : "";
   }
 
   // ---------- ONE TRUTH: the engine's word (GET /api/fold?id= view.headline, or the record's headline history) ----------
   function engineWord(t, T, r) {
-    const proto = { headline: r && r.ok ? r.word : "—", key: r && r.ok ? r.word.split(" ")[0] : "", src: "prototype", sub: r && r.ok ? (r.folded ? (t.exitWhy || "give-up accepted") : r.pb ? `${r.pb} · fut ${sgn(Math.round(r.s.fut - r.e.fut))} vs entry` : `out if ${fmt(r.dist.G)} fut accepted`) : "", tip: "engine.js prototype logic [I] — the live engine has not answered for this trade" };
+    const proto = { headline: r && r.ok ? r.word : "—", key: r && r.ok ? r.word.split(" ")[0] : "", src: "prototype", sub: r && r.ok ? protoSub(t, T, r) : "", tip: "engine.js prototype logic [I] — the live engine has not answered for this trade" };
     const f = S.fold[t.id];
     const words = (S.foldWords[t.id] || []).filter(w => secOf(w.t) <= T);
     const frozen = t.exitT != null && T >= t.exitT;                  // after her exit the engine's view is frozen there
@@ -530,7 +548,10 @@
     if (S.live && S.liveFollow) { const n = Math.max(OPEN, nowSec()); if (n >= CLOSE) { S.closed = true; S.playing = false; } S.T = Math.min(CLOSE, n); draw(); return; }
     if (S.playing && S.T < CLOSE) { const cap = S.live ? Math.max(OPEN, nowSec()) : CLOSE; S.T = Math.min(cap, S.T + S.speed); if (S.live && S.T >= cap) { S.liveFollow = true; } if (S.T >= CLOSE) S.playing = false; draw(); }
   }
-  let polling = false, lastPoll = 0;
+  // F10 (25 Oct): each poller keeps ONE request in flight and gives up after 8 s (ui-v2 hold/store.ts j()'s bound): a wedged
+  // server turns FEED DEAD / "not answering" instead of stacking ~5 requests a second, and a late reply never overwrites a newer one
+  const TIMEOUT_MS = 8000, FULL_TIMEOUT_MS = 20000;                // loadFull reads the whole day, so it gets longer
+  let polling = false, lastPoll = 0, tradesP = null, foldBusy = false, flatBusy = false;
   async function poll(force) {
     if (!S.loaded || polling) return;
     if (!S.live && !force) return;                                   // a past day is complete: nothing to tail
@@ -538,35 +559,42 @@
     polling = true; lastPoll = performance.now();
     try {
       const since = Math.min(...IDX.map(i => { const x = E.data.idx[i]; return x.t.length ? x.t[x.t.length - 1] : 0; }));
-      const r = await fetch(`/api/v2/data?day=${E.data.day}&since=${since}`); if (!r.ok) throw new Error("HTTP " + r.status);
+      const r = await fetch(`/api/v2/data?day=${E.data.day}&since=${since}`, { signal: AbortSignal.timeout(TIMEOUT_MS) }); if (!r.ok) throw new Error("HTTP " + r.status);
       const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok");
       if (E.apply(d) === "reload") { await loadFull(); } else { S.srvNow = d.now; S.srvAt = performance.now(); }
       if (S.feed !== "ok") { S.feed = "ok"; S.feedWhy = ""; S.feedSince = null; }
-    } catch (e) { if (S.feed !== "dead") { S.feed = "dead"; S.feedSince = nowSec(); } S.feedWhy = String(e.message || e); }
-    polling = false; up();
+    } catch (e) { if (S.feed !== "dead") { S.feed = "dead"; S.feedSince = nowSec(); } S.feedWhy = String(e.message || e); } finally { polling = false; }
+    up();
   }
   async function loadFull() {
-    const r = await fetch(`/api/v2/data${S.day ? "?day=" + S.day : ""}`); if (!r.ok) throw new Error("HTTP " + r.status);
+    const r = await fetch(`/api/v2/data${S.day ? "?day=" + S.day : ""}`, { signal: AbortSignal.timeout(FULL_TIMEOUT_MS) }); if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok");
     E.load(d); decSeen.clear(); decLive = 0; S.srvNow = d.now; S.srvAt = performance.now(); S.live = !!d.live; S.day = d.day; return d;
   }
   const mapTrade = t => ({ id: t.id, idx: t.idx, K: Number(t.k), ty: t.side, side: t.role === "long" ? "BUY" : "SELL", px: t.p0 == null ? null : Number(t.p0), t0: secOf(t.t0), exitT: t.exit_t ? secOf(t.exit_t) : null, exitWhy: t.exit_t ? `her exit ${t.exit_t} (record)` : null, label: t.src || "marked" });
-  async function pollTrades() {
+  // one read of the trade list in flight. A tick that finds one out drops; a mark / exit (refreshTrades) waits for it and reads
+  // again -- that read began after their write, so it shows the new trade / the exit, never the stale reply that was in flight
+  function pollTrades() { return tradesP || (tradesP = readTrades().finally(() => { tradesP = null; })); }
+  async function refreshTrades() { if (tradesP) await tradesP; return pollTrades(); }
+  async function readTrades() {
     try {
-      if (S.live) { const r = await fetch("/api/hold/trades"); const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok"); S.trades = (d.trades || []).map(mapTrade); S.apiWhy = ""; }
-      else { const r = await fetch(`/api/fold/record?day=${E.data.day}`); const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok");
+      if (S.live) { const r = await fetch("/api/hold/trades", { signal: AbortSignal.timeout(TIMEOUT_MS) }); const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok"); S.trades = (d.trades || []).map(mapTrade); S.apiWhy = ""; }
+      else { const r = await fetch(`/api/fold/record?day=${E.data.day}`, { signal: AbortSignal.timeout(TIMEOUT_MS) }); const d = await r.json(); if (!d.ok) throw new Error(d.why || "not ok");
         S.trades = (d.trades || []).map(x => { const tr = x.trade || x; const id = x.id || tr.id || `${tr.idx}-${tr.k}${tr.ty || tr.side}-${tr.entry_t || tr.t0}`; if (x.words) S.foldWords[id] = x.words; return x.trade && x.trade.entry_t ? { id, idx: tr.idx, K: Number(tr.k), ty: tr.ty, side: tr.side, px: tr.p0 == null ? null : Number(tr.p0), t0: secOf(tr.entry_t), exitT: tr.exit_t ? secOf(tr.exit_t) : null, exitWhy: tr.exit_t ? `her exit ${tr.exit_t} (record)` : null, label: "record" } : mapTrade(tr); }); S.apiWhy = ""; }   // a past day's record carries her day_state mark (t0, side = CE|PE, role): mapTrade's shape
     } catch (e) { S.apiWhy = `trades: ${e.message || e} (GET ${S.live ? "/api/hold/trades" : "/api/fold/record?day=" + E.data.day})`; }
     up();
   }
   async function pollFold() {
-    if (!S.live) return;
-    const o = openTrade();
-    // the open trade every second; a closed trade once (its view is frozen at her exit, fold_live), plus its headline history
-    const want = S.trades.filter(t => t === o || !(S.fold[t.id] && S.fold[t.id].ok));
-    for (const t of want) {
-      try { const r = await fetch(`/api/fold?id=${encodeURIComponent(t.id)}`); const d = await r.json(); S.fold[t.id] = d; if (d && d.words) S.foldWords[t.id] = d.words; } catch (e) { S.fold[t.id] = { ok: false, why: "not answering" }; }
-    }
+    if (!S.live || foldBusy) return;
+    foldBusy = true;
+    try {
+      const o = openTrade();
+      // the open trade every second; a closed trade once (its view is frozen at her exit, fold_live), plus its headline history
+      const want = S.trades.filter(t => t === o || !(S.fold[t.id] && S.fold[t.id].ok));
+      for (const t of want) {
+        try { const r = await fetch(`/api/fold?id=${encodeURIComponent(t.id)}`, { signal: AbortSignal.timeout(TIMEOUT_MS) }); const d = await r.json(); S.fold[t.id] = d; if (d && d.words) S.foldWords[t.id] = d.words; } catch (e) { S.fold[t.id] = { ok: false, why: "not answering" }; }
+      }
+    } finally { foldBusy = false; }
     up();
   }
   async function pollVpath() {
@@ -586,12 +614,15 @@
     if (S.live && S.liveFollow) { if (performance.now() - decLive < 20000) return; decLive = performance.now(); url = "/api/decode"; }
     else { const c = Math.floor((S.T - 60) / 300) * 300; if (c <= OPEN) return; const key = `${E.data.day}|${c}`; if (decSeen.has(key)) return; decSeen.add(key); url = `/api/decode?day=${E.data.day}&at=${hm(c)}`; }
     decBusy = true;
-    try { const d = await (await fetch(url)).json(); if (d.ok) { for (const i of Object.keys(d.indices || {})) E.setDecode(i, d.indices[i]); S.decWhy = d.why || ""; } else S.decWhy = d.why || "not ok"; }
-    catch (e) { S.decWhy = `GET ${url}: ${e.message || e}`; }
-    decBusy = false; up();
+    try { const d = await (await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })).json(); if (d.ok) { for (const i of Object.keys(d.indices || {})) E.setDecode(i, d.indices[i]); S.decWhy = d.why || ""; } else S.decWhy = d.why || "not ok"; }
+    catch (e) { S.decWhy = `GET ${url}: ${e.message || e}`; } finally { decBusy = false; }
+    up();
   }
   async function pollFlat() {
-    try { const r = await fetch(`/api/fold/flat?idx=${S.focus}`); const d = await r.json(); S.flat[S.focus] = d; } catch (e) { S.flat[S.focus] = { ok: false }; }
+    if (flatBusy) return;
+    flatBusy = true;
+    const i = S.focus;                                                // the index asked for, even if she switches mid-request
+    try { const r = await fetch(`/api/fold/flat?idx=${i}`, { signal: AbortSignal.timeout(TIMEOUT_MS) }); const d = await r.json(); S.flat[i] = d; } catch (e) { S.flat[i] = { ok: false }; } finally { flatBusy = false; }
     up();
   }
   const lastDataSec = d => Math.max(OPEN, ...IDX.map(i => { const x = d.idx[i]; return x.t.length ? x.t[x.t.length - 1] : 0; }));
