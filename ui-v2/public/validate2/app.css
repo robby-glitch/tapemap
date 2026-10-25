@@ -60,6 +60,7 @@ kbd.k { font: 600 9.5px/1 var(--mono); padding: 2px 4px; border: 1px solid var(-
 .band.on { display: flex; }
 .band.slow { background: var(--amber-w); color: var(--amber-ink); }
 .band.dead { background: var(--red); color: #fff; }
+.band a.fix { color: inherit; font-weight: 600; text-decoration: underline; }   /* F13a: the import link wears the band's ink, not the browser's blue */
 .band .fix { font-family: var(--mono); font-weight: 500; padding: 1px 6px; border-radius: var(--r); background: rgba(255,255,255,.18); }
 .band.slow .fix { background: rgba(0,0,0,.06); }
 .band .sp { flex: 1; }

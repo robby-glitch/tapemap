@@ -4,6 +4,7 @@ clock held and every REST / disk feeder replaced. Plumbing and determinism only:
 what the rules SAY is test_hold.py's job, whether they are right is §7's."""
 import io
 import json
+import os
 
 import pytest
 
@@ -629,3 +630,29 @@ def test_the_outcome_row_is_written_once_per_direction_and_short_after_1459(pre,
     server._hold_tick(pre, "NIFTY")
     late = [r for r in _check_rows() if r.get("kind") == "check_outcome" and r["t"] == "15:05"]
     assert len(late) == 1 and (late[0]["to"], late[0]["short"]) == ("15:29", True)
+
+
+def test_a_validate_press_is_logged_once_and_another_sites_post_is_refused(monkeypatch):
+    """25 Oct review F12 / A75 (TRADER F06): VALIDATE rev 3's word was never logged, so §1p could never be judged forward.
+    POST /api/validate/log keeps each press once by (t, idx, K, ty, side) in data/validate/press_<day>.jsonl -- the word as
+    Validate's engine.js sent it, never recomputed here -- on the server's own day, in market hours. Another site's page is
+    refused, as at the hold door."""
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-10-26", "10:05"))
+    press = {"t": "10:05:12", "idx": "NIFTY", "K": 23000, "ty": "PE", "side": "BUY", "px": 96.2,
+             "rev": "3.1 (SENSEX-NIFTY-FLOW 9e2831b5)", "word": "WAIT", "counts": {"w": 4, "a": 1, "n": 2, "c": 2, "of": 9},
+             "stale": True, "checks": [{"name": "RIGHT NOW", "st": "WITH", "cell": "flow saath"}]}
+    path = os.path.join(server.VALIDATE_DIR, "press_2026-10-26.jsonl")
+    rows = lambda: [json.loads(x) for x in open(path, encoding="utf-8")]   # noqa: E731
+    assert _post("/api/validate/log", press, None) == {"ok": True, "new": True}
+    assert _post("/api/validate/log", dict(press), None) == {"ok": True, "new": False}        # the same press twice: one row
+    assert len(rows()) == 1 and {k: rows()[0][k] for k in press} == press and rows()[0]["day"] == "2026-10-26"
+    assert _post("/api/validate/log", dict(press, t="10:05:40"), None)["new"] and len(rows()) == 2   # a later press: its own row
+    assert rows()[1]["stale"] is True                                       # stale: the press was on a CAN'T CHECK frame
+    old = {k: v for k, v in press.items() if k != "stale"}                  # stale is optional: an older face's press still logs
+    assert _post("/api/validate/log", dict(old, t="10:05:50"), None)["new"] and rows()[2]["stale"] is None
+    assert _post("/api/validate/log", dict(press, t="10:05:55", stale="yes"), None)["ok"] is False   # a bool when present
+    away = _post("/api/validate/log", press, None, {"Sec-Fetch-Site": "cross-site", "Origin": "https://example.com"})
+    bad = _post("/api/validate/log", dict(press, idx="FINNIFTY"), None)
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-10-26", "15:50"))
+    late = _post("/api/validate/log", dict(press, t="15:50:00"), None)
+    assert away["ok"] is False and "another site" in away["why"] and bad["ok"] is False and late["ok"] is False and len(rows()) == 3

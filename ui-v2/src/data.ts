@@ -1228,6 +1228,8 @@ function alignPerBar<T>(
   return [raw as T[], '']
 }
 
+/** F13 (25 Oct review, A76): /api/health's two record checks, verbatim (server._recording / _tradebook_due); null = not read */
+export type Intake = { recording: { ok: boolean; missing: string[]; text: string | null } | null; tradebook: { due: boolean } | null }
 export type LiveError = 'unreachable' | 'no-data'
 
 export function useLiveData(fallback: Dataset) {
@@ -1240,6 +1242,8 @@ export function useLiveData(fallback: Dataset) {
   /** Which broker the running server is on, from /api/health. `null` means a
    *  backend too old to answer — which must read as unknown, never as Dhan. */
   const [broker, setBroker] = useState<string | null>(null)
+  /** F13: the recording check and the tradebook nudge off /api/health; null when the backend did not answer */
+  const [intake, setIntake] = useState<Intake | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const lastGood = useRef<Record<IndexKey, PerIndex>>(perFromFallback(fallback))
   // Raw payloads are kept so replay can re-map any bar without re-fetching.
@@ -1316,6 +1320,7 @@ export function useLiveData(fallback: Dataset) {
       ])
       if (!alive) return
       setBroker(health?.broker ?? null)
+      setIntake(health ? { recording: health.recording ?? null, tradebook: health.tradebook ?? null } : null)
       const per = {} as Record<IndexKey, PerIndex>
       const down: IndexKey[] = []
       const fails: Extract<IdxResult, { ok: false }>[] = []
@@ -1518,6 +1523,6 @@ export function useLiveData(fallback: Dataset) {
     }
   }, [raw])
 
-  return { data, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
+  return { data, loading, error, errorWhy, broker, intake, lastUpdated, barCount, at, dead, tapeBars,
            interval, setInterval: setInterval_ }
 }

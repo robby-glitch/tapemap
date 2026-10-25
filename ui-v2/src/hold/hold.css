@@ -504,3 +504,6 @@
 /* F8 (25 Oct): the read's age beside l1 -- and NOT LIVE since hh:mm:ss when the poller has no answer (api.ts isDown) */
 .hv .vage{margin-left:var(--s2);font:500 var(--t11)/1 var(--f-num);color:var(--text-secondary);white-space:nowrap}
 .hv .vage.dead{color:var(--negative);font-weight:700}
+/* F13 (25 Oct): the record's alarms on the window -- RECORDING NAHI and, after 15:30, the tradebook import */
+.hv .fl-rec{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);padding:var(--s1) var(--s3);border-bottom:1px solid var(--border-strong);background:var(--surface-raised);font:600 var(--t12)/1.4 var(--f-ui)}
+.hv .fl-rec .no{color:var(--negative)}.hv .fl-rec a{color:var(--caution)}

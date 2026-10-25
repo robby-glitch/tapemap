@@ -202,6 +202,12 @@ def read(idx: str, now: float | None = None, ux_vols: dict | None = None) -> dic
         return {"idx": idx, "state": None, "why": f"could not check — feed health failed: {type(e).__name__}: {e}", "chip": "feed check nahi hua", "alarm": False, "sound": False, "tag": "M"}
 
 
+def last_post(day: str):
+    """The newest frame POST today on any index (epoch s), or None: the server's recording check (25 Oct review F13b)."""
+    with _LOCK:
+        return max((t.last_post for t in _T.values() if t.day == day and t.last_post is not None), default=None)
+
+
 def reset() -> None:
     with _LOCK:
         _T.clear()

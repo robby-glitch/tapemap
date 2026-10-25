@@ -218,7 +218,8 @@ def test_week_of():
 def test_server_import_preview_confirm_and_receipts(tmp_path, monkeypatch):
     import server
     import day_state
-    d = str(tmp_path)
+    d = str(tmp_path / "day_state")         # its own folder: the import mark (F13a) lands beside it, in tmp_path/receipts
+    os.makedirs(d, exist_ok=True)
     monkeypatch.setattr(day_state, "DIR", d)
     monkeypatch.setattr(server, "_board_clock", lambda: ("2026-10-05", None))
     monkeypatch.setattr(server, "_save_day_state", lambda: None)
@@ -234,3 +235,39 @@ def test_server_import_preview_confirm_and_receipts(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_receipts_words", lambda day: {})
     out = server._receipts_get()
     assert out["ok"] and out["scoreboard"]["all"]["n"] == 3 and out["scoreboard"]["all"]["adds_dumped"] == 1
+
+
+def test_after_1530_a_recorded_day_with_no_import_is_due_and_a_confirmed_import_ends_it(tmp_path, monkeypatch):
+    """25 Oct review F13a / A76 (TRADER F07): no tradebook import since 3 Oct. After 15:30 on a weekday whose book recorded,
+    no confirmed import today makes /api/health's `tradebook.due` true (5173, the Float and Validate say "tradebook aaj
+    import nahi" and link pro.html's RECORD, the existing import door). A confirmed import writes one row to
+    data/receipts/import_<day>.jsonl and the nudge stops; a preview does not."""
+    from datetime import datetime
+
+    import book_log
+    import day_state
+    import server
+    from chain_live import IST
+    at = lambda h, m, mo=9, d=23: datetime(2026, mo, d, h, m, tzinfo=IST).timestamp()   # noqa: E731  (23 Sep, a Wednesday: the CSV's day)
+    assert server._tradebook_due(at(15, 45)) == {"due": False}             # no book rows today: no session, no nudge
+    for day in ("2026-09-23", "2026-10-05"):                               # both days recorded; only 23 Sep is in the CSV
+        p = book_log.day_path(day, "NIFTY")
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("{}\n")
+    assert server._tradebook_due(at(15, 29)) == {"due": False} and server._tradebook_due(at(15, 45)) == {"due": True}
+    os.makedirs(str(tmp_path / "day_state"), exist_ok=True)
+    monkeypatch.setattr(day_state, "DIR", str(tmp_path / "day_state"))
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-09-23", "15:45"))
+    monkeypatch.setattr(server, "_save_day_state", lambda: None)
+    monkeypatch.setitem(server._HOLD, "trades", [])
+    monkeypatch.setitem(server._HOLD, "trades_day", "2026-09-23")
+    assert server._receipts_import(syn(), False)["ok"] and server._tradebook_due(at(15, 46)) == {"due": True}   # a preview
+    assert server._receipts_import(syn(), True)["ok"] and server._tradebook_due(at(15, 47)) == {"due": False}
+    with open(os.path.join(server.IMPORT_DIR, "import_2026-09-23.jsonl"), encoding="utf-8") as f:
+        assert len(f.readlines()) == 1
+    # the mark goes on the CSV's days, not on the server's day: a 23 Sep CSV imported on 5 Oct leaves 5 Oct's nudge on
+    monkeypatch.setattr(server, "_board_clock", lambda: ("2026-10-05", "15:48"))
+    monkeypatch.setitem(server._HOLD, "trades_day", "2026-10-05")
+    assert server._receipts_import(syn(), True)["ok"] and server._tradebook_due(at(15, 49, 10, 5)) == {"due": True}
+    assert server._receipts_import(HEAD, True)["ok"] and server._tradebook_due(at(15, 50, 10, 5)) == {"due": False}   # an empty CSV (a no-trade day) clears today

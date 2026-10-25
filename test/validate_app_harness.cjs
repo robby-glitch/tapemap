@@ -3,7 +3,7 @@
 // source as it is loaded (globalThis.__app); the shipped file is not changed. argv[2] names the scenario; stdout is its JSON.
 const fs = require("fs"), vm = require("vm"), path = require("path");
 const SRC = fs.readFileSync(path.join(__dirname, "..", "ui-v2", "public", "validate2", "app.js"), "utf8")
-  .replace(/boot\(\);\s*\}\)\(\);\s*$/, "boot(); globalThis.__app = { S, voiceStop, protoSub, engineWord, poll, pollTrades, pollFold, pollFlat, pollDecode, markTrade, exitTrade };\n})();\n");
+  .replace(/boot\(\);\s*\}\)\(\);\s*$/, "boot(); globalThis.__app = { S, voiceStop, protoSub, engineWord, poll, pollTrades, pollFold, pollFlat, pollDecode, markTrade, exitTrade, check, E };\n})();\n");
 const TRADE = { id: "NIFTY-23000PE-long-100000", idx: "NIFTY", k: 23000, side: "PE", role: "long", t0: "10:00:00", p0: 100, exit_t: null };
 const DATA = { ok: true, live: true, day: "2026-10-26", now: 37000, idx: { NIFTY: { t: [36000] }, BANKNIFTY: { t: [36000] }, SENSEX: { t: [36000] } } };
 const wait = () => new Promise((r) => setTimeout(r, 20));
@@ -22,14 +22,15 @@ function boot(route) {
     innerHeight: 900, innerWidth: 1600, location: { search: "" }, localStorage: { getItem: () => null, setItem() {} },
     document: { addEventListener() {}, getElementById: el, querySelector: () => null, body: {}, title: "" },
     preact: { h() {}, render() {} }, preactHooks: { useRef: () => ({}), useEffect() {}, useLayoutEffect() {} }, htm: { bind: () => () => null },
-    Engine: { fmt: String, sgn: String, pct: String, L: String, hm: String, hms: String, IDX: ["NIFTY", "BANKNIFTY", "SENSEX"],
+    Engine: { fmt: String, sgn: String, pct: String, L: String, hm: String, hms: (s) => new Date(s * 1000).toISOString().slice(11, 19), IDX: ["NIFTY", "BANKNIFTY", "SENSEX"],
               OPEN: 33300, CLOSE: 55800, PRACTICE: 54000, data: null, load(d) { this.data = d; }, events: () => [], setDecode() {},
-              apply: () => (flags.reload ? "reload" : "ok"), validate: () => ({ ok: true, px: 100, rev: 3, word: "OK", counts: { w: 0, a: 0, n: 0, c: 0, of: 0 } }) },
+              apply: () => (flags.reload ? "reload" : "ok"), validate: () => ({ ok: true, px: 100, rev: 3, word: "OK", counts: { w: 0, a: 0, n: 0, c: 0, of: 0 } }),
+              snap: () => ({ ages: { chain: 5, book: 5 }, i: 0, vpin: null }), inTrade: () => ({ ok: false }), board: () => null },   // what frame() reads (check() uses it)
     // the bound as app.js asks for it: a signal this harness fires, carrying the ms it was asked for
     AbortSignal: { timeout: (ms) => { const ac = new AbortController(); ac.signal.ms = ms; fired.push(ac); return ac.signal; } },
     fetch: (url, opts) => {
       const sig = opts && opts.signal, body = route(url, opts);
-      calls.push({ url, ms: sig ? sig.ms : null });
+      calls.push({ url, ms: sig ? sig.ms : null, body: opts && opts.body ? JSON.parse(opts.body) : null });
       if (body === "hang") return new Promise((_, no) => { if (sig) sig.addEventListener("abort", () => no(new Error("timed out"))); });
       return Promise.resolve(body).then((b) => ({ ok: true, status: 200, json: async () => b }));
     },
@@ -40,6 +41,26 @@ function boot(route) {
 }
 
 const SCEN = {
+  // F12 (25 Oct review, A75): her VALIDATE press posts engine.js's word, once per press, on the live clock only
+  async press() {
+    const b = boot(routes());
+    await wait();
+    const A = b.app(), sent = () => b.calls.filter((c) => c.url === "/api/validate/log").map((c) => c.body);
+    A.E.validate = () => ({ ok: true, rev: "3.1 (SENSEX-NIFTY-FLOW 9e2831b5)", idx: "NIFTY", K: 23000, ty: "PE", side: "BUY", px: 96.2, word: "WAIT",
+      counts: { w: 4, a: 1, n: 2, c: 2, of: 9 }, checks: [{ name: "RIGHT NOW", st: "WITH", cell: "flow saath", tip: "a long hover" }] });
+    Object.assign(A.S, { live: true, liveFollow: true, closed: false, T: 36312, slip: { idx: "NIFTY", K: 23000, ty: "PE", side: "BUY", px: "" } });
+    A.check();
+    await wait();
+    const live = sent();
+    A.E.snap = () => ({ ages: { chain: 200, book: 5 }, i: 0, vpin: null });   // the chain is 200 s old: the face reads CAN'T CHECK
+    A.check();
+    await wait();
+    const stale = sent().slice(1);
+    A.S.liveFollow = false;                                        // scrubbed back: a replay press is not forward evidence
+    A.check();
+    await wait();
+    return { live, stale, after: sent().length, mode: A.S.mode };
+  },
   // F10 (DEV-FACES F20): each poller keeps one request in flight, bounded at 8 s; a request that timed out frees its poller
   async pollers() {
     let nT = 0;

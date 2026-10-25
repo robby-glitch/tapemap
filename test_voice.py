@@ -34,7 +34,7 @@ def run(r, h, now="10:30:00", mem=None):
 def test_hold_reads_the_two_strongest_with_facts_oi_first():
     v = run(rep(), h2())
     assert v["state"] == "HOLD" and v["l3"] == "why: CE 23100 writers building · flow saath"
-    assert v["l1"] == "▼ 23000 PE · 22 min · +13 pts (₹+15)"                 # futures points: d × (fut − E)
+    assert v["l1"] == "▼ 23000 PE · 22 min · +13 pts (₹+15) · prem +9%"      # futures points: d × (fut − E); 190 vs 174.85 = +8.66 %
     assert v["r_now"] == 0.27 and v["pts"] == 13                            # R stays in the fields (and the map's detail)
     assert v["l2"] == "stop 23,040f / 23,010s ≈ ₹154 · BE lock at 22,905f" and v["stop_src"] == "HOLD v2"   # E − 2R
 
@@ -150,3 +150,16 @@ def test_the_engine_hands_the_wall_bleed_and_the_chip_times():
     assert v["chip_since"] == {"Z": "10:07:39", "F": None, "O": "10:12:00", "V": None}
     assert v["W"]["upd"] == 22 and v["W"]["off"] == 0.16 and v["W"]["bleed_t"] == "10:17:00"   # i=17: 2+15, the run's start
     assert voice.bleed(v["W"])
+
+
+def test_l1_shows_the_premium_from_her_entry_signed_by_her_side():
+    """25 Oct review F14 (TRADER F02): on 22 Oct she held the SENSEX 73400 CE from the 13:00 mark at 201.4 while the voice said
+    HOLD and the premium halved -- 107.65 at 13:20 -- and no face showed it. l1 now ends `prem −47%`: (now − entry) / entry,
+    signed by her side, so a sale's rising premium reads against her. Display only: the state is the same without it."""
+    ce = dict(TR, idx="SENSEX", k=73400, ty="CE", p0=201.4, entry_t="13:00:00")
+    v = run(dict(rep(now="13:20:00", d=1, prem={"now": 107.65, "at_G": 90.0}), trade=ce), h2(), now="13:20:00")
+    assert v["l1"] == "▲ 73400 CE · 20 min · -13 pts (₹-94) · prem −47%"
+    sale = run(dict(rep(prem={"now": 120.0, "at_G": 150.0}), trade=dict(TR, side="SELL", p0=100.0)), h2())
+    assert sale["l1"].endswith(" · prem −20%")                              # a sale: the premium up is against her
+    blind = run(dict(rep(prem={"at_G": 150.0}), trade=TR), h2())
+    assert blind["l1"].endswith(" · prem ?") and blind["state"] == run(rep(), h2())["state"] == "HOLD"

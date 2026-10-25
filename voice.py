@@ -171,13 +171,17 @@ def ladder(rep, h2, now_ms, mem, prem_at=None):
     own = -1 if tr.get("side") == "SELL" else 1
     pn, p0 = (v.get("prem") or {}).get("now"), tr.get("p0")
     pnl = None if None in (pn, p0) else round(own * (pn - float(p0)), 1)
+    # F14 (25 Oct review, TRADER F02): she trades premium -- l1 ends with the premium's move from her entry, signed by her side
+    # (a sale's rising premium reads against her). Display only: no state, stop or seq reads it
+    pq = None if pnl is None or not float(p0) else round(100 * own * (pn - float(p0)) / float(p0))
+    prem = "prem ?" if pq is None else f"prem {'−' if pq < 0 else '+' if pq > 0 else ''}{abs(pq)}%"
     mins = None if not tr.get("entry_t") else max(0, (t_v - _at(base, tr["entry_t"])) // 60000)
     lock_t = h2.get("lock_t") if h2ok else None
     lock_f = E if h2ok and E is not None else None
     lock_on = None if lock_f is None or risk is None else round(E + d * 2.0 * risk, 1)    # hold2.LOCK_R: MFE >= 2R
     side = f" {tr.get('ty') or ''}" + (" short" if own < 0 else "")
     l1 = (f"{'▲' if d > 0 else '▼'} {'?' if tr.get('k') is None else int(float(tr['k']))}{side} · {'?' if mins is None else mins} min · "
-          f"{'?' if pts is None else f'{pts:+d}'} pts ({'₹?' if pnl is None else f'₹{pnl:+.0f}'})")
+          f"{'?' if pts is None else f'{pts:+d}'} pts ({'₹?' if pnl is None else f'₹{pnl:+.0f}'}) · {prem}")
     l2 = (f"stop {_n(sf)}f / {_n(ss)}s ≈ {'₹?' if sp is None else f'₹{sp:.0f}'}"
           + ("" if lock_f is None else f" · BE lock ✓ {lock_t}" if lock_t else      # where the lock ENGAGES (MFE 2R), not E
              "" if lock_on is None else f" · BE lock at {_n(lock_on)}f"))

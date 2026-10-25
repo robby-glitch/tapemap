@@ -4347,7 +4347,122 @@ def _receipts_import(text, confirm):
             _HOLD["dirty"] = True
     if add:
         _save_day_state()
+    try:                                    # F13a (25 Oct review, A76): the CSV's days are on record (an empty CSV: today), so that day's nudge stops
+        os.makedirs(IMPORT_DIR, exist_ok=True)
+        for d in (plan["days"] or {day: 0}):
+            with open(os.path.join(IMPORT_DIR, f"import_{d}.jsonl"), "a", encoding="utf-8") as f:
+                f.write(json.dumps({"day": d, "t": time.strftime("%H:%M:%S"), "fills": plan["fills"], "wrote": w["wrote"],
+                                    "today": [t["id"] for t in add]}) + "\n")
+    except OSError:
+        log.exception("tradebook import mark")
     return {**out, "wrote": {**w["wrote"], **({day: [t["id"] for t in add]} if add else {})}, "backups": w["backups"]}
+
+
+VALIDATE_DIR = os.path.join("data", "validate")    # F12 (25 Oct review, A75): her VALIDATE presses, press_<day>.jsonl
+_VALIDATE_LOCK = threading.Lock()
+_PRESS_KEY = ("t", "idx", "K", "ty", "side")
+
+
+def _validate_press(doc):
+    """POST /api/validate/log (F12, A75): one VALIDATE press as Validate's engine.js computed it (rev 3 / 3.1, §1p / §1q) --
+    the word, its counts, its checks and `stale` (the face read CAN'T CHECK) -- kept once per (t, idx, K, ty, side) in data/validate/press_<day>.jsonl, on the
+    server's own day, market hours only (_market_hours, the one gate). A LOG ONLY: nothing reads it back, nothing is
+    recomputed here, and no rule changes on it."""
+    day, hm = _board_clock()
+    row = {k: doc.get(k) for k in _PRESS_KEY + ("px", "rev", "word", "counts", "checks", "stale")}
+    if not (isinstance(row["t"], str) and _HOLD_T.match(row["t"]) and row["idx"] in instruments.ENABLED
+            and isinstance(row["K"], (int, float)) and row["ty"] in ("CE", "PE") and row["side"] in ("BUY", "SELL")
+            and isinstance(row["word"], str) and isinstance(row["rev"], str)
+            and (row["stale"] is None or isinstance(row["stale"], bool))):
+        return {"ok": False, "why": "not logged — a press needs t, idx, K, ty, side, rev and word (stale, if sent, a bool)"}
+    if not _market_hours(day, day, hm):
+        return {"ok": False, "why": "not logged — outside market hours"}
+    key, path = tuple(row[k] for k in _PRESS_KEY), os.path.join(VALIDATE_DIR, f"press_{day}.jsonl")
+    with _VALIDATE_LOCK:
+        try:
+            with open(path, encoding="utf-8") as f:   # ponytail: a scan per press (tens a day); a seen-set if they run to thousands
+                for line in f:
+                    try:
+                        if tuple(json.loads(line).get(k) for k in _PRESS_KEY) == key:
+                            return {"ok": True, "new": False}
+                    except (ValueError, AttributeError):
+                        continue
+        except FileNotFoundError:
+            pass
+        os.makedirs(VALIDATE_DIR, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(dict(row, day=day, at=time.strftime("%H:%M:%S")), ensure_ascii=False, default=str) + "\n")
+    return {"ok": True, "new": True}
+
+
+# F13 (25 Oct review, A76; TRADER F07): intake had stalled -- 4 of her last 10 sessions recorded in full, no tradebook import
+# since 3 Oct -- and nothing said so. Two display-only checks ride /api/health for 5173, the Float and Validate.
+REC_DUE = (("book", "09:20"), ("chain", "09:20"), ("calls", "09:20"), ("read", "09:25"), ("GoCharting", "09:20"))   # read: its 09:20 mark lands after its grace
+REC_END = "15:30"
+FRAME_QUIET_S = 120                                # no frame POST for 2 min: the panel's record is not being written
+IMPORT_DIR = os.path.join("data", "receipts")      # one row per confirmed tradebook import, import_<day>.jsonl (_receipts_import)
+_REC = {"day": None, "text": None}                 # the last recording state logged to data/feed_log.jsonl
+_REC_LOCK = threading.Lock()
+
+
+def _ist(now=None):
+    from datetime import datetime
+    from chain_live import IST
+    return datetime.fromtimestamp(time.time() if now is None else now, IST)
+
+
+def _recording(now=None):
+    """F13b: which of today's logs is not being written, 09:20-15:30 IST on a weekday; None outside it. {ok, missing, text}:
+    `missing` names each log with no row today (book, chain, calls; read from 09:25) and GoCharting when no frame POST came in
+    FRAME_QUIET_S. Each change of `text` within a day is ONE row in data/feed_log.jsonl through feed_health's writer (the
+    day's first look only when something is missing). Display only: nothing reads it but the faces."""
+    from chain_live import CHAIN_DIR
+    d = _ist(now)
+    day, hm = d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+    if d.weekday() >= 5 or not "09:20" <= hm < REC_END:
+        return None
+
+    def wrote(paths):
+        for p in paths:
+            try:
+                if os.path.getsize(p) > 0:
+                    return True
+            except OSError:
+                continue
+        return False
+    files = {"book": [book_log.day_path(day, i) for i in instruments.ENABLED],
+             "chain": [str(CHAIN_DIR / f"chain_{i}_{day}.jsonl") for i in instruments.ENABLED],
+             "calls": [calls_log.path(day)], "read": [os.path.join(READ_DIR, f"read_{day}.jsonl")]}
+    last = feed_health.last_post(day)
+    missing = [k for k, due in REC_DUE if hm >= due and (
+        (last is None or d.timestamp() - last > FRAME_QUIET_S) if k == "GoCharting" else not wrote(files[k]))]
+    text = "RECORDING NAHI: " + ", ".join(missing) if missing else None
+    with _REC_LOCK:
+        if (_REC["day"], _REC["text"]) != (day, text) and (_REC["day"] == day or text):
+            feed_health._log({"t": d.strftime("%H:%M:%S"), "day": day, "idx": "RECORD",
+                              "from": _REC["text"] if _REC["day"] == day else None, "to": text or "RECORDING OK",
+                              "since": d.strftime("%H:%M:%S"), "why": "the recording check (25 Oct review F13b)"})
+        _REC.update(day=day, text=text)
+    return {"ok": not missing, "missing": missing, "text": text}
+
+
+def _tradebook_due(now=None):
+    """F13a: after 15:30 on a weekday whose book recorded today, no confirmed tradebook import today -> {"due": True}. The faces
+    say "tradebook aaj import nahi" and link pro.html's RECORD, the existing import door; she exports the CSV from Kite
+    herself and nothing here logs in for her. Display only."""
+    d = _ist(now)
+    day = d.strftime("%Y-%m-%d")
+    ran = d.weekday() < 5 and d.strftime("%H:%M") >= REC_END and any(os.path.isfile(book_log.day_path(day, i)) for i in instruments.ENABLED)
+    return {"due": bool(ran) and not os.path.isfile(os.path.join(IMPORT_DIR, f"import_{day}.jsonl"))}
+
+
+def _health_safe(fn):
+    """/api/health is how 5173 decides the backend is alive: a display-only check that raises gives None, logged, never raised."""
+    try:
+        return fn()
+    except Exception:
+        log.exception("/api/health: %s", fn.__name__)
+        return None
 
 
 def _frame_chain(poller, idx):
@@ -4453,6 +4568,24 @@ class Handler(SimpleHTTPRequestHandler):
                 out = _receipts_import(str(doc.get("csv") or ""), bool(doc.get("confirm")))
             except Exception as e:           # never 500 the RECORD
                 log.exception("receipts import")
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
+            return
+        if self.path.startswith("/api/validate/log"):
+            # F12 (25 Oct review, A75): Validate's press log, the word engine.js computed, kept once (_validate_press).
+            # Same-origin only, the hold doors' rule; CAPPED; a log -- never an order, never a rule.
+            site, origin = self.headers.get("Sec-Fetch-Site"), self.headers.get("Origin") or ""
+            if site is not None and site not in ("same-origin", "same-site", "none") and not origin.startswith("chrome-extension://"):
+                self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
+                return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                if not 0 < n < 65536:
+                    self._json(b'{"ok":false,"why":"bad request"}', 400)
+                    return
+                out = _validate_press(json.loads(self.rfile.read(n) or b"{}"))
+            except Exception as e:           # never 500 a log
+                log.exception("validate press")
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, default=str).encode())
             return
@@ -4874,6 +5007,9 @@ class Handler(SimpleHTTPRequestHandler):
                 # 19:30 cold open still shows the finished session. Observed
                 # rows, not reconstructed ones -- see day_state.py.
                 "day_restored": _SENSES.get("day_restored") or 0,
+                # F13 (25 Oct review, A76): is today's record being written, and is today's tradebook imported (display only)
+                "recording": _health_safe(_recording),
+                "tradebook": _health_safe(_tradebook_due),
             }).encode())
             return
         if self.path.startswith("/api/data"):
@@ -5979,6 +6115,9 @@ def _isolate_mock_writers():
     DECODE_DIR = os.path.join(mock, "decode")                       # N7: the DECODE block's forward log (_decode_log)
     MAP_DIR = SHADOW_DIR = os.path.join(mock, "hold")               # the TRADE MAP's and holdshadow's forward logs
     VOICE_DIR = os.path.join(mock, "voice")                         # the voice replayed per marked trade (_voice_path)
+    global VALIDATE_DIR, IMPORT_DIR
+    VALIDATE_DIR = os.path.join(mock, "validate")                   # F12: Validate's press log (_validate_press)
+    IMPORT_DIR = os.path.join(mock, "receipts")                     # F13a: the tradebook import marks (_receipts_import)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)

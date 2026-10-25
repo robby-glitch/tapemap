@@ -1692,7 +1692,7 @@ export default function App() {
   const boardReads = useBoardGlance(onBoard)
   const onRead = activeTab === 'Read'      // THE READ is its own answer: the ANSWER band steps aside there too
   const tabs: Tab[] = ['Read', 'Board', 'Glass', 'Heat', 'Trade', 'Tape', 'Flow', 'VPIN', 'Chain', 'OI Flow', 'War', 'Events', 'Validate', 'Map', 'Signals']
-  const { data: liveData, loading, error, errorWhy, broker, lastUpdated, barCount, at, dead, tapeBars,
+  const { data: liveData, loading, error, errorWhy, broker, intake, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
 
@@ -1861,6 +1861,28 @@ export default function App() {
         </div>
       )}
 
+      {/* F13 (25 Oct review, A76): the record must be written. /api/health's two checks, the server's words verbatim: from 09:20
+          a log with no row today (RECORDING NAHI: book, chain, ...), and after 15:30 a recorded day with no tradebook import,
+          linked to the import door (pro.html's RECORD tab). On the Validate tab Validate's own band says the second. */}
+      {intake?.recording && !intake.recording.ok && (
+        <div style={{
+          padding: '9px 24px', backgroundColor: wash(pal.bear, 0.12),
+          borderBottom: `1px solid ${pal.bear}`, color: pal.bear,
+          fontSize: 12.5, fontWeight: 700, letterSpacing: '0.02em',
+        }}>
+          {intake.recording.text}
+        </div>
+      )}
+      {intake?.tradebook?.due && !onValidate && (
+        <div style={{
+          padding: '9px 24px', backgroundColor: wash(pal.caution, 0.12),
+          borderBottom: `1px solid ${pal.caution}`, color: pal.caution,
+          fontSize: 12.5, fontWeight: 600,
+        }}>
+          tradebook aaj import nahi · <a href="/pro.html?tab=record" target="_blank" rel="noopener" style={{ color: pal.caution }}>import karo</a>
+        </div>
+      )}
+
       {/* not on Trade either (2026-09-29): its left panel is the rev 6 engine's read, and the legacy
           engine's SPENT / DON'T CHASE beside it would be a second verdict on one screen */}
       {!focusHidesChrome && !onBoard && !onValidate && !onRead && activeTab !== 'Trade' && (
@@ -2025,7 +2047,7 @@ export default function App() {
             own index filter, which starts on ALL. */}
         {activeTab === 'Signals'  && <SignalsTab />}
       </div>
-      <Float />{/* every tab, Validate too: the DESK no longer draws the in-trade face (2026-10-04) */}
+      <Float intake={intake} />{/* every tab, Validate too: the DESK no longer draws the in-trade face (2026-10-04) */}
     </div>
     </DataCtx.Provider>
   )

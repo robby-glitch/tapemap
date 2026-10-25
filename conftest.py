@@ -42,6 +42,8 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "decoder_log.DIR": "decoder",                     # the decoder's forward log (decoder_log.py)
              "dext_log.DIR": "dext",                           # the Dext record, gate 3 (dext_log.py)
              "feed_health.LOG": "feed_log.jsonl",              # A17: server.py sets it at import; tests wrote 197 rows
+             "server.VALIDATE_DIR": "validate",               # F12: Validate's press log (server._validate_press)
+             "server.IMPORT_DIR": "receipts",                 # F13a: the tradebook import marks (server._receipts_import)
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",

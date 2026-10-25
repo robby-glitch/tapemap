@@ -214,3 +214,50 @@ def test_replay_2026_09_29_goes_dead_at_about_1227_and_stays_dead_until_1608():
     assert all(seen[(h, m)]["state"] == "DEAD" for h in (13, 14) for m in range(60))
     assert seen[(15, 35)]["state"] == "DEAD" and seen[(16, 7)]["state"] == "DEAD"
     assert seen[(16, 9)]["state"] == "AFTER CLOSE"
+
+
+def test_the_recording_check_names_each_silent_log_and_logs_each_change_once(tmp_path, monkeypatch):
+    """25 Oct review F13b / A76 (TRADER F07): 4 of her last 10 sessions recorded in full and nothing said so. From 09:20 on a
+    weekday (the read log from 09:25: its 09:20 mark lands after its 60 s grace) each log with no row today is named, and
+    GoCharting when no frame POST came in 2 min; each change is ONE row in data/feed_log.jsonl (feed_health's writer).
+    /api/health carries it, and the tradebook nudge, for 5173, the Float and Validate."""
+    import book_log
+    import calls_log
+    import chain_live
+    monkeypatch.setattr(fh, "LOG", str(tmp_path / "feed_log.jsonl"))   # the autouse _fresh fixture above leaves it None
+    monkeypatch.setattr(server, "_REC", {"day": None, "text": None})
+    monkeypatch.setattr(server, "READ_DIR", str(tmp_path / "read"))
+    logged = lambda: [json.loads(x) for x in open(fh.LOG, encoding="utf-8")] if os.path.exists(fh.LOG) else []   # noqa: E731
+    assert server._recording(at(9, 19)) is None and server._recording(at(10, 0, day="2026-09-27")) is None   # before 09:20; a Sunday
+    assert logged() == []
+    assert server._recording(at(9, 21)) == {"ok": False, "missing": ["book", "chain", "calls", "GoCharting"],
+                                            "text": "RECORDING NAHI: book, chain, calls, GoCharting"}
+    server._recording(at(9, 22))
+    assert [r["to"] for r in logged()] == ["RECORDING NAHI: book, chain, calls, GoCharting"]   # the same list: no second row
+    for p in (book_log.day_path(DAY, "NIFTY"), str(chain_live.CHAIN_DIR / f"chain_SENSEX_{DAY}.jsonl"), calls_log.path(DAY),
+              os.path.join(server.READ_DIR, f"read_{DAY}.jsonl")):
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("{}\n")
+    fh.on_post("NIFTY", DAY, {}, now=at(9, 25, 30))
+    assert server._recording(at(9, 26)) == {"ok": True, "missing": [], "text": None}
+    assert server._recording(at(9, 28))["text"] == "RECORDING NAHI: GoCharting"           # 150 s since the last frame POST
+    assert [r["to"] for r in logged()] == ["RECORDING NAHI: book, chain, calls, GoCharting", "RECORDING OK", "RECORDING NAHI: GoCharting"]
+    assert logged()[0]["idx"] == "RECORD" and logged()[1]["from"] == "RECORDING NAHI: book, chain, calls, GoCharting"
+    cap = _Cap("/api/health")
+    server.Handler.do_GET(cap)
+    assert "recording" in cap.sent and "tradebook" in cap.sent
+
+
+def test_health_answers_with_none_when_a_new_check_raises(monkeypatch, caplog):
+    """5173 decides the backend is alive from /api/health. The two display-only checks (F13) must never fail it: a check that
+    raises gives None for its key, is logged with its traceback, and the rest of the probe is untouched."""
+    def boom(*a, **k):
+        raise RuntimeError("check broke")
+    monkeypatch.setattr(server, "_recording", boom)
+    monkeypatch.setattr(server, "_tradebook_due", boom)
+    cap = _Cap("/api/health")
+    with caplog.at_level("ERROR", logger="tapemap"):
+        server.Handler.do_GET(cap)
+    assert cap.sent["ok"] is True and cap.sent["recording"] is None and cap.sent["tradebook"] is None
+    assert sum(1 for r in caplog.records if r.exc_info) == 2

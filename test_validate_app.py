@@ -70,6 +70,19 @@ def test_each_poller_has_one_request_in_flight_and_gives_up_in_8_s():
     assert o["feed"] == "dead" and o["fold"] == {"ok": False, "why": "not answering"}
 
 
+def test_a_validate_press_posts_engine_js_word_once_on_the_live_clock_only():
+    """F12 / A75 (TRADER F06): the VALIDATE button and Enter now POST the word engine.js computed (rev 3 / 3.1, unchanged)
+    to /api/validate/log, its checks without their hovers. A press scrubbed back into the replay is not forward evidence."""
+    o = run("press")
+    assert o["live"] == [{"t": "10:05:12", "idx": "NIFTY", "K": 23000, "ty": "PE", "side": "BUY", "px": 96.2,
+                          "rev": "3.1 (SENSEX-NIFTY-FLOW 9e2831b5)", "word": "WAIT", "counts": {"w": 4, "a": 1, "n": 2, "c": 2, "of": 9},
+                          "stale": False, "checks": [{"name": "RIGHT NOW", "st": "WITH", "cell": "flow saath"}]}]
+    # a press while the face reads CAN'T CHECK (chain older than 180 s, or book older than 30 s) is marked, so it can be filtered
+    # out later; the word is still engine.js's
+    assert [(r["stale"], r["word"]) for r in o["stale"]] == [(True, "WAIT")]
+    assert o["after"] == 2 and o["mode"] == "validate"
+
+
 def test_a_mark_and_an_exit_refresh_the_trade_list_even_with_the_5_s_poll_in_flight():
     """F10 round 1: markTrade / exitTrade awaited pollTrades(), which returns at once while the 5 s poll is out -- the new trade
     was not selected, and after an exit the trade still showed open (a second exit click). Now a call made while the poll is

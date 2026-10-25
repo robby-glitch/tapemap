@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Guard, Ico } from '../hold/parts'
+import type { Intake } from '../data'
 import { hms, isDown, tradeOp, useStore, type Trade } from './api'
 
 const W = 440
@@ -26,11 +27,11 @@ const ageOf = (asof: string | undefined, now: number) => {
   return s < 0 ? '?' : s < 90 ? `${s}s` : `${Math.round(s / 60)} min`
 }
 
-export default function Float() {
-  return <Guard name="floating window"><Win /></Guard>
+export default function Float({ intake }: { intake?: Intake | null }) {
+  return <Guard name="floating window"><Win intake={intake} /></Guard>
 }
 
-function Win() {
+function Win({ intake }: { intake?: Intake | null }) {
   const st = useStore()
   const wordOf = (t: Trade) => {
     const r = st.fold[t.id], h = r?.ok ? r.view?.headline : null
@@ -173,7 +174,15 @@ function Win() {
     <button type="button" className="vd" onClick={() => setVOpen(!vOpen)}>detail {vOpen ? '▾' : '▸'}</button>
   </div>
   const mapEl = vc && !!vc.detail?.length && <div className="fl-sec">{vc.detail.map(x => <p className="sm" key={x.text} title={x.tip ?? undefined}>{x.text}</p>)}</div>
+  // F13 (25 Oct review, A76): the record's two alarms ride the window too, above the voice -- RECORDING NAHI (the server's
+  // words) and, after 15:30, the tradebook import; the window exists only in a trade, so flat the 5173 bar carries both
+  const rec = intake?.recording && !intake.recording.ok ? intake.recording.text : null
+  const alarm = (rec || intake?.tradebook?.due) && <div className="fl-rec">
+    {rec && <b className="no">{rec}</b>}
+    {intake?.tradebook?.due && <a href={new URL('/pro.html?tab=record', location.href).href} target="_blank" rel="noopener">tradebook aaj import nahi</a>}
+  </div>
   const win = <div ref={box} className={cls} style={style}>
+    {alarm}
     {vc && !min ? voiceEl : line}
     {msg && <p className="fine" style={{ padding: '4px 12px' }}>{msg} <button type="button" className="link" onClick={() => setMsg(null)}>dismiss</button></p>}
     {!min && (!vc || vOpen) && <>{vc && mapEl}{vc && line}

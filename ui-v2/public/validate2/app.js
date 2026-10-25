@@ -75,6 +75,8 @@
   }
   function FeedBand({ F }) {
     const nx = E.data && E.data.idx[S.focus], bf = nx && nx.bf ? nx : null;
+    // F13 (25 Oct review, A76): after 15:30 a recorded day with no tradebook import says so, with the import door (pro.html RECORD)
+    if (S.feed !== "dead" && S.live && S.book && S.book.due) return html`<div class="band on slow">${icon("clock")}<b>tradebook aaj import nahi</b><span class="sp"></span><a class="fix" href="/pro.html?tab=record" target="_blank" rel="noopener">import karo</a></div>`;
     if (S.feed !== "dead" && S.live && (S.late || bf)) return html`<div class="band on slow" data-tip=${bf ? bf.bfWhy : "the server came up late; nothing before it was rebuilt"}>${icon("clock")}<b>LATE START ${S.late ? S.late.up : (bf.chainFrom || "").slice(0, 5)}</b><span>${bf ? `OI + spot backfilled ${bf.bfFrom}–${bf.bfTo} [I] · order flow from ${(bf.flowFrom || "—").slice(0, 5)} (ticks before it are lost)` : `server came up ${S.late.min} min after the open · this view's day starts ${S.late.from} · high/low, VWAP, CVD and OI-since-open miss 09:15–${S.late.up}`}</span></div>`;
     if (S.feed !== "dead") return html`<div class="band"></div>`;
     return html`<div class="band on dead">${icon("wifi-off")}<b>FEED DEAD</b><span>/api/v2/data not answering since ${S.feedSince ? hms(S.feedSince) : "—"} · ${S.feedWhy} · reads stand at ${hms(F.ft)}, ages printed</span><span class="fix" data-tip="the server is the fix, not the screen: .\\stop.bat ; .\\start-v2.bat, then check the Upstox token in its log">fix: .\\stop.bat ; .\\start-v2.bat</span><span class="sp"></span><button onClick=${() => { poll(true); }}>retry now</button></div>`;
@@ -220,7 +222,7 @@
       <div class="fld"><label>type</label><div class="tg" style="flex:1;height:100%">${["CE", "PE"].map(t => html`<button key=${t} class=${sl.ty === t ? "on" : ""} onClick=${() => set("ty", t)}>${t}</button>`)}</div></div>
       <div class="fld"><label>side</label><div class="tg" style="flex:1;height:100%">${["BUY", "SELL"].map(t => html`<button key=${t} class=${sl.side === t ? "on" : ""} onClick=${() => set("side", t)}>${t}</button>`)}</div></div>
       <div class="fld" style="grid-column:1/-1"><label>price</label><input type="text" inputmode="decimal" value=${sl.px} placeholder=${F.val && F.val.ltp != null ? `LTP ${fmt(F.val.ltp, 2)}` : "LTP"} onInput=${e => { S.slip.px = e.target.value.replace(/[^0-9.]/g, ""); up(); }} onKeyDown=${e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } }}/><span class="f" style="padding:0 6px">${sl.px === "" ? "defaults to LTP" : ""}</span></div>
-      <div class="go"><button class="pri" onClick=${() => up()}>${icon("check")} VALIDATE <kbd class="k" style="color:#fff;border-color:rgba(255,255,255,.4)">Enter</kbd></button><button class="sec2" onClick=${markTrade} data-tip="mark this slip as a trade at the replay time">${icon("flag")} mark <kbd class="k">M</kbd></button></div>
+      <div class="go"><button class="pri" onClick=${check}>${icon("check")} VALIDATE <kbd class="k" style="color:#fff;border-color:rgba(255,255,255,.4)">Enter</kbd></button><button class="sec2" onClick=${markTrade} data-tip="mark this slip as a trade at the replay time">${icon("flag")} mark <kbd class="k">M</kbd></button></div>
     </div>`;
   }
   function ValidatePanel({ F }) {
@@ -444,6 +446,18 @@
   function selectIdx(i) { S.focus = i; S.sel = i; if (S.mode === "trade") S.mode = "read"; if (S.mode === "validate") { S.slip = Object.assign({}, S.slip, { idx: i, K: E.snap(i, S.T, feedT()).atm || S.slip.K, px: "" }); } up(); }
   function selectTrade(id) { S.sel = id; S.mode = "trade"; const t = S.trades.find(x => x.id === id); if (t) S.focus = t.idx; up(); }
   function press() { const r = E.read(S.focus, S.T, feedT()); if (r.ok) S.pressed = { T: S.T, idx: r.idx, rows: r.rows.map(x => ({ k: x.k, cell: x.cell })) }; S.mode = "read"; up(); }
+  // F12 (25 Oct review, A75): a VALIDATE press (the button, Enter) logs the word engine.js computed -- rev 3 / 3.1, §1p / §1q,
+  // unchanged -- to POST /api/validate/log, kept once per (t, idx, K, ty, side). Live clock only: a press in a replay is not
+  // forward evidence. A log: nothing reads it back here
+  function check() {
+    S.mode = "validate"; up();
+    if (!S.live || !S.liveFollow || S.closed) return;
+    const F = frame(), v = F.val;                     // the face's own frame: the word she sees (the mode is validate), and whether it reads CAN'T CHECK
+    if (!v.ok) return;
+    post("/api/validate/log", { t: hms(S.T), idx: v.idx, K: v.K, ty: v.ty, side: v.side, px: v.px, rev: v.rev, word: v.word, counts: v.counts, stale: !!F.stale,
+                                checks: v.checks.map(c => ({ name: c.name, st: c.st, cell: c.cell })) })
+      .then(r => { if (!r.ok) toast(`press log nahi hua — ${r.why || "?"}`); });
+  }
   function openTrade() { return S.trades.find(t => t.t0 <= S.T && !t.exitT) || null; }
   async function markTrade() {
     if (!S.live || S.closed) { toast("marks only on the live day, before the close"); return; }
@@ -514,14 +528,14 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); S.pal ? (S.pal = null, up()) : openPal(""); return; }
     if (S.pal) return;
     if (e.key === "Escape") { if (S.about) { S.about = false; up(); } else if (inField) e.target.blur(); else { S.mode = "validate"; up(); } return; }
-    if (inField) { if (e.key === "Enter") { e.preventDefault(); S.mode = "validate"; up(); } return; }
+    if (inField) { if (e.key === "Enter") { e.preventDefault(); check(); } return; }
     const k = e.key;
     if (k === "1") setMode("read"); else if (k === "2") setMode("validate"); else if (k === "3") setMode("trade");
     else if (k === " ") { e.preventDefault(); togglePlay(); }
     else if (k === "ArrowLeft") { e.preventDefault(); step(e.shiftKey ? -60 : -1); } else if (k === "ArrowRight") { e.preventDefault(); step(e.shiftKey ? 60 : 1); }
     else if (k === "[") { S.speed = S.speed === 60 ? 10 : 1; up(); } else if (k === "]") { S.speed = S.speed === 1 ? 10 : 60; up(); }
     else if (k.toLowerCase() === "r") press(); else if (k.toLowerCase() === "m") markTrade(); else if (k.toLowerCase() === "l") goLive(); else if (k === "`") { S.consoleMin = !S.consoleMin; up(); }
-    else if (k === "Enter") { S.mode = "validate"; up(); }
+    else if (k === "Enter") check();
   });
   // tooltips: one element, event delegation, never a native title
   const tipEl = document.getElementById("tip");
@@ -648,7 +662,7 @@
       draw(); setInterval(tick, 1000); setInterval(() => poll(false), 1000); setInterval(pollTrades, 5000); setInterval(pollFold, 1000); setInterval(pollVpath, 2000); setInterval(pollFlat, 3000); setInterval(pollDecode, 1000);
       pollTrades(); pollFlat();
       const health = async () => { try { const h = await (await fetch("/api/health")).json(); const c = h.coverage || {}; const fr = c.book && c.book.from ? Object.values(c.book.from).sort()[0] : null;
-        S.late = c.late_min > 0 ? { up: c.server_up, min: c.late_min, from: fr ? fr.slice(0, 5) : c.server_up } : null; up(); } catch (e) {} };
+        S.late = c.late_min > 0 ? { up: c.server_up, min: c.late_min, from: fr ? fr.slice(0, 5) : c.server_up } : null; S.book = h.tradebook || null; up(); } catch (e) {} };
       if (S.live) { health(); setInterval(health, 60000); }
     } catch (e) {
       const m = document.querySelector(".boot .msg");
