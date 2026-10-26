@@ -1043,6 +1043,42 @@ SENSEX's own.
 **Code:** `sensex_flow.ON = True`, `FROM = "2026-10-25"` (`sensex_flow.py`) and `R31.ON = true` (`engine.js`). OFF
 restores rev 3 / §1m exactly; that is tested.
 
+## 1r. REGISTRATION: ZONE-3M, the zone on her chart's 3-minute bands (signed 2026-10-26 18:13, effective 2026-10-28 09:15, UNTESTED)
+
+**The full text** is `docs/setup-review/ZONE-3M-PREREG.md`, sha256
+`41cbda8a254e26492bb2b044c9149220632c2211f625d43a76918ed4ea01db71` (signed).
+
+**Her words, verbatim:**
+- "Yes, reopen my 15 Aug call: compute the zone machine's bands on 3-minute bars like my chart, as a new registration
+  starting from a date you name. Plan it after close."
+- Signed: "commit — I sign ZONE-3M as written. Build it tonight, commit locally, don't push."
+
+**What it reopens:** §1c's 15 Aug decision ("not required"), on 26 Oct's evidence.
+- At 09:24 her 3-min d2→d3 BUY at the NIFTY low (22,440f) was never armed: the 1-min-σ d2 sat about 27 pts beyond
+  hers.
+- 15 Aug's "~5 pts" bound was measured mid and late session.
+
+**What changes:** only the bands and how the 09:25 anchor is read.
+- VWAP and σ are computed on the 3-min bars themselves (`_Vwap`), not copied from 1-min.
+- A bar is eligible once it holds a minute at or after 09:25.
+
+**What is unchanged:** the arm at d2/u2, the entry, the window, the ∓20 stop and the lock.
+
+**Populations, never pooled:**
+- New rows are `rule: "zone3"` with `bands_on: "3m"`, from 28 Oct.
+- The 1-min `zone` (§1b) keeps logging beside it, for FADE §1i.
+- 5c, Validate and the Signals ballot are unchanged.
+
+**One switch, one date:** before 28 Oct nothing zone3 is logged, shown or sent.
+
+**Acceptance on 26 Oct** (in-sample, described only):
+- arm at the 09:24 bar;
+- entry at 22,534.1f, at the 09:27 bar's close;
+- stop 22,425.1f.
+
+**Note on §1c's "one-line fix":** it cites `live.py:522`, which is now the option-leg path (~566). The zone path is
+`resample_index` in `live._at_interval`.
+
 ---
 
 ## 2. Dead — do not revive without new evidence
