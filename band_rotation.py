@@ -227,6 +227,15 @@ COMPRESSION_RANK = 0.30
 ANCHOR_HHMM = "09:25"
 ANCHOR_MINUTE = 9 * 60 + 25
 
+# ZONE-3M (docs/setup-review/ZONE-3M-PREREG.md, draft §1r): ONE switch, ONE
+# date. From this session on -- Wed 28 Oct 2026, the first on the November
+# future -- the zone machine on its own 3-minute bands is logged (trigger_log,
+# rule "zone3"), alerted (decode's ZONE chip -> SETUP line, Telegram) and drawn
+# (the Trade tab's pockets and markers, via the payload's `zone3_on`). Before
+# it live.py still computes it, and nothing shows, sends or logs it. Every
+# reader refers to THIS name, so the date can never differ between them.
+ZONE3_FROM = "2026-10-28"
+
 
 def _num(x):
     """A finite float, or None. Bools are not numbers here."""
@@ -966,7 +975,7 @@ def detect_index_run(bars, days=None, stop_pts=None, side="BUY"):
     return [s["entry"] for s in run_states(bars, days, stop_pts, side)]
 
 
-def run_states(bars, days=None, stop_pts=None, side="BUY", band=None):
+def run_states(bars, days=None, stop_pts=None, side="BUY", band=None, span=1):
     """The same two-candle setup as a state PER BAR, not only its entries.
 
     `detect_index_run` answers "where did it fire". A screen also has to answer
@@ -1017,6 +1026,13 @@ def run_states(bars, days=None, stop_pts=None, side="BUY", band=None):
     An unreadable bar (`readable: False`) reports the state it is still IN, not
     WAITING. A missing read is not evidence the setup went away, and rendering
     it as WAITING would blink a live reference off the screen.
+
+    `span` is how many minutes one bar holds, read by the 09:25 anchor only: a
+    bar may ARM when it holds a minute at or after 09:25, `minute + span >
+    ANCHOR_MINUTE`. The default 1 is the label rule every caller has always
+    run (`minute >= ANCHOR_MINUTE`), unchanged. ZONE-3M
+    (docs/setup-review/ZONE-3M-PREREG.md, rule 4) passes its bar width, 3, so
+    the 09:24 bar -- closing 09:27, its bands computed then -- is eligible.
     """
     if not isinstance(bars, (list, tuple)) or not bars:
         return []
@@ -1105,7 +1121,7 @@ def run_states(bars, days=None, stop_pts=None, side="BUY", band=None):
                     tagged = lvl is not None and (high >= lvl if sell
                                                   else low <= lvl)
                     if (tagged and minute is not None
-                            and minute >= ANCHOR_MINUTE):
+                            and minute + span > ANCHOR_MINUTE):
                         ref = {"i": i, "t": t, "low": low, "high": high,
                                "level": lvl, "first_i": i, "first_t": t}
                         arm = {"rearm": False, "band": band,
