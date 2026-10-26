@@ -196,15 +196,16 @@ def fade_now(bars5, l5, leg):
             "px_ok": None if vw[-1] is None else (bars5[-1]["c"] > vw[-1] if top else bars5[-1]["c"] < vw[-1])}
 
 
-def leg_now(bars5, l5, leg):
+def leg_now(bars5, l5, leg, session=None):
     """fade_now's readings on the DECODE leg. A swing leg (A1) reads its own bars from its start -- its new extremes,
-    its biggest bar, its CVD peak, the winning lead's peak since the start -- beside the session's VWAP and CVD level;
-    the session-extreme leg reads exactly fade_now (FADE-D's own)."""
+    its biggest bar, its CVD peak, the winning lead's peak since the start -- beside the session's VWAP (off `session`,
+    the exchange's candles, when the flow record began late: A107) and CVD level; the session-extreme leg reads exactly
+    fade_now (FADE-D's own)."""
     if not leg or leg.get("how") != "swing":
         return fade_now(bars5, l5, leg)
     k0, c = leg["k0"], bars5[-1]["c"]
     fd = fade_now(bars5[k0:], {k: v for k, v in l5.items() if k >= bars5[k0]["s"] // 60}, leg)
-    off, vw = sum(b["delta"] for b in bars5[:k0]), faded.vwaps(bars5)[-1]
+    off, vw = sum(b["delta"] for b in bars5[:k0]), faded.vwaps(session or bars5)[-1]
     return dict(fd, b=dict(fd["b"], cvd=fd["b"]["cvd"] + off, peak=fd["b"]["peak"] + off),
                 px_ok=None if vw is None else (c > vw if leg["d"] > 0 else c < vw))
 
@@ -246,13 +247,28 @@ def _min(t):
 
 # ---- one index's facts at a 5-min close -----------------------------------------------------------------------------
 
-def facts(idx, now, bars5, X=None, zone=(), basis=None, fuel=None, pushes=None, push_why=None, push=None):
+def _rebase(pleg, p5, bars5):
+    """A107: the leg read off the exchange's candles, on the recorded flow bars: k0 = its start's slot (or the first
+    recorded after it), n = its extreme on those bars since -- a swing, so every flow sign reads only the leg's own
+    recorded bars. None when the leg began before the record: the flow of its start was never seen."""
+    s0 = p5[pleg["k0"]]["s"] if pleg else None
+    k0 = next((k for k, b in enumerate(bars5) if b["s"] >= s0), None) if pleg and s0 >= bars5[0]["s"] else None
+    if k0 is None:
+        return None
+    return dict(pleg, k0=k0, n=faded._arg(bars5, k0, len(bars5), pleg["side"], own=True), how="swing")
+
+
+def facts(idx, now, bars5, X=None, zone=(), basis=None, fuel=None, pushes=None, push_why=None, push=None, price5=None):
     """Everything the block reads for one index at `now` (sec of day): the 5-min push / flow bars closed by then
     (confluence_log.push_bars' rows), THE READ's chain arrays `X` (read.from_v2, for the writers' lead), the zone rows
     whose 3-min bar had closed (confluence_log.zone_rows), the READ card's basis (fut - spot), READ-2's FUEL (read.fuel),
     the stack's push bars (hold2.pushes, or None with `push_why`) and the extension's last push (server._push_for: live
-    only, {"up", "down"}: {t ms, px, rank, failed}). Any of them None -> its line reads "?"."""
+    only, {"up", "down"}: {t ms, px, rank, failed}). Any of them None -> its line reads "?".
+    A107, a late start: when the flow bars do not begin at 09:15, `price5` (the exchange's 5-min candles from 09:15,
+    confluence_log.price_bars) gives the DECODE leg and the session VWAP; the leg is rebased onto the recorded bars
+    (_rebase) -- `pleg` keeps it as read, `flow_from` says where the record begins. FADE-D's leg (§1n) is untouched."""
     bars5 = [b for b in bars5 or () if b["s"] + faded.BAR * 60 <= now]
+    p5 = [b for b in price5 or () if b["s"] + faded.BAR * 60 <= now]
     closes = list(range(OPEN_S // 60 + faded.BAR, now // 60 + 1, faded.BAR))
     l5 = faded.leads(X, closes) if X else {}
     l15 = {c: onesided.lead15(X, c) for c in closes} if X else {}
@@ -260,12 +276,18 @@ def facts(idx, now, bars5, X=None, zone=(), basis=None, fuel=None, pushes=None, 
     vw = faded.vwaps(bars5)
     c_last = faded.close(bars5[-1]) if bars5 else None
     zz = zz_thr(bars5, X, c_last) if bars5 else None
-    dleg = swing_of(bars5, zz) or (dict(leg, how="session") if leg else None)
+    late = bool(bars5) and bool(faded.opened(bars5)) and bool(p5) and not faded.opened(p5)
+    pleg = (swing_of(p5, zz) or (dict(leg_of(p5), how="session") if leg_of(p5) else None)) if late else None
+    if late:
+        vw, dleg = faded.vwaps(p5), _rebase(pleg, p5, bars5)
+    else:
+        dleg = swing_of(bars5, zz) or (dict(leg, how="session") if leg else None)
     return {"idx": idx, "now": now, "bars5": bars5, "c_last": c_last,
             "deltas": delta_rows(bars5), "cvd": cvd_read(bars5), "l5": l5, "zone": list(zone or ()), "basis": basis,
             "fuel": fuel, "pushes": pushes, "push_why": push_why, "push": push, "vwap": vw[-1] if vw else None,
-            "leg": leg, "fd": fade_now(bars5, l5, leg), "l15": l15, "zz": zz, "dleg": dleg,
-            "dfd": _fixed15(leg_now(bars5, l5, dleg), l15, c_last)}
+            "leg": leg, "fd": fade_now(bars5, l5, leg), "l15": l15, "zz": zz, "dleg": dleg, "pleg": pleg,
+            "flow_from": hm(bars5[0]["s"] // 60) if late else None,
+            "dfd": _fixed15(leg_now(bars5, l5, dleg, p5 if late else None), l15, c_last)}
 
 
 # ---- the seven signs --------------------------------------------------------------------------------------------------
@@ -334,8 +356,9 @@ def signs(g, peers):
     ps = _push_sign(g)
     if ps:
         (dec if ps[0] else con).append(("push", ps[1]))
-    other = [SHORT.get(p["idx"], p["idx"]) for p in peers if p.get("dleg") and p["dleg"]["d"] == -d]
-    same = [SHORT.get(p["idx"], p["idx"]) for p in peers if p.get("dleg") and p["dleg"]["d"] == d]
+    # A107: a late-started peer's leg is its candles' (pleg) -- a direction, read exactly off price
+    pd = [(SHORT.get(p["idx"], p["idx"]), (p.get("dleg") or p.get("pleg") or {}).get("d")) for p in peers]
+    other, same = [s for s, x in pd if x == -d], [s for s, x in pd if x == d]
     if other and not same:                    # N8: one peers sign; split peers are neither side's
         dec.append(("peers", f"{'+'.join(other)} {ARROW[-d]} ulta leg"))
     elif same and not other:
@@ -389,7 +412,7 @@ def _delta_line(g):
 
 def _cvd_line(g):
     fd = g["dfd"]
-    th = patla_of(g["idx"], g["bars5"])
+    th = patla_of(g["idx"], g["bars5"]) + (f" · {g['flow_from']} se" if g.get("flow_from") else "")   # A107: from the record
     if fd:
         b, d = fd["b"], g["dleg"]["d"]
         return (f"CVD {_num(b['peak'], sign=False)} {'peak' if d > 0 else 'low'} {b['peak_close']} → "
@@ -575,7 +598,7 @@ def setups(g, fade_in=None, ride_in=None):
 # ---- the block ------------------------------------------------------------------------------------------------------
 
 def leg_out(g):
-    leg, bs = g["dleg"], g["basis"]
+    leg, bs = g["dleg"] or g.get("pleg"), g["basis"]
     if not leg:
         return None
 
@@ -608,7 +631,15 @@ def decode(g, peers, fade_in=None, ride_in=None):
     effort, exhaust}. `g` = facts(...) for this index plus g["effort"] (effort.read, set by the server), `peers` = the
     other indices' facts. The server adds `age_s` when it serves the block (A13)."""
     dec, con = signs(g, peers)
-    return {"call": call(g["dleg"], dec, con), "lines": lines(g, peers)[:NLINES], "setups": setups(g, fade_in, ride_in),
+    c = call(g["dleg"], dec, con)
+    bs, pl = g["bars5"], g.get("pleg")
+    # A104, rule 6: a record not from 09:15 could not be read -- "?" with its why, never "saaf nahi"; unless (A107) the
+    # exchange's candles from 09:15 were read and show no leg, which IS saaf nahi
+    if not g["dleg"] and faded.opened(bs) and (pl or not g.get("flow_from")):
+        why = (f"leg {ARROW[pl['d']]} {pl['from_bar']} se · flow {g['flow_from']} se" if pl
+               else f"5m bars {hm(bs[0]['s'] // 60)} se · 09:15 nahi" if bs else "koi 5m bar nahi")
+        c = dict(c, text="?", signs=[why])
+    return {"call": c, "lines": lines(g, peers)[:NLINES], "setups": setups(g, fade_in, ride_in),
             "leg": leg_out(g), "t": hm(g["c_last"]) if g["c_last"] is not None else None, "tag": "I",
             "onesided": _onesided(g, peers), "effort": g.get("effort") or effort.blank("could not check — not read"),
             "exhaust": exhaust_of(g)}

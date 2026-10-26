@@ -139,6 +139,16 @@ def test_no_leg_no_signs_and_the_call_says_saaf_nahi():
     assert out["leg"] is None
 
 
+def test_a_record_that_begins_after_0915_is_could_not_check_never_saaf_nahi():
+    """A104, 26 Oct 09:32 start: the 5-min bars began 09:30, no leg can be read (faded.opened), and DECODE said
+    "saaf nahi 0/7" all day on every index -- a found-nothing where it could not look (CLAUDE.md rule 6). The call is
+    "?" with its reason as the one chip; the lines are still read."""
+    late = [dict(b, s=b["s"] + 15 * 60) for b in top()]                 # the same tape, recorded from 09:30
+    out = decode.decode(decode.facts("BANKNIFTY", M("10:00") * 60, late, X_for(TOP_LEAD)), [])
+    assert out["call"] == {"text": "?", "kind": "SAAF_NAHI", "d": 0, "c": 0, "of": 7, "signs": ["5m bars 09:30 se · 09:15 nahi"]}
+    assert out["leg"] is None and len(out["lines"]) == decode.NLINES
+
+
 # ---- the call rule ----------------------------------------------------------------------------------------------------
 
 LEG = {"d": 1}
@@ -297,6 +307,47 @@ def test_a_mid_range_turn_is_the_decode_leg_and_fade_d_keeps_its_own(monkeypatch
     assert {s["name"]: s["side"] for s in out["setups"]}["FADE-D"] == "SELL"       # FADE-D's status: its own leg
     early = decode.facts("NIFTY", M("10:05") * 60, bars, None)            # 22,795 -> 22,770: 25 pts, no reversal yet
     assert early["dleg"]["how"] == "session" and early["dleg"]["d"] == 1
+
+
+def candles(bars):
+    """The exchange's 5-min candles for the same tape (confluence_log.price_bars' shape): price and volume, no delta."""
+    return [{k: b[k] for k in ("s", "o", "h", "l", "c", "vol")} for b in bars]
+
+
+def test_a_late_start_reads_the_leg_off_the_candles_and_its_flow_only_from_the_record(monkeypatch):
+    """A107: the flow record began 09:35 (a late start); the candles from 09:15 find the 09:55 turn, and the leg is
+    read on the recorded bars from its own start -- the call is the swing's, never "?". FADE-D (§1n) and DIN (§1o)
+    keep needing the whole session's flow: still could-not-check."""
+    monkeypatch.setattr(decode, "ZZ_PCT", 50 / 22700)
+    bars = nifty_turn()
+    flow = [b for b in bars if b["s"] >= M("09:35") * 60]
+    g = decode.facts("BANKNIFTY", M("10:25") * 60, flow, None, price5=candles(bars))
+    assert g["leg"] is None                                                     # §1n: unchanged
+    assert (g["dleg"]["how"], g["dleg"]["d"], g["dleg"]["from_bar"], g["dleg"]["from"]) == ("swing", -1, "09:55", 22800)
+    assert flow[g["dleg"]["k0"]]["s"] == M("09:55") * 60                        # rebased onto the recorded bars
+    assert g["vwap"] == faded.vwaps(candles(bars))[-1]                          # the session's VWAP, off the candles
+    out = decode.decode(g, [])
+    assert out["call"]["text"].startswith("▼") and out["leg"]["start"] == {"t": "09:55", "fut": 22800, "spot": None}
+    assert out["lines"][1].endswith("· 09:35 se")                                # CVD counts from the record's start
+    assert out["onesided"]["type"] is None and "FADE-D" not in {s["name"] for s in out["setups"]}
+
+
+def test_a_leg_that_began_before_the_record_is_shown_but_its_flow_is_not_guessed(monkeypatch):
+    monkeypatch.setattr(decode, "ZZ_PCT", 50 / 22700)
+    bars = nifty_turn()
+    flow = [b for b in bars if b["s"] >= M("09:35") * 60]
+    g = decode.facts("SENSEX", M("10:05") * 60, flow, None, price5=candles(bars))   # the open's ▲ leg, no turn yet
+    out = decode.decode(g, [])
+    assert out["call"] == {"text": "?", "kind": "SAAF_NAHI", "d": 0, "c": 0, "of": 7, "signs": ["leg ▲ 09:15 se · flow 09:35 se"]}
+    assert out["leg"]["d"] == 1 and out["leg"]["start"]["t"] == "09:15"
+    monkeypatch.setattr(decode, "ZZ_PCT", 1.0)                                  # g_top's session leg: ▲
+    assert dict(decode.signs(g_top(), [g])[1])["peers"] == "SNX ▲ saath"        # its direction is a peer's, exactly
+
+
+def test_candles_from_0915_that_show_no_leg_say_saaf_nahi():
+    flat = [b5("09:15", 110, 100, 105, 10), b5("09:20", 109, 101, 104, -5)]
+    g = decode.facts("BANKNIFTY", M("09:25") * 60, flat[1:], X_for(TOP_LEAD), price5=candles(flat))
+    assert decode.decode(g, [])["call"]["text"] == "saaf nahi"                  # looked from 09:15: nothing, truly
 
 
 def test_the_reversal_is_the_panel_rule_floor_or_half_the_iv_priced_30_min_sigma(monkeypatch):
@@ -468,6 +519,23 @@ def test_decode_all_one_index_failing_is_its_own_question_mark(monkeypatch):
     assert res["NIFTY"]["t"] == "09:45" and res["NIFTY"]["lines"][4] == "SYNC NIFTY ▼VWAP · SNX ▼"
     assert {s["name"]: s["state"] for s in res["NIFTY"]["setups"]}["FADE"] == "—"      # its inputs failed: "—"
     assert server._decode_all("2026-01-02", M("09:10") * 60, False)["NIFTY"]["call"]["text"] == "?"
+
+
+def test_decode_files_fetch_the_candles_only_when_the_flow_record_began_late(monkeypatch):
+    """A107's wiring: server._decode_files hands DECODE the exchange's candles (confluence_log.price_bars) when the
+    flow bars do not begin at 09:15, and fetches nothing on a day recorded from the open."""
+    import confluence_log
+    import server
+    bars, asked = nifty_turn(), []
+    monkeypatch.setattr(server.ux_log, "read_bars", lambda day, idx: [])
+    monkeypatch.setattr(confluence_log, "push_refs", lambda idx, day: ({}, "x"))
+    monkeypatch.setattr(confluence_log, "zone_rows", lambda idx, day: [])
+    monkeypatch.setattr(confluence_log, "price_bars", lambda idx, day: asked.append(idx) or candles(bars))
+    monkeypatch.setattr(server, "_HOLD2", {"refs": {}})
+    for flow, want in ((bars[4:], candles(bars)), (bars, None)):
+        monkeypatch.setattr(confluence_log, "push_bars", lambda idx, day, ux_rows=None, _f=flow: _f)
+        assert server._decode_files("BANKNIFTY", "2026-01-02", M("10:25") * 60, False)["price5"] == want
+    assert asked == ["BANKNIFTY"]
 
 
 def test_live_blocks_are_computed_once_per_close_off_the_request_thread(monkeypatch):

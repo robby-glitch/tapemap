@@ -1831,8 +1831,9 @@ def _decode_files(idx, day, T, live):
         _HOLD2["refs"][(idx, day)] = confluence_log.push_refs(idx, day)
     refs, pwhy = _HOLD2["refs"][(idx, day)]
     zone = [z for z in confluence_log.zone_rows(idx, day) if (decode._min(z["t"]) + 3) * 60 <= T]
+    late = bool(bars5) and bool(decode.faded.opened(bars5))       # A107: the flow record began after 09:15 (a late start)
     return {"ux": ux, "bars5": bars5, "ref": ref, "pushes": hold2.pushes(bars5, refs) if refs else None, "pwhy": pwhy,
-            "zone": zone}
+            "zone": zone, "price5": confluence_log.price_bars(idx, day) if late else None}
 
 
 def _decode_facts(idx, day, T, live, D, F, keep=False):
@@ -1850,7 +1851,7 @@ def _decode_facts(idx, day, T, live, D, F, keep=False):
     card = read.card(X, tl, None, T, None)
     fuel = read.fuel(rank.bars_of(F["ux"], 5), T, fref, lot) if fref else {"vote": None, "why": f"no rank_ref for {day}"}
     g = decode.facts(idx, T, F["bars5"], read.from_v2(s, lot), F["zone"], card.get("basis") if card.get("ok") else None,
-                     fuel, F["pushes"], F["pwhy"], _push_for(idx, day) if live else None)
+                     fuel, F["pushes"], F["pwhy"], _push_for(idx, day) if live else None, price5=F.get("price5"))
     if keep:
         g.update(card=card, rows=tl.get("rows") or [])
     return g
@@ -4404,6 +4405,7 @@ def _validate_press(doc):
 REC_DUE = (("book", "09:20"), ("chain", "09:20"), ("calls", "09:20"), ("read", "09:25"), ("GoCharting", "09:20"))   # read: its 09:20 mark lands after its grace
 REC_END = "15:30"
 FRAME_QUIET_S = 120                                # no frame POST for 2 min: the panel's record is not being written
+START_GRACE_S = 300                                # A103: a fresh start's first rows (26 Oct 09:32: book +8 s, chain +68 s, read +133 s)
 IMPORT_DIR = os.path.join("data", "receipts")      # one row per confirmed tradebook import, import_<day>.jsonl (_receipts_import)
 _REC = {"day": None, "text": None}                 # the last recording state logged to data/feed_log.jsonl
 _REC_LOCK = threading.Lock()
@@ -4540,8 +4542,8 @@ def _msg_pass(now=None):
     rr = list(confluence_log._rows(os.path.join(READ_DIR, f"read_{day}.jsonl")))
     dr = list(confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")))
     rec = _health_safe(lambda: _recording(now))
-    if rec and rec.get("missing") == ["GoCharting"] and time.time() - _STARTED < FRAME_QUIET_S:
-        rec = None                                 # feed_health.last_post is memory-only: the extension has not had one quiet window to post since this start
+    if rec and not rec.get("ok") and time.time() - _STARTED < START_GRACE_S:
+        rec = None                                 # A103: no recorder has written its first row since this start: a hole is not yet knowable
     with _MSG_LOCK:
         _msg_load(day)
         h = messages.health(rec, _MSG["health"], hm)

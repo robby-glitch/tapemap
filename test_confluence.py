@@ -422,3 +422,52 @@ def test_fade_look_amendment_2_scores_once_marks_1k_and_refuses_a_second_time(tm
     assert res["amendment"].startswith("§1k") and res["readings"] == cs.READINGS
     assert not md.exists()                                               # the look's document is LOOK-2026-10-21.md
     assert cs.main(["--look-amendment-2"]) == 2 and cs.main(["--run"]) == 2 and runs == [True]   # once
+
+
+def _row(hhmm, o, h, l, c, delta, vol=1000):
+    s = int(hhmm[:2]) * 3600 + int(hhmm[3:]) * 60
+    return {"t": (s - 19800) * 1000, "o": o, "h": h, "l": l, "c": c, "vol": vol, "delta": delta}
+
+
+def _ones(hhmm, rows):
+    m0 = int(hhmm[:2]) * 60 + int(hhmm[3:])
+    return [{"t": f"{(m0 + k) // 60:02d}:{(m0 + k) % 60:02d}", "o": o, "h": h, "l": l, "c": c}
+            for k, (o, h, l, c) in enumerate(rows)]
+
+
+# 26 Oct 09:15, as recorded: GoCharting's history bar (no open / close) and the exchange's five 1-min candles
+GC_0915 = _row("09:15", None, 22579.3, 22500.0, None, -1007, vol=2233)
+ONES_0915 = _ones("09:15", [(22560.0, 22570.0, 22530.0, 22535.0), (22531.0, 22575.0, 22525.6, 22575.0),
+                            (22575.0, 22579.3, 22540.0, 22545.0), (22545.0, 22550.0, 22505.0, 22510.0),
+                            (22510.0, 22520.0, 22500.0, 22500.0)])
+
+
+def test_a_late_start_completes_gochartings_history_bar_from_the_exchanges_1min_candles():
+    """A106, 26 Oct 09:32 start: the extension's history bars 09:15-09:25 came with h, l, vol and delta but no open /
+    close (its candle join has failed since 3 Oct) and Upstox's flow bars began at the start, so NIFTY's 5-min bars
+    began 09:30 and DECODE read nothing all day. Where no Upstox bar holds the slot, the open / close are the exchange's
+    1-min candles' (first open, last close), tagged; GoCharting's own h / l / vol / delta are untouched."""
+    ux = [_row("09:30", 22506.0, 22529.9, 22499.5, 22503.5, 12)]
+    got = L.push_bars("NIFTY", "2026-10-26", gc_rows=[GC_0915], ux_rows=ux, ones=ONES_0915)
+    b = got[0]
+    assert [(x["s"] // 60, x["src"]) for x in got] == [(555, "gc"), (570, "ux")]
+    assert (b["o"], b["h"], b["l"], b["c"], b["vol"], b["delta"], b["oc"]) == (22560.0, 22579.3, 22500.0, 22500.0,
+                                                                                2233, -1007, "ux1m")
+
+
+def test_price_bars_are_the_exchanges_5min_candles_on_the_0915_grid():
+    """A107: DECODE's leg on a late start -- the 1-min candles folded to 5-min bars shaped as the flow bars (s, o, h, l,
+    c, vol), tagged ux1m, with no delta: price and volume only."""
+    ones = [dict(o, v=100 * (k + 1)) for k, o in enumerate(ONES_0915)] + _ones("09:20", [(22500.0, 22501.8, 22454.0, 22470.0)])
+    got = L.price_bars("BANKNIFTY", "2026-10-26", ones=ones)
+    assert got == [{"s": 555 * 60, "o": 22560.0, "h": 22579.3, "l": 22500.0, "c": 22500.0, "vol": 1500, "src": "ux1m"},
+                   {"s": 560 * 60, "o": 22500.0, "h": 22501.8, "l": 22454.0, "c": 22470.0, "vol": 0, "src": "ux1m"}]
+
+
+def test_the_candle_fill_never_touches_a_slot_upstox_holds_or_a_candle_it_cannot_trust():
+    ux = [_row("09:15", 22561.0, 22579.0, 22501.0, 22502.0, -900)]
+    held = L.push_bars("NIFTY", "2026-10-26", gc_rows=[GC_0915], ux_rows=ux, ones=ONES_0915)
+    assert [(b["src"], b["delta"], "oc" in b) for b in held] == [("ux", -900, False)]      # an observed bar wins: untouched
+    for ones in (ONES_0915[:4],                                                             # a minute short
+                 [dict(o, h=o["h"] + 120, l=o["l"] + 120) for o in ONES_0915]):              # another contract's range
+        assert L.push_bars("NIFTY", "2026-10-26", gc_rows=[GC_0915], ux_rows=[], ones=ones) == []

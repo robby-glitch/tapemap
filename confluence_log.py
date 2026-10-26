@@ -369,14 +369,71 @@ def _tape_rows(prefix, day):
     return _server()._rank_mod()._rows(os.path.join(tape_log.DIR, f"{prefix}{day}.jsonl"))
 
 
-def push_bars(index, day, gc_rows=None, ux_rows=None):
+OC_TOL = 0.002      # A106: a 1-min candle fills a GoCharting bar only within 0.2% of its range (~45 pts NIFTY): a few
+                    # points between vendors pass, another contract's (a roll, ~110 pts) never does
+
+
+def fut_ones(index, day):
+    """The exchange's 1-min futures candles for (index, day), [{t: "HH:MM", o, h, l, c}]: today's off the live tape's
+    own Upstox session (server._PAYLOADS, fetched from 09:15 whatever time the server started), a past day's off its
+    cached session (`session`). [] when neither holds that day."""
+    lbl = time.strftime("%b %d", time.strptime(day, "%Y-%m-%d"))
+    dd = ((((getattr(_server(), "_PAYLOADS", None) or {}).get(index) or {}).get("session") or {}).get("day") or {})
+    if str(dd.get("day") or "").startswith(lbl):
+        return [dict(b["fut"], t=b["t"]) for b in dd.get("bars") or () if b.get("fut")]
+    return (session(index, day) or {}).get("ones") or []
+
+
+def price_bars(index, day, ones=None):
+    """A107: the exchange's 5-min futures candles for (index, day), folded from its 1-min candles (fut_ones, or `ones`)
+    and shaped as the flow bars (s, o, h, l, c, vol), src "ux1m": price and volume only, no delta. DECODE reads its leg
+    off them when the flow record began after 09:15 (decode.facts' price5)."""
+    try:
+        src = fut_ones(index, day) if ones is None else ones
+    except Exception:                            # noqa: BLE001 -- none: DECODE says "?" as without them, never fails
+        src = []
+    rows = [r for r in src if None not in (r.get("t"), r.get("o"), r.get("h"), r.get("l"), r.get("c"))]
+    return [{"s": int(b["t"][:2]) * 3600 + int(b["t"][3:5]) * 60, "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"],
+             "vol": b["v"], "src": "ux1m"} for b in cb.resample(rows, 5)]
+
+
+def _candle_fill(gc, ux, ones, index, day):
+    """A106: GoCharting's history bars (the extension's chart snapshot, when it loads after a slot closed) carry h, l,
+    vol and delta but -- since its 3 Oct candle-join change -- no open / close, so hold2.source_bars drops them; on a
+    late start no Upstox bar holds those slots either. There, and only there, the open / close are the exchange's 1-min
+    candles' (the slot's first open, its last close): all five minutes present, their range within OC_TOL of
+    GoCharting's own, the bar tagged oc="ux1m". Every other bar is returned as it came. Fail-soft: a refinement."""
+    held = {b["s"] for b in hold2.source_bars(None, ux)}
+    if not any((b["o"] is None or b["c"] is None) and b["s"] not in held for b in gc):
+        return gc
+    if ones is None:
+        try:
+            ones = fut_ones(index, day)
+        except Exception:                        # noqa: BLE001 -- the bars as they came, never fewer
+            ones = []
+    by, out = {o.get("t"): o for o in ones}, []
+    for b in gc:
+        m = [by.get(faded.hm(b["s"] // 60 + k)) for k in range(5)]
+        if ((b["o"] is None or b["c"] is None) and b["s"] not in held and b["h"] is not None and b["l"] is not None
+                and all(x and None not in (x.get("o"), x.get("h"), x.get("l"), x.get("c")) for x in m)
+                and abs(max(x["h"] for x in m) - b["h"]) <= OC_TOL * b["h"]
+                and abs(min(x["l"] for x in m) - b["l"]) <= OC_TOL * b["l"]):
+            b = dict(b, o=m[0]["o"], c=m[-1]["c"], fill=False, oc="ux1m")
+        out.append(b)
+    return out
+
+
+def push_bars(index, day, gc_rows=None, ux_rows=None, ones=None):
     """The day's closed 5-min push bars for hold2.pushes, each tagged with its source: NIFTY GoCharting's (tape_) with
     the Upstox (ux_) bar of the same slot only where GoCharting lacks one; BANKNIFTY / SENSEX Upstox's. `gc_rows` /
-    `ux_rows` are the records' rows when the caller holds them in memory (the live server), else the files are read."""
+    `ux_rows` are the records' rows when the caller holds them in memory (the live server), else the files are read.
+    A GoCharting bar with no candle on a slot Upstox lacks too (a late start) gets the exchange's 1-min open / close
+    (_candle_fill, A106); `ones` = those candles when the caller holds them, else fut_ones."""
     ux = rank.bars_of(_tape_rows(f"ux_{index}_", day) if ux_rows is None else ux_rows, 5)
     gc = None
     if index == "NIFTY":
-        gc = rank.bars_of(_tape_rows(f"tape_{index}_", day) if gc_rows is None else gc_rows, 5)
+        gc = _candle_fill(rank.bars_of(_tape_rows(f"tape_{index}_", day) if gc_rows is None else gc_rows, 5), ux, ones,
+                          index, day)
     return hold2.source_bars(gc, ux)
 
 

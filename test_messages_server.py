@@ -119,25 +119,27 @@ def test_new_lines_reach_the_telegram_queue_once(monkeypatch):
 
 
 def test_no_false_recording_nahi_right_after_a_restart(monkeypatch):
-    """feed_health.last_post is memory-only and the first pass runs before the extension posts: a restart used to send
-    RECORDING NAHI · GoCharting, then RECORDING OK 20-40 s later. Only GoCharting missing, inside FRAME_QUIET_S of the start,
-    is not yet knowable; anything else missing, or the same state later, is said."""
-    gc = {"ok": False, "missing": ["GoCharting"], "text": "RECORDING NAHI: GoCharting"}
-    monkeypatch.setattr(server, "_recording", lambda now=None: gc)
+    """A103, 26 Oct 09:32 start: no recorder had written its first row yet, so the first pass said RECORDING NAHI · book,
+    chain, calls, read, GoCharting, and 09:35 RECORDING OK -- both to her phone. Inside START_GRACE_S of the start a hole is
+    not yet knowable: nothing is said, and the warm-up clearing is "TapeMap live", never RECORDING OK."""
     monkeypatch.setattr(server, "_STARTED", time.time())
-    server._msg_pass(at(10, 7))
+    rec = lambda *m: (lambda now=None: {"ok": not m, "missing": list(m), "text": None})  # noqa: E731
+    monkeypatch.setattr(server, "_recording", rec("book", "chain", "calls", "read", "GoCharting"))
+    server._msg_pass(at(9, 32, 40))
+    monkeypatch.setattr(server, "_recording", rec("read"))
+    server._msg_pass(at(9, 34, 40))                                      # read's first row landed +133 s after the start
     assert [r for r in _disk() if r["kind"] == "HEALTH"] == []
-    monkeypatch.setattr(server, "_recording", lambda now=None: dict(gc, missing=["book", "GoCharting"]))
-    server._msg_pass(at(10, 8))                                          # a real hole alongside it: said at once
-    assert [r["word"] for r in _disk() if r["kind"] == "HEALTH"] == ["RECORDING NAHI"]
+    monkeypatch.setattr(server, "_recording", rec())
+    server._msg_pass(at(9, 35))
+    assert [r["line"] for r in _disk() if r["kind"] == "HEALTH"] == ["09:35  HEALTH  TapeMap live · recording ok"]
 
 
-def test_gocharting_missing_after_the_quiet_window_is_said(monkeypatch):
-    monkeypatch.setattr(server, "_recording", lambda now=None: {"ok": False, "missing": ["GoCharting"],
-                                                                "text": "RECORDING NAHI: GoCharting"})
-    monkeypatch.setattr(server, "_STARTED", time.time() - server.FRAME_QUIET_S - 1)
+def test_a_hole_still_open_after_the_start_grace_is_said(monkeypatch):
+    monkeypatch.setattr(server, "_recording", lambda now=None: {"ok": False, "missing": ["book", "GoCharting"],
+                                                                "text": "RECORDING NAHI: book, GoCharting"})
+    monkeypatch.setattr(server, "_STARTED", time.time() - server.START_GRACE_S - 1)
     server._msg_pass(at(10, 7))
-    assert [(r["word"], r["why"]) for r in _disk() if r["kind"] == "HEALTH"] == [("RECORDING NAHI", "GoCharting")]
+    assert [(r["word"], r["why"]) for r in _disk() if r["kind"] == "HEALTH"] == [("RECORDING NAHI", "book, GoCharting")]
 
 
 def test_a_raising_telegram_offer_never_breaks_the_pass(monkeypatch, caplog):
