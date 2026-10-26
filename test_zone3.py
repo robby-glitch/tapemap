@@ -282,3 +282,90 @@ def test_api_signals_counts_zone3_apart_and_never_as_legacy():
     assert j["zone3"] == {"n": 1, "arms": 1}
     assert j["zone"] == {"n": 1} and j["legacy"] == {"n": 1} and j["arms"]["n"] == 1
     assert j["matched"] == 5
+
+
+# ---- Task 7: the ZONE chip, its date, its SETUP line, Telegram -------------------------------------------------------
+
+def _b3(at):
+    """The zone machine's closed 3-min bars at `at` (minute of day), cut the way server._decode_bars3 cuts them."""
+    import confluence
+    return [b for b in contract_bars.resample_index(_ones(), 3) if confluence.close_of(b["t"]) <= at]
+
+
+M = lambda hhmm: int(hhmm[:2]) * 60 + int(hhmm[3:])        # noqa: E731
+
+
+def _g(at, leg=None, basis=None, day="2026-10-28"):
+    """DECODE's facts as `_zone3` reads them. The candles are 26 Oct's; `day` is the date the server stamps
+    (`g["day"]`), set to the first ZONE-3M session unless a test says otherwise."""
+    return {"idx": "NIFTY", "bars5": [], "now": M(at) * 60, "leg": leg, "basis": basis, "day": day}
+
+
+def test_the_zone_chip_matches_at_the_close_holding_the_zone3_entry():
+    import decode
+    assert decode._zone3(_g("09:30"), {"bars3": _b3(M("09:30"))}) == {
+        "name": "ZONE", "side": "BUY", "checks": {}, "state": "MATCH", "plan": "E 22,534f · stop 22,425f"}
+    s = decode._zone3(_g("09:30", basis=65.95), {"bars3": _b3(M("09:30"))})
+    assert s["plan"] == "E 22,468s|22,534f · stop 22,359s|22,425f"
+
+
+def test_the_zone_chip_is_armed_while_armed_and_dash_after():
+    import decode
+    assert decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))}) == {
+        "name": "ZONE", "side": "BUY", "checks": {}, "state": "ARMED"}
+    assert decode._zone3(_g("09:35", leg={"d": 1}), {"bars3": _b3(M("09:35"))}) == {
+        "name": "ZONE", "side": "SELL", "checks": {}, "state": "—"}
+    assert decode._zone3(_g("09:35"), {"bars3": _b3(M("09:35"))}) is None    # no leg, no side to show
+    assert decode._zone3(_g("09:30"), None) is None                          # no bars, no chip
+
+
+def test_the_zone_chip_waits_for_its_date_so_nothing_alerts_before_the_record(monkeypatch):
+    """One switch, one date: on 27 Oct no ZONE chip at all (not even "—"), so no SETUP line and no Telegram; on 28 Oct
+    the same tape gives its MATCH. A day not stated is not shown. The server hands DECODE its day."""
+    import inspect
+    import decode
+    import server
+    fin = {"bars3": _b3(M("09:30"))}
+    assert decode._zone3(_g("09:30", leg={"d": 1}, day="2026-10-27"), fin) is None
+    assert decode._zone3(_g("09:30", day="2026-10-28"), fin)["state"] == "MATCH"
+    assert decode._zone3(_g("09:30", leg={"d": 1}, day=None), fin) is None
+    for fn in ("_fade", "_ride", "_fade_d"):
+        monkeypatch.setattr(decode, fn, lambda *a, **k: None)
+    assert decode.setups(_g("09:30", leg={"d": 1}, day="2026-10-27"), fin) == []
+    assert 'g["day"] = day' in inspect.getsource(server._decode_all)
+
+
+def test_zone3_from_lives_in_one_place():
+    import decode
+    import live
+    import trigger_log
+    assert not any(hasattr(m, "ZONE3_FROM") for m in (trigger_log, decode, live, contract_bars))
+
+
+def test_the_chip_equals_the_payloads_zone3_state_cut_at_the_close():
+    """The chip re-derives on the closed bars; the payload computed on the whole session. Causal: the same machine."""
+    full = _out()
+    k = len(_b3(M("09:27")))
+    z = contract_bars.with_bands(_b3(M("09:27")), contract_bars.bands_on(_b3(M("09:27"))))
+    assert run_states(z, stop_pts=band_rotation.OPERATOR_STOP_PTS, band="d2", span=3) == full["zone3_state"][:k]
+
+
+def test_setups_lists_the_zone_chip_after_the_registered_three(monkeypatch):
+    import decode
+    for fn in ("_fade", "_ride", "_fade_d"):
+        monkeypatch.setattr(decode, fn, lambda *a, **k: None)
+    assert [s["name"] for s in decode.setups(_g("09:30"), {"bars3": _b3(M("09:30"))})] == ["ZONE"]
+
+
+def test_a_zone_match_is_one_setup_line_with_its_own_entry_and_stop_and_reaches_telegram():
+    import decode
+    import messages
+    import telegram_out
+    row = {"idx": "NIFTY", "T": "09:30", "call": {"text": "x", "kind": "JAARI", "d": 0, "c": 4, "of": 7, "signs": []},
+           "leg": {"d": 1, "ext": {"t": "09:30", "fut": 22549.0, "spot": None}}, "onesided": {"type": None},
+           "setups": [decode._zone3(_g("09:30"), {"bars3": _b3(M("09:30"))})]}
+    ms = [m for m in messages.build([], [row]) if m["kind"] == "SETUP"]
+    assert [m["line"] for m in ms] == ["09:30  NIFTY  ZONE BUY · 4/7 saath · E 22,534f · stop 22,425f"]
+    assert telegram_out.wants(ms[0])
+    armed = dict(row, T="09:27", setups=[decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))})])
+    assert not [m for m in messages.build([], [armed]) if m["kind"] == "SETUP"]      # an arm is never sent

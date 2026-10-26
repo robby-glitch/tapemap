@@ -39,7 +39,9 @@ from __future__ import annotations
 
 import math
 
+import band_rotation
 import confluence
+import contract_bars
 import effort
 import faded
 import hold2
@@ -584,11 +586,43 @@ def _ride(g, rin):
     return dflt if leg else None
 
 
+def _zone3(g, fin):
+    """ZONE (ZONE-3M, docs/setup-review/ZONE-3M-PREREG.md, draft §1r; display only): the zone machine
+    (band_rotation.run_states at d2 / u2, called) on bands computed on its own closed 3-min bars -- `fin["bars3"]`,
+    re-banded by contract_bars.bands_on, the helper live.py publishes `zone3_state` with; both are causal, so this is
+    the payload's machine cut at the close. MATCH: an entry whose bar closed since the last 5-min close, with its plan
+    (E = the entry bar's close, stop = the machine's); ARMED: a live reference on the last closed bar; else "—" on
+    the leg's fade side. ABSENT (None, not even "—") before band_rotation.ZONE3_FROM or on a day not stated
+    (g["day"], set by server._decode_all), so no SETUP line and no Telegram before the record starts. No bars, no chip."""
+    if str(g.get("day") or "") < band_rotation.ZONE3_FROM:
+        return None
+    b3 = (fin or {}).get("bars3")
+    if not b3:
+        return None
+    z = contract_bars.with_bands(b3, contract_bars.bands_on(b3))
+    armed = None
+    for side, band in (("BUY", "d2"), ("SELL", "u2")):
+        st = band_rotation.run_states(z, stop_pts=band_rotation.OPERATOR_STOP_PTS, side=side, band=band,
+                                      span=confluence.INTERVAL)
+        for s in st:
+            e = s["entry"]
+            c = confluence.close_of(e["t"]) if e else None
+            if c is not None and g["now"] - faded.BAR * 60 < c * 60 <= g["now"]:
+                return {"name": "ZONE", "side": side, "checks": {}, "state": "MATCH",
+                        **_plan({"E": confluence.flat(z[e["i"]]).get("c"), "stop": e["stop"]}, g["basis"])}
+        if armed is None and st[-1]["state"] == "ARMED":
+            armed = side
+    leg = g["leg"]
+    side = armed or (("SELL" if leg["d"] > 0 else "BUY") if leg else None)
+    return {"name": "ZONE", "side": side, "checks": {}, "state": "ARMED" if armed else "—"} if side else None
+
+
 def setups(g, fade_in=None, ride_in=None):
-    """FADE, RIDE, FADE-D in that order, each live at the current close or "—"; one that cannot be read is dropped
-    (no side to show). Each part fails soft on its own."""
+    """FADE, RIDE, FADE-D, ZONE in that order, each live at the current close or "—"; one that cannot be read is
+    dropped (no side to show). Each part fails soft on its own."""
     out = []
-    for fn in (lambda: _fade(g, fade_in), lambda: _ride(g, ride_in), lambda: _fade_d(g, ride_in)):
+    for fn in (lambda: _fade(g, fade_in), lambda: _ride(g, ride_in), lambda: _fade_d(g, ride_in),
+               lambda: _zone3(g, fade_in)):
         try:
             s = fn()
         except Exception:                     # one setup's failure is that chip's absence, never the block's

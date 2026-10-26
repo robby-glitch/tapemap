@@ -1912,6 +1912,7 @@ def _decode_all(day, now, live, keep=False):
         except Exception as e:
             log.exception("decode effort %s", i)
             g["effort"] = effort.blank(f"could not check — {type(e).__name__}: {e}")
+        g["day"] = day                           # ZONE-3M: decode._zone3 waits for band_rotation.ZONE3_FROM
         try:
             res[i] = decode.decode(g, peers, fin, rin)
         except Exception as e:
