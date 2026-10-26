@@ -303,16 +303,18 @@ def _g(at, leg=None, basis=None, day="2026-10-28"):
 
 def test_the_zone_chip_matches_at_the_close_holding_the_zone3_entry():
     import decode
-    assert decode._zone3(_g("09:30"), {"bars3": _b3(M("09:30"))}) == {
-        "name": "ZONE", "side": "BUY", "checks": {}, "state": "MATCH", "plan": "E 22,534f · stop 22,425f"}
+    s = decode._zone3(_g("09:30"), {"bars3": _b3(M("09:30"))})      # A116: with her four pieces (test_zone_pieces)
+    assert {k: s[k] for k in ("name", "side", "state", "plan", "ep", "n")} == {
+        "name": "ZONE", "side": "BUY", "state": "MATCH", "plan": "E 22,534f · stop 22,425f", "ep": "09:27", "n": 1}
+    assert s["checks"] == {"zone": True, "thakan": None, "PE": None, "Δ": None}
     s = decode._zone3(_g("09:30", basis=65.95), {"bars3": _b3(M("09:30"))})
     assert s["plan"] == "E 22,468s|22,534f · stop 22,359s|22,425f"
 
 
 def test_the_zone_chip_is_armed_while_armed_and_dash_after():
     import decode
-    assert decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))}) == {
-        "name": "ZONE", "side": "BUY", "checks": {}, "state": "ARMED"}
+    s = decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))})
+    assert (s["name"], s["side"], s["state"], s["n"]) == ("ZONE", "BUY", "ARMED", 1) and "plan" not in s
     assert decode._zone3(_g("09:35", leg={"d": 1}), {"bars3": _b3(M("09:35"))}) == {
         "name": "ZONE", "side": "SELL", "checks": {}, "state": "—"}
     assert decode._zone3(_g("09:35"), {"bars3": _b3(M("09:35"))}) is None    # no leg, no side to show
@@ -365,7 +367,9 @@ def test_a_zone_match_is_one_setup_line_with_its_own_entry_and_stop_and_reaches_
            "leg": {"d": 1, "ext": {"t": "09:30", "fut": 22549.0, "spot": None}}, "onesided": {"type": None},
            "setups": [decode._zone3(_g("09:30"), {"bars3": _b3(M("09:30"))})]}
     ms = [m for m in messages.build([], [row]) if m["kind"] == "SETUP"]
-    assert [m["line"] for m in ms] == ["09:30  NIFTY  ZONE BUY · 4/7 saath · E 22,534f · stop 22,425f"]
+    assert [m["line"] for m in ms] == [                                   # A116: n/4 and her pieces, not DECODE's 4/7
+        "09:30  NIFTY  ZONE BUY · 1/4 · ✓ d2 22,445f chhua 09:24 · ? thakan/roka — chart marks nahi · "
+        "? PE likh rahe — chain nahi · ? Δ — koi 5m bar nahi · E 22,534f · stop 22,425f"]
     assert telegram_out.wants(ms[0])
     armed = dict(row, T="09:27", setups=[decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))})])
     assert not [m for m in messages.build([], [armed]) if m["kind"] == "SETUP"]      # an arm is never sent

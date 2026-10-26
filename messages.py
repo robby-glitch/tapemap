@@ -5,7 +5,8 @@ Mary, 25 Oct: "sometime i miss the signals it genrate and not able to decipher w
 NOTHING NEW IS READ: every message is a change in a read the server already logs, write-once.
   READ    THE READ's held word or arrow changes at a closed mark; a QUIT event                   data/read/read_<day>.jsonl
   LEG     DECODE's call turns JAARI <-> THAK or its leg flips; MILA / saaf nahi keep the last    data/decode/decode_<day>.jsonl
-  SETUP   a FADE / RIDE / FADE-D chip turns MATCH, or an entry's HOLD v2 state                   the same DECODE rows
+  SETUP   a FADE / RIDE / FADE-D / ZONE chip turns MATCH, or an entry's HOLD v2 state            the same DECODE rows
+          ZONE (A116): her four pieces and n/4 on the line, then one line per piece that joins its episode (zone_ep)
   DIN     the one-sided meter's day type changes (TREND ▲ / ▼, CHOP, MIXED)                      the same DECODE rows
   TRADE   the one voice turns TIGHTEN / WARN / EXIT (server._in_trade -> `trade`)
   HEALTH  RECORDING NAHI starts / clears; the day's first look says "TapeMap live" (server._recording -> `health`)
@@ -127,6 +128,7 @@ def build(read_rows, decode_rows):
             except Exception:                                # noqa: BLE001
                 bad += 1
     leg, live, din = {}, {}, {}
+    zep = {}                                                 # A116: idx -> [side, ep, the pieces already said] of a ZONE alert
     for r in dec:
         try:
             i, t, c, lg = r["idx"], r["T"], r.get("call") or {}, r.get("leg") or {}
@@ -139,12 +141,27 @@ def build(read_rows, decode_rows):
                   if s.get("name") and s.get("side") in ("BUY", "SELL") and str(s.get("state") or "—") not in OFF}
             ext = lg.get("ext") or {}
             plan = {(s.get("name"), s.get("side")): s.get("plan") for s in r.get("setups") or ()}   # A108: its own E / stop
+            chip = {(s.get("name"), s.get("side")): s for s in r.get("setups") or ()}
             for (nm, side), state in on.items():
                 if (nm, side) not in live.get(i, {}):
-                    d = 1 if side == "BUY" else -1
+                    d, z = 1 if side == "BUY" else -1, chip[(nm, side)]
+                    if nm == "ZONE" and z.get("pieces"):     # A116: her four pieces, n/4, instead of DECODE's 7-sign count
+                        out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", f"{z.get('n')}/4",
+                                        " · ".join(list(z["pieces"]) + ([z["plan"]] if z.get("plan") else [])), state))
+                        zep[i] = [side, z.get("ep"), {k for k, v in (z.get("checks") or {}).items() if v is True}]
+                        continue
                     out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", agree(r, d), plan.get((nm, side))
                                     or (None if ext.get("fut") is None else f"{_n(ext['fut'])}f"), state))
             live[i] = on
+            ze, z0 = r.get("zone_ep") or {}, zep.get(i)
+            if z0 and [ze.get("side"), ze.get("ep")] == z0[:2]:      # one line when a piece joins the alerted setup
+                new = [p for p in ze.get("pieces") or () if p.get("ok") is True and p.get("k") not in z0[2]]
+                if new:
+                    out.append(_msg(t, i, "SETUP", 1 if z0[0] == "BUY" else -1,
+                                    f"ZONE {z0[0]} + " + " + ".join(p["lbl"] for p in new), f"{ze.get('n')}/4",
+                                    " · ".join([p["chip"] for p in new] + ([ze["plan"]] if ze.get("plan") else [])),
+                                    "piece joined"))
+                    z0[2].update(p["k"] for p in new)
             ty = (r.get("onesided") or {}).get("type")
             if ty and din.get(i) != ty:                      # None (could not check) keeps the last type
                 d = 1 if "▲" in ty else -1 if "▼" in ty else 0

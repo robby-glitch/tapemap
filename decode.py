@@ -586,35 +586,138 @@ def _ride(g, rin):
     return dflt if leg else None
 
 
-def _zone3(g, fin):
-    """ZONE (ZONE-3M, docs/setup-review/ZONE-3M-PREREG.md, draft §1r; display only): the zone machine
-    (band_rotation.run_states at d2 / u2, called) on bands computed on its own closed 3-min bars -- `fin["bars3"]`,
-    re-banded by contract_bars.bands_on, the helper live.py publishes `zone3_state` with; both are causal, so this is
-    the payload's machine cut at the close. MATCH: an entry whose bar closed since the last 5-min close, with its plan
-    (E = the entry bar's close, stop = the machine's); ARMED: a live reference on the last closed bar; else "—" on
-    the leg's fade side. ABSENT (None, not even "—") before band_rotation.ZONE3_FROM or on a day not stated
-    (g["day"], set by server._decode_all), so no SETUP line and no Telegram before the record starts. No bars, no chip."""
+ZONE_LOOK = 15                    # A116: the pieces read from 15 min before the zone's first arm (the selling INTO the band)
+ZONE_MARKS = ("exhaustion", "absorption")      # the extension's THAKAN / KHAREEDAR NE ROKA / BECHNE WALE PHANSE marks
+
+
+def _pieces(g, fin, d, first, last, end):
+    """A116, her four pieces for one zone setup, each FOR (True), not yet (False) or "?" (None, with its why) -- Mary, 26
+    Oct: "vwap band rotation is for to look for lows and if there are sellers is getting exhausted and absorbed and in oi
+    also there was clear bias on put side delta ... goes from - to +". Read from ZONE_LOOK min before the first arm
+    (`first`, its run_states row) to `end` (sec of day), never past faded.WINDOW after the latest arm (`last`): FADE-D's
+    "every condition within 30 min of the location bar". Once a piece joins it stays joined (its first time, `t`).
+      zone    the arm: d2 / u2 touched (her §1b event)
+      thakan  the extension's exhaustion / absorption marks on her side (`fin["marks"]`, ofd_marks2 rows), each read once
+              its 5-min bar closed [I: the row carries no time it was drawn]
+      PE / CE the writers' lead (faded.leads: read.writers' nine strikes) on her side >= faded.LEAD_PTS, at a close from
+              the touch on (26 Oct replay: a 09:30 CE lead had made the 09:45 u2 arm read 4/4 under a rally)
+      Δ       a 5-min bar from the touch on, its delta on her side, after one against it (the selling INTO the band may
+              be before the touch; a flip before it is not this setup's flip)
+    SENSEX (§1q): `fin["flow"]` = NIFTY's bars and marks, tagged "(NIFTY)"; its writers are its own. Display only."""
+    fin = fin or {}
+    a0 = _min(first["t"])
+    ws = max(a0 - ZONE_LOOK, OPEN_S // 60)
+    end = min(end, (_min(last["t"]) + faded.WINDOW) * 60)
+    tag = f" ({fin['flow']['of']})" if fin.get("flow") else ""
+    out = [{"k": "zone", "lbl": "zone", "ok": True, "t": hm(confluence.close_of(first["t"])),
+            "chip": f"✓ {'d2' if d > 0 else 'u2'} {_px(first['level'], g['basis'])} chhua {first['t']}"}]
+    hit, seen = [], set()
+    for m in fin.get("marks") or ():
+        s = None if m.get("t") is None else int(m["t"] // 1000 + 19800) % 86400
+        if (s is not None and m.get("id") not in seen and m.get("kind") in ZONE_MARKS and m.get("winner") == d
+                and ws * 60 <= s and s + faded.BAR * 60 <= end):
+            seen.add(m.get("id"))
+            hit.append((s, m))
+    hit.sort(key=lambda x: x[0])
+    nm = lambda m: str(m.get("name") or m["kind"]).lstrip("▲▼ ").replace(" · ", " ")                    # noqa: E731
+    pc = lambda m: "" if m.get("p") is None else f" {m['p']:,.0f}f"                                     # noqa: E731
+    out.append({"k": "thakan", "lbl": "thakan/roka", "ok": True, "t": hm((hit[0][0] + faded.BAR * 60) // 60),
+                "chip": "✓ " + ", ".join(f"{nm(m)}{pc(m)} {hm(s // 60)}" for s, m in hit[:2]) + tag} if hit
+               else {"k": "thakan", "lbl": "thakan/roka", "ok": False, "t": None, "chip": "✗ thakan/roka nahi" + tag}
+               if fin.get("marks") else
+               {"k": "thakan", "lbl": "thakan/roka", "ok": None, "t": None, "chip": "? thakan/roka — chart marks nahi" + tag})
+    sd, l5 = "PE" if d > 0 else "CE", g.get("l5") or {}
+    cs = [c for c in sorted(l5) if a0 <= c and c * 60 <= end]
+    vals = [(c, d * l5[c]["pe"]) for c in cs if (l5[c] or {}).get("pe") is not None]
+    up = next(((c, v) for c, v in vals if v >= faded.LEAD_PTS), None)
+    why = str(next((l5[c]["why"] for c in reversed(cs) if (l5[c] or {}).get("why")), None) or "chain nahi")
+    out.append({"k": sd, "lbl": f"{sd} likh rahe", "ok": True, "t": hm(up[0]),
+                "chip": f"✓ {sd} likh rahe · lead {_num(up[1], nd=1)} {hm(up[0])}"} if up
+               else {"k": sd, "lbl": f"{sd} likh rahe", "ok": False, "t": None,
+                     "chip": f"✗ {sd} likh rahe · lead {_num(vals[-1][1], nd=1)}"} if vals
+               else {"k": sd, "lbl": f"{sd} likh rahe", "ok": None, "t": None,
+                     "chip": f"? {sd} likh rahe — {why.replace(faded.CC, '')}"})
+    B = [b for b in (fin["flow"]["bars5"] if fin.get("flow") else g["bars5"]) or ()
+         if b.get("delta") is not None and b["s"] >= ws * 60 and b["s"] + faded.BAR * 60 <= end]
+    j = next((j for j, b in enumerate(B)
+              if b["s"] >= a0 * 60 and d * b["delta"] > 0 and any(d * x["delta"] < 0 for x in B[:j])), None)
+    fl = "Δ − → +" if d > 0 else "Δ + → −"
+    if j is not None:
+        k = min(range(j), key=lambda x: d * B[x]["delta"])
+        v = [b["delta"] for b in B[k:j + 1]]
+        out.append({"k": "Δ", "lbl": fl, "ok": True, "t": hm((B[j]["s"] + faded.BAR * 60) // 60),
+                    "chip": "✓ Δ " + " → ".join(_num(x) for x in (v if len(v) <= 4 else v[:1] + v[-3:])) + tag})
+    elif not B or B[0]["s"] > ws * 60:                 # rule 6: the selling into the band was never seen
+        out.append({"k": "Δ", "lbl": fl, "ok": None, "t": None,
+                    "chip": f"? Δ — flow {hm(B[0]['s'] // 60)} se{tag}" if B else f"? Δ — koi 5m bar nahi{tag}"})
+    else:
+        out.append({"k": "Δ", "lbl": fl, "ok": False, "t": None,
+                    "chip": f"✗ {fl} nahi · abhi {_num(B[-1]['delta'])}{tag}"})
+    return out
+
+
+def _zone_read(g, fin):
+    """(the ZONE chip, the live zone episode) at the close. The chip (ZONE-3M, docs/setup-review/ZONE-3M-PREREG.md,
+    §1r; display only): the zone machine (band_rotation.run_states at d2 / u2, called) on bands computed on its own closed
+    3-min bars -- `fin["bars3"]`, re-banded by contract_bars.bands_on, the helper live.py publishes `zone3_state` with;
+    both are causal, so this is the payload's machine cut at the close. MATCH: an entry whose bar closed since the last
+    5-min close, with its plan (E = the entry bar's close, stop = the machine's); ARMED: a live reference on the last
+    closed bar; else "—" on the leg's fade side. ABSENT (None, not even "—") before band_rotation.ZONE3_FROM or on a day
+    not stated (g["day"], set by server._decode_all), so no SETUP line and no Telegram before the record starts. No bars,
+    no chip. A116: MATCH and ARMED carry her four pieces (_pieces) as `checks`, `pieces` (the chips) and `n`; MATCH its
+    `ep` (the entry bar). The episode: the latest entry, from its close until faded.WINDOW after its location bar or the
+    3-min bar that trades its stop -- {side, ep, n, pieces, plan}, else None; messages.build turns a piece joining it
+    into one SETUP line. (The machine's own lock clears at VWAP, 26 Oct on the bar after the entry: not the episode.)"""
     if str(g.get("day") or "") < band_rotation.ZONE3_FROM:
-        return None
+        return None, None
     b3 = (fin or {}).get("bars3")
     if not b3:
-        return None
+        return None, None
     z = contract_bars.with_bands(b3, contract_bars.bands_on(b3))
-    armed = None
+    now = g["now"]
+    chip = armed = None
+    eps = []                                                # each side's latest entry: (its close, the episode or None)
+
+    def arms(st, ref_i):                                    # (the setup's first arm, its latest) rows
+        a = st[ref_i]["arm"]
+        return (st[a["first_i"]] if a else st[ref_i]), st[ref_i]
+
+    def tick(P):
+        return {"checks": {p["k"]: p["ok"] for p in P}, "pieces": [p["chip"] for p in P],
+                "n": sum(p["ok"] is True for p in P)}
     for side, band in (("BUY", "d2"), ("SELL", "u2")):
+        d = 1 if side == "BUY" else -1
         st = band_rotation.run_states(z, stop_pts=band_rotation.OPERATOR_STOP_PTS, side=side, band=band,
                                       span=confluence.INTERVAL)
-        for s in st:
-            e = s["entry"]
-            c = confluence.close_of(e["t"]) if e else None
-            if c is not None and g["now"] - faded.BAR * 60 < c * 60 <= g["now"]:
-                return {"name": "ZONE", "side": side, "checks": {}, "state": "MATCH",
-                        **_plan({"E": confluence.flat(z[e["i"]]).get("c"), "stop": e["stop"]}, g["basis"])}
+        ents = [s["entry"] for s in st if s["entry"]]
+        e = ents[-1] if ents else None
+        c = confluence.close_of(e["t"]) if e else None
+        if c is not None and c * 60 <= now:
+            first, last = arms(st, e["ref_i"])
+            P = _pieces(g, fin, d, first, last, now)
+            plan = _plan({"E": confluence.flat(z[e["i"]]).get("c"), "stop": e["stop"]}, g["basis"])
+            if chip is None and now - faded.BAR * 60 < c * 60:
+                chip = {"name": "ZONE", "side": side, "state": "MATCH", **plan, **tick(P), "ep": e["t"]}
+            far = [confluence.flat(z[k]).get("l" if d > 0 else "h") for k in range(e["i"] + 1, len(z))]
+            hurt = any(x is not None and x * d <= e["stop"] * d for x in far)
+            eps.append((c, {"side": side, "ep": e["t"], "n": tick(P)["n"], "pieces": P, "plan": plan.get("plan")}
+                        if now <= (_min(last["t"]) + faded.WINDOW) * 60 and not hurt else None))
         if armed is None and st[-1]["state"] == "ARMED":
-            armed = side
-    leg = g["leg"]
-    side = armed or (("SELL" if leg["d"] > 0 else "BUY") if leg else None)
-    return {"name": "ZONE", "side": side, "checks": {}, "state": "ARMED" if armed else "—"} if side else None
+            armed = (side, d, st)
+    if chip is None and armed:
+        side, d, st = armed
+        first, last = arms(st, st[-1]["ref_i"])
+        chip = {"name": "ZONE", "side": side, "state": "ARMED", **tick(_pieces(g, fin, d, first, last, now))}
+    if chip is None:
+        leg = g["leg"]
+        side = ("SELL" if leg["d"] > 0 else "BUY") if leg else None
+        chip = {"name": "ZONE", "side": side, "checks": {}, "state": "—"} if side else None
+    return chip, (max(eps, key=lambda x: x[0])[1] if eps else None)   # a later entry, live or not, ends the earlier one
+
+
+def _zone3(g, fin):
+    """ZONE: the chip of _zone_read (its docstring)."""
+    return _zone_read(g, fin)[0]
 
 
 def setups(g, fade_in=None, ride_in=None):
@@ -669,8 +772,13 @@ def exhaust_of(g):
 
 def decode(g, peers, fade_in=None, ride_in=None):
     """The contract (shared with the extension): {call, lines (<= 6, EFFORT last), setups, leg, t, tag, onesided,
-    effort, exhaust}. `g` = facts(...) for this index plus g["effort"] (effort.read, set by the server), `peers` = the
-    other indices' facts. The server adds `age_s` when it serves the block (A13)."""
+    effort, exhaust, zone_ep (A116: the live zone episode, _zone_read; None)}. `g` = facts(...) for this index plus
+    g["effort"] (effort.read, set by the server), `peers` = the other indices' facts. The server adds `age_s` when it
+    serves the block (A13)."""
+    try:                                      # the episode's failure is its own absence, never the block's
+        zone_ep = _zone_read(g, fade_in)[1]
+    except Exception:
+        zone_ep = None
     dec, con = signs(g, peers)
     c = call(g["dleg"], dec, con)
     bs, pl = g["bars5"], g.get("pleg")
@@ -683,14 +791,14 @@ def decode(g, peers, fade_in=None, ride_in=None):
     return {"call": c, "lines": lines(g, peers)[:NLINES], "setups": setups(g, fade_in, ride_in),
             "leg": leg_out(g), "t": hm(g["c_last"]) if g["c_last"] is not None else None, "tag": "I",
             "onesided": _onesided(g, peers), "effort": g.get("effort") or effort.blank("could not check — not read"),
-            "exhaust": exhaust_of(g)}
+            "exhaust": exhaust_of(g), "zone_ep": zone_ep}
 
 
 def empty(why):
     """The block when an index cannot be read at all: every field present, the call "?"."""
     return {"call": {"text": "?", "kind": "SAAF_NAHI", "d": 0, "c": 0, "of": OF, "signs": []},
             "lines": [f"? — {why}"], "setups": [], "leg": None, "t": None, "tag": "I", "onesided": onesided.blank(why),
-            "effort": effort.blank(why), "exhaust": None}
+            "effort": effort.blank(why), "exhaust": None, "zone_ep": None}
 
 
 def at_close(now):

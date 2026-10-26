@@ -1902,6 +1902,11 @@ def _decode_all(day, now, live, keep=False):
             fin = {"bars3": _decode_bars3(i, day, T, live), "chain": f["chain"], "book": f["book"], "gc": f["gc"]}
         except Exception:
             log.exception("decode FADE inputs %s", i)
+        try:                                     # A116: the ZONE pieces' chart marks (and SENSEX's NIFTY flow, §1q)
+            if fin is not None:
+                fin.update(_decode_zone_in(i, day, G))
+        except Exception:
+            log.exception("decode ZONE inputs %s", i)
         try:
             if f is not None:
                 rin = dict(confluence_log.ride_inputs(i, day, T, light=True), chain=f["chain"], book=f["book"], gc=f["gc"])
@@ -1921,6 +1926,17 @@ def _decode_all(day, now, live, keep=False):
     if keep:
         res["_facts"] = G
     return res
+
+
+def _decode_zone_in(idx, day, G):
+    """A116: the ZONE pieces' inputs beside the 3-min bars -- the extension's mark log (tape_log.marks2_path, as written;
+    the pieces read each mark once its bar closed) and, for SENSEX (§1q: NIFTY's order flow, its own OI), NIFTY's
+    5-min flow bars and marks. `G` = _decode_all's facts per index."""
+    if idx != "SENSEX":
+        return {"marks": tape_log._read(tape_log.marks2_path(day, idx))}
+    gn = G.get("NIFTY")
+    return {"marks": tape_log._read(tape_log.marks2_path(day, "NIFTY")),
+            "flow": {"of": "NIFTY", "bars5": gn["bars5"] if isinstance(gn, dict) else []}}
 
 
 def _decode_effort(idx, day, T, f):
