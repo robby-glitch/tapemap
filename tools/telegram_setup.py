@@ -5,7 +5,9 @@
 
 Reads the token from telegr/bot.txt (telegram_out.token), asks getUpdates for the newest PRIVATE chat that wrote to the
 bot, writes its id to telegr/chat.txt (git-ignored, as bot.txt) and sends "TapeMap connected ✓" there. The token is never
-printed, logged or written anywhere else. Outbound only: the bot is never asked to read commands later.
+printed, logged or written anywhere else. Run it BEFORE chat.txt exists, or with the server stopped: telegram_in.py (the
+read-only /now and /last receiver) long-polls the same getUpdates, Telegram lets one poller at a time (the other gets a
+409), and the receiver acknowledges whatever it reads.
 """
 import json
 import os

@@ -94,6 +94,7 @@ import trademap                  # THE TRADE MAP (A53-A59): the voice's l4 / l5 
 import voice_path                # the voice replayed over a past marked trade (A56), GET /api/voice_path
 import messages                  # THE MESSAGE STREAM (A101): one line per change of an existing read, GET /api/messages
 import telegram_out              # ...and its outbound Telegram subset (telegr/; OFF without chat.txt, never under --mock-chain)
+import telegram_in               # ...and her read-only /now and /last replies (her chat only; the same memory as /api/messages)
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -6725,6 +6726,7 @@ def main():
         threading.Thread(target=_msg_loop, daemon=True, name="messages").start()
         if not mock_chain:                           # a rehearsal never reaches her phone
             telegram_out.start()
+            telegram_in.start(_msg_reply)            # /now, /last: read-only, her chat only; no receiver without chat.txt
         if poller is not None:
             threading.Thread(target=_senses_loop, args=(poller, payloads),
                              daemon=True, name="senses").start()

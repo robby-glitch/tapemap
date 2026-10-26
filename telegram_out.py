@@ -1,8 +1,8 @@
 """telegram_out.py -- THE MESSAGE STREAM's outbound Telegram alerts (spec docs/superpowers/specs/
 2026-10-25-message-window-telegram-design.md §4; NOTEPAD A101).
 
-OUTBOUND ONLY: sendMessage to her one chat. No command is ever read back; nothing here places an order. The text is the
-window's own line (messages.line), the day's first one prefixed with the date.
+OUTBOUND ONLY: sendMessage to her one chat. Nothing here reads a command (telegram_in.py answers /now and /last, read-only);
+nothing here places an order. The text is the window's own line (messages.line), the day's first one prefixed with the date.
   WHAT    `wants`: SETUP; READ to LEAN / TREND; TRADE WARN / EXIT; every HEALTH line. QUIT, LEG, DIN and RANGE / WAIT churn
           stay in the window (a READ QUIT fires late, and was 23 of the 32 Telegram lines on 23 Oct).
   GATE    `gate`: weekdays 09:15-15:40 IST, and the message's own close within FRESH_S of now -- a restart rebuilds the
