@@ -5371,7 +5371,11 @@ class Handler(SimpleHTTPRequestHandler):
             # legacy. `legacy` was `rule != "5c"` and so counted every zone entry
             # as quarantined (591 = 335 zone + 256 untagged on 2026-09-23).
             zone = [r for r in entries if r.get("rule") == "zone"]
-            legacy = [r for r in entries if r.get("rule") not in ("5c", "zone")]
+            # ZONE-3M (rule "zone3", logged from band_rotation.ZONE3_FROM): its own bucket, entries and arms both --
+            # never legacy, never inside `arms` below.
+            zone3 = [r for r in rows if r.get("rule") == "zone3"]
+            arms = [r for r in arms if r.get("rule") != "zone3"]
+            legacy = [r for r in entries if r.get("rule") not in ("5c", "zone", "zone3")]
             sel = rows
             if kind == "arm":
                 sel = [r for r in sel if r.get("kind") == "arm"]
@@ -5423,6 +5427,8 @@ class Handler(SimpleHTTPRequestHandler):
                 },
                 "legacy": {"n": len(legacy)},
                 "zone": {"n": len(zone)},     # counted apart, never summed into five_c or legacy
+                "zone3": {"n": sum(1 for r in zone3 if r.get("kind") != "arm"),     # ZONE-3M, apart from both
+                          "arms": sum(1 for r in zone3 if r.get("kind") == "arm")},
                 # The arm population, counted APART from `five_c` and never
                 # added to it. `setups` counts distinct setups (§5c: a run of
                 # falling lows collapses into ONE, so the re-arms are the

@@ -262,3 +262,23 @@ def test_show_prints_zone3_apart_from_the_zone_and_arm_tables(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "ZONE-3M (bands on 3-min bars, logged from 2026-10-28" in out and "1 entry, 1 arm row." in out
     assert "\n1 ARM rows" in out                                             # the 5c arm only
+
+
+# ---- Task 6: /api/signals gives zone3 its own bucket -----------------------------------------------------------------
+
+def test_api_signals_counts_zone3_apart_and_never_as_legacy():
+    import server
+    import trigger_log
+    from test_senses_api import _Cap
+    rows = _rows() + [
+        {"kind": "arm", "day": "2026-10-26", "index": "NIFTY", "t": "09:40", "side": "BUY", "band": "d3", "rule": "5c"},
+        {"day": "2026-10-26", "index": "NIFTY", "t": "09:45", "side": "BUY", "band": "d2", "rule": "zone", "px": 1.0},
+        {"day": "2026-08-04", "index": "NIFTY", "t": "09:45", "side": "BUY", "band": "d3", "px": 1.0}]
+    with open(trigger_log.PATH, "w", encoding="utf-8") as f:
+        f.write("\n".join(json.dumps(r) for r in rows) + "\n")
+    cap = _Cap("/api/signals?rule=all")
+    server.Handler.do_GET(cap)
+    j = cap.sent
+    assert j["zone3"] == {"n": 1, "arms": 1}
+    assert j["zone"] == {"n": 1} and j["legacy"] == {"n": 1} and j["arms"]["n"] == 1
+    assert j["matched"] == 5
