@@ -50,3 +50,43 @@ def test_the_0921_bar_never_arms_even_at_span_three():
 def test_zone3_from_is_the_one_date_the_first_november_session():
     """One switch, one date (27 Oct is NIFTY's monthly expiry and the roll)."""
     assert band_rotation.ZONE3_FROM == "2026-10-28"
+
+
+# ---- Task 2: bands computed on the bars themselves -------------------------------------------------------------------
+
+def _row(t, h, l, c, v):
+    """A composite 3-min index row (resample_index's shape), sampled 1-min bands deliberately WRONG (999)."""
+    return {"t": t, "fut": {"o": c, "h": h, "l": l, "c": c, "v": v, "oi": None,
+                            **{k: 999.0 for k in contract_bars.BAND_KEYS}}, "ce": None, "pe": None}
+
+
+def test_bands_on_is_the_session_recurrence_on_the_rows_own_hlcv():
+    rows = [_row("09:15", 110.0, 100.0, 105.0, 300.0), _row("09:18", 108.0, 98.0, 99.0, 200.0),
+            _row("09:21", 101.0, 95.0, 96.0, 100.0)]
+    want = contract_bars.vwap_sigma([(r["fut"]["h"], r["fut"]["l"], r["fut"]["c"], r["fut"]["v"]) for r in rows])
+    assert contract_bars.bands_on(rows) == want
+    flat = [dict(r["fut"], t=r["t"]) for r in rows]                       # resample's flat shape, same numbers
+    assert contract_bars.bands_on(flat) == want
+
+
+def test_an_unreadable_row_is_none_and_adds_nothing():
+    rows = [_row("09:15", 110.0, 100.0, 105.0, 300.0), {"t": "09:18", "fut": None, "ce": None, "pe": None},
+            _row("09:21", 101.0, 95.0, 96.0, 100.0)]
+    got = contract_bars.bands_on(rows)
+    assert got[1] is None
+    assert got[2] == contract_bars.vwap_sigma([(110.0, 100.0, 105.0, 300.0), (101.0, 95.0, 96.0, 100.0)])[1]
+    assert contract_bars.bands_on([{"t": "09:15", "h": None, "l": 1.0, "c": 1.0, "v": 1.0}]) == [None]
+
+
+def test_with_bands_replaces_only_the_band_keys_on_a_copy():
+    rows = [_row("09:15", 110.0, 100.0, 105.0, 300.0), {"t": "09:18", "fut": None, "ce": None, "pe": None},
+            _row("09:21", 101.0, 95.0, 96.0, 100.0)]
+    before = json.dumps(rows)
+    b = contract_bars.bands_on(rows)
+    out = contract_bars.with_bands(rows, b)
+    assert json.dumps(rows) == before                                       # not mutated
+    assert {k: out[0]["fut"][k] for k in contract_bars.BAND_KEYS} == b[0]
+    assert out[0]["fut"]["h"] == 110.0 and out[0]["ce"] is None
+    assert out[1] == rows[1]                                                # the future did not print: left as it is
+    flat = contract_bars.with_bands([{"t": "09:15", "h": None, "l": 1.0, "c": 1.0, "v": 1.0, "d2": 5.0}], [None])
+    assert flat[0]["d2"] is None and flat[0]["l"] == 1.0                     # unreadable: None, never the old value

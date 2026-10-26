@@ -207,6 +207,46 @@ def vwap_bands(bars):
     return _carry(out, bars)
 
 
+def bands_on(rows):
+    """ZONE-3M (docs/setup-review/ZONE-3M-PREREG.md, rule 2): one band dict per
+    row, VWAP + sigma computed ON these rows' own H/L/C/V -- the 3-minute bars
+    themselves, as her chart does -- through the same `_Vwap` recurrence.
+
+    A composite index row (`resample_index`'s shape) is read off its `fut`
+    leg, a flat bar (`resample`'s) off itself. A row with no readable H/L/C/V
+    gets None and adds nothing to the session sums, like `vwap_bands`' None
+    bar. The interval-invariant bands `resample` samples are not touched:
+    nothing but ZONE-3M reads these.
+    """
+    st, out = _Vwap(), []
+    for r in rows:
+        b = r.get("fut") if isinstance(r, dict) and "fut" in r else r
+        hlcv = ([_num(b.get(k)) for k in ("h", "l", "c", "v")]
+                if isinstance(b, dict) else [None])
+        out.append(None if None in hlcv else st.push(*hlcv))
+    return out
+
+
+def with_bands(rows, bands):
+    """A COPY of `rows` whose index-leg band keys are `bands` (one per row,
+    from `bands_on`). A None slot sets every band key to None -- an unreadable
+    band, never a zero and never the sampled value. A composite row whose
+    `fut` is None stays as it is. `rows` is not mutated."""
+    out = []
+    for r, bd in zip(rows, bands):
+        if not isinstance(r, dict):
+            out.append(r)
+            continue
+        new = bd if bd is not None else dict.fromkeys(BAND_KEYS)
+        if "fut" not in r:
+            out.append(dict(r, **new))
+        elif isinstance(r["fut"], dict):
+            out.append(dict(r, fut=dict(r["fut"], **new)))
+        else:
+            out.append(dict(r))
+    return out
+
+
 def _minute_of_day(t):
     try:
         hh, mm = t.split(":")
