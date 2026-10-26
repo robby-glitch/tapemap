@@ -243,6 +243,9 @@ export interface TapeBar {
   pe?: BarLeg | null
 }
 
+/** ZONE-3M (draft §1r): one bar's VWAP and sigma bands computed ON the 3-minute bars themselves (`bands3`). */
+export interface Bands3 { vwap: number; u1: number; d1: number; u2: number; d2: number; u3: number; d3: number }
+
 // ── SMC / ICT structure layer (Phase 3.5) ──────────────────────────────────────
 // Computed server-side by structure.py and attached to each day of /api/data as
 // a sibling of `bars` (commits b616e9d / b2856c9). This file only NAMES the
@@ -477,6 +480,14 @@ export interface TapeView {
   zoneState: RunState[] | null
   zoneStateSell: RunState[] | null
   zoneStateWhy: string
+  /** ZONE-3M (draft §1r), published on the 3-minute payload only: the bands computed on the 3-minute bars and the zone
+   *  machine on them (`bands3`, `zone3_state`, `zone3_state_sell`), one slot per bar, null when absent or misaligned.
+   *  `zone3On` is the one switch (`zone3_on`: the session's date at or after band_rotation.ZONE3_FROM); false when the
+   *  payload does not say. Display only: the Trade tab's pockets and entry markers read them (./trade/zone3). */
+  bands3: (Bands3 | null)[] | null
+  zone3State: RunState[] | null
+  zone3StateSell: RunState[] | null
+  zone3On: boolean
 }
 
 // Live Spike Radar — one row per index, one cell per activity/spike column.
@@ -1402,6 +1413,7 @@ export function useLiveData(fallback: Dataset) {
         rotationRunSell: null, rotationRunSellWhy: '',
         runState: null, runStateWhy: '', runStateSell: null, runStateSellWhy: '',
         zoneState: null, zoneStateSell: null, zoneStateWhy: '',
+        bands3: null, zone3State: null, zone3StateSell: null, zone3On: false,
       }
     }
     const bars: TapeBar[] = []
@@ -1504,6 +1516,9 @@ export function useLiveData(fallback: Dataset) {
       alignPerBar<RunState>(day.zone_state, bars.length, skipped, 'zone state')
     const [zoneStateSell] =
       alignPerBar<RunState>(day.zone_state_sell, bars.length, skipped, 'sell-side zone state')
+    const [bands3] = alignPerBar<Bands3 | null>(day.bands3, bars.length, skipped, '3-minute bands')
+    const [zone3State] = alignPerBar<RunState>(day.zone3_state, bars.length, skipped, 'ZONE-3M state')
+    const [zone3StateSell] = alignPerBar<RunState>(day.zone3_state_sell, bars.length, skipped, 'ZONE-3M sell-side state')
 
     return {
       day: day.day ?? '', bars,
@@ -1520,6 +1535,7 @@ export function useLiveData(fallback: Dataset) {
       rotationRun, rotationRunWhy, rotationRunSell, rotationRunSellWhy,
       runState, runStateWhy, runStateSell, runStateSellWhy,
       zoneState, zoneStateSell, zoneStateWhy,
+      bands3, zone3State, zone3StateSell, zone3On: day.zone3_on === true,
     }
   }, [raw])
 

@@ -306,8 +306,11 @@ export default function SignalsTab() {
   // ZONE entries are the rule she trades (§1b), not the void one-candle legacy. They were filed
   // under "Void" here because the legacy test was `rule !== '5c'`; only UNTAGGED rows are legacy.
   const zoneRows = rows.filter(r => r.kind !== 'arm' && r.rule === 'zone')
-  const legacyRows = rows.filter(r => r.kind !== 'arm' && r.rule !== '5c' && r.rule !== 'zone')
-  const armRows = rows.filter(r => r.kind === 'arm')
+  // ZONE-3M (rule "zone3", bands on 3-minute bars, logged from 28 Oct): its own section, arms and entries both --
+  // never Void, never in the arm section below.
+  const zone3Rows = rows.filter(r => r.rule === 'zone3')
+  const legacyRows = rows.filter(r => r.kind !== 'arm' && r.rule !== '5c' && r.rule !== 'zone' && r.rule !== 'zone3')
+  const armRows = rows.filter(r => r.kind === 'arm' && r.rule !== 'zone3')
 
   /** How many rows the WHOLE log holds for the population this view selects —
    *  the number that decides "checked, empty" from "checked, filtered out".
@@ -542,6 +545,23 @@ export default function SignalsTab() {
                   open={!!open[keyOf(r, i)]}
                   onToggle={() => setOpen(o => ({ ...o, [keyOf(r, i)]: !o[keyOf(r, i)] }))} />
               ))}
+            </Section>
+          )}
+
+          {/* ZONE-3M — the zone on bands computed on 3-minute bars (your chart's), its own population. */}
+          {zone3Rows.length > 0 && (
+            <Section
+              title={`Zone 3m — bands on 3-min bars · ${zone3Rows.length} row${zone3Rows.length === 1 ? '' : 's'} shown`}
+              note={'The same zone machine on bands computed on the 3-minute bars, as on your chart, logged from 28 Oct. '
+                + 'Arms and entries both, each marked; a separate population, never added to the zone rows above.'}
+            >
+              {zone3Rows.map((r, i) => (r.kind === 'arm'
+                ? <ArmRow key={keyOf(r, i)} r={r}
+                    open={!!open[keyOf(r, i)]}
+                    onToggle={() => setOpen(o => ({ ...o, [keyOf(r, i)]: !o[keyOf(r, i)] }))} />
+                : <Row key={keyOf(r, i)} r={r} legacy={false}
+                    open={!!open[keyOf(r, i)]}
+                    onToggle={() => setOpen(o => ({ ...o, [keyOf(r, i)]: !o[keyOf(r, i)] }))} />))}
             </Section>
           )}
 

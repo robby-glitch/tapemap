@@ -177,14 +177,16 @@ export default function TradeTab({
 
   // ── HER ZONE: the 3-minute machine's bands and entries, on any chart interval.
   const pockets = useMemo<PocketBar[] | null>(() => {
-    if (!zone3.bars.length) return null
-    return zone3.bars.map((b) => ({ t: base + hm(b.t) * 60_000, d2: b.d2, d3: b.d3, u2: b.u2, u3: b.u3 }))
-  }, [zone3.bars, base])
+    const pk = zone3.z3?.bars ?? zone3.bars          // ZONE-3M on a 3m chart from its date (./zone3), else the zone
+    if (!pk.length) return null
+    return pk.map((b) => ({ t: base + hm(b.t) * 60_000, d2: b.d2, d3: b.d3, u2: b.u2, u3: b.u3 }))
+  }, [zone3.z3, zone3.bars, base])
   const entries = useMemo<ZoneEntry[]>(() => {
     const out: ZoneEntry[] = []
     const chartMins = bars.map((b) => hm(b.t))
     const own = publishedInterval === 3
-    for (const states of [zone3.buy, zone3.sell]) {
+    // the markers ride the SAME switch as the pockets above: one machine, one set of bands
+    for (const states of zone3.z3 ? [zone3.z3.buy, zone3.z3.sell] : [zone3.buy, zone3.sell]) {
       for (const st of states ?? []) {
         const e = st?.entry as RotationSignal | null | undefined
         if (!e?.t) continue
@@ -198,7 +200,7 @@ export default function TradeTab({
       }
     }
     return out
-  }, [zone3.buy, zone3.sell, bars, publishedInterval, base, chipsOn])
+  }, [zone3.z3, zone3.buy, zone3.sell, bars, publishedInterval, base, chipsOn])
 
   // Reference layers. Pivots: the MAP levels' floor pivots only. Value: the ux family's session value area and HVNs
   // [I], plus the ladder record's prior days and naked POCs when this contract has them.

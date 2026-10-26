@@ -3,8 +3,8 @@
 // chart's own `zone_state` is a different machine (29 Sep: no BUY at 5m, the 3m machine's BUY d2 fired at 09:39).
 // This hook hands every reader the 3-minute machine: from the chart's own payload when the chart IS 3m, otherwise from
 // one extra read of `/api/data?interval=3` for the active index. A failed read is a sentence, never a 5m substitute.
-import { useEffect, useState } from 'react'
-import type { IndexKey, RunState, TapeBar, TapeView } from '../data'
+import { useEffect, useMemo, useState } from 'react'
+import type { Bands3, IndexKey, RunState, TapeBar, TapeView } from '../data'
 
 export interface Zone3 {
   /** The 3-minute bars (their d2/d3/u2/u3 are her zone's bands). Empty when unread. */
@@ -15,9 +15,16 @@ export interface Zone3 {
   why: string
   /** The session day of those bars. */
   day: string
+  /** ZONE-3M (draft §1r): on a 3-minute chart from band_rotation.ZONE3_FROM (the payload's `zone3_on`), the bars on
+   *  the bands computed on the 3-minute bars and the zone machine on those same bands -- one switch, read by the Trade
+   *  tab's pockets and entry markers and by the machine strip and tab title (App.tsx `zm`), so nothing on her screen
+   *  disagrees with the pockets. Absent or null otherwise, and every reader keeps bars / buy / sell above. */
+  z3?: { bars: TapeBar[]; buy: RunState[]; sell: RunState[] } | null
 }
 
 const POLL_MS = 5000  // the main tape poll's cadence: this is her live ARMED signal
+/** A bar whose 3-minute bands could not be computed: a hole (NaN, drawZone skips it), never the sampled value. */
+const HOLE: Bands3 = { vwap: NaN, u1: NaN, d1: NaN, u2: NaN, d2: NaN, u3: NaN, d3: NaN }
 
 /** One `/api/data` payload's newest day -> the machine's bars and per-bar states, with the tape's own guard: a bar
  *  without a FUT leg shifts every index, and a length mismatch is a disagreement, so both withhold with a reason. */
@@ -65,7 +72,12 @@ export function useZone3(index: IndexKey, interval: number, tape: TapeView): Zon
     const id = window.setInterval(load, POLL_MS)
     return () => { alive = false; window.clearInterval(id) }
   }, [index, own])
-  if (own) return { bars: tape.bars, buy: tape.zoneState, sell: tape.zoneStateSell, why: tape.zoneStateWhy, day: tape.day }
+  const z3 = useMemo(() => {
+    const { zone3On, bands3, zone3State, zone3StateSell } = tape
+    if (!zone3On || !bands3 || !zone3State || !zone3StateSell) return null
+    return { bars: tape.bars.map((b, i) => ({ ...b, ...(bands3[i] ?? HOLE) })), buy: zone3State, sell: zone3StateSell }
+  }, [tape])
+  if (own) return { bars: tape.bars, buy: tape.zoneState, sell: tape.zoneStateSell, why: tape.zoneStateWhy, day: tape.day, z3 }
   return fetched ?? { bars: [], buy: null, sell: null, why: 'reading the 3-minute machine…', day: '' }
 }
 
