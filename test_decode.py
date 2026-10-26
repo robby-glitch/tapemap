@@ -191,7 +191,8 @@ def test_the_block_keeps_the_shared_contract():
     assert out["leg"] == {"d": 1, "start": {"t": "09:15", "fut": 99, "spot": 87.0},
                           "ext": {"t": "09:25", "fut": 115, "spot": 103.0}}
     for s in out["setups"]:
-        assert set(s) == {"name", "side", "checks", "state"} and s["name"] in ("FADE", "RIDE", "FADE-D")
+        plan = {"plan"} if s["state"] not in ("ARMED", "—") else set()            # A108: an entry's own E / stop
+        assert set(s) == {"name", "side", "checks", "state"} | plan and s["name"] in ("FADE", "RIDE", "FADE-D")
         assert s["side"] in ("BUY", "SELL") and s["state"] in ("ARMED", "MATCH", "—")
         assert all(v in (True, False, None) for v in s["checks"].values())
 
@@ -264,6 +265,21 @@ def test_guard_the_setups_come_from_their_own_modules(monkeypatch):
                              "state": "MATCH"}
 
 
+def test_a_setup_with_an_entry_carries_its_own_entry_and_stop(monkeypatch):
+    """A108: the SETUP alert's price is the setup's own -- its entry and its stop (FADE-D / FADE "stop", RIDE's "line0"),
+    spot|fut -- never the DECODE leg's extreme. No entry, no plan."""
+    monkeypatch.setattr(faded, "evaluate", lambda ep, bars5, lead: {
+        "bars": [{"a": {"ok": True}, "b": {"ok": True}, "oi": {"ok": True}}], "entry": {"t": "09:40", "E": 22500.1, "stop": 22434.4}})
+    monkeypatch.setattr(ride, "entries", lambda b3, rows, basis: [{"i": 0, "t": "09:45", "d": -1}])
+    monkeypatch.setattr(ride, "evaluate", lambda e, b3, chain, book, gc=None: {
+        "bars": [{"loc": {"ok": True}, "oi": {"ok": True}, "flow": {"ok": True}}], "entry": {"t": "09:45", "E": 22600.0, "line0": 22650.0}})
+    rin = {"b3": [{"e": M("09:45") * 60}], "rows": [], "basis": None, "chain": ({}, {}), "book": ({}, set(), set())}
+    out = {s["name"]: s for s in decode.setups(g_top(basis=78.0), None, rin)}
+    assert out["FADE-D"]["plan"] == "E 22,422s|22,500f · stop 22,356s|22,434f"
+    assert out["RIDE"]["plan"] == "E 22,522s|22,600f · stop 22,572s|22,650f"
+    assert "plan" not in out["FADE"]
+
+
 def test_fade_d_reads_the_live_episode_at_the_current_close():
     """top()'s new highs open a SELL episode; at 09:45 its window is live: FADE-D's own readings there."""
     s = next(x for x in decode.setups(g_top()) if x["name"] == "FADE-D")
@@ -271,7 +287,7 @@ def test_fade_d_reads_the_live_episode_at_the_current_close():
                         g_top()["l5"])
     r = ev["bars"][-1]
     assert s == {"name": "FADE-D", "side": "SELL", "state": "MATCH" if ev["entry"] else "ARMED",
-                 "checks": {"2a": r["a"]["ok"], "2b": r["b"]["ok"], "3": r["oi"]["ok"]}}
+                 "checks": {"2a": r["a"]["ok"], "2b": r["b"]["ok"], "3": r["oi"]["ok"]}, **decode._plan(ev["entry"], None)}
     assert r["close"] == "09:45"
 
 

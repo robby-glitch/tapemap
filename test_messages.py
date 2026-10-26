@@ -92,6 +92,15 @@ def test_setup_fires_on_match_and_again_only_after_it_clears():
     assert [m["why"] for m in ms if m["kind"] == "SETUP"] == ["MATCH", "MATCH", "MATCH"]
 
 
+def test_a_setup_line_shows_the_setups_own_entry_and_stop():
+    """A108, 26 Oct 09:35: the FADE-D BUY's line showed 22,546f -- the DECODE leg's extreme, the bounce's high so far --
+    for an entry at 22,500f with its stop at 22,434f. The chip's plan is the line's price; a chip without one (a row
+    logged before it) keeps the leg's extreme."""
+    s = [{"name": "FADE-D", "side": "BUY", "checks": {}, "state": "MATCH", "plan": "E 22,422s|22,500f · stop 22,356s|22,434f"}]
+    ms = messages.build([], [dec("09:35", "JAARI", ld=1, c=4, setups=s)])
+    assert lines(ms, "SETUP") == ["09:35  NIFTY  FADE-D BUY · 4/7 saath · E 22,422s|22,500f · stop 22,356s|22,434f"]
+
+
 def test_din_changes_and_a_quit_is_its_own_read_line():
     """The day type speaks on a change only (an unread type keeps the last); a QUIT is a READ line of its own."""
     dr = [dec("09:20", "SAAF_NAHI", ld=None, ty="MIXED"), dec("09:25", ty="MIXED"), dec("11:00", c=7, ty="TREND ▼"),

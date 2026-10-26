@@ -491,6 +491,13 @@ def lines(g, peers):
 
 # ---- the setups, live at the current close: the registered functions, called ------------------------------------------
 
+def _plan(en, basis):
+    """A108: an entry's own price and stop for the SETUP alert, "E 22,422s|22,500f · stop 22,356s|22,434f" (RIDE's stop
+    is its line0) -- {} when the entry carries no price. Display only: nothing reads it but messages.build."""
+    E, st = (en or {}).get("E"), (en or {}).get("stop", (en or {}).get("line0"))
+    return {"plan": f"E {_px(E, basis)} · stop {_px(st, basis)}"} if E is not None and st is not None else {}
+
+
 def _held(en, g, rin):
     """N2: an entry's HOLD v2 state at the current close -- hold2.exit_v2 (§1m as frozen, its exit section, as
     faded.exits calls it) with `end` = the close, on RIDE's live inputs (`rin`: the 1-min and 3-min futures bars and the
@@ -525,7 +532,7 @@ def _fade_d(g, rin=None):
         ev = faded.evaluate(ep, bars5, g["l5"])
         r = ev["bars"][-1]
         return {"name": "FADE-D", "side": ep["side"], "checks": {"2a": r["a"]["ok"], "2b": r["b"]["ok"], "3": r["oi"]["ok"]},
-                "state": (_held(ev["entry"], g, rin) or "MATCH") if ev["entry"] else "ARMED"}
+                "state": (_held(ev["entry"], g, rin) or "MATCH") if ev["entry"] else "ARMED", **_plan(ev["entry"], g["basis"])}
     fd = g["fd"]
     if not fd:
         return None
@@ -552,7 +559,7 @@ def _fade(g, fin):
         r = ev["bars"][-1]
         return {"name": "FADE", "side": s["side"], "checks": {"zone": r["zone"]["ok"], "oi": r["oi"]["ok"],
                                                               "flow": r["flow"]["ok"]},
-                "state": "MATCH" if ev["entry"] else "ARMED"}
+                "state": "MATCH" if ev["entry"] else "ARMED", **_plan(ev["entry"], g["basis"])}
     return dflt if leg else None
 
 
@@ -573,7 +580,7 @@ def _ride(g, rin):
         r = ev["bars"][-1]
         return {"name": "RIDE", "side": "BUY" if e["d"] > 0 else "SELL",
                 "checks": {"loc": r["loc"]["ok"], "oi": r["oi"]["ok"], "flow": r["flow"]["ok"]},
-                "state": "MATCH" if ev["entry"] else "ARMED"}
+                "state": "MATCH" if ev["entry"] else "ARMED", **_plan(ev["entry"], g["basis"])}
     return dflt if leg else None
 
 

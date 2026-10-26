@@ -138,11 +138,12 @@ def build(read_rows, decode_rows):
             on = {(s.get("name"), s.get("side")): str(s.get("state")) for s in r.get("setups") or ()
                   if s.get("name") and s.get("side") in ("BUY", "SELL") and str(s.get("state") or "—") not in OFF}
             ext = lg.get("ext") or {}
+            plan = {(s.get("name"), s.get("side")): s.get("plan") for s in r.get("setups") or ()}   # A108: its own E / stop
             for (nm, side), state in on.items():
                 if (nm, side) not in live.get(i, {}):
                     d = 1 if side == "BUY" else -1
-                    out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", agree(r, d),
-                                    None if ext.get("fut") is None else f"{_n(ext['fut'])}f", state))
+                    out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", agree(r, d), plan.get((nm, side))
+                                    or (None if ext.get("fut") is None else f"{_n(ext['fut'])}f"), state))
             live[i] = on
             ty = (r.get("onesided") or {}).get("type")
             if ty and din.get(i) != ty:                      # None (could not check) keeps the last type
