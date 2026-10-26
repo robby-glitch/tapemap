@@ -836,9 +836,15 @@ def _arm_trigger(row, bars, sell):
     re-derived", never "did not trigger". The two would look identical on a
     screen and mean opposite things.
     """
+    # ZONE-3M replays its own machine: the band it armed on and its 3-minute
+    # anchor span (its bars arrive re-banded, see `score`). Every other row
+    # keeps this call exactly as it was; the zone rows' missing band= (they
+    # replay on d3) is NOTEPAD A111, a separate fix on Mary's word.
+    kw = ({"band": row.get("band"), "span": band_rotation.SCORED_INTERVAL}
+          if row.get("rule") == "zone3" else {})
     states = band_rotation.run_states(
         bars, stop_pts=band_rotation.OPERATOR_STOP_PTS,
-        side="SELL" if sell else "BUY")
+        side="SELL" if sell else "BUY", **kw)
     i = next((s["i"] for s in states
               if s.get("t") == row.get("t") and s.get("arm") is not None), None)
     if i is None:
@@ -1020,7 +1026,7 @@ def score(path=PATH, quiet=False):
             # them -- there is nothing about them a fuller cache would fix.
             skipped += 1
             continue
-        if r.get("rule") not in ("5c", "zone"):
+        if r.get("rule") not in ("5c", "zone", "zone3"):
             # Written before 2026-08-08, when this logger read `rotation` --
             # §1's ONE-CANDLE rule, which marks the d3 TOUCH and which
             # research-findings marks VOID. Those rows describe a different
@@ -1032,6 +1038,7 @@ def score(path=PATH, quiet=False):
             # outcome-filling is the LIVE forward test's own machinery -- but
             # it is a SEPARATE population: every count, table and refusal
             # downstream reads the rule tag and never pools it with 5c.
+            # "zone3" (ZONE-3M, from band_rotation.ZONE3_FROM) likewise.
             skipped += 1
             continue
 
@@ -1058,6 +1065,12 @@ def score(path=PATH, quiet=False):
             bars, why = _session_bars(r.get("index"), r.get("day"), sessions)
             out = None
             if bars is not None:
+                if r.get("rule") == "zone3":
+                    # ZONE-3M is measured on ITS bands, re-derived on the
+                    # cached 3-min bars by live.py's own helper: the stop,
+                    # the other side's bands and the arm replay it logged on.
+                    bars = contract_bars.with_bands(
+                        bars, contract_bars.bands_on(bars))
                 out, why = _outcome(r, bars)
             if out is None:
                 # NEVER a zero and never a silent skip: the row says why it
@@ -1138,6 +1151,9 @@ def show(path=PATH):
         return
     # Two populations, never one table. An arm carries no px and no outcome,
     # so printing it in the entry columns would show a trade at price 0.
+    # ZONE-3M is its own population: out of both tables, printed apart below.
+    z3 = [r for r in rows if r.get("rule") == "zone3"]
+    rows = [r for r in rows if r.get("rule") != "zone3"]
     arms = [r for r in rows if r.get("kind") == "arm"]
     rows = [r for r in rows if r.get("kind") != "arm"]
     print(f"{'':<2}{'day':<12}{'idx':<10}{'t':<7}{'side':<5}{'band':<5}"
@@ -1174,6 +1190,21 @@ def show(path=PATH):
               f"scored row{'' if zn == 1 else 's'}. Same refusal applies — "
               f"under 15 per side is INCONCLUSIVE and the bar is the "
               f"operator's to state BEFORE reading these.")
+    if z3:
+        ne = sum(1 for r in z3 if r.get("kind") != "arm")
+        na = len(z3) - ne
+        print(f"ZONE-3M (bands on 3-min bars, logged from "
+              f"{band_rotation.ZONE3_FROM}; separate population, never pooled "
+              f"with zone or 5c): {ne} entr{'y' if ne == 1 else 'ies'}, {na} "
+              f"arm row{'' if na == 1 else 's'}. Same refusal applies.")
+        for r in z3:
+            print(f"{'':<2}{r.get('day', '')} {r.get('t', '')} "
+                  f"{r.get('index', '')} {r.get('side', '')} "
+                  f"{r.get('band', '')} {r.get('kind') or 'entry'}")
+            if r.get("mfe") is not None:
+                print(f"{'':<2}  {_line(r)}")
+            elif r.get("unscored"):
+                print(f"{'':<2}  not scored — {r['unscored']}")
     if not arms:
         return
     setups = sum(1 for r in arms if not r.get("rearm"))

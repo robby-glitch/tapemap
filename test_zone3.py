@@ -212,3 +212,53 @@ def test_before_its_date_zone3_is_computed_but_never_logged(tmp_path, monkeypatc
     assert any(s["entry"] for s in pl["days"][0]["zone3_state"])            # computed
     assert trigger_log.log_new("NIFTY", pl, None, ones=_ones(), path=path) == 0
     assert not os.path.exists(path)
+
+
+# ---- Task 5: scored on its own bands, shown apart ---------------------------------------------------------------------
+
+def _rows():
+    lvl = run_states(contract_bars.with_bands(_out()["bars"], _out()["bands3"]), band="d2", span=3)[4]["entry"]["level"]
+    base = {"at": 1.0, "day": "2026-10-26", "index": "NIFTY", "side": "BUY", "band": "d2", "rule": "zone3",
+            "bands_on": "3m", "level": lvl, "closed_bar": True}
+    return [dict(base, kind="arm", interval=3, t="09:24", ref_high=22480.0, extreme=22440.0, rearm=False,
+                 first_t="09:24"),
+            dict(base, t="09:27", px=22534.1)]
+
+
+def _cached(monkeypatch):
+    """The scorer's own cache shape: squeeze_score.load's `resample(vwap_bands(...), 3)` -- sampled 1-min bands."""
+    import trigger_log
+    flat3 = contract_bars.resample(_flat1(), 3)
+    monkeypatch.setattr(trigger_log, "_load_sessions",
+                        lambda idx: {"2026-10-26": {"bars": flat3}} if idx == "NIFTY" else {})
+    return flat3
+
+
+def test_a_zone3_row_is_scored_on_its_own_bands_and_its_arm_replayed_with_its_span(tmp_path, monkeypatch):
+    import trigger_log
+    path = _fresh(tmp_path)
+    flat3 = _cached(monkeypatch)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(json.dumps(r) for r in _rows()) + "\n")
+    changed, skipped = trigger_log.score(path, quiet=True)
+    arm, entry = [json.loads(x) for x in open(path, encoding="utf-8")]
+    assert skipped == 0 and changed == 2
+    assert arm["triggered"] is True and arm["trigger_t"] == "09:27" and arm["trigger_why"] is None
+    assert round(arm["stop_px"], 1) == round(entry["stop_px"], 1) == 22425.1
+    assert arm["bands_on"] == entry["bands_on"] == "3m"                       # the tag survives the scorer
+    b3 = contract_bars.bands_on(flat3)[-1]                                   # the 09:30 bar, on 3-min bands
+    assert entry["bands"]["u1"] == "09:30"
+    assert entry["bands"]["sigma"] == round((22549.0 - b3["vwap"]) / (b3["vwap"] - b3["d1"]), 2)
+
+
+def test_show_prints_zone3_apart_from_the_zone_and_arm_tables(tmp_path, capsys):
+    import trigger_log
+    path = _fresh(tmp_path)
+    five = {"kind": "arm", "day": "2026-10-26", "index": "NIFTY", "t": "09:40", "side": "BUY", "band": "d3",
+            "rule": "5c", "level": 22400.0, "extreme": 22399.0, "closed_bar": True}
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(json.dumps(r) for r in _rows() + [five]) + "\n")
+    trigger_log.show(path)
+    out = capsys.readouterr().out
+    assert "ZONE-3M (bands on 3-min bars, logged from 2026-10-28" in out and "1 entry, 1 arm row." in out
+    assert "\n1 ARM rows" in out                                             # the 5c arm only
