@@ -1105,6 +1105,25 @@ def _at_interval(day, interval):
     out["zone_state_sell"] = band_rotation.run_states(
         out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL",
         band="u2")
+    # ZONE-3M (docs/setup-review/ZONE-3M-PREREG.md, draft §1r): the SAME zone
+    # machine on bands computed ON these 3-minute bars, her chart's -- beside
+    # the 1-minute-sigma zone above, never in place of it. A 3-minute rule, so
+    # published at 3 only. `out["bars"]` keep their sampled bands: 5c, the
+    # rotation, the trap, FADE and the zone above all read those, unchanged.
+    # `zone3_on` is the one switch the screens read: the session's own date
+    # (build_session's `date`) at or after band_rotation.ZONE3_FROM. No date
+    # on the session -> False: not shown, never assumed late enough.
+    if interval == band_rotation.SCORED_INTERVAL:
+        out["bands3"] = contract_bars.bands_on(out["bars"])
+        z3 = contract_bars.with_bands(out["bars"], out["bands3"])
+        out["zone3_state"] = band_rotation.run_states(
+            z3, stop_pts=band_rotation.OPERATOR_STOP_PTS, band="d2",
+            span=interval)
+        out["zone3_state_sell"] = band_rotation.run_states(
+            z3, stop_pts=band_rotation.OPERATOR_STOP_PTS, side="SELL",
+            band="u2", span=interval)
+        out["zone3_on"] = (str(day.get("date") or "")
+                           >= band_rotation.ZONE3_FROM)
     return out
 
 
@@ -1214,6 +1233,7 @@ def build_session(cfg, spot=None):
                 strike=strike, t_days=t_days, basis=basis or 0.0)
     s.run()
     js = session_json(s)
+    js["date"] = today      # the session's ISO date: ZONE-3M's switch reads it
     # mid-session: the end-of-day CARRY verdict is meaningless until the
     # close — suppress it so the feed never shows a 15:29 event at 10:30
     if js["bars"] and js["bars"][-1]["t"] < "15:25":

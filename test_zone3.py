@@ -90,3 +90,87 @@ def test_with_bands_replaces_only_the_band_keys_on_a_copy():
     assert out[1] == rows[1]                                                # the future did not print: left as it is
     flat = contract_bars.with_bands([{"t": "09:15", "h": None, "l": 1.0, "c": 1.0, "v": 1.0, "d2": 5.0}], [None])
     assert flat[0]["d2"] is None and flat[0]["l"] == 1.0                     # unreadable: None, never the old value
+
+
+# ---- Task 3: the 3-min payload, its switch, and the 26 Oct acceptance ------------------------------------------------
+
+# 26 Oct 2026 NIFTY near-month futures, the exchange's 1-min candles 09:15-09:32: (t, o, h, l, c, v). From
+# /api/data?idx=NIFTY&interval=1 read that afternoon (scratchpad nifty_1m.json, days[-1].bars[i].fut). [M]
+OCT26_NIFTY_FUT_1M = [
+    ("09:15", 22560.0, 22570.0, 22530.0, 22535.0, 75075.0),
+    ("09:16", 22531.0, 22575.0, 22525.6, 22575.0, 17420.0),
+    ("09:17", 22576.0, 22579.3, 22520.0, 22520.0, 24180.0),
+    ("09:18", 22520.0, 22525.6, 22505.6, 22505.6, 16445.0),
+    ("09:19", 22510.0, 22519.0, 22500.0, 22500.0, 14430.0),
+    ("09:20", 22495.0, 22501.8, 22480.8, 22495.1, 12675.0),
+    ("09:21", 22496.4, 22498.0, 22470.0, 22476.3, 21840.0),
+    ("09:22", 22474.6, 22475.0, 22462.0, 22470.0, 17485.0),
+    ("09:23", 22473.2, 22490.1, 22465.0, 22465.0, 9555.0),
+    ("09:24", 22465.0, 22474.8, 22454.0, 22470.0, 20150.0),
+    ("09:25", 22474.3, 22475.0, 22447.0, 22450.0, 27365.0),
+    ("09:26", 22447.8, 22480.0, 22440.0, 22475.0, 39520.0),
+    ("09:27", 22473.1, 22475.4, 22459.7, 22470.4, 12220.0),
+    ("09:28", 22472.0, 22497.2, 22462.1, 22488.0, 35555.0),
+    ("09:29", 22494.0, 22538.8, 22488.0, 22534.1, 25805.0),
+    ("09:30", 22532.1, 22549.0, 22520.0, 22524.1, 32955.0),
+    ("09:31", 22530.0, 22540.0, 22512.0, 22524.5, 10465.0),
+    ("09:32", 22525.0, 22535.0, 22497.3, 22501.0, 12870.0),
+]
+
+
+def _flat1():
+    """The candles as flat 1-min bars with their 1-min session bands (vwap_bands: the engine's own recurrence)."""
+    return contract_bars.vwap_bands([{"t": t, "o": o, "h": h, "l": l, "c": c, "v": v, "oi": None}
+                                     for t, o, h, l, c, v in OCT26_NIFTY_FUT_1M])
+
+
+def _ones():
+    """engine.session_json's 1-min rows: the fut leg with its 1-min bands, no option legs."""
+    return [{"t": b["t"], "fut": b, "ce": None, "pe": None} for b in _flat1()]
+
+
+def _out(interval=3, **day):
+    import live
+    return live._at_interval(dict({"bars": _ones(), "events": []}, **day), interval)
+
+
+def test_the_3m_payload_carries_zone3_beside_zone_and_leaves_its_bars_alone():
+    out = _out()
+    n = len(out["bars"])
+    assert len(out["bands3"]) == len(out["zone3_state"]) == len(out["zone3_state_sell"]) == n
+    assert out["bars"] == list(contract_bars.resample_index(_ones(), 3))     # sampled 1-min bands, untouched
+    assert out["zone_state"] == run_states(out["bars"], stop_pts=band_rotation.OPERATOR_STOP_PTS, band="d2")
+    for k in (1, 5, 15):                                                     # a 3-minute rule: published at 3 only
+        other = _out(k)
+        assert not {"bands3", "zone3_state", "zone3_state_sell", "zone3_on"} & set(other)
+
+
+def test_zone3_on_is_the_sessions_date_against_the_one_switch():
+    """The screens' one switch: computed always, shown only from band_rotation.ZONE3_FROM. A session with no date is
+    not shown -- never assumed late enough. A live session carries its ISO date from build_session."""
+    import inspect
+    import live
+    assert _out(date="2026-10-27")["zone3_on"] is False
+    assert _out(date="2026-10-28")["zone3_on"] is True
+    assert _out()["zone3_on"] is False
+    assert any(s["entry"] for s in _out(date="2026-10-27")["zone3_state"])  # computed before its date all the same
+    assert 'js["date"] = today' in inspect.getsource(live.build_session)
+
+
+def test_acceptance_26_oct_nifty_zone3_arms_0924_and_enters_0927():
+    """The registration's acceptance (in-sample, described only): on 3-min bands the 09:24 bar's low 22,440.0 reached
+    d2 22,445.1 and armed; the 09:27 close 22,534.1 beat the arm bar's high 22,480.0; stop 22,425.1. The 1-min-sigma
+    zone armed nothing there: its d2 at that bar was 22,434.1."""
+    out = _out()
+    t = [b["t"] for b in out["bars"]]
+    i24, i27 = t.index("09:24"), t.index("09:27")
+    f24, f27 = out["bars"][i24]["fut"], out["bars"][i27]["fut"]
+    assert f24["l"] == 22440.0 and round(out["bands3"][i24]["d2"], 1) == 22445.1
+    assert out["zone3_state"][i24]["arm"] == {"rearm": False, "band": "d2", "extreme": 22440.0,
+                                             "first_i": i24, "first_t": "09:24"}
+    e = out["zone3_state"][i27]["entry"]
+    assert e["side"] == "BUY" and e["band"] == "d2" and e["ref_high"] == 22480.0 and f27["c"] == 22534.1
+    assert round(e["level"], 1) == 22445.1 and round(e["stop"], 1) == 22425.1
+    assert round(f24["d2"], 1) == 22434.1                                     # the sampled 1-min d2
+    assert all(s["arm"] is None and s["entry"] is None for s in out["zone_state"])
+    assert all(s["arm"] is None for s in out["zone3_state_sell"])
