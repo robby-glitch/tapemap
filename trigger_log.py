@@ -364,6 +364,19 @@ def _arm_rows(index, day_js, bars, last, day, oi_at, ones, interval, now,
     return out
 
 
+def _entries(day_js, buy_key, sell_key):
+    """One entry record (or None) per bar off a BUY / SELL state-list pair. A
+    BUY wins a bar both sides land on -- the chart's tie-break -- so the log
+    and the screen can never disagree about which record existed."""
+    buy = [s.get("entry") if isinstance(s, dict) else None
+           for s in day_js.get(buy_key) or []]
+    sell = [s.get("entry") if isinstance(s, dict) else None
+            for s in day_js.get(sell_key) or []]
+    if len(sell) == len(buy):
+        return [b if b is not None else s_ for b, s_ in zip(buy, sell)]
+    return sell if sell and not buy else buy
+
+
 def log_new(index, payload, chain_state=None, ones=None, path=PATH):
     """Append every rotation record not yet on disk. Returns rows written.
 
@@ -493,18 +506,33 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
         except Exception:
             pass
 
+        # ZONE-3M (rule "zone3", `bands_on: "3m"`): the same row builder, its
+        # own try and its own rule, only from band_rotation.ZONE3_FROM -- the
+        # one date its chip, its alerts and its marks also wait for.
+        z3on = day >= band_rotation.ZONE3_FROM
+        try:
+            interval = payload.get("interval")
+            if interval == band_rotation.SCORED_INTERVAL and z3on:
+                out.extend(json.dumps(dict(r, bands_on="3m")) for r in
+                           _dedupe(_arm_rows(
+                               index, day_js, bars, last, day,
+                               oi_at,
+                               ones, interval, time.time(),
+                               keys=(("zone3_state", False),
+                                     ("zone3_state_sell", True)),
+                               rule="zone3", gate_at=gate_at)))
+                wrote = len(out)
+        except Exception:
+            pass
+
         # Zone ENTRIES ride the same loop as §5c's under their own tag —
         # one row shape, two populations. Same slot rule per list: buy wins.
-        zrot = [s.get("entry") if isinstance(s, dict) else None
-                for s in day_js.get("zone_state") or []]
-        zsell = [s.get("entry") if isinstance(s, dict) else None
-                 for s in day_js.get("zone_state_sell") or []]
-        if len(zsell) == len(zrot):
-            zrot = [b if b is not None else s_ for b, s_ in zip(zrot, zsell)]
-        elif zsell and not zrot:
-            zrot = zsell
+        zrot = _entries(day_js, "zone_state", "zone_state_sell")
+        z3rot = (_entries(day_js, "zone3_state", "zone3_state_sell")
+                 if z3on else [])
 
-        for rule_tag, rec_list in (("5c", rot), ("zone", zrot)):
+        for rule_tag, rec_list in (("5c", rot), ("zone", zrot),
+                                   ("zone3", z3rot)):
           for i, rec in enumerate(rec_list):
             if rec is None or i >= last or i >= len(bars) or bars[i] is None:
                 continue
@@ -538,6 +566,8 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                    # deleting it -- the context in those rows is still real,
                    # only the trigger and the price are not trustworthy.
                    "closed_bar": True}
+            if rule_tag == "zone3":     # ZONE-3M: bands on its own 3-min bars
+                row["bands_on"] = "3m"  # (absent on every other row)
             if oi_why:                  # appended only when the OI is null,
                 row["oi_why"] = oi_why  # so a normal row is byte-identical
             # §1d, the same stamp the arm rows carry, and with the same

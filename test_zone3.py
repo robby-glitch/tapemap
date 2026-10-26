@@ -174,3 +174,41 @@ def test_acceptance_26_oct_nifty_zone3_arms_0924_and_enters_0927():
     assert round(f24["d2"], 1) == 22434.1                                     # the sampled 1-min d2
     assert all(s["arm"] is None and s["entry"] is None for s in out["zone_state"])
     assert all(s["arm"] is None for s in out["zone3_state_sell"])
+
+
+# ---- Task 4: trigger_log logs zone3 under its own rule, from the one date --------------------------------------------
+
+def _payload():
+    return {"interval": 3, "days": [_out()]}
+
+
+def _fresh(tmp_path):
+    import trigger_log
+    trigger_log._seen = None
+    return str(tmp_path / "log.jsonl")
+
+
+def test_zone3_is_logged_under_its_own_rule_with_its_bands_tag(tmp_path, monkeypatch):
+    import trigger_log
+    path = _fresh(tmp_path)
+    monkeypatch.setattr(band_rotation, "ZONE3_FROM", "2000-01-01")
+    assert trigger_log.log_new("NIFTY", _payload(), None, ones=_ones(), path=path) == 2
+    arm, entry = [json.loads(x) for x in open(path, encoding="utf-8")]
+    assert (arm["kind"], arm["rule"], arm["bands_on"], arm["t"], arm["side"], arm["band"]) == \
+        ("arm", "zone3", "3m", "09:24", "BUY", "d2")
+    assert arm["extreme"] == 22440.0 and arm["ref_high"] == 22480.0 and round(arm["level"], 1) == 22445.1
+    assert arm["t_1m"] == "09:26" and arm["interval"] == 3
+    assert "kind" not in entry and (entry["rule"], entry["bands_on"], entry["t"], entry["px"]) == \
+        ("zone3", "3m", "09:27", 22534.1)
+    assert round(entry["level"], 1) == 22445.1
+    assert trigger_log.log_new("NIFTY", _payload(), None, ones=_ones(), path=path) == 0      # written once
+
+
+def test_before_its_date_zone3_is_computed_but_never_logged(tmp_path, monkeypatch):
+    import trigger_log
+    path = _fresh(tmp_path)
+    monkeypatch.setattr(band_rotation, "ZONE3_FROM", "2999-01-01")
+    pl = _payload()
+    assert any(s["entry"] for s in pl["days"][0]["zone3_state"])            # computed
+    assert trigger_log.log_new("NIFTY", pl, None, ones=_ones(), path=path) == 0
+    assert not os.path.exists(path)
