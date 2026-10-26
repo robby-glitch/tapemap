@@ -834,6 +834,9 @@ export default function App() {
   const data = useMemo(() => at(scrub), [scrub, liveData])
   const tape = useMemo(() => tapeBars(activeIndex), [tapeBars, activeIndex, liveData])
   const zone3 = useZone3(activeIndex, interval, tape)   // the strip, the title and Trade read THIS, never a 5m re-run
+  // ZONE-3M (draft §1r): one switch, one date. On a 3m chart from band_rotation.ZONE3_FROM (zone3.z3) the strip and the
+  // title read the SAME machine and bands as the Trade tab's pockets and markers; otherwise today's zone.
+  const zm = zone3.z3 ?? zone3
   const barTime = data.CHART_DATA[activeIndex]?.slice(-1)[0]?.time ?? '--:--'
 
   // A stale chain is a separate failure from a dead tape or an unreachable
@@ -855,7 +858,7 @@ export default function App() {
   useEffect(() => {
     let title = 'TapeMap — Live'
     if (!error && !idxDead) {
-      const { st } = liveMachine(zone3.buy, zone3.sell)     // the zone: her setup (rule 3), always the 3-minute machine
+      const { st } = liveMachine(zm.buy, zm.sell)           // the zone: her setup (rule 3), always the 3-minute machine
       if (st) {
         const w = machineWord(st)
         if (w === 'ARMED') title = `● ARMED · ${st.candles_left != null ? `${st.candles_left} baaki` : 'window —'} — TapeMap`
@@ -868,7 +871,7 @@ export default function App() {
     }
     document.title = title
     return () => { document.title = 'TapeMap — Live' }
-  }, [zone3, error, idxDead])
+  }, [zm, error, idxDead])
 
   useEffect(() => {
     if (!playing || scrub == null) return
@@ -984,10 +987,10 @@ export default function App() {
           spec (BOARD rev 3 §8 step 1); the browser-tab title still mirrors
           the machine there. */}
       {!onBoard && <MachineStrip
-        runState={zone3.buy}
+        runState={zm.buy}
         runStateWhy={zone3.why}
-        runStateSell={zone3.sell}
-        lastBar={zone3.bars.length ? zone3.bars[zone3.bars.length - 1] : null}
+        runStateSell={zm.sell}
+        lastBar={zm.bars.length ? zm.bars[zm.bars.length - 1] : null}
         stale={!!error || idxDead}
         replaying={scrub != null}
       />}
