@@ -98,18 +98,20 @@ def save_tape(idx, session, now_ms=None):
     return len(out)
 
 
-def _tape_bars(day, idx, upto):
-    """The saved tape's bars known by minute `upto` (first seen at or before it), minutes < upto -> {"HH:MM": bar}."""
+def _tape_bars(day, idx, upto, fill=False):
+    """The saved tape's bars known by minute `upto` (first seen at or before it), minutes < upto -> {"HH:MM": bar}.
+    fill=True (her backtest replay, 31 Oct): every saved bar regardless of when it was first seen -- the day with its holes
+    filled, which live Jarvis did NOT have; the frame's health says so."""
     import json
     try:
         with open(tape_path(day, idx), encoding="utf-8") as f:
             tape = json.load(f)
     except (OSError, ValueError):
         return {}
-    return {k: b for k, b in tape.items() if _m(k) < upto and b[6] and mod(b[6]) <= upto}
+    return {k: b for k, b in tape.items() if _m(k) < upto and b[6] and (fill or mod(b[6]) <= upto)}
 
 
-def _fut_bars(tag, day, brows, upto, idx=None):
+def _fut_bars(tag, day, brows, upto, idx=None, fill=False):
     """({"HH:MM": [iso, o, h, l, c, v, oi]}, {"HH:MM": "dext" | "book" | "tape"}) for the minutes < upto.
     Dext 0.8.1's getData rows where it has the minute -- a row is a 1-minute bar only when another row sits 60 s from it
     (29 Oct's file holds 5-minute bars, which are not minutes) -- else the minute from the 1-second book: ltp open / high
@@ -143,7 +145,7 @@ def _fut_bars(tag, day, brows, upto, idx=None):
     for k, b in bars.items():
         if k not in F and b[6]:
             F[k], src[k] = b, "book"
-    for k, b in (_tape_bars(day, idx, upto) if idx else {}).items():
+    for k, b in (_tape_bars(day, idx, upto, fill) if idx else {}).items():
         if k not in F and b[5]:
             F[k], src[k] = [None, b[0], b[1], b[2], b[3], b[4], b[5]], "tape"
     return F, src
@@ -182,8 +184,9 @@ def _sides(day, idx, upto, live_from):
              "fuel_side": s.get("fuel_side"), "uw": s.get("fuel_top2_underwater")} for s in slots]
 
 
-def build(day: str, idx: str = "NIFTY", upto: int | None = None) -> dict:
-    """The Jarvis frame for (day, idx) as known at minute `upto` (minutes < upto; None = the whole session)."""
+def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = False) -> dict:
+    """The Jarvis frame for (day, idx) as known at minute `upto` (minutes < upto; None = the whole session). fill=True: book
+    holes filled from the saved tape whenever it was saved (a backtest replay, not what live Jarvis saw)."""
     import trigger_log
     upto = H.LAST_M + 2 if upto is None else upto
     LOT, BAR = v2feed.LOTS[idx], H.FUT_LOTS[idx]
@@ -192,7 +195,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None) -> dict:
     # ---- the book (causal), the fut bars, the spot -----------------------------------------------------------------------
     brows = sorted((r for r in H.book_rows(day, idx) if mod(r["t"]) < upto), key=lambda r: r["t"])
     tag = _fut_tag(brows)
-    F, f_src = _fut_bars(tag, day, brows, upto, idx)
+    F, f_src = _fut_bars(tag, day, brows, upto, idx, fill)
     S = {}
     cp = confluence_log._chain_path(idx, day)
     for r in _rows(cp):                              # the index from the chain's own spot (recorded, else the backfill's)
@@ -648,7 +651,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None) -> dict:
                          if r.get(k) is not None})
 
     data = {"ok": True, "day": day, "idx": idx, "lot": LOT, "bar": BAR, "step": STEP, "start": START, "end": END,
-            "upto": hm(upto), "mins": mins,
+            "upto": hm(upto), "fill": fill, "mins": mins,
             "spot": [S[m][4] for m in mins], "fut": [F[m][4] for m in mins], "fhi": [F[m][2] for m in mins],
             "flo": [F[m][3] for m in mins], "f_src": [f_src[m] for m in mins],
             "oi": [round(oim[m], 1) for m in MI], "oi_src": [src[m] for m in MI], "vol": [round(F[m][5] / LOT) for m in mins],
@@ -819,14 +822,16 @@ def health(d: dict, bnf_readable=None) -> dict:
         else:
             notes.append(f"Dext footprint missing {a}–{b}" + (" (flow from the book)" if a != b else ""))
     for a, b in d.get("holes") or ():
-        notes.append(f"book hole {a}–{b}: no 1-second book; answers there unread")
+        notes.append(f"book hole {a}–{b}: no 1-second book; "
+                     + ("FILL replay: fut from the saved tape" if d.get("fill") else "answers there unread"))
     for a, b in _stretches([m in set(d.get("chain_missing") or ()) for m in mins], mins):
         notes.append(f"chain missing {a}–{b}: walls and answers there not read")
     fs = d.get("f_src") or []
     if fs.count("book"):
         notes.append(f"fut 1-min bars from the book for {fs.count('book')} min (Dext has no 1-minute bars there)")
     if fs.count("tape"):
-        notes.append(f"fut 1-min bars rebuilt from the Upstox tape for {fs.count('tape')} min (the book was empty there)")
+        notes.append(f"fut 1-min bars rebuilt from the Upstox tape for {fs.count('tape')} min (the book was empty there)"
+                     + (" · FILL replay: live Jarvis did not have these minutes" if d.get("fill") else ""))
     if d.get("live_from") and d["live_from"] > mins[0]:
         notes.append(f"recorded live from {d['live_from']}: {mins[0]}–{d['live_from']} rebuilt (chain backfill, Dext)")
     if d.get("sides") is None:
@@ -983,11 +988,13 @@ def call(d: dict) -> dict:
     dn_s = (f"▼ if {lv(pe[0]['k'])} PE breaks (BROKEN) with writers ±7 ▼ → " + (lv(pe[1]["k"]) if len(pe) > 1 else "open space"))\
         if pe else "▼ open: no PE wall below in range"
     g = (row or {}).get("leg") if row and not blind else None
+    lines = None
     if g and row["word"] in ("TREND", "HOLD", "WATCH", "PALAT?") and lean:
         import legs as _lg
         U = max(sd or 0, 0.001 * fut)
         q35 = g["extreme"] - lean * _lg.DEEP * g["pts"]
         half = g["extreme"] - lean * max(_lg.REV_FRAC * g["pts"], _lg.REV_U * U)
+        lines = {"q35": round(q35, 2), "half": round(half, 2)}     # the faces draw these, never their own copy (Dext 0.9)
         opt, other = ("CE", "PE") if lean > 0 else ("PE", "CE")
         wall = (pe[0] if pe else None) if lean > 0 else (ce[0] if ce else None)
         if row["word"] == "PALAT?":
@@ -1029,7 +1036,11 @@ def call(d: dict) -> dict:
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
             "lean": lean, "leg": leg_line, "day": day_line, "pause": None if row is None or blind else
             {"line": row.get("line"), "alive": row.get("alive"), "risk": row.get("risk"), "notes": row.get("notes"),
-             "missing": row.get("missing")}, "v1": v1}
+             "missing": row.get("missing")}, "v1": v1, "lines": lines,
+            "walls": {"ce": None if not ce else {"k": ce[0]["k"], "f": round(ce[0]["k"] + basis, 2), "oi": ce[0].get("oi"),
+                                                 "state": ce[0].get("state")},
+                      "pe": None if not pe else {"k": pe[0]["k"], "f": round(pe[0]["k"] + basis, 2), "oi": pe[0].get("oi"),
+                                                 "state": pe[0].get("state")}}}
 
 
 # ---- Task 2: the face's reads, in the brain (jarvis2.html / jarvis2_live.html JS, ported; DAY-2026-10-29 §8 corrections)
@@ -1046,6 +1057,31 @@ BLIND_MIN = 2                                 # P0: the newest minute more than 
 FIGHT_AWAY, FIGHT_AWAY_MIN = 2, 15            # P2: a fight's wall > 2 steps from price for 15 min is left behind [I]
 MANAGE_PTS, MANAGE_WIN, MANAGE_GAP = 15, 46, 6
 QUIET_MIN = 20
+
+
+def calls(d: dict) -> list:
+    """Her backtest replay (31 Oct): THE ONE CALL as it stood at every minute -- call() on the frame cut at minute i (the
+    per-minute series, reads and leg rows to i; holes and health as known then), so a scrubbed replay shows what Jarvis
+    said at 11:14, not the close's call. The card's fields only. A replay has no clock, so CAN'T SEE never shows here: a
+    minute missing from the record is simply absent (health names the hole)."""
+    mins, N = d["mins"], len(d["mins"])
+
+    def cut(v, i):
+        return v[:i + 1] if isinstance(v, list) and len(v) == N else v
+
+    lg, out = d.get("legs") or {}, []
+    for i in range(N):
+        v = {k: cut(x, i) for k, x in d.items()}
+        v["reads"] = {k: cut(x, i) for k, x in d["reads"].items()}
+        v["legs"] = dict(lg, rows=cut(lg.get("rows") or [], i),
+                         day={k: cut(x, i) for k, x in (lg.get("day") or {}).items()})
+        v["holes"] = [h for h in d.get("holes") or () if h[0][:5] <= mins[i]]
+        v["upto"] = hm(_m(mins[i]) + 1)
+        v["health"] = health(v, d["health"].get("bnf_chain_readable"))
+        c = call(v)
+        out.append({k: c[k] for k in ("at", "word", "lean", "leg", "day", "wrong_line", "buyer", "seller")}
+                   | {"pause": c["pause"] and {"line": c["pause"].get("line")}})
+    return out
 
 
 def sides_fuel(s):
@@ -1419,8 +1455,10 @@ def reads(d: dict) -> dict:
             loud.add(i + 1)
         was = on_
     blind = set()
-    for a, b_ in d.get("holes") or ():
-        blind.update(i for i, m_ in enumerate(mins) if a[:5] <= m_ <= b_[:5])
+    fs = d.get("flow_src") or [None] * N
+    for a, b_ in d.get("holes") or ():               # a fill replay (31 Oct) has a hole's minutes back -- fut from the tape,
+        blind.update(i for i, m_ in enumerate(mins)   # OI from the chain backfill: blind there only if the flow is gone too
+                     if a[:5] <= m_ <= b_[:5] and not (d.get("fill") and fs[i]))
     blind.update(ix[m_] for m_ in d.get("chain_missing") or () if m_ in ix)
     nt, last_loud = [None] * N, 0
     for i in range(N):

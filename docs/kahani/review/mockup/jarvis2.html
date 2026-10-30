@@ -299,7 +299,11 @@ const cur = () => clampI(t);
 // export_mockup.py; else the 28 Oct file. A frame with reads / health / call is rendered as sent (one brain); the JS reads
 // below are only the fallback for older files. From this static server (8787) use ?api=http://localhost:5173/api/jarvis
 // (Vite's proxy answers a localhost origin; 8765 itself allows one origin, kite.zerodha.com, so a direct fetch is blocked).
-const QS = new URLSearchParams(location.search), API = QS.get("api");
+// Her backtest (31 Oct): ?day=YYYY-MM-DD[&idx=NIFTY][&fill=0] replays any recorded day through the brain (after 15:40),
+// its holes filled from the saved tape unless fill=0 (as live saw it). A replay is never re-polled and starts at 09:15.
+const QS = new URLSearchParams(location.search), DAY = QS.get("day");
+const API = QS.get("api") || (DAY ? `http://localhost:5173/api/jarvis?idx=${QS.get("idx") || "NIFTY"}&day=${DAY}&fill=${QS.get("fill") ?? "1"}` : null);
+const LIVE = !!API && !/[?&](day|upto)=/.test(API);
 const fetchFrame = u => fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.now()).then(r => r.json());
 fetchFrame(API || QS.get("d") || "data_28oct.json").then(d => {
   if (!d || !d.mins) { $("#btext").textContent = `no frame: ${(d && d.why) || "empty"}`; return; }
@@ -307,7 +311,7 @@ fetchFrame(API || QS.get("d") || "data_28oct.json").then(d => {
 }).catch(() => {
   $("#btext").textContent = (API ? `${API} did not answer` : "data_28oct.json not found") + ": serve this folder (launch: kahani-mockup).";
 });
-if (API) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) swapFrame(d); }).catch(() => {}), 20000);
+if (LIVE) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) swapFrame(d); }).catch(() => {}), 20000);
 
 function swapFrame(d) {                               // a new live frame: rebuilt; the playhead stays at now unless she scrubbed
   const follow = t >= N - 1.5, keep = t;
@@ -316,14 +320,14 @@ function swapFrame(d) {                               // a new live frame: rebui
 }
 function init(d) {
   prep(d);
-  rail(); fit(); seek(API ? N - 1 : 0); renderMinute(cur(), true);
-  if (API) $("#intro").hidden = true;
+  rail(); fit(); seek(LIVE ? N - 1 : 0); renderMinute(cur(), true);
+  if (LIVE) $("#intro").hidden = true;
   requestAnimationFrame(loop);
 }
 function prep(d) {
   D = d; N = d.mins.length; cand = []; bas = []; ev = []; NT = []; marks = []; SPD.length = 0; DMAX1 = 1; DMAX3 = 1; MAXOI = 100;
   const lf = D.live_from || "11:07", rebuilt = ix(lf) > 0;
-  $(".brand small").textContent = `${D.idx} fut · ${D.day} · ${API ? "live from the brain" : "replay"} · to ${D.mins[N - 1]}`;
+  $(".brand small").textContent = `${D.idx} fut · ${D.day} · ${LIVE ? "live from the brain" : D.fill ? "replay · holes filled from the tape" : "replay"} · to ${D.mins[N - 1]}`;
   const ps = document.querySelectorAll("#intro p");
   ps[0].textContent = `${D.day}, ${D.idx} futures, ${D.mins[0]}–${D.mins[N - 1]}${rebuilt ? ", as if the laptop had been on all morning" : ""}.`;
   ps[1].textContent = D.health ? (D.health.notes.length ? "What it could not see: " + D.health.notes.join(" · ") + "." : "Every source live.")
@@ -343,8 +347,8 @@ function prep(d) {
   marks = ev.filter(e => e.push || e.toot || e.zone || e.tag === "BLIND" || e.floor || e.chap === "FUEL" || e.chap === "FUEL SPENT" || (e.signs && !e.signs.driving) || e.chap === "NEW FIGHT" || e.chap === "MANAGE");
   renderBrain();
 }
-function renderBrain() {                              // the brain's health and its one call (the frame's last minute)
-  const h = D.health, c = D.call;
+function renderBrain(i) {   // the brain's health and its one call: the frame's last minute, or a replay's call at minute i
+  const h = D.health, c = D.calls ? D.calls[clampI(i == null ? N - 1 : i)] : D.call;
   $("#strip").classList.toggle("h7", !!h); $("#sHealthC").hidden = !h; $("#callc").hidden = !c;
   if (h) {
     $("#sHealthAt").textContent = `at ${D.mins[N - 1]}`;
@@ -364,8 +368,9 @@ function renderBrain() {                              // the brain's health and 
       $(id).hidden = !txt; if (txt) $(id).textContent = txt;
     }
     $("#cWr").textContent = c.wrong_line; $("#cB").textContent = "buyer: " + c.buyer; $("#cS").textContent = "seller: " + c.seller;
-    $("#callc").title = c.why.concat([c.up, c.dn], c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
-      c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).join("\n");
+    $("#callc").title = !c.why ? [c.leg, c.pause && c.pause.line, c.day].filter(Boolean).join("\n") :
+      c.why.concat([c.up, c.dn], c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
+        c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).join("\n");
   }
 }
 
@@ -806,6 +811,7 @@ function placeBubble(force) {
 /* ------------------------------------------------------------ the strip, the quotes, the trade card (per minute) -- */
 function renderMinute(i, force) {
   shownMin = i;
+  if (D.calls) renderBrain(i);                        // a replay: the card shows the call as it stood at this minute
   const hm = D.mins[i], r = D.timeline[i] || {}, f = fightAt(i), fu = r.fuel, sp = speedAt(i), sy = sync(i), rm = roomAt(i);
   // fight
   $("#sFight").textContent = f ? `WALL ${fmt(f.k)}s ${f.side}${f.oi != null ? " · " + f.oi.toFixed(0) + "L" : ""}` : "no wall in play";

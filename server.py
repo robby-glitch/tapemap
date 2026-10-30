@@ -4659,13 +4659,17 @@ _JARVIS_LOCK = threading.Lock()                  # ponytail: one build at a time
 def _jarvis_reply(q):
     """GET /api/jarvis?idx=&day=&upto= (J2, jarvis.build): today = the frame at the last complete minute (the handshake's
     20 s grace), cached 20 s per index; a past day, or an explicit upto (HH:MM, exclusive), replays the record on request,
-    refused 09:15-15:40 IST on a weekday except for today (spec §6.2). Display only; never an order."""
+    refused 09:15-15:40 IST on a weekday except for today (spec §6.2). Display only; never an order.
+    Her backtest (31 Oct): a past day with no upto is the WHOLE session (it read the clock before, G12); fill=1 fills the
+    book's holes from the saved tape whenever it was saved (not what live Jarvis saw; health says so); a replay carries
+    `calls`, the one call at every minute, so the scrubbed card shows that minute's call."""
     import jarvis
     d = _ist()
     today, now = d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
     idx = (q.get("idx") or ["NIFTY"])[0].upper()
     day = (q.get("day") or [today])[0]
     up = (q.get("upto") or [None])[0]
+    fill = (q.get("fill") or ["0"])[0] == "1"
     if idx not in instruments.ENABLED:
         return {"ok": False, "why": f"could not check — {idx} is not an index this server reads"}
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", day) or (up is not None and not re.match(r"^\d\d:\d\d$", up)):
@@ -4674,13 +4678,17 @@ def _jarvis_reply(q):
         return {"ok": False, "why": "could not check — that day has not happened"}
     if day != today and d.weekday() < 5 and "09:15" <= now < "15:40":
         return {"ok": False, "why": "could not check — a past day replays after 15:40, never in market hours (spec §6.2)"}
-    upto = int(up[:2]) * 60 + int(up[3:5]) if up else (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60
-    key = (idx, day, upto if up or day != today else None)
+    live = day == today and not up
+    upto = int(up[:2]) * 60 + int(up[3:5]) if up else \
+        (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60 if live else None
+    key = (idx, day, upto if not live else None, fill)
     with _JARVIS_LOCK:
         hit = _JARVIS.get(idx)
         if hit and hit[0] == key and time.time() - hit[1] < JARVIS_TTL_S:
             return hit[2]
-        out = dict(jarvis.build(day, idx, upto), live=day == today and not up, asof=d.strftime("%H:%M:%S"))
+        out = dict(jarvis.build(day, idx, upto, fill), live=live, asof=d.strftime("%H:%M:%S"))
+        if not live and out.get("ok"):
+            out["calls"] = jarvis.calls(out)
         _JARVIS[idx] = (key, time.time(), out)
         return out
 

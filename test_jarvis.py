@@ -307,6 +307,8 @@ def test_the_tape_rebuilds_a_hole_only_from_when_it_was_seen():
     assert src.get("12:45") == "tape" and F["12:45"][4] == 23_105.0
     F, src = jarvis._fut_bars(None, day, [], 13 * 60, "NIFTY")            # at 13:00 it had not been seen: still a hole
     assert "12:45" not in F
+    F, src = jarvis._fut_bars(None, day, [], 13 * 60, "NIFTY", fill=True)  # her backtest (31 Oct): fill ignores first-seen
+    assert src.get("12:45") == "tape" and F["12:45"][4] == 23_105.0
 
 
 @pytest.mark.skipif(not _has("2026-10-30"), reason="30 Oct record not present")
