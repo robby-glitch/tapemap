@@ -1,0 +1,17 @@
+== RAFTAAR (converged) · NIFTY · 2026-09-29 · EXPIRY · NIFTY + BNF expiry, round trip · size ref: aaj ke minute · fut leg: yes · READ log: no
+
+strip (5 min): ?????????·P▼▼▼▼▼▼▼▼▼···▲▲▲▲▲▲▲▲▲···aaa~~~~~~~~~~~~~~~~~a~~~~~~~~~·u·uuPuuaa
+
+10:12     22579s  CHAL RAHA ▼ · SHURU                 5/11 THEEK      CE CAP SAATH · spot -31 pts/15m · with +106.4L against +69.2L
+11:00     22613s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+11:12     22671s  CHAL RAHA ▲ · SHURU                 7/11 THEEK      CE BHAAG RAHE · spot +54 pts/15m · with +210.9L against 0
+                    PHANSE: 22600 +46.5L 11:07 tak likha, 22700 +22.6L 10:59 tak likha
+11:31     22730s  CHAL RAHA ▲ · TEZ                   9/11 THEEK      CE BHAAG + PE LIKHAI · spot +57 pts · with +124.7L
+12:04     22743s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:31     22652s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 98
+13:53     22666s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 37
+14:44     22675s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22650 −28.8L, 22600 −10.6L, 22750 +9.3L, 22850 +9.1L
+15:12     22692s  UNWIND                              5/7 THEEK       CE −147.7L PE −113.5L · band ka unwind
+
+-- minutes: CHOP 133, KHAMOSH 45, ? 44, CHAL RAHA ▲ 44, CHAL RAHA ▼ 41, UNWIND 27, ATKA 25, PIN 14
+-- stamps: 9 (pictures / quiet / ? 7, phases + ends 1, side events 1, ≠ READ 0)

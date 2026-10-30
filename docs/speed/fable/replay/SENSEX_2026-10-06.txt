@@ -1,0 +1,89 @@
+== RAFTAAR SENSEX 2026-10-06  P = 130 pts  step 100  (floors = the day's own running medians per side) ==
+-- Tue · NIFTY weekly expiry, trend up (+0.8 %, 2 mean crosses)
+
+09:20  SOCH RAHA · 5/15-min lookback missing
+09:41     72583s  KHAMOSH · kuch khaas nahi
+09:56     72716s  CHAL RAHA ▲ SAATH     SHURU     CE RETREAT 72500           PE QUIET         with15  +11.5L against15    +53k  m15 +133  HALKA 2/6 (peers 0/2)
+10:01     72689s  KHAMOSH · kuch khaas nahi
+11:09     72801s  LOAD PE likh rahe 72800  net15 +6.0L  m15  +77  THEEK 3/6 (peers 0/2)
+11:19     72821s  KHAMOSH · kuch khaas nahi
+12:29     72844s  LOAD PE likh rahe 72800  net15 +1.7L  m15  +66  THEEK 3/6 (peers 1/2)
+12:40     72926s  KHAMOSH · kuch khaas nahi
+12:46     72952s  LOAD PE likh rahe 72900  net15 +2.5L  m15  +86  THEEK 3/6 (peers 1/2)
+12:59     72921s  KHAMOSH · kuch khaas nahi
+13:07     72882s  LOAD CE likh rahe 72900  net15 +2.2L  m15  -32  THEEK 3/6 (peers 0/2)
+13:12     72913s  KHAMOSH · kuch khaas nahi
+13:51     72925s  PIN 73000 · baari-baari  net45 CE +2.7L PE +2.5L  r45 85  THEEK 3/6 (peers 0/2)
+13:55     72920s  KHAMOSH · kuch khaas nahi
+13:58     72919s  PIN 73000 · baari-baari  net45 CE +2.6L PE +2.7L  r45 85  THEEK 3/6 (peers 0/2)
+14:06     72960s  KHAMOSH · kuch khaas nahi
+14:24     72920s  LOAD CE likh rahe 72800  net15 +1.9L  m15  -54  THEEK 3/6 (peers 1/2)
+14:32     72872s  PIN 72900 · baari-baari balanced  net45 CE +1.4L PE +2.2L  r45 129  THEEK 3/6 (peers 0/2)
+14:36     72856s  KHAMOSH · kuch khaas nahi
+15:07     72900s  UNWIND band ka unwind  CE -1.5L PE -1.9L  HALKA 2/6 (peers 1/2)
+-- minutes: KHAMOSH 248, LOAD 52, SOCH RAHA 23, UNWIND 21, PIN 19, CHAL RAHA ▲ SAATH 7
+-- stamped lines: 20
+-- front stamps (§1d states, top-2 per side): 61
+
+-- §1d front stamps (top-2 per side, changes only):
+   09:35  CE 72500  SHIFT -> 72600 d15   -1.1L @ 72578s  (was BUILDING)
+   09:39  CE 73000  STALLED        d15     -6k @ 72583s  (was BUILDING)
+   09:43  CE 73000  phir BUILDING  d15    +21k @ 72580s  (was STALLED)
+   09:56  CE 73000  UNWINDING      d15    -54k @ 72710s  (was BUILDING)
+   10:11  CE 73000  phir BUILDING  d15    +79k @ 72653s  (was UNWINDING)
+   10:11  PE 72500  STALLED        d15    -16k @ 72653s  (was BUILDING)
+   10:22  CE 72500  phir BUILDING  d15    +29k @ 72691s  (was UNWINDING)
+   10:25  PE 72500  phir BUILDING  d15    +82k @ 72662s  (was STALLED)
+   10:33  CE 73000  STALLED        d15     +8k @ 72714s  (was BUILDING)
+   10:36  CE 72500  STALLED        d15     +2k @ 72732s  (was BUILDING)
+   10:40  CE 72500  UNWINDING      d15    -26k @ 72738s  (was STALLED)
+   10:41  CE 73000  UNWINDING      d15    -19k @ 72739s  (was STALLED)
+   10:58  PE 72600  STALLED        d15    +23k @ 72723s  (was BUILDING)
+   11:00  CE 72500  STALLED        d15    +13k @ 72757s  (was UNWINDING)
+   11:01  CE 73000  phir BUILDING  d15    +14k @ 72774s  (was UNWINDING)
+   11:07  CE 73000  SHIFT -> 73100 d15    -36k @ 72801s  (was BUILDING)
+   11:07  CE 72500  UNWINDING      d15    -41k @ 72801s  (was STALLED)
+   11:16  PE 72500  STALLED        d15    +49k @ 72799s  (was BUILDING)
+   11:24  CE 73000  phir BUILDING  d15    +20k @ 72785s  (was UNWINDING)
+   11:24  CE 72500  STALLED        d15    +10k @ 72785s  (was UNWINDING)
+   11:30  CE 72500  UNWINDING      d15    -11k @ 72772s  (was STALLED)
+   11:39  CE 73000  UNWINDING      d15     -5k @ 72797s  (was BUILDING)
+   11:50  PE 72500  UNWINDING      d15    -77k @ 72787s  (was STALLED)
+   11:58  CE 73000  phir BUILDING  d15    +26k @ 72811s  (was UNWINDING)
+   11:59  PE 72500  STALLED        d15    -28k @ 72859s  (was UNWINDING)
+   12:06  CE 72500  STALLED        d15     +4k @ 72817s  (was UNWINDING)
+   12:28  CE 73000  STALLED        d15     -2k @ 72862s  (was BUILDING)
+   12:32  CE 72500  UNWINDING      d15     -1k @ 72858s  (was STALLED)
+   12:34  CE 73000  phir BUILDING  d15    +30k @ 72857s  (was STALLED)
+   12:36  CE 72500  STALLED        d15     +9k @ 72877s  (was UNWINDING)
+   12:40  CE 73000  STALLED        d15     +1k @ 72929s  (was BUILDING)
+   12:41  CE 72500  UNWINDING      d15     -4k @ 72943s  (was STALLED)
+   12:44  CE 73000  UNWINDING      d15    -41k @ 72952s  (was STALLED)
+   12:59  CE 73000  phir BUILDING  d15    +71k @ 72887s  (was UNWINDING)
+   12:59  CE 72500  phir BUILDING  d15    +30k @ 72887s  (was UNWINDING)
+   13:15  CE 73000  STALLED        d15    +12k @ 72901s  (was BUILDING)
+   13:15  CE 72500  STALLED        d15    +12k @ 72901s  (was BUILDING)
+   13:18  CE 73000  phir BUILDING  d15    +34k @ 72916s  (was STALLED)
+   13:20  CE 72500  UNWINDING      d15    -11k @ 72912s  (was STALLED)
+   13:35  CE 72500  STALLED        d15    +20k @ 72906s  (was UNWINDING)
+   13:42  CE 72500  phir BUILDING  d15    +22k @ 72890s  (was STALLED)
+   13:46  CE 72500  STALLED        d15     +6k @ 72911s  (was BUILDING)
+   13:50  CE 72500  UNWINDING      d15    -17k @ 72923s  (was STALLED)
+   13:59  CE 73000  STALLED        d15     +6k @ 72941s  (was BUILDING)
+   14:02  CE 73000  phir BUILDING  d15    +30k @ 72951s  (was STALLED)
+   14:17  CE 73000  STALLED        d15    +14k @ 72929s  (was BUILDING)
+   14:21  CE 73000  phir BUILDING  d15    +45k @ 72916s  (was STALLED)
+   14:24  CE 72500  STALLED        d15    +19k @ 72881s  (was UNWINDING)
+   14:31  CE 72500  phir BUILDING  d15    +22k @ 72843s  (was STALLED)
+   14:35  CE 72500  STALLED        d15     +9k @ 72845s  (was BUILDING)
+   14:36  CE 73000  STALLED        d15     +8k @ 72865s  (was BUILDING)
+   14:39  CE 72500  UNWINDING      d15    -12k @ 72897s  (was STALLED)
+   14:52  PE 72600  UNWINDING      d15    -46k @ 72887s  (was STALLED)
+   14:53  PE 72500  UNWINDING      d15    -81k @ 72920s  (was STALLED)
+   14:59  CE 73000  phir BUILDING  d15    +64k @ 72887s  (was STALLED)
+   14:59  CE 72900  STALLED        d15     +9k @ 72887s  (was BUILDING)
+   15:01  PE 72600  STALLED        d15    -26k @ 72877s  (was UNWINDING)
+   15:07  CE 73000  STALLED        d15    -19k @ 72905s  (was BUILDING)
+   15:13  CE 72900  UNWINDING      d15    -45k @ 72944s  (was STALLED)
+   15:16  CE 73000  UNWINDING      d15    -81k @ 72944s  (was STALLED)
+   15:16  PE 72600  UNWINDING      d15    -50k @ 72944s  (was STALLED)

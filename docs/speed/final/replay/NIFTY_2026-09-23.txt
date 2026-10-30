@@ -1,0 +1,24 @@
+== RAFTAAR (converged) · NIFTY · 2026-09-23 · NORMAL · NIFTY expiry · range · size ref: 15 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ???·▼▼▼▼P····aa▲▲▲▲▲▲▲▲▲·P·········a▲▲▲··············▼▼▼▼··~~~~~~~~~~~~~▼▼▼
+
+09:35     23369s  CHAL RAHA ▼ · SHURU                 6/10 MAZBOOT    CE CAP SAATH · spot -40 pts/15m · with +102.1L against +48.8L
+09:55     23358s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+10:06     23379s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+10:23     23394s  ATKA ▲ @ 23400s                     6/10 MAZBOOT    PE likh rahe · deewar sab taraf · net +57.8L · spot +21 pts/15m
+10:28     23399s  CHAL RAHA ▲ · SHURU                 7/11 MAZBOOT    CE BHAAG + PE LIKHAI · spot +36 pts/15m · with +64.8L against 0
+                    PHANSE: 23400 +32.8L 10:15 tak likha, 23300 +12.1L 10:15 tak likha
+11:12     23435s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+11:29     23428s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:09     23447s  ATKA ▲ @ 23450s                     6/10 MAZBOOT    PE likh rahe · deewar sab taraf · net +60.3L · spot +19 pts/15m
+12:12     23458s  CHAL RAHA ▲ · SHURU                 7/11 MAZBOOT    CE BHAAG + PE LIKHAI · spot +32 pts/15m · with +59.4L against 0
+12:30     23452s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+12:40     23451s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+13:38     23424s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      PE BHAAG RAHE · spot -27 pts/15m · with +37.2L against 0
+                    PHANSE: 23450 +4.1L 13:31 tak likha
+13:45     23431s  CE PHIR LIKHNE LAGE (33 min ruk ke)                  23600 +4.0L, 23650 +3.6L
+14:01     23428s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+14:17     23444s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 28
+
+-- minutes: KHAMOSH 158, CHOP 64, CHAL RAHA ▲ 62, CHAL RAHA ▼ 57, ? 15, ATKA 10, PIN 7, UNWIND 1
+-- stamps: 15 (pictures / quiet / ? 10, phases + ends 4, side events 1, ≠ READ 0)

@@ -1,0 +1,394 @@
+== SENSEX 2026-10-27 (fresh run of final/raftaar.py) ref: 20 pichhle normal din
+
+09:19     73240s  q        ?                                                   PADH RAHE · pehle 16 min ka record chahiye
+09:53     73546s  event    CE CAP UPAR SHIFT                                   roll, abhi bhi short · 73500 −56k, 73400 −33k, 73600 +60k, 73700 +40k
+10:03     73670s  picture  CHAL RAHA ▲ · SHURU                  7/11 THEEK     PE FLOOR SAATH · spot +169 pts/16m · with +3.3L against +1.1L
+10:21     73418s  swing    ~ swing ▼ (CHOP ke andar)            5/11 THEEK     CE CAP SAATH · spot -229 pts/16m · with +4.3L
+10:35     73523s  picture  CHOP                                 4/8 THEEK      legs dono taraf 30 min mein · range30 277
+10:42     73571s  swing    ~ swing ▲ (CHOP ke andar)            5/11 THEEK     PE FLOOR SAATH · spot +117 pts/16m · with +3.1L
+12:40     73654s  swing    ~ swing ▲ (CHOP ke andar)            5/11 THEEK     CE BHAAG + PE LIKHAI · spot +131 pts/16m · with +2.7L
+12:53     73629s  picture  CHOP                                 6/8 THEEK      legs dono taraf 30 min mein · range30 238
+13:00     73593s  swing    ~ swing ▼ (CHOP ke andar)            6/11 THEEK     CE CAP SAATH · spot -137 pts/16m · with +4.1L
+13:22     73345s  picture  CHAL RAHA ▼ · chop se bahar          6/11 THEEK     PE BHAAG + CE LIKHAI · 60-min range toota · spot -199/16m
+13:51     73395s  event    PE PHIR LIKHNE LAGE (22 min ruk ke)                 73500 +55k, 73400 +51k
+13:52     73386s  quiet    KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+14:13     73308s  event    CE PHIR LIKHNE LAGE (33 min ruk ke)                 73300 +87k, 73500 +52k
+14:16     73191s  picture  CHAL RAHA ▼ · SHURU                  8/11 THEEK     PE BHAAG + CE LIKHAI · spot -165 pts/16m · with +6.6L against +1k
+14:28     73293s  picture  ATKA ▼ @ 73200s                      5/10 THEEK     CE price pe likh rahe · Z -7.62% · spot -10 pts/16m
+14:40     73487s  picture  CHOP                                 6/8 THEEK      legs dono taraf 30 min mein · range30 296
+14:42     73457s  swing    ~ swing ▲ (CHOP ke andar)            6/11 THEEK     CE BHAAG RAHE · spot +185 pts/16m · with +7.8L
+15:19     73556s  picture  CHAL RAHA ▲ · THAK · chop se bahar   6/11 THEEK     ATKA ▲ · PE likh rahe, price nahi · spot -13 pts/16m · with — against —
+
+-- every minute:
+09:17  73376.5 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:18  73281.2 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:19  73240.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:20  73271.4 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:21  73339.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:22  73383.7 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:23  73415.0 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:24  73374.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:25  73296.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:26  73344.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:27  73407.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:28  73477.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:29  73496.4 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:30  73474.8 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:31  73499.6 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:32  73421.5 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:33  73410.6 | abhi: ATKA ▼ · CE likh rahe, price nahi ▼  | ATKA ▼ · CE likh rahe, price nahi
+09:34  73432.7 | abhi: CE LIKHAI INTO RALLY · PHANS RAHE ▲  | CE LIKHAI INTO RALLY · PHANS RAHE
+09:35  73449.4 | abhi: PE FLOOR SAATH ▲             | PE FLOOR SAATH
+09:36  73468.7 | abhi: CE LIKHAI INTO RALLY · ROK RAHE ▲  | CE LIKHAI INTO RALLY · ROK RAHE
+09:37  73460.1 | abhi: ATKA ▼ · CE likh rahe, price nahi ▼  | ATKA ▼ · CE likh rahe, price nahi
+09:38  73461.6 | abhi: ATKA ▼ · CE likh rahe, price nahi ▼  | ATKA ▼ · CE likh rahe, price nahi
+09:39  73469.9 | ATKA ▼  2/9 KAMZOR                 | ATKA ▼ · CE likh rahe, price nahi
+09:40  73512.0 | ATKA ▼  2/9 KAMZOR                 | KUCH KHAAS NAHI
+09:41  73497.3 | ATKA ▼  2/9 KAMZOR                 | PE FLOOR SAATH
+09:42  73483.3 | ATKA ▼  2/9 KAMZOR                 | KUCH KHAAS NAHI
+09:43  73554.9 | ATKA ▼  2/9 KAMZOR                 | PE FLOOR SAATH
+09:44  73545.9 | ATKA ▼  2/9 KAMZOR                 | KUCH KHAAS NAHI
+09:45  73537.9 | ATKA ▼  2/9 KAMZOR                 | KUCH KHAAS NAHI
+09:46  73518.0 | KHAMOSH                            | KUCH KHAAS NAHI
+09:47  73501.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:48  73483.6 | KHAMOSH                            | KUCH KHAAS NAHI
+09:49  73523.0 | KHAMOSH                            | KUCH KHAAS NAHI
+09:50  73552.8 | KHAMOSH                            | KUCH KHAAS NAHI
+09:51  73543.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:52  73568.6 | KHAMOSH                            | KUCH KHAAS NAHI
+09:53  73545.6 | KHAMOSH                            | KUCH KHAAS NAHI
+09:54  73507.9 | KHAMOSH                            | KUCH KHAAS NAHI
+09:55  73517.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:56  73461.4 | KHAMOSH                            | KUCH KHAAS NAHI
+09:57  73486.6 | KHAMOSH                            | KUCH KHAAS NAHI
+09:58  73495.7 | KHAMOSH                            | KUCH KHAAS NAHI
+09:59  73507.3 | KHAMOSH                            | KUCH KHAAS NAHI
+10:00  73610.7 | KHAMOSH                            | KUCH KHAAS NAHI
+10:01  73630.1 | KHAMOSH                            | PE FLOOR SAATH
+10:02  73619.2 | KHAMOSH                            | PE FLOOR SAATH
+10:03  73669.9 | CHAL RAHA ▲ SHURU 7/11 THEEK       | PE FLOOR SAATH
+10:04  73653.5 | CHAL RAHA ▲ SHURU 7/11 THEEK       | PE FLOOR SAATH
+10:05  73647.2 | CHAL RAHA ▲ SHURU 8/11 THEEK       | PE FLOOR SAATH
+10:06  73644.9 | CHAL RAHA ▲ JAARI 8/11 THEEK       | PE FLOOR SAATH
+10:07  73616.1 | CHAL RAHA ▲ JAARI 7/11 THEEK       | ATKA ▲ · PE likh rahe, price nahi
+10:08  73587.2 | CHAL RAHA ▲ RUKA 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+10:09  73588.5 | CHAL RAHA ▲ RUKA 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+10:10  73606.1 | CHAL RAHA ▲ RUKA 7/11 THEEK        | CE BHAAG + PE LIKHAI
+10:11  73646.5 | CHAL RAHA ▲ RUKA 7/11 THEEK        | CE BHAAG + PE LIKHAI
+10:12  73609.8 | CHAL RAHA ▲ RUKA 7/11 THEEK        | CE BHAAG + PE LIKHAI
+10:13  73594.7 | CHAL RAHA ▲ THAK 7/11 THEEK        | CE BHAAG + PE LIKHAI
+10:14  73616.5 | CHAL RAHA ▲ THAK 7/11 THEEK        | CE BHAAG + PE LIKHAI
+10:15  73578.4 | CHAL RAHA ▲ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+10:16  73578.5 | CHAL RAHA ▲ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+10:17  73566.1 | CHAL RAHA ▲ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+10:18  73510.6 | CHOP  2/8 KAMZOR                   | OI SAATH ▼
+10:19  73523.0 | CHOP  2/8 KAMZOR                   | OI SAATH ▼
+10:20  73411.5 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+10:21  73418.5 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+10:22  73408.1 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+10:23  73383.1 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:24  73370.6 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:25  73421.7 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:26  73453.3 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:27  73445.5 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:28  73468.9 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:29  73465.5 | CHOP ~swing ▼ RUKA                 | PE BHAAG + CE LIKHAI
+10:30  73472.8 | CHOP ~swing ▼ RUKA                 | PE BHAAG + CE LIKHAI
+10:31  73460.6 | CHOP ~swing ▼ THAK                 | PE BHAAG + CE LIKHAI
+10:32  73471.4 | CHOP ~swing ▼ THAK                 | PE BHAAG + CE LIKHAI
+10:33  73491.1 | CHOP ~swing ▼ THAK                 | ATKA ▼ · CE likh rahe, price nahi
+10:34  73509.8 | CHOP ~swing ▼ THAK                 | ATKA ▼ · CE likh rahe, price nahi
+10:35  73523.2 | CHOP  4/8 THEEK                    | ATKA ▼ · CE likh rahe, price nahi
+10:36  73550.9 | CHOP  3/8 KAMZOR                   | CE LIKHAI INTO RALLY · PHANS RAHE
+10:37  73562.2 | CHOP  3/8 KAMZOR                   | OI SAATH ▲
+10:39  73571.3 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+10:40  73595.2 | CHOP  3/8 KAMZOR                   | PE FLOOR SAATH
+10:41  73576.5 | CHOP  3/8 KAMZOR                   | PE FLOOR SAATH
+10:42  73570.6 | CHOP ~swing ▲ SHURU                | PE FLOOR SAATH
+10:43  73551.6 | CHOP ~swing ▲ SHURU                | PE FLOOR SAATH
+10:44  73557.1 | CHOP ~swing ▲ SHURU                | PE FLOOR SAATH
+10:45  73568.3 | CHOP ~swing ▲ JAARI                | PE FLOOR SAATH
+10:46  73572.3 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+10:47  73559.9 | CHOP ~swing ▲ RUKA                 | CE BHAAG + PE LIKHAI
+10:48  73561.8 | CHOP ~swing ▲ RUKA                 | PE FLOOR SAATH
+10:49  73590.0 | CHOP ~swing ▲ JAARI                | PE FLOOR SAATH
+10:50  73583.3 | CHOP ~swing ▲ JAARI                | KUCH KHAAS NAHI
+10:51  73605.1 | CHOP ~swing ▲ JAARI                | PE FLOOR SAATH
+10:52  73624.2 | CHOP ~swing ▲ JAARI                | KUCH KHAAS NAHI
+10:53  73592.8 | CHOP ~swing ▲ JAARI                | ATKA ▲ · PE likh rahe, price nahi
+10:54  73625.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+10:55  73613.7 | CHOP ~swing ▲ JAARI                | KUCH KHAAS NAHI
+10:56  73592.5 | CHOP ~swing ▲ JAARI                | KUCH KHAAS NAHI
+10:57  73581.1 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+10:58  73567.1 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+10:59  73582.7 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+11:00  73574.1 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+11:01  73578.6 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+11:02  73554.7 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+11:03  73560.8 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+11:04  73568.4 | CHOP ~swing ▲ RUKA                 | KUCH KHAAS NAHI
+11:05  73567.6 | CHOP  2/8 KAMZOR                   | KUCH KHAAS NAHI
+11:06  73534.6 | CHOP  2/8 KAMZOR                   | KUCH KHAAS NAHI
+11:07  73545.5 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:08  73527.3 | CHOP  3/8 KAMZOR                   | OI SAATH ▼
+11:09  73526.0 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:10  73513.2 | CHOP  3/8 KAMZOR                   | OI SAATH ▼
+11:11  73501.9 | CHOP  3/8 KAMZOR                   | OI SAATH ▼
+11:12  73523.5 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:14  73528.4 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:15  73497.4 | CHOP  3/8 KAMZOR                   | BINA OI ▼
+11:16  73485.6 | CHOP  3/8 KAMZOR                   | BINA OI ▼
+11:17  73490.6 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+11:18  73493.9 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:19  73488.7 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:20  73468.6 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+11:21  73450.8 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+11:22  73429.5 | CHOP  4/8 KAMZOR                   | CE CAP SAATH
+11:23  73461.5 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+11:24  73473.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:25  73461.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:26  73461.1 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:27  73437.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:28  73474.3 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:29  73516.8 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+11:30  73522.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:31  73540.6 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:32  73534.5 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:33  73536.2 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+11:34  73538.1 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:35  73540.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:36  73562.4 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:37  73575.0 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:38  73564.7 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:39  73575.0 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:40  73560.9 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:41  73563.1 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:42  73572.1 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:43  73571.6 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:44  73557.9 | CHOP  4/8 KAMZOR                   | BINA OI ▲
+11:45  73541.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:46  73526.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:47  73545.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:48  73557.9 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:49  73545.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:50  73554.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:51  73574.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:52  73553.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:53  73544.1 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:54  73549.9 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:55  73574.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:56  73582.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:57  73581.7 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:58  73601.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:59  73607.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:00  73610.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:01  73596.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:02  73577.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:03  73560.9 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:04  73564.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:05  73575.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:06  73553.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:07  73550.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:08  73555.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:09  73536.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:10  73554.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:11  73548.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:12  73569.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:13  73537.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:14  73534.1 | CHOP  4/8 KAMZOR                   | CE CAP SAATH
+12:15  73538.9 | CHOP  4/8 KAMZOR                   | CE CAP SAATH
+12:16  73539.4 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+12:17  73534.4 | CHOP ~swing ▼ SHURU                | KUCH KHAAS NAHI
+12:18  73512.6 | CHOP ~swing ▼ SHURU                | KUCH KHAAS NAHI
+12:19  73513.6 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:20  73511.7 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:21  73517.7 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:22  73510.7 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:23  73520.2 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:24  73522.6 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:25  73537.4 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:26  73549.2 | CHOP ~swing ▼ JAARI                | KUCH KHAAS NAHI
+12:27  73530.9 | CHOP  2/8 KAMZOR                   | KUCH KHAAS NAHI
+12:28  73530.6 | CHOP  2/8 KAMZOR                   | KUCH KHAAS NAHI
+12:29  73535.2 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+12:30  73546.1 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+12:31  73582.9 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+12:32  73575.2 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+12:33  73598.8 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+12:34  73602.9 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+12:35  73579.6 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+12:36  73602.8 | CHOP  3/8 KAMZOR                   | PE FLOOR SAATH
+12:37  73601.1 | CHOP  3/8 KAMZOR                   | PE FLOOR SAATH
+12:38  73625.0 | CHOP ~swing ▲ SHURU                | CE BHAAG + PE LIKHAI
+12:39  73619.0 | CHOP ~swing ▲ SHURU                | CE BHAAG + PE LIKHAI
+12:40  73653.8 | CHOP ~swing ▲ SHURU                | CE BHAAG + PE LIKHAI
+12:41  73655.4 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:42  73724.0 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:43  73757.7 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:44  73730.9 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:45  73718.4 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:46  73699.6 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:47  73659.5 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+12:48  73682.6 | CHOP ~swing ▲ RUKA                 | CE BHAAG + PE LIKHAI
+12:49  73695.6 | CHOP ~swing ▲ RUKA                 | CE BHAAG + PE LIKHAI
+12:50  73695.5 | CHOP ~swing ▲ RUKA                 | CE BHAAG + PE LIKHAI
+12:51  73676.0 | CHOP ~swing ▲ RUKA                 | CE BHAAG + PE LIKHAI
+12:52  73648.2 | CHOP ~swing ▲ THAK                 | ATKA ▲ · PE likh rahe, price nahi
+12:53  73629.4 | CHOP  6/8 THEEK                    | ATKA ▲ · PE likh rahe, price nahi
+12:54  73621.9 | CHOP  4/8 THEEK                    | ATKA ▲ · PE likh rahe, price nahi
+12:55  73621.3 | CHOP  5/8 THEEK                    | ATKA ▲ · PE likh rahe, price nahi
+12:56  73600.8 | CHOP  5/8 THEEK                    | ATKA ▲ · PE likh rahe, price nahi
+12:57  73623.1 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+12:58  73629.3 | CHOP  4/8 KAMZOR                   | OI SAATH ▼
+12:59  73620.1 | CHOP  4/8 KAMZOR                   | OI SAATH ▼
+13:00  73593.5 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+13:01  73547.6 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+13:02  73545.2 | CHOP ~swing ▼ SHURU                | CE CAP SAATH
+13:03  73522.7 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:04  73544.3 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:05  73526.7 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:06  73543.4 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:07  73545.9 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:08  73494.9 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:09  73477.5 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:10  73449.8 | CHOP ~swing ▼ TEZ                  | PE BHAAG + CE LIKHAI
+13:11  73444.9 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:12  73404.6 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:13  73372.6 | CHOP ~swing ▼ TEZ                  | PE BHAAG + CE LIKHAI
+13:14  73395.6 | CHOP ~swing ▼ TEZ                  | PE BHAAG + CE LIKHAI
+13:15  73404.4 | CHOP ~swing ▼ TEZ                  | PE BHAAG + CE LIKHAI
+13:16  73411.4 | CHOP ~swing ▼ TEZ                  | PE BHAAG + CE LIKHAI
+13:17  73407.1 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+13:18  73409.3 | CHOP ~swing ▼ RUKA                 | PE BHAAG + CE LIKHAI
+13:19  73393.1 | CHOP ~swing ▼ RUKA                 | PE BHAAG + CE LIKHAI
+13:20  73389.9 | CHOP ~swing ▼ RUKA                 | PE BHAAG + CE LIKHAI
+13:21  73381.8 | CHOP ~swing ▼ THAK                 | PE BHAAG + CE LIKHAI
+13:22  73344.5 | CHAL RAHA ▼ JAARI 10/11 THEEK      | PE BHAAG + CE LIKHAI
+13:23  73357.5 | CHAL RAHA ▼ JAARI 10/11 THEEK      | PE BHAAG + CE LIKHAI
+13:24  73391.8 | CHAL RAHA ▼ JAARI 10/11 THEEK      | PE BHAAG + CE LIKHAI
+13:25  73380.3 | CHAL RAHA ▼ JAARI 10/11 THEEK      | PE BHAAG + CE LIKHAI
+13:26  73376.7 | CHAL RAHA ▼ JAARI 10/11 THEEK      | PE BHAAG + CE LIKHAI
+13:27  73366.8 | CHAL RAHA ▼ THAK 10/11 THEEK       | PE BHAAG + CE LIKHAI
+13:28  73353.4 | CHAL RAHA ▼ THAK 9/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+13:29  73339.7 | CHAL RAHA ▼ JAARI 8/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+13:30  73350.0 | CHAL RAHA ▼ JAARI 8/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+13:31  73365.4 | CHAL RAHA ▼ JAARI 8/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+13:32  73368.1 | CHAL RAHA ▼ JAARI 9/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+13:33  73367.8 | CHAL RAHA ▼ JAARI 9/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+13:34  73379.0 | CHAL RAHA ▼ THAK 9/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+13:35  73412.1 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:36  73379.9 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:37  73350.8 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:38  73379.2 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:39  73385.1 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:40  73378.0 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:41  73382.5 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:42  73402.8 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:43  73398.5 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:44  73398.4 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:45  73395.6 | KHAMOSH                            | KUCH KHAAS NAHI
+13:46  73363.1 | KHAMOSH                            | KUCH KHAAS NAHI
+13:47  73365.5 | KHAMOSH                            | KUCH KHAAS NAHI
+13:48  73372.8 | KHAMOSH                            | KUCH KHAAS NAHI
+13:49  73379.1 | KHAMOSH                            | KUCH KHAAS NAHI
+13:50  73390.2 | KHAMOSH                            | KUCH KHAAS NAHI
+13:51  73395.2 | KHAMOSH                            | KUCH KHAAS NAHI
+13:52  73385.9 | KHAMOSH                            | KUCH KHAAS NAHI
+13:53  73406.2 | KHAMOSH                            | KUCH KHAAS NAHI
+13:54  73414.3 | KHAMOSH                            | KUCH KHAAS NAHI
+13:55  73409.9 | KHAMOSH                            | KUCH KHAAS NAHI
+13:56  73397.1 | KHAMOSH                            | KUCH KHAAS NAHI
+13:57  73374.5 | KHAMOSH                            | KUCH KHAAS NAHI
+13:58  73370.9 | KHAMOSH                            | KUCH KHAAS NAHI
+13:59  73369.4 | KHAMOSH                            | KUCH KHAAS NAHI
+14:00  73355.9 | KHAMOSH                            | KUCH KHAAS NAHI
+14:01  73356.2 | KHAMOSH                            | KUCH KHAAS NAHI
+14:02  73333.9 | KHAMOSH                            | KUCH KHAAS NAHI
+14:03  73294.9 | KHAMOSH                            | BINA OI ▼
+14:04  73263.2 | KHAMOSH                            | BINA OI ▼
+14:05  73278.2 | BINA OI ▼                          | BINA OI ▼
+14:06  73293.7 | BINA OI ▼                          | BINA OI ▼
+14:07  73292.8 | BINA OI ▼                          | BINA OI ▼
+14:08  73301.9 | BINA OI ▼                          | BINA OI ▼
+14:09  73304.7 | BINA OI ▼                          | BINA OI ▼
+14:10  73302.7 | BINA OI ▼                          | BINA OI ▼
+14:11  73309.0 | BINA OI ▼                          | BINA OI ▼
+14:12  73303.1 | BINA OI ▼                          | BINA OI ▼
+14:13  73307.6 | BINA OI ▼                          | KUCH KHAAS NAHI
+14:14  73248.2 | BINA OI ▼                          | CE CAP SAATH
+14:15  73205.9 | BINA OI ▼                          | CE CAP SAATH
+14:16  73191.3 | CHAL RAHA ▼ SHURU 8/11 THEEK       | PE BHAAG + CE LIKHAI
+14:17  73198.8 | CHAL RAHA ▼ SHURU 8/11 THEEK       | PE BHAAG + CE LIKHAI
+14:18  73227.7 | CHAL RAHA ▼ SHURU 9/11 THEEK       | PE BHAAG + CE LIKHAI
+14:19  73266.3 | CHAL RAHA ▼ JAARI 8/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+14:20  73264.9 | CHAL RAHA ▼ JAARI 9/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+14:21  73279.1 | CHAL RAHA ▼ RUKA 7/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+14:22  73270.7 | CHAL RAHA ▼ RUKA 7/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+14:23  73227.0 | CHAL RAHA ▼ RUKA 7/11 THEEK        | ATKA ▼ · zor hai, price nahi
+14:24  73235.0 | CHAL RAHA ▼ THAK 7/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+14:25  73256.8 | CHAL RAHA ▼ THAK 7/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+14:26  73271.1 | CHAL RAHA ▼ THAK 7/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+14:27  73286.5 | CHAL RAHA ▼ THAK 7/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+14:28  73293.1 | ATKA ▼  5/10 THEEK                 | ATKA ▼ · CE likh rahe, price nahi
+14:29  73297.8 | ATKA ▼  6/10 THEEK                 | ATKA ▼ · CE likh rahe, price nahi
+14:30  73294.6 | ATKA ▼  6/10 THEEK                 | ATKA ▼ · CE likh rahe, price nahi
+14:31  73332.3 | CHOP  2/8 KAMZOR                   | CE LIKHAI INTO RALLY · PHANS RAHE
+14:32  73287.7 | CHOP  1/8 KAMZOR                   | OI SAATH ▲
+14:33  73287.4 | CHOP  2/8 KAMZOR                   | OI SAATH ▲
+14:34  73316.4 | CHOP  2/8 KAMZOR                   | BINA OI ▲
+14:35  73346.6 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+14:36  73396.4 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+14:37  73433.5 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+14:38  73440.4 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+14:39  73462.8 | CHOP  3/8 KAMZOR                   | BINA OI ▲
+14:40  73487.3 | CHOP  6/8 THEEK                    | CE BHAAG RAHE
+14:41  73469.2 | CHOP  6/8 THEEK                    | CE BHAAG RAHE
+14:42  73456.5 | CHOP ~swing ▲ SHURU                | CE BHAAG RAHE
+14:43  73416.9 | CHOP ~swing ▲ SHURU                | CE BHAAG + PE LIKHAI
+14:44  73454.6 | CHOP ~swing ▲ SHURU                | CE BHAAG + PE LIKHAI
+14:45  73448.2 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+14:46  73440.7 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+14:47  73422.7 | CHOP ~swing ▲ RUKA                 | CE BHAAG + PE LIKHAI
+14:48  73444.1 | CHOP ~swing ▲ THAK                 | CE BHAAG + PE LIKHAI
+14:49  73434.9 | CHOP ~swing ▲ THAK                 | CE BHAAG + PE LIKHAI
+14:50  73461.1 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+14:51  73483.1 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+14:52  73517.1 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+14:53  73527.9 | CHOP ~swing ▲ JAARI                | PE FLOOR SAATH
+14:54  73571.5 | CHOP ~swing ▲ JAARI                | PE FLOOR SAATH
+14:55  73516.8 | CHOP ~swing ▲ JAARI                | ATKA ▲ · PE likh rahe, price nahi
+14:56  73520.1 | CHOP ~swing ▲ JAARI                | ATKA ▲ · PE likh rahe, price nahi
+14:57  73522.3 | CHOP ~swing ▲ JAARI                | ATKA ▲ · PE likh rahe, price nahi
+14:58  73557.0 | CHOP ~swing ▲ JAARI                | CE BHAAG + PE LIKHAI
+14:59  73595.7 | CHOP ~swing ▲ TEZ                  | PE FLOOR SAATH
+15:00  73548.6 | CHOP ~swing ▲ TEZ                  | PE FLOOR SAATH
+15:01  73566.9 | CHOP ~swing ▲ TEZ                  | PE FLOOR SAATH
+15:02  73572.4 | CHOP ~swing ▲ TEZ                  | PE FLOOR SAATH
+15:03  73569.3 | CHOP ~swing ▲ JAARI                | PE FLOOR SAATH
+15:04  73531.5 | CHOP ~swing ▲ THAK                 | CE BHAAG RAHE
+15:05  73562.9 | CHOP ~swing ▲ THAK                 | PE FLOOR SAATH
+15:06  73552.3 | CHOP ~swing ▲ THAK                 | PE FLOOR SAATH
+15:07  73544.2 | CHOP ~swing ▲ THAK                 | ATKA ▲ · zor hai, price nahi
+15:08  73522.9 | CHOP ~swing ▲ THAK                 | ATKA ▲ · zor hai, price nahi
+15:09  73526.7 | CHOP ~swing ▲ THAK                 | ATKA ▲ · zor hai, price nahi
+15:10  73570.7 | CHOP ~swing ▲ THAK                 | ATKA ▲ · PE likh rahe, price nahi
+15:11  73593.6 | CHOP ~swing ▲ THAK                 | CE BHAAG + PE LIKHAI
+15:12  73611.2 | CHOP ~swing ▲ JAARI                | CE BHAAG RAHE
+15:13  73588.7 | CHOP ~swing ▲ JAARI                | ATKA ▲ · zor hai, price nahi
+15:14  73581.1 | CHOP ~swing ▲ JAARI                | ATKA ▲ · zor hai, price nahi
+15:15  73556.3 | CHOP ~swing ▲ JAARI                | ATKA ▲ · zor hai, price nahi
+15:16  73556.3 | CHOP ~swing ▲ JAARI                | ATKA ▲ · zor hai, price nahi
+15:17  73556.3 | CHOP ~swing ▲ THAK                 | ATKA ▲ · zor hai, price nahi
+15:18  73556.3 | CHOP ~swing ▲ THAK                 | ATKA ▲ · PE likh rahe, price nahi
+15:19  73556.3 | CHAL RAHA ▲ THAK 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:20  73556.3 | CHAL RAHA ▲ THAK 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:21  73556.3 | CHAL RAHA ▲ THAK 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:22  73556.3 | CHAL RAHA ▲ THAK 5/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:23  73556.3 | CHAL RAHA ▲ THAK 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:24  73556.3 | CHAL RAHA ▲ THAK 6/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:25  73556.3 | CHAL RAHA ▲ THAK 5/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:26  73556.3 | CHAL RAHA ▲ THAK 5/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:27  73556.3 | CHAL RAHA ▲ THAK 5/11 THEEK        | ATKA ▲ · PE likh rahe, price nahi
+15:28  73598.7 | CHAL RAHA ▲ THAK 7/11 THEEK        | UNWIND · dono nikal rahe
+15:29  73598.7 | CHAL RAHA ▲ THAK 7/11 THEEK        | UNWIND · dono nikal rahe
+15:30  73598.7 | CHAL RAHA ▲ THAK 7/11 THEEK        | UNWIND · dono nikal rahe

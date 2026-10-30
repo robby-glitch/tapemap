@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zone Card Replay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* the floating window's own tokens (ui-v2/src/hold/hold.css .hv) -- LIGHT only */
+:root{
+  color-scheme:light;
+  --bg:#F3F1EB; --surface:#FAF9F5; --raised:#FFFFFF; --sunk:#EAE7DF;
+  --border:#DCD7CC; --border-strong:#B8B1A3;
+  --ink:#17160F; --ink2:#4A463E; --muted:#736D62;
+  --buy:#1A7641; --buy-t:#E2F0E6; --sell:#B3261E; --sell-t:#F7E3E0;
+  --arm:#A35E00; --arm-t:#FBF0DA; --unk:#6B665E;
+  --f-word:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-ui:"IBM Plex Sans",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 13px/18px var(--f-ui);font-variant-numeric:tabular-nums}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{font:700 22px/1 var(--f-word);letter-spacing:.02em;margin:0 0 4px;text-transform:uppercase}
+.sub{color:var(--muted);margin:0 0 12px}
+/* replay controls */
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--raised);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:14px}
+.ctl button{font:600 12px/1 var(--f-ui);border:1px solid var(--border-strong);background:var(--surface);border-radius:4px;padding:6px 9px;cursor:pointer;color:var(--ink)}
+.ctl button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctl .clock{font:600 22px/1 var(--f-num);min-width:70px}
+.ctl input[type=range]{flex:1;min-width:160px;accent-color:var(--ink)}
+.jumps{display:flex;flex-wrap:wrap;gap:6px;margin:-6px 0 14px}
+.jumps button{font:500 11px/1 var(--f-ui);border:1px dashed var(--border-strong);background:transparent;border-radius:12px;padding:5px 9px;cursor:pointer;color:var(--ink2)}
+.cols{display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+.lbl{font:600 11px/1 var(--f-word);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+
+/* THE FLOATING WINDOW */
+.float{background:var(--raised);border:1px solid var(--ink);border-radius:6px;box-shadow:0 6px 24px rgba(23,22,15,.12);overflow:hidden}
+.fbar{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface)}
+.fbar .w{font:700 15px/1 var(--f-word);letter-spacing:.03em}
+.fbar .now{margin-left:auto;font:500 12px/1 var(--f-num);color:var(--muted)}
+.cards{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:60px}
+.empty{color:var(--muted);font-size:12px;padding:10px 4px}
+
+/* ONE ZONE CARD */
+.card{--c:var(--buy);--t:var(--buy-t);border:1.5px solid var(--c);border-radius:6px;background:var(--raised);overflow:hidden}
+.card.SELL{--c:var(--sell);--t:var(--sell-t)}
+.card.ARMED{border-style:dashed;--hc:var(--arm)}
+.card.enter{animation:enter .35s cubic-bezier(.2,0,0,1)}
+.card.full{animation:glow 1s ease-in-out 3}
+.hd{display:flex;align-items:center;gap:7px;padding:5px 8px;background:var(--t)}
+.card.ARMED .hd{background:var(--arm-t)}
+.hd .ar{font:700 18px/1 var(--f-word);color:var(--c)}
+.hd .ix{font:700 18px/1 var(--f-word);letter-spacing:.02em}
+.hd .nm{font:600 14px/1 var(--f-word);letter-spacing:.04em;color:var(--ink2)}
+.meter{display:flex;gap:3px;margin-left:auto}
+.meter i{width:13px;height:8px;border-radius:2px;border:1.5px solid var(--c);background:transparent;transition:background .4s}
+.meter i.ok{background:var(--c)}
+.meter i.unk{border-color:var(--unk);background:repeating-linear-gradient(135deg,var(--unk) 0 1.5px,transparent 1.5px 4px)}
+.meter i.pop{animation:join .5s}
+.n{font:600 18px/1 var(--f-num);color:var(--c);min-width:34px;text-align:right}
+.pill{font:700 11px/1 var(--f-word);letter-spacing:.06em;text-transform:uppercase;padding:4px 6px;border-radius:3px;white-space:nowrap;background:var(--c);color:#fff}
+.card.ARMED .pill{background:transparent;color:var(--arm);border:1.5px solid var(--arm);animation:breathe 1.6s ease-in-out infinite}
+.toast{font:600 11px/1 var(--f-ui);color:var(--c);background:#fff;border:1px solid var(--c);border-radius:10px;padding:3px 7px;white-space:nowrap;animation:toast 3.2s forwards}
+
+/* the four pieces */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:6px 7px}
+.tile{position:relative;border:1.5px dashed var(--border-strong);border-radius:5px;padding:4px 5px 3px;min-height:62px;background:var(--raised)}
+.tile.ok{border:1.5px solid var(--c);background:var(--t)}
+.tile.unk{border:1.5px solid var(--border);background:repeating-linear-gradient(135deg,#EFECE5 0 3px,#FAF9F5 3px 7px)}
+.tile.pop{animation:join .55s cubic-bezier(.2,0,0,1),ring .9s ease-out}
+.tile .top{display:flex;align-items:center;gap:4px;font:600 10.5px/1 var(--f-word);letter-spacing:.05em;text-transform:uppercase;color:var(--ink2)}
+.tile .top svg{width:14px;height:14px;flex:none}
+.tile.ok .top{color:var(--c)}
+.tile .v{display:flex;align-items:baseline;gap:3px;margin-top:5px;font:600 14px/1 var(--f-num);white-space:nowrap}
+.tile .v .g{font:700 13px/1 var(--f-ui);width:11px}
+.tile.ok .v .g{color:var(--c)}
+.tile.no .v .g{color:var(--muted)}
+.tile.unk .v{color:var(--unk)}
+.tile .s{margin-top:4px;font:400 10px/1.15 var(--f-num);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .nf{margin-left:auto;font:700 9px/1 var(--f-word);color:#fff;background:var(--muted);border-radius:2px;padding:1px 3px}
+/* PE/CE lead gauge: -30..+30, the join line at +10 */
+.gauge{position:relative;height:9px;margin-top:5px;border-radius:2px;background:linear-gradient(90deg,var(--sunk),var(--sunk))}
+.gauge .z{position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border-strong)}
+.gauge .th{position:absolute;top:-2px;bottom:-2px;left:66.6%;width:2px;background:var(--c);opacity:.55}
+.gauge .nd{position:absolute;top:1px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:var(--ink2);transition:left .6s cubic-bezier(.2,0,0,1)}
+.tile.ok .gauge .nd{background:var(--c)}
+/* delta bars: the 5-min deltas since the selling into the band */
+.bars{display:flex;align-items:center;gap:2px;height:16px;margin-top:3px}
+.bars b{display:block;width:7px;border-radius:1px;background:var(--sell);transform-origin:center;animation:grow .4s}
+.bars b.p{background:var(--buy)}
+.marks{display:flex;gap:3px;margin-top:4px}
+.marks span{font:500 9.5px/1 var(--f-num);color:var(--c);border:1px solid var(--c);border-radius:2px;padding:1px 2px;background:#fff}
+
+/* plan + window life */
+.plan{display:flex;align-items:baseline;gap:10px;padding:0 8px 4px;font:500 12.5px/1.2 var(--f-num)}
+.plan b{font-weight:600}
+.plan .sp{color:var(--muted);font-size:10.5px}
+.plan .pts{margin-left:auto;color:var(--muted);font-size:11px}
+.life{display:flex;align-items:center;gap:8px;padding:0 8px 6px}
+.life .bar{flex:1;height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
+.life .bar i{display:block;height:100%;background:var(--c);opacity:.7}
+.life .t{font:500 10.5px/1 var(--f-num);color:var(--muted);white-space:nowrap}
+/* an episode that ended: one muted line */
+.ghost{display:flex;align-items:center;gap:7px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:500 12px/1 var(--f-num);background:var(--surface);animation:enter .35s}
+.ghost .why{margin-left:auto;font:700 11px/1 var(--f-word);letter-spacing:.05em;text-transform:uppercase}
+.ghost.stop .why{color:var(--sell)}
+.ghost .ar{font:700 14px/1 var(--f-word)}
+.oneline{display:flex;align-items:center;gap:7px;padding:4px 8px;border:1.5px dashed var(--arm);border-radius:6px;font:500 12px/1 var(--f-num);color:var(--ink2);background:var(--arm-t)}
+.oneline .ix{font:700 14px/1 var(--f-word)}
+.oneline .p{margin-left:auto;font:700 10.5px/1 var(--f-word);letter-spacing:.06em;color:var(--arm);animation:breathe 1.6s ease-in-out infinite}
+
+/* the message stream under the cards */
+.stream{border-top:1px solid var(--border);padding:6px 10px 8px;max-height:150px;overflow:auto}
+.stream .ml{font:400 11.5px/1.5 var(--f-num);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stream .ml.new{font-weight:600;color:var(--ink);animation:enter .35s}
+.stream .ml .a{font-weight:700}
+
+/* TELEGRAM */
+.phone{background:#DCE6EE;border:1px solid var(--border-strong);border-radius:14px;padding:10px;min-height:420px;max-width:360px}
+#tg{max-height:520px;overflow:auto}
+.phone .top{font:600 12px/1 var(--f-ui);color:var(--ink2);padding:2px 4px 8px;border-bottom:1px solid #C5D2DC;margin-bottom:8px}
+.bub{background:#fff;border-radius:10px 10px 10px 3px;padding:6px 9px;margin:0 0 7px;font:400 12.5px/1.45 var(--f-num);white-space:pre;box-shadow:0 1px 1px rgba(0,0,0,.08);animation:enter .35s;overflow:hidden}
+.bub .h{font-weight:600}
+.bub .tm{display:block;text-align:right;font:400 10px/1 var(--f-ui);color:var(--muted);margin-top:2px}
+.key{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.key div{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)}
+.key .sw{width:26px;height:16px;border-radius:3px;flex:none}
+.note{margin-top:14px;font-size:12px;color:var(--muted);max-width:860px}
+
+@keyframes enter{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes join{0%{transform:scale(1)}35%{transform:scale(1.1)}100%{transform:scale(1)}}
+@keyframes ring{0%{box-shadow:0 0 0 0 var(--c)}100%{box-shadow:0 0 0 9px rgba(255,255,255,0)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}50%{box-shadow:0 0 0 4px var(--t),0 0 0 6px var(--c)}}
+@keyframes toast{0%{opacity:0;transform:translateX(6px)}8%,80%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Zone card · 26 Oct replay</h1>
+  <p class="sub">The server's own read, every minute, 09:20–10:00. Nothing typed by hand.</p>
+  <div class="ctl">
+    <button id="play" class="on">❚❚ ruko</button>
+    <span class="clock" id="clock">09:20</span>
+    <input type="range" id="scrub" min="0" max="40" step="1" value="0" aria-label="time">
+    <button data-sp="2400">½×</button><button data-sp="1200" class="on">1×</button><button data-sp="500">3×</button>
+  </div>
+  <div class="jumps" id="jumps"></div>
+  <div class="cols">
+    <div>
+      <p class="lbl">App · floating window (every tab, pops out over the broker)</p>
+      <div class="float">
+        <div class="fbar"><span class="w">ZONE</span><span class="now" id="fnow">09:20</span></div>
+        <div class="cards" id="cards"></div>
+        <div class="stream" id="stream"></div>
+      </div>
+    </div>
+    <div>
+      <p class="lbl">Telegram · 3 lines, only on an entry or a piece joining</p>
+      <div class="phone"><div class="top">TapeMap bot</div><div id="tg"></div></div>
+    </div>
+  </div>
+  <div class="key">
+    <div><span class="sw" style="background:var(--buy-t);border:1.5px solid var(--buy)"></span>bhara = piece juda (number ke saath)</div>
+    <div><span class="sw" style="border:1.5px dashed var(--border-strong)"></span>khali = abhi nahi (abhi ka number)</div>
+    <div><span class="sw" style="border:1px solid var(--border);background:repeating-linear-gradient(135deg,#EFECE5 0 3px,#FAF9F5 3px 7px)"></span>dhaari = padh nahi sake · kyun likha · ginti nahi</div>
+    <div><span class="sw" style="border:1.5px dashed var(--arm);background:var(--arm-t)"></span>ARMED = zone chhua, ban raha · entry nahi</div>
+  </div>
+  <p class="note">Mockup. The data is the real record: `server._decode_all` read every minute instead of every 5-min close. A 3/4 is a count, never a %. No order path.</p>
+</div>
+<script>
+const D = {"NIFTY":{"09:20":{"chip":null,"ep":null},"09:21":{"chip":null,"ep":null},"09:22":{"chip":null,"ep":null},"09:23":{"chip":null,"ep":null},"09:24":{"chip":null,"ep":null},"09:25":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":null},"09:26":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":null},"09:27":{"chip":{"side":"BUY","state":"ARMED","n":2,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −16.3","✗ Δ − → + nahi · abhi −286"],"plan":null,"ep":null},"ep":null},"09:28":{"chip":{"side":"BUY","state":"ARMED","n":2,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −16.3","✗ Δ − → + nahi · abhi −286"],"plan":null,"ep":null},"ep":null},"09:29":{"chip":{"side":"BUY","state":"ARMED","n":2,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −16.3","✗ Δ − → + nahi · abhi −286"],"plan":null,"ep":null},"ep":null},"09:30":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −20.5","✓ Δ −1,007 → −286 → +33"],"plan":"E 22,534f · stop 22,425f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,534f · stop 22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −20.5","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:31":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −20.5","✓ Δ −1,007 → −286 → +33"],"plan":"E 22,534f · stop 22,425f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,534f · stop 22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −20.5","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:32":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −20.5","✓ Δ −1,007 → −286 → +33"],"plan":"E 22,534f · stop 22,425f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,534f · stop 22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −20.5","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:33":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −20.5","✓ Δ −1,007 → −286 → +33"],"plan":"E 22,534f · stop 22,425f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,534f · stop 22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −20.5","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:34":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 22,445f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","✗ PE likh rahe · lead −20.5","✓ Δ −1,007 → −286 → +33"],"plan":"E 22,534f · stop 22,425f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,534f · stop 22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −20.5","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:35":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,469s|22,534f · stop 22,360s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,380s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead +3.9","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:36":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,469s|22,534f · stop 22,360s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,380s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead +3.9","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:37":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,469s|22,534f · stop 22,360s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,380s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead +3.9","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:38":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,469s|22,534f · stop 22,360s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,380s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead +3.9","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:39":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 22,469s|22,534f · stop 22,360s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,380s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead +3.9","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:40":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:41":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:42":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:43":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:44":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:45":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:46":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:47":{"chip":{"side":"BUY","state":"—","n":null,"pieces":null,"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:48":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✗ thakan/roka nahi","✗ CE likh rahe · lead −2.3","✗ Δ + → − nahi · abhi −26"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:49":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✗ thakan/roka nahi","✗ CE likh rahe · lead −2.3","✗ Δ + → − nahi · abhi −26"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:50":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead −12.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:51":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead −12.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:52":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead −12.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:53":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead −12.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:54":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,488s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead −12.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 22,470s|22,534f · stop 22,361s|22,425f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 22,381s|22,445f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +15.6 09:40","t":"09:40"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33","t":"09:30"}]}},"09:55":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,486s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead +1.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":null},"09:56":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,486s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead +1.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":null},"09:57":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,486s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead +1.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":null},"09:58":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,486s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead +1.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":null},"09:59":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,486s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead +1.6","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":null},"10:00":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 22,484s|22,553f chhua 09:45","✓ THAKAN kharidar 22,556f 09:45","✗ CE likh rahe · lead −13.8","✓ Δ +372 → −880 → −26 → −467"],"plan":null,"ep":null},"ep":null}},"BANKNIFTY":{"09:20":{"chip":null,"ep":null},"09:21":{"chip":null,"ep":null},"09:22":{"chip":null,"ep":null},"09:23":{"chip":null,"ep":null},"09:24":{"chip":null,"ep":null},"09:25":{"chip":null,"ep":null},"09:26":{"chip":null,"ep":null},"09:27":{"chip":null,"ep":null},"09:28":{"chip":null,"ep":null},"09:29":{"chip":null,"ep":null},"09:30":{"chip":null,"ep":null},"09:31":{"chip":null,"ep":null},"09:32":{"chip":null,"ep":null},"09:33":{"chip":null,"ep":null},"09:34":{"chip":null,"ep":null},"09:35":{"chip":null,"ep":null},"09:36":{"chip":null,"ep":null},"09:37":{"chip":null,"ep":null},"09:38":{"chip":null,"ep":null},"09:39":{"chip":null,"ep":null},"09:40":{"chip":null,"ep":null},"09:41":{"chip":null,"ep":null},"09:42":{"chip":null,"ep":null},"09:43":{"chip":null,"ep":null},"09:44":{"chip":null,"ep":null},"09:45":{"chip":null,"ep":null},"09:46":{"chip":null,"ep":null},"09:47":{"chip":null,"ep":null},"09:48":{"chip":null,"ep":null},"09:49":{"chip":null,"ep":null},"09:50":{"chip":null,"ep":null},"09:51":{"chip":null,"ep":null},"09:52":{"chip":null,"ep":null},"09:53":{"chip":null,"ep":null},"09:54":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 54,146s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","? CE likh rahe — chain nahi","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null},"09:55":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 54,148s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","✗ CE likh rahe · lead +6.0","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null},"09:56":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 54,148s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","✗ CE likh rahe · lead +6.0","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null},"09:57":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 54,148s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","✗ CE likh rahe · lead +6.0","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null},"09:58":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 54,148s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","✗ CE likh rahe · lead +6.0","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null},"09:59":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 54,148s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","✗ CE likh rahe · lead +6.0","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null},"10:00":{"chip":{"side":"SELL","state":"ARMED","n":2,"pieces":["✓ u2 54,148s|54,272f chhua 09:51","? thakan/roka — chart marks nahi","✓ CE likh rahe · lead +12.7 10:00","? Δ — flow 09:40 se"],"plan":null,"ep":null},"ep":null}},"SENSEX":{"09:20":{"chip":null,"ep":null},"09:21":{"chip":null,"ep":null},"09:22":{"chip":null,"ep":null},"09:23":{"chip":null,"ep":null},"09:24":{"chip":null,"ep":null},"09:25":{"chip":null,"ep":null},"09:26":{"chip":null,"ep":null},"09:27":{"chip":{"side":"BUY","state":"ARMED","n":2,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead +3.7","✗ Δ − → + nahi · abhi −286 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:28":{"chip":{"side":"BUY","state":"ARMED","n":2,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead +3.7","✗ Δ − → + nahi · abhi −286 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:29":{"chip":{"side":"BUY","state":"ARMED","n":2,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead +3.7","✗ Δ − → + nahi · abhi −286 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:30":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead −9.1","✓ Δ −1,007 → −286 → +33 (NIFTY)"],"plan":"E 72,948f · stop 72,718f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 72,948f · stop 72,718f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 72,738f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −9.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33 (NIFTY)","t":"09:30"}]}},"09:31":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead −9.1","✓ Δ −1,007 → −286 → +33 (NIFTY)"],"plan":"E 72,948f · stop 72,718f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 72,948f · stop 72,718f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 72,738f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −9.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33 (NIFTY)","t":"09:30"}]}},"09:32":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead −9.1","✓ Δ −1,007 → −286 → +33 (NIFTY)"],"plan":"E 72,948f · stop 72,718f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 72,948f · stop 72,718f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 72,738f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −9.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33 (NIFTY)","t":"09:30"}]}},"09:33":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead −9.1","✓ Δ −1,007 → −286 → +33 (NIFTY)"],"plan":"E 72,948f · stop 72,718f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 72,948f · stop 72,718f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 72,738f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −9.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33 (NIFTY)","t":"09:30"}]}},"09:34":{"chip":{"side":"BUY","state":"MATCH","n":3,"pieces":["✓ d2 72,738f chhua 09:24","✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","✗ PE likh rahe · lead −9.1","✓ Δ −1,007 → −286 → +33 (NIFTY)"],"plan":"E 72,948f · stop 72,718f","ep":"09:27"},"ep":{"side":"BUY","ep":"09:27","n":3,"plan":"E 72,948f · stop 72,718f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 72,738f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","t":"09:20"},{"k":"PE","ok":false,"chip":"✗ PE likh rahe · lead −9.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33 (NIFTY)","t":"09:30"}]}},"09:35":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 72,662s|72,893f chhua 09:27","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −12.7","✗ Δ + → − nahi · abhi +372 (NIFTY)"],"plan":null,"ep":null},"ep":{"side":"BUY","ep":"09:27","n":4,"plan":"E 72,716s|72,948f · stop 72,486s|72,718f","pieces":[{"k":"zone","ok":true,"chip":"✓ d2 72,506s|72,738f chhua 09:24","t":"09:27"},{"k":"thakan","ok":true,"chip":"✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 (NIFTY)","t":"09:20"},{"k":"PE","ok":true,"chip":"✓ PE likh rahe · lead +12.7 09:35","t":"09:35"},{"k":"Δ","ok":true,"chip":"✓ Δ −1,007 → −286 → +33 (NIFTY)","t":"09:30"}]}},"09:36":{"chip":{"side":"SELL","state":"MATCH","n":1,"pieces":["✓ u2 72,662s|72,893f chhua 09:27","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −12.7","✗ Δ + → − nahi · abhi +372 (NIFTY)"],"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","ep":"09:33"},"ep":{"side":"SELL","ep":"09:33","n":1,"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,662s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −12.7","t":null},{"k":"Δ","ok":false,"chip":"✗ Δ + → − nahi · abhi +372 (NIFTY)","t":null}]}},"09:37":{"chip":{"side":"SELL","state":"MATCH","n":1,"pieces":["✓ u2 72,662s|72,893f chhua 09:27","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −12.7","✗ Δ + → − nahi · abhi +372 (NIFTY)"],"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","ep":"09:33"},"ep":{"side":"SELL","ep":"09:33","n":1,"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,662s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −12.7","t":null},{"k":"Δ","ok":false,"chip":"✗ Δ + → − nahi · abhi +372 (NIFTY)","t":null}]}},"09:38":{"chip":{"side":"SELL","state":"MATCH","n":1,"pieces":["✓ u2 72,662s|72,893f chhua 09:27","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −12.7","✗ Δ + → − nahi · abhi +372 (NIFTY)"],"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","ep":"09:33"},"ep":{"side":"SELL","ep":"09:33","n":1,"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,662s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −12.7","t":null},{"k":"Δ","ok":false,"chip":"✗ Δ + → − nahi · abhi +372 (NIFTY)","t":null}]}},"09:39":{"chip":{"side":"SELL","state":"MATCH","n":1,"pieces":["✓ u2 72,662s|72,893f chhua 09:27","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −12.7","✗ Δ + → − nahi · abhi +372 (NIFTY)"],"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","ep":"09:33"},"ep":{"side":"SELL","ep":"09:33","n":1,"plan":"E 72,620s|72,851f · stop 72,719s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,662s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −12.7","t":null},{"k":"Δ","ok":false,"chip":"✗ Δ + → − nahi · abhi +372 (NIFTY)","t":null}]}},"09:40":{"chip":{"side":"SELL","state":"MATCH","n":2,"pieces":["✓ u2 72,678s|72,893f chhua 09:27","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −26.8","✓ Δ +372 → −880 (NIFTY)"],"plan":"E 72,636s|72,851f · stop 72,736s|72,951f","ep":"09:33"},"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,636s|72,851f · stop 72,736s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −26.8","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:41":{"chip":null,"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,636s|72,851f · stop 72,736s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −26.8","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:42":{"chip":null,"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,636s|72,851f · stop 72,736s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −26.8","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:43":{"chip":null,"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,636s|72,851f · stop 72,736s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −26.8","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:44":{"chip":null,"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,636s|72,851f · stop 72,736s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −26.8","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:45":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −23.1","? Δ — flow 09:30 se (NIFTY)"],"plan":null,"ep":null},"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,635s|72,851f · stop 72,735s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −23.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:46":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −23.1","? Δ — flow 09:30 se (NIFTY)"],"plan":null,"ep":null},"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,635s|72,851f · stop 72,735s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −23.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:47":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −23.1","? Δ — flow 09:30 se (NIFTY)"],"plan":null,"ep":null},"ep":{"side":"SELL","ep":"09:33","n":2,"plan":"E 72,635s|72,851f · stop 72,735s|72,951f","pieces":[{"k":"zone","ok":true,"chip":"✓ u2 72,678s|72,893f chhua 09:27","t":"09:30"},{"k":"thakan","ok":false,"chip":"✗ thakan/roka nahi (NIFTY)","t":null},{"k":"CE","ok":false,"chip":"✗ CE likh rahe · lead −23.1","t":null},{"k":"Δ","ok":true,"chip":"✓ Δ +372 → −880 (NIFTY)","t":"09:40"}]}},"09:48":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −23.1","? Δ — flow 09:30 se (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:49":{"chip":{"side":"SELL","state":"ARMED","n":1,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✗ thakan/roka nahi (NIFTY)","✗ CE likh rahe · lead −23.1","? Δ — flow 09:30 se (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:50":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −23.5","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:51":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −23.5","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:52":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −23.5","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:53":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −23.5","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:54":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,720s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −23.5","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:55":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,716s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −0.2","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:56":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,716s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −0.2","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:57":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,716s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −0.2","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:58":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,716s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −0.2","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"09:59":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,716s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −0.2","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null},"10:00":{"chip":{"side":"SELL","state":"ARMED","n":3,"pieces":["✓ u2 72,685s|72,936f chhua 09:42","✓ THAKAN kharidar 22,556f 09:45 (NIFTY)","✗ CE likh rahe · lead −8.3","✓ Δ +372 → −880 → −26 → −467 (NIFTY)"],"plan":null,"ep":null},"ep":null}}};
+const M0 = 9 * 60 + 20, M1 = 10 * 60;
+const hm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const mn = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
+const IDX = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+const KEYS = side => ['zone', 'thakan', side === 'BUY' ? 'PE' : 'CE', 'Δ'];
+const num = s => parseFloat(String(s).replace(/,/g, '').replace('−', '-'));
+
+const ICON = {
+  zone: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="8" r="2.6"/></svg>',
+  thakanBUY: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2v7M5 6.5 8 9.5l3-3"/><path d="M2.5 13h11" stroke-width="2.4"/></svg>',
+  thakanSELL: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 14V7M5 9.5 8 6.5l3 3"/><path d="M2.5 3h11" stroke-width="2.4"/></svg>',
+  pen: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 13l.6-2.6L11 3l2 2-7.4 7.4z"/><path d="M9.6 4.4l2 2"/></svg>',
+  delta: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M8 2.5 14 13.5H2z"/></svg>',
+};
+const LBL = { zone: 'zone', thakan: 'roka', PE: 'PE likh', CE: 'CE likh', 'Δ': 'Δ palta' };
+const SHORT = { 'KHAREEDAR NE ROKA': 'roka', 'BECHNE WALE PHANSE': 'phanse', 'THAKAN bechne wale': 'thakan', 'THAKAN kharidar': 'thakan' };
+
+// one piece, from the server's chip text: ✓ / ✗ / ? and its numbers
+function piece(k, side, chip, t) {
+  const ok = chip[0] === '✓' ? true : chip[0] === '✗' ? false : null;
+  const nf = /\(NIFTY\)$/.test(chip);
+  const why = ok === null ? (chip.split('— ')[1] || '').replace(/ \(NIFTY\)$/, '') : null;
+  const p = { k, ok, chip, t, nf, why };
+  if (k === 'zone') {
+    const q = /([du]\d) (?:([\d,]+)s\|)?([\d,]+)f chhua (\d\d:\d\d)/.exec(chip);
+    if (q) Object.assign(p, { band: q[1], s: q[2], f: q[3], at: q[4] });
+  } else if (k === 'thakan') {
+    p.marks = ok ? chip.slice(2).replace(/ \(NIFTY\)$/, '').split(', ').map(x => {
+      const q = /^(.*?) ([\d,]+)f (\d\d:\d\d)$/.exec(x) || [];
+      return { w: SHORT[q[1]] || q[1], f: q[2], at: q[3] };
+    }) : [];
+  } else if (k === 'PE' || k === 'CE') {
+    const q = /lead ([−+-]?[\d.]+)/.exec(chip);
+    p.lead = q ? num(q[1]) : null;
+  } else {
+    p.ds = ok === null ? [] : (chip.replace(/ \(NIFTY\)$/, '').match(/[−+]?\d[\d,]*/g) || []).map(num);
+  }
+  return p;
+}
+function plan(s) {
+  if (!s) return null;
+  const q = /E (?:([\d,]+)s\|)?([\d,]+)f · stop (?:([\d,]+)s\|)?([\d,]+)f/.exec(s);
+  return q && { es: q[1], ef: q[2], ss: q[3], sf: q[4], pts: Math.abs(num(q[2]) - num(q[4])) };
+}
+
+// the cards at minute m: the entered episode, a zone forming (ARMED), and episodes that just ended (one line, 4 min)
+function model(idx, m) {
+  const s = D[idx][hm(m)] || {}, out = [];
+  const ep = s.ep, ch = s.chip;
+  if (ep) out.push({ type: 'ENTRY', idx, side: ep.side, key: `${idx}|${ep.side}|${ep.ep}`, n: ep.n, at: ep.ep,
+    pieces: ep.pieces.map(x => piece(x.k, ep.side, x.chip, x.t)), plan: plan(ep.plan) });
+  if (ch && ch.state === 'ARMED') {
+    const ps = ch.pieces.map((c, i) => piece(KEYS(ch.side)[i], ch.side, c, null));
+    out.push({ type: 'ARMED', idx, side: ch.side, key: `${idx}|${ch.side}|A${ps[0].at}`, n: ch.n, pieces: ps });
+  }
+  // ended: walk back for the last minute an OTHER episode was live; it ended the minute after
+  const cur = ep && `${idx}|${ep.side}|${ep.ep}`;
+  for (let b = m - 1; b >= Math.max(M0, m - 4); b--) {
+    const e0 = (D[idx][hm(b)] || {}).ep;
+    if (!e0 || `${idx}|${e0.side}|${e0.ep}` === cur) continue;
+    const z = piece('zone', e0.side, e0.pieces[0].chip, null);
+    const why = (D[idx][hm(b + 1)] || {}).ep ? 'naya setup' : b + 1 >= mn(z.at) + 30 ? '30 min khatam' : 'stop laga';
+    out.push({ type: 'GONE', idx, side: e0.side, key: `${idx}|${e0.side}|${e0.ep}|gone`, n: e0.n, why, end: hm(b + 1) });
+    break;
+  }
+  return out;
+}
+
+const tick = v => (v === true ? '✓' : v === false ? '✗' : '?');
+function tileHTML(p, side) {
+  const cls = p.ok ? 'ok' : p.ok === false ? 'no' : 'unk';
+  const ic = p.k === 'zone' ? ICON.zone : p.k === 'thakan' ? ICON['thakan' + side] : p.k === 'Δ' ? ICON.delta : ICON.pen;
+  let v = '', s = '';
+  if (p.k === 'zone') { v = `${p.f}f`; s = `${p.band} · ${p.at}${p.s ? ` · ${p.s}s` : ''}`; }
+  else if (p.k === 'thakan') {
+    if (p.ok) { const last = p.marks[p.marks.length - 1]; v = `${last.f}f`;
+      s = `<div class="marks">${p.marks.map(x => `<span title="${x.w} ${x.f}f ${x.at}">${x.w} ${x.at}</span>`).join('')}</div>`; }
+    else if (p.ok === false) { v = 'nahi'; s = 'mark nahi aaya'; }
+  } else if (p.k === 'PE' || p.k === 'CE') {
+    if (p.lead != null) {
+      v = `${p.lead > 0 ? '+' : ''}${p.lead.toFixed(1)}`;
+      const x = Math.max(0, Math.min(100, (p.lead + 30) / 60 * 100));
+      s = `<div class="gauge" title="lead ${v} · judta hai +10 pe"><i class="z"></i><i class="th"></i><i class="nd" style="left:${x}%"></i></div>`;
+    }
+  } else if (p.ds.length) {
+    const ds = p.ds.slice(-4), mx = Math.max(...ds.map(Math.abs), 1);
+    v = `${ds[ds.length - 1] > 0 ? '+' : ''}${ds[ds.length - 1].toLocaleString('en-IN')}`;
+    s = `<div class="bars" title="${p.chip.slice(2)}">${ds.map(d => `<b class="${d > 0 ? 'p' : ''}" style="height:${Math.max(3, Math.round(Math.abs(d) / mx * 16))}px"></b>`).join('')}</div>`;
+  }
+  if (p.ok === null) { v = ''; s = p.why || 'padh nahi sake'; }
+  const sTag = /^</.test(s) ? s : `<div class="s">${s}</div>`;
+  return `<div class="tile ${cls}" data-k="${p.k}" title="${p.chip}">
+    <div class="top">${ic}${LBL[p.k]}${p.nf ? '<span class="nf" title="NIFTY ka: SENSEX reads NIFTY\'s flow and chart marks (§1q)">N</span>' : ''}</div>
+    <div class="v"><span class="g">${tick(p.ok)}</span>${v}</div>${sTag}</div>`;
+}
+function meterHTML(c) {
+  return `<span class="meter">${c.pieces.map(p => `<i class="${p.ok ? 'ok' : p.ok === null ? 'unk' : ''}" data-k="${p.k}"></i>`).join('')}</span>`;
+}
+function cardHTML(c) {
+  const ar = c.side === 'BUY' ? '▲' : '▼';
+  if (c.type === 'GONE') return `<div class="ghost ${c.why === 'stop laga' ? 'stop' : ''}" data-key="${c.key}">
+    <span class="ar">${ar}</span>${c.idx} ZONE ${c.side} · ${c.n}/4<span class="why">${c.why} ${c.end}</span></div>`;
+  if (c.type === 'ARMED' && c.n <= 1) return `<div class="oneline" data-key="${c.key}"><span class="ix">${ar} ${c.idx}</span>
+    ${c.pieces[0].band} ${c.pieces[0].f}f chhua ${c.pieces[0].at} · ${c.n}/4<span class="p">ARMED · ban raha</span></div>`;
+  const pl = c.plan, sp = (s, f) => `${s ? `<span class="sp">${s}s|</span>` : ''}<b>${f}f</b>`;
+  return `<div class="card ${c.side} ${c.type}" data-key="${c.key}">
+    <div class="hd"><span class="ar">${ar}</span><span class="ix">${c.idx}</span><span class="nm">ZONE ${c.side}</span>
+      ${meterHTML(c)}<span class="n">${c.n}/4</span>
+      <span class="pill">${c.type === 'ARMED' ? 'ARMED · ban raha' : `entry ${c.at}`}</span></div>
+    <div class="tiles">${c.pieces.map(p => tileHTML(p, c.side)).join('')}</div>
+    ${pl ? `<div class="plan">E ${sp(pl.es, pl.ef)}<span>stop ${sp(pl.ss, pl.sf)}</span><span class="pts">${pl.pts} pts</span></div>
+    <div class="life"><span class="bar"><i data-end="${mn(c.pieces[0].at) + 30}"></i></span><span class="t" data-end="${mn(c.pieces[0].at) + 30}"></span></div>` : ''}
+  </div>`;
+}
+
+// the stream + Telegram: an entry (chip MATCH, new episode) or a piece joining a live episode, at minute resolution
+const EVENTS = [];
+(function () {
+  for (const idx of IDX) {
+    const sent = new Map();
+    for (let m = M0; m <= M1; m++) {
+      const s = D[idx][hm(m)] || {}, ep = s.ep;
+      if (!ep) continue;
+      const key = `${idx}|${ep.side}|${ep.ep}`, oks = new Set(ep.pieces.filter(p => p.ok === true).map(p => p.k));
+      const c = model(idx, m).find(x => x.key === key);
+      if (!sent.has(key)) {
+        if (s.chip && s.chip.state === 'MATCH') { sent.set(key, oks); EVENTS.push({ m, idx, kind: 'new', c }); }
+        continue;
+      }
+      const was = sent.get(key), add = c.pieces.filter(p => p.ok === true && !was.has(p.k));
+      if (add.length) { add.forEach(p => was.add(p.k)); EVENTS.push({ m, idx, kind: 'join', c, add }); }
+    }
+  }
+  EVENTS.sort((a, b) => a.m - b.m);
+})();
+const short = p => `${tick(p.ok)}${p.k === 'thakan' ? 'roka' : p.k}`;
+const planTxt = pl => `E ${pl.es ? pl.es + 's|' : ''}${pl.ef}f · stop ${pl.ss ? pl.ss + 's|' : ''}${pl.sf}f`;
+function tgText(e) {
+  const c = e.c, ar = c.side === 'BUY' ? '▲' : '▼';
+  const h = `${ar} ${c.idx} ZONE ${c.side} · ${c.n}/4 · ${hm(e.m)}`;
+  const mid = e.kind === 'new' ? c.pieces.map(short).join(' ') + (c.pieces.some(p => p.nf) ? ' · flow NIFTY ka' : '')
+    : '+ ' + e.add.map(p => `${LBL[p.k]}${p.lead != null ? ` ${p.lead > 0 ? '+' : ''}${p.lead.toFixed(1)}` : ''}`).join(' + ');
+  return [h, mid, planTxt(c.plan)];
+}
+
+// ---- the replay clock
+let tm = M0, playing = true, msPer = 1200, last = performance.now(), shownMin = -1, animate = true;
+const $ = id => document.getElementById(id);
+const sigs = new Map();
+function render(m) {
+  const cs = IDX.flatMap(i => model(i, m));
+  const host = $('cards'), keep = new Set();
+  if (!cs.length) host.innerHTML = '<div class="empty">koi zone live nahi</div>';
+  else host.querySelector('.empty')?.remove();
+  let prevEl = null;
+  for (const c of cs) {
+    keep.add(c.key);
+    const html = cardHTML(c), old = host.querySelector(`[data-key="${CSS.escape(c.key)}"]`);
+    let el = old;
+    if (!old || sigs.get(c.key) !== html) {
+      const t = document.createElement('div'); t.innerHTML = html.trim(); el = t.firstChild;
+      if (old) {
+        if (animate) {   // what changed since the last render: a piece joined, the count reached 4
+          const was = new Set([...old.querySelectorAll('.tile.ok')].map(x => x.dataset.k));
+          c.pieces?.forEach(p => { if (p.ok && !was.has(p.k)) {
+            el.querySelector(`.tile[data-k="${CSS.escape(p.k)}"]`)?.classList.add('pop');
+            el.querySelector(`.meter i[data-k="${CSS.escape(p.k)}"]`)?.classList.add('pop');
+            const hd = el.querySelector('.hd'), ts = document.createElement('span');
+            ts.className = 'toast'; ts.textContent = `+ ${LBL[p.k]}`; hd?.insertBefore(ts, hd.querySelector('.meter'));
+          } });
+          if (c.n === 4 && old.querySelector('.n')?.textContent !== '4/4') el.classList.add('full');
+        }
+        old.replaceWith(el);
+      } else {
+        if (animate) el.classList.add('enter');
+        prevEl ? prevEl.after(el) : host.prepend(el);
+      }
+      sigs.set(c.key, html);
+    }
+    if (prevEl && el.previousElementSibling !== prevEl) prevEl.after(el);
+    prevEl = el;
+  }
+  for (const el of [...host.querySelectorAll('[data-key]')]) if (!keep.has(el.dataset.key)) { sigs.delete(el.dataset.key); el.remove(); }
+  // stream + Telegram up to m
+  const ev = EVENTS.filter(e => e.m <= m);
+  $('stream').innerHTML = ev.length ? ev.slice().reverse().map(e => {
+    const t = tgText(e);
+    return `<div class="ml ${e.m === m && animate ? 'new' : ''}" title="${e.c.pieces.map(p => p.chip).join('\n')}">${hm(e.m)}  ${e.idx}  <span class="a" style="color:var(--${e.c.side === 'BUY' ? 'buy' : 'sell'})">${e.c.side === 'BUY' ? '▲' : '▼'}</span> ${e.kind === 'new' ? `ZONE ${e.c.side} ${'▰'.repeat(e.c.n)}${'▱'.repeat(4 - e.c.n)} ${e.c.n}/4 · ${planTxt(e.c.plan)}` : `ZONE ${e.c.side} ${t[1]} ${'▰'.repeat(e.c.n)}${'▱'.repeat(4 - e.c.n)} ${e.c.n}/4`}</div>`;
+  }).join('') : '<div class="ml">aaj abhi koi zone message nahi</div>';
+  $('tg').innerHTML = ev.map(e => {
+    const [h, mid, pl] = tgText(e);
+    return `<div class="bub"><span class="h">${h}</span>\n${mid}\n${pl}<span class="tm">${hm(e.m)}</span></div>`;
+  }).join('');
+  $('tg').scrollTop = $('tg').scrollHeight;                         // inside the phone only, never the page
+}
+function frame(now) {
+  if (playing) { tm = Math.min(M1 + 0.999, tm + (now - last) / msPer); if (tm >= M1 + 0.999) setPlay(false); }
+  last = now;
+  const m = Math.floor(tm);
+  if (m !== shownMin) { render(Math.min(m, M1)); shownMin = m; animate = true; }
+  const clk = hm(Math.min(m, M1));
+  $('clock').textContent = clk; $('fnow').textContent = `abhi ${clk}`; $('scrub').value = Math.min(m, M1) - M0;
+  for (const i of document.querySelectorAll('.life [data-end]')) {   // the window drains with the clock
+    const left = +i.dataset.end - tm;
+    if (i.tagName === 'I') i.style.width = `${Math.max(0, Math.min(1, left / 30)) * 100}%`;
+    else i.textContent = left > 0 ? `${Math.ceil(left)} min baaki` : 'khatam';
+  }
+  requestAnimationFrame(frame);
+}
+function setPlay(x) { playing = x; $('play').textContent = x ? '❚❚ ruko' : '▶ chalao'; $('play').classList.toggle('on', x); if (x && tm >= M1 + 0.99) tm = M0; }
+function jump(m) { tm = m; animate = false; shownMin = -1; }
+$('play').onclick = () => setPlay(!playing);
+$('scrub').oninput = e => { setPlay(false); jump(M0 + +e.target.value); };
+document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => {
+  msPer = +b.dataset.sp; document.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', x === b)); });
+[['09:26', '09:27 neeche ban raha'], ['09:29', '09:30 entry 3/4'], ['09:39', '09:40 PE juda 4/4'],
+ ['09:35', '09:36 SENSEX sell'], ['09:47', '09:48 SENSEX stop'], ['09:49', '09:50 upar ban raha']].forEach(([t, w]) => {
+  const b = document.createElement('button'); b.textContent = w;
+  b.onclick = () => { jump(mn(t)); animate = false; setPlay(true); }; $('jumps').append(b); });
+const q0 = /^(\d\d:\d\d)$/.exec(new URLSearchParams(location.search).get('t') || '');   // ?t=09:30 opens paused at that minute
+if (q0) { setPlay(false); jump(mn(q0[1])); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

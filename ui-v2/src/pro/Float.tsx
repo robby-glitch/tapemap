@@ -169,7 +169,11 @@ function Win({ intake }: { intake?: Intake | null }) {
   </div>
   // THE MESSAGE STREAM (§3): NOW per index, then the last 10 changes, newest first, the server's lines verbatim; bold =
   // written after her last look. LEG / DIN are the background (muted); READ / SETUP / TRADE / HEALTH are the news
-  const items = (st.msgs?.items ?? []).slice(0, 10)
+  // FLOW (the handshake's answered pushes, A132: 11-15 a day on NIFTY) may never push a SETUP / READ / TRADE line out of
+  // view: the newest 10 of the rest, plus at most the newest 2 FLOW lines, in the stream's own order
+  const all = st.msgs?.items ?? [], flow2 = new Set(all.filter(m => m.kind === 'FLOW').slice(0, 2))
+  let rest = 0
+  const items = all.filter(m => (m.kind === 'FLOW' ? flow2.has(m) : rest++ < 10))
   const msgsEl = <div className="fl-msgs" onPointerEnter={look}>
     {!st.msgs && <p className="ml">messages padh rahe…</p>}
     {st.msgs?.why && <p className="ml why">{st.msgs.why}</p>}
@@ -226,6 +230,7 @@ function Win({ intake }: { intake?: Intake | null }) {
     <div className="v3">{vc.l3}{vc.trig_t && vc.state !== 'HOLD' ? ` · ${vc.trig_t}` : ''}</div>
     {vc.l4 && <div className="v3 v4">{vc.l4}</div>}
     {vc.l5 && <div className="v3 v5">{vc.l5}</div>}
+    {vc.l6 && <div className="v3 v6">{vc.l6}</div>}{/* A132: the HANDSHAKE at her wall, a line, never the state */}
     {!vOpen && <span className="vbtns">{btns}</span>}{/* open: the DESK's line below carries them */}
     <button type="button" className="vd" onClick={() => setVOpen(!vOpen)}>detail {vOpen ? '▾' : '▸'}</button>
   </div>

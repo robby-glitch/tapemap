@@ -1,0 +1,85 @@
+== RAFTAAR NIFTY 2026-09-23  P = 42 pts  step 50  (floors = the day's own running medians per side) ==
+-- Tue · NIFTY weekly expiry, range (0.47 %)
+
+09:20  SOCH RAHA · 5/15-min lookback missing
+09:40     23377s  KHAMOSH · kuch khaas nahi
+10:01     23378s  PIN 23400 balanced  net45 CE +204.4L PE +151.3L  r45 61  HALKA 2/6 (peers 0/2)
+10:22     23391s  LOAD PE likh rahe 23400  net15 +39.4L  m15  +17  THEEK 3/6 (peers 0/2)
+10:36     23404s  KHAMOSH · kuch khaas nahi
+10:53     23419s  LOAD PE likh rahe 23400  net15 +38.2L  m15   +9  THEEK 3/6 (peers 0/2)
+10:56     23421s  KHAMOSH · kuch khaas nahi
+12:16     23457s  LOAD PE likh rahe 23500  net15 +28.1L  m15  +18  THEEK 3/6 (peers 0/2)
+12:22     23459s  KHAMOSH · kuch khaas nahi
+13:02     23455s  LOAD CE likh rahe 23600  net15 +22.2L  m15  +11  THEEK 3/6 (peers 1/2)
+13:08     23455s  KHAMOSH · kuch khaas nahi
+13:20     23447s  LOAD PE likh rahe 23400  net15 +13.8L  m15   -2  HALKA 2/5 (peers 1/2)
+13:23     23451s  KHAMOSH · kuch khaas nahi
+13:43     23430s  LOAD CE likh rahe 23600  net15 +11.5L  m15  -17  THEEK 3/6 (peers 1/2)
+13:53     23426s  KHAMOSH · kuch khaas nahi
+14:04     23434s  LOAD CE likh rahe 23550  net15 +10.3L  m15   +5  HALKA 2/6 (peers 0/2)
+14:12     23449s  KHAMOSH · kuch khaas nahi
+14:40     23437s  UNWIND dono nikal rahe  CE -24.1L PE -13.8L  HALKA 2/6 (peers 0/2)
+14:46     23432s  KHAMOSH · kuch khaas nahi
+15:10     23416s  UNWIND band ka unwind  CE -9.3L PE -47.2L  HALKA 2/6 (peers 1/2)
+-- minutes: KHAMOSH 248, LOAD 54, UNWIND 28, SOCH RAHA 20, PIN 20
+-- stamped lines: 20
+-- front stamps (§1d states, top-2 per side): 57
+
+-- §1d front stamps (top-2 per side, changes only):
+   09:38  PE 23300  STALLED        d15     -9k @ 23377s  (was BUILDING)
+   09:41  PE 23300  phir BUILDING  d15   +4.6L @ 23378s  (was STALLED)
+   10:00  PE 23400  STALLED        d15   +2.0L @ 23373s  (was BUILDING)
+   10:00  PE 23300  STALLED        d15    +90k @ 23373s  (was BUILDING)
+   10:04  PE 23300  phir BUILDING  d15   +2.3L @ 23379s  (was STALLED)
+   10:09  CE 23400  STALLED        d15    +78k @ 23358s  (was BUILDING)
+   10:10  PE 23400  phir BUILDING  d15   +8.5L @ 23357s  (was STALLED)
+   10:18  CE 23500  STALLED        d15    -84k @ 23394s  (was BUILDING)
+   10:20  CE 23400  UNWINDING      d15   -6.1L @ 23391s  (was STALLED)
+   10:34  CE 23400  STALLED        d15    -15k @ 23404s  (was UNWINDING)
+   10:48  CE 23400  SHIFT -> 23450 d15   -3.5L @ 23417s  (was STALLED)
+   11:00  CE 23500  UNWINDING      d15   -2.2L @ 23418s  (was STALLED)
+   11:07  PE 23300  STALLED        d15    +40k @ 23427s  (was BUILDING)
+   11:09  CE 23500  STALLED        d15    -31k @ 23432s  (was UNWINDING)
+   11:13  CE 23500  UNWINDING      d15   -2.4L @ 23429s  (was STALLED)
+   11:22  CE 23500  STALLED        d15    -57k @ 23427s  (was UNWINDING)
+   11:28  CE 23500  phir BUILDING  d15   +2.1L @ 23436s  (was STALLED)
+   11:28  CE 23400  STALLED        d15    +91k @ 23436s  (was UNWINDING)
+   11:31  PE 23400  STALLED        d15   +4.5L @ 23442s  (was BUILDING)
+   11:32  CE 23500  STALLED        d15   +1.4L @ 23440s  (was BUILDING)
+   11:32  CE 23400  UNWINDING      d15    -71k @ 23440s  (was STALLED)
+   11:37  CE 23500  phir BUILDING  d15   +3.2L @ 23437s  (was STALLED)
+   11:37  PE 23300  UNWINDING      d15   -3.1L @ 23437s  (was STALLED)
+   11:46  PE 23300  STALLED        d15   -2.4L @ 23438s  (was UNWINDING)
+   11:51  PE 23400  phir BUILDING  d15   +6.4L @ 23429s  (was STALLED)
+   11:52  CE 23500  UNWINDING      d15   -2.5L @ 23428s  (was BUILDING)
+   12:01  PE 23400  STALLED        d15   +4.6L @ 23447s  (was BUILDING)
+   12:22  CE 23500  STALLED        d15    +79k @ 23454s  (was UNWINDING)
+   12:29  CE 23500  phir BUILDING  d15   +4.0L @ 23447s  (was STALLED)
+   12:38  CE 23400  STALLED        d15   +1.4L @ 23451s  (was UNWINDING)
+   12:55  CE 23500  STALLED        d15    +86k @ 23448s  (was BUILDING)
+   12:57  CE 23400  UNWINDING      d15     -8k @ 23454s  (was STALLED)
+   12:59  CE 23500  phir BUILDING  d15   +2.1L @ 23451s  (was STALLED)
+   13:00  CE 23400  STALLED        d15   +1.2L @ 23455s  (was UNWINDING)
+   13:09  CE 23400  UNWINDING      d15    -42k @ 23442s  (was STALLED)
+   13:14  CE 23500  STALLED        d15    +93k @ 23449s  (was BUILDING)
+   13:27  CE 23400  STALLED        d15     +2k @ 23440s  (was UNWINDING)
+   13:30  CE 23400  UNWINDING      d15   -1.2L @ 23430s  (was STALLED)
+   13:37  PE 23400  UNWINDING      d15   -7.0L @ 23425s  (was STALLED)
+   13:38  CE 23400  STALLED        d15    +82k @ 23425s  (was UNWINDING)
+   13:45  CE 23500  phir BUILDING  d15   +5.4L @ 23428s  (was STALLED)
+   13:47  PE 23300  UNWINDING      d15   -2.9L @ 23429s  (was STALLED)
+   13:50  PE 23400  STALLED        d15    -95k @ 23423s  (was UNWINDING)
+   13:50  PE 23300  STALLED        d15    -80k @ 23423s  (was UNWINDING)
+   13:54  CE 23500  STALLED        d15   +1.9L @ 23424s  (was BUILDING)
+   14:05  CE 23500  phir BUILDING  d15   +2.9L @ 23439s  (was STALLED)
+   14:11  CE 23500  STALLED        d15   +1.8L @ 23450s  (was BUILDING)
+   14:15  CE 23400  UNWINDING      d15   -1.6L @ 23444s  (was STALLED)
+   14:20  CE 23500  UNWINDING      d15   -3.0L @ 23442s  (was STALLED)
+   14:40  PE 23400  UNWINDING      d15   -7.2L @ 23435s  (was STALLED)
+   14:43  PE 23300  UNWINDING      d15   -4.9L @ 23432s  (was STALLED)
+   14:44  PE 23400  STALLED        d15   -5.7L @ 23432s  (was UNWINDING)
+   14:47  CE 23400  STALLED        d15   +1.9L @ 23430s  (was UNWINDING)
+   14:49  CE 23500  STALLED        d15   +1.2L @ 23431s  (was UNWINDING)
+   14:50  PE 23400  UNWINDING      d15   -8.6L @ 23431s  (was STALLED)
+   14:59  CE 23500  SHIFT -> 23550 d15    -80k @ 23422s  (was STALLED)
+   15:09  CE 23400  UNWINDING      d15   -1.3L @ 23422s  (was STALLED)

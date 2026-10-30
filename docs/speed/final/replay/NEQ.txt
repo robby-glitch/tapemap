@@ -1,0 +1,4 @@
+≠ READ lines after the fix round · points along the line's direction (+ = went its way) · best / worst in 30 min
+
+2026-10-21 NIFTY     10:04     22990s  9/11 MAZBOOT   +15   +54  +30    +8  best   +63 / worst    +2  | READ: RANGE · RAFTAAR: CHAL RAHA ▼ 9/11 — PE BHAAG + CE LIKHAI · spot -70/15m · net −73.3L
+2026-10-26 NIFTY     09:55     22559s  10/11 MAZBOOT  +15  +125  +30  +103  best  +140 / worst   +32  | READ: RANGE · RAFTAAR: CHAL RAHA ▲ 10/11 — CE BHAAG + PE LIKHAI · spot +137/15m · net +79.5L

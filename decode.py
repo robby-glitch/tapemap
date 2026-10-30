@@ -22,7 +22,7 @@ THE CALL (display rule, fixed 2026-10-22). Decel signs for the current leg, each
   push     the last push in the leg's direction failed                               | it held
   peers    a peer index on the opposite leg                                          | a peer on the same leg
   decel >= 4 and > continuation -> "leg thak raha · d/7"; continuation >= 4 and > decel -> "leg jaari · c/7";
-  otherwise "mila-jula · d/c"; no leg -> "saaf nahi". The call's `signs`: its own side's chips, then the other side's,
+  otherwise "mila-jula · d thak c jaari" (A126: "d/c" read as d of c); no leg -> "saaf nahi". The call's `signs`: its own side's chips, then the other side's,
   each prefixed "jaari · " / "thak · " (both prefixed on mila-jula).
 
 THE DECODE LEG (gap A1, 2026-10-22): the call and the lines read the zigzag's open leg (swing_of: 5-min closes, the
@@ -381,7 +381,7 @@ def call(leg, dec, con):
     if c >= 4 and c > d:
         return {"text": f"{a} leg jaari · {c}/{OF}", "kind": "JAARI", "d": d, "c": c, "of": OF,
                 "signs": C + [f"thak · {x}" for x in D]}
-    return {"text": f"{a} mila-jula · {d}/{c}", "kind": "MILA", "d": d, "c": c, "of": OF,
+    return {"text": f"{a} mila-jula · {d} thak {c} jaari", "kind": "MILA", "d": d, "c": c, "of": OF,
             "signs": [f"thak · {x}" for x in D] + [f"jaari · {x}" for x in C]}
 
 

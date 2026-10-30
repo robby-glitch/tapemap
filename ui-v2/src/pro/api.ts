@@ -10,7 +10,7 @@ export type Trade = { id: string; idx: string; k: number; side: 'CE' | 'PE'; rol
                       exit_t: string | null; exit_t_broker?: string | null; src?: string }
 export type Voice = { ok: boolean; why?: string; state: 'HOLD' | 'TIGHTEN' | 'WARN' | 'EXIT'; seq: number; l1: string; l2: string; l3: string
                       trig_t?: string | null; note?: string; active?: { t: string; state: string; reason: string }[]
-                      l4?: string; l5?: string; detail?: { text: string; tip?: string | null }[]; map_why?: string }   // the TRADE MAP (trademap.py)
+                      l4?: string; l5?: string; l6?: string; detail?: { text: string; tip?: string | null }[]; map_why?: string }   // the TRADE MAP (trademap.py)
 // THE MESSAGE STREAM (server messages.py, GET /api/messages; spec 2026-10-25-message-window-telegram): the server's lines, verbatim
 export type Msg = { key: string; t: string; idx: string; kind: string; dir: number; word: string; agree: string | null; level: string | null
                     why: string | null; at: number; line: string; id?: string }

@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jarvis Chart Decode</title>
+<style>
+:root{
+  --bg:#f6f4ef; --card:#ffffff; --ink:#1d2127; --mut:#6b7280; --line:#e6e2d9; --grid:#efebe3;
+  --up:#0f9d76; --dn:#e5484d; --ce:#c2410c; --pe:#2563eb; --ai:#d97757; --ai2:#f2b48f;
+  --ok:#0f9d76; --bad:#e5484d; --q:#9aa0a6;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,"Segoe UI",sans-serif}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.06em}
+.brand small{font-weight:500;color:var(--mut);letter-spacing:0}
+.clock{font:700 26px var(--mono);min-width:118px}
+.ctl{display:flex;align-items:center;gap:6px}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--ink)}
+button:hover{border-color:var(--ai)}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+input[type=range]{width:220px;accent-color:var(--ai)}
+.moments{display:flex;gap:6px;flex-wrap:wrap}
+.moments button{font-size:12px;padding:3px 8px;border-radius:99px}
+main{padding:12px 16px 16px}
+#stage{position:relative;height:calc(100vh - 170px);min-height:440px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#cv{position:absolute;inset:0;width:100%;height:100%}
+.bubble{position:absolute;left:0;top:0;width:380px;padding:12px 14px 12px;border-radius:16px;background:rgba(255,255,255,.93);
+  backdrop-filter:blur(8px);box-shadow:0 10px 34px rgba(60,40,20,.16),0 0 0 1px rgba(217,119,87,.25);
+  transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .4s;will-change:transform;z-index:5}
+.bubble::before{content:"";position:absolute;inset:-1px;border-radius:17px;padding:1.5px;pointer-events:none;
+  background:conic-gradient(from var(--a,0deg),var(--ai),#f6d2bd,#fff,var(--ai2),var(--ai));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:spin 4s linear infinite}
+@property --a{syntax:"<angle>";initial-value:0deg;inherits:false}
+@keyframes spin{to{--a:360deg}}
+.bubble.dark{opacity:.72;filter:grayscale(.8)}
+.bhead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.orb{width:30px;height:30px;border-radius:50%;flex:none;position:relative;
+  background:radial-gradient(circle at 35% 30%,#fff 0 8%,#ffd9c4 22%,var(--ai) 58%,#a8492b 100%);
+  box-shadow:0 0 0 0 rgba(217,119,87,.45);animation:breathe 3s ease-in-out infinite}
+.orb::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(217,119,87,.35);opacity:0}
+.orb.think{animation:breathe .8s ease-in-out infinite}
+.orb.talk::after{animation:ring 1.1s ease-out infinite}
+@keyframes breathe{50%{transform:scale(1.08);box-shadow:0 0 18px 2px rgba(217,119,87,.35)}}
+@keyframes ring{0%{opacity:.9;transform:scale(.9)}100%{opacity:0;transform:scale(1.7)}}
+.who{font-weight:700;letter-spacing:.08em;font-size:12px}
+.who .tm{font:600 12px var(--mono);color:var(--mut);letter-spacing:0;margin-left:6px}
+.tag{margin-left:auto;font:700 11px var(--mono);padding:3px 8px;border-radius:99px;background:#f3efe8;color:var(--ink);white-space:nowrap}
+.btext{font-size:15px;line-height:1.45;min-height:44px}
+.btext b{font-weight:700}
+.caret{display:inline-block;width:7px;height:15px;background:var(--ai);vertical-align:-2px;margin-left:1px;animation:blink .9s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.dots span{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:var(--ai);animation:hop 1s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes hop{30%{transform:translateY(-5px);opacity:.5}}
+.bchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{font:600 11.5px var(--mono);padding:3px 7px;border-radius:7px;background:#f5f2ec;border:1px solid var(--line);opacity:0;transform:translateY(4px);animation:rise .35s forwards}
+.chip.ok{color:var(--ok);border-color:#bfe6d8;background:#effaf5}
+.chip.bad{color:var(--bad);border-color:#f6c9cb;background:#fdf1f1}
+.chip.q{color:#7a7f87}
+@keyframes rise{to{opacity:1;transform:none}}
+.bnext{margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);font-size:12.5px;display:grid;gap:2px}
+.bnext .up{color:var(--up)} .bnext .dn{color:var(--dn)} .bnext .wr{color:var(--mut)}
+#tip{position:absolute;z-index:6;max-width:320px;padding:8px 10px;border-radius:10px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.14);font-size:12.5px;pointer-events:none;opacity:0;transition:opacity .15s}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:4}
+.shard{position:absolute;width:10px;height:3px;border-radius:2px;background:var(--ce)}
+#rail{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pill{font:600 12px var(--mono);padding:5px 10px;border-radius:99px;border:1px solid var(--line);background:#fff;color:#a3a3a3;cursor:pointer;transition:all .4s}
+.pill.lit{color:var(--ink);border-color:var(--ai);box-shadow:0 0 0 3px rgba(217,119,87,.12)}
+.pill.now{background:var(--ai);color:#fff;border-color:var(--ai)}
+.arrow{color:#c9c3b8}
+.legend{margin-left:auto;font-size:12px;color:var(--mut)}
+.over{position:fixed;inset:0;display:grid;place-items:center;background:rgba(246,244,239,.86);backdrop-filter:blur(6px);z-index:20;transition:opacity .5s}
+.over[hidden]{display:none}
+.card{background:#fff;border-radius:22px;padding:30px 34px;box-shadow:0 20px 60px rgba(60,40,20,.18);max-width:660px;text-align:center}
+.bigorb{width:92px;height:92px;margin:0 auto 14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 8%,#ffd9c4 22%,var(--ai) 58%,#a8492b 100%);animation:breathe 2.4s ease-in-out infinite}
+.card h1{margin:4px 0 6px;font-size:26px;letter-spacing:.04em}
+.card p{color:var(--mut);margin:6px 0}
+.card .go{margin-top:16px;font-size:16px;padding:10px 22px;border-radius:99px;background:var(--ai);color:#fff;border:0}
+.endtab{width:100%;border-collapse:collapse;margin-top:12px;text-align:left;font-size:13px}
+.endtab td,.endtab th{padding:6px 8px;border-bottom:1px solid var(--line)}
+.endtab th{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.story{font:600 13px var(--mono);line-height:1.9}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="brand"><div class="orb" style="width:22px;height:22px"></div>JARVIS <small>live chart decode · NIFTY Nov fut · 28 Oct · recorded + backfilled numbers</small></div>
+  <div class="clock" id="clock">09:15:00</div>
+  <div class="ctl">
+    <button id="play">▶ play</button>
+    <button data-sp="1">1×</button><button data-sp="2" class="on">2×</button><button data-sp="4">4×</button>
+    <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="scrub">
+  </div>
+  <div class="moments" id="moments"></div>
+</div>
+<main>
+  <div id="stage"><canvas id="cv"></canvas><div id="fx"></div><div id="tip"></div>
+    <div id="bubble" class="bubble">
+      <div class="bhead"><div class="orb" id="orb"></div><div class="who">JARVIS<span class="tm" id="btm">09:15</span></div><span class="tag" id="btag">LIVE</span></div>
+      <div class="btext" id="btext"></div>
+      <div class="bchips" id="bchips"></div>
+      <div class="bnext" id="bnext"></div>
+    </div>
+  </div>
+  <div id="rail"></div>
+</main>
+<div class="over" id="intro"><div class="card">
+  <div class="bigorb"></div>
+  <h1>JARVIS · live chart decode</h1>
+  <p>28 Oct, NIFTY Nov futures, 09:15–13:40, the whole session as if the laptop had been on.</p>
+  <p>The laptop started at 11:07 and slept 12:54–13:00. Those minutes are rebuilt: order flow from Dext, option chain from Upstox. What could not be rebuilt is shown as blind.</p>
+  <p>Every line Jarvis says is generated from the data: pushes, the wall's answers, fuel, your zone verdicts and no-trade stretches.</p>
+  <button class="go" id="go">▶ Watch</button>
+</div></div>
+<div class="over" id="end" hidden><div class="card" style="max-width:760px">
+  <div class="bigorb" style="width:56px;height:56px"></div>
+  <h1>The day's story · evening check</h1>
+  <div class="story" id="story"></div>
+  <table class="endtab"><thead><tr><th>Your zone trigger</th><th>Jarvis said</th><th>Next 30 min (fut, to 13:40)</th></tr></thead><tbody id="endrows"></tbody></table>
+  <p style="font-size:12px;margin-top:10px">Rows, not rates. One day; every verdict is scored every evening.</p>
+  <button class="go" id="again">↺ Again</button>
+</div></div>
+
+<script>
+"use strict";
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = s => document.querySelector(s);
+const cv = $("#cv"), ctx = cv.getContext("2d"), stage = $("#stage"), bubble = $("#bubble");
+const C = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = {up:C("--up"), dn:C("--dn"), ce:C("--ce"), pe:C("--pe"), ai:C("--ai"), grid:C("--grid"), mut:C("--mut"), ink:C("--ink"), q:C("--q")};
+const MONO = C("--mono");
+const fmt = x => Math.round(x).toLocaleString("en-IN");
+const sgn = x => (x >= 0 ? "+" : "−") + fmt(Math.abs(x));
+const L = x => x == null ? "?" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(1) + "L";
+const ARR = d => d > 0 ? "▲" : "▼";
+const toM = hm => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
+const toHM = m => String(m / 60 | 0).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+
+// The exporter's words -> hers (spec §16.2: English)
+const EN = s => String(s == null ? "" : s)
+  .replace(/SAAF NAHI/g, "UNCLEAR").replace(/GHUMEGA/g, "ROTATE").replace(/CHALEGA/g, "CONTINUE")
+  .replace(/TOOT\?/g, "BREAK?").replace(/TIKI\?/g, "DEFENDED?").replace(/\bTOOT\b/g, "BROKEN").replace(/\bTIKI\b/g, "DEFENDED")
+  .replace(/\bPHANS\b/g, "TRAPPED").replace(/\bNAHI\b/g, "HELD").replace(/jawab baaki/g, "answer pending")
+  .replace(/min mein push nahi/g, "min, no push").replace(/\bKHATAM\b/g, "SPENT").replace(/chal raha/g, "running")
+  .replace(/disha \?/g, "direction ?").replace(/koi run nahi/g, "no run").replace(/ tak /g, " until ")
+  .replace(/abhi push nahi/g, "no push yet").replace(/koi deewar nahi/g, "no wall").replace(/ step\)/g, " steps)")
+  .replace(/^hole$/, "can't see");
+const PIECE = {DASTAK: "TESTS", "ULTA PUSH": "OPPOSITE PUSH"};
+const MEAN = {"shorts cover": "shorts covering", "naye short": "fresh shorts", "naye long": "fresh longs", "longs nikal rahe": "longs closing"};
+const WORD = {GHUMEGA: "ROTATE", CHALEGA: "CONTINUE", "SAAF NAHI": "UNCLEAR"};
+
+let D, N, cand = [], bas = [], ev = [], pins = [], Y0 = 0, Y1 = 1;
+let t = 0, playing = false, speed = 2, last = 0, holdUntil = 0, ended = false;
+const SEC_PER_MIN = 1.5;
+const ix = hm => D.mins.indexOf(hm);
+const ixS = hms => { const i = ix(hms.slice(0, 5)); return i < 0 ? -1 : i + (+hms.slice(6, 8) || 0) / 60; };
+const lvl = (k, i) => k + bas[Math.max(0, Math.min(N - 1, Math.floor(i)))];
+
+fetch("data_28oct.json").then(r => r.json()).then(init).catch(() => {
+  $("#btext").textContent = "data_28oct.json not found: serve this folder (launch: kahani-mockup).";
+});
+
+function init(d) {
+  D = d; N = d.mins.length;
+  for (let i = 0; i < N; i++) {
+    const o = d.fo ? d.fo[i] : i ? d.fut[i - 1] : d.fut[0], c = d.fut[i];
+    cand.push({o, c, h: Math.max(d.fhi[i], o, c), l: Math.min(d.flo[i], o, c)});
+  }
+  const raw = d.mins.map((_, i) => d.fut[i] - d.spot[i]);
+  bas = raw.map((_, i) => { const w = raw.slice(Math.max(0, i - 4), i + 1).sort((a, b) => a - b); return w[w.length >> 1]; });
+  Y0 = Math.min(...d.flo) - 45; Y1 = Math.max(...d.fhi) + 45;
+  buildEvents();
+  $("#scrub").max = N - 1;
+  rail(); moments(); resize(); seek(0);
+  requestAnimationFrame(loop);
+}
+
+/* ------------------------------------------------------------ the story, generated from the data -- */
+function wallTxt(f) { return f ? `${fmt(f.k)}s ${f.side} · ${f.oi != null ? f.oi.toFixed(0) + "L" : "?"}` : "none near"; }
+function fronts(i) { return (D.timeline[Math.max(0, Math.min(N - 1, Math.floor(i)))] || {}).fronts || []; }
+function topFront(i, side) { return fronts(i).find(f => f.side === side); }
+function vchips(v) {
+  return v ? Object.entries(v.pieces).map(([k, [m, x]]) => ({t: `${m} ${PIECE[k] || k} · ${EN(x)}`, c: m === "✓" ? "ok" : m === "✗" ? "bad" : "q"})) : [];
+}
+function vword(v) { return v ? `${WORD[v.word] || v.word} ${v.n}/${v.N}${v.q ? ` · ${v.q} ?` : ""}` : "?"; }
+
+function buildEvents() {
+  const E = (i, o) => { if (i >= 0 && i <= N - 1 + 0.99) ev.push(Object.assign({i}, o)); };
+  const ce0 = topFront(0, "CE"), pe0 = topFront(0, "PE");
+  E(0.02, {tag: "LIVE", chap: "WALL", major: true,
+    text: `Reading NIFTY Nov fut from **09:15**. The laptop started at 11:07, so this morning is **backfilled**: option chain from Upstox, order flow from Dext. Walls: **${wallTxt(ce0)}** above, **${wallTxt(pe0)}** below.`,
+    chips: [{t: "chain: Upstox backfill"}, {t: "flow: Dext"}],
+    up: ce0 ? `▲ up needs ${fmt(ce0.k)}s CE to break` : null, dn: pe0 ? `▼ down needs ${fmt(pe0.k)}s PE to break` : null});
+  if (ix("11:07") > 0) E(ix("11:07") + 0.05, {tag: "LIVE FEED", text: "The laptop is on: **live recording starts** (order book + option chain). Everything before this was rebuilt.", chips: [{t: "book + chain from 11:07"}]});
+
+  // pushes and the wall's answers
+  const tested = {}, broke = {};
+  for (const p of D.pushes) {
+    const i = ix(p.t); if (i < 0) continue;
+    E(i + 1, {tag: `PUSH ${ARR(p.dir)}`, push: p,
+      text: `**${p.dir > 0 ? "Buy" : "Sell"} push ${sgn(p.lots)} lots** in 2 min, into **${fmt(p.k)}s ${p.side}** (${p.oi_L != null ? p.oi_L + "L" : "?"}). Watching the wall's answer.`,
+      chips: [{t: `answer by ${toHM(toM(p.t) + 4)}`}].concat(D.bnf && sync(i + 1) && sync(i + 1).dir === p.dir ? [{t: `ALL 3 ${ARR(p.dir)}`, c: "ok"}] : [])});
+    const key = p.k + p.side;
+    if (!p.ans || p.ans === "?") {
+      E(p.am && ix(p.am) >= 0 ? ix(p.am) + 1 : i + 5, {tag: "CAN'T SEE", tagc: "q", text: `No readable answer for the ${p.t} push: the option chain was missing then.`, chips: [{t: "chain hole", c: "q"}]});
+      continue;
+    }
+    if (ix(p.held_at || p.am) < 0) continue;                 // its answer falls after the replay's window
+    const known = ix(p.held_at || p.am) + 1;
+    if (p.ans === "TOOT" && p.held_at && p.held_at !== p.am) E(ix(p.am) + 1, {tag: "BREAK?", tagc: "bad", major: true,
+      text: `**${fmt(p.k)}s ${p.side} ${L(p.chg)}**: writers cutting (bar ${p.bar}L). Holding one minute to confirm it does not come back.`, chips: [{t: "BREAK? · confirming"}]});
+    tested[key] = (tested[key] || 0) + 1;
+    if (p.ans === "TOOT") broke[key] = (broke[key] || 0) + 1;
+    const n = tested[key], b = broke[key] || 0, beh = p.behind && p.behind.who === "WRITERS" ? `writers building behind: ${fmt(p.behind.k)}s ${p.behind.side} +${p.behind.add}L` : null;
+    if (p.ans === "NAHI") E(known, {tag: "HELD", ans: p, chap: "TESTED",
+      text: `**HELD**: ${fmt(p.k)}s ${p.side} moved only **${L(p.chg)}** (bar ${p.bar}L).${p.wapas ? " A break started and came back (BREAK FAILED)." : ""} Tested ×${n} · broke ${b}.`,
+      chips: [{t: `TESTED ×${n} · broke ${b}`}].concat(beh ? [{t: beh, c: "ok"}] : [])});
+    else if (p.ans === "TOOT") {
+      const nxt = fronts(known).filter(f => f.side === p.side && (p.side === "CE" ? f.k > p.k : f.k < p.k))[0];
+      E(known, {tag: "BROKEN", tagc: "bad", ans: p, toot: p, major: true, chap: "BROKEN",
+        text: `**BROKEN: ${fmt(p.k)}s ${p.side} ${L(p.chg)}**${p.held_at ? `, confirmed ${p.held_at}` : ""}. Writers are buying back.${nxt ? ` Next wall: **${wallTxt(nxt)}**.` : ""}`,
+        chips: [{t: `BROKEN ${p.t} · ${L(p.chg)}`, c: "bad"}].concat(p.shown ? [{t: `on screen that day: ${p.shown}`}] : []),
+        up: p.dir > 0 ? (nxt ? `▲ while fuel runs → ${fmt(nxt.k)}s CE` : "▲ open space above") : null,
+        dn: p.dir < 0 ? (nxt ? `▼ while fuel runs → ${fmt(nxt.k)}s PE` : "▼ open space below") : null,
+        wr: "wrong if: a new fuel run the other way ≥ 500 lots / 5 min"});
+    } else if (p.ans === "TIKI") E(known, {tag: "DEFENDED", tagc: "ok", ans: p, major: true,
+      text: `**DEFENDED: writers added ${L(p.chg)}** at ${fmt(p.k)}s ${p.side}${p.who ? ` (${p.who === "WRITERS" ? "sellers" : "buyers"} opened it)` : ""}. The push was absorbed.`,
+      chips: [{t: `DEFENDED ${fmt(p.k)}s ${p.side}`, c: "ok"}]});
+    else if (p.ans === "PHANS") E(known, {tag: "TRAPPED", tagc: "bad", ans: p, major: true,
+      text: `**TRAPPED**: writers added ${L(p.chg)} at ${fmt(p.k)}s ${p.side} but price went through. Stored fuel.`, chips: [{t: "TRAPPED WRITERS", c: "bad"}]});
+  }
+
+  // fuel: only runs of at least 2x the bar speak; smaller ones live in the tank
+  for (const r of D.runs) {
+    if (Math.abs(r.lots) < 2 * D.bar) continue;
+    const i = ix(r.start), row = D.timeline[i] || {}, w = row.fuel ? row.fuel.lots : r.lots;
+    E(i + 0.5, {tag: `FUEL ${r.dir}`, tagc: r.kind === "COVER" ? "bad" : null, major: true, chap: "FUEL",
+      text: `**FUEL: ${MEAN[r.meaning] || r.meaning}**: futures OI **${sgn(w)} lots** in 5 min, price ${r.dir}. ${r.kind === "COVER" ? "Their buying-back pushes price on." : "New positions being opened."}`,
+      chips: [{t: `FUEL ${r.kind.toLowerCase()} ${r.dir} ${sgn(w)}`, c: r.kind === "COVER" ? "bad" : null}, {t: "bar 500 lots / 5 min"}]});
+    if (r.khatam && ix(r.khatam) >= 0) E(ix(r.khatam) + 0.2, {tag: "FUEL SPENT", major: true, chap: "FUEL SPENT",
+      text: `**FUEL SPENT**: ${MEAN[r.meaning] || r.meaning} **${sgn(r.lots)} lots**, last extreme ${r.last_ext}; three publishes with nothing new. **Who pushes now?**`,
+      chips: [{t: `SPENT ${r.khatam} · ${sgn(r.lots)}`}]});
+  }
+
+  // the fights' chapters (first time each)
+  for (const f of D.fights) {
+    const seen = new Set();
+    for (const [hm, word, note] of f.stamps) {
+      const i = ix(hm); if (i < 0) continue;
+      const w0 = word.split(" ")[0];
+      if (w0 === "DEEWAR" && f.id > 0 && !seen.has("D")) { seen.add("D"); E(i + 0.1, {tag: "NEW FIGHT", chap: "NEW FIGHT", major: true, text: `A new fight: **WALL ${fmt(f.k)}s ${f.side}** is now the one price is pressing on.`, chips: [{t: wallTxt(topFront(i, f.side))}]}); }
+      if (w0 === "THAKAN" && !seen.has("T")) { seen.add("T"); const r = D.timeline[i];
+        E(i + 0.1, {tag: "WEAKENING", chap: "WEAKENING", text: `**WEAKENING**: ${fmt(f.k)}s ${f.side} is unwinding while it gets tested: ${L(r.wall_chg)} against its peak ${L(r.wall_peak)}.`, chips: [{t: `${L(r.wall_chg - r.wall_peak)} off peak`, c: "bad"}]}); }
+      if (w0 === "KHISAK" && !seen.has("K")) { seen.add("K"); E(i + 0.1, {tag: "RETREATING", text: `**RETREATING**: writers at ${fmt(f.k)}s ${f.side} are leaving without being hit.`, chips: [{t: "RETREATING"}]}); }
+      if (w0 === "NAYA" && !seen.has("N")) { seen.add("N"); E(i + 0.15, {tag: "NEW FLOOR", tagc: "ok", chap: "NEW FLOOR", floor: {k: f.k, at: i}, major: true, text: `**NEW FLOOR (flip)**: ${note}. The old ceiling is now a floor.`, chips: [{t: "NEW FLOOR", c: "ok"}]}); }
+      if (w0 === "PIN" && !seen.has("P")) { seen.add("P"); E(i + 0.1, {tag: "PINNED", chap: "NO TRADE", major: true, text: "**PINNED**: pushes both ways answered HELD, fuel quiet. A small range until new fuel.", chips: [{t: "PINNED"}]}); }
+    }
+  }
+
+  // her zone triggers, with the verdict at that minute
+  for (const z of D.zone) {
+    if (z.kind) continue;
+    const i = ix(z.t), v = (D.verdict[z.side] || {})[z.t];
+    if (i < 0) continue;
+    const w = v ? (WORD[v.word] || v.word) : "?";
+    E(i + 0.6, {tag: `${z.side} TRIGGER`, tagc: w === "CONTINUE" ? "bad" : w === "ROTATE" ? "ok" : null, zone: z, verdict: v, major: true,
+      text: `Your **${z.side} zone triggered at ${fmt(z.px)}f** (${z.band}). My read: **${vword(v)}**. ${w === "CONTINUE" ? "Don't fade this." : w === "ROTATE" ? "The fade has support." : "Not enough yet: wait for the next push or the fuel."}`,
+      chips: vchips(v)});
+  }
+
+  // the blind stretch, and what came back
+  for (const [a, b] of D.holes) {
+    E(ixS(a), {tag: "BLIND", tagc: "q", dark: true, major: true, text: `**The laptop went to sleep at ${a}.** I can't see. I won't say what I can't see.`, chips: [{t: "book + chain stopped", c: "q"}]});
+    const miss = D.chain_missing.filter(m => m >= a.slice(0, 5) && m <= b.slice(0, 5));
+    E(ixS(b), {tag: "BACK", major: true, text: `**Back at ${b}.** Refilled: order flow from Dext.${miss.length ? ` Option chain ${miss[0]}–${miss[miss.length - 1]} could not be rebuilt, so answers there stay unread.` : ""}`,
+      chips: [{t: "flow: Dext refill"}].concat(miss.length ? [{t: `chain blind ${miss[0]}–${miss[miss.length - 1]}`, c: "q"}] : [])});
+  }
+
+  if (D.delta) { signs3(E); manage(E); }
+
+  // NO TRADE: 20 quiet minutes (no break, no fuel, no trigger) -> one line per stretch
+  ev.sort((a, b) => a.i - b.i);
+  const loud = ev.filter(e => e.major).map(e => e.i);
+  let lastLoud = 0, said = false;
+  for (let i = 0; i < N; i++) {
+    if (loud.some(x => x > i - 1 && x <= i)) { lastLoud = i; said = false; continue; }
+    const live = (D.timeline[i] || {}).fuel_state === "LIVE";
+    if (!said && !live && i - lastLoud >= 20) {
+      said = true;
+      ev.push({i: i + 0.05, tag: "NO TRADE", chap: "NO TRADE", quiet: true,
+        text: `**NO TRADE · quiet** since ${D.mins[lastLoud]}: no break, no fuel, no trigger. I'll speak when fuel runs (≥ 500 lots / 5 min) or a wall breaks.`,
+        chips: [{t: "NO TRADE"}, {t: "waiting: FUEL or a BREAK"}]});
+    }
+  }
+  ev.sort((a, b) => a.i - b.i);
+}
+
+
+/* ------------------------------------------------------------ her asks, 29 Oct: speed, top / bottom signs, all 3, manage -- */
+const med = a => { const s = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
+function bar3(b) {                                   // the 3-min bar ending at minute b (her canonical frame, from 09:15)
+  const a = b - 2; if (a < 0) return null;
+  let h = -Infinity, l = Infinity, d = 0, v = 0;
+  for (let k = a; k <= b; k++) { h = Math.max(h, D.fhi[k]); l = Math.min(l, D.flo[k]); d += D.delta[k] || 0; v += D.fvol[k] || 0; }
+  return {a, b, o: D.fo[a], c: D.fut[b], h, l, d, v, eff: v / Math.max(h - l, 0.5)};
+}
+const SPD = [];                                      // SPEED: |3-min delta| against its own median so far (causal) [I]
+function speedAt(i) {
+  if (!D.delta || i < 2) return null;
+  if (SPD[i]) return SPD[i];
+  const s3 = k => Math.abs((D.delta[k] || 0) + (D.delta[k - 1] || 0) + (D.delta[k - 2] || 0));
+  const hist = []; for (let k = 2; k < i; k++) hist.push(s3(k));
+  const m = hist.length >= 10 ? med(hist) : null, d3 = (D.delta[i] || 0) + (D.delta[i - 1] || 0) + (D.delta[i - 2] || 0);
+  const x = m ? s3(i) / m : null;
+  return (SPD[i] = {x, dir: d3 >= 0 ? 1 : -1, word: x == null ? "?" : x >= 2 ? "FAST" : x <= 0.5 ? "SLOW" : "NORMAL"});
+}
+const spChip = i => { const s = speedAt(i); return s && s.x != null ? {t: `SPEED ${ARR(s.dir)} \u00d7${s.x.toFixed(1)} ${s.word}`, c: s.word === "FAST" ? "bad" : null} : null; };
+function sync(i) {                                  // all 3 moved the same way over 5 min (NIFTY 10 / BANKNIFTY 25 / SENSEX 35 pts) [I]
+  if (i < 5 || !D.bnf) return null;
+  const ch = [D.fut[i] - D.fut[i - 5], D.bnf[i] - D.bnf[i - 5], D.sx[i] - D.sx[i - 5]], mn = [10, 25, 35];
+  const up = ch.every((c, k) => c >= mn[k]), dn = ch.every((c, k) => c <= -mn[k]);
+  return {dir: up ? 1 : dn ? -1 : 0, ch};
+}
+function signs3(E) {
+  const effs = [];
+  for (let b = 2; b < N; b += 3) {
+    const B = bar3(b); if (!B) continue;
+    const m = effs.length >= 6 ? med(effs) : null; effs.push(B.eff);
+    const lo0 = Math.max(0, B.a - 30); if (B.a - lo0 < 10) continue;
+    const hi30 = Math.max(...D.fhi.slice(lo0, B.a)), lo30 = Math.min(...D.flo.slice(lo0, B.a));
+    for (const isHigh of [true, false]) {
+      if (isHigh ? B.h < hi30 : B.l > lo30) continue;
+      const sg = [], P = [bar3(b - 6), bar3(b - 3)].filter(Boolean);
+      if (isHigh ? (B.c < B.o && B.d > 0) : (B.c > B.o && B.d < 0)) sg.push(`${isHigh ? "red candle, green delta" : "green candle, red delta"} ${sgn(B.d)}`);
+      if (m && B.eff >= 2 * m) sg.push(`absorption: ${fmt(B.v)} lots for ${(B.h - B.l).toFixed(0)} pts (effort \u00d7${(B.eff / m).toFixed(1)})`);
+      const peak = Math.max(...P.map(q => (isHigh ? 1 : -1) * q.d), 0);
+      if (peak > 0 && (isHigh ? B.d : -B.d) < peak / 2) sg.push(`exhaustion: delta ${P.map(q => sgn(q.d)).join(" \u2192 ")} \u2192 ${sgn(B.d)}`);
+      if (sg.length < 2) continue;                  // one sign alone is noise: it speaks at 2 of 3
+      const word = isHigh ? "TOP" : "BOTTOM", fu = (D.timeline[b] || {}).fuel, fs = (D.timeline[b] || {}).fuel_state;
+      const spent = D.runs.some(r => r.khatam && r.dir === (isHigh ? "\u25b2" : "\u25bc") && Math.abs(r.lots) >= 2 * D.bar && ix(r.khatam) <= b && b - ix(r.khatam) <= 10);
+      const driving = fs === "LIVE" && fu && (fu.dir === "\u25b2") === isHigh && !spent;   // a small tail after a big run spent is not driving     // a run still pushing into this extreme
+      E(b + 1, {tag: `${word} SIGNS ${sg.length}/3`, tagc: driving ? null : "bad", major: !driving, chap: driving ? null : "TOP / BOTTOM", signs: {b, isHigh, driving},
+        text: `**${word} SIGNS ${sg.length}/3** at ${fmt(isHigh ? B.h : B.l)}f: ${sg.join(" \u00b7 ")}.${driving ? ` But fuel is still running (${MEAN[fu.meaning] || fu.meaning} ${sgn(fu.lots)}): not a ${word.toLowerCase()} yet.` : (isHigh ? " Buyers are being absorbed at the high." : " Sellers are being absorbed at the low.")}`,
+        chips: sg.map(x => ({t: x.split(":")[0], c: "bad"})).concat([spChip(b)].filter(Boolean)),
+        up: isHigh ? null : "\u25b2 a rotation back to VWAP is on", dn: isHigh ? "\u25bc a rotation back to VWAP is on" : null,
+        wr: isHigh ? "wrong if: a new high with delta behind it" : "wrong if: a new low with delta behind it"});
+    }
+  }
+}
+function sync3(E) {
+  const lastOn = {"1": -99, "-1": -99};
+  for (let i = 5; i < N; i++) {
+    const s = sync(i), q = sync(i - 1);
+    const sp = speedAt(i);
+    if (!s || !s.dir || (q && q.dir === s.dir) || i - lastOn[String(s.dir)] < 15 || !sp || sp.word !== "FAST" || sp.dir !== s.dir) continue;
+    lastOn[String(s.dir)] = i;
+    E(i + 0.3, {tag: `ALL 3 ${ARR(s.dir)}`, text: `**ALL THREE IN SYNC ${ARR(s.dir)}**: NIFTY ${sgn(s.ch[0])}, BANKNIFTY ${sgn(s.ch[1])}, SENSEX ${sgn(s.ch[2])} in 5 min.`,
+      chips: [{t: `ALL 3 ${ARR(s.dir)}`}].concat([spChip(i)].filter(Boolean))});
+  }
+}
+function band(i) { const w = D.vwap[i], s = D.sd[i]; return [["d2", w - 2 * s], ["d1", w - s], ["VWAP", w], ["u1", w + s], ["u2", w + 2 * s]]; }
+function manage(E) {                                 // after each of her triggers; speaks only when it matters, on change, 6 min apart
+  for (const z of D.zone) {
+    if (z.kind) continue;
+    const ti = ix(z.t); if (ti < 0) continue;
+    const d = z.side === "SELL" ? -1 : 1;
+    let was = null, lastAt = -99, n = 0;
+    for (let b = ti + 2; b < Math.min(N, ti + 46) && n < 4; b++) {
+      if ((b + 1) % 3) continue;                      // read at her 3-min closes
+      const sp = speedAt(b), sy = sync(b), pts = d * (D.fut[b] - z.px), row = D.timeline[b] || {}, fu = row.fuel;
+      const against = [], withm = [];
+      if (sp && sp.word === "FAST") (sp.dir === d ? withm : against).push(`speed ${ARR(sp.dir)} \u00d7${sp.x.toFixed(1)}`);
+      if (sy && sy.dir) (sy.dir === d ? withm : against).push(`all 3 ${ARR(sy.dir)}`);
+      if (row.fuel_state === "LIVE" && fu) ((fu.dir === "\u25b2") === (d > 0) ? withm : against).push(`fuel ${MEAN[fu.meaning] || fu.meaning}`);
+      const sg = ev.find(e => e.signs && !e.signs.driving && e.signs.b === b && e.signs.isHigh === (d > 0));
+      if (sg) against.push(sg.tag.toLowerCase());
+      const st = pts >= 15 && against.length ? "BOOK / TRAIL TIGHT" : pts >= 15 && withm.length ? "HOLD" : pts < 0 && against.length >= 2 ? "AGAINST YOU" : null;
+      if (!st || st === was || b - lastAt < 6) continue;
+      was = st; lastAt = b; n++;
+      const bs = band(b), trail = d < 0 ? bs.find(([, v]) => v > D.fut[b] + 3) : [...bs].reverse().find(([, v]) => v < D.fut[b] - 3);
+      E(b + 1.15, {tag: `MANAGE \u00b7 ${st}`, tagc: st === "HOLD" ? "ok" : "bad", chap: "MANAGE", major: st !== "HOLD",
+        text: `Your ${z.t} ${z.side} is **${pts >= 0 ? "+" : "\u2212"}${Math.abs(pts).toFixed(0)} pts**. **${st}**${st === "HOLD" ? ": the data is with you, let it run" : st === "AGAINST YOU" ? ": the data turned" : ": the move is stalling"}${trail ? `; trail at **${trail[0]} ${fmt(trail[1])}f**` : ""}.`,
+        chips: withm.map(x => ({t: x, c: "ok"})).concat(against.map(x => ({t: x, c: "bad"}))),
+        wr: "guidance only: you place and move your own stop"});
+    }
+  }
+}
+
+/* ------------------------------------------------------------ geometry -- */
+let Wd = 800, Ht = 500;
+const padL = 18, padR = 190, padT = 26, padB = 30;
+function resize() { const r = stage.getBoundingClientRect(), dpr = devicePixelRatio || 1; Wd = r.width; Ht = r.height; cv.width = Wd * dpr; cv.height = Ht * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+addEventListener("resize", () => { resize(); placeBubble(true); });
+const X = i => padL + (i + 0.5) * (Wd - padL - padR) / N;
+const Y = p => padT + (Y1 - p) / (Y1 - Y0) * (Ht - padT - padB);
+const cw = () => Math.max(1.5, (Wd - padL - padR) / N * 0.62);
+
+/* ------------------------------------------------------------ the clock -- */
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing && !ended && now >= holdUntil) {
+    t = Math.min(N - 1, t + dt * speed / SEC_PER_MIN); fireUpTo(t, now); $("#scrub").value = t;
+    if (t >= N - 1) { ended = true; playing = false; $("#play").textContent = "▶ play"; setTimeout(showEnd, 1600); }
+  }
+  draw(now); placeBubble(); requestAnimationFrame(loop);
+}
+let fired = -1;
+function fireUpTo(nt, now) {
+  while (fired + 1 < ev.length && ev[fired + 1].i <= nt) {
+    const e = ev[++fired]; e.at = now; say(e, true);
+    if (e.major && speed < 4) { holdUntil = now + 2000 / speed; t = Math.max(t, e.i); }
+    if (e.toot && !RM) shards(e.toot);
+  }
+}
+function seek(nt) {
+  t = nt; ended = false; $("#end").hidden = true; holdUntil = 0;
+  fired = -1; while (fired + 1 < ev.length && ev[fired + 1].i <= t) ev[++fired].at = -1e9;
+  say(fired >= 0 ? ev[fired] : ev[0], false); $("#scrub").value = t;
+}
+
+/* ------------------------------------------------------------ the bubble -- */
+let typer = null, curMsg = null;
+const esc = s => s.replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c]));
+function say(e, animate) {
+  curMsg = e; clearInterval(typer);
+  $("#btm").textContent = D.mins[Math.min(N - 1, Math.floor(e.i))];
+  const tag = $("#btag"); tag.textContent = e.tag;
+  tag.style.background = e.tagc === "bad" ? "#fdeaea" : e.tagc === "ok" ? "#e8f7f1" : "#f3efe8";
+  tag.style.color = e.tagc === "bad" ? COL.dn : e.tagc === "ok" ? COL.up : e.tagc === "q" ? COL.mut : COL.ink;
+  bubble.classList.toggle("dark", !!e.dark);
+  const chips = $("#bchips"), nxt = $("#bnext"), txt = $("#btext"), orb = $("#orb");
+  chips.innerHTML = ""; nxt.innerHTML = ""; nxt.style.display = "none";
+  const rest = () => {
+    (e.chips || []).forEach((c, n) => { const s = document.createElement("span"); s.className = "chip " + (c.c || ""); s.textContent = c.t; s.style.animationDelay = (animate ? n * 0.08 : 0) + "s"; chips.appendChild(s); });
+    const lines = [e.up && `<div class="up">${esc(e.up)}</div>`, e.dn && `<div class="dn">${esc(e.dn)}</div>`, e.wr && `<div class="wr">${esc(e.wr)}</div>`].filter(Boolean);
+    nxt.innerHTML = lines.length ? `<div class="wr" style="font-weight:700">NEXT</div>${lines.join("")}` : "";
+    nxt.style.display = lines.length ? "" : "none";
+    orb.classList.remove("talk", "think");
+  };
+  const toks = e.text.split("**");
+  const html = n => { let out = "", left = n; toks.forEach((s, k) => { if (left <= 0) return; const part = s.slice(0, left); left -= part.length; out += k % 2 ? `<b>${esc(part)}</b>` : esc(part); }); return out; };
+  const total = toks.join("").length;
+  if (!animate || RM) { txt.innerHTML = html(total); rest(); return; }
+  txt.innerHTML = `<span class="dots"><span></span><span></span><span></span></span>`; orb.classList.add("think");
+  setTimeout(() => {
+    if (curMsg !== e) return;
+    orb.classList.remove("think"); orb.classList.add("talk");
+    let n = 0; const step = Math.max(1, Math.round(speed));
+    typer = setInterval(() => { n = Math.min(total, n + step); txt.innerHTML = html(n) + (n < total ? '<span class="caret"></span>' : ""); if (n >= total) { clearInterval(typer); rest(); } }, 16);
+  }, 420 / speed);
+}
+let bpos = {x: 0, y: 0};
+function anchor() { const i = Math.min(N - 1, Math.floor(t)); return {x: X(i), y: Y(live(i).c)}; }
+function placeBubble(force) {
+  if (!D) return;
+  const a = anchor(), bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+  let x = a.x > (Wd - padR) * 0.52 ? a.x - bw - 36 : a.x + 36;
+  let y = a.y - bh - 40 > padT ? a.y - bh - 40 : a.y + 40;
+  x = Math.max(8, Math.min(Wd - bw - 8, x)); y = Math.max(8, Math.min(Ht - bh - 8, y));
+  if (force || Math.abs(x - bpos.x) > 24 || Math.abs(y - bpos.y) > 24) { bpos = {x, y}; bubble.style.transform = `translate(${x}px,${y}px)`; }
+}
+
+/* ------------------------------------------------------------ the chart -- */
+function live(i) {
+  const k = cand[i]; if (i < Math.floor(t)) return k;
+  const f = Math.min(1, t - i), up = k.c >= k.o, path = up ? [k.o, k.l, k.h, k.c] : [k.o, k.h, k.l, k.c];
+  const seg = Math.min(2, Math.floor(f * 3)), u = f * 3 - seg, c = path[seg] + (path[seg + 1] - path[seg]) * u;
+  const seen = path.slice(0, seg + 1).concat([c]);
+  return {o: k.o, c, h: Math.max(...seen), l: Math.min(...seen)};
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function grow(e, now, ms) { if (!e || e.at < 0 || RM) return 1; return Math.min(1, (now - e.at) / ms); }
+function tagAt(y, text, col, fill) {
+  ctx.font = "600 11px " + MONO; const w = Math.min(ctx.measureText(text).width + 12, padR - 50), x = Wd - padR + 4;
+  ctx.fillStyle = fill; rr(x, y - 9, w, 18, 5); ctx.fill(); ctx.fillStyle = col; ctx.fillText(text, x + 6, y + 4, w - 10);
+}
+function draw(now) {
+  if (!D) return;
+  ctx.clearRect(0, 0, Wd, Ht);
+  ctx.font = "11px " + MONO;
+  for (let p = Math.ceil(Y0 / 50) * 50; p <= Y1; p += 50) {
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(padL, Y(p)); ctx.lineTo(Wd - padR, Y(p)); ctx.stroke();
+    ctx.fillStyle = COL.mut; ctx.fillText(fmt(p) + "f", Wd - padR + 6, Y(p) + 4);
+  }
+  for (let i = 0; i < N; i++) if (+D.mins[i].slice(3) % 30 === 0) { ctx.fillStyle = COL.mut; ctx.fillText(D.mins[i], X(i) - 14, Ht - 10); }
+  const b0 = ix("11:07");                                   // the backfilled morning
+  if (b0 > 0) { ctx.fillStyle = "rgba(217,119,87,.05)"; ctx.fillRect(X(0) - 4, padT, X(Math.min(t, b0)) - X(0) + 4, Ht - padT - padB);
+    ctx.fillStyle = COL.ai; ctx.fillText("backfilled · Upstox chain + Dext flow", X(0) + 4, padT + 12); }
+  for (const [a, b] of D.holes) {
+    const h0 = ixS(a), h1 = ixS(b);
+    if (t > h0) { ctx.fillStyle = "rgba(120,120,140,.10)"; ctx.fillRect(X(h0), padT, X(Math.min(t, h1)) - X(h0), Ht - padT - padB);
+      ctx.fillStyle = COL.mut; ctx.fillText("laptop asleep", X(h0) + 4, padT + 26); if (t > h1) ctx.fillText("flow refilled · chain blind", X(h0) + 4, padT + 40); }
+  }
+  bands(); walls(now);
+  const w = cw();
+  for (let i = 0; i <= Math.min(N - 1, Math.floor(t)); i++) {
+    const k = live(i), col = k.c >= k.o ? COL.up : COL.dn;
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(i), Y(k.h)); ctx.lineTo(X(i), Y(k.l)); ctx.stroke();
+    ctx.fillStyle = col; const y0 = Y(Math.max(k.o, k.c)), hh = Math.max(1, Math.abs(Y(k.o) - Y(k.c))); ctx.fillRect(X(i) - w / 2, y0, w, hh);
+  }
+  zones(now); pushes(now); fuel(); speedGauge(); aipins(); link(now);
+}
+// walls: the top front per side, minute by minute, at its strike drawn on the fut chart (5-min median basis)
+function walls(now) {
+  const end = Math.min(N - 1, Math.floor(t));
+  for (const side of ["CE", "PE"]) {
+    const col = side === "CE" ? COL.ce : COL.pe;
+    for (let i = 0; i < end; i++) {
+      const a = topFront(i, side), b = topFront(i + 1, side);
+      if (!a || !b || a.k !== b.k) continue;
+      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = a.state === "UNWINDING" ? 0.35 : 0.8;
+      if (a.state === "UNWINDING") ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(X(i), Y(lvl(a.k, i))); ctx.lineTo(X(i + 1), Y(lvl(b.k, i + 1))); ctx.stroke(); ctx.restore();
+    }
+    const f = topFront(end, side);
+    if (f) {
+      ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 0.35; ctx.setLineDash([3, 6]); ctx.beginPath(); ctx.moveTo(X(end), Y(lvl(f.k, end))); ctx.lineTo(Wd - padR, Y(lvl(f.k, end))); ctx.stroke(); ctx.restore();
+      tagAt(Y(lvl(f.k, end)) + (side === "PE" ? 4 : -4), `WALL ${fmt(f.k)}s ${side} ${f.oi != null ? f.oi.toFixed(0) + "L" : ""} ${f.state === "UNWINDING" ? "· weak" : ""}`, col, side === "CE" ? "#fdf0e8" : "#eaf1fe");
+    }
+  }
+  for (let n = 0; n <= fired; n++) {                      // a new floor, drawn in from where it was known
+    const e = ev[n]; if (!e.floor) continue;
+    const g = grow(e, now, 900), f0 = e.floor.at, fe = f0 + (end - f0) * g;
+    ctx.save(); ctx.strokeStyle = COL.pe; ctx.lineWidth = 2.6; ctx.globalAlpha = 0.9; ctx.beginPath();
+    for (let i = f0; i <= fe; i += 0.5) { i === f0 ? ctx.moveTo(X(i), Y(lvl(e.floor.k, i))) : ctx.lineTo(X(i), Y(lvl(e.floor.k, i))); }
+    ctx.stroke(); ctx.restore();
+  }
+}
+
+function bands() {                                   // her session VWAP (hlc3) and its SD bands, drawn to the live candle
+  if (!D.vwap) return;
+  const end = Math.min(N - 1, Math.floor(t)), B5 = [["d2", -2, .3], ["d1", -1, .45], ["VWAP", 0, .75], ["u1", 1, .45], ["u2", 2, .3]];
+  for (const [name, k, a] of B5) {
+    ctx.save(); ctx.strokeStyle = name === "VWAP" ? "#7c5cbf" : "#9a8fb5"; ctx.globalAlpha = a; ctx.lineWidth = name === "VWAP" ? 1.6 : 1; ctx.setLineDash(name === "VWAP" ? [] : [4, 4]);
+    ctx.beginPath(); for (let i = 10; i <= end; i++) { const y = Y(D.vwap[i] + k * D.sd[i]); i === 10 ? ctx.moveTo(X(i), y) : ctx.lineTo(X(i), y); } ctx.stroke(); ctx.restore();
+    if (end > 10) { ctx.font = "600 10px " + MONO; ctx.fillStyle = "#7c5cbf"; ctx.fillText(name, X(end) + 6, Y(D.vwap[end] + k * D.sd[end]) + 3); }
+  }
+}
+function speedGauge() {
+  const i = Math.min(N - 1, Math.floor(t)), s = speedAt(i); if (!s) return;
+  const x = Wd - padR + 8, y = Ht - padB - 30, w = 110, f = s.x == null ? 0 : Math.min(1, s.x / 3);
+  ctx.fillStyle = "#f3efe8"; rr(x, y, w, 10, 5); ctx.fill();
+  ctx.fillStyle = s.word === "FAST" ? (s.dir > 0 ? COL.up : COL.dn) : s.word === "SLOW" ? COL.q : COL.ai; rr(x, y, Math.max(4, w * f), 10, 5); ctx.fill();
+  ctx.font = "700 10px " + MONO; ctx.fillStyle = COL.ink; ctx.fillText(`SPEED ${ARR(s.dir)} ${s.x == null ? "?" : "\u00d7" + s.x.toFixed(1)} ${s.word}`, x, y - 4);
+  const sy = sync(i); if (sy) { ctx.fillStyle = sy.dir ? (sy.dir > 0 ? COL.up : COL.dn) : COL.mut; ctx.fillText(sy.dir ? `ALL 3 ${ARR(sy.dir)}` : "3 indices mixed", x, y + 24); }
+}
+function pushes(now) {
+  for (let n = 0; n <= fired; n++) {
+    const e = ev[n];
+    if (e.push) {
+      const p = e.push, i = ix(p.t), up = p.dir > 0, k = cand[i], y = up ? Y(k.h) - 12 : Y(k.l) + 12, g = grow(e, now, 500);
+      const s = 4.5 * (g < 1 ? 1 + Math.sin(g * Math.PI) * 0.6 : 1);
+      ctx.fillStyle = up ? COL.up : COL.dn; ctx.beginPath(); ctx.moveTo(X(i), y - s); ctx.lineTo(X(i) + s, y); ctx.lineTo(X(i), y + s); ctx.lineTo(X(i) - s, y); ctx.fill();
+      const ga = grow(e, now, 900);
+      if (ga < 1) { const wy = Y(lvl(p.k, i)); ctx.save(); ctx.strokeStyle = up ? COL.up : COL.dn; ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]); ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.moveTo(X(i), y); ctx.lineTo(X(i), y + (wy - y) * ga); ctx.stroke(); ctx.restore(); }
+    }
+    if (e.ans) {
+      const p = e.ans, i = Math.max(0, Math.min(N - 1, ix(p.held_at || p.am))), wy = Y(lvl(p.k, i)), g = grow(e, now, 450);
+      const word = {NAHI: "HELD", TOOT: "BROKEN", TIKI: "DEFENDED", PHANS: "TRAPPED"}[p.ans] || p.ans;
+      const lab = `${word} ${L(p.chg)}`, col = p.ans === "TOOT" ? COL.dn : p.ans === "TIKI" ? COL.pe : COL.q;
+      ctx.save(); ctx.translate(X(i), wy + (p.dir > 0 ? -14 : 14)); ctx.scale(0.6 + 0.4 * g, 0.6 + 0.4 * g); ctx.globalAlpha = g;
+      ctx.font = "700 10px " + MONO; const w = ctx.measureText(lab).width + 10;
+      ctx.fillStyle = "#fff"; rr(-w / 2, -8, w, 16, 5); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.fillStyle = col; ctx.fillText(lab, -w / 2 + 5, 4); ctx.restore();
+    }
+  }
+}
+function zones(now) {
+  for (const z of D.zone) {
+    const i = ix(z.t); if (i < 0 || i > t) continue;
+    if (z.kind === "arm") { ctx.save(); ctx.strokeStyle = COL.ai; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(X(i) - 7, Y(z.level)); ctx.lineTo(X(i) + 7, Y(z.level)); ctx.stroke(); ctx.restore(); continue; }
+    const e = ev.find(x => x.zone === z); if (!e || ev.indexOf(e) > fired) continue;
+    const v = e.verdict, g = grow(e, now, 500), sell = z.side === "SELL", y = sell ? Y(z.px) - 16 : Y(z.px) + 16;
+    ctx.fillStyle = sell ? COL.dn : COL.up; ctx.beginPath();
+    if (sell) { ctx.moveTo(X(i) - 6, y - 6); ctx.lineTo(X(i) + 6, y - 6); ctx.lineTo(X(i), y + 3); } else { ctx.moveTo(X(i) - 6, y + 6); ctx.lineTo(X(i) + 6, y + 6); ctx.lineTo(X(i), y - 3); }
+    ctx.fill();
+    const word = v ? (WORD[v.word] || v.word) : "?", lab = `${z.side} ${fmt(z.px)}f · ${word}`, col = word === "CONTINUE" ? COL.dn : word === "ROTATE" ? COL.up : COL.mut;
+    ctx.save(); ctx.globalAlpha = g; ctx.font = "700 10.5px " + MONO; const w = ctx.measureText(lab).width + 12, yy = sell ? y - 30 : y + 12;
+    ctx.fillStyle = "#fff"; rr(X(i) - w / 2, yy, w, 18, 9); ctx.fill(); ctx.strokeStyle = col; ctx.stroke(); ctx.fillStyle = col; ctx.fillText(lab, X(i) - w / 2 + 6, yy + 13); ctx.restore();
+  }
+}
+function fuel() {
+  const i = Math.min(N - 1, Math.floor(t)), row = D.timeline[i] || {}, f = row.fuel, st = row.fuel_state;
+  const x = Wd - 34, y0 = Ht - padB - 8, h = 150, w = 16, lots = f ? Math.abs(f.lots) : 0, fill = Math.min(1, lots / 2500);
+  ctx.fillStyle = "#f3efe8"; rr(x, y0 - h, w, h, 6); ctx.fill();
+  if (fill > 0) { ctx.fillStyle = st === "KHATAM" ? COL.q : f.kind === "COVER" ? COL.dn : COL.up; rr(x, y0 - h * fill, w, h * fill, 6); ctx.fill(); }
+  ctx.strokeStyle = COL.mut; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(x - 4, y0 - h * 0.2); ctx.lineTo(x + w + 4, y0 - h * 0.2); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = "700 10px " + MONO; ctx.fillStyle = COL.ink; ctx.fillText("FUEL", x - 8, y0 - h - 22);
+  ctx.fillStyle = f ? (st === "KHATAM" ? COL.mut : COL.ink) : COL.mut; ctx.fillText(f ? sgn(f.lots) : "quiet", x - 14, y0 - h - 9);
+  if (f) { ctx.fillStyle = COL.mut; ctx.fillText(st === "KHATAM" ? "spent" : `${f.kind.toLowerCase()} ${f.dir}`, x - 16, y0 + 14); }
+}
+function aipins() {
+  pins = [];
+  for (let n = 0; n < fired; n++) { const e = ev[n], i = Math.min(N - 1, Math.floor(e.i)), x = X(i), y = padT - 12;
+    ctx.fillStyle = e.major ? COL.ai : "#f1c7b3"; ctx.beginPath(); ctx.arc(x, y, e.major ? 4 : 2.5, 0, 7); ctx.fill(); pins.push({x, y, e}); }
+}
+function link(now) {
+  const a = anchor(), bw = bubble.offsetWidth, bh = bubble.offsetHeight, bx = bpos.x + bw / 2, by = bpos.y < a.y ? bpos.y + bh : bpos.y;
+  ctx.save(); ctx.strokeStyle = COL.ai; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx, a.y, a.x, a.y); ctx.stroke(); ctx.restore();
+  const r = 4 + (RM ? 0 : (Math.sin(now / 260) + 1) * 2.5);
+  ctx.fillStyle = "rgba(217,119,87,.25)"; ctx.beginPath(); ctx.arc(a.x, a.y, r + 4, 0, 7); ctx.fill();
+  ctx.fillStyle = COL.ai; ctx.beginPath(); ctx.arc(a.x, a.y, 3.5, 0, 7); ctx.fill();
+}
+function shards(p) {
+  const i = ix(p.held_at || p.am), x = X(i), y = Y(lvl(p.k, i)), fx = $("#fx");
+  for (let n = 0; n < 16; n++) { const s = document.createElement("div"); s.className = "shard"; s.style.left = x + "px"; s.style.top = y + "px"; s.style.background = p.side === "CE" ? COL.ce : COL.pe; fx.appendChild(s);
+    const a = Math.random() * Math.PI * 2, d = 30 + Math.random() * 70;
+    s.animate([{transform: "translate(0,0) rotate(0)", opacity: 1}, {transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px) rotate(${a * 90}deg)`, opacity: 0}], {duration: 1000, easing: "cubic-bezier(.2,.8,.2,1)"}).onfinish = () => s.remove(); }
+}
+
+/* ------------------------------------------------------------ the chrome -- */
+const CHAPS = ["WALL", "TESTED", "FUEL", "WEAKENING", "BROKEN", "NEW FLOOR", "FUEL SPENT", "TOP / BOTTOM", "MANAGE", "NEW FIGHT", "NO TRADE"];
+function rail() {
+  const r = $("#rail");
+  CHAPS.forEach((c, n) => { if (n) r.insertAdjacentHTML("beforeend", '<span class="arrow">→</span>'); const b = document.createElement("span"); b.className = "pill"; b.dataset.c = c; b.textContent = c;
+    b.onclick = () => { const e = ev.find(x => x.chap === c); if (e) seek(e.i + 0.01); }; r.appendChild(b); });
+  r.insertAdjacentHTML("beforeend", '<span class="legend">◆ push · chip = the wall\'s answer · ▲▼ your trigger · dots on top = Jarvis notes (hover)</span>');
+  setInterval(() => {
+    if (!D) return; let now = null;
+    for (let n = 0; n <= fired; n++) if (ev[n].chap) now = ev[n].chap;
+    document.querySelectorAll(".pill").forEach(p => { const c = p.dataset.c; p.classList.toggle("lit", ev.some((e, n) => n <= fired && e.chap === c)); p.classList.toggle("now", c === now); });
+  }, 200);
+}
+function moments() {
+  const pick = [], seen = new Set();
+  for (const e of ev) {
+    const key = e.zone ? "Z" + e.i : e.tag;
+    if (!e.major || seen.has(key) || pick.length >= 12) continue;
+    if (e.zone || ["BROKEN", "BLIND", "NEW FLOOR", "NEW FIGHT"].includes(e.tag)) { seen.add(key); pick.push(e); }
+  }
+  pick.sort((a, b) => a.i - b.i).forEach(e => {
+    const b = document.createElement("button"); b.textContent = `${D.mins[Math.floor(e.i)]} ${e.zone ? e.zone.side.toLowerCase() + " trigger" : e.tag.toLowerCase()}`;
+    b.onclick = () => { seek(Math.max(0, e.i - 1.2)); playing = true; $("#play").textContent = "❚❚ pause"; }; $("#moments").appendChild(b);
+  });
+}
+$("#play").onclick = () => { if (ended) seek(0); playing = !playing; $("#play").textContent = playing ? "❚❚ pause" : "▶ play"; };
+document.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { speed = +b.dataset.sp; document.querySelectorAll("[data-sp]").forEach(x => x.classList.toggle("on", x === b)); });
+$("#scrub").oninput = e => seek(+e.target.value);
+$("#go").onclick = () => { $("#intro").style.opacity = 0; setTimeout(() => $("#intro").hidden = true, 450); seek(0); playing = true; $("#play").textContent = "❚❚ pause"; };
+$("#again").onclick = () => { $("#end").hidden = true; seek(0); playing = true; $("#play").textContent = "❚❚ pause"; };
+addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); $("#play").click(); } });
+setInterval(() => { if (!D) return; const i = Math.min(N - 1, Math.floor(t)), s = Math.min(59, Math.floor((t - i) * 60)); $("#clock").textContent = `${D.mins[i]}:${String(s).padStart(2, "0")}`; }, 50);
+cv.addEventListener("mousemove", m => { const r = cv.getBoundingClientRect(), mx = m.clientX - r.left, my = m.clientY - r.top, tip = $("#tip");
+  const p = pins.find(q => Math.hypot(q.x - mx, q.y - my) < 7);
+  if (p) { tip.innerHTML = `<b>${D.mins[Math.floor(p.e.i)]} · ${esc(p.e.tag)}</b><br>${esc(p.e.text.replace(/\*\*/g, ""))}`; tip.style.left = Math.min(Wd - 330, mx + 10) + "px"; tip.style.top = (my + 14) + "px"; tip.style.opacity = 1; }
+  else tip.style.opacity = 0; });
+function showEnd() {
+  const KEY = ["BROKEN", "NEW FLOOR", "FUEL SPENT", "TOP / BOTTOM", "NEW FIGHT", "NO TRADE", "BLIND"], order = [];
+  let lastChap = null;
+  for (const e of ev) {
+    const c = e.chap || (e.tag === "BLIND" ? "BLIND" : null);
+    if (!c || !KEY.includes(c) || c === lastChap) continue;
+    lastChap = c; order.push(`${c === "TOP / BOTTOM" ? e.tag.split(" ")[0] + " SIGNS" : c} ${D.mins[Math.floor(e.i)]}`);
+  }
+  $("#story").textContent = order.slice(0, 20).join(" \u2192 ");
+  const rows = D.zone.filter(z => !z.kind).map(z => {
+    const i = ix(z.t), v = (D.verdict[z.side] || {})[z.t], j = Math.min(N - 1, i + 30), sell = z.side === "SELL";
+    let fav = 0, adv = 0; for (let k = i + 1; k <= j; k++) { fav = Math.max(fav, sell ? z.px - D.flo[k] : D.fhi[k] - z.px); adv = Math.max(adv, sell ? D.fhi[k] - z.px : z.px - D.flo[k]); }
+    return `<tr><td>${z.t} ${z.side} ${fmt(z.px)}f</td><td>${vword(v)}</td><td>+${fmt(fav)} / −${fmt(adv)}${j < i + 30 ? " (window ends)" : ""}</td></tr>`;
+  });
+  $("#endrows").innerHTML = rows.join("");
+  $("#end").hidden = false;
+}
+</script>
+</body>
+</html>

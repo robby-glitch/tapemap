@@ -965,9 +965,19 @@ class _Server(ThreadingHTTPServer):
     the first stayed alive holding an Upstox websocket slot while serving
     nothing -- invisible to stop.bat, which kills by port. One token only gets
     so many sockets, so the survivor's chain poller took 401 after 401.
+
+    THE LISTEN QUEUE (29 Oct, NOTEPAD A180). socketserver's default is 5. The
+    UI fires ~15 requests at once per poll, and while a CPU-heavy job holds the
+    GIL (a /api/jarvis build, 4-10 s; the handshake pass, up to 40 s that
+    afternoon) the accept loop falls behind, the queue fills, and WINDOWS
+    REFUSES the rest (WinError 10061) -- which Vite's proxy hands the page as a
+    502, and the page renders as NOT LIVE / STALE. Measured on the live server
+    during a Jarvis build: 11 of 40 refused. The mechanism alone (two threads
+    burning the GIL, five bursts of 40): queue 5 refused 55 of 200, 128 none.
     """
 
     allow_reuse_address = False
+    request_queue_size = 128
 
 
 def payload_at(box, interval):
@@ -2660,20 +2670,7 @@ def _sides_kal(idx, day):
             return _SIDES_KAL[(idx, day)]
         got = None
         try:
-            prev = sides_log.prev_session_path(CHAIN_DIR, idx, day)
-            if prev:
-                info = {}
-                m, o, _bk = sides_log.load_session(prev[1], info)
-                import chain_backfill   # the REST walk's marks (09:15-09:16) the poller never saw, as the frozen runs read them
-                for t, rec in chain_backfill.read_grid(prev[0], idx).items():
-                    m.setdefault(t, rec)
-                g = chain_metrics.ChainState()
-                g.minutes = m
-                sc = sides.day_scale(sides.read(g.oi_flow(interval=sides.INTERVAL), m, opens=o))
-                # rev sides-3 (B3): a previous session that was this index's expiry day is not a like
-                # for a fresh-series morning; its own saved snapshots say which expiry they were on
-                exp = info.get("expiry")
-                got = dict(sc, day=prev[0], expiry=exp, expiry_day=(exp == prev[0]) if exp else None)
+            got = sides_log.kal_scale(CHAIN_DIR, idx, day)    # one copy, shared with jarvis.build (J2)
         except Exception:
             log.exception("sides previous-session scale %s", idx)
         _SIDES_KAL[(idx, day)] = got
@@ -3456,6 +3453,7 @@ def _in_trade(rep, trades):
             trademap.into(out["voice"], (h2 or {}).get("map") if isinstance(h2, dict) else None)   # l4 / l5 / detail
             if rep.get("flow_src"):
                 sensex_flow.relabel(out["voice"])
+            _hs_voice(tr, rep, out["voice"])           # A132: l6, the HANDSHAKE line at her wall (display only, fail-soft)
             _msg_voice(tr, out["voice"])                 # the stream's TRADE kind: a change of state, once (fail-soft)
     except Exception as e:
         log.exception("voice")
@@ -4551,24 +4549,215 @@ def _msg_write(day, msgs, now=None):
     return new
 
 
+PALAT_WAIT_S, PALAT_FINAL_S = 120, 360           # A131: a P is judged 2 min after its bar's close (DECODE's row lands
+                                                # ~1.5 min after it); a check not yet readable is re-tried until 6 min
+_PALAT = {"day": None, "done": {}}
+
+
+def _palat_pass(day, now_s, decode_rows):
+    """A131 TOP / BOTTOM BAN SAKTA (palat.py): each footprint P of today, once its bar has closed, judged on the record
+    files (palat.load, read only while a P waits) and DECODE's row at that close -> the lines of the P's that reached 3
+    of 4, for _msg_write: write-once by key, so a later pass or a restart never says one twice; a late start rebuilds the
+    morning into the window and telegram_out's freshness gate keeps it off her phone. Display only. Fail-soft per index."""
+    import palat
+    if _PALAT["day"] != day:
+        _PALAT.update(day=day, done={})
+    done = _PALAT["done"]
+    for idx in palat.IDXS:                     # NIFTY: the one index with her P marks
+        try:
+            todo = [P for P in palat.traps(tape_log.read_marks(day, idx))
+                    if (idx, palat.pid(P)) not in done and palat.close(P) * 60 + PALAT_WAIT_S <= now_s]
+            if not todo:
+                continue
+            inp = palat.load(day, idx)
+            rows = {r.get("T"): r for r in decode_rows if r.get("idx") == idx}
+            for P in todo:
+                row = rows.get(palat.hm(palat.close(P)))
+                if row is None and now_s < palat.close(P) * 60 + PALAT_FINAL_S:
+                    continue                           # DECODE's row (the day type, the trend guard) has not landed yet
+                j = palat.judge(idx, P, inp, row)
+                if j["msg"] or not j["unk"] or now_s >= palat.close(P) * 60 + PALAT_FINAL_S:
+                    done[(idx, palat.pid(P))] = j["msg"]
+        except Exception:
+            log.exception("palat %s", idx)
+    return palat.budget([m for m in done.values() if m])    # the first 3 a day go to Telegram, the rest to the window
+
+
+HS_DIR = os.path.join("data", "raftaar")        # A132: the handshake's forward log, handshake_<day>.jsonl (_hs_log)
+HS_GRACE_S = 20                                  # a minute's flow and chain are read from m + 1:20 (Dext re-posts a bar as it fills)
+HS_LATE_M = 3                                    # A175: an answer first seen > 3 min after its confirmation minute is "backfilled"
+_HS = {"day": None, "upto": None, "inp": {}, "logged": None}
+
+
+def _hs_m(hm_):
+    """"HH:MM" -> the minute of the day."""
+    return int(hm_[:2]) * 60 + int(hm_[3:5])
+
+
+def _hs_pass(day, now_s):
+    """A132 THE HANDSHAKE (handshake.py), once per new minute: each index's day re-read from the record and walked to the
+    last complete minute (anytime-start: a restart at 11:12 reads exactly what a run that never stopped read) -> the FLOW
+    lines of its ANSWERED pushes for _msg_write (write-once by key, one per push, so neither a later pass nor a restart says
+    one twice; kind FLOW never goes to Telegram: telegram_out.wants, and `quiet`), and the forward log (_hs_log). The read
+    stays in memory for the voice's HANDSHAKE line (_hs_voice). Display only. Fail-soft per index. After 15:31 it runs
+    once more (the day's last rows) and then rests; a start after the close runs it once. BANKNIFTY / SENSEX are read
+    only in that close pass, for the log (handshake.SPEAK: their answer bar is owed)."""
+    import handshake
+    if _HS["day"] != day:
+        _HS.update(day=day, upto=None, inp={}, logged=None)
+    upto = (now_s - HS_GRACE_S) // 60                     # the minutes before `upto` are complete
+    if upto <= handshake.FIRST_M + 1 or upto == _HS["upto"] or (_HS["upto"] or 0) > handshake.LAST_M + 1:
+        return []
+    _HS["upto"] = upto
+    msgs, final = [], []
+    for idx in handshake.IDXS:                            # SENSEX: NIFTY's flow, its own chain and futures OI (§1q)
+        if idx not in handshake.SPEAK and upto <= handshake.LAST_M + 1:
+            continue                                      # not said (their bar is owed): logged once, at the close pass
+        try:
+            inp = handshake.load(day, idx)
+            rows = handshake.read(inp, upto)
+            _HS["inp"][idx] = inp
+            for r in rows:
+                m = handshake.message(r)
+                if m and upto - _hs_m(r.get("held") or r["am"]) > HS_LATE_M:
+                    # A175: born late -- first seen > 3 min after its confirmation minute (a Dext refill rewrote past
+                    # minutes, or a restart re-read the day): said once, quiet, and it says so
+                    m = dict(m, quiet=True, backfilled=True, line=m["line"] + " · backfilled")
+                if m:
+                    msgs.append(m)
+            final += [r for r in rows if r["final"]]
+        except Exception:
+            log.exception("handshake %s", idx)
+    _hs_log(day, final)
+    return msgs
+
+
+def _hs_log(day, rows):
+    """data/raftaar/handshake_<day>.jsonl: one row per push, WRITE-ONCE by its key, when its +15 / +30 points are known (the
+    first pass at or after +30) or the chain has stopped (15:30); a push the chain never answered says why. The keys on
+    disk are read before the first write, so a restart never writes a push twice. No verdict, no rate. Fail-soft."""
+    import handshake
+    try:
+        path = os.path.join(HS_DIR, f"handshake_{day}.jsonl")
+        if _HS["logged"] is None:
+            _HS["logged"] = {r.get("key") for r in confluence_log._rows(path)}
+        new = [dict(r, day=day, rev=handshake.REV, at=time.time()) for r in rows if r["key"] not in _HS["logged"]]
+        if new:
+            os.makedirs(HS_DIR, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in new))
+            _HS["logged"].update(r["key"] for r in new)
+    except Exception:
+        log.exception("handshake log")
+
+
+JARVIS_TTL_S = 20                                # J2: one frame per index at most every 20 s
+_JARVIS = {}                                     # idx -> (key, built at, frame): the latest only
+_JARVIS_LOCK = threading.Lock()                  # ponytail: one build at a time (~5 s); per-index locks if two faces poll
+
+
+def _jarvis_reply(q):
+    """GET /api/jarvis?idx=&day=&upto= (J2, jarvis.build): today = the frame at the last complete minute (the handshake's
+    20 s grace), cached 20 s per index; a past day, or an explicit upto (HH:MM, exclusive), replays the record on request,
+    refused 09:15-15:40 IST on a weekday except for today (spec §6.2). Display only; never an order."""
+    import jarvis
+    d = _ist()
+    today, now = d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+    idx = (q.get("idx") or ["NIFTY"])[0].upper()
+    day = (q.get("day") or [today])[0]
+    up = (q.get("upto") or [None])[0]
+    if idx not in instruments.ENABLED:
+        return {"ok": False, "why": f"could not check — {idx} is not an index this server reads"}
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", day) or (up is not None and not re.match(r"^\d\d:\d\d$", up)):
+        return {"ok": False, "why": "could not check — day is YYYY-MM-DD and upto HH:MM"}
+    if day > today:
+        return {"ok": False, "why": "could not check — that day has not happened"}
+    if day != today and d.weekday() < 5 and "09:15" <= now < "15:40":
+        return {"ok": False, "why": "could not check — a past day replays after 15:40, never in market hours (spec §6.2)"}
+    upto = int(up[:2]) * 60 + int(up[3:5]) if up else (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60
+    key = (idx, day, upto if up or day != today else None)
+    with _JARVIS_LOCK:
+        hit = _JARVIS.get(idx)
+        if hit and hit[0] == key and time.time() - hit[1] < JARVIS_TTL_S:
+            return hit[2]
+        out = dict(jarvis.build(day, idx, upto), live=day == today and not up, asof=d.strftime("%H:%M:%S"))
+        _JARVIS[idx] = (key, time.time(), out)
+        return out
+
+
+def _hs_voice(tr, rep, vc):
+    """A132: the one voice's HANDSHAKE line (voice.handshake_line), her defending wall = the fold engine's own W (the
+    wall behind her: a long's PE floor under price, a short's CE cap above), against the latest push at her in 10 min.
+    Added AFTER the ladder: the state, the stop and seq are never read or changed (promoting it into the ladder is a later
+    decision, after forward days). No read in memory, no W, no push: no line. Fail-soft."""
+    try:
+        import handshake
+        if not (vc or {}).get("ok") or tr is None:
+            return
+        W = ((rep or {}).get("view") or {}).get("W") or {}
+        lt = time.localtime()
+        if _HS["day"] != time.strftime("%Y-%m-%d", lt) or _HS["upto"] is None:
+            return                                        # no read of today in memory yet
+        now_m = min(lt.tm_hour * 60 + lt.tm_min, _HS["upto"])   # only the minutes the pass read whole
+        h = handshake.defend(_HS["inp"].get(tr["idx"]), vc.get("d"), W.get("k"), now_m)
+        ln = voice.handshake_line(h, W.get("k"), W.get("side"))
+        if ln:
+            vc["l6"] = ln
+    except Exception:
+        log.exception("handshake voice")
+
+
 def _msg_pass(now=None):
     """One pass: today's READ and DECODE logs -> the market messages (messages.build, pure: a restart rebuilds the same
     stream), the recording check -> HEALTH, each written once; NOW rebuilt for the faces."""
     d = _ist(now)
     day, hm = d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+    t0 = time.perf_counter()
     rr = list(confluence_log._rows(os.path.join(READ_DIR, f"read_{day}.jsonl")))
     dr = list(confluence_log._rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl")))
+    t1 = time.perf_counter()
     rec = _health_safe(lambda: _recording(now))
     if rec and not rec.get("ok") and time.time() - _STARTED < START_GRACE_S:
         rec = None                                 # A103: no recorder has written its first row since this start: a hole is not yet knowable
     with _MSG_LOCK:
         _msg_load(day)
         h = messages.health(rec, _MSG["health"], hm)
-    _msg_write(day, messages.build(rr, dr) + ([h] if h else []), now)
+    t2 = time.perf_counter()
+    pal = _palat_pass(day, d.hour * 3600 + d.minute * 60 + d.second, dr)    # A131: TOP / BOTTOM BAN SAKTA
+    t3 = time.perf_counter()
+    try:
+        hs = _hs_pass(day, d.hour * 3600 + d.minute * 60 + d.second)       # A132: the handshake's answered pushes (FLOW)
+    except Exception:
+        log.exception("handshake pass")                                     # never the stream's failure
+        hs = []
+    t4 = time.perf_counter()
+    _msg_write(day, messages.build(rr, dr) + pal + hs + ([h] if h else []), now)
     with _MSG_LOCK:
         if h and h["key"] in _MSG["keys"]:
             _MSG["health"] = h["word"]
         _MSG.update(now=messages.now_rows(rr, dr, instruments.ENABLED), asof=d.strftime("%H:%M:%S"))
+    _pass_log(day, d, (t0, t1, t2, t3, t4, time.perf_counter()))
+
+
+def _pass_log(day, d, ts):
+    """J1 (spec 2026-10-28-kahani §7): data/messages/pass_<day>.jsonl, one row per message pass -- each part's seconds, the
+    handshake's `upto` and the newest NIFTY chain snapshot it read -- so the 28 Oct lag (an answer known from 12:48:20, on
+    screen 12:49:50) is measured live, not guessed. Display only, fail-soft, 09:15-15:45 IST only."""
+    try:
+        if not "09:15" <= d.strftime("%H:%M") <= "15:45":
+            return
+        t0, t1, t2, t3, t4, t5 = ts
+        R = ((_HS.get("inp") or {}).get("NIFTY") or {}).get("R") or {}
+        up = _HS.get("upto")
+        row = {"t": d.strftime("%H:%M:%S"), "read_s": round(t1 - t0, 3), "health_s": round(t2 - t1, 3),
+               "palat_s": round(t3 - t2, 3), "hs_s": round(t4 - t3, 3), "write_s": round(t5 - t4, 3),
+               "total_s": round(t5 - t0, 3), "hs_upto": None if up is None else f"{up // 60:02d}:{up % 60:02d}",
+               "chain_last": R[max(R)].get("ts") if R else None}
+        os.makedirs(MSG_DIR, exist_ok=True)
+        with open(os.path.join(MSG_DIR, f"pass_{day}.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+    except Exception:
+        log.exception("pass log")
 
 
 def _msg_voice(tr, v, now=None):
@@ -5577,6 +5766,15 @@ class Handler(SimpleHTTPRequestHandler):
                 log.exception("sides")
                 out = {"ok": False, "why": sides.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, default=str).encode())
+        elif urlsplit(self.path).path == "/api/jarvis":
+            # J2 THE JARVIS BRAIN (jarvis.py): one frame per index -- walls, pushes and answers, fuel, fights, verdicts,
+            # the reads (speed, signs, writers ±7, manage, no trade), health and the one call. Display only.
+            try:
+                out = _jarvis_reply(parse_qs(urlsplit(self.path).query))
+            except Exception as e:               # a bad read must not 500 the face
+                log.exception("jarvis %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
         elif self.path.startswith("/api/trap"):
             # THE TRAP LAYER, SHADOW (trap.py): the trap thread's last read; ?idx= for one index.
             want = (parse_qs(urlsplit(self.path).query).get("idx") or [None])[0]
@@ -6197,7 +6395,11 @@ def _isolate_mock_writers():
     VALIDATE_DIR = os.path.join(mock, "validate")                   # F12: Validate's press log (_validate_press)
     IMPORT_DIR = os.path.join(mock, "receipts")                     # F13a: the tradebook import marks (_receipts_import)
     MSG_DIR = os.path.join(mock, "messages")                        # A101: the message stream's record (_msg_write)
+    global HS_DIR
+    HS_DIR = os.path.join(mock, "raftaar")                          # A132: the handshake's forward log (_hs_log)
     telegram_out.DIR = os.path.join(mock, "telegr")                 # A101: a rehearsal never finds her chat (and never starts)
+    import jarvis
+    jarvis.TAPE_DIR = os.path.join(mock, "tape_fut1m")               # P0 (30 Oct): the saved 1-min fut tape (jarvis.save_tape)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)
@@ -6576,6 +6778,15 @@ def main():
     _backfill_vpin()
     _seed_vpin()
     _load_day_state()
+    try:                                     # A125: before any thread reads or appends today's chain record
+        import chain_live
+        fixed = chain_live.rebase_day(time.strftime("%Y-%m-%d"))
+        if fixed:
+            log.info("A125 chain rebase (oi_chg from the record's own baseline): %s", fixed)
+            for name in fixed:              # a FIRST FOLD stamped off the broken grid is re-read off the repaired one
+                _BOARD["first"].pop(name.split("_")[1], None)
+    except Exception:
+        log.exception("A125 chain rebase skipped")
     if argv and argv[0] == "live":
         import threading
         import time as _t
@@ -6665,6 +6876,11 @@ def main():
                         # per supported interval per index.
                         box["by_interval"] = {}
                         box["session"] = base      # last: it is what arms the rest
+                        try:                       # P0 (30 Oct): the 1-min fut tape on disk, so Jarvis rebuilds a book hole
+                            import jarvis
+                            jarvis.save_tape(x, base)
+                        except Exception:
+                            log.debug("save_tape %s failed", x, exc_info=True)
                     have[x] = True
                     # Log any NEW band-rotation trigger with the gamma/OI
                     # context the operator watches (trigger_log.py). log_new

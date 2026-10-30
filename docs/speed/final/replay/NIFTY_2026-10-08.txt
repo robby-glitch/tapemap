@@ -1,0 +1,27 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-08 · NORMAL · clean trend down · SENSEX expiry · size ref: 20 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ???··a▼▼▼▼▼▼···▼▼▼▼▼▼·aa··▼▼▼▼▼▼··k···▼▼▼▼▼▼▼▼▼▼·kk▼▼~~~~~~~~~~~~~~~~~~~~~~
+
+09:46     22453s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -51 pts/15m · with +69.0L against +15.8L
+10:14     22487s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+10:30     22455s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -32 pts/15m · with +33.3L against +7.0L
+10:43     22445s  CHAL RAHA ▼ · TEZ                   7/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -24 pts · with +55.2L
+10:59     22438s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+11:20     22430s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+11:25     22360s  CHAL RAHA ▼ · SHURU                 7/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -85 pts/15m · with +59.8L against +1.9L
+                    PHANSE: 22450 +6.0L 10:54 tak likha
+11:56     22370s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+12:20     22330s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:24     22313s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      PE BHAAG + CE LIKHAI · spot -39 pts/15m · with +26.2L against +1.3L
+                    PHANSE: 22350 +8.8L 11:59 tak likha
+12:35     22303s  CHAL RAHA ▼ · TEZ                   8/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -27 pts · with +55.6L
+13:16     22259s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+13:28     22242s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      PE BHAAG + CE LIKHAI · spot -31 pts/15m · with +31.8L against +0.95L
+                    PHANSE: 22300 +4.1L 12:54 tak likha, 22200 +6.3L 12:55 tak likha
+13:38     22288s  MOVE ▼ KHATAM                                       price ne 57 pts wapas diye (leg 46 pts)
+13:56     22242s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 57
+13:56     22242s  CE PHIR LIKHNE LAGE (22 min ruk ke)                  22300 +6.4L, 22250 +5.5L
+15:06     22195s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 63
+
+-- minutes: CHAL RAHA ▼ 151, CHOP 112, KHAMOSH 68, BINA OI ▼ 16, ? 15, ATKA 11
+-- stamps: 17 (pictures / quiet / ? 9, phases + ends 7, side events 1, ≠ READ 0)

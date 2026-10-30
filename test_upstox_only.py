@@ -163,6 +163,13 @@ def test_only_one_server_may_hold_the_port():
     assert server._Server.allow_reuse_address is False
 
 
+def test_the_listen_queue_outlasts_a_burst():
+    """socketserver's default queue is 5. The UI fires ~15 requests at once, and
+    while a CPU-heavy job holds the GIL Windows REFUSED the overflow (11 of 40,
+    29 Oct, during a Jarvis build): Vite's 502, the page's NOT LIVE."""
+    assert server._Server.request_queue_size >= 64
+
+
 def test_the_port_is_claimed_before_the_chain_poller_starts():
     """The ordering IS the fix. Both lines present in the wrong order is
     exactly the bug: the poller opened a websocket, and only then did the

@@ -6,7 +6,8 @@ NOTHING NEW IS READ: every message is a change in a read the server already logs
   READ    THE READ's held word or arrow changes at a closed mark; a QUIT event                   data/read/read_<day>.jsonl
   LEG     DECODE's call turns JAARI <-> THAK or its leg flips; MILA / saaf nahi keep the last    data/decode/decode_<day>.jsonl
   SETUP   a FADE / RIDE / FADE-D / ZONE chip turns MATCH, or an entry's HOLD v2 state            the same DECODE rows
-          ZONE (A116): her four pieces and n/4 on the line, then one line per piece that joins its episode (zone_ep)
+          ZONE (A116): her four pieces and n/4 on the line, then one line per piece that joins its episode (zone_ep);
+          A131: the ZONE line ends with the §1o day type in her words (din); TOP / BOTTOM BAN SAKTA is palat.py's
   DIN     the one-sided meter's day type changes (TREND ▲ / ▼, CHOP, MIXED)                      the same DECODE rows
   TRADE   the one voice turns TIGHTEN / WARN / EXIT (server._in_trade -> `trade`)
   HEALTH  RECORDING NAHI starts / clears; the day's first look says "TapeMap live" (server._recording -> `health`)
@@ -15,7 +16,7 @@ FADE-D rows 30-36 min after the start) and 12 of its 14 rows that day never fire
 10:45, FADE-D 13:15) are exactly DECODE's two chip turns, at the same close, logged a grace minute after it.
 AGREE is DECODE's count at that close, never a %. DECODE's call.d / call.c are the decel / continuation COUNTS; the way is
 the leg's d. JAARI reads the leg's way with c/7, THAK against it with d/7: "saath" when that way is the message's,
-"khilaaf" when against; a message with no way shows DECODE's arrow and count. "mila d/c" (checked, mixed), "saaf nahi"
+"khilaaf" when against; a message with no way shows DECODE's arrow and count. "mila d thak · c jaari" (checked, mixed), "saaf nahi"
 (checked, no leg) and "?" (no DECODE row for that close) stay separate sentences.
 PURE: no I/O, no clock -- the server hands in the day's rows, so a restart rebuilds the same stream (anytime-start).
 DISPLAY ONLY: gates nothing; the faces and Telegram show `line` verbatim. [I]
@@ -72,12 +73,25 @@ def agree(row, d):
     if k == "SAAF_NAHI":
         return "saaf nahi"
     if k == "MILA":
-        return f"mila {c.get('d')}/{c.get('c')}"
+        return f"mila {c.get('d')} thak · {c.get('c')} jaari"      # A126: "mila 3/1" read as 3 of 1
     if k not in ("JAARI", "THAK") or ld not in (1, -1):
         return "?"
     way, n = (ld, c.get("c")) if k == "JAARI" else (-ld, c.get("d"))
     of = c.get("of") or 7
     return f"{ARROW[way]}{n}/{of}" if not d else f"{n}/{of} {'saath' if way == d else 'khilaaf'}"
+
+
+def din_line(ty, side):
+    """A131: the §1o day type said on a zone / palat line against its fade side ("BUY" / "SELL"), in her words: on a pin
+    or chop day expect the reversal, on a trend against the zone side the price may go on discovering. None: not read."""
+    if not ty:
+        return "din: padh nahi sake"
+    if ty in ("PIN", "CHOP"):
+        return f"din {ty}: palat ki ummeed"
+    if ty.startswith("TREND"):
+        return (f"din {ty}: price discovery ho sakti hai · fade khatra" if ("▲" in ty) == (side == "SELL")
+                else f"din {ty}: trend ke saath")
+    return f"din {ty}: saaf nahi"
 
 
 def _level(r):
@@ -146,8 +160,9 @@ def build(read_rows, decode_rows):
                 if (nm, side) not in live.get(i, {}):
                     d, z = 1 if side == "BUY" else -1, chip[(nm, side)]
                     if nm == "ZONE" and z.get("pieces"):     # A116: her four pieces, n/4, instead of DECODE's 7-sign count
-                        out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", f"{z.get('n')}/4",
-                                        " · ".join(list(z["pieces"]) + ([z["plan"]] if z.get("plan") else [])), state))
+                        out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", f"{z.get('n')}/4",    # A131: + the day type
+                                        " · ".join(list(z["pieces"]) + ([z["plan"]] if z.get("plan") else [])
+                                                   + [din_line((r.get("onesided") or {}).get("type"), side)]), state))
                         zep[i] = [side, z.get("ep"), {k for k, v in (z.get("checks") or {}).items() if v is True}]
                         continue
                     out.append(_msg(t, i, "SETUP", d, f"{nm} {side}", agree(r, d), plan.get((nm, side))

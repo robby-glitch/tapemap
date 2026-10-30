@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR v3</title>
+<style>
+:root{
+  --bg:#f6f5f1; --panel:#fff; --line:#e4e2db; --ink:#1c1c1a; --mute:#6c6b65; --faint:#a8a79f; --wash:#f1f0eb;
+  --up:#128049; --dn:#c43a2b; --chop:#c4890c; --pin:#7a50c4; --atka:#2d6bcb; --unw:#5b6670; --quiet:#9a9c96;
+  --call:#d9622b; --put:#168a82; --maz:#128049; --thk:#c4890c; --kam:#9a9c96;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:10px 12px;min-width:1180px}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1229px;margin:0 auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.cap{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:600}
+.chip{display:inline-block;padding:1px 7px;border-radius:10px;background:var(--wash);border:1px solid var(--line);font-size:11.5px;white-space:nowrap}
+.mute{color:var(--mute)} .faint{color:var(--faint)}
+/* top bar */
+.top{display:flex;align-items:center;gap:8px;margin-bottom:7px;height:34px}
+.brand{font-weight:800;letter-spacing:.04em;font-size:15px}
+.tiles{display:flex;gap:5px}
+.tile{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:3px 8px;display:flex;align-items:center;gap:6px;width:146px;white-space:nowrap;height:32px}
+.tile.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+.tile b{font-size:11px;letter-spacing:.04em;color:var(--mute)}
+.tile .tw{font-weight:700;font-size:13px}
+.tile .ts{margin-left:auto;font-weight:700;font-size:13px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.sync{font-size:11.5px}
+.ctl button,.ctl select,.look button{font:inherit;font-size:11.5px;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:3px 9px;cursor:pointer;color:var(--ink)}
+.ctl #days{font-weight:700}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 188px 352px 190px;gap:8px;margin-bottom:8px}
+.hero>.panel{padding:6px 11px;height:118px;overflow:hidden}
+.pic{position:relative}
+.word{font-size:28px;font-weight:800;letter-spacing:.01em;line-height:1.05}
+.word .arr{margin-left:6px}
+.phase{display:flex;gap:5px;align-items:center;margin:4px 0 4px;flex-wrap:nowrap;overflow:hidden}
+.sent{font-size:15px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.neq{margin-top:3px;border:1px solid var(--dn);color:var(--dn);border-radius:6px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kb{margin-top:5px;display:flex;gap:5px;flex-wrap:nowrap;overflow:hidden;align-items:center}
+.kb .chip{font-size:11px}
+.kb .cap{white-space:nowrap}
+.clock{margin-left:auto;white-space:nowrap}
+.clock .t{font-size:20px;font-weight:800}
+.pulse{animation:pulse 1.2s ease-out 1}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(28,28,26,.35)}100%{box-shadow:0 0 0 14px rgba(28,28,26,0)}}
+.calm .word{color:var(--quiet)!important}
+.sah{cursor:help}
+.fuel{cursor:help}
+.fuel .row{display:grid;grid-template-columns:52px 1fr 52px;gap:1px 6px;align-items:center;margin-top:3px}
+.fuel .lab{font-weight:700;font-size:12px}
+.bar{height:15px;background:var(--wash);border-radius:3px;position:relative;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.fuel .det{font-size:11.5px;grid-column:1/4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trend{cursor:help}
+.trend .arrow{font-size:28px;font-weight:800;line-height:1}
+.trend .w3{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.trend .w3 .chip{font-size:10.5px;padding:0 6px}
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 352px;grid-template-rows:auto auto auto;gap:7px}
+.main>.panel{padding:4px 8px 4px}
+.ph{display:flex;align-items:baseline;gap:8px;height:18px;overflow:hidden;white-space:nowrap}
+.ph .chip{font-size:10.5px;padding:0 6px}
+svg{display:block}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.fn{display:flex;flex-direction:column}
+.fn .r{height:28px;display:flex;flex-direction:column;justify-content:center;border-bottom:1px dashed var(--line);padding-left:2px}
+.fn .r:last-child{border-bottom:none}
+.fn .r .a{font-weight:700;font-size:12px;line-height:1.2}
+.fn .r .b{font-size:11px;color:var(--mute);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zn .rowz{display:grid;grid-template-columns:62px 1fr 64px;gap:6px;align-items:center;margin-top:2px}
+.zn .rowz .bar{height:12px}
+/* controls */
+.ctl{display:flex;gap:6px;align-items:center;margin-left:auto}
+.ctl input[type=range]{width:170px}
+.look button{padding:1px 7px;font-size:11px}
+#tip{position:fixed;pointer-events:none;background:#fff;border:1px solid var(--ink);border-radius:6px;padding:6px 8px;font-size:12px;max-width:380px;display:none;z-index:9;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+#tip .h{font-weight:700;margin-bottom:3px}
+.ck{display:grid;grid-template-columns:16px 1fr;gap:1px 4px}
+.foot{margin-top:6px;font-size:11px;color:var(--mute);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand" title="OI writers ki raftaar · replay of a recorded day, minute by minute">RAFTAAR</div>
+    <div class="tiles" id="tiles"></div>
+    <span class="sync" id="sync"></span>
+    <div class="ctl">
+      <select id="days" title="din"></select>
+      <button id="play" title="space">▶</button>
+      <select id="spd"><option value="2">2 min/s</option><option value="4" selected>4 min/s</option><option value="8">8 min/s</option><option value="16">16 min/s</option></select>
+      <input type="range" id="scrub" min="0" max="1" value="0" title="← → ek minute · shift ±10">
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="panel pic" id="pic">
+      <div style="display:flex;align-items:baseline;gap:10px"><div class="word" id="word">—</div>
+        <div class="clock"><span class="t num" id="clk">--:--</span> <span class="num mute" id="spt"></span></div></div>
+      <div class="phase" id="phase"></div>
+      <div class="sent" id="sent"></div>
+      <div id="neq"></div>
+      <div class="kb" id="kb"></div>
+    </div>
+    <div class="panel sah" id="sah"></div>
+    <div class="panel fuel" id="fuel"></div>
+    <div class="panel trend" id="trend"></div>
+  </div>
+
+  <div class="main">
+    <div class="panel"><div class="ph"><span class="cap">Price × samay</span><span class="mute" style="font-size:11px">spot (s) · rang = RAFTAAR ki tasveer · ◆ = RAFTAAR ka stamp</span><span id="leg1" style="margin-left:auto"></span></div><svg id="price"></svg></div>
+    <div class="panel"><div class="ph"><span class="cap">Fuel ladder · abhi</span><span class="mute" style="font-size:11px" id="ladcap"></span></div><svg id="ladder"></svg></div>
+
+    <div class="panel"><div class="ph"><span class="cap">Zor · writers ki raftaar</span><span class="mute" style="font-size:11px">lakh / min · pichhle 5 min · nine strikes</span></div><svg id="zor"></svg></div>
+    <div class="panel zn" id="zornow"></div>
+
+    <div class="panel"><div class="ph"><span class="cap">Likhne wale · §1d top-2 har taraf</span><span id="bw"></span></div><svg id="fronts"></svg></div>
+    <div class="panel"><div class="ph"><span class="cap">Kab ruke · kab chhoda · kab phir</span></div><div class="fn" id="frnow"></div></div>
+  </div>
+
+  <div class="foot"><span class="look" id="look"></span> <span id="foot"></span></div>
+</div>
+<div id="tip"></div>
+<script id="data" type="application/octet-stream">__DATA__</script>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const CSS = getComputedStyle(document.documentElement);
+const V = (n) => CSS.getPropertyValue(n).trim();
+const COL = { up: V('--up'), dn: V('--dn'), chop: V('--chop'), pin: V('--pin'), atka: V('--atka'), unw: V('--unw'), quiet: V('--quiet'),
+  call: V('--call'), put: V('--put'), ink: V('--ink'), mute: V('--mute'), faint: V('--faint'), line: V('--line'), wash: V('--wash') };
+const GRADE = { MAZBOOT: COL.up, THEEK: COL.chop, KAMZOR: COL.quiet };
+const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const toM = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+const f0 = (x) => Math.round(x).toLocaleString('en-IN');
+const sg = (x) => (x > 0 ? '+' : x < 0 ? '−' : '') + f0(Math.abs(x));
+const ARW = { 1: '▲', '-1': '▼', 0: '' };
+/** lakh x100 int -> "46.3L" (2 decimals under 1 L, none from 100 L), signed when asked */
+const fL = (v, signed) => {
+  if (v == null) return '—';
+  const a = Math.abs(v) / 100, s = v < 0 ? '−' : signed && v > 0 ? '+' : '';
+  return s + a.toFixed(a >= 100 ? 0 : a >= 1 ? 1 : 2) + 'L';
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let D, T, day, X, idxName = 'NIFTY', j = 0, playing = false, timer = 0, lastStampKey = null;
+
+/* ---------- data ---------- */
+async function load() {
+  const b64 = $('data').textContent.trim();
+  const bin = atob(b64), u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  const txt = await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  D = JSON.parse(txt);
+  T = D.T;
+  for (const dd of D.days) for (const x of Object.values(dd.ix)) prep(x);
+}
+const tx = (i) => (i == null || i < 0 ? null : T[i]);
+function undelta(col) { let p = null; return col.map((v) => (v == null ? null : (p = p == null ? v : p + v))); }
+function prep(x) {
+  x.oi = x.oiS.map(undelta); x.pn = x.pnS.map(undelta);
+  x.jOf = new Map(x.m.map((m, i) => [m, i]));
+  // running high of each strike-side's OI written today (the Board's peak), causal
+  x.hi = x.oi.map((c) => { let h = -Infinity; return c.map((v) => (v == null ? h : (h = Math.max(h, v)))); });
+  x.kOf = new Map(x.ks.map((k, i) => [k, i]));
+}
+const col = (x, ki, side) => ki * 2 + side;
+
+/* ---------- words and colours ---------- */
+function picColor(w, d) {
+  if (w === 'CHAL RAHA') return d > 0 ? COL.up : COL.dn;
+  if (w === 'WAPSI') return d > 0 ? '#79c39a' : '#e7958a';
+  return { CHOP: COL.chop, PIN: COL.pin, ATKA: COL.atka, UNWIND: COL.unw, 'BINA OI': '#8a8f96', KHAMOSH: COL.quiet, '?': '#c9cbc6' }[w] || COL.quiet;
+}
+const SHORT = { 'CHAL RAHA': 'CHAL', WAPSI: 'WAPSI', CHOP: 'CHOP', PIN: 'PIN', ATKA: 'ATKA', UNWIND: 'UNWIND', 'BINA OI': 'bina OI', KHAMOSH: 'shaant', '?': 'padh rahe' };
+const CALM = new Set(['KHAMOSH', 'BINA OI', '?', null]);
+const HEAD = { 'CHAL RAHA': 'CHAL RAHA', WAPSI: 'WAPSI', CHOP: 'CHOP', PIN: 'PIN', ATKA: 'ATKA', UNWIND: 'UNWIND', 'BINA OI': 'BINA OI', KHAMOSH: 'KUCH KHAAS NAHI', '?': 'PADH RAHE' };
+const PHASE_HI = { SHURU: 'SHURU · abhi shuru', TEZ: 'TEZ · raftaar badh rahi', JAARI: 'JAARI', RUKA: 'RUKA · pause', 'PHIR CHAL PADA': 'PHIR CHAL PADA', THAK: 'THAK · thak raha' };
+const CHECK_HI = { size: 'flow bada (pichhle dino ke hisaab se)', aaj: 'flow bada (aaj ke hisaab se)', bada: 'flow BADA (p90)', tika5: '5 min se tika',
+  tika15: '15 min se tika', strikes: '2+ strikes ek saath', price: 'price saath', fut: 'future ka OI saath', chop_bahar: 'chop ke bahar',
+  peer_NIFTY: 'NIFTY bhi wahi keh raha', peer_BANKNIFTY: 'BANKNIFTY bhi wahi', peer_SENSEX: 'SENSEX bhi wahi',
+  trend: 'OI trend (15/30/60) saath  · face check', fuel: 'fuel aage bacha (hurt side ke ≥ ¼ writers ghate mein) · face check' };
+const STATE_HI = { L: 'LIKH RAHE', P: 'PHIR LIKH RAHE', S: 'RUK GAYE', U: 'CHHOD RAHE', N: 'AAJ NAHI BANA' };
+const STATE_COL = { L: COL.ink, P: COL.atka, S: COL.chop, U: COL.dn, N: COL.faint };
+
+function stampChip(s) {
+  const t = tx(s.ti) || '', g = s.g ? ' ' + s.g.split(' ')[0] : '';
+  const ar = t.includes('▲') ? '▲' : t.includes('▼') ? '▼' : '';
+  if (s.k === 'neq') return '≠ READ';
+  if (s.k === 'end') return `KHATAM ${ar}`;
+  if (s.k === 'quiet') return 'KHAMOSH';
+  if (s.k === 'q') return '? padh nahi sake';
+  if (s.k === 'event') {
+    if (t.includes('CAP UPAR')) return 'CAP UPAR shift';
+    if (t.includes('FLOOR NEECHE')) return 'FLOOR NEECHE shift';
+    if (t.includes('ROLL TOOTA')) return (t.startsWith('CE') ? 'CALL' : 'PUT') + ' roll toota';
+    if (t.includes('PHIR LIKHNE')) return (t.startsWith('CE') ? 'CALL' : 'PUT') + ' phir likhne lage';
+    return t;
+  }
+  if (s.k === 'phase') return (t.includes('TEZ') ? 'TEZ ' : 'phir chala ') + ar + g;
+  if (t.startsWith('CHAL RAHA')) return `CHAL ${ar}${g}` + (t.includes('chop se bahar') ? ' · chop se bahar' : '');
+  if (t.startsWith('PIN')) { const k = (t.match(/@ (\d+)/) || [])[1]; return `PIN${k ? ' ' + f0(+k) + 's' : ''}${g}`; }
+  return t.replace(' · JAARI', '').replace(' · SHURU', '') + g;
+}
+function stampColor(s) {
+  const t = tx(s.ti) || '';
+  if (s.k === 'neq') return COL.dn;
+  if (s.k === 'event') return t.startsWith('CE') ? COL.call : COL.put;
+  if (s.k === 'end' || s.k === 'quiet' || s.k === 'q') return COL.quiet;
+  const d = t.includes('▲') ? 1 : t.includes('▼') ? -1 : 0;
+  return picColor(t.startsWith('CHAL') ? 'CHAL RAHA' : t.split(' ')[0], d);
+}
+
+/* ---------- per-minute reads ---------- */
+const c = (k) => X.c[k][j];
+function sahmati(x, i) {
+  const n = x.c.sn[i], N = x.c.sN[i];
+  return n >= 0 && N > 0 ? Math.round((100 * n) / N) : null;
+}
+function checks(x, i) {
+  const s = tx(x.c.ck[i]);
+  return s ? s.split('|').map((p) => p.split(':')).map(([k, v]) => [k, v === '1']) : [];
+}
+/** a front's state word, held over the last 5 minutes (the raw §1d state flickers minute to minute; the curve shows the truth) */
+function heldCode(x, i, side, ki) {
+  let disp = null, prev = null;
+  for (let q = Math.max(0, i - 30); q <= i; q++) {
+    const f = (x.fr[q] || []).find((r) => r[0] === side && r[1] === ki);
+    const raw = f ? f[2] : null;
+    if (raw && (disp == null || raw === prev)) disp = raw;
+    prev = raw;
+  }
+  return disp;
+}
+function frontEvents(x, i) {
+  const ev = [];
+  for (const f of x.fr[i] || []) {
+    const [side, ki, code, pj, uj, rj] = f, who = side ? 'PUT' : 'CALL', k = x.ks[ki];
+    if (pj >= 0 && code !== 'L' && code !== 'N') ev.push({ i: pj, txt: `${who} ${f0(k)} ruka`, col: side ? COL.put : COL.call });
+    if (uj >= 0) ev.push({ i: uj, txt: `${who} ${f0(k)} chhodne lage`, col: side ? COL.put : COL.call });
+    if (rj >= 0 && code === 'P') ev.push({ i: rj, txt: `${who} ${f0(k)} phir likhne lage`, col: side ? COL.put : COL.call });
+  }
+  return ev;
+}
+
+/* ---------- top: tiles, days ---------- */
+function drawTiles() {
+  const m = X.m[j];
+  let html = '', main = null; const words = {};
+  for (const name of ['NIFTY', 'BANKNIFTY', 'SENSEX']) {
+    const x = day.ix[name]; if (!x) continue;
+    const i = x.jOf.get(m); if (i == null) continue;
+    const w = tx(x.c.w[i]), d = x.c.d[i], sh = sahmati(x, i);
+    words[name] = [w, d];
+    if (name === idxName) main = [w, d];
+    html += `<div class="tile ${name === idxName ? 'on' : ''}" data-i="${name}" title="${name}: ${esc(tx(x.c.sent[i]))}">
+      <span class="dot" style="background:${picColor(w, d)}"></span><b>${name === 'BANKNIFTY' ? 'BNF' : name}</b>
+      <span class="tw" style="color:${CALM.has(w) ? COL.quiet : picColor(w, d)}">${SHORT[w] || '—'} ${ARW[d] || ''}</span>
+      <span class="ts num" title="SAHMATI (checks agreeing, not odds)">${sh == null ? '—' : sh}</span></div>`;
+  }
+  $('tiles').innerHTML = html;
+  for (const el of $('tiles').children) el.onclick = () => { idxName = el.dataset.i; setIndex(); };
+  // cross-index sync: only for a move / a flat picture that is shared
+  let sync = '';
+  if (main && !CALM.has(main[0])) {
+    const same = Object.values(words).filter(([w, d]) => w === main[0] && d === main[1]).length;
+    sync = `<span class="chip" title="kitne index ek hi tasveer dikha rahe hain (SENSEX = NIFTY ka order flow + apna OI)">${same}/${Object.keys(words).length} index saath</span>`;
+  }
+  $('sync').innerHTML = sync;
+}
+function drawDays() {
+  $('days').innerHTML = D.days.map((d, n) => `<option value="${n}" ${d === day ? 'selected' : ''}>${esc(d.label)}</option>`).join('');
+  $('days').onchange = () => { stop(); setDay(+$('days').value); };
+}
+
+/* ---------- hero ---------- */
+function drawHero() {
+  const w = c('w') != null ? tx(c('w')) : null, d = c('d'), col_ = picColor(w, d), calm = CALM.has(w);
+  const pic = $('pic');
+  pic.classList.toggle('calm', calm);
+  pic.style.borderLeft = `5px solid ${calm ? COL.line : col_}`;
+  $('clk').textContent = hm(X.m[j]);
+  const bx = c('bx');
+  $('spt').innerHTML = `${f0(X.s[j])}s${bx != null ? ` · ${f0(X.s[j] + bx)}f` : ''}`;
+  $('word').style.fontSize = calm ? '22px' : '';
+  $('word').innerHTML = `<span style="color:${col_}">${HEAD[w] || '—'}</span>${d ? `<span class="arr" style="color:${col_}">${ARW[d]}</span>` : ''}`;
+  // phase line: phase · since · points since · pin strike · swing
+  const ph = tx(c('ph')), si = tx(c('si')), bits = [];
+  if (w === 'CHAL RAHA' || w === 'WAPSI') {
+    if (ph) bits.push(`<span class="chip" style="border-color:${col_};color:${col_};font-weight:700">${PHASE_HI[ph] || ph}</span>`);
+    if (si) {
+      const j0 = X.jOf.get(toM(si));
+      const pts = j0 != null ? X.s[j] - X.s[j0] : null;
+      bits.push(`<span class="chip num">${si} se · ${X.m[j] - toM(si)} min${pts != null ? ` · ${sg(pts)} pts` : ''}</span>`);
+    }
+    const q = tx(c('q')); if (q) bits.push(`<span class="chip">OI ${q.toLowerCase()}</span>`);
+  } else if (w === 'PIN' && c('pk')) bits.push(`<span class="chip num" style="color:${COL.pin}">@ ${f0(c('pk'))}s${bx != null ? ' · ' + f0(c('pk') + bx) + 'f' : ''}</span>`);
+  if (w === 'CHOP' && c('sw')) bits.push(`<span class="chip" style="color:${picColor('CHAL RAHA', c('sw'))}">andar swing ${ARW[c('sw')]} ${tx(c('swg')) || ''} (chhota)</span>`);
+  if (w === '?' && tx(c('why'))) bits.push(`<span class="chip">${esc(tx(c('why')))}</span>`);
+  if (calm && w === 'KHAMOSH') {
+    const last = [...X.stamps].reverse().find((s) => s.i < j && s.k !== 'quiet' && s.k !== 'q');
+    if (last) bits.push(`<span class="chip">aakhri asli badlav ${hm(X.m[last.i])} · ${esc(stampChip(last))}</span>`);
+  }
+  if (!calm && c('net') != null) bits.push(`<span class="chip num" title="PUT net − CALL net, nine strikes, 15 min (engine)">OI net 15m ${fL(c('net'), true)}${w !== 'CHAL RAHA' && w !== 'WAPSI' && c('m15') != null ? ' · ' + sg(c('m15')) + ' pts' : ''}</span>`);
+  $('phase').innerHTML = bits.join('');
+  $('sent').innerHTML = esc(tx(c('sent')) || '');
+  $('sent').title = tx(c('sent')) || '';
+  $('sent').style.color = calm ? COL.mute : COL.ink;
+  // the ≠ READ line takes the KYA BADLA row for 15 min after it is stamped; after that it lives on as a stamp (chart + kya badla)
+  const nq = [...X.stamps].reverse().find((s) => s.k === 'neq' && s.i <= j);
+  const cx = nq && j - nq.i <= 15 ? tx(c('cx')) : null;
+  $('kb').style.display = cx ? 'none' : '';
+  $('neq').innerHTML = cx ?`<div class="neq" title="RAFTAAR THE READ se alag keh raha hai — sirf jab move jawan, bada aur OI ke saath ho">${esc(cx)}</div>` : '';
+  // KYA BADLA: last 3 changes (engine stamps + the fronts' stamps), newest first
+  const ev = X.stamps.filter((s) => s.i <= j).map((s) => ({ i: s.i, txt: stampChip(s), col: stampColor(s), why: tx(s.wy) }))
+    .concat(frontEvents(X, j)).sort((a, b) => b.i - a.i).slice(0, 3);
+  $('kb').innerHTML = `<span class="cap">Kya badla</span>` + (ev.length ? ev.map((e) => `<span class="chip num" title="${esc(e.why || '')}"><b style="color:${e.col}">●</b> ${hm(X.m[e.i])} ${esc(e.txt)}</span>`).join('') : '<span class="mute">abhi kuch nahi</span>');
+  // stamp pulse (only a real new stamp, never a swing inside CHOP: the engine does not stamp those)
+  const st = X.stamps.filter((s) => s.i === j && s.k !== 'q');
+  const key = st.length ? `${day.day}${idxName}${j}` : null;
+  if (playing && key && key !== lastStampKey) { pic.classList.remove('pulse'); void pic.offsetWidth; pic.classList.add('pulse'); }
+  if (key) lastStampKey = key;
+}
+
+function drawSahmati() {
+  const sh = sahmati(X, j), gw = tx(c('gw')), n = c('sn'), N = c('sN');
+  const colr = sh == null ? COL.quiet : GRADE[gw] || COL.quiet;
+  const R = 27, C2 = 2 * Math.PI * R, frac = sh == null ? 0 : sh / 100;
+  // the last 45 minutes of SAHMATI as a sparkline: conviction building or draining
+  const W = 172, H = 22, i0 = Math.max(0, j - 44);
+  let path = '', pen = false;
+  for (let i = i0; i <= j; i++) {
+    const v = sahmati(X, i), x = ((i - i0) / 44) * W;
+    if (v == null) { pen = false; continue; }
+    path += `${pen ? 'L' : 'M'}${x.toFixed(1)},${(H - 2 - (v / 100) * (H - 4)).toFixed(1)}`; pen = true;
+  }
+  const back = j >= 5 ? sahmati(X, j - 5) : null;
+  const dlt = sh != null && back != null ? sh - back : null;
+  const trendTxt = dlt == null ? '' : dlt >= 10 ? `<span style="color:${COL.up}">↑ ${dlt} · badh rahi</span>` : dlt <= -10 ? `<span style="color:${COL.dn}">↓ ${-dlt} · ghat rahi</span>` : `<span class="mute">→ barabar</span>`;
+  $('sah').innerHTML = `<div class="cap">Sahmati <span style="text-transform:none;letter-spacing:0;font-weight:500">· checks ki sahmati</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+      <svg width="64" height="64" viewBox="0 0 64 64" style="flex:none">
+        <circle cx="32" cy="32" r="${R}" fill="none" stroke="${COL.wash}" stroke-width="8"/>
+        <circle cx="32" cy="32" r="${R}" fill="none" stroke="${colr}" stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="${(C2 * frac).toFixed(1)} ${C2.toFixed(1)}" transform="rotate(-90 32 32)"/>
+        <text x="32" y="40" text-anchor="middle" font-size="23" font-weight="800" fill="${sh == null ? COL.quiet : COL.ink}">${sh == null ? '—' : sh}</text>
+      </svg>
+      <div class="num" style="font-size:11.5px;line-height:1.35">${sh == null ? '<span class="mute">padhne layak<br>kuch nahi</span>' : `<b>${n}/${N}</b> saath<br><b style="color:${colr}">${gw || ''}</b><br>${trendTxt}`}</div>
+    </div>
+    <svg width="${W}" height="${H}" style="margin-top:1px"><line x1="0" x2="${W}" y1="${H - 2 - 0.6 * (H - 4)}" y2="${H - 2 - 0.6 * (H - 4)}" stroke="${COL.line}" stroke-dasharray="2 2"/><path d="${path}" fill="none" stroke="${colr}" stroke-width="1.6"/><text x="${W}" y="8" text-anchor="end" font-size="8.5" fill="${COL.faint}">45 min</text></svg>`;
+  $('sah').onmousemove = (e) => {
+    const ck = checks(X, j);
+    tip(e, `<div class="h">SAHMATI = kitne checks is read ke saath hain</div>
+      <div class="mute" style="margin-bottom:4px">Ye agreement ka count hai (${n >= 0 ? n : '—'}/${N >= 0 ? N : '—'}). Jeetne ka chance NAHI — koi hit rate abhi forward dino se kamaya nahi gaya.</div>
+      ${ck.length ? `<div class="ck">${ck.map(([k, v]) => `<span style="color:${v ? COL.up : COL.dn}">${v ? '✓' : '✗'}</span><span>${esc(CHECK_HI[k] || k)}</span>`).join('')}</div>` : '<div>Is tasveer pe grade nahi hota (khamosh / swing / padh rahe).</div>'}
+      ${gw ? `<div style="margin-top:4px">Engine ka grade: <b>${gw}</b> (engine ki caps lagti hain: chhota flow = KAMZOR; chop / wapsi / patla = THEEK tak)</div>` : ''}`);
+  };
+  $('sah').onmouseleave = untip;
+}
+
+function drawFuel() {
+  const fu = c('fu'); if (!fu) { $('fuel').innerHTML = ''; return; }
+  const side = (o) => ({ ph: fu[o], top: fu[o + 1], topL: fu[o + 2], dist: fu[o + 3], pain: fu[o + 4], agla: fu[o + 5], aglaL: fu[o + 6], aglaD: fu[o + 7], tot: fu[o + 8],
+    near: fu[o + 9], nearL: fu[o + 10], nearD: fu[o + 11], nearP: fu[o + 12] });
+  const U = side(0), Dn = side(13), burn = fu[26];
+  const mx = Math.max(U.ph, Dn.ph, 1), bx = c('bx');
+  const w = tx(c('w')), d = c('d');
+  const dist = (x) => (x <= 0 ? `${f0(-x)} pts andar` : `${f0(x)} pts ${x > 0 ? 'door' : ''}`);
+  const row = (lab, s, colr, way) => `<div class="row"><div class="lab" style="color:${colr}">${lab}</div>
+      <div class="bar"><i style="width:${(100 * s.ph / mx).toFixed(1)}%;background:${colr}"></i></div>
+      <b class="num" style="text-align:right">${s.ph > 0 ? fL(s.ph) : '0'}</b>
+      <div class="det num">${s.ph > 0
+        ? (s.near ? `agla <b>${f0(s.near)}s</b>${bx != null ? ` · ${f0(s.near + bx)}f` : ''} · ${fL(s.nearL)} · <b>${dist(s.nearD)}</b>${s.top !== s.near ? ` · mota ${f0(s.top)}s ${fL(s.topL)}` : ''}`
+          : `sab price ke paar · mota ${f0(s.top)}s ${fL(s.topL)} · ${dist(s.dist)}`)
+        : `<span class="mute">koi nahi phansa</span>${s.agla ? ` · deewar <b>${f0(s.agla)}s</b> ${fL(s.aglaL)} munafe mein · ${f0(s.aglaD)} pts ${way}` : ''}`}</div></div>`;
+  let leg = '';
+  if ((w === 'CHAL RAHA' || w === 'WAPSI') && burn != null) {
+    leg = `<div style="margin-top:3px;font-size:11.5px;white-space:nowrap" class="num">is leg mein <b style="color:${d > 0 ? COL.call : COL.put}">jala: ${d > 0 ? 'CALL' : 'PUT'} −${fL(burn)}</b> <span class="mute">${tx(c('si'))} se wapas kiya</span></div>`;
+  }
+  $('fuel').innerHTML = `<div class="cap">Fuel · phanse writers <span style="text-transform:none;letter-spacing:0;font-weight:500">(aaj likha, abhi ghate mein)</span></div>
+    ${row('▲ CALL', U, COL.call, 'upar')}${row('▼ PUT', Dn, COL.put, 'neeche')}${leg}`;
+  $('fuel').onmousemove = (e) => tip(e, `<div class="h">FUEL = jo writers aaj likh ke abhi ghate mein hain</div>
+    Nine strikes (ATM ke paas) pe aaj likha OI jahan option ka bhav writers ke basis se upar hai. Price aur chala to inhe kaatna (buy back) padega — wahi move ka fuel.<br>
+    ▲ upar ka fuel = CALL writers · ▼ neeche ka fuel = PUT writers. "pts door" = strike tak spot ka faasla (s).<br>
+    Basis: ${X.basis === 'VWAP' ? `option ka din ka VWAP (record ${X.start} se shuru hua, subah ke adds nahi dekhe)` : 'trapped_inventory ledger — aaj ke adds × jis bhav pe likhe'} [I].<br>
+    Total aaj likha (nine): CALL ${fL(U.tot)} · PUT ${fL(Dn.tot)}`);
+  $('fuel').onmouseleave = untip;
+}
+
+function drawTrend() {
+  const v = c('tv'), z = c('tz') || [];
+  const colr = v === 1 ? COL.up : v === -1 ? COL.dn : COL.mute;
+  const lab = v === 1 ? '▲' : v === -1 ? '▼' : v === 0 ? '↔' : '—';
+  const word = v === 1 ? 'PUT likhai · upar' : v === -1 ? 'CALL likhai · neeche' : v === 0 ? 'RANGE · barabar' : 'padh rahe';
+  const win = [15, 30, 60].map((w, k) => {
+    const vv = z[3 + k], zz = z[k];
+    const cc = vv === 1 ? COL.up : vv === -1 ? COL.dn : COL.mute;
+    return `<span class="chip num" style="color:${cc}">${w}m ${vv === 1 ? '▲' : vv === -1 ? '▼' : '—'} ${zz == null ? '' : (zz > 0 ? '+' : '') + zz + 'L'}</span>`;
+  }).join('');
+  $('trend').innerHTML = `<div class="cap">OI trend</div><div style="display:flex;align-items:center;gap:7px;margin-top:2px"><span class="arrow" style="color:${colr}">${lab}</span>
+    <span style="font-weight:700;color:${colr};line-height:1.15">${word}</span></div><div class="w3">${win}</div>`;
+  $('trend').onmousemove = (e) => tip(e, `<div class="h">OI TREND = nine strikes pe PUT net − CALL net</div>
+    15 / 30 / 60 min. Ek window vote karti hai jab ek taraf ne ~70 % likhai ki (aur ≥ 5L kaam hua). ▲ jab 2 of 3 ▲ aur koi ▼ nahi; ▼ ulta; baaki RANGE. 3-of-4 minute tike to badalta hai.`);
+  $('trend').onmouseleave = untip;
+}
+
+/* ---------- main panels ---------- */
+const LW = () => $('price').parentElement.clientWidth - 16;
+const PH = 216, ZH = 72, FRH = 28, LADW = 336;
+let xs, ys, yDom;   // x scale (minute -> px), y scale (price -> px)
+function scales() {
+  const m0 = 555, m1 = Math.min(930, Math.max(X.m[j] + 25, m0 + 90));
+  const W = LW();
+  xs = (m) => ((m - m0) / (m1 - m0)) * (W - 6) + 2;
+  xs.m0 = m0; xs.m1 = m1; xs.W = W;
+  // y: the day's range so far, and at least 4 strikes either side of spot
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i <= j; i++) { lo = Math.min(lo, X.s[i]); hi = Math.max(hi, X.s[i]); }
+  const st = X.step, s = X.s[j];
+  lo = Math.min(lo, s - 4 * st) - 0.6 * st; hi = Math.max(hi, s + 4 * st) + 0.6 * st;
+  yDom = [lo, hi];
+  ys = (p) => 4 + ((hi - p) / (hi - lo)) * (PH - 8);
+}
+function drawPrice() {
+  const W = xs.W, svg = $('price');
+  svg.setAttribute('width', W); svg.setAttribute('height', PH);
+  let g = '';
+  // strike grid
+  for (const k of X.ks) if (k >= yDom[0] && k <= yDom[1]) g += `<line x1="0" x2="${W}" y1="${ys(k).toFixed(1)}" y2="${ys(k).toFixed(1)}" stroke="${COL.line}" stroke-width="${k % (X.step * 2) ? 0.5 : 1}"/>`;
+  // time grid
+  for (let m = 570; m < xs.m1; m += 30) g += `<line x1="${xs(m)}" x2="${xs(m)}" y1="0" y2="${PH}" stroke="${COL.line}" stroke-width="0.6"/><text x="${xs(m) + 2}" y="${PH - 3}" font-size="9.5" fill="${COL.faint}">${hm(m)}</text>`;
+  if (X.m[0] > 560) g += `<text x="${xs(X.m[0]) - 4}" y="14" font-size="10" text-anchor="end" fill="${COL.mute}">record ${hm(X.m[0])} se</text>`;
+  // the path, coloured by the picture at each minute
+  let run = null, pts = '';
+  const flush = () => { if (run && pts) g += `<polyline points="${pts}" fill="none" stroke="${run}" stroke-width="2.4" stroke-linejoin="round"/>`; };
+  for (let i = 0; i <= j; i++) {
+    const colr = picColor(tx(X.c.w[i]), X.c.d[i]), p = `${xs(X.m[i]).toFixed(1)},${ys(X.s[i]).toFixed(1)} `;
+    if (colr !== run) { flush(); const prev = i ? `${xs(X.m[i - 1]).toFixed(1)},${ys(X.s[i - 1]).toFixed(1)} ` : ''; run = colr; pts = prev + p; } else pts += p;
+  }
+  flush();
+  // stamps: ◆ at time and price; chips for the newest four, in two rows at the top, leader line down
+  const st = X.stamps.filter((s) => s.i <= j && s.k !== 'q');
+  const named = st.slice(-4);
+  const rows = [[], [], []];
+  for (const s of st) {
+    const x = xs(X.m[s.i]), y = ys(X.s[s.i]), cc = stampColor(s);
+    g += `<path d="M${x},${y - 5}L${x + 5},${y}L${x},${y + 5}L${x - 5},${y}Z" fill="${cc}" stroke="#fff" stroke-width="1" data-s="${X.stamps.indexOf(s)}"/>`;
+  }
+  for (const s of named) {
+    const x = xs(X.m[s.i]), y = ys(X.s[s.i]), cc = stampColor(s), txt = `${hm(X.m[s.i])} ${stampChip(s)}`;
+    const w = txt.length * 5.9 + 12;
+    const left = Math.min(Math.max(2, x - w / 2), W - w - 2);
+    let r = rows.findIndex((row) => !row.some(([a, b]) => left < b + 4 && left + w > a - 4));
+    if (r < 0) r = rows.length - 1;
+    rows[r].push([left, left + w]);
+    const cy = 4 + r * 18;
+    g += `<line x1="${x}" x2="${x}" y1="${cy + 16}" y2="${y - 6}" stroke="${cc}" stroke-dasharray="2 2" stroke-width="0.8"/>
+      <rect x="${left}" y="${cy}" width="${w}" height="16" rx="8" fill="#fff" stroke="${cc}"/>
+      <text x="${left + w / 2}" y="${cy + 11.5}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${cc}">${esc(txt)}</text>`;
+  }
+  // now: dot + label (s and f)
+  const xn = xs(X.m[j]), yn = ys(X.s[j]), bx = c('bx');
+  g += `<line x1="${xn}" x2="${xn}" y1="0" y2="${PH}" stroke="${COL.ink}" stroke-width="0.8" stroke-dasharray="3 3"/>
+    <circle cx="${xn}" cy="${yn}" r="4.5" fill="${picColor(tx(c('w')), c('d'))}" stroke="#fff" stroke-width="1.5"/>
+    <text x="${xn + 7 + 120 > W ? xn - 7 : xn + 7}" y="${xn + 7 + 120 > W ? yn - 8 : yn + 4}" text-anchor="${xn + 7 + 120 > W ? 'end' : 'start'}" font-size="11" font-weight="700" fill="${COL.ink}" paint-order="stroke" stroke="#fff" stroke-width="3">${f0(X.s[j])}s${bx != null ? ' · ' + f0(X.s[j] + bx) + 'f' : ''}</text>`;
+  svg.innerHTML = g;
+}
+
+function drawLadder() {
+  const svg = $('ladder'), W = LADW, mid = W / 2, half = mid - 58;
+  svg.setAttribute('width', W); svg.setAttribute('height', PH);
+  const vis = X.ks.map((k, ki) => [k, ki]).filter(([k]) => k >= yDom[0] && k <= yDom[1]);
+  let mx = 1;
+  for (const [, ki] of vis) for (const s of [0, 1]) { mx = Math.max(mx, X.oi[col(X, ki, s)][j] || 0, X.hi[col(X, ki, s)][j] || 0); }
+  const rh = Math.min(16, Math.max(7, (PH - 8) / ((yDom[1] - yDom[0]) / X.step) - 3));
+  const fronts = new Set((X.fr[j] || []).map((f) => `${f[0]}:${f[1]}`));
+  let g = '';
+  for (const [k, ki] of vis) {
+    const y = ys(k);
+    for (const s of [0, 1]) {
+      const cc = col(X, ki, s), v = Math.max(0, X.oi[cc][j] || 0), pk = Math.max(0, X.hi[cc][j] || 0), pain = X.pn[cc][j];
+      const v5 = j >= 5 ? Math.max(0, X.oi[cc][j - 5] || 0) : null;
+      const hot = v > 0 && pain != null && pain > 0, colr = s ? COL.put : COL.call;
+      // shade follows the writers' pain: deep profit pale, break-even mid, underwater dark (no flicker at the line)
+      const edge = 0.16 * X.step, op = pain == null ? 0.28 : 0.22 + 0.73 * Math.max(0, Math.min(1, (pain + edge) / (2 * edge)));
+      const len = (q) => (q / mx) * half, dir = s ? 1 : -1, x0 = mid + dir * 30;
+      if (pk > v) {
+        const a = x0 + dir * len(v), b = x0 + dir * len(pk);
+        g += `<rect x="${Math.min(a, b)}" y="${y - rh / 2}" width="${Math.abs(b - a)}" height="${rh}" fill="none" stroke="${colr}" stroke-dasharray="2 2" stroke-width="0.9" opacity="0.8"/>`;
+      }
+      if (v > 0) {
+        const b = x0 + dir * len(v);
+        g += `<rect x="${Math.min(x0, b)}" y="${y - rh / 2}" width="${Math.abs(b - x0)}" height="${rh}" fill="${colr}" opacity="${op.toFixed(2)}" rx="1.5"
+          data-k="${k}" data-s="${s}"/>`;
+        if (hot && len(v) > 4) g += `<text x="${b + dir * 3}" y="${y + 3.5}" font-size="9.5" font-weight="700" text-anchor="${s ? 'start' : 'end'}" fill="${colr}">+${pain}</text>`;
+      }
+      if (v5 != null && (v5 > 0 || v > 0)) { const t5 = x0 + dir * len(v5); g += `<line x1="${t5}" x2="${t5}" y1="${y - rh / 2 - 2}" y2="${y + rh / 2 + 2}" stroke="${COL.ink}" stroke-width="1.2"/>`; }
+    }
+    const fr = fronts.has(`0:${ki}`) || fronts.has(`1:${ki}`);
+    g += `<text x="${mid}" y="${y + 3.5}" text-anchor="middle" font-size="10.5" font-weight="${fr ? 800 : 500}" fill="${fr ? COL.ink : COL.mute}">${f0(k)}s</text>`;
+    if (fronts.has(`0:${ki}`)) g += `<circle cx="${mid - 27}" cy="${y}" r="2.6" fill="${COL.call}"/>`;
+    if (fronts.has(`1:${ki}`)) g += `<circle cx="${mid + 27}" cy="${y}" r="2.6" fill="${COL.put}"/>`;
+  }
+  const yn = ys(X.s[j]);
+  g += `<line x1="0" x2="${W}" y1="${yn}" y2="${yn}" stroke="${COL.ink}" stroke-width="1"/>
+    <rect x="0" y="${yn - 15}" width="70" height="14" rx="7" fill="${COL.ink}"/><text x="35" y="${yn - 4.5}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">abhi ${f0(X.s[j])}s</text>
+    <text x="4" y="12" font-size="10" font-weight="700" fill="${COL.call}">◄ CALL writers</text><text x="${W - 4}" y="12" text-anchor="end" font-size="10" font-weight="700" fill="${COL.put}">PUT writers ►</text>`;
+  svg.innerHTML = g;
+  $('ladcap').textContent = 'gaadha = ghate mein (fuel) · halka = munafe (deewar) · dashed = aaj ka high · | = 5 min pehle';
+  $('ladcap').parentElement.title = $('ladcap').textContent + ' · bar = aaj likha OI · +N = writers N pts ghate mein';
+  svg.onmousemove = (e) => {
+    const r = e.target.closest('rect[data-k]'); if (!r) return untip();
+    const k = +r.dataset.k, s = +r.dataset.s, ki = X.kOf.get(k), cc = col(X, ki, s), pain = X.pn[cc][j];
+    const v = X.oi[cc][j], pk = X.hi[cc][j], v5 = j >= 5 ? X.oi[cc][j - 5] : null, bx = c('bx');
+    const dist = s ? X.s[j] - k : k - X.s[j];
+    tip(e, `<div class="h" style="color:${s ? COL.put : COL.call}">${s ? 'PUT' : 'CALL'} ${f0(k)}s${bx != null ? ' · ' + f0(k + bx) + 'f' : ''}</div>
+      aaj likha: <b>${fL(v, true)}</b> · aaj ka high ${fL(pk, true)}${pk > v ? ` (wapas ${fL(pk - v)})` : ''}<br>
+      5 min mein: ${v5 == null ? '—' : fL(v - v5, true)}<br>
+      writers: ${pain == null ? 'basis nahi' : pain > 0 ? `<b style="color:${COL.dn}">+${pain} pts ghate mein · PHANSE (fuel)</b>` : `${-pain} pts munafe mein · deewar`}<br>
+      spot se: ${dist >= 0 ? f0(dist) + ' pts ' + (s ? 'neeche' : 'upar') : 'price iske paar (' + f0(-dist) + ' pts andar)'}`);
+  };
+  svg.onmouseleave = untip;
+}
+
+function drawZor() {
+  const W = xs.W, svg = $('zor'), mid = ZH / 2;
+  svg.setAttribute('width', W); svg.setAttribute('height', ZH);
+  let mx = 1;
+  const vals = [];
+  for (let i = 0; i <= j; i++) { const u = X.c.up[i], d = X.c.dn[i]; if (u != null) { vals.push(u, d); } }
+  vals.sort((a, b) => a - b);
+  mx = Math.max(100, vals.length ? vals[Math.floor(vals.length * 0.98)] : 100);
+  const yU = (v) => mid - Math.min(1, v / mx) * (mid - 3), yD = (v) => mid + Math.min(1, v / mx) * (mid - 3);
+  let up = '', dn = '', net = '', pen = false, g = '';
+  for (let m = 570; m < xs.m1; m += 30) g += `<line x1="${xs(m)}" x2="${xs(m)}" y1="0" y2="${ZH}" stroke="${COL.line}" stroke-width="0.6"/>`;
+  const seg = [];
+  let cur = [];
+  for (let i = 0; i <= j; i++) { if (X.c.up[i] == null) { if (cur.length) seg.push(cur); cur = []; } else cur.push(i); }
+  if (cur.length) seg.push(cur);
+  for (const s of seg) {
+    const xa = s.map((i) => xs(X.m[i]).toFixed(1));
+    up += `M${xa[0]},${mid}` + s.map((i, n) => `L${xa[n]},${yU(X.c.up[i]).toFixed(1)}`).join('') + `L${xa[xa.length - 1]},${mid}Z`;
+    dn += `M${xa[0]},${mid}` + s.map((i, n) => `L${xa[n]},${yD(X.c.dn[i]).toFixed(1)}`).join('') + `L${xa[xa.length - 1]},${mid}Z`;
+    net += s.map((i, n) => `${n ? 'L' : 'M'}${xa[n]},${(mid - Math.max(-1, Math.min(1, (X.c.up[i] - X.c.dn[i]) / mx)) * (mid - 3)).toFixed(1)}`).join('');
+  }
+  g += `<path d="${up}" fill="${COL.up}" opacity="0.45"/><path d="${dn}" fill="${COL.dn}" opacity="0.45"/>
+    <line x1="0" x2="${W}" y1="${mid}" y2="${mid}" stroke="${COL.mute}" stroke-width="0.6"/>
+    <path d="${net}" fill="none" stroke="${COL.ink}" stroke-width="1.3"/>
+    <text x="4" y="11" font-size="10" font-weight="700" fill="${COL.up}">▲ UPAR ZOR · PUT likhe + CALL kaate</text>
+    <text x="4" y="${ZH - 4}" font-size="10" font-weight="700" fill="${COL.dn}">▼ NEECHE ZOR · CALL likhe + PUT kaate</text>
+    <text x="${W - 4}" y="11" text-anchor="end" font-size="9.5" fill="${COL.mute}">kaali line = net · scale ${fL(mx)}/min</text>
+    <line x1="${xs(X.m[j])}" x2="${xs(X.m[j])}" y1="0" y2="${ZH}" stroke="${COL.ink}" stroke-width="0.8" stroke-dasharray="3 3"/>`;
+  svg.innerHTML = g;
+  // now
+  const u = c('up'), d = c('dn');
+  const u5 = j >= 5 ? X.c.up[j - 5] : null, d5 = j >= 5 ? X.c.dn[j - 5] : null;
+  const netNow = u != null ? u - d : null, net5 = u5 != null ? u5 - d5 : null;
+  let rf = '<span class="mute">—</span>';
+  if (netNow != null && net5 != null) {
+    const a = Math.abs(netNow), b = Math.abs(net5), same = Math.sign(netNow) === Math.sign(net5) || b < 30;
+    const side = netNow > 0 ? 'upar' : 'neeche';
+    if (a < 30 && b < 30) rf = '<span class="mute">dono shaant</span>';
+    else if (!same) rf = `<b style="color:${netNow > 0 ? COL.up : COL.dn}">palta · ab ${side}</b>`;
+    else if (a >= 1.5 * Math.max(b, 30)) rf = `<b style="color:${netNow > 0 ? COL.up : COL.dn}">↑ ${side} ka zor badh raha</b>`;
+    else if (a * 1.5 <= b) rf = `<b style="color:${COL.chop}">↓ ${side} ka zor ghat raha</b>`;
+    else rf = `<span>→ ${side} ka zor barabar</span>`;
+  }
+  const bar = (v, colr) => `<div class="bar"><i style="width:${v == null ? 0 : Math.min(100, (100 * v) / mx).toFixed(1)}%;background:${colr}"></i></div>`;
+  const sp = (k) => tx(c(k)) || '—';
+  $('zornow').innerHTML = `<div class="ph"><span class="cap">Zor abhi</span></div>
+    <div class="rowz"><b style="color:${COL.up}">▲ upar</b>${bar(u, COL.up)}<span class="num">${u == null ? '—' : fL(u) + '/m'}</span></div>
+    <div class="rowz"><b style="color:${COL.dn}">▼ neeche</b>${bar(d, COL.dn)}<span class="num">${d == null ? '—' : fL(d) + '/m'}</span></div>
+    <div style="margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="net = upar − neeche · 5 min pehle ${net5 != null ? fL(net5, true) : '—'}/m · ab ${netNow != null ? fL(netNow, true) : '—'}/m">${rf} <span class="mute num" style="font-size:11px">${net5 != null ? '· net ' + fL(net5, true) + ' → ' + fL(netNow, true) + '/m' : ''}</span></div>
+    <div class="mute" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="engine ki apni speed (har side ka gross, F window)">engine: CALL ${sp('csp')} · PUT ${sp('psp')}</div>`;
+}
+
+function drawFronts() {
+  const W = xs.W, svg = $('fronts');
+  const rows = [...(X.fr[j] || [])].sort((a, b) => a[0] - b[0] || X.ks[b[1]] - X.ks[a[1]]);
+  const H = Math.max(1, rows.length) * FRH + 14;
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  let g = '';
+  for (let m = 570; m < xs.m1; m += 30) g += `<line x1="${xs(m)}" x2="${xs(m)}" y1="0" y2="${H - 12}" stroke="${COL.line}" stroke-width="0.6"/><text x="${xs(m) + 2}" y="${H - 2}" font-size="9.5" fill="${COL.faint}">${hm(m)}</text>`;
+  if (!rows.length) g += `<text x="6" y="24" font-size="11.5" fill="${COL.mute}">Fronts ban rahe — §1d ko 15 minute ka record chahiye</text>`;
+  let html = '';
+  rows.forEach((f, r) => {
+    const [side, ki, , pj, uj, rj] = f, cc = col(X, ki, side), colr = side ? COL.put : COL.call, y0 = r * FRH;
+    const series = X.oi[cc];
+    let lo = 0, hi = 1;
+    for (let i = 0; i <= j; i++) if (series[i] != null) { lo = Math.min(lo, series[i]); hi = Math.max(hi, series[i]); }
+    const yv = (v) => y0 + 5 + ((hi - v) / (hi - lo || 1)) * (FRH - 10);
+    let p = '', pen = false;
+    for (let i = 0; i <= j; i++) { const v = series[i]; if (v == null) { pen = false; continue; } p += `${pen ? 'L' : 'M'}${xs(X.m[i]).toFixed(1)},${yv(v).toFixed(1)}`; pen = true; }
+    const x0 = xs(X.m[0]), xn = xs(X.m[j]);
+    g += `<line x1="0" x2="${W}" y1="${y0 + FRH}" y2="${y0 + FRH}" stroke="${COL.line}" stroke-dasharray="2 3"/>
+      <line x1="${x0}" x2="${xn}" y1="${yv(0)}" y2="${yv(0)}" stroke="${COL.faint}" stroke-width="0.5"/>
+      <path d="${p}${pen ? `L${xn},${yv(0)}L${x0},${yv(0)}Z` : ''}" fill="${colr}" opacity="0.12"/><path d="${p}" fill="none" stroke="${colr}" stroke-width="1.6"/>`;
+    // the held word, except when the curve is at its own high now: then the raw read (the numbers beside it must agree)
+    const code = series[j] != null && series[j] >= X.hi[cc][j] ? f[2] : heldCode(X, j, side, ki);
+    const mark = (i, kind, txt, above) => {
+      const x = xs(X.m[i]), y = yv(series[i] ?? 0);
+      const sym = kind === 'ruka' ? `<circle cx="${x}" cy="${y}" r="4" fill="${COL.chop}" stroke="#fff"/>`
+        : kind === 'chhod' ? `<circle cx="${x}" cy="${y}" r="4" fill="#fff" stroke="${COL.dn}" stroke-width="2"/>`
+        : `<path d="M${x},${y - 5}L${x + 4.5},${y + 3}L${x - 4.5},${y + 3}Z" fill="${COL.atka}"/>`;
+      const ty = above ? y0 + 10 : y0 + FRH - 3;
+      return sym + `<text x="${x + 6}" y="${ty}" font-size="9.5" font-weight="600" fill="${kind === 'ruka' ? COL.chop : kind === 'chhod' ? COL.dn : COL.atka}">${txt}</text>`;
+    };
+    if (pj >= 0 && code !== 'L' && code !== 'N') g += mark(pj, 'ruka', `ruka ${hm(X.m[pj])}`, true);
+    if (uj >= 0) g += mark(uj, 'chhod', `chhod ${hm(X.m[uj])}`, false);
+    if (rj >= 0 && code === 'P') g += mark(rj, 'phir', `phir ${hm(X.m[rj])}`, false);
+    // now column: the Board's words
+    const k = X.ks[ki], who = side ? 'PUT' : 'CALL', v = series[j], pk = X.hi[cc][j];
+    const ag = pj >= 0 && code !== 'L' && code !== 'N' ? (side ? X.s[pj] - X.s[j] : X.s[j] - X.s[pj]) : null;
+    const since = code === 'U' && uj >= 0 ? `ruka ${hm(X.m[pj])} · chhoda ${hm(X.m[uj])}` : code === 'S' ? `ruka ${hm(X.m[pj])}` : code === 'P' && rj >= 0 ? `ruka ${hm(X.m[pj])} · phir ${hm(X.m[rj])}` : code === 'L' ? 'apne high pe' : '';
+    html += `<div class="r"><div class="a"><span style="color:${colr}">${who} ${f0(k)}s</span> · <span style="color:${STATE_COL[code]}">${STATE_HI[code] || ''}</span></div>
+      <div class="b num">${since}${since ? ' · ' : ''}${fL(pk, true)} → ${fL(v, true)}${ag != null && Math.abs(ag) >= 1 ? ` · price ${f0(Math.abs(ag))} pts ${ag >= 0 ? '<b style="color:' + COL.dn + '">unke khilaf</b>' : 'unke favour mein'}` : ''}</div></div>`;
+  });
+  svg.innerHTML = g;
+  $('frnow').innerHTML = html || '<div class="r mute">—</div>';
+  const bw = tx(c('bw')), bc = tx(c('bc'));
+  $('bw').innerHTML = bw ? `<span class="chip" title="Board ka read (readOf): jo side pehle ruki aur wapas de rahi hai, wahi fuel" style="font-weight:700">BOARD: ${esc(bw)}${bc ? ' · ' + esc(bc) : ''}</span>` : '';
+}
+
+/* ---------- hover across the time panels ---------- */
+function minuteAt(clientX, el) {
+  const r = el.getBoundingClientRect(), x = clientX - r.left;
+  const m = xs.m0 + ((x - 2) / (xs.W - 6)) * (xs.m1 - xs.m0);
+  let best = 0;
+  for (let i = 0; i < X.m.length; i++) if (Math.abs(X.m[i] - m) < Math.abs(X.m[best] - m)) best = i;
+  return best;
+}
+for (const id of ['price', 'zor', 'fronts']) {
+  const el = $(id);
+  el.addEventListener('mousemove', (e) => {
+    const s = e.target.closest && e.target.closest('path[data-s]');
+    if (s) { const st = X.stamps[+s.dataset.s]; return tip(e, `<div class="h" style="color:${stampColor(st)}">${hm(X.m[st.i])} · ${esc(tx(st.ti))}${st.g ? ' · ' + esc(st.g) : ''}</div>${esc(tx(st.wy) || '')}`); }
+    const i = minuteAt(e.clientX, el);
+    if (i > j) return tip(e, `<span class="mute">${hm(X.m[i])} abhi aaya nahi</span>`);
+    const w = tx(X.c.w[i]), sh = sahmati(X, i);
+    tip(e, `<div class="h" style="color:${picColor(w, X.c.d[i])}">${hm(X.m[i])} · ${HEAD[w] || w} ${ARW[X.c.d[i]] || ''}${sh != null ? ' · sahmati ' + sh : ''}</div>
+      spot ${f0(X.s[i])}s · zor ▲ ${fL(X.c.up[i])}/m ▼ ${fL(X.c.dn[i])}/m<br>${esc(tx(X.c.sent[i]) || '')}<div class="mute" style="margin-top:3px">click = yahan jao</div>`);
+  });
+  el.addEventListener('mouseleave', untip);
+  el.addEventListener('click', (e) => { const i = minuteAt(e.clientX, el); go(i); });
+}
+function tip(e, html) { const t = $('tip'); t.innerHTML = html; t.style.display = 'block'; const w = t.offsetWidth, h = t.offsetHeight; t.style.left = Math.min(innerWidth - w - 8, e.clientX + 14) + 'px'; t.style.top = Math.min(innerHeight - h - 8, e.clientY + 14) + 'px'; }
+function untip() { $('tip').style.display = 'none'; }
+
+/* ---------- control ---------- */
+function draw() {
+  scales();
+  drawTiles(); drawHero(); drawSahmati(); drawFuel(); drawTrend();
+  drawPrice(); drawLadder(); drawZor(); drawFronts();
+  $('scrub').value = j;
+}
+function go(i) { j = Math.max(0, Math.min(X.m.length - 1, i)); draw(); }
+function setIndex() {
+  const m = X ? X.m[j] : null;
+  X = day.ix[idxName] || day.ix.NIFTY;
+  $('scrub').max = X.m.length - 1;
+  j = m != null && X.jOf.has(m) ? X.jOf.get(m) : Math.min(j, X.m.length - 1);
+  $('foot').innerHTML = `${idxName} · ${day.day} · ${X.kind === 'EXPIRY' ? 'is index ka expiry din (≠ READ nahi chhapta)' : 'normal din'} · record ${X.start} se · fuel basis: ${X.basis === 'VWAP' ? 'din ka VWAP (record late shuru)' : 'ledger (aaj ke adds × bhav)'} · `
+    + `${idxName === 'SENSEX' ? 'SENSEX = NIFTY ka order flow + apna OI (§1q) · ' : ''}har minute sirf us minute tak ka data · display only`;
+  draw();
+}
+function setDay(n) {
+  day = D.days[n]; X = null; drawDays();
+  $('look').innerHTML = '<span class="mute" style="font-size:11px">dekho:</span> ' + day.look.map((t) => `<button data-t="${t}">${t}</button>`).join(' ');
+  for (const b of $('look').querySelectorAll('button')) b.onclick = () => { stop(); const i = X.jOf.get(toM(b.dataset.t)); if (i != null) go(i); };
+  j = 0; setIndex();
+  const i = X.jOf.get(toM(day.look[0] || '10:00')); if (i != null) go(i);
+}
+function tick() { if (j < X.m.length - 1) { j++; draw(); } else stop(); }
+function start() { playing = true; $('play').textContent = '❚❚'; clearInterval(timer); timer = setInterval(tick, 1000 / +$('spd').value); }
+function stop() { playing = false; $('play').textContent = '▶'; clearInterval(timer); }
+$('play').onclick = () => (playing ? stop() : start());
+$('spd').onchange = () => { if (playing) start(); };
+$('scrub').oninput = () => { stop(); go(+$('scrub').value); };
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'SELECT' || (e.target.tagName === 'INPUT' && e.code !== 'Space')) return;
+  if (e.code === 'Space') { e.preventDefault(); playing ? stop() : start(); }
+  if (e.code === 'ArrowRight') { stop(); go(j + (e.shiftKey ? 10 : 1)); }
+  if (e.code === 'ArrowLeft') { stop(); go(j - (e.shiftKey ? 10 : 1)); }
+});
+let rz = 0; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => X && draw(), 100); });
+
+load().then(() => setDay(0)).catch((e) => { document.body.innerHTML = `<pre style="padding:20px;color:#c43a2b">RAFTAAR v3 could not load its data: ${esc(e && e.stack || e)}</pre>`; });
+</script>
+</body>
+</html>

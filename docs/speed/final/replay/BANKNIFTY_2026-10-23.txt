@@ -1,0 +1,19 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-10-23 · NORMAL · down day, §1o TREND ▼ 11:30 → CHOP · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???·····▼▼▼▼▼▼▼▼▼▼▼▼·▼▼~~~~~~~~~~~~~~~~~~~~~~~~~~~▼·~~wwwwwwwww~~~~~~~~~~~~
+
+09:53     54535s  CHAL RAHA ▼ · SHURU                 7/11 THEEK      CE CAP SAATH · spot -145 pts/15m · with +1.7L against +0.10L
+10:02     54381s  CHAL RAHA ▼ · TEZ                   9/11 THEEK      PE BHAAG + CE LIKHAI · spot -269 pts · with +4.1L
+10:39     54204s  CHAL RAHA ▼ · PHIR CHAL PADA        11/11 THEEK     CE CAP SAATH · spot -86 pts/15m · with +2.3L against +0.46L
+10:59     54167s  CHAL RAHA ▼ · SHURU                 8/11 THEEK      CE CAP SAATH · spot -96 pts/15m · with +1.3L against +0.52L
+11:02     54209s  PE PHIR LIKHNE LAGE (23 min ruk ke)                  54000 +0.53L, 54300 +0.28L
+11:34     54204s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 174
+13:14     54008s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 144
+13:22     53972s  CHAL RAHA ▼ · THAK · chop se bahar  8/11 THEEK      PE BHAAG + CE LIKHAI · spot -61 pts/15m · with +1.9L against +0.02L
+                    PHANSE: 54000 +0.79L 13:14 tak likha, 54100 +0.36L 12:50 tak likha
+13:42     54348s  CHAL RAHA ▲ · chop se bahar         7/11 THEEK      CE BHAAG RAHE · 60-min range toota · spot +354/15m
+14:13     54300s  WAPSI ▲ · PHIR CHAL PADA            9/11 THEEK      PE FLOOR SAATH · spot +71 pts/15m · with +1.1L against +0.24L
+15:28     54287s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 259
+
+-- minutes: CHOP 204, CHAL RAHA ▼ 81, WAPSI ▲ 45, KHAMOSH 29, ? 15
+-- stamps: 11 (pictures / quiet / ? 7, phases + ends 3, side events 1, ≠ READ 0)

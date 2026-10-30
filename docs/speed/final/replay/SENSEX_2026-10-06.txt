@@ -1,0 +1,24 @@
+== RAFTAAR (converged) · SENSEX · 2026-10-06 · NORMAL · NIFTY expiry · slow grind up · size ref: 20 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ????··aa▲▲▲~~~~~~~~~~~~~▲▲▲▲PPuu·P·····k·▲▲▲▲▲▲▲~~~~~~~········wwww~~~~~~~~
+
+09:57     72726s  CHAL RAHA ▲ · SHURU                 7/11 THEEK      CE BHAAG + PE LIKHAI · spot +144 pts/16m · with +11.5L against +0.53L
+                    PHANSE: 72500 +3.1L 09:21 tak likha, 72400 +1.3L 09:32 tak likha
+10:09     72592s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 72500 −1.2L, 72400 −0.73L, 72700 +1.1L, 72800 +0.70L
+10:42     72738s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 105
+11:14     72798s  CHAL RAHA ▲ · SHURU                 6/11 THEEK      PE FLOOR SAATH · spot +105 pts/16m · with +8.4L against +0.49L
+11:37     72789s  PIN @ 72800s                        4/8 THEEK       dono barabar baithe · OI at 72800: CE +4.9L PE +6.1L · range30 tight
+12:00     72811s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 72500 −0.56L, 72600 −0.53L, 72900 +0.70L, 72800 +0.37L
+12:02     72846s  PIN @ 72900s                        4/9 THEEK       dono likh rahe, barabar · 15m adds CE +1.5L PE +2.3L
+12:12     72760s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:41     72909s  CHAL RAHA ▲ · SHURU                 7/11 THEEK      CE BHAAG + PE LIKHAI · spot +82 pts/16m · with +3.8L against +0.15L
+                    PHANSE: 72800 +0.64L 12:28 tak likha
+12:51     72923s  CHAL RAHA ▲ · TEZ                   9/11 THEEK      CE BHAAG + PE LIKHAI · spot +70 pts · with +8.5L
+13:13     72912s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+13:35     72894s  CE PHIR LIKHNE LAGE (21 min ruk ke)                  73000 +0.70L, 72800 +0.59L
+13:59     72930s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+14:28     72845s  WAPSI ▼ · SHURU                     7/11 THEEK      CE CAP SAATH · spot -117 pts/16m · with +4.1L against +0.82L
+15:01     72887s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 77
+
+-- minutes: CHOP 140, KHAMOSH 86, CHAL RAHA ▲ 63, WAPSI ▼ 20, ? 18, ATKA 17, PIN 15, UNWIND 10, BINA OI ▲ 4
+-- stamps: 15 (pictures / quiet / ? 10, phases + ends 2, side events 3, ≠ READ 0)

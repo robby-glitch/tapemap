@@ -1,0 +1,211 @@
+RAFTAAR replay (OPUS round 1) — 2026-10-21 — causal, minute by minute. A line is stamped only when the held picture
+changes. Grade = agreement count n/N at the stamp → 10 min later (never a %). [I] throughout; OI lakh; levels spot.
+THE READ log for the day: yes
+
+== NIFTY · NORMAL · spot 23053 → 22738 (H 23117 L 22656) · fut leg yes · size ref: 20 pichhle normal din
+   strip (5 min, 09:15→): ?????··▼▼▼▼▼▼▼▼▼▼k····k·▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼·k··▼▼▼▼▼▼▼▼▼▼▼▼▼kk·aPPk··kk▲▲▲
+  10:00    23006.2s  CHAL RAHA ▼ · THAK       8/10→8/10 MAZBOOT CALL CAP SAATH ▼  (picture 09:49 se)
+                      CALL writers price ke saath · spot -84 pts/15m · net −57L · raftaar CE +3.7L/m BARABAR PE -0.3L/m RUK
+                      CALL likh rahe [23150CE −0.7L · 23100CE +14L 23050CE +7.8L] | PUT ruke [23100PE −14L 23150PE −3.8L · 23000PE +1.2L 22900PE +0.9L]
+                      §1d fronts: CE23000:B CE23100:B PE23000:S PE23100:U
+                      ≠ READ RANGE · RAFTAAR CHAL RAHA ▼ · THAK 8/10: spot -84 pts/15m · net −57L
+  10:18    22946.1s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [23000PE −21L 23100PE −16L · 22950PE +8.8L 22900PE +6.5L]
+  10:42    22990.0s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE23000:B CE23100:S PE23000:S PE23100:U
+  10:42    22990.0s  KHAALI CHAAL ▲                             KHAALI CHAAL ▲
+                      price chal raha, OI chup — writer peeche nahi · spot +31 pts/15m · net −5.6L · raftaar CE -1.5L/m — PE +2.5L/m PALTA
+                      CALL ruke [23050CE −0.3L 23100CE −0.3L · 23000CE +5.2L 23150CE +2.4L] | PUT ruke [23100PE −1.3L 23050PE −1.2L · 22950PE +4.5L 23000PE +1.9L]
+                      §1d fronts: CE23000:B CE23100:S PE23000:S PE23100:U
+  11:20    22905.7s  CHAL RAHA ▼ · SHURU      6/10→8/10 MAZBOOT PUT BHAAG RAHE ▼  (picture 11:18 se)  PHANSE: 23000PE +5.3L 11:07 tak likha
+                      PUT writers chhod rahe — fuel · spot -79 pts/15m · net −37L · raftaar CE +0.4L/m RUK PE -5.8L/m SHURU
+                      CALL ruke [23050CE −1.9L 23100CE −0.5L · 22950CE +3.7L 22900CE +3.6L] | PUT bhaag rahe [23000PE −8.6L 22700PE −5.5L · 22850PE +0.2L]
+                      §1d fronts: CE23000:S CE23100:S PE23000:U PE22700:U
+  11:34    22847.9s  CHAL RAHA ▼ · TEZ        8/10→8/10 MAZBOOT PUT BHAAG + CALL LIKHAI ▼
+                      PUT chhod rahe aur CALL likh rahe — dono engine · spot -58 pts/15m · net −62L · raftaar CE +2.2L/m BARABAR PE -3.9L/m SHURU
+                      CALL likh rahe [22900CE +13L 23000CE +6.4L] | PUT ITM cover [23000PE −11L 22950PE −7.9L · 22850PE +5.1L 22800PE +1.6L]
+  11:55    22828.1s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [22900PE −5.2L 22950PE −5.0L · 22800PE +12L 22700PE +3.3L]
+  12:15    22745.2s  CHAL RAHA ▼ · TEZ        8/10→8/10 MAZBOOT PUT BHAAG + CALL LIKHAI ▼
+                      PUT chhod rahe aur CALL likh rahe — dono engine · spot -50 pts/15m · net −51L · raftaar CE +2.7L/m TEZ PE -3.3L/m BARABAR
+                      CALL likh rahe [22800CE +9.8L 22750CE +6.8L] | PUT ITM cover [22800PE −11L 22850PE −7.4L · 22750PE +2.6L 22700PE +0.4L]
+  12:53    22743.0s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE22900:B CE22800:B PE22700:B PE22800:S
+  12:53    22743.0s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot +0 pts/15m · net −4.1L · raftaar CE +0.7L/m — PE +0.2L/m RUK
+                      CALL ruke [22750CE +3.5L 22700CE +2.8L] | PUT ruke [22850PE −1.0L 22900PE −0.6L · 22650PE +4.4L 22750PE +2.6L]
+                      §1d fronts: CE22900:B CE22800:B PE22700:B PE22800:S
+  13:16    22725.8s  CHAL RAHA ▼ · SHURU      5/10→3/10 KAMZOR  CALL CAP SAATH ▼  (picture 13:11 se)
+                      CALL writers price ke saath · spot -19 pts/15m · net −20L · raftaar CE +1.7L/m TEZ PE -2.9L/m PALTA
+                      CALL likh rahe [22700CE +4.9L 22800CE +3.1L] | PUT ruke [22750PE −1.7L 22800PE −1.1L · 22700PE +1.4L 22600PE +0.5L]
+                      §1d fronts: CE22900:B CE22800:B PE22700:S PE22800:U
+  13:44    22687.0s  CHAL RAHA ▼ · THAK       3/10→6/10 MAZBOOT KHAALI CHAAL ▼
+                      price chal raha, OI chup — writer peeche nahi · spot -36 pts/15m · net −11L · raftaar CE +0.3L/m RUK PE -0.6L/m —
+                      CALL ruke [22700CE +3.6L 22750CE +1.2L] | PUT ruke [22750PE −2.8L 22800PE −2.4L · 22700PE +1.6L 22600PE +0.8L]
+  14:17    22682.8s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE22900:S CE22800:S PE22500:B PE22700:B
+  14:17    22682.8s  KHAALI CHAAL ▼                             KHAALI CHAAL ▼
+                      price chal raha, OI chup — writer peeche nahi · spot -27 pts/15m · net +2.5L · raftaar CE +0.9L/m — PE +1.1L/m —
+                      CALL ruke [22700CE +4.4L 22800CE +2.5L] | PUT ruke [22900PE −0.0L · 22700PE +5.4L 22500PE +3.8L]
+                      §1d fronts: CE22900:S CE22800:S PE22500:B PE22700:B
+  14:42    22682.7s  PIN                      4/6 THEEK         PIN TIKA @ 22700s  (picture 14:40 se)
+                      22700: CE +69L · PE +77L baithe · range 27 pts/30m · spot +11 pts/15m · net −12L · raftaar CE +0.1L/m RUK PE +0.2L/m —
+                      CALL ruke [22900CE −0.2L · 22700CE +4.5L 22600CE +1.9L] | PUT ruke [22750PE −0.6L 22900PE −0.6L · 22600PE +1.0L 22700PE +0.6L]
+                      §1d fronts: CE22900:S CE22800:S PE22500:S PE22700:S
+  14:53    22678.1s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -0 pts/15m · net −16L · raftaar CE +1.3L/m — PE +0.0L/m RUK
+                      CALL ruke [22900CE −1.1L 22800CE −0.5L · 22700CE +2.4L 22600CE +2.0L] | PUT ruke [22700PE −2.2L 22750PE −2.0L]
+                      §1d fronts: CE22900:S CE22800:S PE22500:U PE22700:U
+  15:15    22738.5s  CHAL RAHA ▲ · SHURU      6/10→7/10 MAZBOOT CALL BHAAG RAHE ▲  (picture 15:12 se)  PHANSE: 22700CE +12L 15:03 tak likha
+                      CALL writers chhod rahe — fuel · spot +66 pts/15m · net +18L · raftaar CE -2.5L/m TEZ PE -0.7L/m —
+                      CALL bhaag rahe [22900CE −4.8L 22700CE −4.4L] | PUT ruke [22650PE −4.7L 22550PE −1.5L · 22750PE +1.2L 22800PE +0.7L]
+                      §1d fronts: CE22900:U CE22800:U PE22700:S PE22800:S
+                      ≠ READ LEAN▼ · RAFTAAR CHAL RAHA ▲ · SHURU 6/10: spot +66 pts/15m · net +18L
+
+== BANKNIFTY · NORMAL · spot 55697 → 54893 (H 55854 L 54709) · fut leg yes · size ref: 20 pichhle normal din
+   strip (5 min, 09:15→): ???▲▲▲·▼▼▼▼▼▼▼▼▼▲▲▲···▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼····▼▼▼▼▼▼·······k········kk▲▲▲
+  09:37    55822.0s  CHAL RAHA ▲ · SHURU      5/8 THEEK         CALL CAP UPAR SHIFT ▲  (picture 09:33 se)
+                      CALL roll kar rahe, abhi bhi short · spot +126 pts/15m · net +2.4L · raftaar CE -0.1L/m — PE +0.1L/m RUK
+                      CALL roll UP [55500CE −0.7L 55600CE −0.6L · 56200CE +0.7L 55900CE +0.4L] | PUT ATM/ITM likh rahe [55500PE −1.2L · 55800PE +0.9L 56000PE +0.6L]
+                      §1d fronts: CE56000:U CE55500:U PE55500:U PE56000:B
+  09:37    55822.0s  · CALL CAP UPAR SHIFT (roll, abhi bhi short)                   CALL roll UP [55500CE −0.7L 55600CE −0.6L · 56200CE +0.7L 55900CE +0.4L]
+  09:46    55728.9s  MOVE ▲ KHATAM                              price ne 125 pts wapas diye (leg 235 pts)
+                      §1d fronts: CE56000:B CE55500:U PE55500:U PE56000:S
+  09:46    55728.9s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -75 pts/15m · net +1.5L · raftaar CE +0.0L/m — PE +0.0L/m —
+                      CALL ruke [55500CE −0.4L 55700CE −0.4L · 55900CE +0.3L 56000CE +0.3L] | PUT ruke [55500PE −0.0L 56100PE −0.0L · 55800PE +0.6L 55900PE +0.2L]
+                      §1d fronts: CE56000:B CE55500:U PE55500:U PE56000:S
+  09:53    55626.5s  CHAL RAHA ▼ · SHURU      6/10→9/10 MAZBOOT OI SAATH ▼  (picture 09:50 se)
+                      zor saath, structure mila-jula · spot -190 pts/15m · net −2.3L · raftaar CE +0.2L/m — PE -0.2L/m SHURU
+                      CALL ruke [55300CE −0.0L 55600CE −0.0L · 56000CE +0.5L 55800CE +0.3L] | PUT ruke [55500PE −0.4L 56000PE −0.3L · 55200PE +0.1L 55400PE +0.1L]
+                      §1d fronts: CE56000:B CE55500:B PE55500:U PE56000:U
+                      ≠ READ TREND▲ · RAFTAAR CHAL RAHA ▼ · SHURU 6/10: spot -190 pts/15m · net −2.3L
+  10:26    55455.2s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [55700PE −0.3L 55500PE −0.3L · 55400PE +0.2L 55300PE +0.2L]
+  10:38    55517.9s  MOVE ▼ KHATAM                              ulta move shuru
+                      §1d fronts: CE55500:B CE55800:B PE55500:B PE55800:S
+  10:46    55539.5s  CHAL RAHA ▲ · THAK       6/10 MAZBOOT      CALL BHAAG RAHE ▲  (picture 10:36 se)  [CHOP ke andar: swing]  PHANSE: 55400CE +1.0L 10:33 tak likha · 55500CE +1.5L 10:31 tak likha
+                      CALL writers chhod rahe — fuel · spot +98 pts/15m · net +1.1L · raftaar CE -0.1L/m SHURU PE -0.0L/m RUK
+                      CALL bhaag rahe [55400CE −0.3L 55500CE −0.3L · 55600CE +0.1L] | PUT ruke [55400PE −0.1L 55800PE −0.1L · 55500PE +0.3L 55100PE +0.0L]
+                      §1d fronts: CE55500:U CE55800:U PE55500:B PE55800:U
+                      ≠ READ TREND▼ · RAFTAAR CHAL RAHA ▲ · THAK 6/10: spot +98 pts/15m · net +1.1L
+  10:54    55476.0s  MOVE ▲ KHATAM                              price ne 116 pts wapas diye (leg 219 pts)
+                      §1d fronts: CE55500:U CE55800:U PE55500:B PE55800:U
+  10:54    55476.0s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -30 pts/15m · net +0.6L · raftaar CE +0.0L/m — PE +0.0L/m —
+                      CALL ruke [55800CE −0.2L 55700CE −0.2L · 55600CE +0.2L] | PUT ruke [55800PE −0.1L 55700PE −0.0L · 55500PE +0.4L 55400PE +0.0L]
+                      §1d fronts: CE55500:U CE55800:U PE55500:B PE55800:U
+  11:10    55357.5s  CHAL RAHA ▼ · SHURU      4/10→6/10 MAZBOOT OI SAATH ▼  (picture 11:08 se)  [CHOP ke andar: swing]
+                      zor saath, structure mila-jula · spot -106 pts/15m · net −1.4L · raftaar CE +0.2L/m SHURU PE -0.1L/m PALTA
+                      CALL ruke [55500CE +0.4L 55600CE +0.1L] | PUT ruke [55500PE −0.2L 55600PE −0.1L · 55200PE +0.0L 55100PE +0.0L]
+                      §1d fronts: CE55500:B CE55000:B PE55000:U PE55500:U
+  11:22    55170.8s  CHAL RAHA ▼ · TEZ        8/10→9/10 MAZBOOT CALL CAP SAATH ▼
+                      CALL writers price ke saath · spot -196 pts/15m · net −3.3L · raftaar CE +0.2L/m BARABAR PE -0.1L/m PALTA
+                      CALL likh rahe [55000CE +0.7L 55300CE +0.6L] | PUT ruke [55500PE −0.5L 55400PE −0.3L · 55000PE +0.3L 55300PE +0.2L]
+  11:25    55192.2s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [55500PE −0.5L 55400PE −0.4L · 55000PE +0.2L 55200PE +0.2L]
+  12:12    54797.4s  CHAL RAHA ▼ · TEZ        9/10→8/10 MAZBOOT PUT BHAAG + CALL LIKHAI ▼
+                      PUT chhod rahe aur CALL likh rahe — dono engine · spot -192 pts/15m · net −2.0L · raftaar CE +0.1L/m TEZ PE -0.1L/m SHURU
+                      upar deewar moti [55000CE +0.7L 55100CE +0.2L] | PUT ITM cover [55000PE −0.4L 54900PE −0.1L · 54800PE +0.1L 54700PE +0.0L]
+  12:30    54855.8s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [54500PE −0.2L 55300PE −0.2L · 54700PE +0.5L 54800PE +0.1L]
+  12:53    54818.2s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE55000:B CE55200:S PE55000:B PE54500:U
+  12:53    54818.2s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot +26 pts/15m · net −0.5L · raftaar CE +0.0L/m — PE +0.0L/m RUK
+                      CALL likh rahe [54400CE −0.0L · 55000CE +0.4L 54800CE +0.2L] | PUT ATM/ITM likh rahe [55100PE −0.2L 54400PE −0.0L · 54800PE +0.4L 54900PE +0.1L]
+                      §1d fronts: CE55000:B CE55200:S PE55000:B PE54500:U
+  13:13    54749.3s  CHAL RAHA ▼ · SHURU      5/10→5/10 THEEK   CALL CAP SAATH ▼  (picture 13:11 se)
+                      CALL writers price ke saath · spot -127 pts/15m · net −0.2L · raftaar CE +0.1L/m BARABAR PE +0.0L/m —
+                      CALL likh rahe [54300CE −0.0L 54400CE −0.0L · 54800CE +0.2L 54500CE +0.1L] | PUT ATM/ITM likh rahe [55000PE −0.1L 54500PE −0.0L · 54700PE +0.4L 54800PE +0.1L]
+                      §1d fronts: CE55000:S CE54900:B PE55000:U PE54500:U
+  13:44    54767.4s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE55000:S CE55200:S PE55000:U PE54500:B
+  13:44    54767.4s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -21 pts/15m · net −0.2L · raftaar CE +0.0L/m — PE +0.0L/m —
+                      CALL ruke [54500CE −0.0L 54400CE −0.0L · 54900CE +0.1L 54800CE +0.0L] | PUT ruke [54400PE −0.1L 55000PE −0.0L · 54600PE +0.1L 54900PE +0.1L]
+                      §1d fronts: CE55000:S CE55200:S PE55000:U PE54500:B
+  14:45    54763.8s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [55000PE −0.2L 54800PE −0.1L · 54600PE +0.2L 54700PE +0.1L]
+  15:14    54884.7s  CHAL RAHA ▲ · SHURU      7/10→7/10 MAZBOOT CALL BHAAG RAHE ▲  (picture 15:12 se)
+                      CALL writers chhod rahe — fuel · spot +111 pts/15m · net +1.5L · raftaar CE -0.2L/m TEZ PE -0.1L/m SHURU
+                      CALL bhaag rahe [55000CE −0.6L 55100CE −0.3L] | PUT ruke [54700PE −0.3L 55100PE −0.1L · 54800PE +0.2L 55000PE +0.0L]
+                      §1d fronts: CE55000:U CE55300:U PE55000:S PE54500:U
+                      ≠ READ TREND▼ · RAFTAAR CHAL RAHA ▲ · SHURU 7/10: spot +111 pts/15m · net +1.5L
+
+== SENSEX · NORMAL · spot 74438 → 73514 (H 74676 L 73242) · fut leg NIFTY fut · size ref: 20 pichhle normal din
+   strip (5 min, 09:15→): ??????aa▼▼▼▼▼▼▼▼▼kkaa····▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼·······aa···▼aaa····aaaaa····▲▲
+  09:47    74516.3s  ATKA ▲                   4/9 THEEK         ATKA ▲ · ZOR HAI, PRICE NAHI
+                      PUT likh rahe · price ruka · spot -76 pts/16m · net +35L · raftaar CE +0.6L/m — PE +1.8L/m BARABAR
+                      CALL ruke [74500CE −4.5L 74400CE −2.9L · 74700CE +4.4L 74900CE +1.7L] | PUT likh rahe [74600PE +8.2L 74500PE +7.0L]
+                      §1d fronts: CE74500:U CE74700:B PE74500:B PE74400:B
+  09:57    74396.2s  CHAL RAHA ▼ · SHURU      7/10→10/10 MAZBOOT OI SAATH ▼  (picture 09:52 se)
+                      zor saath, structure mila-jula · spot -248 pts/16m · net −24L · raftaar CE +1.5L/m — PE -2.1L/m PALTA
+                      CALL ruke [74100CE −0.0L · 74500CE +5.6L 74400CE +4.2L] | PUT ruke [74000PE −3.2L 74700PE −2.1L · 74400PE +2.2L 74300PE +1.4L]
+                      §1d fronts: CE74500:B CE74700:B PE74000:U PE74500:U
+                      ≠ READ TREND▲ · RAFTAAR CHAL RAHA ▼ · SHURU 7/10: spot -248 pts/16m · net −24L
+  10:26    74163.5s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [74500PE −4.2L 74400PE −3.4L · 74100PE +4.0L 73900PE +2.9L]
+  10:43    74257.0s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE74500:U CE74600:S PE74000:S PE74500:S
+  10:43    74257.0s  KHAALI CHAAL ▲                             KHAALI CHAAL ▲
+                      price chal raha, OI chup — writer peeche nahi · spot +78 pts/16m · net +10L · raftaar CE -0.6L/m PALTA PE +1.0L/m SHURU
+                      CALL ruke [74500CE −2.3L 74100CE −0.9L · 74700CE +0.9L 74300CE +0.6L] | PUT ruke [74700PE −0.2L · 74200PE +3.4L 74300PE +2.2L]
+                      §1d fronts: CE74500:U CE74600:S PE74000:S PE74500:S
+  10:54    74236.2s  ATKA ▲                   5/9 THEEK         ATKA ▲ · ZOR HAI, PRICE NAHI
+                      PUT likh rahe · price ruka · spot +2 pts/16m · net +18L · raftaar CE +0.2L/m — PE +0.7L/m DHEEMA
+                      CALL ruke [74200CE −1.1L 74400CE −0.6L · 74600CE +0.6L 74300CE +0.4L] | PUT likh rahe [74200PE +3.8L 74300PE +3.6L]
+                      §1d fronts: CE74500:S CE74600:S PE74000:B PE74500:S
+  11:04    74278.1s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -3 pts/16m · net +2.8L · raftaar CE +0.0L/m RUK PE -0.1L/m RUK
+                      CALL ruke [74100CE −0.2L 74000CE −0.2L · 74200CE +0.8L 74300CE +0.6L] | PUT ruke [74600PE −0.5L 74500PE −0.3L · 74200PE +2.7L 74100PE +1.2L]
+                      §1d fronts: CE74500:S CE74600:S PE74000:S PE74500:U
+  11:20    74022.1s  · PUT BHAAG RAHE (price unke against)                   PUT ITM cover [74200PE −4.1L 74000PE −4.1L]
+  11:24    73955.7s  CHAL RAHA ▼ · SHURU      9/10→10/10 MAZBOOT PUT BHAAG + CALL LIKHAI ▼  (picture 11:19 se)  PHANSE: 74200PE +7.2L 11:07 tak likha · 74300PE +4.9L 10:56 tak likha
+                      PUT chhod rahe aur CALL likh rahe — dono engine · spot -204 pts/16m · net −32L · raftaar CE +1.0L/m TEZ PE -2.1L/m TEZ
+                      CALL likh rahe [74100CE +3.6L 74000CE +2.7L] | PUT ITM cover [74200PE −5.6L 74300PE −3.9L · 73700PE +0.7L]
+                      §1d fronts: CE74300:B CE74200:B PE74000:U PE74200:U
+  11:50    73744.1s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [74000PE −6.8L 74100PE −3.6L · 73500PE +3.7L 73700PE +2.3L]
+  12:00    73702.2s  CHAL RAHA ▼ · TEZ        8/10→9/10 MAZBOOT CALL CAP SAATH ▼
+                      CALL writers price ke saath · spot -79 pts/16m · net −10L · raftaar CE +0.8L/m DHEEMA PE -0.3L/m PALTA
+                      CALL likh rahe [73700CE +4.5L 73800CE +4.3L] | neeche deewar moti [74000PE −0.7L 73900PE −0.6L · 73600PE +3.8L 73700PE +1.6L]
+  12:30    73497.8s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [73700PE −4.4L 73600PE −4.3L · 73400PE +3.4L 73100PE +2.2L]
+  12:46    73528.7s  CHAL RAHA ▼ · THAK       3/10 KAMZOR       ATKA ▲ · ZOR HAI, PRICE NAHI
+                      PUT likh rahe · price ruka · spot -11 pts/16m · net +8.3L · raftaar CE +0.6L/m PALTA PE +0.1L/m RUK
+                      CALL ruke [73200CE −0.8L 73800CE −0.3L · 73600CE +1.5L 73500CE +1.4L] | PUT likh rahe [73800PE −0.1L 73900PE −0.1L · 73500PE +3.7L 73400PE +3.1L]
+  12:53    73503.5s  MOVE ▼ KHATAM                              30 min se naya low nahi, zor saath nahi
+                      §1d fronts: CE73800:S CE73500:B PE73500:B PE73800:U
+  12:53    73503.5s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -14 pts/16m · net +0.4L · raftaar CE +0.4L/m BARABAR PE +0.2L/m RUK
+                      CALL likh rahe [73900CE −0.0L 73100CE −0.0L · 73500CE +2.9L 73600CE +1.0L] | PUT likh rahe [73700PE −0.3L 73800PE −0.2L · 73500PE +2.6L 73400PE +2.3L]
+                      §1d fronts: CE73800:S CE73500:B PE73500:B PE73800:U
+  13:17    73481.7s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [73600PE −1.5L 73500PE −1.0L · 73400PE +2.3L 73300PE +0.6L]
+  13:28    73473.5s  ATKA ▼                   6/9 MAZBOOT       ATKA ▼ · ZOR HAI, PRICE NAHI
+                      PUT roll DOWN · price ruka · spot +18 pts/16m · net −8.7L · raftaar CE +0.4L/m DHEEMA PE +0.3L/m —
+                      CALL ATM/ITM likh rahe [73700CE −0.1L · 73500CE +2.9L 73400CE +2.6L] | PUT roll DOWN [73600PE −1.0L 73500PE −0.9L · 73400PE +1.4L 73200PE +0.9L]
+                      §1d fronts: CE73500:B CE73800:S PE73500:S PE73800:U
+  13:36    73452.1s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -41 pts/16m · net −0.7L · raftaar CE +0.4L/m — PE +0.4L/m —
+                      CALL ruke [73500CE +1.9L 73600CE +1.2L] | PUT ruke [73700PE −0.3L 73900PE −0.1L · 73400PE +1.9L 73200PE +1.8L]
+                      §1d fronts: CE73500:B CE73800:S PE73500:S PE73800:U
+  13:51    73331.4s  CHAL RAHA ▼ · SHURU      6/10 MAZBOOT      PUT BHAAG + CALL LIKHAI ▼  (picture 13:46 se)  PHANSE: 73500PE +2.5L 13:11 tak likha · 73400PE +4.0L 13:38 tak likha
+                      PUT chhod rahe aur CALL likh rahe — dono engine · spot -122 pts/16m · net −23L · raftaar CE +1.3L/m SHURU PE -1.2L/m SHURU
+                      CALL likh rahe [73300CE +3.8L 73400CE +3.0L] | PUT ITM cover [73500PE −4.6L 73400PE −4.1L · 73300PE +1.1L 73100PE +0.9L]
+                      §1d fronts: CE73500:B CE73700:B PE73000:S PE73500:U
+  13:56    73392.7s  MOVE ▼ KHATAM                              price ne 102 pts wapas diye (leg 184 pts)
+                      §1d fronts: CE73500:B CE73800:S PE73000:S PE73500:U
+  13:58    73391.0s  ATKA ▼                   5/9 THEEK         ATKA ▼ · ZOR HAI, PRICE NAHI  (picture 13:56 se)
+                      PUT ITM cover · price ruka · spot -21 pts/16m · net −26L · raftaar CE +0.7L/m DHEEMA PE +0.2L/m RUK
+                      CALL likh rahe [73800CE −0.4L · 73300CE +4.5L 73700CE +3.4L] | PUT ITM cover [73400PE −3.8L 73500PE −3.7L · 73300PE +1.8L 73100PE +0.6L]
+                      §1d fronts: CE73500:B CE73800:U PE73000:U PE73500:U
+  14:11    73329.0s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -21 pts/16m · net +2.5L · raftaar CE +0.1L/m RUK PE +0.6L/m TEZ
+                      CALL ruke [73000CE −0.0L 72900CE −0.0L · 73600CE +1.3L 73400CE +1.2L] | PUT ruke [73600PE −0.0L 73500PE −0.0L · 73400PE +2.3L 73100PE +1.6L]
+                      §1d fronts: CE73500:S CE73700:B PE73000:S PE73500:U
+  14:24    73275.7s  · PUT FLOOR NEECHE SHIFT (roll, abhi bhi short)                   PUT roll DOWN [73500PE −3.0L 73400PE −2.6L · 73300PE +2.5L 73000PE +1.6L]
+  14:31    73309.7s  ATKA ▼                   4/9 THEEK         ATKA ▼ · ZOR HAI, PRICE NAHI
+                      PUT ruke · price ruka · spot -16 pts/16m · net −19L · raftaar CE +0.8L/m BARABAR PE -0.7L/m SHURU
+                      CALL likh rahe [73300CE +4.0L 73700CE +2.3L] | PUT ruke [73500PE −2.4L 73400PE −1.8L · 73200PE +1.0L 72900PE +0.4L]
+                      §1d fronts: CE73500:S CE73700:B PE73000:S PE73500:U
+  14:56    73329.6s  KHAMOSH                                    KUCH KHAAS NAHI
+                      koi flow noise se upar nahi · spot -26 pts/16m · net −6.6L · raftaar CE +0.3L/m — PE +0.2L/m RUK
+                      CALL ruke [73700CE −0.9L 73600CE −0.3L · 73500CE +2.2L 73200CE +0.8L] | PUT ruke [73100PE −1.4L 73000PE −1.4L · 73500PE +1.4L 72900PE +0.3L]
+                      §1d fronts: CE73500:B CE73700:S PE73000:U PE73500:B
+  15:11    73454.7s  · CALL BHAAG RAHE (price unke against)                   CALL bhaag rahe [73300CE −3.7L 73600CE −3.3L]
+  15:16    73514.4s  CHAL RAHA ▲ · SHURU      9/10→8/10 MAZBOOT CALL BHAAG RAHE ▲  (picture 15:11 se)  PHANSE: 73300CE +3.8L 14:51 tak likha · 73700CE +3.1L 14:43 tak likha
+                      CALL writers chhod rahe — fuel · spot +212 pts/16m · net +16L · raftaar CE -1.3L/m BARABAR PE -0.5L/m BARABAR
+                      CALL bhaag rahe [73300CE −5.3L 73700CE −4.5L] | neeche deewar hat rahi [73100PE −3.4L 73300PE −2.8L · 73500PE +0.7L 73600PE +0.2L]
+                      §1d fronts: CE73500:U CE73700:U PE73500:S PE73800:U

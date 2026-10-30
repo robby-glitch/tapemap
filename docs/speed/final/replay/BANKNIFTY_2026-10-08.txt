@@ -1,0 +1,15 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-10-08 · NORMAL · clean trend down · SENSEX expiry · size ref: 20 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ???···~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~▼▼▼··▼▼···▼▼▼▼▼▼▼▼▼▼~~~~~~~~~~
+
+10:17     54950s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 184
+11:50     54852s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 181
+12:58     54673s  CHAL RAHA ▼ · TEZ · chop se bahar   9/11 THEEK      CE CAP SAATH · spot -99 pts/15m · with +0.71L against +0.06L
+13:22     54661s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+13:27     54619s  CHAL RAHA ▼ · SHURU                 7/11 THEEK      PE BHAAG + CE LIKHAI · spot -64 pts/15m · with +0.99L against +0.04L
+13:48     54563s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -83 pts/15m · with +1.1L against +0.31L
+14:01     54491s  CHAL RAHA ▼ · TEZ                   9/11 THEEK      CE CAP SAATH · spot -59 pts · with +0.66L
+14:39     54579s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 181
+
+-- minutes: CHOP 245, CHAL RAHA ▼ 77, KHAMOSH 36, ? 15
+-- stamps: 8 (pictures / quiet / ? 7, phases + ends 1, side events 0, ≠ READ 0)

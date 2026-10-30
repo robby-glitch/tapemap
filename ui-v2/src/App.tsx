@@ -13,6 +13,8 @@ import Board from './board/Board'
 import ReadTab, { ReadLine, useRead } from './read/ReadTab'
 import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
+// RAFTAAR (27 Oct): how fast each near-money strike's writers add or cut OI, and when that changed. See src/speed/speed.ts.
+import SpeedTab from './speed/SpeedTab'
 // THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
 import Float from './pro/Float'   // her order 2026-09-29: the floating window runs the DESK's engine (rev 6), not /api/hold
 // The five-state machine read — see machine.ts.
@@ -92,7 +94,7 @@ function useBoardGlance(on: boolean): Partial<Record<IndexKey, GlanceRead>> {
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Validate' | 'Signals'
+export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Speed' | 'Validate' | 'Signals'
 
 // ── Empty dataset (first paint, and any index never read this session) ──────
 // Nothing in it is invented: a live read replaces it within one poll. Until
@@ -811,7 +813,7 @@ export default function App() {
   const onValidate = activeTab === 'Validate'
   const boardReads = useBoardGlance(onBoard)
   const onRead = activeTab === 'Read'      // THE READ is its own answer: the ANSWER band steps aside there too
-  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Validate', 'Signals']
+  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Speed', 'Validate', 'Signals']
   const { data: liveData, loading, error, errorWhy, broker, intake, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
@@ -1110,6 +1112,7 @@ export default function App() {
         {activeTab === 'OI Flow'  && <OiFlowTab index={activeIndex} />}
         {/* Mounted only while active, which is also what stops its 30s poll. */}
         {activeTab === 'War'      && <WarTab index={activeIndex} />}
+        {activeTab === 'Speed'    && <SpeedTab key={activeIndex} index={activeIndex} />}
         {/* her order 2026-09-29: Validate is the rev 6 DESK (pro.html). A frame, because pro.css styles html/body/:root. */}
         {activeTab === 'Validate' && <iframe src="/validate2/index.html" title="VALIDATE" style={{ width: '100%', height: 'calc(100vh - 190px)', minHeight: 560, border: 0, display: 'block' }} />}
         {/* No `index` prop, deliberately: the log spans all three indices and

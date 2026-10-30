@@ -1,0 +1,61 @@
+== RAFTAAR BANKNIFTY 2026-10-27  P = 98 pts  step 100  (floors = the day's own running medians per side) ==
+-- Tue · TODAY, Oct monthly expiry (NIFTY + BNF), record to ~12:14
+
+09:20  SOCH RAHA · 5/15-min lookback missing
+09:44     54582s  KHAMOSH · kuch khaas nahi
+10:18     54512s  CHOP · leg bina OI, dono taraf  r30 131 net30 -63  HALKA 1/5 (peers 2/2)
+10:21     54462s  CHAL RAHA ▼ SAATH     SHURU     PE RETREAT 54500 (abhi)    CE QUIET         with15   +9.5L against15    +80k  m15 -135  THEEK 4/6 (peers 2/2)
+10:30     54477s  CHOP · dono taraf legs  r30 209 net30 -143  HALKA 2/5 (peers 2/2)
+10:42     54501s  KHAMOSH · kuch khaas nahi
+11:14     54344s  CHAL RAHA ▼ SAATH     SHURU     PE ROLL 54500->54200       CE QUIET         with15   +9.9L against15   +3.1L  m15 -123  HALKA 2/6 (peers 0/2)
+11:23     54337s  LOAD CE likh rahe 54400  net15 +12.6L  m15  -84  THEEK 4/6 (peers 2/2)
+11:38     54375s  KHAMOSH · kuch khaas nahi
+12:07     54343s  PIN 54300  net45 CE +17.7L PE +9.9L  r45 84  HALKA 2/6 (peers 0/2)
+12:12     54339s  KHAMOSH · kuch khaas nahi
+12:18     54249s  CHAL RAHA ▼ SAATH     SHURU     PE RETREAT 54400 (abhi)    CE PRESS 54300   with15   +8.9L against15   +4.2L  m15 -125  HALKA 2/6 (peers 0/2)
+12:26     54281s  PIN 54300 · baari-baari balanced  net45 CE +21.0L PE +4.8L  r45 131  THEEK 3/6 (peers 0/2)
+12:33     54294s  LOAD CE likh rahe 54300  net15 +10.4L  m15  +45  THEEK 3/6 (peers 0/2)
+12:37     54299s  KHAMOSH · kuch khaas nahi
+12:43     54380s  CHAL RAHA ▲ SAATH     SHURU     CE RETREAT 54300 (abhi)    PE QUIET         with15   +1.0L against15   +2.5L  m15 +114  THEEK 3/6 (peers 2/2)
+12:46     54346s  CHOP · dono taraf legs  r30 133 net30 +54  HALKA 0/5 (peers 0/2)
+-- minutes: KHAMOSH 86, PIN 24, SOCH RAHA 23, LOAD 22, CHAL RAHA ▼ SAATH 21, CHOP 19, CHAL RAHA ▲ BINA OI 5, CHAL RAHA ▲ SAATH 3, CHAL RAHA ▲ MILA-JULA 2, CHAL RAHA ▼ ULTA 2, CHAL RAHA ▼ MILA-JULA 1
+-- stamped lines: 17
+-- front stamps (§1d states, top-2 per side): 36
+
+-- §1d front stamps (top-2 per side, changes only):
+   09:52  CE 54500  SHIFT -> 54600 d15    -77k @ 54597s  (was BUILDING)
+   10:07  CE 54500  phir BUILDING  d15    +76k @ 54600s  (was UNWINDING)
+   10:20  PE 54300  STALLED        d15    -28k @ 54452s  (was BUILDING)
+   10:21  PE 54500  UNWINDING      d15    -81k @ 54434s  (was BUILDING)
+   10:25  PE 54300  UNWINDING      d15    -68k @ 54476s  (was STALLED)
+   10:41  CE 54500  STALLED        d15    +31k @ 54489s  (was BUILDING)
+   10:41  PE 54300  STALLED        d15    -10k @ 54489s  (was UNWINDING)
+   10:45  PE 54500  phir BUILDING  d15    +95k @ 54473s  (was UNWINDING)
+   10:52  CE 54500  phir BUILDING  d15   +1.5L @ 54506s  (was STALLED)
+   11:01  CE 54600  SHIFT -> 54700 d15   -1.3L @ 54448s  (was BUILDING)
+   11:03  PE 54300  phir BUILDING  d15   +1.0L @ 54460s  (was STALLED)
+   11:05  PE 54500  STALLED        d15    +29k @ 54435s  (was BUILDING)
+   11:11  PE 54500  UNWINDING      d15   -1.9L @ 54344s  (was STALLED)
+   11:17  CE 54600  phir BUILDING  d15   +1.3L @ 54338s  (was UNWINDING)
+   11:18  PE 54000  UNWINDING      d15    -81k @ 54327s  (was BUILDING)
+   11:34  CE 54500  STALLED        d15    +40k @ 54381s  (was BUILDING)
+   11:41  PE 54000  STALLED        d15     +5k @ 54353s  (was UNWINDING)
+   11:45  CE 54500  phir BUILDING  d15   +2.1L @ 54331s  (was STALLED)
+   11:45  PE 54000  phir BUILDING  d15   +1.4L @ 54331s  (was STALLED)
+   11:57  PE 54300  STALLED        d15    -41k @ 54370s  (was BUILDING)
+   11:58  PE 54000  STALLED        d15    -22k @ 54378s  (was BUILDING)
+   12:04  PE 54300  phir BUILDING  d15   +100k @ 54368s  (was STALLED)
+   12:07  CE 54500  STALLED        d15    +44k @ 54343s  (was BUILDING)
+   12:08  PE 54000  phir BUILDING  d15    +97k @ 54344s  (was STALLED)
+   12:12  CE 54400  STALLED        d15    +25k @ 54302s  (was BUILDING)
+   12:17  CE 54500  phir BUILDING  d15   +2.1L @ 54270s  (was STALLED)
+   12:19  CE 54400  phir BUILDING  d15    +98k @ 54256s  (was STALLED)
+   12:19  PE 54300  STALLED        d15    +22k @ 54256s  (was BUILDING)
+   12:23  PE 54000  STALLED        d15     -6k @ 54283s  (was BUILDING)
+   12:25  PE 54300  UNWINDING      d15    -96k @ 54268s  (was STALLED)
+   12:27  PE 54000  phir BUILDING  d15    +82k @ 54259s  (was STALLED)
+   12:28  PE 54300  STALLED        d15    +17k @ 54269s  (was UNWINDING)
+   12:30  PE 54000  STALLED        d15    -12k @ 54275s  (was BUILDING)
+   12:37  CE 54500  STALLED        d15    +61k @ 54298s  (was BUILDING)
+   12:43  CE 54400  STALLED        d15     -2k @ 54379s  (was BUILDING)
+   12:43  PE 54000  SHIFT -> 53900 d15   -3.0L @ 54379s  (was STALLED)

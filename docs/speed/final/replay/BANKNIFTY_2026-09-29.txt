@@ -1,0 +1,23 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-09-29 · EXPIRY · NIFTY + BNF expiry, round trip · size ref: aaj ke minute · fut leg: yes · READ log: no
+
+strip (5 min): ?????????·a·PPPPPPPPwww▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲~~~~~~~~~~~~~~~~~~~~~~~~··aaPPPuuaau
+
+10:13     53821s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54200 −0.56L, 54000 −0.48L, 53800 +0.96L, 53600 +0.61L
+10:48     53880s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 53800 −0.61L, 53700 −0.26L, 54000 +0.30L, 54200 +0.20L
+10:54     53946s  PIN @ 53800s                        4/9 THEEK       dono baari-baari likh rahe · 45m adds CE +12.6L PE +14.6L · range45 163
+10:57     53974s  WAPSI ▲ · SHURU                     6/11 THEEK      CE BHAAG + PE LIKHAI · spot +72 pts/15m · with +8.4L against +0.74L
+                    PHANSE: 53800 +3.5L 10:38 tak likha, 53700 +1.4L 10:34 tak likha
+11:11     54055s  WAPSI ▲ · TEZ                       8/11 THEEK      CE BHAAG + PE LIKHAI · spot +84 pts · with +10.8L
+11:12     54110s  CHAL RAHA ▲                         8/11 THEEK      wapsi badi ho gayi (316 of the day's 519 pts): ab ek leg
+12:41     54225s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 349
+12:48     54170s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54300 −2.6L, 54200 −1.2L, 53900 +2.5L, 54100 +0.80L
+13:43     54193s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54300 −0.90L, 54100 −0.51L, 53800 +1.1L, 53900 +0.57L
+14:22     54282s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 72
+14:28     54287s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54300 −0.93L, 54700 −0.14L, 53900 +1.3L, 54100 +0.83L
+14:37     54320s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 54000 −0.45L, 54100 −0.31L, 54500 +0.76L, 54600 +0.57L
+14:38     54323s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+15:25     54365s  UNWIND                              3/7 THEEK       CE −3.6L PE −5.3L · band ka unwind
+15:29     54260s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 120
+
+-- minutes: CHOP 121, CHAL RAHA ▲ 78, PIN 61, ? 44, ATKA 28, KHAMOSH 18, WAPSI ▲ 15, UNWIND 9
+-- stamps: 15 (pictures / quiet / ? 7, phases + ends 2, side events 6, ≠ READ 0)

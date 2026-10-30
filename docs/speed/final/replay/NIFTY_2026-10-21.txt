@@ -1,0 +1,23 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-21 · NORMAL · top at 09:58 then -470 · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???·▲▲▲~~~▼▼▼▼▼▼▼▼▼▼▼~~~~~~~~▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼·▼▼▼▼▼▼▼▼▼▼▼▼Pk·aaP·k··~~~~~
+
+09:34     23117s  CHAL RAHA ▲ · SHURU                 6/10 MAZBOOT    PE FLOOR SAATH · spot +77 pts/15m · with +104.2L against +69.5L
+09:49     23059s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 23050 −5.2L, 22900 −1.7L, 23200 +8.4L, 23150 +5.8L
+09:50     23050s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 67 · (pichhla move 09:49 par khatam)
+10:04     22990s  CHAL RAHA ▼ · chop se bahar         8/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -70/15m
+10:04     22990s  ≠ READ                              9/11 MAZBOOT    READ: RANGE · RAFTAAR: CHAL RAHA ▼ 9/11 — PE BHAAG + CE LIKHAI · spot -70/15m · net −73.3L
+11:02     22973s  MOVE ▼ KHATAM                                       50 min se naya low nahi
+11:12     22946s  CHOP                                5/8 MAZBOOT     legs dono taraf 30 min mein · range30 50
+11:40     22823s  CHAL RAHA ▼ · chop se bahar         9/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -63/15m
+13:10     22736s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+13:25     22733s  CHAL RAHA ▼ · THAK                  6/11 THEEK      ATKA ▼ · CE likh rahe, price nahi · spot -2 pts/15m · with — against —
+13:48     22676s  CHAL RAHA ▼ · PHIR CHAL PADA        8/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -50 pts/15m · with +26.8L against +2.0L
+13:49     22693s  CHAL RAHA ▼ · TEZ                   9/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -36 pts · with +35.1L
+14:14     22680s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+14:42     22683s  PIN @ 22700s                        4/8 THEEK       dono barabar baithe · OI at 22700: CE +68.7L PE +77.2L · range30 tight
+15:00     22672s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+15:12     22734s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 77
+
+-- minutes: CHAL RAHA ▼ 208, CHOP 78, KHAMOSH 24, ? 15, CHAL RAHA ▲ 15, BINA OI ▼ 12, PIN 10, ATKA 9, BINA OI ▲ 2
+-- stamps: 16 (pictures / quiet / ? 9, phases + ends 5, side events 1, ≠ READ 1)

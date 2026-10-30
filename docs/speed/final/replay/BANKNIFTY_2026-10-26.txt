@@ -1,0 +1,16 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-10-26 · NORMAL · late start 09:33, bottom then +300 · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???·▲▲▲▲▲▲▲▲▲~~~~~~~~~▼▼▼▼▼▼▼▼▼~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~·a▲▲~~~~~
+
+09:52     54071s  CHAL RAHA ▲ · SHURU                 7/10 THEEK      PE FLOOR SAATH · spot +173 pts/15m · with +3.7L against +0.89L
+09:58     54274s  CHAL RAHA ▲ · TEZ                   10/11 THEEK     CE BHAAG + PE LIKHAI · spot +288 pts · with +5.4L
+11:35     53941s  CHAL RAHA ▼ · TEZ · chop se bahar   10/11 THEEK     PE BHAAG + CE LIKHAI · spot -104 pts/15m · with +2.0L against +0.25L
+                    PHANSE: 54000 +0.40L 11:06 tak likha
+12:45     54016s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 121
+14:02     54120s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 54000 −0.48L, 54200 −0.15L, 54400 +0.27L, 54300 +0.17L
+15:01     54299s  CHAL RAHA ▲ · JAARI                 5/11 THEEK      UNWIND · dono nikal rahe · spot +7 pts/15m · with — against —
+                    PHANSE: 54300 +0.29L 14:47 tak likha
+15:08     54286s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 107
+
+-- minutes: CHOP 226, CHAL RAHA ▲ 53, CHAL RAHA ▼ 47, ? 15, KHAMOSH 9, ATKA 8
+-- stamps: 7 (pictures / quiet / ? 5, phases + ends 1, side events 1, ≠ READ 0)

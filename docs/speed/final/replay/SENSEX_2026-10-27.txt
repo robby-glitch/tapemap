@@ -1,0 +1,17 @@
+== RAFTAAR (converged) · SENSEX · 2026-10-27 · NORMAL · TODAY · Oct monthly expiry (NIFTY + BNF) · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ????·a····▲▲▲~~~~~~~~~~~~~?~~~~~~~~~~~~~~~~~~~~~~▼▼▼▼▼····kk▼▼a~~~~~~~~~▲▲▲
+
+09:53     73546s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 73500 −0.56L, 73400 −0.33L, 73600 +0.60L, 73700 +0.40L
+10:03     73670s  CHAL RAHA ▲ · SHURU                 7/11 THEEK      PE FLOOR SAATH · spot +169 pts/16m · with +3.3L against +1.1L
+12:53     73629s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 238
+13:22     73345s  CHAL RAHA ▼ · chop se bahar         6/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -199/16m
+13:51     73395s  PE PHIR LIKHNE LAGE (22 min ruk ke)                  73500 +0.55L, 73400 +0.51L
+13:52     73386s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+14:13     73308s  CE PHIR LIKHNE LAGE (33 min ruk ke)                  73300 +0.87L, 73500 +0.52L
+14:16     73191s  CHAL RAHA ▼ · SHURU                 8/11 THEEK      PE BHAAG + CE LIKHAI · spot -165 pts/16m · with +6.6L against +0.01L
+                    PHANSE: 73400 +0.60L 14:02 tak likha
+14:40     73487s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 296
+
+-- minutes: CHOP 226, KHAMOSH 43, CHAL RAHA ▼ 35, CHAL RAHA ▲ 27, ? 20, BINA OI ▼ 11, ATKA 10
+-- stamps: 9 (pictures / quiet / ? 6, phases + ends 0, side events 3, ≠ READ 0)

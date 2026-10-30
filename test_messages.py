@@ -34,7 +34,7 @@ def test_read_word_changes_once_from_the_marks():
     ms = messages.build(rr, dr)
     assert lines(ms, "READ") == ["09:55  NIFTY  WAIT → LEAN ▼ · 5/7 saath · flip 22,800s",
                                  "10:05  NIFTY  LEAN ▼ → TREND ▼ · flow+fuel · 4/7 khilaaf · flip 22,780s",
-                                 "10:10  NIFTY  TREND ▼ · flow+fuel → RANGE · mila 2/3 · box 22,700–22,900s"]
+                                 "10:10  NIFTY  TREND ▼ · flow+fuel → RANGE · mila 2 thak · 3 jaari · box 22,700–22,900s"]
     read = [m for m in ms if m["kind"] == "READ"]
     assert read[0]["why"] == "the read formed" and read[0]["dir"] == -1 and read[0]["ev"] == "WORD"
     assert read[0]["key"] == "NIFTY|READ|09:55|WAIT → LEAN ▼"
@@ -61,7 +61,7 @@ def test_agree_reads_decodes_count_and_its_way():
     assert messages.agree(up, 1) == "5/7 saath" and messages.agree(up, -1) == "5/7 khilaaf"
     assert messages.agree(up, 0) == "▲5/7"
     assert messages.agree(dec("10:00", "THAK", ld=1, d=4), -1) == "4/7 saath"
-    assert messages.agree(dec("10:00", "MILA", d=2, c=3), 1) == "mila 2/3"
+    assert messages.agree(dec("10:00", "MILA", d=2, c=3), 1) == "mila 2 thak · 3 jaari"
     assert messages.agree(dec("10:00", "SAAF_NAHI", ld=None), 1) == "saaf nahi"
     assert messages.agree(None, 1) == "?"
     assert messages.agree(dict(dec("10:00"), call={"text": "?", "kind": "SAAF_NAHI"}), 1) == "?"

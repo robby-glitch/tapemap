@@ -127,7 +127,7 @@ def test_the_setup_line_says_n_of_4_and_each_piece_then_one_line_when_a_piece_jo
     assert [m["line"] for m in ms] == [
         "09:30  NIFTY  ZONE BUY · 3/4 · ✓ d2 22,445f chhua 09:24 · "
         "✓ KHAREEDAR NE ROKA 22,500f 09:15, THAKAN bechne wale 22,454f 09:20 · ✗ PE likh rahe · lead −20.5 · "
-        "✓ Δ −1,007 → −286 → +33 · E 22,534f · stop 22,425f",
+        "✓ Δ −1,007 → −286 → +33 · E 22,534f · stop 22,425f · din: padh nahi sake",              # A131: + the day type
         "09:40  NIFTY  ZONE BUY + PE likh rahe · 4/4 · ✓ PE likh rahe · lead +15.6 09:40 · E 22,534f · stop 22,425f"]
     assert all(telegram_out.wants(m) for m in ms)
     assert len({m["key"] for m in ms}) == 2

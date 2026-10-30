@@ -1,0 +1,28 @@
+== RAFTAAR (converged) · SENSEX · 2026-09-23 · NORMAL · NIFTY expiry · range · size ref: 15 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ????▼▼▼▼····aaa▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲P···▲▲▲▲▲············▼▼▼▼▼▼··~~~~~~~~~~~~aau
+
+09:37     74673s  CHAL RAHA ▼ · SHURU                 5/10 THEEK      CE CAP SAATH · spot -127 pts/16m · with +60.6L against +11.5L
+09:55     74616s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+10:05     74700s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+10:25     74724s  ATKA ▲ @ 74400s                     6/10 MAZBOOT    PE likh rahe · deewar sab taraf · net +22.4L · spot +61 pts/16m
+10:28     74751s  CHAL RAHA ▲ · SHURU                 8/11 MAZBOOT    CE BHAAG + PE LIKHAI · spot +128 pts/16m · with +26.1L against +0.69L
+                    PHANSE: 74700 +14.2L 10:15 tak likha, 74600 +7.4L 09:59 tak likha
+10:41     74794s  CHAL RAHA ▲ · TEZ                   11/11 MAZBOOT   CE BHAAG + PE LIKHAI · spot +70 pts · with +24.4L
+11:52     74869s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+11:54     74857s  PIN @ 74900s                        4/8 THEEK       dono barabar baithe · OI at 74900: CE +20.5L PE +18.5L · range30 tight
+12:04     74904s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:09     74910s  ATKA ▲ @ 75000s                     6/10 MAZBOOT    PE price pe likh rahe · net +24.5L · spot +52 pts/16m
+12:12     74946s  CHAL RAHA ▲ · SHURU                 8/11 MAZBOOT    CE BHAAG RAHE · spot +97 pts/16m · with +28.3L against 0
+12:37     74923s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+13:04     74933s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+13:37     74824s  CHAL RAHA ▼ · SHURU                 5/11 THEEK      PE BHAAG RAHE · spot -82 pts/16m · with +20.5L against +0.16L
+                    PHANSE: 74900 +3.1L 13:21 tak likha
+13:40     74813s  CE PHIR LIKHNE LAGE (27 min ruk ke)                  74800 +3.2L, 74900 +2.6L
+14:04     74844s  PIN @ 74800s                        4/9 THEEK       dono likh rahe, barabar · 15m adds CE +3.9L PE +6.5L · (pichhla move 14:04 par khatam)
+14:18     74865s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 88
+14:18     74865s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 74800 −2.4L, 74700 −0.63L, 75300 +3.6L, 75200 +1.2L
+15:25     74795s  UNWIND                              3/7 THEEK       CE −26.7L PE −34.4L · band ka unwind
+
+-- minutes: CHAL RAHA ▲ 109, KHAMOSH 102, CHOP 62, CHAL RAHA ▼ 45, ATKA 25, ? 16, PIN 11, UNWIND 3
+-- stamps: 19 (pictures / quiet / ? 13, phases + ends 4, side events 2, ≠ READ 0)

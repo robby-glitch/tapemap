@@ -1,0 +1,20 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-26 · NORMAL · late start 09:33, bottom then +300 · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???·▲▲▲▲▲▲▲▲▲▲▲▲▲··wwwwww▼▼▼▼▼~~~~~~~~~~~~~~~~~~~~~~~▲▲▲▲▲▲▲▲▲▲··uuuPPPP
+
+09:52     22503s  CHAL RAHA ▲ · SHURU                 5/10 THEEK      PE FLOOR SAATH · spot +58 pts/15m · with +52.9L against +63.9L
+09:55     22559s  ≠ READ                              10/11 MAZBOOT   READ: RANGE · RAFTAAR: CHAL RAHA ▲ 10/11 — CE BHAAG + PE LIKHAI · spot +137/15m · net +79.5L
+09:58     22645s  CHAL RAHA ▲ · TEZ                   10/11 MAZBOOT   CE BHAAG + PE LIKHAI · spot +191 pts · with +267.3L
+10:58     22614s  MOVE ▲ KHATAM                                       50 min se naya high nahi
+11:13     22582s  WAPSI ▼ · JAARI                     5/11 THEEK      CE CAP SAATH · spot -32 pts/15m · with +39.2L against +19.2L
+11:35     22542s  CHAL RAHA ▼ · TEZ                   10/11 MAZBOOT   PE BHAAG RAHE · spot -60 pts · with +77.2L
+11:59     22592s  MOVE ▼ KHATAM                                       price ne 56 pts wapas diye (leg 104 pts)
+13:00     22599s  CHOP                                6/8 MAZBOOT     legs dono taraf 30 min mein · range30 62
+14:09     22711s  CHAL RAHA ▲ · TEZ · chop se bahar   9/11 MAZBOOT    CE BHAAG RAHE · spot +52 pts/15m · with +116.6L against +3.0L
+14:46     22700s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+14:56     22710s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+15:07     22699s  UNWIND                              3/7 THEEK       CE −45.8L PE −33.5L · band ka unwind
+15:30     22753s  CHAL RAHA ▲ · SHURU                 7/11 MAZBOOT    CE BHAAG RAHE · spot +36 pts/15m · with +97.6L against 0
+
+-- minutes: CHAL RAHA ▲ 117, CHOP 117, WAPSI ▼ 28, CHAL RAHA ▼ 25, KHAMOSH 23, PIN 20, ? 15, UNWIND 13
+-- stamps: 13 (pictures / quiet / ? 7, phases + ends 5, side events 0, ≠ READ 1)

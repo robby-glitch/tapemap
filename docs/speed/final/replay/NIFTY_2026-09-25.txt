@@ -1,0 +1,18 @@
+== RAFTAAR (converged) · NIFTY · 2026-09-25 · NORMAL · range / pin · size ref: 17 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ???··~~~~~~~~~~~~~~~~~~~~~~~~PPPP~~~aPPP··kk▼▼▼▼▼▼~~~~~~~▲▲▲▲▲▲~~~~PPPP~~u
+
+11:21     23101s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 43
+11:42     23086s  PIN @ 23100s                        4/8 THEEK       dono barabar baithe · OI at 23100: CE +179.3L PE +186.4L · range30 tight
+12:54     23043s  CHAL RAHA ▼ · SHURU                 9/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -29 pts/15m · with +65.7L against +1.3L
+13:24     23033s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+13:37     23034s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 24
+14:02     23100s  CHAL RAHA ▲ · SHURU                 7/11 MAZBOOT    CE BHAAG RAHE · spot +53 pts/15m · with +100.8L against +0.19L
+                    PHANSE: 23000 +9.9L 13:46 tak likha
+14:34     23134s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+14:52     23117s  CHOP                                3/7 THEEK       legs dono taraf 30 min mein · range30 26
+15:06     23119s  PIN @ 23100s                        4/8 THEEK       dono barabar baithe · OI at 23100: CE +114.7L PE +163.9L · range30 tight
+15:23     23128s  UNWIND                              3/7 THEEK       CE −51.9L PE −67.5L · band ka unwind
+
+-- minutes: CHOP 193, PIN 64, CHAL RAHA ▼ 29, ? 23, CHAL RAHA ▲ 23, KHAMOSH 17, BINA OI ▼ 9, UNWIND 7, ATKA 4
+-- stamps: 10 (pictures / quiet / ? 8, phases + ends 2, side events 0, ≠ READ 0)

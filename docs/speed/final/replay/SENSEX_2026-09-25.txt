@@ -1,0 +1,18 @@
+== RAFTAAR (converged) · SENSEX · 2026-09-25 · NORMAL · range / pin · size ref: 16 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ????··▼▼▼▼~~~~~~~~~~~~~~~~~~~~~·PP··u·u····▼▼▼▼▼▼▼▼~~~~~~k?▲▲?▲······uuuuu
+
+09:45     73589s  CHAL RAHA ▼ · SHURU                 7/11 THEEK      CE CAP SAATH · spot -175 pts/16m · with +3.8L against +1.4L
+10:48     73596s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 153
+11:56     73728s  PIN @ 73700s                        4/8 THEEK       dono barabar baithe · OI at 73700: CE +4.8L PE +6.5L · range30 tight
+12:12     73731s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:48     73629s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -107 pts/16m · with +2.6L against 0
+12:57     73557s  CHAL RAHA ▼ · TEZ                   10/11 THEEK     PE BHAAG + CE LIKHAI · spot -123 pts · with +6.4L
+13:56     73627s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 59
+14:05     73911s  PE PHIR LIKHNE LAGE (41 min ruk ke)                  74000 +0.94L, 73800 +0.81L
+14:07     73919s  CHAL RAHA ▲ · SHURU                 8/11 THEEK      CE BHAAG + PE LIKHAI · spot +312 pts/16m · with +12.8L against 0
+14:42     73881s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+15:06     73856s  UNWIND                              3/7 THEEK       CE −1.2L PE −1.7L · band ka unwind
+
+-- minutes: CHOP 132, KHAMOSH 77, CHAL RAHA ▼ 62, UNWIND 38, ? 24, CHAL RAHA ▲ 21, PIN 10, BINA OI ▲ 3, ATKA 3
+-- stamps: 11 (pictures / quiet / ? 9, phases + ends 1, side events 1, ≠ READ 0)

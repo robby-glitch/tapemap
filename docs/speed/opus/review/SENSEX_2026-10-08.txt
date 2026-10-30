@@ -1,0 +1,391 @@
+== SENSEX 2026-10-08 (fresh run of final/raftaar.py) ref: 6 pichhle expiry din
+
+09:19     72412s  q        ?                                                   PADH RAHE · pehle 16 min ka record chahiye
+09:40     72294s  event    PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 72500 −13.9L, 72600 −6.6L, 72000 +10.2L, 72300 +9.2L
+10:20     72187s  picture  CHOP                                 4/8 THEEK      legs dono taraf 30 min mein · range30 144
+10:32     72173s  swing    ~ swing ▼ (CHOP ke andar)            5/11 THEEK     PE BHAAG + CE LIKHAI · spot -148 pts/16m · with +56.2L
+10:46     72224s  picture  CHOP                                 4/8 THEEK      legs dono taraf 30 min mein · range30 199
+11:23     72060s  picture  CHAL RAHA ▼ · SHURU                  6/11 THEEK     PE BHAAG + CE LIKHAI · spot -163 pts/16m · with +59.4L against 0
+11:31     71957s  phase    CHAL RAHA ▼ · TEZ                    9/11 MAZBOOT   PE BHAAG + CE LIKHAI · spot -249 pts · with +279.0L
+11:48     71972s  end      MOVE ▼ KHATAM                                       20 min se naya low nahi
+12:11     71936s  picture  CHAL RAHA ▼ · JAARI                  7/11 MAZBOOT   CE CAP SAATH · spot -65 pts/16m · with +42.7L against +2.6L
+12:19     71881s  phase    CHAL RAHA ▼ · TEZ                    9/11 MAZBOOT   CE CAP SAATH · spot -72 pts · with +46.3L
+13:18     71618s  end      MOVE ▼ KHATAM                                       10 min KAMZOR
+13:26     71643s  picture  CHAL RAHA ▼ · SHURU                  5/11 THEEK     PE BHAAG RAHE · spot -69 pts/16m · with +56.0L against 0
+13:30     71558s  q        ?                                                   PADH NAHI SAKE · spot chain window ke bahar
+13:47     71562s  q        ?                                                   PADH NAHI SAKE · spot chain window ke bahar
+
+-- every minute:
+09:17  72453.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:18  72469.7 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:19  72412.5 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:20  72475.7 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:21  72494.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:22  72442.8 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:23  72450.9 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:24  72404.6 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:25  72362.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:26  72316.4 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:27  72281.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:28  72307.5 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:29  72337.1 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:30  72392.6 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:31  72339.8 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:32  72374.2 | ?                                  | PADH RAHE · pehle 16 min ka record chahiye
+09:33  72382.1 | KHAMOSH                            | KUCH KHAAS NAHI
+09:34  72338.8 | KHAMOSH                            | KUCH KHAAS NAHI
+09:35  72313.2 | KHAMOSH                            | KUCH KHAAS NAHI
+09:36  72375.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:37  72345.9 | KHAMOSH                            | KUCH KHAAS NAHI
+09:38  72348.0 | KHAMOSH                            | KUCH KHAAS NAHI
+09:39  72335.5 | KHAMOSH                            | KUCH KHAAS NAHI
+09:40  72294.0 | KHAMOSH                            | KUCH KHAAS NAHI
+09:41  72293.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:42  72296.7 | KHAMOSH                            | KUCH KHAAS NAHI
+09:43  72277.4 | KHAMOSH                            | KUCH KHAAS NAHI
+09:44  72245.4 | KHAMOSH                            | KUCH KHAAS NAHI
+09:45  72232.6 | KHAMOSH                            | KUCH KHAAS NAHI
+09:46  72200.5 | KHAMOSH                            | KUCH KHAAS NAHI
+09:47  72192.9 | KHAMOSH                            | KUCH KHAAS NAHI
+09:48  72185.2 | KHAMOSH                            | KUCH KHAAS NAHI
+09:49  72241.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:50  72257.2 | KHAMOSH                            | KUCH KHAAS NAHI
+09:51  72275.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:52  72262.3 | KHAMOSH                            | KUCH KHAAS NAHI
+09:53  72259.5 | KHAMOSH                            | KUCH KHAAS NAHI
+09:54  72246.9 | KHAMOSH                            | KUCH KHAAS NAHI
+09:55  72276.5 | KHAMOSH                            | KUCH KHAAS NAHI
+09:56  72285.8 | KHAMOSH                            | KUCH KHAAS NAHI
+09:57  72265.5 | KHAMOSH                            | KUCH KHAAS NAHI
+09:58  72287.9 | KHAMOSH                            | KUCH KHAAS NAHI
+09:59  72278.7 | KHAMOSH                            | KUCH KHAAS NAHI
+10:00  72249.6 | KHAMOSH                            | ATKA ▼ · CE likh rahe, price nahi
+10:01  72246.6 | KHAMOSH                            | ATKA ▼ · CE likh rahe, price nahi
+10:02  72262.5 | KHAMOSH                            | KUCH KHAAS NAHI
+10:03  72266.0 | KHAMOSH                            | PE FLOOR SAATH
+10:04  72283.0 | KHAMOSH                            | PE FLOOR SAATH
+10:05  72275.7 | KHAMOSH                            | ATKA ▲ · PE likh rahe, price nahi
+10:06  72277.4 | KHAMOSH                            | ATKA ▲ · PE likh rahe, price nahi
+10:07  72288.8 | KHAMOSH                            | KUCH KHAAS NAHI
+10:08  72263.5 | KHAMOSH                            | KUCH KHAAS NAHI
+10:09  72239.6 | KHAMOSH                            | ATKA ▲ · PE likh rahe, price nahi
+10:10  72264.8 | KHAMOSH                            | KUCH KHAAS NAHI
+10:11  72279.0 | KHAMOSH                            | KUCH KHAAS NAHI
+10:12  72331.0 | KHAMOSH                            | KUCH KHAAS NAHI
+10:13  72325.6 | KHAMOSH                            | KUCH KHAAS NAHI
+10:14  72318.8 | KHAMOSH                            | KUCH KHAAS NAHI
+10:15  72310.7 | KHAMOSH                            | KUCH KHAAS NAHI
+10:16  72320.3 | KHAMOSH                            | PE FLOOR SAATH
+10:17  72290.6 | KHAMOSH                            | KUCH KHAAS NAHI
+10:18  72271.9 | KHAMOSH                            | KUCH KHAAS NAHI
+10:19  72248.8 | KHAMOSH                            | ATKA ▲ · PE likh rahe, price nahi
+10:20  72186.7 | CHOP  4/8 THEEK                    | PE LIKHAI INTO FALL · PHANS RAHE
+10:21  72213.8 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+10:22  72206.3 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+10:23  72208.3 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+10:24  72218.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:25  72245.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:26  72249.7 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:27  72262.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:28  72271.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:29  72253.8 | CHOP  5/8 MAZBOOT                  | CE CAP SAATH
+10:30  72227.5 | CHOP  5/8 MAZBOOT                  | CE CAP SAATH
+10:31  72224.8 | CHOP ~swing ▼ SHURU                | PE BHAAG + CE LIKHAI
+10:32  72172.6 | CHOP ~swing ▼ SHURU                | PE BHAAG + CE LIKHAI
+10:33  72174.5 | CHOP ~swing ▼ SHURU                | PE BHAAG + CE LIKHAI
+10:34  72195.8 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:35  72203.8 | CHOP ~swing ▼ JAARI                | ATKA ▼ · CE likh rahe, price nahi
+10:36  72207.1 | CHOP ~swing ▼ JAARI                | ATKA ▼ · CE likh rahe, price nahi
+10:37  72176.8 | CHOP ~swing ▼ RUKA                 | ATKA ▼ · CE likh rahe, price nahi
+10:38  72165.4 | CHOP ~swing ▼ JAARI                | ATKA ▼ · CE likh rahe, price nahi
+10:39  72141.1 | CHOP ~swing ▼ JAARI                | CE CAP SAATH
+10:40  72120.8 | CHOP ~swing ▼ TEZ                  | CE CAP SAATH
+10:41  72158.1 | CHOP ~swing ▼ TEZ                  | CE CAP SAATH
+10:42  72177.9 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:43  72195.8 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:44  72157.1 | CHOP ~swing ▼ JAARI                | PE BHAAG + CE LIKHAI
+10:45  72152.8 | CHOP ~swing ▼ RUKA                 | PE BHAAG + CE LIKHAI
+10:46  72224.4 | CHOP  4/8 THEEK                    | ATKA ▼ · CE likh rahe, price nahi
+10:47  72232.7 | CHOP  4/8 THEEK                    | ATKA ▼ · CE likh rahe, price nahi
+10:48  72217.4 | CHOP  5/8 MAZBOOT                  | ATKA ▼ · CE likh rahe, price nahi
+10:49  72232.4 | CHOP  5/8 MAZBOOT                  | ATKA ▼ · CE likh rahe, price nahi
+10:50  72229.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:51  72235.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:52  72216.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:53  72220.1 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:54  72199.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:55  72195.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:56  72179.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:57  72175.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+10:58  72179.2 | CHOP  6/8 MAZBOOT                  | ATKA ▲ · PE likh rahe, price nahi
+10:59  72195.3 | CHOP  6/8 MAZBOOT                  | ATKA ▲ · PE likh rahe, price nahi
+11:00  72154.7 | CHOP  6/8 MAZBOOT                  | ATKA ▲ · PE likh rahe, price nahi
+11:01  72164.5 | CHOP  5/8 KAMZOR                   | KUCH KHAAS NAHI
+11:02  72162.3 | CHOP  5/8 KAMZOR                   | KUCH KHAAS NAHI
+11:03  72185.5 | CHOP  5/8 KAMZOR                   | KUCH KHAAS NAHI
+11:04  72225.2 | CHOP  5/8 KAMZOR                   | KUCH KHAAS NAHI
+11:05  72199.2 | CHOP  5/8 KAMZOR                   | KUCH KHAAS NAHI
+11:06  72229.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:07  72222.7 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:08  72201.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:09  72207.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:10  72211.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:11  72202.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:12  72223.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:13  72236.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:14  72191.9 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:15  72206.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:16  72202.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+11:17  72201.9 | KHAMOSH                            | KUCH KHAAS NAHI
+11:18  72223.8 | KHAMOSH                            | KUCH KHAAS NAHI
+11:19  72216.7 | KHAMOSH                            | KUCH KHAAS NAHI
+11:20  72153.9 | KHAMOSH                            | OI SAATH ▼
+11:21  72094.7 | KHAMOSH                            | OI SAATH ▼
+11:22  72076.5 | CHAL RAHA ▼ SHURU 3/11 KAMZOR      | OI SAATH ▼
+11:23  72059.7 | CHAL RAHA ▼ SHURU 6/11 THEEK       | PE BHAAG + CE LIKHAI
+11:24  72075.4 | CHAL RAHA ▼ SHURU 7/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:25  71955.6 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:26  71976.3 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:27  71909.8 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:28  71869.8 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:29  71925.9 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:30  71892.6 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:31  71957.1 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | PE BHAAG + CE LIKHAI
+11:32  71971.6 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:33  71980.8 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:34  71961.8 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:35  71929.8 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:36  72010.3 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:37  71964.2 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:38  71949.3 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:39  71950.1 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:40  71958.9 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:41  71973.3 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+11:42  71960.1 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+11:43  71990.0 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | CE LIKHAI INTO RALLY · PHANS RAHE
+11:44  72019.8 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | PE FLOOR SAATH
+11:45  71971.4 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+11:46  72000.7 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | PE FLOOR SAATH
+11:47  72009.4 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | ATKA ▲ · PE likh rahe, price nahi
+11:48  71971.5 | abhi: ATKA ▲ · PE likh rahe, price nahi ▲  | ATKA ▲ · PE likh rahe, price nahi
+11:49  71994.1 | ATKA ▲  3/10 KAMZOR                | ATKA ▲ · PE likh rahe, price nahi
+11:50  72013.2 | ATKA ▲  2/10 KAMZOR                | ATKA ▲ · PE likh rahe, price nahi
+11:51  72012.0 | ATKA ▲  2/10 KAMZOR                | PE FLOOR SAATH
+11:52  72005.9 | ATKA ▲  2/10 KAMZOR                | KUCH KHAAS NAHI
+11:53  71975.7 | ATKA ▲  2/10 KAMZOR                | KUCH KHAAS NAHI
+11:54  71998.7 | KHAMOSH                            | KUCH KHAAS NAHI
+11:55  72001.9 | KHAMOSH                            | ATKA ▲ · PE likh rahe, price nahi
+11:56  71977.1 | KHAMOSH                            | ATKA ▲ · PE likh rahe, price nahi
+11:57  72016.4 | ATKA ▲  3/10 KAMZOR                | ATKA ▲ · PE likh rahe, price nahi
+11:58  71944.9 | ATKA ▲  3/10 KAMZOR                | KUCH KHAAS NAHI
+11:59  71939.9 | ATKA ▲  3/10 KAMZOR                | KUCH KHAAS NAHI
+12:00  71917.7 | ATKA ▲  3/10 KAMZOR                | BINA OI ▼
+12:01  71917.4 | ATKA ▲  3/10 KAMZOR                | KUCH KHAAS NAHI
+12:02  71972.3 | ATKA ▲  3/10 KAMZOR                | KUCH KHAAS NAHI
+12:03  71953.1 | KHAMOSH                            | KUCH KHAAS NAHI
+12:04  71946.9 | KHAMOSH                            | KUCH KHAAS NAHI
+12:05  71902.0 | KHAMOSH                            | CE CAP SAATH
+12:06  71925.1 | KHAMOSH                            | CE CAP SAATH
+12:07  71940.0 | CHAL RAHA ▼ SHURU 3/11 KAMZOR      | CE CAP SAATH
+12:08  71912.8 | CHAL RAHA ▼ SHURU 2/11 KAMZOR      | BINA OI ▼
+12:09  71939.9 | CHAL RAHA ▼ SHURU 3/11 KAMZOR      | KUCH KHAAS NAHI
+12:10  71938.4 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | KUCH KHAAS NAHI
+12:11  71936.5 | CHAL RAHA ▼ JAARI 7/11 MAZBOOT     | CE CAP SAATH
+12:12  71969.5 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | KUCH KHAAS NAHI
+12:13  71946.3 | CHAL RAHA ▼ RUKA 5/11 THEEK        | CE CAP SAATH
+12:14  71934.3 | CHAL RAHA ▼ THAK 2/11 KAMZOR       | KUCH KHAAS NAHI
+12:15  71931.6 | CHAL RAHA ▼ THAK 3/11 KAMZOR       | KUCH KHAAS NAHI
+12:16  71891.1 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | KUCH KHAAS NAHI
+12:17  71846.4 | CHAL RAHA ▼ JAARI 6/11 THEEK       | CE CAP SAATH
+12:18  71890.9 | CHAL RAHA ▼ JAARI 6/11 THEEK       | CE CAP SAATH
+12:19  71880.6 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | CE CAP SAATH
+12:20  71900.2 | CHAL RAHA ▼ TEZ 7/11 MAZBOOT       | ATKA ▼ · CE likh rahe, price nahi
+12:21  71933.2 | CHAL RAHA ▼ JAARI 6/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+12:22  71871.5 | CHAL RAHA ▼ RUKA 5/11 KAMZOR       | KUCH KHAAS NAHI
+12:23  71852.6 | CHAL RAHA ▼ RUKA 7/11 MAZBOOT      | CE CAP SAATH
+12:24  71820.6 | CHAL RAHA ▼ TEZ 8/11 MAZBOOT       | CE CAP SAATH
+12:25  71808.3 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | PE BHAAG + CE LIKHAI
+12:26  71855.0 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | PE BHAAG + CE LIKHAI
+12:27  71875.0 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:28  71871.0 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:29  71871.0 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:30  71792.6 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:31  71786.6 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:32  71803.0 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:33  71743.3 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:34  71768.6 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+12:35  71804.1 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:36  71770.2 | CHAL RAHA ▼ TEZ 10/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+12:37  71759.8 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+12:38  71758.1 | CHAL RAHA ▼ RUKA 10/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:39  71692.1 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:40  71736.0 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:41  71750.4 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:42  71741.8 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:43  71759.7 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:44  71768.8 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+12:45  71761.6 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+12:46  71795.5 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+12:47  71773.7 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+12:48  71754.9 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+12:49  71747.1 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+12:50  71741.0 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+12:51  71728.8 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+12:52  71731.2 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+12:53  71740.8 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+12:54  71749.3 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+12:55  71711.8 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+12:56  71660.5 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | CE CAP SAATH
+12:57  71670.9 | CHAL RAHA ▼ TEZ 8/11 MAZBOOT       | PE BHAAG RAHE
+12:58  71654.1 | CHAL RAHA ▼ TEZ 8/11 MAZBOOT       | PE BHAAG RAHE
+12:59  71672.4 | CHAL RAHA ▼ TEZ 8/11 MAZBOOT       | PE BHAAG RAHE
+13:00  71651.4 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | PE BHAAG + CE LIKHAI
+13:01  71686.9 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | PE BHAAG + CE LIKHAI
+13:02  71700.2 | CHAL RAHA ▼ TEZ 9/11 MAZBOOT       | PE BHAAG + CE LIKHAI
+13:03  71708.8 | CHAL RAHA ▼ TEZ 8/11 MAZBOOT       | ATKA ▼ · CE likh rahe, price nahi
+13:04  71747.7 | CHAL RAHA ▼ JAARI 7/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+13:05  71711.5 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+13:06  71704.1 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+13:07  71697.2 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+13:08  71733.1 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:09  71723.9 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:10  71711.7 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:11  71699.4 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:12  71683.8 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:13  71693.8 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:14  71700.6 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:15  71660.0 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:16  71647.6 | CHAL RAHA ▼ TEZ 4/11 KAMZOR        | KUCH KHAAS NAHI
+13:17  71649.9 | CHAL RAHA ▼ TEZ 4/11 KAMZOR        | KUCH KHAAS NAHI
+13:18  71617.6 | abhi: BINA OI ▼ ▼                  | BINA OI ▼
+13:19  71609.3 | abhi: BINA OI ▼ ▼                  | BINA OI ▼
+13:20  71603.4 | BINA OI ▼                          | BINA OI ▼
+13:21  71598.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:22  71658.6 | BINA OI ▼                          | ATKA ▼ · CE likh rahe, price nahi
+13:23  71657.0 | BINA OI ▼                          | ATKA ▼ · CE likh rahe, price nahi
+13:24  71663.4 | BINA OI ▼                          | PE BHAAG + CE LIKHAI
+13:25  71657.1 | BINA OI ▼                          | PE BHAAG + CE LIKHAI
+13:26  71642.9 | CHAL RAHA ▼ SHURU 5/11 THEEK       | PE BHAAG RAHE
+13:27  71605.4 | CHAL RAHA ▼ SHURU 6/11 THEEK       | PE BHAAG RAHE
+13:28  71597.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:29  71573.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:30  71557.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:31  71590.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:32  71611.9 | CHAL RAHA ▼ RUKA 6/11 THEEK        | ATKA ▼ · zor hai, price nahi
+13:33  71639.4 | CHAL RAHA ▼ RUKA 6/11 THEEK        | ATKA ▼ · zor hai, price nahi
+13:34  71661.9 | CHAL RAHA ▼ RUKA 5/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+13:35  71683.9 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | OI SAATH ▲
+13:36  71647.7 | CHAL RAHA ▼ RUKA 4/11 KAMZOR       | KUCH KHAAS NAHI
+13:37  71695.0 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | OI SAATH ▲
+13:38  71730.2 | abhi: BINA OI ▲ ▲                  | BINA OI ▲
+13:39  71710.1 | KHAMOSH                            | KUCH KHAAS NAHI
+13:40  71663.0 | KHAMOSH                            | KUCH KHAAS NAHI
+13:41  71684.7 | KHAMOSH                            | KUCH KHAAS NAHI
+13:42  71634.6 | KHAMOSH                            | KUCH KHAAS NAHI
+13:43  71614.1 | KHAMOSH                            | KUCH KHAAS NAHI
+13:44  71610.8 | KHAMOSH                            | KUCH KHAAS NAHI
+13:45  71575.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:46  71574.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:47  71561.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:48  71586.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:49  71569.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:50  71576.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:51  71565.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:52  71558.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:53  71582.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:54  71559.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:55  71578.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:56  71584.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:57  71580.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:58  71579.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+13:59  71587.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:00  71531.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:01  71537.8 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:02  71543.8 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:03  71541.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:04  71497.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:05  71508.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:06  71518.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:07  71524.0 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:08  71518.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:09  71507.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:10  71484.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:11  71481.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:12  71492.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:13  71541.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:14  71562.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:15  71583.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:16  71532.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:17  71526.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:18  71503.0 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:19  71497.0 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:20  71469.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:21  71433.8 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:22  71446.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:23  71487.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:24  71482.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:25  71483.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:26  71459.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:27  71427.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:28  71456.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:29  71490.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:30  71537.8 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:31  71544.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:32  71569.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:33  71552.3 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:34  71557.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:35  71577.0 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:36  71537.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:37  71565.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:38  71584.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:39  71589.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:40  71592.8 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:41  71585.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:42  71571.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:43  71570.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:44  71507.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:45  71518.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:46  71510.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:47  71515.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:48  71510.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:49  71487.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:50  71500.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:51  71522.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:52  71525.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:53  71521.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:54  71514.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:55  71486.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:56  71424.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:57  71470.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:58  71459.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+14:59  71444.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:00  71475.7 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:01  71448.1 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:02  71466.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:03  71459.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:04  71417.9 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:05  71357.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:06  71417.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:07  71348.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:08  71386.4 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:09  71393.5 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:10  71400.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:11  71392.0 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:12  71398.8 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:13  71445.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:14  71466.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:15  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:16  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:17  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:18  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:19  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:20  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:21  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:22  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:23  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:24  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:25  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:26  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:27  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:28  71461.6 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar
+15:29  71593.2 | ?                                  | PADH NAHI SAKE · spot chain window ke bahar

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR handshake v2</title>
+<style>
+:root{--bg:#F4F6F9;--card:#fff;--line:#E3E7ED;--ink:#141A22;--ink2:#5C6675;--ink3:#8A93A0;--up:#1B8A38;--dn:#C42B30;--ce:#C4452C;--pe:#0B8277;--warn:#B45309;--pin:#6D4FC2;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{width:1229px;max-width:100%;margin:0 auto;padding:10px 12px 18px;overflow-x:hidden}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+.brand{font-weight:900;letter-spacing:.8px} .tag{font-size:11px;color:var(--ink2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:var(--card)}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--ink2)} .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctl{display:flex;align-items:center;gap:6px;margin-left:auto} .btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700}
+.clock{font:800 20px var(--mono)} .spot{font:600 12px var(--mono);color:var(--ink2)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.h{font-size:10.5px;letter-spacing:.6px;color:var(--ink3);text-transform:uppercase;font-weight:800;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+#cv{width:100%;height:600px;display:block;cursor:crosshair}
+.pic{border-radius:10px;padding:10px 12px;color:#fff;margin-bottom:10px} .pic.light{color:var(--ink)} .pic .w{font:900 24px system-ui} .pic .g{font:800 12px var(--mono);opacity:.9}
+.step{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;padding:6px 0;border-bottom:1px dashed var(--line)} .step:last-child{border-bottom:0}
+.num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 12px var(--mono);background:#EEF1F5;color:var(--ink3)}
+.step.on .num{color:#fff} .step.ok .num{background:var(--up)} .step.bad .num{background:var(--dn)} .step.wait .num{background:var(--warn)} .step.info .num{background:var(--pin)}
+.st{font-weight:800} .sd{font-size:12px;color:var(--ink2)} .step:not(.on) .st{color:var(--ink3);font-weight:600}
+.srcs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.src{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center} .src b{display:block;font:800 15px var(--mono)} .src span{font-size:10.5px;color:var(--ink3)}
+.agree{margin-top:6px;font-weight:800;text-align:center;border-radius:8px;padding:4px}
+.log div{display:grid;grid-template-columns:40px 36px 1fr 62px;gap:6px;align-items:baseline;font-size:12px;padding:2px 0} .log div.sd{display:block} .log .t{font:700 12px var(--mono);color:var(--ink2)} .log .a{font:700 11px var(--mono);text-align:right;color:var(--ink2)}
+.tipf{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:7px;max-width:380px;z-index:9;display:none}
+.note{font-size:11px;color:var(--ink3);margin-top:8px}
+.kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px} .k{border:1px solid var(--line);border-radius:6px;padding:2px 7px;font:600 11px var(--mono);background:#FAFBFC} .k.ok{background:#E8F5EC;border-color:#BFE6CF} .k.bad{background:#FBEAEA;border-color:#F0C5C0} .k.warn{background:#FFF4E5;border-color:#F5D9A8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="brand">RAFTAAR · HANDSHAKE v2</span><span class="tag">flow dhakka deta hai → OI ko jawab dena padta hai · REPLAY</span>
+    <span id="days"></span>
+    <div class="ctl">
+      <button class="btn" id="play">▶</button>
+      <select class="btn" id="spd"><option value="2">2 min/s</option><option value="5" selected>5 min/s</option><option value="12">12 min/s</option></select>
+      <span class="clock" id="clock">--:--</span><span class="spot" id="spot"></span>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="h"><span>FLOW (Dext 1m · book fallback shaded · GoCharting 5m · Upstox 5m) · STRIKES: aaj ka likha (CALL coral upar, PUT teal neeche) · spot line</span><span>◆ push · ✓ toot · ⚑ phans · ✗ tiki · · jawab nahi · ★ block</span></div>
+      <canvas id="cv"></canvas>
+    </div>
+    <div>
+      <div class="pic" id="pic"><div class="w" id="word">—</div><div class="g" id="grade"></div></div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="h"><span>HANDSHAKE · abhi</span><span id="age"></span></div>
+        <div class="step" id="s1"><div class="num">1</div><div><div class="st" id="s1t">PUSH</div><div class="sd" id="s1d"></div></div></div>
+        <div class="step" id="s2"><div class="num">2</div><div><div class="st" id="s2t">OI KA JAWAB</div><div class="sd" id="s2d"></div></div></div>
+        <div class="step" id="s3"><div class="num">3</div><div><div class="st" id="s3t">PEECHHE FLOOR / CAP · kisne likha</div><div class="sd" id="s3d"></div></div></div>
+        <div class="step" id="s4"><div class="num">4</div><div><div class="st" id="s4t">FUT OI · EFFORT · SOURCES</div><div class="sd" id="s4d"></div></div></div>
+        <div class="step" id="s5"><div class="num">5</div><div><div class="st" id="s5t">FLOW ABHI · AAGE NAYI DEEWAR</div><div class="sd" id="s5d"></div></div></div>
+        <div class="step" id="s6"><div class="num">6</div><div><div class="st" id="s6t">PALAT KA FUEL</div><div class="sd" id="s6d"></div></div></div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="h"><span>FLOW · teen source · pichhla poora 5-min bar (lots)</span><span id="slot"></span></div>
+        <div class="srcs">
+          <div class="src"><span id="fDl">DEXT 1m</span><b id="fD">—</b></div>
+          <div class="src"><span>GOCHARTING</span><b id="fG">—</b></div>
+          <div class="src"><span>UPSTOX</span><b id="fU">—</b></div>
+        </div>
+        <div class="agree" id="agree"></div>
+      </div>
+      <div class="card"><div class="h"><span>PUSH LOG · naya upar · baad mein kitna chala (pts)</span></div><div class="log" id="log"></div></div>
+    </div>
+  </div>
+  <div class="note" id="note"></div>
+</div>
+<div class="tipf" id="tf"></div>
+<script src="data_v2.js"></script>
+<script>
+const D = window.HS2 || [], $ = (id) => document.getElementById(id);
+const C = { up: '#1B8A38', dn: '#C42B30', ce: '#C4452C', pe: '#0B8277', ink: '#141A22', ink2: '#5C6675', ink3: '#8A93A0', line: '#E3E7ED', warn: '#B45309', pin: '#6D4FC2' };
+const T0 = 555, T1 = 930, hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const f0 = (x) => Math.round(x).toLocaleString('en-IN'), sg = (x, d = 0) => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(d);
+const PIC = { 'CHAL RAHA': (d) => [d > 0 ? C.up : C.dn, `CHAL RAHA ${d > 0 ? '▲' : '▼'}`], WAPSI: (d) => [d > 0 ? '#6FBF84' : '#E07F82', `WAPSI ${d > 0 ? '▲' : '▼'}`],
+  CHOP: () => ['#D99A1E', 'CHOP ⇅'], PIN: () => [C.pin, 'PIN ◎'], ATKA: (d) => ['#2F7FB8', `ATKA ${d > 0 ? '⇡' : '⇣'}`], UNWIND: () => ['#6E7C8C', 'UNWIND'],
+  'BINA OI': (d) => [d > 0 ? '#A8D5B4' : '#EDB3B5', `BINA OI ${d > 0 ? '▲' : '▼'}`], KHAMOSH: () => ['#E9ECF1', 'KHAMOSH · kuch khaas nahi'], '?': () => ['#CBD2DB', '? padh nahi sake'] };
+const ANS = { TOOT: ['✓', 'deewar toot rahi'], PHANS: ['⚑', 'phans rahe'], TIKI: ['✗', 'deewar tiki'], NAHI: ['·', 'jawab nahi'] };
+const WHO = { KHAREEDAR: 'kharidaar ne khola (IV ↑)', WRITERS: 'writers ne becha', '?': 'kisne khola: saaf nahi' };
+let day, i = 0, playing = false, timer = 0, at = {}, marks = [];
+
+function setDay(n) {
+  day = D[n]; document.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === n));
+  at = {}; day.rows.forEach((r, j) => { at[r.m] = j; if (Array.isArray(r.oi)) { const o = {}; day.strikes.forEach((k, q) => (o[k] = [r.oi[2 * q], r.oi[2 * q + 1]])); r.oi = o; } });
+  let mx = 1; day.rows.forEach((r) => Object.values(r.oi).forEach(([a, b]) => (mx = Math.max(mx, a ?? 0, b ?? 0)))); day.mx = mx;
+  const p95 = (a) => { const s = a.filter((x) => x != null).map(Math.abs).sort((x, y) => x - y); return s[Math.floor(0.95 * (s.length - 1))] || 1; };
+  day.sd = p95(day.rows.map((r) => r.d)); day.s5 = p95(day.G.map((b) => b[1]).concat(day.U.map((b) => b[1])));
+  $('note').textContent = `${day.day} · flow: Dext ${day.near} ${day.dext_minutes} min, book ${day.book_minutes} min (fallback) · every number [M] from the record; PUSH = 2-min delta ≥ 2× the last-30-min normal and ≥ 150 lots [I]; attacked strike = the biggest ABSOLUTE OI in the band [I]; answer at +4 min ≥ max(3L, 4 % of that OI) → "4 % of its OI" is a size bar, not a hit rate [I]; who opened = premium move minus delta × spot move (> 2 ticks buyers, < −2 writers) [I]; fut leg = fut OI with the push FRESH / against COVER (≥ 500 lots) [I]; effort = lots per point over 5 min vs the day's median [I]. Points after a push are shown only once those minutes have passed.`;
+  i = Math.max(0, day.rows.findIndex((r) => r.m >= 9 * 60 + 44)); draw();
+}
+
+function draw() {
+  const cv = $('cv'), dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const L = 92, R = W - 8, now = day.rows[i].m, X = (m) => L + ((m - T0) / (T1 - T0)) * (R - L);
+  const strips = [['FLOW 1m', 8], ['GOCHARTING 5m', 56], ['UPSTOX 5m', 104]], SH = 40, MT = 158, MB = H - 22;
+  g.font = '700 10px system-ui'; g.textBaseline = 'middle';
+  strips.forEach(([name, y]) => { g.fillStyle = C.ink3; g.fillText(name, 4, y + SH / 2); g.strokeStyle = C.line; g.beginPath(); g.moveTo(L, y + SH / 2); g.lineTo(R, y + SH / 2); g.stroke(); });
+  const bar = (m, w, v, y, sc) => { if (v == null) return; const h = Math.min(SH / 2 - 1, (Math.abs(v) / sc) * (SH / 2 - 2)); g.fillStyle = v > 0 ? C.up : C.dn; g.fillRect(X(m), v > 0 ? y + SH / 2 - h : y + SH / 2, Math.max(1, X(m + w) - X(m) - (w > 1 ? 1 : 0)), h); };
+  // the book fallback is shaded under the 1-min strip; a minute with no flow at all is marked amber
+  day.rows.forEach((r) => { if (r.m > now) return; if (r.src === 'B') { g.fillStyle = 'rgba(109,79,194,.10)'; g.fillRect(X(r.m), 8, Math.max(1, X(r.m + 1) - X(r.m)), SH); } if (r.d == null) { g.fillStyle = 'rgba(180,83,9,.18)'; g.fillRect(X(r.m), 8, Math.max(1, X(r.m + 1) - X(r.m)), SH); } });
+  day.rows.forEach((r) => { if (r.m <= now) bar(r.m, 1, r.d, 8, day.sd); });
+  day.G.forEach(([m, v]) => { if (m + 5 <= now + 1) bar(m, 5, v, 56, day.s5); });
+  day.U.forEach(([m, v]) => { if (m + 5 <= now + 1) bar(m, 5, v, 104, day.s5); });
+  for (let m = T0; m + 5 <= Math.min(now + 1, T1); m += 5) {      // the 5-min agreement tick: how many of three say the same side
+    const ds = day.rows.filter((r) => r.m >= m && r.m < m + 5 && r.d != null), dv = ds.length === 5 ? ds.reduce((a, r) => a + r.d, 0) : null;
+    const gv = (day.G.find((b) => b[0] === m) || [])[1], uv = (day.U.find((b) => b[0] === m) || [])[1];
+    const s = [dv, gv, uv].filter((v) => v != null).map(Math.sign).filter((x) => x !== 0);
+    if (s.length === 3) { const n = Math.max(s.filter((x) => x > 0).length, s.filter((x) => x < 0).length); g.fillStyle = n === 3 ? (s[0] > 0 && s[1] > 0 ? C.up : s.filter((x) => x > 0).length === 3 ? C.up : C.dn) : C.warn; g.fillRect(X(m), 148, X(m + 5) - X(m) - 1, 4); }
+  }
+  const ks = day.strikes, kMax = ks[ks.length - 1], kMin = ks[0], Y = (p) => MT + ((kMax + day.step / 2 - p) / (kMax - kMin + day.step)) * (MB - MT), rh = (MB - MT) / ks.length;
+  ks.forEach((k) => { g.strokeStyle = '#EEF1F5'; g.beginPath(); g.moveTo(L, Y(k)); g.lineTo(R, Y(k)); g.stroke(); g.fillStyle = C.ink2; g.font = '600 10.5px ui-monospace,monospace'; g.fillText(f0(k) + 's', 24, Y(k)); });
+  const sc = (rh * 0.46) / day.mx;
+  day.rows.forEach((r) => { if (r.m > now) return; const x = X(r.m), w = Math.max(1, X(r.m + 1) - x);
+    ks.forEach((k) => { const [c, p] = r.oi[k] || []; if (c > 0) { g.fillStyle = 'rgba(196,69,44,.55)'; g.fillRect(x, Y(k) - c * sc, w, c * sc); } if (p > 0) { g.fillStyle = 'rgba(11,130,119,.55)'; g.fillRect(x, Y(k), w, p * sc); } }); });
+  g.fillStyle = 'rgba(244,246,249,.85)'; g.fillRect(X(now) + 1, 0, R - X(now), H);     // the future is not drawn
+  g.strokeStyle = C.ink; g.lineWidth = 2; g.beginPath(); let first = true;
+  day.rows.forEach((r) => { if (r.m <= now && r.s) { first ? g.moveTo(X(r.m), Y(r.s)) : g.lineTo(X(r.m), Y(r.s)); first = false; } }); g.stroke(); g.lineWidth = 1;
+  // pushes: a label lane per push so chips never overlap (alternate above / below, shift right when crowded)
+  marks = []; const lanes = [];
+  day.events.forEach((e) => {
+    if (e.m > now) return;
+    const x = X(e.m), y = Y(e.spot), done = e.am != null && e.am <= now, col = e.dir > 0 ? C.up : C.dn;
+    if (e.print) { g.fillStyle = C.pin; g.font = '900 15px system-ui'; g.fillText('★', x - 6, y - 12); g.font = '700 10px system-ui'; g.fillText(`BLOCK ${f0(Math.abs(e.lots))} lots · roll?`, x + 6, y - 12);
+      marks.push({ x, y: y - 12, tip: `${hm(e.m)} ★ ${f0(e.lots)} lots in 2 min (normal ${e.norm}): a block or a roll cross, not a push. Price ${done ? sg(e.moved) + ' pts in 4 min' : '…'}; OI answer ${done ? ANS[e.ans][1] : 'pending'}.` }); return; }
+    if (done && e.ans === 'NAHI') { g.fillStyle = C.ink3; g.beginPath(); g.arc(x, y, 2.5, 0, 7); g.fill(); marks.push({ x, y, tip: `${hm(e.m)} push ${e.dir > 0 ? '▲' : '▼'} ${f0(e.lots)} lots (normal ${e.norm}) into ${e.side} ${f0(e.k)} — jawab nahi (${sg(e.chg, 1)}L of ${e.oi_k}L). Price ${sg(e.moved)} pts in 4 min${e.p15 != null && now >= e.m + 15 ? `, ${sg(e.p15)} in 15` : ''}.` }); return; }
+    g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 6, y); g.lineTo(x, y + 7); g.lineTo(x - 6, y); g.closePath();
+    if (!done) { g.strokeStyle = col; g.lineWidth = 2; g.stroke(); g.lineWidth = 1; g.fillStyle = col; g.font = '800 10px system-ui'; g.fillText('?', x + 8, y); }
+    else {
+      g.fillStyle = e.ans === 'TIKI' ? C.ink3 : col; g.fill();
+      const [ic, w] = ANS[e.ans]; const txt = `${ic} ${e.side} ${f0(e.k)}s ${sg(e.chg, 0)}L ${w}`; g.font = '800 10.5px system-ui'; const tw = g.measureText(txt).width;
+      let ly = y + (e.dir > 0 ? -10 : 10), lx = x + 9, tries = 0;
+      while (tries < 6 && lanes.some((q) => Math.abs(q.y - ly) < 11 && lx < q.x + q.w + 6 && lx + tw > q.x - 6)) { ly += e.dir > 0 ? -12 : 12; tries++; }
+      lanes.push({ x: lx, y: ly, w: tw });
+      g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(lx - 2, ly - 7, tw + 4, 13); g.fillStyle = e.ans === 'TIKI' ? C.ink2 : col; g.fillText(txt, lx, ly);
+      if (e.behind) { const yb = Y(e.behind[0]); g.strokeStyle = e.dir > 0 ? C.pe : C.ce; g.lineWidth = 3; g.beginPath(); g.moveTo(x, yb); g.lineTo(X(e.am), yb); g.stroke(); g.lineWidth = 1;
+        g.fillStyle = e.dir > 0 ? C.pe : C.ce; g.font = '700 10px system-ui'; const wt = e.behind[2] ? (e.behind[2][0] === 'WRITERS' ? ' · writers' : e.behind[2][0] === 'KHAREEDAR' ? ' · kharidaar' : '') : ''; g.fillText(`${e.dir > 0 ? 'FLOOR' : 'CAP'} ${f0(e.behind[0])}s +${e.behind[1].toFixed(0)}L${wt}`, X(e.am) + 3, yb + (e.dir > 0 ? 8 : -8)); }
+    }
+    const after = done ? ((e.p15 != null && now >= e.m + 15) ? ` · +15 min ${sg(e.p15)} pts` : '') + ((e.p30 != null && now >= e.m + 30) ? ` · +30 ${sg(e.p30)} pts` : '') : '';
+    marks.push({ x, y, tip: `${hm(e.m)} PUSH ${e.dir > 0 ? '▲' : '▼'} ${f0(e.lots)} lots in 2 min (normal ${e.norm}, ${e.src === 'B' ? 'book' : 'Dext'}) into ${e.side} ${f0(e.k)}s (OI ${e.oi_k}L)` + (done ? ` → ${hm(e.am)}: ${ANS[e.ans][1]} (${sg(e.chg, 1)}L, bar ${e.bar}L), price ${sg(e.moved)} pts${e.who ? ' · ' + WHO[e.who[0]] : ''}${e.fut ? ' · fut OI ' + sg(e.fut[0]) + ' lots ' + e.fut[1] : ''}${e.eff && e.eff[1] != null ? ' · effort ' + e.eff[1] + '× normal' : ''}${e.agree != null ? ' · sources ' + e.agree + '/3 saath' : ''}${after}` : ' → jawab 4 min mein') });
+  });
+  g.strokeStyle = C.ink; g.beginPath(); g.moveTo(X(now), 0); g.lineTo(X(now), MB); g.stroke();
+  g.fillStyle = C.ink3; g.font = '600 10px system-ui'; for (let h = 10; h <= 15; h++) g.fillText(`${h}:00`, X(h * 60) - 12, H - 8);
+  panel(now);
+}
+
+function panel(now) {
+  const r = day.rows[i]; $('clock').textContent = hm(now);
+  const b = day.basis[now]; $('spot').textContent = r.s ? `spot ${r.s.toFixed(1)}s${b != null ? ` · fut ${f0(r.s + b)}f (basis ${sg(b)}, 3-min median)` : ''}` : '';
+  const p = r.p || [], f = PIC[p[0]], [bg, word] = f ? f(p[1]) : ['#CBD2DB', 'PADH RAHE ?'];
+  $('pic').style.background = bg; $('pic').classList.toggle('light', p[0] === 'KHAMOSH' || p[0] === '?' || !f); $('word').textContent = word;
+  $('grade').textContent = p[3] ? `${p[2]}/${p[3]} checks saath · ${p[5] || ''}${p[4] ? ' · ' + p[4] : ''}` : (p[4] || '');
+  const TITLE = { 1: 'PUSH', 2: 'OI KA JAWAB', 3: 'PEECHHE FLOOR / CAP · kisne likha', 4: 'FUT OI · EFFORT · SOURCES', 5: 'FLOW ABHI · AAGE NAYI DEEWAR', 6: 'PALAT KA FUEL' };
+  const set = (n, cls, t, d) => { const s = $('s' + n); s.className = 'step' + (cls ? ' on ' + cls : ''); $('s' + n + 't').textContent = t || TITLE[n]; $('s' + n + 'd').innerHTML = d || ''; };
+  const ev = day.events.filter((e) => !e.print && e.m <= now && e.m >= now - 15).pop();
+  const oi = (m, k, s) => { const j = at[m]; return j == null ? null : day.rows[j].oi[k]?.[s]; };
+  const d2 = (m) => { const a = day.rows[at[m - 1]]?.d, c = day.rows[at[m]]?.d; return a == null || c == null ? null : a + c; };
+  if (!ev) { set(1, '', 'PUSH', 'pichhle 15 min mein koi asli dhakka nahi'); ['2', '3', '4', '5', '6'].forEach((n) => set(n, '', null, '')); $('age').textContent = ''; }
+  else {
+    set(1, 'info', `PUSH ${ev.dir > 0 ? '▲' : '▼'} ${hm(ev.m)}`, `${ev.src === 'B' ? 'book' : 'Dext'} ${sg(ev.lots)} lots in 2 min (normal ${ev.norm}) into <b>${ev.side} ${f0(ev.k)}s</b> (OI ${ev.oi_k}L)`);
+    $('age').textContent = `${now - ev.m} min pehle`;
+    if (ev.am == null || ev.am > now) {
+      const live = oi(now, ev.k, ev.side === 'CE' ? 0 : 1), was = oi(ev.m, ev.k, ev.side === 'CE' ? 0 : 1);
+      set(2, 'wait', 'OI KA JAWAB · intezaar', `${ev.side} ${f0(ev.k)}s abhi tak ${live != null && was != null ? sg(live - was, 1) + 'L' : '?'} · bar ${ev.bar ?? '?'}L · ${ev.am ? ev.am - now : 4} min baaki`);
+      ['3', '4', '5', '6'].forEach((n) => set(n, '', null, ''));
+    } else {
+      const ok = ev.ans === 'TOOT' || ev.ans === 'PHANS';
+      set(2, ok ? 'ok' : 'bad', `OI KA JAWAB · ${ANS[ev.ans][0]} ${ANS[ev.ans][1].toUpperCase()}`, `${ev.side} ${f0(ev.k)}s ${sg(ev.chg, 1)}L in 4 min (bar ${ev.bar}L) · price ${sg(ev.moved)} pts${ev.who ? ' · ' + WHO[ev.who[0]] : ''}`);
+      if (ev.ans === 'NAHI') { set(3, 'bad', 'ASLI MOVE NAHI', 'flow ne dhakka diya, OI ne nahi maana: noise ya fake. Is dhakke pe bharosa mat karo — aur engine ki "chop se bahar" / ≠ READ line bhi isi minute nahi aani chahiye.'); ['4', '5', '6'].forEach((n) => set(n, '', null, '')); return sources(now); }
+      // CRITIQUE M4: an add behind price is a FLOOR / CAP only when WRITERS opened it; buyers opening it is a bet, not support
+      const who3 = ev.behind && ev.behind[2] ? ev.behind[2][0] : '?', opt = ev.dir > 0 ? 'PUT' : 'CALL';
+      const t3 = !ev.behind ? 'PEECHHE KOI NAHI' : who3 === 'WRITERS' ? `${ev.dir > 0 ? 'NAYA FLOOR' : 'NAYI CAP'} ${f0(ev.behind[0])}s` : who3 === 'KHAREEDAR' ? `${opt} KHAREEDARI ${f0(ev.behind[0])}s · ${ev.dir > 0 ? 'floor' : 'cap'} nahi` : `${ev.dir > 0 ? 'FLOOR' : 'CAP'}? ${f0(ev.behind[0])}s`;
+      set(3, !ev.behind ? 'bad' : who3 === 'WRITERS' ? 'ok' : 'wait', t3, ev.behind ? `${ev.dir > 0 ? 'PUT' : 'CALL'} +${ev.behind[1]}L ${ev.dir > 0 ? 'neeche' : 'upar'} likha · ${ev.behind[2] ? WHO[ev.behind[2][0]] : ''}` : 'move hawa pe: peechhe koi floor / cap nahi likhi gayi');
+      const kv = [];
+      if (ev.fut) kv.push(`<span class="k ${ev.fut[1] === 'FRESH' ? 'ok' : ev.fut[1] === 'COVER' ? 'warn' : ''}">fut OI ${sg(ev.fut[0])} lots · ${ev.fut[1] === 'FRESH' ? 'naye position (saath)' : ev.fut[1] === 'COVER' ? 'covering (fuel)' : 'flat'}</span>`); else kv.push('<span class="k">fut OI: could not check</span>');
+      if (ev.eff && ev.eff[1] != null) kv.push(`<span class="k ${ev.eff[1] >= 2 ? 'warn' : ev.eff[1] <= 0.5 ? 'ok' : ''}">effort ${ev.eff[0]} lots/pt · ${ev.eff[1]}× normal${ev.eff[1] >= 2 ? ' · mehenga (palat?)' : ev.eff[1] <= 0.5 ? ' · sasta (aur chalega?)' : ''}</span>`); else kv.push('<span class="k">effort: could not check</span>');
+      if (ev.agree != null) kv.push(`<span class="k ${ev.agree === 3 ? 'ok' : ev.agree <= 1 ? 'bad' : 'warn'}">sources ${ev.agree}/3 saath (D ${ev.srcs[0] == null ? '?' : sg(ev.srcs[0])} · G ${ev.srcs[1] == null ? '?' : sg(ev.srcs[1])} · U ${ev.srcs[2] == null ? '?' : sg(ev.srcs[2])})</span>`);
+      set(4, 'info', null, `<div class="kv">${kv.join('')}</div>`);
+      const x = d2(now), m10 = now - 10, ahead = [], back = [];
+      day.strikes.forEach((k) => { const s = ev.side === 'CE' ? 0 : 1, a = oi(now, k, s), bb = oi(m10, k, s), o = oi(now, k, 1 - s), ob = oi(m10, k, 1 - s);
+        if (a != null && bb != null && (ev.dir > 0 ? k > r.s : k < r.s)) ahead.push([k, a - bb]); if (o != null && ob != null && Math.abs(k - r.s) <= day.step) back.push([k, o - ob]); });
+      const A = ahead.sort((q, w) => w[1] - q[1])[0], B = back.sort((q, w) => w[1] - q[1])[0];
+      const fl = x == null ? 'flow ? (source chup)' : Math.sign(x) === ev.dir && Math.abs(x) >= ev.norm ? `jaari ${ev.dir > 0 ? '▲' : '▼'} · ${sg(x)} lots/2m` : Math.sign(x) === -ev.dir && Math.abs(x) >= ev.norm ? `PALTA · ${sg(x)} lots/2m` : `thanda · ${sg(x)} lots/2m`;
+      set(5, A && A[1] >= 3 ? 'wait' : 'info', A && A[1] >= 3 ? `${fl} · NAYI ${ev.dir > 0 ? 'CAP' : 'FLOOR'} ${f0(A[0])}s` : fl, A && A[1] >= 3 ? `${ev.side} +${A[1].toFixed(1)}L in 10 min ${ev.dir > 0 ? 'upar' : 'neeche'}: THAK ka risk` : 'aage abhi koi nayi deewar nahi');
+      const flip = x != null && Math.sign(x) === -ev.dir && Math.abs(x) >= ev.norm;
+      set(6, B && B[1] >= 3 && flip ? 'bad' : '', B && B[1] >= 3 && flip ? `PALAT KA FUEL ${f0(B[0])}s` : 'PALAT KA FUEL', B && B[1] >= 3 && flip ? `${ev.dir > 0 ? 'PUT' : 'CALL'} +${B[1].toFixed(1)}L price pe likha, aur flow palta: ye writers agla fuel hain` : '');
+    }
+  }
+  sources(now);
+}
+
+function sources(now) {
+  const slot = now - ((now - T0) % 5) - 5, ds = day.rows.filter((q) => q.m >= slot && q.m < slot + 5 && q.d != null), dv = ds.length === 5 ? ds.reduce((a, q) => a + q.d, 0) : null;
+  const gv = (day.G.find((b) => b[0] === slot) || [])[1], uv = (day.U.find((b) => b[0] === slot) || [])[1];
+  $('slot').textContent = `${hm(slot)}–${hm(slot + 5)}`; $('fDl').textContent = ds.some((q) => q.src === 'B') ? 'BOOK 1m (fallback)' : 'DEXT 1m';
+  const show = (id, v) => { $(id).textContent = v == null ? '?' : sg(v); $(id).style.color = v == null ? C.ink3 : v > 0 ? C.up : C.dn; };
+  show('fD', dv); show('fG', gv); show('fU', uv);
+  const s = [dv, gv, uv].filter((v) => v != null).map(Math.sign), ag = $('agree');
+  if (s.length < 3) { ag.textContent = `${3 - s.length} source chup: could not check all three`; ag.style.background = '#FFF4E5'; ag.style.color = C.warn; }
+  else { const up = s.filter((v) => v > 0).length, dn = s.filter((v) => v < 0).length, n = Math.max(up, dn), side = up >= dn ? 1 : -1;
+    ag.textContent = n === 3 ? `3/3 SAATH ${side > 0 ? '▲ kharidaar' : '▼ bechne wale'}` : `${n}/3 ${side > 0 ? '▲' : '▼'} · ek alag bol raha`; ag.style.background = n === 3 ? (side > 0 ? '#E8F5EC' : '#FBEAEA') : '#FFF4E5'; ag.style.color = n === 3 ? (side > 0 ? C.up : C.dn) : C.warn; }
+  $('log').innerHTML = day.events.filter((e) => e.m <= now && (e.print || e.am == null || e.am > now || e.ans !== 'NAHI')).slice(-7).reverse().map((e) => {
+    const done = e.am != null && e.am <= now, col = e.dir > 0 ? C.up : C.dn, after = done && e.p15 != null && now >= e.m + 15 ? `${sg(e.p15)}${e.p30 != null && now >= e.m + 30 ? ' / ' + sg(e.p30) : ''}` : '';
+    return `<div><span class="t">${hm(e.m)}</span><span style="color:${e.print ? C.pin : col};font-weight:800">${e.print ? '★' : (e.dir > 0 ? '◆▲' : '◆▼')}</span><span>${f0(Math.abs(e.lots))} lots · ${e.side} ${f0(e.k)}s · ${done ? ANS[e.ans][1] + ' ' + sg(e.chg, 0) + 'L' : 'jawab 4 min mein'}${e.behind && done ? ` · ${e.dir > 0 ? 'floor' : 'cap'} ${f0(e.behind[0])}` : ''}</span><span class="a">${after}</span></div>`;
+  }).join('') || '<div class="sd">abhi koi push nahi</div>';
+}
+
+$('cv').addEventListener('mousemove', (e) => { const b = $('cv').getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top, hit = marks.find((m) => Math.abs(m.x - x) < 8 && Math.abs(m.y - y) < 9), tf = $('tf');
+  if (hit) { tf.textContent = hit.tip; tf.style.display = 'block'; tf.style.left = Math.min(e.clientX + 12, innerWidth - 400) + 'px'; tf.style.top = e.clientY + 12 + 'px'; } else tf.style.display = 'none'; });
+$('cv').addEventListener('click', (e) => { const b = $('cv').getBoundingClientRect(), L = 92, m = T0 + ((e.clientX - b.left - L) / (b.width - L - 8)) * (T1 - T0); const j = day.rows.findIndex((r) => r.m >= m); i = j < 0 ? day.rows.length - 1 : j; draw(); });
+function tick() { if (i < day.rows.length - 1) { i++; draw(); } else stop(); }
+function start() { playing = true; $('play').textContent = '❚❚'; clearInterval(timer); timer = setInterval(tick, 1000 / +$('spd').value); }
+function stop() { playing = false; $('play').textContent = '▶'; clearInterval(timer); }
+$('play').onclick = () => (playing ? stop() : start()); $('spd').onchange = () => playing && start();
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); playing ? stop() : start(); } if (e.code === 'ArrowRight') { i = Math.min(day.rows.length - 1, i + 1); draw(); } if (e.code === 'ArrowLeft') { i = Math.max(0, i - 1); draw(); } });
+addEventListener('resize', () => day && draw());
+$('days').innerHTML = D.map((d, n) => `<span class="chip" data-n="${n}">${d.day.slice(5)} · ${d.label}</span>`).join(' ');
+document.querySelectorAll('.chip').forEach((c) => (c.onclick = () => { stop(); setDay(+c.dataset.n); }));
+if (D.length) setDay(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+== RAFTAAR (converged) · SENSEX · 2026-10-08 · EXPIRY · clean trend down · SENSEX expiry · size ref: 6 pichhle expiry din · fut leg: yes · READ log: no
+
+strip (5 min): ????·········~~~~~~~~~~~·▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼k▼▼▼·?????????????????????
+
+09:40     72294s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 72500 −13.9L, 72600 −6.6L, 72000 +10.2L, 72300 +9.2L
+10:29     72254s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 144
+11:23     72060s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      PE BHAAG + CE LIKHAI · spot -163 pts/16m · with +59.4L against 0
+                    PHANSE: 72000 +13.9L 11:20 tak likha, 72300 +2.8L 10:29 tak likha
+11:31     71957s  CHAL RAHA ▼ · TEZ                   9/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -249 pts · with +279.0L
+13:18     71618s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+13:26     71643s  CHAL RAHA ▼ · SHURU                 5/11 THEEK      PE BHAAG RAHE · spot -69 pts/16m · with +56.0L against 0
+13:30     71558s  ?                                                   PADH NAHI SAKE · spot chain window ke bahar
+13:47     71562s  ?                                                   PADH NAHI SAKE · spot chain window ke bahar
+
+-- minutes: ? 126, CHAL RAHA ▼ 124, KHAMOSH 61, CHOP 57, BINA OI ▼ 5
+-- stamps: 8 (pictures / quiet / ? 5, phases + ends 2, side events 1, ≠ READ 0)

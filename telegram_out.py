@@ -77,8 +77,11 @@ def config():
 
 
 def wants(m):
-    """The alert subset (spec §4). A READ QUIT is not in it: it fires late, and was 23 of 32 lines on 23 Oct."""
+    """The alert subset (spec §4). A READ QUIT is not in it: it fires late, and was 23 of 32 lines on 23 Oct. A line marked
+    `quiet` (A131: a BAN SAKTA past the day's budget, palat.budget) stays in the window only."""
     k, w = m.get("kind"), str(m.get("word") or "")
+    if m.get("quiet"):
+        return False
     if k in ("SETUP", "HEALTH"):
         return True
     if k == "TRADE":

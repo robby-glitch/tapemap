@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR live</title>
+<style>
+:root{
+  --bg:#F4F6F9; --card:#FFFFFF; --line:#E3E7ED; --ink:#141A22; --ink2:#5C6675; --ink3:#8A93A0;
+  --up:#1B8A38; --dn:#C42B30; --ce:#C4452C; --pe:#0B8277; --chop:#D99A1E; --pin:#6D4FC2; --atka:#2F7FB8;
+  --unw:#6E7C8C; --quiet:#E9ECF1; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:12px 16px 24px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+.brand{font-weight:800;letter-spacing:.8px}
+.tag{font-size:11px;color:var(--ink2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:var(--card)}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--ink2)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctl{display:flex;align-items:center;gap:6px;margin-left:auto}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700}
+.clock{font:700 20px var(--mono)}
+.spot{font:600 13px var(--mono);color:var(--ink2)}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.h{font-size:10.5px;letter-spacing:.6px;color:var(--ink3);text-transform:uppercase;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+
+/* the battlefield */
+.sides{display:grid;grid-template-columns:1fr 70px 1fr;gap:0;margin-bottom:6px;align-items:end}
+.shead{display:flex;flex-direction:column;gap:3px}
+.shead.ce{align-items:flex-end;text-align:right}
+.sname{font-weight:800;font-size:12px}
+.pill{display:inline-block;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.roll{animation:pop 1.6s ease-out}
+@keyframes pop{0%{transform:scale(1.35);box-shadow:0 0 0 6px rgba(109,79,194,.25)}100%{transform:scale(1)}}
+.ladder{position:relative}
+.row{display:grid;grid-template-columns:1fr 70px 1fr;height:27px;align-items:center}
+.k{text-align:center;font:600 12px var(--mono);color:var(--ink2);border-left:1px solid var(--line);border-right:1px solid var(--line);height:100%;display:flex;align-items:center;justify-content:center}
+.k.atm{color:var(--ink);font-weight:800;background:#F7F8FA}
+.half{display:flex;align-items:center;height:100%;gap:4px;padding:0 4px}
+.half.ce{flex-direction:row-reverse}
+.bar{display:flex;height:15px;flex:1;align-items:center}
+.half.ce .bar{flex-direction:row-reverse}
+.seg{height:100%;transition:width .45s ease}
+.base.ce{background:rgba(196,69,44,.38)} .base.pe{background:rgba(11,130,119,.38)}
+.tip.ce{background:var(--ce)} .tip.pe{background:var(--pe)}
+.tip.hot{animation:glow 1s ease-in-out infinite}
+@keyframes glow{0%,100%{filter:brightness(1);box-shadow:none}50%{filter:brightness(1.25);box-shadow:0 0 8px currentColor}}
+.tip.ce.hot{color:var(--ce)} .tip.pe.hot{color:var(--pe)}
+.ghost{background:repeating-linear-gradient(90deg,transparent 0 3px,rgba(0,0,0,.0) 3px 6px);border:1.5px dashed;border-left-width:1.5px;height:13px;opacity:.9;animation:fade 1.4s ease-in-out infinite}
+.ghost.ce{border-color:var(--ce)} .ghost.pe{border-color:var(--pe)}
+@keyframes fade{0%,100%{opacity:.9}50%{opacity:.35}}
+.num{font:600 10.5px var(--mono);color:var(--ink3);min-width:42px}
+.half.ce .num{text-align:right}
+.wall{font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:1px 5px;border-radius:4px;color:#fff;white-space:nowrap}
+.wall.ce{background:var(--ce)} .wall.pe{background:var(--pe)}
+.spotline{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--ink);transition:top .45s ease;pointer-events:none}
+.spotline span{position:absolute;left:50%;transform:translate(-50%,-55%);background:var(--ink);color:#fff;font:700 11px var(--mono);padding:2px 7px;border-radius:999px}
+.ladder.dim .row{opacity:.45;transition:opacity .6s}
+.legendL{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--ink2)}
+.sw{display:inline-block;width:18px;height:9px;border-radius:2px;vertical-align:middle;margin-right:4px}
+
+/* the picture */
+.pic{border-radius:12px;padding:14px 16px;color:#fff;position:relative;overflow:hidden;transition:background .5s;min-height:150px}
+.pic.light{color:var(--ink)}
+.pic .w{font-size:34px;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+.arrow{display:inline-block;font-size:30px}
+.ph-TEZ .arrow{animation:beat .55s ease-in-out infinite}
+.ph-SHURU .arrow{animation:rise 1.2s ease-out}
+.ph-THAK .arrow{animation:tire 2.2s ease-in-out infinite}
+@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+@keyframes rise{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+@keyframes tire{0%,100%{opacity:1}50%{opacity:.25}}
+.stripes{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.18) 0 10px,transparent 10px 20px)}
+.phase{display:inline-block;background:rgba(255,255,255,.22);border-radius:999px;padding:2px 10px;font-weight:800;font-size:12px}
+.pic.light .phase{background:rgba(0,0,0,.07)}
+.gradebar{display:flex;gap:3px;margin:10px 0 8px;align-items:center}
+.gradebar i{flex:1;height:8px;border-radius:2px;background:rgba(255,255,255,.28)}
+.gradebar i.on{background:#fff}
+.pic.light .gradebar i{background:rgba(0,0,0,.08)} .pic.light .gradebar i.on{background:var(--ink2)}
+.story{display:flex;gap:6px;flex-wrap:wrap}
+.story .pill{background:#fff}
+.neq{position:absolute;right:12px;top:12px;background:#fff;color:var(--dn);font-weight:900;border-radius:999px;padding:3px 10px;font-size:12px;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:.35}}
+.toast{position:absolute;left:12px;right:12px;bottom:10px;background:rgba(20,26,34,.92);color:#fff;border-radius:8px;padding:6px 10px;font-size:12px;transform:translateY(140%);transition:transform .35s ease}
+.toast.show{transform:none}
+.since{font:600 12px var(--mono);opacity:.85}
+
+/* zor + meters + quadrant */
+.tug{position:relative;height:30px;border-radius:999px;background:linear-gradient(90deg,rgba(196,43,48,.18),rgba(0,0,0,.03) 50%,rgba(27,138,56,.18));margin:4px 0 2px}
+.tug .mid{position:absolute;left:50%;top:4px;bottom:4px;border-left:1px dashed var(--ink3)}
+.knob,.kghost{position:absolute;top:3px;width:24px;height:24px;border-radius:50%;transform:translateX(-50%);transition:left .45s ease,background .45s}
+.kghost{border:2px dashed var(--ink3);background:transparent}
+.knob{box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tugl{display:flex;justify-content:space-between;font-size:11px;color:var(--ink2);font-weight:700}
+.meters{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.meter{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center}
+.tube{position:relative;width:34px;height:120px;border-radius:8px;background:#F1F3F6;overflow:hidden}
+.tube .zero{position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--ink3)}
+.tube .fill{position:absolute;left:5px;right:5px;transition:top .45s ease,height .45s ease;border-radius:3px}
+.tube .gh{position:absolute;left:0;right:0;height:0;border-top:2px dashed var(--ink);transition:top .45s ease}
+.mword{font-weight:900;font-size:16px}
+.mval{font:700 13px var(--mono)}
+.msub{font-size:11px;color:var(--ink2)}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+
+/* ribbon */
+.ribbon{margin-top:12px}
+#rib{width:100%;height:118px;display:block;cursor:pointer}
+.tip-float{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:7px;max-width:380px;z-index:9;display:none;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.note{font-size:11px;color:var(--ink3);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="brand">RAFTAAR</span>
+    <span class="tag">REPLAY · real recorded day · minute by minute</span>
+    <div class="days" id="days"></div>
+    <div class="ctl">
+      <button class="btn" id="play" title="space">▶</button>
+      <select class="btn" id="speed" title="minutes per second">
+        <option value="1">1 min/s</option><option value="3" selected>3 min/s</option><option value="8">8 min/s</option><option value="20">20 min/s</option>
+      </select>
+      <span class="clock" id="clock">--:--</span>
+      <span class="spot" id="spot"></span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="h"><span>MAIDAN · writers at each strike</span><span id="hint">glowing tip = abhi likh rahe (5 min) · dashed ghost = abhi chhoda</span></div>
+      <div class="sides">
+        <div class="shead ce"><span class="sname" style="color:var(--ce)">CALL likhne wale ◀</span><span id="ceX"></span></div>
+        <div></div>
+        <div class="shead"><span class="sname" style="color:var(--pe)">▶ PUT likhne wale</span><span id="peX"></span></div>
+      </div>
+      <div class="ladder" id="ladder"><div class="spotline" id="spotline"><span id="spotlab"></span></div></div>
+      <div class="legendL">
+        <span><i class="sw" style="background:rgba(196,69,44,.38)"></i>aaj ka OI (since 09:15)</span>
+        <span><i class="sw" style="background:var(--ce)"></i>5 min mein naya</span>
+        <span><i class="sw" style="border:1.5px dashed var(--ce)"></i>5 min mein gaya</span>
+        <span><span class="wall ce">CAP</span> / <span class="wall pe">FLOOR</span> = sabse badi deewar</span>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:12px;align-content:start">
+      <div class="pic" id="pic">
+        <div class="w"><span id="word">—</span><span class="arrow" id="arrow"></span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="phase" id="phase"></span><span class="since" id="since"></span></div>
+        <div class="gradebar" id="grade"></div>
+        <div class="story" id="story"></div>
+        <span class="neq" id="neq" style="display:none">≠ READ</span>
+        <div class="toast" id="toast"></div>
+      </div>
+
+      <div class="card">
+        <div class="h"><span>ZOR · kaun kheench raha</span><span id="zorv"></span></div>
+        <div class="tugl"><span style="color:var(--dn)">◀ neeche ka zor</span><span style="color:var(--up)">upar ka zor ▶</span></div>
+        <div class="tug"><div class="mid"></div><div class="kghost" id="kg"></div><div class="knob" id="kn"></div></div>
+        <div class="msub">PUT likhai + CALL kataai = upar · CALL likhai + PUT kataai = neeche · dashed = 5 min pehle</div>
+        <div class="meters">
+          <div class="meter"><div class="tube"><div class="zero"></div><div class="fill" id="ceF" style="background:var(--ce)"></div><div class="gh" id="ceG"></div></div>
+            <div><div class="msub">CALL raftaar</div><div class="mword" id="ceW"></div><div class="mval" id="ceV"></div></div></div>
+          <div class="meter"><div class="tube"><div class="zero"></div><div class="fill" id="peF" style="background:var(--pe)"></div><div class="gh" id="peG"></div></div>
+            <div><div class="msub">PUT raftaar</div><div class="mword" id="peW"></div><div class="mval" id="peV"></div></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="h"><span>ZOR vs NATEEJA · effort vs result (15 min)</span><span id="qv"></span></div>
+        <svg id="quad" viewBox="0 0 320 190" width="100%" height="190"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="card ribbon">
+    <div class="h"><span>POORA DIN · har minute ka rang · oonchai = grade · ◆ = badlav (hover / click)</span><span id="legend"></span></div>
+    <svg id="rib" viewBox="0 0 1000 118" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="note">Every number [M] from the chain record, run through docs/speed/final/raftaar.py minute by minute (causal: each minute sees only minutes before it). Words and thresholds [I]. Grade = a count of checks, never a %. Light theme. Display only.</div>
+</div>
+<div class="tip-float" id="tf"></div>
+<script src="data.js"></script>
+<script>
+const D = window.RAFTAAR || [];
+// export.py packs each minute's OI flat, [ce, pe, ...] in the strikes' order: unpack to {strike: [ce, pe]}
+D.forEach((d) => d.rows.forEach((r) => { if (Array.isArray(r.oi)) { const o = {}; d.strikes.forEach((k, j) => (o[k] = [r.oi[2 * j], r.oi[2 * j + 1]])); r.oi = o; } }));
+const $ = (id) => document.getElementById(id);
+const C = { up:'#1B8A38', dn:'#C42B30', ce:'#C4452C', pe:'#0B8277', chop:'#D99A1E', pin:'#6D4FC2', atka:'#2F7FB8', unw:'#6E7C8C', quiet:'#E9ECF1', q:'#CBD2DB' };
+const fmt = (x, d = 1) => x == null ? '—' : (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(d);
+const f0 = (x) => x == null ? '—' : Math.round(x).toLocaleString('en-IN');
+const mm = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+const pct = (a, p) => { const s = a.filter((x) => x != null && isFinite(x)).map(Math.abs).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] || 1 : 1; };
+
+function stateOf(r) {
+  const w = r.w, d = r.d;
+  if (w === 'CHAL RAHA') return { label: 'CHAL RAHA', arrow: d > 0 ? '▲' : '▼', bg: d > 0 ? C.up : C.dn, light: false };
+  if (w === 'WAPSI') return { label: 'WAPSI', arrow: d > 0 ? '▲' : '▼', bg: d > 0 ? '#6FBF84' : '#E07F82', light: false };
+  if (w === 'BINA OI') return { label: 'BINA OI', arrow: d > 0 ? '▲' : '▼', bg: d > 0 ? '#A8D5B4' : '#EDB3B5', light: true };
+  if (w === 'CHOP') return { label: 'CHOP', arrow: '⇅', bg: C.chop, light: false, stripes: true };
+  if (w === 'PIN') return { label: 'PIN' + (r.pk ? ' ' + f0(r.pk) : ''), arrow: '◎', bg: C.pin, light: false };
+  if (w === 'ATKA') return { label: 'ATKA', arrow: d > 0 ? '⇡' : '⇣', bg: C.atka, light: false };
+  if (w === 'UNWIND') return { label: 'UNWIND', arrow: '⇄', bg: C.unw, light: false };
+  if (w === 'KHAMOSH') return { label: 'KHAMOSH', arrow: '', bg: C.quiet, light: true, sub: 'kuch khaas nahi' };
+  return { label: 'PADH RAHE ?', arrow: '', bg: C.q, light: true };
+}
+const PH = { SHURU: 'shuru', TEZ: 'TEZ', JAARI: 'jaari', RUKA: 'ruka ❚❚', THAK: 'thak raha' };
+const SPW = { TEZ: 'TEZ ▲▲', SHURU: 'shuru ↗', BARABAR: 'barabar ▶', DHEEMA: 'dheema ▼', RUKE: 'ruke ❚❚', PALTA: 'palta ⇄' };
+
+let day = null, i = 0, playing = false, timer = null, lastStampShown = null, scale = {}, rows = {};
+
+function pressure(r) { const c = r.ce?.v, p = r.pe?.v; return c == null && p == null ? null : (p ?? 0) - (c ?? 0); }
+
+function setDay(n) {
+  day = D[n]; i = 0; lastStampShown = null;
+  document.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === n));
+  const R = day.rows;
+  let mx = 0; R.forEach((r) => Object.values(r.oi).forEach(([a, b]) => { mx = Math.max(mx, a ?? 0, b ?? 0); }));
+  scale = { oi: mx || 1, v: pct(R.flatMap((r) => [r.ce?.v, r.pe?.v]), 0.95), p: pct(R.map(pressure), 0.95), m: Math.max(pct(R.map((r) => r.m15), 0.95), day.step) };
+  buildLadder(); drawRibbon(); draw();
+}
+
+function buildLadder() {
+  const L = $('ladder'); L.querySelectorAll('.row').forEach((e) => e.remove()); rows = {};
+  [...day.strikes].reverse().forEach((k) => {
+    const row = document.createElement('div'); row.className = 'row'; row.dataset.k = k;
+    row.innerHTML = `<div class="half ce"><div class="bar"><span class="seg base ce"></span><span class="seg tip ce"></span><span class="seg ghost ce"></span></div><span class="num"></span><span class="wall ce" style="display:none">CAP</span></div>
+      <div class="k">${f0(k)}</div>
+      <div class="half pe"><div class="bar"><span class="seg base pe"></span><span class="seg tip pe"></span><span class="seg ghost pe"></span></div><span class="num"></span><span class="wall pe" style="display:none">FLOOR</span></div>`;
+    L.appendChild(row); rows[k] = row;
+  });
+}
+
+function sideBar(row, sideIdx, now, then) {
+  const cls = sideIdx ? 'pe' : 'ce', h = row.querySelector('.half.' + cls), S = scale.oi;
+  const n = Math.max(0, now ?? 0), t = Math.max(0, then ?? n);
+  const base = Math.min(n, t), tip = Math.max(0, n - t), ghost = Math.max(0, t - n);
+  const w = (x) => Math.min(100, (x / S) * 100) + '%';
+  const [b, tp, g] = h.querySelectorAll('.seg');
+  b.style.width = w(base); tp.style.width = w(tip); g.style.width = w(ghost);
+  g.style.display = ghost > 0 ? '' : 'none';
+  tp.classList.toggle('hot', tip / S > 0.035);
+  h.querySelector('.num').textContent = now == null ? '' : (now >= 0 ? '+' : '−') + Math.abs(now).toFixed(0) + 'L';
+  h.dataset.tip = `${cls.toUpperCase()} ${f0(+row.dataset.k)}: aaj ${fmt(now)}L · 5 min mein ${fmt((now ?? 0) - (then ?? now ?? 0))}L`;
+}
+
+// the walls: the day's biggest CALL build and biggest PUT build on the ladder. Not "nearest above / below spot": that
+// one moves whenever price crosses a strike, and would print a roll the writers never made.
+function capFloor(r) {
+  let cap = null, floor = null;
+  for (const k of day.strikes) {
+    const [c, p] = r.oi[k] || [];
+    if (c != null && c > 0 && (cap == null || c > r.oi[cap][0])) cap = k;
+    if (p != null && p > 0 && (floor == null || p > r.oi[floor][1])) floor = k;
+  }
+  return { cap, floor };
+}
+
+function draw() {
+  const R = day.rows, r = R[i], p5 = R[Math.max(0, i - 5)], p10 = R[Math.max(0, i - 10)];
+  $('clock').textContent = r.t; $('spot').textContent = r.s ? `spot ${r.s.toFixed(1)}s` : 'spot —';
+  // the ladder
+  for (const k of day.strikes) { sideBar(rows[k], 0, r.oi[k]?.[0], p5.oi[k]?.[0]); sideBar(rows[k], 1, r.oi[k]?.[1], p5.oi[k]?.[1]); }
+  const atm = r.s ? day.strikes.reduce((b, k) => (Math.abs(k - r.s) < Math.abs(b - r.s) ? k : b), day.strikes[0]) : null;
+  Object.entries(rows).forEach(([k, row]) => row.querySelector('.k').classList.toggle('atm', +k === atm));
+  const { cap, floor } = capFloor(r), was = capFloor(p10);
+  Object.entries(rows).forEach(([k, row]) => {
+    row.querySelector('.wall.ce').style.display = +k === cap ? '' : 'none';
+    row.querySelector('.wall.pe').style.display = +k === floor ? '' : 'none';
+  });
+  const top = Math.max(...day.strikes), rowH = 27;
+  const y = r.s ? ((top - r.s) / day.step) * rowH + rowH / 2 : null;
+  $('spotline').style.display = y == null ? 'none' : ''; if (y != null) $('spotline').style.top = y + 'px';
+  $('spotlab').textContent = r.s ? r.s.toFixed(1) + 's' : '';
+  $('ladder').classList.toggle('dim', r.w === 'KHAMOSH');
+  const head = (x, side, moved) => `<span class="pill" style="background:${side === 'ce' ? 'rgba(196,69,44,.12)' : 'rgba(11,130,119,.12)'};color:${side === 'ce' ? C.ce : C.pe}">${x || '—'}</span>`
+    + (moved ? ` <span class="pill roll" style="background:${C.pin};color:#fff">${moved}</span>` : '');
+  const capMove = cap && was.cap && cap !== was.cap ? `DEEWAR ${cap > was.cap ? '↑' : '↓'} ${f0(was.cap)}→${f0(cap)}` : '';
+  const flMove = floor && was.floor && floor !== was.floor ? `DEEWAR ${floor > was.floor ? '↑' : '↓'} ${f0(was.floor)}→${f0(floor)}` : '';
+  if ($('ceX').dataset.v !== (r.ce.x || '') + capMove) { $('ceX').innerHTML = head(r.ce.x, 'ce', capMove); $('ceX').dataset.v = (r.ce.x || '') + capMove; }
+  if ($('peX').dataset.v !== (r.pe.x || '') + flMove) { $('peX').innerHTML = head(r.pe.x, 'pe', flMove); $('peX').dataset.v = (r.pe.x || '') + flMove; }
+
+  // the picture
+  const st = stateOf(r), pic = $('pic');
+  pic.style.backgroundColor = st.bg;
+  pic.className = 'pic' + (st.light ? ' light' : '') + (st.stripes ? ' stripes' : '') + (r.ph ? ' ph-' + r.ph : '');
+  $('word').textContent = st.label; $('arrow').textContent = r.ph === 'TEZ' ? st.arrow + st.arrow : st.arrow;
+  $('phase').textContent = r.ph ? PH[r.ph] || r.ph : (st.sub || (r.chop ? 'chop ke andar' : '')); $('phase').style.display = $('phase').textContent ? '' : 'none';
+  $('since').textContent = r.since ? `${r.since} se` : '';
+  const [gn, gN] = r.g || [];
+  $('grade').innerHTML = gN ? Array.from({ length: gN }, (_, j) => `<i class="${j < gn ? 'on' : ''}"></i>`).join('') + `<span style="font:800 12px var(--mono);margin-left:6px;white-space:nowrap">${gn}/${gN} ${r.gw || ''}</span>` : '';
+  const parts = (r.st || '').split('+').map((s) => s.trim()).filter(Boolean);
+  $('story').innerHTML = parts.map((s) => `<span class="pill" style="color:${s.startsWith('CE') ? C.ce : s.startsWith('PE') ? C.pe : 'var(--ink)'}">${s}</span>`).join('')
+    + (r.q ? `<span class="pill" style="color:var(--ink2)">${r.q}</span>` : '');
+  $('neq').style.display = r.cx ? '' : 'none'; $('neq').dataset.tip = r.cx || '';
+
+  // a stamp reached: say it once
+  const hit = day.stamps.filter((s) => s.t === r.t);
+  if (hit.length && lastStampShown !== r.t) {
+    lastStampShown = r.t; const s = hit[hit.length - 1];
+    $('toast').innerHTML = `<b>${s.t} · ${s.title}</b> ${s.g ? '· ' + s.g : ''}<br><span style="opacity:.8">${s.why || ''}</span>`;
+    $('toast').classList.add('show'); pic.animate([{ filter: 'brightness(1.35)' }, { filter: 'none' }], { duration: 900 });
+    clearTimeout(window.__tt); window.__tt = setTimeout(() => $('toast').classList.remove('show'), 4500);
+  }
+
+  // zor
+  const P = pressure(r), P5 = pressure(p5), pos = (x) => 50 + 46 * Math.tanh((x ?? 0) / scale.p);
+  $('kn').style.left = pos(P) + '%'; $('kg').style.left = pos(P5) + '%';
+  $('kn').style.background = P == null ? C.q : P > 0 ? C.up : P < 0 ? C.dn : C.q;
+  $('zorv').textContent = P == null ? 'could not check' : `${fmt(P)} L/min`;
+  meter('ce', r.ce, p5.ce); meter('pe', r.pe, p5.pe);
+  quad(i);
+  const ph = $('playhead'); if (ph) ph.setAttribute('x', xOf(r.t) - 1);
+}
+
+function meter(s, now, then) {
+  const v = now?.v, g = then?.v, k = (x) => 50 - 46 * Math.tanh((x ?? 0) / scale.v);
+  const y = k(v), F = $(s + 'F');
+  F.style.top = Math.min(50, y) + '%'; F.style.height = Math.abs(50 - y) + '%'; F.style.opacity = v != null && v < 0 ? 0.55 : 1;
+  F.style.backgroundImage = v != null && v < 0 ? 'repeating-linear-gradient(45deg,rgba(255,255,255,.6) 0 3px,transparent 3px 6px)' : 'none';
+  $(s + 'G').style.top = k(g) + '%';
+  $(s + 'W').textContent = v == null ? '?' : (v < 0 ? 'kaat rahe' : 'likh rahe') + (SPW[now?.sp] ? ' · ' + SPW[now.sp] : '');
+  $(s + 'W').style.color = s === 'ce' ? C.ce : C.pe;
+  $(s + 'V').textContent = v == null ? '—' : `${fmt(v)} L/min · pehle ${fmt(g)}`;
+}
+
+function quad(at) {
+  const W = 320, H = 190, cx = W / 2, cy = H / 2, R = day.rows;
+  const X = (r) => cx + (W / 2 - 14) * Math.tanh((pressure(r) ?? 0) / scale.p), Y = (r) => cy - (H / 2 - 14) * Math.tanh((r.m15 ?? 0) / scale.m);
+  const trail = []; for (let j = Math.max(0, at - 15); j <= at; j++) trail.push(R[j]);
+  const r = R[at], same = Math.sign(pressure(r) ?? 0) === Math.sign(r.m15 ?? 0);
+  let s = `<rect x="${cx}" y="0" width="${cx}" height="${cy}" fill="rgba(27,138,56,.07)"/><rect x="0" y="${cy}" width="${cx}" height="${cy}" fill="rgba(196,43,48,.07)"/>
+    <rect x="0" y="0" width="${cx}" height="${cy}" fill="rgba(217,154,30,.08)"/><rect x="${cx}" y="${cy}" width="${cx}" height="${cy}" fill="rgba(217,154,30,.08)"/>
+    <line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="#C9CFD8"/><line x1="0" y1="${cy}" x2="${W}" y2="${cy}" stroke="#C9CFD8"/>
+    <text x="${W - 6}" y="14" text-anchor="end" font-size="10.5" fill="${C.up}" font-weight="700">zor upar · price upar = SAATH</text>
+    <text x="6" y="${H - 6}" font-size="10.5" fill="${C.dn}" font-weight="700">zor neeche · price neeche = SAATH</text>
+    <text x="6" y="14" font-size="10.5" fill="#9A6A0E" font-weight="700">price upar, zor neeche = ULTA</text>
+    <text x="${W - 6}" y="${H - 6}" text-anchor="end" font-size="10.5" fill="#9A6A0E" font-weight="700">price neeche, zor upar = ULTA</text>
+    <text x="${cx + 4}" y="${cy - 4}" font-size="9.5" fill="#8A93A0">bina OI ↕ · atka ↔</text>`;
+  s += `<polyline fill="none" stroke="#8A93A0" stroke-width="1.2" stroke-dasharray="2 2" points="${trail.map((x) => X(x).toFixed(1) + ',' + Y(x).toFixed(1)).join(' ')}"/>`;
+  trail.forEach((x, j) => { s += `<circle cx="${X(x)}" cy="${Y(x)}" r="${2 + j * 0.15}" fill="#8A93A0" opacity="${0.15 + (j / trail.length) * 0.5}"/>`; });
+  s += `<circle cx="${X(r)}" cy="${Y(r)}" r="9" fill="${same ? ((r.m15 ?? 0) > 0 ? C.up : C.dn) : C.chop}" stroke="#fff" stroke-width="2.5"><animate attributeName="r" values="9;11;9" dur="1.2s" repeatCount="indefinite"/></circle>`;
+  $('quad').innerHTML = s;
+  $('qv').textContent = `price ${fmt(r.m15, 0)} pts · zor ${fmt(pressure(r))} L/min`;
+}
+
+const T0 = 9 * 60 + 15, T1 = 15 * 60 + 30;
+const xOf = (t) => ((mm(t) - T0) / (T1 - T0)) * 1000;
+function drawRibbon() {
+  const R = day.rows, S = $('rib'); let s = '';
+  const w = 1000 / (T1 - T0) + 0.4, sv = pct(R.flatMap((r) => [r.ce?.v, r.pe?.v]), 0.95);
+  R.forEach((r) => {
+    const st = stateOf(r), [n, N] = r.g || [], h = N ? 14 + 30 * (n / N) : 14, x = xOf(r.t);
+    s += `<rect x="${x}" y="${60 - h}" width="${w}" height="${h}" fill="${st.bg}"/>`;
+    const pv = r.pe?.v, cv = r.ce?.v, k = (v) => Math.min(17, (Math.abs(v) / sv) * 17);
+    if (pv != null) s += `<rect x="${x}" y="${92 - k(pv)}" width="${w}" height="${k(pv)}" fill="${C.pe}" opacity="${pv > 0 ? 0.8 : 0.3}"/>`;
+    if (cv != null) s += `<rect x="${x}" y="92" width="${w}" height="${k(cv)}" fill="${C.ce}" opacity="${cv > 0 ? 0.8 : 0.3}"/>`;
+  });
+  s += `<line x1="0" y1="92" x2="1000" y2="92" stroke="#C9CFD8"/>`;
+  for (let h = 10; h <= 15; h++) s += `<text x="${xOf(String(h).padStart(2, '0') + ':00')}" y="117" font-size="8.5" fill="#8A93A0" text-anchor="middle">${h}:00</text>`;
+  s += `<text x="2" y="70" font-size="8.5" fill="${C.pe}">PUT raftaar ↑</text><text x="2" y="117" font-size="8.5" fill="${C.ce}">CALL raftaar ↓ · halka = kaat rahe</text>`;
+  day.stamps.forEach((st) => {
+    const x = xOf(st.t), col = /≠/.test(st.title) ? C.dn : /▲/.test(st.title) ? C.up : /▼/.test(st.title) ? C.dn : /CHOP/.test(st.title) ? C.chop : /PIN/.test(st.title) ? C.pin : '#5C6675';
+    s += `<path d="M${x} 2 l5 6 l-5 6 l-5 -6 z" fill="${col}" stroke="#fff" stroke-width="1" data-tip="${(st.t + ' · ' + st.title + ' ' + (st.g || '') + ' — ' + (st.why || '')).replace(/"/g, '&quot;')}"/>`;
+  });
+  s += `<rect id="playhead" x="0" y="0" width="2" height="118" fill="#141A22"/>`;
+  S.innerHTML = s;
+  const legend = [['CHAL ▲', C.up], ['CHAL ▼', C.dn], ['WAPSI', '#E07F82'], ['CHOP', C.chop], ['PIN', C.pin], ['ATKA', C.atka], ['UNWIND', C.unw], ['KHAMOSH', C.quiet], ['?', C.q]];
+  $('legend').innerHTML = legend.map(([n, c]) => `<span style="margin-left:8px"><i class="sw" style="background:${c}"></i>${n}</span>`).join('');
+}
+
+$('rib').addEventListener('click', (e) => {
+  const b = $('rib').getBoundingClientRect(), m = T0 + ((e.clientX - b.left) / b.width) * (T1 - T0);
+  const j = day.rows.findIndex((r) => mm(r.t) >= m); i = j < 0 ? day.rows.length - 1 : j; lastStampShown = null; draw();
+});
+document.addEventListener('mousemove', (e) => {
+  const tip = e.target.closest('[data-tip]')?.dataset.tip, tf = $('tf');
+  if (tip) { tf.textContent = tip; tf.style.display = 'block'; tf.style.left = Math.min(e.clientX + 12, innerWidth - 400) + 'px'; tf.style.top = e.clientY + 14 + 'px'; }
+  else tf.style.display = 'none';
+});
+function tick() { if (i < day.rows.length - 1) { i++; draw(); } else stop(); }
+function start() { playing = true; $('play').textContent = '❚❚'; clearInterval(timer); timer = setInterval(tick, 1000 / +$('speed').value); }
+function stop() { playing = false; $('play').textContent = '▶'; clearInterval(timer); }
+$('play').onclick = () => (playing ? stop() : start());
+$('speed').onchange = () => playing && start();
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); playing ? stop() : start(); }
+  if (e.code === 'ArrowRight') { i = Math.min(day.rows.length - 1, i + 1); draw(); }
+  if (e.code === 'ArrowLeft') { i = Math.max(0, i - 1); lastStampShown = null; draw(); }
+});
+const MON = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+$('days').innerHTML = D.map((d, n) => `<span class="chip" data-n="${n}">${d.day.slice(8)} ${MON[+d.day.slice(5, 7)]} · ${d.label}</span>`).join('');
+document.querySelectorAll('.chip').forEach((c) => (c.onclick = () => { stop(); setDay(+c.dataset.n); }));
+if (D.length) setDay(0);
+</script>
+</body>
+</html>

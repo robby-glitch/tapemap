@@ -1,0 +1,20 @@
+== RAFTAAR (converged) · SENSEX · 2026-10-22 · EXPIRY · her chop / stop-loss day · SENSEX expiry · size ref: 7 pichhle expiry din · fut leg: yes · READ log: yes
+
+strip (5 min): ????▼~~~~~~~~~~~~~~~~~~~~~~~~~~▼▼▼▼▼▼▼▼▼▼▼▼▼~~~~~~~~~~~~~~~~~~~~~~~~~~~?~~~
+
+09:36     73085s  CHAL RAHA ▼ · SHURU                 6/10 MAZBOOT    CE CAP SAATH · spot -118 pts/16m · with +55.6L against +58.6L
+09:39     73245s  CHOP                                3/7 THEEK       legs dono taraf 30 min mein · range30 216
+10:02     73196s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 73200 −3.6L, 73100 −2.3L, 73400 +7.5L, 73300 +6.3L
+10:49     73370s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 73400 −5.9L, 73300 −4.6L, 73600 +5.0L, 73700 +3.8L
+10:59     73561s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 73600 −4.4L, 73700 −2.4L, 73400 +2.7L, 73500 +1.8L
+11:33     73530s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 181
+11:49     73159s  CHAL RAHA ▼ · chop se bahar         8/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -371/16m
+12:53     73460s  MOVE ▼ KHATAM                                       price ne 366 pts wapas diye (leg 589 pts)
+12:55     73575s  CHOP                                7/8 MAZBOOT     legs dono taraf 30 min mein · range30 458
+14:04     73158s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 73200 −1.8L, 73100 −1.6L, 73300 +6.0L, 73500 +5.4L
+14:12     73140s  CHOP                                5/8 MAZBOOT     legs dono taraf 30 min mein · range30 137
+14:18     73197s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 73200 −2.6L, 73300 −2.1L, 73000 +8.5L, 73100 +4.9L
+14:53     73271s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 73200 −5.6L, 73100 −2.0L, 73700 +7.6L, 73400 +5.5L
+
+-- minutes: CHOP 285, CHAL RAHA ▼ 67, ? 18, KHAMOSH 3
+-- stamps: 13 (pictures / quiet / ? 6, phases + ends 1, side events 6, ≠ READ 0)

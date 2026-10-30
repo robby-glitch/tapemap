@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Chart Decode</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#F3F1EB; --raised:#FFFFFF; --surface:#FAF9F5; --border:#DCD7CC; --border-strong:#B8B1A3;
+  --ink:#17160F; --ink2:#4A463E; --muted:#736D62;
+  --buy:#1A7641; --sell:#B3261E; --arm:#A35E00; --sl:#E8590C;
+  --f-word:"Barlow Condensed","Arial Narrow",sans-serif; --f-ui:"IBM Plex Sans",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 13px/18px var(--f-ui);font-variant-numeric:tabular-nums}
+.wrap{max-width:1260px;margin:0 auto;padding:14px 16px}
+h1{font:700 22px/1 var(--f-word);letter-spacing:.02em;margin:0 0 4px;text-transform:uppercase}
+.sub{color:var(--muted);margin:0 0 10px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--raised);border:1px solid var(--border);border-radius:6px;padding:7px 10px;margin-bottom:8px}
+.ctl button{font:600 12px/1 var(--f-ui);border:1px solid var(--border-strong);background:var(--surface);border-radius:4px;padding:6px 9px;cursor:pointer;color:var(--ink)}
+.ctl button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctl .clock{font:600 22px/1 var(--f-num);min-width:70px}
+.ctl input[type=range]{flex:1;min-width:160px;accent-color:var(--ink)}
+.days{display:flex;gap:6px;margin:0 0 8px}
+.days button{font:700 14px/1 var(--f-word);letter-spacing:.04em;text-transform:uppercase;border:1.5px solid var(--border-strong);background:var(--raised);border-radius:4px;padding:7px 12px;cursor:pointer;color:var(--ink2)}
+.days button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.days button span{display:block;font:500 10.5px/1.3 var(--f-num);text-transform:none;letter-spacing:0;margin-top:3px;opacity:.8}
+.jumps{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.jumps button{font:500 11px/1 var(--f-ui);border:1px dashed var(--border-strong);background:transparent;border-radius:12px;padding:5px 9px;cursor:pointer;color:var(--ink2)}
+.stage{position:relative;background:#fff;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden}
+canvas#cv{display:block;width:100%}
+/* the live headline: the strongest thing right now, in her words */
+.head{position:absolute;left:12px;top:10px;background:rgba(255,255,255,.93);border:1.5px solid var(--ink);border-radius:6px;padding:6px 10px;min-width:280px;max-width:440px;box-shadow:0 3px 12px rgba(0,0,0,.08)}
+.head .w{font:700 24px/1.05 var(--f-word);letter-spacing:.02em}
+.head .s{font:500 12px/1.35 var(--f-num);color:var(--ink2);margin-top:2px}
+.head .tk{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px;font:600 10.5px/1 var(--f-word);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.head .tk b{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;margin-right:3px;vertical-align:-1px}
+.head .tk span.y{color:var(--c)} .head .tk span.y b{background:var(--c);border-color:var(--c)}
+.head .tk span.u{opacity:.45}
+.head.flash{animation:hflash .9s}
+@keyframes hflash{0%{transform:scale(1.04);box-shadow:0 0 0 7px var(--g)}100%{transform:none;box-shadow:0 3px 12px rgba(0,0,0,.08)}}
+/* who is winning this leg */
+.tug{position:absolute;right:262px;top:10px;width:250px;background:rgba(255,255,255,.93);border:1px solid var(--border-strong);border-radius:6px;padding:6px 9px}
+.tug .t{font:600 10.5px/1 var(--f-word);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tug .bar{display:flex;height:12px;border-radius:3px;overflow:hidden;margin:5px 0 3px;background:#eee}
+.tug .bar i{display:block;height:100%;transition:width .6s cubic-bezier(.2,0,0,1)}
+.tug .nums{display:flex;justify-content:space-between;font:500 11px/1.3 var(--f-num)}
+.tug .x{font:500 11px/1.4 var(--f-num);color:var(--ink2);margin-top:2px}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 14px;margin-top:12px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2)}
+.legend canvas{width:22px;height:22px;flex:none}
+.legend b{font:700 13px/1 var(--f-word);letter-spacing:.04em}
+.note{margin-top:12px;font-size:12px;color:var(--muted);max-width:1100px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Live chart decode · NIFTY fut 5m</h1>
+  <p class="sub">The layer the extension would draw on your GoCharting chart, bar by bar, from the record. Candles here stand in for GoCharting's.</p>
+  <div class="days" id="days"></div>
+  <div class="ctl">
+    <button id="play" class="on">❚❚ ruko</button>
+    <span class="clock" id="clock">09:15</span>
+    <input type="range" id="scrub" min="0" max="26" step="1" value="0" aria-label="bar">
+    <button data-sp="3200">½×</button><button data-sp="1800" class="on">1×</button><button data-sp="700">3×</button>
+  </div>
+  <div class="jumps" id="jumps"></div>
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="head" id="head"><div class="w" id="hw"></div><div class="s" id="hs"></div><div class="tk" id="htk"></div></div>
+    <div class="tug" id="tug"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <p class="note">Every number is the 26 Oct record: the extension's 5-min footprint (Δ, lots, its own ROKA / THAKAN / PHANSE / ZOR marks),
+    fut OI from the 3-min bars, the 3-min bands, the writers' lead, spot from the chain per bar, the zone machine's own entries
+    and stops (3-min bands). Reads [I]: SL kat rahe = price ▲ + fut OI ▼ ≥ 15k (▼ + ▼ for longs); all four days are the Oct roll
+    week and only the Oct contract is recorded, so OI swings carry the roll; fuel jala = price closes through the trapped
+    box; absorb = ≥ 400 lots against the leg that moved price under 3 points per 100 lots, without a new extreme;
+    pullback = 23.6 % of the leg, its jagah 38–62 %. Takat is a count of price · Δ · OI · likh on the leg's side, never a %. No order path.</p>
+</div>
+<script>
+const DAYS = /*DATA*/;
+let D, R, EV, BX, EPS, N, CVD;
+const C = { up: '#26A69A', dn: '#EF5350', buy: '#1A7641', sell: '#B3261E', arm: '#A35E00', sl: '#E8590C', ink: '#17160F',
+            ink2: '#4A463E', muted: '#736D62', grid: '#EFEDE7', band: '#B8B1A3', vwap: '#8A8578', grey: '#9C978C' };
+const FN = '"IBM Plex Mono",ui-monospace,Consolas,monospace', FW = '"Barlow Condensed","Arial Narrow",sans-serif';
+const fmt = p => Math.round(p).toLocaleString('en-IN');
+const cv = document.getElementById('cv');
+let cx = cv.getContext('2d');
+const CLOSE = .3;
+let tm = 0;
+const done = i => i + CLOSE <= tm;
+// the zone entry live at bar i: the latest one placed and not yet stopped or replaced
+const epAt = i => EPS.filter(e => done(e.ei) && e.ei <= i && e.end > i).pop() || null;
+// a real chart: the latest VIS bars, the price scale fitted to them (both glide, never jump); the top band holds the headline
+let W = 1200, H = 660, PT = 108, PB = 482, ST = 514, SB = 646, LEFT = 10, RIGHT = 250, step = 40, VIS = 18;
+let lo = 22400, hi = 22600, vleft = 0, snap = true;
+const X = i => LEFT + step * (i - vleft) + step / 2, Y = p => PT + (hi - p) / (hi - lo) * (PB - PT - 26);
+function size() {
+  const w = cv.parentElement.clientWidth, dpr = window.devicePixelRatio || 1;
+  W = w; cv.width = w * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); step = (W - LEFT - RIGHT) / VIS;
+}
+function fit(cur, closedN) {
+  const left = Math.max(0, cur - (VIS - 3));
+  let a = Infinity, b = -Infinity;
+  for (let i = left; i <= cur; i++) { a = Math.min(a, R[i].l); b = Math.max(b, R[i].h); }
+  const ep = epAt(Math.max(0, closedN - 1));
+  if (ep) { a = Math.min(a, ep.stop, ep.E); b = Math.max(b, ep.stop, ep.E); }
+  BX.forEach(x => { if (done(x.i) && x.end >= left) { a = Math.min(a, x.lo); b = Math.max(b, x.hi); } });
+  a -= 14; b += 14; if (b - a < 170) { const m = (a + b) / 2; a = m - 85; b = m + 85; }
+  const k = snap ? 1 : .07; snap = false;
+  vleft += (left - vleft) * k; lo += (a - lo) * k; hi += (b - hi) * k;
+}
+window.addEventListener('resize', size); size();
+
+// ---- glyphs: one shape per read, colour = whose win, every one with its Hinglish chip
+function glyph(k, x, y, col, s = 1, broke = false) {
+  cx.save(); cx.translate(x, y); cx.scale(s, s); cx.strokeStyle = cx.fillStyle = broke ? C.grey : col; cx.lineWidth = 2;
+  cx.lineJoin = cx.lineCap = 'round';
+  const tri = up => { cx.beginPath(); cx.moveTo(0, up ? -6 : 6); cx.lineTo(6, up ? 5 : -5); cx.lineTo(-6, up ? 5 : -5); cx.closePath(); };
+  if (k === 'ROKA') { cx.fillRect(-8, -7, 16, 4); tri(true); cx.save(); cx.translate(0, 4); cx.scale(.7, .7); tri(true); cx.fill(); cx.restore(); }
+  else if (k === 'THAKAN') { const up = col === C.buy; tri(up); cx.stroke(); cx.globalAlpha = .35; cx.save(); cx.translate(0, up ? 7 : -7); cx.scale(.7, .7); tri(up); cx.stroke(); cx.restore(); }
+  else if (k === 'PHANSE') { cx.strokeRect(-7, -7, 14, 14); cx.beginPath(); cx.moveTo(-2.5, -7); cx.lineTo(-2.5, 7); cx.moveTo(2.5, -7); cx.lineTo(2.5, 7); cx.stroke(); }
+  else if (k === 'ABSORB') { cx.beginPath(); cx.moveTo(-8, -6); cx.quadraticCurveTo(-8, 7, 0, 7); cx.quadraticCurveTo(8, 7, 8, -6); cx.stroke(); cx.beginPath(); cx.arc(0, -1, 2.6, 0, 7); cx.fill(); }
+  else if (k === 'SL' || k === 'BURN') { const n = 8, r1 = k === 'BURN' ? 10 : 7, r0 = 3; cx.beginPath();
+    for (let j = 0; j < n * 2; j++) { const a = j * Math.PI / n, r = j % 2 ? r0 : r1; cx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } cx.closePath(); cx.fill(); }
+  else if (k === 'ZOR') { const up = col === C.buy; cx.lineWidth = 2.6; cx.beginPath(); cx.moveTo(0, up ? 8 : -8); cx.lineTo(0, up ? -6 : 6); cx.stroke();
+    cx.beginPath(); cx.moveTo(-5, up ? -1 : 1); cx.lineTo(0, up ? -7 : 7); cx.lineTo(5, up ? -1 : 1); cx.stroke(); }
+  else if (k === 'ZONE') { cx.beginPath(); cx.moveTo(0, -7); cx.lineTo(7, 0); cx.lineTo(0, 7); cx.lineTo(-7, 0); cx.closePath(); cx.fill(); }
+  else if (k === 'ENTRY') { cx.beginPath(); cx.moveTo(-6, -7); cx.lineTo(7, 0); cx.lineTo(-6, 7); cx.closePath(); cx.fill(); }
+  else if (k === 'PALTA') { cx.beginPath(); cx.arc(0, 0, 7.5, 0, 7); cx.stroke(); cx.font = `700 11px ${FW}`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('Δ', 0, .5); }
+  else if (k === 'LEVEL') { cx.beginPath(); cx.arc(0, 0, 7, 0, 7); cx.stroke(); cx.beginPath(); cx.arc(0, 0, 2.5, 0, 7); cx.fill(); }
+  else if (k === 'PB') { cx.beginPath(); cx.moveTo(-6, -7); cx.lineTo(-8, -7); cx.lineTo(-8, 7); cx.lineTo(-6, 7); cx.moveTo(6, -7); cx.lineTo(8, -7); cx.lineTo(8, 7); cx.lineTo(6, 7); cx.stroke(); }
+  else if (k === 'OI') { tri(col === C.buy); cx.fill(); cx.font = `700 8px ${FW}`; cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('+', 0, col === C.buy ? 2 : -1.5); }
+  else if (k === 'STOP') { cx.beginPath(); cx.arc(0, 0, 7.5, 0, 7); cx.stroke(); cx.beginPath(); cx.moveTo(-4, -4); cx.lineTo(4, 4); cx.moveTo(4, -4); cx.lineTo(-4, 4); cx.stroke(); }
+  if (broke) { cx.strokeStyle = C.ink2; cx.lineWidth = 1.6; cx.beginPath(); cx.moveTo(-5, -5); cx.lineTo(5, 5); cx.moveTo(5, -5); cx.lineTo(-5, 5); cx.stroke(); }
+  cx.restore();
+}
+const colOf = e => e.k === 'SL' || e.k === 'BURN' ? C.sl : e.side > 0 ? C.buy : C.sell;
+
+// ---- the replay clock: tm in bars; a bar grows for the first 30 % of its slot, then closes and its reads fire
+let playing = true, msPer = 1800, last = performance.now(), born = new Map(), legA = 0, legCol = C.buy, lastHead = -1, hoverK = null;
+let chipRects = [];
+const bornAt = (key, now) => { if (!born.has(key)) born.set(key, now); return born.get(key); };
+function quiet() {                                   // a jump: what is already on the chart appears without its animation
+  born = new Map();
+  EV.forEach((e, k) => { if (done(e.i)) born.set(k, -1e9); });
+  BX.forEach((b, k) => { if (done(b.i)) born.set('bx' + k, -1e9); if (b.burn && done(b.end)) born.set('burn' + k, -1e9); });
+  EPS.forEach((e, k) => { if (done(e.ei)) born.set('entry' + k, -1e9); });
+  lastHead = -2;
+}
+
+function draw(now) {
+  const cur = Math.min(N - 1, Math.floor(tm)), frac = tm - cur, closedN = frac >= CLOSE ? cur + 1 : cur;
+  const live = Math.max(0, closedN - 1), r = R[live];      // every read is of the last CLOSED bar
+  fit(cur, closedN);
+  cx.clearRect(0, 0, W, H);
+  cx.font = `500 11px ${FN}`; cx.textAlign = 'left'; cx.textBaseline = 'middle';
+  for (let p = Math.ceil(lo / 50) * 50; p < hi; p += 50) {
+    cx.strokeStyle = C.grid; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(LEFT, Y(p)); cx.lineTo(W - 50, Y(p)); cx.stroke();
+    cx.fillStyle = C.muted; cx.fillText(fmt(p), W - 46, Y(p));
+  }
+  cx.save(); cx.beginPath(); cx.rect(LEFT, PT - 30, W - RIGHT - LEFT + 2, PB - PT + 50); cx.clip();   // the bars' pane
+  cx.textAlign = 'center'; cx.textBaseline = 'top';
+  R.forEach((b, i) => { if (i % 3 === 0 && i <= cur + 2) { cx.fillStyle = C.muted; cx.fillText(b.t, X(i), PB + 2); } });
+  // her bands: VWAP, d2, u2 (3-min), step lines over the closed bars
+  const band = (k, col, dash) => { if (!closedN) return; cx.strokeStyle = col; cx.lineWidth = 1; cx.setLineDash(dash); cx.beginPath();
+    for (let i = 0; i < closedN; i++) { const v = R[i].bands[k]; const x0 = X(i) - step / 2, x1 = X(i) + step / 2;
+      i === 0 ? cx.moveTo(x0, Y(v)) : cx.lineTo(x0, Y(v)); cx.lineTo(x1, Y(v)); } cx.stroke(); cx.setLineDash([]);
+    const v = R[closedN - 1].bands[k]; cx.fillStyle = col; cx.font = `600 11px ${FW}`; cx.textAlign = 'left'; cx.textBaseline = 'middle';
+    cx.fillText(k === 'vwap' ? 'VWAP' : k, X(closedN - 1) + step / 2 + 3, Y(v)); };
+  band('vwap', C.vwap, []); band('u2', C.band, [4, 4]); band('d2', C.band, [4, 4]);
+
+  // THE LEG, shaded behind its bars: colour = who is winning it, depth = takat (price / Δ / OI / likh on its side)
+  if (closedN) {
+    const g = r.leg, side = g.d > 0 ? C.buy : C.sell;
+    const target = r.n >= 4 ? .17 : r.n === 3 ? .12 : .07;
+    legCol = r.n <= 1 ? C.arm : side;
+    legA += (target - legA) * .08;
+    const x0 = X(g.i0) - step / 2, x1 = X(live) + step / 2;
+    cx.fillStyle = hexA(legCol, legA); cx.fillRect(x0, Y(g.H), x1 - x0, Y(g.L) - Y(g.H));
+    cx.fillStyle = hexA(legCol, Math.min(1, legA * 5)); cx.fillRect(x0, Y(g.H), 3, Y(g.L) - Y(g.H));
+  }
+  // the trapped sellers (their SL is the fuel) and the pullback jagah
+  BX.forEach((b, k) => {
+    if (!done(b.i)) return;
+    // live while open (to the right edge); once over, it ends at its bar: burnt (the trapped side's SL hit) or just stale
+    const t0 = bornAt('bx' + k, now), x0 = X(b.i) - step / 2, over = done(b.end), burnt = b.burn && over;
+    const x1 = over ? X(b.end) + step / 2 : W - RIGHT, y0 = Y(b.hi), y1 = Y(b.lo);
+    const col = b.k === 'TRAP' ? (b.side > 0 ? C.sell : C.buy) : (b.side > 0 ? C.buy : C.sell);   // a trap: the trapped side's colour
+    const blink = Math.max(0, 1 - (now - t0) / 1400);
+    if (burnt) { const q = Math.min(1, (now - bornAt('burn' + k, now)) / 1600);
+      cx.fillStyle = hexA(C.sl, (1 - q) * .55 + .1); cx.fillRect(x0, y0, x1 - x0, y1 - y0); if (q < 1) sparks(X(b.end), b.side > 0 ? y0 : y1, q); }
+    else { cx.fillStyle = hexA(over ? C.grey : col, (over ? .05 : b.k === 'TRAP' ? .14 : .08) + blink * .25 * Math.abs(Math.sin((now - t0) / 110)));
+      cx.fillRect(x0, y0, x1 - x0, y1 - y0); if (!over) hatch(x0, y0, x1 - x0, y1 - y0, col); }
+    cx.strokeStyle = hexA(burnt ? C.sl : over ? C.grey : col, .7); cx.setLineDash(b.k === 'PB' ? [5, 4] : []); cx.lineWidth = 1;
+    cx.strokeRect(x0, y0, x1 - x0, y1 - y0); cx.setLineDash([]);
+    if (over && !burnt) return;
+    cx.font = `700 12px ${FW}`; cx.textAlign = 'left'; cx.textBaseline = 'bottom'; cx.fillStyle = burnt ? C.sl : col;
+    if (b.k === 'PB') { cx.textBaseline = 'top'; cx.fillText('PULLBACK JAGAH 38–62%', Math.max(x0, LEFT) + 4, y0 + 3); }
+    else cx.fillText(burnt ? 'FUEL JALA' : `${b.w} · SL = fuel`, Math.max(x0, LEFT) + 4, y0 - 2);
+  });
+  // candles in GoCharting's colours; the forming one grows
+  for (let i = 0; i <= cur; i++) {
+    const b = R[i], g = i < cur || frac >= CLOSE ? 1 : Math.max(.05, frac / CLOSE);
+    const c = b.o + (b.c - b.o) * g, h = Math.max(b.o, c) + (b.h - Math.max(b.o, b.c)) * g, l = Math.min(b.o, c) - (Math.min(b.o, b.c) - b.l) * g;
+    const col = c >= b.o ? C.up : C.dn, x = X(i), bw = Math.max(4, step * .56);
+    cx.strokeStyle = cx.fillStyle = col; cx.lineWidth = 1.2; cx.beginPath(); cx.moveTo(x, Y(h)); cx.lineTo(x, Y(l)); cx.stroke();
+    cx.fillRect(x - bw / 2, Y(Math.max(b.o, c)), bw, Math.max(1.5, Y(Math.min(b.o, c)) - Y(Math.max(b.o, c))));
+  }
+  // the ribbon: who won each closed bar (gaadha = 4 of 4 saath, amber = 1 or none)
+  cx.font = `600 10px ${FW}`; cx.fillStyle = C.muted; cx.textAlign = 'right'; cx.textBaseline = 'middle';
+  for (let i = 0; i < closedN; i++) {
+    const q = R[i], col = q.n <= 1 ? C.arm : q.leg.d > 0 ? C.buy : C.sell;
+    cx.fillStyle = hexA(col, [.3, .3, .45, .72, 1][q.n]); cx.fillRect(X(i) - step / 2 + 1, PB - 18, step - 2, 9);
+  }
+  cx.restore();
+  // entry / stop of the live zone entry: placed when it fires, flash, then hold with the distance from the price
+  const ep = closedN ? epAt(live) : null;
+  if (ep) {
+    const t0 = bornAt('entry' + EPS.indexOf(ep), now), bl = Math.max(0, 1 - (now - t0) / 1500), on = bl > 0 ? Math.sin((now - t0) / 90) > 0 : true;
+    const x0 = Math.max(LEFT, X(ep.ei) + step / 2), px = r.c, gain = ep.side * (px - ep.E), room = ep.side * (px - ep.stop);
+    levelLine(ep.E, x0, ep.side > 0 ? C.buy : C.sell, [], ep.le, `${gain >= 0 ? '+' : '−'}${fmt(Math.abs(gain))}`, on, bl);
+    levelLine(ep.stop, x0, ep.side > 0 ? C.sell : C.buy, [6, 4], ep.ls, `${fmt(room)} door`, on && (room > 25 || Math.sin(now / 150) > 0), bl);
+  }
+  // the reads, pinned where they happened: a ring pulse when they land, a chip while they are news (this bar and the one
+  // before, at most four), then the glyph alone -- hover it for its chip
+  const shown = EV.map((e, k) => ({ e, k })).filter(({ e }) => done(e.i) && X(e.i) > LEFT);
+  const recent = new Set(shown.filter(({ e }) => e.i >= live - 1).slice(-4).map(o => o.k)), perBar = {}, chips = [];
+  shown.forEach(({ e, k }) => {
+    const age = now - bornAt(k, now), broke = e.broke != null && done(e.broke);
+    const nb = perBar[e.i] = (perBar[e.i] || 0) + 1;
+    const above = ((e.k === 'SL' || e.k === 'LEVEL') && e.side > 0) || ((e.k === 'THAKAN' || e.k === 'ZOR' || e.k === 'OI') && e.side < 0);
+    const flat = e.k === 'ZONE' || e.k === 'ENTRY' || e.k === 'PB' || e.k === 'STOP';
+    const x = X(e.i), y = Y(e.p) + (flat ? 0 : (above ? -14 : 14)) + (above ? -1 : 1) * (nb - 1) * 17;
+    e._y = y;
+    const col = colOf(e);
+    if (age < 1800) for (const dl of [0, 600]) { const q = (age - dl) / 1200; if (q > 0 && q < 1) {
+      cx.strokeStyle = hexA(col, 1 - q); cx.lineWidth = 2.2; cx.beginPath(); cx.arc(x, y, 6 + q * 30, 0, 7); cx.stroke(); } }
+    glyph(e.k, x, y, col, age < 350 ? 1.8 - .8 * (age / 350) : 1, broke);
+    if (recent.has(k) || hoverK === k) chips.push({ e, k, x, y, col, broke, age });
+  });
+  chipRects = [];
+  chips.forEach(chip);
+  strip(closedN);
+  hud(live, closedN);
+}
+function levelLine(p, x0, col, dash, txt, dist, on, bl) {
+  const y = Y(p);
+  cx.globalAlpha = on ? 1 : .25; cx.strokeStyle = col; cx.lineWidth = bl > 0 ? 2.5 : 1.6; cx.setLineDash(dash);
+  cx.beginPath(); cx.moveTo(x0, y); cx.lineTo(W - RIGHT + 4, y); cx.stroke(); cx.setLineDash([]);
+  cx.font = `600 11px ${FN}`; const w1 = cx.measureText(txt).width + 10, w2 = cx.measureText(dist).width + 10, x = W - RIGHT + 6;
+  cx.fillStyle = col; cx.fillRect(x, y - 9, w1, 18); cx.fillStyle = '#fff'; cx.textAlign = 'left'; cx.textBaseline = 'middle'; cx.fillText(txt, x + 5, y);
+  cx.fillStyle = '#fff'; cx.fillRect(x + w1, y - 9, w2, 18); cx.strokeStyle = col; cx.lineWidth = 1; cx.strokeRect(x + w1, y - 9, w2, 18);
+  cx.fillStyle = col; cx.fillText(dist, x + w1 + 5, y); cx.globalAlpha = 1;
+}
+function chip(c) {
+  const e = c.e, t1 = e.w, t2 = e.s.split(' · ')[0] + (c.broke ? ' · toota' : '');
+  cx.font = `700 12.5px ${FW}`; const w1 = cx.measureText(t1).width; cx.font = `500 10.5px ${FN}`; const w2 = cx.measureText(t2).width;
+  const w = Math.max(w1, w2) + 12, h = 31;
+  let bx = c.x + 13, by = c.y - h / 2;
+  if (bx + w > W - RIGHT) bx = c.x - 13 - w;
+  for (let t = 0; t < 10 && hit(bx, by, w, h); t++) by = c.y - h / 2 + (t % 2 ? -1 : 1) * (Math.floor(t / 2) + 1) * 34;
+  chipRects.push([bx, by, w, h]);
+  cx.globalAlpha = Math.min(1, c.age / 300); cx.fillStyle = '#fff'; cx.strokeStyle = c.broke ? C.grey : c.col; cx.lineWidth = 1.2;
+  roundRect(bx, by, w, h, 4); cx.fill(); cx.stroke();
+  cx.fillStyle = c.broke ? C.grey : c.col; cx.font = `700 12.5px ${FW}`; cx.textAlign = 'left'; cx.textBaseline = 'top'; cx.fillText(t1, bx + 6, by + 3);
+  cx.fillStyle = C.ink2; cx.font = `500 10.5px ${FN}`; cx.fillText(t2, bx + 6, by + 17); cx.globalAlpha = 1;
+}
+const hit = (x, y, w, h) => chipRects.some(([a, b, c, d]) => x < a + c && a < x + w && y < b + d && b < y + h);
+function strip(closedN) {
+  const top = ST, bot = SB, mid = top + (bot - top) * .42, hh = (bot - top) * .34;
+  cx.fillStyle = '#FAF9F5'; cx.fillRect(0, top - 10, W, H - top + 10);
+  cx.strokeStyle = C.grid; cx.beginPath(); cx.moveTo(0, top - 10); cx.lineTo(W, top - 10); cx.stroke();
+  cx.font = `600 11px ${FW}`; cx.fillStyle = C.muted; cx.textAlign = 'left'; cx.textBaseline = 'top';
+  cx.textBaseline = 'bottom'; cx.fillText('FUT OI', LEFT, bot - 14);
+  if (D.roll) { cx.fillStyle = C.arm; cx.fillText('ROLL WEEK · sirf Oct contract, Nov nahi joda · OI reads kachche', LEFT + 48, bot - 14); }
+  // scaled to the bars on screen, like the chart above it
+  const left = Math.max(0, Math.floor(vleft)), vis = R.slice(left, Math.max(left + 1, closedN)), cv0 = CVD.slice(left, Math.max(left + 1, closedN));
+  const mx = Math.max(300, ...vis.map(q => Math.abs(q.delta))), cmin = Math.min(...cv0) - 100, cmax = Math.max(...cv0) + 100, pts = [];
+  let cvd = 0;
+  cx.strokeStyle = C.grid; cx.beginPath(); cx.moveTo(LEFT, mid); cx.lineTo(W - RIGHT, mid); cx.stroke();
+  cx.save(); cx.beginPath(); cx.rect(LEFT, top - 10, W - RIGHT - LEFT + 60, H); cx.clip();
+  for (let i = 0; i < closedN; i++) {
+    const q = R[i], h = q.delta / mx * hh, x = X(i), bw = Math.max(3, step * .5);
+    const g = i === closedN - 1 ? Math.min(1, (tm - i - CLOSE) * 4 + .2) : 1;
+    cx.fillStyle = hexA(q.delta >= 0 ? C.buy : C.sell, .75); cx.fillRect(x - bw / 2, h >= 0 ? mid - h * g : mid, bw, Math.abs(h) * g);
+    cvd += q.delta; pts.push([x, mid + hh - (cvd - cmin) / (cmax - cmin) * hh * 2]);
+    if (Math.abs(q.doi) >= 15000) { cx.font = `600 10.5px ${FN}`; cx.textAlign = 'center'; cx.textBaseline = 'bottom';
+      cx.fillStyle = q.oi_read === 'SL KAT RAHE' ? C.sl : q.oi_read === 'NAYE BECHNE WALE' || q.oi_read === 'LONG NIKAL RAHE' ? C.sell : q.oi_read === 'NAYE KHARIDAR' ? C.buy : C.muted;
+      cx.fillText(`${q.doi > 0 ? '+' : ''}${Math.round(q.doi / 1000)}k`, x, bot); }
+  }
+  cx.strokeStyle = C.ink; cx.lineWidth = 1.6; cx.beginPath(); pts.forEach(([x, y], j) => j ? cx.lineTo(x, y) : cx.moveTo(x, y)); cx.stroke();
+  if (pts.length) { const [x, y] = pts[pts.length - 1]; cx.fillStyle = C.ink; cx.beginPath(); cx.arc(x, y, 3, 0, 7); cx.fill();
+    cx.font = `600 11px ${FN}`; cx.textAlign = 'left'; cx.textBaseline = 'middle'; cx.fillText(`CVD ${cvd > 0 ? '+' : ''}${fmt(cvd)}`, x + 7, y); }
+  cx.restore();
+  cx.font = `600 11px ${FW}`; cx.fillStyle = C.muted; cx.textAlign = 'left'; cx.textBaseline = 'top'; cx.fillText('Δ HAR BAR · CVD', LEFT + 2, top - 6);
+}
+function hud(live, closedN) {
+  const r = R[live], hd = document.getElementById('head'), tug = document.getElementById('tug');
+  hd.style.visibility = tug.style.visibility = closedN ? 'visible' : 'hidden';
+  if (!closedN || lastHead === live) return;
+  const side = r.leg.d > 0 ? C.buy : C.sell;
+  const col = r.head_k ? colOf({ k: r.head_k, side: r.head_side }) : r.n <= 1 ? C.arm : side;   // the headline's own read
+  const hw = document.getElementById('hw'); hw.textContent = r.head; hw.style.color = col;
+  document.getElementById('hs').textContent = r.sub;
+  hd.style.setProperty('--c', side); hd.style.setProperty('--g', hexA(col, .25)); hd.style.borderColor = col;
+  const nm = { price: 'price', 'Δ': 'Δ', OI: 'OI', likh: 'likh' };
+  document.getElementById('htk').innerHTML = `<span>takat</span>` + Object.keys(nm).map(k =>
+    `<span class="${r.votes[k] === true ? 'y' : r.votes[k] === null ? 'u' : ''}"><b></b>${nm[k]}</span>`).join('') + `<span>· ${r.n}/4 saath</span>`;
+  if (lastHead !== -2) { hd.classList.remove('flash'); void hd.offsetWidth; hd.classList.add('flash'); }
+  lastHead = live;
+  // who is winning this leg: lots each side since it began, fut OI, who got absorbed, whose SL got hit, the writers
+  const g = r.leg, seg = R.slice(g.i0, live + 1);
+  const b = seg.reduce((s, q) => s + q.buy, 0), s = seg.reduce((s, q) => s + q.sell, 0), oi = seg.slice(1).reduce((t, q) => t + q.doi, 0);
+  const inLeg = e => e.i >= g.i0 && e.i <= live;
+  const ab = EV.filter(e => inLeg(e) && e.k === 'ABSORB').length, sl = EV.filter(e => inLeg(e) && e.k === 'SL').length;
+  tug.innerHTML = `<div class="t">is leg mein · ${R[g.i0].t} se · ${g.d > 0 ? '▲' : '▼'} · kaun jeet raha</div>
+    <div class="bar"><i style="width:${b / (b + s) * 100}%;background:${C.buy}"></i><i style="width:${s / (b + s) * 100}%;background:${C.sell}"></i></div>
+    <div class="nums"><span style="color:${C.buy}">kharidar ${fmt(b)}</span><span style="color:${C.sell}">${fmt(s)} bechne wale</span></div>
+    <div class="x">Δ ${b - s > 0 ? '+' : ''}${fmt(b - s)} lot · fut OI ${oi > 0 ? '+' : ''}${Math.round(oi / 1000)}k</div>
+    ${ab || sl ? `<div class="x">${ab ? `bechne wale absorb ${ab}× ` : ''}${sl ? `· SL kate ${sl}×` : ''}</div>` : ''}
+    <div class="x">likh: ${r.lead == null ? '?' : `${r.lead > 0 ? 'PE' : 'CE'} aage ${r.lead > 0 ? '+' : ''}${r.lead.toFixed(0)}`}</div>`;
+}
+function sparks(x, y, q) {
+  for (let j = 0; j < 14; j++) { const a = j / 14 * Math.PI * 2, rr = 6 + q * 46;
+    cx.fillStyle = hexA(j % 2 ? C.sl : '#F2A541', 1 - q); cx.beginPath(); cx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr * .7, 2.6 * (1 - q) + .5, 0, 7); cx.fill(); }
+}
+function hatch(x, y, w, h, col) {
+  cx.save(); cx.beginPath(); cx.rect(x, y, w, h); cx.clip(); cx.strokeStyle = hexA(col, .22); cx.lineWidth = 1;
+  for (let k = -h; k < w; k += 7) { cx.beginPath(); cx.moveTo(x + k, y + h); cx.lineTo(x + k + h, y); cx.stroke(); } cx.restore();
+}
+function roundRect(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
+function hexA(h, a) { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${a})`; }
+
+function frame(now) {
+  if (playing) { tm = Math.min(N - 1 + .999, tm + (now - last) / msPer); if (tm >= N - 1 + .999) setPlay(false); }
+  last = now;
+  draw(now);
+  const cur = Math.min(N - 1, Math.floor(tm)), closedN = tm - cur >= CLOSE ? cur + 1 : cur;
+  document.getElementById('clock').textContent = R[Math.max(0, closedN - 1)].t; document.getElementById('scrub').value = cur;
+  requestAnimationFrame(frame);
+}
+function setPlay(x) { if (x && tm >= N - 1 + .99) { tm = 0; born = new Map(); lastHead = -1; }
+  playing = x; const b = document.getElementById('play'); b.textContent = x ? '❚❚ ruko' : '▶ chalao'; b.classList.toggle('on', x); }
+function jumpBar(i, closed) { tm = i + (closed ? .999 : 0); quiet(); snap = true; }
+document.getElementById('play').onclick = () => setPlay(!playing);
+document.getElementById('scrub').oninput = e => { setPlay(false); jumpBar(+e.target.value, true); };
+document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { msPer = +b.dataset.sp;
+  document.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', x === b)); });
+const idx = t => R.findIndex(q => q.t === t);
+function load(day) {                                    // one day: its bars, reads, boxes, entries, and the moments worth a look
+  D = DAYS[day]; R = D.rows; EV = D.ev; BX = D.boxes; EPS = D.eps; N = R.length;
+  let s = 0; CVD = R.map(q => (s += q.delta));
+  tm = 0; born = new Map(); lastHead = -1; legA = 0; snap = true;
+  document.getElementById('scrub').max = N - 1;
+  document.getElementById('title').textContent = `Live chart decode · NIFTY fut 5m · ${D.label}`;
+  document.querySelectorAll('#days button').forEach(b => b.classList.toggle('on', b.dataset.d === day));
+  const J = document.getElementById('jumps'); J.innerHTML = '';
+  D.jumps.forEach(([i, w]) => { const b = document.createElement('button'); b.textContent = w;
+    b.onclick = () => { jumpBar(Math.max(0, i - 1), true); setPlay(true); }; J.append(b); });
+}
+Object.keys(DAYS).forEach(day => {
+  const d = DAYS[day], lo = Math.min(...d.rows.map(q => q.l)), hi = Math.max(...d.rows.map(q => q.h));
+  const b = document.createElement('button'); b.dataset.d = day;
+  b.innerHTML = `${d.label}<span>${fmt(lo)}–${fmt(hi)}f · ${fmt(hi - lo)} pts · ${d.eps.length} zone entry${d.roll ? ' · roll week' : ''}</span>`;
+  b.onclick = () => { load(day); setPlay(true); }; document.getElementById('days').append(b);
+});
+cv.addEventListener('mousemove', ev => {                 // hover a glyph: its chip
+  const rc = cv.getBoundingClientRect(), mx = ev.clientX - rc.left, my = ev.clientY - rc.top;
+  let best = null, bd = 16;
+  EV.forEach((e, k) => { if (!done(e.i) || e._y == null) return; const d = Math.hypot(X(e.i) - mx, e._y - my); if (d < bd) { bd = d; best = k; } });
+  hoverK = best;
+});
+// the legend: every glyph with its chip and its rule
+const LEG = [['ROKA', C.buy, 'roka', 'deewar · push ko roka (chart mark)'], ['THAKAN', C.buy, 'thakan', 'push thak gaya (chart mark)'],
+  ['PHANSE', C.sell, 'phanse', 'galat side · inka SL = fuel'], ['ABSORB', C.buy, 'absorb', '≥400 lot bikri, price nahi hila'],
+  ['SL', C.sl, 'SL kat rahe', 'price ▲ + fut OI ▼'], ['BURN', C.sl, 'fuel jala', 'phanse walon ke SL kate'],
+  ['ZOR', C.buy, 'zor', 'bada push (chart mark)'], ['PALTA', C.buy, 'palta', 'leg ulta · 62 % wapas'],
+  ['ZONE', C.buy, 'zone', 'd2 / u2 chhua (3-min)'], ['PB', C.buy, 'pullback jagah', 'leg ka 38–62 %'],
+  ['OI', C.sell, 'naye bechne wale', 'price ▼ + fut OI ▲ (▲ = naye kharidar)'], ['STOP', C.sell, 'stop laga', 'zone ka stop trade hua']];
+LEG.forEach(([k, col, w, s]) => {
+  const d = document.createElement('div'), c = document.createElement('canvas'); c.width = 44; c.height = 44;
+  d.append(c); d.insertAdjacentHTML('beforeend', `<span><b style="color:${col}">${w}</b> · ${s}</span>`);
+  document.getElementById('legend').append(d);
+  const o = cx; cx = c.getContext('2d'); cx.scale(2, 2); glyph(k, 11, 11, col); cx = o;
+});
+const qs = new URLSearchParams(location.search), d0 = qs.get('d');                     // ?d=2026-10-21&t=10:05: that day,
+load(DAYS[d0] ? d0 : Object.keys(DAYS)[0]);                                            // paused at that bar's close
+const q0 = /^(\d\d:\d\d)$/.exec(qs.get('t') || '');
+if (q0) { setPlay(false); jumpBar(Math.max(0, idx(q0[1])), true); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

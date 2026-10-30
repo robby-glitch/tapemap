@@ -1,0 +1,406 @@
+== NIFTY 2026-10-23 (fresh run of final/raftaar.py) ref: 20 pichhle normal din
+
+09:19     22734s  q        ?                                                   PADH RAHE · pehle 15 min ka record chahiye
+09:34     22684s  picture  CHAL RAHA ▼ · SHURU                  5/10 THEEK     CE CAP SAATH · spot -50 pts/15m · with +93.4L against +129.6L
+09:52     22638s  end      MOVE ▼ KHATAM                                       10 min KAMZOR
+09:55     22630s  picture  CHAL RAHA ▼ · SHURU                  6/11 THEEK     CE CAP SAATH · spot -77 pts/15m · with +52.5L against +19.8L
+10:02     22581s  phase    CHAL RAHA ▼ · TEZ                    10/11 MAZBOOT  PE BHAAG + CE LIKHAI · spot -103 pts · with +155.6L
+10:37     22489s  end      MOVE ▼ KHATAM                                       20 min se naya low nahi
+10:43     22515s  event    PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 22550 −4.3L, 22650 −2.2L, 22300 +8.8L, 22450 +6.5L
+10:50     22479s  quiet    KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+10:58     22430s  picture  CHAL RAHA ▼ · SHURU                  7/11 MAZBOOT   CE CAP SAATH · spot -85 pts/15m · with +43.7L against +5.9L
+11:12     22478s  end      MOVE ▼ KHATAM                                       price ne 52 pts wapas diye (leg 89 pts)
+11:20     22507s  picture  WAPSI ▲ · SHURU→TEZ                  8/11 THEEK     PE FLOOR SAATH · spot +63 pts/15m · with +45.3L against +4k
+11:32     22475s  picture  ATKA ▲ @ 22450s                      4/10 THEEK     PE likh rahe · deewar sab taraf · Z +4.82% · spot -20 pts/15m
+11:39     22459s  picture  CHAL RAHA ▼ · JAARI                  6/11 THEEK     CE CAP SAATH · spot -33 pts/15m · with +29.7L against +9.2L
+11:57     22413s  quiet    KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+11:59     22427s  picture  CHAL RAHA ▼ · SHURU                  7/11 MAZBOOT   PE BHAAG + CE LIKHAI · spot -30 pts/15m · with +48.8L against +11.9L
+12:24     22426s  end      MOVE ▼ KHATAM                                       10 min KAMZOR
+12:54     22392s  picture  CHAL RAHA ▼ · SHURU                  9/11 MAZBOOT   PE BHAAG + CE LIKHAI · spot -26 pts/15m · with +63.1L against +10.4L
+13:14     22410s  end      MOVE ▼ KHATAM                                       20 min se naya low nahi
+13:29     22411s  quiet    KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+13:41     22546s  picture  WAPSI ▲ · SHURU                      8/11 THEEK     CE BHAAG RAHE · spot +140 pts/15m · with +139.1L against 0
+14:06     22560s  event    CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22500 −5.4L, 22400 −2.9L, 22600 +5.5L, 22650 +4.3L
+14:07     22554s  picture  CHOP                                 4/8 THEEK      legs dono taraf 30 min mein · range30 125
+14:42     22456s  swing    ~ swing ▼ (CHOP ke andar)            7/11 THEEK     PE BHAAG + CE LIKHAI · spot -75 pts/15m · with +86.9L
+14:45     22486s  picture  CHAL RAHA ▼ · JAARI · chop se bahar  8/11 MAZBOOT   PE BHAAG RAHE · spot -63 pts/15m · with +124.0L against 0
+14:45     22486s  neq      ≠ READ                               8/11 MAZBOOT   READ: RANGE · RAFTAAR: CHAL RAHA ▼ 8/11 — PE BHAAG RAHE · spot -63/15m · Z -10.24%
+15:00     22516s  end      MOVE ▼ KHATAM                                       price ne 60 pts wapas diye (leg 114 pts)
+15:15     22516s  picture  UNWIND                               3/7 THEEK      CE −18.9L PE −37.5L · band ka unwind
+15:20     22516s  picture  WAPSI ▲ · SHURU                      5/11 THEEK     CE BHAAG RAHE · spot +30 pts/15m · with +28.2L against 0
+15:28     22600s  phase    WAPSI ▲ · TEZ                        9/11 THEEK     CE BHAAG RAHE · spot +86 pts · with +62.9L
+
+-- every minute:
+09:17  22774.5 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:18  22736.2 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:19  22734.5 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:20  22708.9 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:21  22711.1 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:22  22728.0 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:23  22714.4 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:24  22716.3 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:25  22740.2 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:26  22755.4 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:27  22747.5 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:28  22722.0 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:29  22727.2 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:30  22711.5 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:31  22697.6 | ?                                  | PADH RAHE · pehle 15 min ka record chahiye
+09:32  22702.1 | abhi: PE LIKHAI INTO FALL · PHANS RAHE ▼  | PE LIKHAI INTO FALL · PHANS RAHE
+09:33  22683.6 | abhi: CE CAP SAATH ▼               | CE CAP SAATH
+09:34  22684.5 | CHAL RAHA ▼ SHURU 5/10 THEEK       | CE CAP SAATH
+09:35  22672.8 | CHAL RAHA ▼ SHURU 6/10 MAZBOOT     | ATKA ▲ · PE likh rahe, price nahi
+09:36  22681.8 | CHAL RAHA ▼ SHURU 6/10 KAMZOR      | KUCH KHAAS NAHI
+09:37  22668.5 | CHAL RAHA ▼ JAARI 7/10 MAZBOOT     | CE CAP SAATH
+09:38  22680.5 | CHAL RAHA ▼ JAARI 6/10 KAMZOR      | KUCH KHAAS NAHI
+09:39  22683.2 | CHAL RAHA ▼ JAARI 6/11 KAMZOR      | KUCH KHAAS NAHI
+09:40  22707.5 | CHAL RAHA ▼ JAARI 5/11 KAMZOR      | KUCH KHAAS NAHI
+09:41  22702.2 | CHAL RAHA ▼ JAARI 7/11 MAZBOOT     | CE CAP SAATH
+09:42  22714.0 | CHAL RAHA ▼ RUKA 5/11 KAMZOR       | KUCH KHAAS NAHI
+09:43  22703.4 | CHAL RAHA ▼ RUKA 5/11 KAMZOR       | KUCH KHAAS NAHI
+09:44  22691.3 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+09:45  22676.3 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+09:46  22694.8 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+09:47  22684.4 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+09:48  22673.5 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+09:49  22658.8 | CHAL RAHA ▼ JAARI 7/11 KAMZOR      | KUCH KHAAS NAHI
+09:50  22667.7 | CHAL RAHA ▼ TEZ 6/11 KAMZOR        | KUCH KHAAS NAHI
+09:51  22646.5 | CHAL RAHA ▼ TEZ 6/11 KAMZOR        | KUCH KHAAS NAHI
+09:52  22637.8 | KHAMOSH                            | KUCH KHAAS NAHI
+09:53  22636.7 | KHAMOSH                            | CE CAP SAATH
+09:54  22637.2 | KHAMOSH                            | CE CAP SAATH
+09:55  22630.5 | CHAL RAHA ▼ SHURU 6/11 THEEK       | CE CAP SAATH
+09:56  22643.2 | CHAL RAHA ▼ SHURU 5/11 KAMZOR      | BINA OI ▼
+09:57  22635.1 | CHAL RAHA ▼ SHURU 8/11 MAZBOOT     | CE CAP SAATH
+09:58  22617.5 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | CE CAP SAATH
+09:59  22606.4 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:00  22599.4 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:01  22591.9 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:02  22581.2 | CHAL RAHA ▼ TEZ 10/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+10:03  22565.3 | CHAL RAHA ▼ TEZ 10/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+10:04  22558.8 | CHAL RAHA ▼ TEZ 10/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+10:05  22573.1 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:06  22566.8 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:07  22550.6 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:08  22534.3 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:09  22521.7 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:10  22519.0 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:11  22522.9 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:12  22512.3 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:13  22505.8 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:14  22502.7 | CHAL RAHA ▼ JAARI 11/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:15  22479.0 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:16  22478.3 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:17  22461.0 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:18  22470.0 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:19  22494.6 | CHAL RAHA ▼ JAARI 10/11 MAZBOOT    | PE BHAAG + CE LIKHAI
+10:20  22487.8 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+10:21  22507.2 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+10:22  22524.1 | CHAL RAHA ▼ RUKA 8/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+10:23  22514.2 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+10:24  22509.7 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+10:25  22530.6 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+10:26  22510.2 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+10:27  22517.8 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+10:28  22507.8 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+10:29  22514.7 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+10:30  22516.7 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | CE LIKHAI INTO RALLY · ROK RAHE
+10:31  22508.1 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | PE FLOOR SAATH
+10:32  22503.0 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | PE FLOOR SAATH
+10:33  22492.4 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+10:34  22479.2 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+10:35  22471.3 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+10:36  22489.5 | CHAL RAHA ▼ THAK 7/11 KAMZOR       | KUCH KHAAS NAHI
+10:37  22489.2 | abhi: CE CAP SAATH ▼               | CE CAP SAATH
+10:38  22498.1 | KHAMOSH                            | KUCH KHAAS NAHI
+10:39  22475.8 | abhi: CE CAP SAATH ▼               | CE CAP SAATH
+10:40  22480.0 | abhi: CE CAP SAATH ▼               | CE CAP SAATH
+10:41  22495.0 | KHAMOSH                            | KUCH KHAAS NAHI
+10:42  22512.0 | KHAMOSH                            | KUCH KHAAS NAHI
+10:43  22515.0 | KHAMOSH                            | KUCH KHAAS NAHI
+10:44  22504.5 | KHAMOSH                            | KUCH KHAAS NAHI
+10:45  22499.7 | KHAMOSH                            | KUCH KHAAS NAHI
+10:46  22494.2 | KHAMOSH                            | KUCH KHAAS NAHI
+10:47  22488.9 | KHAMOSH                            | KUCH KHAAS NAHI
+10:48  22497.4 | KHAMOSH                            | KUCH KHAAS NAHI
+10:49  22487.6 | KHAMOSH                            | KUCH KHAAS NAHI
+10:50  22478.8 | KHAMOSH                            | KUCH KHAAS NAHI
+10:51  22474.0 | KHAMOSH                            | KUCH KHAAS NAHI
+10:52  22461.1 | KHAMOSH                            | CE CAP SAATH
+10:53  22459.5 | KHAMOSH                            | CE CAP SAATH
+10:54  22475.5 | KHAMOSH                            | KUCH KHAAS NAHI
+10:55  22464.3 | KHAMOSH                            | KUCH KHAAS NAHI
+10:56  22457.5 | KHAMOSH                            | CE CAP SAATH
+10:57  22449.0 | KHAMOSH                            | CE CAP SAATH
+10:58  22429.6 | CHAL RAHA ▼ SHURU 7/11 MAZBOOT     | CE CAP SAATH
+10:59  22426.3 | CHAL RAHA ▼ SHURU 7/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:00  22429.2 | CHAL RAHA ▼ SHURU 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:01  22460.7 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:02  22460.2 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:03  22449.8 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+11:04  22436.5 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:05  22444.7 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+11:06  22454.9 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+11:07  22441.5 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+11:08  22451.5 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+11:09  22462.3 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+11:10  22462.3 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+11:11  22475.0 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+11:12  22478.0 | abhi: CE LIKHAI INTO RALLY · PHANS RAHE ▲  | CE LIKHAI INTO RALLY · PHANS RAHE
+11:13  22487.5 | abhi: CE LIKHAI INTO RALLY · PHANS RAHE ▲  | CE LIKHAI INTO RALLY · PHANS RAHE
+11:14  22481.4 | WAPSI ▲ SHURU 4/11 KAMZOR          | OI SAATH ▲
+11:15  22477.7 | WAPSI ▲ SHURU 3/11 KAMZOR          | BINA OI ▲
+11:16  22487.3 | WAPSI ▲ SHURU 5/11 KAMZOR          | BINA OI ▲
+11:17  22495.0 | WAPSI ▲ JAARI 5/11 KAMZOR          | BINA OI ▲
+11:18  22509.2 | WAPSI ▲ JAARI 4/11 KAMZOR          | BINA OI ▲
+11:19  22517.6 | WAPSI ▲ JAARI 5/11 KAMZOR          | BINA OI ▲
+11:20  22507.3 | WAPSI ▲ JAARI 7/11 THEEK           | PE FLOOR SAATH
+11:21  22490.2 | WAPSI ▲ TEZ 8/11 THEEK             | PE FLOOR SAATH
+11:22  22492.3 | WAPSI ▲ TEZ 8/11 THEEK             | CE BHAAG + PE LIKHAI
+11:23  22488.4 | WAPSI ▲ JAARI 8/11 THEEK           | CE BHAAG + PE LIKHAI
+11:24  22492.1 | WAPSI ▲ RUKA 9/11 THEEK            | CE BHAAG + PE LIKHAI
+11:25  22496.0 | WAPSI ▲ THAK 9/11 THEEK            | CE BHAAG + PE LIKHAI
+11:26  22483.7 | WAPSI ▲ THAK 7/11 THEEK            | ATKA ▲ · PE likh rahe, price nahi
+11:27  22474.6 | WAPSI ▲ THAK 9/11 THEEK            | ATKA ▲ · PE likh rahe, price nahi
+11:28  22470.2 | WAPSI ▲ THAK 9/11 THEEK            | ATKA ▲ · PE likh rahe, price nahi
+11:29  22471.3 | WAPSI ▲ THAK 9/11 THEEK            | ATKA ▲ · PE likh rahe, price nahi
+11:30  22459.4 | ATKA ▲  3/10 KAMZOR                | ATKA ▲ · PE likh rahe, price nahi
+11:31  22463.3 | ATKA ▲  3/10 KAMZOR                | PE LIKHAI INTO FALL · PHANS RAHE
+11:32  22474.5 | ATKA ▲  4/10 THEEK                 | ATKA ▲ · PE likh rahe, price nahi
+11:33  22462.3 | ATKA ▲  4/10 THEEK                 | PE LIKHAI INTO FALL · ROK RAHE
+11:34  22465.0 | ATKA ▲  4/10 THEEK                 | OI SAATH ▼
+11:35  22455.0 | CHAL RAHA ▼ SHURU 4/11 KAMZOR      | OI SAATH ▼
+11:36  22456.0 | CHAL RAHA ▼ SHURU 4/11 KAMZOR      | BINA OI ▼
+11:37  22450.1 | CHAL RAHA ▼ SHURU 6/11 KAMZOR      | BINA OI ▼
+11:38  22463.8 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | BINA OI ▼
+11:39  22459.0 | CHAL RAHA ▼ JAARI 6/11 THEEK       | CE CAP SAATH
+11:40  22456.4 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | BINA OI ▼
+11:41  22460.5 | CHAL RAHA ▼ JAARI 4/11 KAMZOR      | BINA OI ▼
+11:42  22456.2 | CHAL RAHA ▼ RUKA 4/11 KAMZOR       | KUCH KHAAS NAHI
+11:43  22454.7 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+11:44  22457.0 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+11:45  22463.7 | CHAL RAHA ▼ THAK 3/11 KAMZOR       | KUCH KHAAS NAHI
+11:46  22465.7 | CHAL RAHA ▼ THAK 3/11 KAMZOR       | KUCH KHAAS NAHI
+11:47  22469.9 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+11:48  22454.6 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+11:49  22446.7 | CHAL RAHA ▼ JAARI 6/11 KAMZOR      | KUCH KHAAS NAHI
+11:50  22445.5 | KHAMOSH                            | KUCH KHAAS NAHI
+11:51  22455.7 | KHAMOSH                            | KUCH KHAAS NAHI
+11:52  22449.3 | KHAMOSH                            | KUCH KHAAS NAHI
+11:53  22440.5 | KHAMOSH                            | CE CAP SAATH
+11:54  22438.0 | KHAMOSH                            | KUCH KHAAS NAHI
+11:55  22442.5 | KHAMOSH                            | KUCH KHAAS NAHI
+11:56  22429.1 | KHAMOSH                            | BINA OI ▼
+11:57  22412.8 | KHAMOSH                            | CE CAP SAATH
+11:58  22418.7 | KHAMOSH                            | CE CAP SAATH
+11:59  22427.3 | CHAL RAHA ▼ SHURU 7/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:00  22428.3 | CHAL RAHA ▼ SHURU 6/11 THEEK       | PE BHAAG + CE LIKHAI
+12:01  22429.0 | CHAL RAHA ▼ SHURU 8/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:02  22441.0 | CHAL RAHA ▼ JAARI 7/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:03  22438.0 | CHAL RAHA ▼ JAARI 6/11 THEEK       | ATKA ▼ · CE likh rahe, price nahi
+12:04  22422.0 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | CE CAP SAATH
+12:05  22410.8 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:06  22418.2 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:07  22414.0 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:08  22423.3 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:09  22418.0 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:10  22427.3 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+12:11  22427.8 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+12:12  22432.0 | CHAL RAHA ▼ THAK 6/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+12:13  22446.9 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | CE LIKHAI INTO RALLY · PHANS RAHE
+12:14  22446.0 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+12:15  22430.7 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+12:16  22440.2 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+12:17  22446.8 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+12:18  22445.5 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+12:19  22449.5 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | BINA OI ▲
+12:20  22456.2 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | OI SAATH ▲
+12:21  22458.0 | CHAL RAHA ▼ THAK 3/11 KAMZOR       | BINA OI ▲
+12:22  22433.2 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+12:23  22431.9 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+12:24  22426.2 | KHAMOSH                            | KUCH KHAAS NAHI
+12:25  22428.0 | KHAMOSH                            | KUCH KHAAS NAHI
+12:26  22420.2 | KHAMOSH                            | KUCH KHAAS NAHI
+12:27  22413.8 | KHAMOSH                            | KUCH KHAAS NAHI
+12:28  22418.0 | KHAMOSH                            | BINA OI ▼
+12:29  22416.5 | KHAMOSH                            | BINA OI ▼
+12:30  22416.5 | KHAMOSH                            | KUCH KHAAS NAHI
+12:31  22416.8 | KHAMOSH                            | BINA OI ▼
+12:32  22418.7 | KHAMOSH                            | BINA OI ▼
+12:33  22415.6 | BINA OI ▼                          | BINA OI ▼
+12:34  22417.5 | BINA OI ▼                          | BINA OI ▼
+12:35  22419.8 | BINA OI ▼                          | BINA OI ▼
+12:36  22426.4 | BINA OI ▼                          | PE FLOOR NEECHE SHIFT
+12:37  22420.6 | BINA OI ▼                          | KUCH KHAAS NAHI
+12:38  22426.2 | BINA OI ▼                          | KUCH KHAAS NAHI
+12:39  22418.0 | KHAMOSH                            | KUCH KHAAS NAHI
+12:40  22413.8 | KHAMOSH                            | KUCH KHAAS NAHI
+12:41  22410.8 | KHAMOSH                            | KUCH KHAAS NAHI
+12:42  22407.8 | KHAMOSH                            | KUCH KHAAS NAHI
+12:43  22410.7 | KHAMOSH                            | KUCH KHAAS NAHI
+12:44  22410.7 | KHAMOSH                            | KUCH KHAAS NAHI
+12:45  22391.5 | KHAMOSH                            | CE CAP SAATH
+12:46  22411.5 | KHAMOSH                            | KUCH KHAAS NAHI
+12:47  22410.6 | KHAMOSH                            | KUCH KHAAS NAHI
+12:48  22395.7 | KHAMOSH                            | KUCH KHAAS NAHI
+12:49  22393.9 | KHAMOSH                            | CE CAP SAATH
+12:50  22392.2 | KHAMOSH                            | CE CAP SAATH
+12:51  22372.8 | KHAMOSH                            | BINA OI ▼
+12:52  22386.4 | KHAMOSH                            | PE BHAAG + CE LIKHAI
+12:53  22394.8 | KHAMOSH                            | PE BHAAG + CE LIKHAI
+12:54  22392.0 | CHAL RAHA ▼ SHURU 9/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+12:55  22397.2 | CHAL RAHA ▼ SHURU 7/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:56  22398.8 | CHAL RAHA ▼ SHURU 7/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:57  22412.0 | CHAL RAHA ▼ JAARI 7/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:58  22424.8 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+12:59  22421.5 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+13:00  22422.8 | CHAL RAHA ▼ THAK 5/11 THEEK        | CE LIKHAI INTO RALLY · PHANS RAHE
+13:01  22424.7 | CHAL RAHA ▼ THAK 5/11 THEEK        | ATKA ▼ · CE likh rahe, price nahi
+13:02  22428.1 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+13:03  22436.0 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | OI SAATH ▲
+13:04  22430.3 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | OI SAATH ▲
+13:05  22409.4 | CHAL RAHA ▼ THAK 4/11 KAMZOR       | KUCH KHAAS NAHI
+13:06  22404.6 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | BINA OI ▲
+13:07  22403.3 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:08  22406.2 | CHAL RAHA ▼ THAK 7/11 MAZBOOT      | ATKA ▲ · PE likh rahe, price nahi
+13:09  22401.5 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:10  22407.0 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:11  22408.7 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:12  22413.6 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | KUCH KHAAS NAHI
+13:13  22415.1 | CHAL RAHA ▼ RUKA 5/11 KAMZOR       | KUCH KHAAS NAHI
+13:14  22410.4 | KHAMOSH                            | KUCH KHAAS NAHI
+13:15  22398.7 | KHAMOSH                            | BINA OI ▼
+13:16  22388.9 | KHAMOSH                            | BINA OI ▼
+13:17  22403.2 | BINA OI ▼                          | BINA OI ▼
+13:18  22406.7 | BINA OI ▼                          | BINA OI ▼
+13:19  22402.1 | BINA OI ▼                          | BINA OI ▼
+13:20  22400.4 | BINA OI ▼                          | KUCH KHAAS NAHI
+13:21  22403.7 | BINA OI ▼                          | KUCH KHAAS NAHI
+13:22  22396.8 | KHAMOSH                            | KUCH KHAAS NAHI
+13:23  22402.6 | KHAMOSH                            | KUCH KHAAS NAHI
+13:24  22405.3 | KHAMOSH                            | KUCH KHAAS NAHI
+13:25  22402.7 | KHAMOSH                            | KUCH KHAAS NAHI
+13:26  22406.2 | KHAMOSH                            | KUCH KHAAS NAHI
+13:27  22411.4 | KHAMOSH                            | KUCH KHAAS NAHI
+13:28  22417.8 | KHAMOSH                            | KUCH KHAAS NAHI
+13:29  22411.0 | KHAMOSH                            | KUCH KHAAS NAHI
+13:30  22419.8 | KHAMOSH                            | BINA OI ▲
+13:31  22421.5 | KHAMOSH                            | BINA OI ▲
+13:32  22442.1 | BINA OI ▲                          | BINA OI ▲
+13:33  22437.0 | BINA OI ▲                          | BINA OI ▲
+13:34  22429.0 | BINA OI ▲                          | BINA OI ▲
+13:35  22424.2 | BINA OI ▲                          | BINA OI ▲
+13:36  22437.2 | BINA OI ▲                          | BINA OI ▲
+13:37  22451.8 | BINA OI ▲                          | BINA OI ▲
+13:38  22494.8 | BINA OI ▲                          | BINA OI ▲
+13:39  22519.1 | BINA OI ▲                          | CE BHAAG RAHE
+13:40  22515.0 | BINA OI ▲                          | CE BHAAG RAHE
+13:41  22546.0 | WAPSI ▲ SHURU 8/11 THEEK           | CE BHAAG RAHE
+13:42  22565.6 | WAPSI ▲ SHURU 8/11 THEEK           | CE BHAAG + PE LIKHAI
+13:43  22570.2 | WAPSI ▲ SHURU 10/11 THEEK          | CE BHAAG + PE LIKHAI
+13:44  22576.5 | WAPSI ▲ JAARI 10/11 THEEK          | CE BHAAG + PE LIKHAI
+13:45  22567.0 | WAPSI ▲ JAARI 10/11 THEEK          | CE BHAAG + PE LIKHAI
+13:46  22557.5 | WAPSI ▲ JAARI 10/11 THEEK          | CE BHAAG + PE LIKHAI
+13:47  22573.0 | WAPSI ▲ JAARI 10/11 THEEK          | CE BHAAG + PE LIKHAI
+13:48  22566.5 | WAPSI ▲ JAARI 9/11 THEEK           | CE BHAAG + PE LIKHAI
+13:49  22556.1 | WAPSI ▲ THAK 9/11 THEEK            | CE BHAAG + PE LIKHAI
+13:50  22542.7 | WAPSI ▲ THAK 9/11 THEEK            | CE BHAAG + PE LIKHAI
+13:51  22544.0 | WAPSI ▲ THAK 9/11 THEEK            | CE BHAAG + PE LIKHAI
+13:52  22529.8 | WAPSI ▲ THAK 9/11 THEEK            | CE BHAAG + PE LIKHAI
+13:53  22516.8 | WAPSI ▲ THAK 10/11 THEEK           | CE BHAAG + PE LIKHAI
+13:54  22502.0 | WAPSI ▲ THAK 9/11 THEEK            | ATKA ▲ · PE likh rahe, price nahi
+13:55  22535.7 | WAPSI ▲ THAK 10/11 THEEK           | CE BHAAG + PE LIKHAI
+13:56  22529.3 | WAPSI ▲ THAK 9/11 THEEK            | ATKA ▲ · PE likh rahe, price nahi
+13:57  22531.6 | WAPSI ▲ THAK 8/11 THEEK            | PE LIKHAI INTO FALL · ROK RAHE
+13:58  22530.4 | WAPSI ▲ THAK 8/11 THEEK            | PE LIKHAI INTO FALL · ROK RAHE
+13:59  22524.1 | WAPSI ▲ THAK 8/11 THEEK            | PE LIKHAI INTO FALL · ROK RAHE
+14:00  22537.8 | WAPSI ▲ THAK 7/11 KAMZOR           | OI SAATH ▼
+14:01  22541.0 | WAPSI ▲ THAK 7/11 KAMZOR           | KUCH KHAAS NAHI
+14:02  22549.9 | WAPSI ▲ THAK 7/11 KAMZOR           | OI SAATH ▼
+14:03  22558.6 | WAPSI ▲ THAK 8/11 THEEK            | UNWIND · dono nikal rahe
+14:04  22560.8 | CHOP  3/8 KAMZOR                   | UNWIND · dono nikal rahe
+14:05  22569.3 | CHOP  2/8 KAMZOR                   | BINA OI ▲
+14:06  22560.3 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+14:07  22553.8 | CHOP  4/8 THEEK                    | CE CAP UPAR SHIFT
+14:08  22552.0 | CHOP  3/8 KAMZOR                   | OI SAATH ▲
+14:09  22545.2 | CHOP  3/8 KAMZOR                   | OI SAATH ▲
+14:10  22551.4 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+14:11  22540.5 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+14:12  22550.3 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+14:13  22554.7 | CHOP  3/8 KAMZOR                   | OI SAATH ▲
+14:14  22553.9 | CHOP  4/8 THEEK                    | CE CAP UPAR SHIFT
+14:15  22556.8 | CHOP  3/8 KAMZOR                   | KUCH KHAAS NAHI
+14:16  22565.8 | CHOP  5/8 MAZBOOT                  | CE CAP UPAR SHIFT
+14:17  22564.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:18  22563.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:19  22559.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:20  22554.7 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:21  22553.3 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:22  22542.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:23  22543.4 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:24  22538.8 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:25  22531.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:26  22533.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:27  22531.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:28  22533.5 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+14:29  22547.6 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:30  22549.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:31  22547.5 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:32  22545.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:33  22557.0 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:34  22570.2 | CHOP  4/8 KAMZOR                   | KUCH KHAAS NAHI
+14:35  22548.3 | CHOP  5/8 MAZBOOT                  | UNWIND · dono nikal rahe
+14:36  22541.6 | CHOP  5/8 MAZBOOT                  | UNWIND · dono nikal rahe
+14:37  22518.6 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+14:38  22509.1 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+14:39  22486.2 | CHOP  4/8 KAMZOR                   | BINA OI ▼
+14:40  22483.0 | CHOP  7/8 MAZBOOT                  | PE BHAAG RAHE
+14:41  22463.9 | CHOP  7/8 MAZBOOT                  | PE BHAAG + CE LIKHAI
+14:42  22456.2 | CHOP ~swing ▼ SHURU                | PE BHAAG + CE LIKHAI
+14:43  22468.4 | CHOP ~swing ▼ SHURU                | PE BHAAG + CE LIKHAI
+14:44  22478.2 | CHOP ~swing ▼ SHURU                | PE BHAAG + CE LIKHAI
+14:45  22485.8 | CHAL RAHA ▼ JAARI 8/11 MAZBOOT     | PE BHAAG RAHE
+14:46  22487.3 | CHAL RAHA ▼ JAARI 9/11 MAZBOOT     | PE BHAAG RAHE
+14:47  22497.7 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG RAHE
+14:48  22497.3 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG RAHE
+14:49  22496.5 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+14:50  22500.6 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+14:51  22491.2 | CHAL RAHA ▼ THAK 9/11 MAZBOOT      | PE BHAAG + CE LIKHAI
+14:52  22481.5 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+14:53  22482.1 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | PE BHAAG + CE LIKHAI
+14:54  22482.0 | CHAL RAHA ▼ THAK 10/11 MAZBOOT     | ATKA ▼ · CE likh rahe, price nahi
+14:55  22487.1 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | ATKA ▼ · CE likh rahe, price nahi
+14:56  22491.2 | CHAL RAHA ▼ THAK 8/11 MAZBOOT      | CE LIKHAI INTO RALLY · ROK RAHE
+14:57  22499.9 | CHAL RAHA ▼ THAK 6/11 KAMZOR       | OI SAATH ▲
+14:58  22504.8 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | BINA OI ▲
+14:59  22499.0 | CHAL RAHA ▼ THAK 5/11 KAMZOR       | BINA OI ▲
+15:00  22516.0 | BINA OI ▲                          | BINA OI ▲
+15:01  22506.5 | BINA OI ▲                          | KUCH KHAAS NAHI
+15:02  22497.3 | BINA OI ▲                          | KUCH KHAAS NAHI
+15:03  22486.2 | BINA OI ▲                          | UNWIND · dono nikal rahe
+15:04  22487.8 | BINA OI ▲                          | UNWIND · dono nikal rahe
+15:05  22486.2 | UNWIND  1/7 KAMZOR                 | UNWIND · dono nikal rahe
+15:06  22481.8 | UNWIND  1/7 KAMZOR                 | KUCH KHAAS NAHI
+15:07  22489.8 | UNWIND  1/7 KAMZOR                 | KUCH KHAAS NAHI
+15:08  22484.8 | KHAMOSH                            | KUCH KHAAS NAHI
+15:09  22482.5 | KHAMOSH                            | UNWIND · dono nikal rahe
+15:10  22491.5 | KHAMOSH                            | UNWIND · dono nikal rahe
+15:11  22503.2 | UNWIND  1/7 KAMZOR                 | UNWIND · dono nikal rahe
+15:12  22504.0 | UNWIND  1/7 KAMZOR                 | UNWIND · dono nikal rahe
+15:13  22514.5 | UNWIND  2/7 KAMZOR                 | UNWIND · dono nikal rahe
+15:14  22511.4 | UNWIND  2/7 KAMZOR                 | UNWIND · dono nikal rahe
+15:15  22516.4 | UNWIND  3/7 THEEK                  | UNWIND · dono nikal rahe
+15:16  22516.4 | UNWIND  3/7 THEEK                  | UNWIND · dono nikal rahe
+15:17  22516.4 | UNWIND  3/7 THEEK                  | UNWIND · dono nikal rahe
+15:18  22516.4 | UNWIND  3/7 THEEK                  | OI SAATH ▲
+15:19  22516.4 | UNWIND  3/7 THEEK                  | OI SAATH ▲
+15:20  22516.4 | WAPSI ▲ SHURU 5/11 THEEK           | CE BHAAG RAHE
+15:21  22516.4 | WAPSI ▲ SHURU 5/11 THEEK           | CE BHAAG RAHE
+15:22  22516.4 | WAPSI ▲ SHURU 6/11 THEEK           | CE BHAAG RAHE
+15:23  22516.4 | WAPSI ▲ JAARI 7/11 THEEK           | CE BHAAG RAHE
+15:24  22516.4 | WAPSI ▲ JAARI 8/11 THEEK           | CE BHAAG RAHE
+15:25  22516.4 | WAPSI ▲ RUKA 8/11 THEEK            | CE BHAAG RAHE
+15:26  22516.4 | WAPSI ▲ RUKA 8/11 THEEK            | UNWIND · dono nikal rahe
+15:27  22516.4 | WAPSI ▲ RUKA 8/11 THEEK            | UNWIND · dono nikal rahe
+15:28  22600.0 | WAPSI ▲ TEZ 9/11 THEEK             | CE BHAAG RAHE
+15:29  22600.0 | WAPSI ▲ TEZ 9/11 THEEK             | CE BHAAG RAHE

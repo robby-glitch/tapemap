@@ -1,0 +1,28 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-06 · EXPIRY · NIFTY expiry · slow grind up · size ref: 5 pichhle expiry din · fut leg: yes · READ log: no
+
+strip (5 min): ???·······aaa·P···▲▲▲▲·······PkPPPPP·····▲▲▲▲▲▲▲PPPPP~PPPPPPPPPwwwwww?~?~~~
+
+09:41     22624s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22550 −12.4L, 22500 −12.2L, 22700 +38.2L, 22650 +36.8L
+10:06     22647s  ATKA ▲ @ 22650s                     6/10 MAZBOOT    PE likh rahe · deewar sab taraf · net +353.4L · spot +14 pts/15m
+10:25     22652s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+10:44     22675s  CHAL RAHA ▲ · SHURU                 5/11 THEEK      PE FLOOR SAATH · spot +26 pts/15m · with +155.2L against +30.1L
+11:25     22678s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+11:39     22681s  PIN @ 22700s                        4/8 THEEK       dono barabar baithe · OI at 22700: CE +297.0L PE +201.3L · range30 tight
+11:48     22697s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22650 −14.1L, 22600 −13.0L, 22800 +19.3L, 22850 +6.0L
+11:53     22686s  PIN @ 22700s                        4/8 THEEK       dono barabar baithe · OI at 22700: CE +272.0L PE +243.1L · range30 tight
+12:25     22686s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:38     22707s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22600 −6.8L, 22650 −6.3L, 22750 +17.2L, 22800 +15.6L
+12:40     22711s  CE ROLL TOOTA                                       roll 12:38 ka toota, ab price pe phanse buy back · fuel · 22700 −24.8L, 22650 −23.1L
+12:42     22713s  CHAL RAHA ▲ · SHURU                 8/11 MAZBOOT    CE CAP UPAR SHIFT · spot +27 pts/15m · with +155.2L against +47.4L
+                    PHANSE: 22700 +29.2L 12:21 tak likha
+13:17     22712s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+13:19     22711s  PIN @ 22700s                        4/8 THEEK       dono barabar baithe · OI at 22700: CE +280.4L PE +402.8L · range30 tight
+13:43     22701s  CHOP                                4/7 THEEK       legs dono taraf 30 min mein · range30 25
+13:47     22708s  PIN @ 22700s                        4/8 THEEK       dono barabar baithe · OI at 22700: CE +308.5L PE +415.5L · range30 tight
+14:04     22720s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22650 −9.9L, 22700 −4.2L, 22800 +19.1L, 22750 +13.3L
+14:28     22687s  WAPSI ▼ · SHURU                     5/11 THEEK      PE BHAAG RAHE · spot -39 pts/15m · with +125.8L against +10.2L
+                    PHANSE: 22700 +52.0L 14:17 tak likha
+15:08     22712s  CHOP                                5/8 MAZBOOT     legs dono taraf 30 min mein · range30 17
+
+-- minutes: KHAMOSH 118, PIN 102, CHAL RAHA ▲ 54, WAPSI ▼ 36, CHOP 28, ? 17, ATKA 14, BINA OI ▲ 4
+-- stamps: 19 (pictures / quiet / ? 13, phases + ends 1, side events 5, ≠ READ 0)

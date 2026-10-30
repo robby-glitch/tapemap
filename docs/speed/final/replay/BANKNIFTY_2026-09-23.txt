@@ -1,0 +1,16 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-09-23 · NORMAL · NIFTY expiry · range · size ref: 19 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ???··▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲··················aau▲▲▲▲▲····PPP·aPPP··aaaaaa~~~
+
+09:42     56401s  CHAL RAHA ▲ · SHURU                 6/11 THEEK      PE FLOOR SAATH · spot +63 pts/15m · with +2.5L against +2.5L
+10:00     56486s  CHAL RAHA ▲ · TEZ                   7/11 THEEK      CE BHAAG + PE LIKHAI · spot +68 pts · with +1.7L
+11:33     56581s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+13:10     56592s  CHAL RAHA ▲ · SHURU                 5/11 THEEK      CE BHAAG RAHE · spot +58 pts/15m · with +1.4L against +0.14L
+                    PHANSE: 56500 +0.36L 12:57 tak likha, 57000 +0.32L 13:00 tak likha
+13:40     56539s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+13:57     56549s  PIN @ 56600s                        4/9 THEEK       dono likh rahe, barabar · 15m adds CE +0.33L PE +0.38L
+14:21     56585s  PIN @ 56800s                        4/9 THEEK       dono likh rahe, barabar · 15m adds CE +0.38L PE +0.71L
+15:17     56542s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 72
+
+-- minutes: KHAMOSH 135, CHAL RAHA ▲ 127, ATKA 49, PIN 30, ? 15, CHOP 13, UNWIND 4
+-- stamps: 8 (pictures / quiet / ? 7, phases + ends 1, side events 0, ≠ READ 0)

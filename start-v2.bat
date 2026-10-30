@@ -133,6 +133,18 @@ echo 5173 never answered - look at the "TapeMap v2" window for the actual
 echo error. Not opening a tab for it on purpose. The desk is unaffected.
 
 :done
+REM --- JARVIS page (8787, added 2026-10-29) ------------------------------
+REM jarvis2.html, the Jarvis face, is a static page in docs\kahani\review\mockup.
+REM It reads the brain live from /api/jarvis through Vite (5173), so it only
+REM needs a plain file server. Reused when something already serves 8787.
+netstat -aon | findstr ":8787" | findstr "LISTENING" >nul
+if errorlevel 1 (
+  echo Starting the Jarvis page on 8787...
+  start "Jarvis page" /MIN /D "%~dp0docs\kahani\review\mockup" cmd /k python -m http.server 8787 --bind 127.0.0.1
+) else (
+  echo Jarvis page already up on 8787 - reusing it.
+)
+echo Jarvis: http://localhost:8787/jarvis2.html?api=http://localhost:5173/api/jarvis
 echo.
 echo Keep the "TapeMap server" window open. TapeMap v2 has its own window.
 echo.

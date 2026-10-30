@@ -369,7 +369,7 @@ def test_a_zone_match_is_one_setup_line_with_its_own_entry_and_stop_and_reaches_
     ms = [m for m in messages.build([], [row]) if m["kind"] == "SETUP"]
     assert [m["line"] for m in ms] == [                                   # A116: n/4 and her pieces, not DECODE's 4/7
         "09:30  NIFTY  ZONE BUY · 1/4 · ✓ d2 22,445f chhua 09:24 · ? thakan/roka — chart marks nahi · "
-        "? PE likh rahe — chain nahi · ? Δ — koi 5m bar nahi · E 22,534f · stop 22,425f"]
+        "? PE likh rahe — chain nahi · ? Δ — koi 5m bar nahi · E 22,534f · stop 22,425f · din: padh nahi sake"]   # A131
     assert telegram_out.wants(ms[0])
     armed = dict(row, T="09:27", setups=[decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))})])
     assert not [m for m in messages.build([], [armed]) if m["kind"] == "SETUP"]      # an arm is never sent

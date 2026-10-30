@@ -198,6 +198,34 @@ def ladder(rep, h2, now_ms, mem, prem_at=None):
             "tag": "I", "note": "one voice, display only: the engine's word and HOLD v2 run as registered"}
 
 
+def handshake_line(h, k, side):
+    """A132, the voice's l6 (Fable BUILD-PLAN-FABLE §0 / §4, her 28 Sep ask: pullback or invalidation?): the latest push
+    AGAINST her in 10 min and the answer AT her defending wall k (handshake.defend; the fold engine's W), else None.
+      no answer at her wall        "HANDSHAKE: push ▼ 10:12 −250 lots · 22,550s PE jawab nahi → pullback lagta hai"
+      her wall TOOT + fut FRESH    "HANDSHAKE: deewar 22,550s PE toot rahi −12.0L + fut fresh → khatra"
+      any other answer             the facts only, no verdict word
+    A LINE, NEVER A STATE: `ladder` does not read it, so EXIT / WARN / TIGHTEN / HOLD and the stop are unchanged. Promoting
+    it into the ladder (Fable: NAHI = PULLBACK · HOLD, TOOT + FRESH = WARN) is a later decision, after forward days."""
+    if not h or k is None:
+        return None
+    p, a, f = h["p"], h["a"], h.get("fut") or {}
+    lots = f"{p['lots']:+,}".replace("-", "−")
+    head = f"HANDSHAKE: {h.get('of') or ''}push {'▲' if p['dir'] > 0 else '▼'} {p['m'] // 60:02d}:{p['m'] % 60:02d} {lots} lots"
+    wall = f"{k:,.0f}s {side or ''}".rstrip()
+    chg = None if a.get("chg") is None else f"{a['chg']:+.1f}L".replace("-", "−")
+    fut = f" · fut {f['leg'].lower()}" if f.get("leg") else " · fut ?"
+    if a.get("ans") == "NAHI":
+        return f"{head} · {wall} jawab nahi → pullback lagta hai"
+    if a.get("ans") == "TOOT" and f.get("leg") == "FRESH":
+        return f"HANDSHAKE: deewar {wall} toot rahi {chg} + fut fresh → khatra"
+    if a.get("ans") is None:
+        return f"{head} · {wall} jawab ? — OI nahi mila"            # could not check, never "no answer"
+    if a["ans"] == "TIKI" and a.get("who") == "KHAREEDAR":      # G4: buyers added at her wall -- not her protection
+        return f"{head} · {wall} kharidar ghuse {chg} (deewar nahi){fut}"
+    word = {"TOOT": "toot rahi", "TIKI": "tiki", "PHANS": "writers phanse"}[a["ans"]]
+    return f"{head} · deewar {wall} {word} {chg}{fut}"
+
+
 def receipt(tr, prem, rows):
     """The post-trade receipt (A52 §4): her exit beside what the three shadow lines would have said, from their forward log
     rows (data/hold/shadow_<day>.jsonl, holdshadow.row) -- shown only after she is out."""

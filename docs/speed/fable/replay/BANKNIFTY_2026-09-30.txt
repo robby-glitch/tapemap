@@ -1,0 +1,90 @@
+== RAFTAAR BANKNIFTY 2026-09-30  P = 98 pts  step 100  (floors = the day's own running medians per side) ==
+-- Wed · chop (0.9 % range, round trip), her 198K seller at 12:50
+
+09:20  SOCH RAHA · 5/15-min lookback missing
+09:41     54534s  KHAMOSH · kuch khaas nahi
+09:53     54628s  CHAL RAHA ▲ BINA OI   SHURU     CE QUIET                   PE QUIET         with15    +87k against15    +42k  m15 +105  HALKA 0/5 (peers 0/2)
+09:57     54645s  KHAMOSH · kuch khaas nahi
+10:34     54663s  CHAL RAHA ▼ MILA-JULA SHURU     PE ABSORB 55100            CE PRESS 55100   with15    +63k against15    +43k  m15 -126  HALKA 1/6 (peers 1/2)
+10:38     54690s  CHOP · dono taraf legs  r30 168 net30 -18  HALKA 1/5 (peers 0/2)
+10:50     54713s  KHAMOSH · kuch khaas nahi
+11:10     54719s  PIN · dono deewar CE 55100 / PE 55100 balanced  net45 CE +42k PE +77k  r45 141  HALKA 2/6 (peers 0/2)
+11:15     54694s  KHAMOSH · kuch khaas nahi
+11:32     54817s  CHAL RAHA ▲ SAATH     SHURU     CE QUIET (abhi)            PE PRESS 55000   with15    +46k against15    +11k  m15 +129  THEEK 3/6 (peers 2/2)
+11:39     54797s  KHAMOSH · kuch khaas nahi
+11:50     54824s  LOAD PE likh rahe 54500  net15 +62k  m15  -10  THEEK 3/6 (peers 1/2)
+11:53     54839s  KHAMOSH · kuch khaas nahi
+12:01     54868s  LOAD PE likh rahe 54900  net15 +59k  m15  +59  THEEK 3/6 (peers 0/2)
+12:04     54908s  KHAMOSH · kuch khaas nahi
+12:12     54886s  LOAD PE likh rahe 54900  net15 +91k  m15  +35  THEEK 3/6 (peers 0/2)
+12:16     54863s  KHAMOSH · kuch khaas nahi
+12:26     55001s  CHAL RAHA ▲ SAATH     SHURU     CE RETREAT 55000           PE QUIET         with15   +1.2L against15     +3k  m15 +125  THEEK 3/6 (peers 1/2)
+12:37     55046s  KHAMOSH · kuch khaas nahi
+13:40     55009s  CHAL RAHA ▼ SAATH     SHURU     PE QUIET                   CE PRESS 55000   with15    +35k against15     +5k  m15 -103  HALKA 2/6 (peers 0/2)
+13:51     55009s  LOAD CE likh rahe 55000  net15 +18k  m15  -59  THEEK 4/6 (peers 2/2)
+13:54     55007s  KHAMOSH · kuch khaas nahi
+14:21     54913s  CHAL RAHA ▼ SAATH     SHURU     PE RETREAT 55000           CE QUIET         with15    +45k against15     +1k  m15 -111  HALKA 2/5 (peers 2/2)
+14:26     54818s  CHAL RAHA ▼ SAATH     TEZ       PE RETREAT 55000           CE QUIET         with15    +93k against15       0  m15 -155  THEEK 4/6 (peers 2/2)
+14:29     54769s  CHAL RAHA ▼ SAATH     BARABAR   PE RETREAT 55000           CE QUIET         with15   +1.1L against15       0  m15 -159  THEEK 4/6 (peers 2/2)
+14:45     54717s  LOAD CE likh rahe 54700  net15 +23k  m15  -18  THEEK 4/6 (peers 2/2)
+15:02     54822s  CHOP · dono taraf legs  r30 162 net30 +62  HALKA 1/5 (peers 1/2)
+-- minutes: KHAMOSH 189, CHAL RAHA ▼ SAATH 41, CHOP 38, LOAD 29, CHAL RAHA ▲ SAATH 27, SOCH RAHA 21, CHAL RAHA ▲ BINA OI 11, PIN 10, CHAL RAHA ▼ MILA-JULA 2, CHAL RAHA ▼ ULTA 1, CHAL RAHA ▲ MILA-JULA 1, UNWIND 1
+-- stamped lines: 27
+-- front stamps (§1d states, top-2 per side): 55
+
+-- §1d front stamps (top-2 per side, changes only):
+   09:50  CE 54500  SHIFT -> 54600 d15     -9k @ 54597s  (was BUILDING)
+   09:58  CE 55000  STALLED        d15     +1k @ 54624s  (was BUILDING)
+   10:01  PE 55000  STALLED        d15     +3k @ 54663s  (was BUILDING)
+   10:04  PE 55000  phir BUILDING  d15     +8k @ 54714s  (was STALLED)
+   10:16  CE 55000  SHIFT -> 55100 d15     -9k @ 54796s  (was STALLED)
+   10:27  PE 54500  STALLED        d15     +4k @ 54736s  (was BUILDING)
+   10:31  CE 55000  STALLED        d15     +4k @ 54659s  (was UNWINDING)
+   10:32  PE 55000  STALLED        d15     -1k @ 54663s  (was BUILDING)
+   10:34  CE 55000  phir BUILDING  d15    +15k @ 54645s  (was STALLED)
+   10:34  PE 54500  UNWINDING      d15    -14k @ 54645s  (was STALLED)
+   10:46  CE 54500  STALLED        d15     +3k @ 54700s  (was UNWINDING)
+   10:49  PE 54500  STALLED        d15     +1k @ 54729s  (was UNWINDING)
+   10:51  PE 55000  phir BUILDING  d15     +7k @ 54707s  (was STALLED)
+   10:53  CE 54500  UNWINDING      d15     -1k @ 54706s  (was STALLED)
+   11:06  CE 55000  STALLED        d15     +5k @ 54735s  (was BUILDING)
+   11:08  PE 55000  STALLED        d15     +4k @ 54719s  (was BUILDING)
+   11:14  CE 55000  phir BUILDING  d15     +9k @ 54704s  (was STALLED)
+   11:33  PE 55000  phir BUILDING  d15     +8k @ 54834s  (was STALLED)
+   11:34  CE 55000  STALLED        d15     +6k @ 54826s  (was BUILDING)
+   11:38  PE 54500  phir BUILDING  d15     +7k @ 54787s  (was STALLED)
+   11:42  CE 54500  STALLED        d15     +1k @ 54815s  (was UNWINDING)
+   11:53  PE 55000  STALLED        d15     +6k @ 54836s  (was BUILDING)
+   11:56  CE 54500  UNWINDING      d15       0 @ 54848s  (was STALLED)
+   12:00  PE 55000  phir BUILDING  d15     +7k @ 54876s  (was STALLED)
+   12:01  CE 54500  STALLED        d15     +2k @ 54904s  (was UNWINDING)
+   12:11  PE 54500  STALLED        d15     +4k @ 54885s  (was BUILDING)
+   12:12  CE 55000  SHIFT -> 55100 d15     -8k @ 54881s  (was STALLED)
+   12:17  CE 54500  UNWINDING      d15     -1k @ 54875s  (was STALLED)
+   12:33  PE 55000  STALLED        d15     +2k @ 55021s  (was BUILDING)
+   12:40  CE 54500  STALLED        d15     +1k @ 55015s  (was UNWINDING)
+   12:46  CE 54500  UNWINDING      d15       0 @ 55125s  (was STALLED)
+   12:48  PE 55000  phir BUILDING  d15    +13k @ 55089s  (was STALLED)
+   13:04  CE 55000  STALLED        d15     +1k @ 55081s  (was UNWINDING)
+   13:08  CE 55000  SHIFT -> 55100 d15       0 @ 55094s  (was STALLED)
+   13:11  CE 55000  STALLED        d15     +2k @ 55068s  (was UNWINDING)
+   13:16  PE 55000  STALLED        d15     +3k @ 55068s  (was BUILDING)
+   13:39  CE 55000  phir BUILDING  d15    +11k @ 54982s  (was STALLED)
+   13:45  PE 55000  UNWINDING      d15    -20k @ 54990s  (was STALLED)
+   13:45  PE 54500  UNWINDING      d15    -11k @ 54990s  (was STALLED)
+   13:54  CE 55000  STALLED        d15     +3k @ 55032s  (was BUILDING)
+   14:00  PE 55000  STALLED        d15     -2k @ 55003s  (was UNWINDING)
+   14:01  PE 54500  STALLED        d15     -6k @ 55016s  (was UNWINDING)
+   14:12  PE 54500  UNWINDING      d15     -6k @ 54928s  (was STALLED)
+   14:16  PE 55000  UNWINDING      d15    -12k @ 54935s  (was STALLED)
+   14:25  CE 55000  UNWINDING      d15     -2k @ 54811s  (was STALLED)
+   14:40  CE 54500  STALLED        d15       0 @ 54671s  (was UNWINDING)
+   14:49  CE 55000  STALLED        d15     +2k @ 54753s  (was UNWINDING)
+   14:58  PE 55000  phir BUILDING  d15    +15k @ 54786s  (was UNWINDING)
+   14:59  CE 54500  UNWINDING      d15     -1k @ 54813s  (was STALLED)
+   15:01  CE 55000  UNWINDING      d15     -7k @ 54789s  (was STALLED)
+   15:06  PE 55000  STALLED        d15     +7k @ 54737s  (was BUILDING)
+   15:15  PE 55000  UNWINDING      d15     -5k @ 54707s  (was STALLED)
+   15:21  CE 55000  STALLED        d15     +4k @ 54707s  (was UNWINDING)
+   15:25  PE 55000  STALLED        d15     +1k @ 54707s  (was UNWINDING)
+   15:28  PE 55000  UNWINDING      d15     -1k @ 54633s  (was STALLED)

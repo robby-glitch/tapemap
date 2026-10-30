@@ -38,6 +38,7 @@ log = logging.getLogger("tapemap")       # same logger server.py wires to
 
 MOCK_S = 1                             # mock replays 1 snapshot/s (demo pace)
 RR_GAP_S = 3.5                         # gap BETWEEN chain requests (limit: 1/3s)
+HOLE_REFILL_S = 120                    # J1b: a good poll this long after the last one ends a hole -> refill it from REST
 WINDOW_PTS = 1500                      # default strike window (cfg overrides)
 CHAIN_DEADLINE_S = 20                  # wall-clock cap on dhan.option_chain():
                                         # a healthy call finishes in ~1-2s;
@@ -294,6 +295,9 @@ class ChainPoller(threading.Thread):
         # session. One shot each: history does not change, and 34 REST calls
         # per index is not something to repeat on every poll.
         self._backfilled = set()
+        # J1b (28 Oct): the wall-clock time of each index's last good poll. A good poll after a hole longer than
+        # HOLE_REFILL_S (a laptop sleep with no restart left 12:55-12:59 empty) kicks the REST backfill again.
+        self._last_ok = {}
         # THE WARM START PUBLISHES. server.py:677-686 gates the war map, the
         # drag board, the OI ladder, trapped writers and the paper tick on a
         # payload with ok:true, and this poller never publishes outside
@@ -397,6 +401,13 @@ class ChainPoller(threading.Thread):
                 time.sleep(MOCK_S)
 
     # ---- live: round-robin poll Dhan per index, persist, publish ----
+
+    def _back_after_hole(self, idx, now_s):
+        """J1b: note a good poll for `idx` at wall time `now_s` -> True when it ends a hole longer than HOLE_REFILL_S
+        since the index's last good poll (28 Oct: the laptop slept 12:54-13:00 and the chain stayed empty 12:55-12:59)."""
+        last = self._last_ok.get(idx)
+        self._last_ok[idx] = now_s
+        return last is not None and now_s - last > HOLE_REFILL_S
 
     def _kick_backfill(self, idx, snap):
         """Rebuild the part of today the socket was not around for.
@@ -627,11 +638,48 @@ class ChainPoller(threading.Thread):
                             f.write(json.dumps(self._stamped(idx, snap, expiries[idx])) + "\n")
                         # First good poll for this index: now the strike window
                         # is known, so the morning can be rebuilt behind us.
+                        back = self._back_after_hole(idx, time.time())
                         if idx not in self._backfilled:
                             self._backfilled.add(idx)
+                            self._kick_backfill(idx, snap)
+                        elif back:
+                            # J1b: back from a hole (a sleep, a feed drop) with no
+                            # restart: refill it from REST now, as if we had been
+                            # here. backfill_minutes never clobbers an observed mark.
                             self._kick_backfill(idx, snap)
                     except Exception as e:  # isolate: tag this index, go on
                         self._tag_error(idx, "live", f"poll failed: {e}")
                         if is_auth_error(e):
                             self.reload = True   # force outer retry -> proper EXPIRED
                     time.sleep(max(0.5, RR_GAP_S - (time.time() - t0)))
+
+
+def rebase_day(day, chain_dir=None):
+    """A125: rewrite a day's chain record so a leg written with oi_chg 0 (its 09:15 baseline missing at that poll) carries
+    its real change. The baseline comes from the record itself: any row of the same leg with oi_chg set gives it as
+    oi - oi_chg (27 Oct: the 10 busiest NIFTY strikes read 0 from 09:16 to 10:37; the 10:38 restart fetched them).
+    ONLY at start, before any thread reads or appends (server.main). The original is copied to data/backup/ first.
+    -> {file name: legs rewritten}."""
+    import shutil
+    chain_dir = Path(chain_dir or CHAIN_DIR)
+    out = {}
+    for p in sorted(chain_dir.glob(f"chain_*_{day}.jsonl")):
+        rows = [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
+        legs = [(s["k"], side, s[side]) for r in rows for s in r.get("strikes") or [] for side in ("ce", "pe")
+                if isinstance(s.get(side), dict) and s[side].get("oi") is not None]
+        base = {(k, side): g["oi"] - g["oi_chg"] for k, side, g in legs if g.get("oi_chg")}
+        n = 0
+        for k, side, g in legs:
+            b = base.get((k, side))
+            if not g.get("oi_chg") and b is not None and g["oi"] != b:
+                g["oi_chg"] = int(g["oi"] - b)
+                n += 1
+        if n:
+            bak = chain_dir.parent / "backup" / f"{p.name}.bak-a125"
+            bak.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, bak)
+            tmp = p.with_suffix(".tmp")
+            tmp.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+            os.replace(tmp, p)
+            out[p.name] = n
+    return out

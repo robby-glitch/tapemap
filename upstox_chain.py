@@ -45,6 +45,7 @@ CONNECT_WAIT_S = 10.0
 # the 09:15 OI baselines need the 09:15 bar, so before BASELINE_FROM they wait for the first poll after it.
 PREOPEN_FROM = 9 * 3600 + 14 * 60
 BASELINE_FROM = 9 * 3600 + 16 * 60
+BASELINE_RETRY_S = 60       # A125: a leg whose 09:15 baseline failed is asked again, at most this often
 import upstox_feed
 import upstox_instruments
 import upstox_rest
@@ -124,6 +125,7 @@ class UpstoxChainSource:
             r["meta"], tok,
             on_error=lambda k, e: print(f"upstox baseline {k}: {e}"))
         self._deferred.discard(idx)
+        self.__dict__.setdefault("_retry_at", {})[idx] = time.time()
         print(f"upstox chain {idx}: expiry {r['expiry']}, "
               f"{len(r['meta'])} legs, "
               f"{len(self.prev_oi[idx])} OI baselines from 09:15")
@@ -187,10 +189,27 @@ class UpstoxChainSource:
                 raise RuntimeError(f"{idx}: the 09:15 OI baselines wait for the 09:15 bar (from 09:16); "
                                    "the socket is already recording")
             self._baseline(idx, self.token or upstox_feed.read_token())
-        payload = upstox_adapter.chain_payload(
-            feeds, near(r["meta"], spot, getattr(self, "each_side", upstox_instruments.STRIKES_EACH_SIDE)),
-            spot, self.prev_oi.get(idx))
+        legs = near(r["meta"], spot, getattr(self, "each_side", upstox_instruments.STRIKES_EACH_SIDE))
+        self._retry_baselines(idx, legs)
+        payload = upstox_adapter.chain_payload(feeds, legs, spot, self.prev_oi.get(idx))
         return chain_live.normalize(payload, now, window)
+
+    def _retry_baselines(self, idx, legs):
+        """A125: a leg whose 09:15 baseline failed writes oi_chg 0 (27 Oct: the 10 busiest NIFTY strikes, asked at 09:16
+        before their 09:15 candle was out, read 0 until a restart). Ask again for the missing legs of the live window,
+        at most every BASELINE_RETRY_S, and only after the day's baseline pass ran.
+        ponytail: a leg with no OI at the open is asked every minute all day (<= 34 calls a minute); cap it if that bites."""
+        at = self.__dict__.get("_retry_at") or {}
+        have = self.prev_oi.setdefault(idx, {})
+        miss = {key: who for key, who in legs.items() if who not in have}
+        if idx not in at or not miss or time.time() - at[idx] < BASELINE_RETRY_S:
+            return
+        at[idx] = time.time()
+        got = upstox_rest.baselines(miss, self.token or upstox_feed.read_token(),
+                                    on_error=lambda k, e: print(f"upstox baseline retry {k}: {e}"))
+        have.update(got)
+        if got:
+            print(f"upstox chain {idx}: {len(got)} of {len(miss)} missing OI baselines filled on retry")
 
     # ---- housekeeping --------------------------------------------------
 

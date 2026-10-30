@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR screen</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --line:#dedcd6; --ink:#1b1b1b; --mute:#6b6b66; --ce:#C4452C; --pe:#0B8277; --up:#0b7a3b; --dn:#b3261e;
+          --amber:#9a6700; --inset:#f0efeb; --mono:"JetBrains Mono",Consolas,monospace; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:12.5px/1.35 system-ui,Segoe UI,sans-serif; }
+  .wrap { width:1229px; max-width:100%; margin:0 auto; padding:10px 12px; overflow-x:hidden; }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .tab { padding:5px 12px; border:1px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer; font-weight:600; font-size:12px; }
+  .tab.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .screen { display:none; } .screen.on { display:block; }
+  .bar { display:flex; gap:14px; align-items:baseline; font-family:var(--mono); font-size:12px; color:var(--mute); margin-bottom:8px; flex-wrap:wrap; }
+  .bar b { color:var(--ink); font-size:13px; letter-spacing:.5px; }
+  .grid3 { display:grid; grid-template-columns: 1.25fr 1fr 1fr; gap:10px; }
+  .grid21 { display:grid; grid-template-columns: 2.25fr 1fr; gap:10px; margin-top:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; min-width:0; }
+  .lab { font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--mute); margin-bottom:4px; }
+  .word { font-size:36px; font-weight:800; letter-spacing:.5px; line-height:1.05; }
+  .up { color:var(--up); } .dn { color:var(--dn); } .amber { color:var(--amber); } .mute { color:var(--mute); } .teal { color:var(--pe); }
+  .sub { font-size:15px; font-weight:700; margin-top:4px; }
+  .story { font-size:13px; margin-top:6px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:4px; font-weight:800; font-size:12px; margin-left:8px; vertical-align:middle; }
+  .MAZBOOT { background:#e8f3ec; color:#145a32; border:1px solid #9cc8ad; } .THEEK { background:#fbf1d9; color:#7a5200; border:1px solid #e3c47a; }
+  .KAMZOR { background:var(--inset); color:var(--mute); border:1px solid var(--line); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { border:1px solid var(--line); border-radius:4px; padding:2px 7px; font-size:11.5px; background:var(--inset); white-space:nowrap; font-family:var(--mono); }
+  .chip.ce { border-color:var(--ce); color:var(--ce); background:#fff; } .chip.pe { border-color:var(--pe); color:var(--pe); background:#fff; }
+  .chip.ok { background:#e8f3ec; border-color:#9cc8ad; color:#145a32; } .chip.no { text-decoration:line-through; }
+  table { border-collapse:collapse; width:100%; font-family:var(--mono); font-size:12px; table-layout:fixed; }
+  th { text-align:left; font-weight:600; color:var(--mute); font-size:10.5px; letter-spacing:.3px; text-transform:uppercase; padding:3px 6px; border-bottom:1px solid var(--line); }
+  td { padding:3px 6px; border-bottom:1px solid #eeede8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:top; }
+  td.r { text-align:right; } .ce { color:var(--ce); } .pe { color:var(--pe); }
+  .pat { font-size:17px; font-weight:800; }
+  .bars { display:grid; grid-template-columns: 60px 1fr 70px; gap:6px; align-items:center; font-family:var(--mono); font-size:11.5px; margin-top:6px; }
+  .trk { height:9px; background:var(--inset); border-radius:2px; position:relative; }
+  .trk i { position:absolute; top:0; bottom:0; border-radius:2px; }
+  .neq { margin-top:8px; border-left:3px solid var(--amber); background:#fffaf0; font-family:var(--mono); font-size:11.5px; }
+  .neq table { table-layout:auto; } .neq td { border:0; padding:4px 8px; }
+  details { margin-top:6px; } summary { cursor:pointer; color:var(--mute); font-size:11.5px; }
+  .foot { font-size:11px; color:var(--mute); line-height:1.5; margin-top:10px; }
+  .stamps td:nth-child(1) { font-weight:700; width:52px; } .stamps td:nth-child(2) { width:72px; } .stamps td:nth-child(5) { width:110px; }
+  .small { font-size:11.5px; color:var(--mute); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab on" data-s="move">MOVE · 26 Oct 09:58</div>
+    <div class="tab" data-s="chop">CHOP · 22 Oct 10:01</div>
+    <div class="tab" data-s="pin">PIN · 6 Oct 11:39</div>
+    <div class="tab" data-s="quiet">KHAMOSH · 23 Sep 12:30</div>
+  </div>
+
+  <!-- ================= MOVE · NIFTY 26 Oct 09:58 (final engine) ================= -->
+  <div class="screen on" id="move">
+    <div class="bar"><b>RAFTAAR · NIFTY</b><span>09:58</span><span>spot 22,645s · fut 22,726f · basis +81 (3-min median)</span>
+      <span>15m <b class="up">+191</b> · din <b>+193</b></span><span>DIN (§1o) · abhi nahi</span>
+      <span class="mute">size ref: 20 pichhle normal din · nine OI 1,328L</span><span>BNF <b class="up">CHAL ▲</b> · SNX <b class="up">CHAL ▲</b></span></div>
+    <div class="grid3">
+      <div class="card">
+        <div class="lab">abhi · the picture</div>
+        <div class="word up">CHAL RAHA ▲ <span class="pill MAZBOOT">8/9 MAZBOOT</span></div>
+        <div class="sub">TEZ · SAATH · since 09:50</div>
+        <div class="story"><b>CE BHAAG + PE LIKHAI</b> — losers covering, winners chasing · spot +191 pts/15m · net +79.5L</div>
+        <div class="bars">
+          <span>with</span><div class="trk"><i style="left:0;width:96%;background:var(--up)"></i></div><span class="r">+267L</span>
+          <span>against</span><div class="trk"><i style="left:0;width:0%;background:var(--dn)"></i></div><span class="r">0</span>
+        </div>
+        <div class="chips"><span class="chip ok">size BADA ✓</span><span class="chip ok">aaj ✓</span><span class="chip ok">5m tika ✓</span><span class="chip no">15m tika</span>
+          <span class="chip ok">2+ strikes ✓</span><span class="chip ok">price ✓</span><span class="chip ok">fut ✓</span><span class="chip ok">chop ke bahar ✓</span></div>
+        <div class="neq"><table><tr><td><b>≠ READ</b></td><td>READ: RANGE</td><td>RAFTAAR: CHAL RAHA ▲ 8/9</td><td>CE BHAAG + PE LIKHAI</td><td>+137 pts/15m</td><td>net +79.5L</td><td class="small">09:55</td></tr></table></div>
+      </div>
+      <div class="card">
+        <div class="lab ce">call writers · haar rahe</div>
+        <div class="pat ce">ITM COVER <span class="small">· price pe phanse buy back · fuel</span></div>
+        <div class="chips"><span class="chip ce">22500 −46.3L</span><span class="chip ce">22450 −25.8L</span></div>
+        <table style="margin-top:8px"><tr><th>zone</th><th class="r">15m</th><th>strikes</th></tr>
+          <tr><td>near ≤ 22650</td><td class="r ce">−112.5L</td><td>4/4 ▼</td></tr>
+          <tr><td>wall &gt; 22650 (cap)</td><td class="r ce">−32.7L</td><td>2/4 ▼</td></tr></table>
+        <div class="small" style="margin-top:6px">raftaar −31.9L/min · SHURU · level BADA</div>
+      </div>
+      <div class="card">
+        <div class="lab pe">put writers · jeet rahe</div>
+        <div class="pat pe">DEEWAR MOTI <span class="small">· aage deewar moti ho rahi</span></div>
+        <div class="chips"><span class="chip pe">22500 +37.3L</span><span class="chip pe">22600 +32.3L</span></div>
+        <table style="margin-top:8px"><tr><th>zone</th><th class="r">15m</th><th>strikes</th></tr>
+          <tr><td>near ≥ 22650</td><td class="r pe">+24.3L</td><td>2/3 ▲</td></tr>
+          <tr><td>wall &lt; 22650 (floor)</td><td class="r pe">+97.7L</td><td>5/5 ▲</td></tr></table>
+        <div class="small" style="margin-top:6px">raftaar +18.8L/min · SHURU · level NOTABLE</div>
+      </div>
+    </div>
+    <div class="grid21">
+      <div class="card"><div class="lab">kram · stamped only (newest first)</div>
+        <table class="stamps">
+          <tr><td>09:58</td><td>22,645s</td><td class="up"><b>CHAL RAHA ▲ · TEZ</b></td><td>CE BHAAG + PE LIKHAI · +191 pts · with +267L</td><td>8/9 MAZBOOT</td></tr>
+          <tr><td>09:55</td><td>22,559s</td><td class="amber"><b>≠ READ</b></td><td>READ: RANGE · RAFTAAR: CHAL RAHA ▲ 8/9 · +137/15m · net +79.5L</td><td></td></tr>
+          <tr><td>09:52</td><td>22,503s</td><td class="up"><b>CHAL RAHA ▲ · SHURU</b></td><td>PE FLOOR SAATH · +58 pts/15m · with +52.9L against +63.9L</td><td>5/8 MAZBOOT</td></tr>
+        </table>
+        <details><summary>▸ sab · side events · §1d front changes · the per-strike grid</summary><div class="small">every minute's story, the 18 strike-sides, the §1d chips (CE22500:U CE22800:U PE22500:B PE22400:S), the reference sessions.</div></details>
+      </div>
+      <div class="card"><div class="lab">§1d fronts · verbatim</div>
+        <table><tr><th>front</th><th>state</th></tr><tr><td class="ce">CE 22500</td><td>UNWINDING</td></tr><tr><td class="ce">CE 22800</td><td>UNWINDING</td></tr><tr><td class="pe">PE 22500</td><td>BUILDING</td></tr><tr><td class="pe">PE 22400</td><td>STALLED</td></tr></table>
+        <div class="small" style="margin-top:6px">RAFTAAR adds the whole side's zones, the roll, PHANSE.</div></div>
+    </div>
+  </div>
+
+  <!-- ================= CHOP · NIFTY 22 Oct 10:01 ================= -->
+  <div class="screen" id="chop">
+    <div class="bar"><b>RAFTAAR · NIFTY</b><span>10:01</span><span>spot 22,626s · fut 22,639f · basis +13 (3-min median)</span><span>15m <b>−16</b> · din <b>+37</b></span>
+      <span>DIN (§1o) · abhi nahi</span><span class="mute">size ref: 20 pichhle normal din · nine OI 819L</span><span>BNF <b>CHOP</b> · SNX <b>CHOP</b></span></div>
+    <div class="grid3">
+      <div class="card">
+        <div class="lab">abhi · the picture</div>
+        <div class="word amber">CHOP <span class="pill THEEK">3/6 THEEK</span></div>
+        <div class="sub">legs dono taraf 30 min mein · range30 103 · since 09:55</div>
+        <div class="story">abhi ka swing (small): <b>ATKA ▲ · PE likh rahe, price nahi</b> · net +35.8L · spot −16/15m</div>
+        <div class="chips"><span class="chip ok">size ✓</span><span class="chip no">BADA</span><span class="chip no">aaj</span><span class="chip ok">5m tika ✓</span><span class="chip no">15m tika</span><span class="chip ok">range in band ✓</span></div>
+        <div class="small" style="margin-top:8px">Inside CHOP: swings small, grade capped THEEK, no swing lines, no ≠ line. A swing leaves CHOP only on a moving minute that clears the range standing at its birth, with OI behind it.</div>
+      </div>
+      <div class="card"><div class="lab ce">call writers</div><div class="pat ce">RUKE <span class="small">· ruke</span></div>
+        <table style="margin-top:8px"><tr><th>zone</th><th class="r">15m</th></tr><tr><td>near ≤ 22650</td><td class="r">−5.6L</td></tr><tr><td>wall &gt; 22650</td><td class="r">−0.82L</td></tr></table>
+        <div class="small" style="margin-top:6px">raftaar −1.4L/min · BARABAR · level NOISE</div></div>
+      <div class="card"><div class="lab pe">put writers</div><div class="pat pe">LIKH RAHE <span class="small">· deewar sab taraf</span></div>
+        <div class="chips"><span class="chip pe">22600 +8.7L</span><span class="chip pe">22650 +7.5L</span></div>
+        <table style="margin-top:8px"><tr><th>zone</th><th class="r">15m</th></tr><tr><td>near ≥ 22650</td><td class="r pe">+11.5L</td></tr><tr><td>wall &lt; 22650</td><td class="r pe">+17.8L</td></tr></table>
+        <div class="small" style="margin-top:6px">raftaar +2.1L/min · BARABAR · level NOTABLE</div></div>
+    </div>
+    <div class="grid21">
+      <div class="card"><div class="lab">kram</div>
+        <table class="stamps">
+          <tr><td>09:39</td><td>22,617s</td><td class="amber"><b>CHOP</b></td><td>legs dono taraf 30 min mein · range30 62</td><td>2/5 THEEK</td></tr>
+        </table>
+        <div class="small" style="margin-top:6px">One line in 46 minutes on her stop-loss day. CHOP re-stamps at most once an hour.</div></div>
+      <div class="card"><div class="lab">din</div><div class="small">READ: RANGE (09:45). No ≠ line: CHOP and RANGE agree. Her label for this day: "range day, chop on both sides". Day total after the fix round: 6 lines.</div></div>
+    </div>
+  </div>
+
+  <!-- ================= PIN · NIFTY 6 Oct 11:39 ================= -->
+  <div class="screen" id="pin">
+    <div class="bar"><b>RAFTAAR · NIFTY</b><span>11:39</span><span>spot 22,681s · fut 22,761f · basis +80 (3-min median) · EXPIRY</span><span>15m <b>+3</b> · din <b>+95</b></span>
+      <span class="mute">size ref: 5 pichhle expiry din · nine OI 3,194L</span><span>BNF <b>CHOP</b> · SNX <b>KHAMOSH</b></span></div>
+    <div class="grid3">
+      <div class="card">
+        <div class="lab">abhi · the picture</div>
+        <div class="word teal">PIN @ 22700s <span class="pill THEEK">3/6 THEEK</span></div>
+        <div class="sub">TIKA · since 11:37 · dono barabar baithe</div>
+        <div class="story">OI at 22700: <b class="ce">CE +297.0L</b> · <b class="pe">PE +201.3L</b> · range30 tight · 15m adds CE +37.3L PE +45.8L · net +9.5L</div>
+        <div class="chips"><span class="chip ok">size ✓</span><span class="chip no">BADA</span><span class="chip no">5m tika</span><span class="chip no">15m tika</span><span class="chip ok">range in band ✓</span><span class="chip ok">fut quiet ✓</span></div>
+        <div class="small" style="margin-top:8px">PIN TIKA = both sides holding about equal size at the strike with price inside 0.6 step for 30 min. The line prints the stock that made the word, not a 15-min flow.</div>
+      </div>
+      <div class="card"><div class="lab ce">call writers</div><div class="pat ce">RUKE <span class="small">· ruke</span></div>
+        <table style="margin-top:8px"><tr><th>zone</th><th class="r">15m</th></tr><tr><td>near ≤ 22700</td><td class="r ce">+21.5L</td></tr><tr><td>wall &gt; 22700</td><td class="r ce">+13.4L</td></tr></table>
+        <div class="small" style="margin-top:6px">raftaar +5.4L/min · TEZ · level NOISE</div></div>
+      <div class="card"><div class="lab pe">put writers</div><div class="pat pe">RUKE <span class="small">· ruke</span></div>
+        <table style="margin-top:8px"><tr><th>zone</th><th class="r">15m</th></tr><tr><td>near ≥ 22700</td><td class="r pe">+11.3L</td></tr><tr><td>wall &lt; 22700</td><td class="r pe">+33.1L</td></tr></table>
+        <div class="small" style="margin-top:6px">raftaar +4.1L/min · TEZ · level NOISE</div></div>
+    </div>
+    <div class="grid21">
+      <div class="card"><div class="lab">kram</div>
+        <table class="stamps">
+          <tr><td>11:39</td><td>22,681s</td><td class="teal"><b>PIN @ 22700s</b></td><td>dono barabar baithe · OI at 22700: CE +297.0L PE +201.3L · range30 tight</td><td>3/6 THEEK</td></tr>
+          <tr><td>11:25</td><td>22,678s</td><td class="mute">KHAMOSH</td><td>koi flow noise se upar nahi</td><td></td></tr>
+          <tr><td>10:44</td><td>22,675s</td><td class="up"><b>CHAL RAHA ▲ · SHURU</b></td><td>PE FLOOR SAATH · +26 pts/15m · with +155.2L against +30.1L</td><td>5/9 THEEK</td></tr>
+          <tr><td>10:27</td><td>22,652s</td><td class="teal"><b>PIN @ 22650s</b></td><td>dono likh rahe, barabar · 15m adds CE +58.5L PE +115.5L</td><td>3/7 THEEK</td></tr>
+          <tr><td>10:25</td><td>22,652s</td><td class="mute">KHAMOSH</td><td>koi flow noise se upar nahi</td><td></td></tr>
+          <tr><td>10:04</td><td>22,647s</td><td><b>ATKA ▲ @ 22650s</b></td><td>PE likh rahe · deewar sab taraf · net +360.7L · spot +20 pts/15m</td><td>5/8 MAZBOOT</td></tr>
+        </table></div>
+      <div class="card"><div class="lab">din</div><div class="small">Expiry day: no ≠ line is ever printed on the index's own expiry. §1o DIN would read TREND ▲ for the day (+190 grind); PIN abhi inside a TREND din is a pause, not a contradiction.</div></div>
+    </div>
+  </div>
+
+  <!-- ================= KHAMOSH · NIFTY 23 Sep 12:30 ================= -->
+  <div class="screen" id="quiet">
+    <div class="bar"><b>RAFTAAR · NIFTY</b><span>12:30</span><span>spot 23,452s · fut 23,466f · basis +14 (3-min median)</span><span>15m <b>−6</b> · din <b>+79</b></span>
+      <span class="mute">size ref: 15 pichhle normal din · nine OI 1,144L</span><span>BNF <b>KHAMOSH</b> · SNX <b>KHAMOSH</b></span></div>
+    <div class="card">
+      <div class="lab">abhi</div>
+      <div class="word mute">KHAMOSH · kuch khaas nahi</div>
+      <div class="sub mute">since 12:28 · last real change 12:12 CHAL RAHA ▲ (ended quietly)</div>
+      <div class="chips"><span class="chip ce">CE aage deewar moti · wall +9.9L (23500 +3.5L · 23650 +3.4L)</span><span class="chip pe">PE ruke · adds +18.8L</span><span class="chip">net +9.9L · noise</span></div>
+      <div class="small" style="margin-top:8px">When nothing clears the bar the side panels collapse to one row each and the kram shows the last real change. Nothing else is drawn.</div>
+    </div>
+    <div class="grid21">
+      <div class="card"><div class="lab">kram</div>
+        <table class="stamps">
+          <tr><td>12:12</td><td>23,440s</td><td class="up"><b>CHAL RAHA ▲ · SHURU</b></td><td>CE BHAAG + PE LIKHAI · +32 pts/15m · with +59.4L against 0</td><td>7/9 MAZBOOT</td></tr>
+          <tr><td>12:09</td><td>23,436s</td><td><b>ATKA ▲ @ 23450s</b></td><td>PE likh rahe · deewar sab taraf · net +60.3L · spot +19 pts/15m</td><td>5/8 MAZBOOT</td></tr>
+          <tr><td>11:29</td><td>23,428s</td><td class="mute">KHAMOSH</td><td>koi flow noise se upar nahi</td><td></td></tr>
+          <tr><td>11:19</td><td>23,423s</td><td class="teal"><b>PIN @ 23400s</b></td><td>dono barabar baithe · OI at 23400: CE +118.5L PE +162.0L</td><td>3/6 THEEK</td></tr>
+        </table></div>
+      <div class="card"><div class="lab">din</div><div class="small">23 Sep: NIFTY expiry week's Tuesday, a 111-pt range day. KHAMOSH 158 min, CHOP 64, no ≠ line.</div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Every number [M] from the chain record (26 Oct, 22 Oct, 6 Oct, 23 Sep 2026), produced by final/raftaar.py (final/moment.py prints the same JSON). Words and thresholds [I]. Grade = a count of
+    checks that could be read, never a %. s = spot, f = fut; basis = the 3-min median of fut − spot (fold.BIX_MS's rule). Lakh everywhere (2 decimals under a lakh), points for price. Light theme.
+    Display only: no order path.
+  </div>
+</div>
+<script>
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+      document.querySelectorAll('.screen').forEach(function (x) { x.classList.remove('on'); });
+      t.classList.add('on'); document.getElementById(t.dataset.s).classList.add('on');
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR handshake</title>
+<style>
+:root{--bg:#F4F6F9;--card:#fff;--line:#E3E7ED;--ink:#141A22;--ink2:#5C6675;--ink3:#8A93A0;--up:#1B8A38;--dn:#C42B30;--ce:#C4452C;--pe:#0B8277;--warn:#B45309;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1300px;margin:0 auto;padding:10px 14px 18px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+.brand{font-weight:900;letter-spacing:.8px} .tag{font-size:11px;color:var(--ink2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:var(--card)}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--ink2)} .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctl{display:flex;align-items:center;gap:6px;margin-left:auto} .btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700}
+.clock{font:800 20px var(--mono)} .spot{font:600 13px var(--mono);color:var(--ink2)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:10px} @media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.h{font-size:10.5px;letter-spacing:.6px;color:var(--ink3);text-transform:uppercase;font-weight:800;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+#cv{width:100%;height:640px;display:block;cursor:crosshair}
+.pic{border-radius:10px;padding:10px 12px;color:#fff;margin-bottom:10px;transition:background .4s}
+.pic.light{color:var(--ink)} .pic .w{font:900 26px system-ui} .pic .g{font:800 12px var(--mono);opacity:.9}
+.step{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;padding:6px 0;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 12px var(--mono);background:#EEF1F5;color:var(--ink3)}
+.step.on .num{color:#fff} .step.ok .num{background:var(--up)} .step.bad .num{background:var(--dn)} .step.wait .num{background:var(--warn)} .step.info .num{background:#6D4FC2}
+.st{font-weight:800} .sd{font-size:12px;color:var(--ink2)} .step:not(.on) .st{color:var(--ink3);font-weight:600}
+.srcs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.src{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center} .src b{display:block;font:800 15px var(--mono)} .src span{font-size:10.5px;color:var(--ink3)}
+.agree{margin-top:6px;font-weight:800;text-align:center;border-radius:8px;padding:4px}
+.log div{display:flex;gap:6px;align-items:baseline;font-size:12px;padding:2px 0} .log .t{font:700 12px var(--mono);color:var(--ink2);min-width:40px}
+.tipf{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:7px;max-width:360px;z-index:9;display:none}
+.note{font-size:11px;color:var(--ink3);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="brand">RAFTAAR · HANDSHAKE</span><span class="tag">flow dhakka deta hai → OI ko jawab dena padta hai · REPLAY of a real day</span>
+    <span id="days"></span>
+    <div class="ctl">
+      <button class="btn" id="play">▶</button>
+      <select class="btn" id="spd"><option value="2">2 min/s</option><option value="5" selected>5 min/s</option><option value="12">12 min/s</option></select>
+      <span class="clock" id="clock">--:--</span><span class="spot" id="spot"></span>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="h"><span>ORDER FLOW (3 sources) · upar · STRIKES PE OI (CALL coral upar · PUT teal neeche, motai = aaj ka likha) · price ki line</span><span>◆ = push · ✓ toot · ✗ tiki · ⚑ phans · ★ bada print</span></div>
+      <canvas id="cv"></canvas>
+    </div>
+    <div>
+      <div class="pic" id="pic"><div class="w" id="word">—</div><div class="g" id="grade"></div></div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="h"><span>HANDSHAKE · abhi</span><span id="age"></span></div>
+        <div class="step" id="s1"><div class="num">1</div><div><div class="st" id="s1t">PUSH</div><div class="sd" id="s1d"></div></div></div>
+        <div class="step" id="s2"><div class="num">2</div><div><div class="st" id="s2t">OI KA JAWAB</div><div class="sd" id="s2d"></div></div></div>
+        <div class="step" id="s3"><div class="num">3</div><div><div class="st" id="s3t">PEECHHE FLOOR / CAP</div><div class="sd" id="s3d"></div></div></div>
+        <div class="step" id="s4"><div class="num">4</div><div><div class="st" id="s4t">FLOW ABHI</div><div class="sd" id="s4d"></div></div></div>
+        <div class="step" id="s5"><div class="num">5</div><div><div class="st" id="s5t">AAGE NAYI DEEWAR</div><div class="sd" id="s5d"></div></div></div>
+        <div class="step" id="s6"><div class="num">6</div><div><div class="st" id="s6t">PALAT KA FUEL</div><div class="sd" id="s6d"></div></div></div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="h"><span>FLOW · teen source · pichhla poora 5-min bar (lots)</span><span id="slot"></span></div>
+        <div class="srcs">
+          <div class="src"><span>DEXT 1m</span><b id="fD">—</b></div>
+          <div class="src"><span>GOCHARTING</span><b id="fG">—</b></div>
+          <div class="src"><span>UPSTOX</span><b id="fU">—</b></div>
+        </div>
+        <div class="agree" id="agree"></div>
+      </div>
+      <div class="card"><div class="h"><span>PUSH LOG · naya upar</span></div><div class="log" id="log"></div></div>
+    </div>
+  </div>
+  <div class="note">Every number [M] from the record (chain OI per minute; NIFTY fut flow: Dext 1-min, GoCharting + Upstox 5-min, lots). PUSH = a 2-min Dext delta ≥ 2× its last-30-min normal and ≥ 150 lots [I]; its ANSWER is read 4 min later at the strike it hit [I]: ✓ TOOT (that strike's writers cut), ⚑ PHANS (they added and price went through), ✗ TIKI (they added, price stalled), · NAHI (no answer). ★ = a print ≥ 10× normal (a block / roll), shown apart. Causal: nothing right of the playhead is drawn. Display only.</div>
+</div>
+<div class="tipf" id="tf"></div>
+<script src="data.js"></script>
+<script>
+const D = window.HS || [], $ = (id) => document.getElementById(id);
+const C = { up: '#1B8A38', dn: '#C42B30', ce: '#C4452C', pe: '#0B8277', ink: '#141A22', ink2: '#5C6675', ink3: '#8A93A0', line: '#E3E7ED', warn: '#B45309', pin: '#6D4FC2' };
+const T0 = 555, T1 = 930, hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const f0 = (x) => Math.round(x).toLocaleString('en-IN'), sg = (x, d = 0) => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(d);
+const PIC = { 'CHAL RAHA': (d) => [d > 0 ? C.up : C.dn, `CHAL RAHA ${d > 0 ? '▲' : '▼'}`], WAPSI: (d) => [d > 0 ? '#6FBF84' : '#E07F82', `WAPSI ${d > 0 ? '▲' : '▼'}`],
+  CHOP: () => ['#D99A1E', 'CHOP ⇅'], PIN: () => [C.pin, 'PIN ◎'], ATKA: (d) => ['#2F7FB8', `ATKA ${d > 0 ? '⇡' : '⇣'}`], UNWIND: () => ['#6E7C8C', 'UNWIND'],
+  'BINA OI': (d) => [d > 0 ? '#A8D5B4' : '#EDB3B5', `BINA OI ${d > 0 ? '▲' : '▼'}`], KHAMOSH: () => ['#E9ECF1', 'KHAMOSH · kuch khaas nahi'] };
+const ANS = { TOOT: ['✓', 'toot rahi'], PHANS: ['⚑', 'phans rahe'], TIKI: ['✗', 'tiki'], NAHI: ['✗', 'jawab nahi'] };
+let day, i = 0, playing = false, timer = 0, at = {}, marks = [];
+
+function setDay(n) {
+  day = D[n]; document.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === n));
+  at = {}; day.rows.forEach((r, j) => { at[r.m] = j; if (Array.isArray(r.oi)) { const o = {}; day.strikes.forEach((k, q) => (o[k] = [r.oi[2 * q], r.oi[2 * q + 1]])); r.oi = o; } });
+  let mx = 1; day.rows.forEach((r) => Object.values(r.oi).forEach(([a, b]) => (mx = Math.max(mx, a ?? 0, b ?? 0)))); day.mx = mx;
+  const p95 = (a) => { const s = a.filter((x) => x != null).map(Math.abs).sort((x, y) => x - y); return s[Math.floor(0.95 * (s.length - 1))] || 1; };
+  day.sd = p95(day.rows.map((r) => r.d)); day.s5 = p95(day.G.map((b) => b[1]).concat(day.U.map((b) => b[1])));
+  i = Math.max(0, day.rows.findIndex((r) => r.m >= 9 * 60 + 44)); draw();
+}
+
+/* ------------- the canvas: three flow strips over the strike map, one time axis ------------- */
+function draw() {
+  const cv = $('cv'), dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const L = 92, R = W - 8, now = day.rows[i].m, X = (m) => L + ((m - T0) / (T1 - T0)) * (R - L);
+  const strips = [['DEXT 1m', 8], ['GOCHARTING 5m', 56], ['UPSTOX 5m', 104]], SH = 40, MT = 158, MB = H - 22;
+  g.font = '700 10px system-ui'; g.textBaseline = 'middle';
+  // flow strips
+  strips.forEach(([name, y]) => { g.fillStyle = C.ink3; g.fillText(name, 4, y + SH / 2); g.strokeStyle = C.line; g.beginPath(); g.moveTo(L, y + SH / 2); g.lineTo(R, y + SH / 2); g.stroke(); });
+  const bar = (m, w, v, y, sc) => { if (v == null) return; const h = Math.min(SH / 2 - 1, (Math.abs(v) / sc) * (SH / 2 - 2)); g.fillStyle = v > 0 ? C.up : C.dn; g.fillRect(X(m), v > 0 ? y + SH / 2 - h : y + SH / 2, Math.max(1, X(m + w) - X(m) - 0.5), h); };
+  day.rows.forEach((r) => { if (r.m <= now) bar(r.m, 1, r.d, 8, day.sd); });
+  day.rows.forEach((r) => { if (r.m <= now && r.d === null) { g.fillStyle = 'rgba(180,83,9,.18)'; g.fillRect(X(r.m), 8, Math.max(1, X(r.m + 1) - X(r.m)), SH); } });
+  day.G.forEach(([m, v]) => { if (m + 5 <= now + 1) bar(m, 5, v, 56, day.s5); });
+  day.U.forEach(([m, v]) => { if (m + 5 <= now + 1) bar(m, 5, v, 104, day.s5); });
+  // 5-min agreement ticks under the strips
+  for (let m = T0; m + 5 <= Math.min(now + 1, T1); m += 5) {
+    const ds = day.rows.filter((r) => r.m >= m && r.m < m + 5 && r.d != null).reduce((a, r) => a + r.d, 0);
+    const gv = (day.G.find((b) => b[0] === m) || [])[1], uv = (day.U.find((b) => b[0] === m) || [])[1];
+    const s = [ds, gv, uv].filter((v) => v != null).map(Math.sign);
+    if (s.length === 3) { g.fillStyle = s.every((x) => x === s[0]) ? (s[0] > 0 ? C.up : C.dn) : C.warn; g.fillRect(X(m), 148, X(m + 5) - X(m) - 1, 4); }
+  }
+  // strike map
+  const ks = day.strikes, kMax = ks[ks.length - 1], kMin = ks[0], Y = (p) => MT + ((kMax + day.step / 2 - p) / (kMax - kMin + day.step)) * (MB - MT), rh = (MB - MT) / ks.length;
+  ks.forEach((k) => { g.strokeStyle = '#EEF1F5'; g.beginPath(); g.moveTo(L, Y(k)); g.lineTo(R, Y(k)); g.stroke(); g.fillStyle = C.ink2; g.font = '600 10.5px ui-monospace,monospace'; g.fillText(f0(k), 30, Y(k)); });
+  const sc = (rh * 0.46) / day.mx;
+  day.rows.forEach((r) => {
+    if (r.m > now) return; const x = X(r.m), w = Math.max(1, X(r.m + 1) - x);
+    ks.forEach((k) => { const [c, p] = r.oi[k] || []; if (c > 0) { g.fillStyle = 'rgba(196,69,44,.55)'; g.fillRect(x, Y(k) - c * sc, w, c * sc); } if (p > 0) { g.fillStyle = 'rgba(11,130,119,.55)'; g.fillRect(x, Y(k), w, p * sc); } });
+  });
+  // the future is not drawn
+  g.fillStyle = 'rgba(244,246,249,.85)'; g.fillRect(X(now) + 1, 0, R - X(now), H);
+  // price
+  g.strokeStyle = C.ink; g.lineWidth = 2; g.beginPath(); let first = true;
+  day.rows.forEach((r) => { if (r.m <= now && r.s) { first ? g.moveTo(X(r.m), Y(r.s)) : g.lineTo(X(r.m), Y(r.s)); first = false; } }); g.stroke(); g.lineWidth = 1;
+  // pushes and their answers
+  marks = [];
+  day.events.forEach((e) => {
+    if (e.m > now) return;
+    const x = X(e.m), y = Y(e.spot), done = e.am != null && e.am <= now, col = e.dir > 0 ? C.up : C.dn;
+    if (e.print) {
+      g.fillStyle = C.pin; g.font = '900 16px system-ui'; g.fillText('★', x - 6, y - 12);
+      g.font = '700 10px system-ui'; g.fillText(`BADA PRINT ${f0(Math.abs(e.lots))} lots`, x + 6, y - 12);
+      marks.push({ x, y: y - 12, tip: `${hm(e.m)} ★ BADA PRINT: ${f0(e.lots)} lots in 2 min on Dext (normal ${e.norm}). Price barely moved. A block / roll, not a push. Check the three sources on the right.` });
+      return;
+    }
+    if (done && e.ans === 'NAHI') { g.fillStyle = C.ink3; g.beginPath(); g.arc(x, y, 2.5, 0, 7); g.fill(); marks.push({ x, y, tip: `${hm(e.m)} push ${e.dir > 0 ? '▲' : '▼'} ${f0(e.lots)} lots (normal ${e.norm}) into ${e.side} ${f0(e.k)}: OI ne jawab nahi diya (${sg(e.chg, 1)}L). Noise.` }); return; }
+    g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 6, y); g.lineTo(x, y + 7); g.lineTo(x - 6, y); g.closePath();
+    if (!done) { g.strokeStyle = col; g.lineWidth = 2; g.stroke(); g.lineWidth = 1; g.fillStyle = col; g.font = '800 10px system-ui'; g.fillText('?', x + 8, y); }
+    else {
+      g.fillStyle = e.ans === 'TIKI' ? C.ink3 : col; g.fill();
+      const [ic, w] = ANS[e.ans]; g.font = '800 10.5px system-ui'; g.fillStyle = e.ans === 'TIKI' ? C.ink2 : col;
+      g.fillText(`${ic} ${e.side} ${f0(e.k)} ${sg(e.chg, 0)}L ${w}`, x + 9, y + (e.dir > 0 ? -9 : 9));
+      if (e.behind) { const yb = Y(e.behind[0]); g.strokeStyle = e.dir > 0 ? C.pe : C.ce; g.lineWidth = 3; g.beginPath(); g.moveTo(x, yb); g.lineTo(X(e.am), yb); g.stroke(); g.lineWidth = 1;
+        g.fillStyle = e.dir > 0 ? C.pe : C.ce; g.font = '700 10px system-ui'; g.fillText(`${e.dir > 0 ? 'FLOOR' : 'CAP'} ${f0(e.behind[0])} +${e.behind[1].toFixed(0)}L`, X(e.am) + 3, yb + (e.dir > 0 ? 8 : -8)); }
+    }
+    marks.push({ x, y, tip: `${hm(e.m)} PUSH ${e.dir > 0 ? '▲' : '▼'} ${f0(e.lots)} lots in 2 min (normal ${e.norm}) into ${e.side} ${f0(e.k)}` + (done ? ` → ${hm(e.am)}: ${ANS[e.ans][1]} (${sg(e.chg, 1)}L), price ${sg(e.moved)} pts${e.behind ? `, ${e.dir > 0 ? 'floor' : 'cap'} ${f0(e.behind[0])} +${e.behind[1]}L` : ''}` : ' → jawab ka intezaar') });
+  });
+  // playhead + axis
+  g.strokeStyle = C.ink; g.beginPath(); g.moveTo(X(now), 0); g.lineTo(X(now), MB); g.stroke();
+  g.fillStyle = C.ink3; g.font = '600 10px system-ui'; for (let h = 10; h <= 15; h++) g.fillText(`${h}:00`, X(h * 60) - 12, H - 8);
+  panel(now);
+}
+
+/* ------------- the right side: the chain at this minute ------------- */
+function panel(now) {
+  const r = day.rows[i]; $('clock').textContent = hm(now); $('spot').textContent = r.s ? `spot ${r.s.toFixed(1)}s` : '';
+  const p = r.p || [], f = PIC[p[0]], [bg, word] = f ? f(p[1]) : ['#CBD2DB', 'PADH RAHE ?'];
+  $('pic').style.background = bg; $('pic').classList.toggle('light', p[0] === 'KHAMOSH' || !f); $('word').textContent = word;
+  $('grade').textContent = p[3] ? `${p[2]}/${p[3]} checks saath${p[4] ? ' · ' + p[4] : ''}` : (p[4] || '');
+  const TITLE = { 1: 'PUSH', 2: 'OI KA JAWAB', 3: 'PEECHHE FLOOR / CAP', 4: 'FLOW ABHI', 5: 'AAGE NAYI DEEWAR', 6: 'PALAT KA FUEL' };
+  const set = (n, cls, t, d) => { const s = $('s' + n); s.className = 'step' + (cls ? ' on ' + cls : ''); $('s' + n + 't').textContent = t || TITLE[n]; $('s' + n + 'd').innerHTML = d || ''; };
+  const ev = day.events.filter((e) => !e.print && e.m <= now && e.m >= now - 15).pop();   // an unanswered push is shown too: "flow pushed, OI did not agree"
+  const oi = (m, k, s) => { const j = at[m]; return j == null ? null : day.rows[j].oi[k]?.[s]; };
+  const d2 = (m) => { const a = day.rows[at[m - 1]]?.d, b = day.rows[at[m]]?.d; return a == null || b == null ? null : a + b; };
+  if (!ev) {
+    set(1, '', 'PUSH', 'pichhle 15 min mein koi asli dhakka nahi'); ['2', '3', '4', '5', '6'].forEach((n) => set(n, '', null, ''));
+    $('age').textContent = '';
+  } else {
+    const slot = ev.m - ((ev.m - T0) % 5), gv = (day.G.find((b) => b[0] === slot) || [])[1], uv = (day.U.find((b) => b[0] === slot) || [])[1];
+    const arrow = (v) => (v == null ? '?' : v > 0 ? '▲' : '▼'), agree = [ev.dir, Math.sign(gv ?? 0), Math.sign(uv ?? 0)].every((x) => x === ev.dir);
+    set(1, 'info', `PUSH ${ev.dir > 0 ? '▲' : '▼'} ${hm(ev.m)}`, `Dext ${sg(ev.lots)} lots in 2 min (normal ${ev.norm}) into <b>${ev.side} ${f0(ev.k)}</b> · GoCharting ${arrow(gv)} · Upstox ${arrow(uv)} · ${agree ? '<b>3/3 saath</b>' : '<b style="color:#B45309">sources jhagda</b>'}`);
+    $('age').textContent = `${now - ev.m} min pehle`;
+    if (ev.am == null || ev.am > now) {
+      const live = oi(now, ev.k, ev.side === 'CE' ? 0 : 1), was = oi(ev.m, ev.k, ev.side === 'CE' ? 0 : 1);
+      set(2, 'wait', 'OI KA JAWAB · intezaar', `${ev.side} ${f0(ev.k)} abhi tak ${live != null && was != null ? sg(live - was, 1) + 'L' : '?'} · ${ev.am ? ev.am - now : 4} min baaki`);
+      ['3', '4', '5', '6'].forEach((n) => set(n, '', null, ''));
+    } else {
+      const ok = ev.ans === 'TOOT' || ev.ans === 'PHANS';
+      set(2, ok ? 'ok' : 'bad', `OI KA JAWAB · ${ANS[ev.ans][0]} ${ANS[ev.ans][1].toUpperCase()}`, `${ev.side} ${f0(ev.k)} ${sg(ev.chg, 1)}L in 4 min · price ${sg(ev.moved)} pts ${ev.dir > 0 ? 'upar' : 'neeche'}`);
+      if (ev.ans === 'NAHI') {      // no handshake: say it, and stop the chain here
+        set(3, 'bad', 'ASLI MOVE NAHI', 'flow ne dhakka diya, OI ne nahi maana: noise ya fake. Is dhakke pe bharosa mat karo.');
+        ['4', '5', '6'].forEach((n) => set(n, '', null, '')); return sources(now);
+      }
+      set(3, ev.behind ? 'ok' : 'bad', ev.behind ? `${ev.dir > 0 ? 'NAYA FLOOR' : 'NAYI CAP'} ${f0(ev.behind[0])}` : 'PEECHHE KOI NAHI', ev.behind ? `${ev.dir > 0 ? 'PUT' : 'CALL'} writers +${ev.behind[1]}L ${ev.dir > 0 ? 'neeche' : 'upar'} likh rahe: move ko sahara` : `${ev.dir > 0 ? 'neeche PUT' : 'upar CALL'} likhai nahi: hawa mein move`);
+      const x = d2(now), st = x == null ? ['', 'flow ? (source chup)'] : Math.sign(x) === ev.dir && Math.abs(x) >= ev.norm ? ['ok', `jaari ${ev.dir > 0 ? '▲' : '▼'} · ${sg(x)} lots/2m`] : Math.sign(x) === -ev.dir && Math.abs(x) >= 2 * ev.norm ? ['bad', `PALAT ${ev.dir > 0 ? '▼' : '▲'} · ${sg(x)} lots/2m`] : ['wait', `thanda · ${sg(x)} lots/2m`];
+      set(4, st[0], 'FLOW ABHI', st[1]);
+      // a new wall ahead (same side as the one that broke, beyond price) and the reversal fuel (the other side writing at the price), last 10 min
+      const m10 = now - 10, ahead = [], back = [];
+      day.strikes.forEach((k) => {
+        const s = ev.side === 'CE' ? 0 : 1, a = oi(now, k, s), b = oi(m10, k, s), o = oi(now, k, 1 - s), ob = oi(m10, k, 1 - s);
+        if (a != null && b != null && (ev.dir > 0 ? k > r.s : k < r.s)) ahead.push([k, a - b]);
+        if (o != null && ob != null && Math.abs(k - r.s) <= day.step) back.push([k, o - ob]);
+      });
+      const A = ahead.sort((x, y) => y[1] - x[1])[0], B = back.sort((x, y) => y[1] - x[1])[0];
+      set(5, A && A[1] >= 3 ? 'wait' : '', A && A[1] >= 3 ? `NAYI ${ev.dir > 0 ? 'CAP' : 'FLOOR'} ${f0(A[0])}` : 'AAGE NAYI DEEWAR', A && A[1] >= 3 ? `${ev.side} +${A[1].toFixed(1)}L in 10 min ${ev.dir > 0 ? 'upar' : 'neeche'}: thakaan ka khatra` : 'aage koi nayi likhai nahi');
+      const flip = x != null && Math.sign(x) === -ev.dir && Math.abs(x) >= ev.norm;   // a real opposite push, not a cooling
+      set(6, B && B[1] >= 3 && flip ? 'bad' : '', B && B[1] >= 3 && flip ? `PALAT KA FUEL ${f0(B[0])}` : 'PALAT KA FUEL', B && B[1] >= 3 && flip ? `${ev.dir > 0 ? 'PUT' : 'CALL'} +${B[1].toFixed(1)}L price pe likha aur flow palat raha: yeh agla fuel` : 'abhi nahi');
+    }
+  }
+  sources(now);
+}
+
+function sources(now) {
+  // the three sources on the SAME window: the last completed 5-min bar (GoCharting / Upstox bars start at :15, :20 ...)
+  const slot = now - ((now - T0) % 5) - 5, dsum = day.rows.filter((q) => q.m >= slot && q.m < slot + 5 && q.d != null), dv = dsum.length ? dsum.reduce((a, q) => a + q.d, 0) : null;
+  const gv = (day.G.find((b) => b[0] === slot) || [])[1], uv = (day.U.find((b) => b[0] === slot) || [])[1];
+  $('slot').textContent = `${hm(slot)}–${hm(slot + 5)}`;
+  const show = (id, v) => { $(id).textContent = v == null ? '?' : sg(v); $(id).style.color = v == null ? C.ink3 : v > 0 ? C.up : C.dn; };
+  show('fD', dv); show('fG', gv); show('fU', uv);
+  const s = [dv, gv, uv].filter((v) => v != null).map(Math.sign), ag = $('agree');
+  if (s.length < 3) { ag.textContent = 'ek source chup hai: could not check all three'; ag.style.background = '#FFF4E5'; ag.style.color = C.warn; }
+  else if (s.every((v) => v === s[0])) { ag.textContent = `3/3 SAATH ${s[0] > 0 ? '▲ kharidaar' : '▼ bechne wale'}`; ag.style.background = s[0] > 0 ? '#E8F5EC' : '#FBEAEA'; ag.style.color = s[0] > 0 ? C.up : C.dn; }
+  else { ag.textContent = 'JHAGDA: sources alag bol rahe (A122)'; ag.style.background = '#FFF4E5'; ag.style.color = C.warn; }
+  // the push log
+  $('log').innerHTML = day.events.filter((e) => e.m <= now && (e.print || e.am == null || e.am > now || e.ans !== 'NAHI')).slice(-7).reverse().map((e) => {
+    const done = e.am != null && e.am <= now, col = e.dir > 0 ? C.up : C.dn;
+    return `<div><span class="t">${hm(e.m)}</span><span style="color:${e.print ? C.pin : col};font-weight:800">${e.print ? '★ PRINT' : (e.dir > 0 ? '◆▲' : '◆▼')}</span><span>${f0(Math.abs(e.lots))} lots · ${e.side} ${f0(e.k)}</span><b style="margin-left:auto;color:${e.print ? C.pin : done ? (e.ans === 'TOOT' || e.ans === 'PHANS' ? col : C.ink3) : C.warn}">${e.print ? 'block / roll' : done ? ANS[e.ans][0] + ' ' + ANS[e.ans][1] : '…'}</b></div>`;
+  }).join('') || '<div class="sd">abhi koi push nahi</div>';
+}
+
+$('cv').addEventListener('mousemove', (e) => {
+  const b = $('cv').getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top, hit = marks.find((m) => Math.abs(m.x - x) < 8 && Math.abs(m.y - y) < 9), tf = $('tf');
+  if (hit) { tf.textContent = hit.tip; tf.style.display = 'block'; tf.style.left = Math.min(e.clientX + 12, innerWidth - 380) + 'px'; tf.style.top = e.clientY + 12 + 'px'; } else tf.style.display = 'none';
+});
+$('cv').addEventListener('click', (e) => {
+  const b = $('cv').getBoundingClientRect(), L = 92, m = T0 + ((e.clientX - b.left - L) / (b.width - L - 8)) * (T1 - T0);
+  const j = day.rows.findIndex((r) => r.m >= m); i = j < 0 ? day.rows.length - 1 : j; draw();
+});
+function tick() { if (i < day.rows.length - 1) { i++; draw(); } else stop(); }
+function start() { playing = true; $('play').textContent = '❚❚'; clearInterval(timer); timer = setInterval(tick, 1000 / +$('spd').value); }
+function stop() { playing = false; $('play').textContent = '▶'; clearInterval(timer); }
+$('play').onclick = () => (playing ? stop() : start()); $('spd').onchange = () => playing && start();
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); playing ? stop() : start(); } if (e.code === 'ArrowRight') { i = Math.min(day.rows.length - 1, i + 1); draw(); } if (e.code === 'ArrowLeft') { i = Math.max(0, i - 1); draw(); } });
+addEventListener('resize', () => day && draw());
+$('days').innerHTML = D.map((d, n) => `<span class="chip" data-n="${n}">${d.day.slice(8)} Oct · ${d.label}</span>`).join(' ');
+document.querySelectorAll('.chip').forEach((c) => (c.onclick = () => { stop(); setDay(+c.dataset.n); }));
+if (D.length) setDay(0);
+</script>
+</body>
+</html>

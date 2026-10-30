@@ -1,0 +1,16 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-23 · NORMAL · down day, §1o TREND ▼ 11:30 → CHOP · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???·▼▼▼·▼▼▼▼▼▼▼▼▼▼▼··▼▼·~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+09:34     22684s  CHAL RAHA ▼ · SHURU                 5/10 THEEK      CE CAP SAATH · spot -50 pts/15m · with +93.4L against +129.6L
+09:52     22638s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+09:55     22630s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -77 pts/15m · with +52.5L against +19.8L
+10:02     22581s  CHAL RAHA ▼ · TEZ                   10/11 MAZBOOT   PE BHAAG + CE LIKHAI · spot -103 pts · with +155.6L
+10:51     22474s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+10:58     22430s  CHAL RAHA ▼ · SHURU                 7/11 MAZBOOT    CE CAP SAATH · spot -85 pts/15m · with +43.7L against +5.9L
+11:13     22488s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 89 · (pichhla move 11:12 par khatam)
+12:58     22425s  CHOP                                5/8 MAZBOOT     legs dono taraf 30 min mein · range30 54
+14:35     22548s  CHOP                                5/8 MAZBOOT     legs dono taraf 30 min mein · range30 39
+
+-- minutes: CHOP 257, CHAL RAHA ▼ 88, ? 15, KHAMOSH 13
+-- stamps: 9 (pictures / quiet / ? 6, phases + ends 3, side events 0, ≠ READ 0)

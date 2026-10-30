@@ -1,0 +1,1288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS · chart decode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f2ed; --card:#ffffff; --ink:#15181e; --mut:#6b7280; --line:#e3e0d7; --grid:#eeebe4; --soft:#f6f4ef;
+  --up:#0f9d76; --dn:#e5484d; --ce:#c2410c; --pe:#2563eb; --ai:#d97757; --ai2:#f2b48f; --you:#7c3aed; --band:#7c5cbf;
+  --ok:#0f9d76; --bad:#e5484d; --q:#9aa0a6;
+  --mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --sans:Inter,system-ui,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 var(--sans)}
+body{display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
+b{font-weight:700}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 9px;cursor:pointer;color:var(--ink);line-height:1.2}
+button:hover{border-color:var(--ai)}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---- top bar */
+.bar{display:flex;align-items:center;gap:14px;padding:7px 14px;background:var(--card);border-bottom:1px solid var(--line);min-height:50px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.08em;font-size:13px}
+.brand small{font-weight:500;color:var(--mut);letter-spacing:0;font-size:12px}
+.clock{font:700 24px/1 var(--mono);min-width:112px;letter-spacing:.02em}
+.ctl{display:flex;align-items:center;gap:5px}
+.ctl .grp{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.ctl .grp button{border:0;border-radius:0;padding:4px 8px}
+.ctl .grp button+button{border-left:1px solid var(--line)}
+.quotes{display:flex;gap:14px;margin-left:auto;font-size:12px}
+.qt{display:grid;line-height:1.15}
+.qt .k{font-size:10px;color:var(--mut);letter-spacing:.06em}
+.qt .v{font:700 13px var(--mono)}
+.qt .v small{font:500 11px var(--mono);color:var(--mut)}
+.up{color:var(--up)} .dn{color:var(--dn)} .mut{color:var(--mut)}
+
+/* ---- layout */
+main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px 12px 10px;min-height:0}
+.left{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:7px;min-height:0;min-width:0;position:relative}
+
+/* ---- state strip */
+.strip{display:grid;grid-template-columns:1.25fr 1fr 1fr .8fr 1.35fr 1.1fr;gap:6px}
+.strip.h7{grid-template-columns:1.25fr 1fr 1fr .8fr 1.35fr 1.1fr 1.1fr}
+.cell[hidden],.trade[hidden]{display:none}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px 6px;min-width:0;position:relative}
+.cell .k{font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--mut)}
+.cell .v{font:700 13px/1.25 var(--mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .s{font:500 11px/1.3 var(--mono);color:var(--mut);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter{height:6px;border-radius:4px;background:#efece5;margin-top:5px;overflow:hidden;position:relative}
+.meter i{display:block;height:100%;width:0;border-radius:4px;background:var(--ai);transition:width .6s cubic-bezier(.2,.8,.2,1),background .3s}
+.meter em{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--mut);opacity:.6}
+.cell.nt{background:#f1efe9;border-style:dashed}
+.cell.nt[hidden]{display:none}
+.pill{display:inline-block;font:700 11px var(--mono);padding:2px 7px;border-radius:99px;background:#f1eee7;color:var(--ink);white-space:nowrap}
+.pill.ok{background:#e6f6f0;color:var(--ok)} .pill.bad{background:#fdecec;color:var(--bad)} .pill.q{background:#f1f1f1;color:#7a7f87}
+
+/* ---- stage */
+#stage{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:380px}
+#cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:4}
+.shard{position:absolute;width:10px;height:3px;border-radius:2px;background:var(--ce)}
+#tip{position:absolute;z-index:9;max-width:340px;padding:7px 10px;border-radius:9px;background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.14);font-size:12px;pointer-events:none;opacity:0;transition:opacity .15s;border:1px solid var(--line)}
+#tip b{font-family:var(--mono)}
+
+/* the bubble on the chart */
+.bubble{position:absolute;left:0;top:0;width:344px;padding:11px 13px 11px;border-radius:15px;background:rgba(255,255,255,.95);
+  backdrop-filter:blur(8px);box-shadow:0 12px 36px rgba(60,40,20,.16),0 0 0 1px rgba(217,119,87,.22);
+  transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .4s,width .3s;will-change:transform;z-index:5}
+.bubble::before{content:"";position:absolute;inset:-1px;border-radius:16px;padding:1.5px;pointer-events:none;
+  background:conic-gradient(from var(--a,0deg),var(--ai),#f6d2bd,#fff,var(--ai2),var(--ai));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 4s linear infinite}
+@property --a{syntax:"<angle>";initial-value:0deg;inherits:false}
+@keyframes spin{to{--a:360deg}}
+.bubble.dark{opacity:.72;filter:grayscale(.8)}
+.bubble.quiet{width:300px}
+.bubble.quiet .bchips,.bubble.quiet .bnext{display:none}
+.bubble.quiet .btext{font-size:13px;min-height:0}
+.bhead{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+.orb{width:28px;height:28px;border-radius:50%;flex:none;position:relative;
+  background:radial-gradient(circle at 35% 30%,#fff 0 8%,#ffd9c4 22%,var(--ai) 58%,#a8492b 100%);
+  box-shadow:0 0 0 0 rgba(217,119,87,.45);animation:breathe 3s ease-in-out infinite}
+.orb::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(217,119,87,.35);opacity:0}
+.orb.think{animation:breathe .8s ease-in-out infinite}
+.orb.talk::after{animation:ring 1.1s ease-out infinite}
+@keyframes breathe{50%{transform:scale(1.08);box-shadow:0 0 18px 2px rgba(217,119,87,.35)}}
+@keyframes ring{0%{opacity:.9;transform:scale(.9)}100%{opacity:0;transform:scale(1.7)}}
+.who{font-weight:700;letter-spacing:.08em;font-size:11.5px}
+.who .tm{font:600 12px var(--mono);color:var(--mut);letter-spacing:0;margin-left:6px}
+.tag{margin-left:auto;font:700 11px var(--mono);padding:3px 8px;border-radius:99px;background:#f3efe8;color:var(--ink);white-space:nowrap}
+.btext{font-size:14px;line-height:1.42;min-height:40px}
+.caret{display:inline-block;width:7px;height:14px;background:var(--ai);vertical-align:-2px;margin-left:1px;animation:blink .9s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.dots span{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:var(--ai);animation:hop 1s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes hop{30%{transform:translateY(-5px);opacity:.5}}
+.bchips,.rc{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.chip{font:600 11px var(--mono);padding:2px 7px;border-radius:6px;background:#f5f2ec;border:1px solid var(--line);opacity:0;transform:translateY(4px);animation:rise .35s forwards}
+.chip.ok{color:var(--ok);border-color:#bfe6d8;background:#effaf5}
+.chip.bad{color:var(--bad);border-color:#f6c9cb;background:#fdf1f1}
+.chip.q{color:#7a7f87}
+.chip.you{color:var(--you);border-color:#d9c8f6;background:#f6f1fd}
+@keyframes rise{to{opacity:1;transform:none}}
+.bnext,.rn{margin-top:7px;padding-top:6px;border-top:1px dashed var(--line);font-size:12px;display:grid;gap:2px;font-family:var(--mono)}
+.bnext .wr,.rn .wr{color:var(--mut)}
+
+/* ---- timeline scrubber + chapter rail */
+#tl{display:block;width:100%;height:46px;background:var(--card);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+#rail{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:11px}
+.rp{font:600 11px var(--mono);padding:3px 8px;border-radius:99px;border:1px solid var(--line);background:#fff;color:#b3b0a8;cursor:pointer;transition:all .4s}
+.rp.lit{color:var(--ink);border-color:var(--ai);box-shadow:0 0 0 3px rgba(217,119,87,.12)}
+.rp.now{background:var(--ai);color:#fff;border-color:var(--ai)}
+.arrow{color:#cdc8bd}
+.legend{margin-left:auto;font-size:11px;color:var(--mut)}
+
+/* ---- right panel: JARVIS */
+.panel{display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.phead{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.phead .who{font-size:12px}
+.badge{font:700 10px var(--mono);padding:3px 7px;border-radius:99px;letter-spacing:.06em;background:#f1eee7;color:var(--mut)}
+.badge.live{background:#e6f6f0;color:var(--ok)} .badge.blind{background:#ececec;color:#777} .badge.back{background:#fdf0e8;color:var(--ce)}
+.phead .right{margin-left:auto;display:flex;gap:5px;align-items:center}
+.trade{padding:9px 12px;border-bottom:1px solid var(--line);background:var(--soft)}
+.trade .k{font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--mut);display:flex;justify-content:space-between}
+.trade .k i{font-style:normal;font-weight:500;letter-spacing:0;text-transform:none}
+.trade .v{font:700 13px var(--mono);margin-top:3px}
+.trade .big{font:700 26px/1.05 var(--mono);margin:3px 0 2px}
+.trade .s{font:500 11.5px var(--mono);color:var(--mut)}
+.feed{overflow:auto;padding:6px 8px;display:grid;gap:5px;align-content:start;scroll-behavior:smooth}
+.row{padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer;animation:rise .3s both}
+.row:hover{border-color:var(--ai)}
+.row.major{border-left:3px solid var(--ai)}
+.row.bad{border-left-color:var(--bad)} .row.ok{border-left-color:var(--ok)} .row.q{border-left-color:#c7c7c7}
+.row.you{background:#f8f5fe;border-color:#e2d6f7;border-left:3px solid var(--you)}
+.row.now{box-shadow:0 0 0 2px rgba(217,119,87,.25)}
+.rh{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.rt{font:700 11px var(--mono);color:var(--mut)}
+.rtag{font:700 10.5px var(--mono);padding:1px 6px;border-radius:99px;background:#f1eee7}
+.rtag.bad{background:#fdecec;color:var(--bad)} .rtag.ok{background:#e6f6f0;color:var(--ok)} .rtag.q{color:#7a7f87} .rtag.you{background:#efe6fd;color:var(--you)}
+.rsrc{margin-left:auto;font:500 10px var(--mono);color:#b0ada5}
+.rx{font-size:12.5px;line-height:1.38}
+.rc{margin-top:5px}.rc .chip{animation:none;opacity:1;transform:none;font-size:10.5px}
+.rn{font-size:11.5px;margin-top:5px;padding-top:5px}
+.cmd{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);background:var(--soft)}
+.cmd input{flex:1;font:500 12.5px var(--mono);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);min-width:0}
+.cmd input:focus{outline:2px solid rgba(217,119,87,.35);border-color:var(--ai)}
+.cmd button{padding:6px 10px}
+
+/* ---- overlays */
+.over{position:fixed;inset:0;display:grid;place-items:center;background:rgba(243,242,237,.88);backdrop-filter:blur(6px);z-index:20;transition:opacity .5s;overflow:auto;padding:20px}
+.over[hidden]{display:none}
+.card{background:#fff;border-radius:20px;padding:28px 32px;box-shadow:0 20px 60px rgba(60,40,20,.18);max-width:640px;text-align:center}
+.bigorb{width:84px;height:84px;margin:0 auto 12px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 8%,#ffd9c4 22%,var(--ai) 58%,#a8492b 100%);animation:breathe 2.4s ease-in-out infinite}
+.card h1{margin:4px 0 6px;font-size:24px;letter-spacing:.03em}
+.card p{color:var(--mut);margin:6px 0;font-size:13.5px}
+.card .go{margin-top:14px;font-size:15px;padding:9px 22px;border-radius:99px;background:var(--ai);color:#fff;border:0}
+.card .keys{font:500 11px var(--mono);color:var(--mut);margin-top:12px}
+.review{max-width:1180px;width:100%;text-align:left;padding:24px 28px}
+.review h1{font-size:20px;margin:0 0 2px;display:flex;align-items:center;gap:10px}
+.review h1 small{font:500 12px var(--mono);color:var(--mut)}
+.story{font:600 12px var(--mono);line-height:1.9;margin:8px 0 14px;color:var(--ink)}
+.rgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px 22px}
+.rsec h3{font-size:11px;letter-spacing:.09em;color:var(--mut);margin:0 0 5px;font-weight:700}
+.endtab{width:100%;border-collapse:collapse;font:500 12px var(--mono);text-align:left}
+.endtab td,.endtab th{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.endtab th{font-size:10px;color:var(--mut);letter-spacing:.06em;font-weight:700}
+.endtab td.r{text-align:right;white-space:nowrap}
+.review .foot{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:12px;color:var(--mut)}
+.review .foot .go{margin:0;margin-left:auto}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:1180px){main{grid-template-columns:minmax(0,1fr) 320px}.strip{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><div class="orb" style="width:22px;height:22px"></div>JARVIS <small>NIFTY Nov fut · 28 Oct · replay from recorded + backfilled numbers</small></div>
+  <div class="clock" id="clock">09:15:00</div>
+  <div class="ctl">
+    <button id="play">▶ play</button>
+    <div class="grp"><button data-sp="1">1×</button><button data-sp="2" class="on">2×</button><button data-sp="4">4×</button></div>
+    <div class="grp"><button data-md="1" class="on">1m</button><button data-md="3">3m</button></div>
+    <button id="voice" title="speak the major lines (speechSynthesis)">🔇 voice off</button>
+  </div>
+  <div class="quotes">
+    <div class="qt"><span class="k">NIFTY fut · spot</span><span class="v" id="qN">—</span></div>
+    <div class="qt"><span class="k">BASIS f−s</span><span class="v" id="qB">—</span></div>
+    <div class="qt"><span class="k">BANKNIFTY</span><span class="v" id="qBN">—</span></div>
+    <div class="qt"><span class="k">SENSEX</span><span class="v" id="qSX">—</span></div>
+    <div class="qt"><span class="k">DAY</span><span class="v" id="qD">—</span></div>
+  </div>
+</header>
+<main>
+  <section class="left">
+    <div class="strip" id="strip">
+      <div class="cell"><div class="k">FIGHT</div><div class="v" id="sFight">—</div><div class="s" id="sFight2">—</div></div>
+      <div class="cell"><div class="k">FUEL</div><div class="v" id="sFuel">—</div><div class="meter"><i id="mFuel"></i><em style="left:20%"></em></div><div class="s" id="sFuel2">bar 500 lots / 5 min</div></div>
+      <div class="cell"><div class="k">SPEED</div><div class="v" id="sSpd">—</div><div class="meter"><i id="mSpd"></i><em style="left:66%"></em></div><div class="s" id="sSpd2">3-min delta vs its median</div></div>
+      <div class="cell"><div class="k">ALL 3</div><div class="v" id="sSync">—</div><div class="s" id="sSync2">5-min moves</div></div>
+      <div class="cell"><div class="k">VERDICT · band read now</div><div class="v" id="sVer">—</div><div class="s" id="sVer2">—</div></div>
+      <div class="cell"><div class="k">ROOM</div><div class="v" id="sRoom">—</div><div class="s" id="sRoom2">—</div></div>
+      <div class="cell" id="sHealthC" hidden><div class="k">HEALTH <span id="sHealthAt"></span></div><div class="v" id="sHealth">—</div><div class="s" id="sHealth2">—</div></div>
+      <div class="cell nt" id="sNT" hidden><div class="k">NO TRADE</div><div class="v" id="sNT1">—</div><div class="s" id="sNT2">—</div></div>
+    </div>
+    <div id="stage"><canvas id="cv"></canvas><div id="fx"></div>
+      <div id="bubble" class="bubble">
+        <div class="bhead"><div class="orb" id="orb"></div><div class="who">JARVIS<span class="tm" id="btm">09:15</span></div><span class="tag" id="btag">LIVE</span></div>
+        <div class="btext" id="btext"></div>
+        <div class="bchips" id="bchips"></div>
+        <div class="bnext" id="bnext"></div>
+      </div>
+    </div>
+    <canvas id="tl" aria-label="timeline scrubber"></canvas>
+    <div id="rail"></div>
+    <div id="tip"></div>
+  </section>
+  <aside class="panel">
+    <div class="phead"><div class="orb" id="porb" style="width:22px;height:22px"></div><div class="who">JARVIS</div><span class="badge" id="src">BACKFILLED</span>
+      <div class="right"><span class="badge" id="nev">0 lines</span></div></div>
+    <div class="trade" id="callc" hidden><div class="k">THE CALL <i id="cAt">—</i></div><div class="big" id="cW">—</div><div class="s" id="cLeg" hidden>—</div><div class="s" id="cPause" hidden>—</div><div class="s" id="cDay" hidden>—</div><div class="s" id="cWr">—</div><div class="s" id="cB">—</div><div class="s" id="cS">—</div></div>
+    <div class="trade" id="trade"><div class="k">LAST TRIGGER <i>guidance only</i></div><div class="v" id="tV">no trigger yet</div><div class="big" id="tP">—</div><div class="s" id="tS">zone: d2→d3 buy · u2→u3 sell · 3-min bands</div></div>
+    <div class="feed" id="feed"></div>
+    <form class="cmd" id="cmd" autocomplete="off"><input id="cin" placeholder="line 22750f · watch 22800s · why? · what next? · help" aria-label="command"><button type="submit">→</button></form>
+  </aside>
+</main>
+<div class="over" id="intro"><div class="card">
+  <div class="bigorb"></div>
+  <h1>JARVIS · chart decode</h1>
+  <p>28 Oct, NIFTY Nov futures, 09:15–13:40, as if the laptop had been on all morning.</p>
+  <p>Laptop on at 11:07; asleep 12:54–13:00. Those minutes are rebuilt: flow from Dext, chain from Upstox. What could not be rebuilt is shown blind.</p>
+  <p>Every line is generated from the data: pushes, the wall's answers, fuel, your band verdicts, top / bottom signs, manage lines, no-trade stretches. Jarvis never places an order.</p>
+  <button class="go" id="go">▶ Watch</button>
+  <div class="keys">space play · ← → step · [ ] events · 1 2 4 speed · m 1m/3m · v voice · / command</div>
+</div></div>
+<div class="over" id="end" hidden><div class="card review">
+  <h1><div class="orb" style="width:26px;height:26px"></div>Evening review · 28 Oct <small id="endMeta"></small></h1>
+  <div class="story" id="story"></div>
+  <div class="rgrid">
+    <div class="rsec"><h3>YOUR ZONE TRIGGERS · what Jarvis said · what it then managed</h3><table class="endtab"><thead><tr><th>Trigger</th><th>Verdict</th><th>Manage lines</th><th class="r">Next 30 min fav / adv</th></tr></thead><tbody id="endZ"></tbody></table></div>
+    <div class="rsec"><h3>WALLS · tested · broke · defended</h3><table class="endtab"><thead><tr><th>Wall</th><th class="r">Tested</th><th class="r">Broke</th><th class="r">Defended</th><th>Ending</th></tr></thead><tbody id="endW"></tbody></table></div>
+    <div class="rsec"><h3>FUEL RUNS ≥ 2× the bar</h3><table class="endtab"><thead><tr><th>Start</th><th>Who</th><th class="r">Lots</th><th>Spent</th><th class="r">Price start → spent</th></tr></thead><tbody id="endF"></tbody></table></div>
+    <div class="rsec"><h3>TOP / BOTTOM SIGNS called · next 15 min</h3><table class="endtab"><thead><tr><th>Time</th><th>Call</th><th class="r">At</th><th class="r">Next 15 min with / against</th></tr></thead><tbody id="endS"></tbody></table></div>
+    <div class="rsec"><h3>DAY</h3><table class="endtab" id="endD"></table></div>
+    <div class="rsec"><h3>COVERAGE · what was real, rebuilt, blind</h3><table class="endtab" id="endC"></table></div>
+  </div>
+  <div class="foot"><span>Rows, not rates. One day. Every verdict is scored every evening. Guidance only: Jarvis never places an order.</span><button class="go" id="again">↺ Again</button></div>
+</div></div>
+
+<script>
+"use strict";
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = s => document.querySelector(s);
+const cv = $("#cv"), ctx = cv.getContext("2d"), stage = $("#stage"), bubble = $("#bubble"), tl = $("#tl"), tctx = tl.getContext("2d");
+const COL = {up:"#0f9d76", dn:"#e5484d", ce:"#c2410c", pe:"#2563eb", ai:"#d97757", grid:"#eeebe4", mut:"#6b7280", ink:"#15181e", q:"#9aa0a6", band:"#7c5cbf", you:"#7c3aed", line:"#e3e0d7"};
+const MONO = '"JetBrains Mono",ui-monospace,Consolas,monospace';
+const fmt = x => Math.round(x).toLocaleString("en-IN");
+const sgn = x => (x >= 0 ? "+" : "−") + fmt(Math.abs(x));
+const L = x => x == null ? "?" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(1) + "L";
+const ARR = d => d > 0 ? "▲" : "▼";
+const toM = hm => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
+const toHM = m => String(m / 60 | 0).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c]));
+const med = a => { const s = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
+const clampI = i => Math.max(0, Math.min(N - 1, Math.floor(i)));
+
+// The exporter's words -> hers (spec §16.2: English)
+const EN = s => String(s == null ? "" : s)
+  .replace(/SAAF NAHI/g, "UNCLEAR").replace(/GHUMEGA/g, "ROTATE").replace(/CHALEGA/g, "CONTINUE")
+  .replace(/TOOT\?/g, "BREAK?").replace(/TIKI\?/g, "DEFENDED?").replace(/\bTOOT\b/g, "BROKEN").replace(/\bTIKI\b/g, "DEFENDED")
+  .replace(/GHUSE\?/g, "BUYERS IN?").replace(/\bGHUSE\b/g, "BUYERS IN").replace(/PEECHHE CHHOOTA/g, "LEFT BEHIND")
+  .replace(/\bPHANS\b/g, "TRAPPED").replace(/\bNAHI\b/g, "HELD").replace(/jawab baaki/g, "answer pending")
+  .replace(/min mein push nahi/g, "min, no push").replace(/\bKHATAM\b/g, "SPENT").replace(/chal raha/g, "running")
+  .replace(/disha \?/g, "direction ?").replace(/koi run nahi/g, "no run").replace(/(\d\d:\d\d) tak /g, "until $1 ").replace(/ tak /g, " until ")
+  .replace(/abhi push nahi/g, "no push yet").replace(/koi deewar nahi/g, "no wall").replace(/ step\)/g, " steps)")
+  .replace(/^hole$/, "can't see").replace(/\bbina toot\b/g, "no break").replace(/RASAD cover/g, "FUEL cover").replace(/RASAD/g, "FUEL")
+  .replace(/DASTAK/g, "TESTED").replace(/THAKAN/g, "WEAKENING").replace(/KHISAK/g, "RETREATING").replace(/DEEWAR/g, "WALL").replace(/\bCHAL\b/g, "CONTINUES");
+const PIECE = {DASTAK: "TESTS", "ULTA PUSH": "OPPOSITE PUSH"};
+const MEAN = {"shorts cover": "shorts covering", "naye short": "fresh shorts", "naye long": "fresh longs", "longs nikal rahe": "longs closing"};
+const WORD = {GHUMEGA: "ROTATE", CHALEGA: "CONTINUE", "SAAF NAHI": "UNCLEAR"};
+const ANS = {NAHI: "HELD", TOOT: "BROKEN", TIKI: "DEFENDED", PHANS: "TRAPPED"};
+// G4: a TIKI is DEFENDED only when writers opened the add; buyers' is BUYERS IN. G1: "±2" when the band answered.
+const ansWord = p => (p.ans === "TIKI" && p.who === "KHAREEDAR" ? "BUYERS IN" : ANS[p.ans] || p.ans) + (p.via === "band" ? " ±2" : "");
+const bandTag = p => (p.via === "band" ? " ±2 strikes" : "");
+const STATE = {BUILDING: "building", STALLED: "stalled", UNWINDING: "unwinding"};
+
+let D, N, cand = [], bas = [], ev = [], pins = [], NT = [], marks = [], Y0 = 0, Y1 = 1, DMAX1 = 1, DMAX3 = 1, MAXOI = 100;
+let t = 0, playing = false, speed = 2, last = 0, holdUntil = 0, ended = false, fired = -1, mode = 1, voiceOn = false, hover = null, tlHover = null, shownMin = -1;
+const userLines = [], userZones = [], watches = [], chat = [];
+const SEC_PER_MIN = 1.5;
+const ix = hm => D.mins.indexOf(hm);
+const ixS = hms => { const i = ix(hms.slice(0, 5)); return i < 0 ? -1 : i + (+hms.slice(6, 8) || 0) / 60; };
+const lvl = (k, i) => k + bas[clampI(i)];
+const cur = () => clampI(t);
+
+// J2: ?api=<url> reads the brain's frame live (GET /api/jarvis), re-polled every 20 s; ?d=<file> a frame saved by
+// export_mockup.py; else the 28 Oct file. A frame with reads / health / call is rendered as sent (one brain); the JS reads
+// below are only the fallback for older files. From this static server (8787) use ?api=http://localhost:5173/api/jarvis
+// (Vite's proxy answers a localhost origin; 8765 itself allows one origin, kite.zerodha.com, so a direct fetch is blocked).
+const QS = new URLSearchParams(location.search), API = QS.get("api");
+const fetchFrame = u => fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.now()).then(r => r.json());
+fetchFrame(API || QS.get("d") || "data_28oct.json").then(d => {
+  if (!d || !d.mins) { $("#btext").textContent = `no frame: ${(d && d.why) || "empty"}`; return; }
+  init(d);
+}).catch(() => {
+  $("#btext").textContent = (API ? `${API} did not answer` : "data_28oct.json not found") + ": serve this folder (launch: kahani-mockup).";
+});
+if (API) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) swapFrame(d); }).catch(() => {}), 20000);
+
+function swapFrame(d) {                               // a new live frame: rebuilt; the playhead stays at now unless she scrubbed
+  const follow = t >= N - 1.5, keep = t;
+  prep(d);
+  seek(follow ? N - 1 : Math.min(keep, N - 1));
+}
+function init(d) {
+  prep(d);
+  rail(); fit(); seek(API ? N - 1 : 0); renderMinute(cur(), true);
+  if (API) $("#intro").hidden = true;
+  requestAnimationFrame(loop);
+}
+function prep(d) {
+  D = d; N = d.mins.length; cand = []; bas = []; ev = []; NT = []; marks = []; SPD.length = 0; DMAX1 = 1; DMAX3 = 1; MAXOI = 100;
+  const lf = D.live_from || "11:07", rebuilt = ix(lf) > 0;
+  $(".brand small").textContent = `${D.idx} fut · ${D.day} · ${API ? "live from the brain" : "replay"} · to ${D.mins[N - 1]}`;
+  const ps = document.querySelectorAll("#intro p");
+  ps[0].textContent = `${D.day}, ${D.idx} futures, ${D.mins[0]}–${D.mins[N - 1]}${rebuilt ? ", as if the laptop had been on all morning" : ""}.`;
+  ps[1].textContent = D.health ? (D.health.notes.length ? "What it could not see: " + D.health.notes.join(" · ") + "." : "Every source live.")
+    : `Laptop on at ${lf}. Those minutes are rebuilt: flow from Dext, chain from Upstox. What could not be rebuilt is shown blind.`;
+  for (let i = 0; i < N; i++) {
+    const o = d.fo ? d.fo[i] : i ? d.fut[i - 1] : d.fut[0], c = d.fut[i];
+    cand.push({o, c, h: Math.max(d.fhi[i], o, c), l: Math.min(d.flo[i], o, c)});
+  }
+  const raw = d.mins.map((_, i) => d.fut[i] - d.spot[i]);
+  bas = raw.map((_, i) => { const w = raw.slice(Math.max(0, i - 4), i + 1).sort((a, b) => a - b); return w[w.length >> 1]; });
+  let lo = Math.min(...d.flo), hi = Math.max(...d.fhi);
+  d.timeline.forEach((r, i) => (r.fronts || []).forEach(f => { const y = lvl(f.k, i); if (Math.abs(y - d.fut[i]) < 160) { lo = Math.min(lo, y); hi = Math.max(hi, y); } }));
+  Y0 = lo - 30; Y1 = hi + 30;
+  if (d.delta) { DMAX1 = Math.max(1, ...d.delta.map(Math.abs)); for (let b = 2; b < N; b += 3) DMAX3 = Math.max(DMAX3, Math.abs(d.delta[b] + d.delta[b - 1] + d.delta[b - 2])); }
+  for (const hm in d.ladder) for (const side of ["ce", "pe"]) for (const k in d.ladder[hm][side]) MAXOI = Math.max(MAXOI, d.ladder[hm][side][k]);
+  buildEvents();
+  marks = ev.filter(e => e.push || e.toot || e.zone || e.tag === "BLIND" || e.floor || e.chap === "FUEL" || e.chap === "FUEL SPENT" || (e.signs && !e.signs.driving) || e.chap === "NEW FIGHT" || e.chap === "MANAGE");
+  renderBrain();
+}
+function renderBrain() {                              // the brain's health and its one call (the frame's last minute)
+  const h = D.health, c = D.call;
+  $("#strip").classList.toggle("h7", !!h); $("#sHealthC").hidden = !h; $("#callc").hidden = !c;
+  if (h) {
+    $("#sHealthAt").textContent = `at ${D.mins[N - 1]}`;
+    $("#sHealth").textContent = h.notes.length ? `${h.notes.length} gap${h.notes.length > 1 ? "s" : ""}` : "all live";
+    $("#sHealth").style.color = h.notes.length ? COL.dn : COL.up;
+    $("#sHealth2").textContent = h.notes[0] || `Dext ${h.dext.minutes} min · chain whole`;
+    $("#sHealthC").title = h.notes.join("\n") || "every source live";
+  }
+  if (c) {
+    $("#cAt").textContent = `at ${c.at} · guidance only`;
+    // P0 (30 Oct): CAN'T SEE is shown blind, never as a quiet NO TRADE; the last word is not carried
+    // THE LEG (30 Oct): the word is the leg's state with its lean (▲ / ▼); the vote it replaced is in the tooltip
+    const lean = c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0);
+    $("#cW").textContent = c.word; $("#cW").style.color = c.word === "CAN'T SEE" ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut;
+    $("#callc").style.opacity = c.word === "CAN'T SEE" ? 0.55 : 1;
+    for (const [id, txt] of [["#cLeg", c.leg], ["#cPause", c.pause && c.pause.line], ["#cDay", c.day]]) {
+      $(id).hidden = !txt; if (txt) $(id).textContent = txt;
+    }
+    $("#cWr").textContent = c.wrong_line; $("#cB").textContent = "buyer: " + c.buyer; $("#cS").textContent = "seller: " + c.seller;
+    $("#callc").title = c.why.concat([c.up, c.dn], c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
+      c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).join("\n");
+  }
+}
+
+/* ------------------------------------------------------------ the story, generated from the data -- */
+function fronts(i) { return (D.timeline[clampI(i)] || {}).fronts || []; }
+function topFront(i, side) { return fronts(i).find(f => f.side === side); }
+function nearWall(i, side) {                          // the nearest wall on its own side of spot: CE above, PE below
+  const sp = D.spot[clampI(i)], c = fronts(i).filter(f => f.side === side && (side === "CE" ? f.k > sp - 5 : f.k < sp + 5));
+  c.sort((a, b) => side === "CE" ? a.k - b.k : b.k - a.k);
+  return c[0] || null;
+}
+function wallTxt(f) { return f ? `${fmt(f.k)}s ${f.side} ${f.oi != null ? f.oi.toFixed(0) + "L" : "?"}` : "no wall in 2 steps"; }
+function vchips(v) {
+  return v ? Object.entries(v.pieces).map(([k, [m, x]]) => ({t: `${m} ${PIECE[k] || k} · ${EN(x)}`, c: m === "✓" ? "ok" : m === "✗" ? "bad" : "q"})) : [];
+}
+function vword(v) { return v ? `${WORD[v.word] || v.word} ${v.n}/${v.N}${v.q ? ` · ${v.q} ?` : ""}` : "?"; }
+
+function buildEvents() {
+  const E = (i, o) => { if (i >= 0 && i <= N - 1 + 0.99) ev.push(Object.assign({i}, o)); };
+  const b0 = ix(D.live_from || "11:07"), ce0 = nearWall(0, "CE"), pe0 = nearWall(0, "PE");
+  E(0.02, {tag: "LIVE", chap: "WALL", major: true,
+    text: `**09:15 · reading NIFTY Nov fut.** ${b0 > 0 ? `Morning is **backfilled** (laptop on at ${D.mins[b0]}): chain from Upstox, flow from Dext.` : "Recorded live from the open."} Walls: **${wallTxt(ce0)}** above · **${wallTxt(pe0)}** below.`,
+    chips: [{t: "chain: Upstox backfill"}, {t: "flow: Dext"}],
+    up: ce0 ? `▲ needs ${fmt(ce0.k)}s CE to break` : null, dn: pe0 ? `▼ needs ${fmt(pe0.k)}s PE to break` : null});
+  if (b0 > 0) E(b0 + 0.05, {tag: "LIVE FEED", text: `**LIVE from ${D.mins[b0]}** · book + chain recording. Everything before this was rebuilt.`, chips: [{t: `book + chain from ${D.mins[b0]}`}]});
+
+  // pushes and the wall's answers
+  const tested = {}, broke = {};
+  for (const p of D.pushes) {
+    const i = ix(p.t); if (i < 0) continue;
+    E(i + 1, {tag: `PUSH ${ARR(p.dir)}`, push: p,
+      text: `**PUSH ${ARR(p.dir)} ${sgn(p.lots)} lots** / 2 min → **${fmt(p.k)}s ${p.side} ${p.oi_L != null ? p.oi_L + "L" : "?"}**. Answer by **${toHM(toM(p.t) + 4)}**.`,
+      chips: [{t: `answer by ${toHM(toM(p.t) + 4)}`}].concat(D.bnf && sync(i + 1) && sync(i + 1).dir === p.dir ? [{t: `ALL 3 ${ARR(p.dir)}`, c: "ok"}] : [])});
+    const key = p.k + p.side;
+    if (!p.ans || p.ans === "?") {
+      E(p.am && ix(p.am) >= 0 ? ix(p.am) + 1 : i + 5, {tag: "CAN'T SEE", tagc: "q", text: `**CAN'T SEE** the answer to the ${p.t} push: option chain missing then.`, chips: [{t: "chain hole", c: "q"}]});
+      continue;
+    }
+    if (ix(p.held_at || p.am) < 0) continue;                 // its answer falls after the replay's window
+    const known = ix(p.held_at || p.am) + 1;
+    if (p.ans === "TOOT" && p.held_at && p.held_at !== p.am) E(ix(p.am) + 1, {tag: "BREAK?", tagc: "bad", major: true, crack: p,
+      text: `**BREAK? ${fmt(p.k)}s ${p.side} ${L(p.chg)}** (bar ${p.bar}L): writers cutting. One minute to confirm it does not come back.`, chips: [{t: "BREAK? · confirming"}]});
+    tested[key] = (tested[key] || 0) + 1;
+    if (p.ans === "TOOT") broke[key] = (broke[key] || 0) + 1;
+    const n = tested[key], b = broke[key] || 0, beh = p.behind && p.behind.who === "WRITERS" ? `writers behind: ${fmt(p.behind.k)}s ${p.behind.side} +${p.behind.add}L` : null;
+    if (p.ans === "NAHI") E(known, {tag: "HELD", ans: p, chap: "TESTED",
+      text: `**HELD** · ${fmt(p.k)}s ${p.side} **${L(p.chg)}** (bar ${p.bar}L)${p.wapas ? " · **BREAK FAILED**: a break started and came back" : ""} · tested ×${n} · broke ${b}.`,
+      chips: [{t: `TESTED ×${n} · broke ${b}`}].concat(beh ? [{t: beh, c: "ok"}] : [])});
+    else if (p.ans === "TOOT") {
+      const nxt = fronts(known).filter(f => f.side === p.side && (p.side === "CE" ? f.k > p.k : f.k < p.k))[0];
+      E(known, {tag: "BROKEN", tagc: "bad", ans: p, toot: p, major: true, chap: "BROKEN",
+        text: `**BROKEN · ${fmt(p.k)}s ${p.side}${bandTag(p)} ${L(p.chg)}**${p.held_at ? ` · confirmed ${p.held_at}` : ""} · writers buying back. Next wall: **${wallTxt(nxt)}**.`,
+        chips: [{t: `BROKEN ${p.t} · ${L(p.chg)}`, c: "bad"}, {t: `tested ×${n} · broke ${b}`}].concat(p.shown ? [{t: `on screen that day: ${p.shown}`}] : []),
+        up: p.dir > 0 ? (nxt ? `▲ while fuel runs → ${fmt(nxt.k)}s CE` : "▲ open space above") : null,
+        dn: p.dir < 0 ? (nxt ? `▼ while fuel runs → ${fmt(nxt.k)}s PE` : "▼ open space below") : null,
+        wr: "wrong if: a new fuel run the other way ≥ 500 lots / 5 min"});
+    } else if (p.ans === "TIKI" && p.who === "KHAREEDAR") E(known, {tag: "BUYERS IN", tagc: "bad", ans: p, major: true,   // G4
+      text: `**BUYERS IN** · buyers opened **${L(p.chg)}** at ${fmt(p.k)}s ${p.side}${bandTag(p)}: not a defence, they bet the wall breaks · tested ×${n} · broke ${b}.`,
+      chips: [{t: `BUYERS IN ${fmt(p.k)}s ${p.side}`, c: "bad"}]});
+    else if (p.ans === "TIKI") E(known, {tag: "DEFENDED", tagc: "ok", ans: p, major: true,
+      text: `**DEFENDED** · writers added **${L(p.chg)}** at ${fmt(p.k)}s ${p.side}${bandTag(p)}${p.who ? "" : " (who opened it: ?)"} · push absorbed · tested ×${n} · broke ${b}.`,
+      chips: [{t: `DEFENDED ${fmt(p.k)}s ${p.side}`, c: "ok"}]});
+    else if (p.ans === "PHANS") E(known, {tag: "TRAPPED", tagc: "bad", ans: p, major: true,
+      text: `**TRAPPED** · writers added ${L(p.chg)} at ${fmt(p.k)}s ${p.side}, price went through. Stored fuel.`, chips: [{t: "TRAPPED WRITERS", c: "bad"}]});
+  }
+
+  // fuel: only runs of at least 2x the bar speak; smaller ones live in the tank
+  for (const r of D.runs) {
+    if (Math.abs(r.lots) < 2 * D.bar) continue;
+    const i = ix(r.start), row = D.timeline[i] || {}, w = row.fuel ? row.fuel.lots : r.lots;
+    E(i + 0.5, {tag: `FUEL ${r.dir}`, tagc: r.kind === "COVER" ? "bad" : null, major: true, chap: "FUEL",
+      text: `**FUEL · ${MEAN[r.meaning] || r.meaning} ${sgn(w)} lots** / 5 min · price ${r.dir}. ${r.kind === "COVER" ? "Their buy-back pushes price on." : "New positions opening."}`,
+      chips: [{t: `FUEL ${r.kind.toLowerCase()} ${r.dir} ${sgn(w)}`, c: r.kind === "COVER" ? "bad" : null}, {t: "bar 500 lots / 5 min"}]});
+    if (r.khatam && ix(r.khatam) >= 0) E(ix(r.khatam) + 0.2, {tag: "FUEL SPENT", major: true, chap: "FUEL SPENT",
+      text: `**FUEL SPENT ${r.khatam}** · ${MEAN[r.meaning] || r.meaning} **${sgn(r.lots)} lots** · last extreme ${r.last_ext} · 3 publishes, nothing new. **Who pushes now?**`,
+      chips: [{t: `SPENT ${r.khatam} · ${sgn(r.lots)}`}]});
+  }
+
+  // the fights' chapters (first time each)
+  for (const f of D.fights) {
+    const seen = new Set();
+    for (const [hm, word, note] of f.stamps) {
+      const i = ix(hm); if (i < 0) continue;
+      const w0 = word.split(" ")[0];
+      if (w0 === "DEEWAR" && f.id > 0 && !seen.has("D")) { seen.add("D"); E(i + 0.1, {tag: "NEW FIGHT", chap: "NEW FIGHT", major: true, text: `**NEW FIGHT · WALL ${wallTxt(fronts(i).find(x => x.k === f.k && x.side === f.side) || {k: f.k, side: f.side})}** is the one price presses on.`, chips: [{t: "NEW FIGHT"}]}); }
+      if (w0 === "THAKAN" && !seen.has("T")) { seen.add("T"); const r = D.timeline[i];
+        E(i + 0.1, {tag: "WEAKENING", chap: "WEAKENING", text: `**WEAKENING** · ${fmt(f.k)}s ${f.side} unwinding while tested: **${L(r.wall_chg)}** vs peak ${L(r.wall_peak)}.`, chips: [{t: `${L(r.wall_chg - r.wall_peak)} off peak`, c: "bad"}]}); }
+      if (w0 === "KHISAK" && !seen.has("K")) { seen.add("K"); E(i + 0.1, {tag: "RETREATING", text: `**RETREATING** · writers at ${fmt(f.k)}s ${f.side} leaving, untested.`, chips: [{t: "RETREATING"}]}); }
+      if (w0 === "NAYA" && !seen.has("N")) { seen.add("N"); E(i + 0.15, {tag: "NEW FLOOR", tagc: "ok", chap: "NEW FLOOR", floor: {k: f.k, at: i}, major: true, text: `**NEW FLOOR (flip)** · ${EN(note)}. Old ceiling → floor.`, chips: [{t: "NEW FLOOR", c: "ok"}]}); }
+      if (w0 === "PIN" && !seen.has("P")) { seen.add("P"); E(i + 0.1, {tag: "PINNED", chap: "NO TRADE", major: true, text: "**PINNED** · pushes both ways HELD, fuel quiet. Small range until new fuel.", chips: [{t: "PINNED"}]}); }
+    }
+  }
+
+  // her zone triggers, with the verdict at that minute
+  for (const z of D.zone) {
+    if (z.kind) continue;
+    const i = ix(z.t), v = (D.verdict[z.side] || {})[z.t];
+    if (i < 0) continue;
+    const w = v ? (WORD[v.word] || v.word) : "?";
+    E(i + 0.6, {tag: `${z.side} TRIGGER`, tagc: w === "CONTINUE" ? "bad" : w === "ROTATE" ? "ok" : null, zone: z, verdict: v, major: true,
+      text: `**Your ${z.side} zone · ${fmt(z.px)}f** (${z.band}). Read: **${vword(v)}** → ${w === "CONTINUE" ? "don't fade this." : w === "ROTATE" ? "the fade has support." : "wait for the next push or the fuel."}`,
+      chips: vchips(v)});
+  }
+
+  // the blind stretch, and what came back
+  for (const [a, b] of D.holes) {
+    const h0 = ixS(a), h1 = ixS(b);
+    E(h0, {tag: "BLIND", tagc: "q", dark: true, major: true, text: `**BLIND from ${a}** · laptop asleep. I won't say what I can't see.`, chips: [{t: "book + chain stopped", c: "q"}]});
+    const miss = D.chain_missing.filter(m => m >= a.slice(0, 5) && m <= b.slice(0, 5));
+    const hi = Math.max(...D.fhi.slice(Math.floor(h0), Math.ceil(h1) + 1)), lo = Math.min(...D.flo.slice(Math.floor(h0), Math.ceil(h1) + 1));
+    const inside = ev.filter(e => e.major && e.i >= h0 && e.i <= h1 && e.tag !== "BLIND").map(e => `${e.tag} ${D.mins[clampI(e.i)]}`);
+    E(h1, {tag: "BACK", major: true, text: `**BACK ${b}** · flow refilled from Dext${miss.length ? ` · chain ${miss[0]}–${miss[miss.length - 1]} not rebuilt: answers there unread` : ""}. **While blind:** high ${fmt(hi)}f · low ${fmt(lo)}f${inside.length ? " · " + inside.join(" · ") : ""}.`,
+      chips: [{t: "flow: Dext refill"}].concat(miss.length ? [{t: `chain blind ${miss[0]}–${miss[miss.length - 1]}`, c: "q"}] : [])});
+    ev.forEach(e => { if (e.i > h0 && e.i < h1) e.src = "backfilled on wake"; });
+  }
+  if (b0 > 0) ev.forEach(e => { if (e.i < b0 && !e.src) e.src = "backfilled"; });
+
+  if (D.reads) { sidesEvents(E); writerEvents(E); }
+  if (D.delta) { signs3(E); manage(E); }
+
+  // NO TRADE: the brain's stretches (quiet / can't see), one line per quiet stretch
+  if (D.reads) {
+    for (const s of D.reads.notrade) {
+      const a = ix(s.from), b = ix(s.to); if (a < 0 || b < 0) continue;
+      for (let i = a; i <= b; i++) NT[i] = {kind: s.why === "quiet" ? "quiet" : "blind", since: s.since};
+      if (s.why === "quiet") ev.push({i: a + 0.05, tag: "NO TRADE", chap: "NO TRADE", quiet: true,
+        text: `**NO TRADE · quiet since ${s.since}** · no break, no fuel, no trigger, writers not pushing. Ends on: ${s.ends}.`,
+        chips: [{t: "NO TRADE"}, {t: "waiting: FUEL, writers or a BREAK"}]});
+    }
+    ev.sort((a, b) => a.i - b.i);
+    return;
+  }
+  // NO TRADE (older files): 20 quiet minutes (no break, no fuel, no trigger) -> one line per stretch, and a state per minute
+  ev.sort((a, b) => a.i - b.i);
+  const loud = ev.filter(e => e.major).map(e => e.i);
+  let lastLoud = 0, said = false;
+  for (let i = 0; i < N; i++) {
+    NT[i] = null;
+    if (loud.some(x => x > i - 1 && x <= i)) { lastLoud = i; said = false; continue; }
+    const live = (D.timeline[i] || {}).fuel_state === "LIVE";
+    if (!live && i - lastLoud >= 20) {
+      NT[i] = {kind: "quiet", since: D.mins[lastLoud]};
+      if (!said) { said = true;
+        ev.push({i: i + 0.05, tag: "NO TRADE", chap: "NO TRADE", quiet: true,
+          text: `**NO TRADE · quiet since ${D.mins[lastLoud]}** · no break, no fuel, no trigger. Ends on: FUEL ≥ 500 lots / 5 min or a BREAK.`,
+          chips: [{t: "NO TRADE"}, {t: "waiting: FUEL or a BREAK"}]}); }
+    }
+  }
+  for (const [a, b] of D.holes) for (let i = Math.ceil(ixS(a)); i <= Math.floor(ixS(b)) && i < N; i++) NT[i] = {kind: "blind", since: a};
+  ev.sort((a, b) => a.i - b.i);
+}
+
+/* ------------------------------------------------------------ her asks, 29 Oct: speed, top / bottom signs, all 3, manage -- */
+function bar3(b) {                                   // the 3-min bar ending at minute b (her canonical frame, from 09:15)
+  const a = b - 2; if (a < 0) return null;
+  let h = -Infinity, l = Infinity, d = 0, v = 0;
+  for (let k = a; k <= b; k++) { h = Math.max(h, D.fhi[k]); l = Math.min(l, D.flo[k]); d += D.delta[k] || 0; v += D.fvol[k] || 0; }
+  return {a, b, o: D.fo[a], c: D.fut[b], h, l, d, v, eff: v / Math.max(h - l, 0.5)};
+}
+const SPD = [];                                      // SPEED: |3-min delta| against its own median so far (causal) [I]
+function speedAt(i) {
+  if (D.reads) return D.reads.speed[i] || null;      // one brain
+  if (!D.delta || i < 2) return null;
+  if (SPD[i]) return SPD[i];
+  const s3 = k => Math.abs((D.delta[k] || 0) + (D.delta[k - 1] || 0) + (D.delta[k - 2] || 0));
+  const hist = []; for (let k = 2; k < i; k++) hist.push(s3(k));
+  const m = hist.length >= 10 ? med(hist) : null, d3 = (D.delta[i] || 0) + (D.delta[i - 1] || 0) + (D.delta[i - 2] || 0);
+  const x = m ? s3(i) / m : null;
+  return (SPD[i] = {x, dir: d3 >= 0 ? 1 : -1, word: x == null ? "?" : x >= 2 ? "FAST" : x <= 0.5 ? "SLOW" : "NORMAL", d3});
+}
+const spChip = i => { const s = speedAt(i); return s && s.x != null ? {t: `SPEED ${ARR(s.dir)} ×${s.x.toFixed(1)} ${s.word}`, c: s.word === "FAST" ? "bad" : null} : null; };
+function sync(i) {                                  // all 3 moved the same way over 5 min (NIFTY 10 / BANKNIFTY 25 / SENSEX 35 pts) [I]
+  if (D.reads) return D.reads.sync[i] || null;       // one brain (dir null: an index could not be read)
+  if (i < 5 || !D.bnf) return null;
+  const ch = [D.fut[i] - D.fut[i - 5], D.bnf[i] - D.bnf[i - 5], D.sx[i] - D.sx[i - 5]], mn = [10, 25, 35];
+  const up = ch.every((c, k) => c >= mn[k]), dn = ch.every((c, k) => c <= -mn[k]);
+  return {dir: up ? 1 : dn ? -1 : 0, ch};
+}
+function signEvent(E, s, sg, why) {                  // one TOP / BOTTOM SIGNS line (the brain's, or the fallback's)
+  const word = s.isHigh ? "TOP" : "BOTTOM";
+  E(s.b + 1, {tag: `${word} SIGNS ${sg.length}/3`, tagc: s.driving ? null : "bad", major: !s.driving, chap: s.driving ? null : "TOP / BOTTOM", signs: {b: s.b, isHigh: s.isHigh, driving: s.driving, px: s.px, n: sg.length},
+    text: `**${word} SIGNS ${sg.length}/3 · ${fmt(s.px)}f** · ${sg.join(" · ")}.${s.driving ? ` But fuel still running (${why}): not a ${word.toLowerCase()} yet.` : (s.isHigh ? " Buyers absorbed at the high." : " Sellers absorbed at the low.")}`,
+    chips: sg.map(x => ({t: x.split(":")[0], c: "bad"})).concat([spChip(s.b)].filter(Boolean)),
+    up: s.isHigh ? null : "▲ a rotation back to VWAP is on", dn: s.isHigh ? "▼ a rotation back to VWAP is on" : null,
+    wr: s.isHigh ? "wrong if: a new high with delta behind it" : "wrong if: a new low with delta behind it"});
+}
+function signs3(E) {
+  if (D.reads) { for (const s of D.reads.signs) signEvent(E, s, s.items, s.drive.join(" · ")); return; }   // one brain
+  const effs = [];
+  for (let b = 2; b < N; b += 3) {
+    const B = bar3(b); if (!B) continue;
+    const m = effs.length >= 6 ? med(effs) : null; effs.push(B.eff);
+    const lo0 = Math.max(0, B.a - 30); if (B.a - lo0 < 10) continue;
+    const hi30 = Math.max(...D.fhi.slice(lo0, B.a)), lo30 = Math.min(...D.flo.slice(lo0, B.a));
+    for (const isHigh of [true, false]) {
+      if (isHigh ? B.h < hi30 : B.l > lo30) continue;
+      const sg = [], P = [bar3(b - 6), bar3(b - 3)].filter(Boolean);
+      if (isHigh ? (B.c < B.o && B.d > 0) : (B.c > B.o && B.d < 0)) sg.push(`${isHigh ? "red candle, green delta" : "green candle, red delta"} ${sgn(B.d)}`);
+      if (m && B.eff >= 2 * m) sg.push(`absorption: ${fmt(B.v)} lots / ${(B.h - B.l).toFixed(0)} pts (effort ×${(B.eff / m).toFixed(1)})`);
+      const peak = Math.max(...P.map(q => (isHigh ? 1 : -1) * q.d), 0);
+      if (peak > 0 && (isHigh ? B.d : -B.d) < peak / 2) sg.push(`exhaustion: delta ${P.map(q => sgn(q.d)).join(" → ")} → ${sgn(B.d)}`);
+      if (sg.length < 2) continue;                  // one sign alone is noise: it speaks at 2 of 3
+      const word = isHigh ? "TOP" : "BOTTOM", fu = (D.timeline[b] || {}).fuel, fs = (D.timeline[b] || {}).fuel_state;
+      const spent = D.runs.some(r => r.khatam && r.dir === (isHigh ? "▲" : "▼") && Math.abs(r.lots) >= 2 * D.bar && ix(r.khatam) <= b && b - ix(r.khatam) <= 10);
+      const driving = fs === "LIVE" && fu && (fu.dir === "▲") === isHigh && !spent;   // a run still pushing into this extreme
+      signEvent(E, {b, isHigh, driving, px: isHigh ? B.h : B.l}, sg, driving ? `${MEAN[fu.meaning] || fu.meaning} ${sgn(fu.lots)}` : "");
+    }
+  }
+}
+function band(i) { const w = D.vwap[i], s = D.sd[i]; return [["d2", w - 2 * s], ["d1", w - s], ["VWAP", w], ["u1", w + s], ["u2", w + 2 * s]]; }
+function trailBand(i, d) { const bs = band(i); return d < 0 ? bs.find(([, v]) => v > D.fut[i] + 3) : [...bs].reverse().find(([, v]) => v < D.fut[i] - 3); }
+function manage(E) {                                 // after each of her triggers; speaks only when it matters, on change, 6 min apart
+  if (D.reads) {                                     // one brain: judged against price first (AGAINST YOU at <= -15 pts)
+    for (const m of D.reads.manage) {
+      const z = D.zone.find(q => !q.kind && q.t.slice(0, 5) === m.t && q.side === m.side); if (!z) continue;
+      E(m.b + 1.15, {tag: `MANAGE · ${m.st}`, tagc: m.st === "HOLD" ? "ok" : "bad", chap: "MANAGE", major: m.st !== "HOLD", mz: z, mst: m.st,
+        text: `**Your ${m.t} ${m.side} · ${m.pts >= 0 ? "+" : "−"}${Math.abs(m.pts).toFixed(0)} pts** · **${m.st}**${m.st === "HOLD" ? " · data with you, let it run" : m.st === "AGAINST YOU" ? " · price is against you" : " · the move is stalling"}${m.trail ? ` · trail **${m.trail[0]} ${fmt(m.trail[1])}f**` : ""}.`,
+        chips: m.with.map(x => ({t: x, c: "ok"})).concat(m.against.map(x => ({t: x, c: "bad"}))), wr: m.note});
+    }
+    return;
+  }
+  for (const z of D.zone) {
+    if (z.kind) continue;
+    const ti = ix(z.t); if (ti < 0) continue;
+    const d = z.side === "SELL" ? -1 : 1;
+    let was = null, lastAt = -99, n = 0;
+    for (let b = ti + 2; b < Math.min(N, ti + 46) && n < 4; b++) {
+      if ((b + 1) % 3) continue;                      // read at her 3-min closes
+      const sp = speedAt(b), sy = sync(b), pts = d * (D.fut[b] - z.px), row = D.timeline[b] || {}, fu = row.fuel;
+      const against = [], withm = [];
+      if (sp && sp.word === "FAST") (sp.dir === d ? withm : against).push(`speed ${ARR(sp.dir)} ×${sp.x.toFixed(1)}`);
+      if (sy && sy.dir) (sy.dir === d ? withm : against).push(`all 3 ${ARR(sy.dir)}`);
+      if (row.fuel_state === "LIVE" && fu) ((fu.dir === "▲") === (d > 0) ? withm : against).push(`fuel ${MEAN[fu.meaning] || fu.meaning}`);
+      const sg = ev.find(e => e.signs && !e.signs.driving && e.signs.b === b && e.signs.isHigh === (d > 0));
+      if (sg) against.push(sg.tag.toLowerCase());
+      const st = pts >= 15 && against.length ? "BOOK / TRAIL TIGHT" : pts >= 15 && withm.length ? "HOLD" : pts < 0 && against.length >= 2 ? "AGAINST YOU" : null;
+      if (!st || st === was || b - lastAt < 6) continue;
+      was = st; lastAt = b; n++;
+      const trail = trailBand(b, d);
+      E(b + 1.15, {tag: `MANAGE · ${st}`, tagc: st === "HOLD" ? "ok" : "bad", chap: "MANAGE", major: st !== "HOLD", mz: z, mst: st,
+        text: `**Your ${z.t} ${z.side} · ${pts >= 0 ? "+" : "−"}${Math.abs(pts).toFixed(0)} pts** · **${st}**${st === "HOLD" ? " · data with you, let it run" : st === "AGAINST YOU" ? " · the data turned" : " · the move is stalling"}${trail ? ` · trail **${trail[0]} ${fmt(trail[1])}f**` : ""}.`,
+        chips: withm.map(x => ({t: x, c: "ok"})).concat(against.map(x => ({t: x, c: "bad"}))),
+        wr: "guidance only: you place and move your own stop"});
+    }
+  }
+}
+
+// Her catch (29 Oct 10:45): the options-side fuel is the Board's Sides read, as the brain sent it.
+function sidesEvents(E) {
+  let was = null;
+  for (const s of D.sides || []) {
+    const i = ix(s.t); if (i < 0) continue;
+    const on = s.fuel !== undefined ? (s.fuel ? (s.fuel > 0 ? "ce" : "pe") : null)      // the brain's fuel slot (A176: + SQUEEZE)
+      : (s.word === "REAL" || s.word === "BACKED") && s.fuel_side ? s.fuel_side : null;
+    if (on && on !== was) E(i + 0.4, {tag: `FUEL (OPTIONS) ${on === "ce" ? "▲" : "▼"}`, tagc: "bad", major: true, chap: "FUEL",
+      text: `**FUEL: ${on === "ce" ? "call" : "put"} writers covering** · Sides ${s.word}${s.uw ? ` · top ${on.toUpperCase()} walls under water ${s.uw}/2` : ""}. Their buying-back pushes price ${on === "ce" ? "up" : "down"}.`,
+      chips: [{t: `Sides ${s.word}`, c: "bad"}, {t: `${on === "ce" ? "CE" : "PE"} covering`}]});
+    if (!on && was) E(i + 0.4, {tag: "OPTIONS FUEL PAUSED", chap: "FUEL SPENT",
+      text: `**${was === "ce" ? "Call" : "Put"} writers stopped covering** · Sides ${s.word || "?"}.${s.p === "ADD" ? " Put writers still adding below." : ""}${s.c === "ADD" ? " Call writers adding again." : ""}`,
+      chips: [{t: `Sides ${s.word || "?"}`}]});
+    was = on;
+  }
+}
+// Her ask (29 Oct 11:00): WRITER FLOW ±7, the brain's states (UP / DOWN / PAUSED / BACK / RISK) as lines.
+function writerEvents(E) {
+  D.reads.writers.forEach((w, i) => {
+    if (!w.ev) return;
+    const up = w.dir > 0, c = L(w.ce), p = L(w.pe), ch = [{t: `CE ${c}`}, {t: `PE ${p}`}];
+    // G3: a leg may run on one side alone (w.legs "calls" / "puts"); "both" is DAY §5's two-leg push.
+    const one = w.legs && w.legs !== "both" ? ` · ${w.legs} only` : "";
+    const covers = w.legs === (up ? "calls" : "puts"), drv = !w.legs || w.legs === "both" ? null : covers ? "covering" : "adding";
+    if (w.ev === "UP" || w.ev === "DOWN") E(i + 0.35, {tag: `WRITERS ±7 ${up ? "▲" : "▼"}${one}`, tagc: "bad", major: true, chap: "FUEL",
+      text: drv ? `**WRITERS ±7 ${up ? "▲" : "▼"}${one}**: ${w.legs === "calls" ? `call writers ${drv} **${c}**` : `put writers ${drv} **${p}**`} in 3 min, the other side quiet. One side pushes price ${up ? "up" : "down"}.`
+        : `**WRITERS ±7 ${up ? "▲" : "▼"}**: ${up ? `call writers covering **${c}**, put writers building **${p}**` : `put writers covering **${p}**, call writers building **${c}**`} in 3 min. Both sides push price ${up ? "up" : "down"}.`,
+      chips: ch.concat([{t: "±7 strikes · 3 min"}])});
+    else if (w.ev === "BACK") E(i + 0.35, {tag: `WRITERS BACK ${up ? "▲" : "▼"}${one}`, chap: "FUEL",
+      text: `**Writers back**: CE ${c} · PE ${p} in 3 min. The pause was a pause; the push is on again.`, chips: ch});
+    else if (w.ev === "PAUSED") E(i + 0.35, {tag: "WRITERS PAUSED", chap: "FUEL",
+      text: `**Writers paused**: ${drv ? `${w.legs === "calls" ? "call" : "put"} writers stopped ${drv}` : `${up ? "call" : "put"} writers stopped covering`} (CE ${c} · PE ${p}). If they come back the move goes on; if delta turns hard ${up ? "red" : "green"}, it is a ${up ? "top" : "bottom"}.`, chips: ch});
+    else if (w.ev === "RISK OFF") E(i + 0.35, {tag: `${up ? "TOP" : "BOTTOM"} RISK OFF`, chap: "TOP / BOTTOM",   // G2
+      text: `**${up ? "Top" : "Bottom"} risk off**: price made a new ${up ? "high" : "low"}, or did not follow the hit through in 9 min. Back to a pause.`, chips: ch});
+    else if (w.ev === "RISK") E(i + 0.35, {tag: `${up ? "TOP" : "BOTTOM"} RISK · WRITERS`, tagc: "bad", major: true, chap: "TOP / BOTTOM",
+      text: `**${up ? "TOP" : "BOTTOM"} RISK**: writers stopped pushing (CE ${c} · PE ${p}) and ${up ? "sellers" : "buyers"} hit: 3-min delta **${sgn(w.d3)}**, ${w.x}× normal.`,
+      chips: [{t: `delta ${sgn(w.d3)}`, c: "bad"}, {t: `${w.x}× normal`}, {t: `${up ? "TOP" : "BOTTOM"} RISK`, c: "bad"}],
+      dn: up ? "▼ a rotation back to VWAP is on" : null, up: up ? null : "▲ a rotation back to VWAP is on",
+      wr: `wrong if: writers start ${up ? "covering calls" : "covering puts"} again`});
+  });
+}
+
+/* ------------------------------------------------------------ the state at a minute (the 2-second read) -- */
+function roomAt(i) {
+  const out = {};
+  for (const side of ["CE", "PE"]) { const f = nearWall(i, side); out[side] = f ? {f, dist: lvl(f.k, i) - D.fut[i]} : null; }
+  return out;
+}
+function fightAt(i) {
+  const r = D.timeline[i] || {}; if (!r.wall) return null;
+  const fr = fronts(i).find(f => f.k === r.wall && f.side === r.side) || {};
+  const d = r.dastak || [];                            // the fight's tests, as the exporter counts them (DASTAK ×n)
+  return {k: r.wall, side: r.side, st: r.wall_state, oi: fr.oi, chg: r.wall_chg, peak: r.wall_peak, tested: d.length, broke: d.filter(x => x[1] === "TOOT").length, chapter: EN(r.chapter || "")};
+}
+function wallScore(k, side, i) {                      // this wall's own record so far: tested ×t · broke b (answers known by minute i)
+  let t = 0, b = 0;
+  for (const p of D.pushes) { if (p.k !== k || p.side !== side || !p.ans || p.ans === "?") continue; const j = ix(p.held_at || p.am); if (j < 0 || j > i) continue; t++; if (p.ans === "TOOT") b++; }
+  return {t, b};
+}
+function lastTrigger(i) {
+  if (D.reads && D.reads.trade) {                    // one brain: the points now, the last word said, re-judged against price
+    const q = D.reads.trade[clampI(i)]; if (!q) return null;
+    const z = D.zone.find(x => !x.kind && x.t.slice(0, 5) === q.t && x.side === q.side) || {t: q.t, side: q.side, px: q.px, band: q.band};
+    return {z, d: q.side === "SELL" ? -1 : 1, pts: q.pts, st: q.st, trail: q.trail, age: q.age};
+  }
+  let z = null; for (const q of D.zone) { if (q.kind) continue; const j = ix(q.t); if (j >= 0 && j <= i) z = q; }
+  if (!z) return null;
+  const d = z.side === "SELL" ? -1 : 1, pts = d * (D.fut[i] - z.px);
+  let st = null; for (let n = 0; n <= fired; n++) if (ev[n].mz === z) st = ev[n].mst;
+  return {z, d, pts, st, trail: trailBand(i, d), age: i - ix(z.t)};
+}
+function stateLine(i) {
+  const f = fightAt(i), r = D.timeline[i] || {}, fu = r.fuel, sp = speedAt(i), sy = sync(i), vb = D.verdict.BUY[D.mins[i]], vs = D.verdict.SELL[D.mins[i]];
+  return [f ? `fight: WALL ${fmt(f.k)}s ${f.side}${f.oi != null ? " " + f.oi.toFixed(0) + "L" : ""} · tested ×${f.tested} · broke ${f.broke} · ${STATE[f.st] || f.chapter.toLowerCase()}` : "fight: no wall in play",
+    fu ? `fuel: ${MEAN[fu.meaning] || fu.meaning} ${sgn(fu.lots)} ${r.fuel_state === "LIVE" ? "LIVE" : r.fuel_state === "KHATAM" ? "SPENT" : ""}` : "fuel: quiet",
+    sp && sp.x != null ? `speed ${ARR(sp.dir)} ×${sp.x.toFixed(1)} ${sp.word}` : "speed: warming up",
+    sy ? (sy.dir ? `all 3 ${ARR(sy.dir)}` : "3 indices mixed") : "all 3: ?",
+    `verdict BUY ${vword(vb)} · SELL ${vword(vs)}`].join(" | ");
+}
+
+/* ------------------------------------------------------------ geometry -- */
+let Wd = 1000, Ht = 600, TW = 1000, TH = 46, pTop = 26, pBot = 400, dTop = 410, dBot = 560;
+const padL = 8, padR = 198, AXW = 60;
+function fit() {
+  const r = stage.getBoundingClientRect(), dpr = devicePixelRatio || 1; Wd = r.width; Ht = r.height; cv.width = Wd * dpr; cv.height = Ht * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const inner = Ht - pTop - 24; pBot = pTop + Math.round(inner * 0.78); dTop = pBot + 10; dBot = Ht - 24;
+  const q = tl.getBoundingClientRect(); TW = q.width; TH = q.height; tl.width = TW * dpr; tl.height = TH * dpr; tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  placeBubble(true);
+}
+addEventListener("resize", fit);
+const plotW = () => Wd - padL - padR;
+const X = i => padL + (i + 0.5) * plotW() / N;
+const XI = x => (x - padL) / plotW() * N - 0.5;
+const Y = p => pTop + (Y1 - p) / (Y1 - Y0) * (pBot - pTop);
+const YP = y => Y1 - (y - pTop) / (pBot - pTop) * (Y1 - Y0);
+const cw = () => Math.max(1.5, plotW() / N * (mode === 3 ? 2.1 : 0.62));
+
+/* ------------------------------------------------------------ the clock -- */
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing && !ended && now >= holdUntil) {
+    const was = cur();
+    t = Math.min(N - 1, t + dt * speed / SEC_PER_MIN); fireUpTo(t, now);
+    if (cur() !== was) for (let m = was + 1; m <= cur(); m++) checkWatches(m);
+    if (t >= N - 1) { ended = true; playing = false; $("#play").textContent = "▶ play"; setTimeout(showEnd, 1600); }
+  }
+  if (cur() !== shownMin) renderMinute(cur());
+  draw(now); tlDraw(); placeBubble(); requestAnimationFrame(loop);
+}
+function fireUpTo(nt, now) {
+  while (fired + 1 < ev.length && ev[fired + 1].i <= nt) {
+    const e = ev[++fired]; e.at = now; say(e, true); feedAdd(e);
+    if (e.major && speed < 4) { holdUntil = now + 2000 / speed; t = Math.max(t, e.i); }
+    if (e.toot && !RM) shards(e.toot);
+    if (e.mz) renderTrade(cur());
+  }
+}
+function seek(nt) {
+  t = Math.max(0, Math.min(N - 1, nt)); ended = false; $("#end").hidden = true; holdUntil = 0;
+  fired = -1; while (fired + 1 < ev.length && ev[fired + 1].i <= t) ev[++fired].at = -1e9;
+  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+  say(fired >= 0 ? ev[fired] : ev[0], false); rebuildFeed(); renderMinute(cur(), true);
+}
+
+/* ------------------------------------------------------------ the bubble, the feed, the voice -- */
+let typer = null, curMsg = null;
+const mark = s => { const toks = s.split("**"); return toks.map((p, k) => k % 2 ? `<b>${esc(p)}</b>` : esc(p)).join(""); };
+function tagStyle(el, c) {
+  el.style.background = c === "bad" ? "#fdeaea" : c === "ok" ? "#e8f7f1" : c === "you" ? "#efe6fd" : "#f3efe8";
+  el.style.color = c === "bad" ? COL.dn : c === "ok" ? COL.up : c === "q" ? COL.mut : c === "you" ? COL.you : COL.ink;
+}
+function say(e, animate) {
+  curMsg = e; clearInterval(typer);
+  $("#btm").textContent = D.mins[clampI(e.i)];
+  const tag = $("#btag"); tag.textContent = e.tag; tagStyle(tag, e.tagc);
+  bubble.classList.toggle("dark", !!e.dark);
+  const chips = $("#bchips"), nxt = $("#bnext"), txt = $("#btext"), orb = $("#orb");
+  chips.innerHTML = ""; nxt.innerHTML = ""; nxt.style.display = "none";
+  const rest = () => {
+    (e.chips || []).forEach((c, n) => { const s = document.createElement("span"); s.className = "chip " + (c.c || ""); s.textContent = c.t; s.style.animationDelay = (animate ? n * 0.08 : 0) + "s"; chips.appendChild(s); });
+    const lines = nextLines(e);
+    nxt.innerHTML = lines; nxt.style.display = lines ? "" : "none";
+    orb.classList.remove("talk", "think");
+  };
+  const toks = e.text.split("**");
+  const html = n => { let out = "", left = n; toks.forEach((s, k) => { if (left <= 0) return; const part = s.slice(0, left); left -= part.length; out += k % 2 ? `<b>${esc(part)}</b>` : esc(part); }); return out; };
+  const total = toks.join("").length;
+  if (animate && e.major) speak(e.text);
+  if (!animate || RM) { txt.innerHTML = html(total); rest(); return; }
+  txt.innerHTML = `<span class="dots"><span></span><span></span><span></span></span>`; orb.classList.add("think");
+  setTimeout(() => {
+    if (curMsg !== e) return;
+    orb.classList.remove("think"); orb.classList.add("talk");
+    let n = 0; const step = Math.max(1, Math.round(speed));
+    typer = setInterval(() => { n = Math.min(total, n + step); txt.innerHTML = html(n) + (n < total ? '<span class="caret"></span>' : ""); if (n >= total) { clearInterval(typer); rest(); } }, 16);
+  }, 420 / speed);
+}
+function nextLines(e) {
+  const lines = [e.up && `<div class="up">${esc(e.up)}</div>`, e.dn && `<div class="dn">${esc(e.dn)}</div>`, e.wr && `<div class="wr">${esc(e.wr)}</div>`].filter(Boolean);
+  return lines.length ? `<div class="wr" style="font-weight:700">NEXT</div>${lines.join("")}` : "";
+}
+function rowHTML(e, n) {
+  const chips = (e.chips || []).map(c => `<span class="chip ${c.c || ""}">${esc(c.t)}</span>`).join("");
+  const nx = nextLines(e);
+  return `<div class="row ${e.major ? "major" : ""} ${e.tagc || ""} ${e.you ? "you" : ""}" data-n="${n}" data-i="${e.i}"><div class="rh"><span class="rt">${D.mins[clampI(e.i)]}</span><span class="rtag ${e.tagc || ""}">${esc(e.tag)}</span>${e.src ? `<span class="rsrc">${esc(e.src)}</span>` : ""}</div><div class="rx">${mark(e.text)}</div>${chips ? `<div class="rc">${chips}</div>` : ""}${nx ? `<div class="rn">${nx}</div>` : ""}</div>`;
+}
+function feedAdd(e) { $("#feed").insertAdjacentHTML("afterbegin", rowHTML(e, ev.indexOf(e))); $("#feed").scrollTop = 0; $("#nev").textContent = `${fired + 1} lines`; }
+function rebuildFeed() {
+  const rows = ev.slice(0, fired + 1).concat(chat.filter(c => c.i <= t)).sort((a, b) => a.i - b.i);
+  $("#feed").innerHTML = rows.map(e => rowHTML(e, ev.indexOf(e))).reverse().join("");
+  $("#nev").textContent = `${fired + 1} lines`;
+}
+$("#feed").onclick = m => { let el = m.target; while (el && el !== $("#feed") && !(el.dataset && el.dataset.i != null)) el = el.parentNode; if (el && el.dataset && el.dataset.i != null) { playing = false; $("#play").textContent = "▶ play"; seek(+el.dataset.i + 0.01); } };
+function speak(s) {
+  if (!voiceOn || typeof speechSynthesis === "undefined") return;
+  const plain = s.replace(/\*\*/g, "").replace(/▲/g, " up ").replace(/▼/g, " down ").replace(/[·→]/g, ", ").replace(/×/g, " times ").replace(/(\d)f\b/g, "$1 futures").replace(/(\d)s\b/g, "$1 spot").replace(/(\d)L\b/g, "$1 lakh");
+  const u = new SpeechSynthesisUtterance(plain), v = speechSynthesis.getVoices().find(x => /en-IN/i.test(x.lang)) || speechSynthesis.getVoices().find(x => /^en/i.test(x.lang));
+  if (v) u.voice = v; u.rate = 1.05; speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+let bpos = {x: 0, y: 0};
+function anchor() { const i = cur(); return {x: X(i), y: Y(live(i).c)}; }
+function placeBubble(force) {
+  if (!D) return;
+  const a = anchor(), bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+  let x = a.x > (Wd - padR) * 0.52 ? a.x - bw - 36 : a.x + 36;
+  let y = a.y - bh - 40 > pTop ? a.y - bh - 40 : a.y + 40;
+  x = Math.max(8, Math.min(Wd - padR - bw + 60, x)); y = Math.max(8, Math.min(pBot - bh - 4, y));
+  if (force || Math.abs(x - bpos.x) > 24 || Math.abs(y - bpos.y) > 24) { bpos = {x, y}; bubble.style.transform = `translate(${x}px,${y}px)`; }
+}
+
+/* ------------------------------------------------------------ the strip, the quotes, the trade card (per minute) -- */
+function renderMinute(i, force) {
+  shownMin = i;
+  const hm = D.mins[i], r = D.timeline[i] || {}, f = fightAt(i), fu = r.fuel, sp = speedAt(i), sy = sync(i), rm = roomAt(i);
+  // fight
+  $("#sFight").textContent = f ? `WALL ${fmt(f.k)}s ${f.side}${f.oi != null ? " · " + f.oi.toFixed(0) + "L" : ""}` : "no wall in play";
+  $("#sFight2").textContent = f ? `TESTED ×${f.tested} · broke ${f.broke} · ${STATE[f.st] || f.chapter.toLowerCase()}${f.st === "UNWINDING" ? ` ${L(f.chg)} vs ${L(f.peak)}` : ""}` : (r.chapter === "DEEWAR" ? "a wall is forming" : r.chapter ? EN(r.chapter) : "—");
+  // fuel
+  const live = r.fuel_state === "LIVE", spent = r.fuel_state === "KHATAM";
+  $("#sFuel").textContent = fu ? `${MEAN[fu.meaning] || fu.meaning} ${sgn(fu.lots)}` : r.fuel_state === "?" ? "can't see" : "quiet";
+  $("#sFuel").style.color = fu && !spent ? (fu.kind === "COVER" ? COL.dn : COL.up) : COL.mut;
+  $("#mFuel").style.width = (fu ? Math.min(100, Math.abs(fu.lots) / 2500 * 100) : 0) + "%";
+  $("#mFuel").style.background = spent ? COL.q : fu && fu.kind === "COVER" ? COL.dn : COL.up;
+  $("#sFuel2").textContent = fu ? (spent ? `SPENT ${r.khatam ? r.khatam.t : ""} · price ${fu.dir}` : live ? `LIVE · price ${fu.dir} · bar 500 / 5 min` : `tank · price ${fu.dir}`) : "bar 500 lots / 5 min";
+  // speed
+  $("#sSpd").textContent = sp && sp.x != null ? `×${sp.x.toFixed(1)} ${sp.word} ${ARR(sp.dir)}` : "warming up";
+  $("#sSpd").style.color = sp && sp.word === "FAST" ? (sp.dir > 0 ? COL.up : COL.dn) : sp && sp.word === "SLOW" ? COL.mut : COL.ink;
+  $("#mSpd").style.width = (sp && sp.x != null ? Math.min(100, sp.x / 3 * 100) : 0) + "%";
+  $("#mSpd").style.background = sp && sp.word === "FAST" ? (sp.dir > 0 ? COL.up : COL.dn) : sp && sp.word === "SLOW" ? COL.q : COL.ai;
+  $("#sSpd2").textContent = sp && sp.x != null ? `3-min delta ${sgn(sp.d3)} · FAST ≥ ×2 · SLOW ≤ ×0.5` : "needs 10 bars of history";
+  // all 3
+  $("#sSync").textContent = sy ? (sy.dir == null ? "can't see" : sy.dir ? `${ARR(sy.dir)} IN SYNC` : "mixed") : "—";
+  $("#sSync").style.color = sy && sy.dir ? (sy.dir > 0 ? COL.up : COL.dn) : COL.mut;
+  $("#sSync2").textContent = sy && sy.dir != null ? `N ${sgn(sy.ch[0])} · BN ${sgn(sy.ch[1])} · SX ${sgn(sy.ch[2])} / 5 min` : "5-min moves";
+  // verdict, both sides, at this minute
+  const vb = D.verdict.BUY[hm], vs = D.verdict.SELL[hm];
+  const pc = v => { const w = v ? WORD[v.word] || v.word : "?"; return w === "ROTATE" ? "ok" : w === "CONTINUE" ? "bad" : "q"; };
+  $("#sVer").innerHTML = `<span class="pill ${pc(vb)}">BUY ${esc(vword(vb))}</span> <span class="pill ${pc(vs)}">SELL ${esc(vword(vs))}</span>`;
+  const bs = band(i); $("#sVer2").textContent = `VWAP ${fmt(bs[2][1])}f · u2 ${fmt(bs[4][1])}f · d2 ${fmt(bs[0][1])}f`;
+  // room
+  const rc = rm.CE, rp = rm.PE;
+  $("#sRoom").textContent = rc ? `▲ ${fmt(rc.dist)}f → ${fmt(rc.f.k)}s CE ${rc.f.oi != null ? rc.f.oi.toFixed(0) + "L" : ""}` : "▲ open · no CE wall in 2 steps";
+  $("#sRoom2").textContent = rp ? `▼ ${fmt(-rp.dist)}f → ${fmt(rp.f.k)}s PE ${rp.f.oi != null ? rp.f.oi.toFixed(0) + "L" : ""}` : "▼ open · no PE wall in 2 steps";
+  // no trade
+  const nt = NT[i]; $("#sNT").hidden = !nt;
+  if (nt) { $("#sNT1").textContent = nt.kind === "blind" ? `can't see (asleep ${nt.since})` : `quiet since ${nt.since}`; $("#sNT2").textContent = nt.kind === "blind" ? "book + chain stopped" : "ends: FUEL ≥ 500/5m or a BREAK"; }
+  bubble.classList.toggle("quiet", !!(nt && nt.kind === "quiet" && curMsg && curMsg.quiet));
+  // quotes
+  const k = live1(i), ch5 = j => i >= 5 ? j[i] - j[i - 5] : 0;
+  $("#qN").innerHTML = `<span class="${k.c >= k.o ? "up" : "dn"}">${fmt(k.c)}f</span> <small>${fmt(D.spot[i])}s</small>`;
+  $("#qB").textContent = (bas[i] >= 0 ? "+" : "−") + Math.abs(bas[i]).toFixed(0);
+  $("#qBN").innerHTML = `${fmt(D.bnf[i])} <small class="${ch5(D.bnf) >= 0 ? "up" : "dn"}">${sgn(ch5(D.bnf))}</small>`;
+  $("#qSX").innerHTML = `${fmt(D.sx[i])} <small class="${ch5(D.sx) >= 0 ? "up" : "dn"}">${sgn(ch5(D.sx))}</small>`;
+  const dh = Math.max(...D.fhi.slice(0, i + 1)), dl = Math.min(...D.flo.slice(0, i + 1));
+  $("#qD").innerHTML = `${fmt(dh)} <small>/</small> ${fmt(dl)} <small>${fmt(dh - dl)} pts</small>`;
+  // source badge
+  const b0 = ix(D.live_from || "11:07"), src = $("#src");
+  const blind = nt && nt.kind === "blind";
+  src.textContent = blind ? "BLIND" : i < b0 ? "BACKFILLED" : "LIVE"; src.className = "badge " + (blind ? "blind" : i < b0 ? "back" : "live");
+  renderTrade(i);
+}
+function renderTrade(i) {
+  const lt = lastTrigger(i);
+  if (!lt) { $("#tV").textContent = "no trigger yet"; $("#tP").textContent = "—"; $("#tS").textContent = "zone: d2→d3 buy · u2→u3 sell · 3-min bands"; return; }
+  $("#tV").textContent = `${lt.z.t} ${lt.z.side} ${fmt(lt.z.px)}f · ${lt.z.band} · ${lt.age} min`;
+  $("#tP").textContent = `${lt.pts >= 0 ? "+" : "−"}${Math.abs(lt.pts).toFixed(0)} pts`; $("#tP").style.color = lt.pts >= 0 ? COL.up : COL.dn;
+  $("#tS").textContent = `${lt.st ? "MANAGE: " + lt.st : lt.age < 46 ? "MANAGE: reading at 3-min closes" : "MANAGE window closed (45 min)"}${lt.trail ? ` · trail ${lt.trail[0]} ${fmt(lt.trail[1])}f` : ""}`;
+}
+
+/* ------------------------------------------------------------ the chart -- */
+function live1(i) { const q = live(i); return q; }
+function live(i) {
+  const k = cand[i]; if (i < Math.floor(t)) return k;
+  const f = Math.min(1, t - i), up = k.c >= k.o, path = up ? [k.o, k.l, k.h, k.c] : [k.o, k.h, k.l, k.c];
+  const seg = Math.min(2, Math.floor(f * 3)), u = f * 3 - seg, c = path[seg] + (path[seg + 1] - path[seg]) * u;
+  const seen = path.slice(0, seg + 1).concat([c]);
+  return {o: k.o, c, h: Math.max(...seen), l: Math.min(...seen)};
+}
+function bars3Live() {
+  const end = cur(), out = [];
+  for (let a = 0; a <= end; a += 3) {
+    const b = Math.min(a + 2, end); let h = -Infinity, l = Infinity, c = 0, d = 0;
+    for (let k = a; k <= b; k++) { const q = live(k); h = Math.max(h, q.h); l = Math.min(l, q.l); c = q.c; d += (D.delta[k] || 0) * (k === end ? Math.min(1, t - k) : 1); }
+    out.push({a, b, o: cand[a].o, h, l, c, d});
+  }
+  return out;
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function grow(e, now, ms) { if (!e || e.at < 0 || RM) return 1; return Math.min(1, (now - e.at) / ms); }
+const ease = g => 1 - Math.pow(1 - g, 3);
+const tagYs = [];
+function axisTag(y, text, col, fill, bold) {
+  ctx.font = (bold ? "700" : "600") + " 10.5px " + MONO; const w = Math.min(ctx.measureText(text).width + 12, padR - 10), x = Wd - padR + 3;
+  while (tagYs.some(q => Math.abs(q - y) < 17)) y += 17;
+  tagYs.push(y);
+  ctx.fillStyle = fill; rr(x, y - 8.5, w, 17, 5); ctx.fill(); ctx.fillStyle = col; ctx.fillText(text, x + 6, y + 3.5, w - 10);
+  return y;
+}
+function draw(now) {
+  if (!D) return;
+  ctx.clearRect(0, 0, Wd, Ht); tagYs.length = 0;
+  const end = cur();
+  ctx.font = "10.5px " + MONO;
+  // price grid + axis
+  for (let p = Math.ceil(Y0 / 25) * 25; p <= Y1; p += 25) {
+    const major = p % 50 === 0; ctx.strokeStyle = major ? COL.grid : "#f5f3ee"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(padL, Y(p)); ctx.lineTo(Wd - padR, Y(p)); ctx.stroke();
+    if (major) { ctx.fillStyle = COL.mut; ctx.fillText(fmt(p) + "f", Wd - padR + 6, Y(p) + 3.5); }
+  }
+  // time grid + axis
+  for (let i = 0; i < N; i++) { const m = +D.mins[i].slice(3);
+    if (m % 15 === 0) { ctx.strokeStyle = m % 30 ? "#f5f3ee" : COL.grid; ctx.beginPath(); ctx.moveTo(X(i), pTop); ctx.lineTo(X(i), dBot); ctx.stroke(); }
+    if (m % 30 === 0) { ctx.fillStyle = COL.mut; ctx.fillText(D.mins[i], X(i) - 15, Ht - 8); } }
+  // the backfilled morning, the blind band
+  const b0 = ix(D.live_from || "11:07");
+  if (b0 > 0) { ctx.fillStyle = "rgba(217,119,87,.05)"; ctx.fillRect(X(0) - 4, pTop, X(Math.min(t, b0)) - X(0) + 4, dBot - pTop);
+    ctx.fillStyle = COL.ai; ctx.font = "600 10.5px " + MONO; ctx.fillText("BACKFILLED · Upstox chain + Dext flow", X(0) + 4, pTop + 12); }
+  for (const [a, b] of D.holes) {
+    const h0 = ixS(a), h1 = ixS(b);
+    if (t > h0) { ctx.fillStyle = "rgba(120,120,140,.10)"; ctx.fillRect(X(h0), pTop, X(Math.min(t, h1)) - X(h0), dBot - pTop);
+      ctx.fillStyle = COL.mut; ctx.font = "600 10.5px " + MONO; ctx.fillText("BLIND · laptop asleep", X(h0) + 4, pTop + 12); if (t > h1) ctx.fillText("flow refilled · chain blind", X(h0) + 4, pTop + 26); }
+  }
+  zoneFills(end); bands(end); walls(now, end);
+  // candles
+  const w = cw();
+  if (mode === 3) {
+    for (const B of bars3Live()) { const col = B.c >= B.o ? COL.up : COL.dn, xm = (X(B.a) + X(B.b)) / 2;
+      ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(xm, Y(B.h)); ctx.lineTo(xm, Y(B.l)); ctx.stroke();
+      ctx.fillStyle = col; ctx.fillRect(xm - w / 2, Y(Math.max(B.o, B.c)), w, Math.max(1, Math.abs(Y(B.o) - Y(B.c)))); }
+  } else {
+    for (let i = 0; i <= end; i++) {
+      const k = live(i), col = k.c >= k.o ? COL.up : COL.dn;
+      ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(i), Y(k.h)); ctx.lineTo(X(i), Y(k.l)); ctx.stroke();
+      ctx.fillStyle = col; ctx.fillRect(X(i) - w / 2, Y(Math.max(k.o, k.c)), w, Math.max(1, Math.abs(Y(k.o) - Y(k.c))));
+    }
+  }
+  deltaPane(end); inventory(end); userDraw(end);
+  zones(now); pushes(now); aipins(); link(now);
+  if (NT[end] && NT[end].kind === "quiet") { ctx.fillStyle = "rgba(243,242,237,.35)"; ctx.fillRect(padL, pTop, plotW(), pBot - pTop); }
+  // last price tag
+  const lc = live(end), upc = lc.c >= lc.o;
+  ctx.fillStyle = upc ? COL.up : COL.dn; rr(Wd - padR + 2, Y(lc.c) - 8.5, AXW - 2, 17, 4); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = "700 10.5px " + MONO; ctx.fillText(fmt(lc.c) + "f", Wd - padR + 7, Y(lc.c) + 3.5);
+  crosshair(); readout(end);
+}
+function zoneFills(end) {                              // her zones: d2→d3 buy, u2→u3 sell (3-min bands, VWAP hlc3 ± SD)
+  if (!D.vwap || end < 11) return;
+  for (const [a, b, col] of [[-3, -2, "rgba(15,157,118,.07)"], [2, 3, "rgba(229,72,77,.07)"]]) {
+    ctx.fillStyle = col; ctx.beginPath();
+    for (let i = 10; i <= end; i++) { const y = Y(D.vwap[i] + a * D.sd[i]); i === 10 ? ctx.moveTo(X(i), y) : ctx.lineTo(X(i), y); }
+    for (let i = end; i >= 10; i--) ctx.lineTo(X(i), Y(D.vwap[i] + b * D.sd[i]));
+    ctx.closePath(); ctx.fill();
+  }
+}
+function bands(end) {                                   // her session VWAP (hlc3) and its SD bands, drawn to the live candle
+  if (!D.vwap || end <= 10) return;
+  const B = [["d3", -3, .25], ["d2", -2, .4], ["d1", -1, .3], ["VWAP", 0, .8], ["u1", 1, .3], ["u2", 2, .4], ["u3", 3, .25]];
+  for (const [nm, k, a] of B) {
+    ctx.save(); ctx.strokeStyle = COL.band; ctx.globalAlpha = a; ctx.lineWidth = nm === "VWAP" ? 1.6 : 1; ctx.setLineDash(nm === "VWAP" ? [] : [4, 4]);
+    ctx.beginPath(); for (let i = 10; i <= end; i++) { const y = Y(D.vwap[i] + k * D.sd[i]); i === 10 ? ctx.moveTo(X(i), y) : ctx.lineTo(X(i), y); } ctx.stroke(); ctx.restore();
+    ctx.font = "600 10px " + MONO; ctx.fillStyle = COL.band; ctx.fillText(nm, X(end) + 6, Y(D.vwap[end] + k * D.sd[end]) + 3);
+  }
+}
+// walls: every §1d front per side, minute by minute, at its strike on the fut chart (5-min median basis); tagged on the axis
+function walls(now, end) {
+  const r = D.timeline[end] || {};
+  for (const side of ["CE", "PE"]) {
+    const col = side === "CE" ? COL.ce : COL.pe;
+    for (let i = 0; i < end; i++) {
+      for (const a of fronts(i).filter(f => f.side === side)) {
+        const b = fronts(i + 1).find(f => f.side === side && f.k === a.k); if (!b) continue;
+        ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = a.state === "BUILDING" ? 2.2 : 1.6; ctx.globalAlpha = a.state === "UNWINDING" ? 0.3 : a.state === "BUILDING" ? 0.85 : 0.6;
+        if (a.state === "UNWINDING") ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(X(i), Y(lvl(a.k, i))); ctx.lineTo(X(i + 1), Y(lvl(b.k, i + 1))); ctx.stroke(); ctx.restore();
+      }
+    }
+    for (const f of fronts(end).filter(f => f.side === side)) {
+      const y = Y(lvl(f.k, end)), isFight = r.wall === f.k && r.side === side;
+      ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 0.3; ctx.setLineDash([3, 6]); ctx.beginPath(); ctx.moveTo(X(end), y); ctx.lineTo(Wd - padR, y); ctx.stroke(); ctx.restore();
+      const sc = wallScore(f.k, side, end);
+      axisTag(y, `${fmt(f.k)}s ${side} ${f.oi != null ? f.oi.toFixed(0) + "L" : "?"}${sc.t ? ` ×${sc.t}·${sc.b}` : ""}${f.state === "UNWINDING" ? " ↓" : f.state === "BUILDING" ? " ↑" : ""}`, col, side === "CE" ? "#fdf0e8" : "#eaf1fe", isFight);
+    }
+  }
+  for (let n = 0; n <= fired; n++) {                      // a new floor, drawn in from where it was known
+    const e = ev[n]; if (!e.floor) continue;
+    const g = ease(grow(e, now, 900)), f0 = e.floor.at, fe = f0 + (end - f0) * g;
+    ctx.save(); ctx.strokeStyle = COL.pe; ctx.lineWidth = 2.6; ctx.globalAlpha = 0.9; ctx.beginPath();
+    for (let i = f0; i <= fe; i += 0.5) { i === f0 ? ctx.moveTo(X(i), Y(lvl(e.floor.k, i))) : ctx.lineTo(X(i), Y(lvl(e.floor.k, i))); }
+    ctx.stroke(); ctx.restore();
+    if (g >= 1) { ctx.font = "700 10px " + MONO; ctx.fillStyle = COL.pe; ctx.fillText(`NEW FLOOR ${fmt(e.floor.k)}s`, X(f0) + 4, Y(lvl(e.floor.k, f0)) + 13); }
+  }
+}
+function deltaPane(end) {                               // Dext footprint delta per minute (or per 3-min bar), lots
+  if (!D.delta) return;
+  ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(padL, dTop - 5); ctx.lineTo(Wd - padR, dTop - 5); ctx.stroke();
+  const mid = (dTop + dBot) / 2, half = (dBot - dTop) / 2, mx = mode === 3 ? DMAX3 : DMAX1, w = cw();
+  ctx.strokeStyle = "#ddd9cf"; ctx.beginPath(); ctx.moveTo(padL, mid); ctx.lineTo(Wd - padR, mid); ctx.stroke();
+  const bar = (xm, d) => { const h = Math.abs(d) / mx * half; ctx.fillStyle = d >= 0 ? COL.up : COL.dn; ctx.globalAlpha = .85; ctx.fillRect(xm - w / 2, d >= 0 ? mid - h : mid, w, Math.max(1, h)); ctx.globalAlpha = 1; };
+  if (mode === 3) for (const B of bars3Live()) bar((X(B.a) + X(B.b)) / 2, B.d);
+  else for (let i = 0; i <= end; i++) bar(X(i), (D.delta[i] || 0) * (i === end ? Math.min(1, t - i) : 1));
+  ctx.font = "600 10px " + MONO; ctx.fillStyle = COL.mut; ctx.fillText(`Δ lots / ${mode === 3 ? "3 min" : "min"} · Dext footprint`, padL + 4, dTop + 6);
+  ctx.fillText(sgn(mx), Wd - padR + 6, dTop + 8); ctx.fillText(sgn(-mx), Wd - padR + 6, dBot - 1);
+  const dd = mode === 3 ? bars3Live().slice(-1)[0].d : D.delta[end] || 0;
+  ctx.fillStyle = dd >= 0 ? COL.up : COL.dn; ctx.font = "700 10.5px " + MONO; ctx.fillText(sgn(dd), Wd - padR + 6, mid + 3.5);
+}
+function inventory(i) {                                 // option OI by strike, this minute, next to the price axis: CE above the strike, PE below; ghost = the day's peak
+  let lad = D.ladder[D.mins[i]], asOf = i; while (!lad && asOf > 0) { asOf--; lad = D.ladder[D.mins[asOf]]; }
+  const x0 = Wd - padR + AXW + 46, wmax = Wd - x0 - 8;
+  ctx.font = "600 9.5px " + MONO; ctx.fillStyle = COL.mut; ctx.fillText("OI by strike · L", Wd - padR + AXW + 4, pTop - 8);
+  if (!lad) return;
+  if (asOf !== i) { ctx.fillStyle = COL.q; ctx.fillText(`chain blind · as of ${D.mins[asOf]}`, Wd - padR + AXW + 4, pTop + 4); }
+  for (const k of D.strikes) {
+    const y = Y(lvl(k, i)); if (y < pTop + 6 || y > pBot - 6) continue;
+    const ce = lad.ce[k] || 0, pe = lad.pe[k] || 0, cpk = (lad.ce_pk || {})[k] || ce, ppk = (lad.pe_pk || {})[k] || pe;
+    ctx.strokeStyle = "#e8e5dd"; ctx.beginPath(); ctx.moveTo(x0 - 2, y); ctx.lineTo(Wd - 6, y); ctx.stroke();
+    ctx.fillStyle = "#f1eee7"; ctx.fillRect(x0, y - 6, cpk / MAXOI * wmax, 5); ctx.fillRect(x0, y + 1, ppk / MAXOI * wmax, 5);
+    ctx.fillStyle = COL.ce; ctx.globalAlpha = .75; ctx.fillRect(x0, y - 6, ce / MAXOI * wmax, 5);
+    ctx.fillStyle = COL.pe; ctx.fillRect(x0, y + 1, pe / MAXOI * wmax, 5); ctx.globalAlpha = 1;
+    if (!tagYs.some(q => Math.abs(q - y) < 9)) { ctx.fillStyle = COL.mut; ctx.font = "600 9.5px " + MONO; ctx.fillText(`${fmt(k)}s`, x0 - 44, y + 3.5); }
+    ctx.font = "500 8.5px " + MONO; ctx.fillStyle = COL.ce; ctx.fillText(ce.toFixed(0), x0 + Math.max(ce, cpk) / MAXOI * wmax + 3, y - 1.5);
+    ctx.fillStyle = COL.pe; ctx.fillText(pe.toFixed(0), x0 + Math.max(pe, ppk) / MAXOI * wmax + 3, y + 6.5);
+  }
+}
+function userDraw(end) {                                // her lines, zones and watches (replay: screen only)
+  const yOf = (u, i) => Y(u.tag === "s" ? lvl(u.lvl, i) : u.lvl);
+  for (const u of userZones) { ctx.fillStyle = "rgba(124,58,237,.08)"; const y1 = yOf({lvl: u.a, tag: u.tag}, end), y2 = yOf({lvl: u.b, tag: u.tag}, end);
+    ctx.fillRect(padL, Math.min(y1, y2), plotW(), Math.abs(y2 - y1)); ctx.strokeStyle = COL.you; ctx.setLineDash([3, 3]); ctx.strokeRect(padL, Math.min(y1, y2), plotW(), Math.abs(y2 - y1)); ctx.setLineDash([]);
+    axisTag(Math.min(y1, y2), `YOU zone ${fmt(u.a)}–${fmt(u.b)}${u.tag}`, COL.you, "#f3ecfd"); }
+  for (const u of userLines) { const y = yOf(u, end); ctx.save(); ctx.strokeStyle = COL.you; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(Wd - padR, y); ctx.stroke(); ctx.restore();
+    axisTag(y, `YOU ${fmt(u.lvl)}${u.tag}`, COL.you, "#f3ecfd"); }
+  for (const u of watches) { const y = yOf(u, end), hit = u.hit && ix(u.hit) <= end; ctx.save(); ctx.strokeStyle = hit ? COL.ai : COL.mut; ctx.lineWidth = hit ? 1.6 : 1; ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(Wd - padR, y); ctx.stroke(); ctx.restore();
+    axisTag(y, `${hit ? "HIT " + u.hit : "WATCH"} ${fmt(u.lvl)}${u.tag}`, hit ? COL.ai : COL.mut, hit ? "#fdf0e8" : "#f1efe9"); }
+}
+function pushes(now) {
+  for (let n = 0; n <= fired; n++) {
+    const e = ev[n];
+    if (e.push) {                                       // ◆ at the candle; a probe travels to the wall and waits there, pulsing, until the answer
+      const p = e.push, i = ix(p.t), up = p.dir > 0, k = cand[i], y = up ? Y(k.h) - 12 : Y(k.l) + 12, wy = Y(lvl(p.k, i)), g = grow(e, now, 500), col = up ? COL.up : COL.dn;
+      const s = 4.5 * (g < 1 ? 1 + Math.sin(g * Math.PI) * 0.6 : 1);
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(X(i), y - s); ctx.lineTo(X(i) + s, y); ctx.lineTo(X(i), y + s); ctx.lineTo(X(i) - s, y); ctx.fill();
+      const ga = ease(grow(e, now, 900)), py = y + (wy - y) * ga;
+      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]); ctx.globalAlpha = 0.7; ctx.beginPath(); ctx.moveTo(X(i), y); ctx.lineTo(X(i), py); ctx.stroke(); ctx.restore();
+      const ansAt = p.ans && p.ans !== "?" ? ix(p.held_at || p.am) + 1 : ix(p.am) + 1, pending = ansAt < 0 || t < ansAt;
+      if (pending) { const r = 3 + (RM ? 0 : (Math.sin(now / 200) + 1) * 1.5); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X(i), py, r, 0, 7); ctx.stroke(); }
+    }
+    if (e.crack) {                                      // BREAK?: the wall cracks at that minute
+      const p = e.crack, i = ix(p.am), y = Y(lvl(p.k, i)), x = X(i);
+      ctx.save(); ctx.strokeStyle = COL.dn; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x - 2, y - 5); ctx.lineTo(x + 1, y + 4); ctx.lineTo(x + 4, y - 3); ctx.lineTo(x + 7, y + 1); ctx.stroke(); ctx.restore();
+    }
+    if (e.ans) {                                        // the wall's answer chip, at the wall, at the minute it was known
+      const p = e.ans, i = clampI(ix(p.held_at || p.am)), wy = Y(lvl(p.k, i)), g = ease(grow(e, now, 450));
+      const buyers = p.ans === "TIKI" && p.who === "KHAREEDAR";
+      const lab = `${ansWord(p)} ${L(p.chg)}`, col = p.ans === "TOOT" || buyers ? COL.dn : p.ans === "TIKI" ? COL.pe : p.ans === "PHANS" ? COL.ce : COL.q;
+      ctx.save(); ctx.translate(X(i), wy + (p.dir > 0 ? -13 : 13)); ctx.scale(0.6 + 0.4 * g, 0.6 + 0.4 * g); ctx.globalAlpha = g;
+      ctx.font = "700 10px " + MONO; const w = ctx.measureText(lab).width + 10;
+      ctx.fillStyle = "#fff"; rr(-w / 2, -8, w, 16, 5); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.fillStyle = col; ctx.fillText(lab, -w / 2 + 5, 4); ctx.restore();
+    }
+  }
+}
+function zones(now) {
+  for (const z of D.zone) {
+    const i = ix(z.t); if (i < 0 || i > t) continue;
+    if (z.kind === "arm") { ctx.save(); ctx.strokeStyle = COL.ai; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(X(i) - 7, Y(z.level)); ctx.lineTo(X(i) + 7, Y(z.level)); ctx.stroke(); ctx.restore(); continue; }
+    const e = ev.find(x => x.zone === z); if (!e || ev.indexOf(e) > fired) continue;
+    const v = e.verdict, g = ease(grow(e, now, 500)), sell = z.side === "SELL", y = sell ? Y(z.px) - 16 : Y(z.px) + 16;
+    ctx.fillStyle = sell ? COL.dn : COL.up; ctx.beginPath();
+    if (sell) { ctx.moveTo(X(i) - 6, y - 6); ctx.lineTo(X(i) + 6, y - 6); ctx.lineTo(X(i), y + 3); } else { ctx.moveTo(X(i) - 6, y + 6); ctx.lineTo(X(i) + 6, y + 6); ctx.lineTo(X(i), y - 3); }
+    ctx.fill();
+    const word = v ? (WORD[v.word] || v.word) : "?", lab = `${z.side} ${fmt(z.px)}f · ${word} ${v ? v.n + "/" + v.N : ""}`, col = word === "CONTINUE" ? COL.dn : word === "ROTATE" ? COL.up : COL.mut;
+    ctx.save(); ctx.globalAlpha = g; ctx.font = "700 10.5px " + MONO; const w = ctx.measureText(lab).width + 12, yy = sell ? y - 30 : y + 12;
+    ctx.fillStyle = "#fff"; rr(X(i) - w / 2, yy, w, 18, 9); ctx.fill(); ctx.strokeStyle = col; ctx.stroke(); ctx.fillStyle = col; ctx.fillText(lab, X(i) - w / 2 + 6, yy + 13); ctx.restore();
+  }
+}
+function aipins() {
+  pins = [];
+  for (let n = 0; n < fired; n++) { const e = ev[n], i = clampI(e.i), x = X(i), y = pTop - 10;
+    ctx.fillStyle = e.major ? COL.ai : "#f1c7b3"; ctx.beginPath(); ctx.arc(x, y, e.major ? 3.5 : 2.2, 0, 7); ctx.fill(); pins.push({x, y, e}); }
+}
+function link(now) {
+  const a = anchor(), bw = bubble.offsetWidth, bh = bubble.offsetHeight, bx = bpos.x + bw / 2, by = bpos.y < a.y ? bpos.y + bh : bpos.y;
+  ctx.save(); ctx.strokeStyle = COL.ai; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx, a.y, a.x, a.y); ctx.stroke(); ctx.restore();
+  const r = 4 + (RM ? 0 : (Math.sin(now / 260) + 1) * 2.5);
+  ctx.fillStyle = "rgba(217,119,87,.25)"; ctx.beginPath(); ctx.arc(a.x, a.y, r + 4, 0, 7); ctx.fill();
+  ctx.fillStyle = COL.ai; ctx.beginPath(); ctx.arc(a.x, a.y, 3.5, 0, 7); ctx.fill();
+}
+function crosshair() {
+  if (!hover) return;
+  const {x, y} = hover, i = clampI(XI(x)); if (i > cur() || x > Wd - padR) return;
+  ctx.save(); ctx.strokeStyle = "#9a958b"; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(X(i), pTop); ctx.lineTo(X(i), dBot); ctx.stroke();
+  if (y >= pTop && y <= pBot) { ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(Wd - padR, y); ctx.stroke(); }
+  ctx.restore();
+  ctx.fillStyle = COL.ink; rr(X(i) - 18, Ht - 19, 36, 15, 4); ctx.fill(); ctx.fillStyle = "#fff"; ctx.font = "700 10px " + MONO; ctx.fillText(D.mins[i], X(i) - 14, Ht - 8);
+  if (y >= pTop && y <= pBot) { const p = YP(y), lab = `${fmt(p)}f · ${fmt(p - bas[i])}s`; ctx.font = "700 10px " + MONO; const w = ctx.measureText(lab).width + 10;
+    ctx.fillStyle = COL.ink; rr(Wd - padR + 2, y - 8, w, 16, 4); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(lab, Wd - padR + 7, y + 3.5); }
+}
+function readout(end) {                                 // OHLC + delta at the hovered minute, else the live one (3-min bar in 3m mode)
+  const i = hover && XI(hover.x) <= end && hover.x < Wd - padR ? clampI(XI(hover.x)) : end;
+  let o, h, l, c, d, v, label;
+  if (mode === 3) { const a = i - i % 3, b = Math.min(a + 2, end); h = -Infinity; l = Infinity; d = 0; v = 0; for (let k = a; k <= b; k++) { const q = live(k); h = Math.max(h, q.h); l = Math.min(l, q.l); c = q.c; d += D.delta[k] || 0; v += D.fvol[k] || 0; } o = cand[a].o; label = `${D.mins[a]}–${D.mins[b]}`; }
+  else { const q = live(i); o = q.o; h = q.h; l = q.l; c = q.c; d = D.delta[i] || 0; v = D.fvol[i] || 0; label = D.mins[i]; }
+  const parts = [[label, COL.ink], ["O " + fmt(o), COL.mut], ["H " + fmt(h), COL.mut], ["L " + fmt(l), COL.mut], ["C " + fmt(c), c >= o ? COL.up : COL.dn], ["Δ " + sgn(d), d >= 0 ? COL.up : COL.dn], ["V " + fmt(v), COL.mut], ["VWAP " + fmt(D.vwap[i]), COL.band], ["basis " + (bas[i] >= 0 ? "+" : "−") + Math.abs(bas[i]).toFixed(0), COL.mut]];
+  let x = padL + 6; ctx.font = "600 10.5px " + MONO;
+  for (const [s, col] of parts) { ctx.fillStyle = col; ctx.fillText(s, x, pTop - 10); x += ctx.measureText(s).width + 12; }
+}
+function shards(p) {
+  const i = ix(p.held_at || p.am), x = X(i), y = Y(lvl(p.k, i)), fx = $("#fx");
+  for (let n = 0; n < 16; n++) { const s = document.createElement("div"); s.className = "shard"; s.style.left = x + "px"; s.style.top = y + "px"; s.style.background = p.side === "CE" ? COL.ce : COL.pe; fx.appendChild(s);
+    const a = Math.random() * Math.PI * 2, d = 30 + Math.random() * 70;
+    s.animate([{transform: "translate(0,0) rotate(0)", opacity: 1}, {transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px) rotate(${a * 90}deg)`, opacity: 0}], {duration: 1000, easing: "cubic-bezier(.2,.8,.2,1)"}).onfinish = () => s.remove(); }
+}
+
+/* ------------------------------------------------------------ the timeline scrubber -- */
+const TX = i => padL + (i + 0.5) * (TW - padL - padR) / N;
+const TXI = x => (x - padL) / (TW - padL - padR) * N - 0.5;
+function tlDraw() {
+  tctx.clearRect(0, 0, TW, TH);
+  const b0 = ix(D.live_from || "11:07"), mid = TH * 0.56;
+  if (b0 > 0) { tctx.fillStyle = "rgba(217,119,87,.08)"; tctx.fillRect(TX(0) - 2, 4, TX(b0) - TX(0) + 2, TH - 8); }
+  for (const [a, b] of D.holes) { tctx.fillStyle = "rgba(120,120,140,.18)"; tctx.fillRect(TX(ixS(a)), 4, TX(ixS(b)) - TX(ixS(a)), TH - 8); }
+  for (let i = 0; i < N; i++) if (NT[i] && NT[i].kind === "quiet") { tctx.fillStyle = "#edebe5"; tctx.fillRect(TX(i) - 1, mid - 2, TX(i + 1) - TX(i) + 1, 4); }
+  tctx.strokeStyle = "#ddd9cf"; tctx.beginPath(); tctx.moveTo(padL, mid); tctx.lineTo(TW - padR, mid); tctx.stroke();
+  tctx.font = "600 9.5px " + MONO; tctx.fillStyle = COL.mut;
+  for (let i = 0; i < N; i++) if (+D.mins[i].slice(3) % 30 === 0) { tctx.fillRect(TX(i), mid - 3, 1, 6); tctx.fillText(D.mins[i], TX(i) - 13, TH - 4); }
+  for (const e of marks) {
+    const x = TX(clampI(e.i)), past = e.i <= t; tctx.globalAlpha = past ? 1 : .45;
+    if (e.push) { const up = e.push.dir > 0; tctx.fillStyle = up ? COL.up : COL.dn; tctx.beginPath(); tctx.moveTo(x, mid - 4); tctx.lineTo(x + 3, mid); tctx.lineTo(x, mid + 4); tctx.lineTo(x - 3, mid); tctx.fill(); }
+    else if (e.toot) { tctx.fillStyle = COL.dn; tctx.fillRect(x - 1.5, 6, 3, mid - 4); }
+    else if (e.zone) { const s = e.zone.side === "SELL"; tctx.fillStyle = s ? COL.dn : COL.up; tctx.beginPath(); if (s) { tctx.moveTo(x - 5, 7); tctx.lineTo(x + 5, 7); tctx.lineTo(x, 15); } else { tctx.moveTo(x - 5, TH - 15); tctx.lineTo(x + 5, TH - 15); tctx.lineTo(x, TH - 7); } tctx.fill(); }
+    else if (e.chap === "FUEL" || e.chap === "FUEL SPENT") { tctx.fillStyle = e.chap === "FUEL" ? COL.ai : COL.q; tctx.beginPath(); tctx.arc(x, mid + 9, 3, 0, 7); tctx.fill(); }
+    else if (e.signs) { tctx.fillStyle = COL.dn; tctx.font = "700 9px " + MONO; tctx.fillText(e.signs.isHigh ? "T" : "B", x - 3, e.signs.isHigh ? 14 : TH - 8); }
+    else if (e.floor) { tctx.fillStyle = COL.pe; tctx.fillRect(x - 1.5, mid + 4, 3, 9); }
+    else if (e.chap === "NEW FIGHT") { tctx.fillStyle = COL.ce; tctx.fillRect(x - 1.5, 6, 3, mid - 4); }
+    else if (e.chap === "MANAGE") { tctx.fillStyle = e.tagc === "ok" ? COL.up : COL.dn; tctx.fillRect(x - 1, mid + 5, 2, 6); }
+    tctx.globalAlpha = 1;
+  }
+  const px = TX(t); tctx.fillStyle = COL.ai; tctx.fillRect(px - 1, 3, 2, TH - 6);
+  tctx.beginPath(); tctx.moveTo(px - 5, 3); tctx.lineTo(px + 5, 3); tctx.lineTo(px, 9); tctx.fill();
+  if (tlHover) { const i = clampI(TXI(tlHover.x)); tctx.fillStyle = "rgba(21,24,30,.35)"; tctx.fillRect(TX(i) - .5, 3, 1, TH - 6); }
+}
+let scrubbing = false;
+const tlPos = m => { const r = tl.getBoundingClientRect(); return {x: m.clientX - r.left, y: m.clientY - r.top}; };
+tl.addEventListener("mousedown", m => { scrubbing = true; seek(Math.max(0, TXI(tlPos(m).x))); });
+tl.addEventListener("mousemove", m => { tlHover = tlPos(m); if (scrubbing) seek(Math.max(0, TXI(tlHover.x)));
+  const i = clampI(TXI(tlHover.x)), near = marks.filter(e => Math.abs(TX(clampI(e.i)) - tlHover.x) < 5), tip = $("#tip");
+  if (near.length) { const e = near[0]; tip.innerHTML = `<b>${D.mins[clampI(e.i)]} · ${esc(e.tag)}</b><br>${esc(e.text.replace(/\*\*/g, "")).slice(0, 220)}`; const sr = stage.getBoundingClientRect(), tr = tl.getBoundingClientRect(); tip.style.left = Math.min(sr.width - 350, tlHover.x) + "px"; tip.style.top = (tr.top - sr.top - 70) + "px"; tip.style.opacity = 1; }
+  else { tip.innerHTML = `<b>${D.mins[i]}</b> · click to jump`; const sr = stage.getBoundingClientRect(), tr = tl.getBoundingClientRect(); tip.style.left = Math.min(sr.width - 350, tlHover.x) + "px"; tip.style.top = (tr.top - sr.top - 34) + "px"; tip.style.opacity = 1; } });
+tl.addEventListener("mouseleave", () => { tlHover = null; scrubbing = false; $("#tip").style.opacity = 0; });
+addEventListener("mouseup", () => { scrubbing = false; });
+
+/* ------------------------------------------------------------ commands (replay: deterministic, screen only) -- */
+function chatAdd(who, text, chips, tagc) {
+  const e = {i: t, tag: who, text, chips: (chips || []).map(c => typeof c === "string" ? {t: c, c: who === "YOU" ? "you" : ""} : c), you: who === "YOU", tagc: who === "YOU" ? "you" : tagc, major: who !== "YOU"};
+  chat.push(e); $("#feed").insertAdjacentHTML("afterbegin", rowHTML(e, -1)); $("#feed").scrollTop = 0;
+  if (who !== "YOU") { say(e, true); }
+}
+const HELP = "line 22750f · line 22700s · zone 22680-22720f · watch 22800s · remove 22750 · clear · list · go 12:47 · why? · what next? · status · wrong when? — I never place orders.";
+function runCmd(raw) {
+  const s = raw.trim(); if (!s) return;
+  chatAdd("YOU", s);
+  const q = s.toLowerCase().replace(/,/g, ""), i = cur(), hm = D.mins[i];
+  const lv = q.match(/(\d{4,5}(?:\.\d+)?)\s*([fs])\b/), nums = q.match(/\d{4,5}(?:\.\d+)?/g) || [];
+  const tagOf = () => lv ? lv[2] : null;
+  if (/^(buy|sell|short|long|order|place|exit|square)\b/.test(q) || /\b\d+\s*lots?\b/.test(q)) return chatAdd("JARVIS", "**I don't place orders.** I only read. Your triggers and your stop stay yours.", ["no order path"], "bad");
+  if (/^(help|\?)$/.test(q)) return chatAdd("JARVIS", "**Commands:** " + HELP);
+  if (/^(line|draw)\b/.test(q) || /\b(line|draw)$/.test(q)) {
+    if (!lv) return chatAdd("JARVIS", "Say the level with its tag: **line 22750f** or **line 22700s**.", [], "q");
+    const u = {lvl: +lv[1], tag: lv[2]}; userLines.push(u);
+    return chatAdd("JARVIS", `**Line drawn · ${fmt(u.lvl)}${u.tag}** (${u.tag === "s" ? `≈ ${fmt(lvl(u.lvl, i))}f now` : `≈ ${fmt(u.lvl - bas[i])}s now`}). Kept for the day.`, [`YOU ${fmt(u.lvl)}${u.tag}`]);
+  }
+  if (/^zone\b/.test(q)) {
+    const tg = tagOf(); if (nums.length < 2 || !tg) return chatAdd("JARVIS", "Say both edges and the tag: **zone 22680-22720f**.", [], "q");
+    const u = {a: Math.min(+nums[0], +nums[1]), b: Math.max(+nums[0], +nums[1]), tag: tg}; userZones.push(u);
+    return chatAdd("JARVIS", `**Zone drawn · ${fmt(u.a)}–${fmt(u.b)}${u.tag}**. Kept for the day.`, [`YOU zone ${fmt(u.a)}–${fmt(u.b)}${u.tag}`]);
+  }
+  if (/^watch\b/.test(q) || /\bwatch$/.test(q)) {
+    if (!lv) return chatAdd("JARVIS", "Say the level with its tag: **watch 22800s**.", [], "q");
+    if (watches.length >= 10) return chatAdd("JARVIS", "Ten watches already today. **remove** one first.", [], "q");
+    const u = {lvl: +lv[1], tag: lv[2], hit: null, set: hm}; watches.push(u);
+    return chatAdd("JARVIS", `**Watching ${fmt(u.lvl)}${u.tag}** (${u.tag === "s" ? "spot" : "futures"} touch). On touch: a Telegram message plus my read at that minute. ${watches.length}/10 today.`, [`WATCH ${fmt(u.lvl)}${u.tag}`, "→ Telegram on hit (simulated)"]);
+  }
+  if (/^(remove|delete|hatao)\b/.test(q)) {
+    if (!nums.length) return chatAdd("JARVIS", "Which level? **remove 22750**.", [], "q");
+    const k = +nums[0]; let n = 0;
+    for (const arr of [userLines, userZones, watches]) for (let j = arr.length - 1; j >= 0; j--) if (arr[j].lvl === k || arr[j].a === k || arr[j].b === k) { arr.splice(j, 1); n++; }
+    return chatAdd("JARVIS", n ? `**Removed ${n}** at ${fmt(k)}.` : `Nothing at ${fmt(k)}. Say **list**.`, [], n ? null : "q");
+  }
+  if (/^(clear|sab hatao)/.test(q)) { userLines.length = 0; userZones.length = 0; watches.length = 0; return chatAdd("JARVIS", "**Cleared** · lines, zones and watches."); }
+  if (/^list/.test(q)) {
+    const items = userLines.map(u => `line ${fmt(u.lvl)}${u.tag}`).concat(userZones.map(u => `zone ${fmt(u.a)}–${fmt(u.b)}${u.tag}`), watches.map(u => `watch ${fmt(u.lvl)}${u.tag}${u.hit ? " · hit " + u.hit : ""}`));
+    return chatAdd("JARVIS", items.length ? `**${items.length} of yours:** ${items.join(" · ")}` : "**Nothing drawn.** Try **line 22750f** or **watch 22800s**.");
+  }
+  if (/^(go|jump)\b/.test(q)) { const m = q.match(/(\d{1,2}):(\d{2})/); const j = m ? ix(`${m[1].padStart(2, "0")}:${m[2]}`) : -1; if (j < 0) return chatAdd("JARVIS", "Say a time inside the day: **go 12:47**.", [], "q"); playing = false; $("#play").textContent = "▶ play"; seek(j + 0.99); return; }
+  if (/^(why|kyun)/.test(q)) {
+    const lt = lastTrigger(i), sides = lt ? [lt.z.side] : ["BUY", "SELL"];
+    const txt = sides.map(sd => { const v = D.verdict[sd][hm]; return `**${sd}: ${vword(v)}** · ${vchips(v).map(c => c.t).join(" · ")}`; }).join("  ");
+    const f = fightAt(i);
+    return chatAdd("JARVIS", `${txt}${f ? ` · fight: ${fmt(f.k)}s ${f.side} tested ×${f.tested}, broke ${f.broke}, ${STATE[f.st] || f.chapter.toLowerCase()}` : ""}.`, [], null);
+  }
+  if (/^(what next|aage|next)/.test(q)) {
+    const rm = roomAt(i), r = D.timeline[i] || {}, fu = r.fuel, lastNx = ev.slice(0, fired + 1).reverse().find(e => e.up || e.dn);
+    const up = rm.CE ? `▲ ${fmt(rm.CE.dist)}f of room → ${fmt(rm.CE.f.k)}s CE ${rm.CE.f.oi != null ? rm.CE.f.oi.toFixed(0) + "L" : ""} must break` : "▲ open: no CE wall in 2 steps";
+    const dn = rm.PE ? `▼ ${fmt(-rm.PE.dist)}f of room → ${fmt(rm.PE.f.k)}s PE ${rm.PE.f.oi != null ? rm.PE.f.oi.toFixed(0) + "L" : ""} must break` : "▼ open: no PE wall in 2 steps";
+    const fuel = fu && r.fuel_state === "LIVE" ? `Fuel is live: ${MEAN[fu.meaning] || fu.meaning} ${sgn(fu.lots)}, price ${fu.dir}.` : "No fuel running: the next push decides.";
+    return chatAdd("JARVIS", `**NEXT** · ${up} · ${dn}. ${fuel}${lastNx && lastNx.wr ? ` ${lastNx.wr}.` : ""}`, [], null);
+  }
+  if (/^(what('s| is)? happening|status|state|kya ho)/.test(q)) return chatAdd("JARVIS", `**${hm}** · ${stateLine(i)}${NT[i] ? ` | NO TRADE: ${NT[i].kind === "blind" ? "can't see" : "quiet since " + NT[i].since}` : ""}.`);
+  if (/^(wrong|galat)/.test(q)) { const e = ev.slice(0, fired + 1).reverse().find(x => x.wr && /^wrong if/.test(x.wr)); return chatAdd("JARVIS", e ? `**${e.tag} (${D.mins[clampI(e.i)]})** · ${e.wr}.` : "**No open call** to be wrong about yet. Wait for a BREAK, a FUEL run or your trigger.", [], e ? null : "q"); }
+  return chatAdd("JARVIS", "**Didn't get that.** " + HELP, [], "q");
+}
+function checkWatches(m) {                              // on every new minute: a touch fires a line (and, live, Telegram)
+  for (const u of watches) {
+    if (u.hit || m < 1) continue;
+    const touched = u.tag === "f" ? D.flo[m] <= u.lvl && u.lvl <= D.fhi[m] : Math.min(D.spot[m - 1], D.spot[m]) <= u.lvl && u.lvl <= Math.max(D.spot[m - 1], D.spot[m]);
+    if (!touched) continue;
+    u.hit = D.mins[m];
+    chatAdd("JARVIS", `**WATCH HIT · ${fmt(u.lvl)}${u.tag} at ${D.mins[m]}** · ${stateLine(m)}.`, [{t: "→ Telegram sent (simulated)", c: "ok"}, {t: `watch set ${u.set}`}], "ok");
+  }
+}
+$("#cmd").onsubmit = m => { m.preventDefault(); runCmd($("#cin").value); $("#cin").value = ""; };
+
+/* ------------------------------------------------------------ the chrome -- */
+const CHAPS = ["WALL", "TESTED", "FUEL", "WEAKENING", "BROKEN", "NEW FLOOR", "FUEL SPENT", "TOP / BOTTOM", "MANAGE", "NEW FIGHT", "NO TRADE"];
+function rail() {
+  const r = $("#rail");
+  CHAPS.forEach((c, n) => { if (n) r.insertAdjacentHTML("beforeend", '<span class="arrow">→</span>'); const b = document.createElement("span"); b.className = "rp"; b.dataset.c = c; b.textContent = c;
+    b.onclick = () => { const e = ev.find(x => x.chap === c); if (e) seek(e.i + 0.01); }; r.appendChild(b); });
+  r.insertAdjacentHTML("beforeend", '<span class="legend">◆ push · ○ answer pending · chip = the wall\'s answer · ▲▼ your trigger · T/B signs · dots on top = notes (hover) · bars at right = OI by strike (ghost = day peak)</span>');
+  setInterval(() => {
+    if (!D) return; let now = null;
+    for (let n = 0; n <= fired; n++) if (ev[n].chap) now = ev[n].chap;
+    document.querySelectorAll(".rp").forEach(p => { const c = p.dataset.c; p.classList.toggle("lit", ev.some((e, n) => n <= fired && e.chap === c)); p.classList.toggle("now", c === now); });
+  }, 200);
+}
+function setPlay(on) { playing = on; $("#play").textContent = on ? "❚❚ pause" : "▶ play"; }
+$("#play").onclick = () => { if (ended) seek(0); setPlay(!playing); };
+document.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { speed = +b.dataset.sp; document.querySelectorAll("[data-sp]").forEach(x => x.classList.toggle("on", x === b)); });
+document.querySelectorAll("[data-md]").forEach(b => b.onclick = () => { mode = +b.dataset.md; document.querySelectorAll("[data-md]").forEach(x => x.classList.toggle("on", x === b)); });
+$("#voice").onclick = () => { voiceOn = !voiceOn; $("#voice").textContent = voiceOn ? "🔊 voice on" : "🔇 voice off"; $("#voice").classList.toggle("on", voiceOn); if (voiceOn) speak("Jarvis voice on. I speak the major lines only."); else if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(); };
+$("#go").onclick = () => { $("#intro").style.opacity = 0; setTimeout(() => $("#intro").hidden = true, 450); seek(0); setPlay(true); };
+$("#again").onclick = () => { $("#end").hidden = true; seek(0); setPlay(true); };
+addEventListener("keydown", e => {
+  const typing = e.target && e.target.tagName === "INPUT";
+  if (typing) { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.code === "Space") { e.preventDefault(); $("#play").click(); }
+  else if (e.key === "ArrowRight") { setPlay(false); seek(Math.min(N - 1, cur() + 1 + 0.99)); }
+  else if (e.key === "ArrowLeft") { setPlay(false); seek(Math.max(0, cur() - 1 + 0.99)); }
+  else if (e.key === "]") { const n = ev.find(x => x.major && x.i > t + 0.01); if (n) { setPlay(false); seek(n.i + 0.01); } }
+  else if (e.key === "[") { const prev = ev.filter(x => x.major && x.i < t - 0.02).slice(-1)[0]; if (prev) { setPlay(false); seek(prev.i + 0.01); } }
+  else if (["1", "2", "4"].includes(e.key)) document.querySelectorAll("[data-sp]").forEach(b => { if (b.dataset.sp === e.key) b.click(); });
+  else if (e.key === "m") document.querySelectorAll("[data-md]").forEach(b => { if (b.dataset.md === String(mode === 1 ? 3 : 1)) b.click(); });
+  else if (e.key === "v") $("#voice").click();
+  else if (e.key === "/") { e.preventDefault(); $("#cin").focus(); }
+});
+setInterval(() => { if (!D) return; const i = cur(), s = Math.min(59, Math.floor((t - i) * 60)); $("#clock").textContent = `${D.mins[i]}:${String(s).padStart(2, "0")}`; }, 50);
+cv.addEventListener("mousemove", m => { const r = cv.getBoundingClientRect(), mx = m.clientX - r.left, my = m.clientY - r.top, tip = $("#tip"); hover = {x: mx, y: my};
+  const p = pins.find(q => Math.hypot(q.x - mx, q.y - my) < 7);
+  if (p) { tip.innerHTML = `<b>${D.mins[clampI(p.e.i)]} · ${esc(p.e.tag)}</b><br>${esc(p.e.text.replace(/\*\*/g, ""))}`; tip.style.left = Math.min(Wd - 350, mx + 10) + "px"; tip.style.top = (my + 14) + "px"; tip.style.opacity = 1; }
+  else tip.style.opacity = 0; });
+cv.addEventListener("mouseleave", () => { hover = null; $("#tip").style.opacity = 0; });
+cv.addEventListener("click", m => { const r = cv.getBoundingClientRect(), mx = m.clientX - r.left, my = m.clientY - r.top; const p = pins.find(q => Math.hypot(q.x - mx, q.y - my) < 7); if (p) { setPlay(false); seek(p.e.i + 0.01); } });
+
+function showEnd() {
+  const KEY = ["BROKEN", "NEW FLOOR", "FUEL SPENT", "TOP / BOTTOM", "NEW FIGHT", "NO TRADE", "BLIND"], order = [];
+  let lastChap = null;
+  for (const e of ev) {
+    const c = e.chap || (e.tag === "BLIND" ? "BLIND" : null);
+    if (!c || !KEY.includes(c) || c === lastChap) continue;
+    lastChap = c; order.push(`${c === "TOP / BOTTOM" ? e.tag.split(" ")[0] + " SIGNS" : c} ${D.mins[clampI(e.i)]}`);
+  }
+  $("#story").textContent = order.slice(0, 22).join(" → ");
+  $("#endMeta").textContent = `NIFTY Nov fut · ${D.mins[0]}–${D.mins[N - 1]} · ${ev.length} lines · ${ev.filter(e => e.major).length} major`;
+  $("#endZ").innerHTML = D.zone.filter(z => !z.kind).map(z => {
+    const i = ix(z.t), v = (D.verdict[z.side] || {})[z.t], j = Math.min(N - 1, i + 30), sell = z.side === "SELL";
+    let fav = 0, adv = 0; for (let k = i + 1; k <= j; k++) { fav = Math.max(fav, sell ? z.px - D.flo[k] : D.fhi[k] - z.px); adv = Math.max(adv, sell ? D.fhi[k] - z.px : z.px - D.flo[k]); }
+    const mg = ev.filter(e => e.mz === z).map(e => `${D.mins[clampI(e.i)]} ${e.mst}`).join(" · ") || "—";
+    return `<tr><td>${z.t} ${z.side} ${fmt(z.px)}f · ${z.band}</td><td>${esc(vword(v))}</td><td>${esc(mg)}</td><td class="r">+${fmt(fav)} / −${fmt(adv)}${j < i + 30 ? " (window ends)" : ""}</td></tr>`;
+  }).join("");
+  const wl = {};
+  for (const p of D.pushes) { if (ix(p.t) < 0 || !p.ans || p.ans === "?") continue; const key = `${fmt(p.k)}s ${p.side}`; const w = wl[key] || (wl[key] = {t: 0, b: 0, d: 0}); w.t++; if (p.ans === "TOOT") w.b++; if (p.ans === "TIKI") w.d++; }
+  $("#endW").innerHTML = Object.entries(wl).map(([k, w]) => { const f = D.fights.find(x => `${fmt(x.k)}s ${x.side}` === k); return `<tr><td>${k}</td><td class="r">×${w.t}</td><td class="r">${w.b}</td><td class="r">${w.d}</td><td>${f ? (f.ending ? EN(f.ending) : "open") : "—"}</td></tr>`; }).join("");
+  $("#endF").innerHTML = D.runs.filter(r => Math.abs(r.lots) >= 2 * D.bar && ix(r.start) >= 0).map(r => { const a = ix(r.start), b = r.khatam ? ix(r.khatam) : -1; return `<tr><td>${r.start}</td><td>${MEAN[r.meaning] || r.meaning} ${r.dir}</td><td class="r">${sgn(r.lots)}</td><td>${r.khatam || "—"}</td><td class="r">${fmt(D.fut[a])} → ${b >= 0 ? fmt(D.fut[b]) + " (" + sgn(D.fut[b] - D.fut[a]) + ")" : "?"}</td></tr>`; }).join("");
+  $("#endS").innerHTML = ev.filter(e => e.signs && !e.signs.driving).map(e => { const b = e.signs.b, j = Math.min(N - 1, b + 15), hi = e.signs.isHigh; let w = 0, a = 0; for (let k = b + 1; k <= j; k++) { w = Math.max(w, hi ? e.signs.px - D.flo[k] : D.fhi[k] - e.signs.px); a = Math.max(a, hi ? D.fhi[k] - e.signs.px : e.signs.px - D.flo[k]); }
+    return `<tr><td>${D.mins[b]}</td><td>${esc(e.tag)}</td><td class="r">${fmt(e.signs.px)}f</td><td class="r">+${fmt(w)} / −${fmt(a)}</td></tr>`; }).join("");
+  const hiI = D.fhi.indexOf(Math.max(...D.fhi)), loI = D.flo.indexOf(Math.min(...D.flo)), dsum = D.delta ? D.delta.reduce((a, b) => a + b, 0) : null, vsum = D.fvol ? D.fvol.reduce((a, b) => a + b, 0) : null;
+  $("#endD").innerHTML = [["open", `${fmt(cand[0].o)}f`], ["high", `${fmt(D.fhi[hiI])}f · ${D.mins[hiI]}`], ["low", `${fmt(D.flo[loI])}f · ${D.mins[loI]}`], ["last", `${fmt(D.fut[N - 1])}f · ${fmt(D.spot[N - 1])}s`], ["range", `${fmt(D.fhi[hiI] - D.flo[loI])} pts`], ["VWAP", `${fmt(D.vwap[N - 1])}f · SD ${D.sd[N - 1].toFixed(0)}`], ["basis (median)", `${(med(bas) >= 0 ? "+" : "−")}${Math.abs(med(bas)).toFixed(0)}`], ["delta · volume", dsum != null ? `${sgn(dsum)} · ${fmt(vsum)} lots` : "—"], ["fut OI", `${fmt(D.oi[0])} → ${fmt(D.oi[N - 1])} (${sgn(D.oi[N - 1] - D.oi[0])})`]].map(([k, v]) => `<tr><td class="mut">${k}</td><td class="r">${v}</td></tr>`).join("");
+  const lf = D.live_from || "11:07", lfi = ix(lf);
+  $("#endC").innerHTML = (D.health ? D.health.notes.map(x => ["gap", esc(x)]) : []).concat([["backfilled", lfi > 0 ? `${D.mins[0]}–${lf} · chain Upstox backfill, flow Dext` : "none"], ["live", `${lfi > 0 ? lf : D.mins[0]} → ${D.mins[N - 1]} (book + chain)`], ["blind", D.holes.map(([a, b]) => `${a}–${b} · laptop asleep`).join(", ") || "none"], ["chain missing", D.chain_missing.length ? `${D.chain_missing.length} min · ${D.chain_missing.join(", ")}` : "none"], ["not rebuildable", "the 1-second book while asleep: flow from Dext only"], ["can't see", `${ev.filter(e => e.tag === "CAN'T SEE").length} push answers unread`]]).map(([k, v]) => `<tr><td class="mut">${k}</td><td>${v}</td></tr>`).join("");
+  $("#end").hidden = false;
+}
+</script>
+</body>
+</html>

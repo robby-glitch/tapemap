@@ -1,0 +1,23 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-10-27 · EXPIRY · TODAY · Oct monthly expiry (NIFTY + BNF) · size ref: aaj ke minute · fut leg: yes · READ log: yes
+
+strip (5 min): ?????????·a··▼▼▼▼▼▼PPPa▼?▼?▼▼▼▼▼▼▼▼P▼▼▼▼▼~~~~~~~~▼▼▼▼▼▼▼▼Paaaaaauwwwwwwwww~
+
+10:20     54452s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54600 −0.65L, 54400 −0.26L, 54100 +0.85L, 54500 +0.51L
+10:21     54462s  PE ROLL TOOTA                                       roll 10:20 ka toota, ab price pe phanse buy back · fuel · 54600 −1.7L, 54400 −0.94L
+10:22     54452s  CHAL RAHA ▼ · SHURU                 8/11 THEEK      PE BHAAG + CE LIKHAI · spot -136 pts/15m · with +10.2L against +0.84L
+                    PHANSE: 54600 +6.4L 10:14 tak likha, 54700 +2.4L 10:16 tak likha
+11:14     54344s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      PE BHAAG + CE LIKHAI · spot -123 pts/15m · with +9.9L against +3.1L
+                    PHANSE: 54400 +2.2L 11:03 tak likha
+12:18     54249s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -125 pts/15m · with +8.9L against +4.2L
+12:44     54382s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 133
+12:44     54382s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 54500 −1.2L, 54100 −0.49L, 54700 +1.4L, 54600 +0.96L
+13:03     54256s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54400 −1.5L, 54500 −0.96L, 54000 +1.6L, 54100 +0.71L
+13:22     54085s  CHAL RAHA ▼ · chop se bahar         7/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -176/15m
+14:04     54026s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 54200 −1.1L, 54300 −0.41L, 53700 +0.95L, 53900 +0.57L
+14:40     54087s  WAPSI ▲ · SHURU                     6/11 THEEK      CE BHAAG RAHE · spot +109 pts/15m · with +10.4L against +2.0L
+                    PHANSE: 54000 +12.9L 14:35 tak likha, 54100 +8.8L 14:26 tak likha
+15:11     54158s  WAPSI ▲ · TEZ                       9/11 THEEK      CE BHAAG RAHE · spot +78 pts · with +17.2L
+15:29     53975s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 187
+
+-- minutes: CHAL RAHA ▼ 146, ATKA 49, WAPSI ▲ 48, ? 46, CHOP 42, PIN 24, KHAMOSH 14, UNWIND 3
+-- stamps: 13 (pictures / quiet / ? 7, phases + ends 1, side events 5, ≠ READ 0)

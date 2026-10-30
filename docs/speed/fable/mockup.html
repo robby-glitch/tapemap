@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR mockup</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#ffffff; --line:#dedcd6; --ink:#1b1b1b; --mute:#6b6b66; --ce:#C4452C; --pe:#0B8277;
+          --up:#0b7a3b; --dn:#b3261e; --warn:#9a6700; --inset:#f0efeb; --mono:"JetBrains Mono",Consolas,monospace; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:12.5px/1.35 system-ui,Segoe UI,sans-serif; }
+  .wrap { width:1229px; margin:0 auto; padding:10px 12px; display:grid; gap:10px; }
+  .bar { display:flex; gap:16px; align-items:baseline; font-family:var(--mono); font-size:12px; color:var(--mute); }
+  .bar b { color:var(--ink); font-size:13px; letter-spacing:.5px; }
+  .grid { display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .lab { font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--mute); margin-bottom:4px; }
+  .word { font-size:34px; font-weight:800; letter-spacing:.5px; line-height:1.05; }
+  .word.up { color:var(--up); } .word.dn { color:var(--dn); }
+  .sub { font-size:15px; font-weight:700; margin-top:4px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { border:1px solid var(--line); border-radius:4px; padding:2px 7px; font-size:11.5px; background:var(--inset); white-space:nowrap; }
+  .chip.ce { border-color:var(--ce); color:var(--ce); background:#fff; } .chip.pe { border-color:var(--pe); color:var(--pe); background:#fff; }
+  .chip.g { background:#e8f3ec; border-color:#9cc8ad; color:#145a32; font-weight:700; }
+  table { border-collapse:collapse; width:100%; font-family:var(--mono); font-size:12px; }
+  th { text-align:left; font-weight:600; color:var(--mute); font-size:10.5px; letter-spacing:.3px; text-transform:uppercase; padding:3px 6px; border-bottom:1px solid var(--line); }
+  td { padding:3px 6px; border-bottom:1px solid #eeede8; white-space:nowrap; }
+  td.r { text-align:right; } .ce { color:var(--ce); } .pe { color:var(--pe); } .mute { color:var(--mute); }
+  .side { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .pat { font-size:16px; font-weight:800; }
+  .bars { display:grid; grid-template-columns: 56px 1fr 64px; gap:6px; align-items:center; font-family:var(--mono); font-size:11.5px; margin-top:4px; }
+  .trk { height:9px; background:var(--inset); border-radius:2px; position:relative; }
+  .trk i { position:absolute; top:0; bottom:0; border-radius:2px; }
+  .stamps td:first-child { font-weight:700; }
+  .fold { color:var(--mute); font-size:11.5px; cursor:pointer; }
+  .foot { font-size:11px; color:var(--mute); line-height:1.5; }
+  .vs { font-size:12px; color:var(--warn); font-weight:700; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bar">
+    <b>RAFTAAR · NIFTY</b><span>10:00</span><span>spot 22,649s · fut 22,752f</span>
+    <span>15m <b style="color:var(--up)">+167</b> · 60m <b>+227</b> · din <b>+197</b></span>
+    <span>DIN (§1o) <b>MIXED</b> · 9 bars</span>
+    <span class="mute">floors: CE 6.1L · PE 7.4L / 15m (last 60 min)</span>
+  </div>
+
+  <div class="grid">
+    <!-- 1. THE WORD -->
+    <div class="card">
+      <div class="lab">abhi · the story now</div>
+      <div class="word up">CHAL RAHA ▲</div>
+      <div class="sub">SAATH · BARABAR · since 09:57</div>
+      <div class="chips">
+        <span class="chip g">PAKKA 5/6</span>
+        <span class="chip">size 11× floor ✓✓</span>
+        <span class="chip">held 4 min ✓</span>
+        <span class="chip">strikes 4/4 ✓</span>
+        <span class="chip">BNF ✓ SENSEX ✓</span>
+      </div>
+      <div class="bars">
+        <span>with 15m</span><div class="trk"><i style="left:0;width:96%;background:var(--up)"></i></div><span class="r">+323L</span>
+        <span>against</span><div class="trk"><i style="left:0;width:0%;background:var(--dn)"></i></div><span class="r">0</span>
+        <span>with 5m</span><div class="trk"><i style="left:0;width:58%;background:var(--up);opacity:.6"></i></div><span class="r">+190L</span>
+      </div>
+      <div class="vs">READ: RANGE · RAFTAAR: CHAL RAHA ▲ SAATH — CE 22500 −48L, PE 22600 +52L in 15m, +167 pts</div>
+    </div>
+
+    <!-- 2. CALL WRITERS -->
+    <div class="card">
+      <div class="lab ce">call writers · haar rahe (losing side)</div>
+      <div class="pat ce">RETREAT · bhaag rahe</div>
+      <div class="chips"><span class="chip ce">22500 −48L</span><span class="chip ce">22600 −31L</span><span class="chip ce">22700 −12L</span><span class="chip">wall 22800 +2L · no roll</span></div>
+      <table style="margin-top:8px">
+        <tr><th>zone</th><th class="r">15m</th><th class="r">5m</th><th>strikes</th></tr>
+        <tr><td>near ≤ 22650 (under water)</td><td class="r ce">−91L</td><td class="r ce">−60L</td><td>4/4 ▼</td></tr>
+        <tr><td>wall &gt; 22650 (cap)</td><td class="r">+2L</td><td class="r">+1L</td><td>1/4 ▲</td></tr>
+      </table>
+      <div class="mute" style="margin-top:6px">speed: 5m cut 60L vs 71L five min ago · BARABAR</div>
+    </div>
+
+    <!-- 3. PUT WRITERS -->
+    <div class="card">
+      <div class="lab pe">put writers · jeet rahe (winning side)</div>
+      <div class="pat pe">PRESS · saath likh rahe</div>
+      <div class="chips"><span class="chip pe">22600 +52L</span><span class="chip pe">22500 +33L</span><span class="chip pe">22400 +9L</span><span class="chip">booking 0</span></div>
+      <table style="margin-top:8px">
+        <tr><th>zone</th><th class="r">15m</th><th class="r">5m</th><th>strikes</th></tr>
+        <tr><td>near ≥ 22650 (ITM)</td><td class="r pe">+58L</td><td class="r pe">+31L</td><td>3/4 ▲</td></tr>
+        <tr><td>wall &lt; 22650 (floor)</td><td class="r pe">+94L</td><td class="r pe">+41L</td><td>4/5 ▲</td></tr>
+      </table>
+      <div class="mute" style="margin-top:6px">speed: 5m add 72L vs 48L five min ago · TEZ</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- 4. KRAM: stamped story changes -->
+    <div class="card" style="grid-column: span 2">
+      <div class="lab">kram · jab kahani badli (stamped, newest first)</div>
+      <table class="stamps">
+        <tr><th>time</th><th>spot</th><th>story</th><th>why (numbers)</th><th>grade</th></tr>
+        <tr><td>09:57</td><td>22,634s</td><td class="up"><b>CHAL RAHA ▲ SAATH</b> · shuru</td><td>CE RETREAT 22500 −20L/5m · PE PRESS 22500 · +190 in 15m</td><td>THEEK 4/6</td></tr>
+        <tr><td>09:41</td><td>22,480s</td><td>KHAMOSH</td><td>kuch khaas nahi · floors read from 09:41</td><td class="mute">—</td></tr>
+        <tr><td colspan="5" class="fold">▸ sab (2 lines today) · front changes (§1d) 6 ▸</td></tr>
+      </table>
+    </div>
+
+    <!-- 5. FRONTS (§1d), current state only -->
+    <div class="card">
+      <div class="lab">§1d fronts · abhi kya kar rahe</div>
+      <table>
+        <tr><th>front</th><th>state</th><th>since</th><th class="r">15m</th></tr>
+        <tr><td class="ce">CE 22500</td><td>UNWINDING</td><td>09:54</td><td class="r ce">−48L</td></tr>
+        <tr><td class="ce">CE 22800</td><td>UNWINDING</td><td>09:56</td><td class="r ce">−11L</td></tr>
+        <tr><td class="pe">PE 22600</td><td>BUILDING</td><td>09:58</td><td class="r pe">+45L</td></tr>
+        <tr><td class="pe">PE 22400</td><td>STALLED</td><td>10:01</td><td class="r">−2L</td></tr>
+      </table>
+      <div class="mute" style="margin-top:6px">last change: 09:58 PE 22600 BUILDING (new front)</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    CHAL RAHA = a 15-min spot move ≥ 40 pts (0.18 % of the open) with a writer pattern behind it [I] · SAATH = losing-side covering + winning-side adds ≥ 2× losing-side adds [I] ·
+    floors = the last 60 min's median of the judged flow, per side [I] · bar 1.5×, BADA 3× [I] · grade = count of checks (size, size BADA, held 3, held 9, strikes agree, both peers), never a % ·
+    s = spot, f = fut (basis +103 measured at 10:00) · display only · light theme.
+  </div>
+</div>
+</body>
+</html>

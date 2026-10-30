@@ -27,6 +27,10 @@ REM GATE 3: Dext vs Upstox vs GoCharting for today, written to data\dext\parity_
 REM Idempotent; "could not check -- no Dext candles today" when none arrived. RC stays the capture's.
 "C:\Python313\python.exe" dext_parity.py >> data\eod_capture.log 2>&1
 
+REM THE LEG's forward log (30 Oct, NOISE-DECODER merged decision #8): every pause, its items, what happened 45 min later,
+REM to data\jarvis\pause_DAY.jsonl for the evening review. Display only; RC stays the capture's.
+"C:\Python313\python.exe" tools\pause_log.py >> data\eod_capture.log 2>&1
+
 REM Propagate the exit code so Task Scheduler's "Last Run Result" shows a
 REM refusal as a failure. A capture that quietly did nothing is the whole
 REM problem this was built to end.

@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAFTAAR v2</title>
+<style>
+:root{
+  --bg:#F4F6F9; --card:#FFFFFF; --line:#E3E7ED; --ink:#141A22; --ink2:#5C6675; --ink3:#8A93A0;
+  --up:#1B8A38; --dn:#C42B30; --ce:#C4452C; --pe:#0B8277; --chop:#D99A1E; --pin:#6D4FC2; --atka:#2F7FB8;
+  --unw:#6E7C8C; --quiet:#E9ECF1; --ruka:#E0A526; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --rh:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:10px 12px 20px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px}
+.brand{font-weight:800;letter-spacing:.8px}
+.tag{font-size:11px;color:var(--ink2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:var(--card)}
+.days{display:flex;gap:5px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 9px;cursor:pointer;font-size:11.5px;color:var(--ink2);white-space:nowrap}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctl{display:flex;align-items:center;gap:6px;margin-left:auto}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:700;font-family:inherit;font-size:13px}
+.clock{font:700 20px var(--mono)}
+.spot{font:600 13px var(--mono);color:var(--ink2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.h{font-size:10.5px;letter-spacing:.6px;color:var(--ink3);text-transform:uppercase;font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pill{display:inline-block;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.sw{display:inline-block;width:16px;height:8px;border-radius:2px;vertical-align:middle;margin-right:4px}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.num{font-family:var(--mono)}
+
+/* HERO: tile | the sentence | OI trend */
+.hero{display:grid;grid-template-columns:262px minmax(0,1fr) 272px;gap:10px;margin-bottom:10px}
+.pic{border-radius:12px;padding:10px 14px;color:#fff;position:relative;overflow:hidden;transition:background .5s;min-height:112px}
+.pic.light{color:var(--ink)}
+.pic .w{font-size:28px;font-weight:900;letter-spacing:.4px;display:flex;align-items:center;gap:8px;line-height:1.1}
+.arrow{display:inline-block;font-size:26px}
+.ph-TEZ .arrow{animation:beat .55s ease-in-out infinite}
+.ph-SHURU .arrow{animation:rise 1.2s ease-out}
+.ph-THAK .arrow{animation:tire 2.2s ease-in-out infinite}
+@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+@keyframes rise{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+@keyframes tire{0%,100%{opacity:1}50%{opacity:.25}}
+.stripes{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.18) 0 10px,transparent 10px 20px)}
+.phase{display:inline-block;background:rgba(255,255,255,.22);border-radius:999px;padding:1px 9px;font-weight:800;font-size:12px}
+.pic.light .phase{background:rgba(0,0,0,.07)}
+.gradebar{display:flex;gap:3px;margin:8px 0 6px;align-items:center}
+.gradebar i{flex:1;height:7px;border-radius:2px;background:rgba(255,255,255,.28)}
+.gradebar i.on{background:#fff}
+.pic.light .gradebar i{background:rgba(0,0,0,.08)} .pic.light .gradebar i.on{background:var(--ink2)}
+.story{display:flex;gap:5px;flex-wrap:wrap}
+.story .pill{background:#fff;font-size:10.5px;padding:1px 7px}
+.neq{position:absolute;right:10px;top:10px;background:#fff;color:var(--dn);font-weight:900;border-radius:999px;padding:2px 9px;font-size:11px;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:.35}}
+.toast{position:absolute;left:10px;right:10px;bottom:8px;background:rgba(20,26,34,.94);color:#fff;border-radius:8px;padding:5px 9px;font-size:11.5px;transform:translateY(150%);transition:transform .35s ease}
+.toast.show{transform:none}
+.since{font:600 12px var(--mono);opacity:.85}
+
+.say{display:flex;flex-direction:column;justify-content:space-between;padding:8px 16px}
+.say .k{font-size:10.5px;letter-spacing:.7px;color:var(--ink3);font-weight:700;text-transform:uppercase}
+.say .sent{font-size:24px;line-height:1.2;font-weight:800;letter-spacing:.1px;margin:2px 0 4px;min-height:56px;display:flex;align-items:center}
+.say .sent.flip{animation:flip .6s ease-out}
+@keyframes flip{0%{opacity:.2;transform:translateY(5px)}100%{opacity:1;transform:none}}
+.say .sub{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11.5px;color:var(--ink2)}
+.say .sub .pill{background:#F1F3F6;color:var(--ink2);font-weight:700}
+
+.oit{display:flex;flex-direction:column;gap:2px;padding:8px 12px}
+.oit .big{display:flex;align-items:center;gap:10px}
+.oit .arr{font-size:40px;line-height:1;font-weight:900}
+.oit .vw{font-size:19px;font-weight:900;line-height:1.05}
+.oit .vs{font-size:11.5px;color:var(--ink2)}
+.wins{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:2px}
+.win{border:1px solid var(--line);border-radius:8px;padding:1px 6px;font-size:11px;line-height:1.3;display:flex;justify-content:space-between;gap:4px;align-items:baseline}
+.win b{font-size:12px}
+.win .lab{color:var(--ink3);font-weight:700;font-size:10px}
+
+/* MAIN: story + lanes + trend + ribbon (left) | ladder + gauges (right) */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:10px;align-items:start}
+.cap{display:flex;flex-direction:column;justify-content:space-between;height:52px}
+.cap .l2{display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;color:var(--ink2);text-transform:none;letter-spacing:0;font-weight:500;align-items:center}
+.sec{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:3px 0 0;padding-top:3px;border-top:1px solid var(--line)}
+.sec .l2{display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--ink2);text-transform:none;letter-spacing:0;font-weight:500;align-items:center}
+.stack{position:relative}
+.stack svg{display:block}
+#svS{margin-bottom:0}
+#xh{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed rgba(20,26,34,.55);pointer-events:none;display:none;z-index:3}
+#xhl{position:absolute;bottom:-2px;transform:translateX(-50%);background:var(--ink);color:#fff;font:700 10.5px var(--mono);padding:1px 6px;border-radius:4px;pointer-events:none;display:none;z-index:4}
+
+/* ladder (kept from v1, on the price panel's own rows) */
+.mtitle{height:26px;display:flex;align-items:flex-start}
+.sides{display:grid;grid-template-columns:1fr 52px 1fr;align-items:end;height:58px}
+#ceX,#peX{display:flex;flex-direction:column;gap:2px;white-space:nowrap}
+#ceX{align-items:flex-end}
+#peX .pill,#ceX .pill{font-size:10px;padding:1px 7px}
+.shead{display:flex;flex-direction:column;gap:2px}
+.shead.ce{align-items:flex-end;text-align:right}
+.sname{font-weight:800;font-size:11.5px}
+.roll{animation:pop 1.6s ease-out}
+@keyframes pop{0%{transform:scale(1.35);box-shadow:0 0 0 6px rgba(109,79,194,.25)}100%{transform:scale(1)}}
+.ladder{position:relative}
+.row{display:grid;grid-template-columns:1fr 52px 1fr;height:var(--rh);align-items:center}
+.k{text-align:center;font:600 10.5px var(--mono);color:var(--ink2);border-left:1px solid var(--line);border-right:1px solid var(--line);height:100%;display:flex;align-items:center;justify-content:center}
+.k.atm{color:var(--ink);font-weight:800;background:#F1F3F6}
+.half{display:flex;align-items:center;height:100%;gap:3px;padding:0 3px}
+.half.ce{flex-direction:row-reverse}
+.bar{display:flex;height:calc(var(--rh) - 5px);flex:1;align-items:center}
+.half.ce .bar{flex-direction:row-reverse}
+.seg{height:100%;transition:width .45s ease}
+.base.ce{background:rgba(196,69,44,.38)} .base.pe{background:rgba(11,130,119,.38)}
+.tip.ce{background:var(--ce)} .tip.pe{background:var(--pe)}
+.tip.hot{animation:glow 1s ease-in-out infinite}
+@keyframes glow{0%,100%{filter:brightness(1);box-shadow:none}50%{filter:brightness(1.25);box-shadow:0 0 8px currentColor}}
+.tip.ce.hot{color:var(--ce)} .tip.pe.hot{color:var(--pe)}
+.ghost{border:1.5px dashed;height:calc(var(--rh) - 7px);opacity:.9;animation:fade 1.4s ease-in-out infinite}
+.ghost.ce{border-color:var(--ce)} .ghost.pe{border-color:var(--pe)}
+@keyframes fade{0%,100%{opacity:.9}50%{opacity:.35}}
+.numl{font:600 9.5px var(--mono);color:var(--ink3);min-width:30px}
+.half.ce .numl{text-align:right}
+.wall{font-size:8.5px;font-weight:800;letter-spacing:.3px;padding:1px 4px;border-radius:4px;color:#fff;white-space:nowrap}
+.wall.ce{background:var(--ce)} .wall.pe{background:var(--pe)}
+.spotline{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--ink);transition:top .45s ease;pointer-events:none}
+.spotline span{position:absolute;left:50%;transform:translate(-50%,-55%);background:var(--ink);color:#fff;font:700 10.5px var(--mono);padding:1px 6px;border-radius:999px}
+.ladder.dim .row{opacity:.45;transition:opacity .6s}
+
+/* gauges */
+.tug{position:relative;height:26px;border-radius:999px;background:linear-gradient(90deg,rgba(196,43,48,.18),rgba(0,0,0,.03) 50%,rgba(27,138,56,.18));margin:4px 0 2px}
+.tug .mid{position:absolute;left:50%;top:3px;bottom:3px;border-left:1px dashed var(--ink3)}
+.knob,.kghost{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;transform:translateX(-50%);transition:left .45s ease,background .45s}
+.kghost{border:2px dashed var(--ink3);background:transparent}
+.knob{box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tugl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink2);font-weight:700}
+.gz{display:grid;grid-template-columns:150px 1fr;gap:6px;margin-top:8px;align-items:start}
+.meters{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.meter{display:flex;flex-direction:column;align-items:center;gap:2px}
+.tube{position:relative;width:34px;height:96px;border-radius:8px;background:#F1F3F6;overflow:hidden}
+.tube .zero{position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--ink3)}
+.tube .fill{position:absolute;left:5px;right:5px;transition:top .45s ease,height .45s ease;border-radius:3px}
+.tube .gh{position:absolute;left:0;right:0;height:0;border-top:2px dashed var(--ink);transition:top .45s ease}
+.mword{font-weight:900;font-size:11px;text-align:center;line-height:1.15}
+.mval{font:700 10.5px var(--mono);text-align:center}
+.msub{font-size:10.5px;color:var(--ink2)}
+.kram{margin-top:5px;border-top:1px solid var(--line);padding-top:4px}
+.krg{display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+.kr{display:grid;grid-template-columns:36px 1fr;gap:5px;font-size:11px;padding:1px 0;align-items:baseline;border-bottom:1px dotted var(--line);white-space:nowrap;overflow:hidden}
+.kr:last-child{border:0}
+.kr .t{font:700 11px var(--mono)}
+.kr .d{color:var(--ink2);font-size:10.5px}
+.tip-float{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:7px;max-width:400px;z-index:9;display:none;box-shadow:0 4px 14px rgba(0,0,0,.2);line-height:1.4}
+.note{font-size:11px;color:var(--ink3);margin-top:8px}
+@media (max-width:1000px){.hero{grid-template-columns:1fr}.main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="brand" title="replay: real recorded day, minute by minute, causal">RAFTAAR <small style="font-weight:600;color:var(--ink3);letter-spacing:0">replay</small></span>
+    <div class="days" id="days"></div>
+    <div class="ctl">
+      <button class="btn" id="play" title="space">▶</button>
+      <select class="btn" id="speed" title="minutes per second">
+        <option value="1">1 min/s</option><option value="3" selected>3 min/s</option><option value="8">8 min/s</option><option value="20">20 min/s</option>
+      </select>
+      <span class="clock" id="clock">--:--</span>
+      <span class="spot" id="spot"></span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="pic" id="pic">
+      <div class="w"><span id="word">—</span><span class="arrow" id="arrow"></span></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="phase" id="phase"></span><span class="since" id="since"></span></div>
+      <div class="gradebar" id="grade"></div>
+      <div class="story" id="story"></div>
+      <span class="neq" id="neq" style="display:none">≠ READ</span>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="card say">
+      <div class="k">abhi kya ho raha hai · RAFTAAR ki ek line</div>
+      <div class="sent" id="sent">—</div>
+      <div class="sub" id="sub"></div>
+    </div>
+
+    <div class="card oit" id="oit">
+      <div class="h"><span>OI TREND · writers kahan</span><span id="oitsince"></span></div>
+      <div class="big"><span class="arr" id="oiarr">—</span><div><div class="vw" id="oiw"></div><div class="vs" id="oivs"></div></div></div>
+      <div class="wins" id="wins"></div>
+      <div class="vs" id="oirel"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="card" id="left">
+      <div class="cap">
+        <div class="h"><span>KAHANI · price × samay · spot (s) · RAFTAAR ke stamp upar</span><span id="storyv"></span></div>
+        <div class="l2" id="legStory"></div>
+      </div>
+      <div class="stack" id="stack">
+        <svg id="svS"></svg>
+        <svg id="svP"></svg>
+        <div class="sec"><div class="h"><span>LIKHNE WALE · §1d fronts · kab ruke · kab chhode · kab phir likhe</span></div><div class="l2" id="legLane"></div></div>
+        <svg id="svL"></svg>
+        <div class="kram"><div class="h"><span>KRAM · likhne walon ke stamp · Board jaisa</span><span>time · spot (s) · tab se points</span></div><div id="kram" class="krg"></div></div>
+        <div class="sec"><div class="h"><span>OI TREND · PUT build − CALL build (ATM ke 9 strike)</span></div><div class="l2" id="legTrend"></div></div>
+        <svg id="svT"></svg>
+        <div class="sec"><div class="h"><span>RAFTAAR · har minute ka rang · oonchai = grade</span></div><div class="l2" id="legRib"></div></div>
+        <svg id="svR"></svg>
+        <div id="xh"></div><div id="xhl"></div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:10px;align-content:start">
+      <div class="card">
+        <div class="mtitle h"><span>MAIDAN · likhne wale har strike pe</span></div>
+        <div class="sides">
+          <div class="shead ce"><span class="sname" style="color:var(--ce)">CALL likhne wale ◀</span><span id="ceX"></span></div>
+          <div></div>
+          <div class="shead"><span class="sname" style="color:var(--pe)">▶ PUT likhne wale</span><span id="peX"></span></div>
+        </div>
+        <div class="ladder" id="ladder"><div class="spotline" id="spotline"><span id="spotlab"></span></div></div>
+        <div class="msub" style="margin-top:5px">glowing tip = abhi likh rahe (5 min) · dashed = abhi chhoda · <span class="wall ce">CAP</span> <span class="wall pe">FLOOR</span> = deewar</div>
+      </div>
+
+      <div class="card">
+        <div class="h"><span>ZOR · kaun kheench raha</span><span id="zorv"></span></div>
+        <div class="tugl"><span style="color:var(--dn)">◀ neeche ka zor</span><span style="color:var(--up)">upar ka zor ▶</span></div>
+        <div class="tug"><div class="mid"></div><div class="kghost" id="kg"></div><div class="knob" id="kn"></div></div>
+        <div class="gz">
+          <div class="meters">
+            <div class="meter"><div class="tube"><div class="zero"></div><div class="fill" id="ceF" style="background:var(--ce)"></div><div class="gh" id="ceG"></div></div>
+              <div class="msub">CALL</div><div class="mword" id="ceW"></div><div class="mval" id="ceV"></div></div>
+            <div class="meter"><div class="tube"><div class="zero"></div><div class="fill" id="peF" style="background:var(--pe)"></div><div class="gh" id="peG"></div></div>
+              <div class="msub">PUT</div><div class="mword" id="peW"></div><div class="mval" id="peV"></div></div>
+          </div>
+          <div>
+            <div class="h" style="margin-bottom:2px"><span>ZOR vs NATEEJA · 15 min</span></div>
+            <svg id="quad" viewBox="0 0 190 150" width="100%" height="150"></svg>
+            <div class="msub" id="qv" style="text-align:center"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Sab number [M] chain record se, ../final/raftaar.py + tapemap/fronts.py (§1d) minute-by-minute causal chalaye. Words aur thresholds [I]. Grade = checks ki ginti, % nahi. Light theme. Display only. Lane / trend / wall / sentence ki definition NOTES.md mein.</div>
+</div>
+<div class="tip-float" id="tf"></div>
+<script src="data.js"></script>
+<script>
+const RA = window.RAFTAAR || { T: [], days: [] };
+const TB = RA.T, D = RA.days;
+const $ = (id) => document.getElementById(id);
+const C = { up:'#1B8A38', dn:'#C42B30', ce:'#C4452C', pe:'#0B8277', chop:'#D99A1E', pin:'#6D4FC2', atka:'#2F7FB8', unw:'#6E7C8C', quiet:'#E9ECF1', q:'#CBD2DB', ruka:'#E0A526', ink:'#141A22', ink2:'#5C6675', ink3:'#8A93A0', line:'#E3E7ED' };
+const fmt = (x, d = 1) => x == null ? '—' : (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(d);
+const f0 = (x) => x == null ? '—' : Math.round(x).toLocaleString('en-IN');
+const hm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const pct = (a, p) => { const s = a.filter((x) => x != null && isFinite(x)).map(Math.abs).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] || 1 : 1; };
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const T0 = 555, T1 = 930, SPAN = T1 - T0, G = 112, PADR = 8;
+
+/* ---------- data: columnar -> rows ---------- */
+D.forEach((d) => {
+  const c = d.c, nk = d.strikes.length, S = (j) => (j < 0 ? null : TB[j]);
+  d.rows = Array.from({ length: d.n }, (_, i) => {
+    const oi = {}; d.strikes.forEach((k, j) => (oi[k] = [d.oi[(i * nk + j) * 2], d.oi[(i * nk + j) * 2 + 1]]));
+    return { i, m: c.m[i], t: hm(c.m[i]), s: c.s[i], w: S(c.w[i]), d: c.d[i], ph: S(c.ph[i]), since: S(c.si[i]), g: c.gN[i] > 0 ? [c.gn[i], c.gN[i]] : null, gw: S(c.gw[i]),
+      st: S(c.st[i]), q: S(c.q[i]), pk: c.pk[i], chop: !!c.ch[i], cx: S(c.cx[i]), m15: c.m15[i],
+      ce: { x: S(c.cxx[i]), sp: S(c.cxs[i]), v: c.cxv[i] }, pe: { x: S(c.pxx[i]), sp: S(c.pxs[i]), v: c.pxv[i] }, oi, sent: S(c.sent[i]) };
+  });
+  d.hi = Math.max(...d.strikes);
+});
+
+/* ---------- words ---------- */
+function stateOf(r) {
+  const w = r.w, d = r.d;
+  if (w === 'CHAL RAHA') return { label: 'CHAL RAHA', arrow: d > 0 ? '▲' : '▼', bg: d > 0 ? C.up : C.dn, line: d > 0 ? C.up : C.dn, light: false };
+  if (w === 'WAPSI') return { label: 'WAPSI', arrow: d > 0 ? '▲' : '▼', bg: d > 0 ? '#6FBF84' : '#E07F82', line: d > 0 ? '#6FBF84' : '#E07F82', light: false };
+  if (w === 'BINA OI') return { label: 'BINA OI', arrow: d > 0 ? '▲' : '▼', bg: d > 0 ? '#A8D5B4' : '#EDB3B5', line: d > 0 ? '#8BC39B' : '#E7A1A3', light: true };
+  if (w === 'CHOP') return { label: 'CHOP', arrow: '⇅', bg: C.chop, line: C.chop, light: false, stripes: true };
+  if (w === 'PIN') return { label: 'PIN' + (r.pk ? ' ' + f0(r.pk) + 's' : ''), arrow: '◎', bg: C.pin, line: C.pin, light: false };
+  if (w === 'ATKA') return { label: 'ATKA', arrow: d > 0 ? '⇡' : '⇣', bg: C.atka, line: C.atka, light: false };
+  if (w === 'UNWIND') return { label: 'UNWIND', arrow: '⇄', bg: C.unw, line: C.unw, light: false };
+  if (w === 'KHAMOSH') return { label: 'KHAMOSH', arrow: '', bg: C.quiet, line: '#B4BCC8', light: true, sub: 'kuch khaas nahi' };
+  return { label: 'PADH RAHE ?', arrow: '', bg: C.q, line: '#B4BCC8', light: true };
+}
+const PH = { SHURU: 'shuru', TEZ: 'TEZ', JAARI: 'jaari', RUKA: 'ruka ❚❚', THAK: 'thak raha' };
+const SPW = { TEZ: 'TEZ ▲▲', SHURU: 'shuru ↗', BARABAR: 'barabar ▶', DHEEMA: 'dheema ▼', RUKE: 'ruke ❚❚', PALTA: 'palta ⇄' };
+const LANE = { B: ['likh rahe', C.ce], P: ['phir likh rahe', C.ce], S: ['ruke', C.ruka], U: ['chhod rahe', C.unw], N: ['aaj nahi bana', C.q] };
+const EVW = { ruka: 'ruka', chhod: 'chhodne lage', phir: 'phir likhne lage' };
+const whoS = (s) => (s === 'CE' ? 'CALL' : 'PUT');
+
+let day = null, i = 0, playing = false, timer = null, lastStampShown = null, lastSent = null, scale = {}, rows = {}, geo = {}, ghostHTML = null;
+
+const pressure = (r) => { const c = r.ce?.v, p = r.pe?.v; return c == null && p == null ? null : (p ?? 0) - (c ?? 0); };
+/* segments (start, known, state) active at row i: known <= i; each ends where the next active one starts */
+const active = (list, at) => list.filter((s) => s[1] <= at);
+const segEnd = (act, n, at) => (n + 1 < act.length ? act[n + 1][0] : at + 1);
+/* the lane's state now, and since when: a run of the same state is one run even if the front dropped out of the top 2 for a while in between */
+function laneNow(ln, at) {
+  const a = active(ln.seg, at); let n = a.length - 1; while (n >= 0 && a[n][2] === null) n--;
+  if (n < 0) return null;
+  let start = a[n][0]; const st = a[n][2];
+  for (let k = n - 1; k >= 0; k--) { if (a[k][2] === null) continue; if (a[k][2] === st || (st === 'B' && a[k][2] === 'P')) start = a[k][0]; else break; }
+  return [start, a[n][1], st];
+}
+function wallNow(list, at) { const a = active(list, at); return a.length ? a[a.length - 1] : null; }
+
+/* ---------- day setup ---------- */
+function setDay(n) {
+  day = D[n]; i = 0; lastStampShown = null; lastSent = null; geo.built = false;
+  document.querySelectorAll('.chip').forEach((c, j) => c.classList.toggle('on', j === n));
+  const R = day.rows;
+  let mx = 0; R.forEach((r) => Object.values(r.oi).forEach(([a, b]) => { mx = Math.max(mx, a ?? 0, b ?? 0); }));
+  scale = { oi: mx || 1, v: pct(R.flatMap((r) => [r.ce?.v, r.pe?.v]), 0.95), p: pct(R.map(pressure), 0.95), m: Math.max(pct(R.map((r) => r.m15), 0.95), day.step) };
+  const N = day.strikes.length;
+  geo.rh = Math.max(13, Math.min(22, Math.floor(312 / N))); geo.N = N; geo.H = N * geo.rh;
+  document.documentElement.style.setProperty('--rh', geo.rh + 'px');
+  buildLadder(); legends(); layout(); draw();
+}
+const yP = (p) => ((day.hi + day.step / 2 - p) / day.step) * geo.rh;
+function layout() {
+  const W = $('stack').clientWidth || 760; geo.W = W; geo.PW = Math.max(300, W - G - PADR);
+  geo.LH = 21; geo.NL = day.lanes.length; geo.TH = 46; geo.RH = 50; geo.SH = 32;
+  geo.built = false;
+}
+const X = (m) => G + ((m - T0) / SPAN) * geo.PW;
+const xi = (k) => X(day.rows[k].m);
+const xEnd = (end, at) => (end > at ? xi(at) + cw() : xi(Math.min(end, day.rows.length - 1)));
+const cw = () => geo.PW / SPAN;
+
+function buildLadder() {
+  const L = $('ladder'); L.querySelectorAll('.row').forEach((e) => e.remove()); rows = {};
+  [...day.strikes].reverse().forEach((k) => {
+    const row = document.createElement('div'); row.className = 'row'; row.dataset.k = k;
+    row.innerHTML = `<div class="half ce"><div class="bar"><span class="seg base ce"></span><span class="seg tip ce"></span><span class="seg ghost ce"></span></div><span class="numl"></span><span class="wall ce" style="display:none">CAP</span></div>
+      <div class="k">${f0(k)}</div>
+      <div class="half pe"><div class="bar"><span class="seg base pe"></span><span class="seg tip pe"></span><span class="seg ghost pe"></span></div><span class="numl"></span><span class="wall pe" style="display:none">FLOOR</span></div>`;
+    L.appendChild(row); rows[k] = row;
+  });
+}
+function sideBar(row, sideIdx, now, then) {
+  const cls = sideIdx ? 'pe' : 'ce', h = row.querySelector('.half.' + cls), S = scale.oi;
+  const n = Math.max(0, now ?? 0), t = Math.max(0, then ?? n);
+  const base = Math.min(n, t), tip = Math.max(0, n - t), ghost = Math.max(0, t - n);
+  const w = (x) => Math.min(100, (x / S) * 100) + '%';
+  const [b, tp, g] = h.querySelectorAll('.seg');
+  b.style.width = w(base); tp.style.width = w(tip); g.style.width = w(ghost);
+  g.style.display = ghost > 0 ? '' : 'none';
+  tp.classList.toggle('hot', tip / S > 0.035);
+  h.querySelector('.numl').textContent = now == null ? '' : (now >= 0 ? '+' : '−') + Math.abs(now).toFixed(0) + 'L';
+  h.dataset.tip = `${cls.toUpperCase()} ${f0(+row.dataset.k)}: aaj ${fmt(now, 0)}L · 5 min mein ${fmt((now ?? 0) - (then ?? now ?? 0), 0)}L`;
+}
+
+function legends() {
+  const sw = (bg, t, extra = '') => `<span><i class="sw" style="background:${bg};${extra}"></i>${t}</span>`;
+  $('legStory').innerHTML = sw(C.up, 'CHAL ▲') + sw(C.dn, 'CHAL ▼') + sw(C.chop, 'CHOP') + sw(C.pin, 'PIN') + sw(C.atka, 'ATKA') + sw(C.unw, 'UNWIND')
+    + sw('rgba(196,69,44,.3)', 'CAP deewar (CALL ki sabse badi build)') + sw('rgba(11,130,119,.3)', 'FLOOR deewar') + '<span>◆ RAFTAAR stamp</span><span>● likhne walon ka stamp</span>';
+  $('legLane').innerHTML = sw(C.ce, 'likh rahe', 'background:linear-gradient(90deg,#C4452C 50%,#0B8277 50%)') + sw('#E7A99B', 'phir likh rahe', 'background:repeating-linear-gradient(135deg,#E7A99B 0 3px,#fff 3px 5px)')
+    + sw(C.ruka, 'ruke ❚❚') + sw(C.unw, 'chhod rahe', 'background:repeating-linear-gradient(135deg,#6E7C8C 0 3px,#A9B3BF 3px 6px)');
+  $('legTrend').innerHTML = sw(C.up, 'PUT build zyada = ▲') + sw(C.dn, 'CALL build zyada = ▼') + sw('#CBD2DB', 'barabar / range');
+  $('legRib').innerHTML = sw(C.up, 'CHAL ▲') + sw(C.dn, 'CHAL ▼') + sw('#E07F82', 'WAPSI') + sw(C.chop, 'CHOP') + sw(C.pin, 'PIN') + sw(C.atka, 'ATKA') + sw(C.unw, 'UNWIND') + sw(C.quiet, 'KHAMOSH', 'border:1px solid #CBD2DB') + '<span>niche: PUT ↑ / CALL ↓ raftaar</span>';
+}
+
+/* ---------- the stack (price / lanes / trend / ribbon): static layer + a ghost day + the live layer ---------- */
+const svgOpen = (id, w, h) => { const e = $(id); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('viewBox', `0 0 ${w} ${h}`); return e; };
+const DEFS = `<defs><pattern id="pPhir" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><rect width="2.4" height="5" fill="#E7A99B"/></pattern>
+  <pattern id="pPhirP" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><rect width="2.4" height="5" fill="#7FC4BC"/></pattern>
+  <pattern id="pUnw" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#A9B3BF"/><rect width="3" height="6" fill="#6E7C8C"/></pattern>
+  <clipPath id="clipFut"><rect id="clipRect" x="0" y="-10" width="3000" height="3000"/></clipPath></defs>`;
+
+function pathRuns(upTo) {
+  const R = day.rows, runs = []; let cur = null;
+  for (let k = 0; k <= upTo; k++) {
+    const r = R[k]; if (r.s == null) continue;
+    const col = stateOf(r).line, pt = [xi(k) + cw() / 2, yP(r.s)];
+    if (!cur || cur.col !== col) { cur = { col, pts: cur ? [cur.pts[cur.pts.length - 1]] : [] }; runs.push(cur); }
+    cur.pts.push(pt);
+  }
+  return runs;
+}
+const stampCol = (st) => /≠/.test(st.title) ? C.dn : /▲/.test(st.title) ? C.up : /▼/.test(st.title) ? C.dn : /CHOP/.test(st.title) ? C.chop : /PIN/.test(st.title) ? C.pin : '#5C6675';
+function chipOf(st) {
+  let t = (st.title || '').replace(/ · /g, ' ').replace(/\bCE\b/, 'CALL').replace(/\bPE\b/, 'PUT').replace('KHAMOSH kuch khaas nahi', 'KHAMOSH').replace('CHAL RAHA', 'CHAL');
+  const g = (st.g || '').match(/^(\d+\/\d+)/); if (g && !/\d\/\d/.test(t)) t += ' ' + g[1];
+  return t.length > 26 ? t.slice(0, 25) + '…' : t;
+}
+
+/* RAFTAAR's stamps, named: newest first, two rows, time-aligned; older ones drop out when there is no room (hover still names them) */
+function chipLayout(at) {
+  const out = [], used = [[], []];
+  day.stamps.filter((st) => st.i <= at && st.kind !== 'q' && st.s != null).reverse().forEach((st) => {
+    const t = `${st.t} ${chipOf(st)}`, w = t.length * 5.25 + 10, x = xi(st.i) + cw() / 2, bx = Math.min(Math.max(G, x - 8), G + geo.PW - w);
+    for (let r = 0; r < 2; r++) {
+      if (!used[r].some(([a, b]) => bx < b + 3 && bx + w > a - 3)) { used[r].push([bx, bx + w]); out.push({ st, t, w, bx, x, r }); break; }
+    }
+  });
+  return out;
+}
+function stripLayer(at, ghost) {
+  let s = '';
+  if (ghost) return s;
+  chipLayout(at).forEach(({ st, t, w, bx, x, r }) => {
+    const col = stampCol(st), y = 1 + r * 15, tip = esc(`${st.t} · ${st.title} ${st.g || ''} · spot ${f0(st.s)}s — ${st.why || ''}`);
+    s += `<line x1="${x}" y1="${y + 14}" x2="${x}" y2="${geo.SH}" stroke="${col}" stroke-width="1" opacity=".6"/>`;
+    s += `<g data-tip="${tip}"><rect x="${bx}" y="${y}" width="${w}" height="14" rx="7" fill="#fff" stroke="${col}" stroke-width="1"/><text x="${bx + 5}" y="${y + 10.2}" font-size="9" font-weight="800" fill="${col}">${esc(t)}</text></g>`;
+  });
+  s += `<text x="${G - 6}" y="12" text-anchor="end" font-size="10" font-weight="800" fill="${C.ink}">RAFTAAR</text><text x="${G - 6}" y="26" text-anchor="end" font-size="9" fill="${C.ink3}">stamp (s)</text>`;
+  return s;
+}
+
+function priceLayer(at, ghost) {
+  const R = day.rows; let s = '';
+  // walls: CAP / FLOOR bands that step when writers roll (committed walls only)
+  [['cap', day.cap, C.ce, 'CAP', 0], ['floor', day.floor, C.pe, 'FLOOR', 1]].forEach(([nm, list, col, lab, si]) => {
+    const act = active(list, at);
+    act.forEach((sg, n) => {
+      if (sg[2] == null) return;
+      const end = segEnd(act, n, at), x0 = xi(sg[0]), x1 = xEnd(end, at);
+      const oi = Math.max(0, R[Math.min(end - 1, R.length - 1)].oi[sg[2]]?.[si] ?? 0), a = 0.1 + 0.3 * Math.min(1, oi / scale.oi);
+      // CAP takes the upper part of its strike's row and FLOOR the lower part, so when both defend the same strike (a pin) you see both
+      const y0 = yP(sg[2] + day.step / 2), bh = geo.rh * 0.62, y = y0 + (si ? geo.rh - bh : 0);
+      s += `<rect x="${x0}" y="${y}" width="${Math.max(1, x1 - x0)}" height="${bh}" fill="${col}" opacity="${a}" data-tip="${nm === 'cap' ? 'CAP' : 'FLOOR'} ${f0(sg[2])}s · ${R[sg[0]].t} se · ${f0(oi)}L aaj ki build"/>`;
+      s += `<rect x="${x0}" y="${y}" width="2" height="${bh}" fill="${col}"/>`;
+      if (!ghost) {
+        const prev = n > 0 ? act[n - 1][2] : null, room = x1 - x0, ty = y + bh / 2 + 3;
+        const txt = prev && prev !== sg[2] ? `${lab} ${sg[2] > prev ? '↑' : '↓'} ${f0(sg[2])}s ${R[sg[0]].t}` : `${lab} ${f0(sg[2])}s`;
+        if (room > txt.length * 5.2 + 8) s += `<text x="${x0 + 5}" y="${ty}" font-size="8.5" font-weight="800" fill="${col}">${txt}</text>`;
+        else if (room > 52 && prev) s += `<text x="${x0 + 5}" y="${ty}" font-size="8.5" font-weight="800" fill="${col}">${sg[2] > prev ? '↑' : '↓'} ${f0(sg[2])}s</text>`;
+        if (prev != null && prev !== sg[2]) s += `<line x1="${x0}" y1="${yP(prev)}" x2="${x0}" y2="${yP(sg[2])}" stroke="${col}" stroke-width="1.4" stroke-dasharray="2 2"/>`;
+      }
+    });
+  });
+  // the spot path, coloured by RAFTAAR's state each minute
+  pathRuns(at).forEach((ru) => { s += `<polyline points="${ru.pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" fill="none" stroke="${ru.col}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`; });
+  // RAFTAAR's stamps at their time AND price (the chips that name them live in the strip above; a dotted guide joins the two)
+  const withChip = new Set(ghost ? [] : chipLayout(at).map((c) => c.st.i + ':' + c.st.t));
+  day.stamps.filter((st) => st.i <= at && st.s != null).forEach((st) => {
+    const x = xi(st.i) + cw() / 2, y = yP(st.s), col = stampCol(st);
+    const tip = esc(`${st.t} · ${st.title} ${st.g || ''} · spot ${f0(st.s)}s — ${st.why || ''}`);
+    if (withChip.has(st.i + ':' + st.t)) s += `<line x1="${x}" y1="0" x2="${x}" y2="${y - 6}" stroke="${col}" stroke-width="1" stroke-dasharray="1.5 2.5" opacity=".55"/>`;
+    if (st.kind === 'q') s += `<circle cx="${x}" cy="${y}" r="3" fill="#fff" stroke="${C.ink3}" stroke-width="1.2" data-tip="${tip}"/>`;
+    else s += `<path d="M${x} ${y - 6} l5 6 l-5 6 l-5 -6 z" fill="${col}" stroke="#fff" stroke-width="1.2" data-tip="${tip}"/>`;
+  });
+  // the writers' stamps (ruka / chhod / phir) at their time AND price
+  day.lanes.forEach((ln) => ln.ev.filter((e) => e[1] <= at).forEach((e) => { s += evMark(e, ln, xi(e[0]) + cw() / 2, yP(e[3]), 0.8, at); }));
+  return s;
+}
+
+function evMark(e, ln, x, y, k, at) {
+  const kind = e[2], col = ln.side === 'CE' ? C.ce : C.pe;
+  const since = at != null ? Math.round(day.rows[at].s - e[3]) : null;
+  const tip = esc(`${whoS(ln.side)} ${f0(ln.k)}: ${EVW[kind]} · ${day.rows[e[0]].t} · spot ${f0(e[3])}s${since == null ? '' : ` · ab tak price ${since >= 0 ? '▲' : '▼'} ${Math.abs(since)} pts`} · ${kind === 'ruka' ? `high ${fmt(e[4], 0)}L` : `high se ${f0(e[4])}L neeche`} (pakka ${day.rows[e[1]].t})`);
+  const a = 5 * k;
+  if (kind === 'ruka') return `<path d="M${x} ${y - a} l${a} ${a} l${-a} ${a} l${-a} ${-a} z" fill="${C.ruka}" stroke="#fff" stroke-width="1.2" data-tip="${tip}"/>`;
+  if (kind === 'chhod') return `<path d="M${x - a} ${y - a * 0.8} h${2 * a} l${-a} ${1.7 * a} z" fill="${C.unw}" stroke="#fff" stroke-width="1.2" data-tip="${tip}"/>`;
+  return `<path d="M${x - a} ${y + a * 0.8} h${2 * a} l${-a} ${-1.7 * a} z" fill="${col}" stroke="#fff" stroke-width="1.2" data-tip="${tip}"/>`;
+}
+
+function lanesLayer(at, ghost) {
+  const R = day.rows; let s = '';
+  day.lanes.forEach((ln, n) => {
+    const y0 = n * geo.LH, by = y0 + 10, bh = 10, col = ln.side === 'CE' ? C.ce : C.pe;
+    s += `<line x1="${G}" y1="${by + bh / 2}" x2="${G + geo.PW}" y2="${by + bh / 2}" stroke="#EEF1F5" stroke-width="1"/>`;
+    const act = active(ln.seg, at);
+    act.forEach((sg, k) => {
+      if (sg[2] === null) return;
+      const end = segEnd(act, k, at), x0 = xi(sg[0]), x1 = xEnd(end, at);
+      const fill = sg[2] === 'B' ? col : sg[2] === 'P' ? (ln.side === 'CE' ? 'url(#pPhir)' : 'url(#pPhirP)') : sg[2] === 'S' ? C.ruka : sg[2] === 'U' ? 'url(#pUnw)' : '#DDE2E9';
+      const nm = { B: 'likh rahe', P: 'phir likh rahe', S: 'ruke', U: 'chhod rahe', N: 'aaj nahi bana' }[sg[2]];
+      s += `<rect x="${x0}" y="${by}" width="${Math.max(1, x1 - x0)}" height="${bh}" fill="${fill}" ${sg[2] === 'P' ? `stroke="${col}" stroke-width=".8"` : ''} data-tip="${whoS(ln.side)} ${f0(ln.k)} · ${nm} · ${R[sg[0]].t} se"/>`;
+    });
+    // stamps on the lane, with a short label where there is room
+    let lastEnd = -1e9;
+    ln.ev.filter((e) => e[1] <= at).forEach((e) => {
+      const x = xi(e[0]) + cw() / 2;
+      s += evMark(e, ln, x, by + 1, 0.85, at);
+      if (ghost) return;
+      const full = `${EVW[e[2]]} ${R[e[0]].t}`, short = `${e[2] === 'chhod' ? 'chhod' : e[2] === 'phir' ? 'phir' : 'ruka'} ${R[e[0]].t}`;
+      const t = x - 4 > lastEnd + 3 ? (x + 4 + full.length * 4.9 < G + geo.PW ? full : short) : null;
+      if (t && x + 4 + t.length * 4.9 < G + geo.PW) { s += `<text x="${x + 5}" y="${y0 + 8}" font-size="8.5" font-weight="700" fill="${C.ink2}" stroke="#fff" stroke-width="2.4" paint-order="stroke">${t}</text>`; lastEnd = x + 5 + t.length * 4.9; }
+    });
+    if (!ghost) {
+      const now = laneNow(ln, at), st = now ? now[2] : null, nowTxt = st ? LANE[st][0] : '—';
+      const e0 = ln.ev.filter((e) => e[1] <= at).pop(), sinceT = now ? R[now[0]].t : '';
+      const pts = now ? Math.round(R[at].s - R[now[0]].s) : null;
+      s += `<g opacity="${now ? 1 : 0.3}"><text x="${G - 6}" y="${y0 + 9.5}" text-anchor="end" font-size="10.5" font-weight="800" fill="${col}">${whoS(ln.side)} ${f0(ln.k)}</text>`
+        + `<text x="${G - 6}" y="${y0 + 19.5}" text-anchor="end" font-size="9" fill="${st === 'S' ? '#9A6A0E' : C.ink2}" font-weight="${st === 'S' || st === 'U' ? 800 : 500}">${nowTxt}${now ? ` ${sinceT} · ${pts >= 0 ? '▲' : '▼'}${Math.abs(pts)}` : ''}</text></g>`;
+    }
+  });
+  return s;
+}
+
+function trendLayer(at, ghost) {
+  const R = day.rows, tr = day.trend; let s = '';
+  const tau = 40, w = cw() + 0.4;
+  [0, 1, 2].forEach((wi) => {
+    const y = 20 + wi * 9;
+    for (let k = 0; k <= at; k++) {
+      const r = tr.r[wi][k]; if (r == null) continue;
+      const a = Math.abs(r) >= tau ? 0.3 + 0.7 * Math.min(1, (Math.abs(r) - tau) / (100 - tau)) : 1, col = Math.abs(r) < tau ? '#EEF1F5' : r > 0 ? C.up : C.dn;
+      s += `<rect x="${xi(k)}" y="${y}" width="${w}" height="8" fill="${col}" opacity="${a}"/>`;
+    }
+    if (!ghost) s += `<text x="${G - 6}" y="${y + 7.5}" text-anchor="end" font-size="9" fill="${C.ink3}" font-weight="700">${[15, 30, 60][wi]}m ${tr.z[wi][at] == null ? '' : fmt(tr.z[wi][at], 0) + 'L'}</text>`;
+  });
+  const act = active(tr.verdict, at);
+  act.forEach((sg, n) => {
+    if (sg[2] == null) return;
+    const end = segEnd(act, n, at), x0 = xi(sg[0]), x1 = xEnd(end, at), v = sg[2];
+    s += `<rect x="${x0}" y="0" width="${Math.max(1, x1 - x0)}" height="17" fill="${v > 0 ? C.up : v < 0 ? C.dn : '#DDE2E9'}" opacity="${v ? 0.92 : 1}" data-tip="OI trend ${v > 0 ? '▲ upar' : v < 0 ? '▼ neeche' : 'range'} · ${R[sg[0]].t} se"/>`;
+    if (!ghost && x1 - x0 > 44) s += `<text x="${x0 + 4}" y="12" font-size="9.5" font-weight="800" fill="${v ? '#fff' : C.ink2}">${v > 0 ? '▲ UPAR' : v < 0 ? '▼ NEECHE' : 'RANGE'} ${R[sg[0]].t}</text>`;
+    else if (!ghost && x1 - x0 > 14) s += `<text x="${x0 + 3}" y="12" font-size="9.5" font-weight="800" fill="${v ? '#fff' : C.ink2}">${v > 0 ? '▲' : v < 0 ? '▼' : '='}</text>`;
+  });
+  if (!ghost) s += `<text x="${G - 6}" y="12" text-anchor="end" font-size="10" font-weight="800" fill="${C.ink}">OI TREND</text>`;
+  return s;
+}
+
+function ribbonLayer(at, ghost) {
+  const R = day.rows; let s = ''; const w = cw() + 0.4, sv = scale.v;
+  for (let k = 0; k <= at; k++) {
+    const r = R[k], st = stateOf(r), [n, N] = r.g || [], h = N ? 8 + 16 * (n / N) : 8, x = xi(k);
+    s += `<rect x="${x}" y="${26 - h}" width="${w}" height="${h}" fill="${st.bg}"/>`;
+    const kk = (v) => Math.min(6, (Math.abs(v) / sv) * 6), pv = r.pe?.v, cv = r.ce?.v;
+    if (pv != null) s += `<rect x="${x}" y="${33 - kk(pv)}" width="${w}" height="${kk(pv)}" fill="${C.pe}" opacity="${pv > 0 ? 0.8 : 0.3}"/>`;
+    if (cv != null) s += `<rect x="${x}" y="33" width="${w}" height="${kk(cv)}" fill="${C.ce}" opacity="${cv > 0 ? 0.8 : 0.3}"/>`;
+  }
+  s += `<line x1="${G}" y1="33" x2="${G + geo.PW}" y2="33" stroke="#C9CFD8"/>`;
+  if (!ghost) s += `<text x="${G - 6}" y="22" text-anchor="end" font-size="10" font-weight="800" fill="${C.ink}">picture</text><text x="${G - 6}" y="32" text-anchor="end" font-size="8.5" fill="${C.pe}">PUT ↑</text><text x="${G - 6}" y="41" text-anchor="end" font-size="8.5" fill="${C.ce}">CALL ↓</text>`;
+  return s;
+}
+
+function staticLayers() {
+  let p = '', a = '';
+  for (let n = 0; n < geo.N; n++) {
+    const k = day.hi - n * day.step, y = n * geo.rh;
+    if (n % 2) p += `<rect x="${G}" y="${y}" width="${geo.PW}" height="${geo.rh}" fill="#F8F9FB"/>`;
+    p += `<text class="atmk" data-k="${k}" x="${G - 6}" y="${y + geo.rh / 2 + 3.2}" text-anchor="end" font-size="9.5" fill="${C.ink3}" style="font-family:ui-monospace,Menlo,Consolas,monospace">${f0(k)}</text>`;
+  }
+  const open = day.rows[0].s;
+  p += `<line x1="${G}" y1="${yP(open)}" x2="${G + geo.PW}" y2="${yP(open)}" stroke="${C.ink3}" stroke-dasharray="3 3" stroke-width="1"/><text x="${G + geo.PW - 2}" y="${yP(open) - 3}" text-anchor="end" font-size="8.5" fill="${C.ink3}">open ${f0(open)}s</text>`;
+  let vl = '';
+  for (let h = 10; h <= 15; h++) { const x = X(h * 60); vl += `<line x1="${x}" y1="0" x2="${x}" y2="@H" stroke="#E9ECF1"/>`; a += `<text x="${x}" y="@Y" font-size="9" fill="${C.ink3}" text-anchor="middle">${h}:00</text>`; }
+  return { p, vl, a };
+}
+
+/* the static rows, the hour lines and the ghost day are built once per day / width; a tick only rewrites the live groups */
+function buildStack() {
+  const W = geo.W, st = staticLayers(), last = day.rows.length - 1;
+  const vl = (H) => st.vl.replace(/@H/g, H);
+  const Hp = geo.H, Hl = geo.NL * geo.LH + 2, Ht = geo.TH, Hr = geo.RH, Hs = geo.SH;
+  const mk = (id, H, bg, gh, defs = '') => {
+    const e = svgOpen(id, W, H);
+    e.innerHTML = defs + bg + `<g clip-path="url(#clipFut)" opacity=".3">${gh}</g><g class="live"></g><g class="ex"></g>`;
+  };
+  mk('svS', Hs, '', '', DEFS);
+  mk('svP', Hp, st.p + vl(Hp), priceLayer(last, true));
+  mk('svL', Hl, vl(Hl), lanesLayer(last, true));
+  mk('svT', Ht, vl(Ht), trendLayer(last, true));
+  mk('svR', Hr, vl(Hr - 12) + st.a.replace(/@Y/g, Hr - 2), ribbonLayer(last, true));
+  geo.built = true;
+}
+function renderStack(at) {
+  if (!geo.built) buildStack();
+  const Hp = geo.H, Hl = geo.NL * geo.LH + 2, Ht = geo.TH, Hr = geo.RH, Hs = geo.SH;
+  const xnow = xi(at) + cw(), xp = xnow - cw() / 2, r = day.rows[at];
+  const play = (H) => `<line x1="${xp}" y1="0" x2="${xp}" y2="${H}" stroke="${C.ink}" stroke-width="1.5"/>`;
+  let dot = '';
+  if (r.s != null) {
+    const yy = yP(r.s);
+    dot = `<line x1="${xp}" y1="${yy}" x2="${G + geo.PW + 6}" y2="${yy}" stroke="${C.ink}" stroke-width="1" stroke-dasharray="3 3"/><circle cx="${xp}" cy="${yy}" r="5.5" fill="${stateOf(r).line}" stroke="#fff" stroke-width="2.4"/>`
+      + `<text x="${xp - 9}" y="${yy - 9}" text-anchor="end" font-size="10.5" font-weight="800" fill="${C.ink}" stroke="#fff" stroke-width="3" paint-order="stroke">${f0(r.s)}s</text>`;
+  }
+  const put = (id, live, ex) => { const e = $(id); e.querySelector('.live').innerHTML = live; e.querySelector('.ex').innerHTML = ex; };
+  put('svS', stripLayer(at, false), play(Hs));
+  put('svP', priceLayer(at, false), play(Hp) + dot);
+  put('svL', lanesLayer(at, false), play(Hl));
+  put('svT', trendLayer(at, false), play(Ht));
+  put('svR', ribbonLayer(at, false), play(Hr - 12));
+  $('clipRect').setAttribute('x', xnow);
+  // the ATM row label bold
+  const atm = r.s ? day.strikes.reduce((b, k) => (Math.abs(k - r.s) < Math.abs(b - r.s) ? k : b), day.strikes[0]) : null;
+  $('svP').querySelectorAll('.atmk').forEach((t) => { const on = +t.dataset.k === atm; t.setAttribute('font-weight', on ? 800 : 400); t.setAttribute('fill', on ? C.ink : C.ink3); });
+}
+
+/* ---------- the rest of the face ---------- */
+function oiTrend(at) {
+  const tr = day.trend, r = day.rows[at], a = active(tr.verdict, at), v = a.length ? a[a.length - 1] : null;
+  const cnt = tr.cnt[at], z = [0, 1, 2].map((w) => tr.z[w][at]), rr = [0, 1, 2].map((w) => tr.r[w][at]);
+  const el = $('oiarr');
+  if (!v || v[2] == null || !cnt) { el.textContent = '·'; el.style.color = C.ink3; $('oiw').textContent = 'PADH RAHE'; $('oiw').style.color = C.ink3; $('oivs').textContent = 'pehle 15-60 min ka record chahiye'; $('wins').innerHTML = ''; $('oirel').textContent = ''; $('oitsince').textContent = ''; return; }
+  const dir = v[2], up = cnt[0], dn = cnt[1];
+  el.textContent = dir > 0 ? '▲' : dir < 0 ? '▼' : '↔'; el.style.color = dir > 0 ? C.up : dir < 0 ? C.dn : C.chop;
+  $('oiw').textContent = dir > 0 ? 'UPAR' : dir < 0 ? 'NEECHE' : 'RANGE'; $('oiw').style.color = el.style.color;
+  $('oivs').textContent = dir ? `${Math.max(up, dn)}/3 window ek taraf · PUT − CALL build` : up && dn ? 'mila-jula · dono taraf ke window' : up || dn ? `halka ${up ? '▲' : '▼'} (1/3) · baaki barabar` : 'dono taraf barabar likh rahe';
+  $('oitsince').textContent = `${day.rows[v[0]].t} se`;
+  $('wins').innerHTML = [15, 30, 60].map((w, j) => {
+    const q = rr[j], c = q == null ? C.ink3 : Math.abs(q) < 40 ? C.ink2 : q > 0 ? C.up : C.dn;
+    return `<div class="win"><span class="lab">${w}m</span><b style="color:${c}">${q == null ? '?' : Math.abs(q) < 40 ? '=' : q > 0 ? '▲' : '▼'} ${z[j] == null ? '' : fmt(z[j], 0) + 'L'}</b></div>`;
+  }).join('');
+  const d30 = at >= 30 ? r.s - day.rows[at - 30].s : null;
+  let rel = '';
+  if (d30 != null) {
+    const ok = Math.abs(d30) >= 0.5 * day.step;
+    rel = `price ${d30 >= 0 ? '▲' : '▼'} ${f0(Math.abs(d30))} pts/30m (s)` + (dir && ok ? (Math.sign(d30) === dir ? ' · OI ke SAATH' : ' · OI se ULTA') : dir ? ' · price tika' : '');
+  }
+  $('oirel').textContent = rel; $('oirel').style.fontWeight = /ULTA/.test(rel) ? 800 : 500; $('oirel').style.color = /ULTA/.test(rel) ? C.dn : C.ink2;
+}
+
+function kram(at) {
+  const R = day.rows, ev = [];
+  day.lanes.forEach((ln) => ln.ev.filter((e) => e[1] <= at).forEach((e) => ev.push({ e, ln })));
+  ev.sort((a, b) => b.e[0] - a.e[0] || b.e[1] - a.e[1]);   // by the stamp's own time, newest first (all shown are already known at `at`)
+  $('kram').innerHTML = ev.slice(0, 4).map(({ e, ln }) => {
+    const p = Math.round(R[at].s - e[3]), col = ln.side === 'CE' ? C.ce : C.pe, wd = EVW[e[2]];
+    return `<div class="kr"><span class="t">${R[e[0]].t}</span><div><b style="color:${col}">${whoS(ln.side)} ${f0(ln.k)}</b> <b>${wd}</b> <span class="d">· ${f0(e[3])}s · ${p >= 0 ? '▲' : '▼'} ${Math.abs(p)} pts</span></div></div>`;
+  }).join('') || '<div class="msub">abhi koi stamp nahi — pehle 15 min ka record chahiye</div>';
+}
+
+function draw() {
+  const R = day.rows, r = R[i], p5 = R[Math.max(0, i - 5)];
+  $('clock').textContent = r.t; $('spot').textContent = r.s ? `spot ${r.s.toFixed(1)}s` : 'spot —';
+  // ladder
+  for (const k of day.strikes) { sideBar(rows[k], 0, r.oi[k]?.[0], p5.oi[k]?.[0]); sideBar(rows[k], 1, r.oi[k]?.[1], p5.oi[k]?.[1]); }
+  const atm = r.s ? day.strikes.reduce((b, k) => (Math.abs(k - r.s) < Math.abs(b - r.s) ? k : b), day.strikes[0]) : null;
+  Object.entries(rows).forEach(([k, row]) => row.querySelector('.k').classList.toggle('atm', +k === atm));
+  const cap = wallNow(day.cap, i), flo = wallNow(day.floor, i);
+  Object.entries(rows).forEach(([k, row]) => {
+    row.querySelector('.wall.ce').style.display = cap && +k === cap[2] ? '' : 'none';
+    row.querySelector('.wall.pe').style.display = flo && +k === flo[2] ? '' : 'none';
+  });
+  const y = r.s ? yP(r.s) : null;
+  $('spotline').style.display = y == null ? 'none' : ''; if (y != null) $('spotline').style.top = y + 'px';
+  $('spotlab').textContent = r.s ? r.s.toFixed(1) + 's' : '';
+  $('ladder').classList.toggle('dim', r.w === 'KHAMOSH');
+  const roll = (list, at) => { const a = active(list, at); if (a.length < 2) return ''; const l = a[a.length - 1], q = a[a.length - 2]; return l[2] != null && q[2] != null && l[2] !== q[2] && at - l[0] <= 12 ? `DEEWAR ${l[2] > q[2] ? '↑' : '↓'} ${f0(q[2])}→${f0(l[2])}` : ''; };
+  const head = (x, side, moved) => `<span class="pill" style="background:${side === 'ce' ? 'rgba(196,69,44,.12)' : 'rgba(11,130,119,.12)'};color:${side === 'ce' ? C.ce : C.pe}">${x || '—'}</span>` + (moved ? ` <span class="pill roll" style="background:${C.pin};color:#fff">${moved}</span>` : '');
+  const cm = roll(day.cap, i), fm = roll(day.floor, i);
+  if ($('ceX').dataset.v !== (r.ce.x || '') + cm) { $('ceX').innerHTML = head(r.ce.x, 'ce', cm); $('ceX').dataset.v = (r.ce.x || '') + cm; }
+  if ($('peX').dataset.v !== (r.pe.x || '') + fm) { $('peX').innerHTML = head(r.pe.x, 'pe', fm); $('peX').dataset.v = (r.pe.x || '') + fm; }
+
+  // the tile
+  const st = stateOf(r), pic = $('pic');
+  pic.style.backgroundColor = st.bg;
+  pic.className = 'pic' + (st.light ? ' light' : '') + (st.stripes ? ' stripes' : '') + (r.ph ? ' ph-' + r.ph : '');
+  $('word').textContent = st.label; $('arrow').textContent = r.ph === 'TEZ' ? st.arrow + st.arrow : st.arrow;
+  $('phase').textContent = r.ph ? PH[r.ph] || r.ph : (st.sub || (r.chop ? 'chop ke andar' : '')); $('phase').style.display = $('phase').textContent ? '' : 'none';
+  $('since').textContent = r.since ? `${r.since} se` : '';
+  const [gn, gN] = r.g || [];
+  $('grade').innerHTML = gN ? Array.from({ length: gN }, (_, j) => `<i class="${j < gn ? 'on' : ''}"></i>`).join('') + `<span style="font:800 12px var(--mono);margin-left:6px;white-space:nowrap">${gn}/${gN} ${r.gw || ''}</span>` : '';
+  const parts = (r.st || '').split('+').map((s) => s.trim()).filter(Boolean);
+  $('story').innerHTML = parts.map((s) => `<span class="pill" style="color:${s.startsWith('CE') ? C.ce : s.startsWith('PE') ? C.pe : 'var(--ink)'}">${s}</span>`).join('') + (r.q ? `<span class="pill" style="color:var(--ink2)">${r.q}</span>` : '');
+  $('neq').style.display = r.cx ? '' : 'none';
+
+  // THE SENTENCE: changes only when the picture changes
+  const se = $('sent');
+  if (lastSent !== r.sent) { se.textContent = r.sent; if (lastSent != null) { se.classList.remove('flip'); void se.offsetWidth; se.classList.add('flip'); } lastSent = r.sent; }
+  const P = pressure(r);
+  const lastSt = day.stamps.filter((s) => s.i <= i && s.kind !== 'q').pop();
+  $('sub').innerHTML = (r.m15 != null ? `<span class="pill">price ${fmt(r.m15, 0)} pts/15m (s)</span>` : '') + `<span class="pill">zor ${fmt(P)} L/min</span>`
+    + (lastSt ? `<span>sabse naya stamp: <b class="num">${lastSt.t}</b> ${esc(chipOf(lastSt))} · ${f0(lastSt.s)}s</span>` : '<span>abhi koi stamp nahi</span>')
+    + (r.cx ? `<span style="color:var(--dn);font-weight:800">≠ ${esc(r.cx)}</span>` : '');
+  $('storyv').textContent = '';
+
+  // a stamp reached: say it once
+  const hit = day.stamps.filter((s) => s.i === i);
+  if (hit.length && lastStampShown !== i) {
+    lastStampShown = i; const s = hit[hit.length - 1];
+    $('toast').innerHTML = `<b>${s.t} · ${esc(s.title)}</b> ${s.g ? '· ' + s.g : ''}<br><span style="opacity:.8">${esc(s.why || '')}</span>`;
+    $('toast').classList.add('show'); pic.animate([{ filter: 'brightness(1.35)' }, { filter: 'none' }], { duration: 900 });
+    clearTimeout(window.__tt); window.__tt = setTimeout(() => $('toast').classList.remove('show'), 4500);
+  }
+  oiTrend(i); kram(i);
+  // zor
+  const P5 = pressure(p5), pos = (x) => 50 + 46 * Math.tanh((x ?? 0) / scale.p);
+  $('kn').style.left = pos(P) + '%'; $('kg').style.left = pos(P5) + '%';
+  $('kn').style.background = P == null ? C.q : P > 0 ? C.up : P < 0 ? C.dn : C.q;
+  $('zorv').textContent = P == null ? 'could not check' : `${fmt(P)} L/min`;
+  meter('ce', r.ce, p5.ce); meter('pe', r.pe, p5.pe);
+  quad(i);
+  renderStack(i);
+}
+
+function meter(s, now, then) {
+  const v = now?.v, g = then?.v, k = (x) => 50 - 46 * Math.tanh((x ?? 0) / scale.v);
+  const y = k(v), F = $(s + 'F');
+  F.style.top = Math.min(50, y) + '%'; F.style.height = Math.abs(50 - y) + '%'; F.style.opacity = v != null && v < 0 ? 0.55 : 1;
+  F.style.backgroundImage = v != null && v < 0 ? 'repeating-linear-gradient(45deg,rgba(255,255,255,.6) 0 3px,transparent 3px 6px)' : 'none';
+  $(s + 'G').style.top = k(g) + '%';
+  $(s + 'W').textContent = v == null ? '?' : (v < 0 ? 'kaat rahe' : 'likh rahe') + (SPW[now?.sp] ? ' · ' + SPW[now.sp] : '');
+  $(s + 'W').style.color = s === 'ce' ? C.ce : C.pe;
+  $(s + 'V').textContent = v == null ? '—' : `${fmt(v)} L/min`;
+}
+
+function quad(at) {
+  const W = 190, H = 150, cx = W / 2, cy = H / 2, R = day.rows;
+  const X2 = (r) => cx + (W / 2 - 10) * Math.tanh((pressure(r) ?? 0) / scale.p), Y = (r) => cy - (H / 2 - 12) * Math.tanh((r.m15 ?? 0) / scale.m);
+  const trail = []; for (let j = Math.max(0, at - 15); j <= at; j++) trail.push(R[j]);
+  const r = R[at], same = Math.sign(pressure(r) ?? 0) === Math.sign(r.m15 ?? 0);
+  let s = `<rect x="${cx}" y="0" width="${cx}" height="${cy}" fill="rgba(27,138,56,.07)"/><rect x="0" y="${cy}" width="${cx}" height="${cy}" fill="rgba(196,43,48,.07)"/>
+    <rect x="0" y="0" width="${cx}" height="${cy}" fill="rgba(217,154,30,.08)"/><rect x="${cx}" y="${cy}" width="${cx}" height="${cy}" fill="rgba(217,154,30,.08)"/>
+    <line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="#C9CFD8"/><line x1="0" y1="${cy}" x2="${W}" y2="${cy}" stroke="#C9CFD8"/>
+    <text x="${W - 4}" y="11" text-anchor="end" font-size="9.5" fill="${C.up}" font-weight="800">SAATH ▲</text><text x="${W - 4}" y="21" text-anchor="end" font-size="8" fill="${C.ink2}">zor upar · price ▲</text>
+    <text x="4" y="${H - 14}" font-size="9.5" fill="${C.dn}" font-weight="800">SAATH ▼</text><text x="4" y="${H - 4}" font-size="8" fill="${C.ink2}">zor neeche · price ▼</text>
+    <text x="4" y="11" font-size="9.5" fill="#9A6A0E" font-weight="800">ULTA</text><text x="4" y="21" font-size="8" fill="${C.ink2}">price ▲ · zor neeche</text>
+    <text x="${W - 4}" y="${H - 14}" text-anchor="end" font-size="9.5" fill="#9A6A0E" font-weight="800">ULTA</text><text x="${W - 4}" y="${H - 4}" text-anchor="end" font-size="8" fill="${C.ink2}">price ▼ · zor upar</text>`;
+  s += `<polyline fill="none" stroke="#8A93A0" stroke-width="1.2" stroke-dasharray="2 2" points="${trail.map((x) => X2(x).toFixed(1) + ',' + Y(x).toFixed(1)).join(' ')}"/>`;
+  trail.forEach((x, j) => { s += `<circle cx="${X2(x)}" cy="${Y(x)}" r="${1.6 + j * 0.12}" fill="#8A93A0" opacity="${0.15 + (j / trail.length) * 0.5}"/>`; });
+  s += `<circle cx="${X2(r)}" cy="${Y(r)}" r="7" fill="${same ? ((r.m15 ?? 0) > 0 ? C.up : C.dn) : C.chop}" stroke="#fff" stroke-width="2.2"><animate attributeName="r" values="7;9;7" dur="1.2s" repeatCount="indefinite"/></circle>`;
+  $('quad').innerHTML = s;
+  $('qv').textContent = `price ${fmt(r.m15, 0)} pts (s) · zor ${fmt(pressure(r))} L/min`;
+}
+
+/* ---------- hover, scrub, play ---------- */
+function idxAt(clientX) {
+  const b = $('stack').getBoundingClientRect(), m = T0 + ((clientX - b.left - G) / geo.PW) * SPAN;
+  if (m < T0 - 3 || m > T1 + 3) return null;
+  let j = day.rows.findIndex((r) => r.m >= m); if (j < 0) j = day.rows.length - 1; return j;
+}
+function hoverTip(j) {
+  const r = day.rows[j], st = stateOf(r), fut = j > i;
+  let t = `<b>${r.t}</b> · spot ${f0(r.s)}s${fut ? ' · <i>aage (replay)</i>' : ''}<br>${st.label} ${st.arrow}${r.ph ? ' · ' + (PH[r.ph] || r.ph) : ''}${r.g ? ` · ${r.g[0]}/${r.g[1]} ${r.gw || ''}` : ''}<br><i>${esc(r.sent || '')}</i>`;
+  const at = j;
+  day.lanes.forEach((ln) => { const n = laneNow(ln, at); if (n && n[2]) t += `<br>${whoS(ln.side)} ${f0(ln.k)}: ${LANE[n[2]][0]} (${day.rows[n[0]].t} se)`; });
+  const a = active(day.trend.verdict, at), v = a.length ? a[a.length - 1] : null;
+  if (v && v[2] != null) t += `<br>OI trend: ${v[2] > 0 ? '▲ upar' : v[2] < 0 ? '▼ neeche' : 'range'} (${[0, 1, 2].map((w) => ['15m', '30m', '60m'][w] + ' ' + fmt(day.trend.z[w][at], 0) + 'L').join(' · ')})`;
+  return t;
+}
+$('stack').addEventListener('mousemove', (e) => {
+  const j = idxAt(e.clientX), xh = $('xh'), xl = $('xhl');
+  if (j == null || e.clientX - $('stack').getBoundingClientRect().left < G) { xh.style.display = xl.style.display = 'none'; return; }
+  const x = xi(j) + cw() / 2; xh.style.display = xl.style.display = 'block'; xh.style.left = x + 'px'; xl.style.left = x + 'px'; xl.textContent = day.rows[j].t;
+  const own = e.target.closest('[data-tip]');
+  const tf = $('tf'); tf.innerHTML = own ? own.dataset.tip : hoverTip(j); tf.style.display = 'block';
+  tf.style.left = Math.min(e.clientX + 14, innerWidth - 420) + 'px'; tf.style.top = e.clientY + 16 + 'px';
+});
+$('stack').addEventListener('mouseleave', () => { $('xh').style.display = $('xhl').style.display = 'none'; $('tf').style.display = 'none'; });
+$('stack').addEventListener('click', (e) => { const j = idxAt(e.clientX); if (j != null) { i = j; lastStampShown = null; draw(); } });
+document.addEventListener('mousemove', (e) => {
+  if (e.target.closest && e.target.closest('#stack')) return;
+  const tip = e.target.closest && e.target.closest('[data-tip]')?.dataset.tip, tf = $('tf');
+  if (tip) { tf.textContent = tip; tf.style.display = 'block'; tf.style.left = Math.min(e.clientX + 12, innerWidth - 420) + 'px'; tf.style.top = e.clientY + 14 + 'px'; } else tf.style.display = 'none';
+});
+function tick() { if (i < day.rows.length - 1) { i++; draw(); } else stop(); }
+function start() { playing = true; $('play').textContent = '❚❚'; clearInterval(timer); timer = setInterval(tick, 1000 / +$('speed').value); }
+function stop() { playing = false; $('play').textContent = '▶'; clearInterval(timer); }
+$('play').onclick = () => (playing ? stop() : start());
+$('speed').onchange = () => playing && start();
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); playing ? stop() : start(); }
+  if (e.code === 'ArrowRight') { i = Math.min(day.rows.length - 1, i + 1); draw(); }
+  if (e.code === 'ArrowLeft') { i = Math.max(0, i - 1); lastStampShown = null; draw(); }
+});
+let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (day) { layout(); draw(); } }, 120); });
+const MON = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+$('days').innerHTML = D.map((d, n) => `<span class="chip" data-n="${n}">${d.day.slice(8)} ${MON[+d.day.slice(5, 7)]} · ${d.label}</span>`).join('');
+document.querySelectorAll('.chip').forEach((c) => (c.onclick = () => { stop(); setDay(+c.dataset.n); }));
+if (D.length) setDay(0);
+</script>
+</body>
+</html>

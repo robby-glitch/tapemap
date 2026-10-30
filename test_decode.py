@@ -157,7 +157,7 @@ LEG = {"d": 1}
 @pytest.mark.parametrize("d,c,kind,text", [
     (5, 1, "THAK", "▲ leg thak raha · 5/7"), (4, 3, "THAK", "▲ leg thak raha · 4/7"),
     (1, 4, "JAARI", "▲ leg jaari · 4/7"), (0, 7, "JAARI", "▲ leg jaari · 7/7"),
-    (4, 4, "MILA", "▲ mila-jula · 4/4"), (3, 0, "MILA", "▲ mila-jula · 3/0"), (5, 5, "MILA", "▲ mila-jula · 5/5"),
+    (4, 4, "MILA", "▲ mila-jula · 4 thak 4 jaari"), (3, 0, "MILA", "▲ mila-jula · 3 thak 0 jaari"), (5, 5, "MILA", "▲ mila-jula · 5 thak 5 jaari"),
 ])
 def test_the_call_is_a_count_never_a_percent(d, c, kind, text):
     dec = [("k%d" % i, f"dec {i}") for i in range(d)]

@@ -149,3 +149,52 @@ def test_the_chain_row_names_its_own_contract():
     row = poller._stamped("TEST", snap, EXPIRY)
     assert row["ik"] == "NSE_INDEX|Nifty 50" and row["expiry"] == EXPIRY and row["strikes"] == snap["strikes"]
     assert "ik" not in snap
+
+
+def test_a125_rebase_gives_a_zero_change_leg_its_real_change_from_a_later_row(tmp_path):
+    # 27 Oct: the 22,700 PE had no 09:15 baseline until a restart, so its morning rows said oi_chg 0
+    import json
+    import chain_live
+    d = tmp_path / "chain"
+    d.mkdir()
+    leg = lambda oi, chg: {"oi": oi, "oi_chg": chg}
+    rows = [{"ts": "09:16:00", "strikes": [{"k": 22700, "ce": leg(500, 50), "pe": leg(1000, 0)}]},
+            {"ts": "10:00:00", "strikes": [{"k": 22700, "ce": leg(600, 150), "pe": leg(1800, 0)}]},
+            {"ts": "10:38:00", "strikes": [{"k": 22700, "ce": leg(650, 200), "pe": leg(2000, 1100)}]}]
+    f = d / "chain_NIFTY_2026-10-27.jsonl"
+    f.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    assert chain_live.rebase_day("2026-10-27", d) == {f.name: 2}
+    got = [json.loads(x)["strikes"][0] for x in f.read_text(encoding="utf-8").splitlines()]
+    assert [g["pe"]["oi_chg"] for g in got] == [100, 900, 1100]          # base 900 = 2000 - 1100
+    assert [g["ce"]["oi_chg"] for g in got] == [50, 150, 200]            # a leg that had its baseline is untouched
+    assert (tmp_path / "backup" / f"{f.name}.bak-a125").exists()
+    assert chain_live.rebase_day("2026-10-27", d) == {}                  # idempotent
+
+
+def test_a125_missing_baselines_are_asked_again_once_a_minute(monkeypatch):
+    import upstox_chain
+    import upstox_rest
+    asked = []
+    monkeypatch.setattr(upstox_rest, "baselines", lambda m, tok, on_error=None: asked.append(sorted(m)) or
+                        {who: 7 for who in m.values() if who[0] == 22700})
+    src = upstox_chain.UpstoxChainSource.__new__(upstox_chain.UpstoxChainSource)
+    src.token, src.prev_oi = "tok", {"NIFTY": {(22650, "ce"): 1}}
+    legs = {"a": (22650, "ce"), "b": (22700, "pe"), "c": (22750, "ce")}
+    src._retry_baselines("NIFTY", legs)
+    assert asked == []                                                   # no baseline pass yet: never asked
+    src._retry_at = {"NIFTY": 0.0}
+    src._retry_baselines("NIFTY", legs)
+    assert asked == [["b", "c"]] and src.prev_oi["NIFTY"][(22700, "pe")] == 7
+    src._retry_baselines("NIFTY", legs)
+    assert len(asked) == 1                                               # within the minute: not again
+
+
+def test_a_good_poll_after_a_hole_asks_for_the_refill():
+    """J1b (28 Oct): the laptop slept 12:54-13:00 with no restart and the chain stayed empty 12:55-12:59. The first good poll
+    after a hole longer than HOLE_REFILL_S says so (the poll loop then kicks the REST backfill); an ordinary poll does not."""
+    poller = ChainPoller([{"under_sym": "TEST"}], mock=True)
+    t = 1793172000.0
+    assert poller._back_after_hole("TEST", t) is False                    # the first poll: no hole to speak of
+    assert poller._back_after_hole("TEST", t + 11) is False               # the next round: ~11 s later
+    assert poller._back_after_hole("TEST", t + 11 + 374) is True          # back after the 374 s sleep
+    assert poller._back_after_hole("TEST", t + 11 + 374 + 11) is False    # and back to normal

@@ -1,0 +1,14 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-10-22 · NORMAL · her chop / stop-loss day · SENSEX expiry · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???·▼▼a~~~~~~~~~▲▲▲~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+09:35     54531s  CHAL RAHA ▼ · SHURU                 6/10 THEEK      CE CAP SAATH · spot -217 pts/15m · with +3.2L against +1.1L
+09:50     54677s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 217
+10:34     55090s  CHAL RAHA ▲ · chop se bahar         8/11 THEEK      CE BHAAG RAHE · 60-min range toota · spot +260/15m
+11:06     55014s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 337
+12:53     54891s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 235
+14:11     54779s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 110
+15:28     54926s  CHOP                                6/8 THEEK       legs dono taraf 30 min mein · range30 162
+
+-- minutes: CHOP 323, ? 17, CHAL RAHA ▲ 15, CHAL RAHA ▼ 10, ATKA 5, KHAMOSH 3
+-- stamps: 7 (pictures / quiet / ? 7, phases + ends 0, side events 0, ≠ READ 0)

@@ -1,0 +1,14 @@
+== RAFTAAR (converged) · SENSEX · 2026-10-23 · NORMAL · down day, §1o TREND ▼ 11:30 → CHOP · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ????▼▼▼··▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+09:35     73424s  CHAL RAHA ▼ · SHURU                 6/10 THEEK      CE CAP SAATH · spot -191 pts/16m · with +4.5L against +6.4L
+09:56     73332s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+09:57     73293s  CHAL RAHA ▼ · SHURU                 8/11 THEEK      CE CAP SAATH · spot -202 pts/16m · with +3.0L against +1.5L
+10:06     73096s  CHAL RAHA ▼ · TEZ                   9/11 THEEK      PE BHAAG + CE LIKHAI · spot -301 pts · with +5.9L
+11:56     72633s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 183
+12:58     72606s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 155
+14:33     73019s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 137
+
+-- minutes: CHOP 221, CHAL RAHA ▼ 127, ? 16, KHAMOSH 11
+-- stamps: 7 (pictures / quiet / ? 6, phases + ends 1, side events 0, ≠ READ 0)

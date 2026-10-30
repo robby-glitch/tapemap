@@ -1,0 +1,14 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-22 · NORMAL · her chop / stop-loss day · SENSEX expiry · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ???··~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~▼▼▼▼▼▼~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+09:40     22617s  CHOP                                3/7 THEEK       legs dono taraf 30 min mein · range30 62
+10:49     22678s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 102
+12:21     22595s  CHAL RAHA ▼ · JAARI · chop se bahar  9/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -34 pts/15m · with +34.7L against +1.1L
+                    PHANSE: 22700 +4.3L 11:39 tak likha, 22650 +3.6L 12:11 tak likha
+12:52     22686s  MOVE ▼ KHATAM                                       price ne 98 pts wapas diye (leg 168 pts)
+12:54     22742s  CHOP                                7/8 MAZBOOT     legs dono taraf 30 min mein · range30 144
+14:36     22660s  CHOP                                7/8 MAZBOOT     legs dono taraf 30 min mein · range30 61
+
+-- minutes: CHOP 315, CHAL RAHA ▼ 33, ? 17, KHAMOSH 7
+-- stamps: 6 (pictures / quiet / ? 5, phases + ends 1, side events 0, ≠ READ 0)

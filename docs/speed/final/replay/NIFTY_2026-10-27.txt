@@ -1,0 +1,29 @@
+== RAFTAAR (converged) · NIFTY · 2026-10-27 · EXPIRY · TODAY · Oct monthly expiry (NIFTY + BNF) · size ref: 7 pichhle expiry din · fut leg: yes · READ log: yes
+
+strip (5 min): ????▲▲▲··▲▲▲▲▼▼▼~~~~~~~~?~?~~~~~~~~~~~···▲▲▲▲~~~~▼▼▼▼▼▼▼PPkk▼▼▼▼~~~~~~~~▲▲▲
+
+09:34     22722s  CHAL RAHA ▲ · SHURU                 4/10 THEEK      PE FLOOR SAATH · spot +63 pts/15m · with +179.0L against +174.9L
+09:41     22739s  CHAL RAHA ▲ · TEZ                   6/11 THEEK      PE FLOOR SAATH · spot +48 pts · with +118.7L
+09:52     22762s  MOVE ▲ KHATAM                                       10 min CHOP / PIN ki kahani
+09:58     22743s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22700 −14.0L, 22650 −7.5L, 22800 +21.8L, 22900 +19.9L
+10:02     22785s  CHAL RAHA ▲ · SHURU                 6/11 THEEK      PE FLOOR SAATH · spot +50 pts/15m · with +116.9L against +34.6L
+10:19     22747s  CHAL RAHA ▼ · SHURU                 5/11 THEEK      CE CAP SAATH · spot -42 pts/15m · with +68.2L against +34.7L · (pichhla move 10:18 par khatam)
+10:36     22752s  MOVE ▼ KHATAM                                       price ne 56 pts wapas diye (leg 99 pts)
+11:24     22739s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 57
+12:03     22765s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22700 −7.4L, 22600 −2.5L, 22800 +15.6L, 22900 +12.7L
+12:35     22768s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:42     22812s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 22700 −21.5L, 22750 −18.8L, 22850 +10.9L, 22800 +8.6L
+12:43     22824s  CHAL RAHA ▲ · SHURU                 7/11 MAZBOOT    CE BHAAG RAHE · spot +70 pts/15m · with +287.8L against +4.5L
+                    PHANSE: 22800 +30.7L 12:37 tak likha
+13:00     22771s  MOVE ▲ KHATAM                                       price ne 53 pts wapas diye (leg 71 pts)
+13:22     22695s  CHAL RAHA ▼ · chop se bahar         6/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -66/15m
+13:54     22712s  MOVE ▼ KHATAM                                       10 min CHOP / PIN ki kahani
+14:00     22692s  PIN @ 22700s                        4/8 THEEK       dono barabar baithe · OI at 22700: CE +257.0L PE +302.8L · range30 tight
+14:10     22677s  PE FLOOR NEECHE SHIFT                               roll, abhi bhi short · 22700 −13.1L, 22750 −10.3L, 22650 +31.3L, 22600 +26.4L
+14:16     22639s  CHAL RAHA ▼ · SHURU                 7/11 MAZBOOT    PE BHAAG + CE LIKHAI · spot -50 pts/15m · with +268.2L against +11.5L
+                    PHANSE: 22650 +57.3L 14:10 tak likha
+14:35     22691s  MOVE ▼ KHATAM                                       price ne 52 pts wapas diye (leg 57 pts)
+14:37     22717s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 78
+
+-- minutes: CHOP 174, CHAL RAHA ▼ 69, CHAL RAHA ▲ 63, KHAMOSH 27, ? 17, PIN 11, BINA OI ▼ 11
+-- stamps: 20 (pictures / quiet / ? 10, phases + ends 6, side events 4, ≠ READ 0)

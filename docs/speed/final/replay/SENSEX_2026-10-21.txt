@@ -1,0 +1,19 @@
+== RAFTAAR (converged) · SENSEX · 2026-10-21 · NORMAL · top at 09:58 then -470 · size ref: 20 pichhle normal din · fut leg: yes · READ log: yes
+
+strip (5 min): ????▲▲a~~~▼▼▼▼▼▼▼▼▼~~~~~~~~~▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼~~~~~~~~~▼▼▼▼▼▼▼▼▼▼▼▼▼wwwww
+
+09:35     74651s  CHAL RAHA ▲ · SHURU                 8/10 MAZBOOT    PE FLOOR SAATH · spot +228 pts/16m · with +39.9L against +28.8L
+09:47     74516s  CE CAP UPAR SHIFT                                   roll, abhi bhi short · 74500 −4.5L, 74400 −2.9L, 74700 +4.4L, 74900 +1.7L
+09:47     74516s  MOVE ▲ KHATAM                                       price ne 160 pts wapas diye (leg 256 pts)
+09:49     74468s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 254
+10:05     74243s  CHAL RAHA ▼ · chop se bahar         9/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -225/16m
+10:48     74281s  MOVE ▼ KHATAM                                       ulta move shuru, OI uske saath
+11:20     74022s  CHOP                                7/8 MAZBOOT     legs dono taraf 30 min mein · range30 259
+11:36     73844s  CHAL RAHA ▼ · chop se bahar         8/11 THEEK      PE BHAAG + CE LIKHAI · 60-min range toota · spot -178/16m
+13:13     73433s  MOVE ▼ KHATAM                                       50 min se naya low nahi
+14:23     73283s  CHAL RAHA ▼ · JAARI · chop se bahar  9/11 MAZBOOT    CE CAP SAATH · spot -100 pts/16m · with +15.9L against +4.8L
+15:06     73426s  WAPSI ▲ · SHURU                     6/11 THEEK      CE BHAAG RAHE · spot +159 pts/16m · with +9.0L against +1.4L · (pichhla move 15:06 par khatam)
+                    PHANSE: 73700 +4.0L 14:43 tak likha, 73600 +3.2L 14:37 tak likha
+
+-- minutes: CHAL RAHA ▼ 206, CHOP 111, WAPSI ▲ 24, ? 16, CHAL RAHA ▲ 12, KHAMOSH 2, ATKA 2
+-- stamps: 11 (pictures / quiet / ? 7, phases + ends 3, side events 1, ≠ READ 0)

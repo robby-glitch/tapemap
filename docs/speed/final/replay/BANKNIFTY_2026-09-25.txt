@@ -1,0 +1,17 @@
+== RAFTAAR (converged) · BANKNIFTY · 2026-09-25 · NORMAL · range / pin · size ref: 20 pichhle normal din · fut leg: yes · READ log: no
+
+strip (5 min): ???·P▼▼▼▼▼~~~~~~~~~~~~~~~~~~~~P··a·uu·····▼▼▼▼▼▼▼▼▼▼▼▼~~~~~~~~~▲▲~~~~~~~~~
+
+09:34     55572s  PIN @ 55600s                        4/8 THEEK       dono likh rahe, barabar · 15m adds CE +4.1L PE +4.3L
+09:39     55476s  CHAL RAHA ▼ · SHURU                 7/11 THEEK      CE CAP SAATH · spot -86 pts/15m · with +2.6L against +2.9L
+10:34     55511s  CHOP                                5/8 THEEK       legs dono taraf 30 min mein · range30 120
+11:44     55604s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 74
+11:48     55603s  PIN @ 55600s                        4/9 THEEK       dono likh rahe, barabar · 15m adds CE +0.64L PE +1.1L
+11:58     55606s  KHAMOSH · kuch khaas nahi                           koi flow noise se upar nahi
+12:17     55580s  UNWIND                              3/7 THEEK       CE −0.01L PE −0.13L
+12:47     55528s  CHAL RAHA ▼ · SHURU                 6/11 THEEK      CE CAP SAATH · spot -74 pts/15m · with +0.82L against +0.29L
+12:53     55488s  CHAL RAHA ▼ · TEZ                   9/11 THEEK      PE BHAAG + CE LIKHAI · spot -82 pts · with +3.1L
+13:47     55506s  CHOP                                4/8 THEEK       legs dono taraf 30 min mein · range30 62
+
+-- minutes: CHOP 184, CHAL RAHA ▼ 85, KHAMOSH 42, ? 23, UNWIND 13, PIN 10, CHAL RAHA ▲ 10, ATKA 3
+-- stamps: 10 (pictures / quiet / ? 9, phases + ends 1, side events 0, ≠ READ 0)

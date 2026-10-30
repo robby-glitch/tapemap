@@ -152,6 +152,29 @@ def load_session(path, info=None):
     return minutes, opens, book
 
 
+def kal_scale(chain_dir, idx, day):
+    """The previous session's scale for `idx` before `day` (sides.day_scale on its saved chain), with that session's day,
+    its option expiry and whether it was its expiry day -> dict, or None when no earlier session is saved. One copy:
+    server._sides_kal (cached once per day) and jarvis.build (J2, the record replay) both read it."""
+    import chain_backfill
+    import chain_metrics
+    import sides
+    prev = prev_session_path(chain_dir, idx, day)
+    if not prev:
+        return None
+    info = {}
+    m, o, _bk = load_session(prev[1], info)
+    for t, rec in chain_backfill.read_grid(prev[0], idx).items():   # the REST walk's marks (09:15-09:16) the poller never saw
+        m.setdefault(t, rec)
+    g = chain_metrics.ChainState()
+    g.minutes = m
+    sc = sides.day_scale(sides.read(g.oi_flow(interval=sides.INTERVAL), m, opens=o))
+    # rev sides-3 (B3): a previous session that was this index's expiry day is not a like for a fresh-series morning;
+    # its own saved snapshots say which expiry they were on
+    exp = info.get("expiry")
+    return dict(sc, day=prev[0], expiry=exp, expiry_day=(exp == prev[0]) if exp else None)
+
+
 def prev_session_path(chain_dir, idx, day):
     """The latest saved chain day for `idx` before `day` (weekends and holidays skipped), or None."""
     best = None
