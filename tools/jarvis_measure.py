@@ -9,6 +9,8 @@ Per day: jarvis.build(day, "NIFTY", None, fill=True) and jarvis.calls(d) (the ca
   ACTION changes             changes of the call's word
   PALAT? episodes            minutes the call's word turned PALAT? (a run of PALAT? minutes is one episode)
   true flips                 the leg's lean flips (PALAT) at or after 10:00
+  net changes                ACTION changes net of the two each true flip costs (the change to PALAT and the first change
+                             after it): the plan's <= 15 bar applies here (ruling 3, 1 Nov); flips are the day type
   opening lean flips (<10:00) flips before 10:00 that the word announced (a word other than OPENING / NO LEG at the flip
                              minute), and in brackets every geometric flip before 10:00, announced or not
   NOT_READ                   the frame's GAPS §3 rows with no reader (health.not_read)
@@ -22,14 +24,19 @@ import sys
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, ROOT)
 
-COLS = ("day", "minutes", "raw_changes", "action_changes", "palatq_episodes", "true_flips", "open_announced",
-        "open_flips", "not_read")
-HEAD = ("day", "minutes", "word changes (raw state)", "ACTION changes", "PALAT? episodes", "true flips",
+COLS = ("day", "minutes", "raw_changes", "action_changes", "palatq_episodes", "true_flips", "net_changes",
+        "open_announced", "open_flips", "not_read")
+HEAD = ("day", "minutes", "word changes (raw state)", "ACTION changes", "PALAT? episodes", "true flips", "net changes",
         "opening lean flips (<10:00)", "NOT_READ")
 
 
 def changes(xs):
     return sum(1 for a, b in zip(xs, xs[1:]) if a != b)
+
+
+def net_changes(words):
+    """Changes that are neither into nor out of PALAT (a lean flip costs exactly those two)."""
+    return sum(1 for a, b in zip(words, words[1:]) if a != b and "PALAT" not in (a.split()[0], b.split()[0]))
 
 
 def measure(day):
@@ -48,7 +55,8 @@ def measure(day):
                     and not words[i].startswith(("OPENING", "NO LEG")))
     return {"day": day, "minutes": len(cs), "raw_changes": changes(raw), "action_changes": changes(words),
             "palatq_episodes": sum(1 for a, b in zip([""] + words, words) if b.startswith("PALAT?") and not a.startswith("PALAT?")),
-            "true_flips": (flips[-1] if flips else 0) - open_flips, "open_announced": announced, "open_flips": open_flips,
+            "true_flips": (flips[-1] if flips else 0) - open_flips, "net_changes": net_changes(words),
+            "open_announced": announced, "open_flips": open_flips,
             "not_read": len(d["health"].get("not_read") or ())}
 
 
@@ -60,12 +68,13 @@ def table(rows):
             out.append(f"{r['day']} | could not check — {r['why']}")
             continue
         out.append(" | ".join([r["day"], str(r["minutes"]), str(r["raw_changes"]), str(r["action_changes"]),
-                               str(r["palatq_episodes"]), str(r["true_flips"]), f"{r['open_announced']} ({r['open_flips']})",
-                               str(r["not_read"])]))
+                               str(r["palatq_episodes"]), str(r["true_flips"]), str(r["net_changes"]),
+                               f"{r['open_announced']} ({r['open_flips']})", str(r["not_read"])]))
     tot = {k: sum(r[k] for r in ok) for k in COLS[1:]}
     out.append(" | ".join([f"TOTAL {len(ok)} days", str(tot["minutes"]), str(tot["raw_changes"]), str(tot["action_changes"]),
-                           str(tot["palatq_episodes"]), str(tot["true_flips"]), f"{tot['open_announced']} ({tot['open_flips']})",
-                           "-"]))
+                           str(tot["palatq_episodes"]), str(tot["true_flips"]), str(tot["net_changes"]),
+                           f"{tot['open_announced']} ({tot['open_flips']})", "-"]))
+    out.append(f"days with net changes <= 15: {sum(r['net_changes'] <= 15 for r in ok)} of {len(ok)}")
     return "\n".join(out)
 
 

@@ -988,7 +988,7 @@ def call(d: dict) -> dict:
     acts = r.get("action") or []
     act = acts[i] if len(acts) == len(mins) and not blind else None
     if act:
-        word = act["word"] + (f" {ARR[act['lean']]}" if act["lean"] else "")
+        word = said(act["word"], act["lean"])
         reason = act["why"] + (f" · leg {row['word']}: {row.get('line') or row['word']}" if row else "")
     elif not blind and row:                          # a frame whose ACTION series was not built (read before Jarvis v3)
         word = row["word"] + (f" {ARR[lean]}" if lean else "")
@@ -1230,8 +1230,8 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
     else:
         p = known[-1]
         a = "GHUSE" if p["ans"] == "TIKI" and p.get("who") == "KHAREEDAR" else p["ans"]
-        txt = (f"last answer {p['t']} push {ARR.get(p['dir'], '?')} " + (f"{_fmt(p['k'])}s " if p.get("k") is not None else "")
-               + f"{p.get('side') or ''}{' ±2' if p.get('via') == 'band' else ''} ")
+        txt = (f"last answer {p['t']} push {ARR.get(p['dir'], '?')} "
+               + (f"{_fmt(p['k'])}s " if p.get("k") is not None else "") + f"{p.get('side') or ''}{' ±2' if p.get('via') == 'band' else ''} ")
         if a == "GHUSE":
             put("answer", "?", txt + "buyers in at the wall")
         elif p["dir"] == L:                                              # the lean's own push: did its wall give way?
@@ -1287,6 +1287,12 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
     return _count_of(P)
 
 
+def said(word, lean):
+    """The ACTION word as said: the word and its lean arrow -- except OPENING, whose lean is a chip of its own (the card's
+    `lean`), never part of the word (ruling 1, 1 Nov: the open's geometric flips are not announced)."""
+    return word + (f" {ARR[lean]}" if lean and word != "OPENING" else "")
+
+
 def _palat_cond(row):
     """The leg's own PALAT? condition at this minute (legs.read: FAST against, >= 3 risk items, or 0.35 of the leg back),
     as distinct from its latched / minimum-display PALAT? word."""
@@ -1300,14 +1306,16 @@ def action_words(d: dict) -> list:
     """THE ACTION WORD per minute (Jarvis v3; JARVIS-REVIEW-2026-10-31 §3.1, P0 #1-3): the leg's word is a STATE, this is
     the word she acts on -> [{"word", "lean", "since", "count", "why"}] per minute of d["mins"] ([] when the leg read has
     no rows for this frame). Causal: minute i reads minutes <= i only.
-      candidate  the leg's word, decided by the count: TREND -> TREND at WITH >= AGAINST + ACT_LEAD, else HOLD; HOLD ->
-                 HOLD at WITH >= AGAINST, else WATCH; WATCH -> WATCH; PALAT? -> PALAT? while its condition holds (a
-                 latched PALAT? whose condition is gone -> WATCH); NO LEG / ROTATION as themselves; NO TRADE (quiet / can't
-                 see, reads.notrade) when there is no TREND leg
+      candidate  the leg's word, decided by the count: TREND -> TREND at WITH >= AGAINST + ACT_LEAD, else HOLD; the
+                 pause (the leg's HOLD or WATCH, or a latched PALAT? whose condition is gone) -> HOLD at WITH >= AGAINST,
+                 else WATCH -- WATCH only when the count has turned (ruling 2, 1 Nov: HOLD and WATCH are the same action
+                 for a holder; the leg's risk items ride along as a chip, "HOLD · 2 risk"); PALAT? -> PALAT? while its
+                 condition holds; NO LEG / ROTATION as themselves; NO TRADE (quiet / can't see, reads.notrade) when there
+                 is no TREND leg
       changes    only at her 3-min closes, on the same candidate at ACT_CLOSES consecutive closes; PALAT? also at one
                  close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped), and a push against
                  the lean that BROKE / TRAPPED the wall behind (TREND / HOLD -> WATCH). CAN'T SEE is the call's (a clock)
-      the open   before 10:00 the word is OPENING (NO LEG before the first leg), the lean shown, never announced; with
+      the open   before 10:00 the word is OPENING (NO LEG before the first leg), no arrow: the lean is its own chip; with
                  nothing held yet (the frame's first minute, the open's end at 10:00) the word is the leg's own at once
     `why` = the rule that set the word · WITH n · AGAINST m (· a pending candidate, n of ACT_CLOSES closes)."""
     import legs
@@ -1330,7 +1338,7 @@ def action_words(d: dict) -> list:
         c = count(d, i, vote)
         W, A = c["with"], c["against"]
         g = row.get("leg") or {}
-        brk = None                                                       # newly known: against the lean, the wall behind gone
+        brk = None                                       # newly known: against the lean, the wall behind gone
         for j, p in enumerate(pushes):
             if j in fired or p.get("artifact") or not p.get("am") or p["am"] >= t:     # known the minute after its read
                 continue
@@ -1339,24 +1347,27 @@ def action_words(d: dict) -> list:
                 brk = p
         # the candidate
         if m < legs.OPEN_M:
-            cand = ("NO LEG", "NO LEG: no leg yet") if raw == "NO LEG" else                 ("OPENING", "OPENING: before 10:00 the lean is shown, not announced")
+            cand = ("NO LEG", "NO LEG: no leg yet") if raw == "NO LEG" else ("OPENING", "OPENING: before 10:00, no word")
         elif nt[i] and g.get("quality") != "TREND" and raw != "PALAT":
             cand = ("NO TRADE", f"NO TRADE: quiet since {nt[i]['since']}" if nt[i]["why"] == "quiet"
                     else f"NO TRADE: can't see {nt[i]['from']}–{nt[i]['to']}")
         elif raw == "TREND":
-            cand = ("TREND", f"TREND: with ≥ against + {ACT_LEAD}") if W >= A + ACT_LEAD else                 ("HOLD", f"HOLD: a TREND leg, with < against + {ACT_LEAD}")
-        elif raw == "HOLD":
-            cand = ("HOLD", "HOLD: the pause, with ≥ against") if W >= A else ("WATCH", "WATCH: the pause, against > with")
-        elif raw == "PALAT?":
-            cand = ("PALAT?", "PALAT?: ≥ 3 risk items or FAST against") if _palat_cond(row) else                 ("WATCH", "WATCH: the leg's PALAT? is not confirmed at this close")
+            cand = (("TREND", f"TREND: with ≥ against + {ACT_LEAD}") if W >= A + ACT_LEAD
+                    else ("HOLD", f"HOLD: a TREND leg, with < against + {ACT_LEAD}"))
+        elif raw == "PALAT?" and _palat_cond(row):
+            cand = ("PALAT?", "PALAT?: ≥ 3 risk items or FAST against")
+        elif raw in ("HOLD", "WATCH", "PALAT?"):         # the pause (a latched PALAT? too): the count decides
+            cand = (("HOLD", "HOLD: the pause, with ≥ against") if W >= A
+                    else ("WATCH", "WATCH: the count turned, against > with"))
         else:
             cand = (raw, f"{raw}: the leg says {raw}")
         # the word
         new = None
         if m < legs.OPEN_M:
             new = cand
-        elif word is None or word in ("OPENING", "NO LEG"):
-            new = (raw, f"{raw}: the leg's own word (nothing held yet)")
+        elif word is None or word in ("OPENING", "NO LEG"):            # a pause is HOLD until the count turns (ruling 2)
+            own = "HOLD" if raw == "WATCH" or (raw == "PALAT?" and not _palat_cond(row)) else raw
+            new = (own, f"{own}: the leg's own word (nothing held yet)")
         elif raw == "PALAT":
             new = ("PALAT", "PALAT: the lean flipped")
         elif brk and word in ("TREND", "HOLD") and g.get("quality") == "TREND":
@@ -1374,10 +1385,11 @@ def action_words(d: dict) -> list:
                     new = ("PALAT?", f"PALAT?: retrace {g['retrace']:.2f} ≥ {legs.DEEP} of the leg")
         if new:
             word, rule, pend = new[0], new[1], None
-        if (word, lean) != shown:
-            shown, since = (word, lean), t
-        why = f"{rule} · WITH {W} · AGAINST {A}" + (f" · {pend[0]} at {pend[3]} ({pend[2]} of {ACT_CLOSES} closes)"
-                                                    if pend else "")
+        if said(word, lean) != shown:
+            shown, since = said(word, lean), t
+        nr = len(row.get("risk") or ())                                  # the leg's risk items ride along as a chip
+        why = (f"{rule}" + (f" · {nr} risk" if nr else "") + f" · WITH {W} · AGAINST {A}"
+               + (f" · {pend[0]} at {pend[3]} ({pend[2]} of {ACT_CLOSES} closes)" if pend else ""))
         out.append({"word": word, "lean": lean, "since": since, "count": c, "why": why})
     return out
 

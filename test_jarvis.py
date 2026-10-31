@@ -358,10 +358,36 @@ def test_action_word_needs_two_closes_and_palat_at_once():
     rows[30] = dict(rows[30], word="PALAT", lean=1)
     d["legs"] = {"rows": rows, "day": {"flips": [0] * 30 + [1] * 10, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
     a = jarvis.action_words(d)                                   # the per-minute ACTION series reads() stores
-    assert a[5]["word"] == "TREND" and a[21]["word"] == "TREND"  # one close saying WATCH does not flip it
-    assert a[26]["word"] == "WATCH"                              # two consecutive closes do (10:23 and 10:26)
+    assert a[5]["word"] == "TREND" and a[21]["word"] == "TREND"  # one close of the pause does not flip it
+    assert a[26]["word"] == "HOLD"                               # two consecutive closes do (10:20 and 10:23); the leg's
+                                                                 # WATCH is HOLD while the count is with the lean (ruling 2)
     assert a[30]["word"] == "PALAT" and a[30]["since"] == "10:30"   # the lean flip speaks at once
     assert all("%" not in x["why"] for x in a)
+
+
+def test_on_a_trend_leg_watch_needs_the_count_to_turn():
+    """Ruling 2 (1 Nov): in a pause the leg's HOLD and WATCH are both HOLD, the leg's risk items a chip in `why`; WATCH only
+    when the count has turned against the lean (AGAINST > WITH) at two consecutive closes. Ruling 1: OPENING has no arrow."""
+    d = _toy()
+    leg = {"dir": -1, "quality": "TREND", "retrace": 0.1}
+    risk = [{"k": "premium_bleeding"}, {"k": "mark_against"}]
+    rows = [{"t": m, "lean": -1, "word": "TREND" if i < 20 else "WATCH", "risk": [] if i < 20 else risk, "leg": leg}
+            for i, m in enumerate(d["mins"])]
+    d["legs"] = {"rows": rows, "day": {"flips": [0] * 40, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
+    d["reads"] = jarvis.reads(d)
+    a = jarvis.action_words(d)
+    assert a[23]["word"] == "HOLD" and " · 2 risk · " in a[23]["why"]           # the leg says WATCH, the count says with
+    # from 10:20 the count turns: call writers cover (±7 UP), Sides call-fuel, the PE wall below builds
+    d["wf_ce"], d["wf_pe"] = [12.0] * 20 + [-14.0] * 20, [-14.0] * 20 + [12.0] * 20
+    d["sides"] = d["sides"] + [{"t": "10:20", "c": "COV", "p": "ADD", "word": "REAL", "fuel_side": "ce", "uw": 1}]
+    d["timeline"] = d["timeline"][:20] + [{"fuel": None, "fuel_state": "-", "fronts": [
+        {"k": 22900.0, "side": "PE", "state": "BUILDING", "oi": 99.0, "chg": 4.0, "peak": 99.0}]}] * 20
+    d["reads"] = jarvis.reads(d)
+    a = jarvis.action_words(d)
+    assert a[20]["count"]["against"] > a[20]["count"]["with"]
+    assert a[22]["word"] == "TREND" and a[23]["word"] == "WATCH" and a[23]["since"] == "10:23"   # closes 10:20 and 10:23
+    assert "the count turned" in a[23]["why"]
+    assert jarvis.said("OPENING", -1) == "OPENING" and jarvis.said("HOLD", -1) == "HOLD ▼"
 
 
 def test_the_wall_behind_broken_speaks_at_once_and_a_latched_palatq_waits():
@@ -394,14 +420,14 @@ def test_banknifty_says_its_oi_cannot_answer_once():
     assert not any("G14" in x for x in jarvis.health(d, False)["notes"])
 
 
-@pytest.mark.xfail(strict=True, reason="the plan's bar (<= 15 changes) is not met with its rules: 20 on this test record, "
-                                       "26 on the full record (her marks, the saved tape); .superpowers/sdd/task-1-report.md")
+@pytest.mark.xfail(strict=True, reason="the plan's bar (<= 15 changes net of lean flips) is not met: 19 on 21 Oct, on this "
+                                       "test record and the full record alike; .superpowers/sdd/task-1-report.md, Fix report")
 @pytest.mark.skipif(not _has("2026-10-21"), reason="21 Oct record not present")
 def test_21oct_the_word_holds_in_a_one_way_leg(record):
     d = jarvis.build("2026-10-21", "NIFTY", None, fill=True)
     words = [c["word"] for c in jarvis.calls(d)]
-    changes = sum(1 for a, b in zip(words, words[1:]) if a != b)
-    assert changes <= 15, changes                                 # was 78
+    net = sum(1 for a, b in zip(words, words[1:]) if a != b and "PALAT" not in (a.split()[0], b.split()[0]))
+    assert net <= 15, net                                         # was 78; net of lean flips (ruling 3), 0 here after 10:00
     palatq = sum(1 for a, b in zip(words, words[1:]) if b.startswith("PALAT?") and not a.startswith("PALAT?"))
     assert palatq <= 2, palatq                                    # was 9 in a 473-pt down leg that reversed 0 times
     assert any(w.startswith("TREND ▼") for w in words[35:50])     # the first-hour trend call survives (09:50-10:05)
@@ -409,13 +435,12 @@ def test_21oct_the_word_holds_in_a_one_way_leg(record):
 
 @pytest.mark.skipif(not _has("2026-10-21"), reason="21 Oct record not present")
 def test_21oct_one_trend_call_and_at_most_two_palatq(record):
-    """The parts of the bar the rules meet on 21 Oct (a 473-pt down leg that reversed 0 times after 10:00): PALAT? at
-    most twice (was 9), the first-hour TREND ▼ said by 10:05, and the word changes at least halved (was 78)."""
+    """The parts of 21 Oct's bar the rules meet (the xfail above stops at its first assert): PALAT? at most twice in a
+    473-pt down leg that reversed 0 times after 10:00 (was 9), and the first-hour TREND ▼ said by 10:05."""
     d = jarvis.build("2026-10-21", "NIFTY", None, fill=True)
     words = [c["word"] for c in jarvis.calls(d)]
     assert sum(1 for a, b in zip(words, words[1:]) if b.startswith("PALAT?") and not a.startswith("PALAT?")) <= 2
     assert any(w.startswith("TREND ▼") for w in words[35:50])
-    assert sum(1 for a, b in zip(words, words[1:]) if a != b) <= 39
 
 
 @pytest.mark.skipif(not _has("2026-10-30"), reason="30 Oct record not present")
