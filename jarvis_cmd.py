@@ -28,9 +28,10 @@ MAX_WATCH = 10                                   # watches a day, every index (t
 MAX_NOTES, NOTE_CHARS = 10, 200                  # her notes a day and their length on the card (the review's cap) [I]
 IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
 PERSIST = ("line", "zone", "watch", "remove", "clear", "note", "mark", "flat", "refused")
-ORDER_RE = re.compile(r"\b(?:buy(?:ing)?|sell(?:ing)?|orders?|plac(?:e|ing)|squar(?:e|ing)\w*)\b|\bexit\s+now\b"
-                      r"|\bgo\s+(?:short|long)\b|\b(?:short|long)\s+it\b|\b\d+\s*lots?\b")
-# short / long only as an order's form (go long, short it): "short covering" and "long unwinding" are her OI words
+ORDER_RE = re.compile(r"\b(?:buy(?:s|ing)?|sell(?:s|ing)?|orders?|plac(?:e|es|ing)|squar(?:e|ing)\w*|shorting)\b"
+                      r"|\bexit\s+now\b|\bgo(?:ing)?\s+(?:short|long)\b|\b(?:short|long)\s+it\b|\b\d+\s*lots?\b")
+# short / long only as a verb's form (go long, going short, shorting, short it): "short covering", "long unwinding" and
+# "fresh shorts" are her OI words
 ASKING = ("ask ", "why", "what if", "what next")             # a question is never an order: its order words are read, not refused
 MARK = "mark NIFTY|SENSEX|BANKNIFTY <strike> CE|PE buy|sell <price> [qty N]"
 HELP = ["line 22750f · zone 22680-22720f · watch 22800s (s spot, f futures)",

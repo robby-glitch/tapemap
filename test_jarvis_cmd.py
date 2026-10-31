@@ -59,11 +59,13 @@ def test_an_order_word_is_refused_and_anything_else_gets_the_grammar():
     for t in ("buy 5 lots", "sell PE", "place order", "square off now", "exit now", "go long here", "1 lot more",
               "note sell above 23000", "mark NIFTY 23000 PE buy 325 5 lots", "note selling above 23000",
               "selling the CE now", "placing orders", "square my position", "squareoff", "go short", "short it",
-              "long it", "buying here"):
+              "long it", "buying here", "sells", "buys here", "note sells above 23000", "shorting here", "going long",
+              "going short", "places an order"):
         assert P(t) == {"kind": "refused", "reply": NO}, t
     # her OI words are never orders: short covering, long unwinding (the review's ruling)
     assert P("note short covering at 23000") == {"kind": "note", "text": "short covering at 23000"}
     assert P("note long unwinding") == {"kind": "note", "text": "long unwinding"}
+    assert P("note fresh shorts at 23000") == {"kind": "note", "text": "fresh shorts at 23000"}     # a noun, not a verb
     # a question is not an order, and "lot" is an order word only after a number (the coordinator's resolution)
     assert P("ask what happens if sellers get trapped") == {"kind": "ask", "text": "what happens if sellers get trapped"}
     assert P("note a lot of writing at 23000") == {"kind": "note", "text": "a lot of writing at 23000"}
