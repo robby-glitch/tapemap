@@ -4760,7 +4760,7 @@ def _jarvis_reply(q):
         return {"ok": False, "why": "could not check — that day has not happened"}
     if day != today and d.weekday() < 5 and "09:15" <= now < "15:40":
         return {"ok": False, "why": "could not check — a past day replays after 15:40, never in market hours (spec §6.2)"}
-    live = day == today and not up
+    live = day == today and not up and not fill     # a filled frame of today is a replay: never the card's, never logged
     upto = int(up[:2]) * 60 + int(up[3:5]) if up else \
         (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60 if live else None
     key = (idx, day, upto if not live else None, fill)
@@ -4788,7 +4788,8 @@ JARVIS_ORIGINS = ("http://localhost:8787", "http://127.0.0.1:8787",      # her J
 JARVIS_PASS_IDX = ("NIFTY", "SENSEX")            # the pass keeps these live; BANKNIFTY builds on a face's demand
 JARVIS_FRESH_S = 40                              # a live slot a face built < 40 s ago is not rebuilt by the pass [I]
 JARVIS_SLOW_S = 10                               # a pass over 10 s is a health note (the card lags by that much) [I]
-_JPASS = {"m": {}, "s": None, "at": None, "slow": None}   # idx -> the minute the pass built; the last pass's seconds
+_JPASS = {"m": {}, "s": None, "at": None, "slow": None, "skipped": None, "last": None}   # the pass's memory and notes
+EMPTY_STATE = {"watches": [], "lines": [], "zones": []}       # the cmd contract's state when there is none
 _VOICE = {}                                      # Task 7's seam: idx -> the model voice's line for the card (jarvis_voice)
 
 
@@ -4802,6 +4803,9 @@ def _jarvis_pass():
         return
     m = (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60
     if not _JARVIS_LOCK.acquire(blocking=False):
+        if any(_JPASS["m"].get(i) != m and time.time() - (_JARVIS.get(i) or (None, 0.0))[1] >= JARVIS_FRESH_S
+               for i in JARVIS_PASS_IDX):                   # a minute nobody built: the card is older than it should be
+            _JPASS.update(skipped=f"jarvis pass skipped {d.strftime('%H:%M')} (lock held)", last="skipped")
         return
     try:
         t0 = time.perf_counter()
@@ -4815,12 +4819,23 @@ def _jarvis_pass():
             except Exception:
                 log.exception("jarvis pass %s", idx)
         s = time.perf_counter() - t0
-        _JPASS.update(s=round(s, 1), at=d.strftime("%H:%M:%S"))
+        _JPASS.update(s=round(s, 1), at=d.strftime("%H:%M:%S"), last="slow" if s > JARVIS_SLOW_S else "ok")
         if s > JARVIS_SLOW_S:
             _JPASS["slow"] = f"Jarvis pass took {s:.0f} s at {d.strftime('%H:%M:%S')} — the card lags by that much"
             log.warning("jarvis pass: %.1f s", s)
     finally:
         _JARVIS_LOCK.release()
+
+
+def _jarvis_loop():
+    """THE JARVIS PASS on its own thread, every MSG_EVERY_S (a 10 s pass never delays the message pass's FLOW lines);
+    never raises."""
+    while True:
+        try:
+            _jarvis_pass()
+        except Exception:
+            log.exception("jarvis pass")
+        time.sleep(MSG_EVERY_S)
 
 
 def _jarvis_log(out):
@@ -4861,8 +4876,8 @@ def _jarvis_card(idx):
     if fr is None:
         return {"ok": False, "why": "could not check — no frame built yet"}
     jd = _jcmd()
-    slow = [_JPASS["slow"]] if _JPASS["slow"] and (_JPASS["s"] or 0) > JARVIS_SLOW_S else []
-    out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + slow)
+    note = {"slow": _JPASS.get("slow"), "skipped": _JPASS.get("skipped")}.get(_JPASS.get("last"))   # the last pass's note
+    out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + ([note] if note else []))
     if out.get("ok"):
         out["voice"] = _VOICE.get(idx)                # Task 7 (the model voice), None until then
     return out
@@ -4873,7 +4888,7 @@ def _jarvis_cmd(idx, text, src):
     idx = str(idx or "NIFTY").upper()
     if idx not in instruments.ENABLED:
         why = f"could not check — {idx} is not an index this server reads"
-        return {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": {}}
+        return {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": dict(EMPTY_STATE)}
     return _jcmd().apply(idx, text, _jarvis_live(idx), src, now=_ist().timestamp())
 
 
@@ -5036,17 +5051,12 @@ def _msg_reply(since=0.0):
 
 
 def _msg_loop():
-    """The pass at the start, then every MSG_EVERY_S; never raises (a failed pass is logged, the next one retries). The
-    JARVIS PASS rides after it (Jarvis v3): its rows reach the stream on the next pass, the FLOW lines are never delayed."""
+    """The pass at the start, then every MSG_EVERY_S; never raises (a failed pass is logged, the next one retries)."""
     while True:
         try:
             _msg_pass()
         except Exception:
             log.exception("message pass")
-        try:
-            _jarvis_pass()
-        except Exception:
-            log.exception("jarvis pass")
         time.sleep(MSG_EVERY_S)
 
 
@@ -5202,7 +5212,7 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:           # never 500 a face
                 log.exception("jarvis cmd")
                 why = board.CC + f"{type(e).__name__}: {e}"
-                out = {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": {}}
+                out = {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": dict(EMPTY_STATE)}
             self._json(json.dumps(out, default=str).encode())
             return
         if self.path.startswith("/api/hold/"):
@@ -5551,7 +5561,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "tradebook": _health_safe(_tradebook_due),
                 # Jarvis v3: code edited after this start runs only after a restart (her restart, never mid-session)
                 "code_changed_since_start": _health_safe(_code_changed),
-                "jarvis_pass": {k: _JPASS.get(k) for k in ("at", "s", "slow")},   # the card's own rebuild, and when it was slow
+                "jarvis_pass": {k: _JPASS.get(k) for k in ("at", "s", "slow", "skipped")},   # the card's own rebuild
             }).encode())
             return
         if self.path.startswith("/api/data"):
@@ -5983,7 +5993,8 @@ class Handler(SimpleHTTPRequestHandler):
             # Jarvis v3: the card every face renders (the cached live frame only, no build) and today's drawn state
             idx = (parse_qs(urlsplit(self.path).query).get("idx") or ["NIFTY"])[0].upper()
             try:
-                out = ({"ok": False, "why": f"could not check — {idx} is not an index this server reads"}
+                out = ({"ok": False, "why": f"could not check — {idx} is not an index this server reads",
+                        "state": dict(EMPTY_STATE)}
                        if idx not in instruments.ENABLED else _jarvis_card(idx)
                        if urlsplit(self.path).path == "/api/jarvis/card" else {"ok": True, "idx": idx, "state": _jcmd().state(idx)})
             except Exception as e:               # a bad read must not 500 the face
@@ -7189,6 +7200,7 @@ def main():
         # THE MESSAGE STREAM (A101): its pass on its own thread, live and --mock-chain alike (a mock run's record is under
         # data/mock/, _isolate_mock_writers)
         threading.Thread(target=_msg_loop, daemon=True, name="messages").start()
+        threading.Thread(target=_jarvis_loop, daemon=True, name="jarvis").start()   # Jarvis v3: the card's pass
         if not mock_chain:                           # a rehearsal never reaches her phone
             telegram_out.start()
             telegram_in.CMD = _jarvis_tg             # Jarvis v3: any other text from her chat is a command (jarvis_cmd)

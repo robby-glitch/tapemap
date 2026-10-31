@@ -57,8 +57,13 @@ def test_parse_every_row_of_the_grammar():
 
 def test_an_order_word_is_refused_and_anything_else_gets_the_grammar():
     for t in ("buy 5 lots", "sell PE", "place order", "square off now", "exit now", "go long here", "1 lot more",
-              "note sell above 23000", "mark NIFTY 23000 PE buy 325 5 lots"):
+              "note sell above 23000", "mark NIFTY 23000 PE buy 325 5 lots", "note selling above 23000",
+              "selling the CE now", "placing orders", "square my position", "squareoff", "go short", "short it",
+              "long it", "buying here"):
         assert P(t) == {"kind": "refused", "reply": NO}, t
+    # her OI words are never orders: short covering, long unwinding (the review's ruling)
+    assert P("note short covering at 23000") == {"kind": "note", "text": "short covering at 23000"}
+    assert P("note long unwinding") == {"kind": "note", "text": "long unwinding"}
     # a question is not an order, and "lot" is an order word only after a number (the coordinator's resolution)
     assert P("ask what happens if sellers get trapped") == {"kind": "ask", "text": "what happens if sellers get trapped"}
     assert P("note a lot of writing at 23000") == {"kind": "note", "text": "a lot of writing at 23000"}
@@ -82,7 +87,10 @@ FR = frame(timeline=[{"fronts": [{"k": k, "side": s, "state": "BUILDING", "oi": 
 
 def _disk():
     p = os.path.join(jarvis_cmd.DIR, f"cmd_{DAY}.jsonl")
-    return [json.loads(x) for x in open(p, encoding="utf-8")] if os.path.exists(p) else []
+    if not os.path.exists(p):
+        return []
+    with open(p, encoding="utf-8") as f:
+        return [json.loads(x) for x in f]
 
 
 def test_the_drawing_commands_persist_and_a_restart_rebuilds_the_same_state():
@@ -126,6 +134,17 @@ def test_ten_watches_a_day_then_the_limit_says_so():
     assert not r["ok"] and r["reply"] == "10 watches today already — the day's limit"
 
 
+def test_notes_are_capped_at_200_characters_and_10_a_day():
+    d = jarvis_cmd.Day(DAY)
+    assert d.apply("NIFTY", "note " + "x" * 300, None, "telegram", now=at(10, 0))["ok"]
+    assert d.notes()[0] == "note 10:00 " + "x" * 200
+    for i in range(9):
+        assert d.apply("NIFTY", f"note n{i}", None, "page", now=at(10, 1))["ok"]
+    r = d.apply("NIFTY", "note one too many", None, "telegram", now=at(10, 2))
+    assert not r["ok"] and r["reply"] == "10 notes today already — the day's limit" and len(d.notes()) == 10
+    assert len(jarvis_cmd.Day(DAY).notes()) == 10
+
+
 def test_the_read_only_commands_answer_from_the_frame_verbatim():
     d = jarvis_cmd.Day(DAY)
     a = lambda t, f=FR: d.apply("NIFTY", t, f, "page", now=at(10, 43))               # noqa: E731
@@ -141,7 +160,13 @@ def test_the_read_only_commands_answer_from_the_frame_verbatim():
     ask = a("ask is the floor holding")
     assert ask["reply"] == "voice not configured — the engine's lines:" and ask["lines"] == CALL["why"]
     assert not a("replay 2026-10-21 10:30")["ok"] and "terminal" in a("replay 2026-10-21 10:30")["reply"]
-    assert a("hello")["kind"] == "help" and a("hello")["lines"] == jarvis_cmd.HELP
+    h = a("hello")
+    assert (h["ok"], h["kind"], h["reply"], h["lines"]) == (True, "help", "commands:", jarvis_cmd.HELP)
+    bare = frame({"at": "10:42", "word": "HOLD ▼"})                                  # no count, no missing list
+    assert a("status", bare)["lines"] == ["HOLD ▼", "could not check — count absent", "leg: none in this frame",
+                                          "health: could not check — no missing list in this frame"]
+    assert a("status", frame(dict(CALL, missing=[])))["lines"][3] == "health: every source live"   # only on []
+    assert "None" not in json.dumps([a(t, bare) for t in ("status", "why", "next", "wrong when")], ensure_ascii=False)
     none = a("why", None)
     assert not none["ok"] and none["reply"] == "could not check — no frame built yet"
     assert _disk() == []                                                             # nothing read-only is persisted
@@ -165,7 +190,8 @@ def test_a_watch_fires_once_on_the_touch_and_writes_its_hit_with_the_card():
     assert [r["kind"] for r in _disk()][-2:] == ["watch_hit", "watch_hit"]
     assert jarvis_cmd.Day(DAY).state("NIFTY") == d.state("NIFTY")                    # a restart keeps the hits
     m = messages.jarvis([], [hits[0]])
-    assert [x["line"] for x in m] == ["11:42  NIFTY  WATCH 22,800s hit @22,799.6 · TREND ▼ · WITH 4 · AGAINST 1 · "
+    assert d.apply("NIFTY", "list", None, "page", now=at(11, 45))["lines"][0] == "watch 22,800s · hit 11:42 @22,799.6s"
+    assert [x["line"] for x in m] == ["11:42  NIFTY  WATCH 22,800s hit @22,799.6s · TREND ▼ · WITH 4 · AGAINST 1 · "
                                       "last answer 10:38 x"]
     assert telegram_out.wants(m[0])                                                    # the hit reaches her phone
 
@@ -226,6 +252,10 @@ def test_the_cmd_route_draws_a_watch_and_mark_and_flat_reach_her_hold_record(srv
     assert m["ok"] and m["reply"] == f"marked NIFTY 23000 PE buy @325 · the voice is on · id {tr[0]['id']}"
     again = post("/api/jarvis/cmd", {"idx": "NIFTY", "text": "mark NIFTY 23000 PE buy 330"})
     assert not again["ok"] and tr[0]["id"] in again["reply"] and len(server._hold_trades()) == 1   # her open mark stands
+    empty = {"watches": [], "lines": [], "zones": []}
+    unk = post("/api/jarvis/cmd", {"idx": "FINNIFTY", "text": "watch 22800s"})
+    assert not unk["ok"] and unk["state"] == empty and unk["why"] == unk["reply"]           # the contract's shape, empty
+    assert get("/api/jarvis/cmd?idx=FINNIFTY")["state"] == empty
     bad = post("/api/jarvis/cmd", {"idx": "NIFTY", "text": "mark FINNIFTY 23000 PE buy 330"})
     assert bad["kind"] == "mark" and not bad["ok"] and bad["reply"].startswith("mark NIFTY|SENSEX|BANKNIFTY")
     srv["now"] = datetime(2026, 11, 2, 11, 42, 5, tzinfo=IST)
@@ -255,7 +285,7 @@ def test_the_senses_hook_fires_a_watch_into_the_stream_and_never_raises(srv, mon
     boxes["NIFTY"]["spot"] = 22799.0
     server._jarvis_watch(boxes, {}, {})
     hit = [m for m in server._MSG["items"] if m["kind"] == "JARVIS"]
-    assert [m["line"] for m in hit] == ["10:42  NIFTY  WATCH 22,800s hit @22,799 · TREND ▼ · WITH 4 · AGAINST 1 · "
+    assert [m["line"] for m in hit] == ["10:42  NIFTY  WATCH 22,800s hit @22,799s · TREND ▼ · WITH 4 · AGAINST 1 · "
                                         "last answer 10:38 22,950s PE ±2 BROKEN"]
     monkeypatch.setattr(jarvis_cmd.Day, "armed", lambda self: 1 / 0)
     server._jarvis_watch(boxes, {}, {})                                                  # a broken watch never stops the pass
@@ -326,3 +356,25 @@ def test_a_watch_crossed_while_the_server_was_down_says_could_not_check_once():
     assert [m["line"] for m in messages.jarvis([], rows)] == ["11:40  NIFTY  WATCH 22,800s · could not check — gap 10:12–11:40"]
     d2.apply("NIFTY", "watch 22600s", FR, "page", now=at(11, 42))                   # set in THIS process
     assert d2.check_watches("NIFTY", 22550.0, None, "11:43") == []                  # the first look only remembers
+
+
+def test_a_watch_set_with_no_frame_takes_its_first_price_and_a_failed_write_is_looked_at_again():
+    d = jarvis_cmd.Day(DAY)
+    d.apply("NIFTY", "watch 22800s", None, "page", now=at(10, 12))                   # no frame yet: no set-time price
+    assert d.check_watches("NIFTY", 22850.0, None, "10:13", now=at(10, 13)) == []    # the first price seen is kept
+    assert _disk()[-1] == dict(_disk()[-1], kind="watch_px0", id=1, px0=22850.0)
+    gone = jarvis_cmd.Day(DAY)                                                        # a restart, the price now below
+    assert [r["kind"] for r in gone.check_watches("NIFTY", 22790.0, None, "11:00", now=at(11, 0))] == ["watch_gap"]
+
+    d = jarvis_cmd.Day("2026-11-03")
+    d.apply("NIFTY", "watch 23000s", FR, "page", now=at(10, 12))
+    d.check_watches("NIFTY", 23020.0, None, "10:13")
+    real = d._write
+
+    def full(r):
+        raise OSError("disk full")
+    d._write = full
+    with pytest.raises(OSError):
+        d.check_watches("NIFTY", 22990.0, None, "10:14")                              # the touch could not be written
+    d._write = real
+    assert [h["id"] for h in d.check_watches("NIFTY", 22990.0, None, "10:15")] == [1]   # so the next pass sees it again

@@ -191,9 +191,28 @@ def test_jarvis_lines_say_a_word_change_once_blind_once_and_a_watch_hit():
         "09:56  NIFTY  TREND ▼ · WITH 4 · AGAINST 1 · since 09:56",
         "10:00  SENSEX  HOLD ▲ · WITH 4 · AGAINST 1 · since 10:00",
         "10:10  NIFTY  HOLD ▼ · WITH 2 · AGAINST 2 · since 10:10",
-        "11:42  NIFTY  WATCH 22,800s hit @22,800.4 · TREND ▼ · WITH 4 · AGAINST 1 · last answer 10:38 22,950s PE ±2 BROKEN",
+        "11:42  NIFTY  WATCH 22,800s hit @22,800.4s · TREND ▼ · WITH 4 · AGAINST 1 · last answer 10:38 22,950s PE ±2 BROKEN",
         "12:41  NIFTY  CAN'T SEE · blind since 12:41",
         "12:50  NIFTY  HOLD ▼ · WITH 4 · AGAINST 1 · since 10:10"]
     assert {m["kind"] for m in ms} == {"JARVIS"} and len({m["key"] for m in ms}) == len(ms)
     assert messages.KINDS.index("DIN") < messages.KINDS.index("JARVIS") < messages.KINDS.index("TRADE")
     assert messages.jarvis([{"idx": "NIFTY", "t": "10:00", "word": "TREND ▼", "lean": 7}], []) == []   # a bad row: skipped
+
+
+
+def test_jarvis_word_lines_go_quiet_on_telegram_past_20_a_day_per_index():
+    """The review's ruling: past 20 ACTION-word lines a day for an index, the rest stay in the window (`quiet`), with one
+    line saying so; CAN'T SEE and watch hits are never capped, and another index keeps its own 20."""
+    import telegram_out
+    rows = [{"idx": "NIFTY", "t": f"{10 + i // 60:02d}:{i % 60:02d}", "word": ("HOLD ▼", "TREND ▼")[i % 2], "lean": -1,
+             "since": f"{10 + i // 60:02d}:{i % 60:02d}", "count": {"with": 3, "against": 1}} for i in range(22)]
+    rows += [{"idx": "NIFTY", "t": "11:00", "word": "CAN'T SEE", "lean": 0, "blind": True},
+             {"idx": "SENSEX", "t": "10:05", "word": "HOLD ▲", "lean": 1, "since": "10:05"}]
+    ms = messages.jarvis(rows, [{"kind": "watch_hit", "id": 1, "idx": "NIFTY", "t": "11:30", "level": 22800.0,
+                                 "frame": "s", "px": 22799.0, "card": {}}])
+    words = [m for m in ms if m["idx"] == "NIFTY" and m["word"] in ("HOLD ▼", "TREND ▼")]
+    assert len(words) == 22 and [bool(m.get("quiet")) for m in words] == [False] * 20 + [True] * 2
+    q = [m for m in ms if m["word"].startswith("JARVIS quiet")]
+    assert [m["line"] for m in q] == ["10:20  NIFTY  JARVIS quiet on Telegram: 20 today"] and telegram_out.wants(q[0])
+    assert all(telegram_out.wants(m) for m in ms if m["word"] in ("CAN'T SEE", "HOLD ▲") or m["word"].startswith("WATCH"))
+    assert not telegram_out.wants(words[-1])

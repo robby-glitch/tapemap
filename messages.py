@@ -31,6 +31,7 @@ ARROW = {1: "▲", -1: "▼", 0: ""}
 KINDS = ("HEALTH", "READ", "SETUP", "LEG", "DIN", "JARVIS", "TRADE")    # the order of one close's lines
 OFF = ("—", "ARMED")                                          # a setup chip that has not fired
 TRADE_ON = ("TIGHTEN", "WARN", "EXIT")
+JARVIS_TG_DAY = 20                                            # JARVIS word lines to Telegram a day per index, then quiet [I]
 SKIPPED = {"n": 0}                                            # rows the LAST build skipped as malformed (a bad dir, text for a number)
 
 
@@ -207,9 +208,10 @@ def jarvis(call_rows, cmd_rows=()):
     """Jarvis v3's lines (kind JARVIS) from the call log (jarvis_log rows, every index) and the command log (jarvis_cmd
     rows): one line per ACTION word change, at its `since` (the minute the word was set); CAN'T SEE once per blind stretch;
     the word said again at its own minute once she can see; one line per watch hit with the card's word, count and last
-    answer, and `could not check — gap` for a watch crossed while the server was down. Other command rows say nothing. A
-    malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
-    out, held, dark = [], {}, {}
+    answer, and `could not check — gap` for a watch crossed while the server was down. Other command rows say nothing.
+    Past JARVIS_TG_DAY word lines for an index, the rest are `quiet` (the window only), with one line saying so; CAN'T
+    SEE and the watches are never capped. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
+    out, held, dark, said = [], {}, {}, {}
     for r in sorted((r for r in call_rows if _ok(r, "t")), key=lambda r: (r["idx"], r["t"])):
         try:
             i, t = r["idx"], r["t"]
@@ -221,8 +223,14 @@ def jarvis(call_rows, cmd_rows=()):
             w, s = r.get("word"), r.get("since")
             if not w or (w == held.get(i) and not dark.get(i)):
                 continue
-            out.append(_msg(t if dark.get(i) or not s else s, i, "JARVIS", r.get("lean") or 0, w, _wa(r.get("count")),
-                            f"since {s or t}", None))
+            m = _msg(t if dark.get(i) or not s else s, i, "JARVIS", r.get("lean") or 0, w, _wa(r.get("count")),
+                     f"since {s or t}", None)
+            said[i] = said.get(i, 0) + 1
+            if said[i] == JARVIS_TG_DAY + 1:                 # the review's ruling: past 20 a day, the window only, said once
+                out.append(_msg(m["t"], i, "JARVIS", 0, f"JARVIS quiet on Telegram: {JARVIS_TG_DAY} today", None, None, None))
+            if said[i] > JARVIS_TG_DAY:
+                m["quiet"] = True
+            out.append(m)
             held[i], dark[i] = w, False
         except Exception:                                    # noqa: BLE001
             continue
@@ -235,7 +243,7 @@ def jarvis(call_rows, cmd_rows=()):
                                 f"could not check — gap {h['gap']}", None, None, id=f"g{h['id']}"))
                 continue
             c = h.get("card") or {}
-            out.append(_msg(h["t"][:5], h["idx"], "JARVIS", 0, f"WATCH {px(h['level'])}{h['frame']} hit @{px(h['px'])}",
+            out.append(_msg(h["t"][:5], h["idx"], "JARVIS", 0, f"WATCH {px(h['level'])}{h['frame']} hit @{px(h['px'])}{h['frame']}",
                             " · ".join(x for x in (c.get("word"), _wa(c.get("count"))) if x) or None, c.get("answer"), None,
                             id=f"w{h['id']}"))
         except Exception:                                    # noqa: BLE001

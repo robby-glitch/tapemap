@@ -25,9 +25,12 @@ from chain_live import IST
 DIR = os.path.join("data", "jarvis")
 REFUSE = "I read, I don't place."
 MAX_WATCH = 10                                   # watches a day, every index (the plan's number) [I]
+MAX_NOTES, NOTE_CHARS = 10, 200                  # her notes a day and their length on the card (the review's cap) [I]
 IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
 PERSIST = ("line", "zone", "watch", "remove", "clear", "note", "mark", "flat", "refused")
-ORDER_RE = re.compile(r"\b(buy|sell|order|place|short|long)\b|\bsquare\s+off\b|\bexit\s+now\b|\b\d+\s*lots?\b")
+ORDER_RE = re.compile(r"\b(?:buy(?:ing)?|sell(?:ing)?|orders?|plac(?:e|ing)|squar(?:e|ing)\w*)\b|\bexit\s+now\b"
+                      r"|\bgo\s+(?:short|long)\b|\b(?:short|long)\s+it\b|\b\d+\s*lots?\b")
+# short / long only as an order's form (go long, short it): "short covering" and "long unwinding" are her OI words
 ASKING = ("ask ", "why", "what if", "what next")             # a question is never an order: its order words are read, not refused
 MARK = "mark NIFTY|SENSEX|BANKNIFTY <strike> CE|PE buy|sell <price> [qty N]"
 HELP = ["line 22750f · zone 22680-22720f · watch 22800s (s spot, f futures)",
@@ -155,13 +158,16 @@ class Day:
     def _step(self, r):
         """A persisted row (ok) into the state: the one transition both apply() and the rebuild use."""
         k, s = r["kind"], self._s(r.get("idx"))
+        if k == "watch_px0":                                 # the first price a no-frame watch saw: a restart's reference
+            self._px0[r["id"]] = r.get("px0")
+            return
         if k in ("watch_hit", "watch_gap"):
             for w in s["watches"]:
                 if w["id"] == r["id"]:
                     w.update(hit=r["t"][:5], px=r.get("px")) if k == "watch_hit" else w.update(gap=r["gap"])
             return
         if k == "note":
-            self._notes.append(f"note {r['t'][:5]} {parse(r['text'])['text']}")
+            self._notes.append(f"note {r['t'][:5]} {parse(r['text'])['text'][:NOTE_CHARS]}")
             return
         if k not in ("line", "zone", "watch", "remove", "clear"):
             return
@@ -211,7 +217,7 @@ class Day:
         if k == "refused":
             return False, REFUSE, [], {}
         if k == "help":
-            return False, "commands:", list(HELP), {}
+            return True, "commands:", list(HELP), {}
         if k in ("line", "watch"):
             lv = f"{px(p['level'])}{p['frame']}"
             have = s["lines"] if k == "line" else [w for w in s["watches"] if not w["hit"]]
@@ -237,10 +243,13 @@ class Day:
         if k == "list":
             ls = ([f"line {px(x['level'])}{x['frame']} · set {x['set']}" for x in s["lines"]]
                   + [f"zone {px(x['lo'])}–{px(x['hi'])}{x['frame']} · set {x['set']}" for x in s["zones"]]
-                  + [f"watch {px(x['level'])}{x['frame']} · " + (f"hit {x['hit']} @{px(x.get('px'))}" if x["hit"]
+                  + [f"watch {px(x['level'])}{x['frame']} · " + (f"hit {x['hit']} @{px(x.get('px'))}{x['frame']}" if x["hit"]
+                                                                  else f"gap {x['gap']}: could not check" if x.get("gap")
                                                                   else f"set {x['set']}") for x in s["watches"]])
             return True, (f"{len(ls)} on {idx}" if ls else f"nothing drawn on {idx}"), ls, {}
         if k == "note":
+            if len(self._notes) >= MAX_NOTES:
+                return False, f"{MAX_NOTES} notes today already — the day's limit", [], {}
             return True, "noted", [], {}
         if k == "mark":
             return self._mark(p, hms)
@@ -252,19 +261,22 @@ class Day:
         if not c:                                                   # a frame that could not build says why
             return False, (frame or {}).get("why") or "could not check — no frame built yet", [], {}
         if k == "why":
-            return True, f"why {c.get('word')} ({c.get('at')})", list(c.get("why") or []), {}
+            return True, f"why {c.get('word') or '?'} ({c.get('at') or '?'})", list(c.get("why") or []), {}
         if k == "next":
             return True, "next", [x or "could not check — no scenario in this frame" for x in (c.get("up"), c.get("dn"))], {}
         if k == "wrong":
             return True, c.get("wrong_line") or "could not check — no wrong-line in this frame", [], {}
-        if k == "status":
-            cn = c.get("count")
-            return True, f"{idx} {c.get('at')}", [
-                " · ".join(x for x in (c.get("word"), c.get("state"), c.get("since") and f"since {c['since']}") if x),
-                (f"WITH {cn.get('with')} · AGAINST {cn.get('against')} · N {cn.get('N')} · unread {cn.get('unread')}"
-                 if isinstance(cn, dict) else "count: could not check — this frame has no count yet"),
+        if k == "status":                                           # never a None: absent is said
+            cn, miss = c.get("count") if isinstance(c.get("count"), dict) else {}, c.get("missing")
+            return True, f"{idx} {c.get('at') or '?'}", [
+                " · ".join(x for x in (c.get("word"), c.get("state"), c.get("since") and f"since {c['since']}") if x)
+                or "could not check — word absent",
+                (f"WITH {cn['with']} · AGAINST {cn['against']}" + "".join(f" · {k_} {cn[k_]}" for k_ in ("N", "unread")
+                                                                          if cn.get(k_) is not None)
+                 if cn.get("with") is not None and cn.get("against") is not None else "could not check — count absent"),
                 c.get("leg") or "leg: none in this frame",
-                "health: " + (" · ".join(c["missing"]) if c.get("missing") else "every source live")], {}
+                "health: every source live" if miss == [] else "health: " + " · ".join(map(str, miss))
+                if isinstance(miss, list) else "health: could not check — no missing list in this frame"], {}
         if k == "whatif":
             return self._whatif(p, frame, c)
         return True, "voice not configured — the engine's lines:", list(c.get("why") or []), {}     # ask (Task 7's seam)
@@ -336,23 +348,21 @@ class Day:
                 x = spot if w["frame"] == "s" else fut
                 if w["hit"] or w.get("gap") or not isinstance(x, (int, float)) or x <= 0:
                     continue
-                was, self._prev[w["id"]] = self._prev.get(w["id"]), x
-                p0 = self._px0.get(w["id"])
-                if (was is None and w["id"] in self._old and isinstance(p0, (int, float))
-                        and (p0 - w["level"]) * (x - w["level"]) <= 0):
-                    r = {"at": int(time.time() if now is None else now), "t": hm, "idx": idx, "kind": "watch_gap", "ok": True,
-                         "id": w["id"], "level": w["level"], "frame": w["frame"], "px": x, "gap": f"{w['set']}–{hm}"}
-                    self._write(r)
+                i, L = w["id"], w["level"]
+                was, p0, r = self._prev.get(i), self._px0.get(i), None
+                base = {"at": int(time.time() if now is None else now), "t": hm, "idx": idx, "ok": True, "id": i, "level": L,
+                        "frame": w["frame"], "px": x}
+                if was is None and i in self._old and isinstance(p0, (int, float)) and (p0 - L) * (x - L) <= 0:
+                    r = dict(base, kind="watch_gap", gap=f"{w['set']}–{hm}")
+                elif was is not None and (was - L) * (x - L) <= 0:
+                    c = card() if card else {}
+                    r = dict(base, kind="watch_hit", card={k: (c or {}).get(k) for k in ("word", "count", "answer")})
+                elif p0 is None:                                    # set with no frame: this first price is the reference
+                    r = dict(base, kind="watch_px0", px0=x)
+                if r:
+                    self._write(r)                                  # a failed write raises before _prev moves: looked at again
                     self._step(r)
-                    out.append(r)
-                    continue
-                if was is None or (was - w["level"]) * (x - w["level"]) > 0:
-                    continue
-                c = card() if card else {}
-                r = {"at": int(time.time() if now is None else now), "t": hm, "idx": idx, "kind": "watch_hit", "ok": True,
-                     "id": w["id"], "level": w["level"], "frame": w["frame"], "px": x,
-                     "card": {k: (c or {}).get(k) for k in ("word", "count", "answer")}}
-                self._write(r)
-                self._step(r)
-                out.append(r)
+                    if r["kind"] != "watch_px0":
+                        out.append(r)
+                self._prev[i] = x
         return out

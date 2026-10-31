@@ -163,7 +163,8 @@ def test_the_server_logs_a_live_build_once_per_minute_never_a_cache_hit_or_a_rep
 
     def fake(day, idx, upto, fill=False):
         built.append(upto)
-        t = f"{(upto - 1) // 60:02d}:{(upto - 1) % 60:02d}"                                # minutes < upto
+        u = 15 * 60 + 41 if upto is None else upto                                       # None: the whole session so far
+        t = f"{(u - 1) // 60:02d}:{(u - 1) % 60:02d}"                                    # minutes < upto
         return dict(frame(), day=day, idx=idx, mins=[t], call=dict(CALL, at=t))
     monkeypatch.setattr(jarvis, "build", fake)
     monkeypatch.setattr(jarvis, "calls", lambda d: [])
@@ -176,6 +177,8 @@ def test_the_server_logs_a_live_build_once_per_minute_never_a_cache_hit_or_a_rep
     clock["now"] = datetime(2026, 11, 2, 10, 44, 25, tzinfo=IST)
     server._jarvis_reply(q)                                                               # a new minute: one row
     server._jarvis_reply({"idx": ["NIFTY"], "upto": ["10:30"]})                           # a replay of today: never logged
+    filled = server._jarvis_reply({"idx": ["NIFTY"], "fill": ["1"]})                      # the page's fill=1 on today
+    assert filled["live"] is False and built[-1] is None                                  # a replay, in the replay slot
     assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41", "10:43"]
     assert server._JARVIS["NIFTY"][2]["live"] is True                                     # a replay never evicts the live frame
 
@@ -196,7 +199,7 @@ def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatc
     monkeypatch.setattr(server, "_ist", lambda now=None: clock["now"])
     monkeypatch.setattr(server, "_JARVIS", {})
     monkeypatch.setattr(server, "_LAST_LOGGED", {})
-    monkeypatch.setattr(server, "_JPASS", {"m": {}, "s": None, "at": None, "slow": None})
+    monkeypatch.setattr(server, "_JPASS", {"m": {}, "s": None, "at": None, "slow": None, "skipped": None, "last": None})
     monkeypatch.setattr(server, "_JCMD", {})
     built = []
 
@@ -240,12 +243,15 @@ def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatc
     go.set()
     th.join()
     assert len(built) == 3                                                                # never stacked behind a build
+    assert server._JPASS["skipped"] == "jarvis pass skipped 10:45 (lock held)"           # a minute it could not build
+    assert server._JPASS["skipped"] in card()["health"]["notes"]
     monkeypatch.setattr(server, "JARVIS_SLOW_S", -1)
     server._jarvis_pass()
     assert built[3:] == [("NIFTY", 645), ("SENSEX", 645)]
     assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41", "10:44"] and card()["word"] == "HOLD ▼"
     slow = server._JPASS["slow"]
     assert slow.startswith("Jarvis pass took") and slow in card()["health"]["notes"]
+    assert server._JPASS["skipped"] not in card()["health"]["notes"]                     # the last pass built: no skip note
     cap = _Cap("/api/health")
     server.Handler.do_GET(cap)
     assert cap.sent["jarvis_pass"]["slow"] == slow and card()["voice"] is None            # Task 7's seam: _VOICE
@@ -253,3 +259,12 @@ def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatc
     clock["now"] = datetime(2026, 11, 2, 16, 0, 0, tzinfo=IST)
     server._jarvis_pass()                                                                 # after the close it rests
     assert len(built) == 5
+
+
+
+def test_the_jarvis_pass_runs_on_its_own_thread_never_inside_the_message_pass():
+    import inspect
+    import server
+    assert "_jarvis_pass" not in inspect.getsource(server._msg_loop)                      # a 10 s build never delays FLOW
+    assert "_jarvis_pass()" in inspect.getsource(server._jarvis_loop)
+    assert "target=_jarvis_loop" in inspect.getsource(server.main)

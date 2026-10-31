@@ -37,7 +37,10 @@ def _put(path, rows):
 
 def _disk(day=DAY):
     p = os.path.join(server.MSG_DIR, f"msg_{day}.jsonl")
-    return [json.loads(x) for x in open(p, encoding="utf-8")] if os.path.exists(p) else []
+    if not os.path.exists(p):
+        return []
+    with open(p, encoding="utf-8") as f:
+        return [json.loads(x) for x in f]
 
 
 @pytest.fixture(autouse=True)
