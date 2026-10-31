@@ -465,7 +465,8 @@ function prep(d) {
   d.timeline.forEach((r, i) => (r.fronts || []).forEach(f => { const y = lvl(f.k, i); if (Math.abs(y - d.fut[i]) < 160) { lo = Math.min(lo, y); hi = Math.max(hi, y); } }));
   Y0 = lo - 30; Y1 = hi + 30;
   if (d.delta) { DMAX1 = Math.max(1, ...d.delta.map(Math.abs)); for (let b = 2; b < N; b += 3) DMAX3 = Math.max(DMAX3, Math.abs(d.delta[b] + d.delta[b - 1] + d.delta[b - 2])); }
-  for (const hm in d.ladder) for (const side of ["ce", "pe"]) for (const k in d.ladder[hm][side]) MAXOI = Math.max(MAXOI, d.ladder[hm][side][k]);
+  // the bars' scale over the drawn rows only (D.strikes): v3's ladder also carries ATM ±7 for the brain (Task 1)
+  for (const hm in d.ladder) for (const side of ["ce", "pe"]) for (const k of d.strikes) MAXOI = Math.max(MAXOI, (d.ladder[hm][side] || {})[k] || 0);
   buildEvents();
   marks = ev.filter(e => e.push || e.toot || e.zone || e.tag === "BLIND" || e.floor || e.chap === "FUEL" || e.chap === "FUEL SPENT" || (e.signs && !e.signs.driving) || e.chap === "NEW FIGHT" || e.chap === "MANAGE");
   renderBrain();
