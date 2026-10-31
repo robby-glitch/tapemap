@@ -4734,7 +4734,8 @@ def _hs_log(day, rows):
 
 JARVIS_TTL_S = 20                                # J2: one frame per index at most every 20 s
 _JARVIS = {}                                     # idx -> (key, built at, frame): the latest only
-_JARVIS_LOCK = threading.Lock()                  # ponytail: one build at a time (~5 s); per-index locks if two faces poll
+_JARVIS_LOCK = threading.RLock()                 # ponytail: one build at a time (~5 s); per-index locks if two faces poll
+                                                 # (an RLock: the JARVIS PASS holds it around _jarvis_reply, which takes it)
 
 
 def _jarvis_reply(q):
@@ -4784,6 +4785,42 @@ _JCMD_LOCK = threading.Lock()
 JARVIS_STALE_S = 120                             # a watch hit says "could not check" over a frame built > 2 min ago [I]
 JARVIS_ORIGINS = ("http://localhost:8787", "http://127.0.0.1:8787",      # her Jarvis page (start-v2.bat), and Vite
                   "http://localhost:5173", "http://127.0.0.1:5173")
+JARVIS_PASS_IDX = ("NIFTY", "SENSEX")            # the pass keeps these live; BANKNIFTY builds on a face's demand
+JARVIS_FRESH_S = 40                              # a live slot a face built < 40 s ago is not rebuilt by the pass [I]
+JARVIS_SLOW_S = 10                               # a pass over 10 s is a health note (the card lags by that much) [I]
+_JPASS = {"m": {}, "s": None, "at": None, "slow": None}   # idx -> the minute the pass built; the last pass's seconds
+_VOICE = {}                                      # Task 7's seam: idx -> the model voice's line for the card (jarvis_voice)
+
+
+def _jarvis_pass():
+    """THE JARVIS PASS (the message loop, every MSG_EVERY_S): Monday's faces poll /api/jarvis/card, which never builds, so
+    once a minute NIFTY's and SENSEX's LIVE frame is rebuilt through _jarvis_reply (the call log written exactly as from
+    a poll) when its slot is over JARVIS_FRESH_S old. Weekdays 09:15-15:45 only; never stacked behind another build (a
+    replay holds the lock: this pass skips); a pass over JARVIS_SLOW_S is a health note. Fail-soft per index."""
+    d = _ist()
+    if d.weekday() >= 5 or not "09:15" <= d.strftime("%H:%M") <= "15:45":
+        return
+    m = (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60
+    if not _JARVIS_LOCK.acquire(blocking=False):
+        return
+    try:
+        t0 = time.perf_counter()
+        for idx in JARVIS_PASS_IDX:
+            hit = _JARVIS.get(idx)
+            if _JPASS["m"].get(idx) == m or (hit and time.time() - hit[1] < JARVIS_FRESH_S):
+                continue
+            try:
+                _jarvis_reply({"idx": [idx]})
+                _JPASS["m"][idx] = m
+            except Exception:
+                log.exception("jarvis pass %s", idx)
+        s = time.perf_counter() - t0
+        _JPASS.update(s=round(s, 1), at=d.strftime("%H:%M:%S"))
+        if s > JARVIS_SLOW_S:
+            _JPASS["slow"] = f"Jarvis pass took {s:.0f} s at {d.strftime('%H:%M:%S')} — the card lags by that much"
+            log.warning("jarvis pass: %.1f s", s)
+    finally:
+        _JARVIS_LOCK.release()
 
 
 def _jarvis_log(out):
@@ -4824,7 +4861,11 @@ def _jarvis_card(idx):
     if fr is None:
         return {"ok": False, "why": "could not check — no frame built yet"}
     jd = _jcmd()
-    return jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes())
+    slow = [_JPASS["slow"]] if _JPASS["slow"] and (_JPASS["s"] or 0) > JARVIS_SLOW_S else []
+    out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + slow)
+    if out.get("ok"):
+        out["voice"] = _VOICE.get(idx)                # Task 7 (the model voice), None until then
+    return out
 
 
 def _jarvis_cmd(idx, text, src):
@@ -4995,12 +5036,17 @@ def _msg_reply(since=0.0):
 
 
 def _msg_loop():
-    """The pass at the start, then every MSG_EVERY_S; never raises (a failed pass is logged, the next one retries)."""
+    """The pass at the start, then every MSG_EVERY_S; never raises (a failed pass is logged, the next one retries). The
+    JARVIS PASS rides after it (Jarvis v3): its rows reach the stream on the next pass, the FLOW lines are never delayed."""
     while True:
         try:
             _msg_pass()
         except Exception:
             log.exception("message pass")
+        try:
+            _jarvis_pass()
+        except Exception:
+            log.exception("jarvis pass")
         time.sleep(MSG_EVERY_S)
 
 
@@ -5505,6 +5551,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "tradebook": _health_safe(_tradebook_due),
                 # Jarvis v3: code edited after this start runs only after a restart (her restart, never mid-session)
                 "code_changed_since_start": _health_safe(_code_changed),
+                "jarvis_pass": {k: _JPASS.get(k) for k in ("at", "s", "slow")},   # the card's own rebuild, and when it was slow
             }).encode())
             return
         if self.path.startswith("/api/data"):

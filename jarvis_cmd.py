@@ -27,7 +27,8 @@ REFUSE = "I read, I don't place."
 MAX_WATCH = 10                                   # watches a day, every index (the plan's number) [I]
 IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
 PERSIST = ("line", "zone", "watch", "remove", "clear", "note", "mark", "flat", "refused")
-ORDER_RE = re.compile(r"\b(buy|buying|sell|selling|lots?|orders?|place|placing|square|squaring)\b|\bexit\s+now\b")
+ORDER_RE = re.compile(r"\b(buy|sell|order|place|short|long)\b|\bsquare\s+off\b|\bexit\s+now\b|\b\d+\s*lots?\b")
+ASKING = ("ask ", "why", "what if", "what next")             # a question is never an order: its order words are read, not refused
 MARK = "mark NIFTY|SENSEX|BANKNIFTY <strike> CE|PE buy|sell <price> [qty N]"
 HELP = ["line 22750f · zone 22680-22720f · watch 22800s (s spot, f futures)",
         "remove 22750 · clear · list",
@@ -39,7 +40,7 @@ _LV = _N + r"\s*([sf])?"
 _RX = {k: re.compile(v) for k, v in {
     "line": rf"line\s+{_LV}", "watch": rf"watch\s+{_LV}", "remove": rf"remove\s+{_LV}",
     "zone": rf"zone\s+{_N}\s*([sf])?\s*[-–—]\s*{_LV}",
-    "mark": rf"mark\s+(nifty|sensex|banknifty)\s+{_N}\s+(ce|pe)\s+(buy|sell)\s+@?{_N}(?:\s+qty\s+(\d+))?",
+    "mark": rf"mark\s+(nifty|sensex|banknifty)\s+{_N}\s+(ce|pe)\s+(buy|sell|long|short)\s+@?{_N}(?:\s+qty\s+(\d+))?",
     "flat": r"flat(?:\s+(nifty|sensex|banknifty))?", "whatif": rf"(?:what\s+)?if\s+{_LV}(?:\s+breaks?)?",
     "replay": r"replay\s+(\d{4}-\d\d-\d\d)\s+(\d\d:\d\d)"}.items()}
 _WORDS = {"clear": "clear", "list": "list", "why": "why", "next": "next", "what next": "next", "status": "status",
@@ -57,11 +58,11 @@ def parse(text):
     t = raw.lower().rstrip("?").strip()
     m = _RX["mark"].fullmatch(t)
     if m:
-        return {"kind": "mark", "idx": m[1].upper(), "k": _f(m[2]), "side": m[3].upper(), "role": m[4], "p0": _f(m[5]),
-                "qty": int(m[6]) if m[6] else None}
-    if t.startswith("mark ") and not ORDER_RE.search(re.sub(r"\b(buy|sell)\b", "", t)):
+        return {"kind": "mark", "idx": m[1].upper(), "k": _f(m[2]), "side": m[3].upper(),
+                "role": {"long": "buy", "short": "sell"}.get(m[4], m[4]), "p0": _f(m[5]), "qty": int(m[6]) if m[6] else None}
+    if t.startswith("mark ") and not ORDER_RE.search(re.sub(r"\b(buy|sell|long|short)\b", "", t)):
         return {"kind": "mark", "error": MARK}                   # her record, mistyped: the form, not a refusal
-    if ORDER_RE.search(t):
+    if ORDER_RE.search(t) and not t.startswith(ASKING):
         return {"kind": "refused", "reply": REFUSE}
     if t in _WORDS:
         return {"kind": _WORDS[t]}
@@ -117,7 +118,7 @@ class Day:
     def __init__(self, day, hold=None, trades=None):
         self.day, self.hold, self.trades = day, hold, trades
         self._lock = threading.RLock()
-        self._st, self._notes, self._prev = {}, [], {}      # _prev: watch id -> the last price seen (memory only)
+        self._st, self._notes, self._prev, self._px0 = {}, [], {}, {}   # _prev: watch id -> the last price seen (memory)
         self._ids = {"line": 0, "zone": 0, "watch": 0}      # the day's ids per kind; `watch` is also the day's 10
         for r in rows(day):
             if r.get("ok"):
@@ -125,6 +126,7 @@ class Day:
                     self._step(r)
                 except Exception:                           # noqa: BLE001 -- a malformed row costs itself, never the day
                     continue
+        self._old = {w["id"] for v in self._st.values() for w in v["watches"]}   # set before this process: a gap is possible
 
     def _s(self, idx):
         return self._st.setdefault(idx, {"watches": [], "lines": [], "zones": []})
@@ -140,7 +142,7 @@ class Day:
     def armed(self):
         """Any watch today not yet hit (the senses pass looks only then)."""
         with self._lock:
-            return any(not w["hit"] for s in self._st.values() for w in s["watches"])
+            return any(not w["hit"] and not w.get("gap") for s in self._st.values() for w in s["watches"])
 
     @staticmethod
     def _matches(s, p):
@@ -153,10 +155,10 @@ class Day:
     def _step(self, r):
         """A persisted row (ok) into the state: the one transition both apply() and the rebuild use."""
         k, s = r["kind"], self._s(r.get("idx"))
-        if k == "watch_hit":
+        if k in ("watch_hit", "watch_gap"):
             for w in s["watches"]:
                 if w["id"] == r["id"]:
-                    w.update(hit=r["t"][:5], px=r.get("px"))
+                    w.update(hit=r["t"][:5], px=r.get("px")) if k == "watch_hit" else w.update(gap=r["gap"])
             return
         if k == "note":
             self._notes.append(f"note {r['t'][:5]} {parse(r['text'])['text']}")
@@ -172,6 +174,7 @@ class Day:
             s["zones"].append({"id": r["id"], "lo": p["lo"], "hi": p["hi"], "frame": p["frame"], "set": hm})
         elif k == "watch":
             s["watches"].append({"id": r["id"], "level": p["level"], "frame": p["frame"], "set": hm, "hit": None})
+            self._px0[r["id"]] = r.get("px0")
         elif k == "remove":
             for key, x in self._matches(s, p):
                 s[key].remove(x)
@@ -218,8 +221,9 @@ class Day:
                 return True, f"line {lv} drawn", [], {"id": self._ids["line"] + 1}
             if self._ids["watch"] >= MAX_WATCH:
                 return False, f"{MAX_WATCH} watches today already — the day's limit", [], {}
-            n = self._ids["watch"] + 1
-            return True, f"watching {lv} ({n} of {MAX_WATCH} today)", [], {"id": n}
+            n, fr = self._ids["watch"] + 1, frame if (frame or {}).get("ok") else {}
+            px0 = (fr.get("spot" if p["frame"] == "s" else "fut") or [None])[-1]     # the price when set: a restart's gap check
+            return True, f"watching {lv} ({n} of {MAX_WATCH} today)", [], {"id": n, "px0": px0}
         if k == "zone":
             z = f"zone {px(p['lo'])}–{px(p['hi'])}{p['frame']}"
             if any((x["lo"], x["hi"], x["frame"]) == (p["lo"], p["hi"], p["frame"]) for x in s["zones"]):
@@ -322,15 +326,26 @@ class Day:
 
     def check_watches(self, idx, spot, fut, hm, card=None, now=None):
         """The senses pass: each live watch of `idx` against spot (an s level) or fut (f). A touch = the price on or across
-        the level since the last look; the first look after a set or a restart only remembers the price. A hit fires ONCE:
-        its row (with card(): the word, count and last answer) is written and returned. A missing price is skipped."""
+        the level since the last look. A hit fires ONCE: its row (with card(): the word, count and last answer) is written
+        and returned. The first look only remembers the price -- except for a watch set before this process whose price at
+        set is on the other side now: it was crossed unseen, so it says `could not check — gap <set>–<now>` once (a
+        watch_gap row), never a hit. A missing price is skipped."""
         out = []
         with self._lock:
             for w in self._s(idx)["watches"]:
                 x = spot if w["frame"] == "s" else fut
-                if w["hit"] or not isinstance(x, (int, float)) or x <= 0:
+                if w["hit"] or w.get("gap") or not isinstance(x, (int, float)) or x <= 0:
                     continue
                 was, self._prev[w["id"]] = self._prev.get(w["id"]), x
+                p0 = self._px0.get(w["id"])
+                if (was is None and w["id"] in self._old and isinstance(p0, (int, float))
+                        and (p0 - w["level"]) * (x - w["level"]) <= 0):
+                    r = {"at": int(time.time() if now is None else now), "t": hm, "idx": idx, "kind": "watch_gap", "ok": True,
+                         "id": w["id"], "level": w["level"], "frame": w["frame"], "px": x, "gap": f"{w['set']}–{hm}"}
+                    self._write(r)
+                    self._step(r)
+                    out.append(r)
+                    continue
                 if was is None or (was - w["level"]) * (x - w["level"]) > 0:
                     continue
                 c = card() if card else {}

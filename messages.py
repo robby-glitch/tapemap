@@ -207,7 +207,8 @@ def jarvis(call_rows, cmd_rows=()):
     """Jarvis v3's lines (kind JARVIS) from the call log (jarvis_log rows, every index) and the command log (jarvis_cmd
     rows): one line per ACTION word change, at its `since` (the minute the word was set); CAN'T SEE once per blind stretch;
     the word said again at its own minute once she can see; one line per watch hit with the card's word, count and last
-    answer. Other command rows say nothing. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
+    answer, and `could not check — gap` for a watch crossed while the server was down. Other command rows say nothing. A
+    malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
     out, held, dark = [], {}, {}
     for r in sorted((r for r in call_rows if _ok(r, "t")), key=lambda r: (r["idx"], r["t"])):
         try:
@@ -226,9 +227,13 @@ def jarvis(call_rows, cmd_rows=()):
         except Exception:                                    # noqa: BLE001
             continue
     for h in cmd_rows:
-        if h.get("kind") != "watch_hit" or not _ok(h, "t"):
+        if h.get("kind") not in ("watch_hit", "watch_gap") or not _ok(h, "t"):
             continue
         try:
+            if h["kind"] == "watch_gap":                     # crossed while the server was down: never called a hit
+                out.append(_msg(h["t"][:5], h["idx"], "JARVIS", 0, f"WATCH {px(h['level'])}{h['frame']}",
+                                f"could not check — gap {h['gap']}", None, None, id=f"g{h['id']}"))
+                continue
             c = h.get("card") or {}
             out.append(_msg(h["t"][:5], h["idx"], "JARVIS", 0, f"WATCH {px(h['level'])}{h['frame']} hit @{px(h['px'])}",
                             " · ".join(x for x in (c.get("word"), _wa(c.get("count"))) if x) or None, c.get("answer"), None,

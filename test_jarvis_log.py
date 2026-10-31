@@ -4,6 +4,7 @@ under tmp_path (conftest); the record test reads 29 Oct read-only and is skipped
 import json
 import os
 import pathlib
+import time
 
 import pytest
 
@@ -38,20 +39,21 @@ def test_write_is_once_per_index_minute_and_read_keeps_the_order():
 
 def test_self_line_counts_the_word_palat_episodes_and_blind_minutes():
     """The brief's 6-row toy: TREND ▼ from 09:56 at 23,100f, 22,900f now; two PALAT? episodes, one followed by PALAT in 20
-    min. `so far` = lean × (fut now − fut at since): a ▼ word on a 200-point fall has EARNED 200, so +200 -- the contract's
-    example string printed −200, which its own formula contradicts (named in the task report)."""
+    min. `so far` = the RAW signed move, fut now − fut at since (the coordinator's resolution: the arrow already says
+    which way is good), so a ▼ word on a 200-point fall reads −200."""
     toy = [row("09:20", "PALAT? ▲", 23180.0, 1), row("09:40", "PALAT ▼", 23150.0),        # said, came true 20 min later
            row("09:45", "PALAT? ▼", 23160.0), row("09:50", "HOLD ▼", 23120.0),            # said again, never came true
            row("09:56", "TREND ▼", 23100.0), row("10:30", "TREND ▼", 23000.0)]
     assert jarvis_log.self_line([], 22900.0) is None
     assert jarvis_log.self_line(toy, 22900.0) == (
-        "TREND ▼ since 09:56 · +200 so far · PALAT? said 2× · came true 1× · blind 0 min")
-    assert jarvis_log.self_line(toy, 23150.0).split(" · ")[1] == "−50 so far"            # wrong by 50: says so
+        "TREND ▼ since 09:56 · −200 so far · PALAT? said 2× · came true 1× · blind 0 min")
+    assert jarvis_log.self_line(toy, 23150.0).split(" · ")[1] == "+50 so far"            # up 50 against a ▼: says so
     two = [row("09:30", "PALAT? ▲", 23180.0, 1), row("09:31", "PALAT? ▲", 23170.0, 1),    # one episode, two rows
            row("09:50", "PALAT ▼", 23120.0)]                                             # 20 min after it was first said
     assert "PALAT? said 1× · came true 1×" in jarvis_log.self_line(two, 23100.0)
     blind = toy + [row("10:31", "CAN'T SEE", None, 0, blind=True), row("10:32", "CAN'T SEE", None, 0, blind=True)]
-    assert jarvis_log.self_line(blind, None) == "CAN'T SEE since 10:31 · no lean · PALAT? said 2× · came true 1× · blind 2 min"
+    assert jarvis_log.self_line(blind, None) == ("CAN'T SEE since 10:31 · so far could not check — no fut price · "
+                                                 "PALAT? said 2× · came true 1× · blind 2 min")
     assert "could not check" in jarvis_log.self_line(toy, None)                           # a missing price is never a zero
     late = [row("09:30", "PALAT? ▲", 23180.0, 1), row("10:16", "PALAT ▼", 23120.0)]        # 46 min later: not "came true"
     assert "came true 0×" in jarvis_log.self_line(late, 23100.0)
@@ -176,3 +178,78 @@ def test_the_server_logs_a_live_build_once_per_minute_never_a_cache_hit_or_a_rep
     server._jarvis_reply({"idx": ["NIFTY"], "upto": ["10:30"]})                           # a replay of today: never logged
     assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41", "10:43"]
     assert server._JARVIS["NIFTY"][2]["live"] is True                                     # a replay never evicts the live frame
+
+
+# ---- the JARVIS PASS: the card and the log stay live with no face polling /api/jarvis -------------------------------
+
+def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatch):
+    """Monday's faces poll /api/jarvis/card, which never builds. The message loop's pass rebuilds the LIVE frame once a
+    minute for NIFTY and SENSEX (BANKNIFTY on demand) through _jarvis_reply when the live slot is over 40 s old, writes the
+    call log as a poll would, skips while another build holds the lock, says when it is slow, and rests outside 09:15-15:45."""
+    import threading
+    from datetime import datetime
+    import jarvis
+    import server
+    from chain_live import IST
+    from test_senses_api import _Cap
+    clock = {"now": datetime(2026, 11, 2, 10, 43, 10, tzinfo=IST)}
+    monkeypatch.setattr(server, "_ist", lambda now=None: clock["now"])
+    monkeypatch.setattr(server, "_JARVIS", {})
+    monkeypatch.setattr(server, "_LAST_LOGGED", {})
+    monkeypatch.setattr(server, "_JPASS", {"m": {}, "s": None, "at": None, "slow": None})
+    monkeypatch.setattr(server, "_JCMD", {})
+    built = []
+
+    def fake(day, idx, upto, fill=False):
+        built.append((idx, upto))
+        t = f"{(upto - 1) // 60:02d}:{(upto - 1) % 60:02d}"
+        return dict(frame(), day=day, idx=idx, mins=[t], call=dict(CALL, at=t, word="TREND ▼" if upto < 644 else "HOLD ▼"))
+    monkeypatch.setattr(jarvis, "build", fake)
+
+    def card(idx="NIFTY"):
+        cap = _Cap(f"/api/jarvis/card?idx={idx}")
+        server.Handler.do_GET(cap)
+        return cap.sent
+
+    def age(s=60):
+        for k, (key, at_, fr) in list(server._JARVIS.items()):
+            server._JARVIS[k] = (key, at_ - s, fr)
+    server._jarvis_pass()
+    assert built == [("NIFTY", 642), ("SENSEX", 642)]                                     # never BANKNIFTY
+    assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41"] and card()["word"] == "TREND ▼"
+    age()
+    server._jarvis_pass()                                                                 # the same minute: no rebuild
+    assert len(built) == 2
+    clock["now"] = datetime(2026, 11, 2, 10, 44, 25, tzinfo=IST)
+    key, _, fr = server._JARVIS["NIFTY"]
+    server._JARVIS["NIFTY"] = (key, time.time(), fr)                                     # a face has just polled
+    server._jarvis_pass()
+    assert built[2:] == [("SENSEX", 644)]                                                 # a fresh live slot is not rebuilt
+    age()
+    clock["now"] = datetime(2026, 11, 2, 10, 45, 25, tzinfo=IST)
+    held, go = threading.Event(), threading.Event()
+
+    def builder():                                                                        # a replay build holds the lock
+        with server._JARVIS_LOCK:
+            held.set()
+            go.wait(5)
+    th = threading.Thread(target=builder)
+    th.start()
+    held.wait(5)
+    server._jarvis_pass()
+    go.set()
+    th.join()
+    assert len(built) == 3                                                                # never stacked behind a build
+    monkeypatch.setattr(server, "JARVIS_SLOW_S", -1)
+    server._jarvis_pass()
+    assert built[3:] == [("NIFTY", 645), ("SENSEX", 645)]
+    assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41", "10:44"] and card()["word"] == "HOLD ▼"
+    slow = server._JPASS["slow"]
+    assert slow.startswith("Jarvis pass took") and slow in card()["health"]["notes"]
+    cap = _Cap("/api/health")
+    server.Handler.do_GET(cap)
+    assert cap.sent["jarvis_pass"]["slow"] == slow and card()["voice"] is None            # Task 7's seam: _VOICE
+    age()
+    clock["now"] = datetime(2026, 11, 2, 16, 0, 0, tzinfo=IST)
+    server._jarvis_pass()                                                                 # after the close it rests
+    assert len(built) == 5

@@ -74,23 +74,19 @@ def _m(t):
 
 
 def self_line(rows, fut_now):
-    """`TREND ▼ since 09:56 · +200 so far · PALAT? said 3× · came true 0× · blind 0 min`, or None with no rows. since = the
-    first row of the current unbroken word; so far = lean × (fut now − fut at since): the points the word has EARNED (a ▼
-    word on a fall is +); said = PALAT? episodes (consecutive rows); came true = episodes with a PALAT row within TRUE_WIN_M
-    of the episode's first minute; blind = rows marked blind (one a minute)."""
+    """`TREND ▼ since 09:56 · −200 so far · PALAT? said 3× · came true 0× · blind 0 min`, or None with no rows. since = the
+    first row of the current unbroken word; so far = the RAW signed move, fut now − fut at since (the arrow says which way
+    is good); said = PALAT? episodes (consecutive rows); came true = episodes with a PALAT row within TRUE_WIN_M of the
+    episode's first minute; blind = rows marked blind (one a minute)."""
     rows = [r for r in rows if r.get("t")]
     if not rows:
         return None
     w, i = rows[-1].get("word"), len(rows) - 1
     while i and rows[i - 1].get("word") == w:
         i -= 1
-    lean, f0 = rows[-1].get("lean") or 0, rows[i].get("fut")
-    if not lean:
-        far = "no lean"
-    elif fut_now is None or f0 is None:
-        far = "so far could not check — no fut price"
-    else:
-        far = f"{lean * (fut_now - f0):+,.0f} so far".replace("-", "−")
+    f0 = rows[i].get("fut")
+    far = ("so far could not check — no fut price" if fut_now is None or f0 is None
+           else f"{fut_now - f0:+,.0f} so far".replace("-", "−"))
     word = [str(r.get("word") or "") for r in rows]
     eps = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT?") and not (j and word[j - 1].startswith("PALAT?"))]
     flips = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT") and not word[j].startswith("PALAT?")]
@@ -138,4 +134,4 @@ def card(fr, rows=(), state=None, notes=()):
             "health": {"missing": [x for x in c.get("missing") or () if x not in hn], "notes": hn + list(notes)},
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
-            "watches": list(st.get("watches") or []), "voice": c.get("voice")}
+            "watches": list(st.get("watches") or []), "voice": None}           # Task 7: server._VOICE fills it

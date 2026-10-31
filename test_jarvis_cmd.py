@@ -56,9 +56,14 @@ def test_parse_every_row_of_the_grammar():
 
 
 def test_an_order_word_is_refused_and_anything_else_gets_the_grammar():
-    for t in ("buy 5 lots", "sell PE", "place order", "square off now", "exit now", "ask should I buy here",
+    for t in ("buy 5 lots", "sell PE", "place order", "square off now", "exit now", "go long here", "1 lot more",
               "note sell above 23000", "mark NIFTY 23000 PE buy 325 5 lots"):
         assert P(t) == {"kind": "refused", "reply": NO}, t
+    # a question is not an order, and "lot" is an order word only after a number (the coordinator's resolution)
+    assert P("ask what happens if sellers get trapped") == {"kind": "ask", "text": "what happens if sellers get trapped"}
+    assert P("note a lot of writing at 23000") == {"kind": "note", "text": "a lot of writing at 23000"}
+    assert P("ask should I buy here")["kind"] == "ask" and P("why buy")["kind"] == "help"
+    assert P("mark NIFTY 23000 PE long 325") == P("mark NIFTY 23000 PE buy 325")         # long / short name her side too
     for t in ("hello", "", "   "):
         assert P(t)["kind"] == "help"
     assert P("mark NIFTY 23000 PE 325")["kind"] == "mark" and "error" in P("mark NIFTY 23000 PE 325")   # buy or sell named
@@ -303,3 +308,21 @@ def test_her_page_and_the_extension_may_call_the_jarvis_routes_across_origins(sr
     no = _Hdr("/api/jarvis/cmd", "", None, {"idx": "NIFTY", "text": "sell PE"})
     server.Handler.do_POST(no)
     assert no.sent == dict(no.sent, ok=False, kind="refused", reply=NO, why=NO)          # a refusal is a 200 answer, said
+
+
+def test_a_watch_crossed_while_the_server_was_down_says_could_not_check_once():
+    """A restart cannot know a touch it did not see. A watch set before this process (rebuilt from the file) whose price
+    is on the other side of its level at the first look says `could not check — gap <set>–<now>` once, never a hit; a
+    watch set in this process only remembers its first look (the set-time price is a frame minute old)."""
+    d = jarvis_cmd.Day(DAY)
+    d.apply("NIFTY", "watch 22800s", FR, "page", now=at(10, 12))                     # spot 22,967.3 when set: above
+    d.apply("NIFTY", "watch 23100f", FR, "page", now=at(10, 12))                     # fut 23,010.5 when set: below
+    d2 = jarvis_cmd.Day(DAY)                                                          # a restart
+    rows = d2.check_watches("NIFTY", 22750.0, 23050.0, "11:40", now=at(11, 40))
+    assert [(r["kind"], r["id"], r["gap"]) for r in rows] == [("watch_gap", 1, "10:12–11:40")]   # 23,100f never crossed
+    assert d2.check_watches("NIFTY", 22700.0, 23050.0, "11:41") == []               # said once
+    st = jarvis_cmd.Day(DAY).state("NIFTY")["watches"]
+    assert st[0]["gap"] == "10:12–11:40" and st[0]["hit"] is None and "gap" not in st[1]
+    assert [m["line"] for m in messages.jarvis([], rows)] == ["11:40  NIFTY  WATCH 22,800s · could not check — gap 10:12–11:40"]
+    d2.apply("NIFTY", "watch 22600s", FR, "page", now=at(11, 42))                   # set in THIS process
+    assert d2.check_watches("NIFTY", 22550.0, None, "11:43") == []                  # the first look only remembers
