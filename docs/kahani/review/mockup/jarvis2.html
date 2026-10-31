@@ -108,7 +108,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 .who{font-weight:700;letter-spacing:.08em;font-size:11.5px}
 .who .tm{font:600 12px var(--mono);color:var(--mut);letter-spacing:0;margin-left:6px}
 .tag{margin-left:auto;font:700 11px var(--mono);padding:3px 8px;border-radius:99px;background:#f3efe8;color:var(--ink);white-space:nowrap}
-.btext{font-size:14px;line-height:1.42;min-height:40px}
+.btext{font-size:14px;line-height:1.42;min-height:40px;white-space:pre-line}
 .caret{display:inline-block;width:7px;height:14px;background:var(--ai);vertical-align:-2px;margin-left:1px;animation:blink .9s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 .dots span{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:var(--ai);animation:hop 1s infinite}
@@ -146,6 +146,12 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 .trade .v{font:700 13px var(--mono);margin-top:3px}
 .trade .big{font:700 26px/1.05 var(--mono);margin:3px 0 2px}
 .trade .s{font:500 11.5px var(--mono);color:var(--mut)}
+/* v3: the card's rows (renderCard); min-width 0 so a clipped row never widens the panel */
+#callc{min-width:0}
+.trade .big small{font:600 12px var(--mono);color:var(--mut);margin-left:4px}
+.trade .cnt{font:700 13px var(--mono);margin:1px 0 2px;cursor:help}
+.trade .s.pk{font-weight:700;color:var(--ink)} .trade .s.bad{color:var(--bad)} .trade .s.q{color:var(--q)}
+.trade .s.clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feed{overflow:auto;padding:6px 8px;display:grid;gap:5px;align-content:start;scroll-behavior:smooth}
 .row{padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer;animation:rise .3s both}
 .row:hover{border-color:var(--ai)}
@@ -158,7 +164,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 .rtag{font:700 10.5px var(--mono);padding:1px 6px;border-radius:99px;background:#f1eee7}
 .rtag.bad{background:#fdecec;color:var(--bad)} .rtag.ok{background:#e6f6f0;color:var(--ok)} .rtag.q{color:#7a7f87} .rtag.you{background:#efe6fd;color:var(--you)}
 .rsrc{margin-left:auto;font:500 10px var(--mono);color:#b0ada5}
-.rx{font-size:12.5px;line-height:1.38}
+.rx{font-size:12.5px;line-height:1.38;white-space:pre-line}
 .rc{margin-top:5px}.rc .chip{animation:none;opacity:1;transform:none;font-size:10.5px}
 .rn{font-size:11.5px;margin-top:5px;padding-top:5px}
 .cmd{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);background:var(--soft)}
@@ -237,7 +243,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
   <aside class="panel">
     <div class="phead"><div class="orb" id="porb" style="width:22px;height:22px"></div><div class="who">JARVIS</div><span class="badge" id="src">BACKFILLED</span>
       <div class="right"><span class="badge" id="nev">0 lines</span></div></div>
-    <div class="trade" id="callc" hidden><div class="k">THE CALL <i id="cAt">—</i></div><div class="big" id="cW">—</div><div class="s" id="cLeg" hidden>—</div><div class="s" id="cPause" hidden>—</div><div class="s" id="cDay" hidden>—</div><div class="s" id="cWr">—</div><div class="s" id="cB">—</div><div class="s" id="cS">—</div></div>
+    <div class="trade" id="callc" hidden></div>
     <div class="trade" id="trade"><div class="k">LAST TRIGGER <i>guidance only</i></div><div class="v" id="tV">no trigger yet</div><div class="big" id="tP">—</div><div class="s" id="tS">zone: d2→d3 buy · u2→u3 sell · 3-min bands</div></div>
     <div class="feed" id="feed"></div>
     <form class="cmd" id="cmd" autocomplete="off"><input id="cin" placeholder="line 22750f · watch 22800s · why? · what next? · help" aria-label="command"><button type="submit">→</button></form>
@@ -380,6 +386,46 @@ function loadFrame(n) {
 }
 loadFrame(0);
 if (LIVE) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) swapFrame(d); }).catch(() => {}), 20000);
+// v3 (Task 3): live, the top card is GET /api/jarvis/card (small, every 20 s) and the command box talks to /api/jarvis/cmd.
+// Either one missing (a server before v3, a saved file, a replay): the frame's call and the page's own grammar, as before,
+// and the box says so. ?card=<file> (test only): render that card, never poll it.
+const EP = p => { const u = new URL(API, location.href); return `${u.origin}${u.pathname.replace(/\/$/, "")}/${p}?idx=${(D && D.idx) || $("#pIdx").value}`; };
+const PH = $("#cin").placeholder, CARDQ = QS.get("card");
+let CARD = null, CMD = false, cmdSeen = false;
+function pollCard() { fetchFrame(EP("card")).then(c => { if (c && c.ok) { CARD = c; if (D) renderBrain(); } }).catch(() => {}); }
+function setCmd(on) { CMD = on; $("#cin").placeholder = on ? PH : "offline · commands stay on this page"; }
+function pollCmd() {
+  fetchFrame(EP("cmd")).then(r => {
+    const st = r && (r.state || r);
+    if (!st || !(st.watches || st.lines || st.zones)) throw new Error("no state");
+    setCmd(true); cmdState(st);
+  }).catch(() => setCmd(false));
+}
+function cmdState(st) {   // the server's lines / zones / watches replace the page's own, so a reload keeps her drawings
+  const lv = x => +(x.level ?? x.lvl ?? x.k), tg = x => x.frame || x.tag, key = u => u.id ?? u.lvl + u.tag;
+  const was = new Set(watches.filter(u => u.hit).map(key));
+  userLines.splice(0, userLines.length, ...(st.lines || []).map(x => ({lvl: lv(x), tag: tg(x)})));
+  userZones.splice(0, userZones.length, ...(st.zones || []).map(x => {
+    const a = +(x.lo ?? x.a ?? x.low), b = +(x.hi ?? x.b ?? x.high); return {a: Math.min(a, b), b: Math.max(a, b), tag: tg(x)}; }));
+  watches.splice(0, watches.length, ...(st.watches || []).map(x => ({id: x.id, lvl: lv(x), tag: tg(x), set: x.set,
+    hit: x.hit && typeof x.hit === "object" ? x.hit.t : x.hit || null})));
+  if (cmdSeen && D) for (const u of watches) if (u.hit && !was.has(key(u)))   // a hit the server found since the last look
+    chatAdd("JARVIS", `**WATCH HIT · ${fmt(u.lvl)}${u.tag} at ${u.hit}**`, [{t: "→ server alert", c: "ok"}, {t: `watch set ${u.set}`}], "ok");
+  cmdSeen = true;
+}
+function postCmd(s) {     // one line to the grammar the server owns; its reply + lines into the feed; offline -> the page's own
+  fetch(EP("cmd"), {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({idx: (D && D.idx) || $("#pIdx").value, text: s})})
+    .then(r => r.json().catch(() => null).then(j => { if (!j || (j.reply == null && !j.lines)) throw new Error((j && j.why) || `HTTP ${r.status}`); return j; }))
+    .then(j => {
+      chatAdd("JARVIS", [j.reply].concat(j.lines || []).filter(Boolean).join("\n") || "—", [], j.kind === "refused" ? "bad" : j.ok === false ? "q" : null);
+      if (j.state) cmdState(j.state);
+    })
+    .catch(e => { setCmd(false); chatAdd("JARVIS", `**offline · commands stay on this page** (${e.message})`, [], "q"); runCmd(s); });
+}
+setCmd(false);
+if (CARDQ) fetchFrame(CARDQ).then(c => { CARD = c; if (D) renderBrain(); }).catch(e => console.warn("?card=", e.message));
+else if (LIVE) { pollCard(); setInterval(pollCard, 20000); }
+if (LIVE) { pollCmd(); setInterval(pollCmd, 20000); }
 
 function swapFrame(d) {                               // a new live frame: rebuilt; the playhead stays at now unless she scrubbed
   const follow = t >= N - 1.5, keep = t;
@@ -418,7 +464,7 @@ function prep(d) {
 }
 function renderBrain(i) {   // the brain's health and its one call: the frame's last minute, or a replay's call at minute i
   const h = D.health, c = D.calls ? D.calls[clampI(i == null ? N - 1 : i)] : D.call;
-  $("#strip").classList.toggle("h7", !!h); $("#sHealthC").hidden = !h; $("#callc").hidden = !c;
+  $("#strip").classList.toggle("h7", !!h); $("#sHealthC").hidden = !h;
   if (h) {
     $("#sHealthAt").textContent = `at ${D.mins[N - 1]}`;
     $("#sHealth").textContent = h.notes.length ? `${h.notes.length} gap${h.notes.length > 1 ? "s" : ""}` : "all live";
@@ -426,21 +472,43 @@ function renderBrain(i) {   // the brain's health and its one call: the frame's 
     $("#sHealth2").textContent = h.notes[0] || `Dext ${h.dext.minutes} min · chain whole`;
     $("#sHealthC").title = h.notes.join("\n") || "every source live";
   }
-  if (c) {
-    $("#cAt").textContent = `at ${c.at} · guidance only`;
-    // P0 (30 Oct): CAN'T SEE is shown blind, never as a quiet NO TRADE; the last word is not carried
-    // THE LEG (30 Oct): the word is the leg's state with its lean (▲ / ▼); the vote it replaced is in the tooltip
-    const lean = c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0);
-    $("#cW").textContent = c.word; $("#cW").style.color = c.word === "CAN'T SEE" ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut;
-    $("#callc").style.opacity = c.word === "CAN'T SEE" ? 0.55 : 1;
-    for (const [id, txt] of [["#cLeg", c.leg], ["#cPause", c.pause && c.pause.line], ["#cDay", c.day]]) {
-      $(id).hidden = !txt; if (txt) $(id).textContent = txt;
-    }
-    $("#cWr").textContent = c.wrong_line; $("#cB").textContent = "buyer: " + c.buyer; $("#cS").textContent = "seller: " + c.seller;
-    $("#callc").title = !c.why ? [c.leg, c.pause && c.pause.line, c.day].filter(Boolean).join("\n") :
-      c.why.concat([c.up, c.dn], c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
-        c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).join("\n");
+  renderCard(CARD || c);                              // live: the server's card once it answers; else the frame's call
+}
+function renderCard(c) {
+  // v3: THE CALL, one row each in this order, an absent field skipped: the ACTION word (state · since), WITH n · AGAINST m
+  // (the pieces on hover, the ? ones greyed with their reason), leg, pause, how much, day, buyer, seller (the pick bold),
+  // wrong-line, NO TRADE, self, missing (red), notes (grey). Every string verbatim (levels carry s / f); the page decides
+  // nothing. P0 (30 Oct): CAN'T SEE is shown blind, never as a quiet NO TRADE; the old vote stays in the tooltip.
+  const box = $("#callc"); box.hidden = !c; if (!c) return;
+  const lean = c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0), blind = c.word === "CAN'T SEE";
+  const sub = [c.state, c.since && "since " + c.since].filter(Boolean).join(" · ");
+  box.innerHTML = `<div class="k">THE CALL <i>at ${esc(c.at || "?")} · guidance only</i></div>`
+    + `<div class="big" style="color:${blind ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut}">${esc(c.word || "?")}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
+  box.style.opacity = blind ? 0.55 : 1;
+  const row = (cls, txt, tip) => { const el = document.createElement("div"); el.className = cls; el.textContent = txt; if (tip) el.title = tip; box.appendChild(el); return el; };
+  const line = (txt, cls) => { if (txt) row(cls ? "s " + cls : "s", txt); };
+  const n = c.count;
+  if (n) {
+    const P = n.pieces || [], q = P.filter(p => p.side === "?");
+    row("cnt", "", [`${n.N ?? "?"} read · ${n.unread ?? "?"} could not check`].concat(P.map(p =>
+      `${p.side === "with" ? "WITH" : p.side === "against" ? "AGAINST" : "?"} · ${p.text}`)).join("\n")).innerHTML =
+      `<span class="up">WITH ${esc(n.with ?? "?")}</span> · <span class="dn">AGAINST ${esc(n.against ?? "?")}</span>`
+      + (n.unread ? ` <span class="mut">· ${esc(n.unread)} could not check</span>` : "");
+    if (q.length) row("s q clip", q.map(p => p.text).join(" · "), q.map(p => p.text).join("\n"));
   }
+  const ex = c.expression || {buyer: c.buyer, seller: c.seller}, nt = c.no_trade;
+  line(c.leg); line(c.pause && c.pause.line); line(c.how_much && c.how_much.line);
+  line(/^\d{4}-\d\d-\d\d$/.test(c.day) ? null : c.day);   // a call's DAY line; the card's `day` is its date
+  line(ex.buyer && "buyer: " + ex.buyer, ex.pick === "buyer" && "pk"); line(ex.seller && "seller: " + ex.seller, ex.pick === "seller" && "pk");
+  line(c.wrong_line);
+  line(!nt ? null : typeof nt === "string" ? nt
+    : ["NO TRADE" + (nt.reason ? ": " + nt.reason : ""), nt.since && "since " + nt.since, nt.ends && "ends " + nt.ends].filter(Boolean).join(" · "));
+  line(c.self);
+  const M = (c.health && c.health.missing) || [], T = (c.health && c.health.notes) || [];
+  if (M.length) row("s bad clip", "missing: " + M.join(" · "), M.join("\n"));
+  if (T.length) row("s clip", T.join(" · "), T.join("\n"));
+  box.title = (c.why || []).concat([c.up, c.dn], c.missing && c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
+    c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).filter(Boolean).join("\n");
 }
 
 /* ------------------------------------------------------------ the story, generated from the data -- */
@@ -1225,13 +1293,12 @@ function chatAdd(who, text, chips, tagc) {
   if (who !== "YOU") { say(e, true); }
 }
 const HELP = "line 22750f · line 22700s · zone 22680-22720f · watch 22800s · remove 22750 · clear · list · go 12:47 · why? · what next? · status · wrong when? — I never place orders.";
-function runCmd(raw) {
-  const s = raw.trim(); if (!s) return;
-  chatAdd("YOU", s);
+function runCmd(s) {                                    // the page's own grammar: offline, a replay, or a server before v3
   const q = s.toLowerCase().replace(/,/g, ""), i = cur(), hm = D.mins[i];
   const lv = q.match(/(\d{4,5}(?:\.\d+)?)\s*([fs])\b/), nums = q.match(/\d{4,5}(?:\.\d+)?/g) || [];
   const tagOf = () => lv ? lv[2] : null;
-  if (/^(buy|sell|short|long|order|place|exit|square)\b/.test(q) || /\b\d+\s*lots?\b/.test(q)) return chatAdd("JARVIS", "**I don't place orders.** I only read. Your triggers and your stop stay yours.", ["no order path"], "bad");
+  if (/^(mark|flat)\b/.test(q)) return chatAdd("JARVIS", "**offline** · a mark needs TapeMap: the Float or the terminal.", [], "q");
+  if (/\b(buy|sell|lots?|order|place|square|exit now)\b/.test(q) || /^(short|long|exit)\b/.test(q)) return chatAdd("JARVIS", "**I read, I don't place.**", ["no order path"], "bad");
   if (/^(help|\?)$/.test(q)) return chatAdd("JARVIS", "**Commands:** " + HELP);
   if (/^(line|draw)\b/.test(q) || /\b(line|draw)$/.test(q)) {
     if (!lv) return chatAdd("JARVIS", "Say the level with its tag: **line 22750f** or **line 22700s**.", [], "q");
@@ -1279,6 +1346,7 @@ function runCmd(raw) {
   return chatAdd("JARVIS", "**Didn't get that.** " + HELP, [], "q");
 }
 function checkWatches(m) {                              // on every new minute: a touch fires a line (and, live, Telegram)
+  if (CMD) return;                                      // the server checks spot / fut each pass; its hits come back in its state
   for (const u of watches) {
     if (u.hit || m < 1) continue;
     const touched = u.tag === "f" ? D.flo[m] <= u.lvl && u.lvl <= D.fhi[m] : Math.min(D.spot[m - 1], D.spot[m]) <= u.lvl && u.lvl <= Math.max(D.spot[m - 1], D.spot[m]);
@@ -1287,7 +1355,11 @@ function checkWatches(m) {                              // on every new minute: 
     chatAdd("JARVIS", `**WATCH HIT · ${fmt(u.lvl)}${u.tag} at ${D.mins[m]}** · ${stateLine(m)}.`, [{t: "→ Telegram sent (simulated)", c: "ok"}, {t: `watch set ${u.set}`}], "ok");
   }
 }
-$("#cmd").onsubmit = m => { m.preventDefault(); runCmd($("#cin").value); $("#cin").value = ""; };
+$("#cmd").onsubmit = m => {                            // live: every line to the server's grammar; "go 12:47" scrubs this page
+  m.preventDefault(); const s = $("#cin").value.trim(); $("#cin").value = ""; if (!s) return;
+  chatAdd("YOU", s);
+  if (CMD && !/^(go|jump)\b/i.test(s)) postCmd(s); else runCmd(s);
+};
 
 /* ------------------------------------------------------------ the chrome -- */
 const CHAPS = ["WALL", "TESTED", "FUEL", "WEAKENING", "BROKEN", "NEW FLOOR", "FUEL SPENT", "TOP / BOTTOM", "MANAGE", "NEW FIGHT", "NO TRADE"];
