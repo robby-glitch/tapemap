@@ -27,10 +27,15 @@ ENGINE = [CARD["word"], CARD["leg"], CARD["wrong_line"]]
 GOOD = "TREND ▼ since 09:56 · WITH 4 · AGAINST 1 · wrong if back past 22,938f"
 
 
+REAL_LATER = jv.later        # conftest makes later a no-op in every test (no thread outlives one); the hook tests restore it
+
+
 @pytest.fixture(autouse=True)
 def _tmp(tmp_path, monkeypatch):
     monkeypatch.setattr(jv, "DIR", str(tmp_path / "jarvis"))
     monkeypatch.setattr(jv, "KEYS", str(tmp_path / "keys"))
+    for k, v in (("_WORD", {}), ("_PREOPEN", set()), ("_SEQ", {})):
+        monkeypatch.setattr(jv, k, v)
     (tmp_path / "keys").mkdir()
     return tmp_path
 
@@ -208,7 +213,7 @@ class _Block:
         self.type, self.text = type, text
 
 
-def _fake_sdk(monkeypatch, text=GOOD, stop="end_turn"):
+def _fake_sdk(monkeypatch, text=GOOD, stop="end_turn", blocks=None):
     seen = {}
 
     class Messages:
@@ -217,8 +222,8 @@ def _fake_sdk(monkeypatch, text=GOOD, stop="end_turn"):
             usage = types.SimpleNamespace(input_tokens=900, cache_read_input_tokens=4000, cache_creation_input_tokens=None,
                                           output_tokens=120)
             texts = [text] if isinstance(text, str) else text
-            return types.SimpleNamespace(stop_reason=stop, content=[_Block("thinking")] + [_Block("text", t) for t in texts],
-                                         usage=usage)
+            content = blocks or [_Block("thinking")] + [_Block("text", t) for t in texts]
+            return types.SimpleNamespace(stop_reason=stop, content=content, usage=usage)
 
     class Anthropic:
         def __init__(self, **kw):
@@ -236,8 +241,15 @@ def _fake_sdk(monkeypatch, text=GOOD, stop="end_turn"):
     return seen
 
 
-def test_a_utf16_key_file_is_a_named_fallback_never_a_raise(_tmp, monkeypatch):
+def test_a_utf16_key_file_reads_by_its_bom(_tmp, monkeypatch):
     (_tmp / "keys" / "anthropic.txt").write_bytes("sk-ant-SECRET\r\n".encode("utf-16"))   # PowerShell 5.1's `echo k > f`
+    seen = _fake_sdk(monkeypatch)
+    assert jv.speak(CARD)["provider"] == "claude" and seen["client"]["api_key"] == "sk-ant-SECRET"
+
+
+@pytest.mark.parametrize("raw", [b"\xff\xfeA", b"\x80sk-ant-SECRET"])          # torn UTF-16; not UTF-8 and no BOM
+def test_an_unreadable_key_file_is_a_named_fallback_never_a_raise(_tmp, monkeypatch, raw):
+    (_tmp / "keys" / "anthropic.txt").write_bytes(raw)
     _fake_sdk(monkeypatch)
     for out in (jv.speak(CARD), jv.answer(CARD, "why?"), jv.on_change(CARD)):
         assert out == {"lines": ENGINE, "provider": "engine", "fell_back": True, "why": "key file unreadable"}
@@ -266,9 +278,17 @@ def test_any_error_is_a_fallback_named_by_its_class_only(monkeypatch):
     assert jv.answer(CARD, "q")["why"] == "ValueError" and jv.brief(LEVELS, [], [])["why"] == "ValueError"
 
 
+def test_a_log_that_cannot_open_makes_no_call_the_budget_fails_closed(_tmp, monkeypatch):
+    calls = []
+    (_tmp / "jarvis" / f"voice_{jv._today()}.jsonl").mkdir(parents=True)   # the day's log is a folder: it cannot open
+    out = jv.speak(CARD, provider=lambda s, u: calls.append(1) or GOOD)
+    assert not calls and out["fell_back"] and out["lines"] == ENGINE and out["why"] == "log cannot open · log unwritable"
+
+
 def test_an_unwritable_log_still_returns_the_lines(_tmp, monkeypatch):
     (_tmp / "a_file").write_text("x")
     monkeypatch.setattr(jv, "DIR", str(_tmp / "a_file"))          # makedirs on a file -> OSError
+    monkeypatch.setattr(jv, "_calls_today", lambda: 0)            # past the budget's open, the write itself fails
     out = jv.speak(CARD, provider=say(GOOD))
     assert out == {"lines": [GOOD], "provider": "injected", "fell_back": False, "why": "log unwritable"}
     assert jv.speak(CARD)["why"] == "no key · log unwritable"
@@ -389,3 +409,156 @@ def test_the_brief_is_fenced():
     assert out["fell_back"] and out["why"] == "fence: rate sign"
     assert jv.brief(LEVELS, [], [], provider=say("\n".join(["[web] x"] * 7)))["fell_back"]
     assert jv.brief(LEVELS, [], [])["why"] == "no key"
+
+
+def test_the_count_check_reads_any_case_and_never_a_level():
+    assert jv.fence("with 1 · against 4", CARD) == "fence: count mismatch"
+    assert jv.fence("With 4 · Against 1", CARD) is None
+    assert jv.fence("price sits with 22,900s PE at 186L", CARD) is None
+    assert jv.brief(LEVELS, [], [], provider=say("[web] RBI with 25 bps")) ["fell_back"] is False   # a web item: not the count
+
+
+def test_the_rate_check_catches_percentage_points_and_the_arabic_sign():
+    assert jv.fence("a 0.5 percentage point move", CARD) == "fence: rate sign"
+    assert jv.fence("writers 4٪ down", CARD) == "fence: rate sign"
+
+
+def test_the_brief_keeps_only_the_text_after_the_last_search_result(_tmp, monkeypatch):
+    (_tmp / "keys" / "anthropic.txt").write_text("k")
+    blocks = [_Block("text", "Let me search for 99 things."), _Block("server_tool_use"), _Block("web_search_tool_result"),
+              _Block("text", "Searching again."), _Block("server_tool_use"), _Block("web_search_tool_result"),
+              _Block("text", "[web] RBI policy 10:00 today")]
+    _fake_sdk(monkeypatch, blocks=blocks)
+    assert jv.brief(LEVELS, [], [])["lines"] == ["[web] RBI policy 10:00 today"]
+
+
+# ---- the server's hook (Phase B) ----
+
+import jarvis_log                                                    # noqa: E402
+
+DAY = "2026-11-02"
+FRAME = {"ok": True, "day": DAY, "idx": "NIFTY", "asof": "10:41:30", "live": True, "mins": ["10:41"],
+         "fut": [23010.5], "spot": [22967.3],
+         "call": {"at": "10:41", "word": "TREND ▼", "state": "HOLD", "lean": -1, "since": "09:56", "leg": "leg ▼ TREND 103 pts",
+                  "why": ["writers ±7 DOWN", "wall ahead 22,900s PE 186L BUILDING"], "wrong_line": "PALAT? if back past 22,938f"}}
+
+
+def _at(t, **call):
+    return dict(FRAME, mins=[t], call=dict(FRAME["call"], at=t, **call))
+
+
+def test_changed_is_a_word_move_never_a_pass_or_a_restart():
+    jarvis_log.write(DAY, "NIFTY", {"t": "10:40", "word": "TREND ▼"})
+    jarvis_log.write(DAY, "NIFTY", {"t": "10:41", "word": "TREND ▼"})
+    assert jv.changed(DAY, "NIFTY", "TREND ▼") is False            # a restart: the log's row before says the same word
+    assert jv.changed(DAY, "NIFTY", "TREND ▼") is False            # the next pass
+    assert jv.changed(DAY, "NIFTY", "PALAT? ▼") is True
+    assert jv.changed(DAY, "NIFTY", None) is False
+    assert jv.changed("2026-11-03", "SENSEX", "OPENING") is True   # a day's first word
+
+
+def test_later_runs_on_a_daemon_thread_and_the_newest_call_wins():
+    import threading
+    store, go = {}, threading.Event()
+    slow = REAL_LATER(store, "k", lambda: go.wait(5) and {"lines": ["old"]})
+    REAL_LATER(store, "k", lambda: {"lines": ["new"]}).join(5)
+    go.set()
+    slow.join(5)
+    assert store["k"] == {"lines": ["new"]} and slow.daemon
+    REAL_LATER(store, "x", lambda: 1 / 0).join(5)
+    assert store["x"] == {"lines": [], "provider": "engine", "fell_back": True, "why": "ZeroDivisionError"}
+
+
+def test_preopen_once_on_a_weekday_between_9_and_915(monkeypatch):
+    from datetime import datetime
+    from chain_live import IST
+    jarvis_log.write("2026-10-30", "NIFTY", {"t": "15:29", "word": "TREND ▼", "fut": 23010.5})
+    jarvis_log.write("2026-10-30", "NIFTY", {"t": "15:30", "word": "HOLD ▼", "fut": 23011.0})
+    jarvis_log.write("2026-10-30", "SENSEX", {"t": "15:30", "word": "TREND ▲"})
+    seen, asked = {}, []
+    monkeypatch.setattr(jv, "brief", lambda levels, rows, notes: seen.update(levels=levels, rows=rows, notes=notes) or {"b": 1})
+    card = lambda: asked.append(1) or {"ok": True, "where": {"stop": "23,136f (zone)"}, "walls": None, "lines": None}  # noqa
+    notes = lambda: ["note 08:50 RBI 10:00"]                       # noqa: E731
+    mon = lambda h, m: datetime(2026, 11, 2, h, m, tzinfo=IST)      # noqa: E731
+    assert jv.preopen(card, notes, mon(8, 59)) is None and jv.preopen(card, notes, mon(9, 15)) is None
+    assert jv.preopen(card, notes, datetime(2026, 11, 1, 9, 5, tzinfo=IST)) is None and not asked      # a Sunday
+    assert jv.preopen(card, notes, mon(9, 5)) == {"b": 1} and jv.preopen(card, notes, mon(9, 6)) is None   # once a day
+    assert seen["levels"] == {"where": {"stop": "23,136f (zone)"}, "walls": None, "lines": None}
+    assert [(r["idx"], r["word"]) for r in seen["rows"]] == [("NIFTY", "HOLD ▼"), ("SENSEX", "TREND ▲")]
+    assert seen["notes"] == ["note 08:50 RBI 10:00"] and asked == [1]
+
+
+@pytest.fixture
+def srv(monkeypatch):
+    import time
+    import server
+    monkeypatch.setattr(jv, "later", lambda store, key, fn: store.__setitem__(key, fn()))      # the thread, inline
+    for k, v in (("_JVOICE", {}), ("_LAST_LOGGED", {}), ("_JCMD", {})):
+        monkeypatch.setattr(server, k, v)
+    monkeypatch.setattr(server, "_JARVIS", {"NIFTY": (None, time.time(), FRAME)})
+    return server
+
+
+def test_the_hook_narrates_a_word_change_with_the_frames_why(srv):
+    srv._jarvis_log(FRAME)
+    v = srv._JVOICE["NIFTY"]
+    assert v["lines"] == FRAME["call"]["why"] and v["why"] == "no key"        # the engine's own lines, from call.why
+    assert srv._jarvis_card("NIFTY")["voice"] == v
+    srv._JVOICE.clear()
+    srv._jarvis_log(_at("10:42"))                                   # the same word a minute on: no call
+    assert srv._JVOICE == {}
+    srv._jarvis_log(_at("10:43", word="PALAT? ▼"))
+    assert srv._JVOICE["NIFTY"]["fell_back"] is True
+    assert srv._VOICE is not srv._JVOICE                            # the trade ladder's memory is not the card's voice
+
+
+def test_ask_answers_on_the_card_and_telegram_waits_for_it(srv):
+    r = srv._jarvis_cmd("NIFTY", "ask is the floor holding", "page")
+    assert r["kind"] == "ask" and r["reply"] == jv.THINKING and r["lines"] == []
+    v = srv._JVOICE["NIFTY"]
+    assert v["q"] == "is the floor holding" and v["lines"] == FRAME["call"]["why"]
+    t = srv._jarvis_cmd("NIFTY", "ask why", "telegram")
+    assert t["reply"] == "voice fell back — no key" and t["lines"] == FRAME["call"]["why"]
+    srv._JARVIS.clear()
+    assert srv._jarvis_cmd("NIFTY", "ask anything", "page")["ok"] is False      # no frame: jarvis_cmd says why, no call
+
+
+class _Resp:
+    def __init__(self, doc):
+        self.b = json.dumps(doc, ensure_ascii=False).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self.b
+
+
+def test_the_terminal_ask_prints_the_cards_voice_once_it_answers(monkeypatch):
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+    import jarvis_cli
+    voice = {"lines": ["A1", "A2"], "provider": "claude", "fell_back": False, "why": None, "q": "is the floor holding"}
+
+    def fake(req, timeout=None):
+        if req.full_url.endswith("/api/jarvis/cmd"):
+            return _Resp({"ok": True, "kind": "ask", "reply": jv.THINKING, "lines": []})
+        return _Resp({"ok": True, "voice": voice})
+
+    monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", fake)
+    s = jarvis_cli.Session("http://127.0.0.1:8765", "NIFTY")
+    waits = []
+    s.sleep = waits.append
+    assert s.handle("ask is the floor holding") == "\n".join([jv.THINKING, "A1", "A2"]) and waits == [jarvis_cli.ASK_WAIT_S]
+    import jarvis_cmd
+    s.voice = lambda q: [q]                                         # the question the terminal waits for == the server's q
+    for t in ("ask is the floor holding", "ask  is   the floor holding?", "ASK Why now"):
+        assert s.handle(t).splitlines()[-1] == jarvis_cmd.parse(t)["text"]
+    del s.voice
+    voice["q"] = "an older question"
+    assert s.handle("ask is the floor holding").endswith("the voice has not answered yet — `now` shows the card's voice")
+    voice.update(q="is the floor holding", fell_back=True, why="no key")
+    assert s.handle("ask is the floor holding").endswith("A2\nvoice fell back — no key")

@@ -5,6 +5,8 @@ docs/superpowers/plans/2026-10-31-jarvis-v3-weekend.md, the CARD contract; why: 
   brief(levels, last_call_rows, notes)        the pre-open brief: one call with web search, <= 6 lines, every web item [web]
   fence(text, card, ...)                      THE FENCE, in code: numbers only from the card (or her question), no %, no
                                               order word, <= 3 lines of <= 140 chars -> None, or the failed check
+  changed / later / preopen                   the server's hook: the ACTION-word test, one daemon thread per call, and the
+                                              brief's door on the Jarvis loop (weekday 09:00–09:15, once a day)
 THE SEAM: `provider` is a callable (system_text, user_text) -> str (tests inject one, reported as "injected"); None -> the
 key files decide at call time: keys/anthropic.txt -> Claude (the `anthropic` SDK, imported lazily), else keys/gemini.txt ->
 Gemini (urllib), else the engine. A key is read per call, held only in that call's closure, never cached, logged or printed.
@@ -15,6 +17,7 @@ Display only. No order path. Counts, never a %."""
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import threading
@@ -24,6 +27,7 @@ import urllib.request
 from datetime import datetime
 
 import confluence_log
+import jarvis_log
 from chain_live import IST
 
 DIR = os.path.join("data", "jarvis")
@@ -33,17 +37,21 @@ MODEL = "claude-opus-5-5"
 GEMINI_MODEL = "gemini-flash-latest"
 CLAUDE_URL = "https://api.anthropic.com"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-MAX_TOKENS = 600              # [I] the plan's number; thinking counts against it -- a cut-off shows as why "stopped: max_tokens"
-TIMEOUT_S = 30                # [I] one call; `ask` waits on it, a change runs in its own thread
+MAX_TOKENS = 600              # [I] the plan's number; thinking counts against it -- a cut-off shows as why "max_tokens"
+TIMEOUT_S = 30                # [I] one call; every call runs on its own daemon thread (later), none blocks a pass or a request
 MAX_LINES, MAX_CHARS, BRIEF_LINES = 3, 140, 6
 WEB_SEARCH = {"type": "web_search_20260209", "name": "web_search", "max_uses": 3}
+THINKING = "thinking — the card's voice fills in a moment"      # the cmd reply to `ask` while the voice answers
 NUM = re.compile(r"\d{1,2}:\d{2}(?::\d{2})?|\d+(?:,\d+)*(?:\.\d+)?")     # a time HH:MM[:SS], or digits with , and .
-RATE = re.compile(r"[%％]|\bper\s?cent\b|\bprobab\w*|\bodds\b|\bchances?\b|\bconfiden\w*|\blikelihood\b|\b(?:hit|win)\s+rate",
-                  re.I)
+RATE = re.compile(r"[%％٪]|\bper\s?cent\w*|\bprobab\w*|\bodds\b|\bchances?\b|\bconfiden\w*|\blikelihood\b|"
+                  r"\b(?:hit|win)\s+rate", re.I)                    # percent, percentage (point), the fullwidth and Arabic signs
 ORDER = re.compile(r"\b(buy(?:s|ing)?|sell(?:s|ing)?|lots?|orders?|plac(?:e|es|ed|ing)|square[\s-]*off|squar(?:e|ing)|"
                    r"short(?:ing|ed)?|long|exit\s+now)\b", re.I)     # `shorts` (fresh shorts, an OI noun) stays out
-COUNT = re.compile(r"\b(WITH|AGAINST)\s+(\d+)")                     # the card's own grammar: WITH 4 · AGAINST 1
+COUNT = re.compile(r"\b(with|against)\s+(\d+)\b(?![,.]\d)", re.I)   # WITH 4 · AGAINST 1, any case; never a level (22,900s)
+log = logging.getLogger("jarvis_voice")
 _LOCK = threading.Lock()
+_WORD = {}                    # idx -> (day, the ACTION word the call log said last): changed()'s memory
+_PREOPEN = set()              # days the pre-open brief was tried by this process (brief() keeps the once across a restart)
 
 PREFIX = """You are the voice of Jarvis, a read-only market reader for one Indian index-options trader (NIFTY, SENSEX).
 The rules engine owns every fact and every verdict. You narrate its card. You never change its word, its count or its lines.
@@ -75,7 +83,7 @@ BRIEF_FALL = "pre-open brief: could not check — the voice fell back"
 
 
 class _Fallback(Exception):
-    """A provider's named reason to fall back (refused, cut off)."""
+    """A named reason to fall back, used verbatim as the why (no key, cap reached, refused, max_tokens, key file unreadable)."""
 
 
 def _now():
@@ -95,13 +103,26 @@ def _rows():
 
 
 def _calls_today():
-    """Today's model calls: every logged row whose provider was asked (not the engine)."""
-    return sum(1 for r in _rows() if r.get("provider") not in (None, "engine"))
+    """Today's model calls: every logged row whose provider was asked (not the engine). FAILS CLOSED: the log is opened for
+    append (made when absent) before any call, so a log that cannot open or read is "log cannot open" and no call is made --
+    the cap can never go blind."""
+    try:
+        os.makedirs(DIR, exist_ok=True)
+        with open(_path(), "a+", encoding="utf-8") as f:
+            f.seek(0)
+            n = 0
+            for ln in f:
+                try:
+                    n += json.loads(ln).get("provider") not in (None, "engine")
+                except (ValueError, AttributeError):       # a torn or foreign line costs itself
+                    continue
+            return n
+    except (OSError, UnicodeError):
+        raise _Fallback("log cannot open") from None
 
 
 def _write(row):
-    """Append one row -> None, or "log unwritable" (fail-soft: the lines still reach her).
-    ponytail: an unwritable log also blinds the cap (it counts rows); add a memory counter if a disk ever fills mid-day."""
+    """Append one row -> None, or "log unwritable" (fail-soft: the lines still reach her)."""
     try:
         with _LOCK:
             os.makedirs(DIR, exist_ok=True)
@@ -113,15 +134,16 @@ def _write(row):
 
 
 def _read(name):
-    """A file under KEYS, stripped, or None when absent. Read at call time; the caller never keeps it past the call. A file
-    that is there but cannot be read as UTF-8 (PowerShell 5.1's `echo key > keys\\anthropic.txt` writes UTF-16) raises
+    """A file under KEYS, stripped, or None when absent. Read at call time; the caller never keeps it past the call. UTF-8
+    (Notepad's BOM or not) or UTF-16 by its BOM (PowerShell 5.1's `echo key > keys\\anthropic.txt`); anything else raises
     _Fallback("key file unreadable") -- never the bytes, which a UnicodeDecodeError's repr would carry."""
     p = os.path.join(KEYS, name)
     if not os.path.exists(p):
         return None
     try:
-        with open(p, encoding="utf-8-sig") as f:              # -sig: Notepad's UTF-8 BOM is not part of the key
-            return f.read().strip() or None
+        with open(p, "rb") as f:
+            b = f.read()
+        return b.decode("utf-16" if b[:2] in (b"\xff\xfe", b"\xfe\xff") else "utf-8-sig").strip() or None
     except (OSError, UnicodeError):
         raise _Fallback("key file unreadable") from None
 
@@ -197,11 +219,11 @@ def fence(text, card, question=None, max_lines=MAX_LINES, web=False):
             rest = rest.replace(q, " ")
         if ORDER.search(rest):
             return "fence: order word"
+        if web and ln.startswith("[web]"):                          # the web's own item: the card's count and numbers do not bind it
+            continue
         for k, n in COUNT.findall(ln):                              # WITH 1 · AGAINST 4 uses card numbers, swapped
             if not isinstance(cnt, dict) or str(cnt.get(k.lower())) != n:
                 return "fence: count mismatch"
-        if web and ln.startswith("[web]"):
-            continue
         if any(t not in allowed for t in _tokens(ln)):
             return "fence: number not in the card"
     return None
@@ -222,7 +244,10 @@ def _claude(anthropic, key, system, user, effort, web):
         raise _Fallback(str(r.stop_reason))                   # max_tokens (cut off), pause_turn (web search unfinished)
     u = r.usage
     tin = sum(getattr(u, k, None) or 0 for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
-    return _join(b.text for b in r.content if b.type == "text"), tin, getattr(u, "output_tokens", None)
+    blocks = list(r.content)
+    last = max((i for i, b in enumerate(blocks) if str(b.type).endswith("_tool_result")), default=-1)
+    # the answer is what follows the last search result: "let me search…" before it is not a line for her
+    return _join(b.text for b in blocks[last + 1:] if b.type == "text"), tin, getattr(u, "output_tokens", None)
 
 
 def _join(parts):
@@ -336,5 +361,74 @@ def brief(levels, last_call_rows, notes, provider=None):
         src = {"levels": levels, "last_calls": last_call_rows, "notes": notes}
         user = "CONTEXT " + json.dumps(src, ensure_ascii=False, default=str) + "\n\n" + BRIEF_TASK
         return _run("brief", None, src, None, user, [BRIEF_FALL], "medium", provider, BRIEF_LINES, web=True)
+    except Exception as e:                           # noqa: BLE001
+        return {"lines": [BRIEF_FALL], "provider": "engine", "fell_back": True, "why": _why(e)}
+
+
+# ---- the server's hook (server.py: _jarvis_log, _jarvis_cmd, _jarvis_loop) ----------------------------------------------
+
+def changed(day, idx, word):
+    """The hook's test, once per new call-log row: True when idx's ACTION word moved (one call per change, never per pass).
+    A day's first look compares with the log's row before this one (anytime-start: a restart is not a change; the day's
+    first word is)."""
+    last = _WORD.get(idx)
+    if last and last[0] == day:
+        old = last[1]
+    else:
+        rows = jarvis_log.read(day, idx)
+        old = rows[-2].get("word") if len(rows) > 1 else None
+    _WORD[idx] = (day, word)
+    return bool(word) and word != old
+
+
+_SEQ = {}                     # store key -> the newest call started: an older answer never overwrites a newer one
+
+
+def later(store, key, fn):
+    """fn() on a daemon thread, its result into store[key]: no voice call blocks a pass or a request. fn is speak / answer /
+    on_change / preopen, which never raise; a crash anyway is logged and stored as the engine's fallback. -> the thread."""
+    with _LOCK:
+        mine = _SEQ[key] = _SEQ.get(key, 0) + 1
+
+    def run():
+        try:
+            res = fn()
+        except Exception as e:                       # noqa: BLE001
+            log.exception("jarvis voice")
+            res = {"lines": [], "provider": "engine", "fell_back": True, "why": _why(e)}
+        with _LOCK:
+            if res is not None and _SEQ.get(key) == mine:
+                store[key] = res
+
+    t = threading.Thread(target=run, daemon=True, name="jarvis-voice")
+    t.start()
+    return t
+
+
+def _last_calls(day):
+    """The newest call log before `day`: its final row per index (word, leg, wrong-line, prices); [] when there is none."""
+    try:
+        days = sorted(f[5:15] for f in os.listdir(jarvis_log.DIR) if f.startswith("call_") and f[5:15] < day)
+    except OSError:
+        return []
+    last = {}
+    for r in jarvis_log.read(days[-1]) if days else ():
+        last[r.get("idx")] = {k: r.get(k) for k in ("day", "idx", "t", "word", "state", "fut", "spot", "leg", "wrong_line")}
+    return list(last.values())
+
+
+def preopen(card_fn, notes_fn, now=None):
+    """THE PRE-OPEN BRIEF's door for the server's Jarvis loop: the first tick of a weekday's 09:00–09:15 IST, once a day per
+    process -> brief() over the NIFTY card's levels (where / walls / lines, when it has them), the last call log's final row
+    per index and her notes; None on every other tick (the card and notes are fetched only when due). Never raises."""
+    n = now or _now()
+    day = n.strftime("%Y-%m-%d")
+    if n.weekday() >= 5 or not "09:00" <= n.strftime("%H:%M") < "09:15" or day in _PREOPEN:
+        return None
+    _PREOPEN.add(day)
+    try:
+        c = card_fn()
+        levels = {k: c.get(k) for k in ("where", "walls", "lines")} if isinstance(c, dict) and c.get("ok") else None
+        return brief(levels, _last_calls(day), notes_fn())
     except Exception as e:                           # noqa: BLE001
         return {"lines": [BRIEF_FALL], "provider": "engine", "fell_back": True, "why": _why(e)}

@@ -134,4 +134,4 @@ def card(fr, rows=(), state=None, notes=()):
             "health": {"missing": [x for x in c.get("missing") or () if x not in hn], "notes": hn + list(notes)},
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
-            "watches": list(st.get("watches") or []), "voice": None}           # Task 7: server._VOICE fills it
+            "watches": list(st.get("watches") or []), "voice": None}           # Task 7: server._JVOICE fills it

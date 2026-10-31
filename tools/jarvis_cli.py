@@ -6,7 +6,8 @@ the replies are the server's, printed verbatim. Display only; I read, I don't pl
 
 `now` GETs /api/jarvis/card and prints it as a block; `replay DAY HH:MM` GETs the replay frame once per day (cached in
 memory) and prints that minute's call from its `calls`; `idx`, `help`, `quit` are local; everything else goes to the
-grammar. `--frame` runs offline on a saved /api/jarvis frame: `now` = its `call`, `replay` = its `calls[i]`; a command that
+grammar. `ask <text>`: the server answers "thinking", then the voice fills the card -- one look after ASK_WAIT_S prints
+it. `--frame` runs offline on a saved /api/jarvis frame: `now` = its `call`, `replay` = its `calls[i]`; a command that
 needs the server says so. Any server failure prints `could not check — <reason>`. Stdlib only.
 """
 import argparse
@@ -15,6 +16,7 @@ import http.client
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -25,6 +27,7 @@ except ImportError:
     pass
 
 CC = "could not check — "
+ASK_WAIT_S = 3                                  # `ask`: the voice answers on the card; one look after this many seconds [I]
 IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 GRAMMAR = ("why", "why?", "next", "what", "status", "wrong", "if", "watch", "line", "zone", "remove", "clear", "list",
@@ -176,6 +179,7 @@ class Session:
     def __init__(self, base, idx="NIFTY", frame=None):
         self.base, self.idx, self.frame = base.rstrip("/"), idx, frame
         self._replays = {}   # ponytail: unbounded, ~15 MB a day held; a session replays a handful of days
+        self.sleep = time.sleep
 
     def handle(self, line):
         """One line -> the text to print ('' = nothing); None = quit."""
@@ -209,7 +213,18 @@ class Session:
         if doc.get("ok") is False and not reply:
             return _not_ok(doc)
         out = [reply] + [x for x in doc.get("lines") or () if x and x != reply]
+        if doc.get("kind") == "ask" and str(reply).startswith("thinking"):
+            out += self.voice(" ".join(arg.split()[1:]))       # the question as jarvis_cmd.parse keeps it
         return "\n".join(str(x) for x in out if x) or CC + "the server sent an empty reply"
+
+    def voice(self, q):
+        """Task 7: `ask` answers on the card's voice -- one look after ASK_WAIT_S; its lines only when they answer `q`."""
+        self.sleep(ASK_WAIT_S)
+        card, why = call_server(self.base, "/api/jarvis/card?" + urllib.parse.urlencode({"idx": self.idx}))
+        v = (card or {}).get("voice")
+        if why or not isinstance(v, dict) or v.get("q") != q or not v.get("lines"):
+            return [why or "the voice has not answered yet — `now` shows the card's voice"]
+        return [str(x) for x in v["lines"]] + ([f"voice fell back — {v.get('why')}"] if v.get("fell_back") else [])
 
     def now(self):
         if self.frame is not None:

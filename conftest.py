@@ -49,6 +49,7 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "telegram_out.DIR": "telegr",                    # A101: her token + chat id -- no test can read the real ones
              "jarvis.TAPE_DIR": "tape_fut1m",                 # P0 (30 Oct): the saved 1-min fut tape (jarvis.save_tape)
              "jarvis_log.DIR": "jarvis", "jarvis_cmd.DIR": "jarvis",   # Jarvis v3: the call log, the command log
+             "jarvis_voice.DIR": "jarvis", "jarvis_voice.KEYS": "keys",   # Task 7: the voice log; no test reads her keys
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",
@@ -65,6 +66,9 @@ def _tape_record_in_tmp(tmp_path, monkeypatch):
     # C10 (25 Oct review): the shipped default is upstox; the suite keeps running on the mocked Dhan path it was written on,
     # whatever the shell has set. A test of the unset default delenv's it (test_broker_switch, test_upstox_only)
     monkeypatch.setenv("TAPEMAP_BROKER", "dhan")
+    # Task 7: no voice thread outlives a test (it would write after this redirect is undone, into server._JVOICE too);
+    # test_jarvis_voice.py restores the real one where it tests the hook
+    monkeypatch.setattr("jarvis_voice.later", lambda store, key, fn: None)
     # the rev 6 event log (P2-02) is being written beside this; guarded until it lands
     try:
         import fold_log

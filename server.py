@@ -97,6 +97,7 @@ import telegram_out              # ...and its outbound Telegram subset (telegr/;
 import telegram_in               # ...and her read-only /now and /last replies (her chat only; the same memory as /api/messages)
 import jarvis_log                # Jarvis v3: the call log (data/jarvis/call_<day>.jsonl), the self line, the card
 import jarvis_cmd                # Jarvis v3: the command grammar every face shares (POST /api/jarvis/cmd, Telegram)
+import jarvis_voice              # Jarvis v3 Task 7: the model voice behind one seam, fenced to the card
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -4790,7 +4791,8 @@ JARVIS_FRESH_S = 40                              # a live slot a face built < 40
 JARVIS_SLOW_S = 10                               # a pass over 10 s is a health note (the card lags by that much) [I]
 _JPASS = {"m": {}, "s": None, "at": None, "slow": None, "skipped": None, "last": None}   # the pass's memory and notes
 EMPTY_STATE = {"watches": [], "lines": [], "zones": []}       # the cmd contract's state when there is none
-_VOICE = {}                                      # Task 7's seam: idx -> the model voice's line for the card (jarvis_voice)
+_JVOICE = {}                                     # Task 7: idx / "brief" -> jarvis_voice's last result, the card's voice
+                                                 # (not _VOICE: that name is the trade ladder's memory, ~3424)
 
 
 def _jarvis_pass():
@@ -4833,6 +4835,9 @@ def _jarvis_loop():
     while True:
         try:
             _jarvis_pass()
+            b = jarvis_voice.preopen(lambda: _jarvis_card("NIFTY"), lambda: _jcmd().notes(), _ist())   # Task 7: 09:00-09:15
+            if b:
+                _JVOICE["brief"] = _JVOICE["NIFTY"] = b  # NIFTY's card shows the brief until its first change
         except Exception:
             log.exception("jarvis pass")
         time.sleep(MSG_EVERY_S)
@@ -4845,6 +4850,8 @@ def _jarvis_log(out):
         if out.get("ok") and t and _LAST_LOGGED.get(out["idx"]) != t:
             jarvis_log.write(out["day"], out["idx"], jarvis_log.row(out, time.time()))
             _LAST_LOGGED[out["idx"]] = t
+            if jarvis_voice.changed(out["day"], out["idx"], (out.get("call") or {}).get("word")):   # Task 7: narrate a change
+                jarvis_voice.later(_JVOICE, out["idx"], lambda i=out["idx"]: jarvis_voice.on_change(_jvoice_card(i)))
     except Exception:
         log.exception("jarvis call log")
 
@@ -4879,8 +4886,14 @@ def _jarvis_card(idx):
     note = {"slow": _JPASS.get("slow"), "skipped": _JPASS.get("skipped")}.get(_JPASS.get("last"))   # the last pass's note
     out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + ([note] if note else []))
     if out.get("ok"):
-        out["voice"] = _VOICE.get(idx)                # Task 7 (the model voice), None until then
+        out["voice"] = _JVOICE.get(idx)               # Task 7 (the model voice), None until then
     return out
+
+
+def _jvoice_card(idx):
+    """Task 7: the card the voice reads = the face's card + the frame's call.why (the engine's lines: its fallback)."""
+    c, fr = _jarvis_card(idx), _jarvis_live(idx) or {}
+    return dict(c, why=list((fr.get("call") or {}).get("why") or [])) if c.get("ok") else c
 
 
 def _jarvis_cmd(idx, text, src):
@@ -4889,7 +4902,16 @@ def _jarvis_cmd(idx, text, src):
     if idx not in instruments.ENABLED:
         why = f"could not check — {idx} is not an index this server reads"
         return {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": dict(EMPTY_STATE)}
-    return _jcmd().apply(idx, text, _jarvis_live(idx), src, now=_ist().timestamp())
+    r = _jcmd().apply(idx, text, _jarvis_live(idx), src, now=_ist().timestamp())
+    if r.get("kind") == "ask" and r.get("ok"):          # Task 7: the voice answers; a page / the terminal never wait on it
+        q = jarvis_cmd.parse(text).get("text")
+        ask = lambda: dict(jarvis_voice.answer(_jvoice_card(idx), q), q=q)      # noqa: E731 -- q: whose answer it is
+        if src == "telegram":                            # her chat has no card to fill: telegram_in's own poll thread waits
+            v = _JVOICE[idx] = ask()
+            return dict(r, reply="voice fell back — " + str(v["why"]) if v["fell_back"] else "voice", lines=v["lines"])
+        jarvis_voice.later(_JVOICE, idx, ask)
+        r = dict(r, reply=jarvis_voice.THINKING, lines=[])
+    return r
 
 
 def _jarvis_tg(text):
@@ -6634,7 +6656,8 @@ def _isolate_mock_writers():
     telegram_out.DIR = os.path.join(mock, "telegr")                 # A101: a rehearsal never finds her chat (and never starts)
     import jarvis
     jarvis.TAPE_DIR = os.path.join(mock, "tape_fut1m")               # P0 (30 Oct): the saved 1-min fut tape (jarvis.save_tape)
-    jarvis_log.DIR = jarvis_cmd.DIR = os.path.join(mock, "jarvis")   # Jarvis v3: the call log and the command log
+    jarvis_log.DIR = jarvis_cmd.DIR = jarvis_voice.DIR = os.path.join(mock, "jarvis")   # Jarvis v3: the call, command, voice logs
+    jarvis_voice.KEYS = os.path.join(mock, "keys")    # a mock run never reads her keys (no key there: the engine's lines)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)
