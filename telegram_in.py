@@ -7,8 +7,10 @@ read-only Telegram replies: /now and /last, only from my chat"; follows telegram
             never logged (one "ignored" line an hour, with no content). No chat.txt (or token): the receiver does not start.
   WHAT      /now  -> "NOW HH:MM" and the NOW rows exactly as GET /api/messages gives them
             /last -> the last LAST_N message lines, newest first (the window's order), each with its time
-            else  -> HELP. At most CAP replies a minute.
+            else  -> Jarvis v3: the command grammar (CMD, set by server.main to server._jarvis_tg -> jarvis_cmd: watch,
+                     mark, flat, why, ...); with no CMD wired, HELP. At most CAP replies a minute.
   READ-ONLY the provider (server._msg_reply) is the stream's memory: nothing here computes, writes, or places an order.
+            Her commands go through CMD to jarvis_cmd, which keeps their rows and refuses any order word.
 Reuses telegram_out's config reader, scrub and HTTP seam (`_open`, `send`); THE TOKEN lives only in a request URL and every
 logged error goes through `scrub`.
 tools/telegram_setup.py also calls getUpdates, once: Telegram allows ONE long-poller at a time (the other gets a 409, which
@@ -33,6 +35,7 @@ HELP = "/now · /last"
 log = logging.getLogger("tapemap")
 _sleep = time.sleep                           # the back-off wait: a test seam, as telegram_out._open is for the network
 _ON = False
+CMD = None                                    # server.main: her text -> the command's reply (server._jarvis_tg); None: HELP
 _SENT = []                                    # epoch s of the last minute's replies (the cap)
 _QUIET = {}                                   # log key -> when it last logged: each line at most once an hour
 
@@ -64,10 +67,16 @@ def backlog(tok):
         off = top
 
 
-def answer(cmd, provider, d):
-    """The reply text for a command (d: the IST time now). Read-only, never blank: a could-not-check says why."""
+def answer(cmd, provider, d, text=None):
+    """The reply text for a command (d: the IST time now; text: her whole message, for CMD). Never blank: a could-not-check
+    says why."""
     if cmd not in ("/now", "/last"):
-        return HELP
+        if CMD is None or not text:
+            return HELP
+        try:
+            return CMD(text) or HELP
+        except Exception as e:  # noqa: BLE001 -- a command door that raises is still an answer
+            return f"could not check — {type(e).__name__}"
     try:
         rep = provider()
     except Exception as e:  # noqa: BLE001 -- a stream that raises is still an answer
@@ -111,7 +120,7 @@ def handle(u, cfg, provider, now=None):
         return
     _SENT.append(t)
     cmd = ((m.get("text") or "").split() or [""])[0].split("@")[0].lower()      # "/now@tapemap_x_bot" is /now
-    out.send(cfg[0], cfg[1], answer(cmd, provider, datetime.fromtimestamp(t, IST)))
+    out.send(cfg[0], cfg[1], answer(cmd, provider, datetime.fromtimestamp(t, IST), m.get("text")))
 
 
 def poll(cfg, off, provider, now=None):

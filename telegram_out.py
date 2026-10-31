@@ -3,7 +3,8 @@
 
 OUTBOUND ONLY: sendMessage to her one chat. Nothing here reads a command (telegram_in.py answers /now and /last, read-only);
 nothing here places an order. The text is the window's own line (messages.line), the day's first one prefixed with the date.
-  WHAT    `wants`: SETUP; READ to LEAN / TREND; TRADE WARN / EXIT; every HEALTH line. QUIT, LEG, DIN and RANGE / WAIT churn
+  WHAT    `wants`: SETUP; READ to LEAN / TREND; TRADE WARN / EXIT; every HEALTH and JARVIS line (Jarvis v3: the word's
+          changes, CAN'T SEE, her watch hits -- inside the same CAP). QUIT, LEG, DIN and RANGE / WAIT churn
           stay in the window (a READ QUIT fires late, and was 23 of the 32 Telegram lines on 23 Oct).
   GATE    `gate`: weekdays 09:15-15:40 IST, and the message's own close within FRESH_S of now -- a restart rebuilds the
           morning into the window, never into her phone. `offer` queues each (day, key) once.
@@ -82,7 +83,7 @@ def wants(m):
     k, w = m.get("kind"), str(m.get("word") or "")
     if m.get("quiet"):
         return False
-    if k in ("SETUP", "HEALTH"):
+    if k in ("SETUP", "HEALTH", "JARVIS"):
         return True
     if k == "TRADE":
         return w in ("WARN", "EXIT")

@@ -95,6 +95,8 @@ import voice_path                # the voice replayed over a past marked trade (
 import messages                  # THE MESSAGE STREAM (A101): one line per change of an existing read, GET /api/messages
 import telegram_out              # ...and its outbound Telegram subset (telegr/; OFF without chat.txt, never under --mock-chain)
 import telegram_in               # ...and her read-only /now and /last replies (her chat only; the same memory as /api/messages)
+import jarvis_log                # Jarvis v3: the call log (data/jarvis/call_<day>.jsonl), the self line, the card
+import jarvis_cmd                # Jarvis v3: the command grammar every face shares (POST /api/jarvis/cmd, Telegram)
 import upstox_adapter
 import vpin as vpin_mod
 
@@ -924,6 +926,7 @@ def _senses_loop(poller, payloads, period=0.5):
                     _log_chain_pace(poller, payloads, idx, doc, desk_state)
                 except Exception:
                     log.exception("desk_log at chain pace (%s)", idx)
+            _jarvis_watch(boxes, snap, getattr(src, "resolved", None) or {})   # Jarvis v3: her watches (fail-soft)
         except Exception as e:            # never take the tape down
             _SENSES["err"] = f"{type(e).__name__}: {e}"
             log.exception("senses loop")
@@ -3564,6 +3567,84 @@ def _hold_trade(doc, src="marked"):
             "expiry": doc.get("expiry"), "validate": va}, None
 
 
+def _hold_post(doc):
+    """POST /api/hold/trades {op: mark|exit|reopen|unmark|<trade_record.OPS>}: THE ONE HANDLER of her marked trades -- the
+    Float's / panel's / Validate's door, and jarvis_cmd's `mark` / `flat` (Jarvis v3) call it too, never a copy. A record
+    of what she did on her broker; never an order. -> the reply."""
+    op = doc.get("op")
+    with HOLD_TRADES_LOCK:
+        trades = _hold_trades()
+        if op == "mark":
+            tr, why = _hold_trade(doc)
+            out = {"ok": False, "why": board.CC + why} if tr is None else None
+            # a double-click, not a second trade (REVIEW P1-8): the same contract, still
+            # open, marked within 60 s of this one
+            dup = tr and next((t for t in trades if not t.get("exit_t")
+                               and all(t[f] == tr[f] for f in ("idx", "k", "side", "role"))
+                               and abs(_hold_sec(t["t0"]) - _hold_sec(tr["t0"])) <= 60), None)
+            if dup:
+                out = {"ok": False, "why": f"already marked — {dup['idx']} {dup['k']:g} {dup['side']} "
+                                           f"{dup['role']} in at {dup['t0']} is open"}
+            elif tr is not None:
+                th, why1 = trade_record.thesis_from(doc, time.strftime("%H:%M:%S"))
+                rs, why2 = trade_record.roles_from(doc, tr)
+                if why1 or why2:
+                    out = {"ok": False, "why": board.CC + (why1 or why2)}
+                else:
+                    tr = dict(tr, at=time.time(), **({"thesis": th} if th else {}), **({"roles": rs} if rs else {}),
+                              **({"via": "cmd"} if doc.get("via") == "cmd" else {}))   # Jarvis v3: by a command
+                    tags = trade_record.entry_tags(tr, trades, time.time())   # FLIP / COOLDOWN: warned, never refused
+                    if tags:
+                        tr["tags"] = tags
+                    trades[:] = [t for t in trades if t["id"] != tr["id"]] + [tr]
+        elif op in ("exit", "unmark", "reopen"):
+            tr = next((t for t in trades if t["id"] == doc.get("id")), None)
+            ex = str(doc.get("exit_t") or time.strftime("%H:%M:%S"))      # none given: now
+            out = None
+            if tr is None:
+                out = {"ok": False, "why": board.CC + f"no marked trade {doc.get('id')} today"}
+            elif op == "unmark":
+                trades.remove(tr)
+            elif op == "reopen":
+                # the UI's 10 s "undo I'm out", for an exit clicked in the last 120 s. Minute
+                # rows the log wrote meanwhile keep their after_exit (write-once, hold_log.py).
+                if not tr.get("exit_t") or time.time() - (tr.get("exit_at") or 0) > 120:
+                    out = {"ok": False, "why": "nothing to undo — no exit in the last 120 s"}
+                else:
+                    tr["exit_t"] = None
+                    tr.pop("exit_t_broker", None)
+                    tr.pop("exit_at", None)
+            elif (op == "exit" and tr.get("exit_t") and time.time() - (tr.get("exit_at") or 0) < 60
+                  and (not doc.get("exit_t") or ex >= tr["exit_t"])):
+                # her second click on a slow answer (the client gives up in 8 s): the first exit stands, untouched (25 Oct F10).
+                # Every face: Validate sends no exit_t, the panel / Float / Mark send the click time -- a later one is the same
+                # click; an EARLIER exit_t is a correction, and any exit 60 s or more after the first passes
+                out = {"ok": True, "why": f"already out at {tr['exit_t']}", "trades": list(trades)}
+            elif not _HOLD_T.match(ex) or ex < tr["t0"]:
+                out = {"ok": False, "why": board.CC + "exit time must be HH:MM[:SS], not before the entry"}
+            else:
+                tr["exit_t"], tr["exit_at"] = ex, time.time()
+                rd = _VAL_LAST.get(tr["id"])          # the whole trade out at once: its lamps, its tags
+                trade_record.snap_exit(tr, rd)
+                for tag in trade_record.exit_tags("MANUAL", rd):
+                    if tag not in tr.setdefault("tags", []):
+                        tr["tags"].append(tag)
+        elif op in trade_record.OPS:
+            # her record (Validate spec): thesis, role_add, role_exit, ack, replan, peek. A RECORD of
+            # what she did on her broker -- never an order. More lots out than a role holds is refused.
+            tr = next((t for t in trades if t["id"] == doc.get("id")), None)
+            why = (board.CC + f"no marked trade {doc.get('id')} today" if tr is None else
+                   trade_record.apply(tr, op, doc, time.strftime("%H:%M:%S"), time.time(), _VAL_LAST.get(tr["id"])))
+            out = {"ok": False, "why": why} if why else None
+        else:
+            out = {"ok": False, "why": board.CC + "op must be mark, exit, reopen, unmark or " + ", ".join(trade_record.OPS)}
+        out = out or {"ok": True, "trades": list(trades)}
+    if out["ok"]:
+        _HOLD["dirty"] = True
+        _save_day_state()
+    return out
+
+
 def _hold_reply(poller, q):
     """GET /api/hold's reply: the verdict, the four rows, the entry check and the side read."""
     def one(n):
@@ -4682,15 +4763,122 @@ def _jarvis_reply(q):
     upto = int(up[:2]) * 60 + int(up[3:5]) if up else \
         (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60 if live else None
     key = (idx, day, upto if not live else None, fill)
+    slot = idx if live else (idx, "replay")         # Jarvis v3: a replay never evicts the live frame the card and log read
     with _JARVIS_LOCK:
-        hit = _JARVIS.get(idx)
+        hit = _JARVIS.get(slot)
         if hit and hit[0] == key and time.time() - hit[1] < JARVIS_TTL_S:
             return hit[2]
         out = dict(jarvis.build(day, idx, upto, fill), live=live, asof=d.strftime("%H:%M:%S"))
         if not live and out.get("ok"):
             out["calls"] = jarvis.calls(out)
-        _JARVIS[idx] = (key, time.time(), out)
+        _JARVIS[slot] = (key, time.time(), out)
+        if live:
+            _jarvis_log(out)
         return out
+
+
+# ---- Jarvis v3 (Task 2): the call log, the card, the commands, the watches -------------------------------------------
+_LAST_LOGGED = {}                                # idx -> the frame minute ("HH:MM") last written to the call log
+_JCMD = {}                                       # day -> jarvis_cmd.Day: today's lines, zones, watches, notes
+_JCMD_LOCK = threading.Lock()
+JARVIS_STALE_S = 120                             # a watch hit says "could not check" over a frame built > 2 min ago [I]
+JARVIS_ORIGINS = ("http://localhost:8787", "http://127.0.0.1:8787",      # her Jarvis page (start-v2.bat), and Vite
+                  "http://localhost:5173", "http://127.0.0.1:5173")
+
+
+def _jarvis_log(out):
+    """The CALL LOG (jarvis_log.py): a live frame whose last minute is new for its index -> one row. Fail-soft."""
+    try:
+        t = (out.get("mins") or [None])[-1]
+        if out.get("ok") and t and _LAST_LOGGED.get(out["idx"]) != t:
+            jarvis_log.write(out["day"], out["idx"], jarvis_log.row(out, time.time()))
+            _LAST_LOGGED[out["idx"]] = t
+    except Exception:
+        log.exception("jarvis call log")
+
+
+def _jarvis_live(idx):
+    """The cached LIVE frame /api/jarvis built last for idx (never a replay), or None. No build."""
+    hit = _JARVIS.get(idx)
+    return hit[2] if hit else None
+
+
+def _hold_list():
+    with HOLD_TRADES_LOCK:
+        return [dict(t) for t in _hold_trades()]
+
+
+def _jcmd():
+    """Today's jarvis_cmd.Day, rebuilt from its file on first use and at a day change (anytime-start)."""
+    day = _ist().strftime("%Y-%m-%d")
+    with _JCMD_LOCK:
+        if day not in _JCMD:
+            _JCMD.clear()
+            _JCMD[day] = jarvis_cmd.Day(day, hold=_hold_post, trades=_hold_list)
+        return _JCMD[day]
+
+
+def _jarvis_card(idx):
+    """GET /api/jarvis/card: THE CARD from the cached live frame only (jarvis_log.card), today's self line and drawn state."""
+    fr = _jarvis_live(idx)
+    if fr is None:
+        return {"ok": False, "why": "could not check — no frame built yet"}
+    jd = _jcmd()
+    return jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes())
+
+
+def _jarvis_cmd(idx, text, src):
+    """One line of her text (the page, the terminal, Telegram, Dext) through jarvis_cmd against the cached live frame."""
+    idx = str(idx or "NIFTY").upper()
+    if idx not in instruments.ENABLED:
+        why = f"could not check — {idx} is not an index this server reads"
+        return {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": {}}
+    return _jcmd().apply(idx, text, _jarvis_live(idx), src, now=_ist().timestamp())
+
+
+def _jarvis_tg(text):
+    """telegram_in.CMD: any text from her chat but /now and /last -> the command's reply and lines (Telegram caps 4096)."""
+    idx, t = jarvis_cmd.for_telegram(text)
+    r = _jarvis_cmd(idx, t, "telegram")
+    return "\n".join([str(r.get("reply"))] + [str(x) for x in r.get("lines") or []])[:4000]
+
+
+def _jarvis_hitcard(idx):
+    """A watch hit's card: the cached live frame's word, count and last answer; a frame over JARVIS_STALE_S old says so."""
+    hit = _JARVIS.get(idx)
+    if hit is None or time.time() - hit[1] > JARVIS_STALE_S:
+        asof = hit[2].get("asof") if hit else None
+        return {"word": "could not check — " + (f"last frame {asof}" if asof else "no frame built yet"), "count": None,
+                "answer": None}
+    return jarvis_log.brief(hit[2])
+
+
+def _jarvis_watch(boxes, snap, resolved):
+    """Each senses pass: her watches against the prices this loop already holds -- the chain's spot (the poller's box) for
+    an `s` level, the future's LTP in the feed snapshot for an `f` -- and a touch said once: the hit row (jarvis_cmd), one
+    JARVIS line into the stream and so to Telegram (telegram_out's gate and cap). Fail-soft: never the pass's failure."""
+    try:
+        jd = _jcmd()
+        if not jd.armed():
+            return
+        d = _ist()
+        for idx in instruments.ENABLED:
+            key = (resolved.get(idx) or {}).get("fut_key")
+            hits = jd.check_watches(idx, (boxes.get(idx) or {}).get("spot"),
+                                    upstox_adapter.ltp_of(snap.get(key)) if key and snap else None, d.strftime("%H:%M"),
+                                    lambda i=idx: _jarvis_hitcard(i), now=d.timestamp())
+            if hits:
+                _msg_write(jd.day, messages.jarvis([], hits), d.timestamp())
+    except Exception:
+        log.exception("jarvis watch")
+
+
+def _code_changed():
+    """/api/health: the tapemap *.py files (not tests) edited after this process started -- it runs the old code until a
+    restart."""
+    fs = sorted(p.name for p in ROOT.glob("*.py")
+                if not p.name.startswith("test_") and p.name != "conftest.py" and p.stat().st_mtime > _STARTED)
+    return {"n": len(fs), "files": fs}
 
 
 def _hs_voice(tr, rep, vc):
@@ -4738,8 +4926,13 @@ def _msg_pass(now=None):
     except Exception:
         log.exception("handshake pass")                                     # never the stream's failure
         hs = []
+    try:                                                                    # Jarvis v3: the word, CAN'T SEE, watch hits
+        jv = messages.jarvis(jarvis_log.read(day), jarvis_cmd.rows(day))
+    except Exception:
+        log.exception("jarvis stream")
+        jv = []
     t4 = time.perf_counter()
-    _msg_write(day, messages.build(rr, dr) + pal + hs + ([h] if h else []), now)
+    _msg_write(day, messages.build(rr, dr) + pal + hs + jv + ([h] if h else []), now)
     with _MSG_LOCK:
         if h and h["key"] in _MSG["keys"]:
             _MSG["health"] = h["word"]
@@ -4875,8 +5068,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _cors(self):
         origin = self.headers.get("Origin")
-        if origin == self.ALLOW_ORIGIN:
-            self.send_header("Access-Control-Allow-Origin", origin)
+        if origin == self.ALLOW_ORIGIN or (urlsplit(self.path).path in ("/api/jarvis/card", "/api/jarvis/cmd") and origin
+                                           and (origin in JARVIS_ORIGINS or origin.startswith("chrome-extension://"))):
+            self.send_header("Access-Control-Allow-Origin", origin)     # Jarvis v3: her page (8787 / 5173) and the extension
             self.send_header("Vary", "Origin")
 
     def do_OPTIONS(self):
@@ -4942,6 +5136,29 @@ class Handler(SimpleHTTPRequestHandler):
         # server publishes. The two join on (index, day, t) when §5e asks
         # "of the zone arms, which did I actually take". Fire-and-forget on
         # the extension side — a failure here must never block a fill.
+        if urlsplit(self.path).path == "/api/jarvis/cmd":
+            # Jarvis v3 (jarvis_cmd.py): one line of her text, the grammar every face shares; `mark` / `flat` reach her hold
+            # record through _hold_post. A page of another site is refused (the hold doors' rule; her Jarvis page and the
+            # extension are let in); 8 KB. Never an order: an order word is refused and logged.
+            site, origin = self.headers.get("Sec-Fetch-Site"), self.headers.get("Origin") or ""
+            if site not in (None, "same-origin", "same-site", "none") and not (
+                    origin.startswith("chrome-extension://") or origin in JARVIS_ORIGINS):
+                self._json(json.dumps({"ok": False, "why": "refused — a POST from another site"}).encode(), 403)
+                return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                if not 0 < n < 8192:
+                    self._json(b'{"ok":false,"why":"bad request"}', 400)
+                    return
+                doc = json.loads(self.rfile.read(n) or b"{}")
+                out = _jarvis_cmd(doc.get("idx"), str(doc.get("text") or "")[:500],
+                                  doc.get("src") if doc.get("src") in ("page", "cli", "dext") else "page")
+            except Exception as e:           # never 500 a face
+                log.exception("jarvis cmd")
+                why = board.CC + f"{type(e).__name__}: {e}"
+                out = {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": {}}
+            self._json(json.dumps(out, default=str).encode())
+            return
         if self.path.startswith("/api/hold/"):
             # THE HOLD WINDOW's two doors. /api/hold/trades {op: mark|exit|reopen|unmark}:
             # the trades she marks, kept in data/day_state/ so a restart keeps
@@ -4971,77 +5188,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if self.path.startswith("/api/hold/import"):
                     out = _hold_import(self.poller, body.decode("utf-8-sig", "replace"))
                 else:
-                    doc = json.loads(body or b"{}")
-                    op = doc.get("op")
-                    with HOLD_TRADES_LOCK:
-                        trades = _hold_trades()
-                        if op == "mark":
-                            tr, why = _hold_trade(doc)
-                            out = {"ok": False, "why": board.CC + why} if tr is None else None
-                            # a double-click, not a second trade (REVIEW P1-8): the same contract, still
-                            # open, marked within 60 s of this one
-                            dup = tr and next((t for t in trades if not t.get("exit_t")
-                                               and all(t[f] == tr[f] for f in ("idx", "k", "side", "role"))
-                                               and abs(_hold_sec(t["t0"]) - _hold_sec(tr["t0"])) <= 60), None)
-                            if dup:
-                                out = {"ok": False, "why": f"already marked — {dup['idx']} {dup['k']:g} {dup['side']} "
-                                                           f"{dup['role']} in at {dup['t0']} is open"}
-                            elif tr is not None:
-                                th, why1 = trade_record.thesis_from(doc, time.strftime("%H:%M:%S"))
-                                rs, why2 = trade_record.roles_from(doc, tr)
-                                if why1 or why2:
-                                    out = {"ok": False, "why": board.CC + (why1 or why2)}
-                                else:
-                                    tr = dict(tr, at=time.time(), **({"thesis": th} if th else {}), **({"roles": rs} if rs else {}))
-                                    tags = trade_record.entry_tags(tr, trades, time.time())   # FLIP / COOLDOWN: warned, never refused
-                                    if tags:
-                                        tr["tags"] = tags
-                                    trades[:] = [t for t in trades if t["id"] != tr["id"]] + [tr]
-                        elif op in ("exit", "unmark", "reopen"):
-                            tr = next((t for t in trades if t["id"] == doc.get("id")), None)
-                            ex = str(doc.get("exit_t") or time.strftime("%H:%M:%S"))      # none given: now
-                            out = None
-                            if tr is None:
-                                out = {"ok": False, "why": board.CC + f"no marked trade {doc.get('id')} today"}
-                            elif op == "unmark":
-                                trades.remove(tr)
-                            elif op == "reopen":
-                                # the UI's 10 s "undo I'm out", for an exit clicked in the last 120 s. Minute
-                                # rows the log wrote meanwhile keep their after_exit (write-once, hold_log.py).
-                                if not tr.get("exit_t") or time.time() - (tr.get("exit_at") or 0) > 120:
-                                    out = {"ok": False, "why": "nothing to undo — no exit in the last 120 s"}
-                                else:
-                                    tr["exit_t"] = None
-                                    tr.pop("exit_t_broker", None)
-                                    tr.pop("exit_at", None)
-                            elif (op == "exit" and tr.get("exit_t") and time.time() - (tr.get("exit_at") or 0) < 60
-                                  and (not doc.get("exit_t") or ex >= tr["exit_t"])):
-                                # her second click on a slow answer (the client gives up in 8 s): the first exit stands, untouched (25 Oct F10).
-                                # Every face: Validate sends no exit_t, the panel / Float / Mark send the click time -- a later one is the same
-                                # click; an EARLIER exit_t is a correction, and any exit 60 s or more after the first passes
-                                out = {"ok": True, "why": f"already out at {tr['exit_t']}", "trades": list(trades)}
-                            elif not _HOLD_T.match(ex) or ex < tr["t0"]:
-                                out = {"ok": False, "why": board.CC + "exit time must be HH:MM[:SS], not before the entry"}
-                            else:
-                                tr["exit_t"], tr["exit_at"] = ex, time.time()
-                                rd = _VAL_LAST.get(tr["id"])          # the whole trade out at once: its lamps, its tags
-                                trade_record.snap_exit(tr, rd)
-                                for tag in trade_record.exit_tags("MANUAL", rd):
-                                    if tag not in tr.setdefault("tags", []):
-                                        tr["tags"].append(tag)
-                        elif op in trade_record.OPS:
-                            # her record (Validate spec): thesis, role_add, role_exit, ack, replan, peek. A RECORD of
-                            # what she did on her broker -- never an order. More lots out than a role holds is refused.
-                            tr = next((t for t in trades if t["id"] == doc.get("id")), None)
-                            why = (board.CC + f"no marked trade {doc.get('id')} today" if tr is None else
-                                   trade_record.apply(tr, op, doc, time.strftime("%H:%M:%S"), time.time(), _VAL_LAST.get(tr["id"])))
-                            out = {"ok": False, "why": why} if why else None
-                        else:
-                            out = {"ok": False, "why": board.CC + "op must be mark, exit, reopen, unmark or " + ", ".join(trade_record.OPS)}
-                        out = out or {"ok": True, "trades": list(trades)}
-                    if out["ok"]:
-                        _HOLD["dirty"] = True
-                        _save_day_state()
+                    out = _hold_post(json.loads(body or b"{}"))
                 self._json(json.dumps(out, default=str).encode())
             except Exception as e:      # never 500 at the window
                 log.exception("hold post %s", self.path)
@@ -5356,6 +5503,8 @@ class Handler(SimpleHTTPRequestHandler):
                 # F13 (25 Oct review, A76): is today's record being written, and is today's tradebook imported (display only)
                 "recording": _health_safe(_recording),
                 "tradebook": _health_safe(_tradebook_due),
+                # Jarvis v3: code edited after this start runs only after a restart (her restart, never mid-session)
+                "code_changed_since_start": _health_safe(_code_changed),
             }).encode())
             return
         if self.path.startswith("/api/data"):
@@ -5779,6 +5928,17 @@ class Handler(SimpleHTTPRequestHandler):
             # the reads (speed, signs, writers ±7, manage, no trade), health and the one call. Display only.
             try:
                 out = _jarvis_reply(parse_qs(urlsplit(self.path).query))
+            except Exception as e:               # a bad read must not 500 the face
+                log.exception("jarvis %s", self.path)
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out, default=str).encode())
+        elif urlsplit(self.path).path in ("/api/jarvis/card", "/api/jarvis/cmd"):
+            # Jarvis v3: the card every face renders (the cached live frame only, no build) and today's drawn state
+            idx = (parse_qs(urlsplit(self.path).query).get("idx") or ["NIFTY"])[0].upper()
+            try:
+                out = ({"ok": False, "why": f"could not check — {idx} is not an index this server reads"}
+                       if idx not in instruments.ENABLED else _jarvis_card(idx)
+                       if urlsplit(self.path).path == "/api/jarvis/card" else {"ok": True, "idx": idx, "state": _jcmd().state(idx)})
             except Exception as e:               # a bad read must not 500 the face
                 log.exception("jarvis %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
@@ -6416,6 +6576,7 @@ def _isolate_mock_writers():
     telegram_out.DIR = os.path.join(mock, "telegr")                 # A101: a rehearsal never finds her chat (and never starts)
     import jarvis
     jarvis.TAPE_DIR = os.path.join(mock, "tape_fut1m")               # P0 (30 Oct): the saved 1-min fut tape (jarvis.save_tape)
+    jarvis_log.DIR = jarvis_cmd.DIR = os.path.join(mock, "jarvis")   # Jarvis v3: the call log and the command log
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)
@@ -6983,6 +7144,7 @@ def main():
         threading.Thread(target=_msg_loop, daemon=True, name="messages").start()
         if not mock_chain:                           # a rehearsal never reaches her phone
             telegram_out.start()
+            telegram_in.CMD = _jarvis_tg             # Jarvis v3: any other text from her chat is a command (jarvis_cmd)
             telegram_in.start(_msg_reply)            # /now, /last: read-only, her chat only; no receiver without chat.txt
         if poller is not None:
             threading.Thread(target=_senses_loop, args=(poller, payloads),

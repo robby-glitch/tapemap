@@ -169,3 +169,31 @@ def test_one_malformed_row_is_skipped_and_counted_never_raised():
     assert lines(ms, "LEG") == ["10:20  NIFTY  ▼ leg jaari · 5/7 saath"]
     assert messages.SKIPPED["n"] == 4
     assert messages.build([], []) == [] and messages.SKIPPED["n"] == 0
+
+
+def test_jarvis_lines_say_a_word_change_once_blind_once_and_a_watch_hit():
+    """Jarvis v3 Task 2: kind JARVIS from the call log (jarvis_log rows) -- one line per ACTION word change keyed at its
+    `since`, CAN'T SEE once per blind stretch, the word said again (at its own minute) once she can see, and a watch hit
+    from the command log with the card's word, count and last answer. Other command rows say nothing."""
+    def crow(t, word, since=None, w=4, a=1, lean=-1, blind=False, idx="NIFTY"):
+        return {"idx": idx, "t": t, "word": word, "lean": lean, "since": since, "blind": blind,
+                "count": {"with": w, "against": a, "N": w + a}}
+    rows = [crow("09:56", "TREND ▼", "09:56"), crow("09:57", "TREND ▼", "09:56"), crow("10:10", "HOLD ▼", "10:10", 2, 2),
+            crow("12:41", "CAN'T SEE", lean=0, blind=True), crow("12:42", "CAN'T SEE", lean=0, blind=True),
+            crow("12:50", "HOLD ▼", "10:10"), crow("12:51", "HOLD ▼", "10:10"),
+            crow("10:00", "HOLD ▲", "10:00", lean=1, idx="SENSEX"), crow("10:01", "HOLD ▲", lean=1, idx="SENSEX")]
+    hits = [{"kind": "watch_hit", "id": 3, "idx": "NIFTY", "t": "11:42", "level": 22800.0, "frame": "s", "px": 22800.4,
+             "card": {"word": "TREND ▼", "count": {"with": 4, "against": 1, "N": 5},
+                      "answer": "last answer 10:38 22,950s PE ±2 BROKEN"}},
+            {"kind": "watch", "idx": "NIFTY", "t": "10:12:00", "text": "watch 22800s", "ok": True}]
+    ms = messages.jarvis(rows, hits)
+    assert [m["line"] for m in ms] == [
+        "09:56  NIFTY  TREND ▼ · WITH 4 · AGAINST 1 · since 09:56",
+        "10:00  SENSEX  HOLD ▲ · WITH 4 · AGAINST 1 · since 10:00",
+        "10:10  NIFTY  HOLD ▼ · WITH 2 · AGAINST 2 · since 10:10",
+        "11:42  NIFTY  WATCH 22,800s hit @22,800.4 · TREND ▼ · WITH 4 · AGAINST 1 · last answer 10:38 22,950s PE ±2 BROKEN",
+        "12:41  NIFTY  CAN'T SEE · blind since 12:41",
+        "12:50  NIFTY  HOLD ▼ · WITH 4 · AGAINST 1 · since 10:10"]
+    assert {m["kind"] for m in ms} == {"JARVIS"} and len({m["key"] for m in ms}) == len(ms)
+    assert messages.KINDS.index("DIN") < messages.KINDS.index("JARVIS") < messages.KINDS.index("TRADE")
+    assert messages.jarvis([{"idx": "NIFTY", "t": "10:00", "word": "TREND ▼", "lean": 7}], []) == []   # a bad row: skipped

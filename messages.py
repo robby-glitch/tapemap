@@ -9,6 +9,8 @@ NOTHING NEW IS READ: every message is a change in a read the server already logs
           ZONE (A116): her four pieces and n/4 on the line, then one line per piece that joins its episode (zone_ep);
           A131: the ZONE line ends with the §1o day type in her words (din); TOP / BOTTOM BAN SAKTA is palat.py's
   DIN     the one-sided meter's day type changes (TREND ▲ / ▼, CHOP, MIXED)                      the same DECODE rows
+  JARVIS  Jarvis's ACTION word changes (keyed at its since), CAN'T SEE once per blind stretch, and   data/jarvis/call_<day>.jsonl
+          her watch hits with the card's word, count and last answer (Jarvis v3)                  data/jarvis/cmd_<day>.jsonl
   TRADE   the one voice turns TIGHTEN / WARN / EXIT (server._in_trade -> `trade`)
   HEALTH  RECORDING NAHI starts / clears; the day's first look says "TapeMap live" (server._recording -> `health`)
 SETUP reads DECODE's chips, not confluence_log: that log writes a row once the setup's window has CLOSED (23 Oct [M]:
@@ -26,7 +28,7 @@ from __future__ import annotations
 import re
 
 ARROW = {1: "▲", -1: "▼", 0: ""}
-KINDS = ("HEALTH", "READ", "SETUP", "LEG", "DIN", "TRADE")    # the order of one close's lines
+KINDS = ("HEALTH", "READ", "SETUP", "LEG", "DIN", "JARVIS", "TRADE")    # the order of one close's lines
 OFF = ("—", "ARMED")                                          # a setup chip that has not fired
 TRADE_ON = ("TIGHTEN", "WARN", "EXIT")
 SKIPPED = {"n": 0}                                            # rows the LAST build skipped as malformed (a bad dir, text for a number)
@@ -34,6 +36,14 @@ SKIPPED = {"n": 0}                                            # rows the LAST bu
 
 def _n(x):
     return "?" if x is None else f"{x:,.0f}"
+
+
+def px(x):
+    """A price as the lines print it: 22,800 or 22,799.6; '?' when missing (never a zero)."""
+    if not isinstance(x, (int, float)):
+        return "?"
+    x = round(float(x), 1)
+    return f"{x:,.0f}" if x.is_integer() else f"{x:,.1f}"
 
 
 def key(m):
@@ -186,6 +196,46 @@ def build(read_rows, decode_rows):
             bad += 1
     SKIPPED["n"] = bad
     return sorted(out, key=lambda m: (m["t"], KINDS.index(m["kind"]), m["idx"], m["word"]))
+
+
+def _wa(c):
+    c = c or {}
+    return None if c.get("with") is None or c.get("against") is None else f"WITH {c['with']} · AGAINST {c['against']}"
+
+
+def jarvis(call_rows, cmd_rows=()):
+    """Jarvis v3's lines (kind JARVIS) from the call log (jarvis_log rows, every index) and the command log (jarvis_cmd
+    rows): one line per ACTION word change, at its `since` (the minute the word was set); CAN'T SEE once per blind stretch;
+    the word said again at its own minute once she can see; one line per watch hit with the card's word, count and last
+    answer. Other command rows say nothing. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
+    out, held, dark = [], {}, {}
+    for r in sorted((r for r in call_rows if _ok(r, "t")), key=lambda r: (r["idx"], r["t"])):
+        try:
+            i, t = r["idx"], r["t"]
+            if r.get("blind"):
+                if not dark.get(i):
+                    out.append(_msg(t, i, "JARVIS", 0, "CAN'T SEE", None, f"blind since {t}", None))
+                dark[i] = True
+                continue
+            w, s = r.get("word"), r.get("since")
+            if not w or (w == held.get(i) and not dark.get(i)):
+                continue
+            out.append(_msg(t if dark.get(i) or not s else s, i, "JARVIS", r.get("lean") or 0, w, _wa(r.get("count")),
+                            f"since {s or t}", None))
+            held[i], dark[i] = w, False
+        except Exception:                                    # noqa: BLE001
+            continue
+    for h in cmd_rows:
+        if h.get("kind") != "watch_hit" or not _ok(h, "t"):
+            continue
+        try:
+            c = h.get("card") or {}
+            out.append(_msg(h["t"][:5], h["idx"], "JARVIS", 0, f"WATCH {px(h['level'])}{h['frame']} hit @{px(h['px'])}",
+                            " · ".join(x for x in (c.get("word"), _wa(c.get("count"))) if x) or None, c.get("answer"), None,
+                            id=f"w{h['id']}"))
+        except Exception:                                    # noqa: BLE001
+            continue
+    return sorted(out, key=lambda m: (m["t"], m["idx"], m["word"]))
 
 
 def now_rows(read_rows, decode_rows, idxs):

@@ -1,0 +1,141 @@
+"""jarvis_log.py -- THE CALL LOG and THE CARD (Jarvis v3 Task 2; plan docs/superpowers/plans/2026-10-31-jarvis-v3-weekend.md,
+the CALL LOG and CARD contracts).
+  LOG    what the LIVE Jarvis frame said: one row per index per frame minute, write-once, data/jarvis/call_<day>.jsonl.
+         The server writes it right after a live build whose last minute is new for that index (server._jarvis_log):
+         never a replay, never a cache hit. `read` gives the rows in order; `self_line` the word's own record today.
+  CARD   the small dict every face renders (GET /api/jarvis/card), built from the cached live frame ONLY -- no build.
+         A key the frame lacks is null, never invented (Tasks 5 / 7 fill how_much, where, voice later).
+Counts, never a %. Every level the engine printed keeps its s / f. Display only: nothing here gates, beeps or places."""
+from __future__ import annotations
+
+import json
+import os
+import re
+import threading
+
+import confluence_log
+
+DIR = os.path.join("data", "jarvis")
+TRUE_WIN_M = 45      # a PALAT? episode "came true" when a PALAT row follows within 45 min of its FIRST minute [I: the plan's
+                     # number; tools/jarvis_review.py measures it the same way, so the card and the evening sheet agree]
+PUSHES_N = 5         # the card's last pushes (the 10 KB bound) [I]
+PUSH_KEYS = ("t", "dir", "lots", "k", "side", "ans", "held_at", "via")
+_SEEN = {}           # path -> {(idx, t)} already on disk: write-once across a restart
+_LOCK = threading.Lock()
+
+
+def _path(day):
+    return os.path.join(DIR, f"call_{day}.jsonl")
+
+
+def read(day, idx=None):
+    """The day's rows in file order, one index (or all); [] when there is no file."""
+    return [r for r in confluence_log._rows(_path(day)) if idx is None or r.get("idx") == idx]
+
+
+def write(day, idx, row):
+    """Append `row` once per (idx, t) -> True when written, False for a minute already on disk. DIR is made on first write."""
+    p = _path(day)
+    with _LOCK:
+        seen = _SEEN.get(p)
+        if seen is None:
+            seen = _SEEN[p] = {(r.get("idx"), r.get("t")) for r in confluence_log._rows(p)}
+        k = (idx, row.get("t"))
+        if k in seen:
+            return False
+        os.makedirs(DIR, exist_ok=True)
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(json.dumps(dict(row, idx=idx), ensure_ascii=False, default=str) + "\n")
+        seen.add(k)
+        return True
+
+
+def _last(xs):
+    return (xs or [None])[-1]
+
+
+def _cnt3(c):
+    return {k: c.get(k) for k in ("with", "against", "N")} if isinstance(c, dict) else None
+
+
+def row(fr, now):
+    """The CALL LOG row of a live frame (the contract's keys; absent ones null). `blind` = the call's BLIND line."""
+    c = fr.get("call") or {}
+    miss = list(c.get("missing") or [])
+    return {"day": fr.get("day"), "idx": fr.get("idx"), "t": c.get("at") or _last(fr.get("mins")), "at": int(now),
+            "shown": fr.get("asof"), "word": c.get("word"), "state": c.get("state"), "lean": c.get("lean"),
+            "since": c.get("since"), "count": _cnt3(c.get("count")), "fut": _last(fr.get("fut")), "spot": _last(fr.get("spot")),
+            "leg": c.get("leg"), "wrong_line": c.get("wrong_line"), "missing": miss,
+            "notes": list((fr.get("health") or {}).get("notes") or []), "blind": any(str(x).startswith("BLIND") for x in miss)}
+
+
+def _m(t):
+    return int(t[:2]) * 60 + int(t[3:5])
+
+
+def self_line(rows, fut_now):
+    """`TREND ▼ since 09:56 · +200 so far · PALAT? said 3× · came true 0× · blind 0 min`, or None with no rows. since = the
+    first row of the current unbroken word; so far = lean × (fut now − fut at since): the points the word has EARNED (a ▼
+    word on a fall is +); said = PALAT? episodes (consecutive rows); came true = episodes with a PALAT row within TRUE_WIN_M
+    of the episode's first minute; blind = rows marked blind (one a minute)."""
+    rows = [r for r in rows if r.get("t")]
+    if not rows:
+        return None
+    w, i = rows[-1].get("word"), len(rows) - 1
+    while i and rows[i - 1].get("word") == w:
+        i -= 1
+    lean, f0 = rows[-1].get("lean") or 0, rows[i].get("fut")
+    if not lean:
+        far = "no lean"
+    elif fut_now is None or f0 is None:
+        far = "so far could not check — no fut price"
+    else:
+        far = f"{lean * (fut_now - f0):+,.0f} so far".replace("-", "−")
+    word = [str(r.get("word") or "") for r in rows]
+    eps = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT?") and not (j and word[j - 1].startswith("PALAT?"))]
+    flips = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT") and not word[j].startswith("PALAT?")]
+    true = sum(1 for a in eps if any(a < m <= a + TRUE_WIN_M for m in flips))
+    blind = sum(1 for r in rows if r.get("blind"))
+    return f"{w} since {rows[i]['t']} · {far} · PALAT? said {len(eps)}× · came true {true}× · blind {blind} min"
+
+
+def answer(fr):
+    """The last answer as the engine said it: the count's `answer` piece, else the `last answer …` clause of the call's why
+    (verbatim), else None."""
+    c = (fr or {}).get("call") or {}
+    for p in (c.get("count") or {}).get("pieces") or ():
+        if p.get("k") == "answer":
+            return p.get("text")
+    for ln in c.get("why") or ():
+        m = re.search(r"last answer .*?(?= · |$)", str(ln))
+        if m:
+            return m.group(0)
+    return None
+
+
+def brief(fr):
+    """The card's word, count and last answer -- what a watch hit carries to the stream and Telegram."""
+    c = (fr or {}).get("call") or {}
+    return {"word": c.get("word"), "count": _cnt3(c.get("count")), "answer": answer(fr)}
+
+
+def card(fr, rows=(), state=None, notes=()):
+    """THE CARD (the contract) from a cached live frame, today's call-log rows (the self line), the day's drawn state and
+    her notes. A frame that could not build passes its why on."""
+    if not (fr or {}).get("ok"):
+        return {"ok": False, "why": (fr or {}).get("why") or "could not check — no frame built yet"}
+    c = fr.get("call") or {}
+    hn = list((fr.get("health") or {}).get("notes") or [])
+    pz, st = c.get("pause"), state or {}
+    return {"ok": True, "idx": fr.get("idx"), "day": fr.get("day"), "at": c.get("at"), "asof": fr.get("asof"),
+            "live": bool(fr.get("live")), "word": c.get("word"), "state": c.get("state"), "lean": c.get("lean"),
+            "since": c.get("since"), "count": c.get("count"), "leg": c.get("leg"),
+            "pause": {k: pz.get(k) for k in ("line", "alive", "risk")} if isinstance(pz, dict) else None,
+            "how_much": c.get("how_much"), "where": c.get("where"),
+            "expression": c.get("expression") or {"buyer": c.get("buyer"), "seller": c.get("seller"), "pick": c.get("pick")},
+            "wrong_line": c.get("wrong_line"), "up": c.get("up"), "dn": c.get("dn"), "walls": c.get("walls"),
+            "lines": c.get("lines"), "no_trade": c.get("no_trade"),
+            "health": {"missing": [x for x in c.get("missing") or () if x not in hn], "notes": hn + list(notes)},
+            "self": self_line(rows, _last(fr.get("fut"))),
+            "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
+            "watches": list(st.get("watches") or []), "voice": c.get("voice")}

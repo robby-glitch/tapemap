@@ -259,3 +259,24 @@ def test_one_bad_update_never_stops_the_receiver(monkeypatch, caplog):
     with caplog.at_level("DEBUG", logger="tapemap"):
         assert tgi.poll(CFG, 0, prov(bad), at(10, 42)) == 3
     assert len(sent) == 1 and sent[0]["text"][0].startswith("NOW 10:42") and "a reply failed" in caplog.text
+
+
+def test_any_other_text_from_her_chat_goes_to_the_command_grammar(monkeypatch):
+    """Jarvis v3 Task 2: with the server's command door wired (telegram_in.CMD, set in server.main), any text other than
+    /now and /last is a command (a leading / and an @botname stripped; the index NIFTY unless the first word names one);
+    the reply is the command's reply and lines. /now and /last are untouched; an order word is refused."""
+    from datetime import datetime as _dt
+    import inspect
+    monkeypatch.setattr(server, "_ist", lambda now=None: _dt(2026, 10, 23, 10, 42, tzinfo=IST))
+    monkeypatch.setattr(server, "_JARVIS", {})
+    monkeypatch.setattr(server, "_JCMD", {})
+    monkeypatch.setattr(tgi, "CMD", server._jarvis_tg)
+    gets, sent = wire(monkeypatch, [[upd(1, "/watch@tapemap_x_bot 22800s"), upd(2, "/now"), upd(3, "SENSEX watch 74000s"),
+                                     upd(4, "/buy 5 lots"), upd(5, "why")]])
+    tgi.poll(CFG, 0, prov(), at(10, 42))
+    assert texts(sent) == ["watching 22,800s (1 of 10 today)",
+                           "NOW 10:42\n" + NOW[0]["line"] + "\n" + NOW[1]["line"],
+                           "watching 74,000s (2 of 10 today)", "I read, I don't place.",
+                           "could not check — no frame built yet"]
+    assert server._jcmd().state("SENSEX")["watches"][0]["level"] == 74000.0
+    assert "telegram_in.CMD = _jarvis_tg" in inspect.getsource(server.main)
