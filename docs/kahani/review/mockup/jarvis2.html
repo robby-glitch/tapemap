@@ -152,6 +152,8 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 #callc .big,.trade .cnt,.trade .s.clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .trade .cnt{font:700 13px var(--mono);margin:1px 0 2px;cursor:help}
 .trade .s.clip2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.trade .s.vo{color:var(--ink)} .trade .k.vk{margin-top:4px}
+.trade details.brief{margin-top:4px} .trade details.brief summary{font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--mut);cursor:pointer}
 .trade .s.pk{font-weight:700;color:var(--ink)} .trade .s.bad{color:var(--bad)} .trade .s.q{color:#7a7f87;font-style:italic}
 .feed{overflow:auto;padding:6px 8px;display:grid;gap:5px;align-content:start;scroll-behavior:smooth}
 .row{padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer;animation:rise .3s both}
@@ -403,7 +405,7 @@ if (LIVE) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) sw
 const pageIdx = () => ((API && new URL(API, location.href).searchParams.get("idx")) || (D && D.idx) || $("#pIdx").value).toUpperCase();
 const EP = p => { const u = new URL(API, location.href); return `${u.origin}${u.pathname.replace(/\/$/, "")}/${p}?idx=${pageIdx()}`; };
 const PH = $("#cin").placeholder, CARDQ = QS.get("card");
-let CARD = null, CMD = false, cmdSeen = false;
+let CARD = null, CMD = false, cmdSeen = false, briefOpen = false;
 function pollCard() {     // a failed or refused poll drops the card: the frame's call shows, never a carried word (P0)
   fetchFrame(EP("card")).then(c => c && c.ok ? c : null, () => null).then(c => { CARD = c; if (D) renderBrain(); });
 }
@@ -437,7 +439,16 @@ function postCmd(s) {     // one line to the grammar the server owns; its reply 
     .then(j => {
       chatAdd("JARVIS", [j.reply].concat(j.lines || []).filter(Boolean).join("\n") || "—", [], j.kind === "refused" ? "bad" : j.ok === false ? "q" : null);
       if (j.state && j.state.lines) cmdState(j.state);
+      if (/^thinking/i.test(j.reply || "")) waitVoice(s);
     }, e => { setCmd(false); chatAdd("JARVIS", `**offline · commands stay on this page** (${e.message})`, [], "q"); runCmd(s); });
+}
+function waitVoice(s) {  // an `ask` the voice is thinking about: the card every 2 s, up to 60 s, until it carries that answer
+  const want = [s, s.replace(/^ask\s+/i, "")].map(x => x.trim()), end = Date.now() + 60e3;
+  const again = () => { if (Date.now() < end) setTimeout(tick, 2000); else chatAdd("JARVIS", "**no voice answer in 60 s** · the engine's card stands", [], "q"); };
+  const tick = () => fetchFrame(EP("card")).then(c => {
+    if (c && c.ok && c.voice && want.includes((c.voice.q || "").trim())) { CARD = c; if (D) renderBrain(); } else again();
+  }, again);
+  setTimeout(tick, 2000);
 }
 setCmd(false);
 if (CARDQ) fetchFrame(CARDQ).then(c => { CARD = c; if (D) renderBrain(); }).catch(e => console.warn("?card=", e.message));
@@ -526,9 +537,22 @@ function renderCard(c) {
   line(!nt ? null : typeof nt === "string" ? nt
     : ["NO TRADE" + (nt.reason ? ": " + nt.reason : ""), nt.since && "since " + nt.since, nt.ends && "ends " + nt.ends].filter(Boolean).join(" · "));
   line(c.self);
+  const v = c.voice;                                  // follow-up 3: the fenced voice (Task 7), under the self row
+  if (v) {
+    row("k vk", "VOICE").insertAdjacentHTML("beforeend", `<i>${esc(v.provider || "")}</i>`);
+    if (v.q) line("Q: " + v.q, "clip pk");
+    if (v.fell_back) line("voice fell back — " + (v.why || "no reason given"), "q clip");
+    else (v.lines || []).forEach(x => line(x, "clip vo"));
+  }
   const M = (c.health && c.health.missing) || [], T = (c.health && c.health.notes) || [];
   if (M.length) row("s bad clip", "missing: " + M.join(" · "), M.join("\n"));
   if (T.length) row("s clip", T.join(" · "), T.join("\n"));
+  const br = c.brief;                                 // the pre-open brief: collapsed, her click opens it (kept across re-renders)
+  if (br && br.lines && br.lines.length) {
+    const d = document.createElement("details"); d.className = "brief"; d.open = briefOpen; d.ontoggle = () => { briefOpen = d.open; };
+    d.innerHTML = `<summary>BRIEF ${esc(br.at || "")}</summary>`; box.appendChild(d);
+    for (const x of br.lines) { const el = document.createElement("div"); el.className = "s clip"; el.textContent = el.title = x; d.appendChild(el); }
+  }
   box.title = (c.why || []).concat([c.up, c.dn], c.missing && c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
     c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).filter(Boolean).join("\n");
 }

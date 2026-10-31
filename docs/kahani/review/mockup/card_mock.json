@@ -26,4 +26,13 @@
  "self": "TREND ▼ since 09:56 · −200 so far · PALAT? said 3× · came true 0× · blind 0 min",
  "pushes": [{"t": "10:38", "dir": -1, "lots": -612, "k": 22950, "side": "PE", "ans": "TOOT", "held_at": "10:41", "via": "band"}],
  "watches": [{"id": 3, "level": 22800.0, "frame": "s", "set": "10:12", "hit": null}],
- "voice": null}
+ "voice": {"lines": ["writers still lead: put writers covering at 22,950s, call writers adding at 23,000s",
+                     "the wall ahead 22,900s PE is the one thing against: 186L and building",
+                     "wrong if back past 22,938f; until then the seller line stands"],
+           "provider": "claude", "fell_back": false, "why": null, "q": "why is TREND down still holding"},
+ "brief": {"lines": ["gap: none · prev close 23,060s · PDH 23,155s · PDL 22,955s",
+                     "walls at the open: CE 23,100s 147L · PE 22,900s 186L",
+                     "EM today 128 pts · VIX could not check",
+                     "yesterday: TREND ▲ from 10:19, PALAT? 3× · came true 0×",
+                     "events: RBI 11:00",
+                     "plan: sell rich IV at the wall the writers hold; no trades after 15:00"], "at": "08:55"}}
