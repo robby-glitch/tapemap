@@ -39,6 +39,8 @@ CLAUDE_URL = "https://api.anthropic.com"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 MAX_TOKENS = 600              # [I] the plan's number; thinking counts against it -- a cut-off shows as why "max_tokens"
 TIMEOUT_S = 30                # [I] one call; every call runs on its own daemon thread (later), none blocks a pass or a request
+BRIEF_TIMEOUT_S = 90          # [I] the brief's call: up to 3 web searches before it writes
+ASK_RESERVE = 10              # [I] the day's last 10 calls are hers: narrations stop at cap - 10, an `ask` may use them all
 MAX_LINES, MAX_CHARS, BRIEF_LINES = 3, 140, 6
 WEB_SEARCH = {"type": "web_search_20260209", "name": "web_search", "max_uses": 3}
 THINKING = "thinking — the card's voice fills in a moment"      # the cmd reply to `ask` while the voice answers
@@ -79,7 +81,6 @@ BRIEF_TASK = ("The pre-open brief, before 09:15 IST. Search the web for: today's
               "global cues overnight, and the NIFTY / SENSEX expiry. At most 6 lines (this replaces the 3-line rule). Start "
               "every line taken from the web with [web]; numbers from the web may appear only on [web] lines; any other line "
               "quotes only the CONTEXT above.")
-BRIEF_FALL = "pre-open brief: could not check — the voice fell back"
 
 
 class _Fallback(Exception):
@@ -94,12 +95,12 @@ def _today():
     return _now().strftime("%Y-%m-%d")
 
 
-def _path():
-    return os.path.join(DIR, f"voice_{_today()}.jsonl")
+def _path(day=None):
+    return os.path.join(DIR, f"voice_{day or _today()}.jsonl")
 
 
-def _rows():
-    return list(confluence_log._rows(_path()))
+def _rows(day=None):
+    return list(confluence_log._rows(_path(day)))
 
 
 def _calls_today():
@@ -108,7 +109,7 @@ def _calls_today():
     the cap can never go blind."""
     try:
         os.makedirs(DIR, exist_ok=True)
-        with open(_path(), "a+", encoding="utf-8") as f:
+        with open(_path(), "a+", encoding="utf-8", errors="replace") as f:     # one torn character never stops the day
             f.seek(0)
             n = 0
             for ln in f:
@@ -236,7 +237,8 @@ def _claude(anthropic, key, system, user, effort, web):
     if web:
         kw["tools"] = [WEB_SEARCH]
     # base_url pinned: the SDK otherwise sends her key to $ANTHROPIC_BASE_URL when a shell has it set (Claude Code's does)
-    with anthropic.Anthropic(api_key=key, base_url=CLAUDE_URL, timeout=TIMEOUT_S, max_retries=1) as client:
+    with anthropic.Anthropic(api_key=key, base_url=CLAUDE_URL, timeout=BRIEF_TIMEOUT_S if web else TIMEOUT_S,
+                             max_retries=1) as client:
         r = client.messages.create(**kw)
     if r.stop_reason == "refusal":
         raise _Fallback("refused")
@@ -264,7 +266,7 @@ def _gemini(key, system, user, web):
         body["tools"] = [{"google_search": {}}]
     req = urllib.request.Request(f"{GEMINI_URL}/{urllib.parse.quote(model)}:generateContent", data=json.dumps(body).encode(),
                                  headers={"x-goog-api-key": key, "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+    with urllib.request.urlopen(req, timeout=BRIEF_TIMEOUT_S if web else TIMEOUT_S) as r:
         d = json.loads(r.read())
     um = d.get("usageMetadata") or {}
     text = _join(p.get("text", "") for p in d["candidates"][0]["content"]["parts"])
@@ -303,8 +305,8 @@ def _run(kind, idx, src, q, user, fall, effort, provider, max_lines, web=False, 
         who, fn = ("injected", provider) if provider else _pick(effort, web)
         if who == "engine":
             raise _Fallback(fn)
-        if _calls_today() >= _cap():                 # ponytail: two threads can pass this together; at most one call per index over
-            raise _Fallback("cap reached")
+        if _calls_today() >= _cap() - (0 if kind == "ask" else ASK_RESERVE):   # ponytail: two threads can pass together
+            raise _Fallback("cap reached" if kind == "ask" else f"cap reached ({ASK_RESERVE} kept for her asks)")
         name = who                                   # from here on the provider was asked: the row counts against the cap
         out = fn(PREFIX, user)
         text, tin, tout = out if isinstance(out, tuple) else (out, None, None)
@@ -313,7 +315,7 @@ def _run(kind, idx, src, q, user, fall, effort, provider, max_lines, web=False, 
         why = str(e)
     except Exception as e:                           # noqa: BLE001 -- any error is a fallback; its class names it, never its text
         why = _why(e, None if name == "engine" else name)
-    lines = fall if why else _lines(text)
+    lines = (fall(why) if callable(fall) else fall) if why else _lines(text)
     res = {"lines": lines, "provider": name, "fell_back": bool(why), "why": why}
     bad = _write({"at": int(time.time()), "t": _now().strftime("%H:%M:%S"), "idx": idx, "kind": kind, "provider": name,
                   "in_tokens": tin, "out_tokens": tout, "lines": lines, "fell_back": bool(why), "why": why, "q": q})
@@ -329,9 +331,10 @@ def _guard(card, e):
 
 def speak(card, question=None, provider=None):
     """The voice over one card -> {"lines", "provider", "fell_back", "why"}; one log row; NEVER raises. Her notes ride in the
-    card's health.notes (the server builds it with jarvis_cmd's notes); the card's old `voice` is never sent or quoted."""
+    card's health.notes (the server builds it with jarvis_cmd's notes); the card's old `voice` and its `brief` (the web's
+    numbers) are never sent or quoted."""
     try:
-        c = {k: v for k, v in card.items() if k != "voice"} if isinstance(card, dict) else {}
+        c = {k: v for k, v in card.items() if k not in ("voice", "brief")} if isinstance(card, dict) else {}
         task = f"HER QUESTION: {question}" if question else CHANGE_TASK
         user = "CARD " + json.dumps(c, ensure_ascii=False, default=str) + "\n\n" + task
         return _run("ask" if question else "change", c.get("idx"), c, question, user, engine_lines(c),
@@ -360,9 +363,13 @@ def brief(levels, last_call_rows, notes, provider=None):
             return {"lines": said[-1]["lines"], "provider": said[-1]["provider"], "fell_back": False, "why": None}
         src = {"levels": levels, "last_calls": last_call_rows, "notes": notes}
         user = "CONTEXT " + json.dumps(src, ensure_ascii=False, default=str) + "\n\n" + BRIEF_TASK
-        return _run("brief", None, src, None, user, [BRIEF_FALL], "medium", provider, BRIEF_LINES, web=True)
+        return _run("brief", None, src, None, user, _brief_fall, "medium", provider, BRIEF_LINES, web=True)
     except Exception as e:                           # noqa: BLE001
-        return {"lines": [BRIEF_FALL], "provider": "engine", "fell_back": True, "why": _why(e)}
+        return {"lines": _brief_fall(_why(e)), "provider": "engine", "fell_back": True, "why": _why(e)}
+
+
+def _brief_fall(why):
+    return [f"pre-open brief: could not check — {why}"]
 
 
 # ---- the server's hook (server.py: _jarvis_log, _jarvis_cmd, _jarvis_loop) ----------------------------------------------
@@ -396,9 +403,10 @@ def later(store, key, fn):
         except Exception as e:                       # noqa: BLE001
             log.exception("jarvis voice")
             res = {"lines": [], "provider": "engine", "fell_back": True, "why": _why(e)}
+        n = _now()
         with _LOCK:
-            if res is not None and _SEQ.get(key) == mine:
-                store[key] = res
+            if isinstance(res, dict) and _SEQ.get(key) == mine:
+                store[key] = dict(res, day=n.strftime("%Y-%m-%d"), at=n.strftime("%H:%M"))   # when it spoke
 
     t = threading.Thread(target=run, daemon=True, name="jarvis-voice")
     t.start()
@@ -417,18 +425,47 @@ def _last_calls(day):
     return list(last.values())
 
 
-def preopen(card_fn, notes_fn, now=None):
+def preopen(store, card_fn, notes_fn, now=None):
     """THE PRE-OPEN BRIEF's door for the server's Jarvis loop: the first tick of a weekday's 09:00–09:15 IST, once a day per
-    process -> brief() over the NIFTY card's levels (where / walls / lines, when it has them), the last call log's final row
-    per index and her notes; None on every other tick (the card and notes are fetched only when due). Never raises."""
+    process, starts brief() on its own thread (later, store["brief"]; its own BRIEF_TIMEOUT_S) over the NIFTY card's levels
+    (where / walls / lines, when it has them), the last call log's final row per index and her notes -> the thread; None
+    on every other tick. The card and notes are fetched on that thread, never on the loop's."""
     n = now or _now()
     day = n.strftime("%Y-%m-%d")
     if n.weekday() >= 5 or not "09:00" <= n.strftime("%H:%M") < "09:15" or day in _PREOPEN:
         return None
     _PREOPEN.add(day)
-    try:
-        c = card_fn()
-        levels = {k: c.get(k) for k in ("where", "walls", "lines")} if isinstance(c, dict) and c.get("ok") else None
-        return brief(levels, _last_calls(day), notes_fn())
-    except Exception as e:                           # noqa: BLE001
-        return {"lines": [BRIEF_FALL], "provider": "engine", "fell_back": True, "why": _why(e)}
+
+    def run():
+        try:
+            c = card_fn()
+            levels = {k: c.get(k) for k in ("where", "walls", "lines")} if isinstance(c, dict) and c.get("ok") else None
+            return brief(levels, _last_calls(day), notes_fn())
+        except Exception as e:                       # noqa: BLE001
+            return {"lines": _brief_fall(_why(e)), "provider": "engine", "fell_back": True, "why": _why(e)}
+
+    return later(store, "brief", run)
+
+
+def _of(x, day):
+    return x if isinstance(x, dict) and x.get("day") == day else None
+
+
+def for_card(store, idx, day=None):
+    """The card's `voice` (idx's newest result today: <= 3 lines) and `brief` (today's pre-open brief, all day:
+    {"lines", "at"}, <= 6 lines). After a restart the store is empty: the day's voice log fills it once (anytime-start),
+    a newer result in memory always wins."""
+    day = day or _today()
+    if store.get("_restored") != day:
+        newest = {}
+        for r in _rows(day):
+            newest["brief" if r.get("kind") == "brief" else r.get("idx")] = r
+        with _LOCK:                                  # later() stores under the same lock: a live answer is never undone
+            store["_restored"] = day
+            for k, r in newest.items():
+                if k and not _of(store.get(k), day):
+                    store[k] = {"lines": list(r.get("lines") or []), "provider": r.get("provider"),
+                                "fell_back": r.get("fell_back"), "why": r.get("why"), "q": r.get("q"), "day": day,
+                                "at": str(r.get("t") or "")[:5]}
+    b = _of(store.get("brief"), day)
+    return _of(store.get(idx), day), ({"lines": list(b.get("lines") or [])[:BRIEF_LINES], "at": b.get("at")} if b else None)

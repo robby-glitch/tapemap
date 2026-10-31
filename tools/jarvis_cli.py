@@ -6,9 +6,9 @@ the replies are the server's, printed verbatim. Display only; I read, I don't pl
 
 `now` GETs /api/jarvis/card and prints it as a block; `replay DAY HH:MM` GETs the replay frame once per day (cached in
 memory) and prints that minute's call from its `calls`; `idx`, `help`, `quit` are local; everything else goes to the
-grammar. `ask <text>`: the server answers "thinking", then the voice fills the card -- one look after ASK_WAIT_S prints
-it. `--frame` runs offline on a saved /api/jarvis frame: `now` = its `call`, `replay` = its `calls[i]`; a command that
-needs the server says so. Any server failure prints `could not check — <reason>`. Stdlib only.
+grammar. `ask <text>`: the server answers "thinking", then the voice fills the card -- looked at every ASK_POLL_S until
+it answers. `now` shows the card's VOICE and the day's BRIEF when it has them. `--frame` runs offline on a saved
+/api/jarvis frame: `now` = its `call`, `replay` = its `calls[i]`; a command that needs the server says so. Any server failure prints `could not check — <reason>`. Stdlib only.
 """
 import argparse
 import datetime
@@ -27,7 +27,8 @@ except ImportError:
     pass
 
 CC = "could not check — "
-ASK_WAIT_S = 3                                  # `ask`: the voice answers on the card; one look after this many seconds [I]
+ASK_POLL_S = 1.5                                # `ask`: the voice answers on the card, looked at every 1.5 s [I] ...
+ASK_WAIT_MAX_S = 60                             # ... for up to 2 x the voice's 30 s model call [I]
 IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 GRAMMAR = ("why", "why?", "next", "what", "status", "wrong", "if", "watch", "line", "zone", "remove", "clear", "list",
@@ -107,6 +108,16 @@ def render_card(card: dict) -> str:
     row("WRONG", g("wrong_line"))
     row("NO TRADE", g("no_trade"))
     row("SELF", g("self"))
+    v = g("voice")
+    if isinstance(v, dict):                     # Task 7: the model's narration, or why it fell back (optional: never "absent")
+        said = [f"fell back — {v.get('why')}"] if v.get("fell_back") else [str(x) for x in v.get("lines") or () if x]
+        for i, ln in enumerate(said):
+            out.extend(_block(f"{'' if i else 'VOICE':<10}", ln))
+    b = g("brief")
+    if isinstance(b, dict) and b.get("lines"):  # Task 7: the day's pre-open brief, shown all day
+        out.append(f"{'BRIEF':<10}" + (f"at {b['at']}" if b.get("at") else "today"))
+        for ln in b["lines"]:
+            out.extend(_block(" " * 10, str(ln)))
     h = g("health")
     if isinstance(h, dict):
         m = h.get("missing")
@@ -218,13 +229,20 @@ class Session:
         return "\n".join(str(x) for x in out if x) or CC + "the server sent an empty reply"
 
     def voice(self, q):
-        """Task 7: `ask` answers on the card's voice -- one look after ASK_WAIT_S; its lines only when they answer `q`."""
-        self.sleep(ASK_WAIT_S)
-        card, why = call_server(self.base, "/api/jarvis/card?" + urllib.parse.urlencode({"idx": self.idx}))
-        v = (card or {}).get("voice")
-        if why or not isinstance(v, dict) or v.get("q") != q or not v.get("lines"):
-            return [why or "the voice has not answered yet — `now` shows the card's voice"]
-        return [str(x) for x in v["lines"]] + ([f"voice fell back — {v.get('why')}"] if v.get("fell_back") else [])
+        """Task 7: `ask` answers on the card's voice -- looked at every ASK_POLL_S until its `q` is hers (answered or fell
+        back), up to ASK_WAIT_MAX_S; a server that does not answer ends the wait with its reason."""
+        waited = 0.0
+        while waited < ASK_WAIT_MAX_S:
+            self.sleep(ASK_POLL_S)
+            waited += ASK_POLL_S
+            card, why = call_server(self.base, "/api/jarvis/card?" + urllib.parse.urlencode({"idx": self.idx}))
+            if why:
+                return [why]
+            v = card.get("voice")
+            if isinstance(v, dict) and v.get("q") == q:
+                return ([str(x) for x in v.get("lines") or () if x]
+                        + ([f"voice fell back — {v.get('why')}"] if v.get("fell_back") else []))
+        return [f"the voice has not answered in {ASK_WAIT_MAX_S:g} s — `now` shows the card's voice when it does"]
 
     def now(self):
         if self.frame is not None:

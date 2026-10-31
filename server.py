@@ -4835,9 +4835,8 @@ def _jarvis_loop():
     while True:
         try:
             _jarvis_pass()
-            b = jarvis_voice.preopen(lambda: _jarvis_card("NIFTY"), lambda: _jcmd().notes(), _ist())   # Task 7: 09:00-09:15
-            if b:
-                _JVOICE["brief"] = _JVOICE["NIFTY"] = b  # NIFTY's card shows the brief until its first change
+            jarvis_voice.preopen(_JVOICE, lambda: _jarvis_card("NIFTY"), lambda: _jcmd().notes(), _ist())   # Task 7: the
+            # pre-open brief, 09:00-09:15 on a weekday, once, on its own thread: the 09:15 pass never waits on it
         except Exception:
             log.exception("jarvis pass")
         time.sleep(MSG_EVERY_S)
@@ -4886,14 +4885,20 @@ def _jarvis_card(idx):
     note = {"slow": _JPASS.get("slow"), "skipped": _JPASS.get("skipped")}.get(_JPASS.get("last"))   # the last pass's note
     out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + ([note] if note else []))
     if out.get("ok"):
-        out["voice"] = _JVOICE.get(idx)               # Task 7 (the model voice), None until then
+        out["voice"], b = jarvis_voice.for_card(_JVOICE, idx)   # Task 7: the narration; the day's brief, all day
+        if b:
+            out["brief"] = b                         # only when there is one: the card stays jarvis_log.card's shape
     return out
 
 
 def _jvoice_card(idx):
     """Task 7: the card the voice reads = the face's card + the frame's call.why (the engine's lines: its fallback)."""
-    c, fr = _jarvis_card(idx), _jarvis_live(idx) or {}
-    return dict(c, why=list((fr.get("call") or {}).get("why") or [])) if c.get("ok") else c
+    try:
+        c, fr = _jarvis_card(idx), _jarvis_live(idx) or {}
+        return dict(c, why=list((fr.get("call") or {}).get("why") or [])) if c.get("ok") else c
+    except Exception as e:                       # fail-soft: the voice then speaks the engine's why
+        log.exception("jarvis voice card")
+        return {"ok": False, "why": f"could not check — the card failed ({type(e).__name__})"}
 
 
 def _jarvis_cmd(idx, text, src):
@@ -4907,7 +4912,8 @@ def _jarvis_cmd(idx, text, src):
         q = jarvis_cmd.parse(text).get("text")
         ask = lambda: dict(jarvis_voice.answer(_jvoice_card(idx), q), q=q)      # noqa: E731 -- q: whose answer it is
         if src == "telegram":                            # her chat has no card to fill: telegram_in's own poll thread waits
-            v = _JVOICE[idx] = ask()
+            v = ask()
+            jarvis_voice.later(_JVOICE, idx, lambda: v)   # through the sequence: an older narration never overwrites it
             return dict(r, reply="voice fell back — " + str(v["why"]) if v["fell_back"] else "voice", lines=v["lines"])
         jarvis_voice.later(_JVOICE, idx, ask)
         r = dict(r, reply=jarvis_voice.THINKING, lines=[])

@@ -186,18 +186,28 @@ def test_the_log_row_shape(_tmp):
     assert "%" not in json.dumps(rows)
 
 
-def test_the_budget_cap(_tmp):
-    (_tmp / "keys" / "cap.json").write_text('{"calls_per_day": 2}')
+def test_the_budget_cap_keeps_the_last_10_calls_for_her_asks(_tmp):
+    (_tmp / "keys" / "cap.json").write_text('{"calls_per_day": 12}')
     calls = []
 
     def count(system, user):
         calls.append(1)
         return GOOD
 
-    outs = [jv.speak(CARD, provider=count) for _ in range(3)]
-    assert len(calls) == 2 and outs[2]["why"] == "cap reached" and outs[2]["provider"] == "engine"
+    outs = [jv.speak(CARD, provider=count) for _ in range(3)]       # narrations stop at 12 - 10
+    assert len(calls) == 2 and outs[2]["why"] == "cap reached (10 kept for her asks)" and outs[2]["provider"] == "engine"
+    asks = [jv.answer(CARD, "why?", provider=count) for _ in range(11)]
+    assert len(calls) == 12 and asks[-1]["why"] == "cap reached" and not asks[-2]["fell_back"]
     jv.speak(CARD)                                                  # no-key rows are not calls
-    assert jv._calls_today() == 2
+    assert jv._calls_today() == 12
+
+
+def test_one_torn_character_never_stops_the_budget(_tmp):
+    jv.speak(CARD, provider=say(GOOD))
+    with open(jv._path(), "ab") as f:
+        f.write(b'{"provider": "claude", "x": "\xff\xfe"}\n\x80\x81 torn\n')
+    jv.speak(CARD, provider=say(GOOD))
+    assert jv._calls_today() == 3 and not jv.speak(CARD, provider=say(GOOD))["fell_back"]
 
 
 def test_the_cap_defaults_to_80(_tmp):
@@ -437,6 +447,7 @@ def test_the_brief_keeps_only_the_text_after_the_last_search_result(_tmp, monkey
 import jarvis_log                                                    # noqa: E402
 
 DAY = "2026-11-02"
+TODAY = jv._today()
 FRAME = {"ok": True, "day": DAY, "idx": "NIFTY", "asof": "10:41:30", "live": True, "mins": ["10:41"],
          "fut": [23010.5], "spot": [22967.3],
          "call": {"at": "10:41", "word": "TREND ▼", "state": "HOLD", "lean": -1, "since": "09:56", "leg": "leg ▼ TREND 103 pts",
@@ -464,9 +475,11 @@ def test_later_runs_on_a_daemon_thread_and_the_newest_call_wins():
     REAL_LATER(store, "k", lambda: {"lines": ["new"]}).join(5)
     go.set()
     slow.join(5)
-    assert store["k"] == {"lines": ["new"]} and slow.daemon
+    assert store["k"]["lines"] == ["new"] and slow.daemon
+    assert store["k"]["day"] == jv._today() and len(store["k"]["at"]) == 5            # stamped when it spoke
     REAL_LATER(store, "x", lambda: 1 / 0).join(5)
-    assert store["x"] == {"lines": [], "provider": "engine", "fell_back": True, "why": "ZeroDivisionError"}
+    assert {k: store["x"][k] for k in ("lines", "provider", "fell_back", "why")} == \
+        {"lines": [], "provider": "engine", "fell_back": True, "why": "ZeroDivisionError"}
 
 
 def test_preopen_once_on_a_weekday_between_9_and_915(monkeypatch):
@@ -475,14 +488,17 @@ def test_preopen_once_on_a_weekday_between_9_and_915(monkeypatch):
     jarvis_log.write("2026-10-30", "NIFTY", {"t": "15:29", "word": "TREND ▼", "fut": 23010.5})
     jarvis_log.write("2026-10-30", "NIFTY", {"t": "15:30", "word": "HOLD ▼", "fut": 23011.0})
     jarvis_log.write("2026-10-30", "SENSEX", {"t": "15:30", "word": "TREND ▲"})
-    seen, asked = {}, []
+    seen, asked, store = {}, [], {}
+    monkeypatch.setattr(jv, "later", REAL_LATER)
     monkeypatch.setattr(jv, "brief", lambda levels, rows, notes: seen.update(levels=levels, rows=rows, notes=notes) or {"b": 1})
     card = lambda: asked.append(1) or {"ok": True, "where": {"stop": "23,136f (zone)"}, "walls": None, "lines": None}  # noqa
     notes = lambda: ["note 08:50 RBI 10:00"]                       # noqa: E731
     mon = lambda h, m: datetime(2026, 11, 2, h, m, tzinfo=IST)      # noqa: E731
-    assert jv.preopen(card, notes, mon(8, 59)) is None and jv.preopen(card, notes, mon(9, 15)) is None
-    assert jv.preopen(card, notes, datetime(2026, 11, 1, 9, 5, tzinfo=IST)) is None and not asked      # a Sunday
-    assert jv.preopen(card, notes, mon(9, 5)) == {"b": 1} and jv.preopen(card, notes, mon(9, 6)) is None   # once a day
+    assert jv.preopen(store, card, notes, mon(8, 59)) is None and jv.preopen(store, card, notes, mon(9, 15)) is None
+    assert jv.preopen(store, card, notes, datetime(2026, 11, 1, 9, 5, tzinfo=IST)) is None and not asked   # a Sunday
+    t = jv.preopen(store, card, notes, mon(9, 5))                   # on its own thread: the loop never waits on it
+    t.join(5)
+    assert t.daemon and store["brief"]["b"] == 1 and jv.preopen(store, card, notes, mon(9, 6)) is None   # once a day
     assert seen["levels"] == {"where": {"stop": "23,136f (zone)"}, "walls": None, "lines": None}
     assert [(r["idx"], r["word"]) for r in seen["rows"]] == [("NIFTY", "HOLD ▼"), ("SENSEX", "TREND ▲")]
     assert seen["notes"] == ["note 08:50 RBI 10:00"] and asked == [1]
@@ -492,7 +508,7 @@ def test_preopen_once_on_a_weekday_between_9_and_915(monkeypatch):
 def srv(monkeypatch):
     import time
     import server
-    monkeypatch.setattr(jv, "later", lambda store, key, fn: store.__setitem__(key, fn()))      # the thread, inline
+    monkeypatch.setattr(jv, "later", lambda store, key, fn: REAL_LATER(store, key, fn).join(5))   # the real thread, joined
     for k, v in (("_JVOICE", {}), ("_LAST_LOGGED", {}), ("_JCMD", {})):
         monkeypatch.setattr(server, k, v)
     monkeypatch.setattr(server, "_JARVIS", {"NIFTY": (None, time.time(), FRAME)})
@@ -537,28 +553,113 @@ class _Resp:
         return self.b
 
 
-def test_the_terminal_ask_prints_the_cards_voice_once_it_answers(monkeypatch):
+
+
+def _cli():
     import os
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
     import jarvis_cli
-    voice = {"lines": ["A1", "A2"], "provider": "claude", "fell_back": False, "why": None, "q": "is the floor holding"}
+    return jarvis_cli
+
+
+def test_the_terminal_ask_waits_for_a_slow_answer(monkeypatch):
+    jarvis_cli = _cli()
+    cards = []                                                      # the card's voice, look by look
 
     def fake(req, timeout=None):
         if req.full_url.endswith("/api/jarvis/cmd"):
             return _Resp({"ok": True, "kind": "ask", "reply": jv.THINKING, "lines": []})
-        return _Resp({"ok": True, "voice": voice})
+        return _Resp({"ok": True, "voice": cards.pop(0) if len(cards) > 1 else cards[0]})
 
     monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", fake)
     s = jarvis_cli.Session("http://127.0.0.1:8765", "NIFTY")
     waits = []
     s.sleep = waits.append
-    assert s.handle("ask is the floor holding") == "\n".join([jv.THINKING, "A1", "A2"]) and waits == [jarvis_cli.ASK_WAIT_S]
+    old = {"lines": ["an older narration"], "fell_back": False, "q": None}
+    ans = {"lines": ["A1", "A2"], "provider": "claude", "fell_back": False, "why": None, "q": "is the floor holding"}
+    cards[:] = [None, old, old, old, ans]                           # four looks without her answer, the fifth has it
+    assert s.handle("ask is the floor holding") == "\n".join([jv.THINKING, "A1", "A2"])
+    assert waits == [jarvis_cli.ASK_POLL_S] * 5
+    waits.clear()
+    cards[:] = [old]                                                # never answers: the wait ends at 2 x the model's call
+    assert s.handle("ask is the floor holding").endswith(
+        "the voice has not answered in 60 s — `now` shows the card's voice when it does")
+    assert sum(waits) >= jarvis_cli.ASK_WAIT_MAX_S and len(waits) == 40
+    cards[:] = [dict(ans, fell_back=True, why="no key")]
+    assert s.handle("ask is the floor holding").endswith("A2\nvoice fell back — no key")
     import jarvis_cmd
     s.voice = lambda q: [q]                                         # the question the terminal waits for == the server's q
     for t in ("ask is the floor holding", "ask  is   the floor holding?", "ASK Why now"):
         assert s.handle(t).splitlines()[-1] == jarvis_cmd.parse(t)["text"]
-    del s.voice
-    voice["q"] = "an older question"
-    assert s.handle("ask is the floor holding").endswith("the voice has not answered yet — `now` shows the card's voice")
-    voice.update(q="is the floor holding", fell_back=True, why="no key")
-    assert s.handle("ask is the floor holding").endswith("A2\nvoice fell back — no key")
+
+
+def test_now_renders_the_voice_and_the_days_brief():
+    jarvis_cli = _cli()
+    base = {"idx": "NIFTY", "day": TODAY, "at": "10:42", "word": "TREND ▼"}
+    out = jarvis_cli.render_card(dict(base, voice={"lines": ["TREND ▼ since 09:56 · WITH 4", "wrong past 22,938f"],
+                                                    "fell_back": False}, brief={"lines": ["[web] RBI 10:00", "PDH 23,155s"],
+                                                                                "at": "09:05"})).splitlines()
+    i = out.index("VOICE     TREND ▼ since 09:56")
+    assert out[i + 1:i + 3] == ["          WITH 4", "          wrong past 22,938f"]
+    i = out.index("BRIEF     at 09:05")
+    assert out[i + 1:i + 3] == ["          [web] RBI 10:00", "          PDH 23,155s"]
+    out = jarvis_cli.render_card(dict(base, voice={"lines": ["x"], "fell_back": True, "why": "no key"}))
+    assert "VOICE     fell back — no key" in out.splitlines() and "BRIEF" not in out
+    assert "voice" not in jarvis_cli.render_card(base).split("NOT IN CARD")[-1]      # optional: never named absent
+
+
+# ---- Phase B fixes: the brief's timeout and line, the card's brief, the restore, Telegram ----
+
+def test_the_brief_has_its_own_longer_timeout_and_says_why_it_fell_back(_tmp, monkeypatch):
+    (_tmp / "keys" / "anthropic.txt").write_text("k")
+    seen = _fake_sdk(monkeypatch, text=WEB)
+    jv.brief(LEVELS, [], [])
+    assert seen["client"]["timeout"] == jv.BRIEF_TIMEOUT_S == 90
+    jv.speak(CARD)
+    assert seen["client"]["timeout"] == jv.TIMEOUT_S == 30
+    (_tmp / "keys" / "anthropic.txt").unlink()
+    monkeypatch.setattr(jv, "_today", lambda: "2026-11-03")       # a fresh day: today's brief is not reused
+    assert jv.brief(LEVELS, [], [])["lines"] == ["pre-open brief: could not check — no key"]
+
+
+def test_the_card_restores_the_days_voice_and_brief_after_a_restart(_tmp):
+    jv.on_change(CARD, provider=say(GOOD))
+    jv.answer(CARD, "is the floor holding", provider=say("wall ahead 22,900s PE 186L BUILDING"))
+    jv.on_change(dict(CARD, idx="SENSEX"))                          # no key: SENSEX's newest is a fallback row
+    jv.brief(LEVELS, [], [], provider=say(WEB))
+    store = {}                                                      # a restart: memory is empty
+    v, b = jv.for_card(store, "NIFTY")
+    assert v["lines"] == ["wall ahead 22,900s PE 186L BUILDING"] and v["q"] == "is the floor holding" and v["day"] == TODAY
+    assert b == {"lines": WEB.splitlines(), "at": b["at"]} and len(b["at"]) == 5
+    assert jv.for_card(store, "SENSEX")[0]["fell_back"] is True and jv.for_card(store, "BANKNIFTY")[0] is None
+    store["NIFTY"] = {"lines": ["newer, in memory"], "day": TODAY}
+    assert jv.for_card(store, "NIFTY")[0]["lines"] == ["newer, in memory"]           # memory wins after the restore
+    assert jv.for_card({}, "NIFTY", day="2026-10-30") == (None, None)               # another day: nothing invented
+
+
+def test_the_brief_stays_on_the_card_all_day_beside_the_narration(srv, monkeypatch):
+    from datetime import datetime
+    from chain_live import IST
+    monkeypatch.setattr(jv, "brief", lambda levels, rows, notes: {"lines": ["[web] RBI 10:00"], "provider": "injected",
+                                                                   "fell_back": False, "why": None})
+    jv.preopen(srv._JVOICE, lambda: srv._jarvis_card("NIFTY"), lambda: [], datetime(2026, 11, 2, 9, 5, tzinfo=IST))
+    c = srv._jarvis_card("NIFTY")
+    assert c["brief"]["lines"] == ["[web] RBI 10:00"] and c["voice"] is None          # the brief is not NIFTY's voice
+    srv._jarvis_log(FRAME)                                          # the first change narrates; the brief stays
+    c = srv._jarvis_card("NIFTY")
+    assert c["voice"]["lines"] == FRAME["call"]["why"] and c["brief"]["lines"] == ["[web] RBI 10:00"]
+    sent = {}
+    monkeypatch.setattr(jv, "_run", lambda kind, idx, src, *a, **k: sent.update(src=src) or
+                        {"lines": ["x"], "provider": "engine", "fell_back": True, "why": "no key"})
+    jv.speak(dict(c, why=["w"]))
+    assert "brief" not in sent["src"] and "voice" not in sent["src"]   # the web's numbers never feed the narration
+
+
+def test_telegram_ask_survives_a_broken_card_and_keeps_its_q(srv, monkeypatch):
+    def boom(idx):
+        raise RuntimeError("card")
+
+    monkeypatch.setattr(srv, "_jarvis_card", boom)
+    t = srv._jarvis_cmd("NIFTY", "ask why", "telegram")
+    assert t["reply"] == "voice fell back — no card" and t["lines"] == ["could not check — the card failed (RuntimeError)"]
+    assert srv._JVOICE["NIFTY"]["q"] == "why"
