@@ -349,6 +349,8 @@ def test_count_reads_writers_first_and_never_counts_a_question_mark():
     assert c["pieces"][5]["side"] == "?"                                             # no 30-min story: could not check
     assert c["N"] == c["with"] + c["against"] and c["unread"] >= 1
     assert "%" not in json.dumps(c)
+    assert c["pieces"][5]["text"] == "no 30-min story"                               # OI now and 30 min ago: checked
+    assert jarvis.count(d, 10)["pieces"][5]["text"] == "could not check — fut OI needs 30 min of OI"   # rule 6
 
 
 def test_action_word_needs_two_closes_and_palat_at_once():
@@ -358,7 +360,9 @@ def test_action_word_needs_two_closes_and_palat_at_once():
     rows[30] = dict(rows[30], word="PALAT", lean=1)
     d["legs"] = {"rows": rows, "day": {"flips": [0] * 30 + [1] * 10, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
     a = jarvis.action_words(d)                                   # the per-minute ACTION series reads() stores
-    assert a[5]["word"] == "TREND" and a[21]["word"] == "TREND"  # one close of the pause does not flip it
+    assert a[0]["word"] == "HOLD"                                # the first word, at once, but by the count (WITH 1)
+    assert a[7]["word"] == "HOLD" and a[8]["word"] == "TREND"    # TREND needs two closes (10:05, 10:08)
+    assert a[21]["word"] == "TREND"                              # one close of the pause does not flip it
     assert a[26]["word"] == "HOLD"                               # two consecutive closes do (10:20 and 10:23); the leg's
                                                                  # WATCH is HOLD while the count is with the lean (ruling 2)
     assert a[30]["word"] == "PALAT" and a[30]["since"] == "10:30"   # the lean flip speaks at once
@@ -388,6 +392,61 @@ def test_on_a_trend_leg_watch_needs_the_count_to_turn():
     assert a[22]["word"] == "TREND" and a[23]["word"] == "WATCH" and a[23]["since"] == "10:23"   # closes 10:20 and 10:23
     assert "the count turned" in a[23]["why"]
     assert jarvis.said("OPENING", -1) == "OPENING" and jarvis.said("HOLD", -1) == "HOLD ▼"
+
+
+def _pause_toy(word, risk, retrace):
+    """The toy leg TREND to 10:19, then `word` with `risk` items and `retrace` from 10:20."""
+    d = _toy()
+    d["reads"] = jarvis.reads(d)
+    rows = [{"t": m, "lean": -1, "word": "TREND" if i < 20 else word, "risk": [] if i < 20 else risk,
+             "leg": {"dir": -1, "quality": "TREND", "retrace": 0.05 if i < 20 else retrace}} for i, m in enumerate(d["mins"])]
+    d["legs"] = {"rows": rows, "day": {"flips": [0] * 40, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
+    return d
+
+
+def test_palatq_by_two_closes_or_at_one_close_on_a_deep_retrace():
+    """PALAT? with its condition (>= 3 risk items) needs two consecutive closes (10:20, 10:23); 0.35 of the leg back
+    (geometry, not an opinion) speaks at its first close (10:20)."""
+    a = jarvis.action_words(_pause_toy("PALAT?", [{"k": "band_emptying"}, {"k": "delta_against"}, {"k": "mark_against"}], 0.2))
+    assert a[22]["word"] == "TREND" and a[23]["word"] == "PALAT?" and "2 closes" in a[23]["why"]
+    a = jarvis.action_words(_pause_toy("PALAT?", [], 0.4))
+    assert a[19]["word"] == "TREND" and a[20]["word"] == "PALAT?" and "retrace 0.40" in a[20]["why"]
+
+
+def test_the_answer_piece_reads_who_won_the_push():
+    """The lean's own push BROKEN -> with; a push against it DEFENDED by writers -> with (the floor / cap behind held);
+    TIKI by buyers (GHUSE) -> "?", never a defence."""
+    d = _pause_toy("HOLD", [], 0.1)
+
+    def answer(**p):
+        d["pushes"] = [dict({"t": "10:30", "m": 630, "am": "10:33", "k": 22950.0, "side": "PE", "who": "WRITERS",
+                             "artifact": False}, **p)]
+        return jarvis.count(d, 36)["pieces"][3]
+    assert answer(dir=-1, ans="TOOT") == {"k": "answer", "side": "with", "text": "last answer 10:30 push ▼ 22,950s PE BROKEN"}
+    assert answer(dir=1, ans="TIKI", side="CE")["side"] == "with"
+    assert answer(dir=1, ans="TOOT", side="CE")["side"] == "against"
+    got = answer(dir=1, ans="TIKI", side="CE", who="KHAREEDAR")
+    assert got["side"] == "?" and got["text"].endswith("buyers in at the wall")
+    assert answer(dir=-1, ans="TOOT", am="10:36")["side"] == "?"          # read at 10:36: known from 10:37, not at 10:36
+
+
+def test_the_entry_guidance_keys_on_the_legs_own_word():
+    """The ACTION word is the holder's; a new entry keys on the leg's word: the leg's WATCH (ACTION HOLD) says hold, no new
+    one; the leg's HOLD says buy the pullback."""
+    def card(raw):
+        d = _pause_toy(raw, [{"k": "premium_bleeding"}, {"k": "mark_against"}] if raw == "WATCH" else [], 0.1)
+        g = {"dir": -1, "quality": "TREND", "pts": 117, "sigma_max": 2.1, "toot": None, "fuelled": None, "origin": 23102.0,
+             "origin_t": "10:00", "extreme": 22985.0, "extreme_t": "10:30"}
+        for r in d["legs"]["rows"]:
+            r.update(leg=dict(g, retrace=r["leg"]["retrace"]), line=r["word"], alive=[], notes=[], missing=[])
+        d["verdict"] = {"BUY": {}, "SELL": {}}
+        d["health"] = jarvis.health(d, None)
+        d["reads"]["action"] = jarvis.action_words(d)
+        return jarvis.call(d)
+    c = card("WATCH")
+    assert c["word"] == "HOLD ▼" and c["state"] == "WATCH" and "no new one while WATCH" in c["buyer"]
+    c = card("HOLD")
+    assert c["word"] == "HOLD ▼" and "on the pullback" in c["buyer"]
 
 
 def test_the_wall_behind_broken_speaks_at_once_and_a_latched_palatq_waits():
@@ -420,7 +479,7 @@ def test_banknifty_says_its_oi_cannot_answer_once():
     assert not any("G14" in x for x in jarvis.health(d, False)["notes"])
 
 
-@pytest.mark.xfail(strict=True, reason="the plan's bar (<= 15 changes net of lean flips) is not met: 19 on 21 Oct, on this "
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="the plan's bar (<= 15 changes net of lean flips) is not met: 19 on 21 Oct, on this "
                                        "test record and the full record alike; .superpowers/sdd/task-1-report.md, Fix report")
 @pytest.mark.skipif(not _has("2026-10-21"), reason="21 Oct record not present")
 def test_21oct_the_word_holds_in_a_one_way_leg(record):

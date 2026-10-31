@@ -90,7 +90,12 @@ def main(argv=None):
     days = jarvis.days()["NIFTY"] if a.all else a.days
     if not days:
         ap.error("name the days, or --all")
-    rows = [measure(day) for day in days]
+    rows = []
+    for day in days:
+        try:
+            rows.append(measure(day))
+        except Exception as e:                       # one day's fault is that day's row, never the whole table
+            rows.append({"day": day, "why": f"{type(e).__name__}: {e}"})
     print(table(rows))
     if out:
         with open(out, "w", encoding="utf-8") as f:

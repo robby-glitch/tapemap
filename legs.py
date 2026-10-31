@@ -155,6 +155,15 @@ def _marks(marks):
     return out
 
 
+def wall_behind_broke(pushes, lean, m):
+    """The latest push AGAINST the lean whose answer BROKE (TOOT) or TRAPPED (PHANS) the wall behind, pushed in the last
+    PUSH_WIN min and known by minute m (the minute after its read, as jarvis.build's final_ans) -> the push or None. One
+    rule for the leg's risk item and Jarvis's ACTION word (jarvis.action_words): the chip and the word never disagree."""
+    got = [p for p in pushes or () if not p.get("artifact") and p.get("dir") == -lean
+           and p.get("ans") in ("TOOT", "PHANS") and p.get("am") and m - PUSH_WIN < m2i(p["t"]) <= m and m2i(p["am"]) < m]
+    return got[-1] if got else None
+
+
 def _lad(d, t, side, k):
     L = (d.get("ladder") or {}).get(t)
     if not L:
@@ -382,8 +391,9 @@ def read(d: dict, chain: dict | None = None, marks: list | None = None) -> dict:
         p10 = [p for p in pushes if m - PUSH_WIN < m2i(p["t"]) <= m and p.get("am") and m2i(p["am"]) <= m]
         if any(p["dir"] == d_ for p in p10):
             alive.append({"k": "push_with", "text": f"push with the leg {[p['t'] for p in p10 if p['dir'] == d_][-1]}"})
-        if any(p["dir"] == -d_ and p.get("ans") == "TOOT" for p in p10):
-            risk.append({"k": "wall_behind_broke", "text": f"push against TOOT the wall behind {[p['t'] for p in p10 if p['dir'] == -d_][-1]}"})
+        wb = wall_behind_broke(pushes, d_, m)
+        if wb:
+            risk.append({"k": "wall_behind_broke", "text": f"push against {wb['ans']} the wall behind {wb['t']}"})
         # flow: 3-min delta against, FAST against
         d3 = None if x3 is None else d_ * x3
         if d3 is None:

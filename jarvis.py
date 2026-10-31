@@ -666,10 +666,8 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     # Her asks, 29 Oct ~01:45 (speed, candle-vs-delta at the top, absorption / exhaustion, her VWAP bands to trail, all 3 in
     # sync): the true 1-min open, Dext 0.8.1's footprint delta and volume per minute (lots), the session VWAP (hlc3) and its
     # SD from the 1-min bars (matches her zone's logged u2 within ~1 pt), and BANKNIFTY / SENSEX spot (chain + backfill, carried).
-    fp = {c["time"][11:16]: c for c in (dext_log.read_candles(tag, day) if tag else [])}
     data["fo"] = [F[m][1] for m in mins]
-    data["delta"] = [round(fp[m]["delta"] / LOT) if m in fp else None for m in mins]
-    data["fvol"] = [round(fp[m]["total_volume"] / LOT) if m in fp else None for m in mins]
+    data["delta"], data["fvol"] = _footprint(tag, day, mins, LOT)
     sv = spv = 0.0
     xs, data["vwap"], data["sd"] = [], [], []
     for m in mins:
@@ -718,8 +716,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
         s["fuel"] = sides_fuel(s)                    # the face draws the brain's fuel slots, never its own rule
     # the flow the reads use: Dext's footprint delta, else the book's own (handshake.book_flow, src B) -- a minute in
     # neither stays None (Dext missing AND the book blind), never a zero
-    data["flow"] = [x if x is not None else (inp["F"].get(m) if inp["src"].get(m) == "B" else None)
-                    for x, m in zip(data["delta"], MI)]
+    data["flow"] = _frame_flow(data["delta"], MI, inp)
     data["flow_src"] = ["D" if x is not None else ("B" if y is not None else None) for x, y in zip(data["delta"], data["flow"])]
     import sensex_flow
     if sensex_flow.on(idx) and all(x is None for x in data["delta"]):   # G13: SENSEX has no footprint of its own (§1q)
@@ -727,7 +724,11 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     data["reads"] = reads(data)
     data["health"] = health(data, _readable(day, "BANKNIFTY", upto, 100))
     data["legs"] = _legs(data, R, day, idx)
-    data["reads"]["action"] = action_words(data)     # the ACTION word per minute: it needs the leg's rows (Jarvis v3)
+    try:                                             # the ACTION word per minute: it needs the leg's rows (Jarvis v3)
+        data["reads"]["action"] = action_words(data)
+    except Exception as e:                           # display only: never take the frame down; the leg's word stands
+        data["reads"]["action"] = []
+        data["health"]["notes"].append(f"the ACTION word failed: {type(e).__name__}: {e} — the leg's word shown")
     data["call"] = call(data)
     return data
 
@@ -736,12 +737,22 @@ def _nifty_flow(day, mins, MI, inp):
     """G13 (§1q, sensex_flow.ON): a SENSEX frame reads NIFTY's order flow, by the NIFTY frame's own rule -- Dext's footprint
     of NIFTY's book contract, else NIFTY's book (a SENSEX `inp` already carries NIFTY's book flow: handshake.load_flow, the
     flow its pushes are born on) -- on the SENSEX minutes -> (flow, flow_src "N" | None). A minute in neither stays None."""
-    lot = v2feed.LOTS["NIFTY"]
-    tag = _fut_tag(H.book_rows(day, "NIFTY"))
-    fp = {c["time"][11:16]: c for c in (dext_log.read_candles(tag, day) if tag else [])}
-    flow = [round(fp[mm]["delta"] / lot) if mm in fp else (inp["F"].get(m) if inp["src"].get(m) == "B" else None)
-            for mm, m in zip(mins, MI)]
+    delta, _ = _footprint(_fut_tag(H.book_rows(day, "NIFTY")), day, mins, v2feed.LOTS["NIFTY"])
+    flow = _frame_flow(delta, MI, inp)
     return flow, ["N" if x is not None else None for x in flow]
+
+
+def _footprint(tag, day, mins, lot):
+    """Dext 0.8.1's footprint per minute of `mins`, in lots -> (delta, volume); a minute Dext lacks is None."""
+    fp = {c["time"][11:16]: c for c in (dext_log.read_candles(tag, day) if tag else [])}
+    return ([round(fp[m]["delta"] / lot) if m in fp else None for m in mins],
+            [round(fp[m]["total_volume"] / lot) if m in fp else None for m in mins])
+
+
+def _frame_flow(delta, MI, inp):
+    """The flow the reads use: Dext's footprint delta, else the book's own (handshake.book_flow, src B) -- a minute in
+    neither stays None (Dext missing AND the book blind), never a zero."""
+    return [x if x is not None else (inp["F"].get(m) if inp["src"].get(m) == "B" else None) for x, m in zip(delta, MI)]
 
 
 def _legs(d, R, day, idx):
@@ -1030,14 +1041,17 @@ def call(d: dict) -> dict:
         lines = {"q35": round(q35, 2), "half": round(half, 2)}     # the faces draw these, never their own copy (Dext 0.9)
         opt, other = ("CE", "PE") if lean > 0 else ("PE", "CE")
         wall = (pe[0] if pe else None) if lean > 0 else (ce[0] if ce else None)
-        if aw == "PALAT?":
-            wrong = f"back to HOLD on a real new {'high' if lean > 0 else 'low'} past {_fmt(g['extreme'])}f; PALAT at {_fmt(half)}f"
+        wrong = (f"back to HOLD on a real new {'high' if lean > 0 else 'low'} past {_fmt(g['extreme'])}f; "
+                 f"PALAT at {_fmt(half)}f" if aw == "PALAT?" else
+                 f"PALAT? if back past {_fmt(q35)}f (0.35 of the leg) · PALAT at {_fmt(half)}f: the lean ends there")
+        entry = row["word"]                          # the ACTION word is the holder's; an entry keys on the leg's
+        if entry == "PALAT?":
             buyer = f"no new {opt}; a {opt} held tightens to {_fmt(half)}f (the PALAT line)"
             seller = f"no new {other} sale until it holds again"
         else:
-            wrong = f"PALAT? if back past {_fmt(q35)}f (0.35 of the leg) · PALAT at {_fmt(half)}f: the lean ends there"
-            buyer = (f"hold the {opt}, no new one while WATCH · stop = the PALAT line {_fmt(half)}f" if aw == "WATCH"
-                     else f"buy the {opt} on the pullback, not chased · stop = the PALAT line {_fmt(half)}f")
+            buyer = (f"hold the {opt}, no new one while WATCH · stop = the PALAT line {_fmt(half)}f"
+                     if entry == "WATCH" or aw == "WATCH" else
+                     f"buy the {opt} on the pullback, not chased · stop = the PALAT line {_fmt(half)}f")
             seller = (f"sell the {other} at / beyond {lv(wall['k'])}: its writers are the leg's floor · same stop" if wall
                       else f"sell the {other}: its writers are the leg's floor · same stop")
     elif aw in ("PALAT", "ROTATION", "OPENING", "NO LEG"):
@@ -1254,7 +1268,12 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
     if LG.get("error") or len(fo) <= i:
         put("fut_oi", "?", "could not check — the leg read has no DAY line")
     elif fo[i] is None:
-        put("fut_oi", "?", "no 30-min story")
+        oi, t30 = d.get("oi") or [], hm(m - legs.FUT_WIN)
+        j30 = mins.index(t30) if t30 in mins else None
+        if j30 is None or len(oi) <= i or oi[i] is None or oi[j30] is None:
+            put("fut_oi", "?", f"could not check — fut OI needs {legs.FUT_WIN} min of OI")
+        else:
+            put("fut_oi", "?", "no 30-min story")
     else:
         q = fo[i]
         put("fut_oi", by(1 if q["word"] in ("fresh longs", "short covering") else -1),
@@ -1288,9 +1307,9 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
 
 
 def said(word, lean):
-    """The ACTION word as said: the word and its lean arrow -- except OPENING, whose lean is a chip of its own (the card's
-    `lean`), never part of the word (ruling 1, 1 Nov: the open's geometric flips are not announced)."""
-    return word + (f" {ARR[lean]}" if lean and word != "OPENING" else "")
+    """The ACTION word as said: the word and its lean arrow -- except OPENING and NO TRADE, whose lean is a chip of its
+    own (the card's `lean`), never part of the word (ruling 1, 1 Nov: the open's geometric flips are not announced)."""
+    return word + (f" {ARR[lean]}" if lean and word not in ("OPENING", "NO TRADE") else "")
 
 
 def _palat_cond(row):
@@ -1314,9 +1333,11 @@ def action_words(d: dict) -> list:
                  is no TREND leg
       changes    only at her 3-min closes, on the same candidate at ACT_CLOSES consecutive closes; PALAT? also at one
                  close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped), and a push against
-                 the lean that BROKE / TRAPPED the wall behind (TREND / HOLD -> WATCH). CAN'T SEE is the call's (a clock)
+                 the lean that BROKE / TRAPPED the wall behind (legs.wall_behind_broke, the leg's own risk rule: TREND /
+                 HOLD -> WATCH). CAN'T SEE is the call's (a clock)
       the open   before 10:00 the word is OPENING (NO LEG before the first leg), no arrow: the lean is its own chip; with
-                 nothing held yet (the frame's first minute, the open's end at 10:00) the word is the leg's own at once
+                 nothing held yet (the frame's first minute, the open's end at 10:00) the candidate is said at once --
+                 without the two-close wait, never without the count
     `why` = the rule that set the word · WITH n · AGAINST m (· a pending candidate, n of ACT_CLOSES closes)."""
     import legs
     mins = d["mins"]
@@ -1329,7 +1350,7 @@ def action_words(d: dict) -> list:
             if x["from"] <= t <= x["to"]:
                 nt[j] = x
     pushes = d.get("pushes") or []
-    vote, fired, out = None, set(), []
+    vote, spoken, out = None, set(), []
     word = rule = shown = since = pend = None
     for i, (t, row) in enumerate(zip(mins, rows)):
         m, raw, lean = _m(t), row["word"], row.get("lean") or 0
@@ -1338,13 +1359,7 @@ def action_words(d: dict) -> list:
         c = count(d, i, vote)
         W, A = c["with"], c["against"]
         g = row.get("leg") or {}
-        brk = None                                       # newly known: against the lean, the wall behind gone
-        for j, p in enumerate(pushes):
-            if j in fired or p.get("artifact") or not p.get("am") or p["am"] >= t:     # known the minute after its read
-                continue
-            fired.add(j)
-            if lean and p["dir"] == -lean and p.get("ans") in ("TOOT", "PHANS") and m - _m(p["t"]) <= ANSWER_MIN:
-                brk = p
+        brk = legs.wall_behind_broke(pushes, lean, m) if lean else None     # the leg's own rule (its risk item)
         # the candidate
         if m < legs.OPEN_M:
             cand = ("NO LEG", "NO LEG: no leg yet") if raw == "NO LEG" else ("OPENING", "OPENING: before 10:00, no word")
@@ -1365,14 +1380,10 @@ def action_words(d: dict) -> list:
         new = None
         if m < legs.OPEN_M:
             new = cand
-        elif word is None or word in ("OPENING", "NO LEG"):            # a pause is HOLD until the count turns (ruling 2)
-            own = "HOLD" if raw == "WATCH" or (raw == "PALAT?" and not _palat_cond(row)) else raw
-            new = (own, f"{own}: the leg's own word (nothing held yet)")
+        elif word is None or word in ("OPENING", "NO LEG"):            # nothing held: the candidate, count and all
+            new = (cand[0], f"{cand[1]} · at once (nothing held yet)")
         elif raw == "PALAT":
             new = ("PALAT", "PALAT: the lean flipped")
-        elif brk and word in ("TREND", "HOLD") and g.get("quality") == "TREND":
-            new = ("WATCH", f"WATCH: the wall behind {ANSWER_EN.get(brk['ans'])} — {brk['t']} push {ARR[brk['dir']]}"
-                            + (f" {_fmt(brk['k'])}s {brk.get('side') or ''}" if brk.get("k") is not None else ""))
         elif (m - legs.START_M) % 3 == 2:                                # her 3-min close
             if cand[0] == word:
                 pend = None
@@ -1385,6 +1396,16 @@ def action_words(d: dict) -> list:
                     new = ("PALAT?", f"PALAT?: retrace {g['retrace']:.2f} ≥ {legs.DEEP} of the leg")
         if new:
             word, rule, pend = new[0], new[1], None
+        # EXIT-class, at once, any minute: a push against the lean BROKE / TRAPPED the wall behind. Spoken once per push;
+        # a break landing while the word is not a holding word waits in its window (never lost); a cautious word has it
+        if brk is not None and id(brk) not in spoken and m >= legs.OPEN_M and g.get("quality") == "TREND":
+            if word in ("TREND", "HOLD"):
+                word, pend = "WATCH", None
+                rule = (f"WATCH: the wall behind {ANSWER_EN.get(brk['ans'])} — {brk['t']} push {ARR[brk['dir']]}"
+                        + (f" {_fmt(brk['k'])}s {brk.get('side') or ''}" if brk.get("k") is not None else ""))
+                spoken.add(id(brk))
+            elif word in ("WATCH", "PALAT?", "PALAT"):
+                spoken.add(id(brk))
         if said(word, lean) != shown:
             shown, since = said(word, lean), t
         nr = len(row.get("risk") or ())                                  # the leg's risk items ride along as a chip
