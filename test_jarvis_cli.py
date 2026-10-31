@@ -1,4 +1,5 @@
 """tools/jarvis_cli.py: the terminal Jarvis -- the card as a fixed-width block, the command line, offline on a saved frame."""
+import http.client
 import io
 import json
 import os
@@ -48,17 +49,30 @@ def test_render_card_on_the_contract_example():
     assert lines[0] == "NIFTY · 2026-11-02 · 10:42 · live · asof 10:42:51"
     assert "WORD      TREND ▼ · HOLD · since 09:56" in lines
     assert "COUNT     WITH 4 · AGAINST 1 · N 6 · unread 2" in lines
-    assert "  against wall ahead 22,900s PE 186L BUILDING" in lines          # the pieces, verbatim, writers first
+    i = lines.index("  with    Sides 10:40 REAL")                         # the pieces, verbatim, writers first, cut at ' · '
+    assert lines[i + 1] == "          put writers covering"
+    assert "  with    writers ±7 DOWN (CE +12.1L · PE −14.0L / 3 min)" in lines   # never cut inside brackets
+    assert "  against wall ahead 22,900s PE 186L BUILDING" in lines
     assert "  ?       could not check — Sides has no closed slot" in lines
-    assert "BUYER     buy the PE on a pullback to d1 22,990f, not chased · needs +62 pts today [I ×1.15] · EM left 40 → thin" in lines
-    assert ("SELLER    sell the CE at / above 23,000s (23,043f): call writers are writing it · IV 13.4 vs RV 9.8 → rich"
-            " · fold = HOLD v2 line") in lines
+    i = lines.index("BUYER     buy the PE on a pullback to d1 22,990f, not chased")
+    assert lines[i + 1:i + 3] == ["          needs +62 pts today [I ×1.15]", "          EM left 40 → thin"]
+    i = lines.index("SELLER    sell the CE at / above 23,000s (23,043f): call writers are writing it")
+    assert lines[i + 1:i + 3] == ["          IV 13.4 vs RV 9.8 → rich", "          fold = HOLD v2 line"]
     assert "PICK      seller" in lines
-    assert "WHERE     stop 23,136f (zone) · pool PWH 23,155s · t1 pVAH 23,058f · t2 PE wall 23,008s (23,051f) · room 44 to MAX PAIN" in lines
-    assert "WRONG     PALAT? if back past 22,938f (0.35 of the leg) · PALAT at 22,886f" in lines
+    i = lines.index("WHERE     stop 23,136f (zone)")
+    assert lines[i + 1:i + 5] == ["          pool PWH 23,155s", "          t1 pVAH 23,058f",
+                                  "          t2 PE wall 23,008s (23,051f)", "          room 44 to MAX PAIN"]
+    i = lines.index("WRONG     PALAT? if back past 22,938f (0.35 of the leg)")
+    assert lines[i + 1] == "          PALAT at 22,886f"
     assert "HEALTH    missing none" in lines                                   # checked and found nothing
-    assert "  note    Dext footprint missing since 10:39 · newest 3 min from the book" in lines
+    i = lines.index("  note    Dext footprint missing since 10:39")
+    assert lines[i + 1] == "          newest 3 min from the book"
     assert "NOT IN CARD  no trade" in lines                                    # the card's null, named -- never invented
+    # one cell per line: a ' · ' survives only in the header, the word / count rows of one-word cells, or inside brackets
+    assert [x for x in lines if " · " in x] == [lines[0], "WORD      TREND ▼ · HOLD · since 09:56",
+                                                "COUNT     WITH 4 · AGAINST 1 · N 6 · unread 2",
+                                                "  with    writers ±7 DOWN (CE +12.1L · PE −14.0L / 3 min)",
+                                                "  with    all 3 ▼ (N −14 · BN −31 · SX −52 / 5 min)"]
     assert "%" not in out
 
 
@@ -104,14 +118,18 @@ def test_offline_now_and_replay_from_a_saved_frame(tmp_path, monkeypatch, capsys
     assert jarvis_cli.main(["--frame", str(p)]) == 0
     out = capsys.readouterr().out
     assert "WORD      WATCH ▲" in out                                           # now = the frame's call
-    assert "PAUSE     PAUSE ▲ · watch · 1 risk" in out
+    assert "PAUSE     PAUSE ▲\n          watch\n          1 risk\n" in out     # one fragment per line under the label
     assert "  missing chain missing 09:17–09:17: walls and answers there not read" in out
     assert "NIFTY · 2026-10-30 · 09:16 · replay" in out and "WORD      HOLD ▲" in out   # replay = calls[i] for that minute
-    assert "the saved frame is 2026-10-30, not 2026-10-29 — showing its 09:15" in out and "WORD      OPENING" in out
+    assert "could not check — the saved frame is 2026-10-30" in out and "WORD      OPENING" not in out   # another day: refused
     assert "could not check — 09:40 is not on the 2026-10-30 record" in out
     assert "offline — watch needs the server" in out
     assert "I read, I don't place." in out                                   # an order word, even offline
     assert "%" not in out
+    fr = json.loads(p.read_text(encoding="utf-8"))
+    fr["calls"] = fr["calls"][:2]
+    assert jarvis_cli.Session("x", frame=fr).handle("replay 2026-10-30 09:15") == \
+        "could not check — the frame's calls (2) do not line up with its minutes (3)"
 
 
 class _Resp(io.BytesIO):
@@ -142,3 +160,24 @@ def test_commands_go_to_the_grammar_with_src_cli_and_the_reply_is_verbatim(monke
     monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", down)
     assert s.handle("why").startswith("could not check — the server at http://127.0.0.1:8765 did not answer")
     assert s.handle("now").startswith("could not check — ")
+
+    def torn(req, timeout=None):
+        raise http.client.IncompleteRead(b"")
+    monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", torn)
+    assert s.handle("why").startswith("could not check — the server at http://127.0.0.1:8765 did not answer")
+
+    def answer(doc):
+        monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", lambda req, timeout=None: _Resp(json.dumps(doc).encode()))
+    answer({"ok": False, "kind": "watch", "why": "max 10 watches a day"})          # ok false, no reply: its why
+    assert s.handle("watch 22800s") == "could not check — max 10 watches a day"
+    answer({"ok": True, "kind": "why", "reply": "the lines", "lines": ["leg ▲ TREND 40 pts", "the lines"]})
+    assert s.handle("why") == "the lines\nleg ▲ TREND 40 pts"
+
+
+def test_an_odd_reply_never_kills_the_terminal(monkeypatch, capsys):
+    monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen",
+                        lambda req, timeout=None: _Resp(json.dumps({"ok": True, "reply": "x", "lines": 5}).encode()))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("why\nhelp\nquit\n"))
+    assert jarvis_cli.main([]) == 0
+    out = capsys.readouterr().out
+    assert "could not check — TypeError: " in out and "display only: I read, I don't place." in out   # and it kept going

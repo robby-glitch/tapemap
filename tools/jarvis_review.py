@@ -52,21 +52,43 @@ def _count(c):
     return "count not logged"
 
 
+def _hm(m):
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+
 def _at(rows, t):
-    """The call row standing at clock t (HH:MM[:SS]): the last row at or before its minute, else None."""
-    return next((r for r in reversed(rows) if r["t"] <= t[:5]), None)
+    """The call row ON HER SCREEN at clock t (HH:MM[:SS]) -> (row, None) or (None, why). A row for minute m is first shown
+    at its `shown` (m + ~1:20), so: the last row shown at or before t; a row without `shown`, the last minute before hers.
+    Older than 2 minutes = not the word she saw [I] (on screen the newest row is normally 1-2 minutes behind her clock)."""
+    t = (t + ":00")[:8]
+    r = next((r for r in reversed(rows) if (str(r["shown"]) <= t if r.get("shown") else r["t"] < t[:5])), None)
+    if r is None:
+        return None, f"{CC}no call row near {t[:5]} (none before)"
+    if _m(t) - _m(r["t"]) > 2:
+        return None, f"{CC}no call row near {t[:5]} (last {r['t']})"
+    return r, None
 
 
 def _word_lines(idx, rows):
-    seq = []
-    for r in rows:
-        w = r.get("word") or "no word"
-        if not seq or seq[-1][1] != w:
-            seq.append((r["t"], w))
-    ends = [t for t, _ in seq[1:]]
-    held = [_m(b) - _m(a) for (a, _), b in zip(seq, ends)] + [_m(rows[-1]["t"]) - _m(seq[-1][0]) + 1]
-    return [f"{idx} · word changes: {len(seq) - 1}",
-            " → ".join(f"{t} {w} ({h} min)" for (t, w), h in zip(seq, held))]
+    """The word's sequence, minutes held per word; a stretch with missing minutes says its gap instead (the word there is
+    unknown). A null word is one stretch `could not check — no word`; a change is counted between two known words only."""
+    seq = []                                       # [t, word, first row, last row]
+    for i, r in enumerate(rows):
+        w = r.get("word") or None
+        if seq and seq[-1][1] == w:
+            seq[-1][3] = i
+        else:
+            seq.append([r["t"], w, i, i])
+    known = [w for _, w, _, _ in seq if w is not None]
+    out = []
+    for k, (t, w, i, j) in enumerate(seq):
+        nxt = seq[k + 1][2] if k + 1 < len(seq) else None
+        gaps = [(_m(rows[x]["t"]) + 1, _m(rows[x + 1]["t"]) - 1) for x in range(i, j if nxt is None else nxt)
+                if _m(rows[x + 1]["t"]) - _m(rows[x]["t"]) > 1]
+        held = (", ".join("gap " + (_hm(a) if a == b else f"{_hm(a)}–{_hm(b)}") for a, b in gaps) if gaps else
+                f"{(_m(rows[nxt]['t']) if nxt is not None else _m(rows[j]['t']) + 1) - _m(t)} min")
+        out.append(f"{t} {w or CC + 'no word'} ({held})")
+    return [f"{idx} · word changes: {sum(a != b for a, b in zip(known, known[1:]))}", " → ".join(out)]
 
 
 def _palat_line(idx, rows):
@@ -98,13 +120,15 @@ def _trade_line(tr, rows):
     p0, t0, ex = tr.get("p0"), str(tr.get("t0") or ""), tr.get("exit_t")
     s = (f"{tr.get('idx')} {tr.get('k'):g} {tr.get('side')} {tr.get('role')} "
          + (f"@{p0:g}" if p0 is not None else "entry price not marked") + f" · in {t0} ")
-    a = _at(rows, t0)
-    s += f"{a.get('word')} ({_count(a.get('count'))})" if a else f"{CC}no call row by {t0[:5]}"
+    a, why = _at(rows, t0)
+    s += f"{a.get('word') or CC + 'no word'} ({_count(a.get('count'))})" if a else why
     if not ex:
         return s + " · no exit marked"
-    b = _at(rows, str(ex))
-    s += f" · out {ex} " + (str(b.get("word")) if b else f"{CC}no call row by {str(ex)[:5]}")
-    fa, fb = a and a.get("fut"), b and b.get("fut")
+    b, why = _at(rows, str(ex))
+    s += f" · out {ex} " + (str(b.get("word") or CC + "no word") if b else why)
+    if not a or not b:
+        return s + f" · fut points {CC}no call row on her screen at both ends"
+    fa, fb = a.get("fut"), b.get("fut")
     if not isinstance(fa, (int, float)) or not isinstance(fb, (int, float)):
         return s + f" · fut points {CC}no fut in the call rows"
     d = 1 if (tr.get("side"), tr.get("role")) in (("CE", "long"), ("PE", "short")) else -1
@@ -115,9 +139,14 @@ def sheet(day, data_dir=DIR):
     """The day's sheet as markdown."""
     calls, pauses, cmds = (_rows(os.path.join(data_dir, f"{k}_{day}.jsonl")) for k in ("call", "pause", "cmd"))
     marks, why_marks = None, f"no marks file (day_state day_{day}.json)"
-    if os.path.exists(day_state.path_for(day)):
-        st = day_state.load(day)                 # {} only when it did not read (a saved day always carries `day`)
-        marks, why_marks = (st.get("hold_trades") or [], None) if st else (None, "the marks file did not read")
+    if os.path.exists(day_state.path_for(day)):   # read here, not day_state.load: that renames a corrupt file; this is read-only
+        try:
+            with open(day_state.path_for(day), encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            st = None
+        ok = isinstance(st, dict) and st.get("day") == day
+        marks, why_marks = (st.get("hold_trades") or [], None) if ok else (None, "the marks file did not read")
     by = {}
     for r in calls or ():
         if isinstance(r.get("t"), str) and len(r["t"]) >= 5:
@@ -141,9 +170,11 @@ def sheet(day, data_dir=DIR):
         sets = [r for r in cmds if r.get("kind") == "watch" and r.get("ok")]
         hits = [r for r in cmds if r.get("kind") == "watch_hit"]
         section("Watches", [f"watches set {len(sets)} · hit {len(hits)}"]
-                + [f"{str(r.get('t'))[:5]} set {r.get('text')}" for r in sets]
-                + [f"{r.get('t')} hit " + (f"{r['px']:,.1f}{r.get('frame') or ''}" if isinstance(r.get("px"), (int, float))
-                                          else "price not logged") + f" · id {r.get('id')}" for r in hits])
+                + [f"{str(r.get('t'))[:5]} {r.get('idx') or 'index not logged'} set {r.get('text')}" for r in sets]
+                + [f"{r.get('t')} {r.get('idx') or 'index not logged'} hit "
+                   + (f"{r['px']:,.1f}{r['frame']}" if isinstance(r.get("px"), (int, float)) and r.get("frame") in ("s", "f")
+                      else "frame not logged" if isinstance(r.get("px"), (int, float)) else "price not logged")
+                   + f" · id {r.get('id')}" for r in hits])
     if pauses is None:
         section("Pauses", [CC + "no pause log"])
     else:

@@ -11,6 +11,7 @@ needs the server says so. Any server failure prints `could not check — <reason
 """
 import argparse
 import datetime
+import http.client
 import json
 import re
 import sys
@@ -47,15 +48,32 @@ def _txt(v):
     return "" if v is None else str(v)
 
 
+def _frags(s):
+    """An engine sentence cut at its own ' · ' separators, never inside brackets: one cell per line. Verbatim otherwise."""
+    out = []
+    for p in str(s).split(" · "):
+        if out and out[-1].count("(") > out[-1].count(")"):
+            out[-1] += " · " + p
+        else:
+            out.append(p)
+    return out
+
+
+def _block(prefix, text):
+    """`prefix` + the first fragment, each further fragment on its own line under it (the ≤ 6-words-per-cell rule)."""
+    f = _frags(text)
+    return [prefix + f[0]] + [" " * len(prefix) + x for x in f[1:]]
+
+
 def render_card(card: dict) -> str:
-    """The CARD as a fixed-width terminal block. Pure. The engine's sentences and levels verbatim; a key the card lacks
-    (or null) is named once on the last line -- never a zero, never invented."""
+    """The CARD as a fixed-width terminal block. Pure. The engine's sentences and levels verbatim, one ' · ' fragment
+    per line; a key the card lacks (or null) is named once on the last line -- never a zero, never invented."""
     g, out, absent = card.get, [], []
 
     def row(label, v):
         t = _txt(v)
         if t:
-            out.append(f"{label:<10}{t}")
+            out.extend(_block(f"{label:<10}", t))
         else:
             absent.append(label.lower())
 
@@ -66,9 +84,15 @@ def render_card(card: dict) -> str:
     if word:
         out.append(f"{'WORD':<10}" + " · ".join(word))
     c = g("count") if isinstance(g("count"), dict) else {}
-    row("COUNT", " · ".join(f"{lab} {c[k]}" for k, lab in (("with", "WITH"), ("against", "AGAINST"), ("N", "N"),
-                                                            ("unread", "unread")) if c.get(k) is not None))
-    out += [f"  {str(p.get('side') or '?'):<8}{p.get('text')}" for p in c.get("pieces") or () if p.get("text")]
+    n = " · ".join(f"{lab} {c[k]}" for k, lab in (("with", "WITH"), ("against", "AGAINST"), ("N", "N"), ("unread", "unread"))
+                   if c.get(k) is not None)
+    if n:
+        out.append(f"{'COUNT':<10}{n}")          # the count's own one-word cells: one line
+    else:
+        absent.append("count")
+    for p in c.get("pieces") or ():
+        if p.get("text"):
+            out.extend(_block(f"  {str(p.get('side') or '?'):<8}", p["text"]))
     row("LEG", g("leg"))
     row("PAUSE", g("pause"))
     row("HOW MUCH", g("how_much"))
@@ -84,7 +108,9 @@ def render_card(card: dict) -> str:
     if isinstance(h, dict):
         m = h.get("missing")
         out.append(f"{'HEALTH':<10}" + ("missing none" if m == [] else f"{len(m)} missing" if m else "missing not in the card"))
-        out += [f"  missing {x}" for x in m or ()] + [f"  note    {x}" for x in h.get("notes") or ()]
+        for lab, xs in (("missing", m or ()), ("note", h.get("notes") or ())):
+            for x in xs:
+                out.extend(_block(f"  {lab:<8}", x))
     else:
         absent.append("health")
     if absent:
@@ -132,7 +158,7 @@ def call_server(base, path, body=None, timeout=10):
             doc = json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         return None, f"{CC}the server answered {e.code} {e.reason}"
-    except (urllib.error.URLError, OSError) as e:
+    except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
         return None, f"{CC}the server at {base} did not answer ({getattr(e, 'reason', e)})"
     except ValueError:
         return None, CC + "the server's reply was not JSON"
@@ -179,7 +205,9 @@ class Session:
         doc, why = call_server(self.base, "/api/jarvis/cmd", {"idx": self.idx, "text": arg, "src": "cli"})
         if why:
             return why
-        reply = doc.get("reply") or doc.get("why")
+        reply = doc.get("reply")
+        if doc.get("ok") is False and not reply:
+            return _not_ok(doc)
         out = [reply] + [x for x in doc.get("lines") or () if x and x != reply]
         return "\n".join(str(x) for x in out if x) or CC + "the server sent an empty reply"
 
@@ -191,10 +219,10 @@ class Session:
         return why or (_not_ok(doc) if doc.get("ok") is False else render_card(doc))
 
     def replay(self, day, hm):
-        note, f = "", self.frame
+        f = self.frame
         if f is not None:
             if day != f.get("day"):
-                note = f"the saved frame is {f.get('day')}, not {day} — showing its {hm}\n"
+                return f"{CC}the saved frame is {f.get('day')}"
         else:
             today = datetime.datetime.now(IST).strftime("%Y-%m-%d")
             f = self._replays.get((self.idx, day))
@@ -212,9 +240,11 @@ class Session:
                     return CC + "the replay frame carries no calls"
                 f = self._replays[(self.idx, day)] = doc
         mins, calls = f.get("mins") or [], f.get("calls") or []
-        if hm not in mins or len(calls) != len(mins):
-            return note + f"{CC}{hm} is not on the {f.get('day')} record"
-        return note + render_card(card_from_call(f, calls[mins.index(hm)]))
+        if len(calls) != len(mins):
+            return f"{CC}the frame's calls ({len(calls)}) do not line up with its minutes ({len(mins)})"
+        if hm not in mins:
+            return f"{CC}{hm} is not on the {f.get('day')} record"
+        return render_card(card_from_call(f, calls[mins.index(hm)]))
 
 
 def main(argv=None):
@@ -244,7 +274,10 @@ def main(argv=None):
         except (EOFError, KeyboardInterrupt):
             print()
             return 0
-        r = s.handle(line)
+        try:
+            r = s.handle(line)
+        except Exception as e:                     # an odd reply shape must never kill the terminal
+            r = f"{CC}{type(e).__name__}: {e}"
         if r is None:
             return 0
         if r:
