@@ -95,3 +95,7 @@ data/voice/
 
 # her Telegram bot token + chat id (25 Oct): never committed
 telegr/
+
+# the voice's keys (jarvis_voice.py, keys/README.md): her API keys and the daily cap -- never committed
+keys/*
+!keys/README.md
