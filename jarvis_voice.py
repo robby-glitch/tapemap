@@ -38,9 +38,11 @@ TIMEOUT_S = 30                # [I] one call; `ask` waits on it, a change runs i
 MAX_LINES, MAX_CHARS, BRIEF_LINES = 3, 140, 6
 WEB_SEARCH = {"type": "web_search_20260209", "name": "web_search", "max_uses": 3}
 NUM = re.compile(r"\d{1,2}:\d{2}(?::\d{2})?|\d+(?:,\d+)*(?:\.\d+)?")     # a time HH:MM[:SS], or digits with , and .
-RATE = re.compile(r"%|\bper\s?cent\b|\bprobabilit|\bodds\b|\b(?:hit|win)\s+rate", re.I)
-ORDER = re.compile(r"\b(buy(?:s|ing)?|sell(?:s|ing)?|lots?|orders?|plac(?:e|es|ed|ing)|square\s+off|short|long|exit\s+now)\b",
-                   re.I)
+RATE = re.compile(r"[%％]|\bper\s?cent\b|\bprobab\w*|\bodds\b|\bchances?\b|\bconfiden\w*|\blikelihood\b|\b(?:hit|win)\s+rate",
+                  re.I)
+ORDER = re.compile(r"\b(buy(?:s|ing)?|sell(?:s|ing)?|lots?|orders?|plac(?:e|es|ed|ing)|square[\s-]*off|squar(?:e|ing)|"
+                   r"short(?:ing|ed)?|long|exit\s+now)\b", re.I)     # `shorts` (fresh shorts, an OI noun) stays out
+COUNT = re.compile(r"\b(WITH|AGAINST)\s+(\d+)")                     # the card's own grammar: WITH 4 · AGAINST 1
 _LOCK = threading.Lock()
 
 PREFIX = """You are the voice of Jarvis, a read-only market reader for one Indian index-options trader (NIFTY, SENSEX).
@@ -98,35 +100,46 @@ def _calls_today():
 
 
 def _write(row):
-    with _LOCK:
-        os.makedirs(DIR, exist_ok=True)
-        with open(_path(), "a", encoding="utf-8") as f:
-            f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    """Append one row -> None, or "log unwritable" (fail-soft: the lines still reach her).
+    ponytail: an unwritable log also blinds the cap (it counts rows); add a memory counter if a disk ever fills mid-day."""
+    try:
+        with _LOCK:
+            os.makedirs(DIR, exist_ok=True)
+            with open(_path(), "a", encoding="utf-8") as f:
+                f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    except OSError:
+        return "log unwritable"
+    return None
 
 
 def _read(name):
-    """A file under KEYS, stripped, or None. Read at call time; the caller never keeps it past the call."""
-    try:
-        with open(os.path.join(KEYS, name), encoding="utf-8") as f:
-            return f.read().strip() or None
-    except OSError:
+    """A file under KEYS, stripped, or None when absent. Read at call time; the caller never keeps it past the call. A file
+    that is there but cannot be read as UTF-8 (PowerShell 5.1's `echo key > keys\\anthropic.txt` writes UTF-16) raises
+    _Fallback("key file unreadable") -- never the bytes, which a UnicodeDecodeError's repr would carry."""
+    p = os.path.join(KEYS, name)
+    if not os.path.exists(p):
         return None
+    try:
+        with open(p, encoding="utf-8-sig") as f:              # -sig: Notepad's UTF-8 BOM is not part of the key
+            return f.read().strip() or None
+    except (OSError, UnicodeError):
+        raise _Fallback("key file unreadable") from None
 
 
 def _cap():
     try:
         return int(json.loads(_read("cap.json") or "")["calls_per_day"])
-    except (ValueError, KeyError, TypeError):
+    except (ValueError, KeyError, TypeError, _Fallback):
         return CAP
 
 
 def engine_lines(card):
     """The engine's own lines: the card's `why` (first three) when it carries one -- THE CARD contract has no `why` key, so a
-    contract card gives [word, leg, wrong_line] with the absent ones dropped. Never blank."""
-    c = card or {}
+    contract card gives [word, leg, wrong_line] with the absent ones dropped. Never blank, never raises."""
+    c = card if isinstance(card, dict) else {}
     w = c.get("why")
-    w = [w] if isinstance(w, str) else list(w or [])
-    out = w[:3] or [x for x in (c.get("word"), c.get("leg"), c.get("wrong_line")) if x]
+    w = [w] if isinstance(w, str) else list(w) if isinstance(w, (list, tuple)) else []
+    out = [str(x) for x in w if x][:3] or [str(x) for x in (c.get("word"), c.get("leg"), c.get("wrong_line")) if x]
     return out or ["could not check — the card has no word yet"]
 
 
@@ -172,23 +185,25 @@ def fence(text, card, question=None, max_lines=MAX_LINES, web=False):
     allowed = set(_tokens(json.dumps(src, ensure_ascii=False, default=str) + " " + str(question or "")))
     allowed |= {t[:5] for t in allowed if t.count(":") == 2}        # 10:42:51 in the card holds 10:42
     quotable = _quotable(src)
+    cnt = src.get("count") if isinstance(src, dict) else None
+    # each why NAMES the check and never echoes what it kept out: the why lands on the card's voice and in the log
     for ln in lines:
         if len(ln) > MAX_CHARS:
             return f"fence: a line of {len(ln)} chars (at most {MAX_CHARS})"
-        m = RATE.search(ln)
-        if m:
-            return f"fence: no % or rate ({m.group(0)})"
+        if RATE.search(ln):
+            return "fence: rate sign"
         rest = ln
         for q in quotable:
             rest = rest.replace(q, " ")
-        m = ORDER.search(rest)
-        if m:
-            return f"fence: order word '{m.group(0).lower()}'"
+        if ORDER.search(rest):
+            return "fence: order word"
+        for k, n in COUNT.findall(ln):                              # WITH 1 · AGAINST 4 uses card numbers, swapped
+            if not isinstance(cnt, dict) or str(cnt.get(k.lower())) != n:
+                return "fence: count mismatch"
         if web and ln.startswith("[web]"):
             continue
-        for raw, t in zip(NUM.findall(ln), _tokens(ln)):
-            if t not in allowed:
-                return f"fence: number {raw} not in the card"
+        if any(t not in allowed for t in _tokens(ln)):
+            return "fence: number not in the card"
     return None
 
 
@@ -199,14 +214,21 @@ def _claude(anthropic, key, system, user, effort, web):
     if web:
         kw["tools"] = [WEB_SEARCH]
     # base_url pinned: the SDK otherwise sends her key to $ANTHROPIC_BASE_URL when a shell has it set (Claude Code's does)
-    r = anthropic.Anthropic(api_key=key, base_url=CLAUDE_URL, timeout=TIMEOUT_S, max_retries=1).messages.create(**kw)
+    with anthropic.Anthropic(api_key=key, base_url=CLAUDE_URL, timeout=TIMEOUT_S, max_retries=1) as client:
+        r = client.messages.create(**kw)
     if r.stop_reason == "refusal":
         raise _Fallback("refused")
     if r.stop_reason not in ("end_turn", "stop_sequence"):
-        raise _Fallback(f"stopped: {r.stop_reason}")
+        raise _Fallback(str(r.stop_reason))                   # max_tokens (cut off), pause_turn (web search unfinished)
     u = r.usage
     tin = sum(getattr(u, k, None) or 0 for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
-    return "".join(b.text for b in r.content if b.type == "text"), tin, getattr(u, "output_tokens", None)
+    return _join(b.text for b in r.content if b.type == "text"), tin, getattr(u, "output_tokens", None)
+
+
+def _join(parts):
+    """Text blocks -> one text. Joined with "" because web search splits ONE cited sentence into several blocks; a [web]
+    item a block starts without a line break before it still gets its own line."""
+    return re.sub(r"(?<!\n)\[web\]", "\n[web]", "".join(parts)).lstrip("\n")
 
 
 def _gemini(key, system, user, web):
@@ -220,7 +242,7 @@ def _gemini(key, system, user, web):
     with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
         d = json.loads(r.read())
     um = d.get("usageMetadata") or {}
-    text = "".join(p.get("text", "") for p in d["candidates"][0]["content"]["parts"])
+    text = _join(p.get("text", "") for p in d["candidates"][0]["content"]["parts"])
     return text, um.get("promptTokenCount"), um.get("candidatesTokenCount")
 
 
@@ -239,38 +261,58 @@ def _pick(effort, web):
     return "engine", "no key"
 
 
+def _why(e, name=None):
+    """An exception -> its class name (and HTTP status), NEVER its text: a message or repr can carry the key or its bytes."""
+    code = getattr(e, "status_code", None) or getattr(e, "code", None)
+    cls = type(e).__name__ + (f" {code}" if isinstance(code, int) else "")
+    return f"{name} call failed — {cls}" if name else cls
+
+
 def _run(kind, idx, src, q, user, fall, effort, provider, max_lines, web=False, blocked=None):
-    name, fn = ("engine", blocked) if blocked else ("injected", provider) if provider else _pick(effort, web)
-    tin = tout = None
-    if name == "engine":
-        why = fn
-    elif _calls_today() >= _cap():                   # ponytail: two threads can pass this together; at most one call per index over
-        name, why = "engine", "cap reached"
-    else:
-        try:
-            out = fn(PREFIX, user)
-            text, tin, tout = out if isinstance(out, tuple) else (out, None, None)
-            why = fence(text, src, q, max_lines, web)
-        except _Fallback as e:
-            why = str(e)
-        except Exception as e:                       # noqa: BLE001 -- any error is a fallback; its class names it, never its text
-            code = getattr(e, "status_code", None) or getattr(e, "code", None)
-            why = f"{name} call failed — {type(e).__name__}" + (f" {code}" if isinstance(code, int) else "")
+    """Pick, cap, call, fence, log -> the result dict. Every failure on the way (the key file, the pick, the cap read, the
+    call, the fence) is a why inside the one try; nothing raises out of here."""
+    name, tin, tout, text = "engine", None, None, ""
+    try:
+        if blocked:
+            raise _Fallback(blocked)
+        who, fn = ("injected", provider) if provider else _pick(effort, web)
+        if who == "engine":
+            raise _Fallback(fn)
+        if _calls_today() >= _cap():                 # ponytail: two threads can pass this together; at most one call per index over
+            raise _Fallback("cap reached")
+        name = who                                   # from here on the provider was asked: the row counts against the cap
+        out = fn(PREFIX, user)
+        text, tin, tout = out if isinstance(out, tuple) else (out, None, None)
+        why = fence(text, src, q, max_lines, web)
+    except _Fallback as e:
+        why = str(e)
+    except Exception as e:                           # noqa: BLE001 -- any error is a fallback; its class names it, never its text
+        why = _why(e, None if name == "engine" else name)
     lines = fall if why else _lines(text)
-    n = _now()
-    _write({"at": int(time.time()), "t": n.strftime("%H:%M:%S"), "idx": idx, "kind": kind, "provider": name,
-            "in_tokens": tin, "out_tokens": tout, "lines": lines, "fell_back": bool(why), "why": why, "q": q})
-    return {"lines": lines, "provider": name, "fell_back": bool(why), "why": why}
+    res = {"lines": lines, "provider": name, "fell_back": bool(why), "why": why}
+    bad = _write({"at": int(time.time()), "t": _now().strftime("%H:%M:%S"), "idx": idx, "kind": kind, "provider": name,
+                  "in_tokens": tin, "out_tokens": tout, "lines": lines, "fell_back": bool(why), "why": why, "q": q})
+    if bad:
+        res["why"] = f"{why} · {bad}" if why else bad
+    return res
+
+
+def _guard(card, e):
+    """The last door: an error outside _run still answers with the engine's lines."""
+    return {"lines": engine_lines(card), "provider": "engine", "fell_back": True, "why": _why(e)}
 
 
 def speak(card, question=None, provider=None):
-    """The voice over one card -> {"lines", "provider", "fell_back", "why"}; one log row. Her notes ride in the card's
-    health.notes (the server builds it with jarvis_cmd's notes); the card's old `voice` is never sent or quoted."""
-    c = {k: v for k, v in (card or {}).items() if k != "voice"}
-    task = f"HER QUESTION: {question}" if question else CHANGE_TASK
-    user = "CARD " + json.dumps(c, ensure_ascii=False, default=str) + "\n\n" + task
-    return _run("ask" if question else "change", c.get("idx"), c, question, user, engine_lines(c),
-                "medium" if question else "low", provider, MAX_LINES, blocked=None if c.get("ok") else "no card")
+    """The voice over one card -> {"lines", "provider", "fell_back", "why"}; one log row; NEVER raises. Her notes ride in the
+    card's health.notes (the server builds it with jarvis_cmd's notes); the card's old `voice` is never sent or quoted."""
+    try:
+        c = {k: v for k, v in card.items() if k != "voice"} if isinstance(card, dict) else {}
+        task = f"HER QUESTION: {question}" if question else CHANGE_TASK
+        user = "CARD " + json.dumps(c, ensure_ascii=False, default=str) + "\n\n" + task
+        return _run("ask" if question else "change", c.get("idx"), c, question, user, engine_lines(c),
+                    "medium" if question else "low", provider, MAX_LINES, blocked=None if c.get("ok") else "no card")
+    except Exception as e:                           # noqa: BLE001
+        return _guard(card, e)
 
 
 def on_change(card, provider=None):
@@ -285,10 +327,14 @@ def answer(card, question, provider=None):
 
 def brief(levels, last_call_rows, notes, provider=None):
     """THE PRE-OPEN BRIEF: one call with web search, <= 6 lines, every web item [web]; once a day (a brief already said
-    today is returned from the log, no call). The fence holds every non-[web] line to the levels, rows and notes given."""
-    said = [r for r in _rows() if r.get("kind") == "brief" and not r.get("fell_back")]
-    if said:
-        return {"lines": said[-1]["lines"], "provider": said[-1]["provider"], "fell_back": False, "why": None}
-    src = {"levels": levels, "last_calls": last_call_rows, "notes": notes}
-    user = "CONTEXT " + json.dumps(src, ensure_ascii=False, default=str) + "\n\n" + BRIEF_TASK
-    return _run("brief", None, src, None, user, [BRIEF_FALL], "medium", provider, BRIEF_LINES, web=True)
+    today is returned from the log, no call). The fence holds every non-[web] line to the levels, rows and notes given.
+    NEVER raises."""
+    try:
+        said = [r for r in _rows() if r.get("kind") == "brief" and not r.get("fell_back")]
+        if said:
+            return {"lines": said[-1]["lines"], "provider": said[-1]["provider"], "fell_back": False, "why": None}
+        src = {"levels": levels, "last_calls": last_call_rows, "notes": notes}
+        user = "CONTEXT " + json.dumps(src, ensure_ascii=False, default=str) + "\n\n" + BRIEF_TASK
+        return _run("brief", None, src, None, user, [BRIEF_FALL], "medium", provider, BRIEF_LINES, web=True)
+    except Exception as e:                           # noqa: BLE001
+        return {"lines": [BRIEF_FALL], "provider": "engine", "fell_back": True, "why": _why(e)}

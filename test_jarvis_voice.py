@@ -47,18 +47,28 @@ def say(text):
 # ---- the fence (code, never prompt) ----
 
 def test_the_fence_rejects_a_made_up_number():
-    why = jv.fence("TREND ▼ holds while the wall at 22,751s stands", CARD)
-    assert why and "22,751" in why
+    assert jv.fence("TREND ▼ holds while the wall at 22,751s stands", CARD) == "fence: number not in the card"
+    assert jv.fence("2192", CARD)            # ensure_ascii=False: the card's "→ rich" is not "→ rich", so no 2192
 
 
-def test_the_fence_rejects_a_percent():
-    assert "%" in jv.fence("WITH 4 · writers 4% stronger", CARD)
+def test_the_fence_rejects_a_percent_or_a_rate_word():
+    assert jv.fence("WITH 4 · writers 4% stronger", CARD) == "fence: rate sign"
+    for ln in ("writers 4％ down", "a good chance of 22,900s", "odds favour TREND ▼", "confidence high", "likelihood low",
+               "probably TREND ▼"):
+        assert jv.fence(ln, CARD) == "fence: rate sign", ln
 
 
 def test_the_fence_rejects_an_order_word():
-    assert "buy" in jv.fence("buy 5 lots now", CARD)
-    assert "square off" in jv.fence("square off at 22,938f", CARD)
-    assert jv.fence("go short below 22,886f", CARD)
+    for ln in ("buy 5 lots now", "square off at 22,938f", "square-off at 22,938f", "squareoff at 22,938f",
+               "go short below 22,886f", "consider shorting the CE", "shorted at 22,938f", "place it at 22,938f"):
+        assert jv.fence(ln, CARD) == "fence: order word", ln
+    assert jv.fence("fut OI fresh shorts", CARD) is None            # shorts: the card's OI noun
+
+
+def test_the_fence_holds_the_count_to_the_card():
+    assert jv.fence("WITH 4 · AGAINST 1", CARD) is None
+    assert jv.fence("WITH 1 · AGAINST 4", CARD) == "fence: count mismatch"
+    assert jv.fence("WITH 4", {"ok": True, "count": None, "x": 4}) == "fence: count mismatch"
 
 
 def test_the_fence_rejects_four_lines_and_a_long_line():
@@ -85,7 +95,7 @@ def test_times_count_as_numbers():
     assert jv.fence("TREND ▼ since 09:56", CARD) is None
     assert jv.fence("TREND ▼ since 10:42", dict(CARD, at="10:41")) is None     # asof 10:42:51 holds 10:42
     assert jv.fence("TREND ▼ since 9:56", CARD) is None           # the hour zero-padded
-    assert "09:57" in jv.fence("TREND ▼ since 09:57", CARD)
+    assert jv.fence("TREND ▼ since 09:57", CARD) == "fence: number not in the card"
 
 
 def test_the_old_voice_is_not_a_source_of_numbers():
@@ -133,11 +143,21 @@ def test_an_injected_provider_that_passes_the_fence_speaks():
     assert "never" in seen["system"].lower() and "TREND ▼" in seen["user"] and "77,777" not in seen["user"]
 
 
-@pytest.mark.parametrize("reply, check", [("TREND ▼ · wall 22,751s", "22,751"), ("writers 4% down", "%"),
-                                          ("buy 5 lots", "buy"), ("\n".join([GOOD] * 4), "4 lines")])
+@pytest.mark.parametrize("reply, check", [("TREND ▼ · wall 22,751s", "number not in the card"), ("writers 4% down", "rate sign"),
+                                          ("buy 5 lots", "order word"), ("\n".join([GOOD] * 4), "4 lines")])
 def test_a_reply_that_fails_the_fence_falls_back_and_names_the_check(reply, check):
     out = jv.speak(CARD, provider=say(reply))
     assert out["fell_back"] and out["lines"] == ENGINE and out["provider"] == "injected" and check in out["why"]
+
+
+@pytest.mark.parametrize("reply, kept_out", [("TREND ▼ · wall 22,751s", "22,751"), ("writers 4% down", "%"),
+                                             ("writers 4％ down", "％"), ("buy 5 lots", "buy"), ("buy 5 lots", "lots"),
+                                             ("a good chance of TREND ▼", "chance")])
+def test_what_the_fence_keeps_out_never_reaches_the_why_or_the_log(_tmp, reply, kept_out):
+    out = jv.speak(CARD, provider=say(reply))
+    row = json.dumps(_log(_tmp), ensure_ascii=False)
+    assert out["fell_back"] and kept_out not in json.dumps(out, ensure_ascii=False) and kept_out not in row
+    assert "%" not in row and "%" not in json.dumps(out, ensure_ascii=False)
 
 
 def test_a_provider_error_falls_back_by_its_class_name_only(_tmp):
@@ -196,15 +216,69 @@ def _fake_sdk(monkeypatch, text=GOOD, stop="end_turn"):
             seen["kw"] = kw
             usage = types.SimpleNamespace(input_tokens=900, cache_read_input_tokens=4000, cache_creation_input_tokens=None,
                                           output_tokens=120)
-            return types.SimpleNamespace(stop_reason=stop, content=[_Block("thinking"), _Block("text", text)], usage=usage)
+            texts = [text] if isinstance(text, str) else text
+            return types.SimpleNamespace(stop_reason=stop, content=[_Block("thinking")] + [_Block("text", t) for t in texts],
+                                         usage=usage)
 
     class Anthropic:
         def __init__(self, **kw):
-            seen["client"] = kw
+            seen["client"], seen["closed"] = kw, False
             self.messages = Messages()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            seen["closed"] = True
+            return False
 
     monkeypatch.setitem(sys.modules, "anthropic", types.SimpleNamespace(Anthropic=Anthropic))
     return seen
+
+
+def test_a_utf16_key_file_is_a_named_fallback_never_a_raise(_tmp, monkeypatch):
+    (_tmp / "keys" / "anthropic.txt").write_bytes("sk-ant-SECRET\r\n".encode("utf-16"))   # PowerShell 5.1's `echo k > f`
+    _fake_sdk(monkeypatch)
+    for out in (jv.speak(CARD), jv.answer(CARD, "why?"), jv.on_change(CARD)):
+        assert out == {"lines": ENGINE, "provider": "engine", "fell_back": True, "why": "key file unreadable"}
+    assert "SECRET" not in json.dumps(_log(_tmp)) and jv._calls_today() == 0
+
+
+def test_a_utf8_bom_key_file_reads_the_bare_key(_tmp, monkeypatch):
+    (_tmp / "keys" / "anthropic.txt").write_bytes("﻿sk-ant-SECRET \r\n".encode("utf-8"))   # Notepad's UTF-8 with BOM
+    seen = _fake_sdk(monkeypatch)
+    assert jv.speak(CARD)["provider"] == "claude" and seen["client"]["api_key"] == "sk-ant-SECRET"
+
+
+@pytest.mark.parametrize("card", [None, "TREND ▼", ["TREND ▼"], 7, {"ok": True, "why": 5}, {"ok": True, "why": {"a": 1}}])
+def test_speak_never_raises_on_a_bad_card(card):
+    out = jv.speak(card, provider=say(GOOD))
+    assert set(out) == {"lines", "provider", "fell_back", "why"} and out["lines"] and all(isinstance(x, str) for x in out["lines"])
+
+
+def test_any_error_is_a_fallback_named_by_its_class_only(monkeypatch):
+    def boom(effort, web):
+        raise ValueError("sk-ant-SECRET")
+
+    monkeypatch.setattr(jv, "_pick", boom)
+    out = jv.speak(CARD)
+    assert out == {"lines": ENGINE, "provider": "engine", "fell_back": True, "why": "ValueError"}
+    assert jv.answer(CARD, "q")["why"] == "ValueError" and jv.brief(LEVELS, [], [])["why"] == "ValueError"
+
+
+def test_an_unwritable_log_still_returns_the_lines(_tmp, monkeypatch):
+    (_tmp / "a_file").write_text("x")
+    monkeypatch.setattr(jv, "DIR", str(_tmp / "a_file"))          # makedirs on a file -> OSError
+    out = jv.speak(CARD, provider=say(GOOD))
+    assert out == {"lines": [GOOD], "provider": "injected", "fell_back": False, "why": "log unwritable"}
+    assert jv.speak(CARD)["why"] == "no key · log unwritable"
+
+
+def test_cited_blocks_join_into_lines_and_each_web_item_starts_one(_tmp, monkeypatch):
+    (_tmp / "keys" / "anthropic.txt").write_text("k")
+    seen = _fake_sdk(monkeypatch, text=["[web] RBI policy at ", "10:00", " today", "[web] US CPI 18:00 IST\n", "PDH 23,155s"])
+    out = jv.brief(LEVELS, [], [])
+    assert out["lines"] == ["[web] RBI policy at 10:00 today", "[web] US CPI 18:00 IST", "PDH 23,155s"] and seen["closed"]
 
 
 def test_claude_call_shape_and_key_handling(_tmp, monkeypatch):
@@ -235,7 +309,14 @@ def test_claude_refusal_falls_back(_tmp, monkeypatch):
 def test_a_cut_off_reply_falls_back(_tmp, monkeypatch):
     (_tmp / "keys" / "anthropic.txt").write_text("k")
     _fake_sdk(monkeypatch, stop="max_tokens")
-    assert jv.speak(CARD)["why"] == "stopped: max_tokens"
+    assert jv.speak(CARD)["why"] == "max_tokens"
+
+
+def test_an_unfinished_web_search_falls_back(_tmp, monkeypatch):
+    (_tmp / "keys" / "anthropic.txt").write_text("k")
+    _fake_sdk(monkeypatch, text=WEB, stop="pause_turn")
+    out = jv.brief(LEVELS, [], [])
+    assert out["fell_back"] and out["why"] == "pause_turn"
 
 
 def test_no_sdk_is_a_named_fallback_not_an_error(_tmp, monkeypatch):
@@ -303,8 +384,8 @@ def test_the_brief_with_web_search(_tmp, monkeypatch):
 
 def test_the_brief_is_fenced():
     out = jv.brief(LEVELS, [], [], provider=say("PDH 23,999s"))     # a made-up number off a [web] line
-    assert out["fell_back"] and "23,999" in out["why"]
+    assert out["fell_back"] and out["why"] == "fence: number not in the card"
     out = jv.brief(LEVELS, [], [], provider=say("[web] Dow −0.4%"))
-    assert out["fell_back"] and "%" in out["why"]
+    assert out["fell_back"] and out["why"] == "fence: rate sign"
     assert jv.brief(LEVELS, [], [], provider=say("\n".join(["[web] x"] * 7)))["fell_back"]
     assert jv.brief(LEVELS, [], [])["why"] == "no key"
