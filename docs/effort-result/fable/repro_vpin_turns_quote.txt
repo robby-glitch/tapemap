@@ -1,0 +1,76 @@
+(VPIN source: buckets rebuilt from the 1-second book, quote rule)
+== 1. at the band signal: VPIN chip in the trade's direction -> which came first in the next 60 min ==
+all band signals (n 147)
+  VPIN WITH     n  17: +1σ first 5 · −1σ first 6 · neither 5
+  VPIN QUIET    n  56: +1σ first 17 · −1σ first 28 · neither 10
+  VPIN AGAINST  n  63: +1σ first 32 · −1σ first 19 · neither 12
+  VPIN no read  n  11: +1σ first 4 · −1σ first 6 · neither 0
+  without BANKNIFTY
+  VPIN WITH     n  13: +1σ first 4 · −1σ first 5 · neither 4
+  VPIN QUIET    n  33: +1σ first 8 · −1σ first 18 · neither 6
+  VPIN AGAINST  n  48: +1σ first 22 · −1σ first 14 · neither 12
+  VPIN no read  n   8: +1σ first 4 · −1σ first 3 · neither 0
+  pct >= 0.90 at the signal (WITH = hot)
+  VPIN no read  n 147: +1σ first 58 · −1σ first 59 · neither 27
+
+== 2. at the first stall (her exit point): VPIN chip -> did the move go on? ==
+all stalls (n 120)
+  VPIN WITH     n  19: went on ≥ +0.5σ 0 · came back to entry 16
+  VPIN QUIET    n  63: went on ≥ +0.5σ 34 · came back to entry 54
+  VPIN AGAINST  n  29: went on ≥ +0.5σ 17 · came back to entry 24
+  VPIN no read  n   9: went on ≥ +0.5σ 5 · came back to entry 4
+  without BANKNIFTY
+  VPIN WITH     n  14: went on ≥ +0.5σ 0 · came back to entry 12
+  VPIN QUIET    n  42: went on ≥ +0.5σ 21 · came back to entry 36
+  VPIN AGAINST  n  19: went on ≥ +0.5σ 11 · came back to entry 15
+  VPIN no read  n   8: went on ≥ +0.5σ 5 · came back to entry 3
+  pct >= 0.90 at the stall (WITH = hot)
+  VPIN no read  n 120: went on ≥ +0.5σ 56 · came back to entry 98
+  delta AGAINST at the stall, split by VPIN
+  VPIN WITH     n   5: went on ≥ +0.5σ 0 · came back to entry 5
+  VPIN QUIET    n  23: went on ≥ +0.5σ 15 · came back to entry 21
+  VPIN AGAINST  n  15: went on ≥ +0.5σ 10 · came back to entry 12
+  VPIN no read  n   4: went on ≥ +0.5σ 2 · came back to entry 2
+  delta WITH at the stall, split by VPIN
+  VPIN WITH     n   8: went on ≥ +0.5σ 0 · came back to entry 6
+  VPIN QUIET    n  18: went on ≥ +0.5σ 11 · came back to entry 13
+  VPIN AGAINST  n   7: went on ≥ +0.5σ 4 · came back to entry 6
+  VPIN no read  n   2: went on ≥ +0.5σ 1 · came back to entry 2
+
+== 3. real NIFTY band turns (atlas §9 B): VPIN at the turn and at the VWAP crossing -> band to band? ==
+turns 24 · band to band 10
+  VPIN at the turn (in the turn's direction)
+  VPIN QUIET    n  11: band to band 2 · stopped short of the far band 9
+  VPIN AGAINST  n  11: band to band 7 · stopped short of the far band 4
+  VPIN no read  n   2: band to band 1 · stopped short of the far band 1
+  VPIN at the VWAP crossing (FADE -> RIDE point, n 23)
+  VPIN WITH     n   4: band to band 1 · stopped short of the far band 3
+  VPIN QUIET    n  13: band to band 5 · stopped short of the far band 8
+  VPIN AGAINST  n   5: band to band 3 · stopped short of the far band 2
+  VPIN no read  n   1: band to band 1 · stopped short of the far band 0
+  pct >= 0.90 at the VWAP crossing (WITH = hot)
+  VPIN no read  n  23: band to band 10 · stopped short of the far band 13
+  2026-09-22 turn 14:00 -> 138 pts, ended +0.6σ | VPIN at turn AGAINST  · at VWAP 14:14 AGAINST 
+  2026-09-23 turn 09:54 ->  41 pts, ended +0.4σ | VPIN at turn QUIET  · at VWAP 10:00 QUIET 
+  2026-09-24 turn 09:55 ->  43 pts, ended +1.5σ | VPIN at turn QUIET  · at VWAP 10:08 QUIET 
+  2026-09-29 turn 12:01 -> 132 pts, ended +0.5σ | VPIN at turn AGAINST  · at VWAP 12:32 WITH 
+  2026-09-30 turn 09:52 ->  81 pts, ended +2.9σ BAND TO BAND | VPIN at turn QUIET  · at VWAP 09:54 QUIET 
+  2026-09-30 turn 10:21 -> 119 pts, ended +2.8σ BAND TO BAND | VPIN at turn QUIET  · at VWAP 10:33 QUIET 
+  2026-09-30 turn 11:17 -> 158 pts, ended +3.1σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 11:57 AGAINST 
+  2026-09-30 turn 12:49 -> 241 pts, ended +2.7σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 13:41 WITH 
+  2026-10-01 turn 10:02 ->  66 pts, ended +0.9σ | VPIN at turn QUIET  · at VWAP 10:22 QUIET 
+  2026-10-01 turn 10:37 ->  50 pts, ended +0.4σ | VPIN at turn QUIET  · at VWAP 10:45 QUIET 
+  2026-10-05 turn 09:50 -> 219 pts, ended +2.7σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 09:59 AGAINST 
+  2026-10-05 turn 12:08 -> 175 pts, ended +0.9σ | VPIN at turn AGAINST  · at VWAP 13:40 QUIET 
+  2026-10-07 turn 13:18 ->  49 pts, ended +1.8σ | VPIN at turn QUIET  · at VWAP 13:21 QUIET 
+  2026-10-09 turn 11:19 -> 104 pts, ended +2.5σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 11:35 QUIET 
+  2026-10-09 turn 12:01 ->  64 pts, ended +0.6σ | VPIN at turn QUIET  · at VWAP 12:09 AGAINST 
+  2026-10-22 turn 09:51 ->  99 pts, ended +1.0σ | VPIN at turn QUIET  · at VWAP 10:02 WITH 
+  2026-10-26 turn 09:46 ->  54 pts, ended +0.4σ | VPIN at turn QUIET  · at VWAP 09:48 QUIET 
+  2026-10-27 turn 10:04 -> 142 pts, ended +1.6σ | VPIN at turn QUIET  · at VWAP 10:18 QUIET 
+  2026-10-27 turn 14:16 -> 195 pts, ended +2.1σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 14:37 QUIET 
+  2026-10-28 turn 09:50 ->  64 pts, ended -0.1σ | VPIN at turn no read · at VWAP - no read
+  2026-10-28 turn 10:20 -> 308 pts, ended +3.0σ BAND TO BAND | VPIN at turn no read · at VWAP 10:55 no read
+  2026-10-30 turn 09:52 -> 125 pts, ended +2.5σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 10:03 AGAINST 
+  2026-10-30 turn 10:19 -> 218 pts, ended +2.7σ BAND TO BAND | VPIN at turn AGAINST  · at VWAP 10:54 QUIET 
+  2026-10-30 turn 11:58 -> 123 pts, ended +0.3σ | VPIN at turn AGAINST  · at VWAP 13:42 WITH 

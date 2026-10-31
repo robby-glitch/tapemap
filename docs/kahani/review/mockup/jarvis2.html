@@ -31,6 +31,22 @@ button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .ctl{display:flex;align-items:center;gap:5px}
 .ctl .grp{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .ctl .grp button{border:0;border-radius:0;padding:4px 8px}
+.pickw{position:relative}
+.ctl .pick button,.pick select{font:600 12px var(--mono);border:0;padding:4px 8px;background:#fff;color:var(--ink);cursor:pointer;white-space:nowrap}
+.pick select{border-left:1px solid var(--line)}
+#cal{position:absolute;top:calc(100% + 6px);left:0;z-index:30;width:236px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+#cal[hidden]{display:none}
+#cal .ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:12px}
+#cal .ch button{padding:1px 8px}
+#cal .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+#cal .cg i{font:600 10px var(--sans);color:var(--mut);text-align:center;font-style:normal}
+#cal .cg button{padding:4px 0;font:600 12px var(--mono);border:1px solid transparent;border-radius:6px;background:none;color:var(--ink)}
+#cal .cg button[disabled]{color:#cfccc4;cursor:default}
+#cal .cg button.ok{background:#e3f4ec;color:var(--up);border-color:#b9e2d1}
+#cal .cg button.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
+#cal .cg button.td{outline:1px dashed var(--ai);outline-offset:-1px}
+#cal .cg button:not([disabled]):hover{border-color:var(--ai)}
+#cal .cf{margin-top:7px;font-size:11px;color:var(--mut);line-height:1.35}
 .ctl .grp button+button{border-left:1px solid var(--line)}
 .quotes{display:flex;gap:14px;margin-left:auto;font-size:12px}
 .qt{display:grid;line-height:1.15}
@@ -180,6 +196,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
   <div class="brand"><div class="orb" style="width:22px;height:22px"></div>JARVIS <small>NIFTY Nov fut · 28 Oct · replay from recorded + backfilled numbers</small></div>
   <div class="clock" id="clock">09:15:00</div>
   <div class="ctl">
+    <div class="pickw"><div class="grp pick" title="replay a recorded day (after 15:40) · today = live"><button id="pDay">—</button><select id="pIdx"><option>NIFTY</option><option>SENSEX</option></select></div><div id="cal" hidden></div></div>
     <button id="play">▶ play</button>
     <div class="grp"><button data-sp="1">1×</button><button data-sp="2" class="on">2×</button><button data-sp="4">4×</button></div>
     <div class="grp"><button data-md="1" class="on">1m</button><button data-md="3">3m</button></div>
@@ -304,13 +321,64 @@ const cur = () => clampI(t);
 const QS = new URLSearchParams(location.search), DAY = QS.get("day");
 const API = QS.get("api") || (DAY ? `http://localhost:5173/api/jarvis?idx=${QS.get("idx") || "NIFTY"}&day=${DAY}&fill=${QS.get("fill") ?? "1"}` : null);
 const LIVE = !!API && !/[?&](day|upto)=/.test(API);
-const fetchFrame = u => fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.now()).then(r => r.json());
-fetchFrame(API || QS.get("d") || "data_28oct.json").then(d => {
-  if (!d || !d.mins) { $("#btext").textContent = `no frame: ${(d && d.why) || "empty"}`; return; }
-  init(d);
-}).catch(() => {
-  $("#btext").textContent = (API ? `${API} did not answer` : "data_28oct.json not found") + ": serve this folder (launch: kahani-mockup).";
-});
+// the day / index picker (31 Oct): a past day replays (?day=), today goes live (?api=); a pick reloads the page. Her ask:
+// the calendar lights the days that have a replay (GET /api/jarvis_days: book + chain on the record); unknown -> every
+// past day stays clickable, unlit, and it says it could not check
+const TODAY = new Date(Date.now() + 330 * 60e3).toISOString().slice(0, 10);
+let DAYS = null, calM = null;
+const loadDays = () => fetch("http://localhost:5173/api/jarvis_days").then(r => r.json())
+  .then(d => { if (d && d.ok) { DAYS = d.days; if (!$("#cal").hidden) cal(); } }).catch(() => {});
+loadDays();
+const go = (day, idx) => location.search = day === TODAY ? "?api=" + encodeURIComponent(`http://localhost:5173/api/jarvis?idx=${idx}`)
+  : `?day=${day}&idx=${idx}` + (QS.get("fill") === "0" ? "&fill=0" : "");
+function setDay(day) {
+  $("#pDay").dataset.day = day;
+  $("#pDay").textContent = new Date(day + "T00:00").toLocaleDateString("en-GB", {day: "numeric", month: "short"}) + " ▾";
+}
+function cal() {
+  const idx = $("#pIdx").value, have = new Set((DAYS || {})[idx] || []), y = calM.getFullYear(), m = calM.getMonth();
+  const iso = d => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  let h = `<div class="ch"><button data-mv="-1">‹</button><b>${calM.toLocaleDateString("en-GB", {month: "short", year: "numeric"})}</b><button data-mv="1">›</button></div>`
+    + `<div class="cg">${"MTWTFSS".split("").map(x => `<i>${x}</i>`).join("")}${"<span></span>".repeat((new Date(y, m, 1).getDay() + 6) % 7)}`;
+  for (let d = 1; d <= new Date(y, m + 1, 0).getDate(); d++) {
+    const s = iso(d), lit = have.has(s), ok = s === TODAY || (DAYS ? lit : s < TODAY);
+    h += `<button data-d="${s}" class="${lit ? "ok" : ""}${s === $("#pDay").dataset.day ? " cur" : ""}${s === TODAY ? " td" : ""}"${ok ? "" : " disabled"}>${d}</button>`;
+  }
+  $("#cal").innerHTML = h + "</div>" + `<div class="cf">${DAYS ? `green = replay on the record (${have.size} ${idx} days) · dashed = today, live`
+    : "could not check which days have a replay (server not restarted?) — every past day is clickable"}</div>`;
+}
+$("#pDay").onclick = () => {
+  if (!DAYS) loadDays();                              // TapeMap may have been starting when the page opened
+  const d = new Date(($("#pDay").dataset.day || TODAY) + "T00:00");
+  calM = new Date(d.getFullYear(), d.getMonth(), 1); cal(); $("#cal").hidden = !$("#cal").hidden;
+};
+$("#cal").onclick = e => {
+  e.stopPropagation();                                // a month redraw detaches the button: never read as an outside click
+  const b = e.target.closest("button");
+  if (b && b.dataset.mv) { calM.setMonth(calM.getMonth() + +b.dataset.mv); cal(); }
+  else if (b && b.dataset.d) go(b.dataset.d, $("#pIdx").value);
+};
+addEventListener("click", e => { if (!e.target.closest(".pickw")) $("#cal").hidden = true; });
+$("#pIdx").onchange = () => go($("#pDay").dataset.day || TODAY, $("#pIdx").value);
+$("#pIdx").value = (QS.get("idx") || "NIFTY").toUpperCase();
+setDay(DAY || TODAY);
+const fetchFrame = u => fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.now())
+  .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)));
+// 31 Oct, her "did not answer" at 03:16: TapeMap was still starting (Vite could not reach it). The brain is retried for
+// 30 s, the wait is said, and a final failure names the real reason (the page's own folder was never the problem)
+function loadFrame(n) {
+  const src = API || QS.get("d") || "data_28oct.json";
+  $("#btext").textContent = API ? `loading ${DAY || "today"} ${$("#pIdx").value} from TapeMap… (a past day takes 10–30 s the first time)` : `loading ${src}…`;
+  fetchFrame(src).then(d => {
+    if (!d || !d.mins) { $("#btext").textContent = `no frame: ${(d && d.why) || "empty"}`; return; }
+    init(d);
+  }).catch(e => {
+    if (API && n < 6) { $("#btext").textContent = `TapeMap not answering yet (${e.message}) — retrying in 5 s (${n + 1}/6)…`; setTimeout(() => loadFrame(n + 1), 5000); return; }
+    $("#btext").textContent = API ? `TapeMap did not answer (${e.message}): is the "TapeMap server" window running? Then reload this page.`
+      : `${src} not found: serve this folder (launch: kahani-mockup).`;
+  });
+}
+loadFrame(0);
 if (LIVE) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) swapFrame(d); }).catch(() => {}), 20000);
 
 function swapFrame(d) {                               // a new live frame: rebuilt; the playhead stays at now unless she scrubbed
@@ -327,6 +395,7 @@ function init(d) {
 function prep(d) {
   D = d; N = d.mins.length; cand = []; bas = []; ev = []; NT = []; marks = []; SPD.length = 0; DMAX1 = 1; DMAX3 = 1; MAXOI = 100;
   const lf = D.live_from || "11:07", rebuilt = ix(lf) > 0;
+  setDay(D.day); $("#pIdx").value = D.idx; $("#qN").previousElementSibling.textContent = `${D.idx} fut · spot`;
   $(".brand small").textContent = `${D.idx} fut · ${D.day} · ${LIVE ? "live from the brain" : D.fill ? "replay · holes filled from the tape" : "replay"} · to ${D.mins[N - 1]}`;
   const ps = document.querySelectorAll("#intro p");
   ps[0].textContent = `${D.day}, ${D.idx} futures, ${D.mins[0]}–${D.mins[N - 1]}${rebuilt ? ", as if the laptop had been on all morning" : ""}.`;
@@ -392,7 +461,7 @@ function buildEvents() {
   const E = (i, o) => { if (i >= 0 && i <= N - 1 + 0.99) ev.push(Object.assign({i}, o)); };
   const b0 = ix(D.live_from || "11:07"), ce0 = nearWall(0, "CE"), pe0 = nearWall(0, "PE");
   E(0.02, {tag: "LIVE", chap: "WALL", major: true,
-    text: `**09:15 · reading NIFTY Nov fut.** ${b0 > 0 ? `Morning is **backfilled** (laptop on at ${D.mins[b0]}): chain from Upstox, flow from Dext.` : "Recorded live from the open."} Walls: **${wallTxt(ce0)}** above · **${wallTxt(pe0)}** below.`,
+    text: `**${D.mins[0]} · reading ${D.idx} fut.** ${b0 > 0 ? `Morning is **backfilled** (laptop on at ${D.mins[b0]}): chain from Upstox, flow from Dext.` : "Recorded live from the open."} Walls: **${wallTxt(ce0)}** above · **${wallTxt(pe0)}** below.`,
     chips: [{t: "chain: Upstox backfill"}, {t: "flow: Dext"}],
     up: ce0 ? `▲ needs ${fmt(ce0.k)}s CE to break` : null, dn: pe0 ? `▼ needs ${fmt(pe0.k)}s PE to break` : null});
   if (b0 > 0) E(b0 + 0.05, {tag: "LIVE FEED", text: `**LIVE from ${D.mins[b0]}** · book + chain recording. Everything before this was rebuilt.`, chips: [{t: `book + chain from ${D.mins[b0]}`}]});
@@ -1241,7 +1310,7 @@ $("#voice").onclick = () => { voiceOn = !voiceOn; $("#voice").textContent = voic
 $("#go").onclick = () => { $("#intro").style.opacity = 0; setTimeout(() => $("#intro").hidden = true, 450); seek(0); setPlay(true); };
 $("#again").onclick = () => { $("#end").hidden = true; seek(0); setPlay(true); };
 addEventListener("keydown", e => {
-  const typing = e.target && e.target.tagName === "INPUT";
+  const typing = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT");
   if (typing) { if (e.key === "Escape") e.target.blur(); return; }
   if (e.code === "Space") { e.preventDefault(); $("#play").click(); }
   else if (e.key === "ArrowRight") { setPlay(false); seek(Math.min(N - 1, cur() + 1 + 0.99)); }

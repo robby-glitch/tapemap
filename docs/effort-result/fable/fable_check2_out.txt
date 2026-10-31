@@ -1,0 +1,71 @@
+== 1. the band stalls: sign vs bucket count ==
+chip (quote) -> minutes signal->stall, best at the stall in sigma, pre-signal buckets inside the 10-bucket window:
+  WITH     n  19 · signal->stall median 21 min · best median 0.84 sigma · pre-signal buckets in the window: median 0, none 15, >= 5 0
+  QUIET    n  63 · signal->stall median 10 min · best median 0.79 sigma · pre-signal buckets in the window: median 3, none 25, >= 5 22
+  AGAINST  n  29 · signal->stall median 9 min · best median 0.46 sigma · pre-signal buckets in the window: median 5, none 3, >= 5 15
+
+sign-blind proxy: buckets closed since the signal (tape speed only, no sign):
+  < 5    n  38 · went on 26 · chips: WITH 0 QUIET 17 AGAINST 13 no read 8
+  5-9    n  39 · went on 17 · chips: WITH 4 QUIET 21 AGAINST 13 no read 1
+  >= 10  n  43 · went on 13 · chips: WITH 15 QUIET 25 AGAINST 3 no read 0
+
+within the fast-tape stalls (>= 10 buckets since the signal), by chip:
+  WITH     n  15 · went on 0
+  QUIET    n  25 · went on 13
+  AGAINST  n   3 · went on 0
+within the slow-tape stalls (< 10 buckets since the signal), by chip:
+  WITH     n   4 · went on 0
+  QUIET    n  38 · went on 21
+  AGAINST  n  26 · went on 17
+
+the chip read on SINCE-SIGNAL buckets only (pre-signal buckets dropped; lead >= 2):
+  WITH     n  19 · went on 1 · unique episodes 12
+  QUIET    n  91 · went on 51 · unique episodes 56
+  AGAINST  n  10 · went on 4 · unique episodes 9
+
+WITH stalls (quote), one line each:
+  2026-10-22 NIFTY     SELL sig 09:36 stall 09:42 (+6 min, best 0.89σ, 7 buckets since signal, pre 3) went on False · zone touch, no confirm
+  2026-10-22 NIFTY     SELL sig 10:03 stall 10:09 (+6 min, best 0.42σ, 8 buckets since signal, pre 2) went on False · zone touch, no confirm
+  2026-10-22 SENSEX    SELL sig 09:54 stall 10:10 (+16 min, best 1.67σ, 19 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 SENSEX    SELL sig 10:09 stall 10:26 (+17 min, best 2.09σ, 14 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 BANKNIFTY SELL sig 09:57 stall 10:27 (+30 min, best 0.98σ, 30 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 NIFTY     SELL sig 09:57 stall 10:27 (+30 min, best 1.76σ, 30 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 NIFTY     SELL sig 10:09 stall 10:27 (+18 min, best 2.40σ, 15 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 BANKNIFTY BUY sig 12:27 stall 12:49 (+22 min, best 0.96σ, 15 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 BANKNIFTY BUY sig 14:39 stall 15:00 (+21 min, best 0.26σ, 13 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-27 SENSEX    BUY sig 14:45 stall 15:01 (+16 min, best 0.84σ, 11 buckets since signal, pre 0) went on False · FADE-D (cum delta + OI
+  2026-10-28 NIFTY     SELL sig 13:06 stall 13:26 (+20 min, best 0.84σ, 12 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-29 SENSEX    SELL sig 10:42 stall 11:03 (+21 min, best 0.32σ, 11 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-29 SENSEX    SELL sig 10:54 stall 11:03 (+9 min, best 0.28σ, 6 buckets since signal, pre 4) went on False · CONFLUENCE (zone+OI+fl
+  2026-10-29 BANKNIFTY SELL sig 10:39 stall 11:04 (+25 min, best 0.41σ, 14 buckets since signal, pre 0) went on False · CONFLUENCE (zone+OI+fl
+  2026-10-29 BANKNIFTY SELL sig 10:37 stall 11:04 (+27 min, best 0.63σ, 16 buckets since signal, pre 0) went on False · CONFLUENCE (zone+OI+fl
+  2026-10-29 NIFTY     SELL sig 10:51 stall 11:08 (+17 min, best 0.56σ, 7 buckets since signal, pre 3) went on False · zone touch, no confirm
+  2026-10-29 SENSEX    SELL sig 11:55 stall 12:51 (+56 min, best 0.70σ, 17 buckets since signal, pre 0) went on False · FADE-D location, no co
+  2026-10-30 NIFTY     SELL sig 09:57 stall 10:22 (+25 min, best 3.37σ, 13 buckets since signal, pre 0) went on False · zone touch, no confirm
+  2026-10-30 SENSEX    SELL sig 09:57 stall 10:25 (+28 min, best 2.37σ, 14 buckets since signal, pre 0) went on False · zone touch, no confirm
+
+== 2. the 77 touches, outcomes anchored on the touch PRICE ==
+
+TURN = 1σ back from the touch price first / BREAK = 1σ further first:
+  all 77: TURN 42 · BREAK 29 · WALK 6
+  before 10:15: n 22: TURN 15 · BREAK 7 · WALK 0
+  after 10:15: n 55: TURN 27 · BREAK 22 · WALK 6
+  1 absorption: outward aggression, no result (>= 1 ABSORB b yes 12: turn 7 / break 4 / walk 1 · no 62: turn 32 / break 25 / walk 5
+  2 aggressors winning: >= 2 outward PUSH buckets of the las yes 14: turn 9 / break 5 / walk 0 · no 60: turn 30 / break 24 / walk 6
+  2b urgency: buckets filling in < 0.5x the day's median tim yes 8: turn 4 / break 2 / walk 2 · no 66: turn 35 / break 27 / walk 4
+  3 big resting limits: holding side's 5-level depth >= 1.5x yes 26: turn 17 / break 8 / walk 1 · no 48: turn 22 / break 21 / walk 5
+  4 trapped fuel: fut OI rose in the 15 min into the touch ( yes 31: turn 19 / break 12 / walk 0 · no 43: turn 20 / break 17 / walk 6
+  5 delta change: 3-min delta against the push after 10 min  yes 4: turn 2 / break 2 / walk 0 · no 70: turn 37 / break 27 / walk 6
+  6 bands expanding: sigma now >= 1.2x sigma 30 min ago      yes 20: turn 12 / break 6 / walk 2 · no 46: turn 23 / break 19 / walk 4
+
+vpin_lab's FIRST definition: BREAK = 0.5σ further first / TURN = 1σ back:
+  all 77: TURN 29 · BREAK 44 · WALK 4
+  before 10:15: n 22: TURN 10 · BREAK 12 · WALK 0
+  after 10:15: n 55: TURN 19 · BREAK 32 · WALK 4
+  1 absorption: outward aggression, no result (>= 1 ABSORB b yes 12: turn 6 / break 5 / walk 1 · no 62: turn 20 / break 39 / walk 3
+  2 aggressors winning: >= 2 outward PUSH buckets of the las yes 14: turn 7 / break 7 / walk 0 · no 60: turn 19 / break 37 / walk 4
+  2b urgency: buckets filling in < 0.5x the day's median tim yes 8: turn 4 / break 2 / walk 2 · no 66: turn 22 / break 42 / walk 2
+  3 big resting limits: holding side's 5-level depth >= 1.5x yes 26: turn 11 / break 15 / walk 0 · no 48: turn 15 / break 29 / walk 4
+  4 trapped fuel: fut OI rose in the 15 min into the touch ( yes 31: turn 13 / break 18 / walk 0 · no 43: turn 13 / break 26 / walk 4
+  5 delta change: 3-min delta against the push after 10 min  yes 4: turn 1 / break 3 / walk 0 · no 70: turn 25 / break 41 / walk 4
+  6 bands expanding: sigma now >= 1.2x sigma 30 min ago      yes 20: turn 9 / break 9 / walk 2 · no 46: turn 15 / break 29 / walk 2

@@ -1059,6 +1059,20 @@ MANAGE_PTS, MANAGE_WIN, MANAGE_GAP = 15, 46, 6
 QUIET_MIN = 20
 
 
+def days() -> dict:
+    """Her replay calendar (31 Oct): the days a replay can build, per index -- the 1-second book AND the chain both on the
+    record (plain or gzipped); file names only, no build. A day can still be partial (16 Oct: 32 min): the replay names
+    its own span."""
+    import glob
+    import re
+    import book_log
+
+    def have(pat):
+        return {m.group(1) for p in glob.glob(pat) if (m := re.search(r"_(\d{4}-\d\d-\d\d)\.jsonl", p))}
+    return {i: sorted(have(os.path.join(book_log.DIR, f"book_{i}_*.jsonl*"))
+                      & have(os.path.join(str(chain_live.CHAIN_DIR), f"chain_{i}_*.jsonl*"))) for i in ("NIFTY", "SENSEX")}
+
+
 def calls(d: dict) -> list:
     """Her backtest replay (31 Oct): THE ONE CALL as it stood at every minute -- call() on the frame cut at minute i (the
     per-minute series, reads and leg rows to i; holes and health as known then), so a scrubbed replay shows what Jarvis

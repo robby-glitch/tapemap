@@ -1,0 +1,93 @@
+NIFTY days with a book: 25 · quote buckets 4252 · tick buckets 4252
+
+== A. the band-signal stalls (band_turns.py's own signals; 3 indices read NIFTY's buckets) ==
+stalls re-traced: 120 (band_turns has 120)
+went_on agrees with band_turns on 120 of 120
+
+-- quote rule, 10-bucket lead at the stall minute's close --
+  WITH     n  19 · went on  0 · unique episodes (day, 5-min slot) 12 · pullback >= 0.25U during the stall 17 · >= 0.5U 11 · >= 30 min left 16 (went on 0)
+           window span: median 17 min (p10 10, p90 26) · buckets closed signal -> stall: median 14
+  QUIET    n  63 · went on 34 · unique episodes (day, 5-min slot) 37 · pullback >= 0.25U during the stall 61 · >= 0.5U 53 · >= 30 min left 53 (went on 30)
+           window span: median 17 min (p10 10, p90 26) · buckets closed signal -> stall: median 7
+  AGAINST  n  29 · went on 17 · unique episodes (day, 5-min slot) 21 · pullback >= 0.25U during the stall 28 · >= 0.5U 20 · >= 30 min left 28 (went on 17)
+           window span: median 20 min (p10 13, p90 36) · buckets closed signal -> stall: median 5
+  no read  n   9 · went on  5 · unique episodes (day, 5-min slot)  5 · pullback >= 0.25U during the stall  9 · >= 0.5U  9 · >= 30 min left  6 (went on 4)
+  pullback during the stall (any chip): < 0.25U n 5 went on 2 · >= 0.25U n 115 went on 54
+  WITH: pullback < 0.25U n 2 went on 0 · pullback >= 0.25U n 17 went on 0
+  AGAINST: pullback < 0.25U n 1 went on 0 · pullback >= 0.25U n 28 went on 17
+
+-- tick rule, 10-bucket lead at the stall minute's close --
+  WITH     n  25 · went on  1 · unique episodes (day, 5-min slot) 14 · pullback >= 0.25U during the stall 23 · >= 0.5U 16 · >= 30 min left 18 (went on 1)
+           window span: median 19 min (p10 11, p90 26) · buckets closed signal -> stall: median 14
+  QUIET    n  61 · went on 35 · unique episodes (day, 5-min slot) 39 · pullback >= 0.25U during the stall 59 · >= 0.5U 48 · >= 30 min left 56 (went on 32)
+           window span: median 17 min (p10 10, p90 29) · buckets closed signal -> stall: median 6
+  AGAINST  n  25 · went on 15 · unique episodes (day, 5-min slot) 17 · pullback >= 0.25U during the stall 24 · >= 0.5U 20 · >= 30 min left 23 (went on 14)
+           window span: median 20 min (p10 8, p90 28) · buckets closed signal -> stall: median 6
+  no read  n   9 · went on  5 · unique episodes (day, 5-min slot)  5 · pullback >= 0.25U during the stall  9 · >= 0.5U  9 · >= 30 min left  6 (went on 4)
+  pullback during the stall (any chip): < 0.25U n 5 went on 2 · >= 0.25U n 115 went on 54
+  WITH: pullback < 0.25U n 2 went on 0 · pullback >= 0.25U n 23 went on 1
+  AGAINST: pullback < 0.25U n 1 went on 0 · pullback >= 0.25U n 24 went on 15
+
+-- alternative read: signed volume SINCE the last favourable extreme (quote rule), direction = the trade --
+  your side >= +0.2    n  21 · went on  6 · unique episodes 13
+  flat                 n  73 · went on 36 · unique episodes 48
+  other side <= -0.2   n  18 · went on  9 · unique episodes 11
+
+== B. the first pause of every leg >= 40 pts (atlas_legs.json), NIFTY, 25 days: the 10-bucket lead in the LEG's direction ==
+leg pauses: 79 on 18 days
+  lead WITH     n  20 · went on >= 0.5 sigma  9 · gave back >= 1U 15 · pullback >= 0.25U during the pause 19
+  lead QUIET    n  46 · went on >= 0.5 sigma 25 · gave back >= 1U 38 · pullback >= 0.25U during the pause 45
+  lead AGAINST  n   8 · went on >= 0.5 sigma  2 · gave back >= 1U  8 · pullback >= 0.25U during the pause 8
+  lead no read  n   5 · went on >= 0.5 sigma  3 · gave back >= 1U  4 · pullback >= 0.25U during the pause 5
+  since-the-extreme share (quote): leg side >= +0.2 n 18 on 10 back 14 · flat n 42 on 19 back 35 · other side <= -0.2 n 15 on 7 back 13
+  by direction: up legs: WITH 8/4, QUIET 24/12, AGAINST 4/1 · down legs: WITH 12/5, QUIET 22/13, AGAINST 4/1
+  (format: n / went on)
+
+== C. who was the aggressor: tick vs quote vs Dext per minute (my code) ==
+  days matched to a Dext file by the book's own ik: 19 · skipped: no ik 5, no Dext 1
+  tick : same sign on clear minutes (|Dext delta| >= 20 % of volume) 3098 of 3671 · at >= 50 %: 1261 of 1379 · corr 0.71 (minutes 5481)
+  quote: same sign on clear minutes (|Dext delta| >= 20 % of volume) 3347 of 3671 · at >= 50 %: 1322 of 1379 · corr 0.83 (minutes 5481)
+  volume the quote rule could not place (inside the previous spread -> tick fallback): 18 % of all book volume
+  tick : corr(bucket imbalance, the bucket's own price move) 0.34 on 3082 buckets
+  quote: corr(bucket imbalance, the bucket's own price move) 0.33 on 3082 buckets
+
+== D. live vpin_fast.jsonl (NIFTY-FUT:fast) rows per day vs buckets the book rebuilds ==
+  2026-09-22: live   0 · rebuilt (tick) 141 · HOLE
+  2026-09-23: live  87 · rebuilt (tick)  87 · ok
+  2026-09-24: live 204 · rebuilt (tick) 204 · ok
+  2026-09-25: live 178 · rebuilt (tick) 179 · ok
+  2026-09-28: live 217 · rebuilt (tick) 217 · ok
+  2026-09-29: live 244 · rebuilt (tick) 244 · ok
+  2026-09-30: live 179 · rebuilt (tick) 179 · ok
+  2026-10-01: live 275 · rebuilt (tick) 275 · ok
+  2026-10-05: live 168 · rebuilt (tick) 168 · ok
+  2026-10-06: live 127 · rebuilt (tick) 127 · ok
+  2026-10-07: live  72 · rebuilt (tick)  72 · ok
+  2026-10-08: live 204 · rebuilt (tick) 203 · ok
+  2026-10-09: live  76 · rebuilt (tick)  76 · ok
+  2026-10-12: live  86 · rebuilt (tick)  86 · ok
+  2026-10-13: live  48 · rebuilt (tick)  48 · ok
+  2026-10-16: live  63 · rebuilt (tick) 125 · HOLE
+  2026-10-19: live 140 · rebuilt (tick) 141 · ok
+  2026-10-21: live 192 · rebuilt (tick) 192 · ok
+  2026-10-22: live 245 · rebuilt (tick) 245 · ok
+  2026-10-23: live 275 · rebuilt (tick) 275 · ok
+  2026-10-26: live 286 · rebuilt (tick) 287 · ok
+  2026-10-27: live 240 · rebuilt (tick) 241 · ok
+  2026-10-28: live  89 · rebuilt (tick) 110 · ok
+  2026-10-29: live 173 · rebuilt (tick) 173 · ok
+  2026-10-30: live 137 · rebuilt (tick) 157 · ok
+
+== E. the 77 first 2-sigma touches: outcome against the band FIXED at the touch (vpin_lab moves the band) ==
+  vpin_lab touches: 77 · its words: TURN 55 · BREAK 11 · WALK 11
+  moving-band word -> fixed-band word: BREAK->BREAK 11 · TURN->BREAK 23 · TURN->TURN 28 · TURN->WALK 4 · WALK->BREAK 8 · WALK->WALK 3
+  fixed-band words: TURN 28 · BREAK 42 · WALK 7
+  touch before 10:15: n 22 · sigma at the touch median 21 pts · moving: turn 20 · fixed: turn 9 break 13 walk 0
+  after 10:15: n 55 · sigma at the touch median 26 pts · moving: turn 35 · fixed: turn 19 break 29 walk 7
+  1 absorption: outward aggression, no result (>= 1 ABSORB buc yes 12: fixed turn 4 / break 7 / walk 1 · no 62: fixed turn 22 / break 34 / walk 6
+  2 aggressors winning: >= 2 outward PUSH buckets of the last  yes 14: fixed turn 6 / break 8 / walk 0 · no 60: fixed turn 20 / break 33 / walk 7
+  2b urgency: buckets filling in < 0.5x the day's median time  yes 8: fixed turn 1 / break 5 / walk 2 · no 66: fixed turn 25 / break 36 / walk 5
+  3 big resting limits: holding side's 5-level depth >= 1.5x t yes 26: fixed turn 11 / break 13 / walk 2 · no 48: fixed turn 15 / break 28 / walk 5
+  4 trapped fuel: fut OI rose in the 15 min into the touch (fr yes 31: fixed turn 13 / break 18 / walk 0 · no 43: fixed turn 13 / break 23 / walk 7
+  5 delta change: 3-min delta against the push after 10 min wi yes 4: fixed turn 2 / break 2 / walk 0 · no 70: fixed turn 24 / break 39 / walk 7
+  6 bands expanding: sigma now >= 1.2x sigma 30 min ago        yes 20: fixed turn 7 / break 11 / walk 2 · no 46: fixed turn 17 / break 24 / walk 5

@@ -5783,6 +5783,14 @@ class Handler(SimpleHTTPRequestHandler):
                 log.exception("jarvis %s", self.path)
                 out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
             self._json(json.dumps(out, default=str).encode())
+        elif urlsplit(self.path).path == "/api/jarvis_days":
+            # her replay calendar (31 Oct): the days a Jarvis replay can build, per index (jarvis.days, file names only)
+            try:
+                import jarvis
+                out = {"ok": True, "days": jarvis.days()}
+            except Exception as e:
+                out = {"ok": False, "why": board.CC + f"{type(e).__name__}: {e}"}
+            self._json(json.dumps(out).encode())
         elif self.path.startswith("/api/trap"):
             # THE TRAP LAYER, SHADOW (trap.py): the trap thread's last read; ?idx= for one index.
             want = (parse_qs(urlsplit(self.path).query).get("idx") or [None])[0]

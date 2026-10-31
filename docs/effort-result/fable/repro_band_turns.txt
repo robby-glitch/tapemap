@@ -1,0 +1,33 @@
+== did the signal catch the turn? (next 60 min, futures; sigma = the band's at the signal) ==
+CONFLUENCE (zone+OI+flow) (n 8): +1σ first 2 · −1σ first 2 · neither 4 · reached VWAP 2 · median best 0.72σ · median worst 0.55σ
+zone touch, no confirmation (n 84): +1σ first 33 · −1σ first 33 · neither 18 · reached VWAP 46 · median best 0.89σ · median worst 0.96σ
+FADE-D (cum delta + OI lead) (n 11): +1σ first 5 · −1σ first 4 · neither 2 · reached VWAP 9 · median best 0.84σ · median worst 1.01σ
+FADE-D location, no confirmation (n 44): +1σ first 18 · −1σ first 20 · neither 3 · reached VWAP 26 · median best 1.48σ · median worst 2.62σ
+
+== every confirmed entry ==
+2026-10-21 SENSEX    CONFLUENCE SELL 09:45 E 74672 σ74 | first +1σ     best +501 (6.8σ) at +29m · worst 0 (0.0σ) · VWAP +3m | stall +18m at +218, delta ?, then went on +290
+2026-10-21 BANKNIFTY CONFLUENCE BUY  12:36 E 54935 σ336 | first neither best +100 (0.3σ) at +21m · worst 115 (0.34σ) · VWAP no | stall +27m at +100, delta against, then went on -85 · came back to entry
+2026-10-22 SENSEX    FADE-D (cu BUY  09:35 E 73152 σ44 | first +1σ     best +610 (13.73σ) at +59m · worst 24 (0.55σ) · VWAP +3m | stall +15m at +317, delta ?, then went on +298
+2026-10-22 SENSEX    FADE-D (cu SELL 10:30 E 73582 σ152 | first −1σ     best +91 (0.6σ) at +20m · worst 275 (1.8σ) · VWAP no | stall +26m at +91, delta ?, then went on -47 · came back to entry
+2026-10-22 BANKNIFTY FADE-D (cu SELL 10:55 E 55033 σ171 | first +1σ     best +230 (1.35σ) at +51m · worst 135 (0.79σ) · VWAP +32m | stall +38m at +73, delta against, then went on +179 · came back to entry
+2026-10-22 NIFTY     FADE-D (cu SELL 11:50 E 22637 σ65 | first neither best +36 (0.55σ) at +29m · worst 53 (0.82σ) · VWAP +1m | stall +28m at +17, delta with, then went on +19 · came back to entry
+2026-10-23 BANKNIFTY FADE-D (cu BUY  13:15 E 54190 σ225 | first +1σ     best +355 (1.58σ) at +28m · worst 65 (0.29σ) · VWAP +27m | stall +23m at +79, delta against, then went on +301
+2026-10-27 BANKNIFTY FADE-D (cu BUY  09:40 E 54535 σ99 | first +1σ     best +135 (1.37σ) at +24m · worst 100 (1.01σ) · VWAP +1m | stall +10m at +93, delta with, then went on +52 · came back to entry
+2026-10-27 SENSEX    FADE-D (cu SELL 10:25 E 73400 σ104 | first −1σ     best +0 (0.0σ) at +0m · worst 280 (2.68σ) · VWAP +1m | no stall
+2026-10-27 SENSEX    FADE-D (cu BUY  14:45 E 73498 σ134 | first neither best +113 (0.84σ) at +11m · worst 28 (0.21σ) · VWAP +9m | stall +17m at +113, delta with, then went on -11
+2026-10-29 BANKNIFTY FADE-D (cu SELL 09:25 E 54491 σ29 | first −1σ     best +0 (0.0σ) at +0m · worst 347 (12.06σ) · VWAP +22m | no stall
+2026-10-29 BANKNIFTY CONFLUENCE SELL 09:51 E 54680 σ62 | first −1σ     best +39 (0.63σ) at +7m · worst 255 (4.14σ) · VWAP no | stall +13m at +39, delta against, then went on -37 · came back to entry
+2026-10-29 SENSEX    FADE-D (cu SELL 10:00 E 73482 σ60 | first −1σ     best +30 (0.5σ) at +1m · worst 393 (6.5σ) · VWAP no | stall +7m at +30, delta ?, then went on -79 · came back to entry
+2026-10-29 BANKNIFTY CONFLUENCE SELL 10:37 E 54867 σ105 | first +1σ     best +105 (1.0σ) at +32m · worst 68 (0.65σ) · VWAP no | stall +28m at +67, delta with, then went on +48 · came back to entry
+2026-10-29 BANKNIFTY CONFLUENCE SELL 10:39 E 54844 σ106 | first neither best +82 (0.77σ) at +30m · worst 91 (0.86σ) · VWAP no | stall +26m at +44, delta with, then went on +48 · came back to entry
+2026-10-29 SENSEX    CONFLUENCE SELL 10:54 E 73800 σ178 | first neither best +119 (0.67σ) at +17m · worst 78 (0.44σ) · VWAP no | stall +10m at +50, delta ?, then went on +69 · came back to entry
+2026-10-29 NIFTY     CONFLUENCE SELL 14:45 E 23040 σ70 | first neither best +0 (0.0σ) at +0m · worst 19 (0.27σ) · VWAP no | no stall
+2026-10-30 NIFTY     FADE-D (cu SELL 09:30 E 23034 σ12 | first +1σ     best +79 (6.55σ) at +47m · worst 46 (3.86σ) · VWAP +34m | stall +7m at +24, delta against, then went on +54 · came back to entry
+2026-10-30 SENSEX    CONFLUENCE SELL 09:48 E 74600 σ58 | first −1σ     best +224 (3.9σ) at +32m · worst 118 (2.05σ) · VWAP +17m | stall +8m at +50, delta ?, then went on +185 · came back to entry
+
+== the first stall (6 min, no new extreme) as an exit, all band signals ==
+delta still WITH the trade at the stall (n 35): went on ≥ +0.5σ more 16 · came back to entry 27 · median stall at +13 min, 0.62σ in · median more after it 0.45σ
+delta AGAINST the trade at the stall (n 47): went on ≥ +0.5σ more 27 · came back to entry 40 · median stall at +12 min, 0.73σ in · median more after it 0.88σ
+signals that never got +0.25U before stalling or 60 min: 27 of 147
+
+where the best point was reached, minutes after the signal (all signals with a best > 0): 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 3 3 3 4 4 5 5 5 6 6 6 7 9 10 11 11 11 11 12 13 15 17 17 17 17 17 18 19 19 19 19 19 20 20 20 20 20 21 22 23 23 23 23 24 25 25 25 26 28 28 28 29 29 30 31 32 32 32 34 34 35 36 37 37 39 39 39 40 41 42 45 46 46 47 48 49 50 50 51 51 51 52 52 52 54 54 54 55 55 55 56 56 56 57 59 59 60 60 60 61 61 61 61 61

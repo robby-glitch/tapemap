@@ -1,0 +1,56 @@
+== 1. who was the aggressor? per minute, vs Dext (Dhan's footprint) ==
+  Dext days matched to the book's contract: 19
+  tick  rule: minutes 5481 · clear Dext minutes (|delta| >= 20 % of volume) same sign 3098 of 3671 · correlation of minute imbalance 0.71
+  quote rule: minutes 5481 · clear Dext minutes (|delta| >= 20 % of volume) same sign 3347 of 3671 · correlation of minute imbalance 0.83
+  volume check: book / Dext per minute, mean 108 %
+
+== 2. effort vs result per 20,000 bucket, signed by the TICK (live VPIN) rule ==
+  how much the bucket's imbalance is just its own price move: correlation 0.34
+  the bucket's word -> next 15 min, in the AGGRESSOR's direction (VACUUM: price's): on = +0.5U first, back = -0.5U first
+  PUSH     n   245: on 95 · back 124 · neither 26
+  GRIND    n   295: on 104 · back 102 · neither 89
+  ABSORB   n   324: on 81 · back 140 · neither 103
+  MIXED    n  1280: on 508 · back 476 · neither 296
+  VACUUM   n   426: on 188 · back 183 · neither 55
+  BALANCE  n   912: no direction 912
+
+== 2. effort vs result per 20,000 bucket, signed by the QUOTE rule ==
+  how much the bucket's imbalance is just its own price move: correlation 0.33
+  the bucket's word -> next 15 min, in the AGGRESSOR's direction (VACUUM: price's): on = +0.5U first, back = -0.5U first
+  PUSH     n   262: on 109 · back 126 · neither 27
+  GRIND    n   314: on 107 · back 109 · neither 98
+  ABSORB   n   335: on 110 · back 118 · neither 107
+  MIXED    n  1336: on 515 · back 491 · neither 330
+  VACUUM   n   382: on 171 · back 170 · neither 41
+  BALANCE  n   853: no direction 853
+
+(section 3 uses the quote rule's buckets: the closer match to Dext in section 1)
+  bucket length: median 87 s, p10 12 s, p90 237 s · buckets 4252 over 25 days
+
+== 3. her checklist at every first 2-sigma touch after 09:45 (NIFTY fut, 60 min after) ==
+touches 77 · TURN 55 · BREAK 11 · WALK 11 · days 22
+  items present 0: n 5: turn 5 / break 0 / walk 0
+  items present 1: n 22: turn 16 / break 3 / walk 3
+  items present 2: n 29: turn 21 / break 4 / walk 4
+  items present 3: n 12: turn 7 / break 2 / walk 3
+  items present 4: n 4: turn 2 / break 1 / walk 1
+  items present 5: n 4: turn 3 / break 1 / walk 0
+  1 absorption: outward aggression, no result (>= 1 ABSORB bucket of the last 5)
+      yes 12: turn 7 / break 3 / walk 2 · no 62: turn 45 / break 8 / walk 9 · cannot check 3: turn 3 / break 0 / walk 0
+  2 aggressors winning: >= 2 outward PUSH buckets of the last 5
+      yes 14: turn 7 / break 4 / walk 3 · no 60: turn 45 / break 7 / walk 8 · cannot check 3: turn 3 / break 0 / walk 0
+  2b urgency: buckets filling in < 0.5x the day's median time
+      yes 8: turn 3 / break 2 / walk 3 · no 66: turn 49 / break 9 / walk 8 · cannot check 3: turn 3 / break 0 / walk 0
+  3 big resting limits: holding side's 5-level depth >= 1.5x the other side
+      yes 26: turn 21 / break 3 / walk 2 · no 48: turn 31 / break 8 / walk 9 · cannot check 3: turn 3 / break 0 / walk 0
+  4 trapped fuel: fut OI rose in the 15 min into the touch (fresh positions; the pre-set 0.5 % was never met)
+      yes 31: turn 23 / break 4 / walk 4 · no 43: turn 29 / break 7 / walk 7 · cannot check 3: turn 3 / break 0 / walk 0
+  5 delta change: 3-min delta against the push after 10 min with it (book delta)
+      yes 4: turn 4 / break 0 / walk 0 · no 70: turn 48 / break 11 / walk 11 · cannot check 3: turn 3 / break 0 / walk 0
+  6 bands expanding: sigma now >= 1.2x sigma 30 min ago
+      yes 20: turn 16 / break 2 / walk 2 · no 46: turn 28 / break 9 / walk 9 · cannot check 11: turn 11 / break 0 / walk 0
+  7 outside the IB: beyond the 09:15-10:15 high / low (after 10:15)
+      yes 43: turn 27 / break 8 / walk 8 · no 8: turn 4 / break 2 / walk 2 · cannot check 26: turn 24 / break 1 / walk 1
+  absorption AND inside the IB: n 4: turn 2 / break 1 / walk 1
+  absorption AND aggressors NOT winning: n 7: turn 5 / break 1 / walk 1
+  price discovery set (outside IB + bands expanding + aggressors winning): n 2: turn 2 / break 0 / walk 0
