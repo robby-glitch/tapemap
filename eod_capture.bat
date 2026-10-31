@@ -31,6 +31,10 @@ REM THE LEG's forward log (30 Oct, NOISE-DECODER merged decision #8): every paus
 REM to data\jarvis\pause_DAY.jsonl for the evening review. Display only; RC stays the capture's.
 "C:\Python313\python.exe" tools\pause_log.py >> data\eod_capture.log 2>&1
 
+REM THE EVENING SHEET (Jarvis v3 Task 4): the word, PALAT?, blind, her trades vs the word, watches, pauses -- counts
+REM only, to data\jarvis\review_DAY.md; an absent input is named. Display only; RC stays the capture's.
+"C:\Python313\python.exe" tools\jarvis_review.py >> data\eod_capture.log 2>&1
+
 REM Propagate the exit code so Task Scheduler's "Last Run Result" shows a
 REM refusal as a failure. A capture that quietly did nothing is the whole
 REM problem this was built to end.
