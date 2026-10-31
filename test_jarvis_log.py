@@ -103,7 +103,16 @@ def test_the_card_is_the_contract_from_the_frame_only_and_absent_keys_are_null()
     assert c["count"] == CALL["count"] and c["leg"] == CALL["leg"] and c["wrong_line"] == CALL["wrong_line"]
     assert c["pause"] == {"line": "PAUSE ▼ · hold", "alive": ["a"], "risk": ["r"]}
     assert c["expression"] == {"buyer": "buy the PE", "seller": "sell the CE", "pick": None}
-    assert c["how_much"] is None and c["where"] is None and c["no_trade"] is None and c["voice"] is None   # Tasks 5 / 7
+    for k in ("how_much", "where", "cross", "her_setup", "expiry", "bada", "no_trade", "voice", "brief"):
+        assert c[k] is None, k                                                           # absent in the frame: null
+    t5 = {"how_much": {"line": "day TREND ▼ · range used 0.5 of EM", "rows": []},
+          "where": {"stop": "23,136f (zone)", "pool": None, "t1": "pVAH 23,058f", "t2": None, "room": "44 to MAX PAIN"},
+          "expression": {"buyer": "buy the PE", "seller": "sell the CE", "pick": "seller", "pick_why": "TREND + Sides REAL",
+                         "in_trade": None},
+          "cross": {"read": "THE READ ▼ TREND 10:40", "decode": None, "board": None}, "her_setup": ["10:21 ZONE SELL"],
+          "expiry": {"dte": 0, "mode": "EXPIRY DAY"}, "bada": "BADA PRINT: none at a wall in 15 min"}
+    full = jarvis_log.card(frame(dict(CALL, **t5)), [], None, [])
+    assert {k: full[k] for k in t5} == t5                                                # Task 5's keys, verbatim
     assert c["health"] == {"missing": ["BLIND since 10:39: no market data for 3 min (internet or Upstox)"],
                            "notes": ["Dext footprint missing since 10:39", "note 10:05 RBI 11:00 today"]}
     assert c["self"] == jarvis_log.self_line(TOY, 23010.5)

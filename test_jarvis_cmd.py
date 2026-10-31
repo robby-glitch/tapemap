@@ -237,7 +237,10 @@ def test_the_card_route_serves_the_cached_live_frame_only(srv):
     server._JARVIS["NIFTY"] = (("NIFTY", DAY, None, False), time.time(), FR)
     c = get("/api/jarvis/card?idx=nifty")
     assert c["ok"] and c["word"] == "TREND ▼" and c["count"]["with"] == 4 and c["watches"] == []
-    assert c == json.loads(json.dumps(jarvis_log.card(FR, [], {"watches": [], "lines": [], "zones": []}, []), default=str))
+    want = json.loads(json.dumps(jarvis_log.card(FR, [], {"watches": [], "lines": [], "zones": []}, []), default=str))
+    skip = ("voice", "brief")                                                       # the server's own (Task 7's voice)
+    assert {k: v for k, v in c.items() if k not in skip} == {k: v for k, v in want.items() if k not in skip}
+    assert all(k in c for k in skip)
     assert not get("/api/jarvis/card?idx=FINNIFTY")["ok"]
 
 

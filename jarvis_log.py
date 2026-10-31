@@ -127,11 +127,12 @@ def card(fr, rows=(), state=None, notes=()):
             "live": bool(fr.get("live")), "word": c.get("word"), "state": c.get("state"), "lean": c.get("lean"),
             "since": c.get("since"), "count": c.get("count"), "leg": c.get("leg"),
             "pause": {k: pz.get(k) for k in ("line", "alive", "risk")} if isinstance(pz, dict) else None,
-            "how_much": c.get("how_much"), "where": c.get("where"),
+            "how_much": c.get("how_much"), "where": c.get("where"), "cross": c.get("cross"),   # Task 5's reads
+            "her_setup": c.get("her_setup"), "expiry": c.get("expiry"), "bada": c.get("bada"),
             "expression": c.get("expression") or {"buyer": c.get("buyer"), "seller": c.get("seller"), "pick": c.get("pick")},
             "wrong_line": c.get("wrong_line"), "up": c.get("up"), "dn": c.get("dn"), "walls": c.get("walls"),
             "lines": c.get("lines"), "no_trade": c.get("no_trade"),
             "health": {"missing": [x for x in c.get("missing") or () if x not in hn], "notes": hn + list(notes)},
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
-            "watches": list(st.get("watches") or []), "voice": None}           # Task 7: server._JVOICE fills it
+            "watches": list(st.get("watches") or []), "voice": None, "brief": None}   # Task 7: server._JVOICE fills both
