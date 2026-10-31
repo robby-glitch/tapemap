@@ -325,18 +325,27 @@ const cur = () => clampI(t);
 // (Vite's proxy answers a localhost origin; 8765 itself allows one origin, kite.zerodha.com, so a direct fetch is blocked).
 // Her backtest (31 Oct): ?day=YYYY-MM-DD[&idx=NIFTY][&fill=0] replays any recorded day through the brain (after 15:40),
 // its holes filled from the saved tape unless fill=0 (as live saw it). A replay is never re-polled and starts at 09:15.
-const QS = new URLSearchParams(location.search), DAY = QS.get("day");
+// v3 follow-up 2: today replays only after the close (15:40 IST). Before that a hand-typed ?day=<today> IS the live page
+// (the picker's ?api= form, the URL rewritten in place before any fetch): the server treats a fill=1 frame of today as a
+// whole-session replay, rebuilt under the live builds' lock, and must never starve the live frame.
+const QS = new URLSearchParams(location.search), IST = new Date(Date.now() + 330 * 60e3).toISOString(), TODAY = IST.slice(0, 10);
+const LIVE_API = idx => `http://localhost:5173/api/jarvis?idx=${idx}`;
+if (QS.get("day") === TODAY && IST.slice(11, 16) < "15:40") {
+  const idx = (QS.get("idx") || "NIFTY").toUpperCase();
+  QS.delete("day"); QS.delete("fill"); QS.set("api", LIVE_API(idx));
+  history.replaceState(null, "", "?" + QS);
+}
+const DAY = QS.get("day");
 const API = QS.get("api") || (DAY ? `http://localhost:5173/api/jarvis?idx=${QS.get("idx") || "NIFTY"}&day=${DAY}&fill=${QS.get("fill") ?? "1"}` : null);
 const LIVE = !!API && !/[?&](day|upto)=/.test(API);
 // the day / index picker (31 Oct): a past day replays (?day=), today goes live (?api=); a pick reloads the page. Her ask:
 // the calendar lights the days that have a replay (GET /api/jarvis_days: book + chain on the record); unknown -> every
 // past day stays clickable, unlit, and it says it could not check
-const TODAY = new Date(Date.now() + 330 * 60e3).toISOString().slice(0, 10);
 let DAYS = null, calM = null;
 const loadDays = () => fetch("http://localhost:5173/api/jarvis_days").then(r => r.json())
   .then(d => { if (d && d.ok) { DAYS = d.days; if (!$("#cal").hidden) cal(); } }).catch(() => {});
 loadDays();
-const go = (day, idx) => location.search = day === TODAY ? "?api=" + encodeURIComponent(`http://localhost:5173/api/jarvis?idx=${idx}`)
+const go = (day, idx) => location.search = day === TODAY ? "?api=" + encodeURIComponent(LIVE_API(idx))
   : `?day=${day}&idx=${idx}` + (QS.get("fill") === "0" ? "&fill=0" : "");
 function setDay(day) {
   $("#pDay").dataset.day = day;
