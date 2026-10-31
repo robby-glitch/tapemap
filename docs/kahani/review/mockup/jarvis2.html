@@ -439,14 +439,15 @@ function postCmd(s) {     // one line to the grammar the server owns; its reply 
     .then(j => {
       chatAdd("JARVIS", [j.reply].concat(j.lines || []).filter(Boolean).join("\n") || "—", [], j.kind === "refused" ? "bad" : j.ok === false ? "q" : null);
       if (j.state && j.state.lines) cmdState(j.state);
-      if (/^thinking/i.test(j.reply || "")) waitVoice(s);
+      if (/^thinking/i.test(j.reply || "")) waitVoice(s, j.asked);
     }, e => { setCmd(false); chatAdd("JARVIS", `**offline · commands stay on this page** (${e.message})`, [], "q"); runCmd(s); });
 }
-function waitVoice(s) {  // an `ask` the voice is thinking about: the card every 2 s, up to 60 s, until it carries that answer
+function waitVoice(s, asked) {  // an `ask` the voice is thinking about: the card every 2 s, up to 60 s, until it carries
+  // THIS answer: the same words AND the same `asked` stamp (an earlier answer to the same words is not the new one)
   const want = [s, s.replace(/^ask\s+/i, "")].map(x => x.trim()), end = Date.now() + 60e3;
   const again = () => { if (Date.now() < end) setTimeout(tick, 2000); else chatAdd("JARVIS", "**no voice answer in 60 s** · the engine's card stands", [], "q"); };
   const tick = () => fetchFrame(EP("card")).then(c => {
-    if (c && c.ok && c.voice && want.includes((c.voice.q || "").trim())) { CARD = c; if (D) renderBrain(); } else again();
+    if (c && c.ok && c.voice && want.includes((c.voice.q || "").trim()) && c.voice.asked === asked) { CARD = c; if (D) renderBrain(); } else again();
   }, again);
   setTimeout(tick, 2000);
 }
@@ -539,7 +540,7 @@ function renderCard(c) {
   line(c.self);
   const v = c.voice;                                  // follow-up 3: the fenced voice (Task 7), under the self row
   if (v) {
-    row("k vk", "VOICE").insertAdjacentHTML("beforeend", `<i>${esc(v.provider || "")}</i>`);
+    row("k vk", "VOICE" + (v.asked ? " · at " + v.asked.slice(0, 5) : "")).insertAdjacentHTML("beforeend", `<i>${esc(v.provider || "")}</i>`);
     if (v.q) line("Q: " + v.q, "clip pk");
     if (v.fell_back) line("voice fell back — " + (v.why || "no reason given"), "q clip");
     else (v.lines || []).forEach(x => line(x, "clip vo"));
