@@ -26,6 +26,7 @@ import chain_backfill
 import chain_live
 import confluence_log
 import dext_log
+import fold
 import fronts
 import handshake as H
 import tailread
@@ -721,6 +722,10 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     import sensex_flow
     if sensex_flow.on(idx) and all(x is None for x in data["delta"]):   # G13: SENSEX has no footprint of its own (§1q)
         data["flow"], data["flow_src"] = _nifty_flow(day, mins, MI, inp)
+    try:                                             # Task 5: what the tool already measures (display only, fail-soft)
+        data["ctx"] = _context(day, idx, upto, cp, snaps, STEP)
+    except Exception as e:
+        data["ctx"] = {"notes": [f"the reads (levels, EM, the logs) failed: {type(e).__name__}: {e}"]}
     data["reads"] = reads(data)
     data["health"] = health(data, _readable(day, "BANKNIFTY", upto, 100))
     data["legs"] = _legs(data, R, day, idx)
@@ -804,15 +809,15 @@ def _readable(day, idx, upto, step):
     return False
 
 
-# GAPS §3 rows this frame does not read (GAPS §5: named, never dropped). The first five have no source anywhere yet.
+# GAPS §3 rows this frame does not read (GAPS §5: named, never dropped): no source anywhere yet (Task 5 read the rest).
 NOT_READ = ("book depth: pulls / stacking at the level (recorded, not read)",
             "points per minute, acceleration / decay",
             "IV per strike: bid vs crush, premium decay vs the move",
-            "expiry: max pain / pin, gamma after 14:30",
-            "India VIX direction",
-            "not in this frame yet (their own modules read them): CVD divergence (decode), effort per point (effort.py), "
-            "BADA PRINT, footprint events, VPIN, dwell, PCR change, wall migration, day type (onesided), THE READ word, "
-            "DECODE lines, Board agreement, PDH / PDL / PDC, range used vs EM")
+            "India VIX direction")
+# rule 6's third sentence: read by their own module, not shown here
+NOT_SHOWN = ("not shown here (their own module reads them): dwell (dwell.py), PCR change (chain_metrics), wall migration "
+             "(warmap), Board agreement (board.py), GEX after 14:30 (gamma.py), footprint events other than BADA PRINT "
+             "(the decoder log)",)
 
 
 def _stretches(flags, mins):
@@ -875,10 +880,11 @@ def health(d: dict, bnf_readable=None) -> dict:
         notes.append("BANKNIFTY chain OI too small to read (no strike near ATM moved 3L in 3 min)")
     elif bnf_readable is None:
         notes.append("BANKNIFTY chain: could not check — no chain on the record")
+    notes += (d.get("ctx") or {}).get("notes") or []          # Task 5: each read's absent source, named (_context)
     return {"dext": {"minutes": no_dx.count(False), "missing": missing, "book_only_tail": tail},
             "holes": d.get("holes") or [], "chain_missing": d.get("chain_missing") or [], "bnf_chain_readable": bnf_readable,
             "f_src": {k: fs.count(k) for k in ("dext", "book", "tape")}, "live_from": d.get("live_from"), "notes": notes,
-            "not_read": list(NOT_READ)}
+            "not_read": list(NOT_READ), "not_shown": list(NOT_SHOWN)}
 
 
 def call(d: dict) -> dict:
@@ -888,12 +894,15 @@ def call(d: dict) -> dict:
     count (`count`), changed only at two consecutive 3-min closes (PALAT, the wall behind BROKEN and CAN'T SEE at once);
     `state` is the leg's raw word. The 29 Oct vote stays as `v1` (UP / DOWN when the writers and one more of {a fut run,
     speed FAST, ALL 3} agree; RANGE when both sides add; NO TRADE when quiet or nothing agrees), and is the word only for a
-    frame with no leg read. Counts, never %. Guidance only."""
+    frame with no leg read. Counts, never %. Guidance only. Task 5 adds what the tool already measures, as lines and keys,
+    never as a word: how_much / where / expression {buyer, seller, pick, pick_why, in_trade} / cross / her_setup / expiry
+    (how_much, where, expression, _cross, _her_setup, _bada, _vpin on the frame's `ctx`)."""
     r, h, mins = d["reads"], d["health"], d["mins"]
     i = len(mins) - 1
     tl, sp, sy, w = d["timeline"][i], r["speed"][i], r["sync"][i], r["writers"][i]
     fut = d["fut"][i]
-    bs = sorted(a - b for a, b in zip(d["fut"][-5:], d["spot"][-5:]) if a is not None and b is not None)
+    n3 = fold.BIX_MS // 60000                        # her display basis: the 3-min median (fold.BIX_MS, A60)
+    bs = sorted(a - b for a, b in zip(d["fut"][-n3:], d["spot"][-n3:]) if a is not None and b is not None)
     basis = bs[len(bs) // 2] if bs else 0.0
 
     def lv(k):
@@ -948,8 +957,11 @@ def call(d: dict) -> dict:
     tr = r["trade"][i]
     vb, vs = d["verdict"]["BUY"].get(mins[i]), d["verdict"]["SELL"].get(mins[i])
     pts_s = H._sg(f"{tr['pts']:+.0f}") if tr else ""
-    why.append("her setup: " + (f"last trigger {tr['t']} {tr['side']} {_fmt(tr['px'])}f · {pts_s} pts"
-                                + (f" · {tr['st']}" if tr["st"] else "") if tr else "no trigger yet")
+    mine = bool(tr) and tr.get("subject") == "her trade"       # Task 5: her marked trade is the subject when one is open
+    why.append("her setup: " + ((f"her trade {tr['t']} " + (f"{lv(tr['k'])} " if tr.get("k") is not None else "")
+                                 + f"{tr['opt']} {tr['role']} @{tr.get('p0') if tr.get('p0') is not None else '?'}"
+                                 if mine else f"last trigger {tr['t']} {tr['side']} {_fmt(tr['px'])}f")
+                                + f" · {pts_s} pts" + (f" · {tr['st']}" if tr["st"] else "") if tr else "no trigger yet")
                + f" · band verdict BUY {(vb or {}).get('word', '?')} / SELL {(vs or {}).get('word', '?')}")
     if mins[i] >= "15:00":
         why.append("after 15:00: her practice is no new trades (a reminder, not a rule)")
@@ -1079,7 +1091,47 @@ def call(d: dict) -> dict:
     else:
         wrong = "ends: " + (nt["ends"] if nt else "the writers and one more read agree (FUEL, speed FAST, ALL 3)")
         buyer, seller = "wait: no buyer trade", "wait: no new sale"
-    return {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
+
+    # Task 5 (VISION §4 stages 5-9): HOW MUCH, WHERE, EXPRESSION, her trade, the cross-checks. Display only, fail-soft:
+    # they add lines, never a word
+    T5 = {"how_much": None, "where": None, "expression": None, "cross": None, "her_setup": [], "expiry": None, "bada": None}
+    try:
+        T5["cross"], cline = _cross(d, i)
+        T5["her_setup"] = _her_setup(d, i)
+        dte = (d.get("ctx") or {}).get("dte")
+        T5["expiry"] = None if dte is None else {"dte": dte, "mode": None if dte else
+                                                 "EXPIRY UNWIND after 14:00" if mins[i] >= UNWIND_AT else "EXPIRY DAY"}
+        ent = None
+        if mine:
+            j = mins.index(tr["t"]) if tr["t"] in mins else None
+            a = acts[j] if j is not None and len(acts) == len(mins) else None
+            ent = {"id": tr["id"], "side": tr["opt"], "role": tr["role"], "pts": None if blind else tr["pts"],
+                   "word_at_entry": said(a["word"], a["lean"]) if a else None}
+        if blind:
+            T5["how_much"] = {"line": f"could not check — blind since {mins[i]}", "rows": []}
+            T5["expression"] = {"buyer": buyer, "seller": seller, "pick": None, "pick_why": f"blind since {mins[i]}",
+                                "in_trade": ent}
+        else:
+            T5["how_much"], T5["where"] = how_much(d, i, lv), where(d, i, lean, lines, ce, pe, lv, basis)
+            ex = expression(d, i, aw, lean, s, buyer, seller, lv)
+            buyer, seller, T5["expression"] = ex["buyer"], ex["seller"], dict(ex, in_trade=ent)
+            wh = T5["where"]
+            why += [f"how much: {T5['how_much']['line']}",
+                    "where: " + (" · ".join(f"{k.upper()} {wh[k]}" for k in ("stop", "pool", "t1", "t2", "room") if wh[k])
+                                 or "nothing placed (the card's rows say why)"),
+                    f"expression: pick {ex['pick'] or 'none'} — {ex['pick_why']}", cline]
+            T5["bada"] = _bada(d, i, (ce[0] if ce else None, pe[0] if pe else None), lv, basis)   # the card's pushes' neighbour
+            why += [T5["bada"], _vpin(d, i)]
+            if T5["her_setup"]:                      # the latest three; the card's her_setup holds the day
+                hs = T5["her_setup"]
+                why.append("her setup (confluence log): " + " · ".join(hs[-3:])
+                           + (f" (+{len(hs) - 3} earlier)" if len(hs) > 3 else ""))
+            if T5["expiry"] and T5["expiry"]["mode"]:
+                why.append(f"expiry: 0 DTE · {T5['expiry']['mode']}"
+                           + (" — writers covering is not counted WITH" if mins[i] >= UNWIND_AT else ""))
+    except Exception as e:                           # never the frame, never the word
+        why.append(f"the reads failed: {type(e).__name__}: {e}")
+    return T5 | {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
             "state": (row or {}).get("word"), "since": act["since"] if act else mins[i] if blind else None,
             "count": act["count"] if act else count(d, i) if not blind else
@@ -1120,6 +1172,19 @@ ANSWER_MIN = 15        # [I] the count's last answer: a push answered within 15 
 AHEAD_STEPS = 2        # [I] the wall ahead: within 2 strike steps of spot (the band verdict's own reach, wall_ahead)
 PIECES = ("sides", "wf7", "wall_ahead", "answer", "trapped", "fut_oi", "speed", "all3", "setup")   # GAPS §4, writers first
 ANSWER_EN = {"TOOT": "BROKEN", "PHANS": "TRAPPED", "TIKI": "DEFENDED", "NAHI": "HELD"}           # spec §16.2
+# Jarvis v3 Task 5, the reads (JARVIS-REVIEW-2026-10-31 §3.3, P0 #4; VISION §4 stages 5-9; NOTEPAD A207). Display only.
+NEED_X = 1.15          # [I] the buyer's required move = the ATM premium x 1.15 in points (algo_ai T3: the premium back
+                       #     plus a cushion for spread and theta), set against EM left = EM - |fut - the open|
+IV_RV = 1.15           # [I] ATM IV >= RV x 1.15 reads rich (<= RV / 1.15 cheap, else fair): the seller's edge
+CPR_NARROW = 0.1       # [I] CPR narrow when |tc - bc| <= 0.1 x the prior day's range (algo_ai's CPR; the cut is ours)
+POOL_X = 1.5           # [I] the stop's pool: PDH / PWH (a short; a long PDL / PWL) beyond the stop, within 1.5 x its distance
+UNWIND_AT = "14:00"    # [I] 0 DTE from 14:00: writers covering is the expiry unwind (G9), never counted WITH
+RANK_3OF5 = math.sqrt(3 / 5)   # [I] rank_build keeps |5-min delta| medians; a 3-min sum's yardstick is sqrt(3/5) of one
+                               #     (a sum's size grows ~sqrt(n)): of sqrt and linear (3/5) the bigger, so fewer FAST
+RANK_DIR = os.path.join("data", "rank")                # rank_build's rank_ref_<IDX>_<day>.json (days before the day)
+DECODE_DIR = os.path.join("data", "decode")            # the DECODE block's forward log (the server's decode_<day>.jsonl)
+VPIN_FAST = os.path.join("data", "vpin_fast.jsonl")    # the fast VPIN gauge on NIFTY's future, shadow (server.VPIN_FAST_LOG)
+RV_N, RV_MIN, RV_YEAR = 6, 4, 252.0                    # server._rv5's: 6 closes, >= 4 returns, sqrt(252) (reproduced)
 
 
 def days() -> dict:
@@ -1303,6 +1368,10 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
         else:
             put("setup", by(-1 if z["side"] == "SELL" else 1),
                 f"her trigger {z['t'][:5]} {z['side']} {_fmt(z['px'])}f · {age} min")
+    if (d.get("ctx") or {}).get("dte") == 0 and t >= UNWIND_AT:      # Task 5, G9: 0 DTE afternoon, covering is the unwind
+        for p in P[:2]:                                              # (sides, wf7): never WITH, said why
+            if p["side"] == "with":
+                p.update(side="?", text=p["text"] + " · expiry unwind")
     return _count_of(P)
 
 
@@ -1475,16 +1544,23 @@ def reads(d: dict) -> dict:
         xs = flow[k - 2:k + 1] if k >= 2 else [None]
         return None if any(x is None for x in xs) else sum(xs)
 
-    # SPEED: |3-min delta| against its own median so far [I]
+    # SPEED: |3-min delta| against its own median so far [I]; for the first 10 bars against rank_build's same-slot
+    # median (Task 5: data/rank, days before today, RANK_3OF5), so it reads from 09:17 instead of "?"
+    ref = (d.get("ctx") or {}).get("absd")
     speed, hist = [], []
     for i in range(N):
         x3 = s3(i)
         m = _med(hist) if len(hist) >= 10 else None
+        r5 = None if m is not None or not ref else ref.get(_m(mins[i]) // 15)
+        m = m if r5 is None else r5 * RANK_3OF5
         x = abs(x3) / m if x3 is not None and m else None
         speed.append({"x": None if x is None else round(x, 2), "dir": None if x3 is None else (1 if x3 >= 0 else -1),
                       "word": "?" if x is None else "FAST" if x >= FAST else "SLOW" if x <= SLOW else "NORMAL", "d3": x3,
                       "why": None if x is not None else ("flow missing (Dext and the book)" if x3 is None and i >= 2
-                                                          else "warming up: needs 10 bars of history")})
+                                                          else "warming up: needs 10 bars of history"
+                                                          + ("" if ref else " · no rank reference"))})
+        if r5 is not None and x is not None:
+            speed[-1]["src"] = "rank"
         if x3 is not None:
             hist.append(abs(x3))
 
@@ -1725,13 +1801,10 @@ def reads(d: dict) -> dict:
             against.append(f"{'top' if sg['isHigh'] else 'bottom'} signs {sg['n']}/3")
         return withm, against
 
-    triggers = [z for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None and z["t"][:5] in ix]
-    manage = []
-    for z in triggers:
-        ti, dr = ix[z["t"][:5]], (-1 if z["side"] == "SELL" else 1)
-        was, last_at, n = None, -99, 0
-        for b in range(ti + 2, min(N, ti + MANAGE_WIN)):
-            if n >= 4:
+    def manage_of(z, ti, dr, stop_b, cap, tag):
+        was, last_at, n, out = None, -99, 0, []
+        for b in range(ti + 2, stop_b):
+            if n >= cap:
                 break
             if (b + 1) % 3:
                 continue                                  # read at her 3-min closes
@@ -1741,22 +1814,57 @@ def reads(d: dict) -> dict:
             if not st or st == was or b - last_at < MANAGE_GAP:
                 continue
             was, last_at, n = st, b, n + 1
-            manage.append({"at": mins[b + 1] if b + 1 < N else hm(_m(mins[b]) + 1), "b": b, "t": z["t"][:5],
-                           "side": z["side"], "px": z["px"], "st": st, "pts": round(pts, 1), "trail": trail_band(b, dr),
-                           "with": withm, "against": against, "note": "guidance only: you place and move your own stop"})
+            out.append(dict({"at": mins[b + 1] if b + 1 < N else hm(_m(mins[b]) + 1), "b": b, "t": z["t"][:5],
+                             "side": z["side"], "px": z["px"], "st": st, "pts": round(pts, 1), "trail": trail_band(b, dr),
+                             "with": withm, "against": against, "note": "guidance only: you place and move your own stop"},
+                            **tag))
+        return out
+
+    triggers = [z for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None and z["t"][:5] in ix]
+    manage = []
+    for z in triggers:
+        ti, dr = ix[z["t"][:5]], (-1 if z["side"] == "SELL" else 1)
+        manage += manage_of(z, ti, dr, min(N, ti + MANAGE_WIN), 4, {"subject": "zone trigger"})
+    # Task 5: her open marked trade is the subject (day_state's hold_trades: entry t0, CE / PE, long / short), from the
+    # minute it was known (t0, or `at` when marked later) to her exit; judged against price the same way, no 4-line cap
+    # [I] (a trade lasts hours, a trigger's window 45 min). The zone trigger stays the labelled fallback.
+    mine = []
+    for tr in (d.get("ctx") or {}).get("marked") or ():
+        t0, ex = str(tr.get("t0") or "")[:5], str(tr.get("exit_t") or "")[:5]
+        at = datetime.datetime.fromtimestamp(tr["at"], fold.IST) if isinstance(tr.get("at"), (int, float)) else None
+        known = t0 if at is None else max(t0, at.strftime("%H:%M")) if at.strftime("%Y-%m-%d") == d.get("day") else None
+        ti = next((j for j, m_ in enumerate(mins) if known and m_ >= known), None)
+        if ti is None or tr.get("side") not in ("CE", "PE"):
+            continue
+        dr = (1 if tr["side"] == "CE" else -1) * (-1 if tr.get("role") == "short" else 1)
+        z = {"t": t0, "side": "BUY" if dr > 0 else "SELL", "px": fut[ix.get(t0, ti)], "ti": ti, "dr": dr,
+             "end": next((j for j, m_ in enumerate(mins) if ex and m_ >= ex), N),
+             **{k: tr.get(k) for k in ("id", "role", "k", "p0")}, "opt": tr["side"]}
+        mine.append(z)
+        manage += manage_of(z, ti, dr, z["end"], N, {"subject": "her trade", "id": z["id"]})
 
     # the LAST TRIGGER card, per minute: the points now, the last MANAGE word said, re-judged against price now
     trade = []
     for i in range(N):
+        mt = next((q for q in reversed(mine) if q["ti"] <= i < q["end"]), None)
+        if mt is not None:
+            pts = mt["dr"] * (fut[i] - mt["px"])
+            said = next((m_ for m_ in reversed(manage) if m_.get("id") == mt["id"] and m_["b"] + 1 <= i), None)
+            trade.append({"subject": "her trade", **{k: mt[k] for k in ("id", "t", "side", "opt", "role", "k", "p0", "px")},
+                          "band": None, "pts": round(pts, 1), "age": i - mt["ti"],
+                          "st": "AGAINST YOU" if pts <= -MANAGE_PTS else (said or {}).get("st"),
+                          "said": (said or {}).get("st"), "window": True, "trail": trail_band(i, mt["dr"])})
+            continue
         z = next((q for q in reversed(triggers) if ix[q["t"][:5]] <= i), None)
         if z is None:
             trade.append(None)
             continue
         dr = -1 if z["side"] == "SELL" else 1
         pts, age = dr * (fut[i] - z["px"]), i - ix[z["t"][:5]]
-        said = next((m_ for m_ in reversed(manage) if m_["t"] == z["t"][:5] and m_["side"] == z["side"] and m_["b"] + 1 <= i), None)
+        said = next((m_ for m_ in reversed(manage) if m_["subject"] == "zone trigger" and m_["t"] == z["t"][:5]
+                     and m_["side"] == z["side"] and m_["b"] + 1 <= i), None)
         st = "AGAINST YOU" if pts <= -MANAGE_PTS else (said or {}).get("st")
-        trade.append({"t": z["t"][:5], "side": z["side"], "px": z["px"], "band": z.get("band"), "pts": round(pts, 1), "age": age,
+        trade.append({"subject": "zone trigger", "t": z["t"][:5], "side": z["side"], "px": z["px"], "band": z.get("band"), "pts": round(pts, 1), "age": age,
                       "st": st, "said": (said or {}).get("st"), "window": age < MANAGE_WIN, "trail": trail_band(i, dr)})
 
     # NO TRADE: 20 quiet minutes (no break, no fuel, no trigger, writers not pushing) -> quiet; a data hole -> can't see
@@ -1776,7 +1884,7 @@ def reads(d: dict) -> dict:
                 loud.add(ix[t] + 1)
     loud.update(ix[z["t"][:5]] + 1 for z in triggers)
     loud.update(s["b"] + 1 for s in signs if not s["driving"])
-    loud.update(m_["b"] + 2 for m_ in manage if m_["st"] != "HOLD")
+    loud.update(m_["b"] + 2 for m_ in manage if m_["st"] != "HOLD" and m_["subject"] == "zone trigger")   # the tool's own
     loud.update(i + 1 for i, w in enumerate(writers) if w["ev"] in ("UP", "DOWN", "RISK"))
     was = None
     for i in range(N):
@@ -1815,3 +1923,362 @@ def reads(d: dict) -> dict:
         i = j + 1
     return {"speed": speed, "signs": signs, "sync": sync, "writers": writers, "manage": manage, "trade": trade,
             "notrade": notrade}
+
+
+# ---- Jarvis v3 Task 5: what the tool already measures, read (HOW MUCH, WHERE, EXPRESSION, her trade, the cross-checks) --
+
+def cpr(h, l, c):
+    """algo_ai's central pivot range on the prior day's H / L / C: pivot (H+L+C)/3, bc (H+L)/2, tc 2·pivot − bc, width
+    |tc − bc|; narrow at <= CPR_NARROW of that day's range [I]."""
+    p, bc = (h + l + c) / 3, (h + l) / 2
+    w = abs(2 * p - 2 * bc)
+    return {"pivot": round(p, 2), "bc": round(bc, 2), "tc": round(2 * p - bc, 2), "w": round(w, 2),
+            "kind": "narrow" if w <= CPR_NARROW * (h - l) else "wide"}
+
+
+def rv(closes):
+    """server._rv5's realized vol, reproduced (the server is never imported): close-to-close LOG returns of the sessions'
+    last closes, SAMPLE sd (n − 1), x sqrt(252) -> a fraction (0.098 = 9.8), or None under RV_MIN returns (noise)."""
+    r = [math.log(b / a) for a, b in zip(closes, closes[1:]) if a > 0 and b > 0]
+    if len(r) < RV_MIN:
+        return None
+    mu = sum(r) / len(r)
+    return math.sqrt(sum((x - mu) ** 2 for x in r) / (len(r) - 1)) * math.sqrt(RV_YEAR)
+
+
+@functools.lru_cache(maxsize=16)          # ponytail: per process; a prior session recover_tape refills mid-day reads at a restart
+def _prior(bt, tape_dir, idx, day):
+    """The sessions before `day`, from the record -- levels.fetch_daily is REST, this never touches the network ->
+    ({levels, pd, pw, cpr, rv, vp, vp_why}, notes). The futures' 1-min sessions (data/backtest through
+    confluence_log.session, the zone machine's own series, so every level here is `f`): PD = the prior session's H / L / C
+    from its bars <= 15:15 (the CAS rule, levels.LAST_CONTINUOUS), PW = the prior ISO week's H / L, each only on a
+    contract still trading on `day` (THE ROLL: the expired future is off by the calendar spread, and says so);
+    levels.static_levels on them; CPR on PD; RV on the last RV_N closes; the prior session's POC / VAH / VAL
+    (prints.profile on GoCharting's tape). `bt` / `tape_dir` (squeeze_score.BT, tape_log.DIR) only key the cache."""
+    import levels
+    import prints
+    import squeeze_score
+    import tape_log
+    out = {"levels": {}, "pd": None, "pw": None, "cpr": None, "rv": None, "vp": None, "vp_why": None}
+    prev = sorted(x for x in (os.path.basename(p)[4:14] for p in squeeze_score._paths(idx)) if x < day)
+    if not prev:
+        out["vp_why"] = "no prior session"
+        return out, (f"levels / CPR / RV: could not check — no futures session before {day} in data/backtest",)
+    S, notes = {x: confluence_log.session(idx, x) for x in prev[-12:]}, []
+
+    def live(x):                                     # the session's bars are this contract's
+        return S.get(x) is not None and not (S[x]["expiry"] and S[x]["expiry"] < day)
+    x = prev[-1]
+    bs = [b for b in S[x]["ones"] if b["t"] <= levels.LAST_CONTINUOUS] if live(x) else []
+    if not bs:
+        notes.append(f"PD levels / CPR: could not check — fut_{x}.json is "
+                     + (f"the future that expired {S[x]['expiry']}: another contract" if S.get(x) and not live(x)
+                        else "without 1-min bars to 15:15"))
+        out["vp_why"] = "the prior day was not read"
+    else:
+        out["pd"] = {"date": x, "h": max(b["h"] for b in bs), "l": min(b["l"] for b in bs), "c": bs[-1]["c"]}
+        out["cpr"] = cpr(out["pd"]["h"], out["pd"]["l"], out["pd"]["c"])
+        vp = prints.prior_levels([(x, tape_log.read_bars(x, idx))])
+        out["vp"], out["vp_why"] = (vp[0] if vp else None), (None if vp else f"no GoCharting tape for {x}")
+    wk, weeks = datetime.date.fromisoformat(day).isocalendar()[:2], {}
+    for y in prev[-12:]:
+        weeks.setdefault(datetime.date.fromisoformat(y).isocalendar()[:2], []).append(y)
+    pk = max((k for k in weeks if k < wk), default=None)
+    ok = [y for y in weeks.get(pk) or () if live(y)]
+    if ok:
+        out["pw"] = {"h": max(b["h"] for y in ok for b in S[y]["ones"]), "l": min(b["l"] for y in ok for b in S[y]["ones"]),
+                     "start": ok[0]}
+    if pk is None or len(ok) < len(weeks[pk]):
+        notes.append("PW levels: could not check — no session of the prior week on this contract" if not ok else
+                     f"PW levels from {len(ok)} of {len(weeks[pk])} sessions: "
+                     + ", ".join(y for y in weeks[pk] if y not in ok) + " another contract")
+    out["levels"] = {v["kind"]: v["px"] for v in levels.static_levels({"pd": out["pd"], "pw": out["pw"]})}
+    closes = [S[y]["ones"][-1]["c"] for y in prev[-RV_N:] if S.get(y) and S[y]["ones"]]
+    out["rv"] = rv(closes)
+    if out["rv"] is None:
+        notes.append(f"RV: could not check — {len(closes)} cached sessions before {day}, it needs {RV_MIN + 1}")
+    return out, tuple(notes)
+
+
+def _best(r):
+    """A FADE / RIDE confluence row's closest bar: its three checks at the bar with the most ✓ (FADE-D's are its own)."""
+    keys = {"FADE": ("zone", "oi", "flow"), "RIDE": ("loc", "oi", "flow")}.get(r.get("setup"))
+    bs = [b for b in r.get("bars") or () if isinstance(b, dict)] if keys else []
+    if not bs:
+        return None
+    b = max(bs, key=lambda b: sum(bool((b.get(k) or {}).get("ok")) for k in keys))
+    return " ".join(f"{k.upper()} {'✓' if (b.get(k) or {}).get('ok') else '✗'}" for k in keys) + f" {b.get('t') or ''}".rstrip()
+
+
+def _context(day, idx, upto, cp, snaps, step):
+    """Task 5: the reads the tool already has and Jarvis never consumed, gathered once per build from the record (no
+    network, nothing written) -> the frame's `ctx`, a dict calls() never cuts: every per-minute part is keyed "HH:MM" or
+    carries its time, so call() at minute i reads only what was known by then. _prior (PD / PW / CPR / RV / the prior
+    POC), trademap.em (the 09:20 straddle), the chain's ATM read per minute (premium, IV, chain_metrics.max_pain),
+    frame_v2.dte, rank_build's reference (the speed warm-up), THE READ / DECODE logs, confluence_log's rows, the
+    decoder's BADA PRINTs, the fast VPIN, her marked trades (day_state's file, read only). An absent source -> `notes`."""
+    import json
+    import chain_metrics
+    import day_state
+    import decoder_log
+    import frame_v2
+    import sensex_flow
+    import squeeze_score
+    import tape_log
+    import trademap
+    pr, pn = _prior(squeeze_score.BT, tape_log.DIR, idx, day)
+    ctx = dict(pr, notes=list(pn))
+    notes = ctx["notes"]
+    rows = trademap.snaps(_rows(cp), upto - 1)
+    ctx["em"], ctx["em_why"] = trademap.em(rows, day) if rows else (None, "no chain row 09:20–09:30")
+    if ctx["em"] is None and upto - 1 >= 9 * 60 + 30:
+        notes.append(f"EM: could not check — {ctx['em_why']}")
+    ctx["dte"] = frame_v2.dte(day, next((r.get("expiry") for r in rows if r.get("expiry")), None))
+    ctx["opt"] = {}
+    for ts, s in snaps.items():
+        if s.get("src") == "backfill":
+            continue                                 # the REST morning carries OI only: no premium, no IV
+        k = s.get("atm") or int(round(s["spot"] / step) * step)
+        ce, pe = H._leg(s, k, "ce"), H._leg(s, k, "pe")
+        iv = [x["iv"] * 100 for x in (ce, pe) if isinstance(x.get("iv"), (int, float)) and x["iv"] > 0]
+        st = [r for r in s.get("strikes") or ()
+              if all(isinstance((r.get(x) or {}).get("oi"), (int, float)) for x in ("ce", "pe"))]
+        ctx["opt"][ts] = {"k": k, "ce": ce.get("ltp"), "pe": pe.get("ltp"), "iv": round(sum(iv) / len(iv), 2) if iv else None,
+                          "mp": chain_metrics.max_pain(st) if st else None}
+    fi = "NIFTY" if sensex_flow.on(idx) else idx     # §1q: SENSEX's speed is NIFTY's flow, so NIFTY's yardstick
+    try:
+        with open(os.path.join(RANK_DIR, f"rank_ref_{fi}_{day}.json"), encoding="utf-8") as f:
+            ab = ((json.load(f) or {}).get("flow") or {}).get("slot_absd") or {}
+        ctx["absd"] = {int(k): v for k, v in ab.items() if isinstance(v, (int, float)) and v > 0} or None
+    except (OSError, ValueError, AttributeError):
+        ctx["absd"] = None
+    if not ctx["absd"]:
+        notes.append(f"speed warm-up: could not check — no rank reference for {fi} {day}")
+    ctx["read"] = [{"t": r["t"], "word": r.get("word"), "dir": r.get("dir")}
+                   for r in _rows(os.path.join(confluence_log.READ_DIR, f"read_{day}.jsonl"))
+                   if r.get("idx") == idx and r.get("kind") == "mark" and isinstance(r.get("t"), str)]
+    ctx["decode"] = [{"T": r["T"], "call": (r.get("call") or {}).get("text"),
+                      "lines": [x for x in r.get("lines") or () if isinstance(x, str) and x.startswith(("CVD", "EFFORT"))
+                                and "%" not in x],
+                      "os": {k: (r.get("onesided") or {}).get(k) for k in ("type", "why", "up", "down", "flips", "crosses")}}
+                     for r in _rows(os.path.join(DECODE_DIR, f"decode_{day}.jsonl"))
+                     if r.get("idx") == idx and isinstance(r.get("T"), str)]
+    for k, what in (("read", f"THE READ: could not check — no {idx} mark in read_{day}.jsonl"),
+                    ("decode", f"DECODE and its §1o day type: could not check — no {idx} row in decode_{day}.jsonl")):
+        if not ctx[k]:
+            notes.append(what)
+    ctx["conf"] = [dict({k: r.get(k) for k in ("setup", "t", "end", "side", "d", "entry", "at")}, best=_best(r))
+                   for r in _rows(confluence_log.PATH) if r.get("day") == day and r.get("index") == idx]
+    ev = decoder_log.read_events(day, idx)
+    ctx["dec_n"] = len(ev)
+    ctx["bada"] = [{k: e.get(k) for k in ("kind", "t", "time", "p", "side", "lots", "shown")} for e in ev
+                   if e.get("kind") == "E1" and e.get("shown")]
+    if not ev:
+        notes.append(f"BADA PRINT: could not check — no decoder rows for {idx} on {day}")
+    ctx["vpin"] = [[r["at"], r.get("vpin"), r.get("pct")] for r in _rows(VPIN_FAST)
+                   if r.get("day") == day and isinstance(r.get("at"), str)]
+    try:                                             # her marked trades: the file the server writes, read only (never
+        with open(day_state.path_for(day), encoding="utf-8") as f:     # day_state.load, which renames a corrupt one)
+            ds = json.load(f)
+    except (OSError, ValueError):
+        ds = {}
+    ht = (ds.get("hold_trades") or ()) if isinstance(ds, dict) and ds.get("day") == day else ()
+    ctx["marked"] = sorted((t for t in ht if isinstance(t, dict) and t.get("idx") == idx and t.get("t0")),
+                           key=lambda t: t["t0"])
+    return ctx
+
+
+def _opt_at(d, t):
+    """The chain's ATM read at minute t: that minute's, else the last within 3 min (a chain minute missing), else None."""
+    o = (d.get("ctx") or {}).get("opt") or {}
+    if t in o:
+        return o[t]
+    k = max((x for x in o if x <= t), default=None)
+    return o[k] if k is not None and _m(t) - _m(k) <= 3 else None
+
+
+def how_much(d, i, lv):
+    """HOW MUCH (stage 5), is there a move to pay for? -> {"line", "rows"}: the §1o day type as the DECODE block logged it
+    at its last 5-min close (one meter: the frame lacks its writers' lead and the peers' bars, so a copy here would read
+    3 of its 7 votes "?" and never one-sided), the day's spot range over trademap.em's EM, the session VWAP's σ, VIX (no
+    source), CPR. Each row names its source; an absent one says could not check."""
+    c, t = d.get("ctx") or {}, d["mins"][i]
+    dec = [r for r in c.get("decode") or () if r["T"] <= t]
+    o = dec[-1]["os"] if dec else {}
+    if not o.get("type"):
+        dt, rows = "?", ["day type: could not check — " + (f"{o.get('why')} (DECODE {dec[-1]['T']})" if dec else
+                                                           f"no DECODE row by {t}" if c.get("decode") else "no DECODE log")]
+    else:
+        dt, rows = o["type"], [f"day {o['type']}: §1o at DECODE {dec[-1]['T']} · one-sided bars {o['up']} ▲ {o['down']} ▼ · "
+                               f"flips {o['flips']} · VWAP crosses {o['crosses']}"]
+    em, sp = c.get("em"), [x for x in d["spot"][:i + 1] if x is not None]
+    if em and em["t"] <= t and sp:
+        ru = f"range used {(max(sp) - min(sp)) / em['em']:.2f} of EM"
+        rows.append(f"EM {em['em']:.0f} pts: the {em['t']} ATM {lv(em['K'])} straddle {em['straddle']:.1f} / 0.8 / "
+                    f"√{em['N']} (trademap.em) · day range {max(sp) - min(sp):.0f} pts spot")
+    else:
+        ru = "range used could not check — " + ("before the 09:20 straddle" if em else c.get("em_why") or "no 09:20 straddle")
+        rows.append(f"EM: {ru[11:]}")
+    sd = d["sd"][i] or 0
+    rows += [f"σ {sd:.0f} pts: the session VWAP's SD on the 1-min futures", "VIX: could not check — no India VIX source"]
+    cp = c.get("cpr")
+    if cp:
+        p = c["pd"]
+        cpt = f"CPR {cp['kind']} ({cp['w']:.0f} pts)"
+        rows.append(f"{cpt}: {p['date']} H {_fmt(p['h'])}f · L {_fmt(p['l'])}f · C {_fmt(p['c'])}f (bars ≤ 15:15) · CPR "
+                    f"{_fmt(min(cp['tc'], cp['bc']))}–{_fmt(max(cp['tc'], cp['bc']))}f · narrow ≤ {CPR_NARROW} of the range [I]")
+    else:
+        cpt = "CPR could not check"
+        rows.append("CPR: could not check — no prior-day H / L / C (health names why)")
+    return {"line": f"day {dt} · {ru} · σ {sd:.0f} · VIX could not check · {cpt}", "rows": rows}
+
+
+def where(d, i, lean, lines, ce, pe, lv, basis):
+    """WHERE (stage 6): the stop, its pool, two targets, the room -> {"stop", "pool", "t1", "t2", "room", "rows"}. Stop =
+    her live zone trigger's stop (zone3's rows carry none yet: named), else the leg's PALAT line; pool = the nearest of
+    PDH / PWH beyond it (a short; a long PDL / PWL) within POOL_X of its distance; T1 / T2 = the nearest two the lean's
+    way of {the prior day's POC / VAH / VAL, the wall ahead, MAX PAIN, PDH / PDL}; room = points to T1. A strike prints in
+    both frames (`lv`, the 3-min basis), a futures level `f`. A field it cannot fill is None and its row says why."""
+    c, t, fut = d.get("ctx") or {}, d["mins"][i], d["fut"][i]
+    L, rows, out = c.get("levels") or {}, [], {"stop": None, "pool": None, "t1": None, "t2": None, "room": None}
+    zs = [z for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None and str(z.get("t", ""))[:5] <= t
+          and _m(t) - _m(str(z["t"])[:5]) < MANAGE_WIN]
+    stop = zs[-1].get("stop") if zs else None
+    if stop is not None:
+        out["stop"] = f"{_fmt(stop)}f (zone)"
+    else:
+        if zs:
+            rows.append(f"stop: her zone {zs[-1]['t'][:5]} {zs[-1]['side']} — could not check: its row carries no stop")
+        if lines:
+            stop, out["stop"] = lines["half"], f"{_fmt(lines['half'])}f (PALAT line)"
+        else:
+            rows.append("stop: could not check — no zone stop and no leg's PALAT line")
+    if not lean:
+        return dict(out, rows=rows + ["pool / T1 / T2: no lean — they need a side"])
+    keys = ("PDH", "PWH") if lean < 0 else ("PDL", "PWL")
+    if stop is not None:
+        dist = abs(stop - fut)
+        got = sorted((abs(L[k] - fut), k) for k in keys if L.get(k) is not None and lean * (stop - L[k]) > 0
+                     and abs(L[k] - fut) <= POOL_X * dist)
+        if got:
+            out["pool"] = f"{got[0][1]} {_fmt(L[got[0][1]])}f"
+        else:
+            rows.append("pool: " + (f"none — no {' / '.join(keys)} beyond the stop within {POOL_X}× its {dist:.0f} pts"
+                                    if any(L.get(k) is not None for k in keys) else
+                                    f"could not check — no {' / '.join(keys)} (health names why)"))
+    vp, cand = c.get("vp"), []
+    if vp:
+        cand += [(f"p{n}", vp[k], f"p{n} {_fmt(vp[k])}f") for n, k in (("POC", "poc"), ("VAH", "vah"), ("VAL", "val"))]
+    else:
+        rows.append(f"prior POC / VAH / VAL: skipped — {c.get('vp_why') or 'not on the tape'}")
+    w = (ce[0] if ce else None) if lean > 0 else (pe[0] if pe else None)
+    if w:
+        cand.append((f"{w['side']} wall", w["k"] + basis, f"{w['side']} wall {lv(w['k'])}"))
+    mp = (_opt_at(d, t) or {}).get("mp")
+    if mp is not None:
+        cand.append(("MAX PAIN", mp + basis, f"MAX PAIN {lv(mp)}"))
+    cand += [(k, L[k], f"{k} {_fmt(L[k])}f") for k in ("PDH", "PDL") if L.get(k) is not None]
+    way = sorted((x for x in cand if lean * (x[1] - fut) > 3), key=lambda x: lean * (x[1] - fut))
+    if way:
+        out["t1"], out["room"] = way[0][2], f"{lean * (way[0][1] - fut):.0f} to {way[0][0]}"
+        out["t2"] = way[1][2] if len(way) > 1 else None
+    else:
+        rows.append(f"T1 / T2: none {'above' if lean > 0 else 'below'} {_fmt(fut)}f among the levels read")
+    return dict(out, rows=rows)
+
+
+def expression(d, i, aw, lean, s, buyer, seller, lv):
+    """EXPRESSION (stage 7): both lines priced, and a pick [I, display only, for her signature if it ever becomes a rule]
+    -> {"buyer", "seller", "pick", "pick_why"}. The buyer's line gains what the move must pay (the ATM premium x NEED_X)
+    against EM left (EM − |fut − the open|); the seller's, the ATM IV against RV (IV_RV: rich / fair / cheap) and that a
+    sale folds on HOLD v2's line. Pick: `seller` on TREND with Sides REAL / BACKED the lean's way and IV rich; `buyer` on
+    a fresh BROKEN the lean's way (within ANSWER_MIN) whose required move fits EM left; else None, "no edge named"."""
+    c, t, fut = d.get("ctx") or {}, d["mins"][i], d["fut"][i]
+    o, em = _opt_at(d, t) or {}, c.get("em")
+    left = em["em"] - abs(fut - d["fo"][0]) if em and em["t"] <= t and (d.get("fo") or [None])[0] is not None else None
+    opts = (("CE",) if lean > 0 else ("PE",)) if lean else ("CE", "PE")
+    need = {x: o[x.lower()] * NEED_X for x in opts if isinstance(o.get(x.lower()), (int, float))}
+    thin = None if left is None or not need else max(need.values()) > left
+    buyer += (" · needs " + (" / ".join(f"+{v:.0f}" + (f" ({x})" if len(opts) > 1 else "") for x, v in need.items())
+                             if need else f"+? (could not check — no ATM premium at {t})")
+              + f" pts today [I ×{NEED_X}] · EM left " + (H._sg(f"{left:.0f}") if left is not None else "? (no 09:20 straddle)")
+              + ("" if thin is None else " → thin" if thin else " → fits"))
+    iv, r_ = o.get("iv"), (c.get("rv") or 0) * 100
+    grade = None if iv is None or not r_ else "rich" if iv >= r_ * IV_RV else "cheap" if iv <= r_ / IV_RV else "fair"
+    seller += (f" · IV {iv:.1f} vs RV {r_:.1f} → {grade}" if grade else
+               f" · IV ? vs RV ? (could not check — {'no ATM IV at ' + t if iv is None else 'no RV: health names why'})")
+    if seller.startswith("sell"):
+        seller += " · fold = HOLD v2 line"
+    m = _m(t)
+    known = [p for p in d.get("pushes") or () if not p.get("artifact") and p.get("am") and p["am"] < t
+             and p.get("ans") not in (None, "?") and m - _m(p["t"]) <= ANSWER_MIN]
+    brk = known[-1] if known and lean and known[-1]["dir"] == lean and known[-1]["ans"] == "TOOT" else None
+    if aw == "TREND" and lean and s and s.get("word") in ("REAL", "BACKED") and sides_fuel(s) == lean and grade == "rich":
+        pick, why = "seller", f"TREND {ARR[lean]} · Sides {s['t']} {s['word']} with it · IV {iv:.1f} ≥ RV {r_:.1f} ×{IV_RV}"
+    elif brk and thin is False:
+        pick, why = "buyer", (f"BROKEN {brk['t']} push {ARR[lean]}" + (f" {lv(brk['k'])}" if brk.get("k") is not None else "")
+                              + f" · needs +{max(need.values()):.0f} ≤ EM left {left:.0f}")
+    else:
+        pick, why = None, "no edge named"
+    return {"buyer": buyer, "seller": seller, "pick": pick, "pick_why": why}
+
+
+def _cross(d, i):
+    """THE READ word and DECODE's call at their last close <= the frame's minute (data/read, data/decode), verbatim, plus
+    DECODE's CVD and EFFORT lines -> ({"read", "decode", "board": None}, the why line). The Board is not read."""
+    c, t = d.get("ctx") or {}, d["mins"][i]
+    rd = [r for r in c.get("read") or () if r["t"] <= t]
+    dc = [r for r in c.get("decode") or () if r["T"] <= t]
+    read = (f"THE READ {ARR[rd[-1]['dir']] + ' ' if rd[-1].get('dir') in ARR else ''}{rd[-1]['word']} {rd[-1]['t']}"
+            if rd else None)
+    dec = f"DECODE {dc[-1]['call']} {dc[-1]['T']}" if dc and dc[-1].get("call") else None
+    line = ("cross-check: " + (read or "THE READ could not check — " + ("no mark yet" if c.get("read") else "no read log"))
+            + " · " + (dec or "DECODE could not check — " + ("no close yet" if c.get("decode") else "no decode log"))
+            + "".join(f" · {x}" for x in (dc[-1]["lines"] if dc else ())))
+    return {"read": read, "decode": dec, "board": None}, line
+
+
+def _her_setup(d, i):
+    """Her registered band setups today (confluence_log's FADE §1i / FADE-D §1n / RIDE §1j rows), each once written (its
+    window closed: `at` <= the frame's minute) -> ["FADE SELL 14:39 · entry 23,040f 14:42 · stop 23,128f", ...]."""
+    c, t = d.get("ctx") or {}, d["mins"][i]
+    if not c.get("conf"):
+        return []
+    end, out = fold.ms(d["day"], t) / 1000 + 60, []
+    for r in c["conf"]:
+        if not isinstance(r.get("at"), (int, float)) or r["at"] > end:
+            continue
+        e = r.get("entry") or {}
+        head = (f"{r.get('setup')} {r.get('side') or ARR.get(r.get('d'), '')} {r.get('t')}"
+                + (f"–{r['end']}" if r.get("end") else ""))
+        if e.get("E") is not None:
+            out.append(head + f" · entry {_fmt(e['E'])}f {e.get('t') or ''}".rstrip()
+                       + (f" · stop {_fmt(e['stop'])}f" if e.get("stop") is not None else
+                          f" · line {_fmt(e['line0'])}f" if e.get("line0") is not None else ""))
+        else:
+            out.append(head + " · no entry" + (f" ({r['best']})" if r.get("best") else ""))
+    return out
+
+
+def _bada(d, i, walls, lv, basis):
+    """Her BADA PRINT (the decoder's E1, shown on her chart) within one strike step of a wall, its 5-min bar closed in the
+    last 15 min (trademap.bada's own rule) -> the why line."""
+    import trademap
+    c, t = d.get("ctx") or {}, d["mins"][i]
+    if not c.get("dec_n"):
+        return "BADA PRINT: could not check — no decoder rows today"
+    t1 = fold.ms(d["day"], t) + 60000
+    got = [f"{x} at the {w['side']} wall {lv(w['k'])}" for w in walls if w
+           for x in [trademap.bada(c.get("bada"), w["k"] + basis, d.get("step") or 50, t1 - 15 * 60000, t1)] if x]
+    return "BADA PRINT: " + (" · ".join(got) if got else "none at a wall in 15 min")
+
+
+def _vpin(d, i):
+    """The fast VPIN gauge's latest row by the frame's minute (NIFTY's future, shadow): display only, never a sign (A198)."""
+    t = d["mins"][i]
+    xs = [x for x in (d.get("ctx") or {}).get("vpin") or () if x[0][:5] <= t]
+    if not xs:
+        return "VPIN: could not check — no fast VPIN row today"
+    a, v, p = xs[-1]
+    return (f"VPIN (NIFTY fut, shadow): {v:.2f}" + (f" · p{round(p * 100)} of its history" if p is not None else
+                                                     " · no percentile yet") + f" at {a[:5]} · display only")

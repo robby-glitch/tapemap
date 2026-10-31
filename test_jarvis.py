@@ -7,6 +7,7 @@ readers back at data/, and jarvis.build never writes) and are skipped when the d
 import json
 import os
 import pathlib
+import re
 
 import pytest
 
@@ -37,6 +38,17 @@ def record(monkeypatch):
     monkeypatch.setattr(chain_live, "CHAIN_DIR", pathlib.Path(DATA, "chain"))
     monkeypatch.setattr(trigger_log, "PATH", os.path.join(DATA, "trigger_log.jsonl"))
     monkeypatch.setattr(jarvis, "MSG_DIR", os.path.join(DATA, "messages"))
+    import confluence_log                                   # Task 5's sources (tape_log.DIR stays tmp: the leg's marks
+    import day_state                                        # are not read here, so the prior POC / VAH / VAL say so)
+    import decoder_log
+    import squeeze_score
+    monkeypatch.setattr(confluence_log, "PATH", os.path.join(DATA, "confluence_log.jsonl"))
+    monkeypatch.setattr(day_state, "DIR", os.path.join(DATA, "day_state"))
+    monkeypatch.setattr(decoder_log, "DIR", os.path.join(DATA, "decoder"))
+    monkeypatch.setattr(squeeze_score, "BT", os.path.join(DATA, "backtest"))
+    monkeypatch.setattr(jarvis, "RANK_DIR", os.path.join(DATA, "rank"))
+    monkeypatch.setattr(jarvis, "DECODE_DIR", os.path.join(DATA, "decode"))
+    monkeypatch.setattr(jarvis, "VPIN_FAST", os.path.join(DATA, "vpin_fast.jsonl"))
 
 
 def build(day, upto):
@@ -526,3 +538,138 @@ def test_29oct_sensex_reads_niftys_flow(record):
     assert "N" in d["flow_src"] and "flow from NIFTY (§1q)" in d["health"]["notes"]
     assert sum(s["word"] == "?" for s in d["reads"]["speed"]) <= 15                  # the 10-bar warm-up and the first 2 min
     assert d["call"]["count"]["pieces"][6]["k"] == "speed"
+
+
+# ---- Jarvis v3 Task 5: what the tool already measures (HOW MUCH, WHERE, EXPRESSION, her trade, the reads) ----------------
+
+LEVEL = re.compile(r"\d[sf]\b")                                          # every level says spot (s) or futures (f)
+
+
+@pytest.mark.skipif(not _has("2026-10-29"), reason="29 Oct record not present")
+def test_29oct_the_reads_jarvis_never_consumed(record):
+    """29 Oct 10:59 (measured on the record): DECODE's 10:55 close logged §1o MIXED (8 one-sided bars, all ▲, under its 10),
+    THE READ said TREND ▲ at 10:55, the range had used 0.85 of the 09:20 straddle's EM, and the leg's PALAT? kept the
+    buyer out with the move already spent (needs +176, EM left 34)."""
+    d = build("2026-10-29", 11 * 60)
+    c = d["call"]
+    assert "range used" in c["how_much"]["line"] and "σ" in c["how_much"]["line"]
+    assert c["how_much"]["line"].startswith("day MIXED · range used 0.85 of EM")
+    assert LEVEL.search(c["where"]["t1"]) and LEVEL.search(c["where"]["stop"])
+    assert c["where"]["stop"].endswith("f (PALAT line)") and c["where"]["t1"].startswith("CE wall 23,000s (")
+    e = c["expression"]
+    assert e["pick"] in ("seller", "buyer", None) and "needs +" in e["buyer"] and "EM left" in e["buyer"]
+    assert c["buyer"] == e["buyer"] and " vs RV " in e["seller"] and e["buyer"].endswith("EM left 34 → thin")
+    assert c["cross"]["read"] is None or isinstance(c["cross"]["read"], str)
+    assert c["cross"] == {"read": "THE READ ▲ TREND 10:55", "decode": "DECODE ▲ mila-jula · 2 thak 3 jaari 10:55",
+                          "board": None}
+    assert len(d["health"]["not_read"]) <= 5 and d["health"]["not_shown"]
+    assert "%" not in json.dumps(c, ensure_ascii=False)
+    assert [s["src"] for s in d["reads"]["speed"][2:10]] == ["rank"] * 8       # 09:17 on, not "?" for 10 bars
+
+
+@pytest.mark.skipif(not _has("2026-10-28"), reason="28 Oct record not present")
+def test_the_priced_lines_are_causal(record):
+    """The buyer's needs / EM left and the seller's IV vs RV at 12:49 read the same from the 12:50 build and from the 13:41
+    build cut at 12:49 (calls(), her replay): ctx is keyed by minute, never the frame's end."""
+    full, part = build("2026-10-28", 13 * 60 + 41), build("2026-10-28", 12 * 60 + 50)
+    c = jarvis.calls(full)[len(part["mins"]) - 1]
+    assert (c["buyer"], c["seller"]) == (part["call"]["buyer"], part["call"]["seller"]) and " vs RV " in c["seller"]
+
+
+def test_cpr_and_rv_by_hand():
+    """CPR: pivot (H+L+C)/3, bc (H+L)/2, tc 2·pivot − bc, width |tc − bc|, narrow at <= 0.1 of the range [I]. RV: server._rv5's
+    formula (close-to-close log returns, sample sd, √252), None under 4 returns."""
+    c = jarvis.cpr(23000.0, 22800.0, 22950.0)                           # pivot 22,916.7 · bc 22,900 · tc 22,933.3
+    assert c["w"] == pytest.approx(33.33, abs=0.01) and c["kind"] == "wide"   # 33.3 > 0.1 x 200
+    assert jarvis.cpr(23000.0, 22800.0, 22900.0)["kind"] == "narrow"      # C at the mid: width 0
+    assert jarvis.rv([100, 101, 100, 101, 100, 101]) == pytest.approx(0.1730, abs=1e-4)
+    assert jarvis.rv([100, 101, 100, 101]) is None                        # 3 returns: noise, said so
+
+
+def test_the_speed_warms_up_on_the_rank_reference():
+    """rank_build's same-slot median |5-min delta| (data/rank) is the yardstick for the first 10 bars, at √(3/5) for a
+    3-min sum [I], tagged src rank; without the reference the "?" stays and says why."""
+    n = 30
+    d = {"mins": [f"10:{i:02d}" for i in range(n)], "fut": [100.0 + i for i in range(n)], "fo": [99.5 + i for i in range(n)],
+         "fhi": [101.0 + i for i in range(n)], "flo": [99.0 + i for i in range(n)], "delta": [10] * n, "fvol": [100] * n,
+         "bnf": [200.0] * n, "sx": [300.0] * n, "vwap": [110.0] * n, "sd": [5.0] * n,
+         "timeline": [{"fuel": None, "fuel_state": "-"}] * n, "runs": [], "pushes": [], "zone": [], "holes": [],
+         "chain_missing": [], "sides": None, "wf_ce": [None] * n, "wf_pe": [None] * n, "bar": 500, "fights": []}
+    sp = jarvis.reads(d)["speed"]
+    assert sp[2]["word"] == "?" and "no rank reference" in sp[2]["why"]
+    d["ctx"] = {"absd": {40: 50.0}}                                       # 10:00-10:14, slot 40: |5-min delta| 50 lots
+    sp = jarvis.reads(d)["speed"]
+    assert sp[2]["src"] == "rank" and sp[2]["x"] == round(30 / (50 * (3 / 5) ** 0.5), 2) and sp[2]["word"] == "NORMAL"
+    assert "src" not in sp[12] and sp[12]["x"] == 1.0                     # 10 bars of its own: its own median
+
+
+def test_on_expiry_afternoon_writers_covering_is_not_with():
+    """0 DTE from 14:00: the Sides and ±7 covering is the expiry unwind, never WITH (labelled); a day with DTE 1 counts it."""
+    d = _toy()
+    d["mins"] = [f"{14 + i // 60:02d}:{i % 60:02d}" for i in range(40)]
+    d["reads"] = jarvis.reads(d)
+    d["legs"] = {"rows": [{"t": m, "lean": -1, "word": "TREND", "leg": {"dir": -1}} for m in d["mins"]],
+                 "day": {"flips": [0] * 40, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
+    d["ctx"] = {"dte": 1}
+    assert jarvis.count(d, 39)["pieces"][0]["side"] == "with"
+    d["ctx"] = {"dte": 0}
+    p = jarvis.count(d, 39)["pieces"]
+    assert p[0]["side"] == "?" and p[0]["text"].endswith("· expiry unwind") and p[1]["side"] != "with"
+
+
+def test_her_marked_trade_is_manages_subject():
+    """Her open marked trade is MANAGE's subject (entry minute's fut, her side and role); the zone trigger is the labelled
+    fallback, and after her exit the subject goes back to it."""
+    d = _toy()
+    d["zone"] = [{"t": "10:02", "side": "SELL", "px": 23094.0}]
+    d["ctx"] = {"marked": [{"id": "NIFTY-23000PE-long-100510", "idx": "NIFTY", "k": 23000.0, "side": "PE", "role": "long",
+                            "t0": "10:05:10", "p0": 120.0, "exit_t": "10:30:00"}]}
+    r = jarvis.reads(d)
+    assert r["trade"][3]["subject"] == "zone trigger"                     # before her mark
+    t = r["trade"][20]
+    assert t["subject"] == "her trade" and t["opt"] == "PE" and t["role"] == "long" and t["pts"] == 45.0   # 23,085 -> 23,040
+    assert r["trade"][35]["subject"] == "zone trigger"                    # flat at 10:30
+    assert any(m["subject"] == "her trade" for m in r["manage"]) and all(m["b"] < 30 for m in r["manage"]
+                                                                          if m["subject"] == "her trade")
+
+
+def _expr_toy(iv=14.0, rv=0.10, em=120.0, broke=False):
+    """The toy down-leg (TREND ▼, Sides REAL put writers covering) with the Task 5 context: the ATM read, RV, EM, levels."""
+    d = _toy()
+    g = {"dir": -1, "quality": "TREND", "pts": 117, "sigma_max": 2.1, "toot": None, "fuelled": None, "origin": 23102.0,
+         "origin_t": "10:00", "extreme": 22985.0, "extreme_t": "10:39", "retrace": 0.05}
+    d["legs"] = {"rows": [{"t": m, "lean": -1, "word": "TREND", "risk": [], "leg": g, "line": "TREND", "alive": [],
+                           "notes": [], "missing": []} for m in d["mins"]],
+                 "day": {"flips": [0] * 40, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
+    if broke:                                                            # the lean's own push BROKE its wall at 10:34
+        d["pushes"] = [{"t": "10:34", "m": 634, "dir": -1, "ans": "TOOT", "am": "10:36", "k": 22950.0, "side": "PE",
+                        "who": "WRITERS", "artifact": False}]
+    d["ctx"] = {"opt": {m: {"k": 22950, "ce": 60.0, "pe": 70.0, "iv": iv, "mp": 23000} for m in d["mins"]}, "rv": rv,
+                "em": {"em": em, "t": "09:20", "K": 23000, "straddle": 150.0, "N": 5}, "dte": 3, "notes": [],
+                "levels": {"PDH": 23060.0, "PDL": 22900.0, "PWH": 23200.0, "PWL": 22800.0},
+                "vp": {"day": "2026-10-29", "poc": 22960.0, "vah": 23050.0, "val": 22940.0},
+                "marked": [{"id": "T1", "idx": "NIFTY", "k": 23000.0, "side": "PE", "role": "long", "t0": "10:05:00",
+                            "p0": 120.0, "exit_t": None}]}
+    d["verdict"] = {"BUY": {}, "SELL": {}}
+    d["reads"] = jarvis.reads(d)
+    d["health"] = jarvis.health(d, None)
+    d["reads"]["action"] = jarvis.action_words(d)
+    return jarvis.call(d)
+
+
+def test_the_expression_pick_where_and_how_much_on_a_toy():
+    c = _expr_toy()
+    assert c["word"] == "TREND ▼"
+    e = c["expression"]
+    assert e["pick"] == "seller" and "IV 14.0 vs RV 10.0 → rich" in e["seller"]          # 14 >= 10 x 1.15, Sides REAL ▼
+    assert "needs +80 pts today [I ×1.15] · EM left 2 → thin" in e["buyer"]            # PE 70 x 1.15; 120 − |22,983 − 23,101|
+    assert e["in_trade"] == {"id": "T1", "side": "PE", "role": "long", "pts": 102.0, "word_at_entry": "HOLD ▼"}
+    w = c["where"]
+    assert w["stop"] == f"{jarvis._fmt(c['lines']['half'])}f (PALAT line)" and w["pool"] == "PDH 23,060f"
+    assert w["t1"] == "pPOC 22,960f" and w["t2"] == "PE wall 22,900s (22,950f)" and w["room"] == "23 to pPOC"
+    assert c["how_much"]["line"].startswith("day ? · range used 0.97 of EM") and "CPR could not check" in c["how_much"]["line"]
+    assert c["expiry"] == {"dte": 3, "mode": None}
+    assert _expr_toy(rv=0.13)["expression"]["pick"] is None                              # 14 / 13: fair, no BROKEN
+    assert _expr_toy(rv=0.13)["expression"]["pick_why"] == "no edge named"
+    assert _expr_toy(rv=0.13, broke=True)["expression"]["pick"] is None                  # BROKEN, but EM left 2 < 80
+    assert _expr_toy(rv=0.13, em=250.0, broke=True)["expression"]["pick"] == "buyer"     # EM left 132 >= 80
