@@ -4885,9 +4885,11 @@ def _jarvis_card(idx):
     note = {"slow": _JPASS.get("slow"), "skipped": _JPASS.get("skipped")}.get(_JPASS.get("last"))   # the last pass's note
     out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + ([note] if note else []))
     if out.get("ok"):
-        out["voice"], b = jarvis_voice.for_card(_JVOICE, idx)   # Task 7: the narration; the day's brief, all day
-        if b:
-            out["brief"] = b                         # only when there is one: the card stays jarvis_log.card's shape
+        try:                                           # Task 7: the narration; the day's brief ({lines, at}), all day
+            out["voice"], out["brief"] = jarvis_voice.for_card(_JVOICE, idx)
+        except Exception:                              # fail-soft: no voice, never no card
+            log.exception("jarvis voice for the card")
+            out["voice"], out["brief"] = None, None
     return out
 
 
@@ -4907,16 +4909,18 @@ def _jarvis_cmd(idx, text, src):
     if idx not in instruments.ENABLED:
         why = f"could not check — {idx} is not an index this server reads"
         return {"ok": False, "kind": "help", "reply": why, "why": why, "lines": [], "state": dict(EMPTY_STATE)}
-    r = _jcmd().apply(idx, text, _jarvis_live(idx), src, now=_ist().timestamp())
+    d = _ist()
+    r = _jcmd().apply(idx, text, _jarvis_live(idx), src, now=d.timestamp())
     if r.get("kind") == "ask" and r.get("ok"):          # Task 7: the voice answers; a page / the terminal never wait on it
-        q = jarvis_cmd.parse(text).get("text")
-        ask = lambda: dict(jarvis_voice.answer(_jvoice_card(idx), q), q=q)      # noqa: E731 -- q: whose answer it is
+        q, asked = jarvis_cmd.parse(text).get("text"), d.strftime("%H:%M:%S")   # (q, asked): which answer is hers
+        ask = lambda: dict(jarvis_voice.answer(_jvoice_card(idx), q), q=q, asked=asked)      # noqa: E731
         if src == "telegram":                            # her chat has no card to fill: telegram_in's own poll thread waits
             v = ask()
             jarvis_voice.later(_JVOICE, idx, lambda: v)   # through the sequence: an older narration never overwrites it
-            return dict(r, reply="voice fell back — " + str(v["why"]) if v["fell_back"] else "voice", lines=v["lines"])
+            return dict(r, reply="voice fell back — " + str(v["why"]) if v["fell_back"] else "voice", lines=v["lines"],
+                        asked=asked)
         jarvis_voice.later(_JVOICE, idx, ask)
-        r = dict(r, reply=jarvis_voice.THINKING, lines=[])
+        r = dict(r, reply=jarvis_voice.THINKING, lines=[], asked=asked)
     return r
 
 

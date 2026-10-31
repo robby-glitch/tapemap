@@ -26,7 +26,6 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-import confluence_log
 import jarvis_log
 from chain_live import IST
 
@@ -100,7 +99,21 @@ def _path(day=None):
 
 
 def _rows(day=None):
-    return list(confluence_log._rows(_path(day)))
+    """The day's voice rows in order; [] when there is no file. Read leniently: a torn character or line costs itself,
+    never the card, the brief or the day."""
+    try:
+        with open(_path(day), encoding="utf-8", errors="replace") as f:
+            out = []
+            for ln in f:
+                try:
+                    r = json.loads(ln)
+                except ValueError:
+                    continue
+                if isinstance(r, dict):
+                    out.append(r)
+            return out
+    except OSError:
+        return []
 
 
 def _calls_today():
@@ -360,7 +373,8 @@ def brief(levels, last_call_rows, notes, provider=None):
     try:
         said = [r for r in _rows() if r.get("kind") == "brief" and not r.get("fell_back")]
         if said:
-            return {"lines": said[-1]["lines"], "provider": said[-1]["provider"], "fell_back": False, "why": None}
+            return {"lines": said[-1]["lines"], "provider": said[-1]["provider"], "fell_back": False, "why": None,
+                    "at": str(said[-1].get("t") or "")[:5] or None}      # re-served: the time it was SAID
         src = {"levels": levels, "last_calls": last_call_rows, "notes": notes}
         user = "CONTEXT " + json.dumps(src, ensure_ascii=False, default=str) + "\n\n" + BRIEF_TASK
         return _run("brief", None, src, None, user, _brief_fall, "medium", provider, BRIEF_LINES, web=True)
@@ -406,7 +420,10 @@ def later(store, key, fn):
         n = _now()
         with _LOCK:
             if isinstance(res, dict) and _SEQ.get(key) == mine:
-                store[key] = dict(res, day=n.strftime("%Y-%m-%d"), at=n.strftime("%H:%M"))   # when it spoke
+                x = {"at": n.strftime("%H:%M")}        # when it spoke, unless the result knows better (a brief
+                x.update(res)                            # re-served after a restart keeps the time it was said)
+                x["day"] = n.strftime("%Y-%m-%d")
+                store[key] = x
 
     t = threading.Thread(target=run, daemon=True, name="jarvis-voice")
     t.start()

@@ -588,7 +588,7 @@ def test_the_terminal_ask_waits_for_a_slow_answer(monkeypatch):
     cards[:] = [dict(ans, fell_back=True, why="no key")]
     assert s.handle("ask is the floor holding").endswith("A2\nvoice fell back — no key")
     import jarvis_cmd
-    s.voice = lambda q: [q]                                         # the question the terminal waits for == the server's q
+    s.voice = lambda q, asked=None: [q]                             # the question the terminal waits for == the server's q
     for t in ("ask is the floor holding", "ask  is   the floor holding?", "ASK Why now"):
         assert s.handle(t).splitlines()[-1] == jarvis_cmd.parse(t)["text"]
 
@@ -663,3 +663,83 @@ def test_telegram_ask_survives_a_broken_card_and_keeps_its_q(srv, monkeypatch):
     t = srv._jarvis_cmd("NIFTY", "ask why", "telegram")
     assert t["reply"] == "voice fell back — no card" and t["lines"] == ["could not check — the card failed (RuntimeError)"]
     assert srv._JVOICE["NIFTY"]["q"] == "why"
+
+
+# ---- Phase B fix 2: (q, asked), the card never failed by the voice, the brief's own time ----
+
+def test_a_repeated_question_waits_for_its_own_answer(monkeypatch):
+    jarvis_cli = _cli()
+    q = "is the floor holding"
+    before = {"lines": ["the 10:40 answer"], "fell_back": False, "q": q, "asked": "10:40:00", "at": "10:40"}
+    new = {"lines": ["the 10:42 answer"], "fell_back": False, "q": q, "asked": "10:42:01", "at": "10:42"}
+    looks = [before, before, new]                                    # the card holds the same words' older answer first
+
+    def fake(req, timeout=None):
+        if req.full_url.endswith("/api/jarvis/cmd"):
+            return _Resp({"ok": True, "kind": "ask", "reply": jv.THINKING, "lines": [], "asked": "10:42:01"})
+        return _Resp({"ok": True, "voice": looks.pop(0) if len(looks) > 1 else looks[0]})
+
+    monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", fake)
+    s = jarvis_cli.Session("http://127.0.0.1:8765", "NIFTY")
+    waits = []
+    s.sleep = waits.append
+    assert s.handle("ask " + q) == "\n".join([jv.THINKING, "the 10:42 answer"]) and len(waits) == 3
+
+
+def test_the_terminal_stops_waiting_on_a_card_that_cannot_build(monkeypatch):
+    jarvis_cli = _cli()
+
+    def fake(req, timeout=None):
+        if req.full_url.endswith("/api/jarvis/cmd"):
+            return _Resp({"ok": True, "kind": "ask", "reply": jv.THINKING, "lines": [], "asked": "10:42:01"})
+        return _Resp({"ok": False, "why": "could not check — no frame built yet"})
+
+    monkeypatch.setattr(jarvis_cli.urllib.request, "urlopen", fake)
+    s = jarvis_cli.Session("http://127.0.0.1:8765", "NIFTY")
+    waits = []
+    s.sleep = waits.append
+    assert s.handle("ask why").endswith("could not check — no frame built yet") and len(waits) == 1
+
+
+def test_the_voice_block_says_when_it_spoke():
+    out = _cli().render_card({"idx": "NIFTY", "word": "TREND ▼", "voice": {"lines": ["TREND ▼ since 09:56 · WITH 4"],
+                                                                         "fell_back": False, "at": "10:43"}}).splitlines()
+    i = out.index("VOICE     at 10:43")
+    assert out[i + 1:i + 3] == ["          TREND ▼ since 09:56", "          WITH 4"]
+
+
+def test_each_ask_carries_its_asked_time_on_the_reply_and_the_answer(srv, monkeypatch):
+    from datetime import datetime
+    from chain_live import IST
+    monkeypatch.setattr(srv, "_ist", lambda now=None: datetime(2026, 11, 2, 10, 42, 1, tzinfo=IST))
+    r = srv._jarvis_cmd("NIFTY", "ask is the floor holding", "page")
+    assert r["asked"] == "10:42:01" and srv._JVOICE["NIFTY"]["asked"] == "10:42:01"
+    t = srv._jarvis_cmd("NIFTY", "ask why", "telegram")
+    assert t["asked"] == "10:42:01" and srv._JVOICE["NIFTY"]["q"] == "why"
+
+
+def test_a_torn_voice_log_never_fails_the_card(srv, monkeypatch):
+    jv.on_change(CARD, provider=say(GOOD))
+    with open(jv._path(), "ab") as f:
+        f.write(b'\x80\x81 torn {"kind":\n')
+    c = srv._jarvis_card("NIFTY")                                    # restored from the good row, the torn one skipped
+    assert c["ok"] and c["voice"]["lines"] == [GOOD]
+
+    def boom(store, idx, day=None):
+        raise RuntimeError("voice")
+
+    monkeypatch.setattr(jv, "for_card", boom)
+    c = srv._jarvis_card("NIFTY")
+    assert c["ok"] and c["voice"] is None and c["brief"] is None and c["word"] == FRAME["call"]["word"]
+
+
+def test_a_brief_re_served_after_a_restart_keeps_the_time_it_was_said(monkeypatch):
+    from datetime import datetime
+    from chain_live import IST
+    jv._write({"at": 0, "t": "09:01:30", "idx": None, "kind": "brief", "provider": "claude", "in_tokens": 1,
+               "out_tokens": 1, "lines": ["[web] RBI 10:00"], "fell_back": False, "why": None, "q": None})
+    monkeypatch.setattr(jv, "later", REAL_LATER)
+    store = {}
+    jv.preopen(store, lambda: {"ok": False}, lambda: [], datetime(2026, 11, 2, 9, 10, tzinfo=IST)).join(5)
+    assert store["brief"]["lines"] == ["[web] RBI 10:00"] and store["brief"]["at"] == "09:01"
+    assert jv.for_card(store, "NIFTY")[1] == {"lines": ["[web] RBI 10:00"], "at": "09:01"}

@@ -111,8 +111,10 @@ def render_card(card: dict) -> str:
     v = g("voice")
     if isinstance(v, dict):                     # Task 7: the model's narration, or why it fell back (optional: never "absent")
         said = [f"fell back — {v.get('why')}"] if v.get("fell_back") else [str(x) for x in v.get("lines") or () if x]
+        if v.get("at"):
+            out.append(f"{'VOICE':<10}at {v['at']}")       # when it spoke, as BRIEF says
         for i, ln in enumerate(said):
-            out.extend(_block(f"{'' if i else 'VOICE':<10}", ln))
+            out.extend(_block(f"{'' if i or v.get('at') else 'VOICE':<10}", ln))
     b = g("brief")
     if isinstance(b, dict) and b.get("lines"):  # Task 7: the day's pre-open brief, shown all day
         out.append(f"{'BRIEF':<10}" + (f"at {b['at']}" if b.get("at") else "today"))
@@ -225,12 +227,13 @@ class Session:
             return _not_ok(doc)
         out = [reply] + [x for x in doc.get("lines") or () if x and x != reply]
         if doc.get("kind") == "ask" and str(reply).startswith("thinking"):
-            out += self.voice(" ".join(arg.split()[1:]))       # the question as jarvis_cmd.parse keeps it
+            out += self.voice(" ".join(arg.split()[1:]), doc.get("asked"))   # the question as jarvis_cmd.parse keeps it
         return "\n".join(str(x) for x in out if x) or CC + "the server sent an empty reply"
 
-    def voice(self, q):
-        """Task 7: `ask` answers on the card's voice -- looked at every ASK_POLL_S until its `q` is hers (answered or fell
-        back), up to ASK_WAIT_MAX_S; a server that does not answer ends the wait with its reason."""
+    def voice(self, q, asked=None):
+        """Task 7: `ask` answers on the card's voice -- looked at every ASK_POLL_S until the voice is THIS ask's (its `q` and
+        the `asked` time the cmd reply gave: an earlier answer to the same words never passes), answered or fell back, up
+        to ASK_WAIT_MAX_S; a server that does not answer, or a card that cannot build, ends the wait with its reason."""
         waited = 0.0
         while waited < ASK_WAIT_MAX_S:
             self.sleep(ASK_POLL_S)
@@ -238,8 +241,10 @@ class Session:
             card, why = call_server(self.base, "/api/jarvis/card?" + urllib.parse.urlencode({"idx": self.idx}))
             if why:
                 return [why]
+            if card.get("ok") is False:
+                return [_not_ok(card)]
             v = card.get("voice")
-            if isinstance(v, dict) and v.get("q") == q:
+            if isinstance(v, dict) and v.get("q") == q and (asked is None or v.get("asked") == asked):
                 return ([str(x) for x in v.get("lines") or () if x]
                         + ([f"voice fell back — {v.get('why')}"] if v.get("fell_back") else []))
         return [f"the voice has not answered in {ASK_WAIT_MAX_S:g} s — `now` shows the card's voice when it does"]
