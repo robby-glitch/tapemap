@@ -29,6 +29,13 @@ def ramp(a, b, n):
     return [a + (b - a) * i / (n - 1) for i in range(n)]
 
 
+def low_z(d):
+    """VWAP trails price 15 pts behind: the leg never reaches 1.5 sigma (0.8 at sd 20). Before Jarvis v3 these frames
+    used sd 100, which now also raises the first leg's floor to 2U = 200 pts."""
+    d["vwap"] = [x - 15 for x in d["fut"]]
+    return d
+
+
 def leans(rows):
     """Lean changes between consecutive rows that both have a leg."""
     return sum(1 for a, b in zip(rows, rows[1:]) if a["lean"] and b["lean"] and a["lean"] != b["lean"])
@@ -39,14 +46,14 @@ def leans(rows):
 def test_trend_after_10_needs_80_pts_and_sigma():
     rows = legs.read(frame(ramp(23000, 23090, 31)))["rows"]           # +90 pts, 4.5 sigma, after 10:00
     assert rows[-1]["leg"]["quality"] == "TREND" and rows[-1]["word"] in ("TREND", "HOLD") and rows[-1]["lean"] == 1
-    rows = legs.read(frame(ramp(23000, 23090, 31), sd=100.0))["rows"]  # +90 pts but 0.9 sigma, no TOOT, not fuelled
+    rows = legs.read(low_z(frame(ramp(23000, 23090, 31))))["rows"]   # +90 pts but 0.8 sigma, no TOOT, not fuelled
     assert rows[-1]["leg"]["quality"] == "ROTATION" and rows[-1]["word"] == "ROTATION" and rows[-1]["lean"] == 1
     rows = legs.read(frame(ramp(23000, 23070, 31)))["rows"]           # +70 pts: under TREND_PTS
     assert rows[-1]["leg"]["quality"] == "ROTATION"
 
 
 def test_trend_after_10_by_toot_alone():
-    d = frame(ramp(23000, 23085, 31), sd=100.0)
+    d = low_z(frame(ramp(23000, 23085, 31)))
     d["pushes"] = [{"t": "10:10", "dir": 1, "ans": "TOOT", "am": "10:12", "artifact": False}]
     rows = legs.read(d)["rows"]
     assert rows[-1]["leg"]["quality"] == "TREND" and rows[-1]["leg"]["toot"] == "10:10"
@@ -70,9 +77,9 @@ def test_fuelled_counts_only_after_10():
                       "speed": [{"word": "FAST", "dir": 1}] * N, "sync": [None] * N}
         d["timeline"] = [{"fuel": None, "fuel_state": None}] * N
         return d
-    rows = legs.read(with_reads(frame(ramp(23000, 23085, 31), sd=100.0)))["rows"]
+    rows = legs.read(with_reads(low_z(frame(ramp(23000, 23085, 31)))))["rows"]
     assert rows[-1]["leg"]["fuelled"] and rows[-1]["leg"]["quality"] == "TREND"
-    rows = legs.read(with_reads(frame(ramp(23000, 23085, 31), start="09:15", sd=100.0)))["rows"]
+    rows = legs.read(with_reads(low_z(frame(ramp(23000, 23085, 31), start="09:15"))))["rows"]
     assert rows[-1]["leg"]["quality"] == "OPENING"
 
 
@@ -90,9 +97,13 @@ def test_palat_at_half_the_leg():
 
 
 def test_palat_floor_is_1U_on_a_small_leg():
-    up = ramp(23000, 23040, 9)                                         # a 40-pt leg: half = 20 < U = 23.1
-    assert legs.read(frame(up + [23019]))["rows"][-1]["word"] != "PALAT"
-    assert legs.read(frame(up + [23019, 23016]))["rows"][-1]["word"] == "PALAT"
+    """Only the day's first leg needs 2U (LEG_MIN_U); a leg born at a PALAT may be 40 pts, and its own PALAT waits for 1U."""
+    down = ramp(23086, 23000, 9)                                       # the first leg 23,087 -> 22,999 = 88 pts, half 44
+    up = down + [23020, 23043]                                         # 44 back: PALAT, the new leg 22,999 -> 23,044 = 45 pts
+    rows = legs.read(frame(up))["rows"]
+    assert rows[-1]["word"] == "PALAT" and rows[-1]["lean"] == 1
+    assert legs.read(frame(up + [23021]))["rows"][-1]["word"] != "PALAT"           # 23 back: half 22.5 < U 23.02
+    assert legs.read(frame(up + [23021, 23019]))["rows"][-1]["word"] == "PALAT"
 
 
 # ---- PALAT?: confirmed at a 3-min close or after 6 min, latched, shown >= 6 min, never carried stale -------------------
@@ -266,3 +277,25 @@ def test_stale_items_expire():
     assert w["10:50"]["word"] == "HOLD" and w["10:59"]["word"] == "HOLD"
     d2 = frame(up + [23092, 23078, 23078, 23078, 23078], vwap=23060.0)          # z 0.9 and 0.22 of the leg given back
     assert any(x["k"] == "inside_1sigma" for x in legs.read(d2)["rows"][-1]["risk"])
+
+
+# ---- Jarvis v3 Task 1: the day's first leg scales with the day; the open is not announced -------------------------------
+
+def test_the_first_leg_needs_2U():
+    """LEG_MIN_U: U = max(sigma, 0.1 % of price) = 23 at 23,000 with sigma 10, so the first leg needs 46 pts, not 40."""
+    assert legs.LEG_MIN_U == 2.0
+    rows = legs.read(frame(ramp(23000, 23042, 15), sd=10.0))["rows"]   # bars +/-1: a 44-pt swing
+    assert rows[-1]["word"] == "NO LEG" and "no 46-pt swing yet" in rows[-1]["line"]
+    rows = legs.read(frame(ramp(23000, 23046, 15), sd=10.0))["rows"]   # 48 pts
+    assert rows[-1]["leg"] and rows[-1]["lean"] == 1
+
+
+def test_before_10_every_leg_row_reads_opening_with_its_lean():
+    d = frame(ramp(23000, 23110, 31), start="09:15", pushes=[{"t": "09:25", "dir": 1, "ans": "TOOT", "am": "09:27", "artifact": False}])
+    rows = legs.read(d)["rows"]
+    assert rows[-1]["leg"]["quality"] == "TREND" and rows[-1]["word"] == "OPENING" and rows[-1]["lean"] == 1
+    down = ramp(23000, 22900, 21)                                      # 09:15-09:35 down 100, then half back: a PALAT at 09:4x
+    rows = legs.read(frame(down + ramp(22905, 22960, 12), start="09:15"))["rows"]
+    flip = [r for r in rows if r["leg"] and r["leg"]["quality"] == "PALAT"]
+    assert flip and all(r["word"] == "OPENING" and r["lean"] == 1 for r in flip)
+    assert all(r["word"] in ("NO LEG", "OPENING") for r in rows)

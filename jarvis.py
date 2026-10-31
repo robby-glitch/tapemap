@@ -348,11 +348,13 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
             continue
         FR[_m(ts)] = [{"k": f["k"], "side": f["side"], "state": f["state"], "chg": L(f["chg"]), "peak": L(f["peak"]),
                        "peak_at": f["peak_at"], "slope": L(f["slope"]), "oi": L(f["oi"])} for f in fronts.read(grid, dict(peak))]
+        atm = int(round(s["spot"] / STEP) * STEP)                   # causal: also ATM ±LAD_NEAR of this minute (below)
+        ks = sorted(set(STRIKES) | set(range(atm - LAD_NEAR * STEP, atm + LAD_NEAR * STEP + 1, STEP)))
         ladder[ts] = {"spot": s["spot"],
-                      "ce": {k: L(H._leg(s, k, "ce").get("oi")) for k in STRIKES},
-                      "pe": {k: L(H._leg(s, k, "pe").get("oi")) for k in STRIKES},
-                      "ce_pk": {k: L(peak.get((float(k), "ce"))) for k in STRIKES},
-                      "pe_pk": {k: L(peak.get((float(k), "pe"))) for k in STRIKES}}
+                      "ce": {k: L(H._leg(s, k, "ce").get("oi")) for k in ks},
+                      "pe": {k: L(H._leg(s, k, "pe").get("oi")) for k in ks},
+                      "ce_pk": {k: L(peak.get((float(k), "ce"))) for k in ks},
+                      "pe_pk": {k: L(peak.get((float(k), "pe"))) for k in ks}}
     chain_missing = [mm for mm in mins if mm not in ladder]
 
     def front_state(m, side, k):
@@ -719,11 +721,27 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     data["flow"] = [x if x is not None else (inp["F"].get(m) if inp["src"].get(m) == "B" else None)
                     for x, m in zip(data["delta"], MI)]
     data["flow_src"] = ["D" if x is not None else ("B" if y is not None else None) for x, y in zip(data["delta"], data["flow"])]
+    import sensex_flow
+    if sensex_flow.on(idx) and all(x is None for x in data["delta"]):   # G13: SENSEX has no footprint of its own (§1q)
+        data["flow"], data["flow_src"] = _nifty_flow(day, mins, MI, inp)
     data["reads"] = reads(data)
     data["health"] = health(data, _readable(day, "BANKNIFTY", upto, 100))
     data["legs"] = _legs(data, R, day, idx)
+    data["reads"]["action"] = action_words(data)     # the ACTION word per minute: it needs the leg's rows (Jarvis v3)
     data["call"] = call(data)
     return data
+
+
+def _nifty_flow(day, mins, MI, inp):
+    """G13 (§1q, sensex_flow.ON): a SENSEX frame reads NIFTY's order flow, by the NIFTY frame's own rule -- Dext's footprint
+    of NIFTY's book contract, else NIFTY's book (a SENSEX `inp` already carries NIFTY's book flow: handshake.load_flow, the
+    flow its pushes are born on) -- on the SENSEX minutes -> (flow, flow_src "N" | None). A minute in neither stays None."""
+    lot = v2feed.LOTS["NIFTY"]
+    tag = _fut_tag(H.book_rows(day, "NIFTY"))
+    fp = {c["time"][11:16]: c for c in (dext_log.read_candles(tag, day) if tag else [])}
+    flow = [round(fp[mm]["delta"] / lot) if mm in fp else (inp["F"].get(m) if inp["src"].get(m) == "B" else None)
+            for mm, m in zip(mins, MI)]
+    return flow, ["N" if x is not None else None for x in flow]
 
 
 def _legs(d, R, day, idx):
@@ -812,8 +830,12 @@ def health(d: dict, bnf_readable=None) -> dict:
         if not x:
             break
         tail += 1
-    notes = []
-    for a, b in missing:
+    notes, own = [], missing
+    if "N" in (d.get("flow_src") or ()):           # G13: the flow is NIFTY's, so its gaps are NIFTY's (SENSEX has no footprint)
+        notes.append("flow from NIFTY (§1q)")
+        notes += [f"NIFTY flow missing {a}–{b}" for a, b in _stretches([x is None for x in d["flow"]], mins)]
+        own = []
+    for a, b in own:
         if tail and b == mins[-1]:
             src = d.get("flow_src") or []
             book = sum(1 for s in src[-tail:] if s == "B")
@@ -836,7 +858,9 @@ def health(d: dict, bnf_readable=None) -> dict:
         notes.append(f"recorded live from {d['live_from']}: {mins[0]}–{d['live_from']} rebuilt (chain backfill, Dext)")
     if d.get("sides") is None:
         notes.append("Sides: could not check — no saved chain")
-    if bnf_readable is False:
+    if bnf_readable is False and d.get("idx") == "BANKNIFTY":
+        notes.append("BANKNIFTY chain OI too small to answer pushes (G14)")      # its own frame: one line, pushes kept
+    elif bnf_readable is False:
         notes.append("BANKNIFTY chain OI too small to read (no strike near ATM moved 3L in 3 min)")
     elif bnf_readable is None:
         notes.append("BANKNIFTY chain: could not check — no chain on the record")
@@ -848,9 +872,12 @@ def health(d: dict, bnf_readable=None) -> dict:
 
 def call(d: dict) -> dict:
     """THE ONE CALL at the frame's last minute, in GAPS §4's order: health -> location -> flow + speed -> writers ->
-    futures OI -> cross-index -> her setup -> one word, its wrong-line, two scenarios, both expressions. The word:
-    UP / DOWN only when the writers (Sides REAL / BACKED, or ±7 pushing) and at least one more of {a fut run, speed FAST,
-    ALL 3} agree; RANGE when both sides add; NO TRADE when blind, quiet, or nothing agrees. Counts, never %. Guidance only."""
+    futures OI -> cross-index -> her setup -> one word, its wrong-line, two scenarios, both expressions. The word is the
+    ACTION word (Jarvis v3, `action_words` at this minute): the leg's state decided by the writers-first WITH / AGAINST
+    count (`count`), changed only at two consecutive 3-min closes (PALAT, the wall behind BROKEN and CAN'T SEE at once);
+    `state` is the leg's raw word. The 29 Oct vote stays as `v1` (UP / DOWN when the writers and one more of {a fut run,
+    speed FAST, ALL 3} agree; RANGE when both sides add; NO TRADE when quiet or nothing agrees), and is the word only for a
+    frame with no leg read. Counts, never %. Guidance only."""
     r, h, mins = d["reads"], d["health"], d["mins"]
     i = len(mins) - 1
     tl, sp, sy, w = d["timeline"][i], r["speed"][i], r["sync"][i], r["writers"][i]
@@ -958,9 +985,15 @@ def call(d: dict) -> dict:
     if row and row.get("t") != mins[i]:
         row = None
     lean = (row or {}).get("lean") or 0
-    if not blind and row:
+    acts = r.get("action") or []
+    act = acts[i] if len(acts) == len(mins) and not blind else None
+    if act:
+        word = act["word"] + (f" {ARR[act['lean']]}" if act["lean"] else "")
+        reason = act["why"] + (f" · leg {row['word']}: {row.get('line') or row['word']}" if row else "")
+    elif not blind and row:                          # a frame whose ACTION series was not built (read before Jarvis v3)
         word = row["word"] + (f" {ARR[lean]}" if lean else "")
         reason = row.get("line") or row["word"]
+    aw = act["word"] if act else row["word"] if row and not blind else None      # the word the expressions follow
     why.append(f"call: {word} — {reason}" + (f" · (the vote: {v1['word']})" if row and not blind else ""))
     leg_line = day_line = None
     if row and row.get("leg"):
@@ -989,7 +1022,7 @@ def call(d: dict) -> dict:
         if pe else "▼ open: no PE wall below in range"
     g = (row or {}).get("leg") if row and not blind else None
     lines = None
-    if g and row["word"] in ("TREND", "HOLD", "WATCH", "PALAT?") and lean:
+    if g and aw in ("TREND", "HOLD", "WATCH", "PALAT?") and lean:
         import legs as _lg
         U = max(sd or 0, 0.001 * fut)
         q35 = g["extreme"] - lean * _lg.DEEP * g["pts"]
@@ -997,17 +1030,17 @@ def call(d: dict) -> dict:
         lines = {"q35": round(q35, 2), "half": round(half, 2)}     # the faces draw these, never their own copy (Dext 0.9)
         opt, other = ("CE", "PE") if lean > 0 else ("PE", "CE")
         wall = (pe[0] if pe else None) if lean > 0 else (ce[0] if ce else None)
-        if row["word"] == "PALAT?":
+        if aw == "PALAT?":
             wrong = f"back to HOLD on a real new {'high' if lean > 0 else 'low'} past {_fmt(g['extreme'])}f; PALAT at {_fmt(half)}f"
             buyer = f"no new {opt}; a {opt} held tightens to {_fmt(half)}f (the PALAT line)"
             seller = f"no new {other} sale until it holds again"
         else:
             wrong = f"PALAT? if back past {_fmt(q35)}f (0.35 of the leg) · PALAT at {_fmt(half)}f: the lean ends there"
-            buyer = (f"hold the {opt}, no new one while WATCH · stop = the PALAT line {_fmt(half)}f" if row["word"] == "WATCH"
+            buyer = (f"hold the {opt}, no new one while WATCH · stop = the PALAT line {_fmt(half)}f" if aw == "WATCH"
                      else f"buy the {opt} on the pullback, not chased · stop = the PALAT line {_fmt(half)}f")
             seller = (f"sell the {other} at / beyond {lv(wall['k'])}: its writers are the leg's floor · same stop" if wall
                       else f"sell the {other}: its writers are the leg's floor · same stop")
-    elif row and not blind and row["word"] in ("PALAT", "ROTATION", "OPENING", "NO LEG"):
+    elif aw in ("PALAT", "ROTATION", "OPENING", "NO LEG"):
         wrong = ("ends: a leg that qualifies — after 10:00 ≥ 80 pts with 1.5σ, a TOOT or fuel; before 10:00 ≥ 100 pts and a TOOT")
         buyer = "no lean: buy only at her bands (the zone), never mid-range"
         seller = "no lean: sell outside the band, both sides"
@@ -1034,6 +1067,10 @@ def call(d: dict) -> dict:
         buyer, seller = "wait: no buyer trade", "wait: no new sale"
     return {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
+            "state": (row or {}).get("word"), "since": act["since"] if act else mins[i] if blind else None,
+            "count": act["count"] if act else count(d, i) if not blind else
+            _count_of([{"k": k, "side": "?", "text": f"could not check — blind since {mins[i]}"} for k in PIECES]),
+            "action_why": act["why"] if act else reason,
             "lean": lean, "leg": leg_line, "day": day_line, "pause": None if row is None or blind else
             {"line": row.get("line"), "alive": row.get("alive"), "risk": row.get("risk"), "notes": row.get("notes"),
              "missing": row.get("missing")}, "v1": v1, "lines": lines,
@@ -1054,9 +1091,21 @@ WF_L, WF_STOP = 10.0, -2.0                    # WRITER FLOW ±7: a leg's 3-min L
 RISK_X, RISK_WIN = 2.0, 9                     # TOP / BOTTOM RISK: 3-min delta >= 2x its day median against, within 9 min [I]
 RISK_HOLD, RISK_CONF = 9, 0.3                 # G2: RISK lasts 9 min unless price went 0.3 step against the leg since [I]
 BLIND_MIN = 2                                 # P0: the newest minute more than 2 min behind the clock = blind [I]
+LAD_NEAR = 7          # [I] each minute's ladder also holds ATM ±7 of that minute (the ±7 writer flow's width): STRIKES spans
+                      #     the whole frame's spot range, so a 13:41 frame's 12:11 ladder had 22,800 and a 12:50 frame's did
+                      #     not, and the leg's band read changed with later minutes (28 Oct; Jarvis v3, the causal test)
 FIGHT_AWAY, FIGHT_AWAY_MIN = 2, 15            # P2: a fight's wall > 2 steps from price for 15 min is left behind [I]
 MANAGE_PTS, MANAGE_WIN, MANAGE_GAP = 15, 46, 6
 QUIET_MIN = 20
+# Jarvis v3, the ACTION word (Task 1; JARVIS-REVIEW-2026-10-31 §3.1-3.2, P0 #1-3)
+ACT_LEAD = 2           # [I] TREND needs WITH >= AGAINST + 2, two more voices than against (the dream mockup's n/N separated
+                       #     the 0/11 red-leg buys from the 6/10 holds); a pause holds at WITH >= AGAINST, else WATCH
+ACT_CLOSES = 2         # [I] a new word needs the same candidate at 2 consecutive 3-min closes: the leg's state flipped
+                       #     78 / 52 / 79 times on 21 / 29 / 30 Oct (a 3-pt wiggle flipped WATCH -> HOLD -> WATCH)
+ANSWER_MIN = 15        # [I] the count's last answer: a push answered within 15 min (the band verdict's DASTAK window)
+AHEAD_STEPS = 2        # [I] the wall ahead: within 2 strike steps of spot (the band verdict's own reach, wall_ahead)
+PIECES = ("sides", "wf7", "wall_ahead", "answer", "trapped", "fut_oi", "speed", "all3", "setup")   # GAPS §4, writers first
+ANSWER_EN = {"TOOT": "BROKEN", "PHANS": "TRAPPED", "TIKI": "DEFENDED", "NAHI": "HELD"}           # spec §16.2
 
 
 def days() -> dict:
@@ -1093,8 +1142,243 @@ def calls(d: dict) -> list:
         v["upto"] = hm(_m(mins[i]) + 1)
         v["health"] = health(v, d["health"].get("bnf_chain_readable"))
         c = call(v)
-        out.append({k: c[k] for k in ("at", "word", "lean", "leg", "day", "wrong_line", "buyer", "seller")}
+        out.append({k: c[k] for k in ("at", "word", "lean", "leg", "day", "wrong_line", "buyer", "seller", "state", "since",
+                                      "count", "action_why")}
                    | {"pause": c["pause"] and {"line": c["pause"].get("line")}})
+    return out
+
+
+def _count_of(pieces):
+    sd = [p["side"] for p in pieces]
+    w, a = sd.count("with"), sd.count("against")
+    return {"with": w, "against": a, "N": w + a, "unread": sd.count("?"), "pieces": pieces}
+
+
+def count(d: dict, i: int, vote: list | None = None) -> dict:
+    """WITH / AGAINST at minute i of frame d, in GAPS §4's order, writers first (sides, wf7, wall_ahead, answer, trapped)
+    -> fut OI -> flow and speed -> cross-index -> her setup. Counted for the leg's lean (legs row i); with no leg, for the
+    29 Oct vote's direction (`vote`: legs._jarvis_words(d), passed by a caller that has it), else every piece is "?".
+    Each piece says with / against / "?"; a "?" is "could not check — why" or "checked: says nothing" and never counts
+    against (N = with + against). Causal: minute i reads minutes <= i only. Counts, never a rate."""
+    import legs
+    mins, t = d["mins"], d["mins"][i]
+    m = _m(t)
+    rows = (d.get("legs") or {}).get("rows") or []
+    row = rows[i] if i < len(rows) and rows[i].get("t") == t else None
+    L = (row or {}).get("lean") or 0
+    if not L:
+        v = (vote if vote is not None else legs._jarvis_words(d) or [None] * len(mins))[i]
+        L = {"UP": 1, "DOWN": -1}.get(v, 0)
+    if not L:
+        return _count_of([{"k": k, "side": "?", "text": "could not check — no leg and no vote: no direction to count"}
+                          for k in PIECES])
+    R, P = d.get("reads") or {}, []
+
+    def put(k, side, text):
+        P.append({"k": k, "side": side, "text": text})
+
+    def by(dr):
+        return "with" if dr == L else "against"
+
+    # the writers: Sides (the 2x2), the ±7 flow, the wall ahead, the last answer, who is trapped
+    slot = None
+    for x in d.get("sides") or ():
+        if x.get("t") and x["t"] <= t:
+            slot = x
+    no_slot = "could not check — no saved chain" if d.get("sides") is None else "could not check — Sides has no closed slot"
+    if slot is None:
+        put("sides", "?", no_slot)
+    else:
+        f, head = sides_fuel(slot), f"Sides {slot['t']} {slot.get('word') or '?'}"
+        if f:
+            put("sides", by(f), f"{head} · {'call' if f > 0 else 'put'} writers covering")
+        elif slot.get("word") == "CAPPED" or (slot.get("c") == "ADD" and slot.get("p") == "ADD"):
+            put("sides", "against" if (row or {}).get("word") == "TREND" else "?",
+                f"Sides {slot['t']} CAPPED · both sides writing")
+        else:
+            put("sides", "?", head)
+    w = (R.get("writers") or [{}] * (i + 1))[i] or {}
+    if w.get("ce") is None or w.get("pe") is None:
+        put("wf7", "?", "could not check — chain not read this minute")
+    else:
+        nums = f"(CE {H._l(w['ce'])} · PE {H._l(w['pe'])} / 3 min)"
+        if w.get("state") in ("UP", "DOWN", "BACK") and w.get("dir"):
+            put("wf7", by(w["dir"]), f"writers ±7 {w['state']} {nums}")
+        elif w.get("push"):
+            put("wf7", by(w["push"]), f"writers ±7 {'call' if w['push'] > 0 else 'put'} writers covering {nums}")
+        else:
+            put("wf7", "?", f"writers ±7 {w.get('state') or 'quiet'} {nums}")
+    step, spot = d.get("step") or 50, (d.get("spot") or [None] * (i + 1))[i]
+    side = "CE" if L > 0 else "PE"
+    if t in set(d.get("chain_missing") or ()) or spot is None:
+        put("wall_ahead", "?", f"could not check — chain missing at {t}")
+    else:
+        lo, hi = (spot - step / 2, spot + AHEAD_STEPS * step) if L > 0 else (spot - AHEAD_STEPS * step, spot + step / 2)
+        fr = [f for f in ((d.get("timeline") or [{}] * (i + 1))[i] or {}).get("fronts") or ()
+              if f.get("side") == side and lo <= f["k"] <= hi]
+        if not fr:
+            put("wall_ahead", "?", f"no wall ahead in {AHEAD_STEPS} steps")
+        else:
+            f = min(fr, key=lambda f: L * f["k"])                        # the first one price meets
+            put("wall_ahead", {"UNWINDING": "with", "BUILDING": "against"}.get(f.get("state"), "?"),
+                f"wall ahead {_fmt(f['k'])}s {side}" + (f" {f['oi']:.0f}L" if f.get("oi") is not None else "")
+                + f" {f.get('state')}")
+    known = [p for p in d.get("pushes") or () if not p.get("artifact") and p.get("am") and p["am"] < t   # known the minute
+             and p.get("ans") not in (None, "?") and m - _m(p["t"]) <= ANSWER_MIN]                     # after (final_ans)
+    if not known:
+        put("answer", "?", f"no answered push in {ANSWER_MIN} min")
+    else:
+        p = known[-1]
+        a = "GHUSE" if p["ans"] == "TIKI" and p.get("who") == "KHAREEDAR" else p["ans"]
+        txt = (f"last answer {p['t']} push {ARR.get(p['dir'], '?')} " + (f"{_fmt(p['k'])}s " if p.get("k") is not None else "")
+               + f"{p.get('side') or ''}{' ±2' if p.get('via') == 'band' else ''} ")
+        if a == "GHUSE":
+            put("answer", "?", txt + "buyers in at the wall")
+        elif p["dir"] == L:                                              # the lean's own push: did its wall give way?
+            put("answer", "with" if a in ("TOOT", "PHANS") else "against" if a in ("TIKI", "NAHI") else "?",
+                txt + ANSWER_EN.get(a, a))
+        else:                                                            # a push against: did the floor / cap behind hold?
+            put("answer", "with" if a == "TIKI" else "against" if a in ("TOOT", "PHANS") else "?", txt + ANSWER_EN.get(a, a))
+    who = "call" if L > 0 else "put"
+    if slot is None:
+        put("trapped", "?", no_slot)
+    elif slot.get("fuel_side") != ("ce" if L > 0 else "pe") or slot.get("uw") is None:
+        put("trapped", "?", f"could not check — Sides {slot['t']} reads under water on its fuel side only")
+    elif slot["uw"] >= 1:
+        put("trapped", "with", f"top-2 {who} writers under water {slot['uw']}/2 · Sides {slot['t']}")
+    else:
+        put("trapped", "?", f"top-2 {who} writers under water 0/2 · Sides {slot['t']}")
+    # futures OI (the leg's DAY line, its 30-min quadrant)
+    LG = d.get("legs") or {}
+    fo = (LG.get("day") or {}).get("fut_oi") or []
+    if LG.get("error") or len(fo) <= i:
+        put("fut_oi", "?", "could not check — the leg read has no DAY line")
+    elif fo[i] is None:
+        put("fut_oi", "?", "no 30-min story")
+    else:
+        q = fo[i]
+        put("fut_oi", by(1 if q["word"] in ("fresh longs", "short covering") else -1),
+            f"fut OI {q['word']} {_sgn(q['lots'])} lots / 30 min")
+    # flow and speed, cross-index
+    sp = (R.get("speed") or [None] * (i + 1))[i]
+    if not sp or sp.get("x") is None:
+        put("speed", "?", f"could not check — speed ({(sp or {}).get('why') or 'no flow'})")
+    else:
+        put("speed", by(sp["dir"]) if sp["word"] == "FAST" else "?", f"speed {ARR[sp['dir']]} ×{sp['x']:.1f} {sp['word']}")
+    sy = (R.get("sync") or [None] * (i + 1))[i]
+    if not sy or sy.get("dir") is None:
+        put("all3", "?", "could not check — ALL 3 needs 5 min of all three indices")
+    else:
+        nums = f"(N {_sgn(sy['ch'][0])} · BN {_sgn(sy['ch'][1])} · SX {_sgn(sy['ch'][2])} / 5 min)"
+        put("all3", by(sy["dir"]) if sy["dir"] else "?",
+            (f"all 3 {ARR[sy['dir']]} " if sy["dir"] else "3 indices mixed ") + nums)
+    # her setup: her latest zone3 trigger, inside its 45-min window (MANAGE's)
+    zs = [z for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None and str(z.get("t", ""))[:5] <= t]
+    if not zs:
+        put("setup", "?", "no trigger today")
+    else:
+        z = zs[-1]
+        age = m - _m(z["t"][:5])
+        if age >= MANAGE_WIN:
+            put("setup", "?", f"last trigger {z['t'][:5]} {z['side']} {age} min ago (outside its 45 min)")
+        else:
+            put("setup", by(-1 if z["side"] == "SELL" else 1),
+                f"her trigger {z['t'][:5]} {z['side']} {_fmt(z['px'])}f · {age} min")
+    return _count_of(P)
+
+
+def _palat_cond(row):
+    """The leg's own PALAT? condition at this minute (legs.read: FAST against, >= 3 risk items, or 0.35 of the leg back),
+    as distinct from its latched / minimum-display PALAT? word."""
+    import legs
+    risk = row.get("risk") or ()
+    return (any(x.get("k") == "fast_against" for x in risk) or len(risk) >= legs.PALAT_N
+            or ((row.get("leg") or {}).get("retrace") or 0) >= legs.DEEP)
+
+
+def action_words(d: dict) -> list:
+    """THE ACTION WORD per minute (Jarvis v3; JARVIS-REVIEW-2026-10-31 §3.1, P0 #1-3): the leg's word is a STATE, this is
+    the word she acts on -> [{"word", "lean", "since", "count", "why"}] per minute of d["mins"] ([] when the leg read has
+    no rows for this frame). Causal: minute i reads minutes <= i only.
+      candidate  the leg's word, decided by the count: TREND -> TREND at WITH >= AGAINST + ACT_LEAD, else HOLD; HOLD ->
+                 HOLD at WITH >= AGAINST, else WATCH; WATCH -> WATCH; PALAT? -> PALAT? while its condition holds (a
+                 latched PALAT? whose condition is gone -> WATCH); NO LEG / ROTATION as themselves; NO TRADE (quiet / can't
+                 see, reads.notrade) when there is no TREND leg
+      changes    only at her 3-min closes, on the same candidate at ACT_CLOSES consecutive closes; PALAT? also at one
+                 close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped), and a push against
+                 the lean that BROKE / TRAPPED the wall behind (TREND / HOLD -> WATCH). CAN'T SEE is the call's (a clock)
+      the open   before 10:00 the word is OPENING (NO LEG before the first leg), the lean shown, never announced; with
+                 nothing held yet (the frame's first minute, the open's end at 10:00) the word is the leg's own at once
+    `why` = the rule that set the word · WITH n · AGAINST m (· a pending candidate, n of ACT_CLOSES closes)."""
+    import legs
+    mins = d["mins"]
+    rows = (d.get("legs") or {}).get("rows") or []
+    if len(rows) != len(mins) or any(r.get("t") != t for r, t in zip(rows, mins)):
+        return []
+    nt = [None] * len(mins)
+    for x in (d.get("reads") or {}).get("notrade") or ():
+        for j, t in enumerate(mins):
+            if x["from"] <= t <= x["to"]:
+                nt[j] = x
+    pushes = d.get("pushes") or []
+    vote, fired, out = None, set(), []
+    word = rule = shown = since = pend = None
+    for i, (t, row) in enumerate(zip(mins, rows)):
+        m, raw, lean = _m(t), row["word"], row.get("lean") or 0
+        if not lean and vote is None:
+            vote = legs._jarvis_words(d) or [None] * len(mins)
+        c = count(d, i, vote)
+        W, A = c["with"], c["against"]
+        g = row.get("leg") or {}
+        brk = None                                                       # newly known: against the lean, the wall behind gone
+        for j, p in enumerate(pushes):
+            if j in fired or p.get("artifact") or not p.get("am") or p["am"] >= t:     # known the minute after its read
+                continue
+            fired.add(j)
+            if lean and p["dir"] == -lean and p.get("ans") in ("TOOT", "PHANS") and m - _m(p["t"]) <= ANSWER_MIN:
+                brk = p
+        # the candidate
+        if m < legs.OPEN_M:
+            cand = ("NO LEG", "NO LEG: no leg yet") if raw == "NO LEG" else                 ("OPENING", "OPENING: before 10:00 the lean is shown, not announced")
+        elif nt[i] and g.get("quality") != "TREND" and raw != "PALAT":
+            cand = ("NO TRADE", f"NO TRADE: quiet since {nt[i]['since']}" if nt[i]["why"] == "quiet"
+                    else f"NO TRADE: can't see {nt[i]['from']}–{nt[i]['to']}")
+        elif raw == "TREND":
+            cand = ("TREND", f"TREND: with ≥ against + {ACT_LEAD}") if W >= A + ACT_LEAD else                 ("HOLD", f"HOLD: a TREND leg, with < against + {ACT_LEAD}")
+        elif raw == "HOLD":
+            cand = ("HOLD", "HOLD: the pause, with ≥ against") if W >= A else ("WATCH", "WATCH: the pause, against > with")
+        elif raw == "PALAT?":
+            cand = ("PALAT?", "PALAT?: ≥ 3 risk items or FAST against") if _palat_cond(row) else                 ("WATCH", "WATCH: the leg's PALAT? is not confirmed at this close")
+        else:
+            cand = (raw, f"{raw}: the leg says {raw}")
+        # the word
+        new = None
+        if m < legs.OPEN_M:
+            new = cand
+        elif word is None or word in ("OPENING", "NO LEG"):
+            new = (raw, f"{raw}: the leg's own word (nothing held yet)")
+        elif raw == "PALAT":
+            new = ("PALAT", "PALAT: the lean flipped")
+        elif brk and word in ("TREND", "HOLD") and g.get("quality") == "TREND":
+            new = ("WATCH", f"WATCH: the wall behind {ANSWER_EN.get(brk['ans'])} — {brk['t']} push {ARR[brk['dir']]}"
+                            + (f" {_fmt(brk['k'])}s {brk.get('side') or ''}" if brk.get("k") is not None else ""))
+        elif (m - legs.START_M) % 3 == 2:                                # her 3-min close
+            if cand[0] == word:
+                pend = None
+            else:
+                again = bool(pend) and pend[0] == cand[0]
+                pend = [cand[0], cand[1], pend[2] + 1 if again else 1, pend[3] if again else t]
+                if pend[2] >= ACT_CLOSES:
+                    new = (cand[0], f"{cand[1]} · {ACT_CLOSES} closes")
+                elif cand[0] == "PALAT?" and (g.get("retrace") or 0) >= legs.DEEP:
+                    new = ("PALAT?", f"PALAT?: retrace {g['retrace']:.2f} ≥ {legs.DEEP} of the leg")
+        if new:
+            word, rule, pend = new[0], new[1], None
+        if (word, lean) != shown:
+            shown, since = (word, lean), t
+        why = f"{rule} · WITH {W} · AGAINST {A}" + (f" · {pend[0]} at {pend[3]} ({pend[2]} of {ACT_CLOSES} closes)"
+                                                    if pend else "")
+        out.append({"word": word, "lean": lean, "since": since, "count": c, "why": why})
     return out
 
 

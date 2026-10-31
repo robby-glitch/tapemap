@@ -2,10 +2,12 @@
 rounds 1-2 as amended by the "Merged decision" of 30 Oct; her words: "noise is also give a message").
 
 `read(d, chain=None, marks=None) -> {"rows", "day", "pauses", "missing"}` over a jarvis.build frame `d`. Pure: no I/O,
-no clock, nothing written. Causal: row i reads minutes <= i only. The one object is the LEG (origin -> extreme, >= 40 pts);
+no clock, nothing written. Causal: row i reads minutes <= i only. The one object is the LEG (origin -> extreme, >= 40 pts
+and >= 2U at its start);
 its direction is the lean and changes only at PALAT (half the leg given back, floored at 1U). A leg is a TREND after
 10:00 at >= 80 pts with 1.5 sigma, a TOOT or Jarvis's own fuel; before 10:00 only at >= 100 pts with a TOOT; else
-OPENING / ROTATION (no lean on the open). Inside a pause the word is HOLD (no risk item; "clean" with k1 loading),
+OPENING / ROTATION (no lean on the open); every row with a leg before 10:00 reads OPENING, its lean shown and never
+announced (Jarvis v3). Inside a pause the word is HOLD (no risk item; "clean" with k1 loading),
 WATCH (>= 2 risk items) or PALAT? (>= 3, or 0.35 of the leg back, or speed FAST against), PALAT? shown only once
 confirmed at a 3-min close or after 6 min, latched while true, on screen >= 6 min, never carried stale. Writers +/-7 and
 Sides are shown at a pause tagged "(lagging)": with the leg at 17 of 19 reversals on the record. RISK is never a word.
@@ -24,7 +26,10 @@ from __future__ import annotations
 # ---- every threshold [I], the reason beside it (counts from the 10-day record, CONT vs REV after 10:00) ----------------
 START_M = 555          # 09:15, her 3-min bars count from here
 OPEN_M = 600           # 10:00: the open is its own regime (65 of 119 events before it, reversals clustered there)
-LEG_MIN = 40           # [I] a leg: 40 pts origin -> extreme (~0.2 %; under it is tick noise)
+LEG_MIN = 40           # [I] a leg: 40 pts origin -> extreme (~0.2 %; under it is tick noise) ...
+LEG_MIN_U = 2.0        # [I] ... and at least 2U at the day's first leg (U = max(sigma, 0.1 % of price), the stack's unit):
+                       #     before 10:00 sigma is 10-15 pts, so a 40-pt swing is noise (30 Oct flipped the lean 7x in 38 min).
+                       #     The start only: a 2U floor on a PALAT's own leg would pin a wrong lean on a wide day
 TREND_PTS = 80         # [I] after 10:00 a trend leg is >= 80 pts (~2U on a quiet day) ...
 TREND_Z = 1.5          # [I] ... that reached 1.5 sigma of the session VWAP (23/35 vs 6/19), or had a TOOT, or was fuelled
 OPEN_PTS = 100         # [I] before 10:00 only >= 100 pts (10/35 vs 2/30) with a TOOT counts; sigma means nothing yet
@@ -244,14 +249,15 @@ def read(d: dict, chain: dict | None = None, marks: list | None = None) -> dict:
         # ---- the leg ------------------------------------------------------------------------------------------------------
         if d_ == 0:
             lo_i, hi_i = min(range(i + 1), key=lambda j: flo[j]), max(range(i + 1), key=lambda j: fhi[j])
-            if fhi[i] - flo[lo_i] >= LEG_MIN:
+            floor = max(LEG_MIN, LEG_MIN_U * U)
+            if fhi[i] - flo[lo_i] >= floor:
                 d_, orgi, org, ext, exti = 1, lo_i, flo[lo_i], fhi[i], i
                 zx_max, toot_t, fuel_t = 0.0, None, None
-            elif fhi[hi_i] - flo[i] >= LEG_MIN:
+            elif fhi[hi_i] - flo[i] >= floor:
                 d_, orgi, org, ext, exti = -1, hi_i, fhi[hi_i], flo[i], i
                 zx_max, toot_t, fuel_t = 0.0, None, None
         if d_ == 0:
-            row["line"] = "NO LEG · no 40-pt swing yet"
+            row["line"] = f"NO LEG · no {floor:.0f}-pt swing yet"
             row["missing"] = list(missing_all)
             rows.append(row)
             flips_pm.append(flips)
@@ -467,4 +473,10 @@ def read(d: dict, chain: dict | None = None, marks: list | None = None) -> dict:
                 out = {"outcome": "CONT", "t": mins[j], "min": M[j] - M[i0], "why": "a new extreme 0.25U past the pause's"}
                 break
         ev["after"] = out
+    # the open is not announced (Jarvis v3): before 10:00 a row with a leg reads OPENING, its lean still set. After the
+    # outcomes above, which read the state words (a PALAT before 10:00 is still the REV it was)
+    for r in rows:
+        if r["leg"] and m2i(r["t"]) < OPEN_M and r["word"] != "OPENING":
+            r["line"] = f"OPENING {UP if r['lean'] > 0 else DN} · " + r["line"]
+            r["word"] = "OPENING"
     return {"rows": rows, "day": {"flips": flips_pm, "fut_oi": fut_oi}, "pauses": pauses, "missing": missing_all, "rev": REV}
