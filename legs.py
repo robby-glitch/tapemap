@@ -388,7 +388,8 @@ def read(d: dict, chain: dict | None = None, marks: list | None = None) -> dict:
                 elif x < -PREM_RS:
                     risk.append({"k": "premium_bleeding", "text": f"ATM {_fmt(atm)}s {SIDE} bleeding {_sg(x, 1)} vs delta since {mins[j0]}"})
         # pushes
-        p10 = [p for p in pushes if m - PUSH_WIN < m2i(p["t"]) <= m and p.get("am") and m2i(p["am"]) <= m]
+        p10 = [p for p in pushes if m - PUSH_WIN < m2i(p["t"]) <= m and p.get("am")    # artifacts dropped above; known
+               and m2i(p["am"]) < m]                                             # the minute after its read (wall_behind_broke)
         if any(p["dir"] == d_ for p in p10):
             alive.append({"k": "push_with", "text": f"push with the leg {[p['t'] for p in p10 if p['dir'] == d_][-1]}"})
         wb = wall_behind_broke(pushes, d_, m)

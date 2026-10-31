@@ -187,9 +187,12 @@ def test_the_call_has_both_expressions_a_wrong_line_and_no_rate(record):
 
 @pytest.mark.skipif(not _has("2026-10-28"), reason="28 Oct record not present")
 def test_the_reads_are_causal_too(record):
+    for upto in (13 * 60 + 41, 12 * 60 + 50):                         # the fail-soft fallback cannot pass this trivially
+        assert not any("the ACTION word failed" in x for x in build("2026-10-28", upto)["health"]["notes"])
     full = build("2026-10-28", 13 * 60 + 41)["reads"]
     part = build("2026-10-28", 12 * 60 + 50)["reads"]
     n = len(part["speed"])
+    assert len(part["action"]) == n and len(full["action"]) == len(full["speed"])
     for k in ("speed", "sync", "writers", "trade", "action"):
         assert part[k] == full[k][:n], k
     assert part["signs"] == [s for s in full["signs"] if s["b"] < n]
@@ -432,9 +435,12 @@ def test_the_answer_piece_reads_who_won_the_push():
 
 def test_the_entry_guidance_keys_on_the_legs_own_word():
     """The ACTION word is the holder's; a new entry keys on the leg's word: the leg's WATCH (ACTION HOLD) says hold, no new
-    one; the leg's HOLD says buy the pullback."""
-    def card(raw):
+    one; the leg's HOLD says buy the pullback; an ACTION PALAT? outlasting the leg's (the leg back to HOLD) says no new."""
+    def frame(raw, palat_tail=False):
         d = _pause_toy(raw, [{"k": "premium_bleeding"}, {"k": "mark_against"}] if raw == "WATCH" else [], 0.1)
+        if palat_tail:                                           # the leg's PALAT? 10:20-10:24 (0.40 back), then HOLD
+            for r in d["legs"]["rows"][20:25]:
+                r.update(word="PALAT?", leg=dict(r["leg"], retrace=0.4))
         g = {"dir": -1, "quality": "TREND", "pts": 117, "sigma_max": 2.1, "toot": None, "fuelled": None, "origin": 23102.0,
              "origin_t": "10:00", "extreme": 22985.0, "extreme_t": "10:30"}
         for r in d["legs"]["rows"]:
@@ -442,11 +448,13 @@ def test_the_entry_guidance_keys_on_the_legs_own_word():
         d["verdict"] = {"BUY": {}, "SELL": {}}
         d["health"] = jarvis.health(d, None)
         d["reads"]["action"] = jarvis.action_words(d)
-        return jarvis.call(d)
-    c = card("WATCH")
+        return d
+    c = jarvis.call(frame("WATCH"))
     assert c["word"] == "HOLD ▼" and c["state"] == "WATCH" and "no new one while WATCH" in c["buyer"]
-    c = card("HOLD")
+    c = jarvis.call(frame("HOLD"))
     assert c["word"] == "HOLD ▼" and "on the pullback" in c["buyer"]
+    c = jarvis.calls(frame("HOLD", palat_tail=True))[27]                # 10:27: two closes of HOLD not yet (10:26, 10:29)
+    assert c["word"] == "PALAT? ▼" and c["state"] == "HOLD" and c["buyer"].startswith("no new PE")
 
 
 def test_the_wall_behind_broken_speaks_at_once_and_a_latched_palatq_waits():
@@ -505,6 +513,7 @@ def test_21oct_one_trend_call_and_at_most_two_palatq(record):
 @pytest.mark.skipif(not _has("2026-10-30"), reason="30 Oct record not present")
 def test_30oct_the_opening_is_not_announced(record):
     d = jarvis.build("2026-10-30", "NIFTY", None, fill=True)
+    assert len(d["reads"]["action"]) == len(d["mins"]) and not any("the ACTION word failed" in x for x in d["health"]["notes"])
     early = [c["word"] for c in jarvis.calls(d) if c["at"] < "10:00"]
     assert all(w.startswith("OPENING") or w in ("NO LEG",) for w in early), set(early)
 

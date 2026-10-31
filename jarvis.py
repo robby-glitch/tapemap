@@ -1045,8 +1045,8 @@ def call(d: dict) -> dict:
                  f"PALAT at {_fmt(half)}f" if aw == "PALAT?" else
                  f"PALAT? if back past {_fmt(q35)}f (0.35 of the leg) · PALAT at {_fmt(half)}f: the lean ends there")
         entry = row["word"]                          # the ACTION word is the holder's; an entry keys on the leg's
-        if entry == "PALAT?":
-            buyer = f"no new {opt}; a {opt} held tightens to {_fmt(half)}f (the PALAT line)"
+        if entry == "PALAT?" or aw == "PALAT?":       # either word cautious: no new one (an ACTION PALAT? outlasts
+            buyer = f"no new {opt}; a {opt} held tightens to {_fmt(half)}f (the PALAT line)"     # the leg's by 1-2 closes)
             seller = f"no new {other} sale until it holds again"
         else:
             buyer = (f"hold the {opt}, no new one while WATCH · stop = the PALAT line {_fmt(half)}f"

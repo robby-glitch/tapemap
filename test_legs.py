@@ -299,3 +299,20 @@ def test_before_10_every_leg_row_reads_opening_with_its_lean():
     flip = [r for r in rows if r["leg"] and r["leg"]["quality"] == "PALAT"]
     assert flip and all(r["word"] == "OPENING" and r["lean"] == 1 for r in flip)
     assert all(r["word"] in ("NO LEG", "OPENING") for r in rows)
+
+
+def test_the_wall_behind_and_push_with_chips_are_known_the_minute_after_their_read():
+    """legs.wall_behind_broke (one rule with Jarvis's EXIT-class WATCH) and push_with: an answer read at 10:21 is known at
+    10:22, not at 10:21; a PHANS against the leg counts as the wall behind broken; an artifact push is never read."""
+    def chips(pushes):
+        d = pause_frame()
+        d["pushes"] = pushes
+        return {r["t"]: [x["k"] for x in r["risk"] + r["alive"]] for r in legs.read(d)["rows"]}
+    against = {"t": "10:20", "dir": -1, "ans": "PHANS", "am": "10:21", "artifact": False}
+    w = chips([against])
+    assert "wall_behind_broke" not in w["10:21"] and "wall_behind_broke" in w["10:22"]
+    w = chips([dict(against, artifact=True)])
+    assert not any("wall_behind_broke" in v for v in w.values())
+    w = chips([{"t": "10:20", "dir": 1, "ans": "TOOT", "am": "10:21", "artifact": False}])
+    assert "push_with" not in w["10:21"] and "push_with" in w["10:22"]
+    assert legs.wall_behind_broke([against], 1, m2i("10:22")) is against and legs.wall_behind_broke([against], 1, m2i("10:21")) is None
