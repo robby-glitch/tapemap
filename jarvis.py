@@ -17,10 +17,13 @@ Every threshold is [I]. DISPLAY ONLY: no order path, no gate, no rate.
 """
 from __future__ import annotations
 
+import bisect
+import collections
 import datetime
 import functools
 import math
 import os
+import threading
 
 import chain_backfill
 import chain_live
@@ -30,6 +33,7 @@ import fold
 import fronts
 import handshake as H
 import tailread
+import thresholds
 import v2feed
 
 START = "09:15"
@@ -112,12 +116,13 @@ def _tape_bars(day, idx, upto, fill=False):
     return {k: b for k, b in tape.items() if _m(k) < upto and b[6] and (fill or mod(b[6]) <= upto)}
 
 
-def _fut_bars(tag, day, brows, upto, idx=None, fill=False):
+def _fut_bars(tag, day, brows, upto, idx=None, fill=False, bars=None):
     """({"HH:MM": [iso, o, h, l, c, v, oi]}, {"HH:MM": "dext" | "book" | "tape"}) for the minutes < upto.
     Dext 0.8.1's getData rows where it has the minute -- a row is a 1-minute bar only when another row sits 60 s from it
     (29 Oct's file holds 5-minute bars, which are not minutes) -- else the minute from the 1-second book: ltp open / high
     / low / close, the vtt volume traded in it, its last OI -- else (P0, 30 Oct) the server's saved Upstox tape for a minute
-    the book never saw, once that bar had reached the tape. A minute in none is absent (never a zero)."""
+    the book never saw, once that bar had reached the tape. A minute in none is absent (never a zero). `bars`: the book's
+    minute bars already folded (_book), else folded here from `brows`."""
     ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
     F, src = {}, {}
     rows = dext_log.read_ohlc(tag, day) if tag else []
@@ -128,21 +133,8 @@ def _fut_bars(tag, day, brows, upto, idx=None, fill=False):
                 and mod(r["t"] * 1000) < upto:
             F[d.strftime("%H:%M")] = [d.isoformat(), r["o"], r["h"], r["l"], r["c"], r.get("v") or 0, r.get("oi") or 0]
             src[d.strftime("%H:%M")] = "dext"
-    prev, bars = None, {}
-    for r in brows:                                   # time order, < upto (the caller cut them)
-        p = r.get("ltp")
-        if p is None:
-            continue
-        k = hm(mod(r["t"]))
-        b = bars.get(k)
-        if b is None:
-            b = bars[k] = [None, p, p, p, p, 0, 0]
-        b[2], b[3], b[4] = max(b[2], p), min(b[3], p), p
-        if prev is not None and (r.get("vtt") or 0) > (prev.get("vtt") or 0):
-            b[5] += r["vtt"] - prev["vtt"]
-        if r.get("oi"):
-            b[6] = r["oi"]
-        prev = r
+    if bars is None:                                  # time order, < upto (the caller cut them)
+        bars = _book_fold(_book_new(), brows, 1)["bars"]
     for k, b in bars.items():
         if k not in F and b[6]:
             F[k], src[k] = b, "book"
@@ -150,6 +142,81 @@ def _fut_bars(tag, day, brows, upto, idx=None, fill=False):
         if k not in F and b[5]:
             F[k], src[k] = [None, b[0], b[1], b[2], b[3], b[4], b[5]], "tape"
     return F, src
+
+
+def _book_new():
+    return {"n": 0, "first": None, "last": None, "upto": None, "ik": None, "m0": None, "prev": None, "pt": None,
+            "bars": {}, "oi": {}, "px": {}, "sec": {}, "holes": []}
+
+
+def _book_fold(b, rows, lot):
+    """Fold 1-second book rows (time order, minutes < upto) into the state `b`: _fut_bars' minute bars (ltp open / high /
+    low / close, the vtt traded in it, its last OI) and the oim read's book side (OI in lots, last LTP and second per
+    minute, the > 60 s holes), the first `ik` (_fut_tag's) and the first minute (live_from). One pass, build's own rules."""
+    for r in rows:
+        t, p = r["t"], r.get("ltp")
+        m = mod(t)
+        if b["m0"] is None:
+            b["m0"] = m
+        if b["ik"] is None and r.get("ik"):
+            b["ik"] = r["ik"]
+        if p is not None:
+            k = hm(m)
+            x = b["bars"].get(k)
+            if x is None:
+                x = b["bars"][k] = [None, p, p, p, p, 0, 0]
+            x[2], x[3], x[4] = max(x[2], p), min(x[3], p), p
+            q = b["prev"]
+            if q is not None and (r.get("vtt") or 0) > (q.get("vtt") or 0):
+                x[5] += r["vtt"] - q["vtt"]
+            if r.get("oi"):
+                x[6] = r["oi"]
+            b["prev"] = r
+            b["px"][m] = p
+        if r.get("oi"):
+            b["oi"][m] = r["oi"] / lot
+        b["sec"][m] = int(t / 1000) % 60
+        pt = b["pt"]
+        if pt is not None and t - pt > 60_000:
+            b["holes"].append([hm(mod(pt)) + f":{int(pt / 1000) % 60:02d}", hm(m) + f":{int(t / 1000) % 60:02d}", mod(pt), m])
+        b["pt"] = t
+    return b
+
+
+def _book(memo, rows, upto, lot, redo):
+    """The book's fold for the minutes < upto (H.book_rows' rows). Task 6: the record's rows are in time order, so those
+    minutes are a run of rows from the first; the memo keeps the fold after its n rows and folds only the new ones --
+    while its first row is still tailread's own object (a re-read from the start makes every row new) and its last is the
+    same row, upto did not go back, and no row after the run is < upto. Else this build folds the sorted rows cold, as
+    build always did; a re-read from the start is said in `redo`."""
+    b = memo.get("book")
+    if b is not None and b["n"] and (len(rows) < b["n"] or rows[0] is not b["first"]
+                                     or not (rows[b["n"] - 1] is b["last"] or rows[b["n"] - 1] == b["last"])):
+        if upto >= b["upto"] and _changed(rows, b):   # (a reader's re-parse of the same rows is not news)
+            redo.append("the 1-second book was read again from its start (it shrank or was rewritten)")
+        memo.pop("book")
+        b = None
+    if b is None:
+        b = _book_new()
+    elif upto < b["upto"]:                           # an earlier upto: cold, and the memo's fold left for the next
+        return _book_fold(_book_new(), sorted((r for r in rows if mod(r["t"]) < upto), key=lambda r: r["t"]), lot)
+    j, t0 = b["n"], b["pt"]
+    while j < len(rows) and mod(rows[j]["t"]) < upto and (t0 is None or rows[j]["t"] >= t0):
+        t0 = rows[j]["t"]
+        j += 1
+    if any(mod(r["t"]) < upto for r in rows[j:]):   # a row out of time order (none on the record so far): cold
+        return _book_fold(_book_new(), sorted((r for r in rows if mod(r["t"]) < upto), key=lambda r: r["t"]), lot)
+    _book_fold(b, rows[b["n"]:j], lot)
+    b.update(n=j, first=rows[0] if j else None, last=rows[j - 1] if j else None, upto=upto)
+    memo["book"] = b
+    return b
+
+
+def _changed(rows, f):
+    """Did the rows a fold kept (n, its first and last) change under it, beyond being parsed again? Shorter, or a
+    different first or last row: the file shrank or was rewritten (tailread LRU-drops and re-parses an unchanged file too,
+    and daylog's .gz is the same rows: neither is news)."""
+    return len(rows) < f["n"] or rows[0] != f["first"] or rows[f["n"] - 1] != f["last"]
 
 
 @functools.lru_cache(maxsize=8)
@@ -160,9 +227,13 @@ def _kal(chain_dir, idx, day):
     return sides_log.kal_scale(chain_dir, idx, day)
 
 
-def _sides(day, idx, upto, live_from):
+def _sides(day, idx, upto, live_from, memo=None, redo=None):
     """The Sides read of the saved chain as /api/sides serves it (sides.read on ChainState.oi_flow), each closed 5-min slot
-    as known at its end, minutes < upto -> [{t, c, p, word, fuel_side, uw}] (export_mockup's shape), or None (no chain)."""
+    as known at its end, minutes < upto -> [{t, c, p, word, fuel_side, uw}] (export_mockup's shape), or None (no chain).
+    Task 6: sides_log.take is a fold over the file's rows in order, so the memo keeps the state after the longest run of
+    rows from the first that all fold (n rows, the first and the last of them, the upto they were cut at) and folds only
+    what came after; a row out of time order folds into this build's copy. The chain rows re-read from the start (they
+    shrank or were rewritten: tailread's rows are new) -> the fold starts again, said in `redo`."""
     import chain_metrics
     import sides
     import sides_log
@@ -170,12 +241,29 @@ def _sides(day, idx, upto, live_from):
     p = p if os.path.exists(p) else p + ".gz"
     if not os.path.exists(p):
         return None
-    minutes, opens, book = {}, {}, {}
-    for snap in _rows(p):
-        if (snap.get("ts") or "")[:5] < hm(upto):
+    rows, lim, memo = _rows(p), hm(upto), {} if memo is None else memo
+    f = memo.get("sides")
+    if f and f["n"] and (len(rows) < f["n"] or rows[0] is not f["first"]
+                         or not (rows[f["n"] - 1] is f["last"] or rows[f["n"] - 1] == f["last"])):
+        if redo is not None and upto >= f["upto"] and _changed(rows, f):
+            redo.append("the chain record was read again from its start (it shrank or was rewritten): Sides folded again")
+        f = None
+    ahead = f is not None and upto >= f["upto"]      # an earlier upto folds on its own and leaves the memo's fold be
+    if not ahead:
+        f = {"n": 0, "first": None, "last": None, "minutes": {}, "opens": {}, "book": {}}
+    n = f["n"]
+    while n < len(rows) and (rows[n].get("ts") or "")[:5] < lim:
+        sides_log.take(rows[n], f["minutes"], f["opens"], f["book"])
+        n += 1
+    f.update(n=n, first=rows[0] if n else None, last=rows[n - 1] if n else None, upto=upto)
+    if ahead or "sides" not in memo or upto >= memo["sides"]["upto"]:
+        memo["sides"] = f
+    minutes, opens, book = dict(f["minutes"]), dict(f["opens"]), dict(f["book"])     # this build's own: never the memo's
+    for snap in rows[n:]:                            # a row out of time order (none on the record so far): this build only
+        if (snap.get("ts") or "")[:5] < lim:
             sides_log.take(snap, minutes, opens, book)
-    for t, rec in chain_backfill.read_grid(day, idx).items():   # the REST walk's marks, as the server's warm start reads them
-        if t < hm(upto):
+    for t, rec in _grid(memo, day, idx).items():     # the REST walk's marks, as the server's warm start reads them
+        if t < lim:
             minutes.setdefault(t, rec)
     g = chain_metrics.ChainState()
     g.minutes = minutes
@@ -185,24 +273,76 @@ def _sides(day, idx, upto, live_from):
              "fuel_side": s.get("fuel_side"), "uw": s.get("fuel_top2_underwater")} for s in slots]
 
 
+# ---- Task 6: the incremental frame (JARVIS-REVIEW-2026-10-31 §3.7, P1 #6) ----------------------------------------------
+# INVARIANT: an entry only MEMOISES pure reads of the record -- fronts.read and the ladder per chain minute, the ±7 writer
+# flow, the chain's ATM read, the Sides fold over the saved chain, the backfill grid -- each kept beside its exact inputs
+# (the row objects tailread keeps, equal values, or the file's size and mtime) and reused only when this build's inputs
+# are the same; everything else is computed every build. A warm build therefore IS the cold build at the same upto
+# (test_the_incremental_frame_equals_a_cold_build), whatever upto did since. Live (today, idx, False) and a replay (a past
+# day, or fill) are different keys.
+_CACHE: "collections.OrderedDict[tuple, dict]" = collections.OrderedDict()    # (day, idx, fill, dirs) -> its memo
+CACHE_KEEP = 4                   # ponytail: NIFTY / SENSEX / BANKNIFTY live + one replay; the least recent is dropped
+_CACHE_LOCK = threading.Lock()   # around the dict only: a build takes its entry OUT, so two builds never share one
+
+
 def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = False) -> dict:
     """The Jarvis frame for (day, idx) as known at minute `upto` (minutes < upto; None = the whole session). fill=True: book
-    holes filled from the saved tape whenever it was saved (a backtest replay, not what live Jarvis saw)."""
+    holes filled from the saved tape whenever it was saved (a backtest replay, not what live Jarvis saw). The [I] numbers
+    are re-read first (jarvis_thresholds.json); the heavy reads come from this (day, idx, fill)'s memo when their inputs
+    are unchanged (_CACHE's invariant). A build that raises leaves no memo: the next one is cold."""
+    import book_log
+    import legs
+    _thresholds()
+    legs._thresholds()
+    key = (day, idx, fill, book_log.DIR, str(chain_live.CHAIN_DIR))   # the record's dirs: fixed live, a test's own in tests
+    with _CACHE_LOCK:
+        memo = _CACHE.pop(key, None)
+    memo = {} if memo is None else memo
+    out = _build(day, idx, upto, fill, memo)
+    with _CACHE_LOCK:
+        _CACHE[key] = memo
+        while len(_CACHE) > CACHE_KEEP:
+            _CACHE.popitem(last=False)
+    return out
+
+
+def _le(keys, m):
+    """The largest of the sorted `keys` <= m, or None: max(x for x in keys if x <= m), in log time."""
+    i = bisect.bisect_right(keys, m)
+    return keys[i - 1] if i else None
+
+
+def _grid(memo, day, idx):
+    """chain_backfill.read_grid(day, idx), parsed once per file state (a refill appends to it; tailread's same-size
+    rewrite edge): the memo keeps ((size, mtime_ns), grid), the grid shared read-only."""
+    p = chain_backfill.path(day, idx)
+    try:
+        st = os.stat(p)
+    except OSError:
+        return {}
+    g = memo.setdefault("grid", {})
+    if p not in g or g[p][0] != (st.st_size, st.st_mtime_ns):
+        g[p] = ((st.st_size, st.st_mtime_ns), chain_backfill.read_grid(day, idx))
+    return g[p][1]
+
+
+def _build(day, idx, upto, fill, memo):
     import trigger_log
     upto = H.LAST_M + 2 if upto is None else upto
+    redo = []                                        # the memo's own news: a part read again from an earlier minute
     LOT, BAR = v2feed.LOTS[idx], H.FUT_LOTS[idx]
     P5 = P5_MIN.get(idx, P5_MIN["BANKNIFTY"])
 
     # ---- the book (causal), the fut bars, the spot -----------------------------------------------------------------------
-    brows = sorted((r for r in H.book_rows(day, idx) if mod(r["t"]) < upto), key=lambda r: r["t"])
-    tag = _fut_tag(brows)
-    F, f_src = _fut_bars(tag, day, brows, upto, idx, fill)
+    bk = _book(memo, H.book_rows(day, idx), upto, LOT, redo)    # Task 6: the book's fold, carried (its rows < upto)
+    tag = _fut_tag([{"ik": bk["ik"]}])
+    F, f_src = _fut_bars(tag, day, [], upto, idx, fill, bars=bk["bars"])
     S = {}
     cp = confluence_log._chain_path(idx, day)
     for r in _rows(cp):                              # the index from the chain's own spot (recorded, else the backfill's)
         if r.get("spot") and START <= (r.get("ts") or "")[:5] <= "15:30" and _m(r["ts"]) < upto:
             S[r["ts"][:5]] = [None, r["spot"], r["spot"], r["spot"], r["spot"], 0, 0]
-    bf = {ts: rec for ts, rec in chain_backfill.read_grid(day, idx).items() if _m(ts) < upto}
+    bf = {ts: rec for ts, rec in _grid(memo, day, idx).items() if _m(ts) < upto}
     for ts, rec in bf.items():
         if ts not in S and rec.get("spot"):
             S[ts] = [None, rec["spot"], rec["spot"], rec["spot"], rec["spot"], 0, 0]
@@ -222,18 +362,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     STRIKES = list(range(int(round(min(sp) / STEP) * STEP - STEP), int(round(max(sp) / STEP) * STEP + STEP) + 1, STEP))
 
     # ---- the book: oim (lots), last LTP, holes, partial minutes ----------------------------------------------------------
-    book_oi, book_px, last_sec, holes, prev = {}, {}, {}, [], None
-    for r in brows:
-        m = mod(r["t"])
-        if r.get("oi"):
-            book_oi[m] = r["oi"] / LOT
-        if r.get("ltp") is not None:
-            book_px[m] = r["ltp"]
-        last_sec[m] = int(r["t"] / 1000) % 60
-        if prev is not None and r["t"] - prev > 60_000:
-            holes.append([hm(mod(prev)) + f":{int(prev / 1000) % 60:02d}", hm(m) + f":{int(r['t'] / 1000) % 60:02d}",
-                          mod(prev), m])
-        prev = r["t"]
+    book_oi, book_px, last_sec, holes = bk["oi"], bk["px"], bk["sec"], bk["holes"]    # _book_fold's; read only here
 
     def hole_minute(m):
         """Finding 5: a minute whose last book row comes before :50 s, or that sits inside a > 60 s gap, is a hole."""
@@ -337,8 +466,17 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
                                       "pe": {"oi": H._leg(r, k, "pe").get("oi"), "oi_chg": c[1]}} for k, c in rec["k"].items()]}
     grid, peak, FR, ladder = {}, {}, {}, {}
     END = mins[-1]
-    for ts in sorted(snaps):
+    # Task 6: a minute's fronts and ladder row are pure reads of the snapshots up to it (grid and peak are built in time
+    # order), so they are reused while every snapshot up to it is the one they were read from (tailread's own row, or an
+    # equal backfill one) and the ladder's strikes are the same; from the first changed minute on, read again
+    was, now_, same = memo.get("fronts") or [], [], True
+    for j, ts in enumerate(sorted(snaps)):
         s = snaps[ts]
+        old = was[j] if same and j < len(was) and was[j][0] == ts and (was[j][1] is s or was[j][1] == s) else None
+        if same and old is None and j < len(was) - 1:              # an earlier minute changed under the memo, not the last
+            redo.append(f"chain minutes from {ts} changed under the cache (a backfill refill or a rewritten record): "
+                        "their walls read again")
+        same = old is not None
         grid[ts] = {"spot": s["spot"], "k": {float(r["k"]): ((r["ce"].get("oi_chg") or 0.0), (r["pe"].get("oi_chg") or 0.0))
                                             for r in s["strikes"]}}
         for r in s["strikes"]:
@@ -346,21 +484,29 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
                 if isinstance(r[side].get("oi"), (int, float)):
                     peak[(float(r["k"]), side)] = max(peak.get((float(r["k"]), side), 0.0), r[side]["oi"])
         if ts < START or ts > END:
+            now_.append((ts, s, None, None))
             continue
-        FR[_m(ts)] = [{"k": f["k"], "side": f["side"], "state": f["state"], "chg": L(f["chg"]), "peak": L(f["peak"]),
-                       "peak_at": f["peak_at"], "slope": L(f["slope"]), "oi": L(f["oi"])} for f in fronts.read(grid, dict(peak))]
+        fr = old[2] if old and old[2] is not None else (
+            [{"k": f["k"], "side": f["side"], "state": f["state"], "chg": L(f["chg"]), "peak": L(f["peak"]),
+              "peak_at": f["peak_at"], "slope": L(f["slope"]), "oi": L(f["oi"])} for f in fronts.read(grid, dict(peak))])
+        FR[_m(ts)] = fr
         atm = int(round(s["spot"] / STEP) * STEP)                   # causal: also ATM ±LAD_NEAR of this minute (below)
         ks = sorted(set(STRIKES) | set(range(atm - LAD_NEAR * STEP, atm + LAD_NEAR * STEP + 1, STEP)))
-        ladder[ts] = {"spot": s["spot"],
-                      "ce": {k: L(H._leg(s, k, "ce").get("oi")) for k in ks},
-                      "pe": {k: L(H._leg(s, k, "pe").get("oi")) for k in ks},
-                      "ce_pk": {k: L(peak.get((float(k), "ce"))) for k in ks},
-                      "pe_pk": {k: L(peak.get((float(k), "pe"))) for k in ks}}
+        lad = old[3] if old and old[3] is not None and old[3][0] == ks else (
+            (ks, {"spot": s["spot"],
+                  "ce": {k: L(H._leg(s, k, "ce").get("oi")) for k in ks},
+                  "pe": {k: L(H._leg(s, k, "pe").get("oi")) for k in ks},
+                  "ce_pk": {k: L(peak.get((float(k), "ce"))) for k in ks},
+                  "pe_pk": {k: L(peak.get((float(k), "pe"))) for k in ks}}))
+        ladder[ts] = lad[1]
+        now_.append((ts, s, fr, lad))
+    memo["fronts"] = now_ + was[len(now_):] if same else now_      # an earlier upto keeps the later minutes for the next
     chain_missing = [mm for mm in mins if mm not in ladder]
+    FK = sorted(FR)
 
     def front_state(m, side, k):
         """The §1d state of (side, k) as of minute m, with a 3-minute hold for UNWINDING (Q17)."""
-        j = max((x for x in FR if x <= m), default=None)
+        j = _le(FK, m)
         if j is None:
             return None
         return next((f for f in FR[j] if f["side"] == side and f["k"] == k), None)
@@ -415,7 +561,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
 
     # ---- KAHANI: the fight, its chapters, per minute (causal) -----------------------------------------------------------
     def wall_ahead(m, d, spot):
-        j = max((x for x in FR if x <= m), default=None)
+        j = _le(FK, m)
         if j is None:
             return None
         side = "CE" if d > 0 else "PE"
@@ -425,8 +571,10 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
                 return f
         return None
 
+    RK = sorted(R)
+
     def spot_at(m):
-        j = max((x for x in R if x <= m), default=None)
+        j = _le(RK, m)
         return None if j is None else R[j]["spot"]
 
     fight, fights, timeline = None, [], []
@@ -563,7 +711,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
                          "fuel": None if ru is None else {k: v for k, v in ru.items() if k != "i"},
                          "fuel_state": fuel.get(m, {}).get("state"), "fuel_src": src.get(m),
                          "naya_floor": fight["naya_floor"], "khatam": fight["khatam"], "ending": fight["ending"],
-                         "fronts": FR.get(max((x for x in FR if x <= m), default=-1), [])})
+                         "fronts": FR.get(_le(FK, m), [])})
         asof[mm] = (fight["khatam"], fight.get("latest_toot"))
 
     # ---- the band verdict per minute, both sides (SELL: defender CE, wants fuel ▼; BUY: mirror) --------------------------
@@ -571,7 +719,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
         want = "▼" if tside == "SELL" else "▲"
         band_d = 1 if tside == "SELL" else -1                        # the band side's push direction (into the defender)
         dside = "CE" if tside == "SELL" else "PE"
-        tl = next((x for x in timeline if x["t"] == hm(m)), None)
+        tl = TL.get(hm(m))                                           # timeline's minutes are unique
         if tl is None:
             return None
         ru = tl["fuel"]
@@ -638,6 +786,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
             word = "SAAF NAHI"
         return {"ctx": "b" if b else "a", "word": word, "n": n_ok, "N": N, "q": marks.count("?"), "pieces": pieces}
 
+    TL = {x["t"]: x for x in timeline}
     VERD = {s: {} for s in ("SELL", "BUY")}
     for mm, m in zip(mins, MI):
         for s in VERD:
@@ -684,7 +833,7 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
         for r in _rows(confluence_log._chain_path(i, day)):
             if r.get("spot") and START <= (r.get("ts") or "")[:5] <= "15:30":
                 got[r["ts"][:5]] = r["spot"]
-        for ts, rec in chain_backfill.read_grid(day, i).items():
+        for ts, rec in _grid(memo, day, i).items():
             if ts not in got and rec.get("spot"):
                 got[ts] = rec["spot"]
         out, last = [], None
@@ -694,25 +843,34 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
         return out
 
     data["bnf"], data["sx"] = other_spot("BANKNIFTY"), other_spot("SENSEX")
-    data["live_from"] = hm(mod(brows[0]["t"])) if brows else None
+    data["live_from"] = hm(bk["m0"]) if bk["m0"] is not None else None
     # Her catch, 29 Oct 10:45: the Board's Sides read (sides.py, /api/sides) is the options-side fuel; each 5-min slot as
     # known at its end. Her ask, 29 Oct 11:00: WRITER FLOW ±7 -- the 3-min OI change summed over ATM ±7 strikes, per side
     # (L), per minute.
+
+    wfm, wfn = memo.get("wflow") or {}, {}         # Task 6: (minute, side) -> (its two snapshots, STEP, the value)
 
     def wflow(m, side, w=7):
         a, b = snaps.get(m), snaps.get(hm(_m(m) - 3))
         if not a or not b or not a.get("spot"):
             return None
+        hit = wfm.get((m, side))
+        if hit and hit[0] is a and hit[1] is b and hit[2] == STEP:
+            wfn[(m, side)] = hit
+            return hit[3]
         atm = round(a["spot"] / STEP) * STEP
         tot, n = 0.0, 0
         for k in range(int(atm - w * STEP), int(atm + w * STEP) + 1, STEP):
             x, y = H._leg(a, k, side).get("oi"), H._leg(b, k, side).get("oi")
             if isinstance(x, (int, float)) and isinstance(y, (int, float)):
                 tot, n = tot + (x - y), n + 1
-        return round(tot / 1e5, 1) if n >= 2 * w else None
+        v = round(tot / 1e5, 1) if n >= 2 * w else None
+        wfn[(m, side)] = (a, b, STEP, v)
+        return v
 
     data["wf_ce"], data["wf_pe"] = [wflow(m, "ce") for m in mins], [wflow(m, "pe") for m in mins]
-    data["sides"] = _sides(day, idx, upto, data["live_from"])
+    memo["wflow"] = wfm | wfn                        # an earlier upto keeps the later minutes for the next
+    data["sides"] = _sides(day, idx, upto, data["live_from"], memo, redo)
     for s in data["sides"] or ():
         s["fuel"] = sides_fuel(s)                    # the face draws the brain's fuel slots, never its own rule
     # the flow the reads use: Dext's footprint delta, else the book's own (handshake.book_flow, src B) -- a minute in
@@ -723,11 +881,12 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     if sensex_flow.on(idx) and all(x is None for x in data["delta"]):   # G13: SENSEX has no footprint of its own (§1q)
         data["flow"], data["flow_src"] = _nifty_flow(day, mins, MI, inp)
     try:                                             # Task 5: what the tool already measures (display only, fail-soft)
-        data["ctx"] = _context(day, idx, upto, cp, snaps, STEP)
+        data["ctx"] = _context(day, idx, upto, cp, snaps, STEP, memo)
     except Exception as e:
         data["ctx"] = {"notes": [f"the reads (levels, EM, the logs) failed: {type(e).__name__}: {e}"]}
     data["reads"] = reads(data)
     data["health"] = health(data, _readable(day, "BANKNIFTY", upto, 100))
+    data["health"]["notes"] += [f"frame rebuilt cold at {END}: {x}" for x in redo]   # Task 6: the memo's own news
     data["legs"] = _legs(data, R, day, idx)
     try:                                             # the ACTION word per minute: it needs the leg's rows (Jarvis v3)
         data["reads"]["action"] = action_words(data)
@@ -884,6 +1043,7 @@ def health(d: dict, bnf_readable=None) -> dict:
     return {"dext": {"minutes": no_dx.count(False), "missing": missing, "book_only_tail": tail},
             "holes": d.get("holes") or [], "chain_missing": d.get("chain_missing") or [], "bnf_chain_readable": bnf_readable,
             "f_src": {k: fs.count(k) for k in ("dext", "book", "tape")}, "live_from": d.get("live_from"), "notes": notes,
+            "method": list((d.get("ctx") or {}).get("method") or ()),       # how a number was made: not a gap (Task 6)
             "not_read": list(NOT_READ), "not_shown": list(NOT_SHOWN)}
 
 
@@ -1189,7 +1349,31 @@ VPIN_FAST = os.path.join("data", "vpin_fast.jsonl")    # the fast VPIN gauge on 
 RV_N, RV_MIN, RV_YEAR = 6, 4, 252.0                    # server._rv5's: 6 closes, >= 4 returns, sqrt(252) (reproduced)
 RV_CAL = math.sqrt(365 / 252)  # [I] server._rv5 annualises on 252 TRADING days, the chain's IV is on 365 CALENDAR days
                                #     (surface.years_to_expiry / gamma.DAYS_PER_YEAR): RV x sqrt(365/252) onto IV's basis
-                               #     before grading, else ~1.20 of a "rich" would be the day count alone (review 1 Nov)
+                               #     before grading, else ~1.20 of a "rich" would be the day count alone (review 1 Nov);
+                               #     exact with no weekend inside the option's life, so _rv_cal scales it by
+                               #     sqrt(trading / calendar days to expiry) when the chain names the expiry (Task 6)
+
+# Jarvis v3 Task 6: every [I] number above is looked up in jarvis_thresholds.json as "jarvis.<NAME>" (thresholds.py), its
+# value here the default -- at import and at the start of each build, so a change takes effect at the next build, no
+# restart. Every change needs a NOTEPAD line (the file's "_rule"). RV_N / RV_MIN / RV_YEAR are server._rv5's, reproduced:
+# not ours to move.
+_I = ("P5_MIN", "FAST", "SLOW", "SYNC_PTS", "WF_L", "WF_STOP", "RISK_X", "RISK_WIN", "RISK_HOLD", "RISK_CONF", "BLIND_MIN",
+      "LAD_NEAR", "FIGHT_AWAY", "FIGHT_AWAY_MIN", "MANAGE_PTS", "MANAGE_WIN", "MANAGE_GAP", "QUIET_MIN", "ACT_LEAD",
+      "ACT_CLOSES", "ANSWER_MIN", "AHEAD_STEPS", "NEED_X", "IV_RV", "CPR_NARROW", "POOL_X", "UNWIND_AT", "RANK_3OF5",
+      "RV_CAL")
+_DEF = {n: globals()[n] for n in _I}
+_APPLIED = [None]                # the thresholds file state last applied
+
+
+def _thresholds():
+    """The [I] numbers from jarvis_thresholds.json, applied again only when the file changed (thresholds.stamp)."""
+    st = thresholds.stamp()
+    if st != _APPLIED[0]:
+        globals().update({n: thresholds.get(f"jarvis.{n}", v) for n, v in _DEF.items()})
+        _APPLIED[0] = st
+
+
+_thresholds()
 
 
 def days() -> dict:
@@ -2020,7 +2204,7 @@ def _best(r):
     return " ".join(f"{k.upper()} {'✓' if (b.get(k) or {}).get('ok') else '✗'}" for k in keys) + f" {b.get('t') or ''}".rstrip()
 
 
-def _context(day, idx, upto, cp, snaps, step):
+def _context(day, idx, upto, cp, snaps, step, memo=None):
     """Task 5: the reads the tool already has and Jarvis never consumed, gathered once per build from the record (no
     network, nothing written) -> the frame's `ctx`, a dict calls() never cuts: every per-minute part is keyed "HH:MM" or
     carries its time, so call() at minute i reads only what was known by then. _prior (PD / PW / CPR / RV / the prior
@@ -2045,9 +2229,14 @@ def _context(day, idx, upto, cp, snaps, step):
         notes.append(f"EM: could not check — {ctx['em_why']}")
     ctx["dte"] = frame_v2.dte(day, next((r.get("expiry") for r in rows if r.get("expiry")), None))
     ctx["opt"] = {}
+    om, on = (memo or {}).get("opt") or {}, {}       # Task 6: minute -> (its snapshot, step, the read): a pure read of it
     for ts, s in snaps.items():
         if s.get("src") == "backfill":
             continue                                 # the REST morning carries OI only: no premium, no IV
+        hit = om.get(ts)
+        if hit and hit[0] is s and hit[1] == step:
+            ctx["opt"][ts], on[ts] = hit[2], hit
+            continue
         k = s.get("atm") or int(round(s["spot"] / step) * step)
         ce, pe = H._leg(s, k, "ce"), H._leg(s, k, "pe")
         iv = [x["iv"] * 100 for x in (ce, pe) if isinstance(x.get("iv"), (int, float)) and x["iv"] > 0]
@@ -2055,9 +2244,15 @@ def _context(day, idx, upto, cp, snaps, step):
               if all(isinstance((r.get(x) or {}).get("oi"), (int, float)) for x in ("ce", "pe"))]
         ctx["opt"][ts] = {"k": k, "ce": ce.get("ltp"), "pe": pe.get("ltp"), "iv": round(sum(iv) / len(iv), 2) if iv else None,
                           "mp": chain_metrics.max_pain(st) if st else None}
-    if ctx["rv"] is not None:                        # server._rv5's basis note, carried once (rule 7: say which)
-        notes.append(f"RV {ctx['rv'] * 100:.1f} on 252 trading days (server._rv5's) × √(365/252) = "
-                     f"{ctx['rv'] * 100 * RV_CAL:.1f} on the chain IV's 365-day basis [I]")
+        on[ts] = (s, step, ctx["opt"][ts])
+    if memo is not None:
+        memo["opt"] = om | on                        # an earlier upto keeps the later minutes for the next
+    ctx["rv_cal"], tr = _rv_cal(day, ctx["dte"])
+    ctx["method"] = []                               # Task 6: how a number was made, never a gap (health.method)
+    if ctx["rv"] is not None:                        # server._rv5's basis, said once (rule 7: say which)
+        ctx["method"].append(f"RV {ctx['rv'] * 100:.1f} on 252 trading days (server._rv5's) × "
+                             + (f"√(365/252 × {tr}/{ctx['dte']} trading / calendar days to expiry)" if tr else "√(365/252)")
+                             + f" = {ctx['rv'] * 100 * ctx['rv_cal']:.1f} on the chain IV's 365-day basis [I]")
     fi = "NIFTY" if sensex_flow.on(idx) else idx     # §1q: SENSEX's speed is NIFTY's flow, so NIFTY's yardstick
     try:
         with open(os.path.join(RANK_DIR, f"rank_ref_{fi}_{day}.json"), encoding="utf-8") as f:
@@ -2099,6 +2294,19 @@ def _context(day, idx, upto, cp, snaps, step):
     ctx["marked"] = sorted((t for t in ht if isinstance(t, dict) and t.get("idx") == idx and t.get("t0")),
                            key=lambda t: t["t0"])
     return ctx
+
+
+def _rv_cal(day, dte):
+    """RV onto the chain IV's calendar basis -> (factor, trading days to expiry or None): realized variance accrues on
+    trading days, IV spreads its variance over calendar ones, so RV_CAL (sqrt(365/252), exact with no weekend inside the
+    option's life) x sqrt(trading / calendar days to expiry); RV_CAL itself on 0 DTE or an unknown expiry.
+    ponytail: weekdays only -- NSE holidays are not on the record, so a holiday inside the life counts one trading day
+    too many; take the exchange calendar when one is kept."""
+    if not dte or dte < 0:
+        return RV_CAL, None
+    d0 = datetime.date.fromisoformat(day)
+    tr = sum(1 for j in range(1, dte + 1) if (d0 + datetime.timedelta(days=j)).weekday() < 5)
+    return (RV_CAL * math.sqrt(tr / dte), tr) if tr else (RV_CAL, None)
 
 
 def _opt_at(d, t):
@@ -2205,7 +2413,7 @@ def where(d, i, lean, lines, ce, pe, lv, basis):
 def expression(d, i, aw, lean, s, buyer, seller, lv, cnt):
     """EXPRESSION (stage 7): both lines priced, and a pick [I, display only, for her signature if it ever becomes a rule]
     -> {"buyer", "seller", "pick", "pick_why"}. The buyer's line gains what the move must pay (the ATM premium x NEED_X)
-    against EM left (EM − |fut − the open|); the seller's, the ATM IV against RV on IV's calendar basis (RV_CAL; IV_RV:
+    against EM left (EM − |fut − the open|); the seller's, the ATM IV against RV on IV's calendar basis (_rv_cal; IV_RV:
     rich / fair / cheap) and where her fold line would be (HOLD v2's line, not logged: said so). Pick: `seller` on TREND
     with Sides REAL / BACKED the lean's way and IV rich; `buyer` when the count's answer piece (`cnt`) is the lean's own
     push BROKEN (within ANSWER_MIN) and the required move fits EM left; else None, "no edge named"."""
@@ -2219,7 +2427,7 @@ def expression(d, i, aw, lean, s, buyer, seller, lv, cnt):
                              if need else f"+? (could not check — no ATM premium at {t})")
               + f" pts today [I ×{NEED_X}] · EM left " + (H._sg(f"{left:.0f}") if left is not None else "? (no 09:20 straddle)")
               + ("" if thin is None else " → thin" if thin else " → fits"))
-    iv, r_ = o.get("iv"), (c.get("rv") or 0) * 100 * RV_CAL
+    iv, r_ = o.get("iv"), (c.get("rv") or 0) * 100 * (c.get("rv_cal") or RV_CAL)
     grade = None if iv is None or not r_ else "rich" if iv >= r_ * IV_RV else "cheap" if iv <= r_ / IV_RV else "fair"
     seller += (f" · IV {iv:.1f} vs RV {r_:.1f} (cal) → {grade}" if grade else
                f" · IV ? vs RV ? (could not check — {'no ATM IV at ' + t if iv is None else 'no RV: health names why'})")

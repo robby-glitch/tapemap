@@ -2,8 +2,8 @@
 rounds 1-2 as amended by the "Merged decision" of 30 Oct; her words: "noise is also give a message").
 
 `read(d, chain=None, marks=None) -> {"rows", "day", "pauses", "missing"}` over a jarvis.build frame `d`. Pure: no I/O,
-no clock, nothing written. Causal: row i reads minutes <= i only. The one object is the LEG (origin -> extreme, >= 40 pts
-and >= 2U at its start);
+no clock, nothing written (its [I] numbers come from jarvis_thresholds.json at import and at each jarvis.build).
+Causal: row i reads minutes <= i only. The one object is the LEG (origin -> extreme, >= 40 pts and >= 2U at its start);
 its direction is the lean and changes only at PALAT (half the leg given back, floored at 1U). A leg is a TREND after
 10:00 at >= 80 pts with 1.5 sigma, a TOOT or Jarvis's own fuel; before 10:00 only at >= 100 pts with a TOOT; else
 OPENING / ROTATION (no lean on the open); every row with a leg before 10:00 reads OPENING, its lean shown and never
@@ -22,6 +22,8 @@ Inputs beyond the frame (both optional):
          "winner" (+1 / -1), "p", "prov", ...}]; first row per id wins; known at bar close + MARK_LAG (R2.1)
 """
 from __future__ import annotations
+
+import thresholds
 
 # ---- every threshold [I], the reason beside it (counts from the 10-day record, CONT vs REV after 10:00) ----------------
 START_M = 555          # 09:15, her 3-min bars count from here
@@ -71,6 +73,27 @@ HORIZON = 45           # [I] the after-the-fact outcome window (the forward log)
 MARK_AGAINST = ("absorption", "exhaustion", "trap", "climax", "E6", "E7", "E3", "E1")
 REV = "legs-1 (merged decision 30 Oct)"
 UP, DN = "▲", "▼"
+
+# Jarvis v3 Task 6: every [I] number above is looked up in jarvis_thresholds.json as "legs.<NAME>" (thresholds.py), its
+# value here the default -- at import and at the start of each jarvis.build (no restart); a change needs a NOTEPAD line.
+# START_M / OPEN_M / MARK_BAR are the clock and her bars, WF_L / WF_STOP jarvis's own bars: not [I] numbers of this file.
+_I = ("LEG_MIN", "LEG_MIN_U", "TREND_PTS", "TREND_Z", "OPEN_PTS", "PAUSE_U", "PAUSE_MIN", "NEW_U", "REV_FRAC", "REV_U",
+      "SHALLOW", "SHALLOW_MIN", "DEEP", "K_MIN", "K1_L", "BAND_L", "D3_AGAINST", "FAST", "SPEED_WARM", "PREM_RS", "COIL",
+      "Z_INSIDE", "MARK_LAG", "MARK_NEAR_U", "MARK_LATE_MIN", "MARK_FRESH_MIN", "PREM_FRESH", "Z_RETRACE_MIN", "WATCH_N",
+      "PALAT_N", "CONFIRM_MIN", "MIN_SHOW", "HOLD_MIN", "PUSH_WIN", "FUT_WIN", "FUT_LOTS", "FUT_PTS", "HORIZON")
+_DEF = {n: globals()[n] for n in _I}
+_APPLIED = [None]                # the thresholds file state last applied
+
+
+def _thresholds():
+    """The [I] numbers from jarvis_thresholds.json, applied again only when the file changed (thresholds.stamp)."""
+    st = thresholds.stamp()
+    if st != _APPLIED[0]:
+        globals().update({n: thresholds.get(f"legs.{n}", v) for n, v in _DEF.items()})
+        _APPLIED[0] = st
+
+
+_thresholds()
 
 
 def m2i(s):

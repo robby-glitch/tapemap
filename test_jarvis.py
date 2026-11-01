@@ -714,3 +714,132 @@ def test_the_expression_pick_where_and_how_much_on_a_toy():
     assert _expr_toy(rv=0.13)["expression"]["pick_why"] == "no edge named"
     assert _expr_toy(rv=0.13, broke=True)["expression"]["pick"] is None                  # BROKEN, but EM left 2 < 80
     assert _expr_toy(rv=0.13, em=250.0, broke=True)["expression"]["pick"] == "buyer"     # EM left 132 >= 80
+
+
+# ---- Task 6: the incremental frame IS the cold frame --------------------------------------------------------------------
+
+LIVE_STEPS = [10 * 60 + i for i in range(21)] + [13 * 60, 13 * 60 + 1]   # 10:00, 10:01 ... 10:20, then 13:00, 13:01
+T6_KEYS = ("call", "pushes", "verdict", "fights")
+
+
+def _cold(day, idx, upto):
+    """A cold build at `upto`: jarvis's cache emptied for it, the warm entries put back after (the live day goes on)."""
+    warm = dict(jarvis._CACHE)
+    jarvis._CACHE.clear()
+    try:
+        return jarvis.build(day, idx, upto)
+    finally:
+        jarvis._CACHE.clear()
+        jarvis._CACHE.update(warm)
+
+
+def _same(warm, cold, where):
+    """The brief's keys one by one (a readable failure), then the whole frame."""
+    for k in ("word", "state", "since", "count"):                    # the word she reads, its since and its count first
+        assert warm["call"][k] == cold["call"][k], (where, "call", k)
+    assert warm["reads"]["action"][-1] == cold["reads"]["action"][-1], (where, "reads.action[-1]")
+    for k in T6_KEYS:
+        assert warm[k] == cold[k], (where, k)
+    for k in ("action", "writers", "signs"):
+        assert warm["reads"][k] == cold["reads"][k], (where, "reads", k)
+    assert warm["timeline"][-1] == cold["timeline"][-1], (where, "timeline[-1]")
+    assert warm["legs"]["rows"][-1] == cold["legs"]["rows"][-1], (where, "legs.rows[-1]")
+    for k in ("how_much", "where", "expression", "cross", "her_setup", "expiry", "bada"):   # Task 5's, inside the call
+        assert warm["call"][k] == cold["call"][k], (where, "call", k)
+    assert warm == cold, (where, sorted(k for k in warm if warm[k] != cold.get(k)))
+
+
+@pytest.mark.parametrize("day,idx,steps", [("2026-10-21", "NIFTY", LIVE_STEPS), ("2026-10-29", "NIFTY", LIVE_STEPS),
+                                           ("2026-10-30", "NIFTY", LIVE_STEPS),
+                                           ("2026-10-29", "SENSEX", [600, 601, 780, 781])])
+def test_the_incremental_frame_equals_a_cold_build(record, day, idx, steps):
+    """The live day simulated (10:00, then +1 min to 10:20, then 13:00, 13:01): every warm build from the cache equals a
+    cold build at the same upto -- the call's word / state / since / count, the last ACTION row, the call, the ACTION /
+    writers / signs series, the last timeline row, the pushes, the verdict, the fights, the leg's last row, Task 5's keys,
+    and the whole frame."""
+    if not _has(day):
+        pytest.skip(f"{day} record not present")
+    jarvis._CACHE.clear()
+    for upto in steps:
+        warm = jarvis.build(day, idx, upto)
+        assert any(k[:3] == (day, idx, False) for k in jarvis._CACHE)   # the build left its entry for the next minute
+        _same(warm, _cold(day, idx, upto), (day, idx, jarvis.hm(upto)))
+
+
+def _grow(day, cut, src, dst):
+    """Append to `dst` the lines of the record file `src` stamped before `cut` (book: epoch ms; chain: "HH:MM:SS") that
+    are not there yet -- the live recorder, a minute at a time."""
+    have = dst.read_text(encoding="utf-8").count("\n") if dst.exists() else 0
+    keep = [ln for ln, k in src if k < cut]
+    with open(dst, "a", encoding="utf-8") as f:
+        f.writelines(keep[have:])
+
+
+def _lines(path, key):
+    out = []
+    with open(path, encoding="utf-8") as f:
+        for ln in f:
+            try:
+                out.append((ln, key(json.loads(ln))))
+            except ValueError:
+                continue
+    return out
+
+
+@pytest.mark.skipif(not _has("2026-10-29"), reason="29 Oct record not present")
+def test_the_incremental_frame_follows_growing_files(record, tmp_path, monkeypatch):
+    """The record as the live recorders write it: the book and the three chains grow minute by minute (each cut 20 s into
+    the minute, the server's grace) and every warm build equals a cold one. A chain row landing late for an earlier minute
+    and a chain file rewritten shorter are said ('frame rebuilt cold at ...') and the rest of the frame still equals cold."""
+    import book_log
+    import chain_live
+    day = "2026-10-29"
+    ist = 19800 * 1000
+    monkeypatch.setattr(book_log, "DIR", str(tmp_path / "book"))
+    monkeypatch.setattr(chain_live, "CHAIN_DIR", pathlib.Path(tmp_path / "chain"))
+    (tmp_path / "book").mkdir()
+    (tmp_path / "chain").mkdir()
+    src = {"book": _lines(os.path.join(DATA, "book", f"book_NIFTY_{day}.jsonl"),
+                          lambda r: (int(r["t"]) + ist) // 1000 % 86400 if isinstance(r.get("t"), (int, float)) else -1)}
+    for i in ("NIFTY", "BANKNIFTY", "SENSEX"):
+        src[i] = _lines(os.path.join(DATA, "chain", f"chain_{i}_{day}.jsonl"), lambda r: r.get("ts") or "")
+    dst = {"book": tmp_path / "book" / f"book_NIFTY_{day}.jsonl"}
+    dst |= {i: tmp_path / "chain" / f"chain_{i}_{day}.jsonl" for i in ("NIFTY", "BANKNIFTY", "SENSEX")}
+
+    def grow(upto):
+        _grow(day, upto * 60 + 20, src["book"], dst["book"])
+        for i in ("NIFTY", "BANKNIFTY", "SENSEX"):
+            _grow(day, jarvis.hm(upto) + ":20", src[i], dst[i])
+
+    jarvis._CACHE.clear()
+    for upto in range(10 * 60, 10 * 60 + 6):
+        grow(upto)
+        warm = jarvis.build(day, "NIFTY", upto)
+        assert not any(x.startswith("frame rebuilt cold") for x in warm["health"]["notes"])
+        _same(warm, _cold(day, "NIFTY", upto), ("growing", jarvis.hm(upto)))
+
+    def same_but_the_note(warm, cold, why):
+        assert any(x.startswith("frame rebuilt cold at 10:05: " + why) for x in warm["health"]["notes"]), warm["health"]["notes"]
+        for k in ("word", "state", "since", "count", "wrong_line", "expression", "where", "how_much"):
+            assert warm["call"][k] == cold["call"][k], k
+        assert {k: v for k, v in warm.items() if k not in ("health", "call")} == \
+            {k: v for k, v in cold.items() if k not in ("health", "call")}
+        assert [x for x in warm["health"]["notes"] if not x.startswith("frame rebuilt cold")] == cold["health"]["notes"]
+
+    late = next(ln for ln, k in src["NIFTY"] if k.startswith("10:02:"))  # 10:02's first snapshot written again, late:
+    with open(dst["NIFTY"], "a", encoding="utf-8") as f:                 # now the minute's last
+        f.write(late)
+    warm = jarvis.build(day, "NIFTY", 10 * 60 + 6)
+    same_but_the_note(warm, _cold(day, "NIFTY", 10 * 60 + 6), "chain minutes from 10:02 changed")
+    lines = dst["NIFTY"].read_text(encoding="utf-8").splitlines(keepends=True)
+    dst["NIFTY"].write_text("".join(lines[:-3]), encoding="utf-8")       # rewritten shorter: tailread reads it again
+    warm = jarvis.build(day, "NIFTY", 10 * 60 + 6)
+    same_but_the_note(warm, _cold(day, "NIFTY", 10 * 60 + 6), "the chain record was read again from its start")
+    assert not any(x.startswith("frame rebuilt cold") for x in jarvis.build(day, "NIFTY", 10 * 60 + 6)["health"]["notes"])
+    import tailread                                                      # the reader drops and re-parses unchanged files
+    with tailread._LOCK:                                                 # (its LRU): every row a new object, not news
+        for k in [k for k in tailread._FILES if os.path.basename(k).startswith(("book_NIFTY", "chain_NIFTY"))]:
+            tailread._FILES.pop(k)
+    warm = jarvis.build(day, "NIFTY", 10 * 60 + 6)
+    assert not any(x.startswith("frame rebuilt cold") for x in warm["health"]["notes"])
+    _same(warm, _cold(day, "NIFTY", 10 * 60 + 6), ("re-parsed", "10:06"))
