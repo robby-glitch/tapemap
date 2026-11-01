@@ -112,6 +112,36 @@ def test_a_verbatim_clause_of_the_expression_may_carry_its_order_word():
     assert jv.fence("sell the CE at 23,000s", CARD)                 # not a verbatim clause
 
 
+def test_the_fence_holds_a_levels_s_or_f_to_the_card():
+    """I5 (final review): a spot strike printed as f is ~43 pts off and passed every check. A level (4-6 digits) with an s
+    or f must stand in the card's text with that suffix."""
+    assert jv.fence("PE wall 22,900s BUILDING · wrong past 22,938f", CARD) is None
+    assert jv.fence("PE wall 22,900f BUILDING", CARD) == "fence: a level's s / f not as the card writes it"
+    assert jv.fence("wrong past 22,938s", CARD) == "fence: a level's s / f not as the card writes it"
+    assert jv.fence("CE 23,000s (23,043f)", CARD) is None and jv.fence("CE 23,043s", CARD)
+
+
+def test_the_fence_holds_a_sign_to_the_card():
+    """I5: `+200 so far` on a card that says `−200 so far` passed (the sign was not compared)."""
+    card = dict(CARD, self="TREND ▼ since 09:56 · −200 so far · PALAT? said 0× · came true 0× · blind 0 min")
+    assert jv.fence("TREND ▼ · −200 so far", card) is None
+    assert jv.fence("TREND ▼ · +200 so far", card) == "fence: a sign not in the card"
+    assert jv.fence("TREND ▼ · -200 so far", card) is None                       # the ASCII minus is the card's −
+    assert jv.fence("writers CE +12.1L · PE −14.0L", card) is None
+    assert jv.fence("writers CE −12.1L", card) == "fence: a sign not in the card"
+    assert jv.fence("lean −1", card) is None and jv.fence("lean +1", card)        # the card's own value, its own sign
+    assert jv.fence("22,900s–23,000s · 09:35–10:04 · 22,900s-23,000s", card) is None   # a range dash is never a sign
+
+
+def test_the_fence_rejects_a_bare_level():
+    """I5: `PE wall 22900` passed because the card's JSON holds the strike as a raw number. A level-sized number with no s /
+    f passes only where the card's text (or her question) carries it bare."""
+    assert jv.fence("PE wall 22900", CARD) == "fence: a level without s or f"
+    assert jv.fence("PE wall 22,900", CARD) == "fence: a level without s or f"
+    assert jv.fence("22,800 is not in today's frame", CARD, "what if 22800 breaks") is None   # her own number, bare
+    assert jv.fence("OI 186L · RBI 2026", dict(CARD, day="2026-11-02")) is None   # a unit (L) is not a level; the day's year
+
+
 def test_her_question_numbers_are_hers_to_quote():
     assert jv.fence("22,800 is not in today's frame · nearest wall 22,900s PE", CARD, "what if 22800 breaks") is None
     assert jv.fence("22,800 is not in today's frame", CARD)
@@ -512,7 +542,10 @@ def srv(monkeypatch):
     for k, v in (("_JVOICE", {}), ("_LAST_LOGGED", {}), ("_JCMD", {})):
         monkeypatch.setattr(server, k, v)
     monkeypatch.setattr(server, "_JARVIS", {"NIFTY": (None, time.time(), FRAME)})
-    return server
+    from datetime import datetime
+    from chain_live import IST
+    monkeypatch.setattr(server, "_ist", lambda now=None: datetime(2026, 11, 2, 10, 42, 30, tzinfo=IST))   # FRAME's day: the
+    return server                                                   # card serves no other day's frame as live (final review I1)
 
 
 def test_the_hook_narrates_a_word_change_with_the_frames_why(srv):

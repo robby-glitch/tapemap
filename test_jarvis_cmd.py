@@ -348,7 +348,7 @@ def test_her_page_and_the_extension_may_call_the_jarvis_routes_across_origins(sr
 def test_a_watch_crossed_while_the_server_was_down_says_could_not_check_once():
     """A restart cannot know a touch it did not see. A watch set before this process (rebuilt from the file) whose price
     is on the other side of its level at the first look says `could not check — gap <set>–<now>` once, never a hit; a
-    watch set in this process only remembers its first look (the set-time price is a frame minute old)."""
+    watch set in this process compares its first look with its set-time price (I6): crossed = a hit, never a gap."""
     d = jarvis_cmd.Day(DAY)
     d.apply("NIFTY", "watch 22800s", FR, "page", now=at(10, 12))                     # spot 22,967.3 when set: above
     d.apply("NIFTY", "watch 23100f", FR, "page", now=at(10, 12))                     # fut 23,010.5 when set: below
@@ -359,8 +359,21 @@ def test_a_watch_crossed_while_the_server_was_down_says_could_not_check_once():
     st = jarvis_cmd.Day(DAY).state("NIFTY")["watches"]
     assert st[0]["gap"] == "10:12–11:40" and st[0]["hit"] is None and "gap" not in st[1]
     assert [m["line"] for m in messages.jarvis([], rows)] == ["11:40  NIFTY  WATCH 22,800s · could not check — gap 10:12–11:40"]
-    d2.apply("NIFTY", "watch 22600s", FR, "page", now=at(11, 42))                   # set in THIS process
-    assert d2.check_watches("NIFTY", 22550.0, None, "11:43") == []                  # the first look only remembers
+    d2.apply("NIFTY", "watch 22600s", FR, "page", now=at(11, 42))                   # set in THIS process, spot 22,967.3
+    assert [r["kind"] for r in d2.check_watches("NIFTY", 22550.0, None, "11:43")] == ["watch_hit"]   # crossed: a touch
+
+
+def test_a_watch_set_near_price_fires_on_a_cross_before_its_first_look():
+    """I6 (final review): watch 22800s set at spot 22,798 (2 pts below the level); price is 22,803 by the first senses
+    pass. The crossing between the set-time price and the first look is a touch: it fires once, never silently missed."""
+    d = jarvis_cmd.Day(DAY)
+    d.apply("NIFTY", "watch 22800s", dict(FR, spot=[22797.0, 22798.0]), "page", now=at(10, 12))
+    card = lambda: {"word": "TREND ▲", "count": None, "answer": None}               # noqa: E731
+    hits = d.check_watches("NIFTY", 22803.0, None, "10:13", card, now=at(10, 13))
+    assert [(h["kind"], h["id"], h["px"]) for h in hits] == [("watch_hit", 1, 22803.0)]
+    assert d.check_watches("NIFTY", 22805.0, None, "10:14", card) == []              # fires once
+    d.apply("NIFTY", "watch 22900s", dict(FR, spot=[22798.0]), "page", now=at(10, 15))
+    assert d.check_watches("NIFTY", 22810.0, None, "10:16", card) == []              # not crossed: nothing
 
 
 def test_a_watch_set_with_no_frame_takes_its_first_price_and_a_failed_write_is_looked_at_again():
@@ -373,13 +386,13 @@ def test_a_watch_set_with_no_frame_takes_its_first_price_and_a_failed_write_is_l
 
     d = jarvis_cmd.Day("2026-11-03")
     d.apply("NIFTY", "watch 23000s", FR, "page", now=at(10, 12))
-    d.check_watches("NIFTY", 23020.0, None, "10:13")
+    assert d.check_watches("NIFTY", 22980.0, None, "10:13") == []                    # set at 22,967.3s: still below
     real = d._write
 
     def full(r):
         raise OSError("disk full")
     d._write = full
     with pytest.raises(OSError):
-        d.check_watches("NIFTY", 22990.0, None, "10:14")                              # the touch could not be written
+        d.check_watches("NIFTY", 23010.0, None, "10:14")                              # the touch could not be written
     d._write = real
-    assert [h["id"] for h in d.check_watches("NIFTY", 22990.0, None, "10:15")] == [1]   # so the next pass sees it again
+    assert [h["id"] for h in d.check_watches("NIFTY", 23010.0, None, "10:15")] == [1]   # so the next pass sees it again

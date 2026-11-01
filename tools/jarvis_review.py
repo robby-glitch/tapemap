@@ -31,7 +31,7 @@ def _rows(path):
     if not os.path.exists(path):
         return None
     out = []
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:     # a torn character costs its line (final review I3)
         for line in f:
             try:
                 r = json.loads(line)
@@ -189,7 +189,8 @@ def sheet(day, data_dir=DIR):
     return "\n".join(L)
 
 
-def run(day, data_dir=DIR):
+def run(day, data_dir=None):
+    data_dir = data_dir or DIR                     # read at call time: a test's redirect of DIR reaches a forgotten argument
     os.makedirs(data_dir, exist_ok=True)
     path = os.path.join(data_dir, f"review_{day}.md")
     with open(path + ".tmp", "w", encoding="utf-8") as f:

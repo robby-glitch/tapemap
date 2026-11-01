@@ -37,23 +37,34 @@ def test_write_is_once_per_index_minute_and_read_keeps_the_order():
     assert jarvis_log.write(DAY, "NIFTY", TOY[0]) is False
 
 
+def dense(rows):
+    """Each toy row repeated every minute up to the next one (t moved, nothing else): the shape of a real call log."""
+    out = []
+    for a, b in zip(rows, rows[1:] + [None]):
+        m0 = jarvis_log._m(a["t"])
+        m1 = jarvis_log._m(b["t"]) if b else m0 + 1
+        out += [dict(a, t=f"{m // 60:02d}:{m % 60:02d}") for m in range(m0, m1)]
+    return out
+
+
 def test_self_line_counts_the_word_palat_episodes_and_blind_minutes():
     """The brief's 6-row toy: TREND ▼ from 09:56 at 23,100f, 22,900f now; two PALAT? episodes, one followed by PALAT in 20
     min. `so far` = the RAW signed move, fut now − fut at since (the coordinator's resolution: the arrow already says
-    which way is good), so a ▼ word on a 200-point fall reads −200."""
-    toy = [row("09:20", "PALAT? ▲", 23180.0, 1), row("09:40", "PALAT ▼", 23150.0),        # said, came true 20 min later
-           row("09:45", "PALAT? ▼", 23160.0), row("09:50", "HOLD ▼", 23120.0),            # said again, never came true
-           row("09:56", "TREND ▼", 23100.0), row("10:30", "TREND ▼", 23000.0)]
+    which way is good), so a ▼ word on a 200-point fall reads −200. The toy is filled to one row a minute (a real log's
+    shape: I4 reads rows more than 2 min apart as a hole); it starts at 09:20, so the line says `log from 09:20`."""
+    toy = dense([row("09:20", "PALAT? ▲", 23180.0, 1), row("09:40", "PALAT ▼", 23150.0),   # said, came true 20 min later
+                 row("09:45", "PALAT? ▼", 23160.0), row("09:50", "HOLD ▼", 23120.0),       # said again, never came true
+                 row("09:56", "TREND ▼", 23100.0), row("10:30", "TREND ▼", 23000.0)])
     assert jarvis_log.self_line([], 22900.0) is None
     assert jarvis_log.self_line(toy, 22900.0) == (
-        "TREND ▼ since 09:56 · −200 so far · PALAT? said 2× · came true 1× · blind 0 min")
+        "TREND ▼ since 09:56 · −200 so far · PALAT? said 2× · came true 1× · blind 0 min · log from 09:20")
     assert jarvis_log.self_line(toy, 23150.0).split(" · ")[1] == "+50 so far"            # up 50 against a ▼: says so
     two = [row("09:30", "PALAT? ▲", 23180.0, 1), row("09:31", "PALAT? ▲", 23170.0, 1),    # one episode, two rows
            row("09:50", "PALAT ▼", 23120.0)]                                             # 20 min after it was first said
     assert "PALAT? said 1× · came true 1×" in jarvis_log.self_line(two, 23100.0)
     blind = toy + [row("10:31", "CAN'T SEE", None, 0, blind=True), row("10:32", "CAN'T SEE", None, 0, blind=True)]
     assert jarvis_log.self_line(blind, None) == ("CAN'T SEE since 10:31 · so far could not check — no fut price · "
-                                                 "PALAT? said 2× · came true 1× · blind 2 min")
+                                                 "PALAT? said 2× · came true 1× · blind 2 min · log from 09:20")
     assert "could not check" in jarvis_log.self_line(toy, None)                           # a missing price is never a zero
     late = [row("09:30", "PALAT? ▲", 23180.0, 1), row("10:16", "PALAT ▼", 23120.0)]        # 46 min later: not "came true"
     assert "came true 0×" in jarvis_log.self_line(late, 23100.0)
@@ -277,3 +288,145 @@ def test_the_jarvis_pass_runs_on_its_own_thread_never_inside_the_message_pass():
     assert "_jarvis_pass" not in inspect.getsource(server._msg_loop)                      # a 10 s build never delays FLOW
     assert "_jarvis_pass()" in inspect.getsource(server._jarvis_loop)
     assert "target=_jarvis_loop" in inspect.getsource(server.main)
+
+
+# ---- I1 (final review): the card never serves an old or frozen frame as live ----------------------------------------
+
+def _srv(monkeypatch, now):
+    from datetime import datetime
+    import server
+    from chain_live import IST
+    clock = {"now": datetime(*now, tzinfo=IST)}
+    monkeypatch.setattr(server, "_ist", lambda now=None: clock["now"])
+    monkeypatch.setattr(server, "_JARVIS", {})
+    monkeypatch.setattr(server, "_LAST_LOGGED", {})
+    monkeypatch.setattr(server, "_JPASS", {"m": {}, "s": None, "at": None, "slow": None, "skipped": None, "last": None})
+    monkeypatch.setattr(server, "_JCMD", {})
+    monkeypatch.setattr(server, "_JVOICE", {})
+    return server, clock
+
+
+def test_the_card_never_serves_another_days_frame_or_an_old_one_as_live(monkeypatch):
+    from datetime import datetime
+    from chain_live import IST
+    server, clock = _srv(monkeypatch, (2026, 11, 2, 10, 43, 10))
+    key = ("NIFTY", DAY, None, False)
+    server._JARVIS["NIFTY"] = (key, time.time(), frame(day="2026-10-30", asof="15:44:50"))     # left running overnight
+    c = server._jarvis_card("NIFTY")
+    why = "could not check — last frame is from 2026-10-30"
+    assert c == {"ok": False, "live": False, "why": why, "stale": why}                       # never yesterday's word
+    r = server._jarvis_cmd("NIFTY", "why", "page")
+    assert not r["ok"] and r["reply"] == why                                                 # the commands read the same guard
+    server._JARVIS["NIFTY"] = (key, time.time() - 7 * 60 - 5, frame(asof="10:36:05"))          # frozen: no build for 7 min
+    c = server._jarvis_card("NIFTY")
+    assert c["ok"] is False and c["live"] is False and c["stale"] == "could not check — last frame 10:36, 7 min old"
+    assert "word" not in c and "count" not in c                                              # nothing invented
+    r = server._jarvis_cmd("NIFTY", "watch 22800s", "page")
+    assert r["ok"] and jarvis_cmd_rows()[-1]["px0"] is None                                  # an old price is never the reference
+    clock["now"] = datetime(2026, 11, 2, 16, 0, 0, tzinfo=IST)                               # after the close the day's last frame
+    assert server._jarvis_card("NIFTY")["ok"] is True                                        # stands (today's, the pass rests)
+    clock["now"] = datetime(2026, 11, 2, 10, 43, 10, tzinfo=IST)
+    server._JARVIS["NIFTY"] = (key, time.time() - 30, frame())
+    c = server._jarvis_card("NIFTY")
+    assert c["ok"] and c["live"] is True and "stale" not in c
+
+
+def jarvis_cmd_rows():
+    import jarvis_cmd
+    return jarvis_cmd.rows(DAY)
+
+
+def test_a_build_that_raises_is_said_on_the_card_until_one_succeeds_and_never_stops_the_pass(monkeypatch):
+    from datetime import datetime
+    import jarvis
+    from chain_live import IST
+    server, clock = _srv(monkeypatch, (2026, 11, 2, 10, 43, 10))
+    bad = {"on": True}
+
+    def fake(day, idx, upto, fill=False):
+        if idx == "NIFTY" and bad["on"]:
+            raise KeyError("pieces")
+        t = f"{(upto - 1) // 60:02d}:{(upto - 1) % 60:02d}"
+        return dict(frame(), day=day, idx=idx, mins=[t], call=dict(CALL, at=t))
+    monkeypatch.setattr(jarvis, "build", fake)
+    good = dict(frame(), asof="10:42:20")
+    server._JARVIS["NIFTY"] = (("NIFTY", DAY, None, False), time.time() - 60, good)          # the 10:42 build was the last good one
+    server._jarvis_pass()                                                                    # never raises
+    note = "could not check — the last build failed at 10:43: KeyError"
+    assert server._JPASS["last"] == "failed" and server._JPASS["failed"] == {"NIFTY": note}
+    c = server._jarvis_card("NIFTY")
+    assert c["ok"] and note in c["health"]["notes"]                                          # a minute old: shown, and said
+    assert note not in server._jarvis_card("SENSEX")["health"]["notes"]                      # SENSEX built
+    clock["now"] = datetime(2026, 11, 2, 10, 46, 10, tzinfo=IST)
+    key, _, fr = server._JARVIS["NIFTY"]
+    server._JARVIS["NIFTY"] = (key, time.time() - 4 * 60, fr)
+    server._jarvis_pass()
+    c = server._jarvis_card("NIFTY")
+    assert c == {"ok": False, "live": False, "why": c["stale"],
+                 "stale": "could not check — last frame 10:42, 4 min old · the last build failed at 10:46: KeyError"}
+    bad["on"] = False
+    clock["now"] = datetime(2026, 11, 2, 10, 47, 10, tzinfo=IST)
+    server._jarvis_pass()
+    c = server._jarvis_card("NIFTY")
+    assert c["ok"] and c["live"] and not any("failed" in n for n in c["health"]["notes"])
+    assert server._JPASS["last"] == "ok" and server._JPASS["failed"] == {}
+
+
+def test_a_torn_byte_and_a_malformed_row_cost_themselves_never_the_card_the_commands_or_the_sheet(monkeypatch):
+    """I3 (final review): one row cut inside `▼` and one malformed row between two good rows, in the call log AND the
+    command log -> the card, its self line, the commands, the watch rebuild, the call log's write-once seed and the evening
+    sheet all still work, and the good rows are read."""
+    import sys
+    import jarvis_cmd
+    server, _ = _srv(monkeypatch, (2026, 11, 2, 10, 43, 10))
+    torn, bad = b'{"day": "2026-11-02", "idx": "NIFTY", "t": "10:01", "word": "TREND \xe2\x96\n', b'{"idx": "NIFTY", "t"\n'
+    os.makedirs(jarvis_log.DIR, exist_ok=True)
+
+    def line(r):
+        return (json.dumps(r, ensure_ascii=False) + "\n").encode()
+    with open(jarvis_log._path(DAY), "wb") as f:
+        f.write(line(row("10:00", "TREND ▼", 23100.0)) + torn + bad + line(row("10:02", "TREND ▼", 23050.0)))
+    with open(os.path.join(jarvis_cmd.DIR, f"cmd_{DAY}.jsonl"), "wb") as f:
+        f.write(line({"at": 1, "t": "10:00:05", "idx": "NIFTY", "kind": "watch", "text": "watch 22800s", "ok": True,
+                      "reply": "watching 22,800s (1 of 10 today)", "src": "page", "id": 1, "px0": 22830.0})
+                + b'{"at": 2, "t": "10:01:00", "idx": "NIFTY", "kind": "note", "text": "note RBI \xe2\x96\n' + bad
+                + line({"at": 3, "t": "10:02:00", "idx": "NIFTY", "kind": "line", "text": "line 22750f", "ok": True,
+                        "reply": "line 22,750f drawn", "src": "page", "id": 1}))
+    assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:00", "10:02"]
+    assert jarvis_log.self_line(jarvis_log.read(DAY, "NIFTY"), 23000.0).startswith("TREND ▼ since 10:00 · −100 so far")
+    assert jarvis_log.write(DAY, "NIFTY", row("10:03", "TREND ▼", 23040.0)) is True          # the seed reads past the tear
+    server._JARVIS["NIFTY"] = (("NIFTY", DAY, None, False), time.time(), frame())
+    c = server._jarvis_card("NIFTY")
+    assert c["ok"] and c["self"].startswith("TREND ▼ since 10:00") and c["watches"][0]["level"] == 22800.0
+    st = server._jarvis_cmd("NIFTY", "list", "page")
+    assert st["ok"] and st["lines"] == ["line 22,750f · set 10:02", "watch 22,800s · set 10:00"]
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+    import jarvis_review
+    sheet = jarvis_review.sheet(DAY, data_dir=jarvis_log.DIR)
+    assert "watches set 1 · hit 0" in sheet and "NIFTY · word changes: 0" in sheet
+
+
+def _mins(a, b, word, fut0, step=-1.0):
+    """One row a minute from a to b (HH:MM, inclusive), fut moving `step` a minute: a real log's shape."""
+    m0, m1 = int(a[:2]) * 60 + int(a[3:]), int(b[:2]) * 60 + int(b[3:])
+    return [row(f"{m // 60:02d}:{m % 60:02d}", word, fut0 + step * (m - m0)) for m in range(m0, m1 + 1)]
+
+
+def test_the_self_line_never_walks_across_a_log_gap_and_names_a_late_start():
+    """I4 (final review): a restart or a late start leaves the call log with holes. `since` / `so far` start after the last
+    hole of more than 2 min (never joined across it as if continuous), the hole is named, and a log that starts after
+    09:16 says so (its counts cover only what is on disk). PALAT? said / came true keep their rule."""
+    rows = _mins("10:00", "10:05", "TREND ▼", 23100.0) + _mins("10:30", "10:35", "TREND ▼", 23040.0)
+    assert jarvis_log.self_line(rows, 23000.0) == (
+        "TREND ▼ since 10:30 · −40 so far · PALAT? said 0× · came true 0× · blind 0 min · log from 10:00 · "
+        "log gap 10:06–10:29")
+    late = _mins("11:06", "11:20", "TREND ▼", 23000.0)                                    # started 11:07, the word since 09:56
+    assert jarvis_log.self_line(late, 22980.0).endswith("· log from 11:06")
+    full = _mins("09:15", "10:00", "TREND ▼", 23100.0)
+    assert "log" not in jarvis_log.self_line(full, 23000.0)                                # a whole morning: nothing to say
+    hiccup = _mins("09:15", "09:40", "TREND ▼", 23100.0)
+    hiccup = hiccup[:10] + hiccup[11:]                                                     # one skipped pass (2 min apart)
+    assert jarvis_log.self_line(hiccup, 23000.0).startswith("TREND ▼ since 09:15 · −100 so far")
+    assert "gap" not in jarvis_log.self_line(hiccup, 23000.0)
+    word = _mins("09:15", "09:30", "HOLD ▼", 23100.0) + _mins("09:50", "09:55", "TREND ▼", 23080.0)
+    assert jarvis_log.self_line(word, 23070.0).endswith("· log gap 09:31–09:49")           # a word that changed unseen too

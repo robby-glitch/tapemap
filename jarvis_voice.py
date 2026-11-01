@@ -71,8 +71,9 @@ The state words, verbatim: WALL, PUSH, TESTED ×n · broke n, HELD, DEFENDED, BR
 NEW FLOOR, NEW CEILING, CONTINUES, PINNED, REVERSAL, ROTATE, CONTINUE, UNCLEAR, NO TRADE: quiet / can't see / shock.
 The leg's words, verbatim: TREND, HOLD, WATCH, PALAT?, PALAT, ROTATION, OPENING, NO LEG, CAN'T SEE.
 
-The fence: code reads your reply after you write it. A number not in the card, a %, an order word, a fourth line or a line
-over 140 characters throws the whole reply away and the engine's own lines are shown instead."""
+The fence: code reads your reply after you write it. A number not in the card, a level without the s / f the card gives it,
+a sign the card does not write, a %, an order word, a fourth line or a line over 140 characters throws the whole reply away
+and the engine's own lines are shown instead."""
 
 CHANGE_TASK = ("The ACTION word just changed to the card's `word` (since the card's `since`). In at most 3 lines: what it "
                "reads now, writers first, and the card's wrong-line.")
@@ -193,6 +194,40 @@ def _tokens(text):
     return [_norm(t) for t in NUM.findall(text)]
 
 
+def _marks(text):
+    """Each non-time number of `text` -> (sign, token, suffix). sign: "+" / "−" when one stands right before it (a hyphen
+    after a letter or digit is a dash: 2026-11-02, 22,900s-23,000s); suffix: "s" / "f" right after it, "" when bare, None
+    when a unit follows (186L, 2.5σ: not a level)."""
+    out = []
+    for m in NUM.finditer(text):
+        if ":" in m.group(0):
+            continue
+        a, b = m.start(), m.end()
+        pre, pre2, nxt = text[a - 1] if a else "", text[a - 2] if a > 1 else "", text[b:b + 1]
+        sign = "" if pre2.isalnum() else {"+": "+", "-": "−", "−": "−"}.get(pre, "")
+        suf = nxt if nxt in ("s", "f") and not text[b + 1:b + 2].isalnum() else None if nxt.isalnum() else ""
+        out.append((sign, _norm(m.group(0)), suf))
+    return out
+
+
+def _leaves(x, strs, nums):
+    """The card's text (every string) and its raw numbers apart: a strike held as a number is not the card WRITING it bare."""
+    if isinstance(x, str):
+        strs.append(x)
+    elif isinstance(x, (int, float)) and not isinstance(x, bool):
+        nums.append(x)
+    elif isinstance(x, dict):
+        for v in x.values():
+            _leaves(v, strs, nums)
+    elif isinstance(x, (list, tuple)):
+        for v in x:
+            _leaves(v, strs, nums)
+
+
+def _is_level(t):
+    return 4 <= len(t.split(".")[0]) <= 6          # 1,000 to 9,99,999: a NIFTY / SENSEX / BANKNIFTY price
+
+
 def _lines(text):
     return [ln.strip() for ln in str(text or "").splitlines() if ln.strip()]
 
@@ -211,7 +246,8 @@ def _quotable(src):
 def fence(text, card, question=None, max_lines=MAX_LINES, web=False):
     """THE FENCE (code, never prompt) -> None when the reply may be shown, else the failed check. The allowed numbers are the
     card's JSON (its old `voice` left out) plus her own question's; with `web` (the brief) a line starting [web] may carry the
-    web's numbers. ponytail: signs are not compared (−200 vs +200 passes); compare signed tokens if the model ever flips one."""
+    web's numbers. I5: a level (4-6 digits) keeps the s / f the card's text gives it, a bare level passes only where the
+    card's text (or her question) has it bare, and a signed number needs that sign in the card (its text, or a raw negative)."""
     lines = _lines(text)
     if not lines:
         return "fence: empty reply"
@@ -222,6 +258,11 @@ def fence(text, card, question=None, max_lines=MAX_LINES, web=False):
     allowed |= {t[:5] for t in allowed if t.count(":") == 2}        # 10:42:51 in the card holds 10:42
     quotable = _quotable(src)
     cnt = src.get("count") if isinstance(src, dict) else None
+    strs, nums = [], []
+    _leaves(src, strs, nums)
+    marks = [mk for s in strs + [str(question or "")] for mk in _marks(s)]
+    pairs, bare = {(t, f) for _, t, f in marks if f}, {t for _, t, f in marks if f == ""}
+    signed = {(g, t) for g, t, _ in marks if g} | {("−", _norm(str(-v))) for v in nums if v < 0}
     # each why NAMES the check and never echoes what it kept out: the why lands on the card's voice and in the log
     for ln in lines:
         if len(ln) > MAX_CHARS:
@@ -240,6 +281,13 @@ def fence(text, card, question=None, max_lines=MAX_LINES, web=False):
                 return "fence: count mismatch"
         if any(t not in allowed for t in _tokens(ln)):
             return "fence: number not in the card"
+        for g, t, f in _marks(ln):
+            if g and (g, t) not in signed:
+                return "fence: a sign not in the card"
+            if _is_level(t) and f and (t, f) not in pairs:
+                return "fence: a level's s / f not as the card writes it"
+            if _is_level(t) and f == "" and t not in bare:
+                return "fence: a level without s or f"
     return None
 
 

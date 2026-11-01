@@ -38,10 +38,12 @@ def exists(path: str) -> bool:
 
 def open_text(path: str):
     """The day file as text: the plain file while it exists, else its .gz.
-    Raises FileNotFoundError (an OSError) when neither exists, like open()."""
+    Raises FileNotFoundError (an OSError) when neither exists, like open().
+    A torn UTF-8 character (a kill mid-append) reads as U+FFFD: that line then fails its reader's json.loads and costs
+    itself, never the day (Jarvis v3 final review I3)."""
     if os.path.exists(path):
-        return open(path, encoding="utf-8")
-    return gzip.open(path + ".gz", "rt", encoding="utf-8")
+        return open(path, encoding="utf-8", errors="replace")
+    return gzip.open(path + ".gz", "rt", encoding="utf-8", errors="replace")
 
 
 def _digest(fh):

@@ -3,12 +3,24 @@ import json
 import os
 import sys
 
+import pytest
+
 import day_state
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
 import jarvis_review  # noqa: E402
 
 DAY = "2026-10-29"
+
+
+@pytest.fixture(autouse=True)
+def _review_dir_in_tmp(tmp_path, monkeypatch):
+    """Final review M12: conftest cannot import tools/; a test that forgets data_dir writes under tmp, never data/jarvis."""
+    monkeypatch.setattr(jarvis_review, "DIR", str(tmp_path / "jarvis_default"))
+
+
+def test_a_forgotten_data_dir_never_reaches_data(tmp_path):
+    assert jarvis_review.run(DAY).startswith(str(tmp_path))
 
 
 def _read(p):

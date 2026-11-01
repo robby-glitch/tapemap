@@ -33,3 +33,19 @@ def test_today_and_the_last_week_are_never_compressed(tmp_path):
     daylog.compress_old("2026-09-23", dirs=(str(tmp_path),))
     assert sorted(x.name for x in tmp_path.iterdir()) == [                # 09-16 is 7 days back: kept plain
         "senses_2026-09-15.jsonl.gz", "senses_2026-09-16.jsonl", "senses_2026-09-22.jsonl", "senses_2026-09-23.jsonl"]
+
+
+def test_a_torn_utf8_character_costs_its_line_never_the_day(tmp_path):
+    """I3 (final review): a kill mid-append can cut a row inside `▼` (three bytes). open_text reads it as U+FFFD (both the
+    plain file and the .gz) so the torn line fails json.loads and is skipped; the rows after it still read."""
+    import gzip
+    import confluence_log
+    body = ('{"t": "10:00", "w": "TREND ▼"}\n'.encode() + b'{"t": "10:01", "w": "TREND \xe2\x96\n'
+            + b'{"t": "10:02", "w"\n' + '{"t": "10:03", "w": "HOLD ▼"}\n'.encode())
+    p = tmp_path / "call_2026-11-02.jsonl"
+    p.write_bytes(body)
+    assert [r["t"] for r in confluence_log._rows(str(p))] == ["10:00", "10:03"]
+    z = tmp_path / "cmd_2026-11-02.jsonl"
+    with gzip.open(str(z) + ".gz", "wb") as f:
+        f.write(body)
+    assert [r["t"] for r in confluence_log._rows(str(z))] == ["10:00", "10:03"]

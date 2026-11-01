@@ -4771,6 +4771,8 @@ def _jarvis_reply(q):
         if hit and hit[0] == key and time.time() - hit[1] < JARVIS_TTL_S:
             return hit[2]
         out = dict(jarvis.build(day, idx, upto, fill), live=live, asof=d.strftime("%H:%M:%S"))
+        if live:
+            (_JPASS.get("failed") or {}).pop(idx, None)     # I1: a live build that returned clears its failure note
         if not live and out.get("ok"):
             out["calls"] = jarvis.calls(out)
         _JARVIS[slot] = (key, time.time(), out)
@@ -4783,7 +4785,9 @@ def _jarvis_reply(q):
 _LAST_LOGGED = {}                                # idx -> the frame minute ("HH:MM") last written to the call log
 _JCMD = {}                                       # day -> jarvis_cmd.Day: today's lines, zones, watches, notes
 _JCMD_LOCK = threading.Lock()
-JARVIS_STALE_S = 120                             # a watch hit says "could not check" over a frame built > 2 min ago [I]
+JARVIS_STALE_S = 120                             # a frame built > 2 min ago is not live: a watch hit says "could not check",
+                                                 # and in the pass's hours the card and the commands too [I: the pass builds
+                                                 # once a minute (~60 s + the build), so 2 min = a minute it missed]
 JARVIS_ORIGINS = ("http://localhost:8787", "http://127.0.0.1:8787",      # her Jarvis page (start-v2.bat), and Vite
                   "http://localhost:5173", "http://127.0.0.1:5173")
 JARVIS_PASS_IDX = ("NIFTY", "SENSEX")            # the pass keeps these live; BANKNIFTY builds on a face's demand
@@ -4801,7 +4805,7 @@ def _jarvis_pass():
     a poll) when its slot is over JARVIS_FRESH_S old. Weekdays 09:15-15:45 only; never stacked behind another build (a
     replay holds the lock: this pass skips); a pass over JARVIS_SLOW_S is a health note. Fail-soft per index."""
     d = _ist()
-    if d.weekday() >= 5 or not "09:15" <= d.strftime("%H:%M") <= "15:45":
+    if not _jpass_hours(d):
         return
     m = (d.hour * 3600 + d.minute * 60 + d.second - HS_GRACE_S) // 60
     if not _JARVIS_LOCK.acquire(blocking=False):
@@ -4811,6 +4815,7 @@ def _jarvis_pass():
         return
     try:
         t0 = time.perf_counter()
+        fail = _JPASS.setdefault("failed", {})              # I1: idx -> the failed build's note, until a build returns
         for idx in JARVIS_PASS_IDX:
             hit = _JARVIS.get(idx)
             if _JPASS["m"].get(idx) == m or (hit and time.time() - hit[1] < JARVIS_FRESH_S):
@@ -4818,15 +4823,22 @@ def _jarvis_pass():
             try:
                 _jarvis_reply({"idx": [idx]})
                 _JPASS["m"][idx] = m
-            except Exception:
+            except Exception as e:                           # one bad minute: said on the card, retried next pass
                 log.exception("jarvis pass %s", idx)
+                fail[idx] = f"could not check — the last build failed at {d.strftime('%H:%M')}: {type(e).__name__}"
         s = time.perf_counter() - t0
-        _JPASS.update(s=round(s, 1), at=d.strftime("%H:%M:%S"), last="slow" if s > JARVIS_SLOW_S else "ok")
+        _JPASS.update(s=round(s, 1), at=d.strftime("%H:%M:%S"),
+                      last="failed" if fail else "slow" if s > JARVIS_SLOW_S else "ok")
         if s > JARVIS_SLOW_S:
             _JPASS["slow"] = f"Jarvis pass took {s:.0f} s at {d.strftime('%H:%M:%S')} — the card lags by that much"
             log.warning("jarvis pass: %.1f s", s)
     finally:
         _JARVIS_LOCK.release()
+
+
+def _jpass_hours(d):
+    """The JARVIS PASS's hours: weekdays 09:15-15:45 IST (futures trade to 15:40)."""
+    return d.weekday() < 5 and "09:15" <= d.strftime("%H:%M") <= "15:45"
 
 
 def _jarvis_loop():
@@ -4856,9 +4868,31 @@ def _jarvis_log(out):
 
 
 def _jarvis_live(idx):
-    """The cached LIVE frame /api/jarvis built last for idx (never a replay), or None. No build."""
+    """The cached LIVE frame /api/jarvis built last for idx (never a replay), or None. No build. A frame that may not be
+    served as live (_jarvis_stale) comes back as {ok: false, why, stale}: the card and the commands say why, never its word."""
     hit = _JARVIS.get(idx)
-    return hit[2] if hit else None
+    if hit is None:
+        return None
+    why = _jarvis_stale(idx, hit)
+    return {"ok": False, "why": why, "stale": why} if why else hit[2]
+
+
+def _jarvis_stale(idx, hit):
+    """I1: why the cached live slot may not be served as live (rule 6), or None -- a frame of another day than today, or
+    (in the pass's hours) one built over JARVIS_STALE_S ago, naming the pass's failed build when there is one. A frame that
+    could not build carries its own why."""
+    _, at, fr = hit
+    d = _ist()
+    if not fr.get("ok"):
+        return None
+    if fr.get("day") != d.strftime("%Y-%m-%d"):
+        return f"could not check — last frame is from {fr.get('day')}"
+    age = time.time() - at
+    if age <= JARVIS_STALE_S or not _jpass_hours(d):     # after the close the day's last frame stands
+        return None
+    fail = (_JPASS.get("failed") or {}).get(idx)
+    return (f"could not check — last frame {str(fr.get('asof') or '?')[:5]}, {age // 60:.0f} min old"
+            + (" · " + fail.replace("could not check — ", "") if fail else ""))
 
 
 def _hold_list():
@@ -4881,9 +4915,12 @@ def _jarvis_card(idx):
     fr = _jarvis_live(idx)
     if fr is None:
         return {"ok": False, "why": "could not check — no frame built yet"}
+    if fr.get("stale"):                                # I1: an old or frozen frame is never served as live
+        return {"ok": False, "live": False, "why": fr["why"], "stale": fr["stale"]}
     jd = _jcmd()
     note = {"slow": _JPASS.get("slow"), "skipped": _JPASS.get("skipped")}.get(_JPASS.get("last"))   # the last pass's note
-    out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + ([note] if note else []))
+    fail = (_JPASS.get("failed") or {}).get(idx)       # I1: this index's last build raised
+    out = jarvis_log.card(fr, jarvis_log.read(fr.get("day"), idx), jd.state(idx), jd.notes() + [x for x in (note, fail) if x])
     if out.get("ok"):
         try:                                           # Task 7: the narration; the day's brief ({lines, at}), all day
             out["voice"], out["brief"] = jarvis_voice.for_card(_JVOICE, idx)
@@ -5593,7 +5630,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "tradebook": _health_safe(_tradebook_due),
                 # Jarvis v3: code edited after this start runs only after a restart (her restart, never mid-session)
                 "code_changed_since_start": _health_safe(_code_changed),
-                "jarvis_pass": {k: _JPASS.get(k) for k in ("at", "s", "slow", "skipped")},   # the card's own rebuild
+                "jarvis_pass": {k: _JPASS.get(k) for k in ("at", "s", "slow", "skipped", "failed")},   # the card's own rebuild
             }).encode())
             return
         if self.path.startswith("/api/data"):

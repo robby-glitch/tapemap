@@ -19,6 +19,10 @@ DIR = os.path.join("data", "jarvis")
 TRUE_WIN_M = 45      # a PALAT? episode "came true" when a PALAT row follows within 45 min of its FIRST minute [I: the plan's
                      # number; tools/jarvis_review.py measures it the same way, so the card and the evening sheet agree]
 PUSHES_N = 5         # the card's last pushes (the 10 KB bound) [I]
+GAP_M = 2            # [I] call rows more than 2 min apart are a hole in the log (a restart, a build that kept failing); a
+                     # skipped pass (lock held, slow) leaves one missing minute, never a hole
+LOG_FROM = "09:16"   # a log whose first row is after 09:16 started late (the first frame minute is 09:15) [I]
+GAPS_N = 3           # the self line names the last 3 holes and counts the rest (the 10 KB bound) [I]
 PUSH_KEYS = ("t", "dir", "lots", "k", "side", "ans", "held_at", "via")
 _SEEN = {}           # path -> {(idx, t)} already on disk: write-once across a restart
 _LOCK = threading.Lock()
@@ -73,16 +77,24 @@ def _m(t):
     return int(t[:2]) * 60 + int(t[3:5])
 
 
+def _hm(m):
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+
 def self_line(rows, fut_now):
     """`TREND ▼ since 09:56 · −200 so far · PALAT? said 3× · came true 0× · blind 0 min`, or None with no rows. since = the
     first row of the current unbroken word; so far = the RAW signed move, fut now − fut at since (the arrow says which way
     is good); said = PALAT? episodes (consecutive rows); came true = episodes with a PALAT row within TRUE_WIN_M of the
-    episode's first minute; blind = rows marked blind (one a minute)."""
-    rows = [r for r in rows if r.get("t")]
+    episode's first minute; blind = rows marked blind (one a minute).
+    I4 (anytime-start): the word is never joined across a hole of more than GAP_M min (since / so far start after it), a
+    log that starts after LOG_FROM says `· log from HH:MM`, and each hole is named `· log gap a–b` (the minutes missing; the
+    last GAPS_N, the rest counted): the counts cover only the rows on disk."""
+    rows = [r for r in rows if isinstance(r.get("t"), str) and re.match(r"\d\d:\d\d", r["t"])]   # a bad t costs its row
     if not rows:
         return None
+    ms = [_m(r["t"]) for r in rows]
     w, i = rows[-1].get("word"), len(rows) - 1
-    while i and rows[i - 1].get("word") == w:
+    while i and rows[i - 1].get("word") == w and ms[i] - ms[i - 1] <= GAP_M:
         i -= 1
     f0 = rows[i].get("fut")
     far = ("so far could not check — no fut price" if fut_now is None or f0 is None
@@ -92,7 +104,10 @@ def self_line(rows, fut_now):
     flips = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT") and not word[j].startswith("PALAT?")]
     true = sum(1 for a in eps if any(a < m <= a + TRUE_WIN_M for m in flips))
     blind = sum(1 for r in rows if r.get("blind"))
-    return f"{w} since {rows[i]['t']} · {far} · PALAT? said {len(eps)}× · came true {true}× · blind {blind} min"
+    holes = [f" · log gap {_hm(a + 1)}–{_hm(b - 1)}" for a, b in zip(ms, ms[1:]) if b - a > GAP_M]
+    tail = ((f" · log from {rows[0]['t'][:5]}" if rows[0]["t"][:5] > LOG_FROM else "")
+            + (f" · +{len(holes) - GAPS_N} earlier log gaps" if len(holes) > GAPS_N else "") + "".join(holes[-GAPS_N:]))
+    return f"{w} since {rows[i]['t']} · {far} · PALAT? said {len(eps)}× · came true {true}× · blind {blind} min{tail}"
 
 
 def answer(fr):

@@ -340,9 +340,10 @@ class Day:
     def check_watches(self, idx, spot, fut, hm, card=None, now=None):
         """The senses pass: each live watch of `idx` against spot (an s level) or fut (f). A touch = the price on or across
         the level since the last look. A hit fires ONCE: its row (with card(): the word, count and last answer) is written
-        and returned. The first look only remembers the price -- except for a watch set before this process whose price at
-        set is on the other side now: it was crossed unseen, so it says `could not check — gap <set>–<now>` once (a
-        watch_gap row), never a hit. A missing price is skipped."""
+        and returned. A watch set in this process compares its first look with its price at set (I6: a cross before the
+        first senses pass is a touch); a watch set before this process whose price at set is on the other side now was
+        crossed unseen, so it says `could not check — gap <set>–<now>` once (a watch_gap row), never a hit. A missing
+        price is skipped."""
         out = []
         with self._lock:
             for w in self._s(idx)["watches"]:
@@ -350,7 +351,8 @@ class Day:
                 if w["hit"] or w.get("gap") or not isinstance(x, (int, float)) or x <= 0:
                     continue
                 i, L = w["id"], w["level"]
-                was, p0, r = self._prev.get(i), self._px0.get(i), None
+                p0, r = self._px0.get(i), None
+                was = self._prev.get(i, p0 if i not in self._old else None)   # I6: set here -> the set-time price
                 base = {"at": int(time.time() if now is None else now), "t": hm, "idx": idx, "ok": True, "id": i, "level": L,
                         "frame": w["frame"], "px": x}
                 if was is None and i in self._old and isinstance(p0, (int, float)) and (p0 - L) * (x - L) <= 0:
