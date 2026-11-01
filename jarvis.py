@@ -895,8 +895,9 @@ def call(d: dict) -> dict:
     `state` is the leg's raw word. The 29 Oct vote stays as `v1` (UP / DOWN when the writers and one more of {a fut run,
     speed FAST, ALL 3} agree; RANGE when both sides add; NO TRADE when quiet or nothing agrees), and is the word only for a
     frame with no leg read. Counts, never %. Guidance only. Task 5 adds what the tool already measures, as lines and keys,
-    never as a word: how_much / where / expression {buyer, seller, pick, pick_why, in_trade} / cross / her_setup / expiry
-    (how_much, where, expression, _cross, _her_setup, _bada, _vpin on the frame's `ctx`)."""
+    never as a word: how_much / where / expression {buyer, seller, pick, pick_why, in_trade} / cross / her_setup / bada /
+    expiry (how_much, where, expression, _cross, _her_setup, _bada, _vpin on the frame's `ctx`). `expiry` is {dte, mode}
+    every day (mode null off 0 DTE: DTE is still worth a line), null only when the chain carries no expiry."""
     r, h, mins = d["reads"], d["health"], d["mins"]
     i = len(mins) - 1
     tl, sp, sy, w = d["timeline"][i], r["speed"][i], r["sync"][i], r["writers"][i]
@@ -1092,6 +1093,8 @@ def call(d: dict) -> dict:
         wrong = "ends: " + (nt["ends"] if nt else "the writers and one more read agree (FUEL, speed FAST, ALL 3)")
         buyer, seller = "wait: no buyer trade", "wait: no new sale"
 
+    cnt = act["count"] if act else count(d, i) if not blind else \
+        _count_of([{"k": k, "side": "?", "text": f"could not check — blind since {mins[i]}"} for k in PIECES])
     # Task 5 (VISION §4 stages 5-9): HOW MUCH, WHERE, EXPRESSION, her trade, the cross-checks. Display only, fail-soft:
     # they add lines, never a word
     T5 = {"how_much": None, "where": None, "expression": None, "cross": None, "her_setup": [], "expiry": None, "bada": None}
@@ -1113,7 +1116,7 @@ def call(d: dict) -> dict:
                                 "in_trade": ent}
         else:
             T5["how_much"], T5["where"] = how_much(d, i, lv), where(d, i, lean, lines, ce, pe, lv, basis)
-            ex = expression(d, i, aw, lean, s, buyer, seller, lv)
+            ex = expression(d, i, aw, lean, s, buyer, seller, lv, cnt)
             buyer, seller, T5["expression"] = ex["buyer"], ex["seller"], dict(ex, in_trade=ent)
             wh = T5["where"]
             why += [f"how much: {T5['how_much']['line']}",
@@ -1134,8 +1137,7 @@ def call(d: dict) -> dict:
     return T5 | {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
             "state": (row or {}).get("word"), "since": act["since"] if act else mins[i] if blind else None,
-            "count": act["count"] if act else count(d, i) if not blind else
-            _count_of([{"k": k, "side": "?", "text": f"could not check — blind since {mins[i]}"} for k in PIECES]),
+            "count": cnt,
             "action_why": act["why"] if act else reason,
             "lean": lean, "leg": leg_line, "day": day_line, "pause": None if row is None or blind else
             {"line": row.get("line"), "alive": row.get("alive"), "risk": row.get("risk"), "notes": row.get("notes"),
@@ -1185,6 +1187,9 @@ RANK_DIR = os.path.join("data", "rank")                # rank_build's rank_ref_<
 DECODE_DIR = os.path.join("data", "decode")            # the DECODE block's forward log (the server's decode_<day>.jsonl)
 VPIN_FAST = os.path.join("data", "vpin_fast.jsonl")    # the fast VPIN gauge on NIFTY's future, shadow (server.VPIN_FAST_LOG)
 RV_N, RV_MIN, RV_YEAR = 6, 4, 252.0                    # server._rv5's: 6 closes, >= 4 returns, sqrt(252) (reproduced)
+RV_CAL = math.sqrt(365 / 252)  # [I] server._rv5 annualises on 252 TRADING days, the chain's IV is on 365 CALENDAR days
+                               #     (surface.years_to_expiry / gamma.DAYS_PER_YEAR): RV x sqrt(365/252) onto IV's basis
+                               #     before grading, else ~1.20 of a "rich" would be the day count alone (review 1 Nov)
 
 
 def days() -> dict:
@@ -1206,25 +1211,30 @@ def calls(d: dict) -> list:
     per-minute series, reads and leg rows to i; holes and health as known then), so a scrubbed replay shows what Jarvis
     said at 11:14, not the close's call. The card's fields only. A replay has no clock, so CAN'T SEE never shows here: a
     minute missing from the record is simply absent (health names the hole)."""
-    mins, N = d["mins"], len(d["mins"])
-
-    def cut(v, i):
-        return v[:i + 1] if isinstance(v, list) and len(v) == N else v
-
-    lg, out = d.get("legs") or {}, []
-    for i in range(N):
-        v = {k: cut(x, i) for k, x in d.items()}
-        v["reads"] = {k: cut(x, i) for k, x in d["reads"].items()}
-        v["legs"] = dict(lg, rows=cut(lg.get("rows") or [], i),
-                         day={k: cut(x, i) for k, x in (lg.get("day") or {}).items()})
-        v["holes"] = [h for h in d.get("holes") or () if h[0][:5] <= mins[i]]
-        v["upto"] = hm(_m(mins[i]) + 1)
-        v["health"] = health(v, d["health"].get("bnf_chain_readable"))
-        c = call(v)
+    out = []
+    for i in range(len(d["mins"])):
+        c = call(cut_at(d, i))
         out.append({k: c[k] for k in ("at", "word", "lean", "leg", "day", "wrong_line", "buyer", "seller", "state", "since",
                                       "count", "action_why")}
                    | {"pause": c["pause"] and {"line": c["pause"].get("line")}})
     return out
+
+
+def cut_at(d: dict, i: int) -> dict:
+    """The frame as it stood at minute i: the per-minute series, reads and leg rows to i, holes and health as known then
+    (`ctx` is keyed by minute, never cut). calls() runs call() on it at every minute."""
+    mins, N = d["mins"], len(d["mins"])
+
+    def cut(v):
+        return v[:i + 1] if isinstance(v, list) and len(v) == N else v
+    lg = d.get("legs") or {}
+    v = {k: cut(x) for k, x in d.items()}
+    v["reads"] = {k: cut(x) for k, x in d["reads"].items()}
+    v["legs"] = dict(lg, rows=cut(lg.get("rows") or []), day={k: cut(x) for k, x in (lg.get("day") or {}).items()})
+    v["holes"] = [h for h in d.get("holes") or () if h[0][:5] <= mins[i]]
+    v["upto"] = hm(_m(mins[i]) + 1)
+    v["health"] = health(v, d["health"].get("bnf_chain_readable"))
+    return v
 
 
 def _count_of(pieces):
@@ -1986,8 +1996,8 @@ def _prior(bt, tape_dir, idx, day):
     pk = max((k for k in weeks if k < wk), default=None)
     ok = [y for y in weeks.get(pk) or () if live(y)]
     if ok:
-        out["pw"] = {"h": max(b["h"] for y in ok for b in S[y]["ones"]), "l": min(b["l"] for y in ok for b in S[y]["ones"]),
-                     "start": ok[0]}
+        pb = [b for y in ok for b in S[y]["ones"] if b["t"] <= levels.LAST_CONTINUOUS]       # the CAS rule, as PD
+        out["pw"] = {"h": max(b["h"] for b in pb), "l": min(b["l"] for b in pb), "start": ok[0]} if pb else None
     if pk is None or len(ok) < len(weeks[pk]):
         notes.append("PW levels: could not check — no session of the prior week on this contract" if not ok else
                      f"PW levels from {len(ok)} of {len(weeks[pk])} sessions: "
@@ -2045,6 +2055,9 @@ def _context(day, idx, upto, cp, snaps, step):
               if all(isinstance((r.get(x) or {}).get("oi"), (int, float)) for x in ("ce", "pe"))]
         ctx["opt"][ts] = {"k": k, "ce": ce.get("ltp"), "pe": pe.get("ltp"), "iv": round(sum(iv) / len(iv), 2) if iv else None,
                           "mp": chain_metrics.max_pain(st) if st else None}
+    if ctx["rv"] is not None:                        # server._rv5's basis note, carried once (rule 7: say which)
+        notes.append(f"RV {ctx['rv'] * 100:.1f} on 252 trading days (server._rv5's) × √(365/252) = "
+                     f"{ctx['rv'] * 100 * RV_CAL:.1f} on the chain IV's 365-day basis [I]")
     fi = "NIFTY" if sensex_flow.on(idx) else idx     # §1q: SENSEX's speed is NIFTY's flow, so NIFTY's yardstick
     try:
         with open(os.path.join(RANK_DIR, f"rank_ref_{fi}_{day}.json"), encoding="utf-8") as f:
@@ -2057,7 +2070,7 @@ def _context(day, idx, upto, cp, snaps, step):
     ctx["read"] = [{"t": r["t"], "word": r.get("word"), "dir": r.get("dir")}
                    for r in _rows(os.path.join(confluence_log.READ_DIR, f"read_{day}.jsonl"))
                    if r.get("idx") == idx and r.get("kind") == "mark" and isinstance(r.get("t"), str)]
-    ctx["decode"] = [{"T": r["T"], "call": (r.get("call") or {}).get("text"),
+    ctx["decode"] = [{"T": r["T"], "at": r.get("at"), "call": (r.get("call") or {}).get("text"),
                       "lines": [x for x in r.get("lines") or () if isinstance(x, str) and x.startswith(("CVD", "EFFORT"))
                                 and "%" not in x],
                       "os": {k: (r.get("onesided") or {}).get(k) for k in ("type", "why", "up", "down", "flips", "crosses")}}
@@ -2103,7 +2116,7 @@ def how_much(d, i, lv):
     3 of its 7 votes "?" and never one-sided), the day's spot range over trademap.em's EM, the session VWAP's σ, VIX (no
     source), CPR. Each row names its source; an absent one says could not check."""
     c, t = d.get("ctx") or {}, d["mins"][i]
-    dec = [r for r in c.get("decode") or () if r["T"] <= t]
+    dec = _logged(d, i)[1]
     o = dec[-1]["os"] if dec else {}
     if not o.get("type"):
         dt, rows = "?", ["day type: could not check — " + (f"{o.get('why')} (DECODE {dec[-1]['T']})" if dec else
@@ -2111,11 +2124,13 @@ def how_much(d, i, lv):
     else:
         dt, rows = o["type"], [f"day {o['type']}: §1o at DECODE {dec[-1]['T']} · one-sided bars {o['up']} ▲ {o['down']} ▼ · "
                                f"flips {o['flips']} · VWAP crosses {o['crosses']}"]
-    em, sp = c.get("em"), [x for x in d["spot"][:i + 1] if x is not None]
-    if em and em["t"] <= t and sp:
-        ru = f"range used {(max(sp) - min(sp)) / em['em']:.2f} of EM"
+    em = c.get("em")
+    hi = max((x for x in d["fhi"][:i + 1] if x is not None), default=None)
+    lo = min((x for x in d["flo"][:i + 1] if x is not None), default=None)
+    if em and em["t"] <= t and hi is not None and lo is not None:
+        ru = f"range used {(hi - lo) / em['em']:.2f} of EM"
         rows.append(f"EM {em['em']:.0f} pts: the {em['t']} ATM {lv(em['K'])} straddle {em['straddle']:.1f} / 0.8 / "
-                    f"√{em['N']} (trademap.em) · day range {max(sp) - min(sp):.0f} pts spot")
+                    f"√{em['N']} (trademap.em) · day range {hi - lo:.0f} pts (the 1-min futures bars)")
     else:
         ru = "range used could not check — " + ("before the 09:20 straddle" if em else c.get("em_why") or "no 09:20 straddle")
         rows.append(f"EM: {ru[11:]}")
@@ -2187,12 +2202,13 @@ def where(d, i, lean, lines, ce, pe, lv, basis):
     return dict(out, rows=rows)
 
 
-def expression(d, i, aw, lean, s, buyer, seller, lv):
+def expression(d, i, aw, lean, s, buyer, seller, lv, cnt):
     """EXPRESSION (stage 7): both lines priced, and a pick [I, display only, for her signature if it ever becomes a rule]
     -> {"buyer", "seller", "pick", "pick_why"}. The buyer's line gains what the move must pay (the ATM premium x NEED_X)
-    against EM left (EM − |fut − the open|); the seller's, the ATM IV against RV (IV_RV: rich / fair / cheap) and that a
-    sale folds on HOLD v2's line. Pick: `seller` on TREND with Sides REAL / BACKED the lean's way and IV rich; `buyer` on
-    a fresh BROKEN the lean's way (within ANSWER_MIN) whose required move fits EM left; else None, "no edge named"."""
+    against EM left (EM − |fut − the open|); the seller's, the ATM IV against RV on IV's calendar basis (RV_CAL; IV_RV:
+    rich / fair / cheap) and where her fold line would be (HOLD v2's line, not logged: said so). Pick: `seller` on TREND
+    with Sides REAL / BACKED the lean's way and IV rich; `buyer` when the count's answer piece (`cnt`) is the lean's own
+    push BROKEN (within ANSWER_MIN) and the required move fits EM left; else None, "no edge named"."""
     c, t, fut = d.get("ctx") or {}, d["mins"][i], d["fut"][i]
     o, em = _opt_at(d, t) or {}, c.get("em")
     left = em["em"] - abs(fut - d["fo"][0]) if em and em["t"] <= t and (d.get("fo") or [None])[0] is not None else None
@@ -2203,32 +2219,40 @@ def expression(d, i, aw, lean, s, buyer, seller, lv):
                              if need else f"+? (could not check — no ATM premium at {t})")
               + f" pts today [I ×{NEED_X}] · EM left " + (H._sg(f"{left:.0f}") if left is not None else "? (no 09:20 straddle)")
               + ("" if thin is None else " → thin" if thin else " → fits"))
-    iv, r_ = o.get("iv"), (c.get("rv") or 0) * 100
+    iv, r_ = o.get("iv"), (c.get("rv") or 0) * 100 * RV_CAL
     grade = None if iv is None or not r_ else "rich" if iv >= r_ * IV_RV else "cheap" if iv <= r_ / IV_RV else "fair"
-    seller += (f" · IV {iv:.1f} vs RV {r_:.1f} → {grade}" if grade else
+    seller += (f" · IV {iv:.1f} vs RV {r_:.1f} (cal) → {grade}" if grade else
                f" · IV ? vs RV ? (could not check — {'no ATM IV at ' + t if iv is None else 'no RV: health names why'})")
     if seller.startswith("sell"):
-        seller += " · fold = HOLD v2 line"
-    m = _m(t)
-    known = [p for p in d.get("pushes") or () if not p.get("artifact") and p.get("am") and p["am"] < t
-             and p.get("ans") not in (None, "?") and m - _m(p["t"]) <= ANSWER_MIN]
-    brk = known[-1] if known and lean and known[-1]["dir"] == lean and known[-1]["ans"] == "TOOT" else None
+        seller += " · fold: could not check — the HOLD v2 line is not logged"
+    ans = next((p for p in (cnt or {}).get("pieces") or () if p.get("k") == "answer"), None)
+    brk = ans if lean and ans and ans["side"] == "with" and ans["text"].endswith(" BROKEN") else None
     if aw == "TREND" and lean and s and s.get("word") in ("REAL", "BACKED") and sides_fuel(s) == lean and grade == "rich":
-        pick, why = "seller", f"TREND {ARR[lean]} · Sides {s['t']} {s['word']} with it · IV {iv:.1f} ≥ RV {r_:.1f} ×{IV_RV}"
+        pick, why = "seller", (f"TREND {ARR[lean]} · Sides {s['t']} {s['word']} with it · IV {iv:.1f} ≥ RV {r_:.1f} (cal) "
+                               f"×{IV_RV}")
     elif brk and thin is False:
-        pick, why = "buyer", (f"BROKEN {brk['t']} push {ARR[lean]}" + (f" {lv(brk['k'])}" if brk.get("k") is not None else "")
-                              + f" · needs +{max(need.values()):.0f} ≤ EM left {left:.0f}")
+        pick, why = "buyer", f"{brk['text']} · needs +{max(need.values()):.0f} ≤ EM left {left:.0f}"
     else:
         pick, why = None, "no edge named"
     return {"buyer": buyer, "seller": seller, "pick": pick, "pick_why": why}
 
 
+def _logged(d, i):
+    """THE READ marks and DECODE closes readable at minute i -> (read rows, decode rows): a DECODE row once written (`at`
+    <= the minute's end; a row without `at`, at close + 1), a READ mark at close + 1 (it carries no `at`):
+    holdshadow._dec_at's rule, so a replay never shows a row before the live server had written it."""
+    c, m = d.get("ctx") or {}, _m(d["mins"][i])
+    end = fold.ms(d["day"], d["mins"][i]) / 1000 + 60 if c.get("decode") else None
+    return ([r for r in c.get("read") or () if _m(r["t"]) + 1 <= m],
+            [r for r in c.get("decode") or ()
+             if (r["at"] <= end if isinstance(r.get("at"), (int, float)) else _m(r["T"]) + 1 <= m)])
+
+
 def _cross(d, i):
     """THE READ word and DECODE's call at their last close <= the frame's minute (data/read, data/decode), verbatim, plus
     DECODE's CVD and EFFORT lines -> ({"read", "decode", "board": None}, the why line). The Board is not read."""
-    c, t = d.get("ctx") or {}, d["mins"][i]
-    rd = [r for r in c.get("read") or () if r["t"] <= t]
-    dc = [r for r in c.get("decode") or () if r["T"] <= t]
+    c = d.get("ctx") or {}
+    rd, dc = _logged(d, i)
     read = (f"THE READ {ARR[rd[-1]['dir']] + ' ' if rd[-1].get('dir') in ARR else ''}{rd[-1]['word']} {rd[-1]['t']}"
             if rd else None)
     dec = f"DECODE {dc[-1]['call']} {dc[-1]['T']}" if dc and dc[-1].get("call") else None
