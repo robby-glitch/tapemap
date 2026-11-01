@@ -1005,3 +1005,13 @@ def test_a_live_build_drops_another_days_cache_entries(monkeypatch):
     assert old not in jarvis._CACHE and same in jarvis._CACHE
     assert all(k[0] == "2026-11-02" for k in jarvis._CACHE)
     jarvis._CACHE.clear()
+
+
+@pytest.mark.skipif(not _has("2026-09-29"), reason="29 Sep record not present")
+def test_no_buyer_pick_while_the_word_says_no_new_one(record):
+    """Final re-review (1 Nov): on 29 Sep 11:12 the pick said `buyer` (a fresh BROKEN that fit EM) while the ACTION word was
+    PALAT and the buyer line said no new CE until the leg holds 2 closes. A pick is named only while the word holds."""
+    d = jarvis.build("2026-09-29", "NIFTY", upto=jarvis._m("11:12") + 1, fill=True)
+    c = d["call"]
+    assert c["word"].startswith("PALAT"), c["word"]
+    assert c["expression"]["pick"] is None and c["expression"]["pick_why"] == "no edge named"

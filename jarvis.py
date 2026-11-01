@@ -2482,7 +2482,7 @@ def expression(d, i, aw, lean, s, buyer, seller, lv, cnt):
     if aw == "TREND" and lean and s and s.get("word") in ("REAL", "BACKED") and sides_fuel(s) == lean and grade == "rich":
         pick, why = "seller", (f"TREND {ARR[lean]} · Sides {s['t']} {s['word']} with it · IV {iv:.1f} ≥ RV {r_:.1f} (cal) "
                                f"×{IV_RV}")
-    elif brk and thin is False:
+    elif brk and thin is False and aw in ("TREND", "HOLD"):     # never a pick beside a line that says no new one (review 1 Nov)
         pick, why = "buyer", f"{brk['text']} · needs +{max(need.values()):.0f} ≤ EM left {left:.0f}"
     else:
         pick, why = None, "no edge named"
