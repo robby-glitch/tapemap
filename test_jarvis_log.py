@@ -125,8 +125,9 @@ def test_the_card_is_the_contract_from_the_frame_only_and_absent_keys_are_null()
     full = jarvis_log.card(frame(dict(CALL, **t5)), [], None, [])
     assert {k: full[k] for k in t5} == t5                                                # Task 5's keys, verbatim
     assert c["health"] == {"missing": ["BLIND since 10:39: no market data for 3 min (internet or Upstox)"],
-                           "notes": ["Dext footprint missing since 10:39", "note 10:05 RBI 11:00 today"]}
+                           "notes": ["Dext footprint missing since 10:39", "note 10:05 RBI 11:00 today"], "method": []}
     assert c["self"] == jarvis_log.self_line(TOY, 23010.5)
+
     assert len(c["pushes"]) == 5 and set(c["pushes"][0]) == {"t", "dir", "lots", "k", "side", "ans", "held_at", "via"}
     assert c["watches"][0]["level"] == 22800.0 and c["walls"] == CALL["walls"] and c["lines"] == CALL["lines"]
     assert "%" not in json.dumps(c, ensure_ascii=False)
@@ -430,3 +431,12 @@ def test_the_self_line_never_walks_across_a_log_gap_and_names_a_late_start():
     assert "gap" not in jarvis_log.self_line(hiccup, 23000.0)
     word = _mins("09:15", "09:30", "HOLD ▼", 23100.0) + _mins("09:50", "09:55", "TREND ▼", 23080.0)
     assert jarvis_log.self_line(word, 23070.0).endswith("· log gap 09:31–09:49")           # a word that changed unseen too
+
+
+def test_the_card_carries_how_a_number_was_made_apart_from_the_gaps():
+    """Task 6 / fixes B: health.method (chain ends 15:30 (scheduled), re-read from HH:MM, thresholds file unreadable) is
+    how a number was made, never a gap: the card carries it beside notes so the CLI and the faces can show it."""
+    fr = frame(health={"notes": ["Dext footprint missing since 10:39"], "method": ["chain ends 15:30 (scheduled)"]})
+    c = jarvis_log.card(fr)
+    assert c["health"]["method"] == ["chain ends 15:30 (scheduled)"]
+    assert "chain ends 15:30 (scheduled)" not in c["health"]["notes"] + c["health"]["missing"]

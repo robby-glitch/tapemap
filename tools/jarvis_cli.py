@@ -124,7 +124,7 @@ def render_card(card: dict) -> str:
     if isinstance(h, dict):
         m = h.get("missing")
         out.append(f"{'HEALTH':<10}" + ("missing none" if m == [] else f"{len(m)} missing" if m else "missing not in the card"))
-        for lab, xs in (("missing", m or ()), ("note", h.get("notes") or ())):
+        for lab, xs in (("missing", m or ()), ("note", h.get("notes") or ()), ("method", h.get("method") or ())):
             for x in xs:
                 out.extend(_block(f"  {lab:<8}", x))
     else:

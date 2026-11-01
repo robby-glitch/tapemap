@@ -147,7 +147,8 @@ def card(fr, rows=(), state=None, notes=()):
             "expression": c.get("expression") or {"buyer": c.get("buyer"), "seller": c.get("seller"), "pick": c.get("pick")},
             "wrong_line": c.get("wrong_line"), "up": c.get("up"), "dn": c.get("dn"), "walls": c.get("walls"),
             "lines": c.get("lines"), "no_trade": c.get("no_trade"),
-            "health": {"missing": [x for x in c.get("missing") or () if x not in hn], "notes": hn + list(notes)},
+            "health": {"missing": [x for x in c.get("missing") or () if x not in hn], "notes": hn + list(notes),
+                       "method": list((fr.get("health") or {}).get("method") or [])},   # how a number was made (Task 6), not a gap
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
             "watches": list(st.get("watches") or []), "voice": None, "brief": None}   # Task 7: server._JVOICE fills both
