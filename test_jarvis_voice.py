@@ -119,6 +119,12 @@ def test_the_fence_holds_a_levels_s_or_f_to_the_card():
     assert jv.fence("PE wall 22,900f BUILDING", CARD) == "fence: a level's s / f not as the card writes it"
     assert jv.fence("wrong past 22,938s", CARD) == "fence: a level's s / f not as the card writes it"
     assert jv.fence("CE 23,000s (23,043f)", CARD) is None and jv.fence("CE 23,043s", CARD)
+    # fixes B: an upper-case S / F was read as a unit and skipped every level check; a glued unit on a level too
+    assert jv.fence("wrong past 22,938S", CARD) == "fence: a level's s / f not as the card writes it"
+    assert jv.fence("PE wall 22,900F", CARD) == "fence: a level's s / f not as the card writes it"
+    assert jv.fence("PE wall 22,900S · wrong past 22,938F", CARD) is None          # the card's own suffixes, any case
+    assert jv.fence("23000CE is the wall", CARD) == "fence: a level's unit not as the card writes it"
+    assert jv.fence("23000CE is the wall", dict(CARD, leg=CARD["leg"] + " · 23000CE")) is None   # the card's own pair
 
 
 def test_the_fence_holds_a_sign_to_the_card():
@@ -348,7 +354,7 @@ def test_claude_call_shape_and_key_handling(_tmp, monkeypatch):
     assert out == {"lines": [GOOD], "provider": "claude", "fell_back": False, "why": None}
     kw = seen["kw"]
     assert seen["client"]["api_key"] == "sk-ant-SECRET" and seen["client"]["base_url"] == "https://api.anthropic.com"
-    assert kw["model"] == "claude-opus-5-5" and kw["max_tokens"] == 600 and kw["output_config"] == {"effort": "low"}
+    assert kw["model"] == "claude-opus-5-5" and kw["max_tokens"] == jv.MAX_TOKENS == 4000 and kw["output_config"] == {"effort": "low"}
     assert kw["system"][0]["cache_control"] == {"type": "ephemeral"} and "thinking" not in kw and "temperature" not in kw
     assert "tools" not in kw
     jv.answer(CARD, "what next?")
@@ -649,7 +655,7 @@ def test_the_brief_has_its_own_longer_timeout_and_says_why_it_fell_back(_tmp, mo
     jv.brief(LEVELS, [], [])
     assert seen["client"]["timeout"] == jv.BRIEF_TIMEOUT_S == 90
     jv.speak(CARD)
-    assert seen["client"]["timeout"] == jv.TIMEOUT_S == 30
+    assert seen["client"]["timeout"] == jv.TIMEOUT_S == 60
     (_tmp / "keys" / "anthropic.txt").unlink()
     monkeypatch.setattr(jv, "_today", lambda: "2026-11-03")       # a fresh day: today's brief is not reused
     assert jv.brief(LEVELS, [], [])["lines"] == ["pre-open brief: could not check — no key"]

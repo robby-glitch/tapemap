@@ -195,6 +195,19 @@ def test_lagging_writers_and_sides_are_notes_not_items():
     assert not any(x["k"] in ("writers7", "sides") for x in r["alive"] + r["risk"])
 
 
+def test_the_lagging_writers_bar_is_jarvis_own_key(monkeypatch):
+    """T6 review: legs kept its own copy of jarvis.WF_L, so a change to jarvis.WF_L never reached the (lagging) note."""
+    import jarvis
+    d = pause_frame()
+    N = len(d["mins"])
+    d["wf_ce"], d["wf_pe"] = [-8.0] * N, [6.0] * N                     # 14L with the leg
+    assert not hasattr(legs, "WF_L") and not hasattr(legs, "WF_STOP")  # no copy left
+    monkeypatch.setattr(jarvis, "WF_L", 15.0)
+    assert not any(x["k"] == "writers7" for x in legs.read(d)["rows"][-1]["notes"])
+    monkeypatch.setattr(jarvis, "WF_L", 14.0)
+    assert any(x["k"] == "writers7" for x in legs.read(d)["rows"][-1]["notes"])
+
+
 def test_pause_outcome_is_read_after_the_fact():
     up = ramp(23000, 23100, 20)
     out = legs.read(frame(up + [23090, 23088, 23095, 23108]))          # a new extreme 0.25U past the pause's

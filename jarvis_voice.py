@@ -36,8 +36,9 @@ MODEL = "claude-opus-5-5"
 GEMINI_MODEL = "gemini-flash-latest"
 CLAUDE_URL = "https://api.anthropic.com"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-MAX_TOKENS = 600              # [I] the plan's number; thinking counts against it -- a cut-off shows as why "max_tokens"
-TIMEOUT_S = 30                # [I] one call; every call runs on its own daemon thread (later), none blocks a pass or a request
+MAX_TOKENS = 4000             # [I] adaptive thinking counts against max_tokens on Opus 5.5; 600 cut the brief off
+TIMEOUT_S = 60                # [I] one call, non-streaming: a 4000-token answer with thinking needs the room; every call runs
+                              #     on its own daemon thread (later), none blocks a pass or a request
 BRIEF_TIMEOUT_S = 90          # [I] the brief's call: up to 3 web searches before it writes
 ASK_RESERVE = 10              # [I] the day's last 10 calls are hers: narrations stop at cap - 10, an `ask` may use them all
 MAX_LINES, MAX_CHARS, BRIEF_LINES = 3, 140, 6
@@ -196,17 +197,18 @@ def _tokens(text):
 
 def _marks(text):
     """Each non-time number of `text` -> (sign, token, suffix). sign: "+" / "−" when one stands right before it (a hyphen
-    after a letter or digit is a dash: 2026-11-02, 22,900s-23,000s); suffix: "s" / "f" right after it, "" when bare, None
-    when a unit follows (186L, 2.5σ: not a level)."""
+    after a letter or digit is a dash: 2026-11-02, 22,900s-23,000s); suffix: the letters glued right after it, lower-cased
+    -- "s" / "f" for a level (S / F are the same suffix), a unit otherwise (186L -> "l", 2.5σ, 23000CE -> "ce") -- or ""
+    when bare."""
     out = []
     for m in NUM.finditer(text):
         if ":" in m.group(0):
             continue
         a, b = m.start(), m.end()
-        pre, pre2, nxt = text[a - 1] if a else "", text[a - 2] if a > 1 else "", text[b:b + 1]
+        pre, pre2 = text[a - 1] if a else "", text[a - 2] if a > 1 else ""
         sign = "" if pre2.isalnum() else {"+": "+", "-": "−", "−": "−"}.get(pre, "")
-        suf = nxt if nxt in ("s", "f") and not text[b + 1:b + 2].isalnum() else None if nxt.isalnum() else ""
-        out.append((sign, _norm(m.group(0)), suf))
+        u = re.match(r"[^\W\d_]+", text[b:])
+        out.append((sign, _norm(m.group(0)), u.group(0).lower() if u else ""))
     return out
 
 
@@ -285,7 +287,8 @@ def fence(text, card, question=None, max_lines=MAX_LINES, web=False):
             if g and (g, t) not in signed:
                 return "fence: a sign not in the card"
             if _is_level(t) and f and (t, f) not in pairs:
-                return "fence: a level's s / f not as the card writes it"
+                return ("fence: a level's s / f not as the card writes it" if f in ("s", "f") else
+                        "fence: a level's unit not as the card writes it")
             if _is_level(t) and f == "" and t not in bare:
                 return "fence: a level without s or f"
     return None

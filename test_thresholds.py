@@ -68,6 +68,46 @@ def test_a_value_of_the_wrong_kind_keeps_the_default(tfile, caplog):
     assert thresholds.get("jarvis.SYNC_PTS", (10, 25, 35)) == (11, 25, 35)   # JSON has no tuple: the default's kind
 
 
+def test_a_value_that_would_take_the_frame_down_keeps_the_default(tfile, caplog):
+    """T6 review: a wrong-kind value that passed the check took every frame down (LAD_NEAR 7.0 -> range() TypeError; a
+    P5_MIN dict without BANKNIFTY -> KeyError). An int default takes an int only, a float one an int or a float, a dict
+    the default's keys each of its kind, a tuple each element of its kind; else the default, one warning."""
+    _write(tfile, {"jarvis.LAD_NEAR": 7.0, "jarvis.P5_MIN": {"NIFTY": 5}, "jarvis.SYNC_PTS": [10, "25", 35],
+                   "jarvis.FAST": 3, "legs.LEG_MIN": True, "jarvis.ACT_LEAD": 3})
+    with caplog.at_level(logging.WARNING, logger="thresholds"):
+        assert thresholds.get("jarvis.LAD_NEAR", 7) == 7 and type(thresholds.get("jarvis.LAD_NEAR", 7)) is int
+        assert thresholds.get("jarvis.P5_MIN", {"NIFTY": 5, "BANKNIFTY": 15}) == {"NIFTY": 5, "BANKNIFTY": 15}
+        assert thresholds.get("jarvis.SYNC_PTS", (10, 25, 35)) == (10, 25, 35)
+        assert thresholds.get("legs.LEG_MIN", 40) == 40
+    assert len(caplog.records) == 4
+    assert thresholds.get("jarvis.FAST", 2.0) == 3                     # an int for a float is a number
+    assert thresholds.get("jarvis.ACT_LEAD", 2) == 3
+    _write(tfile, {"jarvis.P5_MIN": {"NIFTY": 6, "BANKNIFTY": 15.5, "SENSEX": "x"}}, bump=1)
+    assert thresholds.get("jarvis.P5_MIN", {"NIFTY": 5, "BANKNIFTY": 15}) == {"NIFTY": 5, "BANKNIFTY": 15}   # 15.5, "x"
+    _write(tfile, {"jarvis.P5_MIN": {"NIFTY": 6, "BANKNIFTY": 15, "SENSEX": 12}}, bump=2)
+    assert thresholds.get("jarvis.P5_MIN", {"NIFTY": 5, "BANKNIFTY": 15}) == {"NIFTY": 6, "BANKNIFTY": 15, "SENSEX": 12}
+    _write(tfile, {"jarvis.LAD_NEAR": 7.0, "jarvis.P5_MIN": {"NIFTY": 5}}, bump=3)
+    out = jarvis.build("2020-01-01", "NIFTY", 600)                    # applied: the build stops early, it never raises
+    assert out["ok"] is False and jarvis.LAD_NEAR == 7 and jarvis.P5_MIN == {"NIFTY": 5, "BANKNIFTY": 15}
+
+
+def test_an_unreadable_file_is_one_line_in_health_method(tfile):
+    """T6 review: a malformed file left every default standing, said only in the log; her screen must say it."""
+    _write(tfile, {"jarvis.FAST": 2.0})
+    assert thresholds.problem() is None
+    tfile.write_text("{not json", encoding="utf-8")
+    assert thresholds.problem() == "thresholds file unreadable: module defaults in use"
+    tfile.write_text("[1, 2]", encoding="utf-8")
+    assert thresholds.problem() == "thresholds file unreadable: module defaults in use"
+    tfile.unlink()
+    assert thresholds.problem() == "thresholds file missing: module defaults in use"
+    tfile.write_text("{not json", encoding="utf-8")
+    d = {"mins": ["09:15"], "delta": [1], "flow": [1], "flow_src": ["D"], "f_src": ["dext"], "holes": [],
+         "chain_missing": [], "sides": [], "idx": "NIFTY", "ctx": {"method": ["RV x"]}}
+    assert jarvis.health(d, True)["method"] == ["RV x", "thresholds file unreadable: module defaults in use"]
+    assert not any("thresholds" in x for x in jarvis.health(d, True)["notes"])       # how a number was made, not a gap
+
+
 def test_a_change_takes_effect_at_the_next_build(tfile):
     _write(tfile, {"jarvis.FAST": 3.0, "legs.DEEP": 0.4, "jarvis.SYNC_PTS": [11, 26, 36]})
     out = jarvis.build("2020-01-01", "NIFTY", 600)                    # no record here: the build stops early

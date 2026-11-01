@@ -67,7 +67,6 @@ CONFIRM_MIN = 6        # [I] PALAT? confirmed after 6 min of its condition, or a
 MIN_SHOW = 6           # [I] a confirmed PALAT? stays on screen 6 min (flicker halved on 8 of 9 days)
 HOLD_MIN = 3           # [I] WATCH -> HOLD waits one 3-min bar (no flicker); HOLD -> WATCH / PALAT? shows at once
 PUSH_WIN = 10          # [I] a push with the leg in the last 10 min (23/35 vs 9/19)
-WF_L, WF_STOP = 10.0, -2.0   # jarvis's +/-7 leg bars, for the (lagging) note and the fuelled read
 FUT_WIN, FUT_LOTS, FUT_PTS = 30, 500, 15   # [I] the slow fut-OI quadrant: 500 lots and 15 pts over 30 min
 HORIZON = 45           # [I] the after-the-fact outcome window (the forward log), minutes
 MARK_AGAINST = ("absorption", "exhaustion", "trap", "climax", "E6", "E7", "E3", "E1")
@@ -76,7 +75,8 @@ UP, DN = "▲", "▼"
 
 # Jarvis v3 Task 6: every [I] number above is looked up in jarvis_thresholds.json as "legs.<NAME>" (thresholds.py), its
 # value here the default -- at import and at the start of each jarvis.build (no restart); a change needs a NOTEPAD line.
-# START_M / OPEN_M / MARK_BAR are the clock and her bars, WF_L / WF_STOP jarvis's own bars: not [I] numbers of this file.
+# START_M / OPEN_M / MARK_BAR are the clock and her bars: not [I] numbers. The ±7 leg bar is jarvis.WF_L itself, read at
+# use (one number, one key: a copy here never saw a change to it; T6 review).
 _I = ("LEG_MIN", "LEG_MIN_U", "TREND_PTS", "TREND_Z", "OPEN_PTS", "PAUSE_U", "PAUSE_MIN", "NEW_U", "REV_FRAC", "REV_U",
       "SHALLOW", "SHALLOW_MIN", "DEEP", "K_MIN", "K1_L", "BAND_L", "D3_AGAINST", "FAST", "SPEED_WARM", "PREM_RS", "COIL",
       "Z_INSIDE", "MARK_LAG", "MARK_NEAR_U", "MARK_LATE_MIN", "MARK_FRESH_MIN", "PREM_FRESH", "Z_RETRACE_MIN", "WATCH_N",
@@ -215,6 +215,7 @@ def _chain_leg(chain, t, side, k):
 
 def read(d: dict, chain: dict | None = None, marks: list | None = None) -> dict:
     """The LEG rows for one frame -> {"rows": [per minute], "day": {"flips", "fut_oi"}, "pauses": [...], "missing": [...]}."""
+    import jarvis                    # the ±7 leg bar (jarvis.WF_L): jarvis imports legs lazily too, so no cycle
     mins = d["mins"]
     N = len(mins)
     M = [m2i(t) for t in mins]
@@ -447,7 +448,7 @@ def read(d: dict, chain: dict | None = None, marks: list | None = None) -> dict:
         # the lagging reads, shown never weighed
         if wf_ce[i] is not None and wf_pe[i] is not None:
             w3 = d_ * (wf_pe[i] - wf_ce[i])
-            if abs(w3) >= WF_L:
+            if abs(w3) >= jarvis.WF_L:
                 notes.append({"k": "writers7", "text": f"writers ±7 {'with' if w3 > 0 else 'against'} {_sg(w3, 0)}L / 3 min (lagging)"})
         sf = _sides_fuel(slot)
         if slot and sf:

@@ -718,7 +718,8 @@ def test_the_expression_pick_where_and_how_much_on_a_toy():
 
 # ---- Task 6: the incremental frame IS the cold frame --------------------------------------------------------------------
 
-LIVE_STEPS = [10 * 60 + i for i in range(21)] + [13 * 60, 13 * 60 + 1]   # 10:00, 10:01 ... 10:20, then 13:00, 13:01
+LIVE_STEPS = [10 * 60 + i for i in range(21)] + [13 * 60, 13 * 60 + 1] + [10 * 60 + 10, 10 * 60 + 11, 13 * 60 + 2]
+# 10:00, 10:01 ... 10:20, then 13:00, 13:01, then back (a replay, a reconnect): 10:10, 10:11, and on to 13:02
 T6_KEYS = ("call", "pushes", "verdict", "fights")
 
 
@@ -790,7 +791,8 @@ def _lines(path, key):
 def test_the_incremental_frame_follows_growing_files(record, tmp_path, monkeypatch):
     """The record as the live recorders write it: the book and the three chains grow minute by minute (each cut 20 s into
     the minute, the server's grace) and every warm build equals a cold one. A chain row landing late for an earlier minute
-    and a chain file rewritten shorter are said ('frame rebuilt cold at ...') and the rest of the frame still equals cold."""
+    and a chain file rewritten shorter are said ('re-read from HH:MM: ...', health.method) and the rest of the frame, the
+    call included, still equals cold."""
     import book_log
     import chain_live
     day = "2026-10-29"
@@ -815,31 +817,191 @@ def test_the_incremental_frame_follows_growing_files(record, tmp_path, monkeypat
     for upto in range(10 * 60, 10 * 60 + 6):
         grow(upto)
         warm = jarvis.build(day, "NIFTY", upto)
-        assert not any(x.startswith("frame rebuilt cold") for x in warm["health"]["notes"])
+        assert not any(x.startswith("re-read from") for x in warm["health"]["method"])
         _same(warm, _cold(day, "NIFTY", upto), ("growing", jarvis.hm(upto)))
 
     def same_but_the_note(warm, cold, why):
-        assert any(x.startswith("frame rebuilt cold at 10:05: " + why) for x in warm["health"]["notes"]), warm["health"]["notes"]
-        for k in ("word", "state", "since", "count", "wrong_line", "expression", "where", "how_much"):
-            assert warm["call"][k] == cold["call"][k], k
-        assert {k: v for k, v in warm.items() if k not in ("health", "call")} == \
-            {k: v for k, v in cold.items() if k not in ("health", "call")}
-        assert [x for x in warm["health"]["notes"] if not x.startswith("frame rebuilt cold")] == cold["health"]["notes"]
+        """T6 review: the re-read is how the frame was made (health.method), never a gap: the call -- its missing, the
+        call log's row -- equals the cold replay's."""
+        assert any(x.startswith("re-read from " + why) for x in warm["health"]["method"]), warm["health"]["method"]
+        assert not any("re-read" in x for x in warm["health"]["notes"] + warm["call"]["missing"])
+        assert warm["call"] == cold["call"]
+        assert {k: v for k, v in warm.items() if k != "health"} == {k: v for k, v in cold.items() if k != "health"}
+        assert dict(warm["health"], method=[x for x in warm["health"]["method"] if not x.startswith("re-read from")]) \
+            == cold["health"]
 
     late = next(ln for ln, k in src["NIFTY"] if k.startswith("10:02:"))  # 10:02's first snapshot written again, late:
     with open(dst["NIFTY"], "a", encoding="utf-8") as f:                 # now the minute's last
         f.write(late)
     warm = jarvis.build(day, "NIFTY", 10 * 60 + 6)
-    same_but_the_note(warm, _cold(day, "NIFTY", 10 * 60 + 6), "chain minutes from 10:02 changed")
+    same_but_the_note(warm, _cold(day, "NIFTY", 10 * 60 + 6), "10:02: the chain minutes changed")
     lines = dst["NIFTY"].read_text(encoding="utf-8").splitlines(keepends=True)
     dst["NIFTY"].write_text("".join(lines[:-3]), encoding="utf-8")       # rewritten shorter: tailread reads it again
     warm = jarvis.build(day, "NIFTY", 10 * 60 + 6)
-    same_but_the_note(warm, _cold(day, "NIFTY", 10 * 60 + 6), "the chain record was read again from its start")
-    assert not any(x.startswith("frame rebuilt cold") for x in jarvis.build(day, "NIFTY", 10 * 60 + 6)["health"]["notes"])
+    same_but_the_note(warm, _cold(day, "NIFTY", 10 * 60 + 6), "09:15: the chain record (it shrank or was rewritten)")
+    assert not any(x.startswith("re-read from") for x in jarvis.build(day, "NIFTY", 10 * 60 + 6)["health"]["method"])
     import tailread                                                      # the reader drops and re-parses unchanged files
     with tailread._LOCK:                                                 # (its LRU): every row a new object, not news
         for k in [k for k in tailread._FILES if os.path.basename(k).startswith(("book_NIFTY", "chain_NIFTY"))]:
             tailread._FILES.pop(k)
     warm = jarvis.build(day, "NIFTY", 10 * 60 + 6)
-    assert not any(x.startswith("frame rebuilt cold") for x in warm["health"]["notes"])
+    assert not any(x.startswith("re-read from") for x in warm["health"]["method"])
     _same(warm, _cold(day, "NIFTY", 10 * 60 + 6), ("re-parsed", "10:06"))
+
+
+# ---- final fixes B (the whole-branch review's I2 / I1 / M1 / PALAT lines; Task 6's review) -----------------------------
+
+def _call_toy(raw="HOLD"):
+    """_pause_toy with the leg's lines and a verdict: a frame call() can read."""
+    d = _pause_toy(raw, [], 0.1)
+    g = {"dir": -1, "quality": "TREND", "pts": 117, "sigma_max": 2.1, "toot": None, "fuelled": None, "origin": 23102.0,
+         "origin_t": "10:00", "extreme": 22985.0, "extreme_t": "10:30"}
+    for r in d["legs"]["rows"]:
+        r.update(leg=dict(g, retrace=r["leg"]["retrace"]), line=r["word"], alive=[], notes=[], missing=[])
+    d["verdict"] = {"BUY": {}, "SELL": {}}
+    d["health"] = jarvis.health(d, None)
+    return d
+
+
+def test_a_bad_count_piece_is_could_not_check_never_the_build():
+    """I1: with action_words failed (the build keeps the frame, reads.action = []), call() re-ran count() unguarded, so one
+    bad piece took the whole build down. A Sides slot whose under-water count is not a number now costs the count only."""
+    d = _call_toy()
+    d["sides"] = [dict(d["sides"][0], uw="two")]                 # a malformed Sides entry: count's trapped piece raises
+    with pytest.raises(TypeError):
+        jarvis.action_words(d)
+    d["reads"]["action"] = []                                    # as _build leaves it when action_words raised
+    c = jarvis.call(d)
+    assert c["word"] == "HOLD ▼"                                 # the leg's word stands
+    assert c["count"]["N"] == 0 and c["count"]["unread"] == len(jarvis.PIECES)
+    assert {p["text"] for p in c["count"]["pieces"]} == {"could not check — TypeError"}
+
+
+def _close_toy():
+    """The toy TREND ▼ leg on 15:00-15:39: the count WITH 5 to 15:30, its chain reads turned against it after (as a chain
+    read carried past its end would)."""
+    d = _toy()
+    d["mins"] = [f"15:{i:02d}" for i in range(40)]
+    d["upto"] = "15:40"
+    d["ladder"] = {m: {} for m in d["mins"][:31]}                # the chain's minutes: 15:00-15:30
+    d["sides"] = [dict(d["sides"][0], t="15:05"), {"t": "15:35", "c": "COV", "p": "ADD", "word": "REAL", "fuel_side": "ce", "uw": 2}]
+    d["wf_ce"], d["wf_pe"] = [12.0] * 31 + [-14.0] * 9, [-14.0] * 31 + [12.0] * 9
+    d["timeline"] = d["timeline"][:31] + [{"fuel": None, "fuel_state": "-", "fronts": [
+        {"k": 22900.0, "side": "PE", "state": "BUILDING", "oi": 99.0, "chg": 4.0, "peak": 99.0}]}] * 9
+    d["reads"] = jarvis.reads(d)
+    rows = [{"t": m, "lean": -1, "word": "TREND", "risk": [], "leg": {"dir": -1, "quality": "TREND", "retrace": 0.05}}
+            for m in d["mins"]]
+    d["legs"] = {"rows": rows, "day": {"flips": [0] * 40, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
+    return d
+
+
+def test_after_the_chains_scheduled_end_the_word_holds_and_its_reads_say_so():
+    """I2: the chain stops at 15:30 by schedule (the futures trade to 15:40). After it, a piece read off the chain says
+    could not check — chain ends 15:30 (excluded, never carried), no 3-min close changes the word, and only the at-once
+    events (PALAT, the wall behind) still do. Health says it once, as method -- never a gap."""
+    d = _close_toy()
+    a = jarvis.action_words(d)
+    assert a[30]["word"] == "TREND" and a[30]["count"]["with"] == 5
+    assert all(x["word"] == "TREND" for x in a[31:]), [x["word"] for x in a[31:]]
+    assert "chain ends 15:30: only PALAT / the wall behind change it" in a[35]["why"] and "chain ends" not in a[30]["why"]
+    c = {p["k"]: p for p in a[35]["count"]["pieces"]}
+    for k in jarvis.CHAIN_PIECES + ("answer",):
+        assert c[k] == {"k": k, "side": "?", "text": "could not check — chain ends 15:30"}, k
+    assert a[35]["count"]["N"] == 0
+    assert {p["k"]: p for p in a[30]["count"]["pieces"]}["sides"]["side"] == "with"     # 15:30 has its snapshot: read
+    d["legs"]["rows"][36] = dict(d["legs"]["rows"][36], word="PALAT", lean=1)        # the lean flips at 15:36: at once
+    for r in d["legs"]["rows"][37:]:
+        r["lean"] = 1
+    a = jarvis.action_words(d)
+    assert a[35]["word"] == "TREND" and a[36]["word"] == "PALAT" and a[39]["word"] == "PALAT"
+    h = d["health"] = jarvis.health(d, None)
+    assert "chain ends 15:30 (scheduled)" in h["method"] and not any("15:3" in x for x in h["notes"])
+    assert "chain ends 15:30 (scheduled)" not in jarvis.health(jarvis.cut_at(d, 29), None)["method"]   # 15:29: not yet
+
+
+@pytest.mark.skipif(not (_has("2026-10-29") and _has("2026-10-30")), reason="29 / 30 Oct records not present")
+def test_the_1530_chain_stop_is_never_a_hole_on_the_record(record):
+    """I2, measured at dd9b09c: 29 Oct HOLD ▲ -> WATCH ▲ at 15:35 (the count turned on the chain's absence), 30 Oct
+    ROTATION ▲ -> NO TRADE 'can't see 15:30-15:40' -- each a word line to her phone every day. Now the word after 15:30 is
+    the 15:30 word (neither day has a PALAT or a wall behind after it), nothing from 15:30 reads can't see, and the card's
+    gaps never name the close."""
+    for day, w in (("2026-10-29", "HOLD ▲"), ("2026-10-30", "ROTATION ▲")):
+        d = build(day, 15 * 60 + 45)
+        c, mins = d["call"], d["mins"]
+        assert mins[-1] > "15:35" and c["word"] == w, (day, c["word"])
+        j = max(i for i, m in enumerate(mins) if m <= "15:30")
+        assert {jarvis.said(x["word"], x["lean"]) for x in d["reads"]["action"][j:]} == {w}, day
+        assert "chain ends 15:30 (scheduled)" in d["health"]["method"]
+        assert not any("chain missing" in x and "15:3" in x for x in d["health"]["notes"] + c["missing"]), day
+        assert not any(x["why"] == "can't see" and x["to"] >= "15:30" for x in d["reads"]["notrade"]), day
+        assert {p["text"] for p in c["count"]["pieces"] if p["k"] in jarvis.CHAIN_PIECES} == \
+            {"could not check — chain ends 15:30"}
+
+
+def test_palat_says_the_old_leg_ended_and_the_new_one_both_ways():
+    """The PALAT buyer / seller lines said 'no lean: buy only at her bands' while the card carried lean ±1 and the new
+    leg. Now: which leg ended, what is not new yet, both ways; the wrong-line names the old leg's extreme (f)."""
+    d = _call_toy()
+    rows = d["legs"]["rows"]
+    rows[36] = dict(rows[36], word="PALAT", lean=1)              # the ▼ leg (extreme 22,985f) gave back half: lean ▲
+    for r in rows[37:]:
+        r.update(lean=1, word="ROTATION", leg=dict(r["leg"], dir=1, origin=22985.0, extreme=23040.0, quality="ROTATION"))
+    d["health"] = jarvis.health(d, None)
+    d["reads"]["action"] = jarvis.action_words(d)
+    for i in (36, 39):                                           # the flip minute (its row holds the old leg) and after
+        c = jarvis.call(jarvis.cut_at(d, i))
+        assert c["word"] == "PALAT ▲", (i, c["word"])
+        assert c["buyer"].startswith("PALAT: the ▼ leg ended · no new CE until the ▲ leg holds 2 closes"), c["buyer"]
+        assert c["seller"].startswith("PALAT: the ▼ leg ended · no new PE sale until the ▲ leg holds 2 closes"), c["seller"]
+        assert c["wrong_line"] == "back to ▼ on a new low past 22,985f"
+        assert "no lean" not in c["buyer"] + c["seller"]
+
+
+@pytest.mark.skipif(not _has("2026-10-30"), reason="30 Oct record not present")
+def test_30oct_1345_palat_lines_match_the_card(record):
+    """The controller's card read: 30 Oct 13:45, word PALAT ▼, lean −1."""
+    c = build("2026-10-30", 13 * 60 + 46)["call"]
+    assert c["word"] == "PALAT ▼" and c["lean"] == -1, (c["word"], c["lean"])
+    assert c["buyer"].startswith("PALAT: the ▲ leg ended · no new PE until the ▼ leg holds 2 closes"), c["buyer"]
+    assert c["seller"].startswith("PALAT: the ▲ leg ended · no new CE sale until the ▼ leg holds 2 closes"), c["seller"]
+    assert re.fullmatch(r"back to ▲ on a new high past \d{2},\d{3}f", c["wrong_line"]), c["wrong_line"]
+
+
+def test_how_much_never_reads_a_missing_sigma_as_zero():
+    """M1: with no 1-min futures volume yet the build's σ is 0.0, and HOW MUCH read 'σ 0' at 09:15. It is could not
+    check; the range-used row names its source (trademap.em at HH:MM); before 09:20 the EM is not yet, never missing."""
+    d = _toy()
+    d["ctx"] = {"em": {"t": "09:20", "em": 120.0, "K": 23050, "straddle": 150.0, "N": 2}}
+    d["sd"] = [0.0] * len(d["mins"])
+    h = jarvis.how_much(d, 5, lambda k: f"{jarvis._fmt(k)}s")
+    assert "σ could not check — no σ yet (needs 1-min futures volume)" in h["line"] and "σ 0" not in h["line"]
+    assert "σ could not check — no σ yet (needs 1-min futures volume)" in h["rows"]
+    ru = next(x for x in h["rows"] if x.startswith("range used"))
+    assert "trademap.em at 09:20" in ru and "day range" in ru
+    d["sd"] = [20.0] * len(d["mins"])
+    assert " · σ 20 · " in jarvis.how_much(d, 5, lambda k: f"{jarvis._fmt(k)}s")["line"]
+    d["mins"] = ["09:15"] + d["mins"][1:]
+    d["ctx"] = {"em": None, "em_why": "no chain row 09:20–09:30"}
+    assert "range used could not check — before the 09:20 straddle" in jarvis.how_much(d, 0, str)["line"]
+
+
+def test_rv_on_ivs_calendar_counts_today():
+    """T6 review: today's session was left out of both day counts (RV read low, the grade tilted to rich)."""
+    f, tr = jarvis._rv_cal("2026-10-30", 4)                     # Fri -> Tue: today + Mon + Tue trading, 5 calendar days
+    assert tr == 3 and abs(f - jarvis.RV_CAL * (3 / 5) ** 0.5) < 1e-12
+    assert jarvis._rv_cal("2026-10-27", 0) == (jarvis.RV_CAL, None)
+
+
+def test_a_live_build_drops_another_days_cache_entries(monkeypatch):
+    """T6 review: a server left on overnight kept yesterday's live entries (and every chain snapshot in them)."""
+    monkeypatch.setattr(jarvis, "_today", lambda: "2026-11-02")
+    jarvis._CACHE.clear()
+    old = ("2026-10-30", "NIFTY", False, "x", "y")
+    same = ("2026-11-02", "SENSEX", False, "x", "y")
+    jarvis._CACHE.update({old: {}, same: {}})
+    jarvis.build("2026-10-29", "NIFTY", 600)                     # a replay keeps them all
+    assert old in jarvis._CACHE and same in jarvis._CACHE
+    jarvis.build("2026-11-02", "NIFTY", 600)                     # a live build: today's only
+    assert old not in jarvis._CACHE and same in jarvis._CACHE
+    assert all(k[0] == "2026-11-02" for k in jarvis._CACHE)
+    jarvis._CACHE.clear()

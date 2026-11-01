@@ -37,6 +37,9 @@ import thresholds
 import v2feed
 
 START = "09:15"
+CHAIN_END = "15:30"   # the option chain stops at 15:30:00 BY SCHEDULE (chain_live.in_session; F&O futures trade to 15:40):
+                      # a minute from it with no snapshot (15:30 itself has one only when 15:30:00 lands) is "chain ends
+                      # 15:30", never a chain hole -- no CAN'T SEE, no NO TRADE, no word change from it (I2)
 P5_MIN = {"NIFTY": 5, "BANKNIFTY": 15}       # the |p5| floor (spec §14 row 8); another index reads BANKNIFTY's [I]
 SAID = ("TOOT", "PHANS", "TIKI")
 MSG_DIR = os.path.join("data", "messages")   # the stream's record: the real shown-at of each push line
@@ -193,7 +196,7 @@ def _book(memo, rows, upto, lot, redo):
     if b is not None and b["n"] and (len(rows) < b["n"] or rows[0] is not b["first"]
                                      or not (rows[b["n"] - 1] is b["last"] or rows[b["n"] - 1] == b["last"])):
         if upto >= b["upto"] and _changed(rows, b):   # (a reader's re-parse of the same rows is not news)
-            redo.append("the 1-second book was read again from its start (it shrank or was rewritten)")
+            redo.append((None, "the 1-second book (it shrank or was rewritten)"))
         memo.pop("book")
         b = None
     if b is None:
@@ -246,7 +249,7 @@ def _sides(day, idx, upto, live_from, memo=None, redo=None):
     if f and f["n"] and (len(rows) < f["n"] or rows[0] is not f["first"]
                          or not (rows[f["n"] - 1] is f["last"] or rows[f["n"] - 1] == f["last"])):
         if redo is not None and upto >= f["upto"] and _changed(rows, f):
-            redo.append("the chain record was read again from its start (it shrank or was rewritten): Sides folded again")
+            redo.append((None, "the chain record (it shrank or was rewritten): Sides folded again"))
         f = None
     ahead = f is not None and upto >= f["upto"]      # an earlier upto folds on its own and leaves the memo's fold be
     if not ahead:
@@ -301,9 +304,17 @@ def build(day: str, idx: str = "NIFTY", upto: int | None = None, fill: bool = Fa
     out = _build(day, idx, upto, fill, memo)
     with _CACHE_LOCK:
         _CACHE[key] = memo
+        if not fill and day == _today():             # T6: a live build drops another day's entries (a server left on
+            for k in [k for k in _CACHE if k[0] != day]:     # overnight kept yesterday's, and every chain snapshot in them)
+                del _CACHE[k]
         while len(_CACHE) > CACHE_KEEP:
             _CACHE.popitem(last=False)
     return out
+
+
+def _today():
+    """Today in IST: only which cache entries a build keeps -- never what a frame reads (the frame has no clock)."""
+    return datetime.datetime.now(fold.IST).strftime("%Y-%m-%d")
 
 
 def _le(keys, m):
@@ -329,7 +340,7 @@ def _grid(memo, day, idx):
 def _build(day, idx, upto, fill, memo):
     import trigger_log
     upto = H.LAST_M + 2 if upto is None else upto
-    redo = []                                        # the memo's own news: a part read again from an earlier minute
+    redo = []                                        # the memo's own news: (from HH:MM or None = the file's start, what)
     LOT, BAR = v2feed.LOTS[idx], H.FUT_LOTS[idx]
     P5 = P5_MIN.get(idx, P5_MIN["BANKNIFTY"])
 
@@ -474,8 +485,8 @@ def _build(day, idx, upto, fill, memo):
         s = snaps[ts]
         old = was[j] if same and j < len(was) and was[j][0] == ts and (was[j][1] is s or was[j][1] == s) else None
         if same and old is None and j < len(was) - 1:              # an earlier minute changed under the memo, not the last
-            redo.append(f"chain minutes from {ts} changed under the cache (a backfill refill or a rewritten record): "
-                        "their walls read again")
+            redo.append((ts, "the chain minutes changed under the cache (a backfill refill or a rewritten record): "
+                             "their walls"))
         same = old is not None
         grid[ts] = {"spot": s["spot"], "k": {float(r["k"]): ((r["ce"].get("oi_chg") or 0.0), (r["pe"].get("oi_chg") or 0.0))
                                             for r in s["strikes"]}}
@@ -501,7 +512,7 @@ def _build(day, idx, upto, fill, memo):
         ladder[ts] = lad[1]
         now_.append((ts, s, fr, lad))
     memo["fronts"] = now_ + was[len(now_):] if same else now_      # an earlier upto keeps the later minutes for the next
-    chain_missing = [mm for mm in mins if mm not in ladder]
+    chain_missing = [mm for mm in mins if mm not in ladder and mm < CHAIN_END]     # from 15:30: its scheduled end
     FK = sorted(FR)
 
     def front_state(m, side, k):
@@ -886,7 +897,8 @@ def _build(day, idx, upto, fill, memo):
         data["ctx"] = {"notes": [f"the reads (levels, EM, the logs) failed: {type(e).__name__}: {e}"]}
     data["reads"] = reads(data)
     data["health"] = health(data, _readable(day, "BANKNIFTY", upto, 100))
-    data["health"]["notes"] += [f"frame rebuilt cold at {END}: {x}" for x in redo]   # Task 6: the memo's own news
+    data["health"]["method"] += [f"re-read from {a or mins[0]}: {x}" for a, x in redo]   # Task 6: how it was made, never a
+                                                     # gap (a cold replay has no such line: health.method, not notes)
     data["legs"] = _legs(data, R, day, idx)
     try:                                             # the ACTION word per minute: it needs the leg's rows (Jarvis v3)
         data["reads"]["action"] = action_words(data)
@@ -1040,11 +1052,15 @@ def health(d: dict, bnf_readable=None) -> dict:
     elif bnf_readable is None:
         notes.append("BANKNIFTY chain: could not check — no chain on the record")
     notes += (d.get("ctx") or {}).get("notes") or []          # Task 5: each read's absent source, named (_context)
+    method = list((d.get("ctx") or {}).get("method") or ())    # how a number was made: not a gap (Task 6)
+    if mins and mins[-1] >= CHAIN_END:
+        method.append(f"chain ends {CHAIN_END} (scheduled)")   # I2: the close, never "chain missing"
+    if thresholds.problem():
+        method.append(thresholds.problem())                    # T6: every [I] number at the module's default, said
     return {"dext": {"minutes": no_dx.count(False), "missing": missing, "book_only_tail": tail},
             "holes": d.get("holes") or [], "chain_missing": d.get("chain_missing") or [], "bnf_chain_readable": bnf_readable,
             "f_src": {k: fs.count(k) for k in ("dext", "book", "tape")}, "live_from": d.get("live_from"), "notes": notes,
-            "method": list((d.get("ctx") or {}).get("method") or ()),       # how a number was made: not a gap (Task 6)
-            "not_read": list(NOT_READ), "not_shown": list(NOT_SHOWN)}
+            "method": method, "not_read": list(NOT_READ), "not_shown": list(NOT_SHOWN)}
 
 
 def call(d: dict) -> dict:
@@ -1227,6 +1243,12 @@ def call(d: dict) -> dict:
                      f"buy the {opt} on the pullback, not chased · stop = the PALAT line {_fmt(half)}f")
             seller = (f"sell the {other} at / beyond {lv(wall['k'])}: its writers are the leg's floor · same stop" if wall
                       else f"sell the {other}: its writers are the leg's floor · same stop")
+    elif aw == "PALAT" and g and lean:               # the old leg ended, the new one is the lean: say both, both ways
+        old = g["extreme"] if g["dir"] != lean else g["origin"]   # the flip minute's row holds the old leg, later rows the
+        opt, other = ("CE", "PE") if lean > 0 else ("PE", "CE")   # new one (born at the old extreme)
+        wrong = f"back to {ARR[-lean]} on a new {'high' if lean < 0 else 'low'} past {_fmt(old)}f"
+        buyer = f"PALAT: the {ARR[-lean]} leg ended · no new {opt} until the {ARR[lean]} leg holds {ACT_CLOSES} closes"
+        seller = f"PALAT: the {ARR[-lean]} leg ended · no new {other} sale until the {ARR[lean]} leg holds {ACT_CLOSES} closes"
     elif aw in ("PALAT", "ROTATION", "OPENING", "NO LEG"):
         wrong = ("ends: a leg that qualifies — after 10:00 ≥ 80 pts with 1.5σ, a TOOT or fuel; before 10:00 ≥ 100 pts and a TOOT")
         buyer = "no lean: buy only at her bands (the zone), never mid-range"
@@ -1253,8 +1275,15 @@ def call(d: dict) -> dict:
         wrong = "ends: " + (nt["ends"] if nt else "the writers and one more read agree (FUEL, speed FAST, ALL 3)")
         buyer, seller = "wait: no buyer trade", "wait: no new sale"
 
-    cnt = act["count"] if act else count(d, i) if not blind else \
-        _count_of([{"k": k, "side": "?", "text": f"could not check — blind since {mins[i]}"} for k in PIECES])
+    if act:
+        cnt = act["count"]
+    elif blind:
+        cnt = _count_of([{"k": k, "side": "?", "text": f"could not check — blind since {mins[i]}"} for k in PIECES])
+    else:
+        try:                                         # I1: wrapped as action_words is -- one bad piece never the build
+            cnt = count(d, i)
+        except Exception as e:
+            cnt = _count_of([{"k": k, "side": "?", "text": f"could not check — {type(e).__name__}"} for k in PIECES])
     # Task 5 (VISION §4 stages 5-9): HOW MUCH, WHERE, EXPRESSION, her trade, the cross-checks. Display only, fail-soft:
     # they add lines, never a word
     T5 = {"how_much": None, "where": None, "expression": None, "cross": None, "her_setup": [], "expiry": None, "bada": None}
@@ -1333,6 +1362,7 @@ ACT_CLOSES = 2         # [I] a new word needs the same candidate at 2 consecutiv
 ANSWER_MIN = 15        # [I] the count's last answer: a push answered within 15 min (the band verdict's DASTAK window)
 AHEAD_STEPS = 2        # [I] the wall ahead: within 2 strike steps of spot (the band verdict's own reach, wall_ahead)
 PIECES = ("sides", "wf7", "wall_ahead", "answer", "trapped", "fut_oi", "speed", "all3", "setup")   # GAPS §4, writers first
+CHAIN_PIECES = ("sides", "wf7", "wall_ahead", "trapped", "all3")   # read off the chain this minute (all3: BN / SX spot)
 ANSWER_EN = {"TOOT": "BROKEN", "PHANS": "TRAPPED", "TIKI": "DEFENDED", "NAHI": "HELD"}           # spec §16.2
 # Jarvis v3 Task 5, the reads (JARVIS-REVIEW-2026-10-31 §3.3, P0 #4; VISION §4 stages 5-9; NOTEPAD A207). Display only.
 NEED_X = 1.15          # [I] the buyer's required move = the ATM premium x 1.15 in points (algo_ai T3: the premium back
@@ -1566,6 +1596,10 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
         for p in P[:2]:                                              # (sides, wf7): never WITH, said why
             if p["side"] == "with":
                 p.update(side="?", text=p["text"] + " · expiry unwind")
+    if t >= CHAIN_END and t not in (d.get("ladder") or {}):         # I2: past the chain's scheduled end its reads are
+        for p in P:                                                  # not carried, never counted (an answer known stays)
+            if p["k"] in CHAIN_PIECES or (p["k"] == "answer" and p["text"].startswith("no answered push")):
+                p.update(side="?", text=f"could not check — chain ends {CHAIN_END}")
     return _count_of(P)
 
 
@@ -1597,7 +1631,8 @@ def action_words(d: dict) -> list:
       changes    only at her 3-min closes, on the same candidate at ACT_CLOSES consecutive closes; PALAT? also at one
                  close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped), and a push against
                  the lean that BROKE / TRAPPED the wall behind (legs.wall_behind_broke, the leg's own risk rule: TREND /
-                 HOLD -> WATCH). CAN'T SEE is the call's (a clock)
+                 HOLD -> WATCH). CAN'T SEE is the call's (a clock). After the chain's scheduled end (CHAIN_END, 15:30;
+                 the futures trade to 15:40) no close changes it: only those two at-once events do (I2)
       the open   before 10:00 the word is OPENING (NO LEG before the first leg), no arrow: the lean is its own chip; with
                  nothing held yet (the frame's first minute, the open's end at 10:00) the candidate is said at once --
                  without the two-close wait, never without the count
@@ -1647,6 +1682,8 @@ def action_words(d: dict) -> list:
             new = (cand[0], f"{cand[1]} · at once (nothing held yet)")
         elif raw == "PALAT":
             new = ("PALAT", "PALAT: the lean flipped")
+        elif t > CHAIN_END:                                              # I2: the chain ends 15:30 by schedule: the
+            pend = None                                                  # word holds; only PALAT / the wall behind
         elif (m - legs.START_M) % 3 == 2:                                # her 3-min close
             if cand[0] == word:
                 pend = None
@@ -1673,7 +1710,8 @@ def action_words(d: dict) -> list:
             shown, since = said(word, lean), t
         nr = len(row.get("risk") or ())                                  # the leg's risk items ride along as a chip
         why = (f"{rule}" + (f" · {nr} risk" if nr else "") + f" · WITH {W} · AGAINST {A}"
-               + (f" · {pend[0]} at {pend[3]} ({pend[2]} of {ACT_CLOSES} closes)" if pend else ""))
+               + (f" · {pend[0]} at {pend[3]} ({pend[2]} of {ACT_CLOSES} closes)" if pend else "")
+               + (f" · chain ends {CHAIN_END}: only PALAT / the wall behind change it" if t > CHAIN_END else ""))
         out.append({"word": word, "lean": lean, "since": since, "count": c, "why": why})
     return out
 
@@ -2251,7 +2289,8 @@ def _context(day, idx, upto, cp, snaps, step, memo=None):
     ctx["method"] = []                               # Task 6: how a number was made, never a gap (health.method)
     if ctx["rv"] is not None:                        # server._rv5's basis, said once (rule 7: say which)
         ctx["method"].append(f"RV {ctx['rv'] * 100:.1f} on 252 trading days (server._rv5's) × "
-                             + (f"√(365/252 × {tr}/{ctx['dte']} trading / calendar days to expiry)" if tr else "√(365/252)")
+                             + (f"√(365/252 × {tr}/{ctx['dte'] + 1} trading / calendar days to expiry, today in both)"
+                                if tr else "√(365/252)")
                              + f" = {ctx['rv'] * 100 * ctx['rv_cal']:.1f} on the chain IV's 365-day basis [I]")
     fi = "NIFTY" if sensex_flow.on(idx) else idx     # §1q: SENSEX's speed is NIFTY's flow, so NIFTY's yardstick
     try:
@@ -2299,14 +2338,16 @@ def _context(day, idx, upto, cp, snaps, step, memo=None):
 def _rv_cal(day, dte):
     """RV onto the chain IV's calendar basis -> (factor, trading days to expiry or None): realized variance accrues on
     trading days, IV spreads its variance over calendar ones, so RV_CAL (sqrt(365/252), exact with no weekend inside the
-    option's life) x sqrt(trading / calendar days to expiry); RV_CAL itself on 0 DTE or an unknown expiry.
+    option's life) x sqrt(trading / calendar days to expiry), today's session counted in both (the T6 review: left out,
+    RV read ~6-15 of a percent low and tilted the grade to "rich"); RV_CAL itself on 0 DTE or an unknown expiry ->
+    (factor, the trading days counted, today in).
     ponytail: weekdays only -- NSE holidays are not on the record, so a holiday inside the life counts one trading day
     too many; take the exchange calendar when one is kept."""
     if not dte or dte < 0:
         return RV_CAL, None
     d0 = datetime.date.fromisoformat(day)
-    tr = sum(1 for j in range(1, dte + 1) if (d0 + datetime.timedelta(days=j)).weekday() < 5)
-    return (RV_CAL * math.sqrt(tr / dte), tr) if tr else (RV_CAL, None)
+    tr = 1 + sum(1 for j in range(1, dte + 1) if (d0 + datetime.timedelta(days=j)).weekday() < 5)
+    return RV_CAL * math.sqrt(tr / (dte + 1)), tr
 
 
 def _opt_at(d, t):
@@ -2337,13 +2378,16 @@ def how_much(d, i, lv):
     lo = min((x for x in d["flo"][:i + 1] if x is not None), default=None)
     if em and em["t"] <= t and hi is not None and lo is not None:
         ru = f"range used {(hi - lo) / em['em']:.2f} of EM"
-        rows.append(f"EM {em['em']:.0f} pts: the {em['t']} ATM {lv(em['K'])} straddle {em['straddle']:.1f} / 0.8 / "
-                    f"√{em['N']} (trademap.em) · day range {hi - lo:.0f} pts (the 1-min futures bars)")
+        rows.append(f"{ru}: day range {hi - lo:.0f} pts (the 1-min futures bars) / EM {em['em']:.0f} pts (trademap.em at "
+                    f"{em['t']}: the ATM {lv(em['K'])} straddle {em['straddle']:.1f} / 0.8 / √{em['N']})")
     else:
-        ru = "range used could not check — " + ("before the 09:20 straddle" if em else c.get("em_why") or "no 09:20 straddle")
+        ru = "range used could not check — " + ("before the 09:20 straddle" if em or t < "09:20" else
+                                                c.get("em_why") or "no 09:20 straddle")
         rows.append(f"EM: {ru[11:]}")
-    sd = d["sd"][i] or 0
-    rows += [f"σ {sd:.0f} pts: the session VWAP's SD on the 1-min futures", "VIX: could not check — no India VIX source"]
+    sd = d["sd"][i]                                  # M1: the build's 0.0 with no volume is no σ, never a σ of 0
+    sdt = f"σ {sd:.0f}" if sd else "σ could not check — no σ yet (needs 1-min futures volume)"
+    rows += [f"{sdt} pts: the session VWAP's SD on the 1-min futures" if sd else sdt,
+             "VIX: could not check — no India VIX source"]
     cp = c.get("cpr")
     if cp:
         p = c["pd"]
@@ -2353,7 +2397,7 @@ def how_much(d, i, lv):
     else:
         cpt = "CPR could not check"
         rows.append("CPR: could not check — no prior-day H / L / C (health names why)")
-    return {"line": f"day {dt} · {ru} · σ {sd:.0f} · VIX could not check · {cpt}", "rows": rows}
+    return {"line": f"day {dt} · {ru} · {sdt} · VIX could not check · {cpt}", "rows": rows}
 
 
 def where(d, i, lean, lines, ce, pe, lv, basis):
