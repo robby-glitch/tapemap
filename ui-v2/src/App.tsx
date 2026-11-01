@@ -15,6 +15,7 @@ import VpinTab from './vpin/VpinTab'
 import WarTab from './war/WarTab'
 // RAFTAAR (27 Oct): how fast each near-money strike's writers add or cut OI, and when that changed. See src/speed/speed.ts.
 import SpeedTab from './speed/SpeedTab'
+import AlgoTab from './algo/AlgoTab'      // 1 Nov: the evening paper shadow of the demo + v2 algos (GET /api/algo)
 // THE HOLD / FOLD WINDOW (docs/hold/PREREG-merged.md rev 4): mounted once, below, so it floats on every tab.
 import Float from './pro/Float'   // her order 2026-09-29: the floating window runs the DESK's engine (rev 6), not /api/hold
 // The five-state machine read — see machine.ts.
@@ -94,7 +95,7 @@ function useBoardGlance(on: boolean): Partial<Record<IndexKey, GlanceRead>> {
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Speed' | 'Validate' | 'Signals'
+export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Speed' | 'Validate' | 'Signals' | 'Algo'
 
 // ── Empty dataset (first paint, and any index never read this session) ──────
 // Nothing in it is invented: a live read replaces it within one poll. Until
@@ -813,7 +814,7 @@ export default function App() {
   const onValidate = activeTab === 'Validate'
   const boardReads = useBoardGlance(onBoard)
   const onRead = activeTab === 'Read'      // THE READ is its own answer: the ANSWER band steps aside there too
-  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Speed', 'Validate', 'Signals']
+  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Speed', 'Validate', 'Signals', 'Algo']
   const { data: liveData, loading, error, errorWhy, broker, intake, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
@@ -1119,6 +1120,8 @@ export default function App() {
             the operator tracks the strategy, not one tape. The tab carries its
             own index filter, which starts on ALL. */}
         {activeTab === 'Signals'  && <SignalsTab />}
+        {/* No `index` prop: the algo trades both indices as one market (algo-lab/shadow/panel.json). */}
+        {activeTab === 'Algo'     && <AlgoTab />}
       </div>
       <Float intake={intake} />{/* every tab, Validate too: the DESK no longer draws the in-trade face (2026-10-04) */}
     </div>

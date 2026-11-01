@@ -6088,6 +6088,18 @@ class Handler(SimpleHTTPRequestHandler):
             elif want:
                 out = dict(out, indices={want: out["indices"].get(want) or {"ok": False, "why": trap.CC + "no read for " + want}})
             self._json(json.dumps(out, default=str).encode())
+        elif self.path.startswith("/api/algo"):
+            # THE ALGO TAB (1 Nov): {"panel": the evening paper replay (algo-lab/shadow.py, after the close), "live":
+            # today so far, a minute old at most (algo-lab/live_algo.py, its own process)}, each the file as written.
+            # Read-only, display only, no order path; nothing here computes.
+            parts = []
+            for k, who in (("panel", "shadow.py writes it after the close"), ("live", "live_algo.py writes it in market hours")):
+                try:
+                    body = (ROOT.parent / "algo-lab" / "shadow" / f"{k}.json").read_bytes()
+                except OSError:
+                    body = json.dumps({"ok": False, "why": f"could not check — algo-lab/shadow/{k}.json is not there ({who})"}).encode()
+                parts.append(b'"' + k.encode() + b'":' + body)
+            self._json(b"{" + b",".join(parts) + b"}")
         elif self.path.startswith("/api/board"):
             # BOARD rev 3's server half (notes §8 steps 2-6): headline, fronts
             # with carried/built, folds and FIRST, agreement, the trend box,
