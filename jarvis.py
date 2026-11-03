@@ -983,8 +983,7 @@ def _readable(day, idx, upto, step):
 # GAPS §3 rows this frame does not read (GAPS §5: named, never dropped): no source anywhere yet (Task 5 read the rest).
 NOT_READ = ("book depth: pulls / stacking at the level (recorded, not read)",
             "points per minute, acceleration / decay",
-            "IV per strike: bid vs crush, premium decay vs the move",
-            "India VIX direction")
+            "IV per strike: bid vs crush, premium decay vs the move")
 # rule 6's third sentence: read by their own module, not shown here
 NOT_SHOWN = ("not shown here (their own module reads them): dwell (dwell.py), PCR change (chain_metrics), wall migration "
              "(warmap), Board agreement (board.py), GEX after 14:30 (gamma.py), footprint events other than BADA PRINT "
@@ -1369,6 +1368,8 @@ NEED_X = 1.15          # [I] the buyer's required move = the ATM premium x 1.15 
                        #     plus a cushion for spread and theta), set against EM left = EM - |fut - the open|
 IV_RV = 1.15           # [I] ATM IV >= RV x 1.15 reads rich (<= RV / 1.15 cheap, else fair): the seller's edge
 CPR_NARROW = 0.1       # [I] CPR narrow when |tc - bc| <= 0.1 x the prior day's range (algo_ai's CPR; the cut is ours)
+VIX_OPEN_BY = "09:17"  # [I] the day's first VIX row by 09:17 is its open (09:15's candle, or one or two missing from Upstox);
+                       #     a later first row reads "since HH:MM (started late)"
 POOL_X = 1.5           # [I] the stop's pool: PDH / PWH (a short; a long PDL / PWL) beyond the stop, within 1.5 x its distance
 UNWIND_AT = "14:00"    # [I] 0 DTE from 14:00: writers covering is the expiry unwind (G9), never counted WITH
 RANK_3OF5 = math.sqrt(3 / 5)   # [I] rank_build keeps |5-min delta| medians; a 3-min sum's yardstick is sqrt(3/5) of one
@@ -1390,7 +1391,7 @@ RV_CAL = math.sqrt(365 / 252)  # [I] server._rv5 annualises on 252 TRADING days,
 _I = ("P5_MIN", "FAST", "SLOW", "SYNC_PTS", "WF_L", "WF_STOP", "RISK_X", "RISK_WIN", "RISK_HOLD", "RISK_CONF", "BLIND_MIN",
       "LAD_NEAR", "FIGHT_AWAY", "FIGHT_AWAY_MIN", "MANAGE_PTS", "MANAGE_WIN", "MANAGE_GAP", "QUIET_MIN", "ACT_LEAD",
       "ACT_CLOSES", "ANSWER_MIN", "AHEAD_STEPS", "NEED_X", "IV_RV", "CPR_NARROW", "POOL_X", "UNWIND_AT", "RANK_3OF5",
-      "RV_CAL")
+      "RV_CAL", "VIX_OPEN_BY")
 _DEF = {n: globals()[n] for n in _I}
 _APPLIED = [None]                # the thresholds file state last applied
 
@@ -2324,6 +2325,9 @@ def _context(day, idx, upto, cp, snaps, step, memo=None):
         notes.append(f"BADA PRINT: could not check — no decoder rows for {idx} on {day}")
     ctx["vpin"] = [[r["at"], r.get("vpin"), r.get("pct")] for r in _rows(VPIN_FAST)
                    if r.get("day") == day and isinstance(r.get("at"), str)]
+    ctx["vix"], ctx["vix_why"] = _vix_rows(day, upto)
+    if ctx["vix_why"]:
+        notes.append(f"VIX: could not check — {ctx['vix_why']}")
     try:                                             # her marked trades: the file the server writes, read only (never
         with open(day_state.path_for(day), encoding="utf-8") as f:     # day_state.load, which renames a corrupt one)
             ds = json.load(f)
@@ -2359,11 +2363,35 @@ def _opt_at(d, t):
     return o[k] if k is not None and _m(t) - _m(k) <= 3 else None
 
 
+def _vix_rows(day, upto):
+    """vix_log's rows of `day` before minute `upto` (the build's causal cut), as [ts, vix, src] -> (rows, why): why names an
+    empty file (a day before the recorder, or it never read), else None (rows only after upto: _vix_at says so)."""
+    import vix_log
+    rs = vix_log.rows(day)
+    return ([[r["ts"], r["vix"], r.get("src")] for r in rs if _m(r["ts"]) < upto],
+            None if rs else f"no row in vix_{day}.jsonl (India VIX is recorded by the server's 1-min read)")
+
+
+def _vix_at(c, t):
+    """HOW MUCH's VIX at minute t from ctx["vix"] (closed 1-min candles, ts <= t) -> (the line's words, the row). The read
+    is the change, not the level (algo_ai T2): since the open when the day's first row is by VIX_OPEN_BY [I], else the
+    first row's time, "started late"."""
+    xs = [x for x in c.get("vix") or () if x[0] <= t]
+    if not xs:
+        why = f"no VIX row before {hm(_m(t) + 1)}"
+        return f"VIX could not check — {why}", f"VIX: could not check — {why}" + (f" ({c['vix_why']})" if c.get("vix_why") else "")
+    (t0, v0, s0), (t1, v1, _) = xs[0], xs[-1]
+    ch = f"{round(v1 - v0, 1) + 0.0:+.1f}"           # + 0.0: a -0.0 prints +0.0
+    word = f"VIX {v1:.1f} · " + (f"since {t0} (started late)" if t0 > VIX_OPEN_BY else f"{ch} since open")
+    return word, (f"{word}: {v1:.2f} at {t1}, {ch} on {v0:.2f} at {t0}" + (" (backfilled)" if s0 == "backfill" else "")
+                  + f" · the 1-min closes of NSE_INDEX|India VIX (vix_log) · open = a first row by {VIX_OPEN_BY} [I]")
+
+
 def how_much(d, i, lv):
     """HOW MUCH (stage 5), is there a move to pay for? -> {"line", "rows"}: the §1o day type as the DECODE block logged it
     at its last 5-min close (one meter: the frame lacks its writers' lead and the peers' bars, so a copy here would read
-    3 of its 7 votes "?" and never one-sided), the day's spot range over trademap.em's EM, the session VWAP's σ, VIX (no
-    source), CPR. Each row names its source; an absent one says could not check."""
+    3 of its 7 votes "?" and never one-sided), the day's spot range over trademap.em's EM, the session VWAP's σ, India
+    VIX and its change since the open (vix_log), CPR. Each row names its source; an absent one says could not check."""
     c, t = d.get("ctx") or {}, d["mins"][i]
     dec = _logged(d, i)[1]
     o = dec[-1]["os"] if dec else {}
@@ -2386,8 +2414,8 @@ def how_much(d, i, lv):
         rows.append(f"EM: {ru[11:]}")
     sd = d["sd"][i]                                  # M1: the build's 0.0 with no volume is no σ, never a σ of 0
     sdt = f"σ {sd:.0f}" if sd else "σ could not check — no σ yet (needs 1-min futures volume)"
-    rows += [f"{sdt} pts: the session VWAP's SD on the 1-min futures" if sd else sdt,
-             "VIX: could not check — no India VIX source"]
+    vx, vrow = _vix_at(c, t)
+    rows += [f"{sdt} pts: the session VWAP's SD on the 1-min futures" if sd else sdt, vrow]
     cp = c.get("cpr")
     if cp:
         p = c["pd"]
@@ -2397,7 +2425,7 @@ def how_much(d, i, lv):
     else:
         cpt = "CPR could not check"
         rows.append("CPR: could not check — no prior-day H / L / C (health names why)")
-    return {"line": f"day {dt} · {ru} · {sdt} · VIX could not check · {cpt}", "rows": rows}
+    return {"line": f"day {dt} · {ru} · {sdt} · {vx} · {cpt}", "rows": rows}
 
 
 def where(d, i, lean, lines, ce, pe, lv, basis):

@@ -50,6 +50,7 @@ STR_PATHS = {"tape_log.DIR": "tape", "book_log.DIR": "book", "day_state.DIR": "d
              "jarvis.TAPE_DIR": "tape_fut1m",                 # P0 (30 Oct): the saved 1-min fut tape (jarvis.save_tape)
              "jarvis_log.DIR": "jarvis", "jarvis_cmd.DIR": "jarvis",   # Jarvis v3: the call log, the command log
              "jarvis_voice.DIR": "jarvis", "jarvis_voice.KEYS": "keys",   # Task 7: the voice log; no test reads her keys
+             "vix_log.DIR": "vix",                            # T2: the India VIX record (vix_log.py)
              # the instrument dump cache: a stale cache would be RE-FETCHED and rewritten under data/
              "upstox_instruments.CACHE_FMT": "upstox_{}.json"}
 PATH_PATHS = {"chain_live.CHAIN_DIR": "chain", "live.STICK_F": "stick_state.json",

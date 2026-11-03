@@ -58,6 +58,7 @@ import sides                     # the OI flow split by side against the index m
 import sides_log                 # ...and its forward log, once per closed slot, market hours only: data/sides/
 import trap                      # the trap layer, SHADOW (docs/board/TRAP-PREREG-2026-10-04.md): GET /api/trap
 import trap_log                  # ...its forward log (data/trap/) and its incremental readers of the recorders' files
+import vix_log                   # T2: India VIX once a minute off Upstox REST (data/vix/), Jarvis's HOW MUCH line reads it
 import decoder_log               # the decoder's forward log (data/decoder/), from the events the extension posts (Fable §6.1)
 import effort                    # A44: effort per point (Kyle lambda) at a fresh extreme, DECODE's EFFORT line (display only)
 import dext_log                  # GATE 3: the Dext extension's 1m candles + getData rows, recorded only (data/dext/)
@@ -6717,6 +6718,7 @@ def _isolate_mock_writers():
     jarvis.TAPE_DIR = os.path.join(mock, "tape_fut1m")               # P0 (30 Oct): the saved 1-min fut tape (jarvis.save_tape)
     jarvis_log.DIR = jarvis_cmd.DIR = jarvis_voice.DIR = os.path.join(mock, "jarvis")   # Jarvis v3: the call, command, voice logs
     jarvis_voice.KEYS = os.path.join(mock, "keys")    # a mock run never reads her keys (no key there: the engine's lines)
+    vix_log.DIR = os.path.join(mock, "vix")           # T2: the VIX record (its thread never starts under a mock; a stray tick)
     chain_live.CHAIN_DIR = ROOT / mock / "chain"
     live.STICK_F = ROOT / mock / "stick_state.json"
     feed_health.LOG = os.path.join(mock, "feed_log.jsonl")           # the GoCharting feed's transitions (A17)
@@ -7005,6 +7007,7 @@ def _coverage():
         # today, per index, and what the deque dropped. Rule 6: an empty map
         # gets its sentence.
         "book": _book_coverage(),
+        "vix": vix_log.health(),       # T2: the India VIX recorder's last read, rows written / backfilled, failed reads, why
         "reconstructed": [
             "the tape's 1-minute FUT bars (live.build_session re-fetches the "
             "whole session from REST every cycle -- never lost)",
@@ -7032,6 +7035,8 @@ def _coverage():
             "-- replayed at 1-minute pace from the same "
             "minute grid (data/warmap/warmap_<day>_backfill.jsonl, rows tagged "
             "backfill:true; /api/warmap.<idx>.backfill says what landed)",
+            "India VIX's 1-minute closes from 09:15 (vix_log, from Upstox's "
+            "intraday candles; a row written late carries src:backfill)",
         ],
         "not_reconstructable": [
             "IV, greeks, GEX, the gamma flip and the fitted surface before "
@@ -7283,6 +7288,8 @@ def main():
         # data/mock/, _isolate_mock_writers)
         threading.Thread(target=_msg_loop, daemon=True, name="messages").start()
         threading.Thread(target=_jarvis_loop, daemon=True, name="jarvis").start()   # Jarvis v3: the card's pass
+        if not mock_chain:                           # T2: India VIX once a minute (vix_log); a rehearsal calls no broker
+            threading.Thread(target=vix_log.run, daemon=True, name="vix").start()
         if not mock_chain:                           # a rehearsal never reaches her phone
             telegram_out.start()
             telegram_in.CMD = _jarvis_tg             # Jarvis v3: any other text from her chat is a command (jarvis_cmd)

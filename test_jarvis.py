@@ -985,6 +985,37 @@ def test_how_much_never_reads_a_missing_sigma_as_zero():
     assert "range used could not check — before the 09:20 straddle" in jarvis.how_much(d, 0, str)["line"]
 
 
+def test_how_much_vix_says_its_three_sentences_and_never_reads_a_later_row():
+    """T2: VIX from vix_log's rows up to the frame's minute -- the change since the open, a late start's own first row, or
+    could not check with the reason (never a 0)."""
+    d = _toy()                                                   # minutes 10:00 .. 10:39
+    d["ctx"] = {"vix": [["09:15", 12.8, "backfill"], ["10:05", 13.4, None], ["10:30", 14.9, None]]}
+    h = jarvis.how_much(d, 20, str)                              # 10:20: the 10:30 row is not known yet
+    assert " · VIX 13.4 · +0.6 since open · " in h["line"]
+    assert any(r.startswith("VIX 13.4 · +0.6 since open: 13.40 at 10:05, +0.6 on 12.80 at 09:15 (backfilled)")
+               for r in h["rows"])
+    d["ctx"] = {"vix": [["10:07", 13.3, None], ["10:20", 13.4, None]]}
+    assert " · VIX 13.4 · since 10:07 (started late) · " in jarvis.how_much(d, 25, str)["line"]
+    d["ctx"] = {"vix": [["10:07", 13.3, None]]}
+    h = jarvis.how_much(d, 5, str)                               # 10:05, before the first row
+    assert " · VIX could not check — no VIX row before 10:06 · " in h["line"] and "VIX 0" not in h["line"]
+    d["ctx"] = {"vix": [], "vix_why": "no row in vix_2026-10-30.jsonl"}
+    assert "VIX: could not check — no VIX row before 10:06 (no row in vix_2026-10-30.jsonl)" in \
+        jarvis.how_much(d, 5, str)["rows"]
+
+
+def test_the_build_cuts_the_vix_rows_at_upto():
+    """Causality: jarvis.build(day, idx, upto) reads minutes < upto only -- a row written for a later minute is not read."""
+    import vix_log
+    os.makedirs(vix_log.DIR)
+    with open(vix_log.path_for("2026-11-02"), "w", encoding="utf-8") as f:
+        f.write("".join(json.dumps(r) + "\n" for r in ({"ts": "09:15", "vix": 12.8}, {"ts": "10:00", "vix": 13.4},
+                                                       {"ts": "10:01", "vix": 13.6})))
+    assert jarvis._vix_rows("2026-11-02", 10 * 60 + 1) == ([["09:15", 12.8, None], ["10:00", 13.4, None]], None)
+    assert jarvis._vix_rows("2026-10-30", 600) == (
+        [], "no row in vix_2026-10-30.jsonl (India VIX is recorded by the server's 1-min read)")
+
+
 def test_rv_on_ivs_calendar_counts_today():
     """T6 review: today's session was left out of both day counts (RV read low, the grade tilted to rich)."""
     f, tr = jarvis._rv_cal("2026-10-30", 4)                     # Fri -> Tue: today + Mon + Tue trading, 5 calendar days
