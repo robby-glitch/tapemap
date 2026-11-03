@@ -105,6 +105,10 @@ optflow/optflow.py (8790) + optflow/map.html
   - `python -I optflow\optflow.py --check [YYYY-MM-DD]` builds both indices and asserts each has chain data and Dext
     order flow;
   - `node optflow\dext_bridge.mjs --now` runs one full round at any hour, which is the after-close check.
+  - `node optflow\dext_bridge.mjs --now 2026-11-02 [more days]` fetches past days: 09:15-15:30, every strike the day's
+    spot touched ±5, from that day's chain file. It needs one Dext chart load to borrow the login (change one
+    timeframe), and may run beside the live bridge. Used 3-4 Nov to fetch 28-30 Oct and 2 Nov (NOTEPAD A219);
+    a contract can be asked until it leaves the scrip master.
 
 ### Its log lines
 - `asked 44/44 (NIFTY 22, SENSEX 22) · N closed candles · M own Dext loads · S s`: a healthy round.
@@ -214,7 +218,7 @@ optflow/optflow.py (8790) + optflow/map.html
 
 | file | what |
 |---|---|
-| `optflow/dext_bridge.mjs` | the bridge: listen + ask, ATM targets, lock 9230, `--now` for one round |
+| `optflow/dext_bridge.mjs` | the bridge: listen + ask, ATM targets, lock 9230, `--now` for one round, `--now <days>` for past days |
 | `optflow/optflow.py` | the Battlefield server on 8790, `--check [day]` |
 | `optflow/map.html` | the Battlefield page (light only, canvas) |
 | `start-v2.bat`, `stop.bat` | start and stop Dext-with-port, the bridge and the board |

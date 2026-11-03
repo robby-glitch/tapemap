@@ -10,6 +10,7 @@
 // Conversion is the Chrome extension's own parser (lib/parsers.js orderFlowV2 / dhanOHLC), so TapeMap gets one shape.
 // Only closed minutes are sent; TapeMap's door appends only lines that changed. Nothing is stored here.
 //     node dext_bridge.mjs          node dext_bridge.mjs --now   (one round now, any hour: the after-close check)
+//     node dext_bridge.mjs --now 2026-11-02 [more days]   (one round per past day: 09:15-15:30, every strike its spot touched ±5)
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -25,8 +26,11 @@ const INNER = 3, OUTER = 5, NOW_FLAG = process.argv.includes("--now");
 const NO_COPY = /^(content-length|host|origin|referer|user-agent|cookie|connection|accept-encoding|sec-|:)/i;
 const log = (...a) => console.log(new Date().toTimeString().slice(0, 8), ...a);
 const istNow = () => new Date(Date.now() + 19800e3);
-const today = () => istNow().toISOString().slice(0, 10);
-const todayOpen = () => { const d = istNow(); d.setUTCHours(9, 15, 0, 0); return Math.floor(d.getTime() / 1000) - 19800; };
+const DAYS = NOW_FLAG ? process.argv.filter(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) : [];    // --now YYYY-MM-DD ...: past days
+let DAY = DAYS.shift();
+const today = () => DAY || istNow().toISOString().slice(0, 10);
+const dayAt = (h, m) => { const d = DAY ? new Date(`${DAY}T00:00:00Z`) : istNow(); d.setUTCHours(h, m, 0, 0); return Math.floor(d.getTime() / 1000) - 19800; };
+const todayOpen = () => dayAt(9, 15);
 const inSession = () => { const hm = istNow().toISOString().slice(11, 16); return hm >= "09:15" && hm <= "15:45"; };
 const iso = s => new Date(s * 1000).toISOString();      // the app's own START_TIME / END_TIME style: 2026-11-03T03:45:00.000Z
 
@@ -52,16 +56,27 @@ function chainNow(idx) {
   return null;
 }
 
-// the contracts to ask this minute: ATM ±INNER always, ±(INNER+1..OUTER) every 3rd minute
+// a past day: its whole spot range from its chain file, so every strike the day touched gets asked
+function dayRange(idx) {
+  let lo = Infinity, hi = -Infinity, expiry = null;
+  try {
+    for (const l of fs.readFileSync(`${DATA}/chain/chain_${idx}_${DAY}.jsonl`, "utf8").split("\n")) {
+      try { const r = JSON.parse(l); if (r.spot) { lo = Math.min(lo, r.spot); hi = Math.max(hi, r.spot); expiry = r.expiry || expiry; } } catch { }
+    }
+  } catch { }
+  return expiry && { lo, hi, expiry };
+}
+
+// the contracts to ask this minute: ATM ±INNER always, ±(INNER+1..OUTER) every 3rd minute (a past day: all, low-5..high+5)
 function autoTargets(minute) {
   const out = [];
   for (const ix of IDX) {
-    const c = chainNow(ix.name); if (!c) continue;
-    const atm = Math.round(c.spot / ix.step) * ix.step;
-    for (let i = -OUTER; i <= OUTER; i++) {
-      if (Math.abs(i) > INNER && minute % 3) continue;
+    const c = DAY ? dayRange(ix.name) : chainNow(ix.name); if (!c) continue;
+    const lo = Math.round((DAY ? c.lo : c.spot) / ix.step), hi = Math.round((DAY ? c.hi : c.spot) / ix.step);
+    for (let k = lo - OUTER; k <= hi + OUTER; k++) {
+      if (!DAY && Math.abs(k - lo) > INNER && minute % 3) continue;
       for (const t of ["CE", "PE"]) {
-        const sid = IDS.get(`${ix.exch}|${ix.name}|${c.expiry}|${atm + i * ix.step}|${t}`);
+        const sid = IDS.get(`${ix.exch}|${ix.name}|${c.expiry}|${k * ix.step}|${t}`);
         if (sid) out.push({ sid, EXCH: ix.exch, SEG: "D", idx: ix.name });
       }
     }
@@ -122,8 +137,8 @@ async function askRound() {
   const headers = Object.fromEntries(Object.entries(via.headers).filter(([k]) => !NO_COPY.test(k)));
   let n = 0, sent = 0, failed = 0;
   for (const t of targets.values()) {
-    const start = asked.get(t.sid) === today() ? nowS - RECENT_S : todayOpen();
-    const body = { ...via.body, EXCH: t.EXCH, SEG: t.SEG, SEC_ID: Number(t.sid), START: start, END: nowS, START_TIME: iso(start), END_TIME: iso(nowS) };
+    const start = asked.get(t.sid) === today() ? nowS - RECENT_S : todayOpen(), end = DAY ? Math.min(nowS, dayAt(15, 30)) : nowS;
+    const body = { ...via.body, EXCH: t.EXCH, SEG: t.SEG, SEC_ID: Number(t.sid), START: start, END: end, START_TIME: iso(start), END_TIME: iso(end) };
     for (const [k, ms] of mine) if (Date.now() - ms > 60000) mine.delete(k);
     mine.set(JSON.stringify(body), Date.now());      // the listener must not count this request as the app's own
     // no credentials mode, like the app's own fetch ("include" against a wildcard CORS reply failed on 3 Nov)
@@ -145,6 +160,7 @@ async function askRound() {
   }
   log(`asked ${n}/${targets.size} (${Object.entries(per).map(([k, v]) => k + " " + v).join(", ")}) · ${sent} closed candles · ${ownLoads} own Dext loads · ${((Date.now() - t0) / 1000).toFixed(0)} s` + (failed ? ` · ${failed} failed` : ""));
   ownLoads = 0;
+  if (NOW_FLAG && DAYS.length) { DAY = DAYS.shift(); asked.clear(); return askRound(); }     // the next past day, same login
   if (NOW_FLAG) process.exit(0);
 }
 
@@ -197,10 +213,13 @@ async function connect() {
 
 // one bridge at a time: a second copy (the start script double-clicked) would ask Dhan twice and re-ask the first
 // copy's requests. Holding a local port is the lock; the OS frees it when this process ends.
-import("node:net").then(({ createServer }) => createServer().once("error", () => {
-  log("another dext bridge is already running - this copy stops"); process.exit(1);
-}).listen(9230, "127.0.0.1", () => {
+// A --now check may run beside it: the live copy never re-asks requests sent from Runtime.evaluate (no script url).
+const start = () => {
   connect();
   setInterval(() => { if (ws && ws.readyState === 1) ask().catch(e => log("ask error", e.message)); }, ASK_MS);
-}));
+};
+import("node:net").then(({ createServer }) => createServer().once("error", () => {
+  if (NOW_FLAG) return start();
+  log("another dext bridge is already running - this copy stops"); process.exit(1);
+}).listen(9230, "127.0.0.1", start));
 if (NOW_FLAG) setTimeout(() => ask().catch(e => log("ask error", e.message)), 20000);
