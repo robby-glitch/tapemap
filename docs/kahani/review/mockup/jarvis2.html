@@ -387,10 +387,13 @@ const fetchFrame = u => fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.no
 function loadFrame(n) {
   const src = API || QS.get("d") || "data_28oct.json";
   $("#btext").textContent = API ? `loading ${DAY || "today"} ${$("#pIdx").value} from TapeMap… (a past day takes 10–30 s the first time)` : `loading ${src}…`;
+  let got = false;
   fetchFrame(src).then(d => {
+    got = true;
     if (!d || !d.mins) { $("#btext").textContent = `no frame: ${(d && d.why) || "empty"}`; return; }
     init(d);
   }).catch(e => {
+    if (got) { $("#btext").textContent = `TapeMap answered; this page failed to draw it (${e.message}). Reload this page.`; return; }
     if (API && n < 6) { $("#btext").textContent = `TapeMap not answering yet (${e.message}) — retrying in 5 s (${n + 1}/6)…`; setTimeout(() => loadFrame(n + 1), 5000); return; }
     $("#btext").textContent = API ? `TapeMap did not answer (${e.message}): is the "TapeMap server" window running? Then reload this page.`
       : `${src} not found: serve this folder (launch: kahani-mockup).`;
@@ -920,6 +923,7 @@ function fireUpTo(nt, now) {
   }
 }
 function seek(nt) {
+  if (!D) return;   // 3 Nov: a click / arrow key before the first frame set t = NaN, and every load after it crashed ('c')
   t = Math.max(0, Math.min(N - 1, nt)); ended = false; $("#end").hidden = true; holdUntil = 0;
   fired = -1; while (fired + 1 < ev.length && ev[fired + 1].i <= t) ev[++fired].at = -1e9;
   if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
