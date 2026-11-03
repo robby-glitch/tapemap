@@ -145,6 +145,41 @@ if errorlevel 1 (
   echo Jarvis page already up on 8787 - reusing it.
 )
 echo Jarvis: http://localhost:8787/jarvis2.html?api=http://localhost:5173/api/jarvis
+
+REM --- Option order flow (added 2026-11-03; docs\optflow\README.md) ---------
+REM The Dext DESKTOP app with a local-only debugging port (9229) -> optflow\dext_bridge.mjs asks it, once a minute,
+REM for NIFTY + SENSEX ATM +-5 option order flow and hands it to TapeMap's Dext door -> optflow\optflow.py draws the
+REM Option Battlefield on 8790. Dext must be OPENED HERE: a Dext already open without the port cannot gain it.
+netstat -aon | findstr ":9229" | findstr "LISTENING" >nul
+if errorlevel 1 (
+  tasklist /FI "IMAGENAME eq Dext.exe" | findstr /I "Dext.exe" >nul
+  if not errorlevel 1 (
+    echo Dext is open WITHOUT the order-flow port. Close Dext fully and run this launcher again
+    echo to get option order flow. Everything else above is unaffected.
+  ) else if exist "C:\Program Files\Dext\Dext.exe" (
+    echo Starting Dext with the order-flow port - keep one chart open in it...
+    start "" "C:\Program Files\Dext\Dext.exe" --remote-debugging-port=9229 --remote-debugging-address=127.0.0.1
+  ) else (
+    echo Dext is not installed at C:\Program Files\Dext - option order flow skipped.
+  )
+) else (
+  echo Dext already open with the order-flow port - reusing it.
+)
+netstat -aon | findstr ":9230" | findstr "LISTENING" >nul
+if errorlevel 1 (
+  echo Starting the Dext bridge...
+  start "Dext bridge" /MIN /D "%~dp0optflow" cmd /k node dext_bridge.mjs
+) else (
+  echo Dext bridge already running - reusing it.
+)
+netstat -aon | findstr ":8790" | findstr "LISTENING" >nul
+if errorlevel 1 (
+  echo Starting the Option Battlefield on 8790...
+  start "Option Battlefield" /MIN /D "%~dp0optflow" cmd /k python -I optflow.py
+) else (
+  echo Option Battlefield already up on 8790 - reusing it.
+)
+echo Option Battlefield: http://127.0.0.1:8790/   SENSEX: http://127.0.0.1:8790/?idx=SENSEX
 echo.
 echo Keep the "TapeMap server" window open. TapeMap v2 has its own window.
 echo.

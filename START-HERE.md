@@ -6,6 +6,8 @@ this project up, read this file to the end before touching anything. It exists
 because handovers kept starting from stale assumptions and re-doing work that
 is finished, dead, or forbidden.
 
+**Option order flow (2026-11-03): read `docs/optflow/README.md`.** The Dext desktop app's option-strike order flow, NIFTY + SENSEX ATM ±5, comes into TapeMap through `optflow/dext_bridge.mjs`; the Option Battlefield (`optflow/optflow.py`, http://127.0.0.1:8790/) reads it with OI. `start-v2.bat` starts all of it. Why, how, the traps already paid for, and the first days' reads are in that file.
+
 **Newest first (2026-10-23):** read `CLAUDE.md`'s "Current state" section and `docs/live/NOTEPAD.md`. They cover:
 - the READ / DECODE stack;
 - the locked setups §1i–§1o;

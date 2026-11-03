@@ -31,6 +31,7 @@ in full too.** Everything else is history or detail. Verified 2026-08-22.
   - only effort per point survived;
   - CVD divergence at highs is inverted;
   - OI speed at extremes does not separate holds from breaks.
+- **Option order flow (3 Nov):** `optflow/` (the Dext desktop bridge + the Option Battlefield on 8790), started by `start-v2.bat`. Read `docs/optflow/README.md` first; NOTEPAD A215. A WHO read (writers opening / covering), not a timing signal and not a registered rule.
 - **The end-of-day job** (`eod_capture.bat`, 15:35): capture, the trigger_log scorer, then `tools/mark_grade.py`. The move to 15:45 awaits her OK.
 
 ## Which of the two instruments are you working on?

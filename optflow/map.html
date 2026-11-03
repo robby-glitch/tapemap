@@ -1,0 +1,213 @@
+<title>Option Battlefield</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: three pills (cap / floor / lean) on top, one battlefield below: strikes down the side, the day across. Light only. */
+:root{
+  --bg:#f4f6f8; --panel:#ffffff; --ink:#18212b; --muted:#5b6876; --line:#dce2e8; --soft:#eef2f6;
+  --up:#0e8a5c; --dn:#c4302b; --grey:#8a96a3; --accent:#1f5fbf;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 20px}
+.top{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.box small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.box b{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+.pill{border-left:6px solid var(--grey)}
+.pill .w{font-weight:700;font-size:15px}
+.pill .c{color:var(--muted);font-size:12px}
+.pill.up{border-left-color:var(--up)} .pill.up .w{color:var(--up)}
+.pill.dn{border-left-color:var(--dn)} .pill.dn .w{color:var(--dn)}
+.ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+.ctl input[type=range]{flex:1;min-width:180px;accent-color:var(--accent)}
+button,select{font:600 13px var(--sans);border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:6px;padding:6px 10px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hit{font-family:var(--mono);font-size:13px;margin:0 0 8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.legend i{display:inline-block;width:14px;height:10px;margin-right:5px;vertical-align:-1px;border-radius:2px}
+.wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+canvas{display:block}
+.up{color:var(--up)} .dn{color:var(--dn)}
+.foot{color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5;max-width:120ch}
+</style>
+
+<div class="top">
+  <div class="box"><small>Index</small><span id="idxsw" style="font-weight:700;font-size:15px"></span></div>
+  <div class="box"><small>Time</small><b id="clock">–</b></div>
+  <div class="box"><small id="spotlbl">Spot</small><b id="spot">–</b></div>
+  <div class="box pill" id="cap"><small>Cap · call writers</small><span class="w">–</span><span class="c">–</span></div>
+  <div class="box pill" id="floor"><small>Floor · put writers</small><span class="w">–</span><span class="c">–</span></div>
+  <div class="box pill" id="lean"><small>Lean</small><span class="w">–</span><span class="c">–</span></div>
+  <div class="box"><small id="futlbl">NIFTY fut delta 15m</small><b id="fut">–</b></div>
+</div>
+<div class="ctl">
+  <button class="primary" id="live" type="button">● Live</button>
+  <button id="play" type="button">Replay day</button>
+  <input id="pos" type="range" min="0" value="0" aria-label="Time">
+  <label for="speed" style="color:var(--muted);font-size:12px">Speed</label>
+  <select id="speed"><option value="4">4 min/s</option><option value="8" selected>8 min/s</option><option value="15">15 min/s</option></select>
+</div>
+<p class="hit" id="hit">–</p>
+<div class="legend">
+  <span><i style="background:var(--dn)"></i>call writers adding · cap (likh rahe)</span>
+  <span><i style="background:var(--up)"></i>put writers adding · floor (likh rahe)</span>
+  <span><i style="border:2px solid var(--dn);background:transparent"></i><i style="border:2px solid var(--up);background:transparent"></i>writers leaving (cover · bhaag rahe)</span>
+  <span><i style="background:var(--grey)"></i>not writers: option buyers in or out</span>
+  <span>faded = OI only, no Dext chart</span>
+  <span>● dot = biggest hit · red bearish · green bullish · bigger = more qty</span>
+  <span>— line = spot</span>
+</div>
+<div class="wrap"><canvas id="cv" aria-label="Battlefield: strikes by time, writers' walls, big hits and NIFTY spot"></canvas></div>
+<p class="foot">Each block is 5 minutes at one strike: the top half is the call side, the bottom half the put side. Order flow (Dext footprint) decides who it was: OI up with sellers hitting = writers; OI up with buyers lifting = option buyers (grey). Without a Dext chart for that strike the block is drawn from OI alone, faded. OI from TapeMap's Upstox chain; hits are the single biggest price cell of the 5 minutes at or above the index's floor (NIFTY 5L qty, SENSEX 0.2L: SENSEX ATM options trade about 1/65 of NIFTY's volume), with the size written from NIFTY 10L / SENSEX 0.5L. Block colour is scaled to the day's own OI moves. The futures box is NIFTY futures on both pages: for SENSEX you read NIFTY's flow (§1q). Everything at a time uses only data up to that time.</p>
+
+<script>
+/*DATA*/
+const N = DATA.spot.length, T0 = DATA.t0, KS = DATA.strikes.slice().reverse(), STEP = (DATA.strikes[1] - DATA.strikes[0]) || 50;
+const NB = Math.ceil(N / 5), SESSION = 375;
+const C = { dn: "#c4302b", up: "#0e8a5c", grey: "#8a96a3", ink: "#18212b", muted: "#5b6876", line: "#dce2e8", soft: "#f3f6f9", accent: "#1f5fbf" };
+const hm = i => { const m = T0 + i; return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+const $ = id => document.getElementById(id);
+// thresholds in each index's own scale (NIFTY: about 1.4L OI and 0.6L flow per 5 min; SENSEX far smaller)
+const OI_MIN = DATA.oiScale * 0.1, OI_WORD = DATA.oiScale * 0.15, FLOW_MIN = DATA.flowScale * 0.1;
+const oiAt = (sd, k, b) => b < 0 ? null : DATA.oi[sd][k][b];
+const flAt = (sd, k, b) => b < 0 ? null : DATA.flow[sd][k][b];
+
+// who was it, at one strike side in one 5-min block: OI says positions opened or closed, the order flow says by whom
+function cell(sd, k, b) {
+  const a = oiAt(sd, k, b), p = oiAt(sd, k, b - 1);
+  if (a == null || p == null || Math.abs(a - p) < OI_MIN) return null;
+  const d = a - p, f = flAt(sd, k, b), buyers = f != null && f > FLOW_MIN, sellers = f != null && f < -FLOW_MIN;
+  const wall = sd === "ce" ? "dn" : "up";
+  if (d > 0) return { solid: true, col: buyers ? "grey" : wall, size: d, oiOnly: f == null };
+  return { solid: false, col: sellers ? "grey" : wall, size: -d, oiOnly: f == null };
+}
+
+const cv = $("cv"), g = cv.getContext("2d");
+const ROW = 40, LEFT = 78, RIGHT = 14, TOP = 8, BOT = 26;
+let W = 0, H = 0;
+const xOf = i => LEFT + (i / SESSION) * (W - LEFT - RIGHT);
+const yRow = idx => TOP + idx * ROW;
+const yOf = v => TOP + ROW / 2 + (KS[0] - v) / STEP * ROW;
+
+function summary(pos) {
+  const b = Math.floor(pos / 5), s = DATA.spot[pos];
+  const pick = (sd, above) => {
+    let best = null;
+    for (const k of DATA.strikes) if (above ? k > s : k < s) { const v = oiAt(sd, k, b); if (v != null && (!best || v > best.v)) best = { k, v }; }
+    return best;
+  };
+  const state = (sd, k) => {
+    const d = (oiAt(sd, k, b) ?? 0) - (oiAt(sd, k, Math.max(0, b - 3)) ?? 0);
+    let f = null; for (let j = Math.max(0, b - 2); j <= b; j++) { const x = flAt(sd, k, j); if (x != null) f = (f || 0) + x; }
+    if (d >= OI_WORD) return ["building", "likh rahe", "hold"];
+    if (d <= -OI_WORD) {
+      if (f != null && f < -FLOW_MIN) return [sd === "ce" ? "longs exiting, wall intact" : "longs exiting, floor intact", "kharidar nikal rahe", "hold"];
+      return ["writers leaving", "cover · bhaag rahe", "leave"];
+    }
+    return ["holding", "ruka hua", "hold"];
+  };
+  const cap = pick("ce", true), flo = pick("pe", false);
+  const cs = cap ? state("ce", cap.k) : null, fs = flo ? state("pe", flo.k) : null;
+  let lean = ["RANGE", `pin ${flo ? flo.k : "?"}–${cap ? cap.k : "?"} · beech mein`, ""];
+  if (cs && fs && cs[2] === "leave" && fs[2] !== "leave") lean = ["UP", "cap jaa raha · upar", "up"];
+  if (cs && fs && fs[2] === "leave" && cs[2] !== "leave") lean = ["DOWN", "floor jaa raha · neeche", "dn"];
+  if (cs && fs && cs[2] === "leave" && fs[2] === "leave") lean = ["WIDE", "dono taraf khul raha", ""];
+  return { s, cap, cs, flo, fs, lean };
+}
+
+function setPill(id, word, chip, cls) { const e = $(id); e.className = "box pill " + cls; e.querySelector(".w").textContent = word; e.querySelector(".c").textContent = chip; }
+
+function draw(pos) {
+  W = Math.max(640, cv.parentElement.clientWidth); H = TOP + KS.length * ROW + BOT;
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + "px"; cv.style.height = H + "px"; }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const sm = summary(pos);
+  g.textBaseline = "middle";
+  KS.forEach((k, idx) => {
+    const y = yRow(idx);
+    g.fillStyle = idx % 2 ? "#ffffff" : C.soft; g.fillRect(LEFT, y, W - LEFT - RIGHT, ROW);
+    g.strokeStyle = C.line; g.lineWidth = 1; g.beginPath(); g.moveTo(LEFT, y + ROW / 2); g.lineTo(W - RIGHT, y + ROW / 2); g.stroke();
+    g.font = "600 12px IBM Plex Mono, Consolas, monospace"; g.fillStyle = C.ink; g.textAlign = "right"; g.fillText(String(k), LEFT - 8, y + ROW / 2);
+    g.font = "400 10px IBM Plex Sans, system-ui, sans-serif"; g.fillStyle = C.muted;
+    g.fillText("CE", LEFT - 52, y + ROW / 4); g.fillText("PE", LEFT - 52, y + 3 * ROW / 4);
+    g.font = "700 11px IBM Plex Sans, system-ui, sans-serif"; g.textAlign = "left";
+    if (sm.cap && sm.cap.k === k) { g.fillStyle = C.dn; g.fillText("CAP", 2, y + ROW / 2); }
+    if (sm.flo && sm.flo.k === k) { g.fillStyle = C.up; g.fillText("FLOOR", 2, y + ROW / 2); }
+  });
+  for (let h = 10; h <= 15; h++) {
+    const x = xOf(h * 60 - T0);
+    g.strokeStyle = "#e4e9ee"; g.lineWidth = 1; g.beginPath(); g.moveTo(x, TOP); g.lineTo(x, TOP + KS.length * ROW); g.stroke();
+    g.fillStyle = C.muted; g.textAlign = "center"; g.font = "400 11px IBM Plex Sans, system-ui, sans-serif"; g.fillText(h + ":00", x, H - 12);
+  }
+  for (let b = 0; b < NB; b++) {
+    if (b * 5 + 4 > pos && pos < N - 1) break;                   // a block shows once its 5 minutes are done
+    const x0 = xOf(b * 5) + 0.5, x1 = xOf(b * 5 + 5) - 0.5;
+    KS.forEach((k, idx) => {
+      ["ce", "pe"].forEach(sd => {
+        const c = cell(sd, k, b); if (!c) return;
+        const y0 = yRow(idx) + (sd === "ce" ? 2 : ROW / 2 + 1), h = ROW / 2 - 3;
+        g.globalAlpha = (0.2 + 0.8 * Math.min(1, c.size / DATA.oiScale)) * (c.oiOnly ? 0.5 : 1);
+        g.fillStyle = C[c.col]; g.strokeStyle = C[c.col];
+        if (c.solid) g.fillRect(x0, y0, x1 - x0, h);
+        else { g.lineWidth = 1.6; g.strokeRect(x0 + 0.8, y0 + 0.8, x1 - x0 - 1.6, h - 1.6); }
+        g.globalAlpha = 1;
+      });
+    });
+  }
+  g.strokeStyle = C.ink; g.lineWidth = 2; g.beginPath(); let started = false;
+  for (let i = 0; i <= pos; i++) { const v = DATA.spot[i]; if (v == null) continue; started ? g.lineTo(xOf(i), yOf(v)) : g.moveTo(xOf(i), yOf(v)); started = true; }
+  g.stroke();
+  let lastHit = null;
+  DATA.prints.forEach(([i, k, sd, side, q, px]) => {
+    if (i > pos) return;
+    const idx = KS.indexOf(k); if (idx < 0) return;
+    const bull = (sd === "ce") === (side === "B");
+    const x = xOf(i), y = yRow(idx) + (sd === "ce" ? ROW / 4 : 3 * ROW / 4), r = 2 + Math.sqrt(q) * 1.6;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = bull ? C.up : C.dn; g.fill(); g.lineWidth = 1.2; g.strokeStyle = "#ffffff"; g.stroke();
+    if (q >= DATA.labelPrint) { g.fillStyle = C.ink; g.font = "600 11px IBM Plex Mono, Consolas, monospace"; g.textAlign = "left"; g.fillText(q + "L", x + r + 2, y); }
+    if (!lastHit || i >= lastHit[0]) lastHit = [i, k, sd, side, q, px, bull];
+  });
+  const xn = xOf(pos); g.setLineDash([4, 4]); g.strokeStyle = C.accent; g.lineWidth = 1; g.beginPath(); g.moveTo(xn, TOP); g.lineTo(xn, TOP + KS.length * ROW); g.stroke(); g.setLineDash([]);
+  $("clock").textContent = hm(pos); $("spot").textContent = sm.s ? sm.s.toFixed(1) : "–"; $("pos").value = pos;
+  setPill("cap", sm.cap ? sm.cap.k + " · " + sm.cs[0] : "–", sm.cs ? sm.cs[1] + " · OI " + sm.cap.v.toFixed(0) + "L" : "", sm.cs && sm.cs[2] === "leave" ? "up" : "dn");
+  setPill("floor", sm.flo ? sm.flo.k + " · " + sm.fs[0] : "–", sm.fs ? sm.fs[1] + " · OI " + sm.flo.v.toFixed(0) + "L" : "", sm.fs && sm.fs[2] === "leave" ? "dn" : "up");
+  setPill("lean", sm.lean[0], sm.lean[1], sm.lean[2]);
+  const b = Math.floor(pos / 5); let f = 0; for (let j = Math.max(0, b - 2); j <= b; j++) f += DATA.fut[j] || 0;
+  $("fut").textContent = (f >= 0 ? "+" : "−") + Math.abs(f / 1000).toFixed(0) + "K"; $("fut").className = f >= 0 ? "up" : "dn";
+  const hit = $("hit"); hit.textContent = "";
+  if (lastHit) {
+    const sp = document.createElement("b"); sp.className = lastHit[6] ? "up" : "dn";
+    sp.textContent = `${lastHit[3] === "B" ? "BUY" : "SELL"} ${lastHit[4]}L @ ${lastHit[5]}`;
+    hit.append(`Last big hit: ${hm(lastHit[0])} · ${lastHit[1]} ${lastHit[2].toUpperCase()} `, sp, ` · ${lastHit[6] ? "bullish" : "bearish"}`);
+  } else hit.textContent = "Last big hit: –";
+  $("live").className = following ? "primary" : ""; $("live").textContent = following ? "● Live" : "Go live";
+  $("play").textContent = playing ? "Pause" : "Replay day";
+}
+
+$("idxsw").innerHTML = ["NIFTY", "SENSEX"].map(x => x === DATA.idx ? x : `<a href="/?idx=${x}" style="color:var(--accent);font-weight:400">${x}</a>`).join(" · ");
+$("spotlbl").textContent = DATA.idx + " spot";
+document.title = DATA.idx + " Option Battlefield";
+let pos = N - 1, playing = false, following = true, acc = 0, last = 0;
+$("pos").max = N - 1;
+function tick(ts) {
+  if (playing) {
+    acc += (ts - (last || ts)) / 1000 * Number($("speed").value);
+    while (acc >= 1 && pos < N - 1) { pos++; acc -= 1; }
+    if (pos >= N - 1) playing = false;
+    draw(pos);
+  }
+  last = ts; requestAnimationFrame(tick);
+}
+$("play").onclick = () => { following = false; if (!playing && pos >= N - 1) pos = 0; playing = !playing; acc = 0; draw(pos); };
+$("pos").oninput = e => { following = false; playing = false; pos = Number(e.target.value); draw(pos); };
+$("live").onclick = () => location.reload();
+setInterval(() => { if (following && !document.hidden) location.reload(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (following && !document.hidden) location.reload(); });
+window.addEventListener("resize", () => draw(pos));
+draw(pos); requestAnimationFrame(tick);
+</script>

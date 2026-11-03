@@ -10,4 +10,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8765" ^| findstr "LISTENING
 if defined _found (echo TapeMap stopped.) else (echo TapeMap was not running.)
 REM The Jarvis page (8787): the static file server start-v2.bat starts.
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8787" ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+REM Option order flow: the Dext bridge (its lock port 9230) and the Option Battlefield (8790). Dext itself stays open.
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":9230" ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8790" ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
 timeout /t 3 /nobreak >nul
