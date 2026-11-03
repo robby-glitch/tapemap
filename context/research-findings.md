@@ -1081,6 +1081,21 @@ restores rev 3 / §1m exactly; that is tested.
 
 ---
 
+## 1s. PRE-REGISTERED: OPTION-FLOW READS, four shadow stamps (registered 2026-11-04 ~02:00 on her "Yes, pre-register", forward from 2026-11-04 09:15, UNTESTED)
+
+**The full text** is `docs/setup-review/OPTFLOW-READS-PREREG.md`, sha256
+`962afdf35e38e0637f809544e1036c5347640b858f49c6c2e2692fc15d831fa3`.
+
+**The four reads, NIFTY only, shadow (no gate, no vote, no alert, no screen until she signs a build):**
+- **R1 band touch + WHO:** a premium band touch, stamped with the strike's WHO and the index at its own band or mid.
+- **R2 pullback card:** HEALTHY / REVERSAL-START / MIXED at a pause's second close.
+- **R3 SQUEEZE ON:** a state stamp when the cap (or floor) covers with the cascade. Never a forecast.
+- **R4 PIN:** expiry afternoons only.
+
+**In-sample, described only:** 28, 29, 30 Oct, 2 and 3 Nov (NOTEPAD A215–A219). **Pass bar: owed by the operator**
+before any evaluation is read. Under 15 per cell is INCONCLUSIVE. No rate is printed. §1q, §1b, §1d and Jarvis's count
+are unchanged.
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

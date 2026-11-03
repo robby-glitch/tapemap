@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option flow × OI v2 · 3 Nov 2026</title>
+<style>
+  :root { --bg:#f6f6f3; --panel:#ffffff; --ink:#15181c; --mute:#6b7280; --line:#e4e4df;
+          --ce:#b3372b; --ce2:#efb7ae; --pe:#1f7a4d; --pe2:#b9e0c8; --grey:#b8bcc4; --spot:#111; --up:#1f7a4d; --dn:#b3372b;
+          --chip:#f0efe9; --flash:#fff3c4; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.35 "Segoe UI",system-ui,-apple-system,Arial,sans-serif; }
+  body { padding:12px 16px 24px; }
+  h1 { font-size:15px; margin:0; font-weight:600; letter-spacing:.2px; }
+  .bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+  .seg button { border:1px solid var(--line); background:var(--panel); padding:4px 10px; cursor:pointer; font:inherit; }
+  .seg button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .seg button:first-child { border-radius:6px 0 0 6px; } .seg button:last-child { border-radius:0 6px 6px 0; }
+  button.ctl { border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:4px 10px; cursor:pointer; font:inherit; }
+  button.ctl.on { background:#e8f3ec; border-color:var(--pe); }
+  input[type=range] { width:min(520px,60vw); }
+  .clock { font-variant-numeric:tabular-nums; font-size:20px; font-weight:600; min-width:60px; }
+  .answer { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin-bottom:12px;
+            display:grid; grid-template-columns: auto 1fr auto; gap:8px 20px; align-items:center; }
+  .word { font-size:30px; font-weight:700; letter-spacing:.3px; white-space:nowrap; }
+  .word.up { color:var(--up); } .word.dn { color:var(--dn); } .word.flat { color:var(--ink); } .word.na { color:var(--mute); }
+  .sent { font-size:15px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .chip { background:var(--chip); border-radius:999px; padding:2px 9px; font-size:12.5px; white-space:nowrap; }
+  .expr { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:13px; margin-top:6px; }
+  .expr b { color:var(--mute); font-weight:600; }
+  .chip.ce { background:#f8e3df; } .chip.pe { background:#dff1e6; } .chip.bada { background:#111; color:#fff; }
+  .chip.g { color:var(--mute); }
+  .nums { color:var(--mute); font-size:12.5px; font-variant-numeric:tabular-nums; grid-column:1 / -1; display:flex; gap:14px; flex-wrap:wrap; }
+  .nums b { color:var(--ink); font-weight:600; }
+  .jarvis { text-align:right; font-size:12.5px; color:var(--mute); }
+  .jarvis .w { font-size:18px; color:var(--ink); font-weight:600; display:block; }
+  .next { font-size:12.5px; color:var(--mute); border:1px dashed var(--line); border-radius:6px; padding:2px 8px; }
+  .grid { display:grid; grid-template-columns: minmax(560px, 1.6fr) minmax(360px, 1fr); gap:12px; }
+  @media (max-width: 960px) { .grid { grid-template-columns:1fr; } .answer { grid-template-columns:1fr; } .jarvis { text-align:left; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--mute); margin:0 0 8px; font-weight:600; }
+  /* ladder */
+  .lhead { display:grid; grid-template-columns: 1fr 96px 1fr; font-size:12px; color:var(--mute); text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px; }
+  .lhead .r { text-align:right; }
+  .ladder { position:relative; }
+  .row { display:grid; grid-template-columns: 1fr 96px 1fr; align-items:center; height:36px; border-top:1px solid #f0f0ec; position:relative; }
+  .row.flash { animation: flash .9s ease-out; }
+  @keyframes flash { 0% { background:var(--flash);} 100% { background:transparent;} }
+  .k { text-align:center; font-weight:600; font-variant-numeric:tabular-nums; font-size:13.5px; line-height:1.1; }
+  .k small { display:block; font-weight:400; color:var(--mute); font-size:12px; letter-spacing:.2px; }
+  .side { position:relative; height:100%; display:flex; align-items:center; gap:8px; min-width:0; }
+  .side.ce { flex-direction:row; justify-content:flex-end; } .side.pe { flex-direction:row; justify-content:flex-start; }
+  .track { position:relative; width:50%; height:18px; flex:0 0 50%; }
+  .wall { position:absolute; top:0; height:18px; border-radius:3px; transition: width .35s ease; }
+  .ce .wall { right:0; background:var(--ce2); } .pe .wall { left:0; background:var(--pe2); }
+  .delta { position:absolute; top:0; height:100%; border-radius:3px; transition: width .35s ease; }
+  .ce .delta { left:0; } .pe .delta { right:0; }
+  .ce .delta.W { background:var(--ce); } .pe .delta.W { background:var(--pe); }
+  .ce .delta.B { background:repeating-linear-gradient(45deg, var(--ce) 0 3px, var(--ce2) 3px 6px); } .pe .delta.B { background:repeating-linear-gradient(45deg, var(--pe) 0 3px, var(--pe2) 3px 6px); }
+  .delta.C { background:transparent; outline:2px dashed var(--ce); outline-offset:-2px; } .pe .delta.C { outline-color:var(--pe); }
+  .delta.D { background:transparent; outline:2px dashed var(--grey); outline-offset:-2px; }
+  .ce .delta.C, .ce .delta.D { left:auto; right:100%; margin-right:2px; } .pe .delta.C, .pe .delta.D { right:auto; left:100%; margin-left:2px; }
+  .lab { font-size:12px; white-space:nowrap; color:var(--ink); overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1 1 auto; }
+  .ce .lab { text-align:right; } .pe .lab { text-align:left; }
+  .lab.off { color:var(--mute); }
+  .lab.soft { color:var(--mute); }
+  body.float .grid { grid-template-columns: 440px; }
+  body.float .stack > .panel:not(.keep) { display:none; }
+  body.float .answer { max-width:440px; grid-template-columns:1fr; }
+  body.float .jarvis { text-align:left; }
+  body.float .row { height:30px; }
+  body.float .legend { display:none; }
+  body.float .nums span:nth-child(n+4) { display:none; }
+  .lab b { font-weight:600; }
+  .press::after { content:"▶"; position:absolute; font-size:12px; color:var(--ce); top:3px; right:100%; margin-right:2px; animation: push .7s ease-in-out infinite alternate; }
+  .pe .press::after { content:"◀"; color:var(--pe); right:auto; left:100%; margin-left:2px; animation-name:pushl; }
+  @keyframes push { from { transform:translateX(-3px);} to { transform:translateX(1px);} }
+  @keyframes pushl { from { transform:translateX(3px);} to { transform:translateX(-1px);} }
+  .run::before { content:""; position:absolute; inset:-3px; border-radius:5px; border:1px solid var(--ce); opacity:0; animation: run .8s ease-out 2; }
+  .pe .run::before { border-color:var(--pe); }
+  @keyframes run { 0% { opacity:.9; transform:scale(1);} 100% { opacity:0; transform:scale(1.06);} }
+  .spot { position:absolute; left:0; right:0; height:0; border-top:2px solid var(--spot); transition: top .35s ease; pointer-events:none; z-index:3; }
+  .spot span { position:absolute; left:50%; transform:translate(-50%,-55%); background:var(--spot); color:#fff; font-size:12px; padding:1px 7px; border-radius:999px; white-space:nowrap; }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--mute); margin-top:8px; }
+  .legend i { display:inline-block; width:14px; height:10px; vertical-align:middle; margin-right:4px; border-radius:2px; }
+  /* right column */
+  .strip { display:grid; grid-template-columns: repeat(10, 1fr); gap:4px; }
+  .cell { border:1px solid var(--line); border-radius:6px; padding:4px 2px; text-align:center; font-size:12px; line-height:1.2; }
+  .cell b { display:block; font-size:14px; }
+  .cell.up { background:#e6f4ea; } .cell.dn { background:#f9e6e3; } .cell.flat { background:#f3f3ef; } .cell.na { background:#fff; color:var(--mute); }
+  .cell small { color:var(--mute); display:block; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  td { padding:4px 4px; border-top:1px solid #f0f0ec; vertical-align:top; font-variant-numeric:tabular-nums; }
+  td.t { color:var(--mute); white-space:nowrap; width:42px; }
+  .ans { font-weight:600; } .ans.up { color:var(--up);} .ans.dn { color:var(--dn);} .ans.g { color:var(--mute);}
+  .log { max-height:180px; overflow:auto; }
+  .log td { font-size:12.5px; }
+  .empty { color:var(--mute); font-size:12.5px; }
+  .stack { display:flex; flex-direction:column; gap:12px; }
+  .health { font-size:12.5px; color:var(--mute); }
+  .health b { color:var(--dn); }
+  kbd { font:12px monospace; background:var(--chip); padding:1px 4px; border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>OPTION FLOW × OI</h1>
+  <div class="seg"><button id="bN" class="on">NIFTY</button><button id="bS">SENSEX</button></div>
+  <div class="seg"><button id="d2">Mon 2 Nov</button><button id="d3" class="on">Tue 3 Nov</button></div>
+  <span style="color:var(--mute)" id="sub">Tue 3 Nov 2026 · NIFTY 03 NOV (expiry today) · SENSEX 05 NOV</span>
+  <button class="ctl" id="prev">◀</button>
+  <button class="ctl" id="play">▶ play</button>
+  <button class="ctl" id="next">▶</button>
+  <input type="range" id="rng" min="0" max="375" value="0">
+  <span class="clock" id="clock">09:15</span>
+  <button class="ctl" id="hind">what came next: off</button>
+  <button class="ctl" id="mode">Float 440</button>
+</div>
+
+<div class="answer">
+  <div>
+    <div class="word" id="word">—</div>
+    <div class="chips" id="chips"></div>
+    <div class="expr" id="expr"></div>
+  </div>
+  <div>
+    <div class="sent" id="sent"></div>
+    <div class="chips" id="since"></div>
+  </div>
+  <div class="jarvis" id="jarvis"></div>
+  <div class="nums" id="nums"></div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="lhead"><span>CALLS · the cap · writers write here to stop a rise</span><span style="text-align:center">strike (s)</span><span class="r">PUTS · the floor · writers write here to stop a fall</span></div>
+    <div class="ladder" id="ladder"></div>
+    <div class="legend">
+      <span><i style="background:var(--ce2)"></i><i style="background:var(--pe2)"></i>wall now (OI)</span>
+      <span><i style="background:var(--ce)"></i>likh rahe · writers pressing (hit bids)</span>
+      <span><i style="background:repeating-linear-gradient(45deg,var(--pe) 0 3px,var(--pe2) 3px 6px)"></i>kharid rahe · buyers lifting, writers posting</span>
+      <span><i style="outline:2px dashed var(--ce);outline-offset:-2px"></i>bhaag rahe · writers covering (wall shrinks)</span>
+      <span><i style="outline:2px dashed var(--grey);outline-offset:-2px"></i>nikal rahe · buyers leaving</span>
+      <span>faint = label not firm (OI lag) · last 3 min · <kbd>←</kbd> <kbd>→</kbd> <kbd>space</kbd></span>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="panel keep">
+      <h2>Pichle 30 min · the word every 3-min close · fut change</h2>
+      <div class="strip" id="strip"></div>
+    </div>
+    <div class="panel">
+      <h2>Pushes (futures) → the wall's answer in option flow</h2>
+      <div class="log"><table id="pushes"></table></div>
+    </div>
+    <div class="panel">
+      <h2>Phanse hue · who is under water (OI built today vs the day's avg price, in premium points)</h2>
+      <table id="trap"></table>
+    </div>
+    <div class="panel">
+      <h2>What TapeMap said (Jarvis · setups · flow)</h2>
+      <div class="log"><table id="alerts"></table></div>
+    </div>
+    <div class="panel health keep" id="health"></div>
+  </div>
+</div>
+
+<script type="application/json" id="day">__DAYS_JSON__</script>
+<script>
+(function () {
+  "use strict";
+  var DAYS = JSON.parse(document.getElementById("day").textContent), day = "2026-11-03", DAY = DAYS[day];
+  var idx = "NIFTY", i = 0, timer = null, hind = false, lastI = -1;
+  var $ = function (id) { return document.getElementById(id); };
+  var hm = function (m) { return (m / 60 | 0).toString().padStart(2, "0") + ":" + (m % 60).toString().padStart(2, "0"); };
+  var mOf = function (s) { return +s.slice(0, 2) * 60 + +s.slice(3, 5); };
+  var L = function (q, dec) { if (q == null) return "?"; var v = q / 1e5; return (v >= 0 ? "+" : "") + v.toFixed(dec == null ? (Math.abs(v) < 1 ? 2 : 1) : dec) + "L"; };
+  var lots = function (q, d) { return Math.round(q / d.lot).toLocaleString("en-IN") + " lots"; };
+  var klots = function (q, d) { var n = q / d.lot; return (n >= 1000 ? (n / 1000).toFixed(1) + "k" : Math.round(n)) + " lots"; };
+  var fmt = function (x, dec) { return x == null ? "?" : x.toLocaleString("en-IN", { maximumFractionDigits: dec == null ? 0 : dec, minimumFractionDigits: dec == null ? 0 : dec }); };
+  var HI = { W: "likh rahe", B: "kharid rahe", C: "bhaag rahe", D: "nikal rahe", M: "dono taraf", Q: "", "?": "OI?", F: "flow?" };
+  var EN = { WRITE: "writers pressing", BUY: "buyers lifting", COVER: "writers covering", DUMP: "buyers leaving", MIXED: "posted both ways", QUIET: "quiet", "OI?": "OI not read" };
+  var WORDS = {
+    "UP FUEL": ["▲ UP · writers", "up", "writers bhaag/likh ▲"],
+    "LID BREAKING": ["CAP BREAKING", "flat", "upar ki deewar toot rahi"],
+    "FLOOR UP": ["FLOOR RISING", "flat", "neeche likh rahe"],
+    "UP BUYERS": ["BUYERS · calls", "flat", "kharidar chase"],
+    "DOWN FUEL": ["▼ DOWN · writers", "dn", "writers bhaag/likh ▼"],
+    "LID": ["LID", "flat", "upar likh rahe"],
+    "FLOOR BREAKING": ["FLOOR BREAKING", "flat", "neeche ki deewar toot rahi"],
+    "DOWN BUYERS": ["BUYERS · puts", "flat", "put kharidar"],
+    "PIN": ["═ PIN", "flat", "dono taraf likh rahe"],
+    "SQUEEZE": ["⇕ SQUEEZE", "flat", "dono bhaag rahe"],
+    "BUYERS OUT": ["— BUYERS OUT", "flat", "kharidar nikal rahe"],
+    "QUIET": ["— QUIET", "flat", "shaant"],
+    "OI?": ["CAN'T SEE OI", "na", "chain nahi"]
+  };
+  var floatMode = false;
+  function expression(w, cap, fl) {
+    var ck = cap && cap.top ? fmt(cap.top[0]) + "s" : "the cap", fk = fl && fl.top ? fmt(fl.top[0]) + "s" : "the floor";
+    switch (w) {
+      case "UP FUEL": return ["CE · fuel = call writers " + (cap && cap.w === "COVER" ? "covering " : "not pressing ") + ck, fl && fl.w === "WRITE" ? "sell PE · put writers pressing " + fk + " behind you" : "sell PE only with a wall behind · floor " + fk + ": " + (fl ? EN[fl.w] : "?")];
+      case "LID BREAKING": return ["CE · the cap " + ck + " is being bought back", "no fresh CE sale here · wait for the floor"];
+      case "FLOOR UP": return ["no fuel yet · floor rising, cap quiet", "sell PE · writers with you at " + fk];
+      case "UP BUYERS": return ["CE · buyers chasing, writers posting (fades more)", "sell PE only with a wall behind · writers posting, not pressing"];
+      case "DOWN FUEL": return ["PE · fuel = put writers " + (fl && fl.w === "COVER" ? "covering " : "not pressing ") + fk, cap && cap.w === "WRITE" ? "sell CE · call writers pressing " + ck + " behind you" : "sell CE only with a wall behind · cap " + ck + ": " + (cap ? EN[cap.w] : "?")];
+      case "LID": return ["no fresh CE under the lid " + ck, "sell CE at " + ck + " · writers with you"];
+      case "FLOOR BREAKING": return ["PE · the floor " + fk + " is being bought back", "no fresh PE sale here · wait for the cap"];
+      case "DOWN BUYERS": return ["PE · buyers chasing, writers posting (fades more)", "sell CE only with a wall behind"];
+      case "PIN": return ["no trade · both sides writing " + fk + "–" + ck, "the seller's afternoon · both sides writing " + fk + "–" + ck];
+      case "SQUEEZE": return ["direction not clear · both walls breaking", "refused · never sell into a squeeze"];
+      case "BUYERS OUT": return ["no trade · buyers leaving both sides (theta)", "nothing to defend · premium bleeding"];
+      case "OI?": return ["could not check · chain stale", "refused · a writer does not sell a wall she cannot see"];
+      default: return ["no read", "no read"];
+    }
+  }
+  function d() { return DAY[idx]; }
+  function kidx(k, side) { var s = d().strikes; for (var j = 0; j < s.length; j++) if (s[j][0] === k && s[j][1] === side) return j; return -1; }
+  function sideOf(k, side, spot) { return side === "CE" ? (k >= spot ? "CAP" : "ITM") : (k <= spot ? "FLOOR" : "ITM"); }
+
+  function render() {
+    var x = d(), m = x.mins[i], spot = x.spot[i], fut = x.fut[i];
+    $("clock").textContent = hm(m);
+    $("rng").value = i;
+    var w = x.word[i] || "OI?", raw = x.raw[i] || "OI?", W = WORDS[w] || [w, "flat", ""];
+    var wd = $("word"); wd.textContent = W[0]; wd.className = "word " + W[1];
+    var cap = x.cap[i], fl = x.floor[i];
+    // the sentence: cap state at its top strike, floor state at its top strike
+    var parts = [];
+    if (cap && cap.w !== "OI?") parts.push("cap " + (cap.top ? fmt(cap.top[0]) + "s" : "") + ": " + EN[cap.w] + (cap.w !== "QUIET" ? " " + L(cap.doi) : ""));
+    if (fl && fl.w !== "OI?") parts.push("floor " + (fl.top ? fmt(fl.top[0]) + "s" : "") + ": " + EN[fl.w] + (fl.w !== "QUIET" ? " " + L(fl.doi) : ""));
+    if (!parts.length) parts.push(x.chain_end && m > mOf(x.chain_end) ? "chain ended " + x.chain_end + " (A214) · flow only: calls Δ " + L(cap ? cap.dl : null) + ", puts Δ " + L(fl ? fl.dl : null) : "no chain snapshot this minute");
+    $("sent").textContent = parts.join(" · ");
+    // chips: the two groups in Hinglish with numbers
+    var ch = "";
+    if (cap && cap.w !== "OI?" && cap.w !== "QUIET") ch += '<span class="chip ce">calls ' + (HI[cap.w[0]] || cap.w.toLowerCase()) + " " + L(cap.doi) + "</span>";
+    if (fl && fl.w !== "OI?" && fl.w !== "QUIET") ch += '<span class="chip pe">puts ' + (HI[fl.w[0]] || fl.w.toLowerCase()) + " " + L(fl.doi) + "</span>";
+    ch += '<span class="chip g">' + W[2] + "</span>";
+    $("chips").innerHTML = ch;
+    var ex = expression(w, cap, fl);
+    $("expr").innerHTML = "<b>for a buyer</b><span>" + ex[0] + "</span><b>for a seller</b><span>" + ex[1] + "</span>";
+    // since + this bar + hindsight
+    var since = i; while (since > 0 && x.word[since - 1] === w) since--;
+    var s = '<span class="chip g">said since ' + hm(x.mins[since]) + "</span>";
+    if (raw !== w) s += '<span class="chip g">this bar: ' + (WORDS[raw] ? WORDS[raw][0] : raw) + "</span>";
+    if (hind) { var n = x.next15[i]; s += '<span class="next">+15 min: ' + (n == null ? "?" : (n >= 0 ? "+" : "") + Math.round(n) + "f") + " (hindsight)</span>"; }
+    $("since").innerHTML = s;
+    // Jarvis beside it, for comparison
+    var j = x.jarvis[i];
+    $("jarvis").innerHTML = j ? '<span class="w">Jarvis: ' + j.w + "</span>WITH " + j["with"] + " · AGAINST " + j.against + (j.shown ? " · shown " + j.shown.slice(0, 5) : "") : '<span class="w">Jarvis: —</span>no call logged';
+    // numbers
+    var oi0 = x.futoi[0], oi = x.futoi[i];
+    var fo = (oi != null && oi0 != null) ? Math.round((oi - oi0) / x.lot) : null;
+    $("nums").innerHTML = "<span>fut <b>" + fmt(fut, 1) + "f</b></span><span>spot <b>" + fmt(spot, 1) + "s</b></span>" +
+      "<span>basis <b>" + (fut != null && spot != null ? (fut - spot >= 0 ? "+" : "") + (fut - spot).toFixed(0) : "?") + "</b></span>" +
+      "<span>VIX <b>" + (x.vix[i] == null ? "?" : x.vix[i].toFixed(2)) + "</b>" + (x.vix[i] != null && x.vix[0] != null ? " (" + (x.vix[i] - x.vix[0] >= 0 ? "+" : "") + (x.vix[i] - x.vix[0]).toFixed(2) + " since open)" : "") + "</span>" +
+      "<span>fut OI since open <b>" + (fo == null ? "?" : (fo >= 0 ? "+" : "") + fo.toLocaleString("en-IN") + " lots") + "</b>" + (fo != null && fut != null && x.fut[0] != null ? " · " + (fut > x.fut[0] ? (fo < 0 ? "short covering" : "fresh longs") : (fo < 0 ? "long unwinding" : "fresh shorts")) : "") + "</span>" +
+      "<span>levels: s = spot · f = futures</span>";
+    renderLadder(x, m, spot);
+    renderStrip(x);
+    renderPushes(x, m);
+    renderTrap(x);
+    renderAlerts(x, m);
+    renderHealth(x, m);
+    lastI = i;
+  }
+
+  function renderLadder(x, m, spot) {
+    var el = $("ladder");
+    if (spot == null) { el.innerHTML = '<div class="empty">no spot this minute (chain not read)</div>'; return; }
+    var step = x.step, atm = Math.round(spot / step) * step;
+    var n = floatMode ? 2 : 4, ks = []; for (var k = atm + n * step; k >= atm - n * step; k -= step) ks.push(k);
+    var maxOI = 1;
+    ks.forEach(function (k) { ["CE", "PE"].forEach(function (sd) { var q = kidx(k, sd); if (q >= 0 && x.oi[q][i] != null) maxOI = Math.max(maxOI, x.oi[q][i]); }); });
+    var html = "", stepped = (lastI >= 0 && Math.abs(i - lastI) <= 3);
+    ks.forEach(function (k) {
+      html += '<div class="row" data-k="' + k + '">';
+      ["CE", "PE"].forEach(function (sd, n) {
+        var q = kidx(k, sd), oi = q >= 0 ? x.oi[q][i] : null, who = q >= 0 ? x.who[i][q] : null, doi = q >= 0 ? x.doi[i][q] : null, big = q >= 0 ? x.bigc[i][q] : 0, firm = q >= 0 && x.firm[i] ? x.firm[i][q] : 0;
+        var wpct = oi == null ? 0 : Math.max(2, 100 * oi / maxOI);
+        var dpct = doi == null ? 0 : Math.min(wpct, 100 * Math.abs(doi) / maxOI);
+        var cls = "side " + sd.toLowerCase();
+        var inner = "";
+        if (q < 0 || oi == null) inner = '<span class="lab"></span><div class="track"></div>';
+        else {
+          var role = sideOf(k, sd, spot);
+          var act = (who === "W" || who === "B" || who === "C" || who === "D");
+          var motion = who === "W" ? " press" : (who === "C" ? " run" : "");
+          var lab = act ? (firm ? "<b>" + HI[who] + " " + L(doi) + "</b>" : HI[who] + "? " + L(doi)) : "";
+          if (big && act) lab += " · BADA " + klots(big, x).replace(" lots", "");
+          if (lab && role === "ITM") lab += " · ITM";
+          var track = '<div class="track"><div class="wall' + motion + '" style="width:' + wpct.toFixed(1) + '%">' +
+            (act ? '<div class="delta ' + who + '" style="width:' + dpct.toFixed(1) + '%"></div>' : "") + "</div></div>";
+          var label = '<span class="lab' + (act && firm ? "" : " soft") + '">' + lab + "</span>";
+          inner = sd === "CE" ? label + track : track + label;
+        }
+        if (sd === "CE") html += '<div class="' + cls + '">' + inner + "</div>" + '<div class="k">' + fmt(k) + "<small>C " + L(x.oi[kidx(k, "CE")] ? x.oi[kidx(k, "CE")][i] : null, 0).replace("+", "") + " · P " + L(x.oi[kidx(k, "PE")] ? x.oi[kidx(k, "PE")][i] : null, 0).replace("+", "") + "</small></div>";
+        else html += '<div class="' + cls + '">' + inner + "</div>";
+      });
+      html += "</div>";
+    });
+    // spot line: position between rows by spot vs strike
+    var rowH = floatMode ? 30 : 36, topK = ks[0];
+    var yy = (topK - spot) / step * rowH + rowH / 2;
+    html += '<div class="spot" style="top:' + yy.toFixed(1) + 'px"><span>spot ' + fmt(spot, 1) + "s · fut " + fmt(x.fut[i], 0) + "f</span></div>";
+    el.innerHTML = html;
+    el.style.height = (ks.length * rowH) + "px";
+    if (!stepped) return;
+    // flash the rows whose wall was hit by covering this minute near spot (an attack on the wall)
+    Array.prototype.forEach.call(el.querySelectorAll(".row"), function (r) {
+      var k = +r.getAttribute("data-k");
+      ["CE", "PE"].forEach(function (sd) { var q = kidx(k, sd); if (q >= 0 && x.who[i][q] === "C" && Math.abs(k - spot) <= 2 * step) r.classList.add("flash"); });
+    });
+  }
+
+  function renderStrip(x) {
+    var cells = [], m = x.mins[i];
+    // the last 10 closes at or before now (3-min closes are minutes with (m-555)%3==2)
+    var j = i; while (j >= 0 && (x.mins[j] - 555) % 3 !== 2) j--;
+    for (var n = 0; n < 10 && j >= 0; n++, j -= 3) {
+      var w = x.raw[j] || "OI?", W = WORDS[w] || [w, "flat", ""], f0 = j >= 3 ? x.fut[j - 3] : null, f1 = x.fut[j];
+      var dp = (f0 != null && f1 != null) ? Math.round(f1 - f0) : null;
+      cells.unshift('<div class="cell ' + W[1] + '" title="' + w + '"><small>' + hm(x.mins[j]) + "</small><b>" + W[0].slice(0, 1) + "</b>" + (dp == null ? "?" : (dp >= 0 ? "+" : "") + dp) + "</div>");
+    }
+    while (cells.length < 10) cells.unshift('<div class="cell na"><small>—</small><b>·</b></div>');
+    $("strip").innerHTML = cells.join("");
+  }
+
+  function flowAnswer(x, p) {
+    // the push's strike in the window ending at the answer minute (p.am) or the push minute + 2: what the option flow said
+    var am = p.am ? mOf(p.am) : mOf(p.t) + 2, j = x.mins.indexOf(am); if (j < 0) j = x.mins.indexOf(mOf(p.t));
+    if (j < 0) return ["?", "g"];
+    var q = kidx(p.k, p.side); if (q < 0) return ["no footprint at " + p.k + " " + p.side, "g"];
+    var who = x.who[j][q], doi = x.doi[j][q];
+    if (who == null || who === "?") return ["OI not read", "g"];
+    var txt = p.k + " " + p.side + " " + (HI[who] || "quiet") + " " + L(doi);
+    var cls = (who === "C") ? (p.side === "CE" ? "up" : "dn") : (who === "W") ? (p.side === "CE" ? "dn" : "up") : "g";
+    return [txt, cls];
+  }
+
+  function renderPushes(x, m) {
+    var rows = x.pushes.filter(function (p) { return mOf(p.am || p.t) <= m; });
+    if (!rows.length) { $("pushes").innerHTML = '<tr><td class="empty">no push yet</td></tr>'; return; }
+    $("pushes").innerHTML = rows.slice(-8).reverse().map(function (p) {
+      var a = flowAnswer(x, p);
+      return "<tr><td class='t'>" + p.t + "</td><td>" + (p.dir > 0 ? "▲" : "▼") + " " + Math.abs(p.lots).toLocaleString("en-IN") + " lots</td>" +
+        "<td>OI says <span class='ans " + (p.ans === "TOOT" ? (p.dir > 0 ? "up" : "dn") : "g") + "'>" + p.ans + "</span></td>" +
+        "<td>flow says <span class='ans " + a[1] + "'>" + a[0] + "</span></td>" +
+        (hind && p.p15 != null ? "<td class='t'>+15: " + (p.p15 >= 0 ? "+" : "") + p.p15 + "</td>" : "") + "</tr>";
+    }).join("");
+  }
+
+  function renderTrap(x) {
+    var rows = [];
+    x.strikes.forEach(function (ks, q) {
+      var oi = x.oi[q][i], oi0 = null; for (var a = 0; a < x.oi[q].length; a++) { if (x.oi[q][a] != null) { oi0 = x.oi[q][a]; break; } }
+      var lp = x.ltp[q][i]; if (oi == null || oi0 == null || !lp || !lp[1]) return;
+      var built = oi - oi0; if (built < 4 * x.oi_move) return;
+      var r = lp[0] / lp[1];
+      if (r >= 1.25) rows.push({ k: ks, built: built, who: "writers", avg: lp[1], now: lp[0] });
+      else if (r <= 0.75) rows.push({ k: ks, built: built, who: "buyers", avg: lp[1], now: lp[0] });
+    });
+    if (!rows.length) { $("trap").innerHTML = '<tr><td class="empty">no one under water by a quarter of their price yet (OI built today ≥ ' + L(4 * x.oi_move, 1).replace("+", "") + ")</td></tr>"; return; }
+    rows.sort(function (a, b) { return b.built - a.built; });
+    $("trap").innerHTML = rows.slice(0, 5).map(function (r) {
+      var fuel = r.who === "writers" ? (r.k[1] === "CE" ? "fuel ▲ if they cover" : "fuel ▼ if they cover") : "their exit is not the wall breaking";
+      var ag = r.who === "writers" ? r.now - r.avg : r.avg - r.now;
+      return "<tr><td><b>" + fmt(r.k[0]) + " " + r.k[1] + "</b></td><td>" + r.who + " " + L(r.built, 0) + "</td><td>" + (r.who === "writers" ? "wrote" : "paid") + " ~" + r.avg.toFixed(1) + " → now " + r.now.toFixed(1) + "</td><td class='ans " + (r.who === "writers" ? "dn" : "g") + "'>" + (r.who === "writers" ? "phanse" : "doobe") + " " + ag.toFixed(1) + " against them</td><td class='t'>" + fuel + "</td></tr>";
+    }).join("");
+  }
+
+  function renderAlerts(x, m) {
+    var rows = x.alerts.filter(function (a) { return mOf(a.t) <= m; });
+    var jr = []; var prev = null;
+    for (var a = 0; a <= i; a++) { var j = x.jarvis[a]; if (j && j.w !== prev) { jr.push({ t: hm(x.mins[a]), kind: "JARVIS", line: j.w + " · WITH " + j["with"] + " · AGAINST " + j.against }); prev = j.w; } }
+    rows = rows.concat(jr).sort(function (a, b) { return mOf(a.t) - mOf(b.t); }).slice(-12).reverse();
+    if (!rows.length) { $("alerts").innerHTML = '<tr><td class="empty">nothing yet</td></tr>'; return; }
+    $("alerts").innerHTML = rows.map(function (a) { var l = a.line.replace(/^\d\d:\d\d\s+\w+\s+/, ""); return "<tr><td class='t'>" + a.t + "</td><td class='t'>" + a.kind + "</td><td>" + l.slice(0, 110) + "</td></tr>"; }).join("");
+  }
+
+  function renderHealth(x, m) {
+    var gaps = [];
+    if (x.chain_end && m > mOf(x.chain_end)) gaps.push("chain ended " + x.chain_end + " (laptop out of memory, A214): OI not read, flow only");
+    else if (x.spot[i] == null || (x.cap[i] && x.cap[i].w === "OI?")) gaps.push("chain snapshot missing this minute: OI not read");
+    var missing = 0; x.strikes.forEach(function (k, q) { if (x.doi[i] && x.doi[i][q] == null && x.oi[q][i] == null) missing++; });
+    $("health").innerHTML = "<b>Health</b> · " + (gaps.length ? gaps.join(" · ") : "chain and Dext footprint both read this minute") +
+      " · Dext: 1-min footprint re-fetched after the close (complete) · thresholds [I]: a strike moved at " + lots(x.oi_move, x) + " / 3 min, aggressor at 0.2 × |ΔOI|, BADA cell " + lots(x.big, x) + " at one price in one minute · every number here is from data up to " + hm(m) + " only" +
+      (idx === "SENSEX" ? " · <b>SENSEX's own option flow is shown here; her rule §1q reads NIFTY's flow for SENSEX — this page does not change that, she does</b>" : "");
+  }
+
+  function go(n) { i = Math.max(0, Math.min(d().mins.length - 1, n)); render(); }
+  function play() {
+    if (timer) { clearInterval(timer); timer = null; $("play").textContent = "▶ play"; $("play").classList.remove("on"); return; }
+    $("play").textContent = "❚❚ pause"; $("play").classList.add("on");
+    timer = setInterval(function () { if (i >= d().mins.length - 1) { play(); return; } go(i + 1); }, 300);
+  }
+  $("prev").addEventListener("click", function () { go(i - 1); });
+  $("next").addEventListener("click", function () { go(i + 1); });
+  $("play").addEventListener("click", play);
+  $("rng").addEventListener("input", function (e) { go(+e.target.value); });
+  $("hind").addEventListener("click", function () { hind = !hind; $("hind").textContent = "what came next: " + (hind ? "on" : "off"); $("hind").classList.toggle("on", hind); render(); });
+  $("mode").addEventListener("click", function () { floatMode = !floatMode; document.body.classList.toggle("float", floatMode); $("mode").textContent = floatMode ? "Page" : "Float 440"; $("mode").classList.toggle("on", floatMode); lastI = -1; render(); });
+  function setDay(dd) { day = dd; DAY = DAYS[day]; $("d2").classList.toggle("on", dd === "2026-11-02"); $("d3").classList.toggle("on", dd === "2026-11-03");
+    $("sub").textContent = dd === "2026-11-02" ? "Mon 2 Nov 2026 · NIFTY 03 NOV (1 DTE) · SENSEX 05 NOV (3 DTE)" : "Tue 3 Nov 2026 · NIFTY 03 NOV (expiry today) · SENSEX 05 NOV";
+    $("rng").max = d().mins.length - 1; lastI = -1; go(Math.min(i, d().mins.length - 1)); }
+  $("d2").addEventListener("click", function () { setDay("2026-11-02"); });
+  $("d3").addEventListener("click", function () { setDay("2026-11-03"); });
+  $("bN").addEventListener("click", function () { idx = "NIFTY"; $("bN").classList.add("on"); $("bS").classList.remove("on"); $("rng").max = d().mins.length - 1; lastI = -1; go(Math.min(i, d().mins.length - 1)); });
+  $("bS").addEventListener("click", function () { idx = "SENSEX"; $("bS").classList.add("on"); $("bN").classList.remove("on"); $("rng").max = d().mins.length - 1; lastI = -1; go(Math.min(i, d().mins.length - 1)); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft") { go(i - 1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { go(i + 1); e.preventDefault(); }
+    else if (e.key === " ") { play(); e.preventDefault(); }
+  });
+  $("rng").max = d().mins.length - 1;
+  // open at 11:48, the first option-flow BREAK with the futures push (the reader's own moment); the slider goes anywhere
+  go(Math.max(0, d().mins.indexOf(11 * 60 + 48)));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+
+######## 2026-11-02  NIFTY 2026-11-03 expiry  (32 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+ITM         ce |  11373    1237     +77 |   295   -719 |    32  17    51   49    26 | 5
+ITM         pe |   6432     627     -73 |   325   -399 |    31  20    23   25    28 | 0
+ATM         ce |   8929     876    -171 |   404   -253 |    32  22    14   22    13 | 5
+ATM         pe |   6892     658    -119 |   437   -202 |    30  25     5   16    15 | 4
+NEAR 1-2    ce |  12591    1330    -295 |   481   -297 |    41  35    20   35    23 | 9
+NEAR 1-2    pe |  10933    1073    -429 |   460   -322 |    42  33    13   43    26 | 2
+WING 3-5    ce |  11328    1272    -109 |   397   -277 |    28  50    22   37    17 | 7
+WING 3-5    pe |   8963     983    -469 |   358   -297 |    40  22    18   40    26 | 2
+FAR 6+      ce |   5084     744     +63 |   257   -157 |    13  15    11   20    21 | 3
+FAR 6+      pe |   3891     509    -162 |   139   -119 |    15  10     6   15     9 | 0
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+  09:17 CAP   None -> 23500 (4.9 steps away, 134L) new: OI? · fut 23314
+  09:17 FLOOR None -> 23000 (5.1 steps away, 106L) new: OI? · fut 23314
+  09:56 FLOOR 23000 -> 23300 (0.3 steps away, 180L) new: BUY · old: BUY +6L · fut 23400
+  10:02 FLOOR 23300 -> 23000 (5.9 steps away, 184L) new: BUY · old: BUY +2L · fut 23377
+  10:05 FLOOR 23000 -> 23300 (0.1 steps away, 189L) new: QUIET · old: QUIET +1L · fut 23373
+  10:11 FLOOR 23300 -> 23000 (6.3 steps away, 188L) new: WRITE · old: QUIET -1L · fut 23396
+  10:14 FLOOR 23000 -> 23300 (0.4 steps away, 194L) new: WRITE · old: WRITE +3L · fut 23397
+  10:20 CAP   23500 -> 23300 (0.2 steps away, 189L) new: WRITE · old: WRITE +3L · fut 23362
+  10:20 FLOOR 23300 -> 23000 (5.8 steps away, 194L) new: BUY · old: BUY +2L · fut 23362
+  10:23 CAP   23300 -> 23500 (3.9 steps away, 171L) new: BUY · old: BUY +9L · fut 23380
+  10:23 FLOOR 23000 -> 23300 (0.1 steps away, 205L) new: QUIET · old: QUIET +1L · fut 23380
+  11:50 CAP   23500 -> 23300 (0.2 steps away, 197L) new: MIXED · old: QUIET +0L · fut 23358
+  11:50 FLOOR 23300 -> 23000 (5.8 steps away, 206L) new: QUIET · old: COVER -10L · fut 23358
+  11:53 CAP   23300 -> 23500 (4.0 steps away, 177L) new: QUIET · old: BUY +7L · fut 23360
+  11:53 FLOOR 23000 -> 23300 (0.0 steps away, 235L) new: DUMP · old: QUIET +1L · fut 23360
+  12:32 CAP   23500 -> 23600 (5.9 steps away, 163L) new: QUIET · old: DUMP -4L · fut 23371
+  12:35 CAP   23600 -> 23500 (3.9 steps away, 163L) new: QUIET · old: COVER -2L · fut 23378
+  12:44 CAP   23500 -> 23300 (0.2 steps away, 173L) new: WRITE · old: QUIET -0L · fut 23364
+  12:44 FLOOR 23300 -> 23000 (5.8 steps away, 197L) new: QUIET · old: QUIET +1L · fut 23364
+  13:29 FLOOR 23000 -> 23200 (0.8 steps away, 169L) new: MIXED · old: QUIET -0L · fut 23287
+  13:41 FLOOR 23200 -> 23000 (4.5 steps away, 172L) new: QUIET · old: DUMP -5L · fut 23270
+  13:47 FLOOR 23000 -> 23200 (0.9 steps away, 175L) new: WRITE · old: QUIET -0L · fut 23290
+  14:38 CAP   23300 -> 23400 (1.7 steps away, 180L) new: COVER · old: COVER -38L · fut 23375
+  14:44 CAP   23400 -> 23500 (3.6 steps away, 171L) new: COVER · old: COVER -9L · fut 23385
+  14:47 CAP   23500 -> 23400 (1.5 steps away, 170L) new: QUIET · old: DUMP -2L · fut 23372
+  14:59 FLOOR 23200 -> 23000 (6.4 steps away, 163L) new: QUIET · old: COVER -2L · fut 23375
+  15:14 CAP   23400 -> 23500 (3.4 steps away, 144L) new: DUMP · old: DUMP -16L · fut 23385
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  13:14 23100PE NEAR   ≥u2   57.0   54.0 | QUIET    +1.7 |    ≤d2 |   ≤d2 |   -9.5  -12.6 |  +20  +26
+  13:11 23150PE NEAR   ≥u3   67.0   65.9 | COVER   +10.9 |    ≤d2 |   ≤d2 |   -4.4   -1.7 |   +0  -15
+  13:14 23200CE  ATM   ≤d2   88.5  100.8 | WRITE    -8.9 |    ≥u2 |   ≤d2 |   +4.5   +6.5 |  +20  +26
+  09:29 23200PE NEAR   ≤d2   73.8   71.4 | WRITE    -9.3 |    ≥u2 |   ≥u2 |  -18.0  -18.3 |  +54  +48
+  13:11 23200PE NEAR   ≥u3   87.6   84.9 | COVER   +20.4 |    ≤d2 |   ≤d2 |   -4.8   -0.6 |   +0  -15
+  09:26 23250CE  ATM   ≥u2  101.8  107.5 | MIXED    -0.3 |  <vwap |   ≥u2 |  +28.7  +30.2 |  +66  +75
+  09:29 23250CE  ATM   ≥u3  107.1  108.4 | BUY      +7.7 |    ≤d2 |   ≥u2 |  +25.8  +22.2 |  +54  +48
+  13:05 23250CE  ATM   ≤d2   87.2   90.0 | WRITE    -5.4 |  >vwap | <vwap |   -7.2  -23.7 |  -15  -60
+  09:29 23250PE  ATM   ≤d2   93.0   90.4 | WRITE    -7.1 |    ≥u3 |   ≥u2 |  -21.6  -21.4 |  +54  +48
+  13:11 23250PE  ATM   ≥u3  113.0  107.1 | COVER   +17.5 |    ≤d2 |   ≤d2 |   -4.8   +0.7 |   +0  -15
+  09:29 23300CE NEAR   ≥u2   81.4   83.0 | BUY      +4.0 |  <vwap |   ≥u2 |  +20.8  +18.5 |  +54  +48
+  11:53 23300CE  ATM   ≤d2   80.3   74.3 | BUY      +5.3 |  >vwap | <vwap |  +11.7  +24.5 |  +21  +42
+  12:56 23300CE  ATM   ≤d2   70.9   71.2 | WRITE   -11.0 |    ≥u2 | <vwap |  -18.0  -18.1 |  -63  -63
+  09:35 23300PE  ATM   ≤d2  107.2  106.4 | WRITE    -4.3 |    ≥u2 |   ≥u2 |  -21.8  -10.0 |  +51  +13
+  12:56 23300PE  ATM   ≥u2  107.2  115.0 | COVER   +29.0 |    ≤d2 | <vwap |  +36.2  +31.8 |  -63  -63
+  09:26 23350CE NEAR   ≥u2   56.1   60.1 | WRITE    -0.8 |  <vwap |   ≥u2 |  +19.1  +20.4 |  +66  +75
+  09:29 23350CE NEAR   ≥u3   59.5   55.1 | WRITE    -1.3 |    ≤d2 |   ≥u2 |  +17.2  +15.1 |  +54  +48
+  09:29 23350CE NEAR   ≥u3   59.5   60.3 | WRITE    -1.3 |    ≤d2 |   ≥u2 |  +17.2  +15.1 |  +54  +48
+  09:35 23350CE NEAR   ≥u3   61.4   55.4 | WRITE    -2.2 |    ≤d2 |   ≥u2 |  +20.9   +7.0 |  +51  +13
+  09:35 23350CE NEAR   ≥u3   61.4   61.0 | WRITE    -2.2 |    ≤d2 |   ≥u2 |  +20.9   +7.0 |  +51  +13
+  11:47 23350CE NEAR   ≤d2   57.0   58.0 | WRITE    -4.8 |  >vwap | >vwap |   +2.3  +29.4 |   +2  +50
+  12:11 23350CE  ATM   ≥u2   81.3   85.5 | COVER   +30.6 |  <vwap | >vwap |   -2.4  -20.6 |   -3  -41
+  12:56 23350CE NEAR   ≤d2   51.1   53.0 | DUMP    -10.0 |    ≥u2 | <vwap |  -13.1  -13.2 |  -63  -63
+  09:35 23400CE NEAR   ≥u3   43.2   43.6 | BUY      +2.1 |  <vwap |   ≥u2 |  +16.5   +5.4 |  +51  +13
+  10:44 23400CE NEAR   ≥u2   59.2   61.2 | QUIET    +9.5 |  <vwap | >vwap |   -9.5   -6.3 |  -25  -15
+  11:47 23400CE NEAR   ≤d2   39.2   39.4 | QUIET    -5.1 |  >vwap | >vwap |   +2.1  +24.0 |   +2  +50
+  12:11 23400CE NEAR   ≥u2   58.9   61.5 | QUIET   +32.3 |  <vwap | >vwap |   -2.3  -16.4 |   -3  -41
+  12:56 23400CE NEAR   ≤d2   35.8   36.1 | DUMP     -5.9 |    ≥u2 | <vwap |   -9.1   -9.1 |  -63  -63
+  10:44 23450CE NEAR   ≥u2   40.8   42.6 | QUIET    +6.8 |  <vwap | >vwap |   -7.1   -4.6 |  -25  -15
+  12:11 23450CE NEAR   ≥u2   41.0   42.7 | QUIET    +9.5 |  <vwap | >vwap |   -1.7  -11.8 |   -3  -41
+  touches by flow at the touch: {('d2', 'BUY'): 1, ('d2', 'DUMP'): 2, ('d2', 'QUIET'): 1, ('d2', 'WRITE'): 9, ('u2', 'BUY'): 3, ('u2', 'COVER'): 5, ('u2', 'MIXED'): 1, ('u2', 'QUIET'): 5, ('u2', 'WRITE'): 3}
+
+######## 2026-11-03  NIFTY 2026-11-03 expiry  (26 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+ITM         ce |  21558    1743     -76 |   186   -806 |    19  15    46   68    15 | 22
+ITM         pe |  15393    1769    -992 |   622   -351 |    49  30    13   31    42 | 15
+ATM         ce |  22301    1713    -161 |   473   -281 |    29  20    14   17     7 | 69
+ATM         pe |  18859    1767    -999 |   875   -243 |    48  20     5   16    12 | 49
+NEAR 1-2    ce |  40079    3214   -1092 |   971   -341 |    68  49    11   24    17 | 123
+NEAR 1-2    pe |  33428    3218   -1940 |  1050   -327 |    80  24    21   29    18 | 104
+WING 3-5    ce |  19730    2115    -177 |   680   -183 |    61  56    15   15    16 | 113
+WING 3-5    pe |  21223    2483   -1128 |   450   -536 |    51  22    30   53    15 | 116
+FAR 6+      ce |   2077     263     +87 |    87    -16 |     6  11     0    1     2 | 13
+FAR 6+      pe |   1375     171     -65 |    58    -48 |     7   2     4    6     3 | 5
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+  09:17 CAP   None -> 23600 (0.6 steps away, 134L) new: OI? · fut 23595
+  09:17 FLOOR None -> 23300 (5.4 steps away, 108L) new: OI? · fut 23595
+  09:20 FLOOR 23300 -> 23500 (1.7 steps away, 159L) new: WRITE · old: WRITE +14L · fut 23616
+  09:26 CAP   23600 -> 23800 (3.6 steps away, 162L) new: BUY · old: COVER -5L · fut 23652
+  09:29 CAP   23800 -> 23700 (1.6 steps away, 175L) new: WRITE · old: BUY +7L · fut 23663
+  09:32 CAP   23700 -> 23800 (3.7 steps away, 183L) new: MIXED · old: WRITE +6L · fut 23660
+  09:50 CAP   23800 -> 23700 (1.5 steps away, 229L) new: WRITE · old: BUY +3L · fut 23668
+  09:59 FLOOR 23500 -> 23600 (0.6 steps away, 341L) new: WRITE · old: BUY +2L · fut 23666
+  10:05 FLOOR 23600 -> 23500 (2.4 steps away, 344L) new: WRITE · old: QUIET -1L · fut 23650
+  10:11 FLOOR 23500 -> 23600 (0.2 steps away, 345L) new: WRITE · old: COVER -2L · fut 23641
+  10:14 FLOOR 23600 -> 23500 (2.6 steps away, 349L) new: WRITE · old: DUMP -2L · fut 23666
+  10:17 FLOOR 23500 -> 23600 (0.7 steps away, 354L) new: WRITE · old: QUIET -1L · fut 23665
+  12:05 CAP   23700 -> 23800 (2.0 steps away, 247L) new: COVER · old: QUIET -1L · fut 23744
+  12:08 CAP   23800 -> 23700 (0.1 steps away, 288L) new: DUMP · old: QUIET +1L · fut 23728
+  13:17 CAP   23700 -> 23800 (1.5 steps away, 275L) new: DUMP · old: COVER -46L · fut 23775
+  13:44 FLOOR 23600 -> 23700 (0.8 steps away, 413L) new: MIXED · old: QUIET +1L · fut 23789
+  13:50 FLOOR 23700 -> 23600 (2.6 steps away, 412L) new: WRITE · old: DUMP -14L · fut 23788
+  14:41 CAP   23800 -> 23750 (0.8 steps away, 332L) new: BUY · old: MIXED +17L · fut 23777
+  14:59 CAP   23750 -> 23700 (0.0 steps away, 340L) new: QUIET · old: DUMP -18L · fut 23742
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  09:26 23600CE  ATM   ≥u2   70.2   66.3 | COVER   +69.2 |  <vwap |   ≥u2 |   -1.5   +5.0 |   +4  +17
+  10:35 23600PE NEAR   ≤d2   32.1   31.2 | QUIET   -43.5 |    ≥u2 |   ≥u2 |   +6.0  +16.8 |   -6  -35
+  09:26 23650CE NEAR   ≥u2   47.1   44.1 | QUIET   +22.7 |  <vwap |   ≥u2 |   -1.1   +2.9 |   +4  +17
+  10:35 23650CE  ATM   ≥u2   65.2   62.2 | COVER   +23.3 |    ≤d2 |   ≥u2 |  -10.3  -23.0 |   -6  -35
+  11:50 23650CE  ATM   ≥u2   56.6   64.3 | DUMP     -4.2 |  <vwap | >vwap |  +17.9  -11.4 |  +40  -19
+  10:35 23650PE  ATM   ≤d2   49.8   49.8 | WRITE    -9.6 |    ≥u2 |   ≥u2 |   +9.0  +24.0 |   -6  -35
+  11:56 23650PE NEAR   ≤d2   34.6   33.9 | WRITE   -24.9 |    ≥u3 | >vwap |  +28.4  +18.9 |  -48  -36
+  13:17 23650PE NEAR   ≤d2   17.6   18.2 | DUMP    -24.1 |    ≥u3 |   ≥u2 |   -1.4   -3.2 |   +0   +3
+  09:26 23700CE NEAR   ≥u3   29.6   27.2 | BUY     +35.0 |  <vwap |   ≥u2 |   -0.8   +1.2 |   +4  +17
+  10:35 23700CE NEAR   ≥u2   41.2   39.0 | COVER   +13.9 |    ≤d2 |   ≥u2 |   -8.2  -17.1 |   -6  -35
+  11:47 23700CE  ATM   ≥u2   38.5   39.5 | COVER   +35.0 |  <vwap | >vwap |   +4.0  -11.1 |  +10  -30
+  13:20 23700CE  ATM   ≥u3   52.1   47.6 | DUMP    -16.5 |  <vwap |   ≥u2 |   +5.1   +5.1 |  +21  +21
+  15:20 23700CE  ATM   ≥u3   29.6   54.4 | QUIET   +11.8 |  <vwap | >vwap |      -      - |    -    -
+  15:23 23700CE  ATM   ≥u3   29.6   54.6 | QUIET   -27.7 |  <vwap | >vwap |      -      - |    -    -
+  15:26 23700CE  ATM   ≥u3   29.6   55.8 | QUIET   +41.2 |  <vwap | >vwap |      -      - |    -    -
+  15:29 23700CE  ATM   ≥u3   29.6   56.8 | QUIET   +10.0 |  <vwap | >vwap |      -      - |    -    -
+  11:56 23700PE  ATM   ≤d2   56.8   55.6 | WRITE   -13.9 |    ≥u3 | >vwap |  +36.8  +26.2 |  -48  -36
+  13:17 23700PE NEAR   ≤d2   32.9   34.2 | WRITE   -33.7 |    ≥u3 |   ≥u2 |   -1.8   -4.6 |   +0   +3
+  10:35 23750CE NEAR   ≥u2   22.9   21.8 | DUMP     -3.4 |    ≤d2 |   ≥u2 |   -5.1  -10.3 |   -6  -35
+  11:32 23750CE NEAR   ≤d2   10.8   10.7 | DUMP    -24.3 |  >vwap | >vwap |   +9.6  +12.2 |  +61  +71
+  11:56 23750CE NEAR   ≥u3   24.4   22.6 | QUIET   +12.7 |    ≤d2 | >vwap |  -11.8   -9.8 |  -48  -36
+  13:17 23750CE  ATM   ≥u3   29.1   25.0 | COVER    +7.2 |    ≤d2 |   ≥u2 |   -0.5   -0.1 |   +0   +3
+  15:26 23750CE NEAR   ≥u3   10.6   30.8 | QUIET   +49.4 |    ≤d2 | >vwap |      -      - |    -    -
+  15:29 23750CE NEAR   ≥u3   10.6   31.6 | QUIET   +40.5 |  <vwap | >vwap |      -      - |    -    -
+  13:17 23750PE  ATM   ≤d2   56.3   61.7 | WRITE   -13.4 |    ≥u3 |   ≥u2 |   -0.3   -3.9 |   +0   +3
+  11:56 23800CE NEAR   ≥u2   12.0   11.5 | COVER    +8.5 |    ≤d2 | >vwap |   -6.0   -5.0 |  -48  -36
+  13:17 23800CE NEAR   ≥u3   13.4   12.2 | DUMP    -16.7 |    ≤d2 |   ≥u2 |   -0.1   -0.2 |   +0   +3
+  14:26 23800CE NEAR   ≤d2    5.0    4.0 | DUMP    -23.0 |  <vwap | >vwap |   +1.3   +1.1 |  +53  +16
+  13:17 23850CE NEAR   ≥u2    5.5    5.9 | BUY     +11.9 |    ≤d2 |   ≥u2 |   -0.1   +0.0 |   +0   +3
+  touches by flow at the touch: {('d2', 'DUMP'): 3, ('d2', 'QUIET'): 1, ('d2', 'WRITE'): 5, ('u2', 'BUY'): 2, ('u2', 'COVER'): 6, ('u2', 'DUMP'): 4, ('u2', 'QUIET'): 8}
+
+################ 2026-11-02
+
+== A. pullbacks (source: pause log)
+09:43 ▲ leg 150 pts · depth 9 (0.06 of the leg) · 2 min · CONT (Jarvis CONT) · closes 1: words ['UP BUYERS']
+      floor {'MIXED': 1} · cap {'BUY': 1} · ITM writers {'C': 4} · buyers on the floor 0 · ATM premium {'≥u2': 1} · index band {'≥u2': 1}
+      at the first close: speed +3.4 pts/min · effort +36 lots/pt · VPIN 0.3343 (p0.395) · fut delta 9 min +755 lots · option-implied 9 min +73031 lots
+09:46 ▲ leg 164 pts · depth 52 (0.32 of the leg) · 58 min · CONT (Jarvis UNRESOLVED) · closes 20: words ['UP FUEL', 'FLOOR UP', 'PIN', 'DOWN FUEL', 'DOWN FUEL', 'DOWN BUYERS', 'UP FUEL', 'QUIET', 'UP BUYERS', 'FLOOR UP', 'DOWN BUYERS', 'DOWN FUEL', 'UP FUEL', 'UP BUYERS', 'DOWN FUEL', 'FLOOR UP', 'DOWN BUYERS', 'UP FUEL', 'DOWN BUYERS', 'QUIET']
+      floor {'WRITE': 8, 'BUY': 8, 'QUIET': 3, 'DUMP': 1} · cap {'BUY': 6, 'MIXED': 3, 'WRITE': 5, 'DUMP': 2, 'QUIET': 4} · ITM writers {'C': 5, 'B': 7, 'D': 11, 'W': 3} · buyers on the floor 8 · ATM premium {'≥u2': 3, '>vwap': 13, '<vwap': 4} · index band {'≥u2': 3, '>vwap': 17}
+      at the first close: speed +2.3 pts/min · effort +61 lots/pt · VPIN 0.3329 (p0.391) · fut delta 9 min +816 lots · option-implied 9 min +62849 lots
+10:55 ▲ leg 176 pts · depth 76 (0.43 of the leg) · 60 min · UNRESOLVED (Jarvis UNRESOLVED) · closes 20: words ['DOWN BUYERS', 'DOWN BUYERS', 'UP FUEL', 'UP BUYERS', 'QUIET', 'FLOOR UP', 'QUIET', 'FLOOR UP', 'QUIET', 'UP BUYERS', 'DOWN FUEL', 'UP BUYERS', 'UP BUYERS', 'DOWN BUYERS', 'PIN', 'DOWN BUYERS', 'QUIET', 'DOWN FUEL', 'DOWN FUEL', 'UP FUEL']
+      floor {'BUY': 4, 'WRITE': 4, 'QUIET': 3, 'MIXED': 2, 'DUMP': 5, 'COVER': 2} · cap {'QUIET': 7, 'BUY': 3, 'MIXED': 3, 'WRITE': 5, 'DUMP': 1, 'COVER': 1} · ITM writers {'D': 5, 'B': 4, 'W': 8} · buyers on the floor 4 · ATM premium {'>vwap': 9, '<vwap': 10, '≤d2': 1} · index band {'>vwap': 18, '<vwap': 2}
+      at the first close: speed +1.7 pts/min · effort +21 lots/pt · VPIN 0.2868 (p0.13) · fut delta 9 min +149 lots · option-implied 9 min -11611 lots
+12:56 ▼ leg 99 pts · depth 33 (0.33 of the leg) · 10 min · CONT (Jarvis CONT) · closes 4: words ['DOWN FUEL', 'UP BUYERS', 'LID', 'DOWN FUEL']
+      cap {'DUMP': 2, 'BUY': 1, 'WRITE': 1} · floor {'COVER': 2, 'QUIET': 2} · ITM writers {'C': 6, 'D': 1, 'W': 1} · buyers on the cap 1 · ATM premium {'≥u2': 1, '>vwap': 3} · index band {'<vwap': 4}
+      at the first close: speed -3.9 pts/min · effort +19 lots/pt · VPIN 0.3514 (p0.816) · fut delta 9 min -530 lots · option-implied 9 min -88168 lots
+13:09 ▼ leg 152 pts · depth 20 (0.13 of the leg) · 5 min · CONT (Jarvis CONT) · closes 2: words ['DOWN FUEL', 'DOWN FUEL']
+      cap {'DUMP': 1, 'WRITE': 1} · floor {'COVER': 2} · ITM writers {'C': 7} · buyers on the cap 0 · ATM premium {'≥u3': 1, '≥u2': 1} · index band {'≤d2': 2}
+      at the first close: speed -6.7 pts/min · effort +14 lots/pt · VPIN 0.3671 (p0.839) · fut delta 9 min -519 lots · option-implied 9 min -45487 lots
+13:17 ▼ leg 166 pts · depth 55 (0.33 of the leg) · 22 min · CONT (Jarvis UNRESOLVED) · closes 8: words ['FLOOR UP', 'UP BUYERS', 'LID', 'DOWN FUEL', 'FLOOR UP', 'DOWN FUEL', 'LID', 'PIN']
+      cap {'MIXED': 1, 'BUY': 1, 'WRITE': 5, 'QUIET': 1} · floor {'WRITE': 3, 'DUMP': 1, 'MIXED': 1, 'BUY': 2, 'QUIET': 1} · ITM writers {'D': 8, 'B': 3} · buyers on the cap 1 · ATM premium {'≥u2': 2, '>vwap': 6} · index band {'≤d2': 4, '<vwap': 4}
+      at the first close: speed +6.6 pts/min · effort +15 lots/pt · VPIN 0.3793 (p0.833) · fut delta 9 min -601 lots · option-implied 9 min -132216 lots
+14:39 ▲ leg 124 pts · depth 15 (0.12 of the leg) · 4 min · CONT (Jarvis CONT) · closes 1: words ['DOWN FUEL']
+      floor {'BUY': 1} · cap {'WRITE': 1} · ITM writers {'D': 1, 'W': 1} · buyers on the floor 1 · ATM premium {'<vwap': 1} · index band {'>vwap': 1}
+      at the first close: speed +6.7 pts/min · effort +17 lots/pt · VPIN 0.3497 (p0.73) · fut delta 9 min +641 lots · option-implied 9 min +192243 lots
+14:50 ▲ leg 139 pts · depth 33 (0.24 of the leg) · 31 min · CONT (Jarvis CONT) · closes 11: words ['DOWN BUYERS', 'DOWN BUYERS', 'UP BUYERS', 'DOWN BUYERS', 'DOWN BUYERS', 'UP FUEL', 'UP FUEL', 'UP FUEL', 'DOWN BUYERS', 'UP FUEL', 'UP FUEL']
+      floor {'QUIET': 3, 'DUMP': 6, 'BUY': 1, 'MIXED': 1} · cap {'DUMP': 5, 'MIXED': 1, 'COVER': 5} · ITM writers {'D': 10, 'C': 9, 'B': 2} · buyers on the floor 1 · ATM premium {'>vwap': 6, '<vwap': 5} · index band {'>vwap': 11}
+      at the first close: speed +1.3 pts/min · effort +15 lots/pt · VPIN 0.3261 (p0.451) · fut delta 9 min +249 lots · option-implied 9 min +13506 lots
+
+== B1. band rotation rows (trigger_log zone3, NIFTY): flow at the last close <= t, index band, premium band; mfe / mae as logged
+  BUY arm     wall COVER : 1 rows · mfe≥40 1 · mae≤−30 0 · 13:12 I idx≤d2 prem≥u3 +123/-16
+  BUY arm     wall DUMP  : 1 rows · mfe≥40 1 · mae≤−30 1 · 13:09 I idx<vwap prem>vwap +105/-34
+  BUY arm     wall WRITE : 1 rows · mfe≥40 1 · mae≤−30 0 · 13:39 I idx≤d2 prem>vwap +120/-0
+  SELL arm     wall BUY   : 4 rows · mfe≥40 4 · mae≤−30 3 · 09:30 L idx≥u2 prem≥u3 +88/-87, 09:36 L idx≥u2 prem≥u2 +130/-46, 09:39 L idx≥u2 prem≥u2 +140/-35, 09:45 I idx≥u2 prem≥u2 +155/-20
+  SELL arm     wall DUMP  : 1 rows · mfe≥40 1 · mae≤−30 0 · 09:42 I idx≥u2 prem≥u2 +147/-29
+  SELL arm     wall MIXED : 2 rows · mfe≥40 2 · mae≤−30 1 · 09:24 L idx≥u2 prem≥u2 +74/-101, 09:51 I idx≥u2 prem≥u2 +153/-22
+  SELL arm     wall WRITE : 2 rows · mfe≥40 2 · mae≤−30 2 · 09:27 L idx≥u2 prem≥u2 +93/-82, 09:33 L idx≥u2 prem≥u3 +109/-66
+
+== B3. pushes: answer speed (am − t), who, +30
+  09:30 ▲   212 lots · answer in 2 min: TIKI · flow WRITE · +30 +36
+  09:35 ▲   237 lots · answer in 4 min: TOOT · flow COVER · +30 +24
+  09:41 ▲   364 lots · answer in 2 min: TOOT · flow COVER · +30 +7
+  09:45 ▲   539 lots · answer in 4 min: NAHI · flow BUY · +30 -5
+  10:01 ▼  -333 lots · answer in 4 min: NAHI · flow QUIET · +30 -40
+  10:27 ▲   267 lots · answer in 4 min: NAHI · flow QUIET · +30 +3
+  10:54 ▲   618 lots · answer in 3 min: TOOT · flow DUMP · +30 -29
+  10:58 ▲   194 lots · answer in 3 min: TIKI · flow WRITE · +30 +1
+  11:22 ▲   322 lots · answer in 3 min: TIKI · flow BUY · +30 -30
+  11:51 ▼  -164 lots · answer in 3 min: TOOT · flow DUMP · +30 -50
+  12:09 ▲   197 lots · answer in 1 min: TOOT · flow COVER · +30 -20
+  12:19 ▲   150 lots · answer in 2 min: TOOT · flow DUMP · +30 -47
+  12:33 ▼  -204 lots · answer in 1 min: TOOT · flow COVER · +30 +22
+  12:54 ▼  -245 lots · answer in 1 min: TOOT · flow COVER · +30 +21
+  13:03 ▼  -164 lots · answer in 2 min: TOOT · flow COVER · +30 +41
+  13:09 ▼  -383 lots · answer in 1 min: TOOT · flow COVER · +30 +10
+  13:13 ▼  -276 lots · answer in 2 min: TIKI · flow QUIET · +30 -11
+  13:19 ▲   201 lots · answer in 4 min: NAHI · flow DUMP · +30 -26
+  13:38 ▼  -215 lots · answer in 3 min: TOOT · flow DUMP · +30 -34
+  13:42 ▼  -178 lots · answer in 4 min: NAHI · flow WRITE · +30 -28
+  14:31 ▲   387 lots · answer in 4 min: NAHI · flow COVER · +30 +20
+  14:36 ▲   222 lots · answer in 2 min: TOOT · flow COVER · +30 -4
+  14:59 ▲   155 lots · answer in 4 min: NAHI · flow DUMP · +30 +121
+  15:06 ▲   195 lots · answer in 4 min: NAHI · flow COVER · +30 ?
+  15:10 ▲   182 lots · answer in 3 min: TOOT · flow COVER · +30 ?
+
+== B6. Sides slot word × flow group word at the same close × f15 (sides' own outcome rows)
+  Sides CAPPED    + flow UP BUYERS     : 6 slots · f15 up 3 · down 3
+  Sides FLAT      + flow UP BUYERS     : 5 slots · f15 up 2 · down 3
+  Sides CAPPED    + flow UP FUEL       : 4 slots · f15 up 4 · down 0
+  Sides REAL      + flow UP FUEL       : 3 slots · f15 up 3 · down 0
+  Sides FLAT      + flow FLOOR UP      : 3 slots · f15 up 2 · down 1
+  Sides FLAT      + flow DOWN BUYERS   : 3 slots · f15 up 2 · down 1
+  Sides CAPPED    + flow DOWN FUEL     : 3 slots · f15 up 3 · down 0
+  Sides FAKE      + flow DOWN FUEL     : 3 slots · f15 up 2 · down 1
+  Sides FLAT      + flow UP FUEL       : 3 slots · f15 up 1 · down 2
+  Sides SQUEEZE   + flow UP FUEL       : 3 slots · f15 up 0 · down 3
+  Sides REAL      + flow DOWN FUEL     : 3 slots · f15 up 2 · down 1
+  Sides REAL      + flow UP BUYERS     : 2 slots · f15 up 1 · down 1
+  Sides FLAT      + flow DOWN FUEL     : 2 slots · f15 up 1 · down 1
+  Sides BACKED    + flow UP BUYERS     : 2 slots · f15 up 1 · down 1
+
+== C. option-implied directional flow (Σ (lifted−hit) × chain delta, in fut-lot equivalents) vs the futures' Dext delta
+  size: Σ|implied| 5,770,777 lots · Σ|fut delta| 17,279 lots over the day
+  9-min sums at closes: same sign 93 · opposite 32
+  corr(implied_3min at close c, fut_3min at close c+L): L=-2 +0.04, L=-1 +0.21, L=+0 +0.49, L=+1 +0.06, L=+2 +0.13  (L>0: options first)
+  divergence implied ▼ / fut ▲ (both ≥ 200 lots in 9 min): 12 closes · fut +15 up 7 · down 5
+  divergence implied ▲ / fut ▼ (both ≥ 200 lots in 9 min): 3 closes · fut +15 up 2 · down 0
+  lean flip 12:55 ▼: implied 9-min turned ▼ and stayed from 12:53 · fut delta from 12:32
+  lean flip 14:21 ▲: implied 9-min turned ▲ and stayed from 14:11 · fut delta from 14:05
+
+== D. writer short-gamma profile: Σ_today dOI in WRITE windows − in BUY windows, × the chain's gamma (writers short where positive)
+  12:47 spot 23292 fut 23357: 23250 CE +7k, 23250 PE +6k, 23200 PE +5k, 23350 PE +5k  (gamma × qty; + = writers short gamma there)
+  13:17 spot 23231 fut 23287: 23250 CE +16k, 23200 PE +6k, 23250 PE +5k, 23200 CE +5k  (gamma × qty; + = writers short gamma there)
+  14:29 spot 23281 fut 23331: 23250 CE +17k, 23400 CE -7k, 23350 PE +5k, 23200 PE +5k  (gamma × qty; + = writers short gamma there)
+
+################ 2026-11-03
+
+== A. pullbacks (source: call-log states)
+10:36 ▲ leg 182 pts · depth 53 (0.29 of the leg) · 60 min · UNRESOLVED (Jarvis None) · closes 20: words ['DOWN FUEL', 'UP FUEL', 'DOWN FUEL', 'UP FUEL', 'DOWN FUEL', 'UP BUYERS', 'UP BUYERS', 'UP FUEL', 'UP BUYERS', 'FLOOR BREAKING', 'LID', 'UP BUYERS', 'LID', 'UP BUYERS', 'UP FUEL', 'UP FUEL', 'FLOOR UP', 'DOWN FUEL', 'DOWN FUEL', 'UP BUYERS']
+      floor {'BUY': 4, 'WRITE': 6, 'DUMP': 4, 'MIXED': 2, 'QUIET': 2, 'COVER': 2} · cap {'WRITE': 6, 'BUY': 9, 'COVER': 1, 'QUIET': 3, 'DUMP': 1} · ITM writers {'D': 11, 'W': 5, 'B': 9, 'C': 5} · buyers on the floor 4 · ATM premium {'≥u2': 1, '>vwap': 13, '<vwap': 6} · index band {'>vwap': 20}
+      at the first close: speed +3.3 pts/min · effort +44 lots/pt · VPIN 0.2979 (p0.337) · fut delta 9 min +809 lots · option-implied 9 min +144436 lots
+12:07 ▲ leg 214 pts · depth 63 (0.30 of the leg) · 60 min · UNRESOLVED (Jarvis None) · closes 20: words ['DOWN FUEL', 'DOWN FUEL', 'UP BUYERS', 'DOWN FUEL', 'UP BUYERS', 'UP BUYERS', 'UP FUEL', 'UP BUYERS', 'DOWN FUEL', 'FLOOR UP', 'QUIET', 'PIN', 'LID', 'FLOOR UP', 'DOWN BUYERS', 'UP FUEL', 'UP BUYERS', 'LID BREAKING', 'DOWN FUEL', 'UP FUEL']
+      floor {'BUY': 4, 'COVER': 1, 'QUIET': 4, 'DUMP': 4, 'WRITE': 6, 'MIXED': 1} · cap {'WRITE': 7, 'DUMP': 1, 'BUY': 8, 'QUIET': 3, 'COVER': 1} · ITM writers {'D': 13, 'B': 5, 'W': 9, 'C': 5} · buyers on the floor 4 · ATM premium {'≥u2': 2, '>vwap': 12, '<vwap': 6} · index band {'>vwap': 20}
+      at the first close: speed +3.6 pts/min · effort +22 lots/pt · VPIN 0.3118 (p0.643) · fut delta 9 min +68 lots · option-implied 9 min -85827 lots
+13:22 ▲ leg 252 pts · depth 30 (0.12 of the leg) · 13 min · CONT (Jarvis None) · closes 5: words ['UP BUYERS', 'LID', 'UP BUYERS', 'DOWN BUYERS', 'UP BUYERS']
+      floor {'DUMP': 3, 'QUIET': 2} · cap {'MIXED': 1, 'WRITE': 2, 'BUY': 2} · ITM writers {'C': 7, 'B': 2} · buyers on the floor 0 · ATM premium {'≥u3': 2, '≥u2': 3} · index band {'≥u2': 2, '>vwap': 3}
+      at the first close: speed -2.7 pts/min · effort +29 lots/pt · VPIN 0.3196 (p0.764) · fut delta 9 min +595 lots · option-implied 9 min +26122 lots
+13:43 ▲ leg 267 pts · depth 76 (0.28 of the leg) · 60 min · UNRESOLVED (Jarvis None) · closes 20: words ['PIN', 'DOWN FUEL', 'DOWN BUYERS', 'DOWN FUEL', 'FLOOR BREAKING', 'DOWN BUYERS', 'UP BUYERS', 'LID', 'UP FUEL', 'DOWN BUYERS', 'LID', 'LID', 'UP BUYERS', 'DOWN FUEL', 'DOWN FUEL', 'OI?', 'OI?', 'OI?', 'DOWN BUYERS', 'UP FUEL']
+      floor {'WRITE': 4, 'BUY': 1, 'DUMP': 5, 'COVER': 4, 'QUIET': 3, 'OI?': 3} · cap {'WRITE': 12, 'QUIET': 1, 'BUY': 2, 'COVER': 1, 'DUMP': 1, 'OI?': 3} · ITM writers {'D': 6, 'W': 10, 'B': 2} · buyers on the floor 1 · ATM premium {'≥u2': 3, '>vwap': 11, '<vwap': 6} · index band {'≥u2': 1, '>vwap': 19}
+      at the first close: speed -1.2 pts/min · effort +50 lots/pt · VPIN 0.3071 (p0.576) · fut delta 9 min +147 lots · option-implied 9 min +72184 lots
+
+== B1. band rotation rows (trigger_log zone3, NIFTY): flow at the last close <= t, index band, premium band; mfe / mae as logged
+  SELL arm     wall BUY   : 2 rows · mfe≥40 1 · mae≤−30 2 · 09:27 L idx≥u2 prem≥u2 +27/-137, 10:33 I idx>vwap prem>vwap +45/-95
+  SELL arm     wall COVER : 1 rows · mfe≥40 1 · mae≤−30 1 · 13:18 I idx≥u2 prem≥u3 +44/-33
+  SELL arm     wall DUMP  : 1 rows · mfe≥40 1 · mae≤−30 0 · 13:39 I idx≥u2 prem≥u2 +68/-7
+  SELL arm     wall MIXED : 1 rows · mfe≥40 0 · mae≤−30 1 · 09:24 L idx≥u2 prem≥u2 +16/-148
+  SELL arm     wall WRITE : 4 rows · mfe≥40 2 · mae≤−30 2 · 09:33 L idx>vwap prem≥u2 +34/-130, 09:36 L idx>vwap prem>vwap +30/-133, 13:15 I idx>vwap prem>vwap +52/-25, 13:33 I idx>vwap prem≥u2 +65/-12
+
+== B3. pushes: answer speed (am − t), who, +30
+  09:48 ▲   315 lots · answer in 2 min: TIKI · flow WRITE · +30 +2
+  10:01 ▼  -155 lots · answer in 4 min: NAHI · flow QUIET · +30 -29
+  10:14 ▲   239 lots · answer in 3 min: TIKI · flow BUY · +30 +24
+  10:18 ▲   174 lots · answer in 4 min: NAHI · flow WRITE · +30 +21
+  10:29 ▲   150 lots · answer in 4 min: NAHI · flow COVER · +30 +10
+  10:34 ▲   583 lots · answer in 1 min: TOOT · flow COVER · +30 -25
+  10:38 ▲   158 lots · answer in 4 min: NAHI · flow BUY · +30 -18
+  11:05 ▼  -158 lots · answer in 4 min: NAHI · flow BUY · +30 -23
+  11:41 ▲   237 lots · answer in 4 min: NAHI · flow BUY · +30 -20
+  11:45 ▲   180 lots · answer in 3 min: TOOT · flow COVER · +30 -21
+  11:51 ▲   233 lots · answer in 4 min: NAHI · flow MIXED · +30 -22
+  11:55 ▲   492 lots · answer in 2 min: TOOT · flow DUMP · +30 -30
+  12:10 ▼  -223 lots · answer in 1 min: TOOT · flow COVER · +30 -20
+  13:08 ▲   305 lots · answer in 4 min: NAHI · flow WRITE · +30 +44
+  13:16 ▲   561 lots · answer in 1 min: TOOT · flow COVER · +30 +20
+  13:27 ▲   330 lots · answer in 3 min: TIKI · flow MIXED · +30 -6
+  13:35 ▲   349 lots · answer in 4 min: TOOT · flow QUIET · +30 -28
+  13:41 ▲   175 lots · answer in 2 min: TOOT · flow DUMP · +30 -39
+  13:56 ▼  -169 lots · answer in 4 min: NAHI · flow DUMP · +30 +35
+  14:02 ▲   171 lots · answer in 4 min: NAHI · flow WRITE · +30 -38
+  14:06 ▲   199 lots · answer in 4 min: NAHI · flow WRITE · +30 -3
+  14:24 ▼  -357 lots · answer in 3 min: TOOT · flow DUMP · +30 -14
+  14:38 ▲  1801 lots · answer in 2 min: TIKI · flow WRITE · +30 ?
+  14:41 ▼  -180 lots · answer in 4 min: NAHI · flow WRITE · +30 ?
+
+== B6. Sides slot word × flow group word at the same close × f15 (sides' own outcome rows)
+  Sides CAPPED    + flow UP FUEL       : 7 slots · f15 up 5 · down 2
+  Sides FLAT      + flow UP FUEL       : 4 slots · f15 up 3 · down 1
+  Sides FLAT      + flow LID           : 4 slots · f15 up 3 · down 1
+  Sides CAPPED    + flow UP BUYERS     : 3 slots · f15 up 1 · down 2
+  Sides REAL      + flow UP FUEL       : 3 slots · f15 up 0 · down 3
+  Sides REAL      + flow DOWN BUYERS   : 3 slots · f15 up 0 · down 3
+  Sides CAPPED    + flow FLOOR UP      : 2 slots · f15 up 1 · down 1
+  Sides CAPPED    + flow QUIET         : 2 slots · f15 up 2 · down 0
+  Sides FLAT      + flow UP BUYERS     : 2 slots · f15 up 0 · down 2
+  Sides BACKED    + flow UP FUEL       : 2 slots · f15 up 2 · down 0
+  Sides FLAT      + flow PIN           : 2 slots · f15 up 2 · down 0
+  Sides FLAT      + flow DOWN BUYERS   : 2 slots · f15 up 0 · down 2
+  Sides WALL      + flow DOWN FUEL     : 2 slots · f15 up 2 · down 0
+  Sides FLAT      + flow FLOOR UP      : 2 slots · f15 up 1 · down 1
+
+== C. option-implied directional flow (Σ (lifted−hit) × chain delta, in fut-lot equivalents) vs the futures' Dext delta
+  size: Σ|implied| 11,569,642 lots · Σ|fut delta| 18,591 lots over the day
+  9-min sums at closes: same sign 90 · opposite 33
+  corr(implied_3min at close c, fut_3min at close c+L): L=-2 +0.19, L=-1 +0.12, L=+0 +0.32, L=+1 -0.00, L=+2 +0.04  (L>0: options first)
+  divergence implied ▼ / fut ▲ (both ≥ 200 lots in 9 min): 5 closes · fut +15 up 1 · down 4
+  divergence implied ▲ / fut ▼ (both ≥ 200 lots in 9 min): 1 closes · fut +15 up 0 · down 1
+
+== D. writer short-gamma profile: Σ_today dOI in WRITE windows − in BUY windows, × the chain's gamma (writers short where positive)
+  12:59 spot 23691 fut 23737: 23650 PE +57k, 23600 PE +40k, 23550 PE +32k, 23500 PE +20k  (gamma × qty; + = writers short gamma there)
+  13:29 spot 23724 fut 23777: 23650 PE +52k, 23600 PE +30k, 23550 PE +23k, 23700 PE +19k  (gamma × qty; + = writers short gamma there)
+  14:23 spot 23701 fut 23740: 23650 PE +74k, 23700 PE +46k, 23600 PE +42k, 23550 PE +23k  (gamma × qty; + = writers short gamma there)

@@ -1,0 +1,374 @@
+
+######## 2026-11-02  NIFTY 2026-11-03 expiry  (32 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+ITM         ce |  11373    1237     +77 |   295   -719 |    32  17    51   49    26 | 5
+ITM         pe |   6432     627     -73 |   325   -399 |    31  20    23   25    28 | 0
+ATM         ce |   8929     876    -171 |   404   -253 |    32  22    14   22    13 | 5
+ATM         pe |   6892     658    -119 |   437   -202 |    30  25     5   16    15 | 4
+NEAR 1-2    ce |  12591    1330    -295 |   481   -297 |    41  35    20   35    23 | 9
+NEAR 1-2    pe |  10933    1073    -429 |   460   -322 |    42  33    13   43    26 | 2
+WING 3-5    ce |  11328    1272    -109 |   397   -277 |    28  50    22   37    17 | 7
+WING 3-5    pe |   8963     983    -469 |   358   -297 |    40  22    18   40    26 | 2
+FAR 6+      ce |   5084     744     +63 |   257   -157 |    13  15    11   20    21 | 3
+FAR 6+      pe |   3891     509    -162 |   139   -119 |    15  10     6   15     9 | 0
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+  09:17 CAP   None -> 23500 (4.9 steps away, 134L) new: OI? · fut 23314
+  09:17 FLOOR None -> 23000 (5.1 steps away, 106L) new: OI? · fut 23314
+  09:56 FLOOR 23000 -> 23300 (0.3 steps away, 180L) new: BUY · old: BUY +6L · fut 23400
+  10:02 FLOOR 23300 -> 23000 (5.9 steps away, 184L) new: BUY · old: BUY +2L · fut 23377
+  10:05 FLOOR 23000 -> 23300 (0.1 steps away, 189L) new: QUIET · old: QUIET +1L · fut 23373
+  10:11 FLOOR 23300 -> 23000 (6.3 steps away, 188L) new: WRITE · old: QUIET -1L · fut 23396
+  10:14 FLOOR 23000 -> 23300 (0.4 steps away, 194L) new: WRITE · old: WRITE +3L · fut 23397
+  10:20 CAP   23500 -> 23300 (0.2 steps away, 189L) new: WRITE · old: WRITE +3L · fut 23362
+  10:20 FLOOR 23300 -> 23000 (5.8 steps away, 194L) new: BUY · old: BUY +2L · fut 23362
+  10:23 CAP   23300 -> 23500 (3.9 steps away, 171L) new: BUY · old: BUY +9L · fut 23380
+  10:23 FLOOR 23000 -> 23300 (0.1 steps away, 205L) new: QUIET · old: QUIET +1L · fut 23380
+  11:50 CAP   23500 -> 23300 (0.2 steps away, 197L) new: MIXED · old: QUIET +0L · fut 23358
+  11:50 FLOOR 23300 -> 23000 (5.8 steps away, 206L) new: QUIET · old: COVER -10L · fut 23358
+  11:53 CAP   23300 -> 23500 (4.0 steps away, 177L) new: QUIET · old: BUY +7L · fut 23360
+  11:53 FLOOR 23000 -> 23300 (0.0 steps away, 235L) new: DUMP · old: QUIET +1L · fut 23360
+  12:32 CAP   23500 -> 23600 (5.9 steps away, 163L) new: QUIET · old: DUMP -4L · fut 23371
+  12:35 CAP   23600 -> 23500 (3.9 steps away, 163L) new: QUIET · old: COVER -2L · fut 23378
+  12:44 CAP   23500 -> 23300 (0.2 steps away, 173L) new: WRITE · old: QUIET -0L · fut 23364
+  12:44 FLOOR 23300 -> 23000 (5.8 steps away, 197L) new: QUIET · old: QUIET +1L · fut 23364
+  13:29 FLOOR 23000 -> 23200 (0.8 steps away, 169L) new: MIXED · old: QUIET -0L · fut 23287
+  13:41 FLOOR 23200 -> 23000 (4.5 steps away, 172L) new: QUIET · old: DUMP -5L · fut 23270
+  13:47 FLOOR 23000 -> 23200 (0.9 steps away, 175L) new: WRITE · old: QUIET -0L · fut 23290
+  14:38 CAP   23300 -> 23400 (1.7 steps away, 180L) new: COVER · old: COVER -38L · fut 23375
+  14:44 CAP   23400 -> 23500 (3.6 steps away, 171L) new: COVER · old: COVER -9L · fut 23385
+  14:47 CAP   23500 -> 23400 (1.5 steps away, 170L) new: QUIET · old: DUMP -2L · fut 23372
+  14:59 FLOOR 23200 -> 23000 (6.4 steps away, 163L) new: QUIET · old: COVER -2L · fut 23375
+  15:14 CAP   23400 -> 23500 (3.4 steps away, 144L) new: DUMP · old: DUMP -16L · fut 23385
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  13:14 23100PE NEAR   ≥u2   57.0   54.0 | QUIET    +1.7 |    ≤d2 |   ≤d2 |   -9.5  -12.6 |  +20  +26
+  13:11 23150PE NEAR   ≥u3   67.0   65.9 | COVER   +10.9 |    ≤d2 |   ≤d2 |   -4.4   -1.7 |   +0  -15
+  13:14 23200CE  ATM   ≤d2   88.5  100.8 | WRITE    -8.9 |    ≥u2 |   ≤d2 |   +4.5   +6.5 |  +20  +26
+  09:29 23200PE NEAR   ≤d2   73.8   71.4 | WRITE    -9.3 |    ≥u2 |   ≥u2 |  -18.0  -18.3 |  +54  +48
+  13:11 23200PE NEAR   ≥u3   87.6   84.9 | COVER   +20.4 |    ≤d2 |   ≤d2 |   -4.8   -0.6 |   +0  -15
+  09:26 23250CE  ATM   ≥u2  101.8  107.5 | MIXED    -0.3 |  <vwap |   ≥u2 |  +28.7  +30.2 |  +66  +75
+  09:29 23250CE  ATM   ≥u3  107.1  108.4 | BUY      +7.7 |    ≤d2 |   ≥u2 |  +25.8  +22.2 |  +54  +48
+  13:05 23250CE  ATM   ≤d2   87.2   90.0 | WRITE    -5.4 |  >vwap | <vwap |   -7.2  -23.7 |  -15  -60
+  09:29 23250PE  ATM   ≤d2   93.0   90.4 | WRITE    -7.1 |    ≥u3 |   ≥u2 |  -21.6  -21.4 |  +54  +48
+  13:11 23250PE  ATM   ≥u3  113.0  107.1 | COVER   +17.5 |    ≤d2 |   ≤d2 |   -4.8   +0.7 |   +0  -15
+  09:29 23300CE NEAR   ≥u2   81.4   83.0 | BUY      +4.0 |  <vwap |   ≥u2 |  +20.8  +18.5 |  +54  +48
+  11:53 23300CE  ATM   ≤d2   80.3   74.3 | BUY      +5.3 |  >vwap | <vwap |  +11.7  +24.5 |  +21  +42
+  12:56 23300CE  ATM   ≤d2   70.9   71.2 | WRITE   -11.0 |    ≥u2 | <vwap |  -18.0  -18.1 |  -63  -63
+  09:35 23300PE  ATM   ≤d2  107.2  106.4 | WRITE    -4.3 |    ≥u2 |   ≥u2 |  -21.8  -10.0 |  +51  +13
+  12:56 23300PE  ATM   ≥u2  107.2  115.0 | COVER   +29.0 |    ≤d2 | <vwap |  +36.2  +31.8 |  -63  -63
+  09:26 23350CE NEAR   ≥u2   56.1   60.1 | WRITE    -0.8 |  <vwap |   ≥u2 |  +19.1  +20.4 |  +66  +75
+  09:29 23350CE NEAR   ≥u3   59.5   55.1 | WRITE    -1.3 |    ≤d2 |   ≥u2 |  +17.2  +15.1 |  +54  +48
+  09:29 23350CE NEAR   ≥u3   59.5   60.3 | WRITE    -1.3 |    ≤d2 |   ≥u2 |  +17.2  +15.1 |  +54  +48
+  09:35 23350CE NEAR   ≥u3   61.4   55.4 | WRITE    -2.2 |    ≤d2 |   ≥u2 |  +20.9   +7.0 |  +51  +13
+  09:35 23350CE NEAR   ≥u3   61.4   61.0 | WRITE    -2.2 |    ≤d2 |   ≥u2 |  +20.9   +7.0 |  +51  +13
+  11:47 23350CE NEAR   ≤d2   57.0   58.0 | WRITE    -4.8 |  >vwap | >vwap |   +2.3  +29.4 |   +2  +50
+  12:11 23350CE  ATM   ≥u2   81.3   85.5 | COVER   +30.6 |  <vwap | >vwap |   -2.4  -20.6 |   -3  -41
+  12:56 23350CE NEAR   ≤d2   51.1   53.0 | DUMP    -10.0 |    ≥u2 | <vwap |  -13.1  -13.2 |  -63  -63
+  09:35 23400CE NEAR   ≥u3   43.2   43.6 | BUY      +2.1 |  <vwap |   ≥u2 |  +16.5   +5.4 |  +51  +13
+  10:44 23400CE NEAR   ≥u2   59.2   61.2 | QUIET    +9.5 |  <vwap | >vwap |   -9.5   -6.3 |  -25  -15
+  11:47 23400CE NEAR   ≤d2   39.2   39.4 | QUIET    -5.1 |  >vwap | >vwap |   +2.1  +24.0 |   +2  +50
+  12:11 23400CE NEAR   ≥u2   58.9   61.5 | QUIET   +32.3 |  <vwap | >vwap |   -2.3  -16.4 |   -3  -41
+  12:56 23400CE NEAR   ≤d2   35.8   36.1 | DUMP     -5.9 |    ≥u2 | <vwap |   -9.1   -9.1 |  -63  -63
+  10:44 23450CE NEAR   ≥u2   40.8   42.6 | QUIET    +6.8 |  <vwap | >vwap |   -7.1   -4.6 |  -25  -15
+  12:11 23450CE NEAR   ≥u2   41.0   42.7 | QUIET    +9.5 |  <vwap | >vwap |   -1.7  -11.8 |   -3  -41
+  touches by flow at the touch: {('d2', 'BUY'): 1, ('d2', 'DUMP'): 2, ('d2', 'QUIET'): 1, ('d2', 'WRITE'): 9, ('u2', 'BUY'): 3, ('u2', 'COVER'): 5, ('u2', 'MIXED'): 1, ('u2', 'QUIET'): 5, ('u2', 'WRITE'): 3}
+
+######## 2026-11-03  NIFTY 2026-11-03 expiry  (26 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+ITM         ce |  21558    1743     -76 |   186   -806 |    19  15    46   68    15 | 22
+ITM         pe |  15393    1769    -992 |   622   -351 |    49  30    13   31    42 | 15
+ATM         ce |  22301    1713    -161 |   473   -281 |    29  20    14   17     7 | 69
+ATM         pe |  18859    1767    -999 |   875   -243 |    48  20     5   16    12 | 49
+NEAR 1-2    ce |  40079    3214   -1092 |   971   -341 |    68  49    11   24    17 | 123
+NEAR 1-2    pe |  33428    3218   -1940 |  1050   -327 |    80  24    21   29    18 | 104
+WING 3-5    ce |  19730    2115    -177 |   680   -183 |    61  56    15   15    16 | 113
+WING 3-5    pe |  21223    2483   -1128 |   450   -536 |    51  22    30   53    15 | 116
+FAR 6+      ce |   2077     263     +87 |    87    -16 |     6  11     0    1     2 | 13
+FAR 6+      pe |   1375     171     -65 |    58    -48 |     7   2     4    6     3 | 5
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+  09:17 CAP   None -> 23600 (0.6 steps away, 134L) new: OI? · fut 23595
+  09:17 FLOOR None -> 23300 (5.4 steps away, 108L) new: OI? · fut 23595
+  09:20 FLOOR 23300 -> 23500 (1.7 steps away, 159L) new: WRITE · old: WRITE +14L · fut 23616
+  09:26 CAP   23600 -> 23800 (3.6 steps away, 162L) new: BUY · old: COVER -5L · fut 23652
+  09:29 CAP   23800 -> 23700 (1.6 steps away, 175L) new: WRITE · old: BUY +7L · fut 23663
+  09:32 CAP   23700 -> 23800 (3.7 steps away, 183L) new: MIXED · old: WRITE +6L · fut 23660
+  09:50 CAP   23800 -> 23700 (1.5 steps away, 229L) new: WRITE · old: BUY +3L · fut 23668
+  09:59 FLOOR 23500 -> 23600 (0.6 steps away, 341L) new: WRITE · old: BUY +2L · fut 23666
+  10:05 FLOOR 23600 -> 23500 (2.4 steps away, 344L) new: WRITE · old: QUIET -1L · fut 23650
+  10:11 FLOOR 23500 -> 23600 (0.2 steps away, 345L) new: WRITE · old: COVER -2L · fut 23641
+  10:14 FLOOR 23600 -> 23500 (2.6 steps away, 349L) new: WRITE · old: DUMP -2L · fut 23666
+  10:17 FLOOR 23500 -> 23600 (0.7 steps away, 354L) new: WRITE · old: QUIET -1L · fut 23665
+  12:05 CAP   23700 -> 23800 (2.0 steps away, 247L) new: COVER · old: QUIET -1L · fut 23744
+  12:08 CAP   23800 -> 23700 (0.1 steps away, 288L) new: DUMP · old: QUIET +1L · fut 23728
+  13:17 CAP   23700 -> 23800 (1.5 steps away, 275L) new: DUMP · old: COVER -46L · fut 23775
+  13:44 FLOOR 23600 -> 23700 (0.8 steps away, 413L) new: MIXED · old: QUIET +1L · fut 23789
+  13:50 FLOOR 23700 -> 23600 (2.6 steps away, 412L) new: WRITE · old: DUMP -14L · fut 23788
+  14:41 CAP   23800 -> 23750 (0.8 steps away, 332L) new: BUY · old: MIXED +17L · fut 23777
+  14:59 CAP   23750 -> 23700 (0.0 steps away, 340L) new: QUIET · old: DUMP -18L · fut 23742
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  09:26 23600CE  ATM   ≥u2   70.2   66.3 | COVER   +69.2 |  <vwap |   ≥u2 |   -1.5   +5.0 |   +4  +17
+  10:35 23600PE NEAR   ≤d2   32.1   31.2 | QUIET   -43.5 |    ≥u2 |   ≥u2 |   +6.0  +16.8 |   -6  -35
+  09:26 23650CE NEAR   ≥u2   47.1   44.1 | QUIET   +22.7 |  <vwap |   ≥u2 |   -1.1   +2.9 |   +4  +17
+  10:35 23650CE  ATM   ≥u2   65.2   62.2 | COVER   +23.3 |    ≤d2 |   ≥u2 |  -10.3  -23.0 |   -6  -35
+  11:50 23650CE  ATM   ≥u2   56.6   64.3 | DUMP     -4.2 |  <vwap | >vwap |  +17.9  -11.4 |  +40  -19
+  10:35 23650PE  ATM   ≤d2   49.8   49.8 | WRITE    -9.6 |    ≥u2 |   ≥u2 |   +9.0  +24.0 |   -6  -35
+  11:56 23650PE NEAR   ≤d2   34.6   33.9 | WRITE   -24.9 |    ≥u3 | >vwap |  +28.4  +18.9 |  -48  -36
+  13:17 23650PE NEAR   ≤d2   17.6   18.2 | DUMP    -24.1 |    ≥u3 |   ≥u2 |   -1.4   -3.2 |   +0   +3
+  09:26 23700CE NEAR   ≥u3   29.6   27.2 | BUY     +35.0 |  <vwap |   ≥u2 |   -0.8   +1.2 |   +4  +17
+  10:35 23700CE NEAR   ≥u2   41.2   39.0 | COVER   +13.9 |    ≤d2 |   ≥u2 |   -8.2  -17.1 |   -6  -35
+  11:47 23700CE  ATM   ≥u2   38.5   39.5 | COVER   +35.0 |  <vwap | >vwap |   +4.0  -11.1 |  +10  -30
+  13:20 23700CE  ATM   ≥u3   52.1   47.6 | DUMP    -16.5 |  <vwap |   ≥u2 |   +5.1   +5.1 |  +21  +21
+  15:20 23700CE  ATM   ≥u3   29.6   54.4 | QUIET   +11.8 |  <vwap | >vwap |      -      - |    -    -
+  15:23 23700CE  ATM   ≥u3   29.6   54.6 | QUIET   -27.7 |  <vwap | >vwap |      -      - |    -    -
+  15:26 23700CE  ATM   ≥u3   29.6   55.8 | QUIET   +41.2 |  <vwap | >vwap |      -      - |    -    -
+  15:29 23700CE  ATM   ≥u3   29.6   56.8 | QUIET   +10.0 |  <vwap | >vwap |      -      - |    -    -
+  11:56 23700PE  ATM   ≤d2   56.8   55.6 | WRITE   -13.9 |    ≥u3 | >vwap |  +36.8  +26.2 |  -48  -36
+  13:17 23700PE NEAR   ≤d2   32.9   34.2 | WRITE   -33.7 |    ≥u3 |   ≥u2 |   -1.8   -4.6 |   +0   +3
+  10:35 23750CE NEAR   ≥u2   22.9   21.8 | DUMP     -3.4 |    ≤d2 |   ≥u2 |   -5.1  -10.3 |   -6  -35
+  11:32 23750CE NEAR   ≤d2   10.8   10.7 | DUMP    -24.3 |  >vwap | >vwap |   +9.6  +12.2 |  +61  +71
+  11:56 23750CE NEAR   ≥u3   24.4   22.6 | QUIET   +12.7 |    ≤d2 | >vwap |  -11.8   -9.8 |  -48  -36
+  13:17 23750CE  ATM   ≥u3   29.1   25.0 | COVER    +7.2 |    ≤d2 |   ≥u2 |   -0.5   -0.1 |   +0   +3
+  15:26 23750CE NEAR   ≥u3   10.6   30.8 | QUIET   +49.4 |    ≤d2 | >vwap |      -      - |    -    -
+  15:29 23750CE NEAR   ≥u3   10.6   31.6 | QUIET   +40.5 |  <vwap | >vwap |      -      - |    -    -
+  13:17 23750PE  ATM   ≤d2   56.3   61.7 | WRITE   -13.4 |    ≥u3 |   ≥u2 |   -0.3   -3.9 |   +0   +3
+  11:56 23800CE NEAR   ≥u2   12.0   11.5 | COVER    +8.5 |    ≤d2 | >vwap |   -6.0   -5.0 |  -48  -36
+  13:17 23800CE NEAR   ≥u3   13.4   12.2 | DUMP    -16.7 |    ≤d2 |   ≥u2 |   -0.1   -0.2 |   +0   +3
+  14:26 23800CE NEAR   ≤d2    5.0    4.0 | DUMP    -23.0 |  <vwap | >vwap |   +1.3   +1.1 |  +53  +16
+  13:17 23850CE NEAR   ≥u2    5.5    5.9 | BUY     +11.9 |    ≤d2 |   ≥u2 |   -0.1   +0.0 |   +0   +3
+  touches by flow at the touch: {('d2', 'DUMP'): 3, ('d2', 'QUIET'): 1, ('d2', 'WRITE'): 5, ('u2', 'BUY'): 2, ('u2', 'COVER'): 6, ('u2', 'DUMP'): 4, ('u2', 'QUIET'): 8}
+
+################ 2026-10-28 · futures: fut1m · chain from 11:08
+
+== EVENT 09:32→09:47 ▲ +82 pts · fut OI +2209 lots (fresh longs) · option leg MIXED (cap {} · floor {}) → FRESH LONGS
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near — · gamma_up — · cover — · prem_u2 — · fut_oi_trend — · both_delta — · fast — · vpin70 —
+   at the start close: wall None · trapped None · stalled None · near None · prem None · fut OI 30 None · implied 9 None · fut Δ 9 None · VPIN pNone · Jarvis None
+   inside: first covers none · wall path [] · wall premium ≥u3 at None
+
+== EVENT 09:53→10:08 ▼ -81 pts · fut OI +1685 lots (fresh shorts) · option leg MIXED (cap {} · floor {}) → FRESH SHORTS
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near — · gamma_up — · cover — · prem_u2 — · fut_oi_trend — · both_delta — · fast — · vpin70 —
+   at the start close: wall None · trapped None · stalled None · near None · prem None · fut OI 30 None · implied 9 None · fut Δ 9 None · VPIN pNone · Jarvis None
+   inside: first covers none · wall path [] · wall premium ≥u3 at None
+
+== EVENT 12:44→12:59 ▲ +76 pts · fut OI -949 lots (short covering) · option leg MIXED (cap {'MIXED': 1, 'COVER': 1, 'QUIET': 2, 'OI?': 1} · floor {'QUIET': 2, 'MIXED': 1, 'WRITE': 1, 'OI?': 1}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled 6 · near — · gamma_up — · cover 3 · prem_u2 30 · fut_oi_trend 30 · both_delta 30 · fast 9 · vpin70 30
+   at the start close: wall (23000, 'CE') · trapped False · stalled False · near False · prem ≥u3 · fut OI 30 -931 · implied 9 34991 · fut Δ 9 1076 · VPIN p0.812 · Jarvis None
+   inside: first covers 22800 12:47 -3L, 22850 12:47 -2L, 22900 12:47 -4L, 22950 12:47 -5L, 23000 12:47 -7L, 22700 12:50 -2L · wall path [('12:47', 23000)] · wall premium ≥u3 at None
+
+################ 2026-10-29 · futures: fut1m · chain from 09:16
+
+== EVENT 09:59→10:14 ▲ +45 pts · fut OI -152 lots (short covering) · option leg MIXED (cap {'BUY': 1, 'QUIET': 1, 'COVER': 1, 'DUMP': 1, 'WRITE': 1} · floor {'WRITE': 2, 'MIXED': 2, 'BUY': 1}) → MIXED
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped 6 · stalled 21 · near — · gamma_up 30 · cover — · prem_u2 30 · fut_oi_trend — · both_delta 6 · fast 6 · vpin70 30
+   at the start close: wall (23000, 'CE') · trapped False · stalled False · near False · prem >vwap · fut OI 30 1313 · implied 9 3293 · fut Δ 9 179 · VPIN p0.696 · Jarvis None
+   inside: first covers 22750 10:08 -3L, 22800 10:08 -5L, 22900 10:08 -3L, 23000 10:08 -2L · wall path [('10:02', 23000)] · wall premium ≥u3 at 10:08
+
+== EVENT 10:17→10:32 ▲ +63 pts · fut OI -570 lots (short covering) · option leg FLOOR WRITERS (cap {'DUMP': 1, 'QUIET': 3, 'COVER': 1} · floor {'MIXED': 2, 'WRITE': 3}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped 24 · stalled 30 · near — · gamma_up 0 · cover 9 · prem_u2 24 · fut_oi_trend — · both_delta 24 · fast 24 · vpin70 30
+   at the start close: wall (23000, 'CE') · trapped True · stalled False · near False · prem ≥u3 · fut OI 30 116 · implied 9 25215 · fut Δ 9 274 · VPIN p1.0 · Jarvis None
+   inside: first covers 23100 10:20 -2L, 22800 10:26 -6L, 22850 10:26 -2L, 22900 10:26 -3L, 22950 10:26 -2L, 23000 10:26 -9L · wall path [('10:20', 23000)] · wall premium ≥u3 at 10:20
+
+== EVENT 14:11→14:26 ▲ +61 pts · fut OI -263 lots (short covering) · option leg CAP COVER (cap {'QUIET': 2, 'WRITE': 1, 'COVER': 2} · floor {'QUIET': 4, 'DUMP': 1}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped 30 · stalled 6 · near — · gamma_up — · cover — · prem_u2 6 · fut_oi_trend 30 · both_delta 30 · fast 15 · vpin70 6
+   at the start close: wall (23000, 'CE') · trapped True · stalled True · near False · prem >vwap · fut OI 30 -547 · implied 9 -13586 · fut Δ 9 10 · VPIN p0.798 · Jarvis None
+   inside: first covers 22900 14:23 -2L, 22950 14:26 -3L, 23000 14:26 -5L, 23050 14:26 -3L, 23100 14:26 -2L · wall path [('14:14', 23000)] · wall premium ≥u3 at 14:26
+
+################ 2026-10-30 · futures: fut1m · chain from 09:16
+
+== EVENT 09:26→09:41 ▲ +61 pts · fut OI +124 lots (fresh longs) · option leg CAP BUYERS (cap {'BUY': 2, 'WRITE': 2, 'MIXED': 1} · floor {'WRITE': 3, 'MIXED': 1, 'BUY': 1}) → MIXED
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near 9 · gamma_up — · cover — · prem_u2 9 · fut_oi_trend — · both_delta — · fast 0 · vpin70 6
+   at the start close: wall (23000, 'CE') · trapped False · stalled None · near True · prem ≤d3 · fut OI 30 None · implied 9 -65191 · fut Δ 9 21 · VPIN p1.0 · Jarvis None
+   inside: first covers none · wall path [('09:29', 23000)] · wall premium ≥u3 at 09:29
+
+== EVENT 11:05→11:20 ▲ +58 pts · fut OI -24 lots (short covering) · option leg CAP COVER (cap {'COVER': 3, 'WRITE': 1, 'BUY': 1} · floor {'WRITE': 3, 'BUY': 1, 'DUMP': 1}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near 30 · gamma_up 6 · cover — · prem_u2 — · fut_oi_trend 21 · both_delta 27 · fast 9 · vpin70 12
+   at the start close: wall (23000, 'CE') · trapped False · stalled False · near True · prem <vwap · fut OI 30 -240 · implied 9 -7420 · fut Δ 9 57 · VPIN p0.679 · Jarvis None
+   inside: first covers 23000 11:08 -11L, 23050 11:08 -6L, 23100 11:08 -5L, 23200 11:08 -4L, 23250 11:08 -4L · wall path [('11:08', 23100), ('11:20', 23400)] · wall premium ≥u3 at None
+
+== EVENT 11:44→11:59 ▲ +62 pts · fut OI -388 lots (short covering) · option leg CAP COVER (cap {'QUIET': 2, 'COVER': 2, 'WRITE': 1} · floor {'WRITE': 3, 'DUMP': 1, 'QUIET': 1}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped 30 · stalled 27 · near 30 · gamma_up 15 · cover — · prem_u2 9 · fut_oi_trend 9 · both_delta 30 · fast — · vpin70 30
+   at the start close: wall (23400, 'CE') · trapped True · stalled False · near False · prem >vwap · fut OI 30 -728 · implied 9 17301 · fut Δ 9 306 · VPIN p0.971 · Jarvis None
+   inside: first covers 23200 11:47 -3L, 23050 11:50 -6L, 23350 11:50 -4L, 23300 11:59 -7L · wall path [('11:47', 23400), ('11:50', 23500), ('11:53', 23400), ('11:56', 23500)] · wall premium ≥u3 at 11:50
+
+################ 2026-11-02 · futures: fut1m · chain from 09:16
+
+== EVENT 09:32→09:47 ▲ +66 pts · fut OI -516 lots (short covering) · option leg CAP BUYERS (cap {'BUY': 4, 'DUMP': 1} · floor {'WRITE': 3, 'MIXED': 2}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near — · gamma_up 12 · cover — · prem_u2 15 · fut_oi_trend — · both_delta 15 · fast — · vpin70 —
+   at the start close: wall (23500, 'CE') · trapped False · stalled None · near False · prem ≥u3 · fut OI 30 None · implied 9 42296 · fut Δ 9 438 · VPIN p0.25 · Jarvis OPENING
+   inside: first covers 23250 09:38 -5L, 23300 09:44 -9L, 23450 09:44 -4L, 23500 09:47 -4L · wall path [('09:35', 23500)] · wall premium ≥u3 at 09:35
+
+== EVENT 12:59→13:14 ▼ -83 pts · fut OI -184 lots (long unwinding) · option leg FLOOR COVER (cap {'WRITE': 3, 'DUMP': 2} · floor {'QUIET': 1, 'COVER': 3, 'DUMP': 1}) → PUT-WRITER COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled 12 · near 30 · gamma_up — · cover — · prem_u2 — · fut_oi_trend 30 · both_delta 27 · fast 27 · vpin70 3
+   at the start close: wall (23000, 'PE') · trapped False · stalled False · near False · prem <vwap · fut OI 30 42 · implied 9 -115201 · fut Δ 9 -381 · VPIN p0.783 · Jarvis PALAT ▼
+   inside: first covers 23000 13:05 -2L, 23100 13:05 -3L, 23200 13:05 -9L, 23150 13:08 -2L, 23050 13:11 -6L, 23250 13:11 -30L · wall path [('13:02', 23000)] · wall premium ≥u3 at None
+
+== EVENT 14:29→14:44 ▲ +54 pts · fut OI -10 lots (short covering) · option leg CAP COVER (cap {'COVER': 3, 'QUIET': 1, 'WRITE': 1} · floor {'QUIET': 1, 'WRITE': 1, 'DUMP': 2, 'BUY': 1}) → SHORT COVERING
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near 30 · gamma_up 27 · cover 12 · prem_u2 — · fut_oi_trend 30 · both_delta 24 · fast 24 · vpin70 30
+   at the start close: wall (23300, 'CE') · trapped False · stalled False · near True · prem <vwap · fut OI 30 -42 · implied 9 -39977 · fut Δ 9 16 · VPIN p0.597 · Jarvis ROTATION ▲
+   inside: first covers 23250 14:32 -2L, 23300 14:32 -9L, 23350 14:32 -3L, 23400 14:38 -15L, 23500 14:38 -6L, 23450 14:44 -4L, 23550 14:44 -3L · wall path [('14:32', 23300), ('14:38', 23400), ('14:44', 23500)] · wall premium ≥u3 at None
+
+################ 2026-11-03 · futures: fut1m · chain from 09:17
+
+== EVENT 09:17→09:32 ▲ +66 pts · fut OI +566 lots (fresh longs) · option leg CAP BUYERS (cap {'BUY': 2, 'MIXED': 2, 'WRITE': 1} · floor {'WRITE': 3, 'MIXED': 2}) → FRESH LONGS
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near 0 · gamma_up — · cover — · prem_u2 0 · fut_oi_trend — · both_delta 0 · fast — · vpin70 0
+   at the start close: wall (23600, 'CE') · trapped False · stalled None · near True · prem ≥u3 · fut OI 30 None · implied 9 36668 · fut Δ 9 1462 · VPIN p0.722 · Jarvis NO LEG
+   inside: first covers 23600 09:26 -5L, 23750 09:26 -2L · wall path [('09:20', 23600), ('09:26', 23800), ('09:29', 23700), ('09:32', 23800)] · wall premium ≥u3 at 09:26
+
+== EVENT 11:32→11:47 ▲ +61 pts · fut OI +49 lots (fresh longs) · option leg CAP BUYERS (cap {'BUY': 3, 'MIXED': 1, 'COVER': 1} · floor {'DUMP': 2, 'WRITE': 2, 'MIXED': 1}) → MIXED
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped 30 · stalled — · near 30 · gamma_up 15 · cover 6 · prem_u2 — · fut_oi_trend 30 · both_delta 30 · fast 27 · vpin70 —
+   at the start close: wall (23700, 'CE') · trapped False · stalled False · near True · prem <vwap · fut OI 30 -699 · implied 9 -179863 · fut Δ 9 62 · VPIN p0.128 · Jarvis HOLD ▲
+   inside: first covers 23650 11:38 -10L, 23700 11:47 -10L, 23750 11:47 -6L, 23800 11:47 -7L, 23950 11:47 -2L · wall path [('11:35', 23700)] · wall premium ≥u3 at None
+
+== EVENT 12:05→12:20 ▼ -59 pts · fut OI -822 lots (long unwinding) · option leg FLOOR BUYERS (cap {'WRITE': 2, 'DUMP': 1, 'BUY': 2} · floor {'BUY': 2, 'COVER': 1, 'QUIET': 1, 'DUMP': 1}) → LONG UNWIND
+   lead-in (minutes before the start that the piece first held, within 30 min; '—' = not before the start): trapped — · stalled — · near 30 · gamma_up 30 · cover — · prem_u2 — · fut_oi_trend — · both_delta — · fast 30 · vpin70 9
+   at the start close: wall (23600, 'PE') · trapped False · stalled False · near False · prem <vwap · fut OI 30 -223 · implied 9 -85827 · fut Δ 9 68 · VPIN p0.643 · Jarvis TREND ▲
+   inside: first covers 23500 12:11 -20L, 23550 12:11 -11L, 23600 12:11 -24L, 23650 12:11 -34L · wall path [('12:08', 23600)] · wall premium ≥u3 at None
+
+################ FALSE ALARMS · signature S = trapped AND stalled AND near (the wall); S4 = S AND the first cover; next = fut 15 min after the close
+
+-- UP (the cap)
+   2026-10-28: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled      1 closes · ≥40 with 1 · ≥40 against 0 · flat 0
+        near         0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        cover        3 closes · ≥40 with 2 · ≥40 against 0 · flat 1
+        prem_u2      23 closes · ≥40 with 5 · ≥40 against 0 · flat 18
+        vpin70       18 closes · ≥40 with 6 · ≥40 against 0 · flat 12
+        imp_against  6 closes · ≥40 with 2 · ≥40 against 1 · flat 3
+        fast         10 closes · ≥40 with 3 · ≥40 against 0 · flat 7
+        trapped+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped+near     0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        imp_against+near 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+   2026-10-29: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      39 closes · ≥40 with 11 · ≥40 against 1 · flat 27
+        stalled      30 closes · ≥40 with 4 · ≥40 against 1 · flat 25
+        near         23 closes · ≥40 with 1 · ≥40 against 0 · flat 22
+        cover        6 closes · ≥40 with 0 · ≥40 against 0 · flat 6
+        prem_u2      35 closes · ≥40 with 7 · ≥40 against 0 · flat 28
+        vpin70       60 closes · ≥40 with 11 · ≥40 against 1 · flat 48
+        imp_against  9 closes · ≥40 with 1 · ≥40 against 0 · flat 8
+        fast         9 closes · ≥40 with 0 · ≥40 against 0 · flat 9
+        trapped+cover    2 closes · ≥40 with 0 · ≥40 against 0 · flat 2
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       1 closes · ≥40 with 0 · ≥40 against 0 · flat 1
+        trapped+near     1 closes · ≥40 with 1 · ≥40 against 0 · flat 0
+        imp_against+near 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+   2026-10-30: closes 125 · S: 1 closes · ≥40 with 0 · ≥40 against 0 · flat 1 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S at: 11:17
+        trapped      14 closes · ≥40 with 3 · ≥40 against 0 · flat 11
+        stalled      16 closes · ≥40 with 2 · ≥40 against 1 · flat 13
+        near         70 closes · ≥40 with 8 · ≥40 against 5 · flat 57
+        cover        1 closes · ≥40 with 0 · ≥40 against 0 · flat 1
+        prem_u2      16 closes · ≥40 with 1 · ≥40 against 2 · flat 13
+        vpin70       75 closes · ≥40 with 9 · ≥40 against 3 · flat 63
+        imp_against  34 closes · ≥40 with 3 · ≥40 against 3 · flat 28
+        fast         13 closes · ≥40 with 1 · ≥40 against 1 · flat 11
+        trapped+cover    1 closes · ≥40 with 0 · ≥40 against 0 · flat 1
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       1 closes · ≥40 with 0 · ≥40 against 0 · flat 1
+        trapped+near     4 closes · ≥40 with 0 · ≥40 against 0 · flat 4
+        imp_against+near 27 closes · ≥40 with 3 · ≥40 against 3 · flat 21
+   2026-11-02: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      20 closes · ≥40 with 0 · ≥40 against 3 · flat 17
+        stalled      12 closes · ≥40 with 0 · ≥40 against 0 · flat 12
+        near         52 closes · ≥40 with 3 · ≥40 against 5 · flat 44
+        cover        12 closes · ≥40 with 1 · ≥40 against 1 · flat 10
+        prem_u2      16 closes · ≥40 with 4 · ≥40 against 2 · flat 10
+        vpin70       27 closes · ≥40 with 1 · ≥40 against 4 · flat 22
+        imp_against  49 closes · ≥40 with 1 · ≥40 against 4 · flat 44
+        fast         15 closes · ≥40 with 0 · ≥40 against 1 · flat 14
+        trapped+cover    3 closes · ≥40 with 0 · ≥40 against 1 · flat 2
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       7 closes · ≥40 with 0 · ≥40 against 0 · flat 7
+        trapped+near     0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        imp_against+near 25 closes · ≥40 with 1 · ≥40 against 3 · flat 21
+   2026-11-03: closes 125 · S: 1 closes · ≥40 with 0 · ≥40 against 0 · flat 1 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S at: 13:50
+        trapped      58 closes · ≥40 with 2 · ≥40 against 3 · flat 53
+        stalled      4 closes · ≥40 with 0 · ≥40 against 0 · flat 4
+        near         98 closes · ≥40 with 4 · ≥40 against 3 · flat 91
+        cover        8 closes · ≥40 with 0 · ≥40 against 2 · flat 6
+        prem_u2      25 closes · ≥40 with 3 · ≥40 against 2 · flat 20
+        vpin70       11 closes · ≥40 with 3 · ≥40 against 1 · flat 7
+        imp_against  35 closes · ≥40 with 2 · ≥40 against 1 · flat 32
+        fast         17 closes · ≥40 with 1 · ≥40 against 1 · flat 15
+        trapped+cover    7 closes · ≥40 with 0 · ≥40 against 2 · flat 5
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       8 closes · ≥40 with 0 · ≥40 against 2 · flat 6
+        trapped+near     52 closes · ≥40 with 2 · ≥40 against 3 · flat 47
+        imp_against+near 29 closes · ≥40 with 1 · ≥40 against 1 · flat 27
+
+-- DN (the floor)
+   2026-10-28: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled      20 closes · ≥40 with 1 · ≥40 against 5 · flat 14
+        near         23 closes · ≥40 with 0 · ≥40 against 7 · flat 16
+        cover        1 closes · ≥40 with 0 · ≥40 against 1 · flat 0
+        prem_u2      4 closes · ≥40 with 0 · ≥40 against 0 · flat 4
+        vpin70       18 closes · ≥40 with 0 · ≥40 against 6 · flat 12
+        imp_against  10 closes · ≥40 with 0 · ≥40 against 3 · flat 7
+        fast         10 closes · ≥40 with 0 · ≥40 against 3 · flat 7
+        trapped+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped+near     0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        imp_against+near 2 closes · ≥40 with 0 · ≥40 against 1 · flat 1
+   2026-10-29: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled      24 closes · ≥40 with 2 · ≥40 against 8 · flat 14
+        near         20 closes · ≥40 with 0 · ≥40 against 7 · flat 13
+        cover        1 closes · ≥40 with 0 · ≥40 against 0 · flat 1
+        prem_u2      1 closes · ≥40 with 0 · ≥40 against 0 · flat 1
+        vpin70       60 closes · ≥40 with 1 · ≥40 against 11 · flat 48
+        imp_against  22 closes · ≥40 with 0 · ≥40 against 4 · flat 18
+        fast         9 closes · ≥40 with 0 · ≥40 against 0 · flat 9
+        trapped+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped+near     0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        imp_against+near 4 closes · ≥40 with 0 · ≥40 against 3 · flat 1
+   2026-10-30: closes 125 · S: 1 closes · ≥40 with 0 · ≥40 against 0 · flat 1 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S at: 10:17
+        trapped      3 closes · ≥40 with 0 · ≥40 against 0 · flat 3
+        stalled      9 closes · ≥40 with 0 · ≥40 against 1 · flat 8
+        near         54 closes · ≥40 with 4 · ≥40 against 6 · flat 44
+        cover        4 closes · ≥40 with 0 · ≥40 against 0 · flat 4
+        prem_u2      6 closes · ≥40 with 0 · ≥40 against 2 · flat 4
+        vpin70       75 closes · ≥40 with 3 · ≥40 against 9 · flat 63
+        imp_against  34 closes · ≥40 with 2 · ≥40 against 2 · flat 30
+        fast         13 closes · ≥40 with 1 · ≥40 against 1 · flat 11
+        trapped+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       3 closes · ≥40 with 0 · ≥40 against 0 · flat 3
+        trapped+near     3 closes · ≥40 with 0 · ≥40 against 0 · flat 3
+        imp_against+near 15 closes · ≥40 with 2 · ≥40 against 1 · flat 12
+   2026-11-02: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      17 closes · ≥40 with 0 · ≥40 against 1 · flat 16
+        stalled      17 closes · ≥40 with 1 · ≥40 against 0 · flat 16
+        near         73 closes · ≥40 with 3 · ≥40 against 6 · flat 64
+        cover        5 closes · ≥40 with 0 · ≥40 against 0 · flat 5
+        prem_u2      4 closes · ≥40 with 0 · ≥40 against 0 · flat 4
+        vpin70       27 closes · ≥40 with 4 · ≥40 against 1 · flat 22
+        imp_against  51 closes · ≥40 with 2 · ≥40 against 7 · flat 42
+        fast         15 closes · ≥40 with 1 · ≥40 against 0 · flat 14
+        trapped+cover    2 closes · ≥40 with 0 · ≥40 against 0 · flat 2
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped+near     9 closes · ≥40 with 0 · ≥40 against 1 · flat 8
+        imp_against+near 24 closes · ≥40 with 1 · ≥40 against 2 · flat 21
+   2026-11-03: closes 125 · S: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0 · S4: 0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        trapped      0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled      2 closes · ≥40 with 0 · ≥40 against 0 · flat 2
+        near         70 closes · ≥40 with 2 · ≥40 against 4 · flat 64
+        cover        9 closes · ≥40 with 0 · ≥40 against 2 · flat 7
+        prem_u2      1 closes · ≥40 with 0 · ≥40 against 1 · flat 0
+        vpin70       11 closes · ≥40 with 1 · ≥40 against 3 · flat 7
+        imp_against  60 closes · ≥40 with 1 · ≥40 against 3 · flat 56
+        fast         17 closes · ≥40 with 1 · ≥40 against 1 · flat 15
+        trapped+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        stalled+cover    0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        near+cover       6 closes · ≥40 with 0 · ≥40 against 2 · flat 4
+        trapped+near     0 closes · ≥40 with 0 · ≥40 against 0 · flat 0
+        imp_against+near 36 closes · ≥40 with 1 · ≥40 against 2 · flat 33
