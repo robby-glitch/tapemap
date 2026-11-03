@@ -109,6 +109,9 @@ optflow/optflow.py (8790) + optflow/map.html
     spot touched ±5, from that day's chain file. It needs one Dext chart load to borrow the login (change one
     timeframe), and may run beside the live bridge. Used 3-4 Nov to fetch 28-30 Oct and 2 Nov (NOTEPAD A219);
     a contract can be asked until it leaves the scrip master.
+  - **Anytime start (catch-up):** every round the bridge also asks, once from 09:15, any strike today's spot has touched ±5 that
+    it has not asked yet today. A start at 11:00 fills the morning, a start after the close fills the day, a restart fills its gap.
+    `node optflow\dext_bridge.mjs --targets <day>` prints what it would ask, without Dext.
 
 ### Its log lines
 - `asked 44/44 (NIFTY 22, SENSEX 22) · N closed candles · M own Dext loads · S s`: a healthy round.

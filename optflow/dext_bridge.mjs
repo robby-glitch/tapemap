@@ -22,11 +22,11 @@ const DATA = fileURLToPath(new URL("../data", import.meta.url));      // tapemap
 const CDP = "http://127.0.0.1:9229/json/version", DOOR = "http://127.0.0.1:8765/api/dext/candles";
 const OF = /\/orderflow\/getOrderFlow\/v2/i, OHLC = /ticks\.dhan\.co\/getData/i, ASK_MS = 60000, RECENT_S = 900;
 const IDX = [{ name: "NIFTY", exch: "NSE", step: 50 }, { name: "SENSEX", exch: "BSE", step: 100 }];
-const INNER = 3, OUTER = 5, NOW_FLAG = process.argv.includes("--now");
+const INNER = 3, OUTER = 5, NOW_FLAG = process.argv.includes("--now"), TARGETS_FLAG = process.argv.includes("--targets");
 const NO_COPY = /^(content-length|host|origin|referer|user-agent|cookie|connection|accept-encoding|sec-|:)/i;
 const log = (...a) => console.log(new Date().toTimeString().slice(0, 8), ...a);
 const istNow = () => new Date(Date.now() + 19800e3);
-const DAYS = NOW_FLAG ? process.argv.filter(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) : [];    // --now YYYY-MM-DD ...: past days
+const DAYS = NOW_FLAG || TARGETS_FLAG ? process.argv.filter(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) : [];    // --now YYYY-MM-DD ...: past days
 let DAY = DAYS.shift();
 const today = () => DAY || istNow().toISOString().slice(0, 10);
 const dayAt = (h, m) => { const d = DAY ? new Date(`${DAY}T00:00:00Z`) : istNow(); d.setUTCHours(h, m, 0, 0); return Math.floor(d.getTime() / 1000) - 19800; };
@@ -57,10 +57,10 @@ function chainNow(idx) {
 }
 
 // a past day: its whole spot range from its chain file, so every strike the day touched gets asked
-function dayRange(idx) {
+function dayRange(idx, day = DAY) {
   let lo = Infinity, hi = -Infinity, expiry = null;
   try {
-    for (const l of fs.readFileSync(`${DATA}/chain/chain_${idx}_${DAY}.jsonl`, "utf8").split("\n")) {
+    for (const l of fs.readFileSync(`${DATA}/chain/chain_${idx}_${day}.jsonl`, "utf8").split("\n")) {
       try { const r = JSON.parse(l); if (r.spot) { lo = Math.min(lo, r.spot); hi = Math.max(hi, r.spot); expiry = r.expiry || expiry; } } catch { }
     }
   } catch { }
@@ -80,6 +80,39 @@ function autoTargets(minute) {
         if (sid) out.push({ sid, EXCH: ix.exch, SEG: "D", idx: ix.name });
       }
     }
+  }
+  return out;
+}
+
+// Anytime start (her standing rule; 4 Nov "whenever i turn on the computer everything ... should be able to backfill"):
+// every strike today's spot has touched, ±OUTER, is asked once from 09:15 -- the morning a late start missed, the whole
+// day if the bridge starts after the close, the gap a crash left. The range: the server's chain backfill (09:15 to its
+// start, small, re-read each round) plus the chain's tail as the day goes.
+function backfillSpots(idx, day) {
+  const out = [];
+  try {
+    for (const l of fs.readFileSync(`${DATA}/chain_backfill/backfill_${idx}_${day}.jsonl`, "utf8").split("\n")) {
+      try { const r = JSON.parse(l); if (r.spot) out.push(r.spot); } catch { }
+    }
+  } catch { }
+  return out;
+}
+const span = {};       // idx -> { day, lo, hi }: today's spot range so far
+function catchUpTargets() {
+  const out = [], day = today();
+  for (const ix of IDX) {
+    const c = chainNow(ix.name); if (!c) continue;
+    let s = span[ix.name];
+    if (!s || s.day !== day) {       // the day's first catch-up: the whole chain file once (a bridge restarted after the server)
+      const r = dayRange(ix.name, day);
+      s = span[ix.name] = { day, lo: r ? r.lo : Infinity, hi: r ? r.hi : -Infinity };
+    }
+    for (const p of [c.spot, ...backfillSpots(ix.name, day)]) { s.lo = Math.min(s.lo, p); s.hi = Math.max(s.hi, p); }
+    for (let k = Math.round(s.lo / ix.step) - OUTER; k <= Math.round(s.hi / ix.step) + OUTER; k++)
+      for (const t of ["CE", "PE"]) {
+        const sid = IDS.get(`${ix.exch}|${ix.name}|${c.expiry}|${k * ix.step}|${t}`);
+        if (sid && asked.get(sid) !== day) out.push({ sid, EXCH: ix.exch, SEG: "D", idx: ix.name });
+      }
   }
   return out;
 }
@@ -133,6 +166,7 @@ async function askRound() {
   const targets = new Map(), t0 = Date.now(), nowS = Math.floor(t0 / 1000), per = {};
   for (const [sid, c] of charts) targets.set(sid, { sid, EXCH: c.body.EXCH, SEG: c.body.SEG, idx: "chart" });
   if (inSession() || NOW_FLAG) for (const t of autoTargets(minute)) if (!targets.has(t.sid)) targets.set(t.sid, t);
+  if (!DAY && istNow().toISOString().slice(11, 16) >= "09:15") for (const t of catchUpTargets()) if (!targets.has(t.sid)) targets.set(t.sid, t);
   minute++;
   const headers = Object.fromEntries(Object.entries(via.headers).filter(([k]) => !NO_COPY.test(k)));
   let n = 0, sent = 0, failed = 0;
@@ -213,6 +247,13 @@ async function connect() {
 
 // one bridge at a time: a second copy (the start script double-clicked) would ask Dhan twice and re-ask the first
 // copy's requests. Holding a local port is the lock; the OS frees it when this process ends.
+// --targets YYYY-MM-DD: print what a start at that day's end would catch up, then exit (no Dext, no ask): the check.
+if (TARGETS_FLAG) {
+  const t = catchUpTargets(), by = {};
+  for (const x of t) by[x.idx] = (by[x.idx] || 0) + 1;
+  console.log(`${today()}: catch-up would ask ${t.length} contracts`, by, JSON.stringify(span));
+  process.exit(0);
+}
 // A --now check may run beside it: the live copy never re-asks requests sent from Runtime.evaluate (no script url).
 const start = () => {
   connect();

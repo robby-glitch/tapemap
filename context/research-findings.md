@@ -1096,6 +1096,13 @@ restores rev 3 / §1m exactly; that is tested.
 before any evaluation is read. Under 15 per cell is INCONCLUSIVE. No rate is printed. §1q, §1b, §1d and Jarvis's count
 are unchanged.
 
+**Amendment 1 (4 Nov ~03:00, before any forward row exists; her "make sure its able to fill evevry data from no matter whenever i turn on the computer evevrything that it uses shud be able to backfill"):** the anytime-start rule binds the replay.
+- Minutes the chain recorder did not see (a late start, a restart gap): C3's OI and premium come from `data/chain_backfill/backfill_NIFTY_<day>.jsonl` (Upstox REST, per strike per minute), anchored to the first live snapshot.
+- C8's delta for those minutes: the Black-Scholes delta from that premium, spot, strike and time to expiry (IV implied from the premium, r = 0) [I].
+- Dext footprints: the bridge's catch-up (every strike the day's spot touched ±5 is asked once from 09:15, at any start time, after the close too), or `--now <day>` for an earlier day.
+- Jarvis pause / call rows before the start: legs.py's rule re-run on the rebuilt frame.
+- Every such reading is tagged `backfill`. Backfilled rows are counted in their own column and never pooled with observed rows unless she says so. The PREREG file is unchanged (sha above).
+
 ## 2. Dead — do not revive without new evidence
 
 | hypothesis | verdict | scorer |

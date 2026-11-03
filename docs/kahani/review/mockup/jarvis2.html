@@ -413,6 +413,19 @@ function pollCard() {     // a failed or refused poll drops the card: the frame'
   fetchFrame(EP("card")).then(c => c && c.ok ? c : null, () => null).then(c => { CARD = c; if (D) renderBrain(); });
 }
 function setCmd(on) { CMD = on; $("#cin").placeholder = on ? PH : "offline · commands stay on this page"; }
+// A221: live, in market hours, a call more than jarvis.BLIND_MIN (2) minutes behind the IST clock says how old it is and is
+// greyed (3 Nov: the 14:04 WATCH sat 58 min with no age while TapeMap was starved, A214; the server's own blind check cannot
+// say it when the server is what stalled). After the close the last call stands.
+const OLD_MIN = 2;
+function oldLine(c) {
+  if (!LIVE || !c || !/^\d\d:\d\d/.test(c.at || "")) return null;
+  const now = new Date(Date.now() + 330 * 60e3), hm = now.toISOString().slice(11, 16), wd = now.getUTCDay();
+  if (wd === 0 || wd === 6 || hm < "09:15" || hm > "15:40") return null;
+  const day = /^\d{4}-\d\d-\d\d$/.test(c.day || "") ? c.day : D && D.day, today = now.toISOString().slice(0, 10);
+  if (day && day !== today) return `from ${day} · no call today yet`;
+  const mm = s => +s.slice(0, 2) * 60 + +s.slice(3, 5), lag = mm(hm) - mm(c.at);
+  return lag > OLD_MIN ? `${lag} min old · no new call since ${c.at.slice(0, 5)} (TapeMap starved or stopped)` : null;
+}
 const offlineDrawn = () => userLines.filter(u => u.id == null).map(u => `line ${u.lvl}${u.tag}`)   // the page's own, no id
   .concat(userZones.filter(u => u.id == null).map(u => `zone ${u.a}-${u.b}${u.tag}`),
     watches.filter(u => u.id == null && !u.hit).map(u => `watch ${u.lvl}${u.tag}`));
@@ -522,6 +535,8 @@ function renderCard(c) {
   box.style.opacity = blind ? 0.55 : 1;
   const row = (cls, txt, tip) => { const el = document.createElement("div"); el.className = cls; el.textContent = txt; el.title = tip || txt; box.appendChild(el); return el; };
   const line = (txt, cls) => { if (txt) row("s " + (cls || "clip"), txt); };
+  const old = oldLine(c);
+  if (old) { row("s bad clip", old); box.style.opacity = 0.55; }
   const n = c.count;
   if (n) {
     const P = n.pieces || [], q = P.filter(p => p.side === "?");
