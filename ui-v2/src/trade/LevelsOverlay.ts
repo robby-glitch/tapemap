@@ -689,6 +689,8 @@ export interface ValueLayer {
   poc: number | null; vah: number | null; val: number | null
   hvn: number[]
   prior: { day: string; poc: number }[]
+  pnodes: { p: number; kind: 'HVN' | 'LVN' }[]   // the prior day's nodes (prints.nodes: top-3 5-pt bins / <= 0.35 x median)
+  pday: string
   naked: { day: string; poc: number; to: number | null }[]
 }
 const REF = '#8A93A1'
@@ -723,6 +725,12 @@ function drawValue(ctx: CanvasRenderingContext2D, conv: Converters, pane: PaneRe
   for (const p of v.prior) {
     const y = conv.priceToY(p.poc)
     if (hline(ctx, pane, y, withAlpha(REF, 0.45), 1, [1, 4])) chips.push({ y, text: `POC ${p.day.slice(5)}`, color: REF, filled: false, small: true })
+  }
+  for (const n of v.pnodes) {                    // display only: location, never an entry (ORDERFLOW-STUDY Study 1)
+    const y = conv.priceToY(n.p)
+    const hv = n.kind === 'HVN'
+    if (hline(ctx, pane, y, withAlpha(hv ? MUTED : REF, hv ? 0.7 : 0.5), 1, hv ? [] : [3, 3]))
+      chips.push({ y, text: `${n.kind} ${v.pday.slice(5)} ${n.p}f`, color: hv ? MUTED : REF, filled: false, small: true })
   }
   for (const n of v.naked) {
     const y = conv.priceToY(n.poc)

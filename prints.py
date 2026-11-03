@@ -186,7 +186,7 @@ def prior_levels(days: List[Tuple[str, List[dict]]]) -> List[dict]:
     for day, bars in days:
         pr = profile(bars)
         if pr:
-            out.append({"day": day, "poc": pr["poc"], "vah": pr["vah"], "val": pr["val"]})
+            out.append({"day": day, "poc": pr["poc"], "vah": pr["vah"], "val": pr["val"], "nodes": nodes(pr)})
     return out
 
 

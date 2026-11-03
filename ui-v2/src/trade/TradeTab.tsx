@@ -214,6 +214,8 @@ export default function TradeTab({
       poc: u?.levels.session?.poc ?? null, vah: u?.levels.session?.vah ?? null, val: u?.levels.session?.val ?? null,
       hvn: (u?.levels.nodes ?? []).filter((n) => n.kind === 'HVN').map((n) => n.p),
       prior: r.levels.prior.map((p) => ({ day: p.day, poc: p.poc })),
+      pnodes: r.levels.prior[0]?.nodes ?? [],                        // the newest prior day's HVN / LVN, to check by eye
+      pday: r.levels.prior[0]?.day ?? '',
       naked: r.levels.naked.map((n) => ({ day: n.day, poc: n.poc, to: n.touched_t != null ? toChart(n.touched_t) : null })),
     }
   }, [valueOn, tape.reply, base])

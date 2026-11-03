@@ -22,7 +22,7 @@ export interface TapeBarRow {
 export interface TapeNode { p: number; vol: number; kind: 'HVN' | 'LVN' }
 export interface TapeLevels {
   session: { poc: number; vah: number; val: number } | null
-  prior: { day: string; poc: number; vah: number; val: number }[]
+  prior: { day: string; poc: number; vah: number; val: number; nodes?: TapeNode[] }[]
   prior_why: string | null
   naked: { day: string; poc: number; touched_t: number | null }[]
   nodes: TapeNode[]
