@@ -1,0 +1,205 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Option order flow · the ladder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+/* The ladder dashboard (spec 2026-11-05 §8): a KPI row of stat tiles (label · value · delta · clock), the read's trade,
+   a strike heat strip (CE over PE, ATM ±3), two footprint tiles, the day strip. Light only, by her rule. Three states
+   never merge: a value, "kuch nahi", or a hatched "nahi dekha" with its reason. LIVE when served by optflow.py (fetches
+   /ladder.json every 30 s, follows the latest minute until you scrub back); REPLAY when the export embedded DATA. */
+:root{--bg:#f4f6f8;--panel:#fff;--ink:#18212b;--muted:#5b6876;--line:#dce2e8;--buy:#0e8a5c;--sell:#c4302b;--amber:#b5761a;
+ --accent:#1f5fbf;--soft:#eef2f6;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.3 var(--sans);padding:12px 14px 24px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.bar b{font-size:14px}.bar b span{color:var(--muted);font-weight:400}.bar a{color:var(--accent);text-decoration:none;font-weight:600}
+.clock{font:600 28px var(--mono);min-width:90px}
+input[type=range]{width:360px}
+button{font:inherit;padding:4px 10px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.live{font:600 11px var(--mono);padding:2px 8px;border-radius:10px;background:#e6f1ff;color:var(--accent)}.live.replay{background:var(--soft);color:var(--muted)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+.tile{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px 8px;min-height:84px}
+.tile .l{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-size:20px;font-weight:600;line-height:1.15;margin-top:2px}
+.tile .d{font-size:12px;color:var(--muted);margin-top:3px}
+.tile .t{position:absolute;right:8px;top:7px;font:10px var(--mono);color:var(--muted)}
+.tile.hero .v{font-size:26px}.tile.lens .v,.tile.open .v{font-size:16px}
+.tile.cant{background:repeating-linear-gradient(135deg,#fff 0 6px,#f1f3f5 6px 12px)}.tile.cant .v{font-size:15px;color:var(--muted)}
+.tile.alarm{border-color:var(--amber);background:#fff8ee}
+.up{color:var(--buy)}.dn{color:var(--sell)}.am{color:var(--amber)}.mu{color:var(--muted)}
+.chip{display:inline-block;font:600 11px var(--mono);padding:1px 6px;border-radius:4px;border:1px solid transparent;vertical-align:middle}
+.chip.WRITE{background:#fbe9e7;color:var(--sell)}.chip.BUY{background:#e6f1ff;color:var(--accent)}
+.chip.COVER{background:#fff2dd;color:var(--amber);border-color:var(--amber)}.chip.DUMP{background:#eef2f6;color:var(--muted)}
+.chip.QUIET,.chip.MIXED{background:#f7f8fa;color:var(--muted)}.chip.OI\?,.chip.FLOW\?{background:repeating-linear-gradient(135deg,#fff 0 4px,#f1f3f5 4px 8px);color:var(--muted)}
+.chip.DEPLOYABLE{background:#e3f4ec;color:var(--buy)}.chip.STAND_ASIDE{background:var(--soft);color:var(--muted)}.chip.BLOCKED{background:#fbe9e7;color:var(--sell)}
+.chip.soft{border-style:dashed}
+.row{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:8px}
+@media (max-width:1000px){.row{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow:auto}
+.card .l{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:auto auto auto;gap:3px 4px;align-items:stretch}
+.heat .k{text-align:center;font:600 12px var(--mono);padding:2px 0}
+.heat .k.atm{background:var(--soft);border-radius:4px}
+.cell{border-radius:5px;padding:4px 4px;text-align:center;min-width:88px;border:1px solid transparent}
+.cell .w{font:600 11px var(--mono)}.cell .n{font:11px var(--mono);opacity:.85}
+.cell.WRITE{background:#fbe9e7;color:var(--sell)}.cell.BUY{background:#e6f1ff;color:var(--accent)}
+.cell.COVER{background:#fff2dd;color:var(--amber);border-color:var(--amber)}.cell.DUMP{background:#eef2f6;color:var(--muted)}
+.cell.QUIET,.cell.MIXED{background:#f7f8fa;color:var(--muted)}.cell.OI\?,.cell.FLOW\?{background:repeating-linear-gradient(135deg,#fff 0 4px,#f1f3f5 4px 8px);color:var(--muted)}
+.cell.soft{border-style:dashed;border-color:#c9d0d8}
+.fp{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fp .tile{min-height:0}
+.trade{display:grid;grid-template-columns:1fr 1fr;gap:8px}.trade .tile{min-height:0}
+.legs{font:12px var(--mono);margin-top:4px}.legs b{font-weight:600}
+.ends{display:flex;flex-wrap:wrap;gap:6px}.ends span{background:var(--soft);border-radius:4px;padding:2px 8px;font-size:12px}
+details{font-size:12px;color:var(--muted);margin-top:6px}summary{cursor:pointer}
+canvas{display:block;width:100%;height:96px;background:#fff;border:1px solid var(--line);border-radius:6px}
+.foot{color:var(--muted);font-size:11px;margin-top:10px}
+body.scalp .tile.who,body.scalp .tile.lens,body.scalp .tile.open,body.scalp #tradecard{display:none}
+body.scalp .tile.scalpclock{display:block}.tile.scalpclock{display:none}
+</style>
+<div class="bar">
+  <b>Option order flow <span id="day"></span></b>
+  <span id="mode" class="live">LIVE</span>
+  <div class="clock" id="clock">--:--</div>
+  <input type="range" id="sc" min="0" max="0" value="0">
+  <button id="play">▶</button>
+  <button id="scalp">scalp mode</button>
+  <button id="fill" style="display:none">fill now</button>
+  <span class="num mu" id="src"></span>
+  <span id="idxsw"></span>
+</div>
+<div class="kpi" id="kpi"></div>
+<div class="card" id="tradecard" style="margin-top:8px"><div class="l">the read's trade · [I] shadow · status, never a score · per lot · no order path <span id="tradet" class="num"></span></div><div class="trade" id="trade"></div><details id="blocked"></details></div>
+<div class="row">
+  <div class="card"><div class="l">strikes ATM ±3 · CE over PE · who crossed × OI change <span id="closet" class="num"></span> · dashed = not firm</div><div class="heat" id="heat"></div></div>
+  <div class="card"><div class="l">ATM footprint · this minute <span id="mint" class="num"></span></div><div class="fp" id="fp"></div></div>
+</div>
+<div class="row">
+  <div class="card"><div class="l">the day · spot · options said lean (band) · Jarvis lean (thin)</div><canvas id="strip" width="1100" height="96"></canvas></div>
+  <div class="card"><div class="l">ends · exit on any</div><div class="ends" id="ends"></div></div>
+</div>
+<p class="foot" id="foot">Every number at a minute from data at or before it (the footprint's "ruka / nikla" mark resolves one minute later and says so). NOW is hatched because no option frames are recorded yet (Phase 1). Counts, never rates. [I] thresholds: moved ≥ 1.5L qty / 3 min · aggressor ≥ 0.2 × |dOI| · cover alarm ≥ 3 strikes. SHADOW: not a registered read. No order path.</p>
+<script>
+/*DATA*/
+const $ = id => document.getElementById(id);
+const hm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const L = x => x == null ? "?" : (x >= 0 ? "+" : "") + x + "L";
+const sg = x => x == null ? "?" : (x >= 0 ? "+" : "") + x;
+const rs = x => x == null ? "?" : "₹" + Math.abs(x).toLocaleString("en-IN");
+const HI = {WRITE: "likh rahe", BUY: "kharid rahe", COVER: "bhaag rahe", DUMP: "nikal rahe", QUIET: "shaant", MIXED: "mila-jula", "OI?": "OI nahi", "FLOW?": "flow nahi"};
+const ARR = l => l > 0 ? "▲" : l < 0 ? "▼" : "–";
+const cls = l => l > 0 ? "up" : l < 0 ? "dn" : "mu";
+const tile = (cl, l, v, d, t) => `<div class="tile ${cl}"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d || ""}</div>${t ? `<div class="t">${t}</div>` : ""}</div>`;
+const LIVE = typeof DATA === "undefined";
+const QS = new URLSearchParams(location.search), IDXQ = QS.get("idx") || "NIFTY", DAYQ = QS.get("day");   // ?day= replays a past day live
+let D = LIVE ? null : DATA, S = [], N = 0, T0 = 555, cur = 0, timer = null, fillAt = null, follow = true;
+
+function lastClose(m) { let b = null; for (const k in D.closes) if (+k <= m && (b === null || +k > b)) b = +k; return b; }
+
+function kpis(m) {
+  const s = S[m - T0], l = D.lens[m] || {}, lc = lastClose(m), c = lc === null ? null : D.closes[lc], o = D.open, out = [];
+  if (!c) out.push(tile("hero who cant", "options lean", "nahi dekha", `first close ${D.thresholds.first_who} · 09:15 cross in the first OI print`));
+  else {
+    const j = s.jarvis, pieces = [["Jarvis", j ? j.lean : null], ["fut OI", l.run ? l.run.dir : null], ["walls", c.walls.ce && c.walls.ce.state === "leaving" ? 1 : c.walls.pe && c.walls.pe.state === "leaving" ? -1 : null]];
+    const known = pieces.filter(p => p[1] === 1 || p[1] === -1), agree = known.filter(p => p[1] === c.lean_said).length;
+    const pips = pieces.map(p => `<span title="${p[0]}" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:3px;${p[1] === 1 || p[1] === -1 ? (p[1] === c.lean_said ? "background:" + (c.lean_said > 0 ? "#0e8a5c" : "#c4302b") : "background:#fff;border:2px solid #c4302b") : "background:repeating-linear-gradient(135deg,#fff 0 2px,#c9d0d8 2px 4px);border:1px solid #c9d0d8"}"></span>`).join("");
+    out.push(tile("hero who", "options lean", `<span class="${cls(c.lean_said)}">${ARR(c.lean_said)} ${c.said}</span>`, `${pips} ${c.lean_said ? agree + " of " + known.length + " with" : "no side"} · raw ${c.word}`, c.t));
+  }
+  for (const [key, name, grp] of [["ce", "cap · call writers", "CAP"], ["pe", "floor · put writers", "FLOOR"]]) {
+    if (!c) { out.push(tile("who cant", name, "nahi dekha", "no close yet")); continue; }
+    const w = c.walls[key], g = c.groups[grp];
+    if (!w) { out.push(tile("who", name, "kuch nahi", "no wall in range", c.t)); continue; }
+    const st = w.state === "leaving" ? `<span class="am">leaving ${L(w.ch6)}</span>` : w.state === "building" ? `<span class="${key === "ce" ? "dn" : "up"}">building ${L(w.ch6)}</span>` : `<span class="mu">${w.state} ${L(w.ch6)}</span>`;
+    out.push(tile("who" + (w.state === "leaving" ? " alarm" : ""), name, `${w.k} <span class="chip ${w.who}">${w.who}</span>`, `${st} · OI ${w.oi}L · group <span class="chip ${g.word}">${g.word}</span> ${L(g.doi)}`, c.t));
+  }
+  if (!c) out.push(tile("who cant", "covering", "nahi dekha", ""));
+  else if (c.cover) out.push(tile("who alarm", "covering · squeeze fuel", `<span class="am">${c.cover.side} ×${c.cover.n}</span>`, `${L(c.cover.doi)} · ${HI.COVER}${c.stamps.length ? " · <b>R3 SQUEEZE ON " + ARR(c.stamps[0].dir) + " " + c.stamps[0].k + "</b>" : ""}`, c.t));
+  else out.push(tile("who", "covering", `<span class="mu">kuch nahi</span>`, "no side with 3 strikes covering", c.t));
+  const run = l.run ? `<span class="${cls(l.run.dir)}">fut ${l.run.kind} ${sg(l.run.lots)} ${ARR(l.run.dir)}</span>` : `<span class="mu">fut OI: no run</span>`;
+  out.push(tile("lens", "lens", `${l.opening ? "OPENING" : l.part || "?"} · ${l.dte ?? "?"} DTE`, `${l.iv == null ? "IV nahi dekha" : "IV " + l.iv + (l.iv_vs_ref == null ? "" : " <span class='" + (l.iv_vs_ref > 0 ? "dn" : "up") + "'>" + sg(l.iv_vs_ref) + "</span>")} · ${l.vix == null ? "VIX nahi" : "VIX " + l.vix + " " + sg(l.vix_vs_open)}<br>${run} · profile: not built`, "ctx"));
+  if (l.opening) {
+    const have = m >= T0 + 2;
+    out.push(tile("open", "opening read", `<span class="${cls(-o.gap)}">${sg(o.gap)} gap</span> · <span class="chip ${o.type === "UNREADABLE" ? "OI?" : "DEPLOYABLE"}">${o.type}</span>`,
+      `${o.gap_sigma ?? "?"}σ of prior range · straddle ${have ? "<b>" + (o.straddle_dir_proxy || "?") + "</b> (09:15→17, proxy)" : "09:17 se"} · vs prior close: ${o.straddle_vs_prior == null ? "<span class='chip OI?'>nahi dekha</span>" : "<b>" + sg(o.straddle_vs_prior) + "</b>"}<br>cross ${have ? "CE " + L(o.cross.CE) + " PE " + L(o.cross.PE) : "09:17 se"} · first WHO ${o.first_who}`, "09:17"));
+  }
+  out.push(tile("cant", "now · frame", "recorder not built", "Phase 1 · would show: quote lag · touch vs yours · 30-s markout · undecided share · fut λ", "frame"));
+  const left = fillAt === null ? null : 5 - (m - fillAt);
+  out.push(tile("scalpclock" + (left !== null && left <= 0 ? " alarm" : ""), "scalp clock", fillAt === null ? `<span class="mu">no fill</span>` : left > 0 ? `${left}:00 left` : `<span class="am">5:00 gone</span>`, fillAt === null ? "press fill now" : left > 0 ? `filled ${hm(fillAt)}` : "hold past 5:00 is logged with the entry ladder"));
+  $("kpi").innerHTML = out.join("");
+}
+function tradeRow(m) {
+  const lc = lastClose(m);
+  $("tradet").textContent = lc === null ? "· no close yet" : "· " + hm(lc);
+  if (lc === null) { $("trade").innerHTML = tile("cant", "the read's trade", "nahi dekha", "no close yet"); $("blocked").innerHTML = ""; return; }
+  const c = D.closes[lc], t = c.trade || {};
+  const one = (x, side) => {
+    if (!x) return tile("cant", `${side} · ${t.read || "?"}`, "kuch nahi", t.why || "");
+    const legs = x.legs.map(l => `<b>${l.act}</b> ${l.k} ${l.sd} @${l.px}`).join(" · ");
+    if (x.status === "BLOCKED" && !x.legs.length) return tile("", `${side} · ${x.name.replace(/_/g, " ")}`, `<span class="chip BLOCKED">BLOCKED</span>`, `${x.why}<br><span class="mu">${x.explain[0]}</span>`);
+    const cr = x.credit >= 0 ? `credit ${rs(x.credit)}` : `debit ${rs(x.credit)}`;
+    return tile("", `${side} · ${x.name.replace(/_/g, " ")} · ${t.why || ""}`,
+      `<span class="chip ${x.status}">${x.status.replace("_", " ")}</span> ${cr} · max loss ${rs(x.max_loss)}`,
+      `<div class="legs">${legs}</div>BE ${x.breakevens.join(" / ")} · short strike ${x.em_used ?? "?"} EM · δ ${sg(x.net_delta)}/lot${x.why ? " · <span class='dn'>" + x.why + "</span>" : ""}<br><b>kill:</b> ${x.kill}<br><span class="mu">${x.explain[0]} · pays: ${x.explain[1]} · worst: ${x.explain[2]}</span>`, `em ${c.em ?? "?"}`);
+  };
+  $("trade").innerHTML = one(t.seller, "seller") + one(t.buyer, "buyer");
+  $("blocked").innerHTML = `<summary>${(t.blocked || []).length} others: considered, not the read's trade</summary>` + (t.blocked || []).map(b => `<div><span class="chip ${b.status}">${b.status.replace("_", " ")}</span> ${b.name.replace(/_/g, " ")} — ${b.why} <span class="mu">(${b.explain[0]})</span></div>`).join("");
+}
+function heat(m) {
+  const lc = lastClose(m);
+  $("closet").textContent = lc === null ? "· no close yet" : "· " + hm(lc);
+  if (lc === null) { $("heat").innerHTML = ""; return; }
+  const c = D.closes[lc];
+  const cell = (k, sd) => { const w = c.strikes[k + sd]; return `<div class="cell ${w.who}${w.firm === false ? " soft" : ""}"><div class="w">${w.who}</div><div class="n">${L(w.doi)} · δ ${L(w.delta)}</div></div>`; };
+  $("heat").innerHTML = c.ks.map(k => cell(k, "CE") + `<div class="k${k === c.atm ? " atm" : ""}">${k}${c.walls.ce && c.walls.ce.k === k ? " <span class='chip WRITE'>CAP</span>" : ""}${c.walls.pe && c.walls.pe.k === k ? " <span class='chip BUY'>FLOOR</span>" : ""}</div>` + cell(k, "PE")).join("");
+}
+function fp(m) {
+  const r = D.minute[m]; $("mint").textContent = "· " + hm(m);
+  if (!r) { $("fp").innerHTML = tile("cant", "footprint", "nahi dekha", "no minute"); return; }
+  $("fp").innerHTML = ["CE", "PE"].map(sd => { const x = r[sd];
+    if (!x || x.cant) return tile("cant", `${x ? x.k : "?"} ${sd}`, "nahi dekha", x ? x.cant : "no row");
+    const ab = x.absorb ? (x.absorb.startsWith("ruka") ? `<span class="am">ruka · absorbed</span>` : x.absorb.startsWith("nikla") ? `<span class="mu">nikla · went through</span>` : `<span class="mu">agla minute?</span>`) : (x.p90 == null ? `<span class="mu">p90 pehle 6 min</span>` : `<span class="mu">big below p90 ${x.p90}L</span>`);
+    return tile("", `${x.k} ${sd} · vol ${x.vol}L · δ ${L(x.delta)}`, `${x.big ? `<span class="${x.big[1] === "B" ? "up" : "dn"}">${x.big[1] === "B" ? "buy" : "sell"} ${x.big[2]}L</span> @${x.big[0]}` : "kuch nahi"}`, `${x.big && x.big[3] != null ? x.big[3].toLocaleString() + " δ-lots · " : ""}POC ${x.poc ? x.poc[0] : "?"} · ${ab}`); }).join("");
+}
+function strip(m) {
+  const cv = $("strip"), g = cv.getContext("2d"), W = cv.width, H = cv.height; g.clearRect(0, 0, W, H);
+  const xs = i => 8 + (W - 16) * i / Math.max(1, N - 1);
+  const sp = S.map(s => s.spot).filter(x => x != null); if (!sp.length) return;
+  const lo = Math.min(...sp), hi = Math.max(...sp), y = v => 8 + (H - 36) * (1 - (v - lo) / (hi - lo || 1));
+  for (const k in D.closes) { const c = D.closes[k], i = +k - T0; if (+k > m) continue;
+    g.fillStyle = c.lean_said > 0 ? "rgba(14,138,92,.35)" : c.lean_said < 0 ? "rgba(196,48,43,.35)" : "rgba(91,104,118,.18)";
+    g.fillRect(xs(i - 2), H - 24, xs(i) - xs(i - 2) + 1, 9); }
+  S.forEach((s, i) => { if (i > m - T0 || !s.jarvis) return; g.fillStyle = s.jarvis.lean > 0 ? "rgba(14,138,92,.5)" : s.jarvis.lean < 0 ? "rgba(196,48,43,.5)" : "rgba(91,104,118,.3)"; g.fillRect(xs(i), H - 12, Math.max(1, xs(i + 1) - xs(i)), 4); });
+  g.strokeStyle = "#c9d0d8"; g.lineWidth = 1; g.beginPath(); S.forEach((s, i) => { if (s.spot == null) return; i ? g.lineTo(xs(i), y(s.spot)) : g.moveTo(xs(i), y(s.spot)); }); g.stroke();
+  g.strokeStyle = "#18212b"; g.lineWidth = 1.5; g.beginPath(); let st = false; S.forEach((s, i) => { if (s.spot == null || i > m - T0) return; st ? g.lineTo(xs(i), y(s.spot)) : g.moveTo(xs(i), y(s.spot)); st = true; }); g.stroke();
+  g.strokeStyle = "#1f5fbf"; g.beginPath(); g.moveTo(xs(m - T0), 4); g.lineTo(xs(m - T0), H - 26); g.stroke();
+  g.fillStyle = "#5b6876"; g.font = "10px IBM Plex Mono"; ["09:15", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00"].forEach(t => { const mm = +t.slice(0, 2) * 60 + +t.slice(3), i = mm - T0; if (i >= 0 && i < N) g.fillText(t, xs(i) - 14, H - 1); });
+}
+function render(m) {
+  const s = S[m - T0]; if (!s) return;
+  $("clock").textContent = s.t;
+  $("src").textContent = `spot ${s.spot ?? "?"} (${s.spot_src || "none"}) · fut ${s.fut ?? "?"} · Jarvis ${s.jarvis ? s.jarvis.word + " " + ARR(s.jarvis.lean) : "no row"}`;
+  kpis(m); tradeRow(m); heat(m); fp(m); strip(m);
+  $("ends").innerHTML = ["5:00 clock", "mid back through entry VWAP", "fut λ absorption", "markout against", "strike WHO flips"].map(x => `<span>${x}</span>`).join("");
+}
+const sc = $("sc");
+const go = (i, byUser) => { cur = Math.max(0, Math.min(N - 1, i)); sc.value = cur; if (byUser) follow = cur >= N - 1; render(T0 + cur); };
+function init(d) {
+  D = d; S = d.series; N = S.length; T0 = d.t0; sc.max = Math.max(0, N - 1);
+  $("day").textContent = `· ${d.idx} · ${d.day} · exp ${d.expiry} · lot ${d.lot}${d.lot_check && !d.lot_check.ok ? " · LOT MISMATCH gcd " + d.lot_check.gcd : ""}`;
+  $("mode").textContent = LIVE ? "LIVE · 30 s" : "REPLAY"; $("mode").className = "live" + (LIVE ? "" : " replay");
+  $("idxsw").innerHTML = LIVE ? ["NIFTY", "SENSEX"].map(x => x === d.idx ? `<b>${x}</b>` : `<a href="?idx=${x}">${x}</a>`).join(" · ") : "";
+  go(follow ? N - 1 : cur, false);
+}
+function fail(why) { $("kpi").innerHTML = tile("cant", "ladder", "dekh nahi paaye", why); $("day").textContent = `· ${IDXQ}`; }
+async function fetchLive() {
+  try { const r = await fetch(`/ladder.json?idx=${IDXQ}${DAYQ ? "&day=" + DAYQ : ""}`, {cache: "no-store"}); const d = await r.json(); if (!d.ok) return fail(d.why); init(d); }
+  catch (e) { fail("ladder.json not answering: " + e); }
+}
+sc.oninput = () => go(+sc.value, true);
+document.addEventListener("keydown", e => { if (e.key === "ArrowRight") go(cur + 1, true); if (e.key === "ArrowLeft") go(cur - 1, true); });
+$("play").onclick = () => { if (timer) { clearInterval(timer); timer = null; $("play").textContent = "▶"; return; } $("play").textContent = "❚❚"; timer = setInterval(() => { if (cur >= N - 1) { clearInterval(timer); timer = null; $("play").textContent = "▶"; } else go(cur + 1, true); }, 120); };
+$("scalp").onclick = () => { document.body.classList.toggle("scalp"); $("scalp").classList.toggle("on"); $("fill").style.display = document.body.classList.contains("scalp") ? "" : "none"; if (!document.body.classList.contains("scalp")) fillAt = null; render(T0 + cur); };
+$("fill").onclick = () => { fillAt = T0 + cur; render(T0 + cur); };
+if (LIVE) { fetchLive(); setInterval(fetchLive, 30000); } else { follow = false; init(DATA); go(0, false); }
+</script>

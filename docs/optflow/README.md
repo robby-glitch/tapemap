@@ -230,3 +230,26 @@ optflow/optflow.py (8790) + optflow/map.html
 | `start-v2.bat`, `stop.bat` | start and stop Dext-with-port, the bridge and the board |
 | `dext_log.py` (unchanged) | TapeMap's Dext door, `POST /api/dext/candles`, and the record in `data/dext/` |
 | `docs/optflow/replays/*.html` | the two replay pages behind the reads above (2 Nov 23300; 3 Nov to 11:27), open in a browser |
+
+## 5 Nov — the LADDER and the read's trade (shadow)
+
+- **`/ladder?idx=NIFTY|SENSEX`** on 8790 (`optflow/ladder.html`, data from `/ladder.json`, every 30 s): a dashboard of the
+  spec's clocks (`docs/superpowers/specs/2026-11-05-option-orderflow-design.md` §8): the said lean, cap / floor / covering
+  tiles, the lens, the opening read (09:15–09:45), the hatched NOW tile (no option frames recorded yet), the strike heat
+  strip ATM ±3, the ATM footprint, the day strip, scalp mode. `?day=YYYY-MM-DD` replays a past day. The **Options** tab in
+  ui-v2 frames it. **Restart the Battlefield (stop.bat; start-v2.bat) to pick the routes up** — a copy started before 5 Nov
+  answers 404 on /ladder.
+- **The compute:** `optflow/optladder.py` (`build(day, idx, upto)`; `python -I optflow/optladder.py [day]` prints both
+  indices). The §1s C4 rules with **lot 65** (checked against the day's Dext cell GCD; a mismatch is on the page) and the
+  first WHO window at **09:23** (the 09:15 cross sits in the first OI print). Named `optladder` because `tapemap/ladder.py`
+  exists.
+- **The read's trade:** `optflow/structures.py` maps the said word to the structure that expresses it (PIN → iron fly;
+  QUIET → iron condor at the walls; UP FUEL / LID BREAKING → bull put spread, bull call spread; DOWN FUEL / FLOOR BREAKING →
+  bear call spread, bear put spread; LID → bear call spread; FLOOR UP → bull put spread; buyers chasing → stand aside),
+  priced off the chain mids per lot with max loss, breakevens, net delta, the short strike in expected moves, and the WHO
+  change that kills it. Status DEPLOYABLE / STAND_ASIDE / BLOCKED with the reason (the old desk's two gates: a leg's own
+  spread vs the credit; condor wings ≥ 0.5 expected move). Naked structures stay listed as BLOCKED. `python -I
+  optflow/structures.py` runs its check; `test_optflow_structures.py` guards both.
+- **Evening replay:** `python -I docs/optflow/brainstorm/mockup/export.py <day> [NIFTY|SENSEX]` → a standalone
+  `mockup.html` (REPLAY mode). The brainstorm and the Opus attack behind the design: `docs/optflow/brainstorm/`.
+- **SHADOW.** Thresholds [I], nothing registered, no forward log yet, no order path.

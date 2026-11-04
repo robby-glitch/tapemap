@@ -95,7 +95,7 @@ function useBoardGlance(on: boolean): Partial<Record<IndexKey, GlanceRead>> {
 // wall was built, and whether it is still held. A front that peaked at 11.5M
 // and holds 1.1M reads as a ruin here and as an ordinary small wall everywhere
 // else in this app. See src/war/WarTab.tsx.
-export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Speed' | 'Validate' | 'Signals' | 'Algo'
+export type Tab = 'Read' | 'Board' | 'Trade' | 'Flow' | 'VPIN' | 'OI Flow' | 'War' | 'Speed' | 'Validate' | 'Signals' | 'Algo' | 'Options'
 
 // ── Empty dataset (first paint, and any index never read this session) ──────
 // Nothing in it is invented: a live read replaces it within one poll. Until
@@ -814,7 +814,7 @@ export default function App() {
   const onValidate = activeTab === 'Validate'
   const boardReads = useBoardGlance(onBoard)
   const onRead = activeTab === 'Read'      // THE READ is its own answer: the ANSWER band steps aside there too
-  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Speed', 'Validate', 'Signals', 'Algo']
+  const tabs: Tab[] = ['Read', 'Board', 'Trade', 'Flow', 'VPIN', 'OI Flow', 'War', 'Speed', 'Validate', 'Signals', 'Algo', 'Options']
   const { data: liveData, loading, error, errorWhy, broker, intake, lastUpdated, barCount, at, dead, tapeBars,
           interval, setInterval: setInterval_ } = useLiveData(EMPTY)
   const idxDead = dead.includes(activeIndex)
@@ -1120,6 +1120,11 @@ export default function App() {
             the operator tracks the strategy, not one tape. The tab carries its
             own index filter, which starts on ALL. */}
         {activeTab === 'Signals'  && <SignalsTab />}
+        {/* 5 Nov: the option order-flow LADDER (optflow/ladder.html, served by the Battlefield process on 8790; spec
+            docs/superpowers/specs/2026-11-05-option-orderflow-design.md §8). A frame like Validate: the page owns its
+            own styles and polls /ladder.json on 8790 every 30 s. NIFTY and SENSEX only (the Dext bridge's two); BANKNIFTY
+            shows the page's own "dekh nahi paaye". SHADOW: thresholds [I], not a registered read. */}
+        {activeTab === 'Options'  && <iframe key={activeIndex} src={`http://127.0.0.1:8790/ladder?idx=${activeIndex}`} title="OPTIONS" style={{ width: '100%', height: 'calc(100vh - 190px)', minHeight: 560, border: 0, display: 'block' }} />}
         {/* No `index` prop: the algo trades both indices as one market (algo-lab/shadow/panel.json). */}
         {activeTab === 'Algo'     && <AlgoTab />}
       </div>

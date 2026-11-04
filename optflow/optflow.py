@@ -14,8 +14,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:        # python -I drops the script dir: ladder / structures live beside this file
+    sys.path.insert(0, HERE)
 D = os.path.normpath(os.path.join(HERE, "..", "data"))
 IST, PORT = 19800, 8790
+LADDER_TTL_S = 20              # the ladder page polls every 30 s; two pages share one build
 MIN_PRINT = {"NIFTY": 5e5, "SENSEX": 0.2e5}     # a "big hit" floor in qty: SENSEX ATM options trade ~1/65 of NIFTY's (3 Nov)
 LABEL_PRINT = {"NIFTY": 10, "SENSEX": 0.5}       # lakh: hits this big carry their size on the map
 _SCRIP = {}
@@ -133,16 +136,43 @@ def map_page(day, idx="NIFTY"):
     return html.replace("/*DATA*/", "const DATA = " + json.dumps(data, separators=(",", ":")) + ";")
 
 
+_LADDER = {}      # (day, idx, upto) -> (built at, DATA): the ladder is rebuilt at most every LADDER_TTL_S per key
+
+
+def ladder_json(day, idx, upto=None):
+    """The ladder's DATA for the day (ladder.build), cached LADDER_TTL_S; an index with no Dext bridge says so."""
+    import optladder as ladder
+    key = (day, idx, upto)
+    hit = _LADDER.get(key)
+    if hit and time.time() - hit[0] < LADDER_TTL_S:
+        return hit[1]
+    try:
+        d = ladder.build(day, idx, upto) if idx in ladder.IDX else {"ok": False, "idx": idx, "why": f"no Dext bridge for {idx}: dekh nahi paaye"}
+    except Exception as e:          # the page must say why, never go blank
+        d = {"ok": False, "idx": idx, "why": f"ladder failed: {e!r}"}
+    _LADDER[key] = (time.time(), d)
+    return d
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path, _, query = self.path.partition("?")
-        if path not in ("/", "/index.html"):
+        q = parse_qs(query)
+        idx = (q.get("idx") or ["NIFTY"])[0].upper()
+        day = (q.get("day") or [time.strftime("%Y-%m-%d")])[0]
+        if path == "/ladder":                       # the dashboard page (optflow/ladder.html, LIVE: it fetches /ladder.json)
+            body, ctype = open(os.path.join(HERE, "ladder.html"), encoding="utf-8").read().encode("utf-8"), "text/html; charset=utf-8"
+        elif path == "/ladder.json":
+            upto = q.get("upto", [None])[0]
+            body = json.dumps(ladder_json(day, idx, int(upto) if upto and upto.isdigit() else None), separators=(",", ":")).encode("utf-8")
+            ctype = "application/json"
+        elif path in ("/", "/index.html"):
+            body, ctype = map_page(day, idx).encode("utf-8"), "text/html; charset=utf-8"
+        else:
             self.send_error(404)
             return
-        idx = (parse_qs(query).get("idx") or ["NIFTY"])[0].upper()
-        body = map_page(time.strftime("%Y-%m-%d"), idx).encode("utf-8")
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", ctype)
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
@@ -165,5 +195,5 @@ if __name__ == "__main__":
             print(f"{idx} {day}: strikes {d['strikes'][0]}-{d['strikes'][-1]}, {len(d['spot'])} minutes, "
                   f"{known} flow blocks, {len(d['prints'])} big hits")
     else:
-        print(f"Option Battlefield: http://127.0.0.1:{PORT}/  (SENSEX: /?idx=SENSEX)  Ctrl+C to stop")
+        print(f"Option Battlefield: http://127.0.0.1:{PORT}/  (SENSEX: /?idx=SENSEX) · the ladder: /ladder?idx=NIFTY  Ctrl+C to stop")
         ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
