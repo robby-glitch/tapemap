@@ -33,16 +33,67 @@ def scrip():
     return out
 
 
+def recover_map(day):
+    """The scrip master is re-downloaded every morning and drops expired contracts (4 Nov 09:17: no 03 NOV rows left).
+    Recover file -> (strike, side) for a recorded day by matching each Dext file's 3-min delta at her closes against the
+    strike's `dl` in days.json (exported while the mapping still existed). Exact equality on >= 20 closes, one strike only.
+    Cached in scrip_recovered.json."""
+    cache = os.path.join(HERE, "scrip_recovered.json")
+    try:
+        got = json.load(open(cache, encoding="utf-8"))
+    except (OSError, ValueError):
+        got = {}
+    if day in got:
+        return {k: tuple(v) for k, v in got[day].items()}
+    days = json.load(open(os.path.join(HERE, "days.json"), encoding="utf-8"))
+    x = days[day]["NIFTY"]
+    C = [i for i, m in enumerate(x["mins"]) if (m - 555) % 3 == 2]
+    out = {}
+    for fn in os.listdir(os.path.join(D, "dext")):
+        if not fn.startswith("dext_NSE-") or fn.startswith("dext_ohlc") or not fn.endswith(f"_{day}.jsonl"):
+            continue
+        rows = {}
+        with open(os.path.join(D, "dext", fn), encoding="utf-8") as f:
+            for l in f:
+                if l.strip():
+                    r = json.loads(l)
+                    rows[(r["t"] + IST) % 86400 // 60] = r
+        ser = {}
+        for i in C:
+            m = x["mins"][i]
+            ms = [mm for mm in (m - 2, m - 1, m) if mm in rows]
+            if len(ms) == 3:
+                ser[i] = sum(rows[mm]["delta"] for mm in ms)
+        best = None
+        for q, k in enumerate(x["strikes"]):
+            hits = sum(1 for i, v in ser.items() if x["dl"][i] and x["dl"][i][q] is not None and abs(x["dl"][i][q] - v) < 1)
+            if hits >= 20 and (best is None or hits > best[1]):
+                best = (tuple(k), hits)
+        if best:
+            out[fn[len("dext_"):-len(f"_{day}.jsonl")]] = best[0]
+    got[day] = {k: list(v) for k, v in out.items()}
+    json.dump(got, open(cache, "w", encoding="utf-8"))
+    return out
+
+
 def dext(day=None):
     day = day or CUR["day"]
     """{idx: {(strike, 'CE'|'PE'): {minute: candle}}} for the day's expiry contracts. Last copy of a minute wins."""
     sc = scrip()
+    rec = None
+    if not any(v[0] == "NIFTY" and v[1] == EXPIRY["NIFTY"] for v in sc.values()):
+        try:
+            rec = recover_map(day)
+        except (OSError, ValueError, KeyError):
+            rec = None
     out = {"NIFTY": {}, "SENSEX": {}}
     for fn in os.listdir(os.path.join(D, "dext")):
         if not fn.startswith("dext_") or fn.startswith("dext_ohlc") or not fn.endswith(f"_{day}.jsonl"):
             continue
         key = fn[len("dext_"):-len(f"_{day}.jsonl")]
         c = sc.get(key)
+        if (not c or c[1] != EXPIRY[c[0]]) and key.startswith("NSE-") and rec is not None:
+            c = ("NIFTY", EXPIRY["NIFTY"], rec[key][0], rec[key][1]) if key in rec else None
         if not c or c[1] != EXPIRY[c[0]]:
             continue
         rows = {}

@@ -1,0 +1,198 @@
+
+######## 2026-11-02  NIFTY 2026-11-03 expiry  (32 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+ITM         ce |  11373    1237     +77 |   295   -719 |    32  17    51   49    26 | 5
+ITM         pe |   6432     627     -73 |   325   -399 |    31  20    23   25    28 | 0
+ATM         ce |   8929     876    -171 |   404   -253 |    32  22    14   22    13 | 5
+ATM         pe |   6892     658    -119 |   437   -202 |    30  25     5   16    15 | 4
+NEAR 1-2    ce |  12591    1330    -295 |   481   -297 |    41  35    20   35    23 | 9
+NEAR 1-2    pe |  10933    1073    -429 |   460   -322 |    42  33    13   43    26 | 2
+WING 3-5    ce |  11328    1272    -109 |   397   -277 |    28  50    22   37    17 | 7
+WING 3-5    pe |   8963     983    -469 |   358   -297 |    40  22    18   40    26 | 2
+FAR 6+      ce |   5084     744     +63 |   257   -157 |    13  15    11   20    21 | 3
+FAR 6+      pe |   3891     509    -162 |   139   -119 |    15  10     6   15     9 | 0
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+  09:17 CAP   None -> 23500 (4.9 steps away, 134L) new: OI? · fut 23314
+  09:17 FLOOR None -> 23000 (5.1 steps away, 106L) new: OI? · fut 23314
+  09:56 FLOOR 23000 -> 23300 (0.3 steps away, 180L) new: BUY · old: BUY +6L · fut 23400
+  10:02 FLOOR 23300 -> 23000 (5.9 steps away, 184L) new: BUY · old: BUY +2L · fut 23377
+  10:05 FLOOR 23000 -> 23300 (0.1 steps away, 189L) new: QUIET · old: QUIET +1L · fut 23373
+  10:11 FLOOR 23300 -> 23000 (6.3 steps away, 188L) new: WRITE · old: QUIET -1L · fut 23396
+  10:14 FLOOR 23000 -> 23300 (0.4 steps away, 194L) new: WRITE · old: WRITE +3L · fut 23397
+  10:20 CAP   23500 -> 23300 (0.2 steps away, 189L) new: WRITE · old: WRITE +3L · fut 23362
+  10:20 FLOOR 23300 -> 23000 (5.8 steps away, 194L) new: BUY · old: BUY +2L · fut 23362
+  10:23 CAP   23300 -> 23500 (3.9 steps away, 171L) new: BUY · old: BUY +9L · fut 23380
+  10:23 FLOOR 23000 -> 23300 (0.1 steps away, 205L) new: QUIET · old: QUIET +1L · fut 23380
+  11:50 CAP   23500 -> 23300 (0.2 steps away, 197L) new: MIXED · old: QUIET +0L · fut 23358
+  11:50 FLOOR 23300 -> 23000 (5.8 steps away, 206L) new: QUIET · old: COVER -10L · fut 23358
+  11:53 CAP   23300 -> 23500 (4.0 steps away, 177L) new: QUIET · old: BUY +7L · fut 23360
+  11:53 FLOOR 23000 -> 23300 (0.0 steps away, 235L) new: DUMP · old: QUIET +1L · fut 23360
+  12:32 CAP   23500 -> 23600 (5.9 steps away, 163L) new: QUIET · old: DUMP -4L · fut 23371
+  12:35 CAP   23600 -> 23500 (3.9 steps away, 163L) new: QUIET · old: COVER -2L · fut 23378
+  12:44 CAP   23500 -> 23300 (0.2 steps away, 173L) new: WRITE · old: QUIET -0L · fut 23364
+  12:44 FLOOR 23300 -> 23000 (5.8 steps away, 197L) new: QUIET · old: QUIET +1L · fut 23364
+  13:29 FLOOR 23000 -> 23200 (0.8 steps away, 169L) new: MIXED · old: QUIET -0L · fut 23287
+  13:41 FLOOR 23200 -> 23000 (4.5 steps away, 172L) new: QUIET · old: DUMP -5L · fut 23270
+  13:47 FLOOR 23000 -> 23200 (0.9 steps away, 175L) new: WRITE · old: QUIET -0L · fut 23290
+  14:38 CAP   23300 -> 23400 (1.7 steps away, 180L) new: COVER · old: COVER -38L · fut 23375
+  14:44 CAP   23400 -> 23500 (3.6 steps away, 171L) new: COVER · old: COVER -9L · fut 23385
+  14:47 CAP   23500 -> 23400 (1.5 steps away, 170L) new: QUIET · old: DUMP -2L · fut 23372
+  14:59 FLOOR 23200 -> 23000 (6.4 steps away, 163L) new: QUIET · old: COVER -2L · fut 23375
+  15:14 CAP   23400 -> 23500 (3.4 steps away, 144L) new: DUMP · old: DUMP -16L · fut 23385
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  13:14 23100PE NEAR   ≥u2   57.0   54.0 | QUIET    +1.7 |    ≤d2 |   ≤d2 |   -9.5  -12.6 |  +20  +26
+  13:11 23150PE NEAR   ≥u3   67.0   65.9 | COVER   +10.9 |    ≤d2 |   ≤d2 |   -4.4   -1.7 |   +0  -15
+  13:14 23200CE  ATM   ≤d2   88.5  100.8 | WRITE    -8.9 |    ≥u2 |   ≤d2 |   +4.5   +6.5 |  +20  +26
+  09:29 23200PE NEAR   ≤d2   73.8   71.4 | WRITE    -9.3 |    ≥u2 |   ≥u2 |  -18.0  -18.3 |  +54  +48
+  13:11 23200PE NEAR   ≥u3   87.6   84.9 | COVER   +20.4 |    ≤d2 |   ≤d2 |   -4.8   -0.6 |   +0  -15
+  09:26 23250CE  ATM   ≥u2  101.8  107.5 | MIXED    -0.3 |  <vwap |   ≥u2 |  +28.7  +30.2 |  +66  +75
+  09:29 23250CE  ATM   ≥u3  107.1  108.4 | BUY      +7.7 |    ≤d2 |   ≥u2 |  +25.8  +22.2 |  +54  +48
+  13:05 23250CE  ATM   ≤d2   87.2   90.0 | WRITE    -5.4 |  >vwap | <vwap |   -7.2  -23.7 |  -15  -60
+  09:29 23250PE  ATM   ≤d2   93.0   90.4 | WRITE    -7.1 |    ≥u3 |   ≥u2 |  -21.6  -21.4 |  +54  +48
+  13:11 23250PE  ATM   ≥u3  113.0  107.1 | COVER   +17.5 |    ≤d2 |   ≤d2 |   -4.8   +0.7 |   +0  -15
+  09:29 23300CE NEAR   ≥u2   81.4   83.0 | BUY      +4.0 |  <vwap |   ≥u2 |  +20.8  +18.5 |  +54  +48
+  11:53 23300CE  ATM   ≤d2   80.3   74.3 | BUY      +5.3 |  >vwap | <vwap |  +11.7  +24.5 |  +21  +42
+  12:56 23300CE  ATM   ≤d2   70.9   71.2 | WRITE   -11.0 |    ≥u2 | <vwap |  -18.0  -18.1 |  -63  -63
+  09:35 23300PE  ATM   ≤d2  107.2  106.4 | WRITE    -4.3 |    ≥u2 |   ≥u2 |  -21.8  -10.0 |  +51  +13
+  12:56 23300PE  ATM   ≥u2  107.2  115.0 | COVER   +29.0 |    ≤d2 | <vwap |  +36.2  +31.8 |  -63  -63
+  09:26 23350CE NEAR   ≥u2   56.1   60.1 | WRITE    -0.8 |  <vwap |   ≥u2 |  +19.1  +20.4 |  +66  +75
+  09:29 23350CE NEAR   ≥u3   59.5   55.1 | WRITE    -1.3 |    ≤d2 |   ≥u2 |  +17.2  +15.1 |  +54  +48
+  09:29 23350CE NEAR   ≥u3   59.5   60.3 | WRITE    -1.3 |    ≤d2 |   ≥u2 |  +17.2  +15.1 |  +54  +48
+  09:35 23350CE NEAR   ≥u3   61.4   55.4 | WRITE    -2.2 |    ≤d2 |   ≥u2 |  +20.9   +7.0 |  +51  +13
+  09:35 23350CE NEAR   ≥u3   61.4   61.0 | WRITE    -2.2 |    ≤d2 |   ≥u2 |  +20.9   +7.0 |  +51  +13
+  11:47 23350CE NEAR   ≤d2   57.0   58.0 | WRITE    -4.8 |  >vwap | >vwap |   +2.3  +29.4 |   +2  +50
+  12:11 23350CE  ATM   ≥u2   81.3   85.5 | COVER   +30.6 |  <vwap | >vwap |   -2.4  -20.6 |   -3  -41
+  12:56 23350CE NEAR   ≤d2   51.1   53.0 | DUMP    -10.0 |    ≥u2 | <vwap |  -13.1  -13.2 |  -63  -63
+  09:35 23400CE NEAR   ≥u3   43.2   43.6 | BUY      +2.1 |  <vwap |   ≥u2 |  +16.5   +5.4 |  +51  +13
+  10:44 23400CE NEAR   ≥u2   59.2   61.2 | QUIET    +9.5 |  <vwap | >vwap |   -9.5   -6.3 |  -25  -15
+  11:47 23400CE NEAR   ≤d2   39.2   39.4 | QUIET    -5.1 |  >vwap | >vwap |   +2.1  +24.0 |   +2  +50
+  12:11 23400CE NEAR   ≥u2   58.9   61.5 | QUIET   +32.3 |  <vwap | >vwap |   -2.3  -16.4 |   -3  -41
+  12:56 23400CE NEAR   ≤d2   35.8   36.1 | DUMP     -5.9 |    ≥u2 | <vwap |   -9.1   -9.1 |  -63  -63
+  10:44 23450CE NEAR   ≥u2   40.8   42.6 | QUIET    +6.8 |  <vwap | >vwap |   -7.1   -4.6 |  -25  -15
+  12:11 23450CE NEAR   ≥u2   41.0   42.7 | QUIET    +9.5 |  <vwap | >vwap |   -1.7  -11.8 |   -3  -41
+  touches by flow at the touch: {('d2', 'BUY'): 1, ('d2', 'DUMP'): 2, ('d2', 'QUIET'): 1, ('d2', 'WRITE'): 9, ('u2', 'BUY'): 3, ('u2', 'COVER'): 5, ('u2', 'MIXED'): 1, ('u2', 'QUIET'): 5, ('u2', 'WRITE'): 3}
+
+######## 2026-11-03  NIFTY 2026-11-03 expiry  (26 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+ITM         ce |  21558    1743     -76 |   186   -806 |    19  15    46   68    15 | 22
+ITM         pe |  15393    1769    -992 |   622   -351 |    49  30    13   31    42 | 15
+ATM         ce |  22301    1713    -161 |   473   -281 |    29  20    14   17     7 | 69
+ATM         pe |  18859    1767    -999 |   875   -243 |    48  20     5   16    12 | 49
+NEAR 1-2    ce |  40079    3214   -1092 |   971   -341 |    68  49    11   24    17 | 123
+NEAR 1-2    pe |  33428    3218   -1940 |  1050   -327 |    80  24    21   29    18 | 104
+WING 3-5    ce |  19730    2115    -177 |   680   -183 |    61  56    15   15    16 | 113
+WING 3-5    pe |  21223    2483   -1128 |   450   -536 |    51  22    30   53    15 | 116
+FAR 6+      ce |   2077     263     +87 |    87    -16 |     6  11     0    1     2 | 13
+FAR 6+      pe |   1375     171     -65 |    58    -48 |     7   2     4    6     3 | 5
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+  09:17 CAP   None -> 23600 (0.6 steps away, 134L) new: OI? · fut 23595
+  09:17 FLOOR None -> 23300 (5.4 steps away, 108L) new: OI? · fut 23595
+  09:20 FLOOR 23300 -> 23500 (1.7 steps away, 159L) new: WRITE · old: WRITE +14L · fut 23616
+  09:26 CAP   23600 -> 23800 (3.6 steps away, 162L) new: BUY · old: COVER -5L · fut 23652
+  09:29 CAP   23800 -> 23700 (1.6 steps away, 175L) new: WRITE · old: BUY +7L · fut 23663
+  09:32 CAP   23700 -> 23800 (3.7 steps away, 183L) new: MIXED · old: WRITE +6L · fut 23660
+  09:50 CAP   23800 -> 23700 (1.5 steps away, 229L) new: WRITE · old: BUY +3L · fut 23668
+  09:59 FLOOR 23500 -> 23600 (0.6 steps away, 341L) new: WRITE · old: BUY +2L · fut 23666
+  10:05 FLOOR 23600 -> 23500 (2.4 steps away, 344L) new: WRITE · old: QUIET -1L · fut 23650
+  10:11 FLOOR 23500 -> 23600 (0.2 steps away, 345L) new: WRITE · old: COVER -2L · fut 23641
+  10:14 FLOOR 23600 -> 23500 (2.6 steps away, 349L) new: WRITE · old: DUMP -2L · fut 23666
+  10:17 FLOOR 23500 -> 23600 (0.7 steps away, 354L) new: WRITE · old: QUIET -1L · fut 23665
+  12:05 CAP   23700 -> 23800 (2.0 steps away, 247L) new: COVER · old: QUIET -1L · fut 23744
+  12:08 CAP   23800 -> 23700 (0.1 steps away, 288L) new: DUMP · old: QUIET +1L · fut 23728
+  13:17 CAP   23700 -> 23800 (1.5 steps away, 275L) new: DUMP · old: COVER -46L · fut 23775
+  13:44 FLOOR 23600 -> 23700 (0.8 steps away, 413L) new: MIXED · old: QUIET +1L · fut 23789
+  13:50 FLOOR 23700 -> 23600 (2.6 steps away, 412L) new: WRITE · old: DUMP -14L · fut 23788
+  14:41 CAP   23800 -> 23750 (0.8 steps away, 332L) new: BUY · old: MIXED +17L · fut 23777
+  14:59 CAP   23750 -> 23700 (0.0 steps away, 340L) new: QUIET · old: DUMP -18L · fut 23742
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  09:26 23600CE  ATM   ≥u2   70.2   66.3 | COVER   +69.2 |  <vwap |   ≥u2 |   -1.5   +5.0 |   +4  +17
+  10:35 23600PE NEAR   ≤d2   32.1   31.2 | QUIET   -43.5 |    ≥u2 |   ≥u2 |   +6.0  +16.8 |   -6  -35
+  09:26 23650CE NEAR   ≥u2   47.1   44.1 | QUIET   +22.7 |  <vwap |   ≥u2 |   -1.1   +2.9 |   +4  +17
+  10:35 23650CE  ATM   ≥u2   65.2   62.2 | COVER   +23.3 |    ≤d2 |   ≥u2 |  -10.3  -23.0 |   -6  -35
+  11:50 23650CE  ATM   ≥u2   56.6   64.3 | DUMP     -4.2 |  <vwap | >vwap |  +17.9  -11.4 |  +40  -19
+  10:35 23650PE  ATM   ≤d2   49.8   49.8 | WRITE    -9.6 |    ≥u2 |   ≥u2 |   +9.0  +24.0 |   -6  -35
+  11:56 23650PE NEAR   ≤d2   34.6   33.9 | WRITE   -24.9 |    ≥u3 | >vwap |  +28.4  +18.9 |  -48  -36
+  13:17 23650PE NEAR   ≤d2   17.6   18.2 | DUMP    -24.1 |    ≥u3 |   ≥u2 |   -1.4   -3.2 |   +0   +3
+  09:26 23700CE NEAR   ≥u3   29.6   27.2 | BUY     +35.0 |  <vwap |   ≥u2 |   -0.8   +1.2 |   +4  +17
+  10:35 23700CE NEAR   ≥u2   41.2   39.0 | COVER   +13.9 |    ≤d2 |   ≥u2 |   -8.2  -17.1 |   -6  -35
+  11:47 23700CE  ATM   ≥u2   38.5   39.5 | COVER   +35.0 |  <vwap | >vwap |   +4.0  -11.1 |  +10  -30
+  13:20 23700CE  ATM   ≥u3   52.1   47.6 | DUMP    -16.5 |  <vwap |   ≥u2 |   +5.1   +5.1 |  +21  +21
+  15:20 23700CE  ATM   ≥u3   29.6   54.4 | QUIET   +11.8 |  <vwap | >vwap |      -      - |    -    -
+  15:23 23700CE  ATM   ≥u3   29.6   54.6 | QUIET   -27.7 |  <vwap | >vwap |      -      - |    -    -
+  15:26 23700CE  ATM   ≥u3   29.6   55.8 | QUIET   +41.2 |  <vwap | >vwap |      -      - |    -    -
+  15:29 23700CE  ATM   ≥u3   29.6   56.8 | QUIET   +10.0 |  <vwap | >vwap |      -      - |    -    -
+  11:56 23700PE  ATM   ≤d2   56.8   55.6 | WRITE   -13.9 |    ≥u3 | >vwap |  +36.8  +26.2 |  -48  -36
+  13:17 23700PE NEAR   ≤d2   32.9   34.2 | WRITE   -33.7 |    ≥u3 |   ≥u2 |   -1.8   -4.6 |   +0   +3
+  10:35 23750CE NEAR   ≥u2   22.9   21.8 | DUMP     -3.4 |    ≤d2 |   ≥u2 |   -5.1  -10.3 |   -6  -35
+  11:32 23750CE NEAR   ≤d2   10.8   10.7 | DUMP    -24.3 |  >vwap | >vwap |   +9.6  +12.2 |  +61  +71
+  11:56 23750CE NEAR   ≥u3   24.4   22.6 | QUIET   +12.7 |    ≤d2 | >vwap |  -11.8   -9.8 |  -48  -36
+  13:17 23750CE  ATM   ≥u3   29.1   25.0 | COVER    +7.2 |    ≤d2 |   ≥u2 |   -0.5   -0.1 |   +0   +3
+  15:26 23750CE NEAR   ≥u3   10.6   30.8 | QUIET   +49.4 |    ≤d2 | >vwap |      -      - |    -    -
+  15:29 23750CE NEAR   ≥u3   10.6   31.6 | QUIET   +40.5 |  <vwap | >vwap |      -      - |    -    -
+  13:17 23750PE  ATM   ≤d2   56.3   61.7 | WRITE   -13.4 |    ≥u3 |   ≥u2 |   -0.3   -3.9 |   +0   +3
+  11:56 23800CE NEAR   ≥u2   12.0   11.5 | COVER    +8.5 |    ≤d2 | >vwap |   -6.0   -5.0 |  -48  -36
+  13:17 23800CE NEAR   ≥u3   13.4   12.2 | DUMP    -16.7 |    ≤d2 |   ≥u2 |   -0.1   -0.2 |   +0   +3
+  14:26 23800CE NEAR   ≤d2    5.0    4.0 | DUMP    -23.0 |  <vwap | >vwap |   +1.3   +1.1 |  +53  +16
+  13:17 23850CE NEAR   ≥u2    5.5    5.9 | BUY     +11.9 |    ≤d2 |   ≥u2 |   -0.1   +0.0 |   +0   +3
+  touches by flow at the touch: {('d2', 'DUMP'): 3, ('d2', 'QUIET'): 1, ('d2', 'WRITE'): 5, ('u2', 'BUY'): 2, ('u2', 'COVER'): 6, ('u2', 'DUMP'): 4, ('u2', 'QUIET'): 8}
+
+################ 2026-10-28
+== 1. big cells by class (Q qty>=5L · R >=Rs2cr · D >=2,000 delta-lots): {'R': 143}
+   by zone: {'?': {'R': 87}, 'WING 3-5': {'R': 1}, 'ATM': {'R': 23}, 'ITM': {'R': 26}, 'NEAR 1-2': {'R': 6}}
+== 2. absorption marks at wall / ATM±1 strikes: 5 (fut +15 ≥ +20: 2 · ≤ −20: 2) · 22700CE 12:23; 23000CE 12:32; 22500PE 13:02,13:53; 22750PE 13:08
+== 3. stacked BUY imbalance at the cap: 0 closes · next 15 ≥ +40: 0 · ≤ −40: 0 · at: 
+   event 12:44 ▲: first COVER close at the wall 12:41 · stacked buy at the wall before it: none
+== 4. climax / exhaustion marks (cap + ATM) by premium band and what fut did next: {('climax', 'band', 'RUN'): 3, ('climax', 'band', 'TURN'): 3, ('climax', 'band', 'flat'): 8, ('climax', 'mid', 'RUN'): 5, ('climax', 'mid', 'TURN'): 4, ('climax', 'mid', 'flat'): 7, ('exhaustion', 'band', 'RUN'): 3, ('exhaustion', 'band', 'TURN'): 4, ('exhaustion', 'band', 'flat'): 6, ('exhaustion', 'mid', 'RUN'): 3, ('exhaustion', 'mid', 'TURN'): 1, ('exhaustion', 'mid', 'flat'): 7}
+== 5. cap-strike CVD divergence at a 30-min premium high (dedup by strike): {'div_high_up': 18, 'div_high_dn': 18}
+== 6. premium at the strike's own POC vs a 3-row placebo: next-3-bar reversal counts: {('poc', 'cont/flat'): 1, ('placebo', 'cont/flat'): 2, ('poc', 'rev'): 1, ('placebo', 'rev'): 1}
+
+################ 2026-10-29
+== 1. big cells by class (Q qty>=5L · R >=Rs2cr · D >=2,000 delta-lots): {'R': 90, 'Q': 2}
+   by zone: {'ITM': {'R': 59}, 'WING 3-5': {'R': 2}, '?': {'R': 6}, 'ATM': {'R': 16}, 'NEAR 1-2': {'R': 7}, 'FAR 6+': {'Q': 2}}
+== 2. absorption marks at wall / ATM±1 strikes: 9 (fut +15 ≥ +20: 2 · ≤ −20: 0) · 23000CE 10:05,14:20; 22850PE 12:05,12:11; 22700PE 12:44,14:35,15:05; 22900PE 14:05; 22950PE 15:17
+== 3. stacked BUY imbalance at the cap: 1 closes · next 15 ≥ +40: 0 · ≤ −40: 0 · at: 13:08
+   event 10:17 ▲: first COVER close at the wall 10:08 · stacked buy at the wall before it: none
+   event 14:11 ▲: first COVER close at the wall 14:26 · stacked buy at the wall before it: none
+== 4. climax / exhaustion marks (cap + ATM) by premium band and what fut did next: {('climax', 'band', 'TURN'): 2, ('climax', 'band', 'flat'): 10, ('climax', 'mid', '?'): 2, ('climax', 'mid', 'RUN'): 5, ('climax', 'mid', 'TURN'): 1, ('climax', 'mid', 'flat'): 23, ('exhaustion', 'band', 'RUN'): 1, ('exhaustion', 'band', 'TURN'): 4, ('exhaustion', 'band', 'flat'): 1, ('exhaustion', 'mid', 'RUN'): 3, ('exhaustion', 'mid', 'TURN'): 3, ('exhaustion', 'mid', 'flat'): 19}
+== 5. cap-strike CVD divergence at a 30-min premium high (dedup by strike): {'div_high_up': 52, 'div_high_flat': 117}
+== 6. premium at the strike's own POC vs a 3-row placebo: next-3-bar reversal counts: {('poc', 'cont/flat'): 5, ('placebo', 'rev'): 2, ('poc', 'rev'): 2}
+
+################ 2026-10-30
+== 1. big cells by class (Q qty>=5L · R >=Rs2cr · D >=2,000 delta-lots): {'R': 566, 'RD': 44, 'QRD': 1, 'Q': 6}
+   by zone: {'ITM': {'R': 257, 'RD': 17, 'QRD': 1}, 'WING 3-5': {'R': 3}, 'NEAR 1-2': {'R': 120, 'RD': 7}, '?': {'R': 14}, 'ATM': {'R': 172, 'RD': 20}, 'FAR 6+': {'Q': 6}}
+== 2. absorption marks at wall / ATM±1 strikes: 24 (fut +15 ≥ +20: 2 · ≤ −20: 11) · 23100CE 11:14,12:50,14:44; 23400CE 11:23; 23050PE 11:32,12:44,12:53,12:56,13:08,13:20,14:44,14:47; 23100PE 12:44,12:53,12:59,13:20,13:23,13:26; 23150CE 12:50,13:17; 22900PE 14:26; 23050CE 14:41,14:44; 23000PE 14:47
+== 3. stacked BUY imbalance at the cap: 3 closes · next 15 ≥ +40: 0 · ≤ −40: 0 · at: 09:29, 10:44, 11:56
+   event 11:05 ▲: first COVER close at the wall 11:08 · stacked buy at the wall before it: ['10:44'] → 24 min ahead
+   event 11:44 ▲: first COVER close at the wall none in window · stacked buy at the wall before it: ['11:56']
+== 4. climax / exhaustion marks (cap + ATM) by premium band and what fut did next: {('climax', 'band', 'RUN'): 2, ('climax', 'band', 'TURN'): 4, ('climax', 'band', 'flat'): 4, ('climax', 'mid', 'RUN'): 8, ('climax', 'mid', 'TURN'): 10, ('climax', 'mid', 'flat'): 20, ('exhaustion', 'band', 'RUN'): 4, ('exhaustion', 'band', 'TURN'): 5, ('exhaustion', 'band', 'flat'): 3, ('exhaustion', 'mid', 'RUN'): 6, ('exhaustion', 'mid', 'TURN'): 10, ('exhaustion', 'mid', 'flat'): 19}
+== 5. cap-strike CVD divergence at a 30-min premium high (dedup by strike): {'div_high_dn': 12, 'div_high_flat': 36, 'div_high_up': 32}
+== 6. premium at the strike's own POC vs a 3-row placebo: next-3-bar reversal counts: {('placebo', 'rev'): 4, ('placebo', 'cont/flat'): 17, ('poc', 'cont/flat'): 5, ('poc', 'rev'): 4}
+
+################ 2026-11-02
+== 1. big cells by class (Q qty>=5L · R >=Rs2cr · D >=2,000 delta-lots): {'R': 632, 'RD': 304, 'Q': 20, 'QR': 2, 'QRD': 39, 'D': 19, 'QD': 1}
+   by zone: {'?': {'R': 43, 'QR': 1, 'Q': 2}, 'ITM': {'R': 293, 'RD': 118, 'QRD': 4, 'D': 16}, 'FAR 6+': {'Q': 11}, 'WING 3-5': {'Q': 7, 'QR': 1, 'QRD': 3, 'QD': 1}, 'NEAR 1-2': {'RD': 44, 'R': 64, 'QRD': 12, 'D': 3}, 'ATM': {'RD': 142, 'R': 232, 'QRD': 20}}
+== 2. absorption marks at wall / ATM±1 strikes: 2 (fut +15 ≥ +20: 1 · ≤ −20: 0) · 23300CE 09:41; 23300PE 15:05
+== 3. stacked BUY imbalance at the cap: 9 closes · next 15 ≥ +40: 1 · ≤ −40: 0 · at: 09:17, 09:35, 10:23, 10:38, 10:44, 11:29, 12:08, 14:38, 15:29
+   event 09:32 ▲: first COVER close at the wall 09:47 · stacked buy at the wall before it: ['09:17', '09:35'] → 30 min ahead
+   event 12:59 ▼: first COVER close at the wall 13:05 · stacked sell at the wall before it: none
+   event 14:29 ▲: first COVER close at the wall 14:17 · stacked buy at the wall before it: none
+== 4. climax / exhaustion marks (cap + ATM) by premium band and what fut did next: {('climax', 'band', 'RUN'): 6, ('climax', 'band', 'TURN'): 2, ('climax', 'band', 'flat'): 6, ('climax', 'mid', 'RUN'): 5, ('climax', 'mid', 'TURN'): 2, ('climax', 'mid', 'flat'): 19, ('exhaustion', 'band', 'RUN'): 2, ('exhaustion', 'band', 'TURN'): 2, ('exhaustion', 'band', 'flat'): 9, ('exhaustion', 'mid', '?'): 2, ('exhaustion', 'mid', 'RUN'): 7, ('exhaustion', 'mid', 'TURN'): 9, ('exhaustion', 'mid', 'flat'): 19}
+== 5. cap-strike CVD divergence at a 30-min premium high (dedup by strike): {'div_high_dn': 36, 'div_high_flat': 70, 'div_high_up': 32}
+== 6. premium at the strike's own POC vs a 3-row placebo: next-3-bar reversal counts: {('placebo', 'cont/flat'): 3, ('placebo', 'rev'): 3, ('poc', 'cont/flat'): 5, ('poc', 'rev'): 2}
+
+################ 2026-11-03
+== 1. big cells by class (Q qty>=5L · R >=Rs2cr · D >=2,000 delta-lots): {'R': 232, 'Q': 2723, 'RD': 910, 'QR': 26, 'QRD': 743, 'QD': 1213, 'D': 2451}
+   by zone: {'?': {'R': 93, 'Q': 70, 'QR': 18}, 'ITM': {'R': 109, 'RD': 511, 'QRD': 73, 'D': 714, 'QD': 131}, 'WING 3-5': {'Q': 1311, 'QD': 16}, 'FAR 6+': {'Q': 94}, 'NEAR 1-2': {'RD': 37, 'QD': 710, 'Q': 1248, 'QRD': 182, 'D': 283, 'R': 12, 'QR': 8}, 'ATM': {'D': 1454, 'RD': 362, 'QRD': 488, 'R': 18, 'QD': 356}}
+== 2. absorption marks at wall / ATM±1 strikes: 31 (fut +15 ≥ +20: 15 · ≤ −20: 0) · 23650PE 09:50,13:59,14:29,14:35,14:53,14:56,15:02,15:05,15:08,15:11,15:14,15:20,15:23,15:26; 23700PE 13:05,13:23,13:59,14:29,14:50,14:56,15:11,15:14,15:17,15:20,15:23,15:26; 23700CE 13:14,13:14; 23750CE 14:29,15:05; 23600PE 14:56
+   3 Nov 23,600 CE 09:47–10:17 bars: [('09:47', 74.2, 18.7, []), ('09:50', 73.4, -1.1, ['exhaustion']), ('09:53', 70.3, -2.7, []), ('09:56', 75.2, 8.9, []), ('09:59', 74.2, -4.4, []), ('10:02', 68.1, -19.1, []), ('10:05', 65.5, -3.1, []), ('10:08', 65.8, -0.2, []), ('10:11', 64.0, 1.5, ['exhaustion']), ('10:14', 74.3, 11.6, []), ('10:17', 76.5, 5.2, [])]
+== 3. stacked BUY imbalance at the cap: 7 closes · next 15 ≥ +40: 2 · ≤ −40: 0 · at: 09:20, 09:26, 09:32, 14:17, 14:20, 14:26, 14:41
+== 4. climax / exhaustion marks (cap + ATM) by premium band and what fut did next: {('climax', 'band', '?'): 1, ('climax', 'band', 'RUN'): 8, ('climax', 'band', 'TURN'): 4, ('climax', 'band', 'flat'): 10, ('climax', 'mid', '?'): 2, ('climax', 'mid', 'RUN'): 19, ('climax', 'mid', 'TURN'): 12, ('climax', 'mid', 'flat'): 20, ('exhaustion', 'band', 'RUN'): 4, ('exhaustion', 'band', 'TURN'): 2, ('exhaustion', 'band', 'flat'): 1, ('exhaustion', 'mid', '?'): 1, ('exhaustion', 'mid', 'RUN'): 9, ('exhaustion', 'mid', 'TURN'): 12, ('exhaustion', 'mid', 'flat'): 14}
+   3 Nov 10:32–10:38 marks on 23,600/23,650 CE: [((23650, 'CE'), '10:35', 'climax', 0)]
+== 5. cap-strike CVD divergence at a 30-min premium high (dedup by strike): {'div_high_dn': 47, 'div_high_up': 32, 'div_high_flat': 39}
+== 6. premium at the strike's own POC vs a 3-row placebo: next-3-bar reversal counts: {('poc', 'cont/flat'): 4, ('placebo', 'cont/flat'): 6, ('poc', 'rev'): 5, ('placebo', 'rev'): 4}

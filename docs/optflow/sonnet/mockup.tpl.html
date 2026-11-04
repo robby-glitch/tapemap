@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Option order-flow reader - mockup (real data, NIFTY)</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14181f;--mut:#6b7380;--line:#dfe3ea;--wr:#3b4fc4;--wrb:#e8ebfb;--bu:#0f7b45;--bub:#e2f4ea;--co:#c2410c;--cob:#fdeadd;--du:#7a5a2b;--dub:#f3ebdd;--qu:#8a929e;--up:#0f7b45;--dn:#b42318;--hatch:repeating-linear-gradient(135deg,#eef0f3,#eef0f3 4px,#fff 4px,#fff 8px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.top{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:8px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.top h1{font-size:14px;margin:0 8px 0 0}
+.top select,.top button{font:inherit;padding:4px 9px;border:1px solid var(--line);background:#fff;border-radius:5px;cursor:pointer}
+.top button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.top input[type=range]{flex:1;min-width:220px}
+.clock{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;min-width:52px}
+.px{color:var(--mut);font-variant-numeric:tabular-nums}
+main{padding:12px 14px;max-width:1500px;margin:auto}
+.ans{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:8px;margin-bottom:10px}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-height:62px}
+.cell .lab{font-size:10.5px;letter-spacing:.04em;color:var(--mut);text-transform:uppercase}
+.cell .val{font-size:15px;font-weight:700;margin:1px 0;font-variant-numeric:tabular-nums}
+.cell .sub{font-size:11.5px;color:var(--mut)}
+.cell.na{background:var(--hatch)}
+.up{color:var(--up)}.dn{color:var(--dn)}
+.chip{display:inline-block;border-radius:10px;padding:1px 7px;font-weight:600;font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums;border:1px solid transparent}
+.c-WRITE{background:var(--wrb);color:var(--wr)}.c-BUY{background:var(--bub);color:var(--bu)}
+.c-COVER{background:var(--cob);color:var(--co);border-color:var(--co)}.c-DUMP{background:var(--dub);color:var(--du)}
+.c-QUIET,.c-MIXED{background:#f0f2f5;color:var(--qu);font-weight:500}
+.c-OI\?{background:var(--hatch);color:var(--mut)}
+.soft{border-style:dashed;border-color:currentColor}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;color:#333;background:#fff}
+.pill.hot{border-color:var(--co);color:var(--co);font-weight:700}
+.pill.ok{border-color:var(--bu);color:var(--bu)}
+.pill.bad{border-color:var(--dn);color:var(--dn)}
+.mk{display:inline-block;border-radius:4px;padding:0 5px;font-size:11px;font-weight:700;background:#fff7d6;border:1px solid #e0c34a;color:#6b5400}
+.mk.big{background:#ffe3ea;border-color:#d4456b;color:#8d1237}
+.strip{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 9px;margin-bottom:10px}
+.strip .lab{font-size:10.5px;letter-spacing:.04em;color:var(--mut);text-transform:uppercase;margin-right:4px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px}
+@media(max-width:1100px){.cols{grid-template-columns:1fr}}
+table.lad{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:6px;font-variant-numeric:tabular-nums}
+.lad th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);padding:5px 4px;border-bottom:1px solid var(--line);font-weight:600}
+.lad td{padding:4px 5px;border-bottom:1px solid #eef0f3;vertical-align:middle;white-space:nowrap}
+.lad td.k{text-align:center;font-weight:700;background:#fafbfc;min-width:74px}
+.lad td.k small{display:block;font-weight:400;color:var(--mut);font-size:10.5px}
+.lad tr.atm td.k{background:#fff3c4}
+.lad tr.spot td{padding:0;height:0;border-bottom:2px solid var(--ink);position:relative}
+.lad tr.spot td div{position:absolute;left:6px;top:-9px;background:var(--ink);color:#fff;font-size:10.5px;padding:0 6px;border-radius:8px;}
+.lad td.sd{cursor:pointer}.lad td.sd:hover{background:#f3f6ff}
+.lad td.sel{outline:2px solid var(--ink);outline-offset:-2px}
+.lad td.nad{background:var(--hatch);color:var(--mut);text-align:center;font-size:11px}
+.l{text-align:right}.r{text-align:left}
+.dim{color:var(--mut)}.tiny{font-size:10.5px;color:var(--mut)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:10px}
+.box h3{margin:0 0 5px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}
+.ev{display:grid;grid-template-columns:42px 1fr;gap:6px;padding:2px 0;border-bottom:1px solid #f0f2f5;font-size:12px}
+.ev b{font-variant-numeric:tabular-nums;color:var(--mut);font-weight:600}
+table.dr{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.dr th{font-size:10.5px;text-transform:uppercase;color:var(--mut);text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)}
+.dr td{padding:3px 6px;border-bottom:1px solid #eef0f3;white-space:nowrap}
+.float{width:440px;margin:0 auto;background:var(--card);border:1px solid #b9c0cc;border-radius:10px;box-shadow:0 4px 18px rgba(20,24,31,.12);padding:8px}
+.float .ans{grid-template-columns:1fr 1fr;gap:5px}
+.float .cell{min-height:0;padding:5px 7px}.float .cell .val{font-size:13.5px}
+.float table.lad{font-size:12px}
+.fnote{font-size:11px;color:var(--mut);margin-top:8px}
+.legend{margin-top:10px;font-size:11.5px;color:var(--mut)}
+.legend span{margin-right:12px;white-space:nowrap}
+</style></head><body>
+<div class="top">
+  <h1>Option order-flow reader</h1>
+  <select id="day"></select>
+  <button id="prev" title="left arrow">&lt;</button>
+  <span class="clock" id="clk"></span>
+  <button id="next" title="right arrow">&gt;</button>
+  <input type="range" id="scr" min="0" max="0" value="0">
+  <span class="px" id="px"></span>
+  <span style="flex-basis:100%;height:0"></span>
+  <button data-v="full" class="on">Full page</button><button data-v="float">Float 440</button><button data-v="log">B: Kya badla</button>
+  <span class="tiny" id="src"></span>
+</div>
+<main id="root"></main>
+<script>/*DATA*/</script>
+<script>
+(function(){
+'use strict';
+var DATA=window.__DATA,DAYS=Object.keys(DATA).sort();
+var S={day:DAYS[DAYS.length-1],i:0,sel:null,view:'full'};
+var NAME={WRITE:'likh rahe',BUY:'kharid rahe',COVER:'bhaag rahe',DUMP:'nikal rahe',QUIET:'shaant',MIXED:'mila-jula','OI?':'OI nahi'};
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function sg(x,d){var a=Math.abs(x);return (x<0?'−':'+')+(d==null?(a>=10?a.toFixed(0):a.toFixed(1)):a.toFixed(d))}
+function fL(q){return q==null?'?':sg(q/1e5)+'L'}
+function fK(l){return sg(l/1000,Math.abs(l)>=10000?0:1)+'k'}
+function n0(x){return Math.round(x).toLocaleString('en-IN')}
+function who(doi,d){if(doi==null)return 'OI?';if(Math.abs(doi)<1.5e5)return 'QUIET';if(Math.abs(d)<0.2*Math.abs(doi))return 'MIXED';return doi>0?(d<0?'WRITE':'BUY'):(d>0?'COVER':'DUMP')}
+function chip(w,doi,firm,extra){return '<span class="chip c-'+w+(firm===0?' soft':'')+'" title="'+(firm===0?'1-min window khiska to label badla (pakka nahi)':'label pakka (1-min shift pe bhi wahi)')+'">'+NAME[w]+(w==='QUIET'||w==='OI?'?'':' '+fL(doi))+(firm===0?'?':'')+(extra||'')+'</span>'}
+
+/* ---- prepare a day: maps, implied-delta sums ---- */
+function prep(day){var D=DATA[day];if(D.ok)return D;
+  D.closes.forEach(function(c){c.m={};c.imp=0;c.nimp=0;c.na=0;c.om={};
+    c.rows.forEach(function(r){c.m[r.k+r.s]=r;if(r.na){c.na++}else if(r.imp!=null){c.imp+=r.imp;c.nimp++}});
+    c.oi.forEach(function(o){c.om[o[0]+'ce']=o[1];c.om[o[0]+'pe']=o[2]})});
+  var acc=[];D.closes.forEach(function(c){var add=[];c.rows.forEach(function(r){if(r.big&&r.big[0]>=2000){r.bigOK=acc.length<10||pctRank(acc,r.big[0])>=.9;add.push(r.big[0])}});acc=acc.concat(add)});
+  D.ok=1;return D}
+function cur(){return prep(S.day)}
+function C(i){return cur().closes[i]}
+function row(i,k,s){var c=cur().closes[i];return c?c.m[k+s]:null}
+function pctRank(arr,x){if(arr.length<6)return null;var n=0;arr.forEach(function(y){if(y<x)n++});return n/arr.length}
+
+/* ---- group sums over rows of the last n closes ending at i ---- */
+function grp(i,pred,n){var doi=0,d=0,cnt=0,nrows=0,na=0;
+  for(var j=Math.max(0,i-(n||1)+1);j<=i;j++){C(j).rows.forEach(function(r){if(!pred(r,C(j)))return;nrows++;if(r.na){na++;return}
+    if(r.doi!=null){doi+=r.doi;d+=r.d;cnt++}})}
+  return {doi:doi,d:d,cnt:cnt,na:na,nrows:nrows,w:who(cnt?doi:null,d)}}
+var isCE=function(r){return r.s==='ce'},isPE=function(r){return r.s==='pe'};
+var CAP=function(r,c){return r.s==='ce'&&r.k>=c.sp},FLOOR=function(r,c){return r.s==='pe'&&r.k<=c.sp};
+var ITMCE=function(r,c){return r.s==='ce'&&r.k<c.sp},ITMPE=function(r,c){return r.s==='pe'&&r.k>c.sp};
+
+/* ---- fronts: top two OI strikes among the nine nearest, per side; state from the 6-min OI change ---- */
+function fronts(i,side){var c=C(i),a=[];
+  for(var k=c.atm-200;k<=c.atm+200;k+=50){var o=c.om[k+side];if(o!=null)a.push([k,o])}
+  a.sort(function(x,y){return y[1]-x[1]});
+  return a.slice(0,2).map(function(x){var k=x[0],p=C(Math.max(0,i-2)).om[k+side],ch=p!=null?x[1]-p:null;
+    var st=ch==null?'?':ch>1.5e5?'badh raha':ch<-1.5e5?'ghat raha':'ruka';
+    var r=row(i,k,side),w=r&&!r.na?r.who:null;
+    return {k:k,oi:x[1],ch:ch,st:st,w:w,steps:(k-c.sp)/50}})}
+/* ---- covering: strikes on one side with COVER at this close ---- */
+function cover(i,side){var c=C(i),n=0,firm=0,q=0,na=0,tot=0,ks=[];
+  c.rows.forEach(function(r){if(r.s!==side)return;tot++;if(r.na){na++;return}
+    if(r.who==='COVER'){n++;q+=r.doi;if(r.firm)firm++;ks.push(r.k)}});
+  return {n:n,firm:firm,q:q,na:na,tot:tot,ks:ks,state:n>=3?'SQ':n>0?'SOME':(na*2>tot?'BLIND':'NONE')}}
+/* ---- implied delta: sum, own-day rank, turn ---- */
+function implied(i){var c=C(i),prior=[];for(var j=0;j<i;j++)prior.push(Math.abs(C(j).imp));
+  var pr=pctRank(prior,Math.abs(c.imp)),p=i>0?C(i-1).imp:null;
+  return {v:c.imp,rank:pr,turn:p!=null&&p*c.imp<0,n:c.nimp,tot:c.rows.length}}
+/* ---- big prints (>= 2000 delta-lots) up to i ---- */
+function bigs(i){var o=[];for(var j=0;j<=i;j++)C(j).rows.forEach(function(r){if(r.bigOK)o.push({t:C(j).t,k:r.k,s:r.s,v:r.big[0],side:r.big[1],px:r.big[2]})});return o}
+/* ---- marks: signature candidates from the last 3 closes, resolved only by closes that exist at i ---- */
+var MK={A:['▣','ruka','zor laga, bhaav hila nahi'],E:['▽','thakaan','naya extreme, effort ghat raha'],C:['◈','charam','band ke paar max effort'],I:['▲','bhadak','effort + writers cover, band ke upar']};
+function marks(i,k,s){var out=[];
+  for(var j=i;j>=Math.max(0,i-2);j--){var r=row(j,k,s);if(!r||r.na||!r.sg)continue;
+    r.sg.split('').forEach(function(g){var nx=j<i?row(j+1,k,s):null,res='agla close?',up=r.loc==='AU'||r.loc==='BU';
+      if(nx&&nx.na)res='data nahi';
+      else if(nx){if(g==='A')res=(up?nx.c<=nx.u2:nx.c>=nx.d2)?'tika':'toota';
+        else if(g==='C')res=(nx.d*r.d<0)?'delta palta':'delta wahi';
+        else if(g==='I')res=nx.c>=nx.u2?'tika':'nahi tika';else res=''}
+      if(g==='E')res='';
+      var e=Math.max(r.pv||0,r.pa||0);
+      out.push({g:g,j:j,t:C(j).t,res:res,p:e,loc:r.loc})})}
+  return out}
+function mkHtml(m){return '<span class="mk" title="'+MK[m.g][2]+' ('+m.t+') - apne band pe, apne din ke normal se; suspect, rule nahi">'+MK[m.g][0]+' '+MK[m.g][1]+(m.g==='E'?'':' p'+Math.round(m.p*100))+(m.res?' · '+m.res:'')+'</span>'}
+
+/* ---- pullback / reversal tick-box (study rounds 5-7, 2 days: [I], not a rule) ---- */
+function leg(i){var c=C(i),b=C(Math.max(0,i-5));if(!c.fut||!b.fut)return 0;var d=c.fut.c-b.fut.c;return Math.abs(d)<20?0:d>0?1:-1}
+function atmRow(i,s){var c=C(i);return c.m[c.atm+s]}
+function pullback(i){var dir=leg(i),c=C(i);if(!dir)return {dir:0};
+  var def=grp(i,dir>0?FLOOR:CAP,2),itm=grp(i,dir>0?ITMCE:ITMPE,2),ip=implied(i),pr=atmRow(i,dir>0?'ce':'pe');
+  var t=[];
+  t.push([dir>0?'floor writers':'cap writers',def.cnt?(def.w==='WRITE'?1:(def.w==='COVER'||def.w==='DUMP')?-1:0):null,NAME[def.w]]);
+  t.push([dir>0?'ITM CE':'ITM PE',itm.cnt?(itm.w==='COVER'?1:itm.w==='WRITE'?-1:0):null,NAME[itm.w]]);
+  var p2=i>0?C(i-1).imp+c.imp:c.imp;
+  t.push(['implied Δ',c.nimp?(p2*dir>0?1:-1):null,fK(p2)+' lots']);
+  t.push(['ATM prem vs vwap',pr&&!pr.na?(pr.c>pr.vw?1:-1):null,pr&&!pr.na?(pr.c>pr.vw?'upar':'neeche'):'n/a']);
+  var ok=t.filter(function(x){return x[1]===1}).length,bad=t.filter(function(x){return x[1]===-1}).length,nn=t.filter(function(x){return x[1]==null}).length;
+  return {dir:dir,t:t,ok:ok,bad:bad,nn:nn,fut:c.fut.c-C(Math.max(0,i-5)).fut.c}}
+function pbHtml(pb){if(!pb.dir)return '<div class="strip"><span class="lab">Pullback check</span><span class="pill">leg nahi (fut &lt; 20f / 15 min)</span></div>';
+  return '<div class="strip"><span class="lab">'+(pb.dir>0?'Up-leg':'Down-leg')+' '+sg(pb.fut,0)+'f / 15m · pullback check [I]</span>'+
+   pb.t.map(function(x){return '<span class="pill '+(x[1]===1?'ok':x[1]===-1?'bad':'')+'" style="'+(x[1]==null?'background:var(--hatch)':'')+'">'+(x[1]===1?'✓ ':x[1]===-1?'✗ ':'? ')+x[0]+': '+x[2]+'</span>'}).join('')+
+   '<b style="margin-left:6px">'+pb.ok+'/4 pullback ke saath'+(pb.bad?' · '+pb.bad+' ulta':'')+(pb.nn?' · '+pb.nn+' dekha nahi':'')+'</b></div>'}
+
+/* ---- answer cells ---- */
+function cells(i){var c=C(i),o=[],ip=implied(i),pr;
+  // 1 implied delta
+  o.push({lab:'Implied index Δ',val:'<span class="'+(ip.v>0?'up':'dn')+'">'+fK(ip.v)+' lots</span>',
+    sub:(ip.rank==null?'din ka normal abhi nahi':'p'+Math.round(ip.rank*100)+' apne din me')+(ip.turn?' · <b>palta</b>':'')+' · '+ip.n+'/'+ip.tot+' strike'});
+  // 2,3 calls / puts net
+  [['ce','CALLS'],['pe','PUTS']].forEach(function(z){var g=grp(i,z[0]==='ce'?isCE:isPE,1);
+    o.push(g.cnt?{lab:z[1]+' net (ATM±5)',val:chip(g.w,g.doi),sub:'Δ '+fL(g.d)+(g.na?' · '+g.na+' strike data nahi':'')}:{lab:z[1],val:'data nahi',sub:'',na:1})});
+  // 4 covering
+  var cc=cover(i,'ce'),cp=cover(i,'pe');
+  function cv(x,nm,dirw){if(x.state==='BLIND')return '<span class="pill" style="background:var(--hatch)">'+nm+': data nahi</span>';
+    if(x.state==='NONE')return '<span class="pill">'+nm+': nahi (dekha)</span>';
+    return '<span class="pill hot">'+nm+' bhaag rahe ×'+x.n+' '+fL(x.q)+(x.state==='SQ'?' · '+dirw:'')+'</span>'}
+  o.push({lab:'Short covering',val:cv(cc,'CE','upar squeeze')+'<br>'+cv(cp,'PE','floor toot'),sub:(cc.firm+cp.firm)+' pakka (firm)'});
+  // 5 walls
+  var fc=fronts(i,'ce'),fp=fronts(i,'pe');
+  function fr(f,s){return f.length?'<div style="font-size:12.5px;font-weight:700">'+n0(f[0].k)+' '+s.toUpperCase()+' <span class="dim">'+sg(f[0].steps,1)+'s</span> <span class="pill">'+f[0].st+'</span></div>':''}
+  o.push({lab:'Deewar #1 (OI top)',val:fr(fc,'ce')+fr(fp,'pe'),sub:'steps spot se (s)'});
+  // 6 big prints
+  var b=bigs(i),lb=b[b.length-1];
+  o.push({lab:'Bada print ≥2000 Δ-lots',val:b.length?('<span class="mk big">'+b.length+' aaj</span>'):'0 aaj (dekha)',sub:b.length?('last '+lb.t+' '+n0(lb.k)+lb.s.toUpperCase()+' '+(lb.side==='B'?'kharid':'bech')+' '+fK(lb.v)):'Δ-lots se; din ke top 10% (10 se kam to sab)'});
+  // 7 ATM premium vs own VWAP
+  var a=atmRow(i,'ce'),p=atmRow(i,'pe');
+  function vw(r){return !r||r.na?'<span class="pill" style="background:var(--hatch)">n/a</span>':'<span class="pill '+(r.c>r.vw?'ok':'bad')+'">'+Math.round(r.c)+(r.c>r.vw?' ▲':' ▼')+' vwap '+Math.round(r.vw)+'</span>'}
+  o.push({lab:'ATM prem vs apna VWAP',val:'CE '+vw(a)+'<br>PE '+vw(p),sub:'premium nahi dikhaya, sirf haal'});
+  // 8 regime
+  var wc=c.wall.ce,wp=c.wall.pe,dc=wc?(wc[0]-c.sp)/50:null,dp=wp?(c.sp-wp[0])/50:null;
+  var reg=(dc!=null&&dp!=null)?(Math.min(dc,dp)<=2?'deewar paas':'deewar door'):'?';
+  o.push({lab:'Wall distance (regime)',val:reg,sub:(wc?n0(wc[0])+'CE '+sg(dc,1)+'s':'?')+' · '+(wp?n0(wp[0])+'PE '+sg(-dp,1)+'s':'?')});
+  return o}
+function cellsHtml(cs){return cs.map(function(x){return '<div class="cell'+(x.na?' na':'')+'"><div class="lab">'+x.lab+'</div><div class="val">'+x.val+'</div><div class="sub">'+x.sub+'</div></div>'}).join('')}
+
+/* ---- ladder ---- */
+function dOIrun(i,k,s){var a=[];for(var j=Math.max(0,i-2);j<=i;j++){var r=row(j,k,s);a.push(r&&!r.na&&r.doi!=null?r.doi/1e5:null)}
+  var u=a[0]!=null&&a[1]!=null&&a[2]!=null&&Math.abs(a[2])>Math.abs(a[1])&&Math.abs(a[1])>Math.abs(a[0])&&a[2]*a[0]>0;
+  return a.map(function(x){return x==null?'?':sg(x)}).join(' ')+(u?' <b>▲▲</b>':'')}
+function sideCell(i,k,s,compact,al){var r=row(i,k,s);var sel=S.sel&&S.sel.k===k&&S.sel.s===s;
+  var cls='sd '+al+(sel?' sel':'');
+  if(!r||r.na)return '<td class="nad" colspan="'+(compact?1:3)+'" title="is strike ka flow/OI nahi mila: dekha nahi gaya">— data nahi</td>';
+  var mk=marks(i,k,s).slice(0,compact?1:2).map(mkHtml).join(' ');
+  var ef=Math.max(r.pv||0,r.pa||0),efs=r.pv==null?'<span class="tiny" style="background:var(--hatch);padding:0 3px" title="din ka normal: 6 close se pehle nahi">n/a</span>':(ef>=.8?'<b>p'+Math.round(ef*100)+'</b>':'<span class="tiny">p'+Math.round(ef*100)+'</span>');
+  var band=C(i).e<584?'':r.loc==='AU'?'u2':r.loc==='BU'?'u3+':r.loc==='AD'?'d2':r.loc==='BD'?'d3−':'';
+  var vwp='<span class="'+(r.c>r.vw?'up':'dn')+'">'+Math.round(r.c)+(r.c>r.vw?'▲':'▼')+'</span>'+(band?' <span class="pill hot">'+band+'</span>':'');
+  var big=r.bigOK?' <span class="mk big">◆ '+fK(r.big[0])+'</span>':'';
+  var checkable=r.pv!=null,dk=(!mk&&checkable)?'<span class="tiny">· kuch nahi</span>':(!mk?'<span class="tiny" style="background:var(--hatch);padding:0 3px">n/a</span>':'');
+  var td=function(inner){return '<td class="'+cls+'" data-k="'+k+'" data-s="'+s+'">'+inner+'</td>'};
+  if(compact)return td(chip(r.who,r.doi,r.firm)+' '+efs+' '+vwp+(mk?'<br>'+mk:'')+big);
+  var a=td(chip(r.who,r.doi,r.firm)+big+'<br><span class="tiny">'+dOIrun(i,k,s)+'</span>');
+  var b=td(efs+' '+vwp);
+  var cc=td((mk||dk));
+  return al==='l'?(cc+b+a):(a+b+cc)}
+function ladder(i,compact){var c=C(i),ks=[];var n=compact?2:5;
+  for(var k=c.atm+n*50;k>=c.atm-n*50;k-=50)ks.push(k);
+  var h='<table class="lad"><thead><tr>'+(compact?'<th>CE</th><th>strike</th><th>PE</th>':'<th class="l">marks (CE)</th><th>effort · prem</th><th>CE: kaun · dOI 3 close</th><th>strike</th><th>PE: kaun · dOI 3 close</th><th>effort · prem</th><th>marks (PE)</th>')+'</tr></thead><tbody>';
+  var spotDone=false,span=compact?3:7;
+  ks.forEach(function(k,ix){
+    if(!spotDone&&c.sp>=k){spotDone=true;h+='<tr class="spot"><td colspan="'+span+'"><div>spot '+n0(c.sp)+'s'+(c.fut?' · fut '+n0(c.fut.c)+'f':'')+'</div></td></tr>'}
+    var oi=function(s){var o=c.om[k+s];return o==null?'':'OI '+(o/1e5).toFixed(0)+'L'};
+    h+='<tr'+(k===c.atm?' class="atm"':'')+'>'+sideCell(i,k,'ce',compact,'l')+'<td class="k">'+n0(k)+'<small>'+(k===c.atm?'ATM':sg((k-c.sp)/50,1)+'s')+'</small></td>'+sideCell(i,k,'pe',compact,'r')+'</tr>'});
+  if(!spotDone)h+='<tr class="spot"><td colspan="'+span+'"><div>spot '+n0(c.sp)+'s</div></td></tr>';
+  return h+'</tbody></table>'}
+
+/* ---- drill-down ---- */
+function drill(i){if(!S.sel)return '<div class="box"><h3>Ek strike ki padhai</h3><span class="dim">Kisi strike ke cell pe click karo: uske pichhle closes, rate of change, din ka CVD.</span></div>';
+  var k=S.sel.k,s=S.sel.s,h='<div class="box"><h3>'+n0(k)+' '+s.toUpperCase()+' · apne din ka normal, apne VWAP bands</h3><table class="dr"><thead><tr><th>close</th><th>kaun</th><th>dOI</th><th>Δ (aggressor)</th><th>effort vol/|Δ|</th><th>prem vs apna vwap</th><th>band</th><th>marks</th><th>bada</th></tr></thead><tbody>';
+  var last=null;
+  for(var j=i;j>=Math.max(0,i-9);j--){var r=row(j,k,s);
+    if(!r||r.na){h+='<tr><td>'+C(j).t+'</td><td colspan="8" style="background:var(--hatch)" class="dim">data nahi (dekha nahi gaya)</td></tr>';continue}
+    if(!last)last=r;
+    var mk=r.sg?r.sg.split('').map(function(g){return MK[g][0]+' '+MK[g][1]}).join(', '):(r.pv!=null?'· kuch nahi':'n/a');
+    h+='<tr><td><b>'+C(j).t+'</b></td><td>'+chip(r.who,r.doi,r.firm)+'</td><td>'+fL(r.doi)+'</td><td>'+fL(r.d)+'</td><td>'+(r.pv==null?'n/a':'p'+Math.round(r.pv*100)+' / p'+Math.round(r.pa*100))+'</td><td><span class="'+(r.c>r.vw?'up':'dn')+'">'+r.c.toFixed(1)+(r.c>r.vw?' ▲ ':' ▼ ')+r.vw.toFixed(1)+'</span></td><td>'+(r.loc==='IN'?'andar':r.loc)+'</td><td>'+mk+'</td><td>'+(r.bigOK?'◆ '+fK(r.big[0]):(r.big?'<span class="tiny">'+fK(r.big[0])+'</span>':''))+'</td></tr>'}
+  h+='</tbody></table>';
+  if(last)h+='<div class="tiny" style="margin-top:5px">Din ab tak: CVD '+fL(last.cd)+' · volume '+(last.cv/1e5).toFixed(0)+'L · OI '+(last.oi/1e5).toFixed(0)+'L · chain delta '+last.cdl+'. CVD sirf ginti hai: divergence ka matlab nahi nikala (2 din me ulta tha).</div>';
+  return h+'</div>'}
+
+/* ---- events (B, and the last few in the side box / Float) ---- */
+function events(i,max){var ev=[],lastCap=null,lastFl=null,lastSq={ce:0,pe:0},lastTurn=null;
+  for(var j=0;j<=i;j++){var c=C(j),t=c.t;
+    var ip=implied(j);
+    if(j>0&&ip.turn)ev.push({t:t,j:j,h:'Implied Δ palta → '+(c.imp>0?'upar':'neeche')+' '+fK(c.imp)});
+    ['ce','pe'].forEach(function(s){var cv=cover(j,s);if(cv.n>=3&&!lastSq[s])ev.push({t:t,j:j,h:s.toUpperCase()+' bhaag rahe ×'+cv.n+' '+fL(cv.q)+(s==='ce'?' · upar squeeze':' · floor toot'),hot:1});lastSq[s]=cv.n>=3?1:0;
+      var f=fronts(j,s)[0];var key=s==='ce'?'lastCap':'lastFl';
+      if(f){var prev=s==='ce'?lastCap:lastFl;if(prev!=null&&prev!==f.k)ev.push({t:t,j:j,h:'Deewar #1 '+s.toUpperCase()+': '+n0(prev)+' → '+n0(f.k)});if(s==='ce')lastCap=f.k;else lastFl=f.k}});
+    c.rows.forEach(function(r){if(r.na)return;var nm=n0(r.k)+' '+r.s.toUpperCase();
+      if(r.doi!=null&&Math.abs(r.doi)>=5e5&&r.firm&&r.who!=='MIXED'&&r.who!=='QUIET')ev.push({t:t,j:j,h:nm+' '+NAME[r.who]+' '+fL(r.doi),w:r.who});
+      if(r.sg)r.sg.split('').forEach(function(g){ev.push({t:t,j:j,h:nm+' '+MK[g][0]+' '+MK[g][1]+(g==='E'?'':' p'+Math.round(Math.max(r.pv||0,r.pa||0)*100))+' @'+(r.loc==='AU'||r.loc==='BU'?'u2+':'d2−')})});
+      if(r.bigOK)ev.push({t:t,j:j,h:'◆ '+nm+' '+(r.big[1]==='B'?'kharid':'bech')+' '+fK(r.big[0])+' Δ-lots',hot:1})})}
+  ev.reverse();return ev.slice(0,max||40)}
+function evHtml(ev){return ev.length?ev.map(function(e){return '<div class="ev"><b>'+e.t+'</b><span>'+(e.w?'<span class="chip c-'+e.w+'">'+esc(e.h)+'</span>':(e.hot?'<span class="pill hot">'+esc(e.h)+'</span>':esc(e.h)))+'</span></div>'}).join(''):'<span class="dim">Ab tak kuch nahi badla (dekha).</span>'}
+
+function frontsHtml(i){var h='';[['ce','CAP (CE)'],['pe','FLOOR (PE)']].forEach(function(z){h+='<div class="tiny" style="margin-top:3px">'+z[1]+'</div>';
+    fronts(i,z[0]).forEach(function(f,ix){h+='<div style="display:flex;justify-content:space-between;gap:6px;padding:1px 0"><span><b>#'+(ix+1)+' '+n0(f.k)+'</b> <span class="dim">'+sg(f.steps,1)+'s · OI '+(f.oi/1e5).toFixed(0)+'L</span></span><span><span class="pill">'+f.st+(f.ch!=null?' '+fL(f.ch):'')+'</span> '+(f.w&&f.w!=='QUIET'?chip(f.w,row(i,f.k,z[0]).doi):'')+'</span></div>'})});
+  var a=fronts(i,'ce')[0],b=fronts(i,'pe')[0];
+  var rank={'badh raha':2,'ruka':1,'ghat raha':0,'?':3};
+  if(a&&b&&rank[a.st]!==rank[b.st]&&rank[a.st]<3&&rank[b.st]<3)h+='<div class="tiny" style="margin-top:4px"><b>Pehle ruka: '+(rank[a.st]<rank[b.st]?'CE cap':'PE floor')+'</b> (uska fuel)</div>';
+  return h}
+
+/* ---- views ---- */
+function head(i){var c=C(i);return '<div class="strip"><span class="lab">'+S.day+' · '+c.t+'</span><span class="pill">spot '+n0(c.sp)+'s</span>'+(c.fut?'<span class="pill">fut '+n0(c.fut.c)+'f</span><span class="pill">fut vwap '+n0(c.fut.vwap)+'f</span><span class="pill">fut u2 '+n0(c.fut.u2)+'f · d2 '+n0(c.fut.d2)+'f</span>':'<span class="pill" style="background:var(--hatch)">fut n/a</span>')+'<span class="tiny">sab kuch is close tak ke data se; aage ka nahi.</span></div>'}
+var LEG='<div class="legend"><span><span class="chip c-WRITE">likh rahe</span> OI↑ bechne wale</span><span><span class="chip c-BUY">kharid rahe</span> OI↑ lene wale</span><span><span class="chip c-COVER">bhaag rahe</span> OI↓ writers daud rahe</span><span><span class="chip c-DUMP">nikal rahe</span> OI↓ longs nikle</span><span><span class="chip c-QUIET">shaant</span> &lt;1.5L</span><span>dashed = pakka nahi</span><span>pNN = apne din ke normal me</span><span>u2/d2 = us strike ka apna VWAP band</span><span>▣ ruka · ▽ thakaan · ◈ charam · ▲ bhadak: nishaan, hukm nahi</span><span style="background:var(--hatch);padding:0 6px">hatch = dekha nahi gaya (≠ kuch nahi mila)</span></div>';
+function renderFull(i){return head(i)+'<div class="ans">'+cellsHtml(cells(i))+'</div>'+pbHtml(pullback(i))+
+  '<div class="cols"><div>'+ladder(i,false)+'<div style="height:10px"></div>'+drill(i)+'</div><div><div class="box"><h3>Deewar (OI top-2) · §1d</h3>'+frontsHtml(i)+'</div><div class="box"><h3>Abhi abhi badla</h3>'+evHtml(events(i,10))+'</div></div></div>'+LEG}
+function renderFloat(i){var c=C(i),cs=cells(i);
+  var keep=[0,1,2,3,4,5];
+  return '<div class="float"><div class="strip" style="margin-bottom:6px;padding:4px 7px"><b>'+c.t+'</b><span class="pill">'+n0(c.sp)+'s</span>'+(c.fut?'<span class="pill">'+n0(c.fut.c)+'f</span>':'')+'<span class="tiny">'+S.day.slice(5)+'</span></div>'+
+   '<div class="ans">'+cellsHtml(keep.map(function(x){return cs[x]}))+'</div>'+pbHtml(pullback(i)).replace('class="strip"','class="strip" style="padding:4px 6px"')+
+   ladder(i,true)+'<div class="box" style="margin-top:6px;margin-bottom:0"><h3>Deewar</h3>'+frontsHtml(i)+'</div><div class="box" style="margin:6px 0 0"><h3>Abhi abhi badla</h3>'+evHtml(events(i,4))+'</div></div>'+
+   '<div class="fnote" style="text-align:center">440 px floating window - isi data, isi scrubber se.</div>'+LEG}
+function renderLog(i){return head(i)+'<div class="box"><h3>B: Kya badla - har close ek line, naya upar (sirf is close tak)</h3>'+evHtml(events(i,80))+'</div>'+LEG}
+
+function render(){var D=cur(),i=S.i;if(i>=D.closes.length)i=S.i=D.closes.length-1;
+  $('clk').textContent=C(i).t;$('scr').max=D.closes.length-1;$('scr').value=i;
+  $('px').textContent='spot '+n0(C(i).sp)+'s'+(C(i).fut?' · fut '+n0(C(i).fut.c)+'f':'');
+  $('src').textContent=S.day+' · expiry '+D.exp+' · '+D.src+' · NIFTY only';
+  $('root').innerHTML=S.view==='full'?renderFull(i):S.view==='float'?renderFloat(i):renderLog(i);
+  Array.prototype.forEach.call(document.querySelectorAll('.top button[data-v]'),function(b){b.className=b.getAttribute('data-v')===S.view?'on':''})}
+function setDay(d,t){S.day=d;var D=prep(d);var ix=D.closes.length-1;D.closes.forEach(function(c,n){if(c.t===t)ix=n});S.i=ix;S.sel=null;render()}
+/* ---- wiring ---- */
+DAYS.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=d;$('day').appendChild(o)});
+$('day').value=S.day;
+$('day').onchange=function(){setDay(this.value,this.value==='2026-11-03'?'10:35':'10:50')};
+$('scr').oninput=function(){S.i=+this.value;render()};
+$('prev').onclick=function(){S.i=Math.max(0,S.i-1);render()};
+$('next').onclick=function(){S.i=Math.min(cur().closes.length-1,S.i+1);render()};
+document.addEventListener('keydown',function(e){if(e.target.tagName==='SELECT')return;if(e.key==='ArrowLeft'){S.i=Math.max(0,S.i-1);render()}if(e.key==='ArrowRight'){S.i=Math.min(cur().closes.length-1,S.i+1);render()}});
+Array.prototype.forEach.call(document.querySelectorAll('.top button[data-v]'),function(b){b.onclick=function(){S.view=b.getAttribute('data-v');render()}});
+$('root').addEventListener('click',function(e){var t=e.target.closest?e.target.closest('td.sd'):null;if(!t)return;S.sel={k:+t.getAttribute('data-k'),s:t.getAttribute('data-s')};render()});
+setDay(S.day,'10:50');
+})();
+</script></body></html>

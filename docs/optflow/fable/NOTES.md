@@ -57,6 +57,16 @@ Files here (all written by me; nothing outside this folder touched):
 - Five days (28, 29, 30 Oct, 2, 3 Nov). `load.fut()` now falls back to Dext's futures OHLC/footprint when fut1m is missing (28 Oct OHLC+OI; 29 Oct = mid of h/l, said in FUT_SRC); missing jarvis/msg/vix logs return empty. `study.py --json` exports the five days (NIFTY; SENSEX on 2–3 Nov) into `days.json` (4.3 MB; mockup-v2 NOT rebuilt — it still embeds the 2-day file it was built with).
 - `round5.py` (+ `round5_out.txt`): events fixed before outcomes (3 largest 15-min moves a day), mechanism by futures OI + the group words, lead-in pieces at every close, false alarms per piece and for the conjunction. Result: short covering = 8 of 15 fastest moves; the lead-in conjunction (trapped · stalled · near) fired 3 times in 1,250 closes and preceded none; the first cover preceded 4 of 13 by 3–12 min; inside the move the cascade is near-simultaneous (5 of 8) and the wall migrates 1–3 steps (4 of 8). Design: SQUEEZE ON as a state stamp with a pre-registration text, no forecast word.
 
+## Round 6 scale (fixed before counting; the market was open, no server touched)
+- Option row for `prints.rebin`: 1 % of the bar's close premium, rounded to the 0.05 tick, floor 0.05 — a ₹80 option in ₹0.80 rows, a ₹8 one in ₹0.10: ten rows to a "point", as the futures ladder gives.
+- Imbalance unit: `IMB_MIN_LOTS` 5 is read as 5 × 7,500 qty = 37,500 qty (500 lots) at one row — a tenth of a wall move (OI_MOVE 1.5L); `IMB_RATIO` 3 and `STACK_RUN` 3 unchanged.
+- Big cells three ways: qty ≥ 5L (as before); ₹ ≥ 2 crore of premium at one cell (5L × ₹40, an ATM-sized print); delta-lots ≥ 2,000 (qty × |chain delta| / 75, the size of a wall move in index terms). `rank.py` BADA (p90 of the futures reference) not transferable, not used.
+- Bars: her 3-min grid, per-price cells merged over the bar, o/c = chain ltp at the previous/this close, h/l from Dext. `round6.py`, output `round6_out.txt`; REPORT R6.
+
+## Round 7 result + data note
+- Today's 09:17 scrip-master download dropped the expired 03 NOV contracts; `load.recover_map(day)` rebuilds file → strike by matching each Dext file's 3-min delta at her closes to `days.json`'s `dl` (≥ 20 exact closes), cached in `scrip_recovered.json` (40/43/41/32/25 contracts). `load.dext` uses it automatically when the scrip master lacks the expiry. days.json must not be regenerated without the mapping (chicken-and-egg): keep `scrip_recovered.json`.
+- ABSORPTION at the strike's own band held more than bare touches on 4 of 5 days (REPORT R7.1); IGNITION coincident with the first cover (3 of 8) or after (2), never before; the 10:35 climax was missed by the fixed CLIMAX form (AT u2, not beyond u3) — noted, not retuned; the 13:17 23,700 CE break read CLIMAX + IGNITION with the 23,700 PE at its own d2 and writers pressing.
+
 ## Open
 - The play speed and the 9 / 5-strike heights are guesses; her word.
 - SENSEX: its own option flow read here; §1q unchanged, hers to sign.

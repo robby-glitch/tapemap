@@ -1,0 +1,417 @@
+{
+ "day": "2026-11-03",
+ "idx": "NIFTY",
+ "note": "NIFTY, 3 Nov 2026 (expiry day), the Jarvis call at five moments, as /api/jarvis's frame carries it (the card /api/jarvis/card carries the same call keys). 14:30 is during the A214 stall: no new call 14:21-15:18, the last call shown was 14:04 WATCH.",
+ "moments": {
+  "09:29": {
+   "fut": 23667.2,
+   "spot": 23619.15,
+   "call": {
+    "at": "09:29",
+    "word": "OPENING",
+    "state": "OPENING",
+    "lean": 1,
+    "since": "09:16",
+    "count": {
+     "with": 3,
+     "against": 1,
+     "N": 4,
+     "unread": 5,
+     "pieces": [
+      {
+       "k": "sides",
+       "side": "?",
+       "text": "Sides 09:25 CAPPED · both sides writing"
+      },
+      {
+       "k": "wf7",
+       "side": "with",
+       "text": "writers ±7 UP (CE +43.0L · PE +145.6L / 3 min)"
+      },
+      {
+       "k": "wall_ahead",
+       "side": "against",
+       "text": "wall ahead 23,600s CE 198L BUILDING"
+      },
+      {
+       "k": "answer",
+       "side": "?",
+       "text": "no answered push in 15 min"
+      },
+      {
+       "k": "trapped",
+       "side": "with",
+       "text": "top-2 call writers under water 2/2 · Sides 09:25"
+      },
+      {
+       "k": "fut_oi",
+       "side": "?",
+       "text": "could not check — fut OI needs 30 min of OI"
+      },
+      {
+       "k": "speed",
+       "side": "?",
+       "text": "speed ▲ ×0.2 SLOW"
+      },
+      {
+       "k": "all3",
+       "side": "with",
+       "text": "all 3 ▲ (N +41 · BN +66 · SX +112 / 5 min)"
+      },
+      {
+       "k": "setup",
+       "side": "?",
+       "text": "no trigger today"
+      }
+     ]
+    },
+    "leg": "leg ▲ OPENING 136 pts · 2.3σ · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,670f 09:29",
+    "pause": {
+     "line": "OPENING ▲ 136 pts · 2.3σ · no TOOT · fuelled 09:26 · no lean until 100 pts + TOOT"
+    },
+    "how_much": null,
+    "day": "day: legs flipped 0 times so far · fut OI: no 30-min story yet",
+    "buyer": "no lean: buy only at her bands (the zone), never mid-range · needs +84 pts today [I ×1.15] · EM left 73 → thin",
+    "seller": "no lean: sell outside the band, both sides · IV 27.2 vs RV 12.3 (cal) → rich",
+    "expression": null,
+    "wrong_line": "ends: a leg that qualifies — after 10:00 ≥ 80 pts with 1.5σ, a TOOT or fuel; before 10:00 ≥ 100 pts and a TOOT",
+    "no_trade": null,
+    "self": null,
+    "missing": null,
+    "up": null,
+    "dn": null,
+    "walls": null,
+    "where": null,
+    "cross": null
+   }
+  },
+  "10:11": {
+   "fut": 23641.2,
+   "spot": 23611.05,
+   "call": {
+    "at": "10:11",
+    "word": "WATCH ▲",
+    "state": "HOLD",
+    "lean": 1,
+    "since": "10:08",
+    "count": {
+     "with": 0,
+     "against": 4,
+     "N": 4,
+     "unread": 5,
+     "pieces": [
+      {
+       "k": "sides",
+       "side": "?",
+       "text": "Sides 10:10 FLAT"
+      },
+      {
+       "k": "wf7",
+       "side": "?",
+       "text": "writers ±7 PAUSED (CE +14.9L · PE +4.6L / 3 min)"
+      },
+      {
+       "k": "wall_ahead",
+       "side": "against",
+       "text": "wall ahead 23,700s CE 255L BUILDING"
+      },
+      {
+       "k": "answer",
+       "side": "?",
+       "text": "last answer 10:01 push ▼ 23,600s PE HELD"
+      },
+      {
+       "k": "trapped",
+       "side": "?",
+       "text": "could not check — Sides 10:10 reads under water on its fuel side only"
+      },
+      {
+       "k": "fut_oi",
+       "side": "against",
+       "text": "fut OI long unwinding −1,352 lots / 30 min"
+      },
+      {
+       "k": "speed",
+       "side": "?",
+       "text": "speed ▼ ×0.1 SLOW"
+      },
+      {
+       "k": "all3",
+       "side": "against",
+       "text": "all 3 ▼ (N −21 · BN −33 · SX −37 / 5 min)"
+      },
+      {
+       "k": "setup",
+       "side": "against",
+       "text": "her trigger 09:39 SELL 23,656f · 32 min"
+      }
+     ]
+    },
+    "leg": "leg ▲ TREND 147 pts · 2.3σ · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,680f 09:48",
+    "pause": {
+     "line": "PAUSE ▲ · hold · back inside 1σ (+0.4) after a 2.3σ leg, 0.26 of it given back · 23,650s CE loading +22.7L / 9 min · ATM 23,650s CE bid +0.6 vs delta since 09:56"
+    },
+    "how_much": null,
+    "day": "day: legs flipped 0 times so far · fut OI long unwinding −1,352 lots / 30 min",
+    "buyer": "hold the CE, no new one while WATCH · stop = the PALAT line 23,606f · needs +74 pts today [I ×1.15] · EM left 99 → fits",
+    "seller": "sell the PE at / beyond 23,600s (23,630f): its writers are the leg's floor · same stop · IV 27.6 vs RV 12.3 (cal) → rich · fold: could not check — the HOLD v2 line is not logged",
+    "expression": null,
+    "wrong_line": "PALAT? if back past 23,628f (0.35 of the leg) · PALAT at 23,606f: the lean ends there",
+    "no_trade": null,
+    "self": null,
+    "missing": null,
+    "up": null,
+    "dn": null,
+    "walls": null,
+    "where": null,
+    "cross": null
+   }
+  },
+  "12:12": {
+   "fut": 23701.5,
+   "spot": 23658.25,
+   "call": {
+    "at": "12:12",
+    "word": "WATCH ▲",
+    "state": "PALAT?",
+    "lean": 1,
+    "since": "12:12",
+    "count": {
+     "with": 1,
+     "against": 3,
+     "N": 4,
+     "unread": 5,
+     "pieces": [
+      {
+       "k": "sides",
+       "side": "?",
+       "text": "Sides 12:10 CAPPED · both sides writing"
+      },
+      {
+       "k": "wf7",
+       "side": "?",
+       "text": "writers ±7 RISK (CE −28.6L · PE −202.0L / 3 min)"
+      },
+      {
+       "k": "wall_ahead",
+       "side": "with",
+       "text": "wall ahead 23,700s CE 322L UNWINDING"
+      },
+      {
+       "k": "answer",
+       "side": "against",
+       "text": "last answer 12:10 push ▼ 23,600s PE BROKEN"
+      },
+      {
+       "k": "trapped",
+       "side": "?",
+       "text": "could not check — Sides 12:10 reads under water on its fuel side only"
+      },
+      {
+       "k": "fut_oi",
+       "side": "?",
+       "text": "no 30-min story"
+      },
+      {
+       "k": "speed",
+       "side": "against",
+       "text": "speed ▼ ×2.5 FAST"
+      },
+      {
+       "k": "all3",
+       "side": "against",
+       "text": "all 3 ▼ (N −30 · BN −82 · SX −135 / 5 min)"
+      },
+      {
+       "k": "setup",
+       "side": "?",
+       "text": "last trigger 10:42 SELL 90 min ago (outside its 45 min)"
+      }
+     ]
+    },
+    "leg": "leg ▲ TREND 214 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,747f 12:05",
+    "pause": {
+     "line": "PALAT? ▲ leg at risk · CE band ahead 23,700–23,800s emptying −30.3L / 9 min · push against TOOT the wall behind 12:10 · 3-min delta against −250 lots · speed FAST against ×2.5 · back inside 1σ (+0.9) after a 2.3σ leg, 0.21 of it given back · ATM 23,700s CE bid +3.5 vs delta since 12:05"
+    },
+    "how_much": null,
+    "day": "day: legs flipped 0 times so far · fut OI: no 30-min story yet",
+    "buyer": "no new CE; a CE held tightens to 23,640f (the PALAT line) · needs +56 pts today [I ×1.15] · EM left 38 → thin",
+    "seller": "no new PE sale until it holds again · IV 28.1 vs RV 12.3 (cal) → rich",
+    "expression": null,
+    "wrong_line": "PALAT? if back past 23,672f (0.35 of the leg) · PALAT at 23,640f: the lean ends there",
+    "no_trade": null,
+    "self": null,
+    "missing": null,
+    "up": null,
+    "dn": null,
+    "walls": null,
+    "where": null,
+    "cross": null
+   }
+  },
+  "13:20": {
+   "fut": 23772.2,
+   "spot": 23717.65,
+   "call": {
+    "at": "13:20",
+    "word": "TREND ▲",
+    "state": "TREND",
+    "lean": 1,
+    "since": "13:20",
+    "count": {
+     "with": 7,
+     "against": 0,
+     "N": 7,
+     "unread": 2,
+     "pieces": [
+      {
+       "k": "sides",
+       "side": "with",
+       "text": "Sides 13:20 REAL · call writers covering"
+      },
+      {
+       "k": "wf7",
+       "side": "with",
+       "text": "writers ±7 UP (CE −39.1L · PE +32.0L / 3 min)"
+      },
+      {
+       "k": "wall_ahead",
+       "side": "with",
+       "text": "wall ahead 23,700s CE 347L UNWINDING"
+      },
+      {
+       "k": "answer",
+       "side": "with",
+       "text": "last answer 13:16 push ▲ 23,700s CE BROKEN"
+      },
+      {
+       "k": "trapped",
+       "side": "with",
+       "text": "top-2 call writers under water 2/2 · Sides 13:20"
+      },
+      {
+       "k": "fut_oi",
+       "side": "with",
+       "text": "fut OI short covering −2,113 lots / 30 min"
+      },
+      {
+       "k": "speed",
+       "side": "?",
+       "text": "speed ▲ ×0.6 NORMAL"
+      },
+      {
+       "k": "all3",
+       "side": "with",
+       "text": "all 3 ▲ (N +24 · BN +71 · SX +84 / 5 min)"
+      },
+      {
+       "k": "setup",
+       "side": "?",
+       "text": "last trigger 10:42 SELL 158 min ago (outside its 45 min)"
+      }
+     ]
+    },
+    "leg": "leg ▲ TREND 252 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,785f 13:18",
+    "pause": {
+     "line": "TREND ▲ running · 252 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · 23,533f → 23,785f"
+    },
+    "how_much": null,
+    "day": "day: legs flipped 0 times so far · fut OI short covering −2,113 lots / 30 min",
+    "buyer": "buy the CE on the pullback, not chased · stop = the PALAT line 23,659f · needs +60 pts today [I ×1.15] · EM left −32 → thin",
+    "seller": "sell the PE at / beyond 23,600s (23,655f): its writers are the leg's floor · same stop · IV 28.7 vs RV 12.3 (cal) → rich · fold: could not check — the HOLD v2 line is not logged",
+    "expression": null,
+    "wrong_line": "PALAT? if back past 23,697f (0.35 of the leg) · PALAT at 23,659f: the lean ends there",
+    "no_trade": null,
+    "self": null,
+    "missing": null,
+    "up": null,
+    "dn": null,
+    "walls": null,
+    "where": null,
+    "cross": null
+   }
+  },
+  "14:30": {
+   "fut": 23741.9,
+   "spot": 23683.35,
+   "call": {
+    "at": "14:30",
+    "word": "WATCH ▲",
+    "state": "WATCH",
+    "lean": 1,
+    "since": "13:56",
+    "count": {
+     "with": 0,
+     "against": 2,
+     "N": 2,
+     "unread": 7,
+     "pieces": [
+      {
+       "k": "sides",
+       "side": "?",
+       "text": "Sides 14:30 FLAT"
+      },
+      {
+       "k": "wf7",
+       "side": "against",
+       "text": "writers ±7 DOWN (CE +20.6L · PE −6.1L / 3 min)"
+      },
+      {
+       "k": "wall_ahead",
+       "side": "against",
+       "text": "wall ahead 23,700s CE 347L BUILDING"
+      },
+      {
+       "k": "answer",
+       "side": "?",
+       "text": "no answered push in 15 min"
+      },
+      {
+       "k": "trapped",
+       "side": "?",
+       "text": "could not check — Sides 14:30 reads under water on its fuel side only"
+      },
+      {
+       "k": "fut_oi",
+       "side": "?",
+       "text": "no 30-min story"
+      },
+      {
+       "k": "speed",
+       "side": "?",
+       "text": "speed ▼ ×0.1 SLOW"
+      },
+      {
+       "k": "all3",
+       "side": "?",
+       "text": "3 indices mixed (N +9 · BN −11 · SX +7 / 5 min)"
+      },
+      {
+       "k": "setup",
+       "side": "?",
+       "text": "last trigger 13:42 SELL 48 min ago (outside its 45 min)"
+      }
+     ]
+    },
+    "leg": "leg ▲ TREND 267 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,800f 13:41",
+    "pause": {
+     "line": "PAUSE ▲ · watch · 1 risk · back inside 1σ (+0.9) after a 2.3σ leg, 0.22 of it given back · 23,700s CE loading +45.0L / 9 min"
+    },
+    "how_much": null,
+    "day": "day: legs flipped 0 times so far · fut OI: no 30-min story yet",
+    "buyer": "hold the CE, no new one while WATCH · stop = the PALAT line 23,666f · needs +? (could not check — no ATM premium at 14:30) pts today [I ×1.15] · EM left −2",
+    "seller": "sell the PE at / beyond 23,600s (23,656f): its writers are the leg's floor · same stop · IV ? vs RV ? (could not check — no ATM IV at 14:30) · fold: could not check — the HOLD v2 line is not logged",
+    "expression": null,
+    "wrong_line": "PALAT? if back past 23,706f (0.35 of the leg) · PALAT at 23,666f: the lean ends there",
+    "no_trade": null,
+    "self": null,
+    "missing": null,
+    "up": null,
+    "dn": null,
+    "walls": null,
+    "where": null,
+    "cross": null
+   }
+  }
+ }
+}

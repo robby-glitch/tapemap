@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jarvis right panel — two directions</title>
+<style>
+:root{
+  --bg:#f3f2ed;--card:#fff;--ink:#15181e;--mut:#6b7280;--line:#e3e0d7;--soft:#f6f4ef;
+  --up:#0f9d76;--upbg:#e8f6f0;--dn:#d83a40;--dnbg:#fdeced;
+  --amb:#9a5a06;--ambbg:#fff4d6;--ce:#c2410c;--pe:#2563eb;--rep:#5b4bc4;--stale:#c62828;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --sans:system-ui,"Segoe UI",Roboto,sans-serif;
+  --hatch:repeating-linear-gradient(135deg,#ffefc2 0 5px,#fff9e8 5px 10px);
+  --W:350px;--H:590px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.4 var(--sans)}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1040px;margin:0 auto;padding:14px 16px 40px}
+h1{font-size:17px;margin:0 0 2px}
+.sub{color:var(--mut);font-size:12px;margin:0 0 10px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;position:sticky;top:0;z-index:20}
+.ctl label{font:700 10px var(--mono);letter-spacing:.08em;color:var(--mut);margin-right:5px}
+.grp{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;vertical-align:middle}
+.grp button{border:0;background:#fff;padding:4px 9px;font:600 12px var(--mono)}
+.grp button+button{border-left:1px solid var(--line)}
+.grp button.on{background:var(--ink);color:#fff}
+.grp button[disabled]{color:#bbb;cursor:default}
+.key{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 0;font-size:11.5px;color:#444}
+.key span{display:inline-flex;align-items:center;gap:5px}
+.sw{display:inline-block;width:15px;height:15px;border-radius:4px;border:1px solid var(--line);text-align:center;font:700 10px/13px var(--mono)}
+.stage{display:flex;flex-wrap:wrap;gap:22px;margin-top:14px;align-items:flex-start}
+figure{margin:0;width:var(--W)}
+figcaption{font:700 12px var(--mono);margin:0 0 6px;display:flex;align-items:center;gap:7px}
+figcaption em{font:700 10px var(--mono);font-style:normal;background:var(--ink);color:#fff;border-radius:99px;padding:1px 8px}
+.size{font:500 10.5px var(--mono);color:var(--mut);margin:5px 0 0}
+.notes{font-size:11.5px;color:#444;margin-top:8px;line-height:1.5}
+.notes b{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em}
+
+/* ---------- the panel (everything below is the panel) ---------- */
+.panel{position:relative;width:var(--W);height:var(--H);background:var(--card);border:1px solid var(--line);border-left:5px solid var(--mc);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 2px 10px rgba(40,30,10,.07);--mc:var(--up)}
+.panel.m-replay{--mc:var(--rep);border:1px dashed var(--rep);border-left:5px solid var(--rep)}
+.panel.m-stale{--mc:var(--stale)}
+.panel.m-wait{--mc:#aab0b8}
+.panel>*{flex:none}
+.strip{position:relative;display:flex;align-items:center;gap:7px;height:30px;padding:0 10px;font:600 11px var(--mono);white-space:nowrap;background:#e6f6ef;color:#0b6b50}
+.m-replay .strip{background:#ece9fb;color:#4a3bb0}
+.m-stale .strip{background:#fde3e3;color:#a31515}
+.m-wait .strip{background:#eceae4;color:#555}
+.strip .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.m-live .dot{animation:pulse 1.4s infinite}
+.m-stale .dot{animation:pulse 1s infinite}
+.strip .r{margin-left:auto}
+.strip em{font-style:normal;font-variant-numeric:tabular-nums}
+.strip .pg{position:absolute;left:0;bottom:0;height:2px;background:currentColor;opacity:.45;transition:width 1s linear}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)}}
+@keyframes fl{0%{box-shadow:0 0 0 4px rgba(37,99,235,.55)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+
+.call{padding:8px 10px 7px;border-bottom:1px solid var(--line)}
+.call .w{display:flex;align-items:center;gap:8px}
+.call .w b{font:800 26px/1 var(--mono);letter-spacing:.01em}
+.up{color:var(--up)}.dn{color:var(--dn)}.g{color:#9aa0a6}.red{color:var(--stale)}
+.pill{font:700 10px var(--mono);padding:2px 7px;border-radius:99px;background:var(--soft);border:1px solid var(--line);white-space:nowrap}
+.pill.red{background:#fde3e3;border-color:#f3b9b9}
+.pill.g{background:#f1f1ee}
+.call .since{margin-left:auto;font:500 11px var(--mono);color:var(--mut);white-space:nowrap}
+.call .leg{display:flex;justify-content:space-between;gap:8px;font:500 11.5px var(--mono);margin-top:6px}
+.call .leg span:last-child{color:var(--mut)}
+.call .leg em{font-style:normal;font-variant-numeric:tabular-nums}
+
+/* direction A: tally + nine lamps */
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px 8px 0}
+.tc{border:1px solid var(--line);background:#fff;border-radius:7px;padding:3px 4px 4px;text-align:center;line-height:1.1}
+.tc b{display:block;font:800 17px/1.15 var(--mono)}
+.tc span{font:600 9.5px var(--mono);color:var(--mut);letter-spacing:.03em}
+.tc.with b{color:var(--up)}.tc.against b{color:var(--dn)}.tc.flat b{color:#6b7280}.tc.blind b{color:var(--amb)}
+.tc.blind{background:var(--hatch);border:1px dashed #d9a441}
+.tc.zero{opacity:.4}
+.tc.gh{border:1px dashed #c8c5bb;background:#faf9f6}.tc.gh b{color:#b7bbc2}
+.lg{font:500 10px var(--mono);color:#555;padding:4px 10px 5px;min-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:0 8px 8px}
+.tile{position:relative;display:flex;flex-direction:column;justify-content:space-between;height:60px;min-width:0;padding:5px 6px 5px 7px;border-radius:7px;border:1px solid var(--line);border-left:3px solid #c8c5bb;background:#fff;text-align:left}
+.tile .tl,.bc .r1{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.nm{font:700 9px var(--mono);letter-spacing:.08em;color:var(--mut)}
+.mk{font:800 11px/1 var(--mono)}
+.bg{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.bg b,.bc b{font:700 14px/1 var(--mono)}
+.bg i,.bc i{font:500 9.5px var(--mono);font-style:normal;color:var(--mut)}
+.ch{font:500 10.5px var(--sans);color:#4b5563;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-with{background:var(--upbg);border-color:#bfe6d6;border-left-color:var(--up)}.k-with .mk{color:var(--up)}
+.k-against{background:var(--dnbg);border-color:#f6c9cb;border-left-color:var(--dn)}.k-against .mk{color:var(--dn)}
+.k-flat .mk{color:#6b7280}.k-flat .bg b{color:#444}
+.k-blind{background:var(--hatch);border:1px dashed #d9a441;border-left:3px dashed var(--amb)}.k-blind .mk{color:var(--amb)}.k-blind .bg b{color:var(--amb)}.k-blind .ch{color:var(--amb)}
+.tile.gh{border:1px dashed #c8c5bb;border-left:3px dashed #c8c5bb;background:#faf9f6;color:#b7bbc2}
+.tile.gh .bg b{color:#c9cdd3}
+.dim{opacity:.35}
+.chg::after{content:"";position:absolute;top:-3px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--pe);border:1.5px solid #fff}
+.flash .chg{animation:fl 1.5s ease-out}
+
+/* direction B: beam, two columns, shelves */
+.mid-b{padding:7px 8px 3px;overflow:auto;min-height:60px;flex:0 1 auto}
+.beam{display:flex;align-items:center;gap:2px;height:14px}
+.beam i{flex:1;height:12px;border-radius:2px}
+.beam i.with{background:var(--up)}.beam i.against{background:var(--dn)}.beam i.flat{background:#fff;border:1.5px solid #9aa0a6}
+.beam i.blind{background:var(--hatch);border:1px dashed var(--amb)}.beam i.gh{background:#f1f0ec;border:1px dashed #c8c5bb}
+.beam u{width:8px;flex:none}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.col h4{margin:0 0 3px;display:flex;justify-content:space-between;align-items:baseline;font:700 10px var(--mono);letter-spacing:.06em}
+.col h4 b{font:800 17px/1 var(--mono)}
+.col.against h4{color:var(--dn)}.col.with h4{color:var(--up)}.col.gh h4{color:#b7bbc2}
+.col .none{font:500 10.5px var(--sans);color:#a0a5ad;padding:7px 2px}
+.bc{display:block;width:100%;margin:0 0 3px;padding:2px 6px 2px 7px;border-radius:6px;border:1px solid var(--line);border-left:3px solid #c8c5bb;text-align:left;position:relative;line-height:1.2}
+.bc .r1{justify-content:flex-start;align-items:baseline;gap:5px;white-space:nowrap}
+.bc .r1 .nm{flex:none}
+.bc .r1 b{font-size:13px}
+.shelf{display:block;width:100%;margin:5px 0 0;padding:4px 7px;border-radius:6px;text-align:left;font:500 10.5px/1.35 var(--sans);border:1px solid var(--line);background:#fff}
+.shelf>.mk{margin-right:5px}
+.shelf>b{font:700 11px var(--mono);margin-right:5px}
+.shelf>em{font-style:normal;color:var(--mut);font:500 10px var(--mono)}
+.shelf .nms{font:600 10px var(--mono);color:#444;margin-top:2px}
+.shelf.k-blind{border:1px dashed #d9a441}
+.shelf.k-blind .why{margin-top:2px;color:#5b3a05;font:500 11px var(--sans)}
+.shelf.k-blind .why b{font:700 10px var(--mono)}
+
+/* plan rows + ends */
+.plan{padding:6px 8px 0}
+.pr{display:flex;gap:7px;padding:4px 0;border-top:1px solid var(--line)}
+.pr:first-child{border-top:0}
+.pl{flex:none;width:48px;white-space:nowrap;font:800 11px/1.2 var(--mono);padding-top:1px}
+.pl .ce{color:var(--ce)}.pl .pe{color:var(--pe)}
+.pb{min-width:0;flex:1}
+.say{font:600 12px/1.25 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.f{font:500 10px var(--mono);padding:0 4px;border-radius:4px;background:var(--soft);border:1px solid var(--line);white-space:nowrap}
+.f sup{font:700 7.5px var(--mono);color:var(--mut);margin-left:1px}
+.f.blind{background:var(--hatch);border:1px dashed #d9a441;color:var(--amb);font-weight:700}
+.ends{display:flex;gap:8px;align-items:baseline;margin:2px 8px 0;padding:5px 0 0;border-top:1px solid var(--ink);font:500 11px var(--mono);white-space:nowrap;overflow:hidden}
+.ends b{flex:none;font-weight:800;letter-spacing:.06em}
+.ends span{overflow:hidden;text-overflow:ellipsis}
+.ghost{margin:2px 0 0;border:1px dashed #c8c5bb;background:#faf9f6;border-radius:7px;padding:10px;color:#80858d;font:500 11.5px/1.35 var(--sans);text-align:center}
+.ghost b{font-family:var(--mono)}
+.ghost.red{color:var(--stale);border-color:#e7a4a4;background:#fff6f6}
+
+.bar{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);height:40px;border-top:1px solid var(--line);background:var(--soft)}
+.bar button{border:0;background:none;font:700 11px var(--mono);letter-spacing:.05em;position:relative}
+.bar button+button{border-left:1px solid var(--line)}
+.bar button.on{background:var(--ink);color:#fff}
+.bar i{font-style:normal;font:800 9.5px/14px var(--mono);min-width:15px;height:15px;border-radius:99px;display:inline-block;text-align:center;margin-left:4px;padding:0 3px;vertical-align:1px}
+.bar .bd{background:var(--ambbg);color:var(--amb);border:1px dashed #d9a441}
+.bar .bn{background:var(--pe);color:#fff}
+
+.sheet{position:absolute;left:0;right:0;bottom:40px;height:min(330px,62%);background:#fff;border-top:2px solid var(--ink);box-shadow:0 -10px 22px rgba(0,0,0,.12);display:flex;flex-direction:column;z-index:5}
+.sh{flex:none;display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);font:800 11px var(--mono);letter-spacing:.06em}
+.sh button{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:6px;padding:1px 8px;font:700 12px var(--mono)}
+.sb{position:relative;overflow:auto;padding:4px 10px 10px;flex:1}
+.gh2{margin:8px 0 3px;font:800 10.5px var(--mono);letter-spacing:.05em;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.gh2 em{font:500 10px var(--mono);font-style:normal;color:var(--mut);letter-spacing:0}
+.gh2.with{color:var(--up)}.gh2.against{color:var(--dn)}.gh2.flat{color:#555}.gh2.blind{color:var(--amb)}
+.sr{display:flex;gap:8px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);border-left:3px solid #c8c5bb;margin-bottom:3px;font-size:12px;line-height:1.3}
+.sr>b{flex:none;width:58px;font:700 9.5px var(--mono);letter-spacing:.05em;color:var(--mut);padding-top:2px}
+.sr.k-with{background:var(--upbg);border-left-color:var(--up)}
+.sr.k-against{background:var(--dnbg);border-left-color:var(--dn)}
+.sr.k-flat{background:#fff}
+.sr.k-blind{background:var(--hatch);border:1px dashed #d9a441;border-left:3px dashed var(--amb)}
+.sr.hl{outline:2px solid var(--pe)}
+.kv{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.35}
+.kv>b{flex:none;width:52px;font:700 9.5px var(--mono);letter-spacing:.05em;color:var(--mut);padding-top:2px}
+.kv.blindrow{background:var(--hatch)}
+.sn{margin:8px 0 0;font:500 10.5px var(--mono);color:var(--mut)}
+.ev{display:flex;gap:7px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--line);font-size:12px}
+.ev>time{flex:none;font:700 11px var(--mono);width:38px}
+.ev>span.t{flex:none;font:700 9px var(--mono);letter-spacing:.06em;padding:1px 6px;border-radius:99px;background:var(--soft);border:1px solid var(--line);width:48px;text-align:center}
+.ev.nw>time{color:var(--pe)}
+.ev.alert{background:#fff0f0;color:var(--stale);font-weight:600;padding:5px 4px}
+.cmdf{display:flex;gap:6px;margin-top:6px}
+.cmdf input{flex:1;min-width:0;font:500 12px var(--mono);padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.cmdf input:disabled{background:#f1f0ec;color:#9aa0a6}
+.cmdf button{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:7px;padding:0 12px;font:700 13px var(--mono)}
+.cmdf button:disabled{background:#d6d4cc;border-color:#d6d4cc}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.chips span{font:600 10.5px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid var(--line);background:var(--soft)}
+:focus-visible{outline:2px solid var(--pe);outline-offset:1px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Jarvis right panel — two directions</h1>
+  <p class="sub">NIFTY, 3 Nov 2026, from calls_3nov.json. Glance forms and Hinglish chips are written for this mock; every engine sentence behind a tap is verbatim. Mock clock is simulated.</p>
+  <div class="ctl" id="ctl">
+    <span><label>MOMENT</label><span class="grp" id="gM"></span></span>
+    <span><label>STATE</label><span class="grp" id="gS"></span></span>
+    <span><label>MODE</label><span class="grp" id="gMode"></span></span>
+    <span><label>LAPTOP</label><span class="grp" id="gH"></span></span>
+    <span><label>WIDTH</label><span class="grp" id="gW"></span></span>
+  </div>
+  <div class="key">
+    <span><i class="sw" style="background:var(--upbg);color:var(--up);border-color:#bfe6d6">✓</i>with the call (saath)</span>
+    <span><i class="sw" style="background:var(--dnbg);color:var(--dn);border-color:#f6c9cb">✕</i>against the call (ulta)</span>
+    <span><i class="sw" style="background:#fff;color:#6b7280">○</i>flat: checked, found nothing (dekha, kuch nahi)</span>
+    <span><i class="sw" style="background:var(--hatch);color:var(--amb);border:1px dashed #d9a441">?</i>blind: could not check (dekh nahi paaye)</span>
+    <span><i class="sw" style="background:#faf9f6;border:1px dashed #c8c5bb"></i>not shown (hidden on purpose)</span>
+    <span><i class="sw" style="background:var(--pe);border-radius:50%;width:9px;height:9px"></i>changed since the previous moment</span>
+  </div>
+  <div class="stage">
+    <figure><figcaption>A · LAMPS <em>RECOMMENDED</em></figcaption><div class="panel" id="pA"></div><div class="size" id="szA"></div>
+      <div class="notes"><b>ALWAYS VISIBLE</b> strip · call + leg · 4-count · nine lamps · BUY / SELL · ENDS · bar<br><b>ONE TAP</b> lamp or count → READS (engine sentences, grouped) · MORE · STREAM · ⌘</div></figure>
+    <figure><figcaption>B · SCALE <em style="background:#6b7280">ALTERNATIVE</em></figcaption><div class="panel" id="pB"></div><div class="size" id="szB"></div>
+      <div class="notes"><b>ALWAYS VISIBLE</b> strip · call + leg · beam · who is for / against · what is flat (names) · what is blind (reason) · BUY / SELL · ENDS · bar<br><b>ONE TAP</b> any chip or shelf → READS · MORE · STREAM · ⌘</div></figure>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+var D = {"day":"2026-11-03","idx":"NIFTY","note":"NIFTY, 3 Nov 2026 (expiry day), the Jarvis call at five moments, as /api/jarvis's frame carries it (the card /api/jarvis/card carries the same call keys). 14:30 is during the A214 stall: no new call 14:21-15:18, the last call shown was 14:04 WATCH.","moments":{"09:29":{"fut":23667.2,"spot":23619.15,"call":{"at":"09:29","word":"OPENING","state":"OPENING","lean":1,"since":"09:16","count":{"with":3,"against":1,"N":4,"unread":5,"pieces":[{"k":"sides","side":"?","text":"Sides 09:25 CAPPED · both sides writing"},{"k":"wf7","side":"with","text":"writers ±7 UP (CE +43.0L · PE +145.6L / 3 min)"},{"k":"wall_ahead","side":"against","text":"wall ahead 23,600s CE 198L BUILDING"},{"k":"answer","side":"?","text":"no answered push in 15 min"},{"k":"trapped","side":"with","text":"top-2 call writers under water 2/2 · Sides 09:25"},{"k":"fut_oi","side":"?","text":"could not check — fut OI needs 30 min of OI"},{"k":"speed","side":"?","text":"speed ▲ ×0.2 SLOW"},{"k":"all3","side":"with","text":"all 3 ▲ (N +41 · BN +66 · SX +112 / 5 min)"},{"k":"setup","side":"?","text":"no trigger today"}]},"leg":"leg ▲ OPENING 136 pts · 2.3σ · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,670f 09:29","pause":{"line":"OPENING ▲ 136 pts · 2.3σ · no TOOT · fuelled 09:26 · no lean until 100 pts + TOOT"},"how_much":null,"day":"day: legs flipped 0 times so far · fut OI: no 30-min story yet","buyer":"no lean: buy only at her bands (the zone), never mid-range · needs +84 pts today [I ×1.15] · EM left 73 → thin","seller":"no lean: sell outside the band, both sides · IV 27.2 vs RV 12.3 (cal) → rich","expression":null,"wrong_line":"ends: a leg that qualifies — after 10:00 ≥ 80 pts with 1.5σ, a TOOT or fuel; before 10:00 ≥ 100 pts and a TOOT","no_trade":null,"self":null,"missing":null,"up":null,"dn":null,"walls":null,"where":null,"cross":null}},"10:11":{"fut":23641.2,"spot":23611.05,"call":{"at":"10:11","word":"WATCH ▲","state":"HOLD","lean":1,"since":"10:08","count":{"with":0,"against":4,"N":4,"unread":5,"pieces":[{"k":"sides","side":"?","text":"Sides 10:10 FLAT"},{"k":"wf7","side":"?","text":"writers ±7 PAUSED (CE +14.9L · PE +4.6L / 3 min)"},{"k":"wall_ahead","side":"against","text":"wall ahead 23,700s CE 255L BUILDING"},{"k":"answer","side":"?","text":"last answer 10:01 push ▼ 23,600s PE HELD"},{"k":"trapped","side":"?","text":"could not check — Sides 10:10 reads under water on its fuel side only"},{"k":"fut_oi","side":"against","text":"fut OI long unwinding −1,352 lots / 30 min"},{"k":"speed","side":"?","text":"speed ▼ ×0.1 SLOW"},{"k":"all3","side":"against","text":"all 3 ▼ (N −21 · BN −33 · SX −37 / 5 min)"},{"k":"setup","side":"against","text":"her trigger 09:39 SELL 23,656f · 32 min"}]},"leg":"leg ▲ TREND 147 pts · 2.3σ · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,680f 09:48","pause":{"line":"PAUSE ▲ · hold · back inside 1σ (+0.4) after a 2.3σ leg, 0.26 of it given back · 23,650s CE loading +22.7L / 9 min · ATM 23,650s CE bid +0.6 vs delta since 09:56"},"how_much":null,"day":"day: legs flipped 0 times so far · fut OI long unwinding −1,352 lots / 30 min","buyer":"hold the CE, no new one while WATCH · stop = the PALAT line 23,606f · needs +74 pts today [I ×1.15] · EM left 99 → fits","seller":"sell the PE at / beyond 23,600s (23,630f): its writers are the leg's floor · same stop · IV 27.6 vs RV 12.3 (cal) → rich · fold: could not check — the HOLD v2 line is not logged","expression":null,"wrong_line":"PALAT? if back past 23,628f (0.35 of the leg) · PALAT at 23,606f: the lean ends there","no_trade":null,"self":null,"missing":null,"up":null,"dn":null,"walls":null,"where":null,"cross":null}},"12:12":{"fut":23701.5,"spot":23658.25,"call":{"at":"12:12","word":"WATCH ▲","state":"PALAT?","lean":1,"since":"12:12","count":{"with":1,"against":3,"N":4,"unread":5,"pieces":[{"k":"sides","side":"?","text":"Sides 12:10 CAPPED · both sides writing"},{"k":"wf7","side":"?","text":"writers ±7 RISK (CE −28.6L · PE −202.0L / 3 min)"},{"k":"wall_ahead","side":"with","text":"wall ahead 23,700s CE 322L UNWINDING"},{"k":"answer","side":"against","text":"last answer 12:10 push ▼ 23,600s PE BROKEN"},{"k":"trapped","side":"?","text":"could not check — Sides 12:10 reads under water on its fuel side only"},{"k":"fut_oi","side":"?","text":"no 30-min story"},{"k":"speed","side":"against","text":"speed ▼ ×2.5 FAST"},{"k":"all3","side":"against","text":"all 3 ▼ (N −30 · BN −82 · SX −135 / 5 min)"},{"k":"setup","side":"?","text":"last trigger 10:42 SELL 90 min ago (outside its 45 min)"}]},"leg":"leg ▲ TREND 214 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,747f 12:05","pause":{"line":"PALAT? ▲ leg at risk · CE band ahead 23,700–23,800s emptying −30.3L / 9 min · push against TOOT the wall behind 12:10 · 3-min delta against −250 lots · speed FAST against ×2.5 · back inside 1σ (+0.9) after a 2.3σ leg, 0.21 of it given back · ATM 23,700s CE bid +3.5 vs delta since 12:05"},"how_much":null,"day":"day: legs flipped 0 times so far · fut OI: no 30-min story yet","buyer":"no new CE; a CE held tightens to 23,640f (the PALAT line) · needs +56 pts today [I ×1.15] · EM left 38 → thin","seller":"no new PE sale until it holds again · IV 28.1 vs RV 12.3 (cal) → rich","expression":null,"wrong_line":"PALAT? if back past 23,672f (0.35 of the leg) · PALAT at 23,640f: the lean ends there","no_trade":null,"self":null,"missing":null,"up":null,"dn":null,"walls":null,"where":null,"cross":null}},"13:20":{"fut":23772.2,"spot":23717.65,"call":{"at":"13:20","word":"TREND ▲","state":"TREND","lean":1,"since":"13:20","count":{"with":7,"against":0,"N":7,"unread":2,"pieces":[{"k":"sides","side":"with","text":"Sides 13:20 REAL · call writers covering"},{"k":"wf7","side":"with","text":"writers ±7 UP (CE −39.1L · PE +32.0L / 3 min)"},{"k":"wall_ahead","side":"with","text":"wall ahead 23,700s CE 347L UNWINDING"},{"k":"answer","side":"with","text":"last answer 13:16 push ▲ 23,700s CE BROKEN"},{"k":"trapped","side":"with","text":"top-2 call writers under water 2/2 · Sides 13:20"},{"k":"fut_oi","side":"with","text":"fut OI short covering −2,113 lots / 30 min"},{"k":"speed","side":"?","text":"speed ▲ ×0.6 NORMAL"},{"k":"all3","side":"with","text":"all 3 ▲ (N +24 · BN +71 · SX +84 / 5 min)"},{"k":"setup","side":"?","text":"last trigger 10:42 SELL 158 min ago (outside its 45 min)"}]},"leg":"leg ▲ TREND 252 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,785f 13:18","pause":{"line":"TREND ▲ running · 252 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · 23,533f → 23,785f"},"how_much":null,"day":"day: legs flipped 0 times so far · fut OI short covering −2,113 lots / 30 min","buyer":"buy the CE on the pullback, not chased · stop = the PALAT line 23,659f · needs +60 pts today [I ×1.15] · EM left −32 → thin","seller":"sell the PE at / beyond 23,600s (23,655f): its writers are the leg's floor · same stop · IV 28.7 vs RV 12.3 (cal) → rich · fold: could not check — the HOLD v2 line is not logged","expression":null,"wrong_line":"PALAT? if back past 23,697f (0.35 of the leg) · PALAT at 23,659f: the lean ends there","no_trade":null,"self":null,"missing":null,"up":null,"dn":null,"walls":null,"where":null,"cross":null}},"14:30":{"fut":23741.9,"spot":23683.35,"call":{"at":"14:30","word":"WATCH ▲","state":"WATCH","lean":1,"since":"13:56","count":{"with":0,"against":2,"N":2,"unread":7,"pieces":[{"k":"sides","side":"?","text":"Sides 14:30 FLAT"},{"k":"wf7","side":"against","text":"writers ±7 DOWN (CE +20.6L · PE −6.1L / 3 min)"},{"k":"wall_ahead","side":"against","text":"wall ahead 23,700s CE 347L BUILDING"},{"k":"answer","side":"?","text":"no answered push in 15 min"},{"k":"trapped","side":"?","text":"could not check — Sides 14:30 reads under water on its fuel side only"},{"k":"fut_oi","side":"?","text":"no 30-min story"},{"k":"speed","side":"?","text":"speed ▼ ×0.1 SLOW"},{"k":"all3","side":"?","text":"3 indices mixed (N +9 · BN −11 · SX +7 / 5 min)"},{"k":"setup","side":"?","text":"last trigger 13:42 SELL 48 min ago (outside its 45 min)"}]},"leg":"leg ▲ TREND 267 pts · 2.3σ · TOOT 10:34 · fuelled 09:26 · origin 23,533f 09:15 · extreme 23,800f 13:41","pause":{"line":"PAUSE ▲ · watch · 1 risk · back inside 1σ (+0.9) after a 2.3σ leg, 0.22 of it given back · 23,700s CE loading +45.0L / 9 min"},"how_much":null,"day":"day: legs flipped 0 times so far · fut OI: no 30-min story yet","buyer":"hold the CE, no new one while WATCH · stop = the PALAT line 23,666f · needs +? (could not check — no ATM premium at 14:30) pts today [I ×1.15] · EM left −2","seller":"sell the PE at / beyond 23,600s (23,656f): its writers are the leg's floor · same stop · IV ? vs RV ? (could not check — no ATM IV at 14:30) · fold: could not check — the HOLD v2 line is not logged","expression":null,"wrong_line":"PALAT? if back past 23,706f (0.35 of the leg) · PALAT at 23,666f: the lean ends there","no_trade":null,"self":null,"missing":null,"up":null,"dn":null,"walls":null,"where":null,"cross":null}}}};
+var $ = function(s,r){return (r||document).querySelector(s);};
+var $$ = function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+var esc = function(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});};
+var MOM = Object.keys(D.moments);
+var PO = ["sides","wf7","wall_ahead","answer","trapped","fut_oi","speed","all3","setup"];
+var PN = {sides:"SIDES",wf7:"WRITERS",wall_ahead:"WALL",answer:"PUSH",trapped:"TRAPPED",fut_oi:"FUT OI",speed:"SPEED",all3:"ALL 3",setup:"ZONE"};
+var MK = {"with":"✓",against:"✕",flat:"○",blind:"?"};
+var toM = function(hm){return +hm.slice(0,2)*60 + +hm.slice(3,5);};
+var pad = function(n){return String(n).padStart(2,"0");};
+var hms = function(s){return pad(Math.floor(s/3600))+":"+pad(Math.floor(s/60)%60)+":"+pad(s%60);};
+// the three sentences: with/against are the engine's votes; a "?" is BLIND only when the engine says "could not check", else FLAT
+var kind = function(p){return p.side==="with"||p.side==="against" ? p.side : /^could not check/i.test(p.text) ? "blind" : "flat";};
+
+// glance forms: piece [big, sub, hinglish chip]; leg [pts, sigma, from, to]; buy/sell [say, facts]; fact flag i = inferred, b = blind
+var G = {
+"09:29":{no:1,leg:["136","2.3σ","23,533f","23,670f"],
+ p:{sides:["CAPPED","","dono likh rahe"],wf7:["PE +146L","","PE likh rahe"],wall_ahead:["23,600s","198L","deewar ban rahi"],answer:["—","","koi push nahi"],trapped:["2/2","","phanse"],fut_oi:["?","","30m OI chahiye"],speed:["×0.2","","dheema"],all3:["3/3 ▲","","teeno upar"],setup:["—","","aaj setup nahi"]},
+ buy:["only at her bands, never mid-range",[["needs +84","i"],["EM 73 thin"]]],
+ sell:["outside the band, both sides",[["IV 27.2 vs RV 12.3 rich"]]],
+ ends:"a leg ≥100 pts + TOOT"},
+"10:11":{leg:["147","2.3σ","23,533f","23,680f"],
+ p:{sides:["FLAT","","barabar"],wf7:["PAUSED","","likhna ruka"],wall_ahead:["23,700s","255L","deewar ban rahi"],answer:["HELD","10:01","PE tika 23,600s"],trapped:["?","","ek side hi dikhi"],fut_oi:["−1,352","","long nikal rahe"],speed:["×0.1","","dheema"],all3:["3/3 ▼","","teeno neeche"],setup:["SELL","09:39","32 min pehle"]},
+ buy:["hold the CE · no new one",[["stop 23,606f"],["needs +74","i"],["EM 99 fits"]]],
+ sell:["sell PE at 23,600s or beyond",[["23,630f"],["same stop"],["IV 27.6 rich"],["fold ?","b"]]],
+ ends:"PALAT? past 23,628f · PALAT 23,606f"},
+"12:12":{leg:["214","2.3σ","23,533f","23,747f"],
+ p:{sides:["CAPPED","","dono likh rahe"],wf7:["RISK","PE −202L","PE bhaag rahe"],wall_ahead:["23,700s","322L","deewar ghat rahi"],answer:["BROKEN","12:10","PE 23,600s tooti"],trapped:["?","","ek side hi dikhi"],fut_oi:["—","","30m kahani nahi"],speed:["×2.5","","tez ▼"],all3:["3/3 ▼","","teeno neeche"],setup:["SELL","10:42","90 min purana"]},
+ buy:["no new CE · held CE tightens",[["tighten 23,640f"],["needs +56","i"],["EM 38 thin"]]],
+ sell:["no new PE sale until it holds",[["IV 28.1 rich"]]],
+ ends:"PALAT? past 23,672f · PALAT 23,640f"},
+"13:20":{leg:["252","2.3σ","23,533f","23,785f"],
+ p:{sides:["REAL","","CE bhaag rahe"],wf7:["PE +32L","","CE bhaag −39L"],wall_ahead:["23,700s","347L","deewar ghat rahi"],answer:["BROKEN","13:16","CE 23,700s tooti"],trapped:["2/2","","phanse"],fut_oi:["−2,113","","short kat rahe"],speed:["×0.6","","normal"],all3:["3/3 ▲","","teeno upar"],setup:["SELL","10:42","158 min purana"]},
+ buy:["buy CE on pullback, not chased",[["stop 23,659f"],["needs +60","i"],["EM −32 thin"]]],
+ sell:["sell PE at 23,600s or beyond",[["23,655f"],["same stop"],["IV 28.7 rich"],["fold ?","b"]]],
+ ends:"PALAT? past 23,697f · PALAT 23,659f"},
+"14:30":{leg:["267","2.3σ","23,533f","23,800f"],
+ p:{sides:["FLAT","","barabar"],wf7:["CE +20.6L","","CE likh rahe"],wall_ahead:["23,700s","347L","deewar ban rahi"],answer:["—","","koi push nahi"],trapped:["?","","ek side hi dikhi"],fut_oi:["—","","30m kahani nahi"],speed:["×0.1","","dheema"],all3:["MIXED","","teeno alag"],setup:["SELL","13:42","48 min purana"]},
+ buy:["hold the CE · no new one",[["stop 23,666f"],["needs ?","b"],["EM −2"]]],
+ sell:["sell PE at 23,600s or beyond",[["23,656f"],["same stop"],["IV ?","b"],["fold ?","b"]]],
+ ends:"PALAT? past 23,706f · PALAT 23,666f"}
+};
+// stream: every row is a time the data itself names (leg text, call "since", setup and answer pieces)
+var EV = [["09:15","LEG","leg starts · origin 23,533f"],["09:16","CALL","OPENING"],["09:26","FUEL","leg fuelled"],["09:29","LEG","extreme 23,670f"],["09:39","ZONE","her trigger SELL 23,656f"],["09:48","LEG","new extreme 23,680f"],["10:01","PUSH","▼ 23,600s PE HELD"],["10:08","CALL","WATCH ▲ · HOLD"],["10:34","TOOT","TOOT on the leg"],["10:42","ZONE","her trigger SELL"],["12:05","LEG","new extreme 23,747f"],["12:10","PUSH","▼ 23,600s PE BROKEN"],["12:12","CALL","WATCH ▲ · PALAT?"],["13:16","PUSH","▲ 23,700s CE BROKEN"],["13:18","LEG","new extreme 23,785f"],["13:20","CALL","TREND ▲"],["13:41","LEG","new extreme 23,800f"],["13:42","ZONE","her trigger SELL"],["13:56","CALL","WATCH ▲"]];
+
+var S = {sel:"12:12", mode:"live", flash:false, t0:Date.now()};
+var panels = [];
+
+function view(){
+  if(S.sel==="WAIT") return {mode:"wait"};
+  if(S.sel==="STALE") return {mode:"stale"};
+  var i = MOM.indexOf(S.sel), m = D.moments[S.sel], c = m.call, v = {mode:S.mode, id:S.sel, c:c, g:G[S.sel], prev:i>0?MOM[i-1]:null};
+  v.arrow = c.lean>0?"▲":c.lean<0?"▼":"";
+  var Q = v.prev ? D.moments[v.prev].call.count.pieces : null;
+  v.pcs = PO.map(function(k){
+    var p = c.count.pieces.filter(function(x){return x.k===k;})[0], kd = kind(p), g = v.g.p[k];
+    var q = Q && Q.filter(function(x){return x.k===k;})[0];
+    return {k:k,name:PN[k],kind:kd,text:p.text,big:kd==="blind"?"BLIND":g[0],sub:g[1],chip:g[2],chg:!!q&&kind(q)!==kd};
+  });
+  v.n = {"with":0,against:0,flat:0,blind:0};
+  v.pcs.forEach(function(p){v.n[p.kind]++;});
+  return v;
+}
+function unreadEv(v){
+  if(!v.id) return 0;
+  var lo = v.prev ? toM(v.prev) : -1, hi = toM(v.id);
+  return EV.filter(function(e){return toM(e[0])>lo && toM(e[0])<=hi;}).length;
+}
+
+/* ---------- shared pieces ---------- */
+function strip(v){
+  if(v.mode==="live") return '<div class="strip"><i class="dot"></i><b>LIVE</b><span>read '+v.c.at+' · <em data-t="age"></em> ago</span><span class="r">next <em data-t="next"></em></span><u class="pg" data-t="pg"></u></div>';
+  if(v.mode==="replay") return '<div class="strip"><b>REPLAY</b><span>3 Nov · read '+v.c.at+'</span><span class="r">recorded, not today</span></div>';
+  if(v.mode==="stale") return '<div class="strip"><i class="dot"></i><b><em data-t="smin"></em> MIN OLD</b><span>last read 14:04</span><span class="r">now <em data-t="snow"></em></span></div>';
+  return '<div class="strip"><i class="dot" style="animation:none"></i><b>NO FRAME YET</b><span><em data-t="wnow"></em></span><span class="r">opens 09:15 · <em data-t="wopen"></em></span></div>';
+}
+function callCard(v){
+  if(v.mode==="wait") return '<div class="call"><div class="w"><b class="g">—</b><span class="pill g">NO FRAME</span><span class="since">first read ~09:16</span></div><div class="leg"><span class="g">pre-open · nothing is read yet</span></div></div>';
+  if(v.mode==="stale") return '<div class="call"><div class="w"><b class="g">WATCH ▲</b><span class="pill red">STALE</span><span class="since">last read 14:04</span></div><div class="leg"><span class="red"><b><em data-t="smin"></em> min old</b> · no read since</span></div></div>';
+  var c = v.c, col = c.lean>0?"up":c.lean<0?"dn":"g", dur = toM(c.at)-toM(c.since), L = v.g.leg;
+  var pill = c.state && c.word.replace(/\s*[▲▼]/,"")!==c.state ? '<span class="pill">'+esc(c.state)+'</span>' : "";
+  return '<div class="call"><div class="w"><b class="'+col+'">'+esc(c.word)+'</b>'+pill+'<span class="since">since '+c.since+(dur>0?' · '+dur+' min':'')+'</span></div>'
+    +'<div class="leg"><span>LEG '+v.arrow+' '+L[0]+' pts · '+L[1]+'</span><span>'+L[2]+' → '+L[3]+'</span></div></div>';
+}
+function planHTML(v){
+  if(v.mode==="wait") return '<div class="plan"><div class="ghost">no plan until the first read</div></div>';
+  if(v.mode==="stale") return '<div class="plan"><div class="ghost red"><b>plan not shown</b> · the call is <em data-t="smin" style="font-style:normal"></em> min old</div></div>';
+  var g = v.g, up = v.c.lean>0, dn = v.c.lean<0;
+  var lb = g.no ? ["BUY","SELL"] : up ? ['BUY <span class="ce">CE</span>','SELL <span class="pe">PE</span>'] : dn ? ['BUY <span class="pe">PE</span>','SELL <span class="ce">CE</span>'] : ["BUY","SELL"];
+  var row = function(l,d){return '<div class="pr"><div class="pl">'+l+'</div><div class="pb"><div class="say" title="'+esc(d[0])+'">'+esc(d[0])+'</div><div class="fx">'
+    +d[1].map(function(f){return '<span class="f'+(f[1]==="b"?" blind":"")+'">'+esc(f[0])+(f[1]==="i"?"<sup>I</sup>":"")+'</span>';}).join("")+'</div></div></div>';};
+  return '<div class="plan">'+row(lb[0],g.buy)+row(lb[1],g.sell)+'</div><div class="ends"><b>ENDS</b><span title="'+esc(g.ends)+'">'+esc(g.ends)+'</span></div>';
+}
+function barHTML(v,p){
+  var blind = v.n ? v.n.blind : 0, un = v.id && !p.seen[v.id] ? unreadEv(v) : 0, on = function(s){return p.sheet===s?' class="on"':"";};
+  return '<div class="bar"><button data-s="reads"'+on("reads")+'>READS'+(blind?'<i class="bd">?'+blind+'</i>':'')+'</button><button data-s="more"'+on("more")+'>MORE</button>'
+    +'<button data-s="stream"'+on("stream")+'>STREAM'+(un?'<i class="bn">'+un+'</i>':'')+'</button><button data-s="cmd"'+on("cmd")+'>⌘</button></div>';
+}
+
+/* ---------- direction A: tally + nine lamps ---------- */
+function midA(v){
+  if(v.mode==="wait"||v.mode==="stale"){
+    var msg = v.mode==="stale" ? 'last frame 14:04 · held back' : 'the nine reads appear after the first minute';
+    return '<div class="tally">'+["✓","✕","○","?"].map(function(m){return '<div class="tc gh"><b>–</b><span>'+m+'</span></div>';}).join("")+'</div><div class="lg">'+msg+'</div>'
+      +'<div class="grid">'+PO.map(function(k){return '<div class="tile gh"><div class="tl"><span class="nm">'+PN[k]+'</span></div><div class="bg"><b>·</b></div></div>';}).join("")+'</div>';
+  }
+  var ar = v.arrow, n = v.n;
+  var T = [["with","✓ "+n["with"],"with "+ar],["against","✕ "+n.against,"against "+ar],["flat","○ "+n.flat,"flat"],["blind","? "+n.blind,"blind"]];
+  var lg = []; if(n.flat) lg.push("flat = dekha, kuch nahi"); if(n.blind) lg.push("blind = dekh nahi paaye");
+  return '<div class="tally">'+T.map(function(t){return '<button class="tc '+t[0]+(n[t[0]]?"":" zero")+'" data-k="'+t[0]+'"><b>'+t[1]+'</b><span>'+t[2]+'</span></button>';}).join("")+'</div>'
+    +'<div class="lg">'+(lg.join(" · ")||"every read took a side")+'</div>'
+    +'<div class="grid">'+v.pcs.map(function(p){
+      return '<button class="tile k-'+p.kind+(p.chg?" chg":"")+'" data-p="'+p.k+'" title="'+esc(p.name+": "+p.text+(p.chg?"\n(changed since "+v.prev+")":""))+'"><div class="tl"><span class="nm">'+p.name+'</span><span class="mk">'+MK[p.kind]+'</span></div>'
+        +'<div class="bg"><b>'+esc(p.big)+'</b>'+(p.sub?'<i>'+esc(p.sub)+'</i>':'')+'</div><div class="ch">'+esc(p.chip)+'</div></button>';
+    }).join("")+'</div>';
+}
+
+/* ---------- direction B: beam, two columns, shelves ---------- */
+function midB(v){
+  if(v.mode==="wait"||v.mode==="stale"){
+    var msg = v.mode==="stale" ? 'evidence is <span data-t="smin"></span> min old · not shown' : 'no reads yet';
+    return '<div class="mid-b"><div class="beam">'+PO.map(function(){return '<i class="gh"></i>';}).join("")+'</div><div class="cols"><div class="col gh"><h4><span>✕ AGAINST</span><b>–</b></h4><div class="none">not shown</div></div><div class="col gh"><h4><span>✓ WITH</span><b>–</b></h4><div class="none">not shown</div></div></div><div class="shelf" style="border-style:dashed;color:#80858d;background:#faf9f6">'+msg+'</div></div>';
+  }
+  var n = v.n, ar = v.arrow, by = function(k){return v.pcs.filter(function(p){return p.kind===k;});};
+  var beam = ["against","flat","with"].map(function(k){return by(k).map(function(){return '<i class="'+k+'"></i>';}).join("");}).join("")+(n.blind?'<u></u>'+by("blind").map(function(){return '<i class="blind"></i>';}).join(""):"");
+  var chip = function(p){return '<button class="bc k-'+p.kind+(p.chg?" chg":"")+'" data-p="'+p.k+'" title="'+esc(p.name+": "+p.text)+'"><div class="r1"><span class="nm">'+p.name+'</span><b>'+esc(p.big)+'</b>'+(p.sub?'<i>'+esc(p.sub)+'</i>':'')+'</div><div class="ch">'+esc(p.chip)+'</div></button>';};
+  var col = function(k,lab){return '<div class="col '+k+'"><h4><span>'+lab+' '+ar+'</span><b>'+n[k]+'</b></h4>'+(by(k).map(chip).join("")||'<div class="none">none</div>')+'</div>';};
+  var flat = by("flat"), blind = by("blind");
+  var sh = "";
+  if(flat.length) sh += '<button class="shelf k-flat" data-k="flat"><span class="mk">○</span><b>'+flat.length+' flat</b><em>dekha, kuch nahi</em><div class="nms">'+flat.map(function(p){return p.name+(p.big!=="—"?" "+p.big:"");}).join(" · ")+'</div></button>';
+  if(blind.length) sh += '<button class="shelf k-blind" data-k="blind"><span class="mk">?</span><b>'+blind.length+' blind</b><em>dekh nahi paaye</em>'+blind.map(function(p){var r=p.text.replace(/^could not check — /i,"");if(r.toLowerCase().indexOf(p.name.toLowerCase()+" ")===0)r=r.slice(p.name.length+1);return '<div class="why"><b>'+p.name+'</b> '+esc(r)+'</div>';}).join("")+'</button>';
+  return '<div class="mid-b"><div class="beam" title="against | flat | with — blind sits apart">'+beam+'</div><div class="cols">'+col("against","✕ AGAINST")+col("with","✓ WITH")+'</div>'+sh+'</div>';
+}
+
+/* ---------- sheets (one tap away) ---------- */
+function sheetHTML(v,p){
+  var title = {reads:"READS",more:"MORE",stream:"STREAM",cmd:"COMMAND"}[p.sheet], body = "";
+  var off = v.mode==="stale" ? "the last frame is <span data-t=smin></span> min old, so it is held back" : "no frame yet";
+  if(p.sheet==="reads"){
+    if(!v.pcs) body = '<div class="sn">no reads: '+off+'.</div>';
+    else {
+      [["with","✓ WITH "+v.arrow,"agrees with the call"],["against","✕ AGAINST "+v.arrow,"disagrees with the call"],["flat","○ FLAT","checked, found nothing · dekha, kuch nahi"],["blind","? BLIND","could not check · dekh nahi paaye"]].forEach(function(g){
+        var L = v.pcs.filter(function(x){return x.kind===g[0];}); if(!L.length) return;
+        body += '<div class="gh2 '+g[0]+'" data-g="'+g[0]+'">'+g[1]+' · '+L.length+'<em>'+g[2]+'</em></div>'+L.map(function(x){return '<div class="sr k-'+x.kind+(p.pk===x.k?" hl":"")+'" data-row="'+x.k+'"><b>'+x.name+'</b><span>'+esc(x.text)+'</span></div>';}).join("");
+      });
+    }
+  } else if(p.sheet==="more"){
+    if(!v.id) body = '<div class="sn">nothing to show: '+off+'.</div>';
+    else {
+      var c = v.c, rows = [["LEG",c.leg],["PAUSE",c.pause&&c.pause.line],["DAY",c.day],["BUYER",c.buyer],["SELLER",c.seller],["ENDS",c.wrong_line]];
+      body = rows.filter(function(r){return r[1];}).map(function(r){return '<div class="kv"><b>'+r[0]+'</b><span>'+esc(r[1])+'</span></div>';}).join("");
+      var none = [["how much",c.how_much],["no-trade",c.no_trade],["self",c.self],["missing",c.missing]].filter(function(x){return !x[1];}).map(function(x){return x[0];});
+      body += '<div class="sn">engine sent nothing for: '+none.join(" · ")+'</div>';
+    }
+  } else if(p.sheet==="stream"){
+    var hi = v.id ? toM(v.id) : v.mode==="stale" ? toM("14:04") : -1, lo = v.prev ? toM(v.prev) : -1;
+    var L2 = EV.filter(function(e){return toM(e[0])<=hi;}).reverse();
+    body = (v.mode==="stale" ? '<div class="ev alert"><time>14:30</time><span>no read since 14:04 — feed late</span></div>' : "")
+      + (v.mode==="wait" ? '<div class="sn">no events yet. First read ~09:16.</div>' : "")
+      + L2.map(function(e){return '<div class="ev'+(v.id&&toM(e[0])>lo?" nw":"")+'"><time>'+e[0]+'</time><span class="t">'+e[1]+'</span><span>'+esc(e[2])+'</span></div>';}).join("");
+  } else {
+    var live = v.mode==="live" || v.mode==="stale";
+    body = '<form class="cmdf" data-f="1"><input id="cin_'+p.dir+'" '+(live?'':'disabled ')+'placeholder="'+(live?"line 22750f · watch 22800s · why?":"commands are off in replay")+'" autocomplete="off"><button '+(live?'':'disabled')+'>→</button></form>'
+      + (v.mode==="wait" ? '<div class="sn">commands wait for the first read.</div>' : '')
+      + '<div class="chips"><span>why?</span><span>what next?</span><span>line 22750f</span><span>watch 22800s</span><span>help</span></div>'
+      + (p.echo ? '<div class="sn">mock: "'+esc(p.echo)+'" not sent — this page has no server.</div>' : '');
+  }
+  return '<div class="sheet"><div class="sh">'+title+'<button data-x="1" aria-label="close">✕</button></div><div class="sb">'+body+'</div></div>';
+}
+
+function render(p){
+  var v = view(); p.v = v;
+  p.el.className = "panel m-"+v.mode+(S.flash?" flash":"");
+  p.el.innerHTML = strip(v)+callCard(v)+(p.dir==="A"?midA(v):midB(v))+planHTML(v)+barHTML(v,p)+(p.sheet?sheetHTML(v,p):"");
+  if(p.sheet==="stream" && v.id) p.seen[v.id] = true;
+  if(p.sheet==="reads"){
+    var sb = $(".sb",p.el), t = p.pk && (p.pk.indexOf("g:")===0 ? $('[data-g="'+p.pk.slice(2)+'"]',sb) : $('[data-row="'+p.pk+'"]',sb));
+    if(t && sb) sb.scrollTop = Math.max(0,t.offsetTop-(sb.clientHeight-t.offsetHeight)/2);
+  }
+  var sz = $("#sz"+p.dir); if(sz) sz.textContent = p.el.offsetWidth+" × "+p.el.offsetHeight+" px"+(p.el.querySelector(".mid-b")&&p.el.querySelector(".mid-b").scrollHeight>p.el.querySelector(".mid-b").clientHeight+1?" · middle band scrolls":"");
+  tick();
+}
+function renderAll(flash){ S.flash = !!flash; panels.forEach(render); S.flash = false; }
+
+function tick(){
+  var s = Math.floor((Date.now()-S.t0)/1000), age = 4 + s%56;
+  var now = 14*3600+30*60+s, smin = Math.floor((now-(14*3600+4*60))/60), wn = 8*3600+50*60+s, wo = 9*3600+15*60-wn;
+  $$("[data-t]").forEach(function(e){
+    var k = e.dataset.t;
+    if(k==="age") e.textContent = age+"s";
+    else if(k==="next") e.textContent = "0:"+pad(60-age);
+    else if(k==="pg") e.style.width = (age/60*100)+"%";
+    else if(k==="smin") e.textContent = smin;
+    else if(k==="snow") e.textContent = hms(now);
+    else if(k==="wnow") e.textContent = hms(wn);
+    else if(k==="wopen") e.textContent = "in "+Math.floor(wo/60)+":"+pad(wo%60);
+  });
+}
+
+/* ---------- wiring ---------- */
+["A","B"].forEach(function(d){panels.push({dir:d,el:$("#p"+d),sheet:null,pk:null,seen:{},echo:""});});
+panels.forEach(function(p){
+  p.el.addEventListener("click",function(e){
+    var b = e.target.closest("[data-p],[data-k],[data-s],[data-x]"); if(!b || !p.el.contains(b)) return;
+    if(b.dataset.x) p.sheet = null;
+    else if(b.dataset.p){ p.sheet = "reads"; p.pk = b.dataset.p; }
+    else if(b.dataset.k){ p.sheet = "reads"; p.pk = "g:"+b.dataset.k; }
+    else { p.sheet = p.sheet===b.dataset.s ? null : b.dataset.s; p.pk = null; }
+    render(p);
+  });
+  p.el.addEventListener("submit",function(e){
+    e.preventDefault(); var i = $("input",p.el); p.echo = i && i.value || "(empty)"; render(p);
+  });
+});
+function group(id,items,cur,fn){
+  var g = $("#"+id); g.innerHTML = items.map(function(it){return '<button data-v="'+it[0]+'"'+(it[2]?" disabled":"")+'>'+it[1]+'</button>';}).join("");
+  $$("button",g).forEach(function(b){b.classList.toggle("on",b.dataset.v===String(cur));b.onclick=function(){fn(b.dataset.v);};});
+}
+function controls(){
+  var special = S.sel==="STALE"||S.sel==="WAIT";
+  group("gM",MOM.map(function(m){return [m,m];}),special?"":S.sel,function(v){S.sel=v;controls();renderAll(true);});
+  group("gS",[["STALE","STALE 14:04 @ 14:30"],["WAIT","NO FRAME 08:50"]],special?S.sel:"",function(v){S.sel=v;controls();renderAll(false);});
+  group("gMode",[["live","LIVE"],["replay","REPLAY"]].map(function(x){return x.concat([special]);}),S.mode,function(v){S.mode=v;controls();renderAll(false);});
+  group("gH",[["590","590 · 1366×768"],["700","700 · 1440×900"]],document.documentElement.style.getPropertyValue("--H").replace("px","")||"590",function(v){document.documentElement.style.setProperty("--H",v+"px");controls();renderAll(false);});
+  group("gW",[["330","330"],["350","350"],["360","360"]],document.documentElement.style.getPropertyValue("--W").replace("px","")||"350",function(v){document.documentElement.style.setProperty("--W",v+"px");controls();renderAll(false);});
+}
+document.addEventListener("keydown",function(e){
+  var i = MOM.indexOf(S.sel); if(i<0 || /INPUT|TEXTAREA/.test((e.target||{}).tagName||"")) return;
+  if(e.key==="ArrowRight"&&i<MOM.length-1){S.sel=MOM[i+1];controls();renderAll(true);}
+  if(e.key==="ArrowLeft"&&i>0){S.sel=MOM[i-1];controls();renderAll(true);}
+});
+// self-check against the engine's own counts
+MOM.forEach(function(m){
+  var c = D.moments[m].call, P = c.count.pieces.map(kind), cnt = function(k){return P.filter(function(x){return x===k;}).length;};
+  if(cnt("with")!==c.count.with || cnt("against")!==c.count.against || cnt("flat")+cnt("blind")!==c.count.unread) console.error("count mismatch at "+m);
+});
+controls(); renderAll(false);
+setInterval(tick,1000);
+})();
+</script>
+</body>
+</html>

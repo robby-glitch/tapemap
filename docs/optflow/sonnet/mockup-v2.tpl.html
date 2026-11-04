@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ONE READ: Jarvis + option flow - mockup v2 (real data, NIFTY)</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14181f;--mut:#6b7380;--line:#dfe3ea;--up:#0f7b45;--upb:#e2f4ea;--dn:#b42318;--dnb:#fde8e6;--wr:#3b4fc4;--wrb:#e8ebfb;--co:#c2410c;--cob:#fdeadd;--du:#7a5a2b;--dub:#f3ebdd;--qu:#8a929e;--amb:#a15c00;--vio:#6d3fc4;--hatch:repeating-linear-gradient(135deg,#eceef2,#eceef2 3px,#fff 3px,#fff 6px);--hatchA:repeating-linear-gradient(135deg,#fbe9c6,#fbe9c6 3px,#fff 3px,#fff 6px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.35 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.top{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:7px 14px;display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.top h1{font-size:14px;margin:0 6px 0 0}
+.top select,.top button{font:inherit;padding:3px 9px;border:1px solid var(--line);background:#fff;border-radius:5px;cursor:pointer}
+.top button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.top input[type=range]{flex:1;min-width:200px}
+.clock{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;min-width:50px}
+.tiny{font-size:10.5px;color:var(--mut)}.dim{color:var(--mut)}
+main{padding:12px 14px}
+.wrap{display:flex;gap:14px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.card{width:440px;background:var(--card);border:1px solid #b9c0cc;border-radius:10px;box-shadow:0 4px 18px rgba(20,24,31,.1);overflow:hidden}
+.card.replay{border-style:dashed;border-color:var(--vio)}
+.fresh{display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:11px;background:#f1edf9;color:var(--vio);font-weight:600}
+.fresh.live{background:#e6f4ec;color:var(--up)}
+.fresh .sp{margin-left:auto;font-weight:500;color:var(--mut);font-variant-numeric:tabular-nums}
+.sec{padding:7px 10px;border-top:1px solid #eef0f3}
+.sec:first-of-type{border-top:0}
+.call{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.word{font-size:25px;font-weight:800;letter-spacing:.01em}
+.word.u{color:var(--up)}.word.d{color:var(--dn)}.word.z{color:var(--qu)}
+.since{font-size:11.5px;color:var(--mut)}
+.chip{display:inline-block;border-radius:10px;padding:1px 7px;font-weight:600;font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums;border:1px solid transparent}
+.c-WRITE{background:var(--wrb);color:var(--wr)}.c-BUY{background:var(--upb);color:var(--up)}
+.c-COVER{background:var(--cob);color:var(--co);border-color:var(--co)}.c-DUMP{background:var(--dub);color:var(--du)}
+.c-QUIET,.c-MIXED{background:#f0f2f5;color:var(--qu);font-weight:500}.c-OI\?{background:var(--hatch);color:var(--mut)}
+.soft{border-style:dashed;border-color:currentColor}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;background:#fff;white-space:nowrap}
+.pill.ok{border-color:var(--up);color:var(--up)}.pill.bad{border-color:var(--dn);color:var(--dn);font-weight:700}
+.pill.warn{border-color:var(--amb);color:var(--amb);background:#fff8e8}
+.pill.hot{border-color:var(--co);color:var(--co);font-weight:700;background:var(--cob)}
+.pill.blind{background:var(--hatchA);border:1px dashed var(--amb);color:var(--amb)}
+.pill.nd{background:var(--hatch);color:var(--mut);border-style:dashed}
+/* vote pips */
+.pips{display:flex;gap:4px;align-items:center;margin-top:4px}
+.pip{width:20px;height:14px;border-radius:3px}
+.pip.w{background:var(--up)}.pip.a{background:var(--dn)}
+.pip.f{background:#fff;border:2px solid var(--qu)}
+.pip.b{background:var(--hatchA);border:2px dashed var(--amb)}
+.pip.q{background:var(--hatch);border:2px dashed var(--qu)}
+.pipn{margin-left:8px;font-size:11.5px}
+/* lanes */
+.lanes{margin-top:4px}
+.lane{display:flex;gap:2px;align-items:center;height:17px}
+.lane .ln{width:46px;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+.lane .cs{display:flex;gap:2px;flex:1}
+.lc{flex:1;height:13px;border-radius:2px;background:#fff;border:1px solid var(--line);position:relative;cursor:pointer;min-width:3px}
+.lc.u{background:var(--up);border-color:var(--up)}.lc.d{background:var(--dn);border-color:var(--dn)}
+.lc.z{background:#fff;border:1.5px solid var(--qu)}
+.lc.n{background:var(--hatch);border:1px dashed var(--qu)}
+.lc.cur{outline:2px solid var(--ink);outline-offset:1px;z-index:1}
+.lc.dis{box-shadow:0 0 0 2px #fff,0 0 0 4px #14181f;z-index:1}
+.ev3 .lc{height:9px}
+.lc.e1{background:var(--co);border-color:var(--co)}.lc.e2{background:#d4456b;border-color:#d4456b}.lc.e3{background:#e0b400;border-color:#e0b400}
+.verdict{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:7px}
+/* dots */
+.dots{position:relative;margin-top:2px}
+.dr{display:flex;height:22px;align-items:center}
+.dr .dl{width:22px;font-size:10px;color:var(--mut)}
+.dc{flex:1;display:flex;justify-content:center;align-items:center;position:relative}
+.dot{border-radius:50%;display:block}
+.dot.na{border-radius:2px;background:var(--hatch);border:1px dashed var(--qu)}
+.kr{display:flex;margin-left:22px}.kr span{flex:1;text-align:center;font-size:9.5px;color:var(--mut)}.kr span.atm{font-weight:700;color:var(--ink)}
+.spotm{position:absolute;top:0;bottom:0;width:0;border-left:2px solid var(--ink);pointer-events:none}
+.spotm i{position:absolute;top:-2px;left:3px;font-style:normal;font-size:9.5px;background:var(--ink);color:#fff;border-radius:6px;padding:0 4px;white-space:nowrap}
+.wb{position:absolute;height:3px;border-radius:2px}
+.line{font-size:12px}
+.line b{font-variant-numeric:tabular-nums}
+.more{display:flex;gap:5px;padding:6px 10px;border-top:1px solid #eef0f3;background:#fafbfc;flex-wrap:wrap}
+.more button{font:inherit;font-size:11.5px;padding:2px 9px;border:1px solid var(--line);background:#fff;border-radius:12px;cursor:pointer}
+.more button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.more button .bd{display:inline-block;min-width:14px;padding:0 3px;margin-left:3px;border-radius:7px;background:var(--hatchA);border:1px dashed var(--amb);color:var(--amb);font-size:10px}
+.panel{width:100%}
+.box{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px}
+.box h3{margin:0 0 5px;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}
+.right{width:560px;max-width:100%}
+table.lad{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:12px}
+.lad th{font-size:10px;text-transform:uppercase;color:var(--mut);padding:3px;border-bottom:1px solid var(--line);font-weight:600}
+.lad td{padding:3px 5px;border-bottom:1px solid #eef0f3;white-space:nowrap}
+.lad td.k{text-align:center;font-weight:700;background:#fafbfc}.lad td.k small{display:block;font-weight:400;color:var(--mut);font-size:10px}
+.lad tr.atm td.k{background:#fff3c4}
+.lad td.l{text-align:right}
+.lad td.nad{background:var(--hatch);color:var(--mut);text-align:center;font-size:11px}
+.lad tr.spot td{padding:0;height:0;border-bottom:2px solid var(--ink);position:relative}
+.lad tr.spot td div{position:absolute;left:4px;top:-8px;background:var(--ink);color:#fff;font-size:10px;padding:0 6px;border-radius:8px}
+.mk{display:inline-block;border-radius:4px;padding:0 4px;font-size:10.5px;font-weight:700;background:#fff7d6;border:1px solid #e0c34a;color:#6b5400}
+.mk.big{background:#ffe3ea;border-color:#d4456b;color:#8d1237}
+.ev{display:grid;grid-template-columns:42px 1fr;gap:6px;padding:2px 0;border-bottom:1px solid #f0f2f5;font-size:12px}
+.ev b{color:var(--mut);font-weight:600;font-variant-numeric:tabular-nums}
+.pc{display:grid;grid-template-columns:22px 1fr;gap:6px;padding:3px 0;border-bottom:1px solid #f0f2f5;font-size:12px}
+.pc .g{font-weight:800;text-align:center}
+.pc.w .g{color:var(--up)}.pc.a .g{color:var(--dn)}.pc.f .g{color:var(--qu)}.pc.b{background:var(--hatchA)}.pc.b .g{color:var(--amb)}
+.legend{margin-top:8px;font-size:11px;color:var(--mut);display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;max-width:1100px;margin-left:auto;margin-right:auto}
+.daystrip{width:100%}
+</style></head><body>
+<div class="top">
+  <h1>ONE READ</h1>
+  <select id="day"></select>
+  <button id="prev">&lt;</button><span class="clock" id="clk"></span><button id="next">&gt;</button>
+  <input type="range" id="scr" min="0" max="0" value="0">
+  <button data-v="full" class="on">Full page</button><button data-v="float">Float 440</button>
+  <span class="tiny" id="src"></span>
+</div>
+<main id="root"></main>
+<script>/*DATA*/</script>
+<script>
+(function(){
+'use strict';
+var DATA=window.__DATA,DAYS=Object.keys(DATA).sort();
+var S={day:DAYS[DAYS.length-1],i:0,tab:null,view:'full',selK:null};
+var NAME={WRITE:'likh rahe',BUY:'kharid rahe',COVER:'bhaag rahe',DUMP:'nikal rahe',QUIET:'shaant',MIXED:'mila-jula','OI?':'OI nahi'};
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function sg(x,d){var a=Math.abs(x);return (x<0?'−':'+')+(d==null?(a>=10?a.toFixed(0):a.toFixed(1)):a.toFixed(d))}
+function fL(q){return q==null?'?':sg(q/1e5)+'L'}
+function fK(l){return sg(l/1000,Math.abs(l)>=10000?0:1)+'k'}
+function n0(x){return Math.round(x).toLocaleString('en-IN')}
+function who(doi,d){if(doi==null)return 'OI?';if(Math.abs(doi)<1.5e5)return 'QUIET';if(Math.abs(d)<0.2*Math.abs(doi))return 'MIXED';return doi>0?(d<0?'WRITE':'BUY'):(d>0?'COVER':'DUMP')}
+function chip(w,doi,firm){return '<span class="chip c-'+w+(firm===0?' soft':'')+'" title="'+(firm===0?'1-min window khiska to label badla (pakka nahi)':'label pakka')+'">'+NAME[w]+(w==='QUIET'||w==='OI?'?'':' '+fL(doi))+(firm===0?'?':'')+'</span>'}
+var arrow=function(l){return l>0?'▲':l<0?'▼':'–'};
+
+/* ---------- prep ---------- */
+function pctRank(arr,x){if(arr.length<6)return null;var n=0;arr.forEach(function(y){if(y<x)n++});return n/arr.length}
+function prep(day){var D=DATA[day];if(D.ok)return D;
+  D.closes.forEach(function(c){c.m={};c.imp=0;c.nimp=0;c.na=0;c.om={};
+    c.rows.forEach(function(r){c.m[r.k+r.s]=r;if(r.na)c.na++;else if(r.imp!=null){c.imp+=r.imp;c.nimp++}});
+    c.oi.forEach(function(o){c.om[o[0]+'ce']=o[1];c.om[o[0]+'pe']=o[2]})});
+  var acc=[];D.closes.forEach(function(c){var add=[];c.rows.forEach(function(r){if(r.big&&r.big[0]>=2000){r.bigOK=acc.length<10||pctRank(acc,r.big[0])>=.9;add.push(r.big[0])}});acc=acc.concat(add)});
+  D.ok=1;return D}
+function cur(){return prep(S.day)}
+function C(i){return cur().closes[i]}
+function row(i,k,s){var c=cur().closes[i];return c?c.m[k+s]:null}
+var isCE=function(r){return r.s==='ce'},isPE=function(r){return r.s==='pe'};
+function grp(i,pred,n){var doi=0,d=0,cnt=0,na=0;
+  for(var j=Math.max(0,i-(n||1)+1);j<=i;j++){C(j).rows.forEach(function(r){if(!pred(r,C(j)))return;if(r.na){na++;return}if(r.doi!=null){doi+=r.doi;d+=r.d;cnt++}})}
+  return {doi:doi,d:d,cnt:cnt,na:na,w:who(cnt?doi:null,d)}}
+var CAP=function(r,c){return r.s==='ce'&&r.k>=c.sp},FLOOR=function(r,c){return r.s==='pe'&&r.k<=c.sp},ITMCE=function(r,c){return r.s==='ce'&&r.k<c.sp},ITMPE=function(r,c){return r.s==='pe'&&r.k>c.sp};
+function fronts(i,side){var c=C(i),a=[];
+  for(var k=c.atm-200;k<=c.atm+200;k+=50){var o=c.om[k+side];if(o!=null)a.push([k,o])}
+  a.sort(function(x,y){return y[1]-x[1]});
+  return a.slice(0,2).map(function(x){var k=x[0],p=C(Math.max(0,i-2)).om[k+side],ch=p!=null?x[1]-p:null;
+    var st=ch==null?'?':ch>1.5e5?'badh raha':ch<-1.5e5?'ghat raha':'ruka';return {k:k,oi:x[1],ch:ch,st:st,steps:(k-c.sp)/50}})}
+function cover(i,side){var c=C(i),n=0,q=0,na=0,tot=0;
+  c.rows.forEach(function(r){if(r.s!==side)return;tot++;if(r.na){na++;return}if(r.who==='COVER'){n++;q+=r.doi}});
+  return {n:n,q:q,na:na,tot:tot,state:n>=3?'SQ':n>0?'SOME':(na*2>tot?'BLIND':'NONE')}}
+function implied(i){var c=C(i),prior=[];for(var j=0;j<i;j++)prior.push(Math.abs(C(j).imp));
+  return {v:c.imp,rank:pctRank(prior,Math.abs(c.imp)),n:c.nimp,tot:c.rows.length}}
+/* option-flow stance per close: up / down / flat (checked, no side) / blind (could not check) */
+function opt(i){var c=C(i),ip=implied(i);
+  if(c.nimp*2<c.rows.length)return {s:'blind',why:'strike data kam ('+c.nimp+'/'+c.rows.length+')',ip:ip};
+  if(ip.rank==null)return {s:'blind',why:'din ka normal abhi nahi (6 close se pehle)',ip:ip};
+  if(ip.rank<.5)return {s:'flat',why:'implied Δ apne din ke aadhe se kam (p'+Math.round(ip.rank*100)+')',ip:ip};
+  return {s:c.imp>0?'up':'down',ip:ip}}
+function optSince(i){var o=opt(i);if(o.s!=='up'&&o.s!=='down')return null;var j=i;while(j>0&&opt(j-1).s===o.s)j--;return C(j).t}
+/* who is behind it: the group chip that matches the direction, the larger one */
+function behind(i,dir){if(!dir)return null;var ce=grp(i,isCE,1),pe=grp(i,isPE,1),c=[];
+  var okCE=dir>0?['BUY','COVER']:['WRITE','DUMP'],okPE=dir>0?['WRITE','DUMP']:['BUY','COVER'];
+  if(ce.cnt&&okCE.indexOf(ce.w)>=0)c.push({side:'CE',g:ce});
+  if(pe.cnt&&okPE.indexOf(pe.w)>=0)c.push({side:'PE',g:pe});
+  c.sort(function(a,b){return Math.abs(b.g.doi)-Math.abs(a.g.doi)});return c[0]||null}
+function atmRow(i,s){var c=C(i);return c.m[c.atm+s]}
+
+/* ---------- Jarvis (files only) ---------- */
+function jar(i){var J=cur().jar;if(!J)return null;return J.rows[C(i).t]||null}
+function jlean(i){var j=jar(i);return j?(j.l>0?1:j.l<0?-1:0):null}
+function moment(i){var J=cur().jar;if(!J)return null;var e=C(i).e;for(var d=0;d<=2;d++){var t=hm(e-d);if(J.moments[t])return {t:t,m:J.moments[t]}}return null}
+function hm(m){return ('0'+Math.floor(m/60)).slice(-2)+':'+('0'+m%60).slice(-2)}
+/* four states per piece: with / against / flat (checked, no side) / blind (engine says could not check) */
+function pstate(p){if(p.side==='with')return 'w';if(p.side==='against')return 'a';return /^could not check/i.test(p.text)?'b':'f'}
+function votes(i){var j=jar(i);if(!j)return null;var mo=moment(i),w=j.c[0]||0,a=j.c[1]||0,q=9-(j.c[2]||0);
+  if(mo&&mo.m.pieces){var f=0,b=0;w=0;a=0;mo.m.pieces.forEach(function(p){var s=pstate(p);if(s==='f')f++;if(s==='b')b++;if(s==='w')w++;if(s==='a')a++});return {w:w,a:a,f:f,b:b,q:0,split:1,mo:mo}}
+  return {w:w,a:a,f:0,b:0,q:q,split:0}}
+function legLine(j){if(!j||!j.leg)return null;var m=/leg (\S+) .*?(\d+) pts · ([\d.]+)σ.*?origin ([\d,]+f).*?extreme ([\d,]+f)/.exec(j.leg);
+  return m?{a:m[1],pts:m[2],sig:m[3],o:m[4],x:m[5]}:{raw:j.leg}}
+
+/* ---------- agreement ---------- */
+function verdict(i){var j=jar(i),jl=jlean(i),o=opt(i),od=o.s==='up'?1:o.s==='down'?-1:0,v=[];
+  if(!j)v.push({c:'nd',t:'Jarvis data nahi (dekha nahi gaya)'});
+  if(o.s==='blind')v.push({c:'blind',t:'options: dekh nahi paaye'});
+  else if(o.s==='flat')v.push({c:'',t:'options: koi side nahi (dekha)'});
+  if(j&&(o.s==='up'||o.s==='down')){
+    if(jl===0)v.push({c:'',t:'Jarvis: koi side nahi · options '+arrow(od)});
+    else if(jl===od)v.push({c:'ok',t:'SAHMAT '+arrow(od)+' Jarvis + options'});
+    else v.push({c:'bad',t:'ALAG: Jarvis '+arrow(jl)+' · options '+arrow(od)})}
+  else if(j&&o.s==='flat'&&jl)v.push({c:'warn',t:'Jarvis '+arrow(jl)+' par options chup'});
+  var b=behind(i,od);
+  if(od){ // caveats: what the options do NOT confirm
+    var cv=cover(i,od>0?'ce':'pe'),pr=atmRow(i,od>0?'ce':'pe');
+    if(cv.state==='SQ')v.push({c:'hot',t:(od>0?'CE':'PE')+' bhaag rahe ×'+cv.n+' '+fL(cv.q)});
+    else if(b&&b.g.w==='BUY')v.push({c:'warn',t:'kharid rahe, cover nahi'});
+    if(pr&&!pr.na&&pr.c<pr.vw)v.push({c:'warn',t:'ATM prem < apna VWAP'});
+    else if(!pr||pr.na)v.push({c:'blind',t:'ATM prem: dekh nahi paaye'})}
+  return v}
+function pillHtml(v){return v.map(function(x){return '<span class="pill '+x.c+'">'+esc(x.t)+'</span>'}).join(' ')}
+
+/* ---------- card pieces ---------- */
+function laneCls(l){return l==null?'n':l>0?'u':l<0?'d':'z'}
+function lanes(i,from,to,total,evl){var h='',cj='',co='',ce='';
+  for(var j=from;j<=to;j++){var jl=jlean(j),o=opt(j),od=o.s==='up'?1:o.s==='down'?-1:o.s==='flat'?0:null;
+    var dis=(jl&&od&&jl!==od)?' dis':'',cur=j===i?' cur':'';
+    cj+='<div class="lc '+laneCls(jl)+dis+cur+'" data-i="'+j+'" title="'+C(j).t+' Jarvis '+(jar(j)?jar(j).w:'data nahi')+'"></div>';
+    co+='<div class="lc '+laneCls(od)+dis+cur+'" data-i="'+j+'" title="'+C(j).t+' options '+(o.s==='up'?'upar':o.s==='down'?'neeche':o.s==='flat'?'koi side nahi (dekha)':'dekh nahi paaye: '+o.why)+'"></div>';
+    var cs=cover(j,'ce'),cp=cover(j,'pe'),ev=(cs.n>=3||cp.n>=3)?'e1':(rowsBig(j)?'e2':(hasMark(j)?'e3':''));
+    ce+='<div class="lc '+ev+(j===i?' cur':'')+'" data-i="'+j+'" title="'+C(j).t+(ev==='e1'?' bhaag rahe ×3+':ev==='e2'?' bada print':ev==='e3'?' nishaan':'')+'"></div>'}
+  var pad='';for(var q=to+1;q<(total||0);q++)pad+='<div class="lc" style="visibility:hidden"></div>';
+  return '<div class="lanes"><div class="lane"><span class="ln">Jarvis</span><div class="cs">'+cj+pad+'</div></div><div class="lane"><span class="ln">Options</span><div class="cs">'+co+pad+'</div></div>'+(evl?'<div class="lane ev3"><span class="ln">Ghatna</span><div class="cs">'+ce+pad+'</div></div>':'')+'</div>'}
+function rowsBig(j){return C(j).rows.some(function(r){return r.bigOK})}
+function hasMark(j){return C(j).rows.some(function(r){return r.sg&&/[ACI]/.test(r.sg)})}
+
+function dotsHtml(i){var c=C(i),k0=c.atm-250,N=11,H='';
+  function dot(r){if(!r||r.na)return '<span class="dot na" style="width:14px;height:14px" title="data nahi (dekha nahi gaya)"></span>';
+    var a=Math.abs(r.doi||0)/1e5,sz=a>=30?22:a>=10?17:a>=1.5?12:5,col={WRITE:'#3b4fc4',BUY:'#0f7b45',COVER:'#c2410c',DUMP:'#7a5a2b',QUIET:'#b8bec8',MIXED:'#b8bec8'}[r.who]||'#b8bec8';
+    var hollow=r.firm===0&&r.who!=='QUIET';
+    return '<span class="dot" style="width:'+sz+'px;height:'+sz+'px;background:'+(hollow?'#fff':col)+';border:2px '+(hollow?'dashed ':'solid ')+col+(r.who==='COVER'?';box-shadow:0 0 0 2px #fdeadd':'')+'" title="'+n0(r.k)+' '+r.s.toUpperCase()+' '+NAME[r.who]+' '+fL(r.doi)+'"></span>'}
+  ['ce','pe'].forEach(function(s){H+='<div class="dr"><span class="dl">'+s.toUpperCase()+'</span>';
+    for(var n=0;n<N;n++){var k=k0+n*50;H+='<div class="dc" data-k="'+k+'">'+dot(c.m[k+s])+'</div>'}H+='</div>'});
+  var kr='<div class="kr">';for(var n=0;n<N;n++){var k=k0+n*50;kr+='<span class="'+(k===c.atm?'atm':'')+'">'+(k===c.atm?'ATM':String(k).slice(-3))+'</span>'}kr+='</div>';
+  var sx=((c.sp-k0)/50+.5)/N*100,wbs='';
+  [['ce',0],['pe',1]].forEach(function(z){var f=fronts(i,z[0])[0];if(!f)return;var n=(f.k-k0)/50;if(n<0||n>=N)return;
+    var col=f.st==='badh raha'?'#3b4fc4':f.st==='ghat raha'?'#c2410c':'#8a929e';
+    wbs+='<span class="wb" title="deewar #1 '+n0(f.k)+' '+z[0].toUpperCase()+' '+f.st+'" style="left:calc(22px + (100% - 22px)*'+((n+.15)/N)+');width:calc((100% - 22px)/'+N+'*.7);top:'+(z[1]?44:-1)+'px;background:'+col+'"></span>'});
+  return '<div class="dots">'+H+wbs+'<div class="spotm" style="left:calc(22px + (100% - 22px)*'+(sx/100)+')"><i>spot '+n0(c.sp)+'s</i></div></div>'+kr}
+function dotsCaption(i){var cs=cover(i,'ce'),cp=cover(i,'pe');
+  if(cs.state==='SQ'||cp.state==='SQ')return '<span class="pill hot">'+(cs.n>=3?'CE bhaag rahe ×'+cs.n+' '+fL(cs.q)+' · upar squeeze':'PE bhaag rahe ×'+cp.n+' '+fL(cp.q)+' · floor toot')+'</span>';
+  var f=fronts(i,'ce')[0],p=fronts(i,'pe')[0],t=function(x,s){return x?'<span class="pill">deewar '+n0(x.k)+' '+s+' '+(x.st==='badh raha'?'↑':x.st==='ghat raha'?'↓':'→')+' '+x.st+'</span>':''};
+  var cov=(cs.state==='BLIND'||cp.state==='BLIND')?' <span class="pill blind">cover: dekh nahi paaye</span>':(cs.n||cp.n?'':' <span class="pill">cover nahi (dekha)</span>');
+  return t(f,'CE')+' '+t(p,'PE')+cov}
+
+function freshHtml(i){var D=cur(),last=i===D.closes.length-1;
+  return '<div class="fresh'+(last?' live':'')+'">'+(last?'● LATEST CLOSE (file ke aakhri) '+C(i).t:'REPLAY · '+S.day.slice(5)+' · recorded, aaj nahi')+'<span class="sp">spot '+n0(C(i).sp)+'s'+(C(i).fut?' · fut '+n0(C(i).fut.c)+'f':'')+'</span></div>'}
+function card(i,float){var j=jar(i),V=votes(i),L=legLine(j),jl=jlean(i),h='';
+  var cls=!j?'z':jl>0?'u':jl<0?'d':'z';
+  h+=freshHtml(i);
+  // 1 the call
+  h+='<div class="sec"><div class="call">'+(j?'<span class="word '+cls+'">'+esc(j.w)+'</span><span class="since">since '+j.s+' · '+esc(j.st)+'</span>':'<span class="word z">—</span><span class="pill nd">Jarvis ka call is minute ka log me nahi</span>')+'</div>';
+  // 2 the nine votes
+  if(V){var p='';for(var n=0;n<V.w;n++)p+='<span class="pip w" title="saath"></span>';for(n=0;n<V.a;n++)p+='<span class="pip a" title="ulta"></span>';for(n=0;n<V.f;n++)p+='<span class="pip f" title="dekha, kuch nahi"></span>';for(n=0;n<V.b;n++)p+='<span class="pip b" title="dekh nahi paaye"></span>';for(n=0;n<V.q;n++)p+='<span class="pip q" title="9 me se nahi padha: flat ya blind, log me alag nahi"></span>';
+    h+='<div class="pips">'+p+'<span class="pipn"><b class="up">'+V.w+' saath</b> · <b class="dn">'+V.a+' ulta</b> · '+(V.split?V.f+' kuch nahi · <span class="pill blind">'+V.b+' dekh nahi paaye</span>':'<span class="pill nd">'+V.q+' ? (alag nahi)</span>')+'</span></div>'}
+  h+='</div>';
+  // 3 agreement lanes + verdict
+  var from=Math.max(0,i-11),to=i;
+  h+='<div class="sec">'+lanes(i,from,to,12,0)+'<div class="verdict">'+pillHtml(verdict(i))+'</div>'+(function(){var o=opt(i),b=behind(i,o.s==='up'?1:o.s==='down'?-1:0);return o.s==='up'||o.s==='down'?'<div class="line" style="margin-top:4px">options '+arrow(o.s==='up'?1:-1)+' <b>'+fK(o.ip.v)+' lots</b> <span class="tiny">p'+Math.round(o.ip.rank*100)+' apne din me · '+optSince(i)+' se</span> '+(b?chip(b.g.w,b.g.doi).replace('">','">'+b.side+' '):'')+'</div>':''})()+'</div>';
+  // 4 strikes as shape
+  h+='<div class="sec">'+dotsHtml(i)+'<div style="margin-top:5px">'+dotsCaption(i)+'</div></div>';
+  // 5 leg
+  h+='<div class="sec line">'+(L?(L.raw?esc(L.raw):'leg '+L.a+' <b>'+L.pts+' pts</b> · <b>'+L.sig+'σ</b> · '+L.o+' → '+L.x):'<span class="pill nd">leg: Jarvis me nahi</span>')+'</div>';
+  // 6 ends
+  h+='<div class="sec line"><span class="tiny">ends:</span> '+(j&&j.wl?esc(j.wl):'<span class="pill nd">Jarvis ne nahi diya</span>')+'</div>';
+  // taps
+  var nBl=cur().jar?(j&&j.ms?j.ms.filter(function(id){return /could not check/i.test(cur().jar.ms[id])}).length:0):0;
+  h+='<div class="more">'+[['strikes','Strikes'],['walls','Deewar'],['reads','9 reads'],['log','Kya badla'],['gaps','Gaps']].map(function(t){return '<button data-t="'+t[0]+'" class="'+(S.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==='gaps'&&nBl?'<span class="bd">?'+nBl+'</span>':'')+'</button>'}).join('')+'</div>';
+  return '<div class="card'+(i===cur().closes.length-1?'':' replay')+'" style="'+(float?'':'width:480px')+'">'+h+'</div>'}
+
+/* ---------- panels (one tap) ---------- */
+function marks(i,k,s){var out=[],G={A:['▣','ruka'],E:['▽','thakaan'],C:['◈','charam'],I:['▲','bhadak']};
+  for(var j=i;j>=Math.max(0,i-2);j--){var r=row(j,k,s);if(!r||r.na||!r.sg)continue;
+    r.sg.split('').forEach(function(g){if(g==='E')return;var nx=j<i?row(j+1,k,s):null,res='agla close?',up=r.loc==='AU'||r.loc==='BU';
+      if(nx&&nx.na)res='data nahi';else if(nx){if(g==='A')res=(up?nx.c<=nx.u2:nx.c>=nx.d2)?'tika':'toota';else if(g==='C')res=(nx.d*r.d<0)?'delta palta':'delta wahi';else res=nx.c>=nx.u2?'tika':'nahi tika'}
+      out.push('<span class="mk">'+G[g][0]+' '+G[g][1]+' p'+Math.round(Math.max(r.pv||0,r.pa||0)*100)+' · '+res+'</span>')})}
+  return out}
+function panelStrikes(i){var c=C(i),ks=[];for(var k=c.atm+150;k>=c.atm-150;k-=50)ks.push(k);
+  function side(k,s){var r=row(i,k,s);if(!r||r.na)return '<td class="nad">data nahi</td>';
+    var ef=Math.max(r.pv||0,r.pa||0),hot=r.pv!=null&&ef>=.8,band=c.e<584?'':(r.loc==='AU'?'u2':r.loc==='BU'?'u3+':r.loc==='AD'?'d2':r.loc==='BD'?'d3−':'');
+    var m=marks(i,k,s).slice(0,1).join(''),bg=r.bigOK?' <span class="mk big">◆ '+fK(r.big[0])+'</span>':'';
+    return '<td class="'+(s==='ce'?'l':'')+'">'+chip(r.who,r.doi,r.firm)+(hot?' <b>p'+Math.round(ef*100)+'</b>':'')+(band?' <span class="pill hot">'+band+'</span>':'')+' <span class="'+(r.c>r.vw?'up':'dn')+'" title="prem '+r.c.toFixed(1)+' vs apna vwap '+r.vw.toFixed(1)+'" style="font-weight:700;color:'+(r.c>r.vw?'#0f7b45':'#b42318')+'">'+(r.c>r.vw?'▲':'▼')+'</span>'+bg+(m?'<br>'+m:'')+'</td>'}
+  var h='<table class="lad"><thead><tr><th>CE</th><th>strike</th><th>PE</th></tr></thead><tbody>',done=false;
+  ks.forEach(function(k){if(!done&&c.sp>=k){done=true;h+='<tr class="spot"><td colspan="3"><div>spot '+n0(c.sp)+'s</div></td></tr>'}
+    h+='<tr'+(k===c.atm?' class="atm"':'')+'>'+side(k,'ce')+'<td class="k">'+n0(k)+'<small>'+(k===c.atm?'ATM':sg((k-c.sp)/50,1)+'s')+'</small></td>'+side(k,'pe')+'</tr>'});
+  return '<div class="box"><h3>Strikes ATM ±3 · ▲/▼ = premium apne VWAP ke upar/neeche · pNN = apne din ke normal me (≥p80)</h3>'+h+'</tbody></table></div>'}
+function panelWalls(i){var h='';[['ce','CAP (CE)'],['pe','FLOOR (PE)']].forEach(function(z){h+='<div class="tiny" style="margin-top:3px">'+z[1]+'</div>';
+  fronts(i,z[0]).forEach(function(f,ix){var r=row(i,f.k,z[0]);h+='<div style="display:flex;justify-content:space-between;padding:1px 0"><span><b>#'+(ix+1)+' '+n0(f.k)+'</b> <span class="dim">'+sg(f.steps,1)+'s · OI '+(f.oi/1e5).toFixed(0)+'L</span></span><span><span class="pill">'+f.st+(f.ch!=null?' '+fL(f.ch):'')+'</span> '+(r&&!r.na&&r.who!=='QUIET'?chip(r.who,r.doi,r.firm):'')+'</span></div>'})});
+  var c=C(i),wc=c.wall.ce,wp=c.wall.pe;
+  h+='<div class="tiny" style="margin-top:5px">poori chain me sabse bada: '+(wc?n0(wc[0])+' CE '+sg((wc[0]-c.sp)/50,1)+'s':'?')+' · '+(wp?n0(wp[0])+' PE '+sg((wp[0]-c.sp)/50,1)+'s':'?')+'</div>';
+  return '<div class="box"><h3>Deewar · OI top-2 (nau paas wale) · §1d</h3>'+h+'</div>'}
+function panelReads(i){var j=jar(i),V=votes(i),mo=moment(i),h='';
+  if(!j)return '<div class="box"><h3>9 reads</h3><span class="pill nd">Jarvis ka call is minute ka log me nahi</span></div>';
+  h+='<div class="tiny" style="margin-bottom:5px"><b class="up">✓ saath</b> · <b class="dn">✕ ulta</b> · ○ dekha, kuch nahi · <span class="pill blind">? dekh nahi paaye</span> — chaar alag haal, kabhi ek jaise nahi.</div>';
+  if(mo&&mo.m.pieces){h+=mo.m.pieces.map(function(p){var s=pstate(p);return '<div class="pc '+s+'"><span class="g">'+({w:'✓',a:'✕',f:'○',b:'?'})[s]+'</span><span>'+esc(p.text)+'</span></div>'}).join('');
+    h+='<div class="tiny" style="margin-top:4px">pieces '+mo.t+' ke call se, engine ke shabd.</div>';
+    ['buyer','seller','pause','day'].forEach(function(k){if(mo.m[k])h+='<div class="line" style="margin-top:4px"><span class="tiny">'+k+':</span> '+esc(mo.m[k])+'</div>'})}
+  else h+='<div class="line">'+V.w+' saath · '+V.a+' ulta · <span class="pill nd">'+V.q+' ?</span></div><div class="tiny" style="margin-top:4px">Is din ke log me har piece ka text/side nahi hai (sirf gintii), isliye “kuch nahi” aur “dekh nahi paaye” alag nahi kiye ja sakte. Engine ko har piece ka <b>state</b> bhejna chahiye.</div>';
+  if(j.leg)h+='<div class="line" style="margin-top:5px"><span class="tiny">leg:</span> '+esc(j.leg)+'</div>';
+  return '<div class="box"><h3>Jarvis ke 9 reads · '+C(i).t+'</h3>'+h+'</div>'}
+function panelGaps(i){var j=jar(i),D=cur(),h='',bl=[],nt=[];
+  if(j&&j.ms)j.ms.forEach(function(id){var t=D.jar.ms[id];(/could not check/i.test(t)?bl:nt).push(t)});
+  h+='<div class="tiny">Jarvis</div>'+(bl.length?bl.map(function(t){return '<div class="line"><span class="pill blind">dekh nahi paaye</span> '+esc(t)+'</div>'}).join(''):'<span class="pill">koi “could not check” nahi (dekha)</span>')+
+    (nt.length?'<div class="tiny" style="margin-top:5px">dhyan: data patla / rebuild</div>'+nt.map(function(t){return '<div class="line">· '+esc(t)+'</div>'}).join(''):'');
+  var c=C(i),o=opt(i);
+  h+='<div class="tiny" style="margin-top:8px">Option flow (NIFTY)</div><div class="line">'+(c.na?'<span class="pill blind">'+c.na+' strike ka flow nahi</span>':'<span class="pill">sab 22 strike aaye (dekha)</span>')+' '+(c.e<584?'<span class="pill blind">band 09:44 se pehle: dekh nahi paaye</span>':'')+' '+(o.s==='blind'?'<span class="pill blind">'+esc(o.why)+'</span>':'')+' <span class="pill nd">SENSEX: wired nahi</span></div>';
+  return '<div class="box"><h3>Gaps · "dekha, kuch nahi" ≠ "dekh nahi paaye"</h3>'+h+'</div>'}
+/* one stream: Jarvis's word changes + option-flow events */
+function events(i,max){var ev=[],D=cur(),lastW=null,lastO=null,lastSq={ce:0,pe:0};
+  for(var j=0;j<=i;j++){var c=C(j),jj=jar(j);
+    if(jj&&lastW!==null&&jj.w!==lastW)ev.push({t:c.t,h:'Jarvis: '+lastW+' → '+jj.w,k:'j'});if(jj)lastW=jj.w;
+    var o=opt(j);if(lastO!==null&&o.s!==lastO&&(o.s==='up'||o.s==='down'))ev.push({t:c.t,h:'options palta → '+arrow(o.s==='up'?1:-1)+' '+fK(o.ip.v)+' lots',k:'o'});lastO=o.s;
+    ['ce','pe'].forEach(function(s){var cv=cover(j,s);if(cv.n>=3&&!lastSq[s])ev.push({t:c.t,h:s.toUpperCase()+' bhaag rahe ×'+cv.n+' '+fL(cv.q),k:'h'});lastSq[s]=cv.n>=3?1:0});
+    c.rows.forEach(function(r){if(r.na)return;var nm=n0(r.k)+' '+r.s.toUpperCase();
+      if(r.doi!=null&&Math.abs(r.doi)>=5e5&&r.firm&&r.who!=='MIXED'&&r.who!=='QUIET')ev.push({t:c.t,h:nm+' '+NAME[r.who]+' '+fL(r.doi),k:'w',w:r.who});
+      if(r.bigOK)ev.push({t:c.t,h:'◆ '+nm+' bada print '+fK(r.big[0])+' Δ-lots',k:'h'});
+      if(r.sg&&/[CI]/.test(r.sg))ev.push({t:c.t,h:nm+' '+(r.sg.indexOf('C')>=0?'◈ charam':'▲ bhadak')+' p'+Math.round(Math.max(r.pv||0,r.pa||0)*100),k:'m'})})}
+  ev.reverse();return ev.slice(0,max||40)}
+function evHtml(ev){return ev.length?ev.map(function(e){return '<div class="ev"><b>'+e.t+'</b><span>'+(e.w?'<span class="chip c-'+e.w+'">'+esc(e.h)+'</span>':e.k==='j'?'<b style="color:#14181f">'+esc(e.h)+'</b>':e.k==='h'?'<span class="pill hot">'+esc(e.h)+'</span>':esc(e.h))+'</span></div>'}).join(''):'<span class="dim">Ab tak kuch nahi badla (dekha).</span>'}
+function panelLog(i){return '<div class="box"><h3>Kya badla · Jarvis + options, ek stream</h3>'+evHtml(events(i,30))+'</div>'}
+function panel(i){var t=S.tab;return t==='strikes'?panelStrikes(i):t==='walls'?panelWalls(i):t==='reads'?panelReads(i):t==='log'?panelLog(i):t==='gaps'?panelGaps(i):''}
+var LEG='<div class="legend"><span><span class="chip c-WRITE">likh rahe</span> OI↑ bechne wale</span><span><span class="chip c-BUY">kharid rahe</span> OI↑ lene wale</span><span><span class="chip c-COVER">bhaag rahe</span> OI↓ writers daud rahe</span><span><span class="chip c-DUMP">nikal rahe</span> OI↓ longs nikle</span><span>dot ka size = dOI</span><span>niche patti = deewar: neela badh raha, narangi ghat raha</span><span>kaala frame = us close pe Jarvis aur options ALAG</span></div>'
+
+function dayStrip(i){var D=cur(),to=D.closes.length-1;
+  var tk='';D.closes.forEach(function(c,j){if(c.t.slice(3)==='00'||(j===0))tk+='<span style="position:absolute;left:'+(j/(to+1)*100)+'%;font-size:10px;color:#6b7380">'+c.t.slice(0,2)+'h</span>'});
+  return '<div class="box daystrip"><h3>Poora din · Jarvis vs options · click = us close pe jao</h3>'+lanes(i,0,i,to+1,1)+'<div style="position:relative;height:14px;margin-left:46px">'+tk+'</div></div>'}
+function render(){var D=cur(),i=S.i=Math.min(S.i,D.closes.length-1);
+  $('clk').textContent=C(i).t;$('scr').max=D.closes.length-1;$('scr').value=i;
+  $('src').textContent=S.day+' · expiry '+D.exp+' · '+D.src+' · NIFTY'+(D.jar?' · Jarvis: files, till '+lastJ(D):'');
+  var h;
+  if(S.view==='float')h='<div class="wrap"><div>'+card(i,true)+'<div style="width:440px;margin-top:8px">'+panel(i)+'</div></div></div>'+LEG;
+  else h='<div class="wrap"><div>'+card(i,false)+'</div><div class="right">'+dayStrip(i)+(panel(i)||panelStrikes(i))+'</div></div>'+LEG;
+  $('root').innerHTML=h;
+  Array.prototype.forEach.call(document.querySelectorAll('.top button[data-v]'),function(b){b.className=b.getAttribute('data-v')===S.view?'on':''})}
+function lastJ(D){var ks=Object.keys(D.jar.rows).sort();return ks[ks.length-1]||'?'}
+function setDay(d,t){S.day=d;var D=prep(d),ix=D.closes.length-1;D.closes.forEach(function(c,n){if(c.t===t)ix=n});S.i=ix;render()}
+DAYS.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=d;$('day').appendChild(o)});
+$('day').value=S.day;
+$('day').onchange=function(){setDay(this.value,this.value==='2026-11-03'?'10:35':'10:50')};
+$('scr').oninput=function(){S.i=+this.value;render()};
+$('prev').onclick=function(){S.i=Math.max(0,S.i-1);render()};
+$('next').onclick=function(){S.i=Math.min(cur().closes.length-1,S.i+1);render()};
+document.addEventListener('keydown',function(e){if(e.target.tagName==='SELECT')return;if(e.key==='ArrowLeft'){S.i=Math.max(0,S.i-1);render()}if(e.key==='ArrowRight'){S.i=Math.min(cur().closes.length-1,S.i+1);render()}});
+Array.prototype.forEach.call(document.querySelectorAll('.top button[data-v]'),function(b){b.onclick=function(){S.view=b.getAttribute('data-v');render()}});
+$('root').addEventListener('click',function(e){var t=e.target.closest?e.target.closest('[data-t]'):null;if(t){S.tab=S.tab===t.getAttribute('data-t')?null:t.getAttribute('data-t');render();return}
+  var l=e.target.closest?e.target.closest('.lc'):null;if(l){S.i=+l.getAttribute('data-i');render()}});
+setDay(S.day,'10:50');
+})();
+</script></body></html>

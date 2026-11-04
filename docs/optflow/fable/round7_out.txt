@@ -1,0 +1,108 @@
+
+######## 2026-11-02  NIFTY 2026-11-03 expiry  (0 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  touches by flow at the touch: {}
+
+######## 2026-11-03  NIFTY 2026-11-03 expiry  (0 contracts)
+zone       side | vol L  |delta| L  net L | OI+ L  OI- L | WRITE BUY COVER DUMP MIXED | big hits
+
+walls (max CE OI above spot / max PE OI below spot), when they move:
+
+premium band touches (ATM / NEAR, after 09:25; flow at the touch bar; +15/+30 = hindsight):
+  at    contract  zone touch   prem   band | who    delta L | other leg | fut   | prem +15  +30 | fut +15 +30
+  touches by flow at the touch: {}
+
+################ 2026-10-28
+  ABSORPTION HOLD 39 · ABSORPTION RUN 9 · CLIMAX HOLD 10 · CLIMAX RUN 7 · EXHAUSTION HOLD 18 · EXHAUSTION RUN 5 · IGNITION HOLD 8 · IGNITION RUN 2 · in_ABSORPTION HOLD 37 · in_ABSORPTION RUN 6 · in_CLIMAX HOLD 38 · in_CLIMAX RUN 4 · touch, no signature HOLD 252 · touch, no signature RUN 73
+  cover event 12:44: first COVER at the wall 12:41 · IGNITION closes [('12:41', 22650), ('12:41', 22700), ('12:41', 23000), ('12:44', 22650), ('12:44', 22800), ('12:44', 22900)] → first ignition +0 min before the first cover
+
+################ 2026-10-29
+  ABSORPTION HOLD 18 · ABSORPTION RUN 11 · CLIMAX HOLD 6 · CLIMAX RUN 8 · EXHAUSTION HOLD 6 · EXHAUSTION RUN 8 · IGNITION HOLD 9 · IGNITION RUN 6 · in_ABSORPTION HOLD 119 · in_ABSORPTION RUN 15 · in_CLIMAX HOLD 60 · in_CLIMAX RUN 13 · in_IGNITION HOLD 1 · in_IGNITION RUN 3 · touch, no signature HOLD 166 · touch, no signature RUN 67
+  cover event 10:17: first COVER at the wall 10:08 · IGNITION closes [('10:08', 22600), ('10:08', 22750), ('10:08', 22800), ('10:08', 22900), ('10:08', 23000), ('10:26', 22800)] → first ignition +0 min before the first cover
+  cover event 14:11: first COVER at the wall 14:26 · IGNITION closes [('14:26', 22750), ('14:26', 22800), ('14:26', 22850), ('14:26', 22900), ('14:26', 23000), ('14:26', 23050)] → first ignition +0 min before the first cover
+
+################ 2026-10-30
+  ABSORPTION HOLD 22 · ABSORPTION RUN 3 · CLIMAX HOLD 5 · EXHAUSTION HOLD 11 · EXHAUSTION RUN 2 · IGNITION HOLD 1 · IGNITION RUN 1 · in_ABSORPTION HOLD 78 · in_ABSORPTION RUN 22 · in_CLIMAX HOLD 53 · in_CLIMAX RUN 19 · in_IGNITION HOLD 2 · in_IGNITION RUN 1 · touch, no signature HOLD 262 · touch, no signature RUN 112
+  cover event 11:05: first COVER at the wall 11:08 · IGNITION closes none
+  cover event 11:44: first COVER at the wall none · IGNITION closes [('11:56', 23000), ('11:56', 23200), ('11:59', 23300)]
+
+################ 2026-11-02
+  ABSORPTION HOLD 42 · ABSORPTION RUN 3 · CLIMAX HOLD 4 · EXHAUSTION HOLD 16 · IGNITION HOLD 3 · IGNITION RUN 3 · in_ABSORPTION HOLD 26 · in_ABSORPTION RUN 24 · in_CLIMAX HOLD 51 · in_CLIMAX RUN 34 · in_IGNITION HOLD 4 · in_IGNITION RUN 9 · touch, no signature HOLD 159 · touch, no signature RUN 42
+  cover event 09:32: first COVER at the wall 09:47 · IGNITION closes none
+  cover event 12:59: first COVER at the wall 13:05 · IGNITION closes [('13:11', 23150), ('13:11', 23200), ('13:11', 23250), ('13:11', 23300), ('13:11', 23350), ('13:11', 23400)] → first ignition -6 min before the first cover
+  cover event 14:29: first COVER at the wall 14:17 · IGNITION closes none
+  pullback 09:46 ▲ CONT: defending PE wall signatures in the window: none
+  pullback 10:55 ▲ FAIL: defending PE wall signatures in the window: none
+  pullback 12:56 ▼ CONT: defending CE wall signatures in the window: none
+  pullback 13:09 ▼ CONT: defending CE wall signatures in the window: none
+  pullback 13:17 ▼ CONT: defending CE wall signatures in the window: none
+  pullback 14:39 ▲ CONT: defending PE wall signatures in the window: none
+  pullback 14:50 ▲ CONT: defending PE wall signatures in the window: none
+  named: the down-leg, 23,300 / 23,250 PE 12:53–13:14
+    12:53 23300PE c 99.3 h 99.9 u2 113.6 u3 125.6 | vol p0.67 |Δ| p0.85 Δ +9.5L dOI 6.8L rng 11.6 (med 7.5) · IN · who B · -
+    12:56 23300PE c 107.2 h 118.9 u2 115.0 u3 127.3 | vol p1.0 |Δ| p1.0 Δ +29.0L dOI -27.6L rng 20.0 (med 7.5) · AT_U · who C · ['ABSORPTION']
+    12:59 23300PE c 104.2 h 107.2 u2 115.2 u3 127.5 | vol p0.84 |Δ| p0.57 Δ -5.3L dOI -3.4L rng 11.8 (med 7.6) · IN · who D · -
+    13:02 23300PE c 109.1 h 112.3 u2 115.7 u3 128.1 | vol p0.72 |Δ| p0.53 Δ +4.8L dOI 1.0L rng 7.3 (med 7.6) · IN · who Q · -
+    13:05 23300PE c 118.8 h 125.4 u2 117.2 u3 130.1 | vol p0.96 |Δ| p0.04 Δ +0.1L dOI -13.9L rng 19.8 (med 7.6) · AT_U · who M · -
+    13:08 23300PE c 125.3 h 129.3 u2 119.0 u3 132.4 | vol p0.87 |Δ| p0.35 Δ -2.8L dOI -13.0L rng 13.4 (med 7.6) · AT_U · who D · -
+    13:11 23300PE c 143.4 h 158.2 u2 125.4 u3 141.3 | vol p0.99 |Δ| p0.95 Δ +17.6L dOI -43.8L rng 29.0 (med 7.6) · BEYOND_U · who C · ['IGNITION']
+    13:14 23300PE c 157.2 h 163.9 u2 129.6 u3 147.1 | vol p0.77 |Δ| p0.59 Δ +5.4L dOI -12.8L rng 20.5 (med 7.7) · BEYOND_U · who C · -
+    12:53 23250PE c 76.0 h 76.0 u2 98.4 u3 111.5 | vol p0.74 |Δ| p0.93 Δ +10.2L dOI 3.9L rng 9.5 (med 5.9) · IN · who B · -
+    12:56 23250PE c 82.5 h 91.0 u2 98.7 u3 111.6 | vol p1.0 |Δ| p0.03 Δ +0.1L dOI -9.4L rng 15.5 (med 6.2) · IN · who M · ['in_CLIMAX']
+    12:59 23250PE c 79.8 h 82.3 u2 98.5 u3 111.3 | vol p0.96 |Δ| p0.03 Δ -0.0L dOI -0.3L rng 9.7 (med 6.2) · IN · who Q · -
+    13:02 23250PE c 83.6 h 86.7 u2 98.7 u3 111.4 | vol p0.93 |Δ| p0.67 Δ -3.7L dOI 2.0L rng 6.9 (med 6.2) · IN · who W · -
+    13:05 23250PE c 91.0 h 97.4 u2 99.5 u3 112.3 | vol p0.99 |Δ| p0.72 Δ -4.1L dOI -8.6L rng 16.1 (med 6.3) · IN · who D · ['in_CLIMAX']
+    13:08 23250PE c 97.3 h 100.9 u2 100.9 u3 114.1 | vol p0.96 |Δ| p0.25 Δ +1.0L dOI -6.0L rng 11.5 (med 6.3) · IN · who M · -
+    13:11 23250PE c 113.0 h 126.1 u2 107.1 u3 122.4 | vol p1.0 |Δ| p1.0 Δ +17.5L dOI -30.1L rng 25.1 (med 6.3) · BEYOND_U · who C · ['CLIMAX', 'IGNITION']
+    13:14 23250PE c 125.0 h 132.6 u2 111.9 u3 128.9 | vol p0.95 |Δ| p0.11 Δ -0.4L dOI -6.0L rng 19.7 (med 6.3) · BEYOND_U · who M · -
+
+################ 2026-11-03
+  ABSORPTION HOLD 51 · CLIMAX HOLD 7 · CLIMAX RUN 1 · EXHAUSTION HOLD 6 · EXHAUSTION RUN 1 · IGNITION HOLD 5 · in_ABSORPTION HOLD 98 · in_ABSORPTION RUN 39 · in_CLIMAX HOLD 73 · in_CLIMAX RUN 35 · in_IGNITION HOLD 8 · touch, no signature HOLD 136 · touch, no signature RUN 26
+  pullback 10:36 ▲ CONT: defending PE wall signatures in the window: none
+  pullback 12:07 ▲ CONT: defending PE wall signatures in the window: none
+  pullback 13:22 ▲ CONT: defending PE wall signatures in the window: none
+  pullback 13:43 ▲ PIN: defending PE wall signatures in the window: none
+  named: 23,600 CE 09:47–10:17
+    09:47 23600CE c 74.2 h 76.0 u2 82.9 u3 94.6 | vol p0.3 |Δ| p0.7 Δ +18.7L dOI 4.8L rng 12.9 (med 12.0) · IN · who B · -
+    09:50 23600CE c 73.4 h 80.1 u2 84.4 u3 96.4 | vol p0.55 |Δ| p0.09 Δ -1.1L dOI -2.3L rng 8.9 (med 12.9) · IN · who D · -
+    09:53 23600CE c 70.3 h 79.6 u2 85.0 u3 97.0 | vol p0.17 |Δ| p0.25 Δ -2.7L dOI -4.0L rng 10.1 (med 11.9) · IN · who D · -
+    09:56 23600CE c 75.2 h 76.4 u2 85.4 u3 97.3 | vol p0.0 |Δ| p0.62 Δ +8.9L dOI 3.5L rng 9.4 (med 10.9) · IN · who B · -
+    09:59 23600CE c 74.2 h 76.7 u2 85.7 u3 97.7 | vol p0.0 |Δ| p0.43 Δ -4.4L dOI -0.1L rng 4.5 (med 10.5) · IN · who Q · -
+    10:02 23600CE c 68.1 h 79.7 u2 85.9 u3 97.7 | vol p0.33 |Δ| p0.8 Δ -19.1L dOI -9.8L rng 14.3 (med 10.1) · IN · who D · -
+    10:05 23600CE c 65.5 h 71.0 u2 85.7 u3 97.5 | vol p0.06 |Δ| p0.25 Δ -3.1L dOI 14.6L rng 6.0 (med 10.5) · IN · who W · -
+    10:08 23600CE c 65.8 h 73.8 u2 85.7 u3 97.3 | vol p0.06 |Δ| p0.0 Δ -0.2L dOI 0.4L rng 8.0 (med 10.1) · IN · who Q · -
+    10:11 23600CE c 64.0 h 68.9 u2 85.5 u3 97.0 | vol p0.17 |Δ| p0.22 Δ +1.5L dOI 5.2L rng 6.0 (med 9.8) · IN · who B · -
+    10:14 23600CE c 74.3 h 74.9 u2 85.6 u3 96.9 | vol p0.32 |Δ| p0.74 Δ +11.6L dOI 2.6L rng 11.9 (med 9.4) · IN · who B · -
+    10:17 23600CE c 76.5 h 81.7 u2 86.5 u3 98.0 | vol p0.5 |Δ| p0.5 Δ +5.2L dOI -8.6L rng 7.2 (med 9.8) · IN · who C · -
+  named: 10:35 climax, 23,600 / 23,650 CE 10:29–10:41
+    10:29 23600CE c 80.6 h 85.8 u2 88.6 u3 100.5 | vol p0.38 |Δ| p0.25 Δ -2.7L dOI -6.6L rng 8.0 (med 9.3) · IN · who D · -
+    10:32 23600CE c 87.2 h 89.5 u2 89.8 u3 102.0 | vol p0.44 |Δ| p0.56 Δ +6.0L dOI -4.5L rng 11.5 (med 9.2) · IN · who C · -
+    10:35 23600CE c 96.3 h 100.8 u2 92.6 u3 105.6 | vol p0.62 |Δ| p0.88 Δ +19.2L dOI -24.8L rng 17.8 (med 9.3) · AT_U · who C · -
+    10:38 23600CE c 86.5 h 95.2 u2 93.6 u3 106.8 | vol p0.33 |Δ| p0.89 Δ -25.3L dOI -11.6L rng 15.6 (med 9.4) · AT_U · who D · -
+    10:41 23600CE c 87.0 h 92.0 u2 94.2 u3 107.6 | vol p0.07 |Δ| p0.18 Δ +2.3L dOI 0.8L rng 8.2 (med 9.4) · IN · who Q · -
+    10:29 23650CE c 52.1 h 56.2 u2 58.8 u3 65.8 | vol p0.75 |Δ| p0.46 Δ -7.1L dOI -15.5L rng 6.1 (med 7.2) · IN · who D · -
+    10:32 23650CE c 57.4 h 58.6 u2 59.6 u3 66.7 | vol p0.76 |Δ| p0.32 Δ +5.4L dOI -6.5L rng 8.5 (med 7.1) · IN · who C · -
+    10:35 23650CE c 65.2 h 68.2 u2 62.2 u3 70.2 | vol p0.96 |Δ| p0.96 Δ +23.3L dOI -27.3L rng 14.2 (med 7.2) · AT_U · who C · -
+    10:38 23650CE c 56.9 h 63.9 u2 62.9 u3 71.0 | vol p0.74 |Δ| p0.89 Δ -22.6L dOI 6.6L rng 12.6 (med 7.3) · AT_U · who W · -
+    10:41 23650CE c 57.5 h 61.3 u2 63.4 u3 71.6 | vol p0.25 |Δ| p0.54 Δ +9.3L dOI 6.2L rng 6.3 (med 7.3) · IN · who B · -
+  named: 23,700 CE break 13:11–13:23
+    11:11 23700CE c 27.0 h 28.6 u2 39.9 u3 45.1 | vol p0.21 |Δ| p0.26 Δ -2.8L dOI 2.3L rng 3.7 (med 4.7) · IN · who W · -
+    11:14 23700CE c 26.8 h 28.9 u2 39.8 u3 45.0 | vol p0.03 |Δ| p0.67 Δ -9.8L dOI 7.1L rng 3.4 (med 4.7) · IN · who W · -
+    11:17 23700CE c 28.2 h 29.2 u2 39.7 u3 44.8 | vol p0.25 |Δ| p0.5 Δ +6.5L dOI -1.0L rng 4.6 (med 4.7) · IN · who Q · -
+    11:20 23700CE c 30.3 h 31.1 u2 39.6 u3 44.7 | vol p0.39 |Δ| p0.68 Δ +9.8L dOI 3.5L rng 3.9 (med 4.6) · IN · who B · -
+    11:23 23700CE c 31.6 h 32.9 u2 39.5 u3 44.6 | vol p0.55 |Δ| p0.31 Δ +4.5L dOI 4.0L rng 3.2 (med 4.6) · IN · who B · -
+
+################ SUMMARY (signature → per day: HOLD / RUN)
+  ABSORPTION             10-28 39/9 · 10-29 18/11 · 10-30 22/3 · 11-02 42/3 · 11-03 51/0
+  CLIMAX                 10-28 10/7 · 10-29 6/8 · 10-30 5/0 · 11-02 4/0 · 11-03 7/1
+  EXHAUSTION             10-28 18/5 · 10-29 6/8 · 10-30 11/2 · 11-02 16/0 · 11-03 6/1
+  IGNITION               10-28 8/2 · 10-29 9/6 · 10-30 1/1 · 11-02 3/3 · 11-03 5/0
+  in_ABSORPTION          10-28 37/6 · 10-29 119/15 · 10-30 78/22 · 11-02 26/24 · 11-03 98/39
+  in_CLIMAX              10-28 38/4 · 10-29 60/13 · 10-30 53/19 · 11-02 51/34 · 11-03 73/35
+  in_IGNITION            10-28 0/0 · 10-29 1/3 · 10-30 2/1 · 11-02 4/9 · 11-03 8/0
+  touch, no signature    10-28 252/73 · 10-29 166/67 · 10-30 262/112 · 11-02 159/42 · 11-03 136/26

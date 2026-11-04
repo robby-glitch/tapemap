@@ -924,3 +924,142 @@ chips. A second kill: if SQUEEZE ON is said more than 4 times a day on 5 of 20 d
 > per direction; or (1) exceeds 4 a day on a quarter of days; or the result collapses once the best day is removed. No
 > forecast version (a WATCH before the first cover) is registered: on five recorded days its signature fired 3 times in
 > 1,250 closes and preceded none of 15 fast moves.
+
+---
+---
+
+# Round 6: TapeMap's own footprint reads on the option strikes (five days)
+
+`prints.py` (rebin, imbalances, bar_flags, profile, with_cvd, tm_marks) run unchanged on the Dext option ladders, NIFTY,
+28–30 Oct + 2–3 Nov, her 3-min bars (per-price cells merged over the bar; o / c = the chain's ltp at the previous / this
+close). Script `round6.py`, output `round6_out.txt` (it also carries strike_bands' import-time tables). Recorded days,
+described; every cell under 15 is INCONCLUSIVE. No server touched.
+
+**Scale, fixed in `round6.py` before counting (NOTES.md "Round 6 scale"):** option row = 1 % of the bar's close premium
+rounded to the 0.05 tick (a ₹80 option in ₹0.80 rows, a ₹8 one in ₹0.10: the same ten rows a point of futures gives);
+one "lot" fed to `imbalances` = 7,500 qty, so IMB_MIN_LOTS 5 = 37,500 qty = 500 lots at one row (a tenth of a wall
+move); big cells three ways: qty ≥ 5L (as before), **₹ ≥ 2 crore of premium at one cell** (5L × ₹40, an ATM-sized print),
+**delta-lots ≥ 2,000** (qty × |chain delta| / 75: the size of a wall move in index terms). `rank.py`'s BADA (≥ p90 of the
+futures reference) is not transferable to options and was not used.
+
+## R6.1 The table
+
+| read | what it marks on an option | 28 Oct | 29 Oct | 30 Oct | 2 Nov | 3 Nov | verdict |
+|---|---|---|---|---|---|---|---|
+| **big prints, three classes** (Q qty / R ₹ / D delta-lots; cells meeting any) | which prints are big *in index terms* | R 143 only | R 90 · Q 2 | R 566 · RD 44 · Q 6 · QRD 1 | R 632 · RD 304 · QRD 39 · Q 20 · D 19 | **Q-only 2,723** · D 2,451 · QD 1,213 · RD 910 · QRD 743 · R 232 | **class changes are the finding:** on 3 Nov the WING 3–5 zone held **1,311 qty-big cells, 16 of them delta-big and 0 ₹-big**; ATM held D 1,454 · RD 362 · QRD 488 · R 1xx. BADA by delta-lots keeps the ATM / NEAR / ITM prints and drops the ₹5–30 wings; by ₹ it keeps ITM and ATM only. Qty-big alone is a wing counter |
+| **absorption** (tm_marks: \|delta\| top quarter, range ≤ median) at wall / ATM±1 strikes; fut +15 ≥ +20 / ≤ −20 | the premium ate size without moving | 5 (2 / 2) | 9 (2 / 0) | 24 (2 / **11**: 23,050 / 23,100 PE 12:44–13:26) | 2 (1 / 0) | 31 (**15** / 0: 23,650 / 23,700 PE 13:59–15:26) | marks cluster on the PUT side of ranges and pins; the index went the put-writers' way after (30 Oct down 11, 3 Nov up 15: opposite signs, both "puts absorbed"). Direction is not in the mark; **does not separate** as a bar read. **The 3 Nov 09:48–10:15 "80 wall" on 23,600 CE got no absorption mark** (exhaustion at 09:50 and 10:11): the bar's range was wide (64–76), so tm_marks' range gate fails where the per-print wall lived |
+| **stacked BUY imbalance at the cap** (3 rows at ≥ 3 : 1, ≥ 37.5k qty a row); closes carrying one; fut +15 ≥ +40 | buyers lifting the cap row after row | 0 | 1 (0) | 3 (0) | 9 (1) | 7 (2) | 20 closes in 625; 3 followed by ≥ +40, 0 by ≤ −40. **Before the first COVER close in R5's 8 covering events: 2 of 8** (30 Oct 11:05: a stack at 10:44, 24 min ahead; 2 Nov 09:32: stacks at 09:17 / 09:35, 30 min ahead, the open); none in the other 6 (28 Oct 12:44, 29 Oct 10:17 / 14:11, 30 Oct 11:44, 2 Nov 12:59 ▼ / 14:29). **Does not lead covering** |
+| **climax / exhaustion** at the cap and ATM strikes, by the premium's band (band = ≥u2/u3 or ≤d2/d3) → fut RUN / TURN / flat with the mark's side | the premium's own buying/selling climax | climax band 3 / 3 / 8 · mid 5 / 4 / 7; exh band 3 / 4 / 6 | climax band 0 / 2 / 10 · mid 5 / 1 / 23; exh band 1 / 4 / 1 | climax band 2 / 4 / 4 · mid 8 / 10 / 20; exh band 4 / 5 / 3 | climax band 6 / 2 / 6 · mid 5 / 2 / 19; exh band 2 / 2 / 9 | climax band 8 / 4 / 10 · mid 19 / 12 / 20; exh band 4 / 2 / … | the known case is caught (**23,650 CE climax at 10:35 on 3 Nov**, fut −35 at +30), but across the days RUN ≥ TURN after band climaxes on 3 of 5 days and most are flat: **does not separate** STALL/TURN from RUN |
+| **per-strike CVD divergence** (cap strike: premium at a 30-min high, CVD not) → fut +15 | buyers paying up without aggression | up 18 / dn 18 | up 52 / dn 0 / flat 117 | up 32 / dn 12 / flat 36 | up 32 / dn 36 / flat 70 | up 32 / dn 47 / flat 39 | **inverted on 29–30 Oct (up after a divergence at a high), the other way on 2–3 Nov**: oi-lab's warning holds on options too. Does not separate |
+| **volume profile POC** (the strike's own, day so far) vs a 3-row placebo: next-3-bar reversal | the trapped side's average fill | poc rev 5 / cont 4 · placebo 4 / 6 | 1 / 1 · 1 / 2 | 2 / 5 · 2 / 0 | 4 / 5 · 4 / 17 | 2 / 5 · 3 / 3 | every cell < 15; **not testable**; nothing visible against the placebo |
+| pullbacks (R4) × absorption at the defending strike | — | — | — | — | — | — | **not done this round** (budget); the marks' clustering on the put side of pins says the answer would need the direction attached |
+
+## R6.2 The stacked-imbalance-before-COVER answer
+
+Two of the eight covering events had a stacked buy imbalance at the cap before the first COVER close — 24 minutes
+ahead (30 Oct 10:44 → 11:08) and 30 minutes ahead at the open (2 Nov 09:17 / 09:35 → 09:47). The other six had none in
+the 30 minutes before. Over all 625 closes, 20 carried a stacked buy at the cap and 3 were followed by ≥ +40 in 15 min.
+**Covering is not seen earlier by stacked imbalances at this scale.** (The scale is one choice; a smaller row or a lower
+row minimum would create more stacks and more false alarms, and was not tried — the stop rule.)
+
+## R6.3 What the footprint reads add on an option, honestly
+
+- The one thing that moves her tool: **BADA by delta-lots.** It removes the wing noise (1,311 → 16 on 3 Nov) and keeps
+  the prints that carry index exposure; it needs only the chain's delta, which is there every minute.
+- Absorption / climax / exhaustion at bar level mark the pin side (puts on 3 Nov, puts on 30 Oct) and catch the famous
+  moments (10:35), but as populations they do not separate what follows; the per-print "wall at a premium" the README
+  read (80 on 23,600 CE) is a different object from tm_marks' bar absorption and was not reproduced by it.
+- CVD divergence on a strike is as unreliable as on futures, and inverted on two of five days.
+- The premium POC does not beat a placebo at n < 15.
+
+## R6.4 What I would pre-register as a §1s amendment
+
+> **§1s-A (BADA on options).** A big option print is counted by delta-lots: qty × |the chain's delta at that minute| /
+> 75 ≥ 2,000, with its qty and ₹ value shown beside it; a qty-big print under 2,000 delta-lots is a wing print and carries
+> no chip. Shadow, display only; the forward log counts chips per zone (ITM / ATM / NEAR / WING) per day. Falsifier: if
+> over 20 sessions the delta-lots chips in the WING zone exceed those in ATM + NEAR, the floor is wrong.
+>
+> **§1s-B (not registered).** Stacked imbalances, bar absorption, climax / exhaustion and CVD divergence on option
+> strikes are logged as marks in the forward record (prints.py unchanged, the Round 6 scale), never shown as words,
+> until 20 sessions of marks exist; on five recorded days none separated RUN from TURN or led a covering close.
+
+---
+---
+
+# Round 7: each strike against its own day-normal, at its own premium bands (her correction)
+
+NIFTY, five days, her 3-min grid, causal; definitions fixed in NOTES.md ("Round 7 definitions") before counting; script
+`round7.py`, output `round7_out.txt`. No server touched. **Data note:** today's 09:17 scrip-master download dropped the
+expired 03 NOV contracts, so the Dext files had no names; `load.recover_map` rebuilt file → strike by matching each
+file's 3-min delta at her closes against `days.json` (exported while the names existed), exact on ≥ 20 closes
+(`scrip_recovered.json`: 40 / 43 / 41 / 32 / 25 contracts; one 3 Nov file did not reach 20 matching closes).
+
+## R7.1 Signatures at the band — HOLD / RUN at +30 min, per day
+
+| signature | at the band: HOLD / RUN (28 Oct · 29 · 30 · 2 Nov · 3 Nov) | control: touches with no signature | control: the same effort inside the bands (HOLD / RUN) | verdict |
+|---|---|---|---|---|
+| **ABSORPTION** | 39/9 · 18/11 · 22/3 · 42/3 · 51/0 | 252/73 · 166/67 · 262/112 · 159/42 · 136/26 | 37/6 · 119/15 · 78/22 · 26/24 · 98/39 | **holds more than a bare touch on 4 of 5 days** (28 Oct 39/9 vs 252/73, 30 Oct 22/3 vs 262/112, 2 Nov 42/3 vs 159/42, 3 Nov 51/0 vs 136/26; 29 Oct 18/11 vs 166/67 alike). Part of that is the definition (it requires the next close to hold); the +30 outcome is one bar further. Inside the bands the same effort ran more (in_ABSORPTION RUN 6–39): **the band is what makes it mean something.** Cells ≥ 15 on four days |
+| **EXHAUSTION** | 18/5 · 6/8 · 11/2 · 16/0 · 6/1 | same | — | 28 Oct and 2 Nov hold-heavy, 29 Oct 6/8: mixed, cells < 15 on three days: **inconclusive** |
+| **CLIMAX** (beyond u3/d3, p95 effort, delta flips) | 10/7 · 6/8 · 5/0 · 4/0 · 7/1 | same | 38/4 · 60/13 · 53/19 · 51/34 · 73/35 | every cell < 15: **inconclusive**; inside, "climax" without a band runs as often as not (2–3 Nov) |
+| **IGNITION** (p90 effort, closes beyond u2 and stays, writers covering) | 8/2 · 9/6 · 1/1 · 3/3 · 5/0 | same | 0/0 · 1/3 · 2/1 · 4/9 · 8/0 | **did not run more**: the premium was still beyond u2 and higher 30 min later in 12 of 38; the move it marks is mostly over at the mark (see the covers) |
+
+## R7.2 The four named cases, by minute (the strike's own numbers)
+
+- **3 Nov 09:47–10:17, 23,600 CE "about 80":** every close INSIDE its bands (u2 83–86); vol p0.0–0.55, |Δ| p0.09–0.80 —
+  **nothing abnormal by its own day-normal**; the highs stopped at 80.1 / 79.6 / 79.7 (09:50, 09:53, 10:02) with sellers
+  (who D, DUMP) and the premium fell to 64 by 10:11, then 74–76 at 10:14–10:17 (who B → C). **No ABSORPTION by the fixed
+  definition**: the "80 wall" was a per-print event inside normal effort, not an abnormal-effort-small-result bar.
+- **3 Nov 10:35, the buying climax:** 23,650 CE at 10:35: AT u2 (h 68.2, u2 62.2, u3 70.2), **vol p0.96, |Δ| p0.96, Δ
+  +23.3L, dOI −27.3L, writers covering**, then 10:38 Δ −22.6L (the flip) and the close back inside (56.9 < u2 62.9).
+  23,600 CE: 10:35 AT u2, |Δ| p0.88, +19.2L, dOI −24.8L; 10:38 −25.3L. **It is her climax exactly, and the fixed
+  definition missed it** (CLIMAX needs BEYOND u3; the bar stopped 2 points short of u3, so it reads only "AT u2 + p96
+  effort + flip"). IGNITION failed too because the next close fell back inside. Noted, not retuned.
+- **3 Nov 13:15–13:18, the 23,700 CE break:** 13:17 close: **BEYOND u3 (c 54.1, u3 52.6), vol p1.0, |Δ| p0.97, Δ +53.5L,
+  dOI −46.0L, writers covering → CLIMAX + IGNITION**; 23,750 CE the same (IGNITION, vol p1.0, dOI −12.4L); **23,700 PE
+  at its own d2 (AT_D) with writers pressing (W, dOI +17.3L, Δ −33.7L)** — the pair A218 described. 13:20: 23,700 CE
+  still beyond u3 but who D (call buyers taking profit), CLIMAX again; +30 outcome HOLD (the premium 52 → 45 by 13:47).
+  **Ignition read at the break close, not before it.**
+- **2 Nov 12:56–13:14, the down-leg on the PE side:** 23,250 PE 12:56 and 13:05: vol p1.0 / p0.99 inside its bands
+  (in_CLIMAX); **13:11: BEYOND u3 (h 126.1, u3 122.4), vol p1.0, |Δ| p1.0, Δ +17.5L, dOI −30.1L, writers covering →
+  CLIMAX + IGNITION**; 13:14 Δ flat, still beyond; the low in the index was 13:14. 23,300 PE 13:14 BEYOND u3, who C.
+  **The PE side did read ignition — at 13:11, six minutes after the floor wall's first COVER close (13:05) and three
+  minutes before the low.**
+
+## R7.3 Ignition vs the eight covering moves (R5)
+
+| event | first COVER close at the wall | first IGNITION close (any strike that side, start −30 … end) | minutes |
+|---|---|---|---|
+| 28 Oct 12:44 ▲ | 12:41 | 12:41 (22,650 / 22,700 / 23,000 CE) | **0** |
+| 29 Oct 10:17 ▲ | 10:08 | 10:08 (22,600–23,000 CE, five strikes) | **0** |
+| 29 Oct 14:11 ▲ | 14:26 | 14:26 (22,750–23,050 CE, six strikes) | **0** |
+| 30 Oct 11:05 ▲ | 11:08 | none | — (the biggest cascade had no ignition: effort was not abnormal for those strikes' own day) |
+| 30 Oct 11:44 ▲ | none in the window | 11:56 / 11:59 | after |
+| 2 Nov 09:32 ▲ | 09:47 | none (bands unreadable before 09:44) | — |
+| 2 Nov 12:59 ▼ | 13:05 | 13:11 (23,150–23,400 PE, six strikes) | **−6 (after)** |
+| 2 Nov 14:29 ▲ | 14:17 | none | — |
+
+**Ignition is coincident with the first cover in 3 of 8 and after it in 2; it never led.** It is the squeeze's
+confirmation at the strike's own band, with the day-normal attached — a better SQUEEZE ON stamp than R5.5's (it names
+the strike, the effort rank and the band), not an earlier one.
+
+## R7.4 Pullbacks × absorption (the owed check)
+
+In all 11 of R4's pullbacks the defending wall strike (the floor PE in an up-leg: 23,000 / 23,300 / 23,600 PE; the cap
+CE in a down-leg) showed **no signature at its band** — because the wall strike never reached its own u2 inside the
+pullback (a deep OTM wall's premium does not reach its bands on a 30–70-pt dip). **Not testable as defined.** The ATM
+strike's band is where a pullback shows; R4.A already had that read (ATM premium above / below its VWAP) and it separated
+the one FAIL.
+
+## R7.5 What, if anything, to pre-register
+
+> **§1s-C (ABSORPTION at the strike's own band), shadow.** At each 3-min close, for ATM ±3 and the wall strikes: effort
+> at the strike's own p90 (vol or |delta|, ranked from the 7th close), a small result (range ≤ its own median, or the
+> close back inside u2 / d2), at AT or BEYOND its own premium band, and the band held at the next close → a chip
+> `23,650 CE absorb · effort p96 · u2 held`. Counted forward: HOLD / RUN at +30 beside bare touches, per day, both
+> sides. Falsifier: HOLD does not exceed the bare touch's HOLD by count on at least 15 of 20 sessions; or fewer than 15
+> rows a side in 20 sessions.
+>
+> **Not registered:** EXHAUSTION, CLIMAX (its fixed form missed 10:35 by two points of u3 — a definition that reads AT
+> u2 as well would be a retune and is written here only as a note), IGNITION as a lead (it is a confirmation; it goes
+> into the SQUEEZE ON stamp of R5.5 as its strike-level form: `23,700 CE ignition · effort p100 · beyond u3 · writers
+> bhaag rahe −46L`).
