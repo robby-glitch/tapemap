@@ -96,6 +96,22 @@ def test_store_is_idempotent_and_last_wins(fx):
     assert rows[-1]["total_volume"] == c["total_volume"] + 65
 
 
+def test_a_5m_chart_never_overwrites_minutes(tmp_path, monkeypatch):
+    """A240: getData comes at the chart's timeframe; a 5m bar sharing t with a minute used to win (2-4 Nov, every mark)."""
+    monkeypatch.setattr(dext_log, "DIR", str(tmp_path))
+    dext_log._SEEN.clear()
+    inst, t0, day, k = {"EXCH": "NSE", "SEG": "D", "SEC_ID": "61471"}, 1793763900, "2026-11-04", "NSE-61471"   # 09:15 IST
+    row = lambda t, v: {"t": t, "o": 1, "h": 2, "l": 1, "c": 2, "v": v, "oi": 7}
+    dext_log.store({"inst": inst, "ohlc": [row(t0 + 60 * i, 10) for i in range(10)]})       # a 1m chart
+    dext_log.store({"inst": inst, "ohlc": [row(t0, 50), row(t0 + 300, 50)]})                  # a 5m chart, same t
+    dext_log.store({"inst": inst, "ohlc": [row(t0 + 300, 50)]})                               # a lone row only fills a hole ...
+    dext_log.store({"inst": inst, "ohlc": [row(t0 + 600, 10)]})                               # ... like this one
+    assert [r["v"] for r in dext_log.read_ohlc(k, day)] == [10] * 11
+    assert [r["v"] for r in dext_log.read_ohlc(k, day, 300)] == [50, 50]
+    dext_log.store({"inst": inst, "ohlc": [row(t0, 12), row(t0 + 60, 12)]})                  # minutes still update minutes
+    assert dext_log.read_ohlc(k, day)[0]["v"] == 12
+
+
 def test_only_allowed_fields_are_kept():
     c = {"t": 1791171900, "time": "2026-10-05 09:15:00", "high": 1, "low": 1, "buy_volume": 1, "sell_volume": 0,
          "neutral_volume": 0, "total_volume": 1, "delta": 1, "cumulative_delta": 1, "client_id": 1100012345,

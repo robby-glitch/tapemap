@@ -148,7 +148,7 @@ def report(day: str) -> dict:
         return {"ok": False, "day": day, "why": CC + "no Dext candles today" if day == time.strftime("%Y-%m-%d")
                 else CC + f"no Dext candles for {day}"}
     key = inst["key"]
-    candles, ohlc = dext_log.read_candles(key, day), dext_log.read_ohlc(key, day)
+    candles, ohlc = dext_log.read_candles(key, day), dext_log.read_ohlc(key, day, 300) or dext_log.read_ohlc(key, day)
     dext_ik = f"NSE_FO|{inst['SEC_ID']}" if inst.get("EXCH") == "NSE" and inst.get("SEG") == "D" else None
     out = {"ok": True, "day": day, "tag": "M", "inst": {"key": key, "name": inst.get("name"), "SEC_ID": inst["SEC_ID"]},
            "notes": []}

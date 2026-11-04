@@ -29,7 +29,8 @@ recording only: no engine, frame, signal or log that TapeMap decides on reads `d
 | file | what |
 |---|---|
 | `dext_<EXCH>-<SEC_ID>_<day>.jsonl` | one raw 1m candle per line (IST day of `t`). A re-sent minute: last copy wins on read |
-| `dext_ohlc_<EXCH>-<SEC_ID>_<day>.jsonl` | getData rows, the same rule |
+| `dext_ohlc_<EXCH>-<SEC_ID>_<day>.jsonl` | 1-minute getData rows, the same rule |
+| `dext_ohlc5m_<EXCH>-<SEC_ID>_<day>.jsonl` | a coarser chart's getData rows (5m), kept apart. getData comes at the chart's timeframe, and a 5m bar sharing `t` with a minute used to overwrite it (A240). The door reads a batch's bar size from its own spacing; a lone row only fills a hole. The parity reads this file first |
 | `instruments.json` | `{"NSE-48704": {EXCH, SEG, SEC_ID, name, lot}}`. `lot` stays null until someone writes it in; a written lot is kept |
 | `parity_<day>.json` | the evening report |
 

@@ -4,7 +4,9 @@
 The Dext (Dhan) order-flow extension's service worker POSTs its chart's closed 1-minute getOrderFlow candles and its
 getData OHLC rows to /api/dext/candles. This file keeps them, raw, per instrument per IST day:
   dext_<EXCH>-<SEC_ID>_<day>.jsonl        one 1m candle per line, Dext's own fields and units (CONTRACTS, epoch s)
-  dext_ohlc_<EXCH>-<SEC_ID>_<day>.jsonl   one getData row per line: t, o, h, l, c, v, oi
+  dext_ohlc_<EXCH>-<SEC_ID>_<day>.jsonl   one 1-minute getData row per line: t, o, h, l, c, v, oi
+  dext_ohlc5m_<EXCH>-<SEC_ID>_<day>.jsonl a coarser chart's getData rows (5m here), kept apart: getData comes at the chart's
+                                          timeframe, and a 5m bar sharing t with a minute overwrote it (A240, 2-4 Nov)
   instruments.json                        {key: {EXCH, SEG, SEC_ID, name, lot}}; lot stays null until someone knows it
 Nothing else is ever stored: every field is allow-listed and range-checked, and an absurd payload is refused whole.
 
@@ -50,8 +52,14 @@ def candles_path(t: str, day: str) -> str:
     return os.path.join(DIR, f"dext_{t}_{day}.jsonl")
 
 
-def ohlc_path(t: str, day: str) -> str:
-    return os.path.join(DIR, f"dext_ohlc_{t}_{day}.jsonl")
+def ohlc_path(t: str, day: str, step: int = 60) -> str:
+    return os.path.join(DIR, f"dext_ohlc{'' if step == 60 else f'{step // 60}m'}_{t}_{day}.jsonl")
+
+
+def _step(rows: List[dict]) -> Optional[int]:
+    """A getData batch's bar size in seconds, from its own spacing; None = a lone row (could be either)."""
+    ts = sorted({r["t"] for r in rows})
+    return min(b - a for a, b in zip(ts, ts[1:])) if len(ts) > 1 else None
 
 
 def _num(v, key, signed=False):
@@ -126,8 +134,9 @@ def _seen(p: str) -> Dict[int, int]:
     return _SEEN[p]
 
 
-def _append(rows: List[dict], path_of) -> Dict[str, int]:
-    """Rows grouped by IST day; each day file gets only the lines that differ from what it holds. -> {day: accepted}."""
+def _append(rows: List[dict], path_of, fill_only: bool = False) -> Dict[str, int]:
+    """Rows grouped by IST day; each day file gets only the lines that differ from what it holds (fill_only: only a t it
+    lacks). -> {day: accepted}."""
     by: Dict[str, List[dict]] = {}
     for r in rows:
         by.setdefault(ist_day(r["t"]), []).append(r)
@@ -136,6 +145,8 @@ def _append(rows: List[dict], path_of) -> Dict[str, int]:
         seen, new = _seen(p), []
         for r in rs:
             line = json.dumps(r, separators=(",", ":"))
+            if fill_only and r["t"] in seen:
+                continue
             if seen.get(r["t"]) != hash(line):
                 seen[r["t"]] = hash(line)
                 new.append(line)
@@ -189,7 +200,8 @@ def store(doc) -> dict:
     with _LOCK:
         _register(inst, name)
         stored = _append(cs, lambda d: candles_path(k, d))
-        _append(oh, lambda d: ohlc_path(k, d))
+        step = _step(oh)              # a lone row only fills a hole in the minutes: it may be a 5m bar
+        _append(oh, lambda d: ohlc_path(k, d, step or 60), fill_only=step is None)
     return {"ok": True, "stored": stored, "last_t": max((c["t"] for c in cs), default=None)}
 
 
@@ -212,5 +224,5 @@ def read_candles(t: str, day: str) -> List[dict]:
     return _read(candles_path(t, day))
 
 
-def read_ohlc(t: str, day: str) -> List[dict]:
-    return _read(ohlc_path(t, day))
+def read_ohlc(t: str, day: str, step: int = 60) -> List[dict]:
+    return _read(ohlc_path(t, day, step))

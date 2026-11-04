@@ -26,10 +26,13 @@ def m_of(s):
 def scrip():
     """{'NSE-54062': (idx, expiry, strike, 'CE'|'PE')} for NIFTY / SENSEX options."""
     out = {}
-    with open(os.path.join(D, "scrip_master.csv"), encoding="utf-8", errors="ignore") as f:
-        for r in csv.reader(f):
-            if len(r) > 14 and r[1] == "D" and (r[0], r[6]) in (("NSE", "NIFTY"), ("BSE", "SENSEX")) and r[14] in ("CE", "PE"):
-                out[f"{r[0]}-{r[2]}"] = (r[6], r[12], int(float(r[13])), r[14])
+    for fn in ("scrip_archive.csv", "scrip_master.csv"):     # A226: the archive keeps expired contracts; the master wins
+        if not os.path.exists(os.path.join(D, fn)):
+            continue
+        with open(os.path.join(D, fn), encoding="utf-8", errors="ignore") as f:
+            for r in csv.reader(f):
+                if len(r) > 14 and r[1] == "D" and (r[0], r[6]) in (("NSE", "NIFTY"), ("BSE", "SENSEX")) and r[14] in ("CE", "PE"):
+                    out[f"{r[0]}-{r[2]}"] = (r[6], r[12], int(float(r[13])), r[14])
     return out
 
 

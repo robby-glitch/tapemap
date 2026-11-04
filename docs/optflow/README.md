@@ -73,6 +73,9 @@ Dext desktop (Electron, C:\Program Files\Dext, backgroundThrottling: false)
 optflow/dext_bridge.mjs (Node 22, no dependencies, lock 127.0.0.1:9230)
   1 LISTEN  every getOrderFlow/v2 and getData response Dext loads on its own is forwarded
   2 ASK     once a minute, inside that chart frame, the same request for each target contract
+            + for each chart open in Dext, its getData at INTERVAL "1" (1-min OI / price bars; A240): the Chrome
+              extension's other half. It needs the app's own getData for that chart once (change its timeframe once);
+              the minute line says "OI/price n/m charts"
   └─ POST http://127.0.0.1:8765/api/dext/candles   (TapeMap's existing Dext door, dext_log.py)
        └─ data/dext/dext_<EXCH>-<SEC_ID>_<day>.jsonl   (one 1-min footprint candle per line)
 optflow/optflow.py (8790) + optflow/map.html

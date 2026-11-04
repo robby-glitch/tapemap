@@ -145,3 +145,24 @@ def test_opt_pivots_math_absence_and_cache(monkeypatch):
     n = calls["n"]
     again = live._opt_pivots("tok", cfg, 23850.0, ids)
     assert calls["n"] == n and again["ce"] == out["ce"]
+
+
+def test_scrip_archive_keeps_expired_contracts(tmp_path):
+    """A226: the daily master drops expired contracts; the archive appends each (exchange, id, expiry) once and keeps it."""
+    head = ["EXCH_ID", "SEGMENT", "SECURITY_ID", "INSTRUMENT", "UNDERLYING_SYMBOL", "SM_EXPIRY_DATE", "STRIKE_PRICE",
+            "OPTION_TYPE"]
+    day1 = [dict(r, EXCH_ID="NSE", SEGMENT="D") for r in ROWS]
+    p = tmp_path / "scrip_archive.csv"
+    assert instruments.archive_contracts(day1, head, p) == 5
+    assert instruments.archive_contracts(day1, head, p) == 0                      # write-once
+    day2 = day1[4:] + [dict(day1[0], SECURITY_ID="2001", SM_EXPIRY_DATE="2026-08-04")]   # 28 Jul expired, a new week
+    assert instruments.archive_contracts(day2, head, p) == 1
+    ids = [r.split(",")[2] for r in p.read_text(encoding="utf-8").splitlines()[1:]]
+    assert ids == ["1001", "1002", "1003", "1004", "9999", "2001"]                # the expired four are still there
+    assert instruments.archive_contracts([{"INSTRUMENT": "EQUITY", "SECURITY_ID": "7"}], head, p) == 0   # index F&O only
+
+
+def test_load_scrip_archives_into_the_redirected_dir(tmp_path):
+    """_load_scrip writes the archive beside SCRIP_CACHE (conftest redirects it to tmp: no test touches data/)."""
+    assert instruments.SCRIP_CACHE.parent == tmp_path
+    assert instruments.SCRIP_CACHE.with_name("scrip_archive.csv").parent == tmp_path

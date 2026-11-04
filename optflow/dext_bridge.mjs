@@ -37,11 +37,14 @@ const iso = s => new Date(s * 1000).toISOString();      // the app's own START_T
 // NIFTY / SENSEX option ids from TapeMap's scrip master: "EXCH|SYM|expiry|strike|CE" -> SEC_ID
 // ponytail: read once per start; restart the bridge each morning (the start script does) to pick up new contracts
 const IDS = new Map();
-for (const line of fs.readFileSync(`${DATA}/scrip_master.csv`, "utf8").split("\n")) {
-  if (!/^(NSE|BSE),D,/.test(line)) continue;
-  const r = line.split(",");
-  if ((r[6] === "NIFTY" || r[6] === "SENSEX") && (r[14] === "CE" || r[14] === "PE"))
-    IDS.set(`${r[0]}|${r[6]}|${r[12]}|${Math.round(+r[13])}|${r[14]}`, r[2]);
+for (const f of ["scrip_archive.csv", "scrip_master.csv"]) {     // A226: the archive keeps expired contracts (--now <past day>)
+  if (f !== "scrip_master.csv" && !fs.existsSync(`${DATA}/${f}`)) continue;
+  for (const line of fs.readFileSync(`${DATA}/${f}`, "utf8").split("\n")) {
+    if (!/^(NSE|BSE),D,/.test(line)) continue;
+    const r = line.split(",");
+    if ((r[6] === "NIFTY" || r[6] === "SENSEX") && (r[14] === "CE" || r[14] === "PE"))
+      IDS.set(`${r[0]}|${r[6]}|${r[12]}|${Math.round(+r[13])}|${r[14]}`, r[2]);
+  }
 }
 
 // the chain recorder's last snapshot for an index: {spot, expiry} (read from the file's tail, not the whole day)
@@ -142,6 +145,7 @@ function forward(url, reqBody, text) {
 }
 
 const charts = new Map();      // SEC_ID -> { session, url, headers, body } of the app's own last order-flow request
+const bars = new Map();        // SEC_ID -> the same for the app's own last getData (OI / price bars) request (A240)
 const asked = new Map();       // SEC_ID -> day it was first asked from 09:15 (later asks fetch the last 15 minutes)
 const mine = new Map();        // request body the bridge sent itself -> ms sent (CDP may report it twice)
 let ws = null, id = 0, minute = 0, ownLoads = 0;
@@ -150,6 +154,10 @@ const call = (method, params = {}, sessionId, ms = 30000) => new Promise(res => 
   const i = ++id; pend.set(i, res); ws.send(JSON.stringify({ id: i, method, params, sessionId }));
   setTimeout(() => { if (pend.has(i)) { pend.delete(i); res({ error: "timeout" }); } }, ms);
 });
+
+// one POST from inside a chart frame, with the app's own headers (no credentials mode, like the app's own fetch:
+// "include" against a wildcard CORS reply failed on 3 Nov)
+const askIn = (session, url, headers, body) => call("Runtime.evaluate", { expression: `Promise.race([fetch(${JSON.stringify(url)}, {method: "POST", headers: ${JSON.stringify(Object.fromEntries(Object.entries(headers).filter(([k]) => !NO_COPY.test(k))))}, body: ${JSON.stringify(JSON.stringify(body))}}).then(r => r.ok ? r.text() : Promise.reject("HTTP " + r.status)), new Promise((_, no) => setTimeout(() => no("no reply in 12 s"), 12000))])`, awaitPromise: true, returnByValue: true }, session, 15000);
 
 let asking = false;
 async function ask() {
@@ -168,16 +176,23 @@ async function askRound() {
   if (inSession() || NOW_FLAG) for (const t of autoTargets(minute)) if (!targets.has(t.sid)) targets.set(t.sid, t);
   if (!DAY && istNow().toISOString().slice(11, 16) >= "09:15") for (const t of catchUpTargets()) if (!targets.has(t.sid)) targets.set(t.sid, t);
   minute++;
-  const headers = Object.fromEntries(Object.entries(via.headers).filter(([k]) => !NO_COPY.test(k)));
-  let n = 0, sent = 0, failed = 0;
+  let n = 0, sent = 0, failed = 0, nbars = 0;
   for (const t of targets.values()) {
     const start = asked.get(t.sid) === today() ? nowS - RECENT_S : todayOpen(), end = DAY ? Math.min(nowS, dayAt(15, 30)) : nowS;
     const body = { ...via.body, EXCH: t.EXCH, SEG: t.SEG, SEC_ID: Number(t.sid), START: start, END: end, START_TIME: iso(start), END_TIME: iso(end) };
     for (const [k, ms] of mine) if (Date.now() - ms > 60000) mine.delete(k);
     mine.set(JSON.stringify(body), Date.now());      // the listener must not count this request as the app's own
-    // no credentials mode, like the app's own fetch ("include" against a wildcard CORS reply failed on 3 Nov)
-    const expr = `Promise.race([fetch(${JSON.stringify(via.url)}, {method: "POST", headers: ${JSON.stringify(headers)}, body: ${JSON.stringify(JSON.stringify(body))}}).then(r => r.ok ? r.text() : Promise.reject("HTTP " + r.status)), new Promise((_, no) => setTimeout(() => no("no reply in 12 s"), 12000))])`;
-    const r = await call("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, via.session, 15000);
+    // A240: a chart's 1-minute OI / price bars too (the half the Chrome extension sent and the bridge did not), on the
+    // app's own getData request for that chart with INTERVAL "1" (Dext's 1m code); the chart's own timeframe stays as it is
+    const g = t.idx === "chart" && bars.get(t.sid);
+    if (g) {
+      const gb = { ...g.body, START: start, END: end, START_TIME: iso(start), END_TIME: iso(end), INTERVAL: "1" };
+      mine.set(JSON.stringify(gb), Date.now());
+      const gr = await askIn(g.session, g.url, g.headers, gb);
+      if (typeof (gr && gr.result && gr.result.value) === "string") { await forward(g.url, JSON.stringify(gb), gr.result.value); nbars++; }
+      else if (/Session with given id not found/.test(JSON.stringify(gr))) bars.delete(t.sid);    // that frame reloaded
+    }
+    const r = await askIn(via.session, via.url, via.headers, body);
     const text = r && r.result && r.result.value;
     if (typeof text !== "string") {
       const why = String((r && r.exceptionDetails && ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text)) || (r && r.message) || (r && r.error) || "no reply");
@@ -192,7 +207,8 @@ async function askRound() {
     n++; per[t.idx] = (per[t.idx] || 0) + 1; asked.set(t.sid, today());
     sent += await forward(via.url, JSON.stringify(body), text);
   }
-  log(`asked ${n}/${targets.size} (${Object.entries(per).map(([k, v]) => k + " " + v).join(", ")}) · ${sent} closed candles · ${ownLoads} own Dext loads · ${((Date.now() - t0) / 1000).toFixed(0)} s` + (failed ? ` · ${failed} failed` : ""));
+  log(`asked ${n}/${targets.size} (${Object.entries(per).map(([k, v]) => k + " " + v).join(", ")}) · ${sent} closed candles · OI/price ${nbars}/${charts.size} charts` +
+    (nbars < charts.size ? " (a chart with none: change its timeframe in Dext once)" : "") + ` · ${ownLoads} own Dext loads · ${((Date.now() - t0) / 1000).toFixed(0)} s` + (failed ? ` · ${failed} failed` : ""));
   ownLoads = 0;
   if (NOW_FLAG && DAYS.length) { DAY = DAYS.shift(); asked.clear(); return askRound(); }     // the next past day, same login
   if (NOW_FLAG) process.exit(0);
@@ -231,6 +247,12 @@ async function connect() {
             if (!charts.has(sid)) log("chart open in Dext:", sid);
             charts.set(sid, { session: m.sessionId, url: r.url, headers: r.headers || {}, body: b });
           }
+        } catch { /* not JSON: ignore */ }
+      }
+      if (OHLC.test(r.url)) {
+        try {
+          const b = JSON.parse(r.postData), sid = String(b.SEC_ID || "");
+          if (/^\d+$/.test(sid) && b.INTERVAL) bars.set(sid, { session: m.sessionId, url: r.url, headers: r.headers || {}, body: b });
         } catch { /* not JSON: ignore */ }
       }
     }

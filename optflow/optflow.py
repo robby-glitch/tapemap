@@ -23,9 +23,12 @@ _SCRIP = {}
 
 def scrip():
     if not _SCRIP:          # ponytail: whole scrip master read once per process; restart after a new contract month
-        for r in csv.reader(open(os.path.join(D, "scrip_master.csv"), encoding="utf-8", errors="ignore")):
-            if len(r) > 14 and r[1] == "D" and (r[0], r[6]) in (("NSE", "NIFTY"), ("BSE", "SENSEX")):
-                _SCRIP[f"{r[0]}-{r[2]}"] = r            # keyed as Dext's files are named: NSE-54062, BSE-1134410
+        for f in ("scrip_archive.csv", "scrip_master.csv"):   # A226: the archive keeps expired contracts; today's master wins
+            if not os.path.exists(os.path.join(D, f)):        # ponytail: keyed by id alone; an id the exchange reuses maps
+                continue                                      # to its newest contract, and the old day's file is dropped by
+            for r in csv.reader(open(os.path.join(D, f), encoding="utf-8", errors="ignore")):   # the expiry check
+                if len(r) > 14 and r[1] == "D" and (r[0], r[6]) in (("NSE", "NIFTY"), ("BSE", "SENSEX")):
+                    _SCRIP[f"{r[0]}-{r[2]}"] = r        # keyed as Dext's files are named: NSE-54062, BSE-1134410
     return _SCRIP
 
 

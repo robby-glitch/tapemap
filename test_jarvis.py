@@ -67,7 +67,8 @@ def test_28oct_the_break_the_fuel_and_the_verdict(record):
     toot = [p for p in d["pushes"] if p["t"] == "12:43"][0]
     assert toot["ans"] == "TOOT" and toot["held_at"] == "12:47"        # Dext flow + handshake-2 (A155)
     cover = [r for r in d["runs"] if r["kind"] == "COVER" and r["start"] == "12:41"][0]
-    assert cover["khatam"] == "12:58" and cover["lots"] == -1726
+    # A240: was 12:58 / -1726, read on a 5m bar filed as the 12:55 minute (its OI was 12:59's); the true minutes say 13:03
+    assert cover["khatam"] == "13:03" and cover["lots"] == -2146
     assert d["verdict"]["SELL"]["12:12"]["word"] == "CHALEGA"           # CONTINUE: fuel x (cover -775)
 
 
@@ -95,7 +96,8 @@ def test_28oct_top_signs_at_the_high(record):
     assert [i.split(":")[0].split(" +")[0] for i in s[0]["items"]] == ["red candle, green delta", "absorption", "exhaustion"]
     # A BROKEN read late through a chain hole counts from its push minute (A176, decided as the trader): the 12:51 push's
     # 22,700s CE TOOT was read at 13:00 only because the chain was blind 12:55-12:59, so at 13:03 it is 11 min old
-    assert not s[0]["driving"] and s[0]["drive"] == []
+    # A240: the TOOT stays out, but on the true minutes the fut cover runs to 13:03 (not 12:58, a 5m bar's early OI)
+    assert s[0]["driving"] and s[0]["drive"] == ["fut shorts covering −2,146"]
     early = [x for x in r["signs"] if x["isHigh"] and x["at"] in ("12:45", "12:48", "12:57")]
     assert early and all(x["driving"] for x in early)                    # cover still running: not a top yet
 

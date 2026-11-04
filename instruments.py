@@ -103,8 +103,35 @@ def _load_scrip(force=False):
         text = SCRIP_CACHE.read_text(encoding="utf-8", errors="ignore")
         rows = [r for r in csv.DictReader(io.StringIO(text))
                 if r.get(COL_UND) in INSTRUMENTS]
+        try:
+            archive_contracts(rows, list(csv.reader(io.StringIO(text[:4096])))[0])
+        except (OSError, ValueError, IndexError) as e:      # the archive is a record, never a reason the day can't start
+            print(f"[instruments] scrip archive not written: {e}")
         _scrip_mem["day"], _scrip_mem["rows"] = day, rows
         return rows
+
+
+def archive_contracts(rows, header, path=None):
+    """A226: the daily master drops expired contracts, so the option-flow files of a past week (named by id) could no
+    longer be mapped to a strike. Append every index future / option row once, per (exchange, id, expiry), to
+    data/scrip_archive.csv (same columns as the master; append-only, never rewritten). Returns the rows added."""
+    path = Path(path or SCRIP_CACHE.with_name("scrip_archive.csv"))
+    key = lambda r: (r.get("EXCH_ID"), r.get(COL_SID), r.get(COL_EXP))
+    seen = set()
+    if path.exists():
+        with open(path, encoding="utf-8", newline="") as f:
+            rd = csv.DictReader(f)
+            header = rd.fieldnames or header
+            seen = {key(r) for r in rd}
+    new = [r for r in rows if "IDX" in (r.get(COL_INSTR) or "") and key(r) not in seen]
+    if new:
+        head = not path.exists()
+        with open(path, "a", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, header, extrasaction="ignore", lineterminator="\n")
+            if head:
+                w.writeheader()
+            w.writerows(new)
+    return len(new)
 
 
 def resolve_futures_id(rows, under_sym, today):
