@@ -59,7 +59,11 @@ def _last(xs):
 
 
 def _cnt3(c):
-    return {k: c.get(k) for k in ("with", "against", "N")} if isinstance(c, dict) else None
+    """The count as logged: with / against / N, flat / blind apart (rule 6, A230) and each piece's state by its key."""
+    if not isinstance(c, dict):
+        return None
+    return {k: c.get(k) for k in ("with", "against", "N", "flat", "blind")} | {
+        "pieces": {p.get("k"): p.get("state") or p.get("side") for p in c.get("pieces") or () if isinstance(p, dict)}}
 
 
 def row(fr, now):

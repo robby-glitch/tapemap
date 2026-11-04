@@ -139,6 +139,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 .phead .who{font-size:12px}
 .badge{font:700 10px var(--mono);padding:3px 7px;border-radius:99px;letter-spacing:.06em;background:#f1eee7;color:var(--mut)}
 .badge.live{background:#e6f6f0;color:var(--ok)} .badge.blind{background:#ececec;color:#777} .badge.back{background:#fdf0e8;color:var(--ce)}
+.badge.replay{background:#eaf0fb;color:var(--pe)} .badge.stale{background:#fdecec;color:var(--dn)}
 .phead .right{margin-left:auto;display:flex;gap:5px;align-items:center}
 .trade{padding:9px 12px;border-bottom:1px solid var(--line);background:var(--soft)}
 .trade .k{font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--mut);display:flex;justify-content:space-between}
@@ -202,7 +203,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 </head>
 <body>
 <header class="bar">
-  <div class="brand"><div class="orb" style="width:22px;height:22px"></div>JARVIS <small>NIFTY Nov fut · 28 Oct · replay from recorded + backfilled numbers</small></div>
+  <div class="brand"><div class="orb" style="width:22px;height:22px"></div>JARVIS <span class="badge" id="mode">DEMO</span> <small>NIFTY Nov fut · 28 Oct · replay from recorded + backfilled numbers</small></div>
   <div class="clock" id="clock">09:15:00</div>
   <div class="ctl">
     <div class="pickw"><div class="grp pick" title="replay a recorded day (after 15:40) · today = live"><button id="pDay">—</button><select id="pIdx"><option>NIFTY</option><option>SENSEX</option></select></div><div id="cal" hidden></div></div>
@@ -262,7 +263,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
   <div class="keys">space play · ← → step · [ ] events · 1 2 4 speed · m 1m/3m · v voice · / command</div>
 </div></div>
 <div class="over" id="end" hidden><div class="card review">
-  <h1><div class="orb" style="width:26px;height:26px"></div>Evening review · 28 Oct <small id="endMeta"></small></h1>
+  <h1><div class="orb" style="width:26px;height:26px"></div>Evening review · <span id="endDay">28 Oct</span> <small id="endMeta"></small></h1>
   <div class="story" id="story"></div>
   <div class="rgrid">
     <div class="rsec"><h3>YOUR ZONE TRIGGERS · what Jarvis said · what it then managed</h3><table class="endtab"><thead><tr><th>Trigger</th><th>Verdict</th><th>Manage lines</th><th class="r">Next 30 min fav / adv</th></tr></thead><tbody id="endZ"></tbody></table></div>
@@ -410,7 +411,7 @@ const EP = p => { const u = new URL(API, location.href); return `${u.origin}${u.
 const PH = $("#cin").placeholder, CARDQ = QS.get("card");
 let CARD = null, CMD = false, cmdSeen = false, briefOpen = false;
 function pollCard() {     // a failed or refused poll drops the card: the frame's call shows, never a carried word (P0)
-  fetchFrame(EP("card")).then(c => c && c.ok ? c : null, () => null).then(c => { CARD = c; if (D) renderBrain(); });
+  fetchFrame(EP("card")).then(c => c && c.ok ? c : null, () => null).then(c => { CARD = c; if (D) renderBrain(); fresh(); });
 }
 function setCmd(on) { CMD = on; $("#cin").placeholder = on ? PH : "offline · commands stay on this page"; }
 // A221: live, in market hours, a call more than jarvis.BLIND_MIN (2) minutes behind the IST clock says how old it is and is
@@ -426,6 +427,30 @@ function oldLine(c) {
   const mm = s => +s.slice(0, 2) * 60 + +s.slice(3, 5), lag = mm(hm) - mm(c.at);
   return lag > OLD_MIN ? `${lag} min old · no new call since ${c.at.slice(0, 5)} (TapeMap starved or stopped)` : null;
 }
+// A233: the header says which page this is -- LIVE (today, from the brain) / REPLAY (a recorded day) / DEMO (the 28 Oct
+// file) -- from the first paint, never the 28 Oct copy on a live or replay page; live, it says how fresh the call is (the
+// card's `asof`, else the frame's) and turns STALE exactly when oldLine() does.
+const MODE = LIVE ? "LIVE" : API || QS.get("d") ? "REPLAY" : "DEMO";
+function fresh() {
+  const c = CARD || (D && D.call), asof = (CARD && CARD.asof) || (D && D.asof), sec = s => s.split(":").reduce((a, x) => a * 60 + +x, 0);
+  let txt = MODE, cls = MODE.toLowerCase();
+  if (LIVE && !c) txt += " · waiting for today's first frame";
+  else if (LIVE) {
+    const age = /^\d\d:\d\d:\d\d$/.test(asof || "") ? sec(new Date(Date.now() + 330 * 60e3).toISOString().slice(11, 19)) - sec(asof) : null;
+    txt += (c.at ? ` · call ${c.at}` : "") + (asof ? ` · as of ${asof}` : "")
+      + (age == null || age < 0 ? "" : ` · ${age < 120 ? age + " s" : Math.round(age / 60) + " min"} old`);
+    if (oldLine(c)) { txt = txt.replace(/^LIVE/, "STALE"); cls = "stale"; }
+  } else if (MODE === "REPLAY") txt += ` · ${(D && D.day) || DAY || QS.get("d")}` + (D ? ` · to ${D.mins[N - 1]}` : " · loading");
+  $("#mode").textContent = txt; $("#mode").className = "badge " + cls;
+}
+if (API) {                                            // before any frame: this page's own day and index, never 28 Oct's
+  const idx0 = (QS.get("idx") || (API.match(/[?&]idx=(\w+)/) || [])[1] || "NIFTY").toUpperCase();
+  $(".brand small").textContent = `${idx0} fut · ${DAY || TODAY} · ${LIVE ? "live from the brain" : "replay"} · loading`;
+  if (LIVE) $("#intro").hidden = true;
+  else { const ps = document.querySelectorAll("#intro p"); ps[0].textContent = `${DAY}, ${idx0} futures: loading the replay from TapeMap…`; ps[1].textContent = ""; }
+}
+fresh();
+if (LIVE) setInterval(fresh, 5000);
 const offlineDrawn = () => userLines.filter(u => u.id == null).map(u => `line ${u.lvl}${u.tag}`)   // the page's own, no id
   .concat(userZones.filter(u => u.id == null).map(u => `zone ${u.a}-${u.b}${u.tag}`),
     watches.filter(u => u.id == null && !u.hit).map(u => `watch ${u.lvl}${u.tag}`));
@@ -468,7 +493,7 @@ function waitVoice(s, asked) {  // an `ask` the voice is thinking about: the car
   setTimeout(tick, 2000);
 }
 setCmd(false);
-if (CARDQ) fetchFrame(CARDQ).then(c => { CARD = c; if (D) renderBrain(); }).catch(e => console.warn("?card=", e.message));
+if (CARDQ) fetchFrame(CARDQ).then(c => { CARD = c; if (D) renderBrain(); fresh(); }).catch(e => console.warn("?card=", e.message));
 else if (LIVE) { pollCard(); setInterval(pollCard, 20000); }
 if (LIVE) { pollCmd(); setInterval(pollCmd, 20000); }
 
@@ -527,7 +552,8 @@ function renderCard(c) {
   // buyer / seller up to two lines (her ruling, review fix 4). Every string verbatim (levels carry s / f); the page decides
   // nothing. P0 (30 Oct): CAN'T SEE is shown blind, never as a quiet NO TRADE; the old vote stays in the tooltip.
   const box = $("#callc"); box.hidden = !c; if (!c) return;
-  const NC = "could not check — no card", lean = c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0), blind = c.word === "CAN'T SEE";
+  const NC = "could not check — no card", blind = c.word === "CAN'T SEE", lean = /^RANGE/.test(c.word || "") ? 0   // A229: RANGE names no side
+    : c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0);
   const sub = [c.state, c.since && "since " + c.since].filter(Boolean).join(" · ");
   box.innerHTML = `<div class="k">THE CALL <i>${c.at ? "at " + esc(c.at) : NC} · guidance only</i></div>`
     + `<div class="big" style="color:${blind ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut}">${esc(c.word || NC)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
@@ -540,11 +566,14 @@ function renderCard(c) {
   const n = c.count;
   if (n) {
     const P = n.pieces || [], q = P.filter(p => p.side === "?");
-    const head = [n.N != null && `${n.N} read`, n.unread != null && `${n.unread} could not check`].filter(Boolean).join(" · ");
-    row("cnt", "", [head].concat(P.map(p => `${p.side === "with" ? "WITH" : p.side === "against" ? "AGAINST" : "?"} · ${p.text}`))
+    // A230 (rule 6): a "?" piece is flat (checked, takes no side) or blind (could not check), never one count
+    const split = n.flat != null ? `${n.flat} flat (checked, no side) · ${n.blind} blind (could not check)` : n.unread != null && `${n.unread} not counted`;
+    const head = [n.N != null && `${n.N} read`, split].filter(Boolean).join(" · ");
+    row("cnt", "", [head].concat(P.map(p => `${p.side === "with" ? "WITH" : p.side === "against" ? "AGAINST" : (p.state || "?").toUpperCase()} · ${p.text}`))
       .filter(Boolean).join("\n") || NC).innerHTML = n.with == null || n.against == null ? `<span class="mut">WITH · AGAINST ${NC}</span>`
       : `<span class="up">WITH ${esc(n.with)}</span> · <span class="dn">AGAINST ${esc(n.against)}</span>`
-        + (n.unread ? ` <span class="mut">· ${esc(n.unread)} could not check</span>` : "");
+        + (n.flat != null ? ` <span class="mut">· ${esc(n.flat)} flat · </span><span class="${n.blind ? "dn" : "mut"}">${esc(n.blind)} blind</span>`
+          : n.unread ? ` <span class="mut">· ${esc(n.unread)} not counted</span>` : "");
     if (q.length) row("s q clip", q.map(p => p.text).join(" · "), q.map(p => p.text).join("\n"));
   }
   const ex = c.expression || {buyer: c.buyer, seller: c.seller}, nt = c.no_trade;
@@ -574,6 +603,7 @@ function renderCard(c) {
   }
   box.title = (c.why || []).concat([c.up, c.dn], c.missing && c.missing.length ? ["missing: " + c.missing.join(" · ")] : [],
     c.v1 ? [`(the 29 Oct vote said: ${c.v1.word})`] : []).filter(Boolean).join("\n");
+  fresh();
 }
 
 /* ------------------------------------------------------------ the story, generated from the data -- */
@@ -1477,7 +1507,8 @@ function showEnd() {
     lastChap = c; order.push(`${c === "TOP / BOTTOM" ? e.tag.split(" ")[0] + " SIGNS" : c} ${D.mins[clampI(e.i)]}`);
   }
   $("#story").textContent = order.slice(0, 22).join(" → ");
-  $("#endMeta").textContent = `NIFTY Nov fut · ${D.mins[0]}–${D.mins[N - 1]} · ${ev.length} lines · ${ev.filter(e => e.major).length} major`;
+  $("#endDay").textContent = D.day || "28 Oct";
+  $("#endMeta").textContent = `${D.idx || "NIFTY"} fut · ${D.mins[0]}–${D.mins[N - 1]} · ${ev.length} lines · ${ev.filter(e => e.major).length} major`;
   $("#endZ").innerHTML = D.zone.filter(z => !z.kind).map(z => {
     const i = ix(z.t), v = (D.verdict[z.side] || {})[z.t], j = Math.min(N - 1, i + 30), sell = z.side === "SELL";
     let fav = 0, adv = 0; for (let k = i + 1; k <= j; k++) { fav = Math.max(fav, sell ? z.px - D.flo[k] : D.fhi[k] - z.px); adv = Math.max(adv, sell ? D.fhi[k] - z.px : z.px - D.flo[k]); }

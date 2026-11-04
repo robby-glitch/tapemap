@@ -1016,9 +1016,9 @@ def health(d: dict, bnf_readable=None) -> dict:
         if not x:
             break
         tail += 1
-    notes, own = [], missing
+    notes, own, meth = [], missing, []
     if "N" in (d.get("flow_src") or ()):           # G13: the flow is NIFTY's, so its gaps are NIFTY's (SENSEX has no footprint)
-        notes.append("flow from NIFTY (§1q)")
+        meth.append("flow from NIFTY (§1q)")       # A231: how the flow is made (signed), never a gap (notes = missing)
         notes += [f"NIFTY flow missing {a}–{b}" for a, b in _stretches([x is None for x in d["flow"]], mins)]
         own = []
     for a, b in own:
@@ -1051,7 +1051,7 @@ def health(d: dict, bnf_readable=None) -> dict:
     elif bnf_readable is None:
         notes.append("BANKNIFTY chain: could not check — no chain on the record")
     notes += (d.get("ctx") or {}).get("notes") or []          # Task 5: each read's absent source, named (_context)
-    method = list((d.get("ctx") or {}).get("method") or ())    # how a number was made: not a gap (Task 6)
+    method = meth + list((d.get("ctx") or {}).get("method") or ())   # how a number was made: not a gap (Task 6)
     if mins and mins[-1] >= CHAIN_END:
         method.append(f"chain ends {CHAIN_END} (scheduled)")   # I2: the close, never "chain missing"
     if thresholds.problem():
@@ -1060,6 +1060,19 @@ def health(d: dict, bnf_readable=None) -> dict:
             "holes": d.get("holes") or [], "chain_missing": d.get("chain_missing") or [], "bnf_chain_readable": bnf_readable,
             "f_src": {k: fs.count(k) for k in ("dext", "book", "tape")}, "live_from": d.get("live_from"), "notes": notes,
             "method": method, "not_read": list(NOT_READ), "not_shown": list(NOT_SHOWN)}
+
+
+def _basis(d, i):
+    """Her display basis at minute i: the median fut − spot over the last 3 min (fold.BIX_MS, A60); 0.0 with none."""
+    a = max(0, i + 1 - fold.BIX_MS // 60000)
+    bs = sorted(f - s for f, s in zip(d["fut"][a:i + 1], d["spot"][a:i + 1]) if f is not None and s is not None)
+    return bs[len(bs) // 2] if bs else 0.0
+
+
+def _walls(fr, spot):
+    """The walls around spot among §1d's fronts (top-2 a side) -> (CE at / above spot, PE at / below it), nearest first."""
+    return (sorted((f for f in fr if f["side"] == "CE" and f["k"] > spot - 5), key=lambda f: f["k"]),
+            sorted((f for f in fr if f["side"] == "PE" and f["k"] < spot + 5), key=lambda f: -f["k"]))
 
 
 def call(d: dict) -> dict:
@@ -1077,9 +1090,7 @@ def call(d: dict) -> dict:
     i = len(mins) - 1
     tl, sp, sy, w = d["timeline"][i], r["speed"][i], r["sync"][i], r["writers"][i]
     fut = d["fut"][i]
-    n3 = fold.BIX_MS // 60000                        # her display basis: the 3-min median (fold.BIX_MS, A60)
-    bs = sorted(a - b for a, b in zip(d["fut"][-n3:], d["spot"][-n3:]) if a is not None and b is not None)
-    basis = bs[len(bs) // 2] if bs else 0.0
+    basis = _basis(d, i)                             # her display basis: the 3-min median (fold.BIX_MS, A60)
 
     def lv(k):
         return f"{_fmt(k)}s ({_fmt(k + basis)}f)"
@@ -1101,10 +1112,8 @@ def call(d: dict) -> dict:
     for x in d.get("sides") or ():
         if x.get("t") and x["t"] <= mins[i]:
             s = x
-    fr = tl.get("fronts") or []
     spot = d["spot"][i]
-    ce = sorted((f for f in fr if f["side"] == "CE" and f["k"] > spot - 5), key=lambda f: f["k"])
-    pe = sorted((f for f in fr if f["side"] == "PE" and f["k"] < spot + 5), key=lambda f: -f["k"])
+    ce, pe = _walls(tl.get("fronts") or [], spot)
     answered = [p for p in d["pushes"] if p.get("ans") not in (None, "?") and p.get("am") and p["am"] <= mins[i]]
     wtxt = (f"±7 {w['state']} (CE {H._l(w['ce'])} · PE {H._l(w['pe'])} / 3 min)" if w["state"] and w["ce"] is not None
             else f"±7 {w['state'] or 'quiet'}" + (" (chain not read this minute)" if w["ce"] is None else ""))
@@ -1197,7 +1206,10 @@ def call(d: dict) -> dict:
     leg_line = day_line = None
     if row and row.get("leg"):
         g = row["leg"]
-        leg_line = (f"leg {ARR.get(g['dir'], '?')} {g.get('quality') or ''} {g['pts']} pts · {g.get('sigma_max') or 0:.1f}σ"
+        em = (d.get("ctx") or {}).get("em")              # A232: how much of the move the leg already used, display only
+        used = f" · {g['pts'] / em['em']:.2f} of EM" if em and em.get("em") and (em.get("t") or "99") <= mins[i] else ""
+        leg_line = (f"leg {ARR.get(g['dir'], '?')} {g.get('quality') or ''} {g['pts']} pts{used}"
+                    + f" · {g.get('sigma_max') or 0:.1f}σ"
                     + (f" · TOOT {g['toot']}" if g.get("toot") else "") + (f" · fuelled {g['fuelled']}" if g.get("fuelled") else "")
                     + f" · origin {_fmt(g['origin'])}f {g['origin_t']} · extreme {_fmt(g['extreme'])}f {g['extreme_t']}")
         why.insert(1, leg_line)
@@ -1303,8 +1315,9 @@ def call(d: dict) -> dict:
             T5["expression"] = {"buyer": buyer, "seller": seller, "pick": None, "pick_why": f"blind since {mins[i]}",
                                 "in_trade": ent}
         else:
-            T5["how_much"], T5["where"] = how_much(d, i, lv), where(d, i, lean, lines, ce, pe, lv, basis)
-            ex = expression(d, i, aw, lean, s, buyer, seller, lv, cnt)
+            side_ = 0 if aw == "RANGE" else lean        # A229: RANGE names no side, so no T1 / T2 or buyer leg its way
+            T5["how_much"], T5["where"] = how_much(d, i, lv), where(d, i, side_, lines, ce, pe, lv, basis)
+            ex = expression(d, i, aw, side_, s, buyer, seller, lv, cnt)
             buyer, seller, T5["expression"] = ex["buyer"], ex["seller"], dict(ex, in_trade=ent)
             wh = T5["where"]
             why += [f"how much: {T5['how_much']['line']}",
@@ -1360,6 +1373,7 @@ ACT_CLOSES = 2         # [I] a new word needs the same candidate at 2 consecutiv
                        #     78 / 52 / 79 times on 21 / 29 / 30 Oct (a 3-pt wiggle flipped WATCH -> HOLD -> WATCH)
 ANSWER_MIN = 15        # [I] the count's last answer: a push answered within 15 min (the band verdict's DASTAK window)
 AHEAD_STEPS = 2        # [I] the wall ahead: within 2 strike steps of spot (the band verdict's own reach, wall_ahead)
+BOX_STEPS = 1          # [I] the range guard (A229): the leg turned inside the writers' box, within 1 strike step of a wall
 PIECES = ("sides", "wf7", "wall_ahead", "answer", "trapped", "fut_oi", "speed", "all3", "setup")   # GAPS §4, writers first
 CHAIN_PIECES = ("sides", "wf7", "wall_ahead", "trapped", "all3")   # read off the chain this minute (all3: BN / SX spot)
 ANSWER_EN = {"TOOT": "BROKEN", "PHANS": "TRAPPED", "TIKI": "DEFENDED", "NAHI": "HELD"}           # spec §16.2
@@ -1390,8 +1404,8 @@ RV_CAL = math.sqrt(365 / 252)  # [I] server._rv5 annualises on 252 TRADING days,
 # not ours to move.
 _I = ("P5_MIN", "FAST", "SLOW", "SYNC_PTS", "WF_L", "WF_STOP", "RISK_X", "RISK_WIN", "RISK_HOLD", "RISK_CONF", "BLIND_MIN",
       "LAD_NEAR", "FIGHT_AWAY", "FIGHT_AWAY_MIN", "MANAGE_PTS", "MANAGE_WIN", "MANAGE_GAP", "QUIET_MIN", "ACT_LEAD",
-      "ACT_CLOSES", "ANSWER_MIN", "AHEAD_STEPS", "NEED_X", "IV_RV", "CPR_NARROW", "POOL_X", "UNWIND_AT", "RANK_3OF5",
-      "RV_CAL", "VIX_OPEN_BY")
+      "ACT_CLOSES", "ANSWER_MIN", "AHEAD_STEPS", "BOX_STEPS", "NEED_X", "IV_RV", "CPR_NARROW", "POOL_X", "UNWIND_AT",
+      "RANK_3OF5", "RV_CAL", "VIX_OPEN_BY")
 _DEF = {n: globals()[n] for n in _I}
 _APPLIED = [None]                # the thresholds file state last applied
 
@@ -1453,9 +1467,14 @@ def cut_at(d: dict, i: int) -> dict:
 
 
 def _count_of(pieces):
-    sd = [p["side"] for p in pieces]
-    w, a = sd.count("with"), sd.count("against")
-    return {"with": w, "against": a, "N": w + a, "unread": sd.count("?"), "pieces": pieces}
+    """A230 (rule 6, A223): every piece carries its `state` -- with / against / flat (checked, it takes no side) / blind
+    (could not check: its text says so) -- and the count says flat and blind apart; `unread` (= flat + blind) stays for
+    the faces that read it."""
+    for p in pieces:
+        p["state"] = p["side"] if p["side"] != "?" else "blind" if p["text"].startswith("could not check") else "flat"
+    st = [p["state"] for p in pieces]
+    w, a, fl, bl = st.count("with"), st.count("against"), st.count("flat"), st.count("blind")
+    return {"with": w, "against": a, "N": w + a, "flat": fl, "blind": bl, "unread": fl + bl, "pieces": pieces}
 
 
 def count(d: dict, i: int, vote: list | None = None) -> dict:
@@ -1529,7 +1548,11 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
                 + f" {f.get('state')}")
     known = [p for p in d.get("pushes") or () if not p.get("artifact") and p.get("am") and p["am"] < t   # known the minute
              and p.get("ans") not in (None, "?") and m - _m(p["t"]) <= ANSWER_MIN]                     # after (final_ans)
-    if not known:
+    if d.get("idx") and d["idx"] not in H.SPEAK:     # A231: handshake.SPEAK -- this index's OI cannot cross the 3L answer
+        put("answer", "?", f"not counted — {d['idx']}'s answers are logged, not said: the 3L answer bar is "   # bar, so
+                           "NIFTY's (handshake.SPEAK)")      # every answer reads HELD (3 Nov SENSEX: 19 of 19); flat, not
+                                                             # blind: the data is there, left out by design (rule 6)
+    elif not known:
         put("answer", "?", f"no answered push in {ANSWER_MIN} min")
     else:
         p = known[-1]
@@ -1606,8 +1629,39 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
 
 def said(word, lean):
     """The ACTION word as said: the word and its lean arrow -- except OPENING and NO TRADE, whose lean is a chip of its
-    own (the card's `lean`), never part of the word (ruling 1, 1 Nov: the open's geometric flips are not announced)."""
-    return word + (f" {ARR[lean]}" if lean and word not in ("OPENING", "NO TRADE") else "")
+    own (the card's `lean`), never part of the word (ruling 1, 1 Nov: the open's geometric flips are not announced). RANGE
+    too (A229): inside the writers' box the lean flips with every swing; the word names no side."""
+    return word + (f" {ARR[lean]}" if lean and word not in ("OPENING", "NO TRADE", "RANGE") else "")
+
+
+def _box(d, i, g):
+    """THE RANGE GUARD at minute i (A229; docs/kahani/review/JARVIS-FIX-2026-11-04.md §1) -> the box in words, or None.
+    The writers hold a box when the nearest CE wall at / above spot and the nearest PE wall at / below it (§1d's fronts,
+    top-2 a side, read only) are both there and neither is covering (UNWINDING held 3 min, Q17: both sides writing or
+    holding),
+    the leg `g` turned inside them (its extreme within BOX_STEPS strike steps of the box, in spot terms: futures less the
+    3-min basis) and §1o's day type, as DECODE last logged it by minute i, is not TREND. A chain-missing minute has no box
+    (its walls are carried, not seen). Causal like the count: minute i reads minutes <= i only."""
+    t, spot = d["mins"][i], (d.get("spot") or [None] * (i + 1))[i]
+    if not g or g.get("extreme") is None or spot is None or t in (d.get("chain_missing") or ()):
+        return None
+    dec = _logged(d, i)[1]
+    ty = (dec[-1].get("os") or {}).get("type") if dec else None
+    if str(ty or "").startswith("TREND"):
+        return None
+    tl = d.get("timeline") or [{}] * (i + 1)
+    ce, pe = _walls((tl[i] or {}).get("fronts") or [], spot)
+
+    def covering(f):                  # §1d's UNWINDING held 3 minutes (Q17's hold, _build's unwinding_held): a one-minute
+        return all(any(x.get("side") == f["side"] and x.get("k") == f["k"] and x.get("state") == "UNWINDING"   # dip of
+                       for x in (tl[j] or {}).get("fronts") or ()) for j in range(max(0, i - 2), i + 1))    # the slope is not
+    if not ce or not pe or covering(ce[0]) or covering(pe[0]):                                         # covering (4 Nov 11:32)
+        return None
+    lo, hi, tol = pe[0]["k"], ce[0]["k"], BOX_STEPS * (d.get("step") or 50)
+    if not lo - tol <= g["extreme"] - _basis(d, i) <= hi + tol:
+        return None
+    return (f"writers' box {_fmt(lo)}s PE {str(pe[0].get('state')).lower()} – {_fmt(hi)}s CE "
+            f"{str(ce[0].get('state')).lower()} · the leg turned at {_fmt(g['extreme'])}f inside · §1o {ty or '?'}")
 
 
 def _palat_cond(row):
@@ -1628,9 +1682,11 @@ def action_words(d: dict) -> list:
                  else WATCH -- WATCH only when the count has turned (ruling 2, 1 Nov: HOLD and WATCH are the same action
                  for a holder; the leg's risk items ride along as a chip, "HOLD · 2 risk"); PALAT? -> PALAT? while its
                  condition holds; NO LEG / ROTATION as themselves; NO TRADE (quiet / can't see, reads.notrade) when there
-                 is no TREND leg
+                 is no TREND leg; RANGE (A229, no arrow) when the lean flips inside the writers' box (_box), held while
+                 the box holds -- a range day's swings re-leaned the word 11 times in 63 min on 4 Nov
       changes    only at her 3-min closes, on the same candidate at ACT_CLOSES consecutive closes; PALAT? also at one
-                 close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped), and a push against
+                 close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped; RANGE inside the
+                 box), and a push against
                  the lean that BROKE / TRAPPED the wall behind (legs.wall_behind_broke, the leg's own risk rule: TREND /
                  HOLD -> WATCH). CAN'T SEE is the call's (a clock). After the chain's scheduled end (CHAIN_END, 15:30;
                  the futures trade to 15:40) no close changes it: only those two at-once events do (I2)
@@ -1659,9 +1715,13 @@ def action_words(d: dict) -> list:
         W, A = c["with"], c["against"]
         g = row.get("leg") or {}
         brk = legs.wall_behind_broke(pushes, lean, m) if lean else None     # the leg's own rule (its risk item)
+        box = _box(d, i, g) if m >= legs.OPEN_M and (raw == "PALAT" or word == "RANGE") else None   # A229
         # the candidate
         if m < legs.OPEN_M:
             cand = ("NO LEG", "NO LEG: no leg yet") if raw == "NO LEG" else ("OPENING", "OPENING: before 10:00, no word")
+        elif box and (nt[i] or {}).get("why") != "can't see":    # the range guard: the lean flipped inside the writers'
+            cand = ("RANGE", f"RANGE: {box}")    # box (a swing, not a reversal); RANGE holds while the box does, quiet or
+                                                  # not (a quiet box is still one), never over CAN'T SEE
         elif nt[i] and g.get("quality") != "TREND" and raw != "PALAT":
             cand = ("NO TRADE", f"NO TRADE: quiet since {nt[i]['since']}" if nt[i]["why"] == "quiet"
                     else f"NO TRADE: can't see {nt[i]['from']}–{nt[i]['to']}")
@@ -1681,8 +1741,8 @@ def action_words(d: dict) -> list:
             new = cand
         elif word is None or word in ("OPENING", "NO LEG"):            # nothing held: the candidate, count and all
             new = (cand[0], f"{cand[1]} · at once (nothing held yet)")
-        elif raw == "PALAT":
-            new = ("PALAT", "PALAT: the lean flipped")
+        elif raw == "PALAT":                                             # at once: a lean flip, or inside the box RANGE
+            new = (cand[0], cand[1] + " · at once") if cand[0] == "RANGE" else ("PALAT", "PALAT: the lean flipped")
         elif t > CHAIN_END:                                              # I2: the chain ends 15:30 by schedule: the
             pend = None                                                  # word holds; only PALAT / the wall behind
         elif (m - legs.START_M) % 3 == 2:                                # her 3-min close

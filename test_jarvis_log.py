@@ -98,7 +98,8 @@ def frame(call=CALL, **kw):
 def test_the_row_carries_the_contract_and_marks_a_blind_minute():
     r = jarvis_log.row(frame(), 1793596371.4)
     assert r == {"day": DAY, "idx": "NIFTY", "t": "10:42", "at": 1793596371, "shown": "10:42:51", "word": "TREND ▼",
-                 "state": "HOLD", "lean": -1, "since": "09:56", "count": {"with": 4, "against": 1, "N": 6},
+                 "state": "HOLD", "lean": -1, "since": "09:56",
+                 "count": {"with": 4, "against": 1, "N": 6, "flat": None, "blind": None, "pieces": {"answer": "with"}},
                  "fut": 23010.5, "spot": 22967.3, "leg": "leg ▼ TREND 103 pts", "wrong_line": "PALAT? if back past 22,938f",
                  "missing": CALL["missing"], "notes": ["Dext footprint missing since 10:39"], "blind": True}
     old = {k: v for k, v in CALL.items() if k not in ("state", "since", "count")}          # a frame from before Task 1

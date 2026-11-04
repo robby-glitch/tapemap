@@ -70,7 +70,8 @@ Rules:
 
 The state words, verbatim: WALL, PUSH, TESTED ×n · broke n, HELD, DEFENDED, BROKEN, TRAPPED, BREAK FAILED, FUEL, FUEL SPENT,
 NEW FLOOR, NEW CEILING, CONTINUES, PINNED, REVERSAL, ROTATE, CONTINUE, UNCLEAR, NO TRADE: quiet / can't see / shock.
-The leg's words, verbatim: TREND, HOLD, WATCH, PALAT?, PALAT, ROTATION, OPENING, NO LEG, CAN'T SEE.
+The leg's words, verbatim: TREND, HOLD, WATCH, PALAT?, PALAT, ROTATION, OPENING, NO LEG, CAN'T SEE, RANGE (the
+lean flipped inside the writers' box: no side).
 
 The fence: code reads your reply after you write it. A number not in the card, a level without the s / f the card gives it,
 a sign the card does not write, a %, an order word, a fourth line or a line over 140 characters throws the whole reply away

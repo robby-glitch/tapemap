@@ -437,7 +437,8 @@ def test_the_answer_piece_reads_who_won_the_push():
         d["pushes"] = [dict({"t": "10:30", "m": 630, "am": "10:33", "k": 22950.0, "side": "PE", "who": "WRITERS",
                              "artifact": False}, **p)]
         return jarvis.count(d, 36)["pieces"][3]
-    assert answer(dir=-1, ans="TOOT") == {"k": "answer", "side": "with", "text": "last answer 10:30 push ▼ 22,950s PE BROKEN"}
+    assert answer(dir=-1, ans="TOOT") == {"k": "answer", "side": "with", "text": "last answer 10:30 push ▼ 22,950s PE BROKEN",
+                                          "state": "with"}
     assert answer(dir=1, ans="TIKI", side="CE")["side"] == "with"
     assert answer(dir=1, ans="TOOT", side="CE")["side"] == "against"
     got = answer(dir=1, ans="TIKI", side="CE", who="KHAREEDAR")
@@ -535,7 +536,7 @@ def test_30oct_the_opening_is_not_announced(record):
 def test_29oct_sensex_reads_niftys_flow(record):
     """G13 (§1q): SENSEX has no footprint of its own; its frame reads NIFTY's flow (29 Oct: 384 minutes of speed "?")."""
     d = jarvis.build("2026-10-29", "SENSEX", 11 * 60, fill=True)
-    assert "N" in d["flow_src"] and "flow from NIFTY (§1q)" in d["health"]["notes"]
+    assert "N" in d["flow_src"] and "flow from NIFTY (§1q)" in d["health"]["method"]   # A231: method, not a gap
     assert sum(s["word"] == "?" for s in d["reads"]["speed"]) <= 15                  # the 10-bar warm-up and the first 2 min
     assert d["call"]["count"]["pieces"][6]["k"] == "speed"
 
@@ -906,7 +907,7 @@ def test_after_the_chains_scheduled_end_the_word_holds_and_its_reads_say_so():
     assert "chain ends 15:30: only PALAT / the wall behind change it" in a[35]["why"] and "chain ends" not in a[30]["why"]
     c = {p["k"]: p for p in a[35]["count"]["pieces"]}
     for k in jarvis.CHAIN_PIECES + ("answer",):
-        assert c[k] == {"k": k, "side": "?", "text": "could not check — chain ends 15:30"}, k
+        assert c[k] == {"k": k, "side": "?", "text": "could not check — chain ends 15:30", "state": "blind"}, k
     assert a[35]["count"]["N"] == 0
     assert {p["k"]: p for p in a[30]["count"]["pieces"]}["sides"]["side"] == "with"     # 15:30 has its snapshot: read
     d["legs"]["rows"][36] = dict(d["legs"]["rows"][36], word="PALAT", lean=1)        # the lean flips at 15:36: at once
@@ -955,6 +956,96 @@ def test_palat_says_the_old_leg_ended_and_the_new_one_both_ways():
         assert c["seller"].startswith("PALAT: the ▼ leg ended · no new PE sale until the ▲ leg holds 2 closes"), c["seller"]
         assert c["wrong_line"] == "back to ▼ on a new low past 22,985f"
         assert "no lean" not in c["buyer"] + c["seller"]
+
+
+# ---- JARVIS-FIX-2026-11-04 (A229-A232) ----------------------------------------------------------------------------------
+
+def test_a_question_mark_is_flat_or_blind_never_one():
+    """A230 (rule 6, A223): a "?" piece is flat (checked, takes no side) or blind (could not check), said apart."""
+    d = _toy()
+    d["reads"] = jarvis.reads(d)
+    d["legs"] = {"rows": [{"t": m, "lean": -1, "word": "TREND", "leg": {"dir": -1}} for m in d["mins"]],
+                 "day": {"flips": [0] * 40, "fut_oi": [None] * 40}, "pauses": [], "missing": []}
+    c, early = jarvis.count(d, 39), jarvis.count(d, 10)
+    assert c["pieces"][5]["state"] == "flat" and early["pieces"][5]["state"] == "blind"    # no 30-min story / needs 30 min
+    assert c["pieces"][0]["state"] == "with" and c["flat"] + c["blind"] == c["unread"]
+    assert {p["state"] for p in c["pieces"]} <= {"with", "against", "flat", "blind"}
+
+
+def _box_toy(ce_state="BUILDING", os_type=None):
+    """A range: fut 23,100f (spot 23,050s, basis 50) between the writers' 22,950s PE and 23,150s CE walls; the leg's lean
+    flips inside the box at 10:12, 10:20 and 10:28; from 10:32 a ▲ leg runs to 23,300f, past the CE wall."""
+    d = _toy()
+    n = len(d["mins"])
+    d.update(fut=[23100.0] * n, fo=[23100.0] * n, fhi=[23102.0] * n, flo=[23098.0] * n, spot=[23050.0] * n,
+             day="2026-11-04", sides=[], wf_ce=[1.0] * n, wf_pe=[1.0] * n)
+    d["timeline"] = [{"fuel": None, "fuel_state": "-", "fronts": [
+        {"k": 23150.0, "side": "CE", "state": ce_state, "oi": 120.0}, {"k": 22950.0, "side": "PE", "state": "BUILDING", "oi": 110.0}]}] * n
+    if os_type:
+        d["ctx"] = {"decode": [{"T": "09:50", "at": None, "call": None, "lines": [], "os": {"type": os_type}}]}
+    rows = []
+    for i, m in enumerate(d["mins"]):
+        lean = -1 if i < 12 or 20 <= i < 28 else 1
+        if i >= 32:
+            rows.append({"t": m, "lean": 1, "word": "TREND", "leg": {"dir": 1, "quality": "TREND", "extreme": 23300.0}})
+        elif i in (12, 20, 28):                       # the flip row holds the old leg, its extreme inside the box
+            rows.append({"t": m, "lean": lean, "word": "PALAT", "leg": {"dir": -lean, "quality": "PALAT",
+                                                                        "extreme": 23010.0 if lean > 0 else 23180.0}})
+        else:
+            rows.append({"t": m, "lean": lean, "word": "ROTATION", "leg": {"dir": lean, "quality": "ROTATION",
+                                                                           "extreme": 23180.0 if lean > 0 else 23010.0}})
+    d["legs"] = {"rows": rows, "day": {"flips": [0] * n, "fut_oi": [None] * n}, "pauses": [], "missing": []}
+    d["reads"] = jarvis.reads(d)
+    return d
+
+
+def test_the_range_guard_holds_range_inside_the_writers_box():
+    """A229: a lean flip inside the writers' box (both walls there, neither UNWINDING, the leg turned inside them, §1o not
+    TREND) is RANGE at once, no arrow, and the next flips inside it change nothing; a leg past a wall leaves RANGE at two
+    closes. Before: PALAT at once on every flip."""
+    a = jarvis.action_words(_box_toy())
+    said = [jarvis.said(x["word"], x["lean"]) for x in a]
+    assert said[12] == "RANGE" and a[12]["since"] == "10:12" and "writers' box 22,950s PE" in a[12]["why"]
+    assert all(s == "RANGE" for s in said[12:34]) and a[33]["since"] == "10:12"   # 10:20 / 10:28 flips: no change
+    assert said[35] != "RANGE" and said[35].endswith("▲")                           # closes 10:32 and 10:35, past the wall
+    assert sum(x != y for x, y in zip(said, said[1:])) <= 3
+    for kw in ({"ce_state": "UNWINDING"}, {"os_type": "TREND ▲"}):                # a wall covering, or §1o TREND: no box
+        a = jarvis.action_words(_box_toy(**kw))
+        assert [jarvis.said(x["word"], x["lean"]) for x in a][12] == "PALAT ▲", kw
+
+
+def test_the_leg_line_says_how_much_of_em_it_used():
+    """A232 (display only, the word unchanged): the leg line carries its points over trademap.em's EM once EM is known."""
+    d = _call_toy()
+    d["reads"]["action"] = jarvis.action_words(d)
+    word = jarvis.call(d)["word"]
+    d["ctx"] = {"em": {"t": "09:30", "em": 100.0, "K": 23050, "straddle": 150.0, "N": 2}}
+    c = jarvis.call(d)
+    assert "leg ▼ TREND 117 pts · 1.17 of EM · 2.1σ" in c["leg"] and c["word"] == word
+    d["ctx"]["em"]["t"] = "10:45"                                # EM read after this minute: not known yet
+    assert "of EM" not in jarvis.call(d)["leg"]
+
+
+def test_niftys_flow_on_sensex_is_method_not_a_gap():
+    """A231 (§1q): "flow from NIFTY" says how SENSEX's flow is made; it is never in notes (the call's missing)."""
+    d = _toy()
+    d["flow"], d["flow_src"] = list(d["delta"]), ["N"] * len(d["mins"])
+    h = jarvis.health(d, None)
+    assert "flow from NIFTY (§1q)" in h["method"] and "flow from NIFTY (§1q)" not in h["notes"]
+
+
+def test_an_index_whose_answers_are_not_said_never_counts_them():
+    """A231 (handshake.SPEAK): SENSEX's OI cannot cross the 3L answer bar, so every answer reads HELD (3 Nov: 19 of 19)
+    and the count read AGAINST on 116 of 332 minutes; it is not counted (flat, never blind: the data is there), with the
+    reason. NIFTY's answer is counted as before."""
+    d = _pause_toy("HOLD", [], 0.1)
+    d["pushes"] = [{"t": "10:30", "m": 630, "am": "10:33", "k": 22950.0, "side": "PE", "who": "WRITERS", "artifact": False,
+                    "dir": -1, "ans": "NAHI"}]
+    d["idx"] = "NIFTY"
+    assert jarvis.count(d, 36)["pieces"][3]["side"] == "against"                 # the lean's own push HELD
+    d["idx"] = "SENSEX"
+    p = jarvis.count(d, 36)["pieces"][3]
+    assert p["state"] == "flat" and p["text"].startswith("not counted") and "handshake.SPEAK" in p["text"]
 
 
 @pytest.mark.skipif(not _has("2026-10-30"), reason="30 Oct record not present")
@@ -1044,5 +1135,5 @@ def test_no_buyer_pick_while_the_word_says_no_new_one(record):
     PALAT and the buyer line said no new CE until the leg holds 2 closes. A pick is named only while the word holds."""
     d = jarvis.build("2026-09-29", "NIFTY", upto=jarvis._m("11:12") + 1, fill=True)
     c = d["call"]
-    assert c["word"].startswith("PALAT"), c["word"]
-    assert c["expression"]["pick"] is None and c["expression"]["pick_why"] == "no edge named"
+    assert c["word"].startswith(("PALAT", "RANGE")), c["word"]   # A229: the 11:10 flip sat inside the writers' box
+    assert c["expression"]["pick"] is None and c["expression"]["pick_why"] == "no edge named"      # 22,600-22,700s: RANGE

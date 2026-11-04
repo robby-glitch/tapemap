@@ -272,8 +272,9 @@ class Day:
             return True, f"{idx} {c.get('at') or '?'}", [
                 " · ".join(x for x in (c.get("word"), c.get("state"), c.get("since") and f"since {c['since']}") if x)
                 or "could not check — word absent",
-                (f"WITH {cn['with']} · AGAINST {cn['against']}" + "".join(f" · {k_} {cn[k_]}" for k_ in ("N", "unread")
-                                                                          if cn.get(k_) is not None)
+                (f"WITH {cn['with']} · AGAINST {cn['against']}" + "".join(
+                    f" · {k_} {cn[k_]}" for k_ in (("N", "flat", "blind") if "flat" in cn else ("N", "unread"))   # A230
+                    if cn.get(k_) is not None)
                  if cn.get("with") is not None and cn.get("against") is not None else "could not check — count absent"),
                 c.get("leg") or "leg: none in this frame",
                 "health: every source live" if miss == [] else "health: " + " · ".join(map(str, miss))

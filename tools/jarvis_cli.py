@@ -88,7 +88,8 @@ def render_card(card: dict) -> str:
     if word:
         out.append(f"{'WORD':<10}" + " · ".join(word))
     c = g("count") if isinstance(g("count"), dict) else {}
-    n = " · ".join(f"{lab} {c[k]}" for k, lab in (("with", "WITH"), ("against", "AGAINST"), ("N", "N"), ("unread", "unread"))
+    n = " · ".join(f"{lab} {c[k]}" for k, lab in (("with", "WITH"), ("against", "AGAINST"), ("N", "N"))
+                   + ((("flat", "flat"), ("blind", "blind")) if "flat" in c else (("unread", "unread"),))   # A230
                    if c.get(k) is not None)
     if n:
         out.append(f"{'COUNT':<10}{n}")          # the count's own one-word cells: one line
@@ -96,7 +97,7 @@ def render_card(card: dict) -> str:
         absent.append("count")
     for p in c.get("pieces") or ():
         if p.get("text"):
-            out.extend(_block(f"  {str(p.get('side') or '?'):<8}", p["text"]))
+            out.extend(_block(f"  {str(p.get('state') or p.get('side') or '?'):<8}", p["text"]))
     row("LEG", g("leg"))
     row("PAUSE", g("pause"))
     row("HOW MUCH", g("how_much"))
