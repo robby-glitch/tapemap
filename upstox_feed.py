@@ -130,6 +130,19 @@ class UpstoxFeed(threading.Thread):
     def stop(self):
         self._stop.set()
 
+    def add(self, keys):
+        """Subscribe more keys on the open socket (5 Nov: the chain's window walked past the strikes subscribed at the
+        open). Kept in `self.keys`, so a reconnect subscribes them too; a send that fails is left to that reconnect."""
+        new = [k for k in keys if k not in set(self.keys)]
+        self.keys += new
+        ws = getattr(self, "_ws", None)
+        if new and ws is not None and self.connected:
+            try:
+                ws.send_binary(sub_frame(new, self.mode))
+            except Exception as e:                # noqa: BLE001
+                self.last_error = f"add: {type(e).__name__}: {e}"
+        return new
+
     # ---- the socket ----------------------------------------------------
 
     def _real_connect(self):
@@ -144,7 +157,7 @@ class UpstoxFeed(threading.Thread):
         while not self._stop.is_set():
             ws = None
             try:
-                ws = self._connect()
+                ws = self._ws = self._connect()
                 self.connected = True
                 self.last_error = None
                 attempt = 0
@@ -155,7 +168,7 @@ class UpstoxFeed(threading.Thread):
                 # quiet with no way back short of a restart.
                 self.last_error = f"{type(e).__name__}: {e}"
             finally:
-                self.connected = False
+                self.connected, self._ws = False, None
                 if ws is not None:
                     try:
                         ws.close()

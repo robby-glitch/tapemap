@@ -1252,8 +1252,10 @@ def call(d: dict) -> dict:
             buyer = (f"hold the {opt}, no new one while WATCH · stop = the PALAT line {_fmt(half)}f"
                      if entry == "WATCH" or aw == "WATCH" else
                      f"buy the {opt} on the pullback, not chased · stop = the PALAT line {_fmt(half)}f")
-            seller = (f"sell the {other} at / beyond {lv(wall['k'])}: its writers are the leg's floor · same stop" if wall
-                      else f"sell the {other}: its writers are the leg's floor · same stop")
+            seller = (f"hold a {other} sale, no new one while WATCH · same stop" if entry == "WATCH" or aw == "WATCH" else
+                      f"sell the {other} at / beyond {lv(wall['k'])}: its writers are the leg's floor · same stop" if wall
+                      else f"sell the {other}: its writers are the leg's floor · same stop")   # 5 Nov: WATCH offered a
+            # new PE sale while its own count was 5 against (NIFTY 14:14-14:19); the buyer line already said no new one
     elif aw == "PALAT" and g and lean:               # the old leg ended, the new one is the lean: say both, both ways
         old = g["extreme"] if g["dir"] != lean else g["origin"]   # the flip minute's row holds the old leg, later rows the
         opt, other = ("CE", "PE") if lean > 0 else ("PE", "CE")   # new one (born at the old extreme)
@@ -1683,7 +1685,8 @@ def action_words(d: dict) -> list:
                  for a holder; the leg's risk items ride along as a chip, "HOLD · 2 risk"); PALAT? -> PALAT? while its
                  condition holds; NO LEG / ROTATION as themselves; NO TRADE (quiet / can't see, reads.notrade) when there
                  is no TREND leg; RANGE (A229, no arrow) when the lean flips inside the writers' box (_box), held while
-                 the box holds -- a range day's swings re-leaned the word 11 times in 63 min on 4 Nov
+                 the box holds -- a range day's swings re-leaned the word 11 times in 63 min on 4 Nov; once PALAT?
+                 is said, the pause stays PALAT? until the leg makes a new extreme (5 Nov, its wrong-line's promise)
       changes    only at her 3-min closes, on the same candidate at ACT_CLOSES consecutive closes; PALAT? also at one
                  close once 0.35 of the leg is back (legs.DEEP). At once: PALAT (the lean flipped; RANGE inside the
                  box), and a push against
@@ -1706,7 +1709,7 @@ def action_words(d: dict) -> list:
                 nt[j] = x
     pushes = d.get("pushes") or []
     vote, spoken, out = None, set(), []
-    word = rule = shown = since = pend = None
+    word = rule = shown = since = pend = pq = pq_t = None
     for i, (t, row) in enumerate(zip(mins, rows)):
         m, raw, lean = _m(t), row["word"], row.get("lean") or 0
         if not lean and vote is None:
@@ -1730,6 +1733,11 @@ def action_words(d: dict) -> list:
                     else ("HOLD", f"HOLD: a TREND leg, with < against + {ACT_LEAD}"))
         elif raw == "PALAT?" and _palat_cond(row):
             cand = ("PALAT?", "PALAT?: ≥ 3 risk items or FAST against")
+        elif raw in ("HOLD", "WATCH", "PALAT?") and word == "PALAT?" and pq is not None and pq == g.get("extreme"):
+            cand = ("PALAT?", f"PALAT?: said at {pq_t}, no new {'high' if lean > 0 else 'low'} past {_fmt(pq)}f since")
+            # 5 Nov (docs/review-2026-11-05/JARVIS.md): the card's own wrong-line, "back to HOLD on a real new high past
+            # X". The leg's latch lapsing in the same pause is not a new high (5 Nov NIFTY / SENSEX 14:44, SENSEX 10:29 /
+            # 10:38: HOLD again with no new extreme, so the buyer line offered a new CE / PE)
         elif raw in ("HOLD", "WATCH", "PALAT?"):         # the pause (a latched PALAT? too): the count decides
             cand = (("HOLD", "HOLD: the pause, with ≥ against") if W >= A
                     else ("WATCH", "WATCH: the count turned, against > with"))
@@ -1757,6 +1765,10 @@ def action_words(d: dict) -> list:
                     new = ("PALAT?", f"PALAT?: retrace {g['retrace']:.2f} ≥ {legs.DEEP} of the leg")
         if new:
             word, rule, pend = new[0], new[1], None
+        if word != "PALAT?":
+            pq = pq_t = None
+        elif pq is None:                                                 # the leg's extreme when PALAT? was said
+            pq, pq_t = g.get("extreme"), t
         # EXIT-class, at once, any minute: a push against the lean BROKE / TRAPPED the wall behind. Spoken once per push;
         # a break landing while the word is not a holding word waits in its window (never lost); a cautious word has it
         if brk is not None and id(brk) not in spoken and m >= legs.OPEN_M and g.get("quality") == "TREND":

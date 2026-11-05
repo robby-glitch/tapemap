@@ -189,10 +189,38 @@ class UpstoxChainSource:
                 raise RuntimeError(f"{idx}: the 09:15 OI baselines wait for the 09:15 bar (from 09:16); "
                                    "the socket is already recording")
             self._baseline(idx, self.token or upstox_feed.read_token())
+        self._widen(idx, r, spot)
         legs = near(r["meta"], spot, getattr(self, "each_side", upstox_instruments.STRIKES_EACH_SIDE))
         self._retry_baselines(idx, legs)
         payload = upstox_adapter.chain_payload(feeds, legs, spot, self.prev_oi.get(idx))
         return chain_live.normalize(payload, now, window)
+
+    def _widen(self, idx, r, spot):
+        """5 Nov: a 09:07 start centred the one-time +/- SUBSCRIBE_EACH_SIDE socket on the PRIOR close; a +380 gap and
+        the trend walked spot to the subscribed top edge, so `near` handed down the same 17 strikes all day (NIFTY
+        23950-24750, SENSEX 77300-78900 with spot at 79,400) and every call writer above spot went unrecorded. When the
+        live window reaches that edge, re-resolve around the live spot and subscribe the new legs on the open socket.
+        `r["meta"]` grows in place (senses reads the same dict); `_retry_baselines` fetches the new legs' 09:15 OI."""
+        each = getattr(self, "each_side", upstox_instruments.STRIKES_EACH_SIDE)
+        ks = sorted({k for k, _ in r["meta"].values()})
+        if len(ks) < 2 or not hasattr(self.feed, "add"):
+            return
+        step = min(b - a for a, b in zip(ks, ks[1:]))
+        if ks[0] + each * step <= spot <= ks[-1] - each * step:
+            return
+        try:
+            nr = upstox_instruments.resolve(spot, name=idx, each_side=self.sub_each_side)
+        except Exception as e:                    # noqa: BLE001 -- the old window keeps recording
+            print(f"upstox chain {idx}: widen around {spot}: {e}")
+            return
+        if nr.get("expiry") != r.get("expiry"):
+            return                                # an expiry roll is start()'s job, not a poll's
+        new = {key: who for key, who in nr["meta"].items() if key not in r["meta"]}
+        if new:
+            r["meta"].update(new)
+            self.feed.add(list(new))
+            print(f"upstox chain {idx}: spot {spot} at the subscribed edge; +{len(new)} legs "
+                  f"({min(k for k, _ in new.values())}-{max(k for k, _ in new.values())})")
 
     def _retry_baselines(self, idx, legs):
         """A125: a leg whose 09:15 baseline failed writes oi_chg 0 (27 Oct: the 10 busiest NIFTY strikes, asked at 09:16

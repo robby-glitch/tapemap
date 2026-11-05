@@ -197,6 +197,32 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
 .endtab td.r{text-align:right;white-space:nowrap}
 .review .foot{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:12px;color:var(--mut)}
 .review .foot .go{margin:0;margin-left:auto}
+/* ---- the WALK (5 Nov, A243): a spoken, chaptered walk through the day over the chart */
+#walk.on{background:var(--you);border-color:var(--you);color:#fff}
+#walkp{position:absolute;left:12px;bottom:12px;z-index:12;width:min(620px,calc(100% - 24px));max-height:64%;overflow:auto;background:#fff;
+  border:1px solid rgba(124,58,237,.45);border-top:3px solid var(--you);border-radius:12px;padding:8px 12px 10px;box-shadow:0 10px 30px rgba(60,40,20,.16)}
+#walkp[hidden]{display:none}
+.wctl{display:flex;align-items:center;gap:6px}
+.wctl button{padding:3px 9px}
+.wprog{flex:1;height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.wprog i{display:block;height:100%;width:0;background:var(--you);transition:width .3s}
+#wCnt{font:600 11px var(--mono);color:var(--mut)}
+.wtabs{display:flex;gap:5px;overflow-x:auto;margin:8px 0 6px;padding-bottom:3px}
+.wtabs button{font:600 11px var(--mono);white-space:nowrap;padding:3px 8px;color:var(--mut)}
+.wtabs button.done{color:var(--ink)} .wtabs button.done::before{content:"✓ ";color:var(--ok)}
+.wtabs button.cur{background:#efe6fd;border-color:var(--you);color:var(--you)}
+.wbody{border-left:3px solid var(--you);background:var(--soft);border-radius:8px;padding:7px 10px}
+.wtext{font-size:13.5px;line-height:1.45;margin-top:3px}
+.wteach{margin-top:7px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px}
+.wteach .h{grid-column:1/-1;display:flex;justify-content:space-between;font:700 11px var(--mono);color:var(--you);letter-spacing:.05em}
+.wteach .h i{font-style:normal;color:var(--mut);font-weight:600}
+.wteach .k{font-weight:700;color:var(--mut);white-space:nowrap}
+.wq{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.wq button{border-radius:99px;font-size:12px;color:var(--you);border-color:#e2d6f7;background:#f8f5fe}
+.wans{margin-top:6px;font-size:12.5px;line-height:1.4;padding:6px 10px;border-radius:8px;background:#f8f5fe}
+.wans[hidden]{display:none}
+.wfoot{margin-top:6px;font:500 10.5px var(--mono);color:var(--mut)}
+#wNx:empty,#wChips:empty,.wteach[hidden],.wq:empty{display:none}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:1180px){main{grid-template-columns:minmax(0,1fr) 320px}.strip{grid-template-columns:repeat(3,1fr)}}
 </style>
@@ -211,6 +237,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
     <div class="grp"><button data-sp="1">1×</button><button data-sp="2" class="on">2×</button><button data-sp="4">4×</button></div>
     <div class="grp"><button data-md="1" class="on">1m</button><button data-md="3">3m</button></div>
     <button id="voice" title="speak the major lines (speechSynthesis)">🔇 voice off</button>
+    <button id="walk" title="walk me through the day: the moments that mattered, spoken (W)">🎓 walk</button>
   </div>
   <div class="quotes">
     <div class="qt"><span class="k">NIFTY fut · spot</span><span class="v" id="qN">—</span></div>
@@ -239,6 +266,18 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
         <div class="bchips" id="bchips"></div>
         <div class="bnext" id="bnext"></div>
       </div>
+      <div id="walkp" hidden>
+        <div class="wctl"><button id="wPrev" title="previous (←)">⏮</button><button id="wPlay" title="pause / play (Space)">❚❚</button><button id="wNext" title="next (→)">⏭</button>
+          <div class="wprog"><i id="wBar"></i></div><span id="wCnt">1 / 1</span>
+          <button id="wMute" title="voice on / off (V)">🔊</button><button id="wClose" title="close (Esc)">✕</button></div>
+        <div class="wtabs" id="wTabs"></div>
+        <div class="wbody"><div class="rh"><span class="rt" id="wTime"></span><span class="rtag" id="wTag"></span><span class="rsrc" id="wSrc"></span></div>
+          <div class="wtext" id="wText"></div><div class="rc" id="wChips"></div><div class="rn" id="wNx"></div></div>
+        <div class="wteach" id="wTeach"></div>
+        <div class="wq" id="wQ"></div>
+        <div class="wans" id="wAns" hidden></div>
+        <div class="wfoot" id="wFoot"></div>
+      </div>
     </div>
     <canvas id="tl" aria-label="timeline scrubber"></canvas>
     <div id="rail"></div>
@@ -259,8 +298,8 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
   <p>28 Oct, NIFTY Nov futures, 09:15–13:40, as if the laptop had been on all morning.</p>
   <p>Laptop on at 11:07; asleep 12:54–13:00. Those minutes are rebuilt: flow from Dext, chain from Upstox. What could not be rebuilt is shown blind.</p>
   <p>Every line is generated from the data: pushes, the wall's answers, fuel, your band verdicts, top / bottom signs, manage lines, no-trade stretches. Jarvis never places an order.</p>
-  <button class="go" id="go">▶ Watch</button>
-  <div class="keys">space play · ← → step · [ ] events · 1 2 4 speed · m 1m/3m · v voice · / command</div>
+  <button class="go" id="go">▶ Watch</button> <button class="go" id="goWalk" style="background:var(--you)">🎓 Walk me through it</button>
+  <div class="keys">space play · ← → step · [ ] events · 1 2 4 speed · m 1m/3m · v voice · w walk · / command</div>
 </div></div>
 <div class="over" id="end" hidden><div class="card review">
   <h1><div class="orb" style="width:26px;height:26px"></div>Evening review · <span id="endDay">28 Oct</span> <small id="endMeta"></small></h1>
@@ -401,7 +440,7 @@ function loadFrame(n) {
   });
 }
 loadFrame(0);
-if (LIVE) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) swapFrame(d); }).catch(() => {}), 20000);
+if (LIVE) setInterval(() => fetchFrame(API).then(d => { if (d && d.mins && D) { if (WALK) WALK.pend = d; else swapFrame(d); } }).catch(() => {}), 20000);
 // v3 (Task 3): live, the top card is GET /api/jarvis/card (small, every 20 s) and the command box talks to /api/jarvis/cmd.
 // Either one missing (a server before v3, a saved file, a replay): the frame's call and the page's own grammar, as before,
 // and the box says so. ?card=<file> (test only): render that card, never poll it.
@@ -506,6 +545,7 @@ function init(d) {
   prep(d);
   rail(); fit(); seek(LIVE ? N - 1 : 0); renderMinute(cur(), true);
   if (LIVE) $("#intro").hidden = true;
+  if (QS.get("walkcheck")) walkCheck();
   requestAnimationFrame(loop);
 }
 function prep(d) {
@@ -1024,11 +1064,12 @@ function rebuildFeed() {
   $("#nev").textContent = `${fired + 1} lines`;
 }
 $("#feed").onclick = m => { let el = m.target; while (el && el !== $("#feed") && !(el.dataset && el.dataset.i != null)) el = el.parentNode; if (el && el.dataset && el.dataset.i != null) { playing = false; $("#play").textContent = "▶ play"; seek(+el.dataset.i + 0.01); } };
-function speak(s) {
-  if (!voiceOn || typeof speechSynthesis === "undefined") return;
+function speak(s, done) {   // done (the WALK): called when the line ends or is cut; false = nothing spoken (voice off)
+  if (!voiceOn || typeof speechSynthesis === "undefined") return false;
   const plain = s.replace(/\*\*/g, "").replace(/▲/g, " up ").replace(/▼/g, " down ").replace(/[·→]/g, ", ").replace(/×/g, " times ").replace(/(\d)f\b/g, "$1 futures").replace(/(\d)s\b/g, "$1 spot").replace(/(\d)L\b/g, "$1 lakh");
   const u = new SpeechSynthesisUtterance(plain), v = speechSynthesis.getVoices().find(x => /en-IN/i.test(x.lang)) || speechSynthesis.getVoices().find(x => /^en/i.test(x.lang));
-  if (v) u.voice = v; u.rate = 1.05; speechSynthesis.cancel(); speechSynthesis.speak(u);
+  if (v) u.voice = v; u.rate = 1.05; if (done) u.onend = u.onerror = done; speechSynthesis.cancel(); speechSynthesis.speak(u);
+  return true;
 }
 let bpos = {x: 0, y: 0};
 function anchor() { const i = cur(); return {x: X(i), y: Y(live(i).c)}; }
@@ -1153,6 +1194,9 @@ function draw(now) {
     if (t > h0) { ctx.fillStyle = "rgba(120,120,140,.10)"; ctx.fillRect(X(h0), pTop, X(Math.min(t, h1)) - X(h0), dBot - pTop);
       ctx.fillStyle = COL.mut; ctx.font = "600 10.5px " + MONO; ctx.fillText("BLIND · laptop asleep", X(h0) + 4, pTop + 12); if (t > h1) ctx.fillText("flow refilled · chain blind", X(h0) + 4, pTop + 26); }
   }
+  const ws = WALK && WALK.scenes[WALK.n];               // the WALK's scene window, shaded
+  if (ws) { ctx.fillStyle = "rgba(124,58,237,.07)"; ctx.fillRect(X(ws.a) - 3, pTop, Math.max(6, X(Math.min(ws.i, t)) - X(ws.a) + 6), dBot - pTop);
+    ctx.fillStyle = COL.you; ctx.font = "700 10.5px " + MONO; ctx.fillText(`${WALK.n + 1} · ${ws.tab}`, X(ws.a) + 4, pTop + 40); }
   zoneFills(end); bands(end); walls(now, end);
   // candles
   const w = cw();
@@ -1480,6 +1524,15 @@ $("#again").onclick = () => { $("#end").hidden = true; seek(0); setPlay(true); }
 addEventListener("keydown", e => {
   const typing = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT");
   if (typing) { if (e.key === "Escape") e.target.blur(); return; }
+  if (WALK) {                                          // the WALK owns the keys while it is open
+    if (e.code === "Space") { e.preventDefault(); walkPause(); }
+    else if (e.key === "ArrowRight") walkShow(WALK.n + 1);
+    else if (e.key === "ArrowLeft") walkShow(WALK.n - 1);
+    else if (e.key === "Escape" || e.key === "w") closeWalk();
+    else if (e.key === "v") $("#wMute").click();
+    return;
+  }
+  if (e.key === "w") return openWalk();
   if (e.code === "Space") { e.preventDefault(); $("#play").click(); }
   else if (e.key === "ArrowRight") { setPlay(false); seek(Math.min(N - 1, cur() + 1 + 0.99)); }
   else if (e.key === "ArrowLeft") { setPlay(false); seek(Math.max(0, cur() - 1 + 0.99)); }
@@ -1497,6 +1550,213 @@ cv.addEventListener("mousemove", m => { const r = cv.getBoundingClientRect(), mx
   else tip.style.opacity = 0; });
 cv.addEventListener("mouseleave", () => { hover = null; $("#tip").style.opacity = 0; });
 cv.addEventListener("click", m => { const r = cv.getBoundingClientRect(), mx = m.clientX - r.left, my = m.clientY - r.top; const p = pins.find(q => Math.hypot(q.x - mx, q.y - my) < 7); if (p) { setPlay(false); seek(p.e.i + 0.01); } });
+
+/* ------------------------------------------------------------ the WALK (her ask, 5 Nov: "ai mentor is awesome", A243) -- */
+// A spoken, chaptered walk through the day, like VolumeLens's AI Mentor, built ONLY from what this page already holds:
+// the brain's events (ev) and, on a replay, its call at every minute (D.calls). It judges nothing new. Scenes, in time:
+//   THE OPEN  the open's walls (ev[0])
+//   MOMENTS   up to WALK_MAX, picked by rank (the day's skeleton first: the word's TREND / PALAT turns; then why they
+//             ran: broken walls, trapped writers, her triggers, blind stretches; then fuel and signs), WALK_GAP min
+//             apart, at most WALK_CAP of a kind (3 word turns, 2 triggers, 1 blind, 2 of anything else)
+//   NOW       the last minute's call (live: the card): word, count, leg, how much, pause
+//   LEVELS    the walls now with their record today, the wrong-line, the buyer / seller lines
+// Each scene puts the playhead at its minute (the chart shows only what was known then) and shades its window; the
+// voice reads it (speechSynthesis, en-IN; voice off -> a timed advance). Follow-ups run the page's own grammar AT THAT
+// MINUTE (runCmd), never the live server's "now". Live, the 20 s frame swap waits until the walk closes.
+const WALK_MAX = 6, WALK_GAP = 12, WALK_CAP = {WORD: 4, TRIGGER: 2, BLIND: 1};
+const WALK_RANK = [                                    // lower = told first; a word turn carries its own (rk) [I: a trader's order, 5 Nov]
+  [e => e.toot, 2], [e => e.tag === "TRAPPED", 2], [e => e.zone, 2], [e => e.tag === "BLIND", 2],
+  [e => e.tag === "NEW FLOOR", 3], [e => e.signs && !e.signs.driving, 4], [e => /RISK · WRITERS/.test(e.tag), 4],
+  [e => e.chap === "FUEL", 4], [e => e.tag === "DEFENDED" || e.tag === "BUYERS IN", 5], [e => e.chap === "FUEL SPENT", 5],
+  [e => e.chap === "NEW FIGHT", 5], [e => e.tag === "NO TRADE" || e.tag === "PINNED", 6]];
+const rankOf = e => e.rk || (WALK_RANK.find(([f]) => f(e)) || [0, 9])[1];
+const kindOf = e => e.turn ? "WORD" : e.zone ? "TRIGGER" : e.chap || e.tag.split(" ")[0];
+// What this means, per word: [the scene's tag or word, title, her word, what it is, why it matters]. Her method's words.
+const TEACH = [
+  [/^OPEN/, "WALLS AT THE OPEN", "deewar", "The biggest option-writer OI near price: the CE wall above is the ceiling, the PE wall below the floor.", "Price travels wall to wall. A push into a wall gets its answer within 4 min: HELD, BROKEN, DEFENDED or TRAPPED."],
+  [/^PUSH/, "PUSH", "dhakka", "Futures order flow pressing into a wall: lots in 2 min.", "The push asks the question; the wall's writers answer within 4 min."],
+  [/^HELD/, "HELD", "nahi toota", "Pushed, and the wall's writers did not cut.", "The push failed: the wall stands."],
+  [/^BROKEN|^BREAK/, "BROKEN", "toot", "Pushed, and the wall's writers bought back (OI fell) as price went through.", "Their buying back is fuel: the move usually runs on to the next wall."],
+  [/^DEFENDED/, "DEFENDED", "tiki", "Writers ADDED at the wall when it was pushed.", "The push was absorbed: sellers are being paid to hold this level."],
+  [/^BUYERS IN/, "BUYERS IN", "", "Option buyers, not writers, opened OI at the wall.", "Not a defence: they are betting the wall breaks."],
+  [/^TRAPPED/, "TRAPPED WRITERS", "phanse", "Writers added at the wall and price went through anyway.", "They are under water; their forced buying back is stored fuel for the move."],
+  [/^FUEL \(OPTIONS\)/, "OPTIONS FUEL", "rasad", "Option writers covering, read from the Sides board.", "Call writers covering push price up; put writers covering push it down."],
+  [/^WRITERS/, "WRITERS ±7", "", "Option writers within 7 strikes of price over 3 min: who is covering, who is building.", "Both sides pushing one way is the strongest fuel; a pause is not a top until delta turns."],
+  [/^FUEL SPENT|^OPTIONS FUEL PAUSED/, "FUEL SPENT", "khatam", "The run stopped making new extremes.", "Who pushes now? Without new fuel a move stalls or rotates."],
+  [/^FUEL/, "FUEL", "rasad", "A futures OI run of at least twice the bar: shorts covering or fresh positions.", "Covering pushes price on fast; fresh positions show who is committing."],
+  [/^WEAKENING/, "WEAKENING", "thakan", "The wall is losing OI while it is being tested.", "A wall unwinding under pressure is close to breaking."],
+  [/^RETREATING/, "RETREATING", "khisak", "Writers leaving the wall before any test.", "The ceiling or floor is moving away: room opens."],
+  [/^NEW FLOOR/, "NEW FLOOR", "naya floor", "An old ceiling flipped into a floor.", "Pullbacks into it are where the move finds support."],
+  [/^NEW FIGHT/, "NEW FIGHT", "", "A different wall became the one price presses on.", "The battle moved: read this wall's answers now."],
+  [/^PINNED/, "PINNED", "pin", "Pushes both ways HELD and fuel is quiet.", "Small range until new fuel: a seller's day, not a buyer's."],
+  [/SIGNS/, "TOP / BOTTOM SIGNS", "", "At a new 30-min extreme, 2 or 3 of: candle against delta, absorption (effort 2× or more), delta exhausting.", "With the fuel spent, a rotation back to VWAP is on; with fuel still running, not yet."],
+  [/RISK/, "TOP / BOTTOM RISK", "", "Writers stopped pushing and the other side hit hard (3-min delta).", "The push lost its fuel: protect the gain."],
+  [/TRIGGER/, "YOUR ZONE", "", "Price reached your zone: d2→d3 buy, u2→u3 sell, on the 3-min VWAP bands.", "The read decides the fade: ROTATE backs it, CONTINUE says don't fade, UNCLEAR says wait."],
+  [/^NO TRADE/, "NO TRADE", "", "Quiet: no break, no fuel, no trigger, writers not pushing.", "Nothing to act on. It ends on fuel, a break or your trigger."],
+  [/^BLIND|^BACK|^CAN'T SEE/, "BLIND", "", "Data was missing: laptop asleep or a chain hole.", "Jarvis never guesses what it cannot see; read those minutes yourself."],
+  [/^TREND/, "TREND", "", "A leg with the count well ahead: more reads WITH the move than AGAINST.", "Go with it. Jarvis picks a buyer's trade only on TREND or HOLD."],
+  [/^HOLD/, "HOLD", "", "A pause inside the leg, the count still with it.", "A holder keeps the trade; no new entry is needed."],
+  [/^WATCH/, "WATCH", "", "A pause where the count has turned against the leg.", "Same action for a holder as HOLD, but watch the wall behind you and the writers."],
+  [/^PALAT\?/, "PALAT?", "palat?", "Price gave back 0.35 of the leg: a possible turn.", "Don't add. The PALAT line is where the lean ends."],
+  [/^PALAT/, "PALAT", "palat", "Price went past the PALAT line: the lean ended.", "The old side's trade is over; the new side needs its own push and answer."],
+  [/^RANGE/, "RANGE", "", "The lean flipped inside the writers' box: CE wall above, PE wall below, neither unwinding.", "No side. The seller's line is outside the walls; a buyer waits for a break."],
+  [/^ROTATION/, "ROTATION", "", "A swing that is not a trend leg: small against σ and the expected move.", "Expect a move back, not a run."],
+  [/^OPENING|^NO LEG/, "OPENING", "", "Before 10:00 the word has no arrow; the lean is only a chip.", "Let the first hour show the day."],
+  [/^LEVELS/, "LEVELS TO WATCH", "", "The nearest walls now, with their record today, and the line that proves the call wrong.", "A test of these walls is the next question; the wrong-line is where the call ends."]];
+const teachOf = k => TEACH.find(([re]) => re.test(k || "")) || null;
+const walkTab = e => `${D.mins[clampI(e.i)]} ${e.turn ? e.tag : (e.chap || e.tag).split(" · ")[0]}`;
+const nxOf = e => [{t: e.up, c: "up"}, {t: e.dn, c: "dn"}, {t: e.wr, c: "wr"}];
+let WALK = null;
+
+function walkTurns() {      // a replay's ACTION word turns after 10:00: a new TREND, PALAT (the flip), RANGE, PALAT? -- 20 min apart per word
+  const C = D.calls || [], out = [], last = {}, t10 = D.mins.findIndex(m => m >= "10:00");
+  let prev = "";                // the last turn kept: TREND ▲ → HOLD ▲ → TREND ▲ is one leg resuming, not a turn (5 Nov 13:17 / 13:38)
+  if (t10 < 0) return out;
+  for (let k = Math.max(1, t10); k < C.length; k++) {
+    const c = C[k], p = C[k - 1], h = (c.word || "").split(" ")[0], hp = (p.word || "").split(" ")[0];
+    if (!["TREND", "PALAT", "PALAT?", "RANGE"].includes(h) || (h === hp && c.lean === p.lean) || k - (last[h] ?? -99) < 20
+        || h + c.lean === prev) continue;
+    last[h] = k; if (h !== "PALAT?") prev = h + c.lean;     // a PALAT? wobble the leg survives is not a new leg
+    const n = c.count, cnt = n && n.with != null ? ` · WITH ${n.with} · AGAINST ${n.against}` : "";
+    out.push({i: k + 0.02, turn: true, major: true, rk: h === "PALAT?" ? 3 : h === "RANGE" ? 2 : 1, tag: c.word,
+      tagc: h === "TREND" ? "ok" : h === "RANGE" ? null : "bad",
+      text: `**The word turned ${c.word}**${c.state ? ` · ${c.state}` : ""}${cnt}.${c.leg ? " " + c.leg + "." : ""}`,
+      chips: c.since ? [{t: "since " + c.since}] : [], wr: c.wrong_line || null});
+  }
+  return out;
+}
+function walkScenes() {
+  const L1 = N - 1, c = (D.calls && D.calls[L1]) || CARD || D.call || {}, S = [], o = ev[0] || {text: `**${D.mins[0]}**`};
+  S.push({i: 0.02, a: 0, tab: "The open", tag: "THE OPEN", teach: "OPEN", text: o.text, chips: o.chips, lines: nxOf(o)});
+  const pool = ev.filter(e => e.major && e !== ev[0] && !e.mz && e.i >= 1 && e.i <= L1 + 0.99).concat(walkTurns())
+    .map(e => ({e, r: rankOf(e)})).filter(x => x.r < 9).sort((x, y) => x.r - y.r || x.e.i - y.e.i);
+  const pick = [], kinds = {}, third = e => Math.min(2, Math.floor(3 * e.i / Math.max(1, L1)));
+  const ok = e => (kinds[kindOf(e)] || 0) < (WALK_CAP[kindOf(e)] || 2) && !pick.some(p => Math.abs(p.i - e.i) < WALK_GAP);
+  const take = e => { const k = kindOf(e); kinds[k] = (kinds[k] || 0) + 1; pick.push(e); };
+  // 1) the day's skeleton: the word's real turns (TREND / PALAT / RANGE)
+  pool.forEach(({e}) => { if (e.turn && e.rk <= 2 && pick.length < WALK_MAX && ok(e)) take(e); });
+  // 2) the rest: the best moment of each third of the session in turn (5 Nov: rank-then-time filled all six by
+  //    12:30 and skipped the 13:39 24500 CE break); a quiet third hands its turn to the others
+  for (let took = true; took && pick.length < WALK_MAX;) {
+    took = false;
+    for (let t = 0; t < 3 && pick.length < WALK_MAX; t++) {
+      const x = pool.find(({e}) => third(e) === t && !pick.includes(e) && ok(e));
+      if (x) { take(x.e); took = true; }
+    }
+  }
+  pick.sort((x, y) => x.i - y.i).forEach(e => S.push({i: e.i, a: Math.max(0, e.i - 15), tab: walkTab(e), kind: kindOf(e), tag: e.tag, tagc: e.tagc,
+    src: e.src, teach: e.tag, text: e.text, chips: e.chips, lines: nxOf(e)}));
+  const n = c.count, P = (n && n.pieces) || [];
+  S.push({i: L1 + 0.995, a: Math.max(0, L1 - 30), tab: LIVE ? "Now" : "The close", tag: `${LIVE ? "NOW" : "CLOSE"} ${D.mins[L1]}`, teach: c.word,
+    text: [`**${c.word || "no call"}**${c.state ? " · " + c.state : ""}${c.since ? " · since " + c.since : ""}`, n && n.with != null && `WITH ${n.with} · AGAINST ${n.against}`,
+      c.leg, c.how_much && c.how_much.line, c.pause && c.pause.line].filter(Boolean).join(". ") + ".",
+    chips: P.slice(0, 6).map(p => ({t: p.text, c: p.state === "with" ? "ok" : p.state === "against" ? "bad" : "q"}))});
+  const ce = nearWall(L1, "CE"), pe = nearWall(L1, "PE"), ex = c.expression || {buyer: c.buyer, seller: c.seller};
+  const rec = f => { const w = wallScore(f.k, f.side, L1); return `${wallTxt(f)} (tested ×${w.t} · broke ${w.b})`; };
+  S.push({i: L1 + 0.997, a: Math.max(0, L1 - 30), tab: "Levels to watch", tag: "LEVELS", teach: "LEVELS",
+    text: `Above: **${ce ? rec(ce) : "no CE wall in 2 steps"}**. Below: **${pe ? rec(pe) : "no PE wall in 2 steps"}**.${c.wrong_line ? " " + c.wrong_line + "." : ""}`,
+    lines: [{t: ex.buyer && "buyer: " + ex.buyer, c: "wr"}, {t: ex.seller && "seller: " + ex.seller, c: "wr"}]});
+  return S;
+}
+function openWalk() {
+  if (!D || !N) return;
+  setPlay(false); bubble.style.visibility = "hidden"; $("#end").hidden = true;
+  WALK = {scenes: walkScenes(), n: 0, paused: false, done: false, tok: 0, timer: null, pend: null, voice0: voiceOn};
+  if (typeof speechSynthesis !== "undefined") voiceOn = true;     // the walk talks; her page voice comes back on close
+  $("#walk").classList.add("on"); $("#walkp").hidden = false;
+  $("#wTabs").innerHTML = WALK.scenes.map((s, n) => `<button data-w="${n}">${esc(s.tab)}</button>`).join("");
+  walkShow(0);
+}
+function walkShow(n) {
+  const W = WALK; if (!W) return;
+  if (n >= W.scenes.length) return walkDone();
+  n = Math.max(0, n); const s = W.scenes[n], tok = ++W.tok;
+  W.n = n; W.paused = false; W.done = false; clearTimeout(W.timer); $("#wAns").hidden = true;
+  seek(s.i + 0.01);
+  const P = $("#walkp"), onRight = X(s.i) < padL + plotW() * 0.5;   // the panel never sits on the candles it talks about
+  P.style.left = onRight ? "auto" : "12px"; P.style.right = onRight ? `${padR + 4}px` : "auto";
+  $("#wTime").textContent = D.mins[clampI(s.i)]; $("#wTag").textContent = s.tag; $("#wTag").className = "rtag " + (s.tagc || ""); $("#wSrc").textContent = s.src || "";
+  $("#wText").innerHTML = mark(s.text);
+  $("#wChips").innerHTML = (s.chips || []).map(c => `<span class="chip ${c.c || ""}">${esc(c.t)}</span>`).join("");
+  $("#wNx").innerHTML = (s.lines || []).filter(x => x.t).map(x => `<div class="${x.c}">${esc(x.t)}</div>`).join("");
+  const T = teachOf(s.teach); $("#wTeach").hidden = !T;
+  if (T) $("#wTeach").innerHTML = `<div class="h"><span>${esc(T[1])}</span><i>${T[2] ? esc(T[2]) + " · " : ""}what this means</i></div>`
+    + `<span class="k">What it is</span><span>${esc(T[3])}</span><span class="k">Why it matters</span><span>${esc(T[4])}</span>`;
+  $("#wQ").innerHTML = ["why?", "what next?", "wrong when?", "status"].map(q => `<button data-q="${q}">${q}</button>`).join("");
+  document.querySelectorAll("#wTabs button").forEach((b, k) => { b.classList.toggle("cur", k === n); b.classList.toggle("done", k < n); });
+  const cb = document.querySelector("#wTabs .cur"); if (cb) cb.scrollIntoView({block: "nearest", inline: "nearest"});
+  $("#wBar").style.width = `${(n + 1) / W.scenes.length * 100}%`; $("#wCnt").textContent = `${n + 1} / ${W.scenes.length}`;
+  $("#wPlay").textContent = "❚❚"; $("#wMute").textContent = voiceOn ? "🔊" : "🔇";
+  $("#wFoot").textContent = "Built from what Jarvis read; it judges nothing new. Guidance only: Jarvis never places an order.";
+  walkTell(tok);
+}
+function walkTell(tok) {     // speak the scene, then go on; voice off -> a timed advance (55 ms a character, 5 s at least)
+  const W = WALK, s = W.scenes[W.n], hm = D.mins[clampI(s.i)], go = ms => { W.timer = setTimeout(() => { if (WALK === W && W.tok === tok && !W.paused) walkShow(W.n + 1); }, ms); };
+  const line = s.text.replace(/\*\*/g, "").startsWith(hm) ? s.text : `At ${hm}. ${s.text}`;
+  if (!speak(line, () => { if (WALK === W && W.tok === tok && !W.paused) go(900); })) go(Math.max(5000, 55 * s.text.length));
+}
+function walkPause() {
+  const W = WALK; if (!W) return;
+  if (W.done) return walkShow(0);
+  W.paused = !W.paused; $("#wPlay").textContent = W.paused ? "▶" : "❚❚"; clearTimeout(W.timer);
+  const ss = typeof speechSynthesis !== "undefined" ? speechSynthesis : null;
+  if (W.paused) { if (ss) ss.pause(); return; }
+  if (ss && ss.paused && ss.speaking) ss.resume();      // the line goes on; its end moves the walk
+  else walkShow(W.n + 1);                               // nothing left to say here (voice off, or after a question): next
+}
+function walkDone() {
+  const W = WALK; W.done = true; W.paused = true; ++W.tok; clearTimeout(W.timer);
+  document.querySelectorAll("#wTabs button").forEach(b => { b.classList.remove("cur"); b.classList.add("done"); });
+  $("#wBar").style.width = "100%"; $("#wPlay").textContent = "↺";
+  $("#wTime").textContent = ""; $("#wTag").textContent = "WALK DONE"; $("#wTag").className = "rtag ok"; $("#wSrc").textContent = "";
+  const M = W.scenes.slice(1, -2), turns = D.calls ? walkTurns().length : null;
+  $("#wText").innerHTML = mark(`**${D.day} · ${W.scenes.length} scenes** · ${M.map(s => s.tab).join(" → ") || "no moment stood out"}.`);
+  $("#wChips").innerHTML = ""; $("#wNx").innerHTML = ""; $("#wQ").innerHTML = ""; $("#wAns").hidden = true; $("#wTeach").hidden = false;
+  $("#wTeach").innerHTML = `<div class="h"><span>WHAT I CHECKED</span><i>rows, not rates</i></div>` + [
+    ["events", `${ev.length} lines · ${ev.filter(e => e.major).length} major · ${M.length} told`],
+    ["word turns", turns == null ? "not in a live frame: replay this day after 15:40" : `${turns} (TREND / PALAT / RANGE / PALAT?, 20 min apart)`],
+    ["your triggers", String(D.zone.filter(z => !z.kind).length)],
+    ["blind", D.holes.length ? D.holes.map(([a, b]) => `${a}–${b}`).join(", ") : "none"]].map(([k, v]) => `<span class="k">${k}</span><span>${esc(v)}</span>`).join("");
+  $("#wFoot").innerHTML = LIVE ? "Esc closes and returns to live." : `Esc closes · <a href="#" id="wEnd">open the evening review</a>`;
+  const r = $("#wEnd"); if (r) r.onclick = m => { m.preventDefault(); closeWalk(); seek(N - 1); showEnd(); };
+  speak(`That was ${D.day}. ${W.scenes.length} scenes.`);
+}
+function closeWalk() {
+  const W = WALK; if (!W) return;
+  ++W.tok; clearTimeout(W.timer); WALK = null;
+  if (typeof speechSynthesis !== "undefined") { speechSynthesis.cancel(); speechSynthesis.resume(); }
+  voiceOn = W.voice0; bubble.style.visibility = ""; $("#walk").classList.remove("on"); $("#walkp").hidden = true;
+  if (W.pend) prep(W.pend);                             // live: the frame that came in while she walked
+  if (LIVE) seek(N - 1);
+}
+$("#walk").onclick = () => WALK ? closeWalk() : openWalk();
+$("#goWalk").onclick = () => { $("#intro").style.opacity = 0; setTimeout(() => $("#intro").hidden = true, 450); openWalk(); };
+$("#wPrev").onclick = () => WALK && walkShow(WALK.n - 1);
+$("#wNext").onclick = () => WALK && walkShow(WALK.n + 1);
+$("#wPlay").onclick = walkPause;
+$("#wClose").onclick = closeWalk;
+$("#wMute").onclick = () => { if (!WALK) return; voiceOn = !voiceOn; if (!voiceOn && typeof speechSynthesis !== "undefined") speechSynthesis.cancel(); walkShow(WALK.n); };
+$("#wTabs").onclick = m => { const b = m.target.closest("button"); if (b && WALK) walkShow(+b.dataset.w); };
+$("#wQ").onclick = m => {                               // "pause and ask": the walk waits; the answer is the page's own, at this minute
+  const b = m.target.closest("button"), W = WALK; if (!b || !W) return;
+  W.paused = true; ++W.tok; clearTimeout(W.timer); $("#wPlay").textContent = "▶";
+  if (typeof speechSynthesis !== "undefined") { speechSynthesis.cancel(); speechSynthesis.resume(); }
+  const before = chat.length; chatAdd("YOU", b.dataset.q); runCmd(b.dataset.q);
+  const a = chat.slice(before).reverse().find(x => !x.you);
+  $("#wAns").hidden = !a; if (a) $("#wAns").innerHTML = mark(a.text);
+};
+function walkCheck() {      // ?walkcheck=1: the walk's invariants on this frame, PASS / FAIL in the console
+  const S = walkScenes(), M = S.slice(1, -2), bad = [];
+  if (S.length < 3 || S[0].tag !== "THE OPEN" || S[S.length - 1].tag !== "LEVELS") bad.push("open first, levels last");
+  for (let k = 1; k < S.length; k++) if (S[k].i < S[k - 1].i) bad.push(`out of order at ${S[k].tab}`);
+  if (M.length > WALK_MAX) bad.push(`${M.length} moments`);
+  const kn = {}; M.forEach(s => { kn[s.kind] = (kn[s.kind] || 0) + 1; });
+  for (const k in kn) if (kn[k] > (WALK_CAP[k] || 2)) bad.push(`${kn[k]} × ${k}`);
+  for (let k = 1; k < M.length; k++) if (M[k].i - M[k - 1].i < WALK_GAP) bad.push(`under ${WALK_GAP} min at ${M[k].tab}`);  if (S.some(s => s.a < 0 || s.a > s.i || s.i > N)) bad.push("a window outside the day");
+  if (S.some(s => !s.text || /undefined|NaN/.test(s.text))) bad.push("a scene with no text or undefined");
+  console.log(bad.length ? "WALKCHECK FAIL: " + bad.join(" · ") : `WALKCHECK PASS: ${S.length} scenes · ${S.map(s => s.tab).join(" | ")}`);
+  return bad;
+}
 
 function showEnd() {
   const KEY = ["BROKEN", "NEW FLOOR", "FUEL SPENT", "TOP / BOTTOM", "NEW FIGHT", "NO TRADE", "BLIND"], order = [];
