@@ -32,6 +32,7 @@ KINDS = ("HEALTH", "READ", "SETUP", "LEG", "DIN", "JARVIS", "TRADE")    # the or
 OFF = ("—", "ARMED")                                          # a setup chip that has not fired
 TRADE_ON = ("TIGHTEN", "WARN", "EXIT")
 JARVIS_TG_DAY = 20                                            # JARVIS word lines to Telegram a day per index, then quiet [I]
+JARVIS_TG_ALWAYS = ("TREND", "PALAT?", "PALAT")              # her word 5 Nov (A255): never quiet, never counted in the 20
 SKIPPED = {"n": 0}                                            # rows the LAST build skipped as malformed (a bad dir, text for a number)
 
 
@@ -210,7 +211,7 @@ def jarvis(call_rows, cmd_rows=()):
     the word said again at its own minute once she can see; one line per watch hit with the card's word, count and last
     answer, and `could not check — gap` for a watch crossed while the server was down. Other command rows say nothing.
     Past JARVIS_TG_DAY word lines for an index, the rest are `quiet` (the window only), with one line saying so; CAN'T
-    SEE and the watches are never capped. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
+    SEE, the watches and the JARVIS_TG_ALWAYS words (TREND / PALAT? / PALAT) are never capped and never counted. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
     out, held, dark, said = [], {}, {}, {}
     for r in sorted((r for r in call_rows if _ok(r, "t")), key=lambda r: (r["idx"], r["t"])):
         try:
@@ -225,11 +226,13 @@ def jarvis(call_rows, cmd_rows=()):
                 continue
             m = _msg(t if dark.get(i) or not s else s, i, "JARVIS", r.get("lean") or 0, w, _wa(r.get("count")),
                      f"since {s or t}", None)
-            said[i] = said.get(i, 0) + 1
-            if said[i] == JARVIS_TG_DAY + 1:                 # the review's ruling: past 20 a day, the window only, said once
-                out.append(_msg(m["t"], i, "JARVIS", 0, f"JARVIS quiet on Telegram: {JARVIS_TG_DAY} today", None, None, None))
-            if said[i] > JARVIS_TG_DAY:
-                m["quiet"] = True
+            if w.split(" ")[0] not in JARVIS_TG_ALWAYS:      # 5 Nov: the 20 muted her 14:44 / 15:00 calls (A251, A255)
+                said[i] = said.get(i, 0) + 1
+                if said[i] == JARVIS_TG_DAY + 1:             # the review's ruling: past 20 a day, the window only, said once
+                    out.append(_msg(m["t"], i, "JARVIS", 0, f"JARVIS quiet on Telegram: {JARVIS_TG_DAY} today "
+                                    "(TREND / PALAT still sent)", None, None, None))
+                if said[i] > JARVIS_TG_DAY:
+                    m["quiet"] = True
             out.append(m)
             held[i], dark[i] = w, False
         except Exception:                                    # noqa: BLE001

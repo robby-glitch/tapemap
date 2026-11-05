@@ -16,14 +16,18 @@ type Panel = {
   forward?: Cell[]; kills?: Kill[]; research?: Cell[]; research_days?: string
   latest?: { day: string; idx: string[]; rows: Row[]; no_trade: string[] } | null
 }
-type LRow = { idx: string; setup: string; side: string; legs: string; entry_t: string; exit_t: string; entry: number; now: number; prem_pts: number; R: number | null; stop: number | null; lots: number; exit: string }
-type LLine = { open: LRow[]; closed: LRow[]; skipped: { idx: string; t: string; setup: string; why: string }[] }
+type LRow = { idx: string; setup: string; side: string; legs: string; entry_t: string; exit_t: string; entry: number; now: number; prem_pts: number; rs_lot?: number; R: number | null; stop: number | null; lots: number; exit: string; fallback?: { planned: number | number[]; used: number | number[] } | null }
+/* 5 Nov (her "make sure things get hightlighted when something big happens"): live_algo.py stamps each line's day as
+   events, each at the minute it happened: ENTRY · EXIT · BADA (open ≥ 2R or ≥ ₹5,000/lot) · REFUSED (a refused leg
+   still running past the day's EM) · FAILED (a decided trade the chain could not fill). */
+type Ev = { t: string; kind: 'ENTRY' | 'EXIT' | 'BADA' | 'REFUSED' | 'FAILED'; idx: string; setup: string; side: string | null; text: string; num: number | null; now?: { pts: number; quality: string | null } }
+type LLine = { open: LRow[]; closed: LRow[]; skipped: { idx: string; t: string; setup: string; why: string }[]; events?: Ev[] }
 type Live = { ok: boolean; why?: string; day?: string; written?: string; stale_why?: string | null; idx?: Record<string, { asof: string | null; why: string | null }>; lines?: Record<string, LLine> }
 type Doc = { panel: Panel; live: Live }
 
 const POLL_MS = 20000
-const LINES = ['demo_sell', 'demo_buy', 'v2']
-const LINE: Record<string, [string, string]> = { demo_sell: ['DEMO · SELL', 'bech'], demo_buy: ['DEMO · BUY', 'kharid'], v2: ['V2 · ENGINE', 'khud chunta'] }
+const LINES = ['demo_sell', 'demo_buy', 'v2', 'v3']
+const LINE: Record<string, [string, string]> = { demo_sell: ['DEMO · SELL', 'bech'], demo_buy: ['DEMO · BUY', 'kharid'], v2: ['V2 · ENGINE', 'khud chunta'], v3: ['V3 · MIX', 'A kharid, B bech'] }
 const SETUP: Record<string, string> = { A: 'pehla ghanta', B: 'dopahar leg', C: 'zone fade', R: 'rotation fly', all: 'sab' }
 const signed = (x: number, d: number) => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })
 const exitChip = (e: string) => e.startsWith('STOP') ? 'line toot gayi' : e.startsWith('TIME') ? 'teen baje' : e.startsWith('PALAT') ? 'palat'
@@ -92,10 +96,10 @@ export default function AlgoTab() {
         <td style={td}>{line(ln)}</td><td style={td}>{r.idx}</td>
         <td style={td}>{open ? pill('TRADE MEIN', false, true) : pill('BAND', false)}</td>
         <td style={num}>{r.setup}{chip(SETUP[r.setup] ?? '')}</td>
-        <td style={num}>{r.legs}{chip(r.side === 'SELL' ? 'bech' : 'kharid')} × {r.lots}</td>
+        <td style={num}>{r.legs}{chip(r.side === 'SELL' ? 'bech' : 'kharid')} × {r.lots}{r.fallback ? chip(`${r.fallback.planned} nahi mila`) : null}</td>
         <td style={num}>{r.entry_t}{open ? '' : ` → ${r.exit_t}`}</td>
         <td style={num}>{r.entry.toFixed(2)} → {r.now.toFixed(2)}</td>
-        <td style={num}>{signed(r.prem_pts, 1)}</td><td style={num}>{r.R == null ? '—' : signed(r.R, 2)}</td>
+        <td style={num}>{signed(r.prem_pts, 1)}</td><td style={num}>{r.rs_lot == null ? '—' : signed(r.rs_lot, 0)}</td><td style={num}>{r.R == null ? '—' : signed(r.R, 2)}</td>
         <td style={num}>{open ? (r.stop == null ? 'stop — none' : <>stop {r.stop.toLocaleString('en-IN')}f{chip('line')}</>) : <>{r.exit}{chip(exitChip(r.exit))}</>}</td>
       </tr>)
     L.open.forEach((r) => show(r, true))
@@ -103,9 +107,39 @@ export default function AlgoTab() {
     if (!L.open.length && !L.closed.length) {
       const s = L.skipped[L.skipped.length - 1]
       lrows.push(<tr key={ln + 'none'}><td style={td}>{line(ln)}</td><td style={td}>—</td><td style={td}>{pill('KHALI', false)}</td>
-        <td style={{ ...td, color: pal.textMuted, whiteSpace: 'normal' }} colSpan={7}>{s ? `no trade · last refusal ${s.idx} ${s.setup} ${s.t}: ${s.why}` : 'no trade · no signal yet'}</td></tr>)
+        <td style={{ ...td, color: pal.textMuted, whiteSpace: 'normal' }} colSpan={8}>{s ? `no trade · last refusal ${s.idx} ${s.setup} ${s.t}: ${s.why}` : 'no trade · no signal yet'}</td></tr>)
     }
   }
+  // the day as events, newest first: what moved, when. Colour keeps its one meaning (theme.ts): green/red are DIRECTION,
+  // so loudness here is weight + ink + the caution amber, never a P&L colour.
+  // a refused leg is the market's fact, not one line's: shown once (the line whose refusal says why), not four times
+  const seenRef = new Set<string>()
+  const evs = (live.ok ? LINES.flatMap((ln) => (live.lines?.[ln]?.events ?? []).map((e) => ({ ...e, line: ln }))) : [])
+    .filter((e) => e.kind !== 'REFUSED' || (!seenRef.has(e.idx + e.t) && !!seenRef.add(e.idx + e.t)))
+    .sort((a, b) => (a.t < b.t ? 1 : a.t > b.t ? -1 : 0))
+  const count = (k: Ev['kind']) => evs.filter((e) => e.kind === k).length
+  const evPill = (e: Ev): ReactNode => {
+    const base: CSSProperties = { padding: '1px 7px', borderRadius: 4, fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap' }
+    if (e.kind === 'BADA') return <span style={{ ...base, fontSize: 12, color: pal.card, background: pal.textPrimary, border: `1px solid ${pal.textPrimary}` }}>BADA MOVE</span>
+    if (e.kind === 'FAILED') return <span style={{ ...base, color: pal.card, background: pal.caution, border: `1px solid ${pal.caution}` }}>FILL NAHI</span>
+    if (e.kind === 'REFUSED') return pill(e.now && e.now.quality !== 'TREND' ? 'CHHODA · LEG RUKA' : 'CHHODA · LEG CHAL RAHA', true)
+    return e.kind === 'ENTRY' ? pill('GHUSA', false, true) : pill('NIKLA', false)
+  }
+  const evChip = (e: Ev & { line: string }) => e.kind === 'ENTRY' ? chip(e.side === 'SELL' ? 'bech kar ghusa' : 'kharid kar ghusa')
+    : e.kind === 'EXIT' ? chip(`₹${signed(e.num ?? 0, 0)}/lot`)
+    : e.kind === 'BADA' ? chip(`khula ₹${signed(e.num ?? 0, 0)}/lot`)
+    : e.kind === 'REFUSED' ? chip(`leg ${e.now?.pts ?? e.num} pts`) : chip('strike nahi mila')
+  const evRows = evs.map((e, i) => {
+    const loud = e.kind === 'BADA' || e.kind === 'FAILED' || e.kind === 'REFUSED'
+    const edge = e.kind === 'BADA' ? pal.textPrimary : loud ? pal.caution : 'transparent'
+    return (
+      <tr key={'ev' + i} style={loud ? { background: pal.inset, fontWeight: 600 } : undefined}>
+        <td style={{ ...td, borderLeft: `3px solid ${edge}` }}>{e.t}</td><td style={td}>{line(e.line)}</td><td style={td}>{e.idx}</td>
+        <td style={td}>{evPill(e)}</td><td style={td}>{e.setup}{chip(SETUP[e.setup] ?? '')}</td>
+        <td style={{ ...td, fontFamily: 'inherit', whiteSpace: 'normal' }}>{e.text}</td>
+        <td style={num}>{evChip(e)}</td>
+      </tr>)
+  })
   const hits = (panel.kills ?? []).filter((k) => k.hit).length
   return (
     <div style={{ padding: 12, color: pal.textPrimary, fontSize: 13 }}>
@@ -118,7 +152,19 @@ export default function AlgoTab() {
         </div>
         {!live.ok && <div style={{ color: pal.textSecondary }}>{live.why}</div>}
         {liveNote && <div style={{ color: market ? pal.caution : pal.textSecondary, marginBottom: 6 }}>{liveNote}</div>}
-        {live.ok && table(['line', 'idx', 'state', 'setup', 'legs × lots', 'time', 'entry → now', 'prem pts', 'R', 'stop / exit'], lrows)}
+        {live.ok && evs.length > 0 && <>
+          <div style={{ ...lab, marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <b style={{ color: pal.textPrimary }}>AAJ KYA HUA</b>
+            <span>{count('ENTRY')} ghusa</span><span>{count('EXIT')} nikla</span>
+            <span style={count('BADA') ? { color: pal.textPrimary, fontWeight: 700 } : undefined}>{count('BADA')} bada move</span>
+            <span style={count('REFUSED') ? { color: pal.caution, fontWeight: 700 } : undefined}>{count('REFUSED')} chhoda, leg chala</span>
+            <span style={count('FAILED') ? { color: pal.caution, fontWeight: 700 } : undefined}>{count('FAILED')} fill nahi</span>
+            <span>[M] time = the minute it happened · newest first</span>
+          </div>
+          {table(['time', 'line', 'idx', 'what', 'setup', 'detail', ''], evRows)}
+          <div style={{ height: 10 }} />
+        </>}
+        {live.ok && table(['line', 'idx', 'state', 'setup', 'legs × lots', 'time', 'entry → now', 'prem pts', '₹ / lot', 'R', 'stop / exit'], lrows)}
       </div>
 
       <div style={{ ...box, display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline' }}>

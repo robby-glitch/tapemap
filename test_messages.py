@@ -202,17 +202,23 @@ def test_jarvis_lines_say_a_word_change_once_blind_once_and_a_watch_hit():
 
 def test_jarvis_word_lines_go_quiet_on_telegram_past_20_a_day_per_index():
     """The review's ruling: past 20 ACTION-word lines a day for an index, the rest stay in the window (`quiet`), with one
-    line saying so; CAN'T SEE and watch hits are never capped, and another index keeps its own 20."""
+    line saying so; CAN'T SEE and watch hits are never capped, and another index keeps its own 20. Her word 5 Nov (A255):
+    TREND / PALAT? / PALAT are never quiet and never counted (the 20 had muted her 14:44 and 15:00 calls)."""
     import telegram_out
-    rows = [{"idx": "NIFTY", "t": f"{10 + i // 60:02d}:{i % 60:02d}", "word": ("HOLD ▼", "TREND ▼")[i % 2], "lean": -1,
+    rows = [{"idx": "NIFTY", "t": f"{10 + i // 60:02d}:{i % 60:02d}", "word": ("HOLD ▼", "RANGE")[i % 2], "lean": -1,
              "since": f"{10 + i // 60:02d}:{i % 60:02d}", "count": {"with": 3, "against": 1}} for i in range(22)]
     rows += [{"idx": "NIFTY", "t": "11:00", "word": "CAN'T SEE", "lean": 0, "blind": True},
              {"idx": "SENSEX", "t": "10:05", "word": "HOLD ▲", "lean": 1, "since": "10:05"}]
+    rows += [{"idx": "NIFTY", "t": t, "word": w, "lean": ln, "since": t}
+             for t, w, ln in (("11:10", "TREND ▼", -1), ("11:20", "PALAT? ▼", -1), ("11:30", "PALAT ▲", 1))]
     ms = messages.jarvis(rows, [{"kind": "watch_hit", "id": 1, "idx": "NIFTY", "t": "11:30", "level": 22800.0,
                                  "frame": "s", "px": 22799.0, "card": {}}])
-    words = [m for m in ms if m["idx"] == "NIFTY" and m["word"] in ("HOLD ▼", "TREND ▼")]
+    words = [m for m in ms if m["idx"] == "NIFTY" and m["word"] in ("HOLD ▼", "RANGE")]
     assert len(words) == 22 and [bool(m.get("quiet")) for m in words] == [False] * 20 + [True] * 2
     q = [m for m in ms if m["word"].startswith("JARVIS quiet")]
-    assert [m["line"] for m in q] == ["10:20  NIFTY  JARVIS quiet on Telegram: 20 today"] and telegram_out.wants(q[0])
+    assert [m["line"] for m in q] == ["10:20  NIFTY  JARVIS quiet on Telegram: 20 today (TREND / PALAT still sent)"] \
+        and telegram_out.wants(q[0])
     assert all(telegram_out.wants(m) for m in ms if m["word"] in ("CAN'T SEE", "HOLD ▲") or m["word"].startswith("WATCH"))
     assert not telegram_out.wants(words[-1])
+    loud = [m for m in ms if m["idx"] == "NIFTY" and m["word"] in ("TREND ▼", "PALAT? ▼", "PALAT ▲")]
+    assert len(loud) == 3 and not any(m.get("quiet") for m in loud) and all(telegram_out.wants(m) for m in loud)
