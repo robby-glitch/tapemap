@@ -88,7 +88,9 @@ def state_row(fr, j, now, src):
     v = s.get("vol") or {}
     return {"day": fr.get("day"), "t": s.get("t") or fr["mins"][j], "at": int(now), "src": src, "word": s["word"], "dir": s["dir"],
             "conf": s["conf"], "since": s["since"], "line": s["line"], "why": s["why"], "eff": s["eff"],
-            "vol": v.get("word"), "votes": {g["k"]: g["vote"] for g in v.get("gauges") or ()}, "expiry": s.get("expiry")}
+            "vol": v.get("word"), "votes": {g["k"]: g["vote"] for g in v.get("gauges") or ()}, "expiry": s.get("expiry"),
+            "zone": [{k: z.get(k) for k in ("t", "side", "band", "verdict", "n", "N", "kind")}
+                     for z in fr.get("zone_cards") or () if z["known"] <= fr["mins"][j]]}
 
 
 def _m(t):
@@ -170,4 +172,4 @@ def card(fr, rows=(), state=None, notes=()):
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
             "watches": list(st.get("watches") or []), "voice": None, "brief": None,   # Task 7: server._JVOICE fills both
-            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips")}   # the state leads (6 Nov)
+            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips"), "zone": c.get("zone")}   # the state leads (6 Nov)

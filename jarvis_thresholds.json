@@ -88,6 +88,10 @@
  "mstate.IV_PTS": 0.5,
  "mstate.VOL_N": 2,
  "mstate.VOL_CLOSES": 2,
+ "mstate.OPEN_LEGAL": "09:45",
+ "mstate.FADE_SIGNS": 2,
+ "mstate.MATURE_PUSHES": 3,
+ "mstate.SYNC_WIN": 30,
  "_why": {
   "jarvis.P5_MIN": "the |p5| floor of the fut-OI run's direction stamp per index (spec §14 row 8); an index not named reads BANKNIFTY's",
   "jarvis.FAST": "SPEED FAST: |3-min delta| >= 2x its own median so far",
@@ -169,6 +173,10 @@
   "mstate.VIX_PTS": "India VIX +/- 0.3 in 15 min votes EXPANDING / CONTRACTING",
   "mstate.IV_PTS": "ATM IV +/- 0.5 vol points in 15 min votes EXPANDING / CONTRACTING",
   "mstate.VOL_N": "EXPANDING / CONTRACTING needs 2 gauges that way, more than the other way",
-  "mstate.VOL_CLOSES": "... at 2 consecutive 3-min closes (spec §4)"
+  "mstate.VOL_CLOSES": "... at 2 consecutive 3-min closes (spec §4)",
+  "mstate.OPEN_LEGAL": "the zone card: no zone trade before 09:45, the opening's touches stay out (spec §5, A257)",
+  "mstate.FADE_SIGNS": "a fade against a trend that is not expanding is TAKE · smaller target at >= 2 of the 5 signs",
+  "mstate.MATURE_PUSHES": "sign 5, a mature leg: the 3rd or later push of the move into the band",
+  "mstate.SYNC_WIN": "sign 4, sync broke: a fresh 30-min extreme here and none in the two peers"
  }
 }

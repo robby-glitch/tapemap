@@ -144,3 +144,52 @@ def test_a_late_first_build_writes_every_minute_backfill(monkeypatch):
         frame(), day=day, idx=idx, mins=ms, call=dict(CALL, at=ms[-1]), mstate=[_srow(m) for m in ms]))
     server._jarvis_reply({"idx": ["NIFTY"]})
     assert [r["src"] for r in jarvis_log.read(DAY, "NIFTY", kind="state")] == ["backfill", "backfill"]
+
+
+@pytest.mark.skipif(not _has("2026-11-05"), reason="5 Nov record not present")
+def test_5nov_zone_rows_carry_when_they_were_written_and_never_a_score(record):
+    d = jarvis.build("2026-11-05", "SENSEX", None)
+    z = [x for x in d["zone"] if not x.get("kind")]
+    assert z and all({"at", "gate", "effort"} <= set(x) for x in z)
+    assert not any(k in x for x in d["zone"] for k in ("mfe", "mae", "stop_hit", "f15", "f30", "scored_at"))
+    assert len(d["nf"]) == len(d["mins"]) and d["nf"][-1] is not None
+
+
+def test_the_zone_card_shows_from_when_it_was_known_for_45_minutes(monkeypatch):
+    monkeypatch.setattr(jarvis, "MANAGE_WIN", 5)
+    d = _call_toy()
+    d["reads"]["action"] = jarvis.action_words(d)
+    d["mstate"] = _state_rows(d)
+    card = {"t": "10:05", "close": "10:07", "known": "10:09", "late": False, "side": "BUY", "band": "d2", "px": 23010.0,
+            "level": None, "state": "TREND ▼", "vol": "EXPANDING", "kind": None, "verdict": "SKIP",
+            "why": "TREND ▼ + EXPANDING: no bottom fades", "signs": [{"k": "wall", "ok": None, "text": "wall: could not check"}], "n": 0, "N": 0, "stop": 23000.0, "stop_why": None,
+            "targets": [["VWAP", 23080.0], ["u1", 23100.0]], "gate": {"legal": True, "why": "PE 22900 still building"}}
+    d["zone_cards"] = [card]
+    assert jarvis.call(jarvis.cut_at(d, 8))["zone"] is None                      # 10:08: not known yet
+    c = jarvis.call(jarvis.cut_at(d, 9))
+    assert c["zone"]["verdict"] == "SKIP" and c["zone"]["line"].startswith("ZONE d2 · close 23,010f · SKIP · stop 23,000f")
+    assert any(x.startswith("zone: ZONE d2") for x in c["why"])
+    assert jarvis_log.card(dict(ok=True, day=DAY, idx="NIFTY", mins=["10:09"], fut=[1.0], health={"notes": []},
+                                call=c))["zone"]["verdict"] == "SKIP"
+    W = jarvis.MANAGE_WIN                                                        # known 10:09 (idx 9): shown through idx 9+W-1
+    assert jarvis.call(jarvis.cut_at(d, 9 + W - 1))["zone"] is not None          # just before the boundary
+    assert all(jarvis.call(jarvis.cut_at(d, k))["zone"] is None for k in (9 + W, 9 + W + 1, len(d["mins"]) - 1))
+    fr = dict(d, zone_cards=[card, dict(card, known="10:30")])
+    assert [z["band"] for z in jarvis_log.state_row(fr, 9, 0, "live")["zone"]] == ["d2"]
+
+
+@pytest.mark.skipif(not _has("2026-11-05"), reason="5 Nov record not present")
+def test_5nov_sensex_zone_card_is_causal_the_cut_full_build_equals_the_11_00_build(record):
+    full = jarvis.build("2026-11-05", "SENSEX", None)
+    i = full["mins"].index("11:00")
+    part = jarvis.build("2026-11-05", "SENSEX", jarvis._m("11:00") + 1)
+    assert part["mins"][-1] == "11:00"
+    cut = jarvis.cut_at(full, i)
+    assert jarvis.call(cut)["zone"] == jarvis.call(part)["zone"]
+    assert jarvis_log.state_row(full, i, 0, "live")["zone"] == jarvis_log.state_row(part, i, 0, "live")["zone"]
+    for fr in (full, part):
+        assert all(c["known"] >= c["close"] for c in fr["zone_cards"] if c.get("close"))
+        for k in range(len(fr["mins"])):
+            z = jarvis.call(jarvis.cut_at(fr, k))["zone"]
+            assert z is None or z["known"] <= fr["mins"][k]
+            assert all(r["t"] <= fr["mins"][k] for r in jarvis_log.state_row(fr, k, 0, "live")["zone"])

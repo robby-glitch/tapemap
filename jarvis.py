@@ -807,11 +807,18 @@ def _build(day, idx, upto, fill, memo):
 
     # ---- the zone rows (trigger_log, zone3, today) ----------------------------------------------------------------------
     ZONE = []
+    import effort
     for r in _rows(trigger_log.PATH):
         if r.get("day") == day and r.get("index") == idx and r.get("rule") == "zone3" and START <= str(r.get("t", ""))[:5] \
                 and _m(str(r["t"])) < upto:
-            ZONE.append({k: r.get(k) for k in ("t", "kind", "side", "px", "level", "stop", "entry", "band", "u2", "d2", "bands_on")
-                         if r.get(k) is not None})
+            z = {k: r.get(k) for k in ("t", "kind", "side", "px", "level", "stop", "entry", "band", "u2", "d2", "bands_on",
+                                       "stop_px", "gate", "at") if r.get(k) is not None}   # never a scored field (mfe, ...)
+            if not z.get("kind") and z.get("px") is not None:   # the zone card's sign 3 at the trigger's close (effort.py;
+                lam, med, nb = effort.lam_at(inp.get("fm") or {}, _m(str(r["t"])[:5]) + 2)   # SENSEX: NIFTY's flow, 1q)
+                z["effort"] = ({"x": round(lam / med, 2), "why": None} if lam and med else
+                               {"x": None, "why": f"the day median needs {effort.MIN_HIST} five-minute blocks (has {nb})"
+                                if med is None else "no price range or volume in the last 5 min"})
+            ZONE.append(z)
 
     data = {"ok": True, "day": day, "idx": idx, "lot": LOT, "bar": BAR, "step": STEP, "start": START, "end": END,
             "upto": hm(upto), "fill": fill, "mins": mins,
@@ -854,6 +861,7 @@ def _build(day, idx, upto, fill, memo):
         return out
 
     data["bnf"], data["sx"] = other_spot("BANKNIFTY"), other_spot("SENSEX")
+    data["nf"] = other_spot("NIFTY")                 # NIFTY's spot on every frame: the card's sync sign and ALL 3's N slot
     data["live_from"] = hm(bk["m0"]) if bk["m0"] is not None else None
     # Her catch, 29 Oct 10:45: the Board's Sides read (sides.py, /api/sides) is the options-side fuel; each 5-min slot as
     # known at its end. Her ask, 29 Oct 11:00: WRITER FLOW ±7 -- the 3-min OI change summed over ATM ±7 strikes, per side
@@ -913,8 +921,9 @@ def _build(day, idx, upto, fill, memo):
         import mstate
         mstate._thresholds()
         data["mstate"], data["pivots"] = mstate.fold(data, ach, mstate.norm(idx, day))
+        data["zone_cards"] = mstate.cards(data, data["mstate"], data["pivots"])     # spec §6: one card per trigger
     except Exception as e:                           # never the frame: the ACTION word stays the word
-        data["mstate"], data["pivots"] = [], []
+        data["mstate"], data["pivots"], data["zone_cards"] = [], [], []
         data["health"]["notes"].append(f"the market state failed: {type(e).__name__}: {e} — the ACTION word shown")
     data["call"] = call(data)
     return data
@@ -1356,7 +1365,7 @@ def call(d: dict) -> dict:
         why.append(f"the reads failed: {type(e).__name__}: {e}")
     ms = d.get("mstate") or []
     srow = ms[i] if len(ms) == len(mins) and not blind else None      # THE MARKET STATE leads (spec 2026-11-06 §7)
-    said_act, grade = word, None                                     # the ACTION word: now a chip under the state
+    said_act, grade, zone = word, None, None                         # the ACTION word: now a chip under the state
     if srow:
         import mstate
         grade = _grade(cnt, srow["dir"], lean)
@@ -1366,6 +1375,13 @@ def call(d: dict) -> dict:
                    + (f" · {srow['line']}" if srow.get("line") else "")
                    + (f" · eff {srow['eff']:.2f}" if srow.get("eff") is not None else "")
                    + (f" · fuel {grade}" if grade else "") + f" · action {said_act}")
+        zc = [z for z in d.get("zone_cards") or () if z["known"] <= mins[i] and _m(mins[i]) - _m(z["known"]) < MANAGE_WIN]
+        zone = dict(zc[-1], line=mstate.card_line(zc[-1])) if zc else None
+        if zone:
+            gt = zone.get("gate")
+            why.insert(1, "zone: " + zone["line"] + f" — {zone['why']}"
+                       + (f" · her gate (§1d): {'legal' if gt.get('legal') else 'NOT legal'} — {gt.get('why')}"
+                          if isinstance(gt, dict) else ""))
     return T5 | {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
             "state": (row or {}).get("word"),
@@ -1382,6 +1398,7 @@ def call(d: dict) -> dict:
             | {"vol": {k: (srow.get("vol") or {}).get(k) for k in ("word", "since", "up", "down", "read", "gauges")},
                "grade": grade, "chip": mstate.chip(srow)},
             "chips": [x for x in (said_act, grade and f"fuel {grade}") if x] if srow else [],
+            "zone": zone,
             "walls": {"ce": None if not ce else {"k": ce[0]["k"], "f": round(ce[0]["k"] + basis, 2), "oi": ce[0].get("oi"),
                                                  "state": ce[0].get("state")},
                       "pe": None if not pe else {"k": pe[0]["k"], "f": round(pe[0]["k"] + basis, 2), "oi": pe[0].get("oi"),
@@ -1484,7 +1501,7 @@ def calls(d: dict) -> list:
     for i in range(len(d["mins"])):
         c = call(cut_at(d, i))
         out.append({k: c[k] for k in ("at", "word", "lean", "leg", "day", "wrong_line", "buyer", "seller", "state", "since",
-                                      "count", "action_why", "action", "mstate", "chips")}
+                                      "count", "action_why", "action", "mstate", "chips", "zone")}
                    | {"pause": c["pause"] and {"line": c["pause"].get("line")}})
     return out
 
@@ -1497,7 +1514,7 @@ def cut_at(d: dict, i: int) -> dict:
     def cut(v):
         return v[:i + 1] if isinstance(v, list) and len(v) == N else v
     lg = d.get("legs") or {}
-    v = {k: cut(x) for k, x in d.items()}
+    v = {k: x if k in ("zone_cards", "pivots") else cut(x) for k, x in d.items()}   # cards/pivots are not per-minute
     v["reads"] = {k: cut(x) for k, x in d["reads"].items()}
     v["legs"] = dict(lg, rows=cut(lg.get("rows") or []), day={k: cut(x) for k, x in (lg.get("day") or {}).items()})
     v["holes"] = [h for h in d.get("holes") or () if h[0][:5] <= mins[i]]

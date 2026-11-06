@@ -153,3 +153,171 @@ def test_the_yardstick_excludes_the_day_itself(tmp_path, monkeypatch):
     monkeypatch.setattr(confluence_log, "session", lambda idx, x: {"bars": [{"t": "09:15", "h": 10.0, "l": 4.0}]})
     slots, used = mstate.norm("NIFTY", "2026-11-05")
     assert used == ("2026-11-04",) and slots == {0: 6.0}
+
+
+# ---- Task 8: the zone card --------------------------------------------------------------------------------------------
+
+def test_the_legality_table():
+    up = {"word": "TREND ▲", "dir": 1}
+    rng = {"word": "RANGE", "dir": 0}
+    assert mstate.legal(up, "EXPANDING", "BUY", "10:30")[0] == "with"
+    assert mstate.legal(up, "EXPANDING", "SELL", "12:30") == (
+        "fade", "TREND ▲ + EXPANDING: a fade only if the band stopped expanding and the writers at it hold")
+    assert mstate.legal(up, "CONTRACTING", "SELL", "13:51")[0] == "fade"
+    assert mstate.legal(up, "NORMAL", "SELL", "13:51")[0] == "fade"            # EXPANDING adds the band + wall need
+    assert mstate.legal(rng, "CONTRACTING", "SELL", "11:00")[0] == "range"
+    assert mstate.legal(rng, "EXPANDING", "BUY", "11:00") == (None, "RANGE + EXPANDING: stand aside")
+    assert mstate.legal(up, "CONTRACTING", "BUY", "09:40")[0] is None          # before 09:45
+    assert mstate.legal(up, "CONTRACTING", "BUY", "15:03", dte=0)[0] is None   # 0 DTE after 15:00
+    assert "%" not in json.dumps([mstate.legal(up, v, s, "11:00") for v in ("EXPANDING", "NORMAL", None) for s in "BS"])
+
+
+def _zone_frame():
+    """A climb into u2 by 11:00 (NIFTY fut), BANKNIFTY / SENSEX flat (no new highs), the CE strike at the band adding
+    5L in 9 min, VWAP 24,050 with sigma 30 (u2 24,110, d1 24,020)."""
+    px = _path([(0, 24000), (60, 24030), (105, 24110), (120, 24090)])
+    d = _frame(px)
+    n = len(px)
+    d.update(vwap=[24050.0] * n, sd=[30.0] * n, bnf=[54000.0] * n, sx=[79000.0] * n)
+    d["ladder"] = {"11:02": {"ce": {24100: 60.0}, "pe": {}}, "10:53": {"ce": {24100: 55.0}, "pe": {}}}
+    return d
+
+
+def test_the_signs_at_the_band_are_a_count_with_reasons():
+    d = _zone_frame()
+    i = d["mins"].index("11:02")
+    piv = [{"kind": "H", "lab": "H", "px": 24000, "t": "10:00", "known": "10:10"},
+           {"kind": "H", "lab": "HH", "px": 24060, "t": "10:30", "known": "10:40"}]
+    S = {s["k"]: s for s in mstate.signs(d, i, {"side": "SELL", "effort": {"x": 2.4}}, piv)}
+    assert S["band"]["ok"] is True and S["band"]["text"].startswith("u2 24,110f vs 24,110f")
+    assert S["wall"]["ok"] is True and S["wall"]["text"].startswith("24,100s CE at the band +5.0L / 9 min")
+    assert S["effort"]["ok"] is True
+    assert S["sync"]["ok"] is True and "BANKNIFTY did not" in S["sync"]["text"]
+    assert S["mature"]["ok"] is True and S["mature"]["text"].startswith("push no. 3 up")
+    B = {s["k"]: s for s in mstate.signs(d, i, {"side": "BUY"}, piv)}
+    assert B["effort"]["ok"] is None and B["effort"]["text"].startswith("effort: not read at a low")
+    assert "%" not in json.dumps([S, B])
+
+
+def test_a_card_judges_at_the_close_with_stop_and_targets():
+    d = _zone_frame()
+    rows = [{"t": t, "word": "TREND ▲", "dir": 1, "vol": {"word": "EXPANDING"}} for t in d["mins"]]
+    z = {"t": "11:00", "side": "SELL", "band": "u2", "px": 24095.0, "gate": {"legal": False, "why": "CE 24500 gave up"}}
+    c = mstate.card(d, z, rows, [])
+    assert c["verdict"] == "TAKE · smaller target" and c["known"] == "11:03"       # band stopped, CE at it adding
+    assert c["why"].startswith("TREND ▲ + EXPANDING: a fade only if the band stopped expanding")
+    d2 = _zone_frame()
+    d2["ladder"]["11:02"]["ce"][24100] = 40.0                                     # the CE at the band LEAVING (-15L)
+    c2 = mstate.card(d2, z, rows, [])
+    assert c2["verdict"] == "SKIP" and "writers at it leaving" in c2["why"]
+    assert c["gate"]["why"] == "CE 24500 gave up"                                # her gate shown, unchanged
+    rows = [dict(r, vol={"word": "CONTRACTING"}) for r in rows]
+    c = mstate.card(d, dict(z, effort={"x": 2.5}), rows, [])
+    assert c["verdict"] == "TAKE · smaller target" and c["targets"] == [["VWAP", 24050.0]]
+    assert c["stop"] == max(d["fhi"][d["mins"].index(m)] for m in ("11:00", "11:01", "11:02"))
+    assert mstate.card(d, dict(z, side="BUY", band="d2"), [dict(r, word="TREND ▼", dir=-1) for r in rows],
+                       [])["kind"] == "fade"                                     # a BUY in TREND ▼ is a fade
+    s = mstate.card(d, dict(z, side="BUY", band="d2"), rows, [])                # no PE on the ladder: wall unchecked
+    assert s["kind"] == "with" and s["verdict"] == "TAKE · smaller target" and s["targets"] == [["VWAP", 24050.0]]
+    assert "wall: could not check — 23,950s PE not on the ladder" in s["why"] and "not holding" not in s["why"]
+    d["ladder"]["11:02"]["pe"][23950] = 30.0
+    d["ladder"]["10:53"]["pe"][23950] = 28.0                                      # the PE at d2 adding: writers behind
+    s = mstate.card(d, dict(z, side="BUY", band="d2"), rows, [])
+    assert s["verdict"] == "STRONG" and s["targets"][1][0] == "u1"
+    assert mstate.card_line(c).startswith("ZONE u2 · close 24,095f · TAKE · smaller target (4 of 5 read)")
+    assert "%" not in json.dumps([c, c2, s, mstate.card_line(c), mstate.card_line(s)])
+
+
+def test_a_late_row_is_shown_from_when_it_was_written():
+    import datetime
+    import fold
+    d = _zone_frame()
+    rows = [{"t": t, "word": "RANGE", "dir": 0, "vol": {"word": "NORMAL"}} for t in d["mins"]]
+    at = datetime.datetime(2026, 11, 5, 13, 48, 40, tzinfo=fold.IST).timestamp()
+    c = mstate.card(d, {"t": "11:00", "side": "SELL", "band": "u2", "px": 24095.0, "at": at}, rows, [])
+    assert c["known"] == "13:49" and c["late"] and c["close"] == "11:02" and c["verdict"] == "TAKE"   # 13:48:40 -> 13:49
+    assert "%" not in json.dumps([c, mstate.card_line(c)])
+
+
+def _drop(d, *ts):
+    """The frame with clock minutes ts absent (a hole in the record): every per-minute list loses them."""
+    n = len(d["mins"])
+    keep = [j for j, m in enumerate(d["mins"]) if m not in ts]
+    for k, v in d.items():
+        if isinstance(v, list) and len(v) == n:
+            d[k] = [v[j] for j in keep]
+    return d
+
+
+def _rows(d, word="TREND ▲", D=1, vol="EXPANDING"):
+    return [{"t": t, "word": word, "dir": D, "vol": {"word": vol}} for t in d["mins"]]
+
+
+Z = {"t": "11:00", "side": "SELL", "band": "u2", "px": 24095.0}
+
+
+def test_could_not_check_is_never_a_negative():
+    d = _zone_frame()
+    del d["ladder"]["10:53"]                                                     # the wall cannot be read
+    c = mstate.card(d, dict(Z, side="BUY", band="d2"), _rows(d), [])              # with-trend, wall unchecked
+    assert c["verdict"] == "TAKE · smaller target" and "wall: could not check — " in c["why"]
+    assert "not holding" not in c["why"]
+    f = mstate.card(d, Z, _rows(d), [])                                           # EXPANDING fade, wall unchecked
+    assert f["verdict"] == "SKIP" and "wall: could not check — 24,100s CE not on the ladder at 10:53" in f["why"]
+    assert "leaving" not in f["why"] and "still expanding" not in f["why"]
+    d = _drop(_zone_frame(), "10:59")                                             # sign 1's reference minute absent
+    b = mstate.card(d, Z, _rows(d), [])
+    assert b["signs"][0]["ok"] is None and b["signs"][0]["text"] == "band: could not check — 10:59 missing"
+    assert b["verdict"] == "SKIP" and "band: could not check — 10:59 missing" in b["why"]
+    assert "%" not in json.dumps([c, f, b] + [mstate.card_line(x) for x in (c, f, b)])
+
+
+def test_the_count_says_how_many_were_read():
+    d = _zone_frame()
+    c = mstate.card(d, Z, _rows(d), [])                                           # effort not given: 1 sign unread
+    assert c["n"] == 3 and c["N"] == 4 and "· 3 of 4 read · 1 not read" in c["why"]
+    assert "(3 of 4 read · 1 not read)" in mstate.card_line(c) and "of 5" not in mstate.card_line(c)
+    assert "%" not in json.dumps([c, mstate.card_line(c)])
+
+
+def test_volatility_that_could_not_be_checked():
+    up, rng = {"word": "TREND ▲", "dir": 1}, {"word": "RANGE", "dir": 0}
+    for v in ("?", None):
+        assert mstate.legal(up, v, "BUY", "11:00") == ("with", "TREND ▲: the with-trend pullback band · vol: could not check")
+        k, why = mstate.legal(up, v, "SELL", "11:00")
+        assert k == "fade" and why.endswith("vol: could not check — held to the EXPANDING rule")
+        assert mstate.legal(rng, v, "SELL", "11:00") == (
+            None, "RANGE + ?: vol: could not check — RANGE trades band to band only when not EXPANDING")
+    d = _zone_frame()
+    d["ladder"]["11:02"]["ce"][24100] = 40.0                                      # the CE at the band leaving
+    c = mstate.card(d, dict(Z, effort={"x": 2.5}), _rows(d, vol="?"), [])         # 3 tired signs, still held to EXPANDING
+    assert c["verdict"] == "SKIP" and "writers at it leaving" in c["why"]
+    r = mstate.card(d, Z, _rows(d, "RANGE", 0, None), [])
+    assert r["verdict"] == "SKIP" and r["kind"] is None
+    assert "%" not in json.dumps([c, r, mstate.card_line(c), mstate.card_line(r)])
+
+
+def test_a_hole_in_the_trigger_bar_is_a_skip_with_the_minute():
+    d = _drop(_zone_frame(), "11:01")
+    c = mstate.card(d, Z, _rows(d), [])
+    assert c["verdict"] == "SKIP" and c["stop"] is None and c["stop_why"] == "stop: could not check — 11:01 missing"
+    assert "stop: could not check — 11:01 missing" in c["why"]
+    assert "stop: could not check — 11:01 missing" in mstate.card_line(c)
+    h = _drop(_zone_frame(), "11:02")                                             # the close itself is a hole
+    k = mstate.card(h, Z, _rows(h), [])
+    assert k["verdict"] == "SKIP" and k["why"] == "close 11:02 not on the record"
+    assert mstate.card_line(k) == "ZONE u2 · close 24,095f · SKIP · close 11:02 not on the record"
+    late = _zone_frame()                                                         # not yet in the frame: no card
+    assert mstate.card(late, dict(Z, t=late["mins"][-1]), _rows(late), []) is None
+    assert "%" not in json.dumps([c, k, mstate.card_line(c), mstate.card_line(k)])
+
+
+def test_the_wall_is_read_at_the_band_her_trigger_armed_on():
+    d = _zone_frame()
+    c = mstate.card(d, dict(Z, level=24160.0), _rows(d), [])                      # 24,160 - 40 basis -> the 24,150 CE
+    w = c["signs"][1]
+    assert w["k"] == "wall" and w["ok"] is None and "24,150s CE" in w["text"] and "recomputed" not in w["text"]
+    assert mstate.card_line(c).startswith("ZONE u2 24,160f · close 24,095f · SKIP")
+    r = mstate.card(d, Z, _rows(d), [])                                           # no level: the 1-min band, said so
+    assert r["signs"][1]["text"].endswith("band recomputed — level not logged")
+    assert "%" not in json.dumps([c, r, mstate.card_line(c), mstate.card_line(r)])

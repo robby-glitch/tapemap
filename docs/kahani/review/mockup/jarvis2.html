@@ -609,6 +609,13 @@ function renderCard(c) {
       const el = document.createElement("span"); el.className = "chip q"; el.textContent = t; ch.appendChild(el);
     }
   }
+  const Z = c.zone;                                   // THE ZONE CARD under the state (spec §6): verdict, stop, targets;
+  if (Z) {                                            // her §1d gate beside the at-band read (phase 4 is hers to sign)
+    row("s clip " + (Z.verdict === "SKIP" ? "q" : "pk"), Z.line ?? "no line",
+        [Z.line ?? "no line", Z.why ?? "no reason logged"].concat((Z.signs || []).map(s => (s.ok === true ? "✓ " : s.ok === false ? "✗ " : "? ") + (s.text ?? "no text"))).join("\n"));
+    const atb = ((Z.signs || []).find(s => s.k === "wall") || {}).text;
+    row("s clip", `gate §1d: ${Z.gate ? (Z.gate.legal ? "legal" : "NOT legal") + " — " + (Z.gate.why ?? "no reason logged") : "not logged"} · at band: ${atb || "?"}`);
+  }
   const old = oldLine(c);
   if (old) { row("s bad clip", old); box.style.opacity = 0.55; }
   const n = c.count;

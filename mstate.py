@@ -17,11 +17,14 @@ Pure: no I/O but norm() (the prior sessions' bars, read only), no clock. Causal:
 her §1d gate is not touched (phase 4 is a registration she signs)."""
 from __future__ import annotations
 
+import datetime
 import functools
+import math
 import os
 import statistics
 
 import decode
+import effort
 import fold as _fold
 import fronts
 import hold2
@@ -42,11 +45,16 @@ VIX_PTS = 0.3                 # [I] India VIX up >= 0.3 in 15 min votes EXPANDIN
 IV_PTS = 0.5                  # [I] ATM IV up >= 0.5 vol points in 15 min votes EXPANDING, down >= 0.5 CONTRACTING
 VOL_N = 2                     # [I] EXPANDING / CONTRACTING needs 2 gauges that way (and more than the other way) ...
 VOL_CLOSES = 2                # [I] ... at 2 consecutive 3-min closes (spec §4); the day's first close says it at once
+OPEN_LEGAL = "09:45"          # [I] spec §5: no zone trade before 09:45 (the opening's touches stay out)
+NO_HOLD_AT = "15:00"          # her practice (no new trades after 15:00): on 0 DTE the card reads "no hold for the close"
+FADE_SIGNS = 2                # [I] a fade against a trend that is not expanding is TAKE at >= 2 of the 5 signs
+MATURE_PUSHES = 3             # [I] sign 5, a mature leg: the 3rd or later push of the move into the band
+SYNC_WIN = 30                 # [I] sign 4: a fresh 30-min extreme (the reads' TOP / BOTTOM signs' window)
 HING = {"TREND ▲": "upar ka trend", "TREND ▼": "neeche ka trend", "RANGE": "range: dono taraf",
         "OPENING": "abhi swing nahi"}  # her Hinglish chips (symbols need Hinglish chips)
 
 _I = ("EFF_WIN", "EFF_RANGE", "VWAP_X", "NORM_N", "NORM_MIN", "RANGE_HI", "RANGE_LO", "GAUGE_WIN", "VIX_PTS", "IV_PTS",
-      "VOL_N", "VOL_CLOSES")
+      "VOL_N", "VOL_CLOSES", "OPEN_LEGAL", "FADE_SIGNS", "MATURE_PUSHES", "SYNC_WIN")
 _DEF = {n: globals()[n] for n in _I}
 _APPLIED = [None]
 _fmt = legs._fmt
@@ -326,3 +334,204 @@ def fold(d, chain=None, nm=None):
         out.append({"t": t, "word": w, "dir": D, "conf": st["conf"], "since": since, "why": why, "line": line,
                     "eff": eff, "vx": vx, "price": what, "vol": vol})
     return out, piv
+
+
+# ---- the zone card (spec §5-6) -------------------------------------------------------------------------------------
+
+def legal(row, vword, side, t, dte=None):
+    """Spec §5's table -> (kind, why). kind: "with" (the with-trend pullback band), "fade" (against a trend; EXPANDING
+    also needs the band stopped + writers holding: TAKE only with the tired signs, target VWAP only, the trend word unchanged), "range" (band to band) or
+    None (not legal: the why says which row). An unconfirmed trend is a trend here; NORMAL reads as not expanding
+    (the table names only EXPANDING and CONTRACTING; EXPANDING adds the band-stopped + writers-holding need, her 6 Nov rule).
+    Volatility "?" / None could not be checked, never "not expanding" (rule 6; controller, trader side, 6 Nov): a with-trend
+    pullback stays legal (both TREND rows allow it), a fade is held to the EXPANDING rule, a RANGE trade is SKIP."""
+    if t < OPEN_LEGAL:
+        return None, f"before {OPEN_LEGAL}: no zone trade (the opening's touches stay out)"
+    if dte == 0 and t >= NO_HOLD_AT:
+        return None, f"0 DTE after {NO_HOLD_AT}: premium beats trend, no hold for the close"
+    D, trade, unk = row.get("dir") or 0, 1 if side == "BUY" else -1, vword in (None, "?")
+    if D and trade == D:
+        return "with", f"{row['word']}: the with-trend pullback band" + (" · vol: could not check" if unk else "")
+    if D and (vword == "EXPANDING" or unk):  # her 6 Nov rule: expanding = not a trigger, unless it visibly reverses there
+        return "fade", (f"{row['word']} + {vword or '?'}: a fade only if the band stopped expanding and the writers at it "
+                        "hold" + (" · vol: could not check — held to the EXPANDING rule" if unk else ""))
+    if D:
+        return "fade", f"{row['word']} + {vword}: a fade only with the tired signs, target VWAP only"
+    if vword == "EXPANDING":
+        return None, f"{row['word']} + EXPANDING: stand aside"
+    if unk:
+        return None, f"{row['word']} + ?: vol: could not check — RANGE trades band to band only when not EXPANDING"
+    return "range", f"{row['word']} + {vword}: band to band"
+
+
+def _ix(d, t):
+    """The frame index of clock minute t, or None: d["mins"] skips absent minutes, so never step by index."""
+    try:
+        return d["mins"].index(t)
+    except ValueError:
+        return None
+
+
+def _fresh(d, xs, i, hi):
+    """Did xs make a fresh SYNC_WIN-min extreme (strictly past it) in the 3 clock minutes to i? None when the window
+    holds a gap, < 10 minutes, or one of the 3 minutes is absent. By the clock: the frame skips absent minutes."""
+    T, js = _m(d["mins"][i]), range(max(0, i - SYNC_WIN), i + 1)
+    w = [xs[j] for j in js if T - SYNC_WIN <= _m(d["mins"][j]) < T - 2]
+    now = [xs[j] for j in js if _m(d["mins"][j]) >= T - 2]
+    if len(w) < 10 or len(now) < 3 or None in w or None in now:
+        return None
+    return max(now) > max(w) if hi else min(now) < min(w)
+
+
+def _cnc(s):
+    """A sign that could not be checked, by its own reason: "<k>: could not check — …"."""
+    x = s["text"]
+    return f"{s['k']}: " + x[x.find("could not check"):]
+
+
+def signs(d, i, z, piv):
+    """The five signs at the band on the trigger's 3-min close, minute i (spec §6) -> [{"k", "ok", "text"}]; ok True /
+    False, or None (could not check / not read: the text says which). A count, never a %."""
+    import jarvis
+    t, top = d["mins"][i], z["side"] == "SELL"
+    D, band, S = (1 if top else -1), ("u2" if top else "d2"), []
+    bn = d["vwap"][i] + 2 * D * d["sd"][i]
+    tb = _hm(_m(t) - 3)                                            # 1. the band stopped expanding (the rejection is the
+    j = _ix(d, tb)                                                 #    trigger itself), 3 clock minutes before
+    if j is None:
+        S.append({"k": "band", "ok": None, "text": "band: could not check — " + (
+            "no 3-min close before it" if tb < d["mins"][0] else f"{tb} missing")})
+    else:
+        b0 = d["vwap"][j] + 2 * D * d["sd"][j]
+        S.append({"k": "band", "ok": D * (bn - b0) <= 0, "text": f"{band} {_fmt(bn)}f vs {_fmt(b0)}f 3 min before: "
+                  + ("stopped expanding" if D * (bn - b0) <= 0 else "still expanding")})
+    step = d.get("step") or 50                                     # 2. writers AT the band's strike (the wall defended):
+    lv = z.get("level")                                            #    the band her trigger armed on (3-min, fut)
+    px = (bn if lv is None else lv) - jarvis._basis(d, i)
+    src = " · band recomputed — level not logged" if lv is None else ""
+    k = (math.ceil(px / step) if top else math.floor(px / step)) * step
+    sd_, SD, t9 = ("ce", "CE", _hm(_m(t) - legs.K_MIN)) if top else ("pe", "PE", _hm(_m(t) - legs.K_MIN))
+    a, b = legs._lad(d, t, sd_, k), legs._lad(d, t9, sd_, k)
+    if a is None or b is None:
+        S.append({"k": "wall", "ok": None, "text": f"writers at the band: could not check — {_fmt(k)}s {SD} not on "
+                                                    f"the ladder at {t if a is None else t9}" + src})
+    else:
+        S.append({"k": "wall", "ok": a - b >= -legs.K1_L, "text": f"{_fmt(k)}s {SD} at the band {a - b:+.1f}L / "
+                  f"{legs.K_MIN} min (" + ("holding / adding" if a - b >= -legs.K1_L else "leaving") + ")" + src})
+    e = z.get("effort") or {}                                      # 3. effort without result (effort.py, the survivor)
+    if not top:
+        S.append({"k": "effort", "ok": None, "text": "effort: not read at a low — the 2× mirror failed there "
+                                                      "(effort.py; its survivor at a low says continuation)"})
+    elif e.get("x") is None:
+        S.append({"k": "effort", "ok": None, "text": f"effort: could not check — {e.get('why') or 'no read'}"})
+    else:
+        S.append({"k": "effort", "ok": e["x"] >= effort.HI, "text": f"effort {e['x']:.1f}× the day's lots per point"
+                  + (" (NIFTY's flow, §1q)" if d.get("idx") == "SENSEX" else "")})
+    _, Hh, Ll, _ = _series(d)                                      # 4. sync broke: a fresh extreme here, none in peers
+    peers = {n: s for n, s in (("NIFTY", d.get("nf")), ("BANKNIFTY", d.get("bnf")), ("SENSEX", d.get("sx")))
+             if n != d.get("idx")}
+    mine = _fresh(d, Hh if top else Ll, i, top)
+    pf = {n: (_fresh(d, s, i, top) if s else None) for n, s in peers.items()}
+    if mine is None or None in pf.values():
+        S.append({"k": "sync", "ok": None, "text": "sync: could not check — " + ", ".join(
+            n for n, v in [(d.get("idx"), mine)] + list(pf.items()) if v is None) + f" lacks {SYNC_WIN} min"})
+    else:
+        S.append({"k": "sync", "ok": mine and not any(pf.values()),
+                  "text": f"{d.get('idx')} {'made' if mine else 'no'} new {SYNC_WIN}-min {'high' if top else 'low'} · "
+                          + " · ".join(f"{n} {'made it' if v else 'did not'}" for n, v in pf.items())})
+    kind, lab = ("H", "HH") if top else ("L", "LL")                # 5. a mature leg: a later push of the day
+    run = 0
+    for p in reversed([p for p in piv if p["kind"] == kind and p["known"] <= t]):
+        if p["lab"] not in (lab, kind):
+            break
+        run += 1
+    S.append({"k": "mature", "ok": run + 1 >= MATURE_PUSHES,
+              "text": f"push no. {run + 1} {'up' if top else 'down'} into the band (≥ {MATURE_PUSHES} is mature), "
+                      f"{band} is 2σ from VWAP"})
+    return S
+
+
+def _count(n, N):
+    """The signs read, never out of a silent 5: "n of N read", plus "k not read" when some could not be."""
+    return f"{n} of {N} read" + (f" · {5 - N} not read" if N < 5 else "")
+
+
+def card(d, z, rows, piv, dte=None):
+    """THE ZONE CARD of one zone3 trigger row z (trigger_log; t = its 3-min bar's start), judged at that bar's close
+    (minute t+2, the state and signs as of then) -> dict, or None when the close is not in the frame yet (a close that is
+    a hole in the record is a SKIP card that says so: her trigger never vanishes). known = the minute it could first be
+    shown: the close's next minute, or later when the row was written later (`at`, IST, rounded up to the minute): a late
+    row says so. stop: beyond the trigger candle (SELL its high, BUY its low; fut; its three clock minutes); targets: VWAP,
+    then the next band (SELL d1, BUY u1) -- a smaller target is VWAP only. `gate` is her §1d gate as logged, shown beside
+    the at-band read (sign 2), never changed (phase 4 is hers)."""
+    t0 = str(z["t"])[:5]
+    tc = _hm(_m(t0) + 2)
+    known = _m(t0) + 3
+    if isinstance(z.get("at"), (int, float)):
+        a = datetime.datetime.fromtimestamp(z["at"], _fold.IST)
+        if a.strftime("%Y-%m-%d") == d["day"]:              # written at 13:48:40 exists from 13:49, not 13:48
+            known = max(known, a.hour * 60 + a.minute + (1 if a.second or a.microsecond else 0))
+    c = {"t": t0, "close": tc, "known": _hm(known), "late": known - (_m(t0) + 3) > 2, "side": z["side"],
+         "band": z.get("band"), "level": z.get("level"), "px": z.get("px"), "gate": z.get("gate")}
+    i = _ix(d, tc)
+    if i is None:
+        if not d["mins"] or tc > d["mins"][-1]:
+            return None
+        return dict(c, state=None, vol=None, kind=None, verdict="SKIP", why=f"close {tc} not on the record", signs=[],
+                    n=0, N=0, stop=None, stop_why=None, targets=[])
+    top, row = z["side"] == "SELL", rows[i]
+    vword = (row.get("vol") or {}).get("word")
+    kind, why = legal(row, vword, z["side"], tc, dte)
+    S = signs(d, i, z, piv)
+    n, N = sum(s["ok"] is True for s in S), sum(s["ok"] is not None for s in S)
+    SS = {s["k"]: s for s in S}
+    wall = SS["wall"]
+    if kind is None:
+        verdict = "SKIP"
+    elif kind == "with":
+        if wall["ok"] is None:                              # could not check is not "not holding", and never STRONG
+            verdict, why = "TAKE · smaller target", why + " · " + _cnc(wall)
+        else:
+            verdict = "STRONG" if wall["ok"] else "TAKE"
+            why += " · writers behind" if wall["ok"] else " · writers at the band not holding"
+    elif kind == "fade":
+        strict = vword in ("EXPANDING", None, "?")         # EXPANDING, or unchecked: band AND wall CONFIRMED
+        fail = [_cnc(s) if s["ok"] is None else {"band": "band still expanding", "wall": "writers at it leaving"}[k]
+                for k, s in (("band", SS["band"]), ("wall", wall)) if strict and s["ok"] is not True]
+        verdict = "TAKE · smaller target" if n >= FADE_SIGNS and not fail else "SKIP"
+        why += (f" · {_count(n, N)}" + ("" if n >= FADE_SIGNS else f" (needs {FADE_SIGNS})")
+                + "".join(f" · {f}" for f in fail))
+    else:
+        verdict = "TAKE"
+    miss = next((m for m in (_hm(_m(t0) + k) for k in range(3)) if _ix(d, m) is None), None)
+    if miss:                                                # a hole in the trigger candle: no stop, no trade
+        stop, stop_why, verdict = None, f"stop: could not check — {miss} missing", "SKIP"
+        why += f" · {stop_why}"
+    else:
+        js = [_ix(d, _hm(_m(t0) + k)) for k in range(3)]
+        stop, stop_why = round(max(d["fhi"][j] for j in js) if top else min(d["flo"][j] for j in js), 2), None
+    vw, sd = d["vwap"][i], d["sd"][i]
+    tg = [["VWAP", round(vw, 2)]] + ([] if verdict == "TAKE · smaller target" else
+                                     [["d1" if top else "u1", round(vw - sd if top else vw + sd, 2)]])
+    return dict(c, state=row["word"], vol=vword, kind=kind, verdict=verdict, why=why, signs=S, n=n, N=N, stop=stop,
+                stop_why=stop_why, targets=tg)
+
+
+def cards(d, rows, piv):
+    """card() for every zone3 trigger of the frame (d["zone"], arms excluded), in the record's order."""
+    dte = (d.get("ctx") or {}).get("dte")
+    out = [card(d, z, rows, piv, dte) for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None]
+    return [c for c in out if c]
+
+
+def card_line(c):
+    """The card in one terminal line: "ZONE d2 79,250f · close 79,262f · STRONG · stop 79,190f · VWAP 79,330f → u1
+    79,410f" (the armed band's level after its name, the trigger close labelled)."""
+    if not c["signs"]:                                                       # the close is a hole in the record
+        tail = f" · {c['why']}"
+    else:
+        tail = ((f" ({_count(c['n'], c['N'])})" if c["kind"] in ("fade", "range") else "")
+                + f" · {c['stop_why'] or 'stop ' + _fmt(c['stop']) + 'f'}"
+                + "".join(f" · {k} {_fmt(v)}f" if j == 0 else f" → {k} {_fmt(v)}f" for j, (k, v) in enumerate(c["targets"])))
+    return (f"ZONE {c['band'] or c['side']}" + (f" {_fmt(c['level'])}f" if c.get("level") is not None else "")
+            + f" · close {_fmt(c['px'])}f · {c['verdict']}" + tail + (f" · logged late {c['known']}" if c["late"] else ""))
