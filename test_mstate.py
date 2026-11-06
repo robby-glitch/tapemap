@@ -321,3 +321,150 @@ def test_the_wall_is_read_at_the_band_her_trigger_armed_on():
     r = mstate.card(d, Z, _rows(d), [])                                           # no level: the 1-min band, said so
     assert r["signs"][1]["text"].endswith("band recomputed — level not logged")
     assert "%" not in json.dumps([c, r, mstate.card_line(c), mstate.card_line(r)])
+
+
+# ---- Task 9a: §6a, managing an open zone trade (display only; she decides) --------------------------------------------
+
+def _trade_frame(pts, lad=lambda T: 60.0):
+    """A SELL at u2 11:00 (close 11:02, 24,095): VWAP 24,050 sigma 30, the median 1-min candle 2 pts, the CE at the
+    band (24,100) on the ladder every minute at lad(clock minute)."""
+    d = _frame(_path(pts))
+    n = len(d["mins"])
+    d.update(vwap=[24050.0] * n, sd=[30.0] * n)
+    d["ladder"] = {t: {"ce": {24100: lad(555 + j)}, "pe": {}} for j, t in enumerate(d["mins"])}
+    return d
+
+
+def _tc(d, **kw):
+    """A card as mstate.card makes it (Task 8) plus the logged u3 / d3: SELL 11:00, stop = the trigger candle's high."""
+    js = [d["mins"].index(m) for m in ("11:00", "11:01", "11:02")]
+    return dict({"t": "11:00", "close": "11:02", "known": "11:03", "side": "SELL", "px": 24095.0,
+                 "stop": max(d["fhi"][j] for j in js), "u3": 24150.0, "d3": 23950.0, "u3_why": None,
+                 "verdict": "TAKE · smaller target", "targets": [["VWAP", 24050.0]],
+                 "signs": [{"k": "wall", "ok": True, "text": "24,100s CE at the band +0.0L / 9 min", "strike": 24100}]},
+                **kw)
+
+
+# into u2, the trigger, then a slow creep to 0.5 pt under the 24,111 stop from 11:05, held 15 min, then down to VWAP
+CREEP = [(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (125, 24109.5), (140, 24040)]
+FAST = [(0, 24000), (105, 24110), (107, 24095), (110, 24130), (140, 24130)]
+BREAK = [(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (125, 24109.5), (128, 24125), (140, 24125)]
+ADDUP = [(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (125, 24109.5), (128, 24160), (140, 24160)]
+
+
+def test_widen_shows_after_six_slow_minutes_near_the_stop_and_the_target_ends_it():
+    d = _trade_frame(CREEP)
+    E = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))}
+    assert min(E) == "11:03" and not any(c.startswith("WIDEN") for c in E["11:10"]["chips"])   # 5 min near: hidden
+    assert E["11:11"]["chips"][:2] == ["WIDEN · stop → beyond u3 24,150f", "risk to u3: 55 pts [M]"]
+    assert E["11:11"]["risk"] == 55.0 and E["11:11"]["why"][0].startswith("WIDEN 11:11: writers tike: 24,100s CE")
+    assert E["11:33"]["open"] is False and E["11:33"]["chips"][-1] == "target VWAP 24,050f ✓ — trade poora"
+    assert max(E) == "11:33"
+    x = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="EXPANDING"))}     # TREND ▲ + EXPANDING vs a SELL
+    assert not any(c.startswith("WIDEN") for e in x.values() for c in e["chips"])
+    assert "no WIDEN: TREND ▲ + EXPANDING against the trade" in x["11:11"]["why"]
+    assert "%" not in json.dumps([E, x])
+
+
+def test_a_fast_stop_says_it_was_not_the_trade():
+    d = _trade_frame(FAST)
+    tr = mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))
+    assert [e["t"] for e in tr] == ["11:03", "11:04"] and tr[-1]["open"] is False
+    assert tr[-1]["chips"][-1] == "stop hua — yeh trade nahi tha · 24,111f · fast — straight through (WIDEN needs 6 min)"
+    assert "%" not in json.dumps(tr)
+
+
+def test_writers_leaving_the_band_hide_widen_and_the_stop_says_why():
+    d = _trade_frame(BREAK, lad=lambda T: 60.0 if T < 660 else 60.0 - (T - 660))     # the CE at the band -1L a minute
+    E = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))}
+    assert not any(c.startswith("WIDEN") for e in E.values() for c in e["chips"])
+    assert E["11:21"]["open"] is False and E["11:21"]["chips"][-1] == (
+        "stop hua — yeh trade nahi tha · 24,111f · writers at 24,100s CE leaving -9.0L / 9 min · effort: could not check")
+
+
+def test_add_once_while_the_widen_stands_and_the_hard_line_ends_both_lots():
+    d = _trade_frame(ADDUP)
+    c1, c2 = _tc(d), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
+    mstate.trades(d, [c1, c2], _rows(d, vol="CONTRACTING"))
+    E = {e["t"]: e for e in c1["trade"]}
+    assert c2["trade"] is None and c2["in_trade"] == "11:00"                     # folded: the ADD, never a 2nd trade
+    assert not any(c.startswith("ADD") for c in E["11:14"]["chips"])
+    assert E["11:15"]["chips"] == ["WIDEN · stop → beyond u3 24,150f", "ADD 1 · avg 24,100f · stop beyond u3 24,150f",
+                                   "risk to u3: 55 + 45 = 100 pts (dono lot) [M]"] and E["11:15"]["risk"] == 100.0
+    assert E["11:21"]["open"] is True                                            # past the old stop: widened, still open
+    assert E["11:23"]["open"] is False and E["11:23"]["chips"][-1] == "u3 ke paar 3-min close 24,160f — dono lot band"
+    assert max(E) == "11:23" and "%" not in json.dumps(c1["trade"])
+
+
+def test_no_add_after_a_broken_widen_and_no_third_adjustment():
+    d = _trade_frame(ADDUP, lad=lambda T: 60.0 if T <= 672 else 60.0 - 3 * (T - 672))   # writers leave from 11:13
+    c1, c2 = _tc(d), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
+    mstate.trades(d, [c1, c2], _rows(d, vol="CONTRACTING"))
+    E = {e["t"]: e for e in c1["trade"]}
+    assert E["11:15"]["chips"] == ["WIDEN · stop → beyond u3 24,150f", "WIDEN toota — ADD nahi", "risk to u3: 55 pts [M]"]
+    assert not any(c.startswith("ADD") for e in E.values() for c in e["chips"])
+    assert any(w.startswith("WIDEN broken 11:13: writers at 24,100s CE leaving -3.0L") for w in E["11:15"]["why"])
+    assert E["11:23"]["chips"][-1] == "u3 ke paar 3-min close 24,160f — trade band"
+
+
+def test_a_row_without_u3_could_not_check_never_a_zero():
+    d = _trade_frame(CREEP)
+    tr = mstate.trade(d, _tc(d, u3=None, d3=None), _rows(d, vol="CONTRACTING"))
+    assert all(e["chips"][0] == "u3: could not check — u3 not logged (row before 6 Nov)" for e in tr)
+    assert all(e["risk"] is None for e in tr)
+    assert not any(c.startswith(("WIDEN", "ADD", "risk")) for e in tr for c in e["chips"])
+    assert tr[-1]["chips"][-1] == "target VWAP 24,050f ✓ — trade poora"            # the stop and target still read
+    zc = mstate.card(_zone_frame(), Z, _rows(_zone_frame()), [])                  # Z has no u3: the card says None
+    assert zc["u3"] is None and zc["signs"][1]["strike"] == 24100
+    assert "%" not in json.dumps(tr)
+
+
+def test_the_trade_is_causal():
+    d = _trade_frame(ADDUP)
+    rows, c2 = _rows(d, vol="CONTRACTING"), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
+    full, N = mstate.trade(d, _tc(d), rows, [c2]), len(d["mins"])
+    for e in full:                                                               # minute j reads minutes <= j only
+        j = d["mins"].index(e["t"])
+        cut = {k: (v[:j + 1] if isinstance(v, list) and len(v) == N else v) for k, v in d.items()}
+        assert mstate.trade(cut, _tc(d), rows[:j + 1], [c2])[-1] == e
+
+
+def test_a_hole_never_counts_as_near_and_a_stop_after_it_says_so():
+    d = _drop(_trade_frame(CREEP), "11:08")                                       # absent: the near count restarts 11:09
+    E = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))}
+    assert not any(c.startswith("WIDEN") for c in E["11:14"]["chips"]) and E["11:15"]["chips"][0].startswith("WIDEN")
+    d = _drop(_trade_frame([(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (117, 24109.5), (118, 24130),
+                            (140, 24130)]), *[_hm(m) for m in range(666, 673)])
+    tr = mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))                     # crossed right after 11:06-11:12
+    assert tr[-1]["chips"][-1] == "stop hua — yeh trade nahi tha · 24,111f · how: could not check — 11:06–11:12 not on the record"
+
+
+def test_cards_survive_a_raising_open_trade_walk(monkeypatch):
+    def boom(*a, **k):
+        raise KeyError("x")
+    monkeypatch.setattr(mstate, "trade", boom)
+    d2 = _zone_frame()
+    d2["zone"] = [Z]
+    out = mstate.cards(d2, _rows(d2), [])
+    assert out and all(c["trade"] is None and c["trade_why"] == "open trade: could not check — KeyError" for c in out)
+
+
+def test_a_take_is_never_folded_into_an_earlier_skip_card():
+    d = _trade_frame(CREEP)
+    sk, tk = _tc(d, verdict="SKIP"), _tc(d, t="11:07", close="11:09", known="11:10", px=24100.0)
+    mstate.trades(d, [sk, tk], _rows(d, vol="CONTRACTING"))
+    assert tk["in_trade"] is None and tk["trade"]
+
+
+def test_a_skip_cards_end_chip_never_reads_as_her_trade():
+    d = _trade_frame(CREEP)
+    tr = mstate.trade(d, _tc(d, verdict="SKIP"), _rows(d, vol="CONTRACTING"))
+    assert tr[-1]["chips"][-1] == "SKIP tha · target VWAP 24,050f ✓"
+    f = mstate.trade(_trade_frame(FAST), _tc(_trade_frame(FAST), verdict="SKIP"), _rows(_trade_frame(FAST), vol="CONTRACTING"))
+    assert f[-1]["chips"][-1].startswith("SKIP tha · stop hua")
+
+
+def test_a_gap_the_trade_survives_says_what_was_not_checked():
+    d = _drop(_trade_frame(CREEP), "11:08")
+    tr = mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))
+    assert "11:08–11:08 not on the record: stop / target not checked" in tr[-2]["why"]

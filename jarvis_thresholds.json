@@ -92,6 +92,8 @@
  "mstate.FADE_SIGNS": 2,
  "mstate.MATURE_PUSHES": 3,
  "mstate.SYNC_WIN": 30,
+ "mstate.WIDEN_MIN": 6,
+ "mstate.NEAR_X": 1.0,
  "_why": {
   "jarvis.P5_MIN": "the |p5| floor of the fut-OI run's direction stamp per index (spec §14 row 8); an index not named reads BANKNIFTY's",
   "jarvis.FAST": "SPEED FAST: |3-min delta| >= 2x its own median so far",
@@ -177,6 +179,8 @@
   "mstate.OPEN_LEGAL": "the zone card: no zone trade before 09:45, the opening's touches stay out (spec §5, A257)",
   "mstate.FADE_SIGNS": "a fade against a trend that is not expanding is TAKE · smaller target at >= 2 of the 5 signs",
   "mstate.MATURE_PUSHES": "sign 5, a mature leg: the 3rd or later push of the move into the band",
-  "mstate.SYNC_WIN": "sign 4, sync broke: a fresh 30-min extreme here and none in the two peers"
+  "mstate.SYNC_WIN": "sign 4, sync broke: a fresh 30-min extreme here and none in the two peers",
+  "mstate.WIDEN_MIN": "§6a WIDEN: >= 6 consecutive min near the trigger-candle stop without crossing it (spec 2026-11-06 §6a, A259)",
+  "mstate.NEAR_X": "§6a near the stop: a minute's high (BUY: low) within 1.0 x the day's median 1-min candle so far (her §1e yardstick: one ordinary minute away; less needs a near-touch, more counts a normal pullback as approaching)"
  }
 }

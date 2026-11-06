@@ -510,10 +510,23 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
         # own try and its own rule, only from band_rotation.ZONE3_FROM -- the
         # one date its chip, its alerts and its marks also wait for.
         z3on = day >= band_rotation.ZONE3_FROM
+        # §6a (spec 2026-11-06, plan Task 9a): every zone3 row carries its own 3-min bar's VWAP / u3 / d3 -- bands3,
+        # the bands it armed and entered on -- so the open-trade card reads the u3 line as logged, never recomputed.
+        # Additive keys on NEW rows only: a row on disk is never rewritten. An unreadable band says so, never a zero.
+        b3 = {b.get("t"): x for b, x in zip(bars, day_js.get("bands3") or ()) if isinstance(b, dict)}
+
+        def _b3(t):
+            x = b3.get(t)
+            try:
+                if x:
+                    return {k: round(x[k], 2) for k in ("vwap", "u3", "d3")}
+            except (KeyError, TypeError, ValueError):
+                pass
+            return {"bands3_why": "the 3-min band could not be read on this bar"}
         try:
             interval = payload.get("interval")
             if interval == band_rotation.SCORED_INTERVAL and z3on:
-                out.extend(json.dumps(dict(r, bands_on="3m")) for r in
+                out.extend(json.dumps(dict(r, bands_on="3m", **_b3(r.get("t")))) for r in
                            _dedupe(_arm_rows(
                                index, day_js, bars, last, day,
                                oi_at,
@@ -568,6 +581,7 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
                    "closed_bar": True}
             if rule_tag == "zone3":     # ZONE-3M: bands on its own 3-min bars
                 row["bands_on"] = "3m"  # (absent on every other row)
+                row.update(_b3(bar.get("t")))   # §6a: its bar's VWAP / u3 / d3 (Task 9a)
             if oi_why:                  # appended only when the OI is null,
                 row["oi_why"] = oi_why  # so a normal row is byte-identical
             # §1d, the same stamp the arm rows carry, and with the same

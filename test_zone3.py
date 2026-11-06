@@ -373,3 +373,46 @@ def test_a_zone_match_is_one_setup_line_with_its_own_entry_and_stop_and_reaches_
     assert telegram_out.wants(ms[0])
     armed = dict(row, T="09:27", setups=[decode._zone3(_g("09:27"), {"bars3": _b3(M("09:27"))})])
     assert not [m for m in messages.build([], [armed]) if m["kind"] == "SETUP"]      # an arm is never sent
+
+
+# ---- Task 9a: every zone3 row logs its own 3-min bar's VWAP / u3 / d3 (spec 2026-11-06 §6a) ----------------------------
+
+def test_zone3_rows_carry_their_bars_vwap_u3_d3_and_old_rows_stay_byte_identical(tmp_path, monkeypatch):
+    import trigger_log
+    path = _fresh(tmp_path)
+    old = ('{"day": "2026-10-28", "index": "NIFTY", "t": "10:00", "side": "BUY", "band": "d2", "rule": "zone3", '
+           '"px": 1.0, "mfe": 5.0, "mae": -2.0, "stop_hit": false}\n')
+    with open(path, "w", encoding="utf-8") as f:                                 # a row already on disk (tmp only)
+        f.write(old)
+    monkeypatch.setattr(band_rotation, "ZONE3_FROM", "2000-01-01")
+    out = _out()
+    assert trigger_log.log_new("NIFTY", _payload(), None, ones=_ones(), path=path) == 2
+    lines = open(path, encoding="utf-8").read().splitlines(keepends=True)
+    assert lines[0] == old                                                      # never rewritten, scores untouched
+    arm, entry = [json.loads(x) for x in lines[1:]]
+    b3 = {b["t"]: x for b, x in zip(out["bars"], out["bands3"])}
+    for r in (arm, entry):
+        assert {k: r[k] for k in ("vwap", "u3", "d3")} == {k: round(b3[r["t"]][k], 2) for k in ("vwap", "u3", "d3")}
+        assert not {"mfe", "mae", "stop_hit", "bands"} & set(r)                  # a write never carries a score
+
+
+def _rows_with_bands3(tmp_path, monkeypatch, mutate):
+    import trigger_log
+    path = _fresh(tmp_path)
+    monkeypatch.setattr(band_rotation, "ZONE3_FROM", "2000-01-01")
+    out = _out()
+    mutate(out)
+    assert trigger_log.log_new("NIFTY", {"interval": 3, "days": [out]}, None, ones=_ones(), path=path) == 2
+    return [json.loads(x) for x in open(path, encoding="utf-8")]
+
+
+def test_a_payload_without_bands3_still_writes_its_rows_with_the_reason(tmp_path, monkeypatch):
+    for r in _rows_with_bands3(tmp_path, monkeypatch, lambda o: o.pop("bands3")):
+        assert r["bands3_why"] == "the 3-min band could not be read on this bar" and "u3" not in r and r["rule"] == "zone3"
+
+
+def test_a_none_or_malformed_bands3_slot_never_drops_the_batch(tmp_path, monkeypatch):
+    def bad(o):
+        o["bands3"] = [{"vwap": 1.0, "d3": 2.0} if i % 2 else None for i, _ in enumerate(o["bands3"])]   # no u3 / None
+    for r in _rows_with_bands3(tmp_path, monkeypatch, bad):
+        assert "bands3_why" in r and "u3" not in r

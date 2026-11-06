@@ -193,3 +193,25 @@ def test_5nov_sensex_zone_card_is_causal_the_cut_full_build_equals_the_11_00_bui
             z = jarvis.call(jarvis.cut_at(fr, k))["zone"]
             assert z is None or z["known"] <= fr["mins"][k]
             assert all(r["t"] <= fr["mins"][k] for r in jarvis_log.state_row(fr, k, 0, "live")["zone"])
+
+
+def test_the_open_trade_rides_on_the_zone_card_and_never_shows_a_later_minute():
+    d = _call_toy()
+    d["reads"]["action"] = jarvis.action_words(d)
+    d["mstate"] = _state_rows(d)
+    tr = [{"t": "10:09", "open": True, "chips": ["WIDEN · stop → beyond d3 22,950f", "risk to d3: 60 pts"],
+           "why": ["WIDEN 10:09: writers tike: 22,900s PE +1.0L / 9 min"], "risk": 60.0},
+          {"t": "10:12", "open": False, "chips": ["d3 ke paar 3-min close 22,940f — trade band"], "why": [], "risk": 60.0}]
+    card = {"t": "10:05", "close": "10:07", "known": "10:09", "late": False, "side": "BUY", "band": "d2", "px": 23010.0,
+            "level": None, "state": "TREND ▼", "vol": "EXPANDING", "kind": "fade", "verdict": "TAKE · smaller target",
+            "why": "TREND ▼ + EXPANDING: a fade only if the band stopped", "signs": [], "n": 2, "N": 4, "stop": 23000.0,
+            "stop_why": None, "targets": [["VWAP", 23080.0]], "gate": None, "u3": None, "d3": 22950.0, "u3_why": None,
+            "trade": tr, "in_trade": None}
+    d["zone_cards"] = [card]
+    c = jarvis.call(jarvis.cut_at(d, 10))                                        # 10:10
+    assert "trade" not in c["zone"] and c["zone"]["open"]["of"] == "10:05" and c["zone"]["open"]["t"] == "10:09"
+    assert c["zone"]["open"]["chips"][0] == "WIDEN · stop → beyond d3 22,950f"
+    assert any("open 10:05: WIDEN · stop → beyond d3 22,950f" in x for x in c["why"])
+    e = jarvis.call(jarvis.cut_at(d, 12))["zone"]["open"]                        # 10:12: the hard line
+    assert e["open"] is False and e["chips"] == ["d3 ke paar 3-min close 22,940f — trade band"]
+    assert "%" not in json.dumps(c["zone"])

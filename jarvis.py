@@ -812,7 +812,9 @@ def _build(day, idx, upto, fill, memo):
         if r.get("day") == day and r.get("index") == idx and r.get("rule") == "zone3" and START <= str(r.get("t", ""))[:5] \
                 and _m(str(r["t"])) < upto:
             z = {k: r.get(k) for k in ("t", "kind", "side", "px", "level", "stop", "entry", "band", "u2", "d2", "bands_on",
-                                       "stop_px", "gate", "at") if r.get(k) is not None}   # never a scored field (mfe, ...)
+                                       "stop_px", "gate", "at",
+                                       "vwap", "u3", "d3", "bands3_why")    # vwap / u3 / d3: §6a (Task 9a)
+                 if r.get(k) is not None}   # never a scored field (mfe, mae, stop_hit, bands, f15, f30, scored_at)
             if not z.get("kind") and z.get("px") is not None:   # the zone card's sign 3 at the trigger's close (effort.py;
                 lam, med, nb = effort.lam_at(inp.get("fm") or {}, _m(str(r["t"])[:5]) + 2)   # SENSEX: NIFTY's flow, 1q)
                 z["effort"] = ({"x": round(lam / med, 2), "why": None} if lam and med else
@@ -831,6 +833,9 @@ def _build(day, idx, upto, fill, memo):
             "fights": [{"id": f["id"], "k": f["k"], "side": f["side"], "born": f["born"], "stamps": f["stamps"],
                         "ending": f["ending"]} for f in fights],
             "rev": "mockup reading of ROUND1-ANSWERS rules (not the engine)", "brain": REV}
+    if any(not z.get("kind") for z in ZONE):         # §6a: effort per minute for an open zone trade's WIDEN (sign 3 at
+        data["eff_x"] = [(lambda a: round(a[0] / a[1], 2) if a[0] and a[1] else None)(   # minute m: effort.lam_at's
+            effort.lam_at(inp.get("fm") or {}, _m(m))) for m in mins]                   # m-4..m; SENSEX: NIFTY's, §1q)
     # Her asks, 29 Oct ~01:45 (speed, candle-vs-delta at the top, absorption / exhaustion, her VWAP bands to trail, all 3 in
     # sync): the true 1-min open, Dext 0.8.1's footprint delta and volume per minute (lots), the session VWAP (hlc3) and its
     # SD from the 1-min bars (matches her zone's logged u2 within ~1 pt), and BANKNIFTY / SENSEX spot (chain + backfill, carried).
@@ -1376,12 +1381,16 @@ def call(d: dict) -> dict:
                    + (f" · eff {srow['eff']:.2f}" if srow.get("eff") is not None else "")
                    + (f" · fuel {grade}" if grade else "") + f" · action {said_act}")
         zc = [z for z in d.get("zone_cards") or () if z["known"] <= mins[i] and _m(mins[i]) - _m(z["known"]) < MANAGE_WIN]
-        zone = dict(zc[-1], line=mstate.card_line(zc[-1])) if zc else None
+        tc = [z for z in zc if z.get("trade")]       # §6a: the open trade as of this minute (Task 9a), never a later one
+        op = [e for e in tc[-1]["trade"] if e["t"] <= mins[i]] if tc else []
+        zone = (dict({k: v for k, v in zc[-1].items() if k != "trade"}, line=mstate.card_line(zc[-1]),
+                     open=dict(op[-1], of=tc[-1]["t"]) if op else None) if zc else None)
         if zone:
-            gt = zone.get("gate")
+            gt, O = zone.get("gate"), zone["open"]
             why.insert(1, "zone: " + zone["line"] + f" — {zone['why']}"
                        + (f" · her gate (§1d): {'legal' if gt.get('legal') else 'NOT legal'} — {gt.get('why')}"
-                          if isinstance(gt, dict) else ""))
+                          if isinstance(gt, dict) else "")
+                       + (f" · open {O['of']}: " + " · ".join(O["chips"]) if O and O["chips"] else ""))
     return T5 | {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
             "state": (row or {}).get("word"),

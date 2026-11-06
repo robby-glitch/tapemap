@@ -615,6 +615,15 @@ function renderCard(c) {
         [Z.line ?? "no line", Z.why ?? "no reason logged"].concat((Z.signs || []).map(s => (s.ok === true ? "✓ " : s.ok === false ? "✗ " : "? ") + (s.text ?? "no text"))).join("\n"));
     const atb = ((Z.signs || []).find(s => s.k === "wall") || {}).text;
     row("s clip", `gate §1d: ${Z.gate ? (Z.gate.legal ? "legal" : "NOT legal") + " — " + (Z.gate.why ?? "no reason logged") : "not logged"} · at band: ${atb || "?"}`);
+    const O = Z.open;                                 // §6a: the open trade's chips, verbatim (display only; she decides)
+    if (O && O.chips && O.chips.length) {
+      const oc = row("rc", "", [`trade of ${O.of}`].concat(O.why || []).join("\n"));
+      for (const t of O.chips) {
+        const el = document.createElement("span");
+        el.className = "chip " + (/stop hua|ke paar|toota/.test(t) ? "bad" : /^(WIDEN|ADD 1) ·/.test(t) ? "you" : /✓/.test(t) ? "ok" : "q");
+        el.textContent = t; oc.appendChild(el);
+      }
+    }
   }
   const old = oldLine(c);
   if (old) { row("s bad clip", old); box.style.opacity = 0.55; }

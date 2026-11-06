@@ -50,6 +50,8 @@
 | `docs/kahani/review/mockup/jarvis2.html` | Modify | The state line leads, the ACTION word becomes a chip, then the zone row, the ALERT row, and the BANKNIFTY option. |
 | `tools/mstate_replay.py` | Create | Spec §9 behaviour check over 28 Oct–5 Nov: counts only, refused in market hours. |
 | `test_mstate_replay.py` | Create | The replay tool's guard and table. |
+| `trigger_log.py` | Modify | zone3 rows log their 3-min bar's vwap / u3 / d3 (§6a) |
+| `test_zone3.py` | Modify | that logging |
 | `docs/live/NOTEPAD.md` | Modify | Section A rows A256 / A257 / A258, and the replay's counts in section B. |
 
 Ground truth these tasks are written against (6 Nov working tree):
@@ -1942,6 +1944,487 @@ git commit -m "Jarvis market state, phase 2: the zone card (legality by state, f
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
+
+---
+
+### Task 9a: §6a — managing an open zone trade (after phase 2)
+
+> Added 6 Nov from her spec amendment §6a ("yes add it"). It is built after phase 2 and committed only on her word. The open questions at the end were decided by the controller as the trader-side owner (her standing rule): every proposed answer was taken.
+
+**Files:**
+- Modify: `trigger_log.py` (`log_new`: the zone3 arm `out.extend(...)` and the entry loop's `if rule_tag == "zone3":` block)
+- Test: `test_zone3.py` (append)
+- Modify: `jarvis.py` (the ZONE loop's key tuple; `data["eff_x"]` after the `data = {...}` dict; `call()`'s zone block from Task 9)
+- Modify: `mstate.py` (constants, `_I`; the wall dicts in `signs` gain `"strike"`; `card` gains `u3` / `d3` / `u3_why`; `cards` calls `trades`; append the §6a section)
+- Test: `test_mstate.py` (append), `test_jarvis_state.py` (append)
+- Modify: `docs/kahani/review/mockup/jarvis2.html` (`renderCard`, under the zone rows of Task 9)
+- Modify: `jarvis_thresholds.json`, `docs/live/NOTEPAD.md` (A259)
+- Add two rows to the File Structure table:
+  - `trigger_log.py | Modify | zone3 rows log their 3-min bar's vwap / u3 / d3 (§6a)`
+  - `test_zone3.py | Modify | that logging`
+
+**Interfaces:**
+- Consumes:
+  - `day_js["bands3"]`: one `{vwap, u1..u3, d1..d3}` or None per 3-min bar, from `live._at_interval` → `contract_bars.bands_on(out["bars"])`.
+  - `legs._lad`, `legs.K_MIN`, `legs.K1_L`; `effort.lam_at`, `effort.HI`; `jarvis.MANAGE_WIN`.
+  - `mstate._ix` / `_fmt` / `_m` / `_hm` / `START_M`.
+  - The frame's `fut` / `fhi` / `flo` / `vwap` / `sd` / `ladder`, the `mstate.fold` rows, and the Task 8 cards.
+- Produces:
+  - Every NEW zone3 row (arm and entry) gains `"vwap"`, `"u3"` and `"d3"` (rounded to 2), or `"bands3_why"` when its band could not be read. This is additive: no row on disk is rewritten, and `mfe` / `mae` / `stop_hit` / `bands` are never touched.
+  - `d["zone"][*]` carries `vwap` / `u3` / `d3` / `bands3_why`.
+  - `d["eff_x"]` is present when the frame has a zone trigger: effort ÷ the day median per minute, or None.
+  - The wall dict from `signs()` gains `"strike"`. `card()` gains `"u3"`, `"d3"` and `"u3_why"`.
+  - Cards from `cards()` gain `"trade"` (a list) and `"in_trade"` (the trigger `t` of the trade they were folded into, else None).
+  - `mstate.trade(d, c, rows, later=()) -> [{"t", "open", "chips", "why", "risk"}] | None`; `mstate.trades(d, cs, rows) -> cs`; `mstate._holds`; `mstate._open_at`.
+  - `call()["zone"]["open"]`: `{"of", "t", "open", "chips", "why", "risk"}` or None. `call()["zone"]` never carries `"trade"`, so no later minute leaks into it.
+
+- [ ] **Step 1: Write the failing test for the logger** (append to `test_zone3.py`)
+
+```python
+# ---- Task 9a: every zone3 row logs its own 3-min bar's VWAP / u3 / d3 (spec 2026-11-06 §6a) ----------------------------
+
+def test_zone3_rows_carry_their_bars_vwap_u3_d3_and_old_rows_stay_byte_identical(tmp_path, monkeypatch):
+    import trigger_log
+    path = _fresh(tmp_path)
+    old = ('{"day": "2026-10-28", "index": "NIFTY", "t": "10:00", "side": "BUY", "band": "d2", "rule": "zone3", '
+           '"px": 1.0, "mfe": 5.0, "mae": -2.0, "stop_hit": false}\n')
+    with open(path, "w", encoding="utf-8") as f:                                 # a row already on disk (tmp only)
+        f.write(old)
+    monkeypatch.setattr(band_rotation, "ZONE3_FROM", "2000-01-01")
+    out = _out()
+    assert trigger_log.log_new("NIFTY", _payload(), None, ones=_ones(), path=path) == 2
+    lines = open(path, encoding="utf-8").read().splitlines(keepends=True)
+    assert lines[0] == old                                                      # never rewritten, scores untouched
+    arm, entry = [json.loads(x) for x in lines[1:]]
+    b3 = {b["t"]: x for b, x in zip(out["bars"], out["bands3"])}
+    for r in (arm, entry):
+        assert {k: r[k] for k in ("vwap", "u3", "d3")} == {k: round(b3[r["t"]][k], 2) for k in ("vwap", "u3", "d3")}
+        assert not {"mfe", "mae", "stop_hit", "bands"} & set(r)                  # a write never carries a score
+```
+
+(`_fresh`, `_out`, `_payload`, `_ones` and `band_rotation` are the helpers and imports already in `test_zone3.py`. If a name differs, use the real one and report it.)
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `python -m pytest -q test_zone3.py::test_zone3_rows_carry_their_bars_vwap_u3_d3_and_old_rows_stay_byte_identical`
+Expected: FAIL with `KeyError: 'vwap'`.
+
+- [ ] **Step 3: Implement the logger**
+
+In `trigger_log.log_new`, directly after `z3on = day >= band_rotation.ZONE3_FROM`, add:
+
+```python
+        # §6a (spec 2026-11-06, plan Task 9a): every zone3 row carries its own 3-min bar's VWAP / u3 / d3 -- bands3,
+        # the bands it armed and entered on -- so the open-trade card reads the u3 line as logged, never recomputed.
+        # Additive keys on NEW rows only: a row on disk is never rewritten. An unreadable band says so, never a zero.
+        b3 = {b.get("t"): x for b, x in zip(bars, day_js.get("bands3") or ()) if isinstance(b, dict)}
+
+        def _b3(t):
+            x = b3.get(t)
+            return ({k: round(x[k], 2) for k in ("vwap", "u3", "d3")} if x
+                    else {"bands3_why": "the 3-min band could not be read on this bar"})
+```
+
+In the zone3 arm block, replace `out.extend(json.dumps(dict(r, bands_on="3m")) for r in` with:
+
+```python
+                out.extend(json.dumps(dict(r, bands_on="3m", **_b3(r.get("t")))) for r in
+```
+
+In the entry loop, replace:
+
+```python
+            if rule_tag == "zone3":     # ZONE-3M: bands on its own 3-min bars
+                row["bands_on"] = "3m"  # (absent on every other row)
+```
+
+with:
+
+```python
+            if rule_tag == "zone3":     # ZONE-3M: bands on its own 3-min bars
+                row["bands_on"] = "3m"  # (absent on every other row)
+                row.update(_b3(bar.get("t")))   # §6a: its bar's VWAP / u3 / d3 (Task 9a)
+```
+
+Run: `python -m pytest -q test_zone3.py test_trigger_log.py`
+Expected: PASS. The live server picks this up only at Mary's next `.\stop.bat; .\start-v2.bat`. Never restart it.
+
+- [ ] **Step 4: Write the failing tests for the open trade** (append to `test_mstate.py`)
+
+```python
+# ---- Task 9a: §6a, managing an open zone trade (display only; she decides) --------------------------------------------
+
+def _trade_frame(pts, lad=lambda T: 60.0):
+    """A SELL at u2 11:00 (close 11:02, 24,095): VWAP 24,050 sigma 30, the median 1-min candle 2 pts, the CE at the
+    band (24,100) on the ladder every minute at lad(clock minute)."""
+    d = _frame(_path(pts))
+    n = len(d["mins"])
+    d.update(vwap=[24050.0] * n, sd=[30.0] * n)
+    d["ladder"] = {t: {"ce": {24100: lad(555 + j)}, "pe": {}} for j, t in enumerate(d["mins"])}
+    return d
+
+
+def _tc(d, **kw):
+    """A card as mstate.card makes it (Task 8) plus the logged u3 / d3: SELL 11:00, stop = the trigger candle's high."""
+    js = [d["mins"].index(m) for m in ("11:00", "11:01", "11:02")]
+    return dict({"t": "11:00", "close": "11:02", "known": "11:03", "side": "SELL", "px": 24095.0,
+                 "stop": max(d["fhi"][j] for j in js), "u3": 24150.0, "d3": 23950.0, "u3_why": None,
+                 "verdict": "TAKE · smaller target", "targets": [["VWAP", 24050.0]],
+                 "signs": [{"k": "wall", "ok": True, "text": "24,100s CE at the band +0.0L / 9 min", "strike": 24100}]},
+                **kw)
+
+
+# into u2, the trigger, then a slow creep to 0.5 pt under the 24,111 stop from 11:05, held 15 min, then down to VWAP
+CREEP = [(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (125, 24109.5), (140, 24040)]
+FAST = [(0, 24000), (105, 24110), (107, 24095), (110, 24130), (140, 24130)]
+BREAK = [(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (125, 24109.5), (128, 24125), (140, 24125)]
+ADDUP = [(0, 24000), (105, 24110), (107, 24095), (110, 24109.5), (125, 24109.5), (128, 24160), (140, 24160)]
+
+
+def test_widen_shows_after_six_slow_minutes_near_the_stop_and_the_target_ends_it():
+    d = _trade_frame(CREEP)
+    E = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))}
+    assert min(E) == "11:03" and not any(c.startswith("WIDEN") for c in E["11:10"]["chips"])   # 5 min near: hidden
+    assert E["11:11"]["chips"][:2] == ["WIDEN · stop → beyond u3 24,150f", "risk to u3: 55 pts"]
+    assert E["11:11"]["risk"] == 55.0 and E["11:11"]["why"][0].startswith("WIDEN 11:11: writers tike: 24,100s CE")
+    assert E["11:33"]["open"] is False and E["11:33"]["chips"][-1] == "target VWAP 24,050f ✓ — trade poora"
+    assert max(E) == "11:33"
+    x = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="EXPANDING"))}     # TREND ▲ + EXPANDING vs a SELL
+    assert not any(c.startswith("WIDEN") for e in x.values() for c in e["chips"])
+    assert "no WIDEN: TREND ▲ + EXPANDING against the trade" in x["11:11"]["why"]
+    assert "%" not in json.dumps([E, x])
+
+
+def test_a_fast_stop_says_it_was_not_the_trade():
+    d = _trade_frame(FAST)
+    tr = mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))
+    assert [e["t"] for e in tr] == ["11:03", "11:04"] and tr[-1]["open"] is False
+    assert tr[-1]["chips"][-1] == "stop hua — yeh trade nahi tha · 24,111f · fast — straight through (WIDEN needs 6 min)"
+    assert "%" not in json.dumps(tr)
+
+
+def test_writers_leaving_the_band_hide_widen_and_the_stop_says_why():
+    d = _trade_frame(BREAK, lad=lambda T: 60.0 if T < 660 else 60.0 - (T - 660))     # the CE at the band -1L a minute
+    E = {e["t"]: e for e in mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))}
+    assert not any(c.startswith("WIDEN") for e in E.values() for c in e["chips"])
+    assert E["11:21"]["open"] is False and E["11:21"]["chips"][-1] == (
+        "stop hua — yeh trade nahi tha · 24,111f · writers at 24,100s CE leaving -9.0L / 9 min · effort: could not check")
+
+
+def test_add_once_while_the_widen_stands_and_the_hard_line_ends_both_lots():
+    d = _trade_frame(ADDUP)
+    c1, c2 = _tc(d), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
+    mstate.trades(d, [c1, c2], _rows(d, vol="CONTRACTING"))
+    E = {e["t"]: e for e in c1["trade"]}
+    assert c2["trade"] is None and c2["in_trade"] == "11:00"                     # folded: the ADD, never a 2nd trade
+    assert not any(c.startswith("ADD") for c in E["11:14"]["chips"])
+    assert E["11:15"]["chips"] == ["WIDEN · stop → beyond u3 24,150f", "ADD 1 · avg 24,100f · stop beyond u3 24,150f",
+                                   "risk to u3: 55 + 45 = 100 pts (dono lot)"] and E["11:15"]["risk"] == 100.0
+    assert E["11:21"]["open"] is True                                            # past the old stop: widened, still open
+    assert E["11:23"]["open"] is False and E["11:23"]["chips"][-1] == "u3 ke paar 3-min close 24,160f — dono lot band"
+    assert max(E) == "11:23" and "%" not in json.dumps(c1["trade"])
+
+
+def test_no_add_after_a_broken_widen_and_no_third_adjustment():
+    d = _trade_frame(ADDUP, lad=lambda T: 60.0 if T <= 672 else 60.0 - 3 * (T - 672))   # writers leave from 11:13
+    c1, c2 = _tc(d), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
+    mstate.trades(d, [c1, c2], _rows(d, vol="CONTRACTING"))
+    E = {e["t"]: e for e in c1["trade"]}
+    assert E["11:15"]["chips"] == ["WIDEN · stop → beyond u3 24,150f", "WIDEN toota — ADD nahi", "risk to u3: 55 pts"]
+    assert not any(c.startswith("ADD") for e in E.values() for c in e["chips"])
+    assert any(w.startswith("WIDEN broken 11:13: writers at 24,100s CE leaving -3.0L") for w in E["11:15"]["why"])
+    assert E["11:23"]["chips"][-1] == "u3 ke paar 3-min close 24,160f — trade band"
+
+
+def test_a_row_without_u3_could_not_check_never_a_zero():
+    d = _trade_frame(CREEP)
+    tr = mstate.trade(d, _tc(d, u3=None, d3=None), _rows(d, vol="CONTRACTING"))
+    assert all(e["chips"][0] == "u3: could not check — u3 not logged (row before 6 Nov)" for e in tr)
+    assert all(e["risk"] is None for e in tr)
+    assert not any(c.startswith(("WIDEN", "ADD", "risk")) for e in tr for c in e["chips"])
+    assert tr[-1]["chips"][-1] == "target VWAP 24,050f ✓ — trade poora"            # the stop and target still read
+    zc = mstate.card(_zone_frame(), Z, _rows(_zone_frame()), [])                  # Z has no u3: the card says None
+    assert zc["u3"] is None and zc["signs"][1]["strike"] == 24100
+    assert "%" not in json.dumps(tr)
+
+
+def test_the_trade_is_causal():
+    d = _trade_frame(ADDUP)
+    rows, c2 = _rows(d, vol="CONTRACTING"), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
+    full, N = mstate.trade(d, _tc(d), rows, [c2]), len(d["mins"])
+    for e in full:                                                               # minute j reads minutes <= j only
+        j = d["mins"].index(e["t"])
+        cut = {k: (v[:j + 1] if isinstance(v, list) and len(v) == N else v) for k, v in d.items()}
+        assert mstate.trade(cut, _tc(d), rows[:j + 1], [c2])[-1] == e
+```
+
+(`_frame`, `_path`, `_rows`, `_zone_frame` and `Z` are the existing helpers in `test_mstate.py`. Check their real signatures. Note: `_frame`'s day is before 6 Nov, so "(row before 6 Nov)" is expected. The exact chip strings and minute stamps were derived by hand from the code below. If a number differs because a helper's real path or candle size differs, fix the TEST FIXTURE, never the rule, and report the difference.)
+
+- [ ] **Step 5: Run them to verify they fail**
+
+Run: `python -m pytest -q test_mstate.py`
+Expected: FAIL with `AttributeError: module 'mstate' has no attribute 'trade'`.
+
+- [ ] **Step 6: Implement `mstate`**
+
+After the `SYNC_WIN = 30 ...` line (or the last zone-card constant), add:
+
+```python
+WIDEN_MIN = 6                 # [I] §6a WIDEN: >= 6 consecutive min near the trigger-candle stop without crossing it
+NEAR_X = 1.0                  # [I] §6a "near the stop": a minute's high (SELL; BUY its low) within 1.0 x the day's median
+                              #     1-min candle so far (her §1e yardstick): scales across NIFTY / BANKNIFTY / SENSEX
+```
+
+Add `"WIDEN_MIN", "NEAR_X"` to the end of the `_I = (...)` tuple.
+
+In `signs()`, sign 2: add `"strike": k` to each wall dict that sign appends (both the `ok: None` one and the read one). `k` is the strike the sign reads, which after Task 8's fix comes from `level` when it was logged.
+
+In `card()`, add to the card dict:
+
+```python
+         "u3": z.get("u3"), "d3": z.get("d3"), "u3_why": z.get("bands3_why"),       # §6a: as logged (Task 9a)
+```
+
+In `cards()`, replace the final `return [c for c in out if c]` (or its equivalent) with `return trades(d, [c for c in out if c], rows)     # §6a`.
+
+Append to the end of `mstate.py`:
+
+```python
+# ---- §6a: managing an open zone trade (spec 2026-11-06 §6a; display only, she decides) --------------------------------
+
+def _holds(d, j, top, k, row):
+    """WIDEN's reasons at minute j -> (True, why) when the state is not EXPANDING against the trade and sign 2 (the
+    writers at the band's strike k not leaving over legs.K_MIN min) or sign 3 (effort without result, >= effort.HI; read
+    at a high only, as signs()) holds; else (False, why). Unread is never a yes (rule 6)."""
+    D, vol = (1 if top else -1), (row.get("vol") or {}).get("word")
+    if row.get("dir") == D and vol == "EXPANDING":
+        return False, f"{row['word']} + EXPANDING against the trade"
+    if vol in (None, "?"):
+        return False, "vol: could not check"
+    t, (sd_, SD) = d["mins"][j], (("ce", "CE") if top else ("pe", "PE"))
+    a, b = legs._lad(d, t, sd_, k), legs._lad(d, _hm(_m(t) - legs.K_MIN), sd_, k)
+    x = (d.get("eff_x") or [None] * (j + 1))[j] if top else None
+    if a is not None and b is not None and a - b >= -legs.K1_L:
+        return True, f"writers tike: {_fmt(k)}s {SD} {a - b:+.1f}L / {legs.K_MIN} min"
+    if x is not None and x >= effort.HI:
+        return True, f"effort {x:.1f}× bina result"
+    w = (f"writers at the band: could not check — {_fmt(k)}s {SD} not on the ladder" if a is None or b is None
+         else f"writers at {_fmt(k)}s {SD} leaving {a - b:+.1f}L / {legs.K_MIN} min")
+    e = ("effort: not read at a low" if not top else "effort: could not check" if x is None
+         else f"effort {x:.1f}× (needs {effort.HI:.0f}×)")
+    return False, f"{w} · {e}"
+
+
+def trade(d, c, rows, later=()):
+    """§6a, ONE open zone trade, display only (she decides; nothing gates, nothing places) -> [{"t", "open", "chips",
+    "why", "risk"}], one per frame minute from the card's `known` to its end; None for a card with no stop. Walked from
+    the trigger's close (a late row's earlier minutes count; shown from `known`); minute j reads minutes <= j only.
+    Open until the first of: the trigger-candle stop crossed with no WIDEN standing ("stop hua — yeh trade nahi tha":
+    fast, or why WIDEN could not stand); the hard line, a 3-min close beyond u3 (SELL; d3 BUY), ending both lots; the
+    last target (live VWAP, then the next band; VWAP only on a smaller target); jarvis.MANAGE_WIN after `known`.
+    WIDEN (once): WIDEN_MIN consecutive minutes with the high (BUY: low) within NEAR_X median 1-min candles of the stop,
+    not crossed, _holds true, before VWAP is touched, on a card that is not SKIP, with u3 logged beyond the stop. Then
+    the stop is beyond u3 (as logged at the trigger bar: a stop is a price). If _holds later fails the WIDEN is shown
+    broken: no ADD, and the stop stays (no third adjustment). ADD 1 (once): the first `later` same-side card, not SKIP,
+    known while the WIDEN stands; avg = the two trigger closes. Risk = points from each lot's entry to u3, summed; never
+    a %. u3 not logged -> could not check, never a zero (rule 6)."""
+    import jarvis
+    i = _ix(d, c["close"])
+    if c.get("stop") is None or not c.get("signs") or i is None:
+        return None
+    mins, top, S = d["mins"], c["side"] == "SELL", c["stop"]
+    D, nm, bn = (1, "u3", "d1") if top else (-1, "d3", "u1")
+    L, k = c.get(nm), next((s for s in c["signs"] if s["k"] == "wall"), {}).get("strike")
+    no3 = None if L is not None else f"{nm}: could not check — " + (c.get("u3_why") or f"{nm} not logged " + (
+        "(row before 6 Nov)" if d["day"] < "2026-11-06" else "on this row"))
+    bar = ("the card said SKIP — no WIDEN" if c["verdict"] == "SKIP" else no3 if no3 else
+           None if D * (L - S) > 0 else f"{nm} {_fmt(L)}f is not beyond the stop {_fmt(S)}f")
+    K0, lots, out = _m(c["known"]), [c["px"]], []
+    near0 = widen = broke = paid = why_not = None
+    for j in range(i + 1, len(mins)):
+        t, T = mins[j], _m(mins[j])
+        if T - K0 >= jarvis.MANAGE_WIN:
+            break
+        ax, fx = (d["fhi"][j], d["flo"][j]) if top else (d["flo"][j], d["fhi"][j])
+        vw, b1, end = d["vwap"][j], d["vwap"][j] - D * d["sd"][j], None
+        if not widen and D * (ax - S) > 0:                            # the trigger-candle stop, no WIDEN standing
+            end = f"stop hua — yeh trade nahi tha · {_fmt(S)}f · " + (
+                (f"fast — {T - near0} min near it" if near0 else "fast — straight through") + f" (WIDEN needs {WIDEN_MIN} min)"
+                if not near0 or T - near0 <= WIDEN_MIN else why_not)
+        elif L is not None and (T - START_M) % 3 == 2 and D * (d["fut"][j] - L) > 0:     # the hard line, her 3-min close
+            end = f"{nm} ke paar 3-min close {_fmt(d['fut'][j])}f — " + ("dono lot band" if len(lots) > 1 else "trade band")
+        else:
+            paid = paid or ((t, vw) if D * (vw - fx) >= 0 else None)   # VWAP touched (live: she trails band to band)
+            if paid and (len(c["targets"]) == 1 or D * (b1 - fx) >= 0):
+                end = (f"target VWAP {_fmt(paid[1])}f ✓ — trade poora" if len(c["targets"]) == 1
+                       else f"target {bn} {_fmt(b1)}f ✓ — trade poora")
+        if not end:
+            one = statistics.median(d["fhi"][x] - d["flo"][x] for x in range(j + 1))    # her §1e candle, minutes <= j
+            near0 = (near0 or T) if not widen and D * (S - ax) <= NEAR_X * one else None
+            if near0 and not widen and T - near0 >= WIDEN_MIN:
+                ok, w = (False, bar or "VWAP touched — no WIDEN after it") if bar or paid else _holds(d, j, top, k, rows[j])
+                widen, why_not = ((t, w), None) if ok else (None, w)
+            elif widen and not broke:
+                ok, w = _holds(d, j, top, k, rows[j])
+                broke = None if ok else (t, w)
+            if widen and not broke and len(lots) == 1:
+                c2 = next((x for x in later if widen[0] <= x["known"] <= t and x["verdict"] != "SKIP"), None)
+                if c2:
+                    lots.append(c2["px"])
+        chips, why, risk = ([no3] if no3 else []), [], None
+        if widen:
+            rs = [D * (L - p) for p in lots]
+            risk = round(sum(rs), 1)
+            chips.append(f"WIDEN · stop → beyond {nm} {_fmt(L)}f")
+            why.append(f"WIDEN {widen[0]}: {widen[1]}")
+            if broke:
+                chips.append("WIDEN toota — ADD nahi")
+                why.append(f"WIDEN broken {broke[0]}: {broke[1]} · the stop stays beyond {nm} (no third adjustment)")
+            if len(lots) > 1:
+                chips.append(f"ADD 1 · avg {_fmt(sum(lots) / 2)}f · stop beyond {nm} {_fmt(L)}f")
+            chips.append(f"risk to {nm}: " + (f"{rs[0]:.0f} pts" if len(rs) == 1 else
+                                             f"{rs[0]:.0f} + {rs[1]:.0f} = {sum(rs):.0f} pts (dono lot)"))
+        elif why_not:
+            why.append(f"no WIDEN: {why_not}")
+        if paid and not end:
+            chips.append(f"VWAP {_fmt(paid[1])}f ✓ → {bn}")
+        if end:
+            chips.append(end)
+        out.append({"t": t, "open": not end, "chips": chips, "why": why, "risk": risk})
+        if end:
+            break
+    shown = [e for e in out if e["t"] >= c["known"]]
+    return shown or ([dict(out[-1], t=c["known"])] if out and not out[-1]["open"] else [])
+
+
+def _open_at(c, t):
+    """Was card c's trade open at clock minute t? (A trade whose window ran out is open through its last minute.)"""
+    tr = c.get("trade") or []
+    return bool(tr) and tr[0]["t"] <= t and (t < tr[-1]["t"] or (t == tr[-1]["t"] and tr[-1]["open"]))
+
+
+def trades(d, cs, rows):
+    """§6a over the frame's cards, in the record's order: a card known while an earlier same-side trade is open is
+    folded into it (`in_trade`: the ADD candidate, never a second trade); every other card gets its own `trade`.
+    ponytail: record order, not `known` order -- a late row is judged against the trades before it in the file."""
+    for n, c in enumerate(cs):
+        p = next((p for p in reversed(cs[:n]) if p["side"] == c["side"] and _open_at(p, c["known"])), None)
+        c["trade"], c["in_trade"] = ((None, p["t"]) if p else
+                                     (trade(d, c, rows, [x for x in cs[n + 1:] if x["side"] == c["side"]]), None))
+    return cs
+```
+
+Make sure `statistics`, `effort` and `legs` are imported at the top of `mstate.py`; add any that are missing. Mind the frame's holes (Task 8's fix): `d["mins"]` skips absent minutes. The walk above steps frame rows, and its 3-min-close test uses the clock minute `T`, so that is consistent. Report any place where a hole could make a chip lie.
+
+Run: `python -m pytest -q test_mstate.py`
+Expected: PASS.
+
+- [ ] **Step 7: Write the failing test for the call** (append to `test_jarvis_state.py`)
+
+```python
+def test_the_open_trade_rides_on_the_zone_card_and_never_shows_a_later_minute():
+    d = _call_toy()
+    d["reads"]["action"] = jarvis.action_words(d)
+    d["mstate"] = _state_rows(d)
+    tr = [{"t": "10:09", "open": True, "chips": ["WIDEN · stop → beyond d3 22,950f", "risk to d3: 60 pts"],
+           "why": ["WIDEN 10:09: writers tike: 22,900s PE +1.0L / 9 min"], "risk": 60.0},
+          {"t": "10:12", "open": False, "chips": ["d3 ke paar 3-min close 22,940f — trade band"], "why": [], "risk": 60.0}]
+    card = {"t": "10:05", "close": "10:07", "known": "10:09", "late": False, "side": "BUY", "band": "d2", "px": 23010.0,
+            "level": None, "state": "TREND ▼", "vol": "EXPANDING", "kind": "fade", "verdict": "TAKE · smaller target",
+            "why": "TREND ▼ + EXPANDING: a fade only if the band stopped", "signs": [], "n": 2, "N": 4, "stop": 23000.0,
+            "stop_why": None, "targets": [["VWAP", 23080.0]], "gate": None, "u3": None, "d3": 22950.0, "u3_why": None,
+            "trade": tr, "in_trade": None}
+    d["zone_cards"] = [card]
+    c = jarvis.call(jarvis.cut_at(d, 10))                                        # 10:10
+    assert "trade" not in c["zone"] and c["zone"]["open"]["of"] == "10:05" and c["zone"]["open"]["t"] == "10:09"
+    assert c["zone"]["open"]["chips"][0] == "WIDEN · stop → beyond d3 22,950f"
+    assert any("open 10:05: WIDEN · stop → beyond d3 22,950f" in x for x in c["why"])
+    e = jarvis.call(jarvis.cut_at(d, 12))["zone"]["open"]                        # 10:12: the hard line
+    assert e["open"] is False and e["chips"] == ["d3 ke paar 3-min close 22,940f — trade band"]
+    assert "%" not in json.dumps(c["zone"])
+```
+
+(Check that `_call_toy`'s minutes at indexes 10 and 12 are 10:10 and 10:12, and adjust the indexes if they aren't. The empty `signs` here makes `card_line` print its why; that is fine for this test.)
+
+- [ ] **Step 8: Run it to verify it fails**
+
+Run: `python -m pytest -q test_jarvis_state.py::test_the_open_trade_rides_on_the_zone_card_and_never_shows_a_later_minute`
+Expected: FAIL with an `AssertionError` on `"trade" not in c["zone"]`.
+
+- [ ] **Step 9: Implement the wiring**
+
+In `_build`'s ZONE loop, add `"vwap", "u3", "d3", "bands3_why"` to the key tuple that copies the trigger_log row (comment: `vwap / u3 / d3: §6a (Task 9a)`). Never copy a scored field (`mfe`, `mae`, `stop_hit`, `bands`, `f15`, `f30`, `scored_at`).
+
+Directly after the `data = {...}` dict, add:
+
+```python
+    if any(not z.get("kind") for z in ZONE):         # §6a: effort per minute for an open zone trade's WIDEN (sign 3 at
+        data["eff_x"] = [(lambda a: round(a[0] / a[1], 2) if a[0] and a[1] else None)(   # minute m: effort.lam_at's
+            effort.lam_at(inp.get("fm") or {}, _m(m))) for m in mins]                   # m-4..m; SENSEX: NIFTY's, §1q)
+```
+
+(`eff_x` is a list with the frame's length, so `cut_at` slices it per minute. That is correct here; keep it OUT of `cut_at`'s exclusion list.)
+
+In `call()`, find Task 9's zone block. It computes `zc` (cards known by this minute and within `MANAGE_WIN`) and `zone` = the latest card plus `line`, then inserts the zone why line; Task 9's fix guards the gate with `isinstance(gate, dict)`. Change it so that:
+- `tc = [z for z in zc if z.get("trade")]`, and `op = [e for e in tc[-1]["trade"] if e["t"] <= mins[i]] if tc else []`;
+- `zone` is the latest card WITHOUT its `"trade"` key, plus `"line"`, plus `"open": dict(op[-1], of=tc[-1]["t"]) if op else None`;
+- the zone why line gains `f" · open {O['of']}: " + " · ".join(O["chips"])` when `O` and `O["chips"]`;
+- the existing gate guard stays.
+
+In `jarvis2.html`'s `renderCard`, inside Task 9's zone block, after the gate row, insert:
+
+```js
+    const O = Z.open;                                 // §6a: the open trade's chips, verbatim (display only; she decides)
+    if (O && O.chips && O.chips.length) {
+      const oc = row("rc", "", [`trade of ${O.of}`].concat(O.why || []).join("\n"));
+      for (const t of O.chips) {
+        const el = document.createElement("span");
+        el.className = "chip " + (/^stop hua|ke paar|toota/.test(t) ? "bad" : /^(WIDEN|ADD) ·/.test(t) ? "you" : /✓/.test(t) ? "ok" : "q");
+        el.textContent = t; oc.appendChild(el);
+      }
+    }
+```
+
+(Check that the CSS classes `chip bad`, `chip you`, `chip ok` and `chip q` exist on the page; use the nearest existing light-mode classes if not, and report it.)
+
+- [ ] **Step 10: Thresholds and NOTEPAD**
+
+In `jarvis_thresholds.json`, add `"mstate.WIDEN_MIN": 6` and `"mstate.NEAR_X": 1.0` beside the other `mstate.*` keys, and add to `_why`:
+
+```json
+  "mstate.WIDEN_MIN": "§6a WIDEN: >= 6 consecutive min near the trigger-candle stop without crossing it (spec 2026-11-06 §6a, A259)",
+  "mstate.NEAR_X": "§6a near the stop: a minute's high (BUY: low) within 1.0 x the day's median 1-min candle so far (her §1e yardstick: one ordinary minute away; less needs a near-touch, more counts a normal pullback as approaching)"
+```
+
+In `docs/live/NOTEPAD.md`, insert after the A258 row (or after A257 if A258 is not written yet):
+
+```markdown
+| A259 | 6 Nov (spec 2026-11-06 §6a, from her 09:57 → 10:33 NIFTY sells; plan Task 9a) | **Her open zone trade had no management read: when to widen, when to add, where it ends. And no zone3 row logged the u3 line or the VWAP it needs.** | 6 Nov trigger_log [M]: NIFTY zone3 SELL u2 09:57 (24,637.8f, level 24,648.5) and 10:33 (24,680.0f, level 24,705.2), the leg's second same-side trigger; neither row carries u3 or VWAP (a row's `level` is the u2 it armed on; the scorer's `bands` is which bands were reached later, not their prices) | `trigger_log.log_new`: every NEW zone3 row (arm and entry) carries its own 3-min bar's `vwap` / `u3` / `d3` from `bands3` (rounded 2; an unreadable band writes `bands3_why`). Additive: no row rewritten, no scored field touched. `mstate.trade` / `trades` (display only, she decides): WIDEN "stop → beyond u3" after `WIDEN_MIN` consecutive minutes with the high (a BUY: the low) within `NEAR_X` median 1-min candles of the trigger-candle stop and not crossed, with the writers at the band's strike not leaving (sign 2) or effort ≥ 2× (sign 3, highs only), and the state not EXPANDING against the trade; never on a SKIP card or after VWAP is touched. "stop hua — yeh trade nahi tha" when the stop is crossed fast or with WIDEN's reason failing. ADD 1 once, on the next same-side non-SKIP card known while the WIDEN stands (avg of the two trigger closes; that card is folded into the trade, never a second one). The hard line, a 3-min close beyond u3 as logged, ends both lots. A WIDEN whose reason fails is shown broken: no ADD, and the stop stays (no third adjustment). Target: live VWAP, then the next band (VWAP only on a smaller target). Open until those or `jarvis.MANAGE_WIN`. Risk = points from each lot's entry to u3, summed, never a %. Rows without u3 read "u3: could not check — u3 not logged (row before 6 Nov)" (6 Nov rows: "… on this row"). [I]: `mstate.WIDEN_MIN` 6 (spec), `NEAR_X` 1.0 (her §1e yardstick, scales across the three indices). Open questions decided by the controller (trader side, 6 Nov): u3 is the logged price (a stop is a price), the targets read live; a broken WIDEN keeps the stop beyond u3, no exit chip; no WIDEN / ADD on a SKIP card; "same leg" = the first trade still open; "near" must be consecutive; no WIDEN after VWAP is touched; a late row is walked from its close and shown from `known`. Her §1d gate is shown verbatim, unchanged (phase 4 is hers) | BUILT, uncommitted — commit on her word |
+```
+
+- [ ] **Step 11: Run the focused tests** (the full suite runs after 15:40, by the controller)
+
+Run: `python -m pytest -q test_zone3.py test_trigger_log.py test_mstate.py test_jarvis_state.py test_jarvis_log.py test_thresholds.py test_jarvis.py`
+Expected: PASS, apart from the 2 known pre-existing `test_jarvis.py` failures (A241 record drift).
+
+- [ ] **Step 12: Stage** (no commit: commits happen on Mary's word; never push)
+
+```bash
+git add trigger_log.py test_zone3.py mstate.py test_mstate.py jarvis.py test_jarvis_state.py jarvis_thresholds.json docs/kahani/review/mockup/jarvis2.html
+# NOTEPAD: only the A259 hunk (patch method; foreign edits stay unstaged)
+```
+
+The logger change reaches the live record only after Mary restarts the server. Never restart it, and never write to `data/trigger_log.jsonl`.
+
+#### Open questions: decided (controller, trader side, 6 Nov)
+
+1. **u3: logged price or moving band?** The logged price at the trigger bar is the WIDEN stop and the hard line, because a stop is a price. The targets (VWAP, then the next band) read live, since she trails them.
+2. **The stop after a broken WIDEN.** It stays beyond u3, and the card shows "WIDEN toota — ADD nahi" with the reason. There is no exit chip: an exit chip would be a new rule.
+3. **SKIP cards.** They get no WIDEN and no ADD, because both add risk. The stop, hard line and target lines still show.
+4. **"Same leg" for ADD.** It means the first trade is still open. `legs.py`'s leg is not used, because its origin can reset mid-trade.
+5. **"Near the stop".** It must hold for 6 minutes in a row. One minute away from the stop restarts the count.
+6. **After VWAP is touched.** There is no WIDEN.
+7. **Late rows.** They are walked from the close and shown from `known`, so a stop hit before the row was written shows as already ended.
 
 ---
 

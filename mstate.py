@@ -50,11 +50,15 @@ NO_HOLD_AT = "15:00"          # her practice (no new trades after 15:00): on 0 D
 FADE_SIGNS = 2                # [I] a fade against a trend that is not expanding is TAKE at >= 2 of the 5 signs
 MATURE_PUSHES = 3             # [I] sign 5, a mature leg: the 3rd or later push of the move into the band
 SYNC_WIN = 30                 # [I] sign 4: a fresh 30-min extreme (the reads' TOP / BOTTOM signs' window)
+WIDEN_MIN = 6                 # [I] §6a WIDEN: >= 6 consecutive min near the trigger-candle stop without crossing it
+NEAR_X = 1.0                  # [I] §6a "near the stop": a minute's high (SELL; BUY its low) within 1.0 x the day's median
+                              #     1-min candle so far (her §1e yardstick): scales across NIFTY / BANKNIFTY / SENSEX
 HING = {"TREND ▲": "upar ka trend", "TREND ▼": "neeche ka trend", "RANGE": "range: dono taraf",
         "OPENING": "abhi swing nahi"}  # her Hinglish chips (symbols need Hinglish chips)
 
 _I = ("EFF_WIN", "EFF_RANGE", "VWAP_X", "NORM_N", "NORM_MIN", "RANGE_HI", "RANGE_LO", "GAUGE_WIN", "VIX_PTS", "IV_PTS",
-      "VOL_N", "VOL_CLOSES", "OPEN_LEGAL", "FADE_SIGNS", "MATURE_PUSHES", "SYNC_WIN")
+      "VOL_N", "VOL_CLOSES", "OPEN_LEGAL", "FADE_SIGNS", "MATURE_PUSHES", "SYNC_WIN",
+      "WIDEN_MIN", "NEAR_X")
 _DEF = {n: globals()[n] for n in _I}
 _APPLIED = [None]
 _fmt = legs._fmt
@@ -414,10 +418,11 @@ def signs(d, i, z, piv):
     a, b = legs._lad(d, t, sd_, k), legs._lad(d, t9, sd_, k)
     if a is None or b is None:
         S.append({"k": "wall", "ok": None, "text": f"writers at the band: could not check — {_fmt(k)}s {SD} not on "
-                                                    f"the ladder at {t if a is None else t9}" + src})
+                                                    f"the ladder at {t if a is None else t9}" + src,
+                  "strike": k})
     else:
         S.append({"k": "wall", "ok": a - b >= -legs.K1_L, "text": f"{_fmt(k)}s {SD} at the band {a - b:+.1f}L / "
-                  f"{legs.K_MIN} min (" + ("holding / adding" if a - b >= -legs.K1_L else "leaving") + ")" + src})
+                  f"{legs.K_MIN} min (" + ("holding / adding" if a - b >= -legs.K1_L else "leaving") + ")" + src, "strike": k})
     e = z.get("effort") or {}                                      # 3. effort without result (effort.py, the survivor)
     if not top:
         S.append({"k": "effort", "ok": None, "text": "effort: not read at a low — the 2× mirror failed there "
@@ -472,7 +477,8 @@ def card(d, z, rows, piv, dte=None):
         if a.strftime("%Y-%m-%d") == d["day"]:              # written at 13:48:40 exists from 13:49, not 13:48
             known = max(known, a.hour * 60 + a.minute + (1 if a.second or a.microsecond else 0))
     c = {"t": t0, "close": tc, "known": _hm(known), "late": known - (_m(t0) + 3) > 2, "side": z["side"],
-         "band": z.get("band"), "level": z.get("level"), "px": z.get("px"), "gate": z.get("gate")}
+         "band": z.get("band"), "level": z.get("level"), "px": z.get("px"), "gate": z.get("gate"),
+         "u3": z.get("u3"), "d3": z.get("d3"), "u3_why": z.get("bands3_why")}       # §6a: as logged (Task 9a)
     i = _ix(d, tc)
     if i is None:
         if not d["mins"] or tc > d["mins"][-1]:
@@ -521,7 +527,13 @@ def cards(d, rows, piv):
     """card() for every zone3 trigger of the frame (d["zone"], arms excluded), in the record's order."""
     dte = (d.get("ctx") or {}).get("dte")
     out = [card(d, z, rows, piv, dte) for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None]
-    return [c for c in out if c]
+    cs = [c for c in out if c]
+    try:
+        return trades(d, cs, rows)     # §6a: display only, so it can never take the state word and the cards with it
+    except Exception as e:
+        for c in cs:
+            c.update(trade=None, in_trade=None, trade_why=f"open trade: could not check — {type(e).__name__}")
+        return cs
 
 
 def card_line(c):
@@ -535,3 +547,134 @@ def card_line(c):
                 + "".join(f" · {k} {_fmt(v)}f" if j == 0 else f" → {k} {_fmt(v)}f" for j, (k, v) in enumerate(c["targets"])))
     return (f"ZONE {c['band'] or c['side']}" + (f" {_fmt(c['level'])}f" if c.get("level") is not None else "")
             + f" · close {_fmt(c['px'])}f · {c['verdict']}" + tail + (f" · logged late {c['known']}" if c["late"] else ""))
+
+
+# ---- §6a: managing an open zone trade (spec 2026-11-06 §6a; display only, she decides) --------------------------------
+
+def _holds(d, j, top, k, row):
+    """WIDEN's reasons at minute j -> (True, why) when the state is not EXPANDING against the trade and sign 2 (the
+    writers at the band's strike k not leaving over legs.K_MIN min) or sign 3 (effort without result, >= effort.HI; read
+    at a high only, as signs()) holds; else (False, why). Unread is never a yes (rule 6)."""
+    D, vol = (1 if top else -1), (row.get("vol") or {}).get("word")
+    if row.get("dir") == D and vol == "EXPANDING":
+        return False, f"{row['word']} + EXPANDING against the trade"
+    if vol in (None, "?"):
+        return False, "vol: could not check"
+    t, (sd_, SD) = d["mins"][j], (("ce", "CE") if top else ("pe", "PE"))
+    a, b = legs._lad(d, t, sd_, k), legs._lad(d, _hm(_m(t) - legs.K_MIN), sd_, k)
+    x = (d.get("eff_x") or [None] * (j + 1))[j] if top else None
+    if a is not None and b is not None and a - b >= -legs.K1_L:
+        return True, f"writers tike: {_fmt(k)}s {SD} {a - b:+.1f}L / {legs.K_MIN} min"
+    if x is not None and x >= effort.HI:
+        return True, f"effort {x:.1f}× bina result"
+    w = (f"writers at the band: could not check — {_fmt(k)}s {SD} not on the ladder" if a is None or b is None
+         else f"writers at {_fmt(k)}s {SD} leaving {a - b:+.1f}L / {legs.K_MIN} min")
+    e = ("effort: not read at a low" if not top else "effort: could not check" if x is None
+         else f"effort {x:.1f}× (needs {effort.HI:.0f}×)")
+    return False, f"{w} · {e}"
+
+
+def trade(d, c, rows, later=()):
+    """§6a, ONE open zone trade, display only (she decides; nothing gates, nothing places) -> [{"t", "open", "chips",
+    "why", "risk"}], one per frame minute from the card's `known` to its end; None for a card with no stop. Walked from
+    the trigger's close (a late row's earlier minutes count; shown from `known`); minute j reads minutes <= j only.
+    Open until the first of: the trigger-candle stop crossed with no WIDEN standing ("stop hua — yeh trade nahi tha":
+    fast, or why WIDEN could not stand); the hard line, a 3-min close beyond u3 (SELL; d3 BUY), ending both lots; the
+    last target (live VWAP, then the next band; VWAP only on a smaller target); jarvis.MANAGE_WIN after `known`.
+    WIDEN (once): WIDEN_MIN consecutive minutes with the high (BUY: low) within NEAR_X median 1-min candles of the stop,
+    not crossed, _holds true, before VWAP is touched, on a card that is not SKIP, with u3 logged beyond the stop. Then
+    the stop is beyond u3 (as logged at the trigger bar: a stop is a price). If _holds later fails the WIDEN is shown
+    broken: no ADD, and the stop stays (no third adjustment). ADD 1 (once): the first `later` same-side card, not SKIP,
+    known while the WIDEN stands; avg = the two trigger closes. Risk = points from each lot's entry to u3, summed; never
+    a %. u3 not logged -> could not check, never a zero (rule 6)."""
+    import jarvis
+    i = _ix(d, c["close"])
+    if c.get("stop") is None or not c.get("signs") or i is None:
+        return None
+    mins, top, S = d["mins"], c["side"] == "SELL", c["stop"]
+    D, nm, bn = (1, "u3", "d1") if top else (-1, "d3", "u1")
+    L, k = c.get(nm), next((s for s in c["signs"] if s["k"] == "wall"), {}).get("strike")
+    no3 = None if L is not None else f"{nm}: could not check — " + (c.get("u3_why") or f"{nm} not logged " + (
+        "(row before 6 Nov)" if d["day"] < "2026-11-06" else "on this row"))
+    bar = ("the card said SKIP — no WIDEN" if c["verdict"] == "SKIP" else no3 if no3 else
+           None if D * (L - S) > 0 else f"{nm} {_fmt(L)}f is not beyond the stop {_fmt(S)}f")
+    K0, lots, out = _m(c["known"]), [c["px"]], []
+    near0 = widen = broke = paid = why_not = gap = None
+    for j in range(i + 1, len(mins)):
+        t, T = mins[j], _m(mins[j])
+        if T - K0 >= jarvis.MANAGE_WIN:
+            break
+        ax, fx = (d["fhi"][j], d["flo"][j]) if top else (d["flo"][j], d["fhi"][j])
+        vw, b1, end = d["vwap"][j], d["vwap"][j] - D * d["sd"][j], None
+        P = _m(mins[j - 1])
+        if P != T - 1:                                                # a hole: an absent minute was never seen near (rule 6)
+            near0, gap = None, (gap[0] if gap else _hm(P + 1), _hm(T - 1))
+        if not widen and D * (ax - S) > 0:                            # the trigger-candle stop, no WIDEN standing
+            end = f"stop hua — yeh trade nahi tha · {_fmt(S)}f · " + (
+                f"how: could not check — {_hm(P + 1)}–{_hm(T - 1)} not on the record" if P != T - 1 else
+                (f"fast — {T - near0} min near it" if near0 else "fast — straight through") + f" (WIDEN needs {WIDEN_MIN} min)"
+                if not near0 or T - near0 <= WIDEN_MIN else why_not)
+        elif L is not None and (T - START_M) % 3 == 2 and D * (d["fut"][j] - L) > 0:     # the hard line, her 3-min close
+            end = f"{nm} ke paar 3-min close {_fmt(d['fut'][j])}f — " + ("dono lot band" if len(lots) > 1 else "trade band")
+        else:
+            paid = paid or ((t, vw) if D * (vw - fx) >= 0 else None)   # VWAP touched (live: she trails band to band)
+            if paid and (len(c["targets"]) == 1 or D * (b1 - fx) >= 0):
+                end = (f"target VWAP {_fmt(paid[1])}f ✓ — trade poora" if len(c["targets"]) == 1
+                       else f"target {bn} {_fmt(b1)}f ✓ — trade poora")
+        if not end:
+            one = statistics.median(d["fhi"][x] - d["flo"][x] for x in range(j + 1))    # her §1e candle, minutes <= j
+            near0 = (near0 or T) if not widen and D * (S - ax) <= NEAR_X * one else None
+            if near0 and not widen and T - near0 >= WIDEN_MIN:
+                ok, w = (False, bar or "VWAP touched — no WIDEN after it") if bar or paid else _holds(d, j, top, k, rows[j])
+                widen, why_not = ((t, w), None) if ok else (None, w)
+            elif widen and not broke:
+                ok, w = _holds(d, j, top, k, rows[j])
+                broke = None if ok else (t, w)
+            if widen and not broke and len(lots) == 1:
+                c2 = next((x for x in later if widen[0] <= x["known"] <= t and x["verdict"] != "SKIP"), None)
+                if c2:
+                    lots.append(c2["px"])
+        chips, why, risk = ([no3] if no3 else []), [], None
+        if widen:
+            rs = [D * (L - p) for p in lots]
+            risk = round(sum(rs), 1)
+            chips.append(f"WIDEN · stop → beyond {nm} {_fmt(L)}f")
+            why.append(f"WIDEN {widen[0]}: {widen[1]}")
+            if broke:
+                chips.append("WIDEN toota — ADD nahi")
+                why.append(f"WIDEN broken {broke[0]}: {broke[1]} · the stop stays beyond {nm} (no third adjustment)")
+            if len(lots) > 1:
+                chips.append(f"ADD 1 · avg {_fmt(sum(lots) / 2)}f · stop beyond {nm} {_fmt(L)}f")
+            chips.append(f"risk to {nm}: " + (f"{rs[0]:.0f} pts [M]" if len(rs) == 1 else
+                                             f"{rs[0]:.0f} + {rs[1]:.0f} = {sum(rs):.0f} pts (dono lot) [M]"))
+        elif why_not:
+            why.append(f"no WIDEN: {why_not}")
+        if gap and not end:
+            why.append(f"{gap[0]}–{gap[1]} not on the record: stop / target not checked")
+        if paid and not end:
+            chips.append(f"VWAP {_fmt(paid[1])}f ✓ → {bn}")
+        if end:
+            chips.append(("SKIP tha · " + end.replace(" — trade poora", "")) if c["verdict"] == "SKIP" else end)
+        out.append({"t": t, "open": not end, "chips": chips, "why": why, "risk": risk})
+        if end:
+            break
+    shown = [e for e in out if e["t"] >= c["known"]]
+    return shown or ([dict(out[-1], t=c["known"])] if out and not out[-1]["open"] else [])
+
+
+def _open_at(c, t):
+    """Was card c's trade open at clock minute t? (A trade whose window ran out is open through its last minute.)"""
+    tr = c.get("trade") or []
+    return bool(tr) and tr[0]["t"] <= t and (t < tr[-1]["t"] or (t == tr[-1]["t"] and tr[-1]["open"]))
+
+
+def trades(d, cs, rows):
+    """§6a over the frame's cards, in the record's order: a card known while an earlier same-side trade is open is
+    folded into it (never into a SKIP card; `in_trade`: the ADD candidate, never a second trade); every other card gets its own `trade`.
+    ponytail: record order, not `known` order -- a late row is judged against the trades before it in the file."""
+    for n, c in enumerate(cs):
+        p = next((p for p in reversed(cs[:n]) if p["side"] == c["side"] and p["verdict"] != "SKIP"
+                  and _open_at(p, c["known"])), None)
+        c["trade"], c["in_trade"] = ((None, p["t"]) if p else
+                                     (trade(d, c, rows, [x for x in cs[n + 1:] if x["side"] == c["side"]]), None))
+    return cs
