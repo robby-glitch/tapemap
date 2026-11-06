@@ -9,6 +9,7 @@ import pytest
 
 import jarvis
 import legs
+import mstate
 import thresholds
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -136,7 +137,7 @@ def test_the_shipped_file_holds_every_I_number_at_its_default():
     with open(os.path.join(HERE, "jarvis_thresholds.json"), encoding="utf-8") as f:
         doc = json.load(f)
     assert "NOTEPAD" in doc["_rule"]
-    for mod, path in ((jarvis, "jarvis.py"), (legs, "legs.py")):
+    for mod, path in ((jarvis, "jarvis.py"), (legs, "legs.py"), (mstate, "mstate.py")):
         tagged = _tagged(os.path.join(HERE, path))
         assert tagged <= set(mod._I), (path, sorted(tagged - set(mod._I)))          # every [I] constant is looked up
         for n in mod._I:
@@ -145,5 +146,5 @@ def test_the_shipped_file_holds_every_I_number_at_its_default():
             v = doc[key]
             assert (tuple(v) if isinstance(mod._DEF[n], tuple) else v) == mod._DEF[n], key   # shipping it changes nothing
     keys = {k for k in doc if not k.startswith("_")}
-    assert keys == {f"{m.__name__}.{n}" for m in (jarvis, legs) for n in m._I}
+    assert keys == {f"{m.__name__}.{n}" for m in (jarvis, legs, mstate) for n in m._I}
     assert set(doc["_why"]) == keys

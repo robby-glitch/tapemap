@@ -592,15 +592,23 @@ function renderCard(c) {
   // buyer / seller up to two lines (her ruling, review fix 4). Every string verbatim (levels carry s / f); the page decides
   // nothing. P0 (30 Oct): CAN'T SEE is shown blind, never as a quiet NO TRADE; the old vote stays in the tooltip.
   const box = $("#callc"); box.hidden = !c; if (!c) return;
-  const NC = "could not check — no card", blind = c.word === "CAN'T SEE", lean = /^RANGE/.test(c.word || "") ? 0   // A229: RANGE names no side
+  const S = c.mstate, V = (S && S.vol) || {};        // THE MARKET STATE leads (spec 2026-11-06 §7): word · volatility · since
+  const NC = "could not check — no card", blind = c.word === "CAN'T SEE", lean = S ? S.dir : /^RANGE/.test(c.word || "") ? 0   // A229: RANGE names no side
     : c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0);
-  const sub = [c.state, c.since && "since " + c.since].filter(Boolean).join(" · ");
+  const sub = (S ? [V.word, c.since && "since " + c.since] : [c.state, c.since && "since " + c.since]).filter(Boolean).join(" · ");
   box.innerHTML = `<div class="k">THE CALL <i>${c.at ? "at " + esc(c.at) : NC} · guidance only</i></div>`
     + `<div class="big" style="color:${blind ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut}">${esc(c.word || NC)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
   box.lastChild.title = [c.word || NC, sub].filter(Boolean).join(" · ");
   box.style.opacity = blind ? 0.55 : 1;
   const row = (cls, txt, tip) => { const el = document.createElement("div"); el.className = cls; el.textContent = txt; el.title = tip || txt; box.appendChild(el); return el; };
   const line = (txt, cls) => { if (txt) row("s " + (cls || "clip"), txt); };
+  if (S) {                                            // the state's line, then the chips under the word: the ACTION word
+    row("s clip", [S.line, S.eff != null && "eff " + S.eff.toFixed(2), S.expiry].filter(Boolean).join(" · ") || S.why, S.why);
+    const ch = row("rc", "", (V.gauges || []).map(g => (g.vote === 1 ? "▲ " : g.vote === -1 ? "▼ " : g.vote === 0 ? "· " : "? ") + g.text).join("\n"));
+    for (const t of (c.chips || []).concat([S.chip])) {   // (WATCH / PALAT? live here now), the fuel grade, the Hinglish chip
+      const el = document.createElement("span"); el.className = "chip q"; el.textContent = t; ch.appendChild(el);
+    }
+  }
   const old = oldLine(c);
   if (old) { row("s bad clip", old); box.style.opacity = 0.55; }
   const n = c.count;

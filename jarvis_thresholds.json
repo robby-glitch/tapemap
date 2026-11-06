@@ -1,5 +1,5 @@
 {
- "_rule": "THE ONE PLACE the [I] numbers of jarvis.py and legs.py live (thresholds.py, Jarvis v3 Task 6). Every change needs a NOTEPAD line (docs/live/NOTEPAD.md) with its reason, before the change; the registered rules (research-findings.md §1b-§1r) are never moved here. Re-read at the next build, no restart. A value here equal to the module's own is no change; delete a key to go back to the module's default.",
+ "_rule": "THE ONE PLACE the [I] numbers of jarvis.py, legs.py and mstate.py live (thresholds.py, Jarvis v3 Task 6). Every change needs a NOTEPAD line (docs/live/NOTEPAD.md) with its reason, before the change; the registered rules (research-findings.md §1b-§1r) are never moved here. Re-read at the next build, no restart. A value here equal to the module's own is no change; delete a key to go back to the module's default.",
  "jarvis.P5_MIN": {
   "NIFTY": 5,
   "BANKNIFTY": 15
@@ -76,6 +76,18 @@
  "legs.FUT_LOTS": 500,
  "legs.FUT_PTS": 15,
  "legs.HORIZON": 45,
+ "mstate.EFF_WIN": 45,
+ "mstate.EFF_RANGE": 0.3,
+ "mstate.VWAP_X": 2,
+ "mstate.NORM_N": 10,
+ "mstate.NORM_MIN": 5,
+ "mstate.RANGE_HI": 1.5,
+ "mstate.RANGE_LO": 0.67,
+ "mstate.GAUGE_WIN": 15,
+ "mstate.VIX_PTS": 0.3,
+ "mstate.IV_PTS": 0.5,
+ "mstate.VOL_N": 2,
+ "mstate.VOL_CLOSES": 2,
  "_why": {
   "jarvis.P5_MIN": "the |p5| floor of the fut-OI run's direction stamp per index (spec §14 row 8); an index not named reads BANKNIFTY's",
   "jarvis.FAST": "SPEED FAST: |3-min delta| >= 2x its own median so far",
@@ -145,6 +157,18 @@
   "legs.FUT_WIN": "the slow fut-OI quadrant: over 30 min ...",
   "legs.FUT_LOTS": "... 500 lots ...",
   "legs.FUT_PTS": "... and 15 pts",
-  "legs.HORIZON": "the after-the-fact outcome window of the forward log, 45 min"
+  "legs.HORIZON": "the after-the-fact outcome window of the forward log, 45 min",
+  "mstate.EFF_WIN": "the state's efficiency: |net move| / path of the 1-min closes over the last 45 min (spec 2026-11-06 §3, A256)",
+  "mstate.EFF_RANGE": "an unconfirmed TREND leg reads RANGE below efficiency 0.3 ...",
+  "mstate.VWAP_X": "... with >= 2 VWAP returns in those 45 min",
+  "mstate.NORM_N": "the bar-range yardstick: the same 3-min slot's median high-low over the last 10 futures sessions (data/backtest)",
+  "mstate.NORM_MIN": "... read only with >= 5 sessions on the record; fewer: could not check",
+  "mstate.RANGE_HI": "a 3-min bar >= 1.5x its slot's median votes EXPANDING",
+  "mstate.RANGE_LO": "a 3-min bar <= 0.67x its slot's median votes CONTRACTING",
+  "mstate.GAUGE_WIN": "the straddle / VIX / ATM IV gauges read their change over 15 min",
+  "mstate.VIX_PTS": "India VIX +/- 0.3 in 15 min votes EXPANDING / CONTRACTING",
+  "mstate.IV_PTS": "ATM IV +/- 0.5 vol points in 15 min votes EXPANDING / CONTRACTING",
+  "mstate.VOL_N": "EXPANDING / CONTRACTING needs 2 gauges that way, more than the other way",
+  "mstate.VOL_CLOSES": "... at 2 consecutive 3-min closes (spec §4)"
  }
 }

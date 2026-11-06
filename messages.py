@@ -212,7 +212,8 @@ def jarvis(call_rows, cmd_rows=()):
     answer, and `could not check — gap` for a watch crossed while the server was down. Other command rows say nothing.
     Past JARVIS_TG_DAY word lines for an index, the rest are `quiet` (the window only), with one line saying so; CAN'T
     SEE, the watches and the JARVIS_TG_ALWAYS words (TREND / PALAT? / PALAT) are never capped and never counted. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
-    out, held, dark, said = [], {}, {}, {}
+    out, held, dark, said, acted = [], {}, {}, {}, {}
+    run = {}                                         # idx -> [(word, since), the actions already sent in this state run]
     for r in sorted((r for r in call_rows if _ok(r, "t")), key=lambda r: (r["idx"], r["t"])):
         try:
             i, t = r["idx"], r["t"]
@@ -222,6 +223,15 @@ def jarvis(call_rows, cmd_rows=()):
                 dark[i] = True
                 continue
             w, s = r.get("word"), r.get("since")
+            a = r.get("action")                              # 6 Nov: `word` is the state; PALAT? / PALAT ride the action
+            if a and a != acted.get(i):
+                acted[i] = a
+                if (w, s) != (run.get(i) or [None])[0]:      # a new state run re-arms both lines
+                    run[i] = [(w, s), set()]
+                if a.startswith("PALAT") and (k := "PALAT?" if a.startswith("PALAT?") else a) not in run[i][1]:   # PALAT? once per state run, PALAT once per
+                    run[i][1].add(k)                         # direction (a dedup, not a cap):                         # A255 never quiet / not in the 20; 6 Nov market-state build
+                    out.append(_msg(t, i, "JARVIS", r.get("lean") or 0, a, _wa(r.get("count")),
+                                    f"{w} since {s or t}" if w else f"since {s or t}", None))
             if not w or (w == held.get(i) and not dark.get(i)):
                 continue
             m = _msg(t if dark.get(i) or not s else s, i, "JARVIS", r.get("lean") or 0, w, _wa(r.get("count")),

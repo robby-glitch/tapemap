@@ -222,3 +222,36 @@ def test_jarvis_word_lines_go_quiet_on_telegram_past_20_a_day_per_index():
     assert not telegram_out.wants(words[-1])
     loud = [m for m in ms if m["idx"] == "NIFTY" and m["word"] in ("TREND ▼", "PALAT? ▼", "PALAT ▲")]
     assert len(loud) == 3 and not any(m.get("quiet") for m in loud) and all(telegram_out.wants(m) for m in loud)
+
+
+def test_jarvis_palat_in_the_action_word_is_sent_under_an_unchanged_state_word():
+    """6 Nov: `word` is the market state now, so her PALAT? / PALAT (A255) ride the ACTION word: one always-sent line when
+    the action turns INTO PALAT?/PALAT, even though the state word (TREND) did not change. A row with no `action` (a log
+    from before this build) behaves exactly as before."""
+    import telegram_out
+
+    def r(t, action, word="TREND ▲", since="10:40"):
+        return {"idx": "NIFTY", "t": t, "word": word, "lean": 1, "since": since, "action": action,
+                "count": {"with": 3, "against": 1, "N": 4}}
+    ms = messages.jarvis([r("10:40", "HOLD ▲"), r("10:41", "HOLD ▲"), r("10:42", "PALAT? ▲"), r("10:43", "PALAT? ▲"),
+                          r("10:44", "HOLD ▲"), r("10:45", "PALAT ▼")], [])
+    assert [m["line"] for m in ms] == [
+        "10:40  NIFTY  TREND ▲ · WITH 3 · AGAINST 1 · since 10:40",
+        "10:42  NIFTY  PALAT? ▲ · WITH 3 · AGAINST 1 · TREND ▲ since 10:40",
+        "10:45  NIFTY  PALAT ▼ · WITH 3 · AGAINST 1 · TREND ▲ since 10:40"]
+    assert all(not m.get("quiet") and telegram_out.wants(m) for m in ms)
+    old = [{"idx": "NIFTY", "t": "10:40", "word": "TREND ▲", "lean": 1, "since": "10:40"},
+           {"idx": "NIFTY", "t": "10:41", "word": "TREND ▲", "lean": 1, "since": "10:40"}]
+    assert [m["word"] for m in messages.jarvis(old, [])] == ["TREND ▲"]
+
+
+def test_jarvis_palat_flicker_sends_once_per_state_run():
+    """F3 (A255, 6 Nov market-state build): PALAT? once per state run, PALAT once per direction; a new `since` re-arms."""
+    def r(t, a, since="10:40"):
+        return {"idx": "NIFTY", "t": t, "word": "TREND ▲", "lean": 1, "since": since, "action": a, "count": None}
+    def n(rows):
+        return sum(m["word"].startswith("PALAT") for m in messages.jarvis(rows, []))
+    flick = [r("10:41", "PALAT? ▲"), r("10:42", "HOLD ▲"), r("10:43", "PALAT? ▲"), r("10:44", "HOLD ▲"), r("10:45", "PALAT? ▲")]
+    assert n(flick) == 1
+    assert n(flick + [r("11:00", "HOLD ▲", "11:00"), r("11:01", "PALAT? ▲", "11:00")]) == 2
+    assert n([r("10:41", "PALAT ▲"), r("10:42", "HOLD ▲"), r("10:43", "PALAT ▼")]) == 2

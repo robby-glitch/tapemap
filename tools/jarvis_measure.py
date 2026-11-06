@@ -6,7 +6,8 @@
 
 Per day: jarvis.build(day, "NIFTY", None, fill=True) and jarvis.calls(d) (the call as it stood at every minute), then
   word changes (raw state)   changes of the leg's raw word with its lean arrow (before Task 1 the call's word IS it)
-  ACTION changes             changes of the call's word
+  state-word changes         changes of the call's market state word (c["word"]: TREND / RANGE ...)
+  ACTION changes             changes of the ACTION word (c["action"]["said"]; c["word"] for logs from before the state word)
   PALAT? episodes            minutes the call's word turned PALAT? (a run of PALAT? minutes is one episode)
   true flips                 the leg's lean flips (PALAT) at or after 10:00
   net changes                ACTION changes net of the two each true flip costs (the change to PALAT and the first change
@@ -24,9 +25,9 @@ import sys
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, ROOT)
 
-COLS = ("day", "minutes", "raw_changes", "action_changes", "palatq_episodes", "true_flips", "net_changes",
+COLS = ("day", "minutes", "raw_changes", "state_changes", "action_changes", "palatq_episodes", "true_flips", "net_changes",
         "open_announced", "open_flips", "not_read")
-HEAD = ("day", "minutes", "word changes (raw state)", "ACTION changes", "PALAT? episodes", "true flips", "net changes",
+HEAD = ("day", "minutes", "word changes (raw state)", "state-word changes", "ACTION changes", "PALAT? episodes", "true flips", "net changes",
         "opening lean flips (<10:00)", "NOT_READ")
 
 
@@ -45,7 +46,8 @@ def measure(day):
     if not d.get("ok", True):
         return {"day": day, "why": d.get("why") or "no frame"}
     cs = jarvis.calls(d)
-    words = [c["word"] for c in cs]
+    words = [(c.get("action") or {}).get("said") or c["word"] for c in cs]   # the ACTION word; pre-build logs have only c["word"]
+    states = [c["word"] for c in cs]
     raw = [(c["state"] + (f" {jarvis.ARR[c['lean']]}" if c.get("lean") else "")) if c.get("state") else c["word"]
            for c in cs]
     flips = ((d.get("legs") or {}).get("day") or {}).get("flips") or [0] * len(cs)
@@ -53,7 +55,7 @@ def measure(day):
     open_flips = flips[early[-1]] if early else 0
     announced = sum(1 for i in early if flips[i] > (flips[i - 1] if i else 0)
                     and not words[i].startswith(("OPENING", "NO LEG")))
-    return {"day": day, "minutes": len(cs), "raw_changes": changes(raw), "action_changes": changes(words),
+    return {"day": day, "minutes": len(cs), "raw_changes": changes(raw), "state_changes": changes(states), "action_changes": changes(words),
             "palatq_episodes": sum(1 for a, b in zip([""] + words, words) if b.startswith("PALAT?") and not a.startswith("PALAT?")),
             "true_flips": (flips[-1] if flips else 0) - open_flips, "net_changes": net_changes(words),
             "open_announced": announced, "open_flips": open_flips,
@@ -67,11 +69,11 @@ def table(rows):
         if "why" in r:
             out.append(f"{r['day']} | could not check — {r['why']}")
             continue
-        out.append(" | ".join([r["day"], str(r["minutes"]), str(r["raw_changes"]), str(r["action_changes"]),
+        out.append(" | ".join([r["day"], str(r["minutes"]), str(r["raw_changes"]), str(r["state_changes"]), str(r["action_changes"]),
                                str(r["palatq_episodes"]), str(r["true_flips"]), str(r["net_changes"]),
                                f"{r['open_announced']} ({r['open_flips']})", str(r["not_read"])]))
     tot = {k: sum(r[k] for r in ok) for k in COLS[1:]}
-    out.append(" | ".join([f"TOTAL {len(ok)} days", str(tot["minutes"]), str(tot["raw_changes"]), str(tot["action_changes"]),
+    out.append(" | ".join([f"TOTAL {len(ok)} days", str(tot["minutes"]), str(tot["raw_changes"]), str(tot["state_changes"]), str(tot["action_changes"]),
                            str(tot["palatq_episodes"]), str(tot["true_flips"]), str(tot["net_changes"]),
                            f"{tot['open_announced']} ({tot['open_flips']})", "-"]))
     out.append(f"days with net changes <= 15: {sum(r['net_changes'] <= 15 for r in ok)} of {len(ok)}")

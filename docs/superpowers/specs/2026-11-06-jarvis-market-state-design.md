@@ -82,7 +82,7 @@ The **state word leads the screen**. The zone card sits under it. Zone triggers 
 
 | State | Zone trades allowed | Expression (both ways) |
 |---|---|---|
-| TREND + EXPANDING | **with-trend pullback band only** (d-band in ▲); no top fades | buy the trend side |
+| TREND + EXPANDING | **with-trend pullback band**; a top fade **only when the band has stopped expanding AND the writers at it are holding** (amended 6 Nov from her words: "if expanding … not a trigger, but if market reverses from there, absolutely I take it"), target VWAP only | buy the trend side |
 | TREND + CONTRACTING | pullback bands; **top fades only when the tired signs show**, target VWAP only, trend word unchanged | buy pullbacks; a fade may be a sell |
 | RANGE + CONTRACTING | both bands, band to band | sell premium at the edges |
 | RANGE + EXPANDING | stand aside | — |
@@ -103,6 +103,27 @@ The card reads:
 - **SKIP:** with the reason.
 
 It always shows the stop (beyond the trigger candle) and the target (VWAP, then the next band).
+
+### 6a. Managing an open zone trade (added 6 Nov from her 09:57 → 10:33 NIFTY sells; display only, she decides)
+
+**WIDEN** (one chip on the open card):
+- When it shows: price is approaching the trigger-candle stop **slowly and weakly**. That means at least 6 min [I] without crossing it, plus sign 2 (the writers at the band not leaving) or sign 3 (effort without result) still true.
+- What it says: "stop → beyond u3 {level}". The trend state must not be EXPANDING against the trade.
+- When it is hidden: if the stop was reached fast, or the writers at the band are leaving. In that case the card says "stop hua — yeh trade nahi tha".
+
+**ADD** (once per leg):
+- When it shows: a second same-side zone3 trigger in the same leg while the first is open and the WIDEN line still stands.
+- What it shows: "ADD 1 · avg {price} · stop beyond u3 {level}".
+
+**Hard line:**
+- A 3-min close beyond u3 ends both lots.
+- There is no third adjustment, and no ADD after a WIDEN that has been broken.
+
+**Target:** VWAP for both lots, then the next band.
+
+**Data:** u3 and VWAP must be logged on every zone3 row. Today they are not (`bands: null`, 6 Nov), so this is the first build item of §6a.
+
+**Honesty:** this enlarges the risk of a small, defined loss. The card shows the combined risk to the u3 line in points. It never shows a % and never claims an edge.
 
 **Her gate (§1d fade gate):** today it cites a stale strike ("24500 / 78800 gave up") for the rest of the day. On 5 Nov that blocked all five top-band sells: +64 to +185 pts to the pullback [M]. Making it read the wall **at the band being touched** changes how her registered rule is applied. **This is hers to sign as a new registration.** Until she signs, the card shows both the current gate and the at-band read, side by side.
 
@@ -138,8 +159,8 @@ Replay the new layers over 28 Oct–5 Nov with `voice_path`-style replay, never 
 |---|---|
 | 09:36–10:00 | Speaks TREND ▲ once the leg qualifies, not OPENING |
 | 12:30 NIFTY u2 sell | SKIP (trend + expanding) |
-| 13:51 / 14:09 sells | TAKE · smaller target |
-| 10:55 SENSEX d2 | STRONG |
+| 13:51 / 14:09 sells | TAKE · smaller target **if** the band stopped and the writers at it held, else SKIP with the reason (the replay reports which; no expectation is forced) |
+| 10:55 SENSEX d2 | TAKE (RANGE, band to band) or STRONG if a trend was confirmed; the state was RANGE at 10:55, so TAKE is the honest read. Also flag that this row was WRITTEN at 13:48 (late zone row) |
 | 14:24 SENSEX | The word stays TREND ▲; at most a "pullback" chip |
 | Word changes per index | Far fewer than 23. Report the count; no target number is set in advance |
 

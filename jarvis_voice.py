@@ -77,8 +77,8 @@ The fence: code reads your reply after you write it. A number not in the card, a
 a sign the card does not write, a %, an order word, a fourth line or a line over 140 characters throws the whole reply away
 and the engine's own lines are shown instead."""
 
-CHANGE_TASK = ("The ACTION word just changed to the card's `word` (since the card's `since`). In at most 3 lines: what it "
-               "reads now, writers first, and the card's wrong-line.")
+CHANGE_TASK = ("The market state word just changed to the card's `word` (TREND or RANGE, with its direction; since the card's `since`); "
+               "the ACTION word is a chip beside it. In at most 3 lines: what it reads now, writers first, and the card's wrong-line.")
 BRIEF_TASK = ("The pre-open brief, before 09:15 IST. Search the web for: today's scheduled events for Indian markets, the "
               "global cues overnight, and the NIFTY / SENSEX expiry. At most 6 lines (this replaces the 3-line rule). Start "
               "every line taken from the web with [web]; numbers from the web may appear only on [web] lines; any other line "

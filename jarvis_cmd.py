@@ -270,7 +270,8 @@ class Day:
         if k == "status":                                           # never a None: absent is said
             cn, miss = c.get("count") if isinstance(c.get("count"), dict) else {}, c.get("missing")
             return True, f"{idx} {c.get('at') or '?'}", [
-                " · ".join(x for x in (c.get("word"), c.get("state"), c.get("since") and f"since {c['since']}") if x)
+                " · ".join(x for x in (c.get("word"), c.get("since") and f"since {c['since']}",
+                                        (c.get("action") or {}).get("said") and f"action {c['action']['said']}") if x)
                 or "could not check — word absent",
                 (f"WITH {cn['with']} · AGAINST {cn['against']}" + "".join(
                     f" · {k_} {cn[k_]}" for k_ in (("N", "flat", "blind") if "flat" in cn else ("N", "unread"))   # A230

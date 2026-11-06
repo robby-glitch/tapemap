@@ -899,12 +899,23 @@ def _build(day, idx, upto, fill, memo):
     data["health"] = health(data, _readable(day, "BANKNIFTY", upto, 100))
     data["health"]["method"] += [f"re-read from {a or mins[0]}: {x}" for a, x in redo]   # Task 6: how it was made, never a
                                                      # gap (a cold replay has no such line: health.method, not notes)
-    data["legs"] = _legs(data, R, day, idx)
+    try:
+        ach = _atm_chain(R, STEP)
+    except Exception:                                # display only: the premium reads say could not check
+        ach = None
+    data["legs"] = _legs(data, ach, day, idx)
     try:                                             # the ACTION word per minute: it needs the leg's rows (Jarvis v3)
         data["reads"]["action"] = action_words(data)
     except Exception as e:                           # display only: never take the frame down; the leg's word stands
         data["reads"]["action"] = []
         data["health"]["notes"].append(f"the ACTION word failed: {type(e).__name__}: {e} — the leg's word shown")
+    try:                                             # THE MARKET STATE (mstate.py, spec 2026-11-06): display only
+        import mstate
+        mstate._thresholds()
+        data["mstate"], data["pivots"] = mstate.fold(data, ach, mstate.norm(idx, day))
+    except Exception as e:                           # never the frame: the ACTION word stays the word
+        data["mstate"], data["pivots"] = [], []
+        data["health"]["notes"].append(f"the market state failed: {type(e).__name__}: {e} — the ACTION word shown")
     data["call"] = call(data)
     return data
 
@@ -931,28 +942,34 @@ def _frame_flow(delta, MI, inp):
     return [x if x is not None else (inp["F"].get(m) if inp["src"].get(m) == "B" else None) for x, m in zip(delta, MI)]
 
 
-def _legs(d, R, day, idx):
-    """THE LEG (legs.py; NOISE-DECODER-BRAINSTORM.md, merged decision 30 Oct) on this frame, with its two extras: the ATM
-    premium + delta per chain minute (near ATM, +/- 5 steps) and her footprint marks (NIFTY's chart only: SENSEX reads
-    NIFTY's flow, §1q, but a NIFTY mark's price means nothing on SENSEX). Fail-soft: a decoder error leaves the frame and
-    the old call standing, and says so."""
+def _atm_chain(R, step):
+    """The ATM premium + delta per chain minute, near ATM (+/- 5 steps) -> {"HH:MM": {"spot", "ce": {k: {"ltp",
+    "delta"}}, "pe": {...}}}: the leg's premium read (legs.read) and the market state's straddle / premium gauges
+    (mstate.gauges, mstate._prem). A minute without spot is absent."""
+    chain = {}
+    for m, r in R.items():
+        sp = r.get("spot")
+        if not sp:
+            continue
+        row = {"spot": sp, "ce": {}, "pe": {}}
+        for s in r.get("strikes") or ():
+            if isinstance(s.get("k"), (int, float)) and abs(s["k"] - sp) <= 5 * step:
+                for side in ("ce", "pe"):
+                    leg = s.get(side) or {}
+                    if leg.get("ltp") is not None and leg.get("delta") is not None:
+                        row[side][s["k"]] = {"ltp": leg["ltp"], "delta": leg["delta"]}
+        chain[hm(m)] = row
+    return chain
+
+
+def _legs(d, chain, day, idx):
+    """THE LEG (legs.py, NOISE-DECODER-BRAINSTORM.md, merged decision 30 Oct) on this frame, with its two extras: the ATM
+    premium + delta per chain minute (`chain`, _atm_chain's; None: its read says could not check) and her footprint
+    marks (NIFTY's chart only: SENSEX reads NIFTY's flow, §1q, but a NIFTY mark's price means nothing on SENSEX).
+    Fail-soft: a decoder error leaves the frame and the old call standing, and says so."""
     import legs
     import tape_log
     try:
-        step = d.get("step") or 50
-        chain = {}
-        for m, r in R.items():
-            sp = r.get("spot")
-            if not sp:
-                continue
-            row = {"spot": sp, "ce": {}, "pe": {}}
-            for s in r.get("strikes") or ():
-                if isinstance(s.get("k"), (int, float)) and abs(s["k"] - sp) <= 5 * step:
-                    for side in ("ce", "pe"):
-                        leg = s.get(side) or {}
-                        if leg.get("ltp") is not None and leg.get("delta") is not None:
-                            row[side][s["k"]] = {"ltp": leg["ltp"], "delta": leg["delta"]}
-            chain[hm(m)] = row
         marks = list(_rows(os.path.join(tape_log.DIR, f"ofd_marks2_{idx}_{day}.jsonl"))) if idx == "NIFTY" else None
         return legs.read(d, chain=chain, marks=marks)
     except Exception as e:                                    # display only: never take the frame down
@@ -1337,14 +1354,34 @@ def call(d: dict) -> dict:
                            + (" — writers covering is not counted WITH" if mins[i] >= UNWIND_AT else ""))
     except Exception as e:                           # never the frame, never the word
         why.append(f"the reads failed: {type(e).__name__}: {e}")
+    ms = d.get("mstate") or []
+    srow = ms[i] if len(ms) == len(mins) and not blind else None      # THE MARKET STATE leads (spec 2026-11-06 §7)
+    said_act, grade = word, None                                     # the ACTION word: now a chip under the state
+    if srow:
+        import mstate
+        grade = _grade(cnt, srow["dir"], lean)
+        word = srow["word"]
+        vw_ = (srow.get("vol") or {}).get("word")
+        why.insert(0, f"state: {word}" + (f" · {vw_}" if vw_ else "") + f" since {srow['since']} — {srow['why']}"
+                   + (f" · {srow['line']}" if srow.get("line") else "")
+                   + (f" · eff {srow['eff']:.2f}" if srow.get("eff") is not None else "")
+                   + (f" · fuel {grade}" if grade else "") + f" · action {said_act}")
     return T5 | {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
-            "state": (row or {}).get("word"), "since": act["since"] if act else mins[i] if blind else None,
+            "state": (row or {}).get("word"),
+            "since": srow["since"] if srow else act["since"] if act else mins[i] if blind else None,
             "count": cnt,
             "action_why": act["why"] if act else reason,
             "lean": lean, "leg": leg_line, "day": day_line, "pause": None if row is None or blind else
             {"line": row.get("line"), "alive": row.get("alive"), "risk": row.get("risk"), "notes": row.get("notes"),
              "missing": row.get("missing")}, "v1": v1, "lines": lines,
+            "action": {"said": said_act, "word": act["word"] if act else None, "lean": lean,
+                       "since": act["since"] if act else None, "why": act["why"] if act else reason},
+            "mstate": None if srow is None else
+            {k: srow.get(k) for k in ("word", "dir", "conf", "since", "why", "line", "eff", "expiry")}
+            | {"vol": {k: (srow.get("vol") or {}).get(k) for k in ("word", "since", "up", "down", "read", "gauges")},
+               "grade": grade, "chip": mstate.chip(srow)},
+            "chips": [x for x in (said_act, grade and f"fuel {grade}") if x] if srow else [],
             "walls": {"ce": None if not ce else {"k": ce[0]["k"], "f": round(ce[0]["k"] + basis, 2), "oi": ce[0].get("oi"),
                                                  "state": ce[0].get("state")},
                       "pe": None if not pe else {"k": pe[0]["k"], "f": round(pe[0]["k"] + basis, 2), "oi": pe[0].get("oi"),
@@ -1376,7 +1413,8 @@ ACT_CLOSES = 2         # [I] a new word needs the same candidate at 2 consecutiv
 ANSWER_MIN = 15        # [I] the count's last answer: a push answered within 15 min (the band verdict's DASTAK window)
 AHEAD_STEPS = 2        # [I] the wall ahead: within 2 strike steps of spot (the band verdict's own reach, wall_ahead)
 BOX_STEPS = 1          # [I] the range guard (A229): the leg turned inside the writers' box, within 1 strike step of a wall
-PIECES = ("sides", "wf7", "wall_ahead", "answer", "trapped", "fut_oi", "speed", "all3", "setup")   # GAPS §4, writers first
+PIECES = ("sides", "wf7", "wall_ahead", "answer", "trapped", "fut_oi", "speed", "all3")   # GAPS §4, writers first; her
+                                                       # zone trigger left the count 6 Nov: it is the zone card's (spec §2)
 CHAIN_PIECES = ("sides", "wf7", "wall_ahead", "trapped", "all3")   # read off the chain this minute (all3: BN / SX spot)
 ANSWER_EN = {"TOOT": "BROKEN", "PHANS": "TRAPPED", "TIKI": "DEFENDED", "NAHI": "HELD"}           # spec §16.2
 # Jarvis v3 Task 5, the reads (JARVIS-REVIEW-2026-10-31 §3.3, P0 #4; VISION §4 stages 5-9; NOTEPAD A207). Display only.
@@ -1446,7 +1484,7 @@ def calls(d: dict) -> list:
     for i in range(len(d["mins"])):
         c = call(cut_at(d, i))
         out.append({k: c[k] for k in ("at", "word", "lean", "leg", "day", "wrong_line", "buyer", "seller", "state", "since",
-                                      "count", "action_why")}
+                                      "count", "action_why", "action", "mstate", "chips")}
                    | {"pause": c["pause"] and {"line": c["pause"].get("line")}})
     return out
 
@@ -1481,7 +1519,7 @@ def _count_of(pieces):
 
 def count(d: dict, i: int, vote: list | None = None) -> dict:
     """WITH / AGAINST at minute i of frame d, in GAPS §4's order, writers first (sides, wf7, wall_ahead, answer, trapped)
-    -> fut OI -> flow and speed -> cross-index -> her setup. Counted for the leg's lean (legs row i); with no leg, for the
+    -> fut OI -> flow and speed -> cross-index (her zone trigger is the zone card's, never a vote: spec 2026-11-06 §2). Counted for the leg's lean (legs row i); with no leg, for the
     29 Oct vote's direction (`vote`: legs._jarvis_words(d), passed by a caller that has it), else every piece is "?".
     Each piece says with / against / "?"; a "?" is "could not check — why" or "checked: says nothing" and never counts
     against (N = with + against). Causal: minute i reads minutes <= i only. Counts, never a rate."""
@@ -1606,18 +1644,6 @@ def count(d: dict, i: int, vote: list | None = None) -> dict:
         nums = f"(N {_sgn(sy['ch'][0])} · BN {_sgn(sy['ch'][1])} · SX {_sgn(sy['ch'][2])} / 5 min)"
         put("all3", by(sy["dir"]) if sy["dir"] else "?",
             (f"all 3 {ARR[sy['dir']]} " if sy["dir"] else "3 indices mixed ") + nums)
-    # her setup: her latest zone3 trigger, inside its 45-min window (MANAGE's)
-    zs = [z for z in d.get("zone") or () if not z.get("kind") and z.get("px") is not None and str(z.get("t", ""))[:5] <= t]
-    if not zs:
-        put("setup", "?", "no trigger today")
-    else:
-        z = zs[-1]
-        age = m - _m(z["t"][:5])
-        if age >= MANAGE_WIN:
-            put("setup", "?", f"last trigger {z['t'][:5]} {z['side']} {age} min ago (outside its 45 min)")
-        else:
-            put("setup", by(-1 if z["side"] == "SELL" else 1),
-                f"her trigger {z['t'][:5]} {z['side']} {_fmt(z['px'])}f · {age} min")
     if (d.get("ctx") or {}).get("dte") == 0 and t >= UNWIND_AT:      # Task 5, G9: 0 DTE afternoon, covering is the unwind
         for p in P[:2]:                                              # (sides, wf7): never WITH, said why
             if p["side"] == "with":
@@ -1634,6 +1660,20 @@ def said(word, lean):
     own (the card's `lean`), never part of the word (ruling 1, 1 Nov: the open's geometric flips are not announced). RANGE
     too (A229): inside the writers' box the lean flips with every swing; the word names no side."""
     return word + (f" {ARR[lean]}" if lean and word not in ("OPENING", "NO TRADE", "RANGE") else "")
+
+
+def _grade(cnt, D, lean):
+    """The trend's fuel from the count (spec 2026-11-06 §3: the pieces GRADE a trend, never flip it) -> "healthy" /
+    "tired" / "fuel blind", None outside a trend. The count is for the leg's lean: a trend the other way reads it
+    mirrored. HOLD with nothing voting is not allowed: no WITH and no AGAINST reads "fuel blind" (spec §7)."""
+    if not D:
+        return None
+    w, a = (cnt or {}).get("with") or 0, (cnt or {}).get("against") or 0
+    if lean and lean != D:
+        w, a = a, w
+    if not w and not a:           # rule 6: could not check (blind, none checked flat) is not checked and took no side (flat)
+        return "fuel flat" if (cnt or {}).get("flat") else "fuel blind"
+    return "healthy" if w >= a else "tired"
 
 
 def _box(d, i, g):

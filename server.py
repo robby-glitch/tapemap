@@ -4855,12 +4855,32 @@ def _jarvis_loop():
         time.sleep(MSG_EVERY_S)
 
 
+def _jarvis_state_log(out, now):
+    """THE STATE LOG: every minute once. A row is live only if it is the newest minute AND the clock is no more than
+    jarvis.BLIND_MIN after that minute's end (the [I] 'more than 2 min behind = blind'); else backfill (anytime-start),
+    never pooled with live. Own try: a failure here must not stop the dedup guard or the voice."""
+    try:
+        import fold, jarvis
+        ms, mins = out.get("mstate") or [], out.get("mins") or []
+        if len(ms) != len(mins):
+            log.warning("jarvis state log skipped: %d states for %d minutes", len(ms), len(mins))
+            return
+        lag = _ist().timestamp() - (fold.ms(out["day"], mins[-1]) / 1000 + 60) if mins else 0
+        for j in range(len(ms)):
+            src = "live" if j == len(ms) - 1 and lag <= jarvis.BLIND_MIN * 60 else "backfill"
+            jarvis_log.write(out["day"], out["idx"], jarvis_log.state_row(out, j, now, src), kind="state")
+    except Exception:
+        log.exception("jarvis state log")
+
+
 def _jarvis_log(out):
     """The CALL LOG (jarvis_log.py): a live frame whose last minute is new for its index -> one row. Fail-soft."""
     try:
         t = (out.get("mins") or [None])[-1]
         if out.get("ok") and t and _LAST_LOGGED.get(out["idx"]) != t:
-            jarvis_log.write(out["day"], out["idx"], jarvis_log.row(out, time.time()))
+            now = time.time()
+            jarvis_log.write(out["day"], out["idx"], jarvis_log.row(out, now))
+            _jarvis_state_log(out, now)
             _LAST_LOGGED[out["idx"]] = t
             if jarvis_voice.changed(out["day"], out["idx"], (out.get("call") or {}).get("word")):   # Task 7: narrate a change
                 jarvis_voice.later(_JVOICE, out["idx"], lambda i=out["idx"]: jarvis_voice.on_change(_jvoice_card(i)))

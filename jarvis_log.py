@@ -28,18 +28,19 @@ _SEEN = {}           # path -> {(idx, t)} already on disk: write-once across a r
 _LOCK = threading.Lock()
 
 
-def _path(day):
-    return os.path.join(DIR, f"call_{day}.jsonl")
+def _path(day, kind="call"):
+    return os.path.join(DIR, f"{kind}_{day}.jsonl")
 
 
-def read(day, idx=None):
-    """The day's rows in file order, one index (or all); [] when there is no file."""
-    return [r for r in confluence_log._rows(_path(day)) if idx is None or r.get("idx") == idx]
+def read(day, idx=None, kind="call"):
+    """The day's rows in file order, one index (or all); [] when there is no file. kind "call" (the call log) or
+    "state" (the market state's forward log, spec 2026-11-06 §9)."""
+    return [r for r in confluence_log._rows(_path(day, kind)) if idx is None or r.get("idx") == idx]
 
 
-def write(day, idx, row):
+def write(day, idx, row, kind="call"):
     """Append `row` once per (idx, t) -> True when written, False for a minute already on disk. DIR is made on first write."""
-    p = _path(day)
+    p = _path(day, kind)
     with _LOCK:
         seen = _SEEN.get(p)
         if seen is None:
@@ -74,7 +75,20 @@ def row(fr, now):
             "shown": fr.get("asof"), "word": c.get("word"), "state": c.get("state"), "lean": c.get("lean"),
             "since": c.get("since"), "count": _cnt3(c.get("count")), "fut": _last(fr.get("fut")), "spot": _last(fr.get("spot")),
             "leg": c.get("leg"), "wrong_line": c.get("wrong_line"), "missing": miss,
+            "action": (c.get("action") or {}).get("said"), "vol": ((c.get("mstate") or {}).get("vol") or {}).get("word"),
             "notes": list((fr.get("health") or {}).get("notes") or []), "blind": any(str(x).startswith("BLIND") for x in miss)}
+
+
+def state_row(fr, j, now, src):
+    """THE STATE LOG row for frame minute j (data/jarvis/state_<day>.jsonl, spec 2026-11-06 §9: the evening review,
+    never a gate): the state word, since, line, why, efficiency, the volatility word and each gauge's vote. src "live" =
+    the frame's newest minute, written as it happened; "backfill" = a minute rebuilt causally at a later start, never
+    pooled with live rows."""
+    s = fr["mstate"][j]
+    v = s.get("vol") or {}
+    return {"day": fr.get("day"), "t": s.get("t") or fr["mins"][j], "at": int(now), "src": src, "word": s["word"], "dir": s["dir"],
+            "conf": s["conf"], "since": s["since"], "line": s["line"], "why": s["why"], "eff": s["eff"],
+            "vol": v.get("word"), "votes": {g["k"]: g["vote"] for g in v.get("gauges") or ()}, "expiry": s.get("expiry")}
 
 
 def _m(t):
@@ -103,7 +117,7 @@ def self_line(rows, fut_now):
     f0 = rows[i].get("fut")
     far = ("so far could not check — no fut price" if fut_now is None or f0 is None
            else f"{fut_now - f0:+,.0f} so far".replace("-", "−"))
-    word = [str(r.get("word") or "") for r in rows]
+    word = [str(r.get("action") or r.get("word") or "") for r in rows]   # PALAT? / PALAT live in the ACTION word (6 Nov)
     eps = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT?") and not (j and word[j - 1].startswith("PALAT?"))]
     flips = [_m(r["t"]) for j, r in enumerate(rows) if word[j].startswith("PALAT") and not word[j].startswith("PALAT?")]
     true = sum(1 for a in eps if any(a < m <= a + TRUE_WIN_M for m in flips))
@@ -155,4 +169,5 @@ def card(fr, rows=(), state=None, notes=()):
                        "method": list((fr.get("health") or {}).get("method") or [])},   # how a number was made (Task 6), not a gap
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
-            "watches": list(st.get("watches") or []), "voice": None, "brief": None}   # Task 7: server._JVOICE fills both
+            "watches": list(st.get("watches") or []), "voice": None, "brief": None,   # Task 7: server._JVOICE fills both
+            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips")}   # the state leads (6 Nov)

@@ -185,14 +185,14 @@ def test_29oct_health_names_dext_missing(record, tmp_path, monkeypatch):
 @pytest.mark.skipif(not _has("2026-10-29"), reason="29 Oct record not present")
 def test_29oct_call_at_1040_names_the_risk(record):
     c = build("2026-10-29", 10 * 60 + 40)["call"]
-    assert c["word"] != "UP" and "RISK" in " ".join(c["why"]).upper()               # 10:38 TOP RISK
+    assert c["action"]["said"] != "UP" and "RISK" in " ".join(c["why"]).upper()               # 10:38 TOP RISK
 
 
 @pytest.mark.skipif(not _has("2026-10-29"), reason="29 Oct record not present")
 def test_the_call_has_both_expressions_a_wrong_line_and_no_rate(record):
     d = build("2026-10-29", 11 * 60)
     c = d["call"]
-    assert c["word"].rstrip(" ▲▼") in WORDS and c["v1"]["word"] in ("UP", "DOWN", "RANGE", "NO TRADE")
+    assert c["action"]["said"].rstrip(" ▲▼") in WORDS and c["word"].startswith(("TREND", "RANGE", "OPENING")) and c["v1"]["word"] in ("UP", "DOWN", "RANGE", "NO TRADE")
     assert c["buyer"] and c["seller"] and c["wrong_line"] and c["up"] and c["dn"]
     blob = json.dumps({k: d[k] for k in ("call", "health", "reads")}, ensure_ascii=False)
     assert not any(w in blob.lower() for w in ("%", "hit rate", "win rate", "odds")) and "order" not in c["buyer"] + c["seller"]
@@ -280,7 +280,7 @@ def test_the_jarvis_route_serves_a_frame_and_refuses_a_past_day_in_market_hours(
         return cap.sent
     out = get(f"/api/jarvis?idx=NIFTY&day={MOCK}&upto=09:50")
     assert out["ok"] and out["mins"][0] == "09:15" and out["mins"][-1] == "09:49" and out["idx"] == "NIFTY"
-    assert out["call"]["word"].rstrip(" ▲▼") in WORDS and out["health"]["dext"]["minutes"] == 0
+    assert out["call"]["action"]["said"].rstrip(" ▲▼") in WORDS and out["health"]["dext"]["minutes"] == 0
     assert any("Dext footprint missing" in x for x in out["call"]["missing"])  # no Dext on this day: named, never a zero
     clock["now"] = datetime(2026, 1, 7, 11, 0, tzinfo=IST)               # in market hours: a past day is not replayed
     out = get(f"/api/jarvis?idx=NIFTY&day={MOCK}&upto=09:50")
@@ -507,7 +507,7 @@ def test_banknifty_says_its_oi_cannot_answer_once():
 @pytest.mark.skipif(not _has("2026-10-21"), reason="21 Oct record not present")
 def test_21oct_the_word_holds_in_a_one_way_leg(record):
     d = jarvis.build("2026-10-21", "NIFTY", None, fill=True)
-    words = [c["word"] for c in jarvis.calls(d)]
+    words = [c["action"]["said"] for c in jarvis.calls(d)]
     net = sum(1 for a, b in zip(words, words[1:]) if a != b and "PALAT" not in (a.split()[0], b.split()[0]))
     assert net <= 15, net                                         # was 78; net of lean flips (ruling 3), 0 here after 10:00
     palatq = sum(1 for a, b in zip(words, words[1:]) if b.startswith("PALAT?") and not a.startswith("PALAT?"))
@@ -520,7 +520,7 @@ def test_21oct_one_trend_call_and_at_most_two_palatq(record):
     """The parts of 21 Oct's bar the rules meet (the xfail above stops at its first assert): PALAT? at most twice in a
     473-pt down leg that reversed 0 times after 10:00 (was 9), and the first-hour TREND ▼ said by 10:05."""
     d = jarvis.build("2026-10-21", "NIFTY", None, fill=True)
-    words = [c["word"] for c in jarvis.calls(d)]
+    words = [c["action"]["said"] for c in jarvis.calls(d)]
     assert sum(1 for a, b in zip(words, words[1:]) if b.startswith("PALAT?") and not a.startswith("PALAT?")) <= 2
     assert any(w.startswith("TREND ▼") for w in words[35:50])
 
@@ -529,7 +529,7 @@ def test_21oct_one_trend_call_and_at_most_two_palatq(record):
 def test_30oct_the_opening_is_not_announced(record):
     d = jarvis.build("2026-10-30", "NIFTY", None, fill=True)
     assert len(d["reads"]["action"]) == len(d["mins"]) and not any("the ACTION word failed" in x for x in d["health"]["notes"])
-    early = [c["word"] for c in jarvis.calls(d) if c["at"] < "10:00"]
+    early = [c["action"]["said"] for c in jarvis.calls(d) if c["at"] < "10:00"]
     assert all(w.startswith("OPENING") or w in ("NO LEG",) for w in early), set(early)
 
 
@@ -931,7 +931,7 @@ def test_the_1530_chain_stop_is_never_a_hole_on_the_record(record):
     for day, w in (("2026-10-29", "HOLD ▲"), ("2026-10-30", "ROTATION ▲")):
         d = build(day, 15 * 60 + 45)
         c, mins = d["call"], d["mins"]
-        assert mins[-1] > "15:35" and c["word"] == w, (day, c["word"])
+        assert mins[-1] > "15:35" and c["action"]["said"] == w, (day, c["action"])
         j = max(i for i, m in enumerate(mins) if m <= "15:30")
         assert {jarvis.said(x["word"], x["lean"]) for x in d["reads"]["action"][j:]} == {w}, day
         assert "chain ends 15:30 (scheduled)" in d["health"]["method"]
@@ -1054,7 +1054,7 @@ def test_an_index_whose_answers_are_not_said_never_counts_them():
 def test_30oct_1345_palat_lines_match_the_card(record):
     """The controller's card read: 30 Oct 13:45, word PALAT ▼, lean −1."""
     c = build("2026-10-30", 13 * 60 + 46)["call"]
-    assert c["word"] == "PALAT ▼" and c["lean"] == -1, (c["word"], c["lean"])
+    assert c["action"]["said"] == "PALAT ▼" and c["lean"] == -1, (c["action"], c["lean"])
     assert c["buyer"].startswith("PALAT: the ▲ leg ended · no new PE until the ▼ leg holds 2 closes"), c["buyer"]
     assert c["seller"].startswith("PALAT: the ▲ leg ended · no new CE sale until the ▼ leg holds 2 closes"), c["seller"]
     assert re.fullmatch(r"back to ▲ on a new high past \d{2},\d{3}f", c["wrong_line"]), c["wrong_line"]
@@ -1137,5 +1137,5 @@ def test_no_buyer_pick_while_the_word_says_no_new_one(record):
     PALAT and the buyer line said no new CE until the leg holds 2 closes. A pick is named only while the word holds."""
     d = jarvis.build("2026-09-29", "NIFTY", upto=jarvis._m("11:12") + 1, fill=True)
     c = d["call"]
-    assert c["word"].startswith(("PALAT", "RANGE")), c["word"]   # A229: the 11:10 flip sat inside the writers' box
+    assert c["action"]["said"].startswith(("PALAT", "RANGE")), c["action"]["said"]   # A229: the 11:10 flip sat inside the writers' box
     assert c["expression"]["pick"] is None and c["expression"]["pick_why"] == "no edge named"      # 22,600-22,700s: RANGE

@@ -153,8 +153,10 @@ def test_the_read_only_commands_answer_from_the_frame_verbatim():
     assert a("why")["lines"] == CALL["why"]
     assert a("next")["lines"] == [CALL["up"], CALL["dn"]]
     assert a("wrong when?")["reply"] == CALL["wrong_line"]
-    assert a("status")["lines"] == ["TREND ▼ · HOLD · since 09:56", "WITH 4 · AGAINST 1 · N 6 · unread 2",
+    assert a("status")["lines"] == ["TREND ▼ · since 09:56", "WITH 4 · AGAINST 1 · N 6 · unread 2",
                                     "leg ▼ TREND 103 pts", "health: " + " · ".join(CALL["missing"])]
+    fa = frame(call=dict(CALL, action={"said": "HOLD"}), timeline=FR["timeline"])
+    assert d.apply("NIFTY", "status", fa, "page", now=at(10, 43))["lines"][0] == "TREND ▼ · since 09:56 · action HOLD"   # Task 4 fix 1
     assert a("what if 23000 breaks")["lines"] == [CALL["up"], "CE wall 23,000s (23,043f) 147L BUILDING"]
     assert a("if 22943f")["lines"] == [CALL["dn"], "PE wall 22,900s (22,943f) 186L BUILDING"]
     assert a("if 22800")["reply"] == "I don't have 22,800 in today's frame; nearest: 22,850s PE, 22,750s PE"
