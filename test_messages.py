@@ -255,3 +255,40 @@ def test_jarvis_palat_flicker_sends_once_per_state_run():
     assert n(flick) == 1
     assert n(flick + [r("11:00", "HOLD ▲", "11:00"), r("11:01", "PALAT? ▲", "11:00")]) == 2
     assert n([r("10:41", "PALAT ▲"), r("10:42", "HOLD ▲"), r("10:43", "PALAT ▼")]) == 2
+
+
+def test_jarvis_state_line_carries_the_fuel_grade_not_the_legs_lean():
+    """I2: TREND ▼ on a ▲ pullback leg. Her phone reads the state's fuel, the word's own arrow colours it; the PALAT
+    action line keeps the lean's count; an old row with no grade reads as before."""
+    ms = messages.jarvis([{"idx": "NIFTY", "t": "10:40", "word": "TREND ▼", "lean": 1, "since": "10:30",
+                           "action": "PALAT? ▲", "grade": "tired", "count": {"with": 6, "against": 2, "N": 8}},
+                          {"idx": "SENSEX", "t": "10:40", "word": "TREND ▲", "lean": 1, "since": "10:30",
+                           "grade": "fuel blind", "count": {"with": 0, "against": 0, "N": 0}},
+                          {"idx": "SENSEX", "t": "10:50", "word": "RANGE", "lean": 1, "since": "10:50",
+                           "count": {"with": 3, "against": 1, "N": 4}}], [])
+    assert [m["line"] for m in ms] == [
+        "10:30  NIFTY  TREND ▼ · fuel tired · since 10:30",
+        "10:30  SENSEX  TREND ▲ · fuel blind · since 10:30",
+        "10:40  NIFTY  PALAT? ▲ · WITH 6 · AGAINST 2 · TREND ▼ since 10:30",
+        "10:50  SENSEX  RANGE · WITH 3 · AGAINST 1 · since 10:50"]
+    assert [m["dir"] for m in ms] == [-1, 1, 1, 1]
+
+
+def test_jarvis_banknifty_lines_stay_in_the_window():
+    """I3 ruling (6 Nov): she trades NIFTY and SENSEX; BANKNIFTY's JARVIS lines are rows and window only, never Telegram."""
+    import telegram_out
+    ms = messages.jarvis([{"idx": "BANKNIFTY", "t": "10:40", "word": "TREND ▲", "lean": 1, "since": "10:40",
+                           "action": "PALAT ▼"},
+                          {"idx": "BANKNIFTY", "t": "10:41", "word": "CAN'T SEE", "lean": 0, "blind": True},
+                          {"idx": "NIFTY", "t": "10:40", "word": "TREND ▲", "lean": 1, "since": "10:40"}], [])
+    bn = [m for m in ms if m["idx"] == "BANKNIFTY"]
+    assert len(bn) == 3 and all(m.get("quiet") and not telegram_out.wants(m) for m in bn)
+    assert [telegram_out.wants(m) for m in ms if m["idx"] == "NIFTY"] == [True]
+
+
+def test_jarvis_palat_is_said_once_when_the_state_failed_and_the_word_is_the_action():
+    """M9: the market state failed, so `word` IS the ACTION word; the PALAT line goes once (the word line), not twice."""
+    ms = messages.jarvis([{"idx": "NIFTY", "t": "10:40", "word": "HOLD ▲", "action": "HOLD ▲", "lean": 1, "since": "10:30"},
+                          {"idx": "NIFTY", "t": "10:42", "word": "PALAT ▼", "action": "PALAT ▼", "lean": -1,
+                           "since": "10:42"}], [])
+    assert [m["word"] for m in ms] == ["HOLD ▲", "PALAT ▼"]

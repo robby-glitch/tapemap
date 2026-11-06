@@ -83,8 +83,9 @@ def render_card(card: dict) -> str:
 
     out.append(" · ".join(str(x) for x in (g("idx"), g("day"), g("at"), {True: "live", False: "replay"}.get(g("live")),
                                             g("asof") and "asof " + g("asof")) if x))
-    word = [x for x in (g("word"), g("state"), g("since") and "since " + g("since")) if x]
-    absent += [k for k in ("word", "state", "since") if not g(k)]
+    act = (g("action") or {}).get("said") if isinstance(g("action"), dict) else None
+    word = [x for x in (g("word"), g("since") and "since " + g("since"), act and "action " + act) if x]   # jarvis_cmd status
+    absent += [k for k, v in (("word", g("word")), ("since", g("since")), ("action", act)) if not v]
     if word:
         out.append(f"{'WORD':<10}" + " · ".join(word))
     c = g("count") if isinstance(g("count"), dict) else {}
@@ -137,7 +138,7 @@ def render_card(card: dict) -> str:
 
 def card_from_call(frame: dict, c: dict) -> dict:
     """A saved frame's `call` (or `calls[i]`) in the card's shape. Keys the call lacks stay None, never invented."""
-    card = {k: c.get(k) for k in ("word", "state", "lean", "since", "count", "leg", "pause", "how_much", "where",
+    card = {k: c.get(k) for k in ("word", "state", "action", "lean", "since", "count", "leg", "pause", "how_much", "where",
                                   "wrong_line", "up", "dn", "no_trade", "self")}
     card.update(idx=frame.get("idx"), day=frame.get("day"), at=c.get("at"), live=False,
                 expression=c.get("expression") or {k: c.get(k) for k in ("buyer", "seller", "pick")},

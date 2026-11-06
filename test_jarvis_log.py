@@ -102,7 +102,8 @@ def test_the_row_carries_the_contract_and_marks_a_blind_minute():
                  "count": {"with": 4, "against": 1, "N": 6, "flat": None, "blind": None, "pieces": {"answer": "with"}},
                  "fut": 23010.5, "spot": 22967.3, "leg": "leg ▼ TREND 103 pts", "wrong_line": "PALAT? if back past 22,938f",
                  "missing": CALL["missing"], "notes": ["Dext footprint missing since 10:39"], "blind": True,
-                 "action": None, "vol": None}
+                 "action": None, "vol": None, "grade": None}
+    assert jarvis_log.row(frame(dict(CALL, mstate={"grade": "tired"})), 1.0)["grade"] == "tired"   # I2: the state's fuel
     old = {k: v for k, v in CALL.items() if k not in ("state", "since", "count")}          # a frame from before Task 1
     r = jarvis_log.row(frame(old), 1.0)
     assert r["state"] is None and r["since"] is None and r["count"] is None               # absent is null, never invented
@@ -208,9 +209,9 @@ def test_the_server_logs_a_live_build_once_per_minute_never_a_cache_hit_or_a_rep
 
 # ---- the JARVIS PASS: the card and the log stay live with no face polling /api/jarvis -------------------------------
 
-def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatch):
+def test_the_jarvis_pass_keeps_all_three_live_without_any_face(monkeypatch):
     """Monday's faces poll /api/jarvis/card, which never builds. The message loop's pass rebuilds the LIVE frame once a
-    minute for NIFTY and SENSEX (BANKNIFTY on demand) through _jarvis_reply when the live slot is over 40 s old, writes the
+    minute for NIFTY, SENSEX and BANKNIFTY through _jarvis_reply when the live slot is over 40 s old, writes the
     call log as a poll would, skips while another build holds the lock, says when it is slow, and rests outside 09:15-15:45."""
     import threading
     from datetime import datetime
@@ -241,16 +242,16 @@ def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatc
         for k, (key, at_, fr) in list(server._JARVIS.items()):
             server._JARVIS[k] = (key, at_ - s, fr)
     server._jarvis_pass()
-    assert built == [("NIFTY", 642), ("SENSEX", 642)]                                     # never BANKNIFTY
+    assert built == [("NIFTY", 642), ("SENSEX", 642), ("BANKNIFTY", 642)]
     assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41"] and card()["word"] == "TREND ▼"
     age()
     server._jarvis_pass()                                                                 # the same minute: no rebuild
-    assert len(built) == 2
+    assert len(built) == 3
     clock["now"] = datetime(2026, 11, 2, 10, 44, 25, tzinfo=IST)
     key, _, fr = server._JARVIS["NIFTY"]
     server._JARVIS["NIFTY"] = (key, time.time(), fr)                                     # a face has just polled
     server._jarvis_pass()
-    assert built[2:] == [("SENSEX", 644)]                                                 # a fresh live slot is not rebuilt
+    assert built[3:] == [("SENSEX", 644), ("BANKNIFTY", 644)]                                                 # a fresh live slot is not rebuilt
     age()
     clock["now"] = datetime(2026, 11, 2, 10, 45, 25, tzinfo=IST)
     held, go = threading.Event(), threading.Event()
@@ -265,12 +266,12 @@ def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatc
     server._jarvis_pass()
     go.set()
     th.join()
-    assert len(built) == 3                                                                # never stacked behind a build
+    assert len(built) == 5                                                                # never stacked behind a build
     assert server._JPASS["skipped"] == "jarvis pass skipped 10:45 (lock held)"           # a minute it could not build
     assert server._JPASS["skipped"] in card()["health"]["notes"]
     monkeypatch.setattr(server, "JARVIS_SLOW_S", -1)
     server._jarvis_pass()
-    assert built[3:] == [("NIFTY", 645), ("SENSEX", 645)]
+    assert built[5:] == [("NIFTY", 645), ("SENSEX", 645), ("BANKNIFTY", 645)]
     assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41", "10:44"] and card()["word"] == "HOLD ▼"
     slow = server._JPASS["slow"]
     assert slow.startswith("Jarvis pass took") and slow in card()["health"]["notes"]
@@ -281,7 +282,7 @@ def test_the_jarvis_pass_keeps_nifty_and_sensex_live_without_any_face(monkeypatc
     age()
     clock["now"] = datetime(2026, 11, 2, 16, 0, 0, tzinfo=IST)
     server._jarvis_pass()                                                                 # after the close it rests
-    assert len(built) == 5
+    assert len(built) == 8
 
 
 

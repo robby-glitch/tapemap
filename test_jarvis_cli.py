@@ -47,7 +47,7 @@ def test_render_card_on_the_contract_example():
     out = jarvis_cli.render_card(CARD)
     lines = out.splitlines()
     assert lines[0] == "NIFTY · 2026-11-02 · 10:42 · live · asof 10:42:51"
-    assert "WORD      TREND ▼ · HOLD · since 09:56" in lines
+    assert "WORD      TREND ▼ · since 09:56" in lines                     # M2: state · since · action (no action here)
     assert "COUNT     WITH 4 · AGAINST 1 · N 6 · unread 2" in lines
     i = lines.index("  with    Sides 10:40 REAL")                         # the pieces, verbatim, writers first, cut at ' · '
     assert lines[i + 1] == "          put writers covering"
@@ -67,21 +67,29 @@ def test_render_card_on_the_contract_example():
     assert "HEALTH    missing none" in lines                                   # checked and found nothing
     i = lines.index("  note    Dext footprint missing since 10:39")
     assert lines[i + 1] == "          newest 3 min from the book"
-    assert "NOT IN CARD  no trade" in lines                                    # the card's null, named -- never invented
+    assert "NOT IN CARD  action · no trade" in lines                                    # the card's null, named -- never invented
     # one cell per line: a ' · ' survives only in the header, the word / count rows of one-word cells, or inside brackets
-    assert [x for x in lines if " · " in x] == [lines[0], "WORD      TREND ▼ · HOLD · since 09:56",
+    assert [x for x in lines if " · " in x] == [lines[0], "WORD      TREND ▼ · since 09:56",
                                                 "COUNT     WITH 4 · AGAINST 1 · N 6 · unread 2",
                                                 "  with    writers ±7 DOWN (CE +12.1L · PE −14.0L / 3 min)",
-                                                "  with    all 3 ▼ (N −14 · BN −31 · SX −52 / 5 min)"]
+                                                "  with    all 3 ▼ (N −14 · BN −31 · SX −52 / 5 min)",
+                                                "NOT IN CARD  action · no trade"]
     assert "%" not in out
 
 
 def test_render_card_names_what_is_absent_never_a_zero():
     out = jarvis_cli.render_card({"idx": "NIFTY", "day": "2026-10-30", "at": "11:14", "word": "HOLD ▲", "lean": 1})
     assert "WORD      HOLD ▲" in out.splitlines()
-    assert "NOT IN CARD  state · since · count · leg · pause · how much · where · buyer · seller · pick · wrong · no trade" \
+    assert "NOT IN CARD  since · action · count · leg · pause · how much · where · buyer · seller · pick · wrong · no trade" \
            " · self · health" in out.splitlines()
     assert "WITH 0" not in out and "None" not in out
+
+
+def test_the_word_line_says_the_state_since_and_the_action_word():
+    """M2: the WORD line matches jarvis_cmd's status line: <state word> · since <since> · action <ACTION word>."""
+    out = jarvis_cli.render_card(dict(CARD, action={"said": "PALAT? ▲", "word": "PALAT?"}))
+    assert "WORD      TREND ▼ · since 09:56 · action PALAT? ▲" in out.splitlines()
+    assert "action" not in out.splitlines()[-1]
 
 
 def test_parse_cli():
@@ -152,7 +160,7 @@ def test_commands_go_to_the_grammar_with_src_cli_and_the_reply_is_verbatim(monke
     s = jarvis_cli.Session("http://127.0.0.1:8765", "NIFTY")
     assert s.handle("exit now") == "I read, I don't place."
     assert sent[-1] == ("http://127.0.0.1:8765/api/jarvis/cmd", {"idx": "NIFTY", "text": "exit now", "src": "cli"})
-    assert "WORD      TREND ▼ · HOLD · since 09:56" in s.handle("now")
+    assert "WORD      TREND ▼ · since 09:56" in s.handle("now")
     assert sent[-1][0] == "http://127.0.0.1:8765/api/jarvis/card?idx=NIFTY"
 
     def down(req, timeout=None):

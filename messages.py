@@ -207,11 +207,15 @@ def _wa(c):
 
 def jarvis(call_rows, cmd_rows=()):
     """Jarvis v3's lines (kind JARVIS) from the call log (jarvis_log rows, every index) and the command log (jarvis_cmd
-    rows): one line per ACTION word change, at its `since` (the minute the word was set); CAN'T SEE once per blind stretch;
-    the word said again at its own minute once she can see; one line per watch hit with the card's word, count and last
+    rows): one line per word change (the market state's word from 6 Nov; the ACTION word in older rows), at its `since`
+    (the minute the word was set); CAN'T SEE once per blind stretch; the word said again at its own minute once she can see; one line per watch hit with the card's word, count and last
     answer, and `could not check — gap` for a watch crossed while the server was down. Other command rows say nothing.
     Past JARVIS_TG_DAY word lines for an index, the rest are `quiet` (the window only), with one line saying so; CAN'T
-    SEE, the watches and the JARVIS_TG_ALWAYS words (TREND / PALAT? / PALAT) are never capped and never counted. A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
+    SEE, the watches and the JARVIS_TG_ALWAYS words (TREND / PALAT? / PALAT) are never capped and never counted. A state
+    word's line carries the row's fuel grade (`grade`) and the word's own arrow; a row without one (before 6 Nov) the
+    lean's WITH / AGAINST. PALAT? / PALAT action lines (the ACTION word, a chip under the state) keep the lean's count, and
+    are skipped when the action IS the word (the market state failed). BANKNIFTY's call lines are all `quiet` (the window
+    only; her watches stay hers). A malformed row is skipped, never raised. Pure: a restart rebuilds the same."""
     out, held, dark, said, acted = [], {}, {}, {}, {}
     run = {}                                         # idx -> [(word, since), the actions already sent in this state run]
     for r in sorted((r for r in call_rows if _ok(r, "t")), key=lambda r: (r["idx"], r["t"])):
@@ -228,14 +232,18 @@ def jarvis(call_rows, cmd_rows=()):
                 acted[i] = a
                 if (w, s) != (run.get(i) or [None])[0]:      # a new state run re-arms both lines
                     run[i] = [(w, s), set()]
-                if a.startswith("PALAT") and (k := "PALAT?" if a.startswith("PALAT?") else a) not in run[i][1]:   # PALAT? once per state run, PALAT once per
-                    run[i][1].add(k)                         # direction (a dedup, not a cap):                         # A255 never quiet / not in the 20; 6 Nov market-state build
+                # PALAT? once per state run, PALAT once per direction (a dedup, not a cap); A255: never quiet, not in
+                # the 20. a == w: the market state failed and the word IS the action, so the word line says it (M9).
+                if a.startswith("PALAT") and a != w and (k := "PALAT?" if a.startswith("PALAT?") else a) not in run[i][1]:
+                    run[i][1].add(k)
                     out.append(_msg(t, i, "JARVIS", r.get("lean") or 0, a, _wa(r.get("count")),
                                     f"{w} since {s or t}" if w else f"since {s or t}", None))
             if not w or (w == held.get(i) and not dark.get(i)):
                 continue
-            m = _msg(t if dark.get(i) or not s else s, i, "JARVIS", r.get("lean") or 0, w, _wa(r.get("count")),
-                     f"since {s or t}", None)
+            g = r.get("grade")                               # I2: a state word's count is its fuel, not the leg's lean
+            m = _msg(t if dark.get(i) or not s else s, i, "JARVIS",
+                     (1 if "▲" in w else -1 if "▼" in w else 0) if g else r.get("lean") or 0, w,
+                     (g if g.startswith("fuel") else f"fuel {g}") if g else _wa(r.get("count")), f"since {s or t}", None)
             if w.split(" ")[0] not in JARVIS_TG_ALWAYS:      # 5 Nov: the 20 muted her 14:44 / 15:00 calls (A251, A255)
                 said[i] = said.get(i, 0) + 1
                 if said[i] == JARVIS_TG_DAY + 1:             # the review's ruling: past 20 a day, the window only, said once
@@ -247,6 +255,9 @@ def jarvis(call_rows, cmd_rows=()):
             held[i], dark[i] = w, False
         except Exception:                                    # noqa: BLE001
             continue
+    for m in out:                                    # I3 ruling 6 Nov: she trades NIFTY / SENSEX; BANKNIFTY is rows, never her phone
+        if m["idx"] == "BANKNIFTY":
+            m["quiet"] = True
     for h in cmd_rows:
         if h.get("kind") not in ("watch_hit", "watch_gap") or not _ok(h, "t"):
             continue

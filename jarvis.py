@@ -1109,8 +1109,10 @@ def _walls(fr, spot):
 def call(d: dict) -> dict:
     """THE ONE CALL at the frame's last minute, in GAPS §4's order: health -> location -> flow + speed -> writers ->
     futures OI -> cross-index -> her setup -> one word, its wrong-line, two scenarios, both expressions. The word is the
-    ACTION word (Jarvis v3, `action_words` at this minute): the leg's state decided by the writers-first WITH / AGAINST
-    count (`count`), changed only at two consecutive 3-min closes (PALAT, the wall behind BROKEN and CAN'T SEE at once);
+    market state's (spec 2026-11-06 §7: `mstate`, its fuel `grade`, `chips`, the `zone` card), and the ACTION word (Jarvis
+    v3, `action_words` at this minute) is `action.said`, a chip under it; with no state row, or when that block raises
+    ("market state: could not check — <ExcName>"), the word is the ACTION word as before. The ACTION word: the leg's state
+    decided by the writers-first WITH / AGAINST count (`count`), changed only at two consecutive 3-min closes (PALAT, the wall behind BROKEN and CAN'T SEE at once);
     `state` is the leg's raw word. The 29 Oct vote stays as `v1` (UP / DOWN when the writers and one more of {a fut run,
     speed FAST, ALL 3} agree; RANGE when both sides add; NO TRADE when quiet or nothing agrees), and is the word only for a
     frame with no leg read. Counts, never %. Guidance only. Task 5 adds what the tool already measures, as lines and keys,
@@ -1370,27 +1372,35 @@ def call(d: dict) -> dict:
         why.append(f"the reads failed: {type(e).__name__}: {e}")
     ms = d.get("mstate") or []
     srow = ms[i] if len(ms) == len(mins) and not blind else None      # THE MARKET STATE leads (spec 2026-11-06 §7)
-    said_act, grade, zone = word, None, None                         # the ACTION word: now a chip under the state
+    said_act, grade, zone, mso, chips = word, None, None, None, []   # the ACTION word: now a chip under the state
     if srow:
-        import mstate
-        grade = _grade(cnt, srow["dir"], lean)
-        word = srow["word"]
-        vw_ = (srow.get("vol") or {}).get("word")
-        why.insert(0, f"state: {word}" + (f" · {vw_}" if vw_ else "") + f" since {srow['since']} — {srow['why']}"
-                   + (f" · {srow['line']}" if srow.get("line") else "")
-                   + (f" · eff {srow['eff']:.2f}" if srow.get("eff") is not None else "")
-                   + (f" · fuel {grade}" if grade else "") + f" · action {said_act}")
-        zc = [z for z in d.get("zone_cards") or () if z["known"] <= mins[i] and _m(mins[i]) - _m(z["known"]) < MANAGE_WIN]
-        tc = [z for z in zc if z.get("trade")]       # §6a: the open trade as of this minute (Task 9a), never a later one
-        op = [e for e in tc[-1]["trade"] if e["t"] <= mins[i]] if tc else []
-        zone = (dict({k: v for k, v in zc[-1].items() if k != "trade"}, line=mstate.card_line(zc[-1]),
-                     open=dict(op[-1], of=tc[-1]["t"]) if op else None) if zc else None)
-        if zone:
-            gt, O = zone.get("gate"), zone["open"]
-            why.insert(1, "zone: " + zone["line"] + f" — {zone['why']}"
-                       + (f" · her gate (§1d): {'legal' if gt.get('legal') else 'NOT legal'} — {gt.get('why')}"
-                          if isinstance(gt, dict) else "")
-                       + (f" · open {O['of']}: " + " · ".join(O["chips"]) if O and O["chips"] else ""))
+        try:                                         # M3: fail-soft; a raise keeps the ACTION word, never fails the build
+            import mstate
+            grade = _grade(cnt, srow["dir"], lean)
+            vw_ = (srow.get("vol") or {}).get("word")
+            head = [f"state: {srow['word']}" + (f" · {vw_}" if vw_ else "") + f" since {srow['since']} — {srow['why']}"
+                    + (f" · {srow['line']}" if srow.get("line") else "")
+                    + (f" · eff {srow['eff']:.2f}" if srow.get("eff") is not None else "")
+                    + ((f" · {grade}" if str(grade).startswith("fuel") else f" · fuel {grade}") if grade else "") + f" · action {said_act}"]
+            zc = [z for z in d.get("zone_cards") or () if z["known"] <= mins[i] and _m(mins[i]) - _m(z["known"]) < MANAGE_WIN]
+            tc = [z for z in zc if z.get("trade")]   # §6a: the open trade as of this minute (Task 9a), never a later one
+            op = [e for e in tc[-1]["trade"] if e["t"] <= mins[i]] if tc else []
+            zone = (dict({k: v for k, v in zc[-1].items() if k != "trade"}, line=mstate.card_line(zc[-1]),
+                         open=dict(op[-1], of=tc[-1]["t"]) if op else None) if zc else None)
+            if zone:
+                gt, O = zone.get("gate"), zone["open"]
+                head.append("zone: " + zone["line"] + f" — {zone['why']}"
+                            + (f" · her gate (§1d): {'legal' if gt.get('legal') else 'NOT legal'} — {gt.get('why')}"
+                               if isinstance(gt, dict) else "")
+                            + (f" · open {O['of']}: " + " · ".join(O["chips"]) if O and O["chips"] else ""))
+            mso = ({k: srow.get(k) for k in ("word", "dir", "conf", "since", "why", "line", "eff", "expiry")}
+                   | {"vol": {k: (srow.get("vol") or {}).get(k) for k in ("word", "since", "up", "down", "read", "gauges")},
+                      "grade": grade, "chip": mstate.chip(srow)})
+            chips = [x for x in (said_act, grade and (grade if grade.startswith("fuel") else f"fuel {grade}")) if x]
+            word, why = srow["word"], head + why
+        except Exception as e:                       # noqa: BLE001
+            srow, grade, zone, mso, chips = None, None, None, None, None
+            why.insert(0, f"market state: could not check — {type(e).__name__}")
     return T5 | {"at": mins[i], "word": word, "why": why, "wrong_line": wrong, "up": up_s, "dn": dn_s, "buyer": buyer,
             "seller": seller, "missing": missing, "note": "guidance only: she places every trade herself",
             "state": (row or {}).get("word"),
@@ -1402,11 +1412,8 @@ def call(d: dict) -> dict:
              "missing": row.get("missing")}, "v1": v1, "lines": lines,
             "action": {"said": said_act, "word": act["word"] if act else None, "lean": lean,
                        "since": act["since"] if act else None, "why": act["why"] if act else reason},
-            "mstate": None if srow is None else
-            {k: srow.get(k) for k in ("word", "dir", "conf", "since", "why", "line", "eff", "expiry")}
-            | {"vol": {k: (srow.get("vol") or {}).get(k) for k in ("word", "since", "up", "down", "read", "gauges")},
-               "grade": grade, "chip": mstate.chip(srow)},
-            "chips": [x for x in (said_act, grade and f"fuel {grade}") if x] if srow else [],
+            "mstate": mso,
+            "chips": chips,
             "zone": zone,
             "walls": {"ce": None if not ce else {"k": ce[0]["k"], "f": round(ce[0]["k"] + basis, 2), "oi": ce[0].get("oi"),
                                                  "state": ce[0].get("state")},
@@ -1498,7 +1505,7 @@ def days() -> dict:
     def have(pat):
         return {m.group(1) for p in glob.glob(pat) if (m := re.search(r"_(\d{4}-\d\d-\d\d)\.jsonl", p))}
     return {i: sorted(have(os.path.join(book_log.DIR, f"book_{i}_*.jsonl*"))
-                      & have(os.path.join(str(chain_live.CHAIN_DIR), f"chain_{i}_*.jsonl*"))) for i in ("NIFTY", "SENSEX")}
+                      & have(os.path.join(str(chain_live.CHAIN_DIR), f"chain_{i}_*.jsonl*"))) for i in ("NIFTY", "SENSEX", "BANKNIFTY")}
 
 
 def calls(d: dict) -> list:
@@ -1939,7 +1946,9 @@ def reads(d: dict) -> dict:
     def sync_at(i):
         if i < 5 or not d.get("bnf"):
             return None
-        ch = [None if a[i] is None or a[i - 5] is None else round(a[i] - a[i - 5], 2) for a in (fut, d["bnf"], d["sx"])]
+        nf = fut if d.get("idx") in (None, "NIFTY") else (d.get("nf") or [None] * N)   # N is NIFTY on every frame (spec
+        ch = [None if a[i] is None or a[i - 5] is None else round(a[i] - a[i - 5], 2)   # §4: it read the frame's own future)
+              for a in (nf, d["bnf"], d["sx"])]
         if None in ch:
             return {"dir": None, "ch": ch}
         up, dn = all(c >= n for c, n in zip(ch, SYNC_PTS)), all(c <= -n for c, n in zip(ch, SYNC_PTS))

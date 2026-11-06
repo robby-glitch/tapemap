@@ -416,3 +416,11 @@ def test_a_none_or_malformed_bands3_slot_never_drops_the_batch(tmp_path, monkeyp
         o["bands3"] = [{"vwap": 1.0, "d3": 2.0} if i % 2 else None for i, _ in enumerate(o["bands3"])]   # no u3 / None
     for r in _rows_with_bands3(tmp_path, monkeypatch, bad):
         assert "bands3_why" in r and "u3" not in r
+
+
+def test_a_non_iterable_bands3_still_writes_every_row_with_the_reason(tmp_path, monkeypatch):
+    """M4: bands3 that is not a list (here an int) gives every zone3 row bands3_why; no row is dropped (tmp path only)."""
+    def bad(o):
+        o["bands3"] = 7
+    for r in _rows_with_bands3(tmp_path, monkeypatch, bad):
+        assert r["bands3_why"] == "the 3-min band could not be read on this bar" and "u3" not in r

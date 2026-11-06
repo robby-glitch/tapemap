@@ -76,6 +76,7 @@ def row(fr, now):
             "since": c.get("since"), "count": _cnt3(c.get("count")), "fut": _last(fr.get("fut")), "spot": _last(fr.get("spot")),
             "leg": c.get("leg"), "wrong_line": c.get("wrong_line"), "missing": miss,
             "action": (c.get("action") or {}).get("said"), "vol": ((c.get("mstate") or {}).get("vol") or {}).get("word"),
+            "grade": (c.get("mstate") or {}).get("grade"),          # I2: the state word's fuel, what her phone shows
             "notes": list((fr.get("health") or {}).get("notes") or []), "blind": any(str(x).startswith("BLIND") for x in miss)}
 
 
@@ -91,6 +92,13 @@ def state_row(fr, j, now, src):
             "vol": v.get("word"), "votes": {g["k"]: g["vote"] for g in v.get("gauges") or ()}, "expiry": s.get("expiry"),
             "zone": [{k: z.get(k) for k in ("t", "side", "band", "verdict", "n", "N", "kind")}
                      for z in fr.get("zone_cards") or () if z["known"] <= fr["mins"][j]]}
+
+
+def state_fail_row(fr, now, src, reason):
+    """THE STATE LOG row for the newest minute when the market state failed (M5, rule 6): word None and the reason,
+    never a silent hole. Only day / t / at / src / word / why: every other state_row key is absent, not invented."""
+    return {"day": fr.get("day"), "t": fr["mins"][-1], "at": int(now), "src": src, "word": None,
+            "why": f"market state: could not check — {reason}"}
 
 
 def _m(t):
@@ -172,4 +180,4 @@ def card(fr, rows=(), state=None, notes=()):
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
             "watches": list(st.get("watches") or []), "voice": None, "brief": None,   # Task 7: server._JVOICE fills both
-            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips"), "zone": c.get("zone")}   # the state leads (6 Nov)
+            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips"), "zone": c.get("zone"), "xstate": c.get("xstate")}   # the state leads (6 Nov)

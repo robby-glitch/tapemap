@@ -396,6 +396,17 @@ def test_add_once_while_the_widen_stands_and_the_hard_line_ends_both_lots():
     assert max(E) == "11:23" and "%" not in json.dumps(c1["trade"])
 
 
+def test_a_copy_of_the_same_touch_is_never_the_add():
+    """I1: 14:05 / 14:06 style -- the touch logged twice (1 min apart, the copy written late) is folded, never ADD 1."""
+    d = _trade_frame(ADDUP)
+    c1, dup = _tc(d), _tc(d, t="11:01", close="11:03", known="11:15", px=24105.0)
+    mstate.trades(d, [c1, dup], _rows(d, vol="CONTRACTING"))
+    assert dup["trade"] is None and dup["in_trade"] == "11:00"
+    assert any(c.startswith("WIDEN") for e in c1["trade"] for c in e["chips"])
+    assert not any(c.startswith("ADD") for e in c1["trade"] for c in e["chips"])
+    assert all(e["risk"] in (None, 55.0) for e in c1["trade"])                  # one lot, never "dono lot"
+
+
 def test_no_add_after_a_broken_widen_and_no_third_adjustment():
     d = _trade_frame(ADDUP, lad=lambda T: 60.0 if T <= 672 else 60.0 - 3 * (T - 672))   # writers leave from 11:13
     c1, c2 = _tc(d), _tc(d, t="11:12", close="11:14", known="11:15", px=24105.0)
@@ -468,3 +479,97 @@ def test_a_gap_the_trade_survives_says_what_was_not_checked():
     d = _drop(_trade_frame(CREEP), "11:08")
     tr = mstate.trade(d, _tc(d), _rows(d, vol="CONTRACTING"))
     assert "11:08–11:08 not on the record: stop / target not checked" in tr[-2]["why"]
+
+
+def test_zero_dte_says_gamma_both_ways_from_14_and_no_hold_from_15():
+    d = _frame([24000.0] * 351)                                   # 09:15 .. 15:05
+    d["ctx"]["dte"] = 0
+    rows, _ = mstate.fold(d)
+    at = {r["t"]: r["expiry"] for r in rows}
+    assert at["13:59"] is None and at["14:00"] == "EXPIRY: gamma both ways"
+    assert at["15:00"] == "EXPIRY: gamma both ways · no hold for the close"
+    d["ctx"]["dte"] = 1
+    assert all(r["expiry"] is None for r in mstate.fold(d)[0])
+    d["ctx"].pop("dte")                                           # rule 6: unknown dte is said, not read as "not expiry"
+    at = {r["t"]: r["expiry"] for r in mstate.fold(d)[0]}
+    assert at["13:59"] is None and at["14:00"].startswith("EXPIRY: could not check")
+
+
+# ---- Task 12: the cross-index read -------------------------------------------------------------------------------------
+
+def test_prem_reads_the_premium_beyond_delta():
+    d = _frame([24000.0] * 10)
+    chain = {"09:16": {"spot": 23990.0, "ce": {24000: {"ltp": 100.0, "delta": 0.5}}, "pe": {24000: {"ltp": 110.0, "delta": -0.5}}},
+             "09:19": {"spot": 24010.0, "ce": {24000: {"ltp": 112.0, "delta": 0.55}}, "pe": {24000: {"ltp": 99.0, "delta": -0.45}}}}
+    assert mstate._prem(d, d["mins"].index("09:19"), chain) == {"ce": 2.0, "pe": -1.0}
+    assert mstate._prem(d, d["mins"].index("09:18"), chain) == {"ce": None, "pe": None}
+
+
+def _xf(idx, d=1, unwind=None, wf=(None, None), vol="NORMAL", prem=None):
+    mins = [_hm(600 + i) for i in range(10)]
+    fr = [{"k": 24000.0, "side": unwind, "state": "UNWINDING"}] if unwind else []
+    return {"ok": True, "idx": idx, "mins": mins, "timeline": [{"fronts": fr} for _ in mins],
+            "wf_ce": [wf[0]] * 10, "wf_pe": [wf[1]] * 10,
+            "mstate": [{"t": m, "word": "TREND ▲" if d > 0 else "RANGE", "dir": d, "vol": {"word": vol},
+                        "prem": prem or {"ce": None, "pe": None}} for m in mins]}
+
+
+def test_trend_day_rotation_and_could_not_check():
+    x = mstate.cross({n: _xf(n, unwind="CE") for n in mstate.IDXS}, "10:09")
+    assert x["sync"]["dir"] == 1 and x["sync"]["n"] == 3 and x["day"].startswith("TREND DAY ▲")
+    x = mstate.cross({"NIFTY": _xf("NIFTY"), "SENSEX": _xf("SENSEX", 0), "BANKNIFTY": _xf("BANKNIFTY", 0)}, "10:09")
+    assert x["day"].startswith("ROTATION: NIFTY ▲ alone") and x["sync"] is None
+    x = mstate.cross({"NIFTY": _xf("NIFTY")}, "10:09")
+    assert x["day"] is None and x["why"] == ["SENSEX: could not check — no frame at 10:09",
+                                             "BANKNIFTY: could not check — no frame at 10:09"]
+    assert mstate.cross({n: dict(_xf(n), day="2026-11-04") for n in mstate.IDXS}, "10:09", "2026-11-05")["why"][0] \
+        == "NIFTY: could not check — no frame at 10:09"                           # another day's frame is never a peer
+    assert mstate.cross({n: _xf(n, unwind="CE") for n in mstate.IDXS}, "10:12")["why"][0] \
+            == "NIFTY: could not check — its last minute 10:09, over 2 min behind 10:12"   # stale: named, not counted
+
+
+def test_coil_then_escape_is_a_display_only_warning():
+    coil = {n: _xf(n, 0, wf=(12.0, 11.0), vol="CONTRACTING") for n in mstate.IDXS}
+    assert mstate.cross(coil, "10:09")["alert"] is None                         # a coil alone says nothing
+    esc = dict(coil, NIFTY=_xf("NIFTY", 0, wf=(-12.0, 0.0), vol="CONTRACTING", prem={"ce": 0.4, "pe": None}),
+               SENSEX=_xf("SENSEX", 0, wf=(-15.0, 1.0), vol="CONTRACTING"))
+    for n in ("NIFTY", "SENSEX"):                                               # the coil was 8-10 min ago
+        esc[n]["wf_ce"][:3], esc[n]["wf_pe"][:3] = [12.0] * 3, [11.0] * 3
+    a = mstate.cross(esc, "10:09")["alert"]
+    assert a.startswith("box ban gaya, writers bhaag rahe — bada move ho sakta hai ▲")
+    assert "premium beyond delta: NIFTY bid · SENSEX could not check" in a and "never a prediction" in a and "%" not in a
+
+
+def test_sync_counts_say_how_many_were_read_and_opening_is_not_range():
+    two = {n: _xf(n, unwind="CE") for n in ("NIFTY", "SENSEX")}
+    x = mstate.cross(two, "10:09")
+    assert x["sync"]["of"] == 2 and "in 2 of 2 read · 1 could not check" in x["sync"]["text"]
+    allr = {n: _xf(n, unwind="CE") for n in mstate.IDXS}
+    assert "in 3 of 3 read:" in mstate.cross(allr, "10:09")["sync"]["text"]
+    opening = {"NIFTY": _xf("NIFTY"), "SENSEX": _xf("SENSEX", 0), "BANKNIFTY": _xf("BANKNIFTY", 0)}
+    for r in opening["BANKNIFTY"]["mstate"]:
+        r["word"] = "OPENING"
+    x = mstate.cross(opening, "10:09")
+    assert x["day"] is None and "BANKNIFTY: no swing confirmed yet" in x["why"]       # not checked, so no ROTATION
+    unconfirmed = {n: _xf(n, unwind="CE") for n in mstate.IDXS}
+    for r in unconfirmed["SENSEX"]["mstate"]:
+        r["word"] = "TREND ▲ (leg, unconfirmed)"
+    assert mstate.cross(unconfirmed, "10:09")["day"] is None
+
+
+def test_coil_after_the_run_is_not_a_coil_and_a_blind_premium_is_named():
+    esc = {n: _xf(n, 0, wf=(12.0, 11.0), vol="CONTRACTING") for n in mstate.IDXS}
+    for n in ("NIFTY", "SENSEX"):
+        esc[n]["wf_ce"][:3], esc[n]["wf_pe"][:3] = [-12.0] * 3, [0.0] * 3        # the run is EARLY ...
+    for n in ("NIFTY", "SENSEX"):
+        esc[n]["wf_ce"][3:], esc[n]["wf_pe"][3:] = [12.0] * 7, [11.0] * 7         # ... the coil comes after it
+    esc["BANKNIFTY"] = _xf("BANKNIFTY", 0)
+    assert mstate.cross(esc, "10:09")["alert"] is None
+    ok = {n: _xf(n, 0, wf=(12.0, 11.0), vol="CONTRACTING") for n in mstate.IDXS}
+    for n in ("NIFTY", "SENSEX"):
+        ok[n]["wf_ce"][:3], ok[n]["wf_pe"][:3] = [12.0] * 3, [11.0] * 3
+        ok[n]["wf_ce"][3:], ok[n]["wf_pe"][3:] = [-12.0] * 7, [0.0] * 7
+    ok["NIFTY"] = _xf("NIFTY", 0, wf=(-12.0, 0.0), vol="CONTRACTING", prem={"ce": 0.0, "pe": None})
+    ok["NIFTY"]["wf_ce"][:3], ok["NIFTY"]["wf_pe"][:3] = [12.0] * 3, [11.0] * 3
+    a = mstate.cross(ok, "10:09")["alert"]
+    assert a and "SENSEX could not check" in a and "NIFTY not bid" in a and "none" not in a

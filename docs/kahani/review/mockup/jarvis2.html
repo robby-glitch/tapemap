@@ -232,7 +232,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
   <div class="brand"><div class="orb" style="width:22px;height:22px"></div>JARVIS <span class="badge" id="mode">DEMO</span> <small>NIFTY Nov fut · 28 Oct · replay from recorded + backfilled numbers</small></div>
   <div class="clock" id="clock">09:15:00</div>
   <div class="ctl">
-    <div class="pickw"><div class="grp pick" title="replay a recorded day (after 15:40) · today = live"><button id="pDay">—</button><select id="pIdx"><option>NIFTY</option><option>SENSEX</option></select></div><div id="cal" hidden></div></div>
+    <div class="pickw"><div class="grp pick" title="replay a recorded day (after 15:40) · today = live"><button id="pDay">—</button><select id="pIdx"><option>NIFTY</option><option>SENSEX</option><option>BANKNIFTY</option></select></div><div id="cal" hidden></div></div>
     <button id="play">▶ play</button>
     <div class="grp"><button data-sp="1">1×</button><button data-sp="2" class="on">2×</button><button data-sp="4">4×</button></div>
     <div class="grp"><button data-md="1" class="on">1m</button><button data-md="3">3m</button></div>
@@ -625,6 +625,16 @@ function renderCard(c) {
       }
     }
   }
+  const X = c.xstate;                                 // THE CROSS-INDEX read (spec §3-4): a line beside the word, never it
+  if (X && (X.day || X.alert || X.sync)) {
+    row("s clip" + (X.alert ? " bad" : ""),
+      [X.alert && "ALERT " + X.alert, X.day, X.sync && X.sync.text].filter(Boolean).join(" · "), (X.why || []).join("\n"));
+    const xc = row("rc", "", (X.why || []).join("\n") || "all 3 indices read");
+    for (const t of [X.sync && `${X.sync.dir > 0 ? "call" : "put"} writers nikal rahe · ${X.sync.n} of ${X.sync.of} read` + (X.sync.of < 3 ? ` · ${3 - X.sync.of} could not check` : ""),
+                     X.day && (/^TREND DAY/.test(X.day) ? "teeno ek taraf · 3 of 3" : "ek akela chal raha · 1 of 3")].filter(Boolean)) {
+      const el = document.createElement("span"); el.className = "chip q"; el.textContent = t; xc.appendChild(el);
+    }
+  } else if (X && X.why && X.why.length) row("s clip q", (/^cross:/.test(X.why[0]) ? "" : "cross: ") + X.why.join(" · "), X.why.join("\n"));   // rule 6: said, not hidden
   const old = oldLine(c);
   if (old) { row("s bad clip", old); box.style.opacity = 0.55; }
   const n = c.count;
@@ -1632,19 +1642,20 @@ const walkTab = e => `${D.mins[clampI(e.i)]} ${e.turn ? e.tag : (e.chap || e.tag
 const nxOf = e => [{t: e.up, c: "up"}, {t: e.dn, c: "dn"}, {t: e.wr, c: "wr"}];
 let WALK = null;
 
+const actW = x => (x && x.action && x.action.said) || (x && x.word) || "";   // 6 Nov: `word` is the state; the ACTION word is action.said
 function walkTurns() {      // a replay's ACTION word turns after 10:00: a new TREND, PALAT (the flip), RANGE, PALAT? -- 20 min apart per word
   const C = D.calls || [], out = [], last = {}, t10 = D.mins.findIndex(m => m >= "10:00");
   let prev = "";                // the last turn kept: TREND ▲ → HOLD ▲ → TREND ▲ is one leg resuming, not a turn (5 Nov 13:17 / 13:38)
   if (t10 < 0) return out;
   for (let k = Math.max(1, t10); k < C.length; k++) {
-    const c = C[k], p = C[k - 1], h = (c.word || "").split(" ")[0], hp = (p.word || "").split(" ")[0];
+    const c = C[k], p = C[k - 1], w = actW(c), h = w.split(" ")[0], hp = actW(p).split(" ")[0];
     if (!["TREND", "PALAT", "PALAT?", "RANGE"].includes(h) || (h === hp && c.lean === p.lean) || k - (last[h] ?? -99) < 20
         || h + c.lean === prev) continue;
     last[h] = k; if (h !== "PALAT?") prev = h + c.lean;     // a PALAT? wobble the leg survives is not a new leg
     const n = c.count, cnt = n && n.with != null ? ` · WITH ${n.with} · AGAINST ${n.against}` : "";
-    out.push({i: k + 0.02, turn: true, major: true, rk: h === "PALAT?" ? 3 : h === "RANGE" ? 2 : 1, tag: c.word,
+    out.push({i: k + 0.02, turn: true, major: true, rk: h === "PALAT?" ? 3 : h === "RANGE" ? 2 : 1, tag: w,
       tagc: h === "TREND" ? "ok" : h === "RANGE" ? null : "bad",
-      text: `**The word turned ${c.word}**${c.state ? ` · ${c.state}` : ""}${cnt}.${c.leg ? " " + c.leg + "." : ""}`,
+      text: `**The word turned ${w}**${c.state ? ` · ${c.state}` : ""}${cnt}.${c.leg ? " " + c.leg + "." : ""}`,
       chips: c.since ? [{t: "since " + c.since}] : [], wr: c.wrong_line || null});
   }
   return out;
@@ -1671,7 +1682,7 @@ function walkScenes() {
   pick.sort((x, y) => x.i - y.i).forEach(e => S.push({i: e.i, a: Math.max(0, e.i - 15), tab: walkTab(e), kind: kindOf(e), tag: e.tag, tagc: e.tagc,
     src: e.src, teach: e.tag, text: e.text, chips: e.chips, lines: nxOf(e)}));
   const n = c.count, P = (n && n.pieces) || [];
-  S.push({i: L1 + 0.995, a: Math.max(0, L1 - 30), tab: LIVE ? "Now" : "The close", tag: `${LIVE ? "NOW" : "CLOSE"} ${D.mins[L1]}`, teach: c.word,
+  S.push({i: L1 + 0.995, a: Math.max(0, L1 - 30), tab: LIVE ? "Now" : "The close", tag: `${LIVE ? "NOW" : "CLOSE"} ${D.mins[L1]}`, teach: actW(c),
     text: [`**${c.word || "no call"}**${c.state ? " · " + c.state : ""}${c.since ? " · since " + c.since : ""}`, n && n.with != null && `WITH ${n.with} · AGAINST ${n.against}`,
       c.leg, c.how_much && c.how_much.line, c.pause && c.pause.line].filter(Boolean).join(". ") + ".",
     chips: P.slice(0, 6).map(p => ({t: p.text, c: p.state === "with" ? "ok" : p.state === "against" ? "bad" : "q"}))});

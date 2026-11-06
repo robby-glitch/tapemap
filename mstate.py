@@ -17,6 +17,7 @@ Pure: no I/O but norm() (the prior sessions' bars, read only), no clock. Causal:
 her §1d gate is not touched (phase 4 is a registration she signs)."""
 from __future__ import annotations
 
+import bisect
 import datetime
 import functools
 import math
@@ -34,6 +35,7 @@ import thresholds
 
 START_M = 555                 # 09:15: her 3-min bars count from here (legs.START_M)
 ARR = {1: "▲", -1: "▼"}
+IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
 EFF_WIN = 45                  # [I] efficiency = |net move| / path of the 1-min closes over the last 45 min (spec §3)
 EFF_RANGE = 0.3               # [I] an unconfirmed TREND leg reads RANGE at efficiency < 0.3 ...
 VWAP_X = 2                    # [I] ... with >= 2 VWAP returns (fut crossing its VWAP) in those 45 min
@@ -52,13 +54,17 @@ MATURE_PUSHES = 3             # [I] sign 5, a mature leg: the 3rd or later push 
 SYNC_WIN = 30                 # [I] sign 4: a fresh 30-min extreme (the reads' TOP / BOTTOM signs' window)
 WIDEN_MIN = 6                 # [I] §6a WIDEN: >= 6 consecutive min near the trigger-candle stop without crossing it
 NEAR_X = 1.0                  # [I] §6a "near the stop": a minute's high (SELL; BUY its low) within 1.0 x the day's median
+SYNC_MIN = 5                  # [I] writers-sync / running: within the last 5 min (spec §4)
+SYNC_N = 2                    # [I] ... in >= 2 of the 3 indices (spec §4)
+DUP_MIN = 3                   # [I] one touch: same side + band within 3 min (rewrite copies); an ADD is a later touch
+COIL_MIN = 30                 # [I] COIL -> ESCAPE: a coil (CONTRACTING with both sides adding) within the last 30 min
                               #     1-min candle so far (her §1e yardstick): scales across NIFTY / BANKNIFTY / SENSEX
 HING = {"TREND ▲": "upar ka trend", "TREND ▼": "neeche ka trend", "RANGE": "range: dono taraf",
         "OPENING": "abhi swing nahi"}  # her Hinglish chips (symbols need Hinglish chips)
 
 _I = ("EFF_WIN", "EFF_RANGE", "VWAP_X", "NORM_N", "NORM_MIN", "RANGE_HI", "RANGE_LO", "GAUGE_WIN", "VIX_PTS", "IV_PTS",
       "VOL_N", "VOL_CLOSES", "OPEN_LEGAL", "FADE_SIGNS", "MATURE_PUSHES", "SYNC_WIN",
-      "WIDEN_MIN", "NEAR_X")
+      "WIDEN_MIN", "NEAR_X", "SYNC_MIN", "SYNC_N", "COIL_MIN", "DUP_MIN")
 _DEF = {n: globals()[n] for n in _I}
 _APPLIED = [None]
 _fmt = legs._fmt
@@ -242,6 +248,23 @@ def gauges(d, i, chain=None, nm=None):
     return G
 
 
+def _prem(d, i, chain):
+    """The ATM premium vs delta over the last 3 min per side -> {"ce", "pe"}: rupees beyond what delta explains
+    (handshake.who_opened's read, M4), None when a minute's ATM leg is missing. COIL -> ESCAPE's who (spec §4 guard:
+    who opened the move is read on premium vs delta, never on "OI up = writers")."""
+    t = d["mins"][i]
+    t3, step, out = _hm(_m(t) - 3), d.get("step") or 50, {"ce": None, "pe": None}
+    a, b = (chain or {}).get(t3), (chain or {}).get(t)
+    if not a or not b:
+        return out
+    k = round(a["spot"] / step) * step
+    for s in out:
+        x, y = legs._chain_leg(chain, t3, s, k)[0], legs._chain_leg(chain, t, s, k)[0]
+        if x and y and x.get("delta") is not None and y.get("ltp") is not None:
+            out[s] = round((y["ltp"] - x["ltp"]) - x["delta"] * (b["spot"] - a["spot"]), 2)
+    return out
+
+
 def chip(row):
     """The state word's Hinglish chip with its number: "upar ka trend · 24,551" (rule: every symbol a chip)."""
     w = row["word"]
@@ -252,12 +275,14 @@ def chip(row):
 
 def fold(d, chain=None, nm=None):
     """The state per frame minute -> (rows, pivots). rows[i] = {"t", "word", "dir", "conf", "since", "why", "line",
-    "eff", "vx", "price", "vol"}; pivots = the day's ordered swing list [{"kind", "lab", "px", "t", "known"}] (known =
+    "eff", "vx", "price", "vol", "expiry", "prem"}; pivots = the day's ordered swing list [{"kind", "lab", "px", "t", "known"}] (known =
     the close that confirmed it). Reads d["legs"]["rows"] for the unconfirmed leg (a frame without them has none),
     `chain` / `nm` for the volatility gauges (absent: those gauges could not check)."""
     mins = d["mins"]
     C, Hh, Ll, what = _series(d)
     LR = (d.get("legs") or {}).get("rows") or []
+    import jarvis
+    dte = (d.get("ctx") or {}).get("dte")
     eng, piv, nlegs = None, [], 0
     st = {"dir": 0, "conf": False, "line": None, "line_t": None, "why": "no swing confirmed yet", "ended": None}
     vol = {"word": None, "since": None, "up": 0, "down": 0, "read": 0, "gauges": []}
@@ -335,8 +360,12 @@ def fold(d, chain=None, nm=None):
                 "RANGE: overlapping swings " + " ".join(p["lab"] for p in piv[-4:])
         if w != word:
             word, since = w, t
+        exp = None
+        if t >= jarvis.UNWIND_AT and dte in (0, None):             # 0 DTE (spec §4): gamma both ways from 14:00
+            exp = ("EXPIRY: gamma both ways" + (" · no hold for the close" if t >= NO_HOLD_AT else "")) if dte == 0 \
+                else "EXPIRY: could not check — days to expiry unknown"      # rule 6: unknown is not "not expiry"
         out.append({"t": t, "word": w, "dir": D, "conf": st["conf"], "since": since, "why": why, "line": line,
-                    "eff": eff, "vx": vx, "price": what, "vol": vol})
+                    "eff": eff, "vx": vx, "price": what, "vol": vol, "expiry": exp, "prem": _prem(d, i, chain)})
     return out, piv
 
 
@@ -585,7 +614,7 @@ def trade(d, c, rows, later=()):
     not crossed, _holds true, before VWAP is touched, on a card that is not SKIP, with u3 logged beyond the stop. Then
     the stop is beyond u3 (as logged at the trigger bar: a stop is a price). If _holds later fails the WIDEN is shown
     broken: no ADD, and the stop stays (no third adjustment). ADD 1 (once): the first `later` same-side card, not SKIP,
-    known while the WIDEN stands; avg = the two trigger closes. Risk = points from each lot's entry to u3, summed; never
+    known while the WIDEN stands, its `t` more than DUP_MIN after this card's (a copy of the touch is no ADD); avg = the two trigger closes. Risk = points from each lot's entry to u3, summed; never
     a %. u3 not logged -> could not check, never a zero (rule 6)."""
     import jarvis
     i = _ix(d, c["close"])
@@ -631,7 +660,8 @@ def trade(d, c, rows, later=()):
                 ok, w = _holds(d, j, top, k, rows[j])
                 broke = None if ok else (t, w)
             if widen and not broke and len(lots) == 1:
-                c2 = next((x for x in later if widen[0] <= x["known"] <= t and x["verdict"] != "SKIP"), None)
+                c2 = next((x for x in later if widen[0] <= x["known"] <= t and x["verdict"] != "SKIP"
+                           and _m(str(x["t"])[:5]) - _m(c["t"]) > DUP_MIN), None)     # I1: a copy of the touch is no ADD
                 if c2:
                     lots.append(c2["px"])
         chips, why, risk = ([no3] if no3 else []), [], None
@@ -678,3 +708,97 @@ def trades(d, cs, rows):
         c["trade"], c["in_trade"] = ((None, p["t"]) if p else
                                      (trade(d, c, rows, [x for x in cs[n + 1:] if x["side"] == c["side"]]), None))
     return cs
+
+
+# ---- the cross-index read (spec §3 tiebreak, §4 writers-sync and COIL -> ESCAPE) ---------------------------------------
+
+def _at(fr, t, stale):
+    ms = fr.get("mins") or []
+    j = bisect.bisect_right(ms, t) - 1
+    return None if j < 0 or _m(t) - _m(ms[j]) > stale else j
+
+
+def cross(frames, t, day=None):
+    """The cross-index read at minute t from the three indices' frames ({idx: a jarvis.build frame with `mstate`}) ->
+    {"t", "sync", "day", "alert", "why"}. sync: a side's top front UNWINDING (§1d) in >= SYNC_N indices within SYNC_MIN
+    min (call writers covering = ▲). day: TREND DAY (all three in one trend, that side covering in all three) or
+    ROTATION (one index trending, the other two not). alert: COIL -> ESCAPE (spec §4) -- a coil (CONTRACTING with both
+    sides adding) within COIL_MIN min in any index, then one side's writers running (jarvis.wf_push) in >= SYNC_N within
+    SYNC_MIN min; who opened it is read on premium vs delta (_prem). Display only: a chip and a line beside each index's
+    own word, never its word, never a gate. A peer missing, of another day or stale (jarvis.BLIND_MIN) -> could not
+    check, named."""
+    import handshake
+    import jarvis
+    at, why = {}, []
+    for n in IDXS:
+        fr = frames.get(n) or {}
+        ok = fr.get("ok") and fr.get("mstate") and (day is None or fr.get("day") == day)
+        j = _at(fr, t, jarvis.BLIND_MIN) if ok else None
+        if j is None:                                   # rule 6: a stale peer is named, never counted either way
+            ms = fr.get("mins") or []
+            why.append(f"{n}: could not check — " + (f"its last minute {ms[-1]}, over {jarvis.BLIND_MIN} min behind {t}"
+                                                      if ok and ms and ms[-1] < t else f"no frame at {t}"))
+        else:
+            at[n] = (fr, j)
+
+    def back(fr, j, win):
+        return [x for x in range(j, -1, -1) if _m(t) - _m(fr["mins"][x]) < win]
+
+    cover = {"CE": [], "PE": []}
+    for n, (fr, j) in at.items():
+        for side in cover:
+            hit = next((fr["mins"][x] for x in back(fr, j, SYNC_MIN) if (fronts.side_front(
+                (fr["timeline"][x] or {}).get("fronts"), side) or {}).get("state") == fronts.UNWINDING), None)
+            if hit:
+                cover[side].append((n, hit))
+    sync = None
+    for side, D, other in (("CE", 1, "PE"), ("PE", -1, "CE")):
+        if len(cover[side]) >= SYNC_N and len(cover[side]) > len(cover[other]):
+            sync = {"dir": D, "n": len(cover[side]), "of": len(at),
+                    "text": f"{'call' if D > 0 else 'put'} writers covering in {len(cover[side])} of {len(at)} read"
+                            + (f" · {3 - len(at)} could not check" if len(at) < 3 else "") + ": "
+                            + ", ".join(f"{n} {m}" for n, m in cover[side])}
+    words = {n: fr["mstate"][j].get("word") for n, (fr, j) in at.items()}
+    dirs = {n: fr["mstate"][j]["dir"] for n, (fr, j) in at.items()}
+    for n, w in words.items():                          # rule 6: OPENING is not "checked, not trending" -- could not check
+        if w == "OPENING":
+            why.append(f"{n}: no swing confirmed yet")
+    dayw = None
+    trend = {n: w in ("TREND ▲", "TREND ▼") for n, w in words.items()}
+    if len(at) == 3 and all(trend.values()) and len(set(dirs.values())) == 1 and sync and sync["n"] == 3 \
+            and sync["dir"] == next(iter(dirs.values())):
+        D = sync["dir"]
+        dayw = f"TREND DAY {ARR[D]}: all 3 trending, {'call' if D > 0 else 'put'} writers covering in all 3"
+    elif len(at) == 3 and sum(trend.values()) == 1 and all(w == "RANGE" for n, w in words.items() if not trend[n]):
+        n = next(n for n, v in trend.items() if v)
+        dayw = f"ROTATION: {n} {ARR[dirs[n]]} alone, the other two don't follow — fade the extremes"
+
+    def both_add(fr, x):
+        ce, pe = fr["wf_ce"][x], fr["wf_pe"][x]
+        return ce is not None and pe is not None and ce >= jarvis.WF_L and pe >= jarvis.WF_L
+    run = {1: {}, -1: {}}                               # D -> {idx: the frame index of its latest run minute}
+    for n, (fr, j) in at.items():
+        for x in back(fr, j, SYNC_MIN):
+            ce, pe = fr["wf_ce"][x], fr["wf_pe"][x]
+            p = jarvis.wf_push(ce, pe) if ce is not None and pe is not None else None
+            if p:
+                run[p][n] = x
+                break
+    alert = None
+    for D in (1, -1):
+        # a coil counts only before that index's run (a coil after the run is the run's own wake); an index with no run yet keeps its coil
+        coiled = [n for n, (fr, j) in at.items() if any(
+            (fr["mstate"][x].get("vol") or {}).get("word") == "CONTRACTING" and both_add(fr, x) and x < run[D].get(n, 1 << 30)
+            for x in back(fr, j, COIL_MIN))]
+        if coiled and len(run[D]) >= SYNC_N:
+            s_ = "ce" if D > 0 else "pe"
+            g = {"bid": [], "not bid": [], "could not check": []}
+            for n, x in run[D].items():
+                v = (at[n][0]["mstate"][x].get("prem") or {}).get(s_)
+                g["could not check" if v is None else "bid" if v > 2 * handshake.TICK else "not bid"].append(n)
+            prem = " · ".join(f"{', '.join(v)} {k}" for k, v in g.items() if v)
+            alert = (f"box ban gaya, writers bhaag rahe — bada move ho sakta hai {ARR[D]} (coil: {', '.join(coiled)} · "
+                     f"{'call' if D > 0 else 'put'} writers running: {', '.join(run[D])} · premium beyond delta: "
+                     f"{prem}) · display only, never a prediction: a coil blasted in "
+                     "6 of 24 legs (27 Oct coil study)")
+    return {"t": t, "sync": sync, "day": dayw, "alert": alert, "why": why}

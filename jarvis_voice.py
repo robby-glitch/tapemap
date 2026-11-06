@@ -441,7 +441,8 @@ def _brief_fall(why):
 # ---- the server's hook (server.py: _jarvis_log, _jarvis_cmd, _jarvis_loop) ----------------------------------------------
 
 def changed(day, idx, word):
-    """The hook's test, once per new call-log row: True when idx's ACTION word moved (one call per change, never per pass).
+    """The hook's test, once per new call-log row: True when idx's word moved (one call per change, never per pass);
+    the word is the market state's from 6 Nov (call()'s `word`), the ACTION word in older rows.
     A day's first look compares with the log's row before this one (anytime-start: a restart is not a change; the day's
     first word is)."""
     last = _WORD.get(idx)

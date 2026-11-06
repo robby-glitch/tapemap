@@ -4776,10 +4776,29 @@ def _jarvis_reply(q):
             (_JPASS.get("failed") or {}).pop(idx, None)     # I1: a live build that returned clears its failure note
         if not live and out.get("ok"):
             out["calls"] = jarvis.calls(out)
+        if live and out.get("ok") and out.get("mins"):
+            out["call"]["xstate"] = _jarvis_cross(idx, out)   # spec §3-4: beside the word, never the word
+        elif out.get("ok") and out.get("mins") and out.get("call") is not None:   # rule 6: a replay says it was not read
+            out["call"]["xstate"] = {"t": out["mins"][-1], "sync": None, "day": None, "alert": None,
+                                     "why": ["cross: not read — a replay builds one index"]}
         _JARVIS[slot] = (key, time.time(), out)
         if live:
             _jarvis_log(out)
         return out
+
+
+def _jarvis_cross(idx, out):
+    """THE CROSS-INDEX READ (mstate.cross) on this live frame and the other indices' cached live frames: writers-sync,
+    TREND DAY / ROTATION, COIL -> ESCAPE. A replay builds one index, so it has none (its card says nothing of it).
+    Fail-soft: a failure is its own could-not-check line."""
+    import mstate
+    try:
+        peers = {i: (_JARVIS.get(i) or (None, 0.0, None))[2] for i in mstate.IDXS if i != idx}
+        return mstate.cross(dict(peers, **{idx: out}), out["mins"][-1], out.get("day"))
+    except Exception as e:
+        log.exception("jarvis cross")
+        return {"t": out["mins"][-1], "sync": None, "day": None, "alert": None,
+                "why": [f"cross: could not check — the cross-index read failed: {type(e).__name__}"]}
 
 
 # ---- Jarvis v3 (Task 2): the call log, the card, the commands, the watches -------------------------------------------
@@ -4791,7 +4810,9 @@ JARVIS_STALE_S = 120                             # a frame built > 2 min ago is 
                                                  # once a minute (~60 s + the build), so 2 min = a minute it missed]
 JARVIS_ORIGINS = ("http://localhost:8787", "http://127.0.0.1:8787",      # her Jarvis page (start-v2.bat), and Vite
                   "http://localhost:5173", "http://127.0.0.1:5173")
-JARVIS_PASS_IDX = ("NIFTY", "SENSEX")            # the pass keeps these live; BANKNIFTY builds on a face's demand
+JARVIS_PASS_IDX = ("NIFTY", "SENSEX", "BANKNIFTY")   # the pass keeps all three live (spec 2026-11-06 §7: BANKNIFTY gets
+                                                     # rows; on 5 Nov it had none, no face asked for it); a pass over
+                                                     # JARVIS_SLOW_S still says so on the card
 JARVIS_FRESH_S = 40                              # a live slot a face built < 40 s ago is not rebuilt by the pass [I]
 JARVIS_SLOW_S = 10                               # a pass over 10 s is a health note (the card lags by that much) [I]
 _JPASS = {"m": {}, "s": None, "at": None, "slow": None, "skipped": None, "last": None}   # the pass's memory and notes
@@ -4802,8 +4823,8 @@ _JVOICE = {}                                     # Task 7: idx / "brief" -> jarv
 
 def _jarvis_pass():
     """THE JARVIS PASS (the message loop, every MSG_EVERY_S): Monday's faces poll /api/jarvis/card, which never builds, so
-    once a minute NIFTY's and SENSEX's LIVE frame is rebuilt through _jarvis_reply (the call log written exactly as from
-    a poll) when its slot is over JARVIS_FRESH_S old. Weekdays 09:15-15:45 only; never stacked behind another build (a
+    once a minute each JARVIS_PASS_IDX index's LIVE frame is rebuilt through _jarvis_reply (the call log written exactly
+    as from a poll) when its slot is over JARVIS_FRESH_S old. Weekdays 09:15-15:45 only; never stacked behind another build (a
     replay holds the lock: this pass skips); a pass over JARVIS_SLOW_S is a health note. Fail-soft per index."""
     d = _ist()
     if not _jpass_hours(d):
@@ -4858,14 +4879,20 @@ def _jarvis_loop():
 def _jarvis_state_log(out, now):
     """THE STATE LOG: every minute once. A row is live only if it is the newest minute AND the clock is no more than
     jarvis.BLIND_MIN after that minute's end (the [I] 'more than 2 min behind = blind'); else backfill (anytime-start),
-    never pooled with live. Own try: a failure here must not stop the dedup guard or the voice."""
+    never pooled with live. The market state failed (no states, or not one per minute): a warning, and one row for the
+    newest minute saying it could not check (rule 6, M5), never a silent hole. Own try: a failure here must not stop the
+    dedup guard or the voice."""
     try:
         import fold, jarvis
         ms, mins = out.get("mstate") or [], out.get("mins") or []
-        if len(ms) != len(mins):
-            log.warning("jarvis state log skipped: %d states for %d minutes", len(ms), len(mins))
-            return
         lag = _ist().timestamp() - (fold.ms(out["day"], mins[-1]) / 1000 + 60) if mins else 0
+        if mins and (not ms or len(ms) != len(mins)):
+            why = next((n.split(": ", 1)[1] for n in (out.get("health") or {}).get("notes") or ()
+                        if str(n).startswith("the market state failed: ")), f"{len(ms)} states for {len(mins)} minutes")
+            log.warning("jarvis state log: market state could not check — %s", why)
+            jarvis_log.write(out["day"], out["idx"], jarvis_log.state_fail_row(
+                out, now, "live" if lag <= jarvis.BLIND_MIN * 60 else "backfill", why), kind="state")
+            return
         for j in range(len(ms)):
             src = "live" if j == len(ms) - 1 and lag <= jarvis.BLIND_MIN * 60 else "backfill"
             jarvis_log.write(out["day"], out["idx"], jarvis_log.state_row(out, j, now, src), kind="state")

@@ -513,7 +513,10 @@ def log_new(index, payload, chain_state=None, ones=None, path=PATH):
         # §6a (spec 2026-11-06, plan Task 9a): every zone3 row carries its own 3-min bar's VWAP / u3 / d3 -- bands3,
         # the bands it armed and entered on -- so the open-trade card reads the u3 line as logged, never recomputed.
         # Additive keys on NEW rows only: a row on disk is never rewritten. An unreadable band says so, never a zero.
-        b3 = {b.get("t"): x for b, x in zip(bars, day_js.get("bands3") or ()) if isinstance(b, dict)}
+        try:                       # M4: a bad bands3 gives every row bands3_why; it never drops the batch
+            b3 = {b.get("t"): x for b, x in zip(bars, day_js.get("bands3") or ()) if isinstance(b, dict)}
+        except Exception:
+            b3 = {}
 
         def _b3(t):
             x = b3.get(t)

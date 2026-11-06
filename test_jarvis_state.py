@@ -47,6 +47,24 @@ def test_the_state_word_leads_and_the_action_word_becomes_a_chip():
     assert "%" not in json.dumps(c, default=str)
 
 
+def test_a_raising_state_block_keeps_the_action_word_and_says_so(monkeypatch):
+    """M3: a raise in call()'s market-state block (here mstate.chip) never fails the build: the ACTION word stays the
+    word, mstate / zone / chips are None, and a why line says the state could not be checked (rule 6)."""
+    import mstate
+
+    def boom(_):
+        raise KeyError("dir")
+    d = _call_toy()
+    d["reads"]["action"] = jarvis.action_words(d)
+    d["mstate"] = _state_rows(d)
+    monkeypatch.setattr(mstate, "chip", boom)
+    c = jarvis.call(d)
+    assert c["word"] == c["action"]["said"] and c["mstate"] is None and c["zone"] is None and c["chips"] is None
+    assert c["why"][0] == "market state: could not check — KeyError"
+    assert not any(str(x).startswith(("state: ", "zone: ")) for x in c["why"])
+    assert c["since"] == c["action"]["since"]
+
+
 def test_the_grade_reads_the_count_for_the_trend_and_never_flips_it():
     assert jarvis._grade({"with": 3, "against": 1}, 1, 1) == "healthy"
     assert jarvis._grade({"with": 3, "against": 1}, 1, -1) == "tired"        # the count is for the other lean: mirrored
@@ -126,6 +144,21 @@ def test_the_server_writes_every_minute_of_a_late_start_once(monkeypatch):
     assert len(jarvis_log.read(DAY, "NIFTY", kind="state")) == 3 and time.time()
 
 
+def test_a_failed_market_state_leaves_one_could_not_check_row(monkeypatch):
+    """M5 (rule 6): the market state failed -> no state rows, but the newest minute says why; never a silent hole."""
+    from test_jarvis_log import CALL, _srv, frame
+    server, _ = _srv(monkeypatch, (2026, 11, 2, 10, 42, 25))
+    ms = ["10:40", "10:41"]
+    monkeypatch.setattr(jarvis, "build", lambda day, idx, upto, fill=False: dict(
+        frame(), day=day, idx=idx, mins=ms, call=dict(CALL, at=ms[-1]), mstate=[],
+        health={"notes": ["the market state failed: KeyError: 'dir' — the ACTION word shown"]}))
+    server._jarvis_reply({"idx": ["NIFTY"]})
+    rows = jarvis_log.read(DAY, "NIFTY", kind="state")
+    assert rows == [{"day": DAY, "t": "10:41", "at": rows[0]["at"], "src": "live", "word": None, "idx": "NIFTY",
+                     "why": "market state: could not check — KeyError: 'dir' — the ACTION word shown"}]
+    assert [r["t"] for r in jarvis_log.read(DAY, "NIFTY")] == ["10:41"]          # the call log row still written
+
+
 def test_the_card_passes_the_state_the_action_and_the_chips():
     fr = {"ok": True, "day": DAY, "idx": "NIFTY", "mins": ["10:41"], "fut": [1.0], "health": {"notes": []},
           "call": {"word": "TREND ▲", "mstate": {"word": "TREND ▲", "chip": "upar ka trend · 23,000"},
@@ -195,6 +228,16 @@ def test_5nov_sensex_zone_card_is_causal_the_cut_full_build_equals_the_11_00_bui
             assert all(r["t"] <= fr["mins"][k] for r in jarvis_log.state_row(fr, k, 0, "live")["zone"])
 
 
+def test_all3_reads_nifty_in_its_n_slot_on_a_sensex_frame():
+    d = _toy()
+    n = len(d["mins"])
+    d["idx"] = "SENSEX"
+    d["fut"] = [74000.0 - 12 * i for i in range(n)]               # SENSEX's own future falls 60 in 5 min ...
+    d["nf"] = [23000.0] * n                                       # ... NIFTY does not move
+    s = jarvis.reads(d)["sync"][10]
+    assert s["ch"][0] == 0.0 and s["dir"] == 0                    # not "all 3 ▼": NIFTY did not move
+
+
 def test_the_open_trade_rides_on_the_zone_card_and_never_shows_a_later_minute():
     d = _call_toy()
     d["reads"]["action"] = jarvis.action_words(d)
@@ -215,3 +258,47 @@ def test_the_open_trade_rides_on_the_zone_card_and_never_shows_a_later_minute():
     e = jarvis.call(jarvis.cut_at(d, 12))["zone"]["open"]                        # 10:12: the hard line
     assert e["open"] is False and e["chips"] == ["d3 ke paar 3-min close 22,940f — trade band"]
     assert "%" not in json.dumps(c["zone"])
+
+
+def test_a_live_frame_carries_the_cross_read_of_its_cached_peers(monkeypatch):
+    from test_jarvis_log import CALL, _srv, frame
+    server, clock = _srv(monkeypatch, (2026, 11, 2, 10, 42, 25))
+
+    def fake(day, idx, upto, fill=False):
+        ms = [f"{m // 60:02d}:{m % 60:02d}" for m in range(640, upto)]
+        return dict(frame(), day=day, idx=idx, mins=ms, call=dict(CALL, at=ms[-1]), mstate=[_srow(m) for m in ms],
+                    timeline=[{"fronts": []} for _ in ms], wf_ce=[None] * len(ms), wf_pe=[None] * len(ms))
+    monkeypatch.setattr(jarvis, "build", fake)
+    out = server._jarvis_reply({"idx": ["NIFTY"]})
+    assert out["call"]["xstate"]["why"] == ["SENSEX: could not check — no frame at 10:41",
+                                            "BANKNIFTY: could not check — no frame at 10:41"]
+    server._jarvis_reply({"idx": ["SENSEX"]})
+    out = server._jarvis_reply({"idx": ["BANKNIFTY"]})
+    assert out["call"]["xstate"]["why"] == [] and out["call"]["xstate"]["day"] is None   # all ▲, no front covering
+    assert server._jarvis_card("BANKNIFTY")["xstate"]["t"] == "10:41"
+
+
+def test_a_replay_card_says_the_cross_read_was_not_read(monkeypatch):
+    from test_jarvis_log import CALL, _srv, frame
+    server, clock = _srv(monkeypatch, (2026, 11, 2, 16, 10, 0))
+
+    def fake(day, idx, upto, fill=False):
+        ms = [f"{m // 60:02d}:{m % 60:02d}" for m in range(640, 650)]
+        return dict(frame(), day=day, idx=idx, mins=ms, call=dict(CALL, at=ms[-1]))
+    monkeypatch.setattr(jarvis, "build", fake)
+    monkeypatch.setattr(jarvis, "calls", lambda d: [])
+    out = server._jarvis_reply({"idx": ["NIFTY"], "day": ["2026-11-02"], "upto": ["10:49"]})
+    assert out["call"]["xstate"]["why"] == ["cross: not read — a replay builds one index"] and out["call"]["xstate"]["sync"] is None
+
+
+def test_banknifty_is_kept_live_and_on_the_replay_calendar(tmp_path, monkeypatch):
+    import pathlib
+    import book_log
+    import chain_live
+    import server
+    assert "BANKNIFTY" in server.JARVIS_PASS_IDX
+    monkeypatch.setattr(book_log, "DIR", str(tmp_path))
+    monkeypatch.setattr(chain_live, "CHAIN_DIR", pathlib.Path(tmp_path))
+    for f in ("book_BANKNIFTY_2026-11-05.jsonl", "chain_BANKNIFTY_2026-11-05.jsonl"):
+        (tmp_path / f).write_text("{}\n", encoding="utf-8")
+    assert jarvis.days()["BANKNIFTY"] == ["2026-11-05"]
