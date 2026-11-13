@@ -4740,6 +4740,29 @@ _JARVIS_LOCK = threading.RLock()                 # ponytail: one build at a time
                                                  # (an RLock: the JARVIS PASS holds it around _jarvis_reply, which takes it)
 
 
+EXEC_DIR = os.path.join("data", "exec")       # EXECUTE THE EDGE's forward log, <day>.jsonl (spec 2026-11-13 §5)
+
+
+def _exec_attach(fr, live):
+    """EXECUTE THE EDGE (spec 2026-11-13, approved 14 Nov): her plan on this NIFTY frame -> the card's compact block; when live,
+    the forward log data/exec/<day>.jsonl. Fail-soft: the frame and the card never wait on it or fall with it."""
+    import execute
+    try:
+        ex = execute.for_frame(fr)
+    except Exception as e:                          # one bad build: said on the card, retried next pass
+        log.exception("execute")
+        return {"ok": False, "why": f"could not check — the plan failed ({type(e).__name__})"}
+    if live and ex.get("ok"):
+        try:
+            execute.append_log(os.path.join(EXEC_DIR, f"{fr['day']}.jsonl"), execute.log_rows(ex))
+        except Exception:
+            log.exception("execute log")
+    c = execute.card(ex)
+    if live and c.get("state") == "DAY END":       # her marked trades are options (strike, side, role): a count, not points
+        c["line"] += f" · YOU {sum(1 for t in _hold_list() if t.get('idx') == 'NIFTY')} marked"
+    return c
+
+
 def _jarvis_reply(q):
     """GET /api/jarvis?idx=&day=&upto= (J2, jarvis.build): today = the frame at the last complete minute (the handshake's
     20 s grace), cached 20 s per index; a past day, or an explicit upto (HH:MM, exclusive), replays the record on request,
@@ -4772,6 +4795,8 @@ def _jarvis_reply(q):
         if hit and hit[0] == key and time.time() - hit[1] < JARVIS_TTL_S:
             return hit[2]
         out = dict(jarvis.build(day, idx, upto, fill), live=live, asof=d.strftime("%H:%M:%S"))
+        if idx == "NIFTY" and out.get("ok") and out.get("mins"):
+            out["exec"] = _exec_attach(out, live)      # EXECUTE THE EDGE: her plan beside Jarvis's word, never the word
         if live:
             (_JPASS.get("failed") or {}).pop(idx, None)     # I1: a live build that returned clears its failure note
         if not live and out.get("ok"):

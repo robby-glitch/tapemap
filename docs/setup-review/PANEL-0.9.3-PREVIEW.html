@@ -1,0 +1,178 @@
+<!doctype html><meta charset=utf-8><style>/* Side panel (spec §1). Light only; 320–500 px; one scroll (the page's own — nothing inside scrolls); tabular numbers.
+   Brick = CE side / sellers, teal = PE side / buyers (the chart glyphs' colours). RED act now · AMBER out of the
+   ordinary · BLUE in your favour. Nothing blinks or moves. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff; --bg2: #f5f6f8; --fg: #1d2330; --mute: #5d6878; --faint: #8a93a1; --line: #e3e6eb;
+  --ce: #c0392b; --ce-pale: #efc9c4; --pe: #0f7b6c; --pe-pale: #bcdcd6; --gx: #a3abb6;
+  --red: #c62828; --red-bg: #fdecea; --red-ln: #f2c4c0;
+  --amber: #9a5b00; --amber-bg: #fff4de; --amber-ln: #f0d9a8;
+  --blue: #1f5fbf; --blue-bg: #e9f0fd; --blue-ln: #c5d6f5;
+  --px: #eef1f6;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); }
+body { font: 12px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; overflow-x: hidden; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.tag { color: var(--faint); font-size: 9.5px; font-weight: 400; }
+.mute { color: var(--mute); }
+.empty { padding: 18px 14px; color: var(--mute); }
+
+/* cards: the focused one open, the rest one line each */
+.card { border-bottom: 1px solid var(--line); }
+.card.open { padding: 10px 12px 12px; overflow-wrap: anywhere; }   /* a long unbroken string wraps, never overlaps */
+.card.line { border-left: 3px solid transparent; }
+.card.line.hi-red { border-left-color: var(--red); }
+.card.line.hi-amber { border-left-color: var(--amber); }
+.card.line.hi-blue { border-left-color: var(--blue); }
+.cl { all: unset; box-sizing: border-box; display: flex; align-items: baseline; gap: 7px; width: 100%; padding: 7px 12px 7px 9px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.cl:hover { background: var(--bg2); }
+.cl:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }   /* all: unset drops the ring */
+.cl b { font-weight: 600; }
+.cl > :last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cl .vw { font-weight: 600; font-size: 11px; }
+.vw.red { color: var(--red); } .vw.amber { color: var(--amber); } .vw.blue { color: var(--blue); }
+
+/* 1 header */
+.hd1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; font-size: 13px; }
+.hd1 b { flex: 1; min-width: 0; font-weight: 600; }
+.ltp { font-weight: 600; white-space: nowrap; }
+.hd2 { margin-top: 1px; color: var(--mute); font-size: 11px; }
+.hd.s-stale .hd2 { color: var(--amber); font-weight: 600; }
+.hd3 { color: var(--faint); font-size: 10.5px; }
+
+/* 2 verdict */
+.verdict { margin: 9px 0 0; padding: 7px 9px 8px; background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--faint); border-radius: 4px; }
+.verdict.red { background: var(--red-bg); border-color: var(--red-ln); border-left-color: var(--red); }
+.verdict.amber { background: var(--amber-bg); border-color: var(--amber-ln); border-left-color: var(--amber); }
+.verdict.blue { background: var(--blue-bg); border-color: var(--blue-ln); border-left-color: var(--blue); }
+.vh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.vh .vw { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; letter-spacing: .3px; }
+.verdict.red .vw { color: var(--red); } .verdict.amber .vw { color: var(--amber); } .verdict.blue .vw { color: var(--blue); }
+.vs { color: var(--mute); font-size: 11px; white-space: nowrap; }
+.vs .tag { font-size: 10px; }
+.vy, .vg { margin-top: 3px; font-size: 11.5px; }
+.lbl { margin-right: 5px; color: var(--mute); font-weight: 600; }
+.vo { margin-top: 5px; }
+.vo .chip { background: var(--bg); }
+
+/* 2b Jarvis (0.9): the brain's block in the verdict's place. Terminal rows, short cells; ▲ teal / ▼ brick; greyed when
+   blind, stale or unanswered. Light only, nothing blinks. */
+.jv { margin: 9px 0 0; padding: 7px 9px 8px; background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; }
+.jv.grey .jword, .jv.grey .jpush, .jv.grey .js { color: var(--faint); }
+.jh { font-size: 11px; line-height: 1.35; }
+.jh.ok { color: var(--pe); } .jh.gap { color: var(--amber); } .jh.cant { color: var(--red); font-weight: 600; }
+.jw { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 4px; }
+.jword { font-size: 20px; font-weight: 700; letter-spacing: .4px; line-height: 1.15; }
+.j-up { color: var(--pe); } .j-dn { color: var(--ce); } .j-grey { color: var(--faint); }
+.jw .chip { color: var(--fg); }
+.js { margin-top: 3px; font-size: 11.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.jp { margin-top: 4px; padding: 3px 0 3px 7px; border-left: 2px solid var(--line); font-size: 11px; line-height: 1.4; }
+.jr { color: var(--ce); } .ja { color: var(--pe); } .jn { color: var(--mute); } .jm { color: var(--amber); }
+.jpush { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line); font-size: 11px; line-height: 17px; }
+.jq { display: grid; grid-template-columns: 3.2em 4.4em auto auto minmax(0, 1fr); gap: 0 7px; align-items: baseline; white-space: nowrap; overflow: hidden; }
+.jq .c { color: var(--mute); } .jq .a { font-weight: 600; } .jq.mute, .jq.mute .a { color: var(--faint); font-weight: 400; }
+.jq .chip { justify-self: end; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 9.5px; padding: 0 5px; }   /* the chip yields first on a narrow panel */
+.jnote { margin-top: 5px; color: var(--faint); font-size: 9.5px; }
+/* EXECUTE THE EDGE (0.9.3): her plan's line, then at a trigger the ticket, monospace so the checks line up */
+.jx { margin: 2px 0 6px; padding: 5px 7px; border-left: 3px solid var(--fg); background: var(--bg); }
+.jxl { font-weight: 700; font-size: 12.5px; line-height: 1.35; }
+.jxt { font-family: ui-monospace, Consolas, monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* 3 numbers: 3 × 2 tiles */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 9px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.tile { padding: 5px 7px 6px; background: var(--bg); min-width: 0; }
+.tl { color: var(--mute); font-size: 10.5px; }
+.tv { font-size: 14.5px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
+.ts { color: var(--mute); font-size: 10.5px; overflow-wrap: anywhere; }
+.t-ce .tv, .t-ce .tl { color: var(--ce); }
+.t-pe .tv, .t-pe .tl { color: var(--pe); }
+.t-warn { background: var(--amber-bg); }
+.t-warn .tv { color: var(--amber); }
+
+/* 4 strike ladder: CE ΔOI grows left from the spine, PE ΔOI right */
+.ladder { margin-top: 10px; overflow: hidden; }   /* a runaway ΔOI label never widens the panel */
+.lrow { display: grid; grid-template-columns: 4.2em 4.2em minmax(0, 1fr) minmax(0, 1fr) 2.6em 3.2em; align-items: center; padding: 1px 3px; font-size: 11px; line-height: 16px; }
+.lrow > span { padding: 0 3px; }
+.lrow.lh { padding-bottom: 2px; color: var(--faint); font-size: 9.5px; border-bottom: 1px solid var(--line); }
+.lrow.px { background: var(--px); border-radius: 3px; }
+.lrow.px .k { font-weight: 700; }
+.lrow .c { color: var(--mute); }
+.lrow .s, .lrow .r { text-align: right; }
+.b { display: flex; align-items: center; height: 16px; }
+.b.l { justify-content: flex-end; padding-right: 0; border-right: 1px solid #cfd4db; }
+.lrow.lh .r { padding-right: 4px; }
+.b + .b { padding-left: 0; }
+.bar { position: relative; display: block; height: 9px; }
+.bar.ce { background: var(--ce); } .bar.ce.neg { background: var(--ce-pale); }
+.bar.pe { background: var(--pe); } .bar.pe.neg { background: var(--pe-pale); }
+.bar.gx { background: var(--gx); margin-left: 3px; }
+/* ΔOI number at the bar's outer end; the ladder reserves room for it on the outer side of each ΔOI cell */
+.has-n .b.l { padding-left: 2.9em; }
+.has-n .b.l + .b { padding-right: 2.9em; }
+.n { position: absolute; top: 50%; transform: translateY(-50%); font: 600 9px/1 -apple-system, "Segoe UI", Roboto, sans-serif; white-space: nowrap; }
+.b.l .n { right: 100%; margin-right: 3px; }
+.b.l + .b .n { left: 100%; margin-left: 3px; }
+.bar.ce .n { color: var(--ce); } .bar.pe .n { color: var(--pe); } .bar.neg .n { color: var(--mute); }
+.na { color: var(--faint); font-style: normal; }
+.b.l .na { padding-right: 4px; }
+.lts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: -3px; color: var(--mute); font-size: 9.5px; line-height: 12px; }
+.lt.ce { color: var(--ce); } .lt.pe { color: var(--pe); }
+.foot { margin-top: 4px; color: var(--mute); font-size: 10px; line-height: 1.35; }
+
+/* 5 straddle vs decay */
+.strad, .flow { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.sh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; }
+.sec { color: var(--mute); font-size: 9.5px; letter-spacing: .4px; text-transform: uppercase; }
+.k-s, .k-e { display: inline-block; width: 14px; margin: 0 3px 3px 2px; vertical-align: middle; border-top: 2px solid var(--fg); }
+.k-e { border-top: 1.5px dashed var(--faint); }
+.spark { display: block; width: 100%; height: 40px; margin-top: 4px; overflow: visible; }
+.spark path { fill: none; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.spark .s { stroke: var(--fg); stroke-width: 1.6; }
+.spark .e { stroke: var(--faint); stroke-width: 1.2; stroke-dasharray: 4 3; }
+
+/* 6 flow strip */
+.f1 { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; }
+.f1 b { font-weight: 600; }
+.chip { padding: 0 7px; color: var(--mute); font-size: 10.5px; border: 1px solid var(--line); border-radius: 99px; white-space: nowrap; }
+.f2 { margin-top: 2px; }
+.ds { margin: 0 4px 0 6px; }
+.d { margin-right: 6px; font-weight: 600; }
+.d.up { color: var(--pe); } .d.dn { color: var(--ce); }
+.f3 { margin-top: 2px; color: var(--mute); font-size: 11px; }
+
+/* 7 kya badla */
+.kb { display: block; width: 100%; margin-top: 8px; padding: 5px 8px; text-align: left; font-size: 11.5px; border: 1px solid; border-radius: 4px; cursor: pointer; }
+.kb.red { color: var(--red); background: var(--red-bg); border-color: var(--red); }
+.kb.amber { color: var(--amber); background: var(--amber-bg); border-color: var(--amber); }
+.kb.blue { color: var(--blue); background: var(--blue-bg); border-color: var(--blue); }
+
+/* 8 details */
+.det { margin-top: 10px; padding-top: 7px; border-top: 1px solid var(--line); }
+.dsum { all: unset; display: block; color: var(--mute); font-size: 10.5px; cursor: pointer; }
+.dsum:hover { color: var(--fg); }
+.dsum:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.det-body { margin-top: 7px; font-size: 11px; }
+.drows { width: 100%; border-collapse: collapse; }
+.drows td { padding: 1px 0; vertical-align: top; overflow-wrap: anywhere; }
+.drows td:first-child { width: 38%; padding-right: 10px; color: var(--mute); }
+.log { margin-top: 7px; padding: 6px 7px; background: var(--bg2); border-radius: 4px; font: 10.5px/1.45 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+.ab { margin-top: 6px; color: var(--mute); }
+.ab.cant { color: var(--amber); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.btns button { padding: 2px 9px; color: var(--mute); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.btns button:hover { color: var(--fg); border-color: var(--mute); }
+
+/* the panel's own status line (sidepanel.js), pinned to the bottom while shown */
+#status { position: sticky; bottom: 0; padding: 5px 12px; color: var(--fg); background: var(--bg2); border-top: 1px solid var(--line); font-size: 11px; }
+#status[hidden] { display: none; }
+</style><body style="width:380px"><section class="card open" data-key="NSE:FNO:53001|5|NIFTY OCT FUT"><header class="hd s-live"><div class="hd1"><b>NIFTY OCT FUT · 5m</b><span class="ltp">22,624.0 <span class="tag">[M]</span></span></div><div class="hd2">aaj expiry · 3h 50m baaki · chain 6s pehle <span class="tag">[M]</span></div></header><div class="jv"><div class="jx"><div class="jxl">TAKE · hold till a valid BUY, the stop or 15:00</div><div class="jxt">SELL 10:54 · try 2 · entry 25,250f · stop 25,286f (35) · room 1.3σ</div><div class="jxt">GAP    opened inside yesterday&#39;s range ✓</div><div class="jxt">TREND  VWAP touched 81 min ago ✓</div><div class="jxt">LEG    no 2R win today ✓</div><div class="jxt">FLOW   sellers since the top -70 ✓</div><div class="jxt">LIVE LEG  none</div></div><div class="jw"><b class="jword j-dn">TREND ▼</b><span class="chip">chal raha</span><span class="vs">HOLD · since 09:56 · at 10:42</span></div><div class="js" title="WITH · Sides 10:40 REAL · put writers covering
+WITH · writers ±7 DOWN (CE +12.1L · PE −14.0L / 3 min)
+AGAINST · wall ahead 22,900s PE 186L BUILDING
+WITH · last answer 10:38 22,950s PE ±2 BROKEN
+? · could not check — Sides has no closed slot
+WITH · fut OI fresh shorts +612 lots / 30 min
+AGAINST · speed ▲ ×2.3 FAST against
+WITH · all 3 ▼ (N −14 · BN −31 · SX −52 / 5 min)
+? · no trigger today"><span class="j-up">WITH 4</span> · <span class="j-dn">AGAINST 1</span> <span class="mute">· 2 not counted</span></div><div class="js mute">could not check — Sides has no closed slot · no trigger today</div><div class="js">leg ▼ TREND 103 pts · 2.5σ · TOOT 09:51 · origin 23,135f 09:35 · extreme 23,002f 10:04</div><div class="jp"><div>PAUSE ▼ · hold · clean</div><div class="jr">✗ …</div><div class="ja">✓ …</div></div><div class="js"><span class="lbl">how much</span>day TREND ▼ · range used 0.5 of EM · σ 26 · VIX could not check · CPR narrow</div><div class="js"><span class="lbl">where</span>stop 23,136f (zone) · pool PWH 23,155s · t1 pVAH 23,058f · t2 PE wall 23,008s (23,051f) · room 44 to MAX PAIN</div><div class="js"><span class="lbl">buyer</span>buy the PE on a pullback to d1 22,990f, not chased · needs +62 pts today [I ×1.15] · EM left 40 → thin</div><div class="js pk"><span class="lbl">seller</span><b>sell the CE at / above 23,000s (23,043f): call writers are writing it · IV 13.4 vs RV 9.8 → rich · fold = HOLD v2 line</b><span class="chip">pick</span></div><div class="js"><span class="lbl">galat agar</span>PALAT? if back past 22,938f (0.35 of the leg) · PALAT at 22,886f</div><div class="js mute"><span class="lbl">record</span>TREND ▼ since 09:56 · −200 so far · PALAT? said 3× · came true 0× · blind 0 min</div><div class="jpush"><div class="jq"><span class="c">10:38</span><span class="d dn">▼−612</span><span>22,950s PE ±2</span><span class="a">TOOT</span><span class="chip">toota</span></div></div><div class="jh gap">1 gap · Dext footprint missing since 10:39 · newest 3 min from the book</div><div class="jnote">guidance only</div></div><div class="flow"><div class="f1"><b>AAJ KA DIN · PIN/CHOP · 13:55 se <span class="tag">[I]</span></b></div><div class="f2">CVD 30m −0.3K · flat<span class="ds"><span class="d up">+320</span><span class="d dn">−150</span><span class="d up">+80</span><span class="d dn">−410</span><span class="d up">+60</span></span><span class="tag">[M]</span></div><div class="f3">14:45 DABAAV ▲ 22,615 — sellers absorbed at VWAP, no follow-through <span class="tag">[M]</span></div></div><div class="tiles"><div class="tile t-warn"><div class="tl">straddle</div><div class="tv">₹41 <span class="tag">[M]</span></div><div class="ts">−7% vs decay</div></div><div class="tile t-neutral"><div class="tl">move baaki</div><div class="tv">±51 <span class="tag">[I]</span></div><div class="ts">22,569–22,671</div></div><div class="tile t-neutral"><div class="tl">flip</div><div class="tv">22,540 <span class="tag">[I]</span></div><div class="ts">chart 22,603</div></div><div class="tile t-neutral"><div class="tl">fut OI</div><div class="tv">−87K <span class="tag">[M]</span></div><div class="ts">long nikal rahe</div></div></div><div class="ladder has-n"><div class="lrow lh"><span>strike</span><span>chart</span><span class="r">CE ΔOI</span><span>PE ΔOI</span><span>|γ|</span><span class="r">str</span></div><div class="lrow"><span class="k">22,700</span><span class="c">22,763</span><span class="b l" title="CE ΔOI +38K"><i class="bar ce" style="width:31.7%"><b class="n">+38K</b></i></span><span class="b" title="PE ΔOI +2.6K"><i class="bar pe" style="width:1.8%"><b class="n">+2.6K</b></i></span><span class="b"><i class="bar gx" style="width:13.3%"></i></span><span class="s">₹146</span></div><div class="lrow"><span class="k">22,650</span><span class="c">22,713</span><span class="b l" title="CE ΔOI +64K"><i class="bar ce" style="width:53.3%"><b class="n">+64K</b></i></span><span class="b" title="PE ΔOI −9.1K"><i class="bar pe neg" style="width:6.4%"><b class="n">−9.1K</b></i></span><span class="b"><i class="bar gx" style="width:30.0%"></i></span><span class="s">₹97</span></div><div class="lrow"><span class="k">22,600</span><span class="c">22,663</span><span class="b l" title="CE ΔOI −1.2L"><i class="bar ce neg" style="width:100.0%"><b class="n">−1.2L</b></i></span><span class="b" title="PE ΔOI +15.6K"><i class="bar pe" style="width:10.9%"><b class="n">+15.6K</b></i></span><span class="b"><i class="bar gx" style="width:70.0%"></i></span><span class="s">₹63</span><span class="lts"><span class="lt ce">CE deewar</span></span></div><div class="lrow px"><span class="k">22,550</span><span class="c">22,613</span><span class="b l" title="CE ΔOI +52K"><i class="bar ce" style="width:43.3%"><b class="n">+52K</b></i></span><span class="b" title="PE ΔOI +71.5K"><i class="bar pe" style="width:50.0%"><b class="n">+71.5K</b></i></span><span class="b"><i class="bar gx" style="width:100.0%"></i></span><span class="s">₹41</span><span class="lts"><span class="lt">ATM</span><span class="lt">flip</span><span class="lt">max pain</span></span></div><div class="lrow"><span class="k">22,500</span><span class="c">22,563</span><span class="b l" title="CE ΔOI +6.5K"><i class="bar ce" style="width:5.4%"><b class="n">+6.5K</b></i></span><span class="b" title="PE ΔOI +1.4L"><i class="bar pe" style="width:100.0%"><b class="n">+1.4L</b></i></span><span class="b"><i class="bar gx" style="width:53.3%"></i></span><span class="s">₹55</span><span class="lts"><span class="lt pe">PE deewar</span></span></div><div class="lrow"><span class="k">22,450</span><span class="c">22,513</span><span class="b l"><i class="na">·</i></span><span class="b" title="PE ΔOI +48.1K"><i class="bar pe" style="width:33.6%"><b class="n">+48.1K</b></i></span><span class="b"><i class="bar gx" style="width:23.3%"></i></span><span class="s">₹93</span></div><div class="lrow"><span class="k">22,400</span><span class="c">22,463</span><span class="b l" title="CE ΔOI −1.3K"><i class="bar ce neg" style="width:1.1%"><b class="n">−1.3K</b></i></span><span class="b" title="PE ΔOI +21K"><i class="bar pe" style="width:14.7%"><b class="n">+21K</b></i></span><span class="b"><i class="na">·</i></span><span class="s"><i class="na">·</i></span></div><div class="foot">ΔOI 15 min <span class="tag">[M]</span> · red = CE writers adding (rok upar) · teal = PE writers adding (sahara neeche) <span class="tag">[I]</span> · row tint = price · chart = strike + basis 63 <span class="tag">[I]</span></div></div><div class="strad"><div class="sh"><span class="sec">straddle <i class="k-s"></i> vs decay <i class="k-e"></i></span><span>₹58 → ₹41 <span class="tag">[M]</span> · decay says ₹44 <span class="tag">[I]</span></span></div><svg class="spark" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path class="e" d="M0.0 3.0L10.7 3.8L21.4 4.8L32.1 5.6L42.9 6.6L53.6 7.4L64.3 8.4L75.0 9.4L85.7 10.2L96.4 11.2L107.1 12.2L117.9 13.2L128.6 14.0L139.3 15.0L150.0 16.0L160.7 17.0L171.4 18.0L182.1 19.0L192.9 20.0L203.6 21.2L214.3 22.2L225.0 23.2L235.7 24.2L246.4 25.4L257.1 26.4L267.9 27.6L278.6 28.6L289.3 29.8L300.0 31.0"/><path class="s" d="M0.0 3.0L10.7 3.4L21.4 3.8L32.1 4.8L42.9 6.0L53.6 7.6L64.3 9.4L75.0 11.0L85.7 12.6L96.4 13.8L107.1 14.6L117.9 15.2M139.3 16.4L150.0 17.4L160.7 18.8L171.4 20.4L182.1 22.4L192.9 24.2L203.6 26.0L214.3 27.4L225.0 28.6L235.7 29.4L246.4 30.0L257.1 30.8L267.9 31.8L278.6 33.2L289.3 35.0L300.0 37.0"/></svg></div><button class="kb amber" data-act="dismiss" data-key="NSE:FNO:53001|5|NIFTY OCT FUT" data-alert="ceCut|22600|1791279720000" title="click: dekh liya">kya badla · 14:52 · CE 22,600 writers kaat rahe −1.2L in 15m · deewar kamzor</button><footer class="det"><button class="dsum" data-act="details" data-key="NSE:FNO:53001|5|NIFTY OCT FUT">PCR 0.92 <span class="tag">[M]</span> · max pain 22,550 <span class="tag">[M]</span> · ATM IV 10.8% <span class="tag">[M]</span> · basis +63 <span class="tag">[I]</span> · lot 65 <span class="tag">[M]</span> · details ▸</button></footer></section></body>

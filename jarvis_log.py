@@ -180,4 +180,5 @@ def card(fr, rows=(), state=None, notes=()):
             "self": self_line(rows, _last(fr.get("fut"))),
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
             "watches": list(st.get("watches") or []), "voice": None, "brief": None,   # Task 7: server._JVOICE fills both
-            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips"), "zone": c.get("zone"), "xstate": c.get("xstate")}   # the state leads (6 Nov)
+            "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips"), "zone": c.get("zone"), "xstate": c.get("xstate"),   # the state leads (6 Nov)
+            "exec": fr.get("exec")}   # EXECUTE THE EDGE (spec 2026-11-13): her plan's line + ticket, compact, verbatim
