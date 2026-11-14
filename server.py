@@ -4758,6 +4758,8 @@ def _exec_attach(fr, live):
         except Exception:
             log.exception("execute log")
     c = execute.card(ex)
+    if ex.get("ok"):
+        c["marks"] = ex.get("marks") or []          # the plan's word on every signal: the Jarvis page's zone marks (the card drops it)
     if live and c.get("state") == "DAY END":       # her marked trades are options (strike, side, role): a count, not points
         c["line"] += f" · YOU {sum(1 for t in _hold_list() if t.get('idx') == 'NIFTY')} marked"
     return c

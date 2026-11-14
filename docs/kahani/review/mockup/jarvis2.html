@@ -254,7 +254,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:10px;padding:9px
       <div class="cell"><div class="k">FUEL</div><div class="v" id="sFuel">—</div><div class="meter"><i id="mFuel"></i><em style="left:20%"></em></div><div class="s" id="sFuel2">bar 500 lots / 5 min</div></div>
       <div class="cell"><div class="k">SPEED</div><div class="v" id="sSpd">—</div><div class="meter"><i id="mSpd"></i><em style="left:66%"></em></div><div class="s" id="sSpd2">3-min delta vs its median</div></div>
       <div class="cell"><div class="k">ALL 3</div><div class="v" id="sSync">—</div><div class="s" id="sSync2">5-min moves</div></div>
-      <div class="cell"><div class="k">VERDICT · band read now</div><div class="v" id="sVer">—</div><div class="s" id="sVer2">—</div></div>
+      <div class="cell"><div class="k" title="your last zone trigger, and what your own rules said of it">ZONE · your rules</div><div class="v" id="sVer">—</div><div class="s" id="sVer2">—</div></div>
       <div class="cell"><div class="k">ROOM</div><div class="v" id="sRoom">—</div><div class="s" id="sRoom2">—</div></div>
       <div class="cell" id="sHealthC" hidden><div class="k">HEALTH <span id="sHealthAt"></span></div><div class="v" id="sHealth">—</div><div class="s" id="sHealth2">—</div></div>
       <div class="cell nt" id="sNT" hidden><div class="k">NO TRADE</div><div class="v" id="sNT1">—</div><div class="s" id="sNT2">—</div></div>
@@ -550,6 +550,9 @@ function init(d) {
 }
 function prep(d) {
   D = d; N = d.mins.length; cand = []; bas = []; ev = []; NT = []; marks = []; SPD.length = 0; DMAX1 = 1; DMAX3 = 1; MAXOI = 100;
+  // a day replayed after the evening scorer carries a rewritten copy of some trigger rows (12 Nov: 4 rows for 2 triggers): one mark per trigger
+  D.zone = (d.zone || []).filter((z, n, a) => a.findIndex(q => q.t === z.t && q.side === z.side && q.kind === z.kind) === n);
+  if (D.reads && D.reads.manage) D.reads.manage = D.reads.manage.filter((r, n, a) => a.findIndex(q => q.at === r.at && q.t === r.t && q.side === r.side) === n);
   const lf = D.live_from || "11:07", rebuilt = ix(lf) > 0;
   setDay(D.day); $("#pIdx").value = D.idx; $("#qN").previousElementSibling.textContent = `${D.idx} fut · spot`;
   $(".brand small").textContent = `${D.idx} fut · ${D.day} · ${LIVE ? "live from the brain" : D.fill ? "replay · holes filled from the tape" : "replay"} · to ${D.mins[N - 1]}`;
@@ -596,8 +599,22 @@ function renderCard(c) {
   const NC = "could not check — no card", blind = c.word === "CAN'T SEE", lean = S ? S.dir : /^RANGE/.test(c.word || "") ? 0   // A229: RANGE names no side
     : c.lean || (c.word === "UP" ? 1 : c.word === "DOWN" ? -1 : 0);
   const sub = (S ? [V.word, c.since && "since " + c.since] : [c.state, c.since && "since " + c.since]).filter(Boolean).join(" · ");
-  box.innerHTML = `<div class="k">THE CALL <i>${c.at ? "at " + esc(c.at) : NC} · guidance only</i></div>`
-    + `<div class="big" style="color:${blind ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut}">${esc(c.word || NC)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
+  // YOUR PLAN leads the card (14 Nov, her "make jarvis page speak the plan word ... thats the purpose of all the backtesting"; execute.py,
+  // spec 2026-11-13): its line big, then at a trigger its ticket, verbatim. THE CALL follows as the market read: information, not the word
+  // on her trade. The zone card, the §1d gate and the §6a open-trade chips are information only: in the plan line's hover, never a word.
+  const P = c.exec, Z = c.zone, O = Z && Z.open, qa = s => esc(s).replace(/"/g, "&quot;");
+  const zinfo = Z ? ["information, not votes:", `zone card: ${Z.line ?? "no line"} · ${Z.why ?? "no reason logged"}`,
+    `gate §1d: ${Z.gate ? (Z.gate.legal ? "legal" : "NOT legal") + " — " + (Z.gate.why ?? "no reason logged") : "not logged"}`]
+    .concat(O && O.chips && O.chips.length ? [`§6a: ${O.chips.join(" · ")}`] : []) : [];
+  const pmut = P && P.ok && /^(SKIP|WAIT|STOPPED|GAP DAY|NOT AT|ARMED)/.test(P.line || "");
+  box.innerHTML = (P && P.ok
+    ? `<div class="k">YOUR PLAN <i>${P.upto ? "at " + esc(P.upto) : ""}${P.state ? " · " + esc(P.state) : ""}</i></div>`
+      + `<div class="big" style="font-size:19px;line-height:1.25;color:${pmut ? COL.mut : "var(--ink)"}" title="${qa([P.line].concat(P.ticket || [], zinfo).filter(Boolean).join("\n"))}">${esc(P.line || "no line")}</div>`
+      + (P.ticket || []).filter(x => x !== P.line).map(x => `<div class="s clip" style="font-family:var(--mono)" title="${qa(x)}">${esc(x)}</div>`).join("")
+    : `<div class="k">YOUR PLAN</div><div class="s clip q" title="${qa(zinfo.join("\n"))}">${esc(P ? "plan: " + (P.why || "could not check — no reason given")
+      : "plan: could not check — the server sends no plan yet (restart TapeMap after the close)")}</div>`)
+    + `<div class="k" style="margin-top:8px">THE CALL <i>${c.at ? "at " + esc(c.at) : NC} · market read, information</i></div>`
+    + `<div class="big" style="font-size:17px;color:${blind ? COL.dn : lean > 0 ? COL.up : lean < 0 ? COL.dn : COL.mut}">${esc(c.word || NC)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
   box.lastChild.title = [c.word || NC, sub].filter(Boolean).join(" · ");
   box.style.opacity = blind ? 0.55 : 1;
   const row = (cls, txt, tip) => { const el = document.createElement("div"); el.className = cls; el.textContent = txt; el.title = tip || txt; box.appendChild(el); return el; };
@@ -609,22 +626,7 @@ function renderCard(c) {
       const el = document.createElement("span"); el.className = "chip q"; el.textContent = t; ch.appendChild(el);
     }
   }
-  const Z = c.zone;                                   // THE ZONE CARD under the state (spec §6): verdict, stop, targets;
-  if (Z) {                                            // her §1d gate beside the at-band read (phase 4 is hers to sign)
-    row("s clip " + (Z.verdict === "SKIP" ? "q" : "pk"), Z.line ?? "no line",
-        [Z.line ?? "no line", Z.why ?? "no reason logged"].concat((Z.signs || []).map(s => (s.ok === true ? "✓ " : s.ok === false ? "✗ " : "? ") + (s.text ?? "no text"))).join("\n"));
-    const atb = ((Z.signs || []).find(s => s.k === "wall") || {}).text;
-    row("s clip", `gate §1d: ${Z.gate ? (Z.gate.legal ? "legal" : "NOT legal") + " — " + (Z.gate.why ?? "no reason logged") : "not logged"} · at band: ${atb || "?"}`);
-    const O = Z.open;                                 // §6a: the open trade's chips, verbatim (display only; she decides)
-    if (O && O.chips && O.chips.length) {
-      const oc = row("rc", "", [`trade of ${O.of}`].concat(O.why || []).join("\n"));
-      for (const t of O.chips) {
-        const el = document.createElement("span");
-        el.className = "chip " + (/stop hua|ke paar|toota/.test(t) ? "bad" : /^(WIDEN|ADD 1) ·/.test(t) ? "you" : /✓/.test(t) ? "ok" : "q");
-        el.textContent = t; oc.appendChild(el);
-      }
-    }
-  }
+  // (THE PLAN's block is drawn first, above THE CALL: see the top of renderCard)
   const X = c.xstate;                                 // THE CROSS-INDEX read (spec §3-4): a line beside the word, never it
   if (X && (X.day || X.alert || X.sync)) {
     row("s clip" + (X.alert ? " bad" : ""),
@@ -693,6 +695,61 @@ function vchips(v) {
   return v ? Object.entries(v.pieces).map(([k, [m, x]]) => ({t: `${m} ${PIECE[k] || k} · ${EN(x)}`, c: m === "✓" ? "ok" : m === "✗" ? "bad" : "q"})) : [];
 }
 function vword(v) { return v ? `${WORD[v.word] || v.word} ${v.n}/${v.N}${v.q ? ` · ${v.q} ?` : ""}` : "?"; }
+// A279 (12 Nov): a zone trigger carries HER verdict: the §1d fade gate stamped on the trigger bar, and the zone card (TAKE / SKIP) from the
+// minute it is known. A294 (12 Nov): the old 3-piece band read (ROTATE / CONTINUE / UNCLEAR) is the third read beside them (zoneSay). A zone
+// that none of the three takes is SKIP and is not a trade; a zone they disagree on is SPLIT, hers to call.
+const cardOf = z => (D.zone_cards || []).find(c => c.t === String(z.t).slice(0, 5) && c.side === z.side) || null;
+const hmAdd = (t, k) => { const m = +t.slice(0, 2) * 60 + +t.slice(3, 5) + k; return `${String(m / 60 | 0).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+function lastZone(i) { let z = null; for (const q of D.zone) { if (q.kind) continue; const j = ix(q.t); if (j >= 0 && j <= i) z = q; } return z; }
+// THE PLAN's mark for a zone trigger: the brain's exec.marks on the frame (server._exec_attach), keyed by trigger bar + side
+const planOf = z => ((D.exec && D.exec.marks) || []).find(m => m.t === String(z.t).slice(0, 5) && m.side === z.side) || null;
+const planWhy = () => !D.exec ? "plan: could not check — the server sends no plan yet (restart TapeMap after the close)"
+  : D.exec.ok === false ? "plan: " + (D.exec.why || "could not check — no reason given") : "plan: no signal of its own at this trigger (an older band rule)";
+function zoneSay(z, i) {            // i = the minute it is asked at (null: everything on the record)
+  const c0 = cardOf(z), c = c0 && (i == null || !c0.known || ix(c0.known) <= i) ? c0 : null, pend = c0 && !c ? c0.known : null;
+  const g = z.gate || (c0 && c0.gate) || null, gate = !g ? "not logged" : g.legal === true ? "legal" : g.legal === false ? "NOT legal" : "PATA NAHI", veto = !!(g && g.veto);
+  // A294 (12 Nov, her "that was the best signal of the day i m not sure why we skip it"): THREE reads, each with its own number, never one
+  // word that hides a close call. The old 3-piece band read (ROTATE says take the fade) · the zone card (n of N; a band sign that failed says
+  // by how many points) · the §1d gate (how much of its front left, as a share of that wall, and what the wall AT the band is doing).
+  // SKIP (grey) only when none of the three says take; TAKE when the card and the gate both do; anything else is SPLIT: her call.
+  // No threshold lives here: every number shown is the rule's own input.
+  const v = c ? c.verdict : null, ov = (D.verdict[z.side] || {})[z.t] || null, ow = ov ? WORD[ov.word] || ov.word : null;
+  const ofull = !!ov && !ov.q, oyes = ow === "ROTATE" && ofull, cyes = /^(TAKE|STRONG)/.test(v || ""), gyes = gate === "legal" && !veto;   // a read with a piece unread is never a yes (rule 6)
+  const clean = cyes && gyes, wait = !!pend && !oyes && !gyes, skip = !oyes && !cyes && !gyes && !pend;   // a card not known yet is waited for, never called SKIP early
+  const label = clean ? v : skip ? "SKIP" : wait ? `card at ${pend}` : "SPLIT";
+  const sign = k => ((c && c.signs) || []).find(q => q.k === k) || null, need = c && (c.why || "").match(/needs (\d+)/), d = z.side === "SELL" ? 1 : -1;
+  let bm = null; const bs = sign("band");            // the band sign's own move: her 2σ band at the card's close against 3 minutes before
+  if (bs && bs.ok === false && !cyes && c.close && D.vwap && D.sd) { const a = ix(c.close), b = ix(hmAdd(c.close, -3));
+    if (a >= 0 && b >= 0 && D.sd[a] != null && D.sd[b] != null) bm = d * ((D.vwap[a] + 2 * d * D.sd[a]) - (D.vwap[b] + 2 * d * D.sd[b])); }
+  const failed = c ? (c.signs || []).filter(q => q.ok === false).map(q => q.k) : [], fade = c && c.kind === "fade";
+  const cT = c ? v + (fade ? ` · ${c.n} of ${c.N} signs${need ? `, needs ${need[1]}` : ""}` : "") + (bm != null ? ` · band still moving ${bm.toFixed(1)} pts / 3 min` : "")
+    : pend ? `not known until ${pend}` : "none at this trigger";
+  const fr = g && g.front, Lk = x => (Math.abs(x) / 1e5).toFixed(1) + "L", lost = fr && typeof fr.from_peak === "number" ? -fr.from_peak : null;
+  const share = lost > 0 && fr.oi ? lost / fr.oi * 100 : null, cut = lost > 0 ? ` · it lost ${Lk(lost)}` + (share != null ? `, ${share.toFixed(0)}% of that ${Lk(fr.oi)} wall` : "") : "";
+  const gT = !g ? "not logged" : veto ? "NO · engine NO FADE on this bar" + (g.legal == null && g.why ? ` · front: ${g.why}` : "")
+    : g.legal === true ? `OK · ${g.why}` : g.legal === false ? `NO · ${g.why || "no reason logged"}${cut}` : `could not check · ${g.why || "no reason logged"}`;
+  const ws = sign("wall"), wb = ws && ws.ok != null && (!fr || ws.strike !== fr.k) ? ws.text.replace(" at the band", "") : null;   // the wall AT the band, when it is not the gate's front
+  const oS = ov ? vword(ov) : "?", cS = c ? v + (fade ? ` ${c.n} of ${c.N}` : "") + (bm != null ? ` (band ${bm >= 0 ? "+" : "−"}${Math.abs(bm).toFixed(1)} pts)` : "") : pend ? `known at ${pend}` : "none";   // `s`: each read in a few words
+  const gS = !g ? "not logged" : gyes ? "OK" : veto ? "NO (engine NO FADE)" : g.legal === false ? "NO" + (share != null ? ` (${fmt(fr.k)} ${fr.side} −${share.toFixed(0)}% of the wall)` : "") : "?";
+  const atBand = wb ? {t: wb, s: `${fmt(ws.strike)} ${d > 0 ? "CE" : "PE"} ${(ws.text.match(/[+\-−][\d.]+L/) || [""])[0]}`} : null;
+  const reads = [{k: "old read", yes: !ov ? null : ow === "ROTATE" ? (ofull ? true : null) : false, s: oS,
+      t: ov ? vword(ov) + (ow === "ROTATE" && !ofull ? " (a piece unread: not a full yes)" : "") : "none at this minute"}, {k: "card", yes: c ? cyes : null, t: cT, s: cS},
+    {k: "gate", yes: g && (g.legal != null || veto) ? gyes : null, t: gT + (wb ? ` · at the band: ${wb}` : ""), s: gS}];
+  const why = [c ? `zone card ${c.verdict}: ${c.why}` + (bm != null ? ` · band still moving ${bm.toFixed(1)} pts / 3 min` : "") + (failed.length ? ` · failed: ${failed.join(", ")}` : "")
+      : pend ? `zone card not known until ${pend}` : "no zone card at this trigger",
+    `gate §1d: ${gT}`, `old 3-piece band read: ${reads[0].t}`].concat(wb ? [`wall at the band: ${wb}`] : []);
+  const short = [`old read ${oS}`, `card ${cS}`, `gate ${gS}`, atBand ? `at the band ${atBand.s}` : null].filter(Boolean).join(" · ");
+  const old = {c, g, gate, veto, v, skip, clean, wait, split: !skip && !clean && !wait, label, pend, why, short, reads, atBand, bm, cls: skip ? "q" : clean ? "ok" : "warn"};
+  // EXECUTE THE EDGE (14 Nov, her "make jarvis page speak the plan word ... thats the purpose of all the backtesting"): the verdict on a
+  // zone is THE PLAN's word for that signal (execute.py: GAP · TREND · LEG PAID · FLOW, hold-through; spec 2026-11-13), never the three
+  // reads above; they stay as information, not votes. No plan for a trigger: "PLAN ?" and why (rule 6), never the old reads' word.
+  const pm = planOf(z);
+  if (!pm) return Object.assign(old, {plan: null, skip: false, clean: false, wait: true, split: false, label: "PLAN ?", cls: "q",
+    why: [planWhy()].concat(why), short: `plan could not check · info: ${short}`});
+  const pskip = pm.word === "SKIP" || pm.word === "HOLD", pclean = pm.word === "TAKE";
+  return Object.assign(old, {plan: pm, skip: pskip, clean: pclean, wait: false, split: false, label: pm.label, cls: pskip ? "q" : pclean ? "ok" : "warn",
+    why: [`PLAN: ${pm.line}`, pm.checks.join(" · "), "information, not votes:"].concat(why), short: `PLAN ${pm.label} · info: ${short}`});
+}
 
 function buildEvents() {
   const E = (i, o) => { if (i >= 0 && i <= N - 1 + 0.99) ev.push(Object.assign({i}, o)); };
@@ -775,10 +832,12 @@ function buildEvents() {
     if (z.kind) continue;
     const i = ix(z.t), v = (D.verdict[z.side] || {})[z.t];
     if (i < 0) continue;
-    const w = v ? (WORD[v.word] || v.word) : "?";
-    E(i + 0.6, {tag: `${z.side} TRIGGER`, tagc: w === "CONTINUE" ? "bad" : w === "ROTATE" ? "ok" : null, zone: z, verdict: v, major: true,
-      text: `**Your ${z.side} zone · ${fmt(z.px)}f** (${z.band}). Read: **${vword(v)}** → ${w === "CONTINUE" ? "don't fade this." : w === "ROTATE" ? "the fade has support." : "wait for the next push or the fuel."}`,
-      chips: vchips(v)});
+    const zs = zoneSay(z, null), c = zs.c;               // 14 Nov: THE PLAN's word is the headline; the three old reads are information
+    E(i + 0.6, {tag: `${z.side} ZONE · ${zs.plan ? zs.plan.word : "PLAN ?"}`, tagc: zs.cls, zone: z, verdict: v, major: true,
+      text: `**Your ${z.side} zone · ${fmt(z.px)}f** (${z.band}). **PLAN: ${zs.plan ? zs.plan.line : zs.why[0]}**. `
+        + (zs.plan ? zs.plan.checks.join(" · ") + ". " : "")
+        + "Information, not votes: " + zs.reads.map(r => `${r.k === "old read" ? "old read" : r.k === "card" ? `zone card${c && c.known ? ` (known ${c.known})` : ""}` : "gate §1d"} ${r.s}`).join(" · ") + ".",
+      chips: [{t: `PLAN ${zs.label}`, c: zs.cls}].concat((zs.plan ? zs.plan.checks : []).map(t => ({t, c: /✗$/.test(t) ? "bad" : /✓$/.test(t) ? "ok" : "q"})))});
   }
 
   // the blind stretch, and what came back
@@ -796,6 +855,8 @@ function buildEvents() {
 
   if (D.reads) { sidesEvents(E); writerEvents(E); }
   if (D.delta) { signs3(E); manage(E); }
+  for (const e of ev) if (e.mz && zoneSay(e.mz, null).skip) {   // A279: every trigger was "managed" as if she were in it; a zone her rules skipped is not her trade
+    e.tag = "SKIPPED ZONE"; e.tagc = "q"; e.major = false; e.text = "**Not a trade** (none of the three reads said take). " + e.text.replace(/\bYour\b/, "The"); }
 
   // NO TRADE: the brain's stretches (quiet / can't see), one line per quiet stretch
   if (D.reads) {
@@ -1144,7 +1205,9 @@ function renderMinute(i, force) {
   // verdict, both sides, at this minute
   const vb = D.verdict.BUY[hm], vs = D.verdict.SELL[hm];
   const pc = v => { const w = v ? WORD[v.word] || v.word : "?"; return w === "ROTATE" ? "ok" : w === "CONTINUE" ? "bad" : "q"; };
-  $("#sVer").innerHTML = `<span class="pill ${pc(vb)}">BUY ${esc(vword(vb))}</span> <span class="pill ${pc(vs)}">SELL ${esc(vword(vs))}</span>`;
+  const lz = lastZone(i), zsv = lz ? zoneSay(lz, i) : null;   // A279: the last zone trigger and her verdict on it; the old band read sits in the hover
+  $("#sVer").innerHTML = lz ? `<span class="pill ${zsv.cls}">${lz.side} ${String(lz.t).slice(0, 5)} · ${esc(zsv.label)}</span>` : `<span class="pill q">no zone trigger yet</span>`;
+  $("#sVer").title = (zsv ? zsv.why.join("\n") + "\n" : "") + `the band read at this minute: BUY ${vword(vb)} · SELL ${vword(vs)}`;
   const bs = band(i); $("#sVer2").textContent = `VWAP ${fmt(bs[2][1])}f · u2 ${fmt(bs[4][1])}f · d2 ${fmt(bs[0][1])}f`;
   // room
   const rc = rm.CE, rp = rm.PE;
@@ -1171,9 +1234,13 @@ function renderMinute(i, force) {
 function renderTrade(i) {
   const lt = lastTrigger(i);
   if (!lt) { $("#tV").textContent = "no trigger yet"; $("#tP").textContent = "—"; $("#tS").textContent = "zone: d2→d3 buy · u2→u3 sell · 3-min bands"; return; }
-  $("#tV").textContent = `${lt.z.t} ${lt.z.side} ${fmt(lt.z.px)}f · ${lt.z.band} · ${lt.age} min`;
+  const zs = zoneSay(lt.z, i);                        // A279: a zone her rules skipped is shown as skipped, never as her trade
+  if (zs.skip) { $("#tV").textContent = `${lt.z.t} ${lt.z.side} ${fmt(lt.z.px)}f · ${lt.z.band} · PLAN ${zs.label} · not a trade`;
+    $("#tP").textContent = `${lt.pts >= 0 ? "+" : "−"}${Math.abs(lt.pts).toFixed(0)} pts since`; $("#tP").style.color = COL.mut; $("#tS").textContent = zs.short; return; }
+  $("#tV").textContent = `${lt.z.t} ${lt.z.side} ${fmt(lt.z.px)}f · ${lt.z.band} · ${zs.split ? "SPLIT · your call" : lt.age + " min"}`;
   $("#tP").textContent = `${lt.pts >= 0 ? "+" : "−"}${Math.abs(lt.pts).toFixed(0)} pts`; $("#tP").style.color = lt.pts >= 0 ? COL.up : COL.dn;
-  $("#tS").textContent = `${lt.st ? "MANAGE: " + lt.st : lt.age < 46 ? "MANAGE: reading at 3-min closes" : "MANAGE window closed (45 min)"}${lt.trail ? ` · trail ${lt.trail[0]} ${fmt(lt.trail[1])}f` : ""}`;
+  $("#tS").textContent = (zs.split ? zs.short + " · " : "")      // A294: a split zone says its three reads before the manage line
+    + `${lt.st ? "MANAGE: " + lt.st : lt.age < 46 ? "MANAGE: reading at 3-min closes" : "MANAGE window closed (45 min)"}${lt.trail ? ` · trail ${lt.trail[0]} ${fmt(lt.trail[1])}f` : ""}`;
 }
 
 /* ------------------------------------------------------------ the chart -- */
@@ -1377,8 +1444,9 @@ function zones(now) {
     const v = e.verdict, g = ease(grow(e, now, 500)), sell = z.side === "SELL", y = sell ? Y(z.px) - 16 : Y(z.px) + 16;
     ctx.fillStyle = sell ? COL.dn : COL.up; ctx.beginPath();
     if (sell) { ctx.moveTo(X(i) - 6, y - 6); ctx.lineTo(X(i) + 6, y - 6); ctx.lineTo(X(i), y + 3); } else { ctx.moveTo(X(i) - 6, y + 6); ctx.lineTo(X(i) + 6, y + 6); ctx.lineTo(X(i), y - 3); }
-    ctx.fill();
-    const word = v ? (WORD[v.word] || v.word) : "?", lab = `${z.side} ${fmt(z.px)}f · ${word} ${v ? v.n + "/" + v.N : ""}`, col = word === "CONTINUE" ? COL.dn : word === "ROTATE" ? COL.up : COL.mut;
+    const zs = zoneSay(z, cur());                       // A279: her verdict on the mark; a zone her rules skipped is hollow and grey
+    if (zs.clean) ctx.fill(); else { ctx.save(); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = zs.skip ? COL.q : sell ? COL.dn : COL.up; ctx.lineWidth = 1.4; ctx.stroke(); ctx.restore(); }
+    const lab = `${z.side} ${fmt(z.px)}f · ${zs.label}`, col = zs.skip ? COL.mut : zs.clean ? (sell ? COL.dn : COL.up) : "#b7791f";
     ctx.save(); ctx.globalAlpha = g; ctx.font = "700 10.5px " + MONO; const w = ctx.measureText(lab).width + 12, yy = sell ? y - 30 : y + 12;
     ctx.fillStyle = "#fff"; rr(X(i) - w / 2, yy, w, 18, 9); ctx.fill(); ctx.strokeStyle = col; ctx.stroke(); ctx.fillStyle = col; ctx.fillText(lab, X(i) - w / 2 + 6, yy + 13); ctx.restore();
   }
@@ -1625,7 +1693,7 @@ const TEACH = [
   [/^PINNED/, "PINNED", "pin", "Pushes both ways HELD and fuel is quiet.", "Small range until new fuel: a seller's day, not a buyer's."],
   [/SIGNS/, "TOP / BOTTOM SIGNS", "", "At a new 30-min extreme, 2 or 3 of: candle against delta, absorption (effort 2× or more), delta exhausting.", "With the fuel spent, a rotation back to VWAP is on; with fuel still running, not yet."],
   [/RISK/, "TOP / BOTTOM RISK", "", "Writers stopped pushing and the other side hit hard (3-min delta).", "The push lost its fuel: protect the gain."],
-  [/TRIGGER/, "YOUR ZONE", "", "Price reached your zone: d2→d3 buy, u2→u3 sell, on the 3-min VWAP bands.", "The read decides the fade: ROTATE backs it, CONTINUE says don't fade, UNCLEAR says wait."],
+  [/TRIGGER/, "YOUR ZONE", "", "Price reached your zone: d2→d3 buy, u2→u3 sell, on the 3-min VWAP bands.", "Your rules decide it: the zone card (TAKE / SKIP) and the §1d fade gate. A skipped zone is not a trade."],
   [/^NO TRADE/, "NO TRADE", "", "Quiet: no break, no fuel, no trigger, writers not pushing.", "Nothing to act on. It ends on fuel, a break or your trigger."],
   [/^BLIND|^BACK|^CAN'T SEE/, "BLIND", "", "Data was missing: laptop asleep or a chain hole.", "Jarvis never guesses what it cannot see; read those minutes yourself."],
   [/^TREND/, "TREND", "", "A leg with the count well ahead: more reads WITH the move than AGAINST.", "Go with it. Jarvis picks a buyer's trade only on TREND or HOLD."],

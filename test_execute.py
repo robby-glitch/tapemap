@@ -176,5 +176,18 @@ def test_for_frame_reads_the_tape_and_the_frame(monkeypatch):
 
 def test_the_jarvis_card_carries_the_block():
     import jarvis_log
-    c = jarvis_log.card({"ok": True, "call": {}, "fut": [100.0], "exec": {"ok": True, "line": "WAIT · no zone armed"}})
-    assert c["exec"] == {"ok": True, "line": "WAIT · no zone armed"}
+    c = jarvis_log.card({"ok": True, "call": {}, "fut": [100.0], "exec": {"ok": True, "line": "WAIT · no zone armed", "marks": [{"t": "10:00"}]}})
+    assert c["exec"] == {"ok": True, "line": "WAIT · no zone armed"}          # the per-signal marks ride the frame, not the card
+    assert jarvis_log.card({"ok": True, "call": {}, "fut": [100.0]})["exec"] is None
+
+
+def test_marks_carry_the_plans_word_for_every_signal():
+    gp = {"ok": True, "text": "opened inside yesterday's range"}
+    take = X._mark(sig("10:00", "SELL", 100, 110, fs=-50), gp, ("TAKEN", None), None)
+    assert (take["word"], take["label"]) == ("TAKE", "TAKE") and take["checks"] == ["GAP ✓", "TREND ✓", "LEG ✓", "FLOW ✓"]
+    hold = X._mark(sig("10:30", "BUY", 95, 90, bad=True, fs=-40), gp, ("HOLD", None), None)
+    assert (hold["word"], hold["label"], hold["line"]) == ("HOLD", "HOLD SELL · FLOW ✗", "SKIP (FLOW ✗) · HOLD SELL")
+    ex = X._mark(sig("11:00", "BUY", 80, 75), gp, ("SKIP", "SELL"), {"side": "SELL", "pts": 20.0})
+    assert ex["label"] == "EXIT SELL +20 · SKIP · LEG ✗" and ex["checks"][2] == "LEG ✗"
+    q = X._mark(sig("10:00", "SELL", 100, 110, vw=None), {"ok": None, "text": "could not check: x"}, ("TAKEN", None), None)
+    assert q["checks"][:2] == ["GAP ?", "TREND ?"] and q["checks"][3] == "FLOW ?"

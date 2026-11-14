@@ -255,6 +255,22 @@ def _ticket(e, gp, act, live, held, closed=None):
     return lines
 
 
+def _mark(e, gp, act, closed):
+    """The plan's word on one signal, for the Jarvis page's zone mark (her one voice, 14 Nov): word, a short label, the
+    ticket's word line, the four checks (✓ / ✗ / ? when it could not be read)."""
+    word, won = act or ("—", None)
+    legbad = won is not None and e["side"] != won
+    q = lambda v, bad: "?" if v is None else ("✗" if bad else "✓")                                   # noqa: E731
+    checks = [f"GAP {q(gp['ok'], gp['ok'] is False)}", f"TREND {q(e['vw'], e['chk']['TREND'])}",
+              f"LEG {'✗' if legbad else '✓'}", f"FLOW {q(e['fs'], e['chk']['FLOW'])}"]
+    why, held = " ".join(c for c in checks if c.endswith("✗")), ("SELL" if e["side"] == "BUY" else "BUY")
+    w = {"TAKEN": "TAKE", "SKIP": "SKIP", "HOLD": "HOLD", "IN TRADE": "IN TRADE"}.get(word, "PLAN ?")
+    label = {"TAKE": "TAKE", "SKIP": f"SKIP · {why}", "HOLD": f"HOLD {held} · {why}", "IN TRADE": f"IN A {e['side']} ALREADY"}.get(w, w)
+    if closed:
+        label = f"EXIT {closed['side']} {closed['pts']:+.0f} · {label}"
+    return {"t": e["t"], "side": e["side"], "word": w, "label": label, "line": _ticket(e, gp, act, [], held, closed)[-1], "checks": checks}
+
+
 def _screen(ones, sig, walks, gp, armed, upto_m, ladder, spot, step, peers=None):
     """PLAN B speaks: DAY END > TRIGGER (a signal on the last closed 3-min bar) > IN TRADE > ARMED > OUT > WAIT."""
     ix = {b["t"]: i for i, b in enumerate(ones)}
@@ -311,8 +327,11 @@ def day_state(day, ones, delta=None, prev_ones=None, changed=False, upto=None, l
              "z": None if e["z"] is None else round(e["z"], 2), "vw": e["vw"], "fs": e["fs"], "chk": e["chk"],
              "live": _live_leg(now, ix, sig, e),
              **{k.lower(): (walks[k]["acts"].get((e["t"], e["side"])) or ("—", None))[0] for k in "ABC"}} for e in sig]
+    B = walks["B"]
+    marks = [_mark(e, gp, B["acts"].get((e["t"], e["side"])),
+                   next((x for x in B["trades"] if x["why"] == "FLIP" and x["x"] == HM(M(e["t"]) + 2)), None)) for e in sig]
     return {"ok": True, "day": day, "upto": HM(upto_m), "state": state, "line": line, "ticket": ticket, "signals": rows,
-            "plan_a": _summary(walks["A"]), "plan_b": _summary(walks["B"]), "plan_c": _summary(walks["C"]), "gap": gp, "why": []}
+            "marks": marks, "plan_a": _summary(walks["A"]), "plan_b": _summary(B), "plan_c": _summary(walks["C"]), "gap": gp, "why": []}
 
 
 def card(ex):

@@ -181,4 +181,5 @@ def card(fr, rows=(), state=None, notes=()):
             "pushes": [{k: p.get(k) for k in PUSH_KEYS} for p in (fr.get("pushes") or [])[-PUSHES_N:]],
             "watches": list(st.get("watches") or []), "voice": None, "brief": None,   # Task 7: server._JVOICE fills both
             "mstate": c.get("mstate"), "action": c.get("action"), "chips": c.get("chips"), "zone": c.get("zone"), "xstate": c.get("xstate"),   # the state leads (6 Nov)
-            "exec": fr.get("exec")}   # EXECUTE THE EDGE (spec 2026-11-13): her plan's line + ticket, compact, verbatim
+            "exec": None if fr.get("exec") is None else {k: x for k, x in fr["exec"].items() if k != "marks"}}   # EXECUTE THE EDGE
+            # (spec 2026-11-13): her plan's line + ticket, compact, verbatim; the per-signal marks ride the frame (the page), not the card
