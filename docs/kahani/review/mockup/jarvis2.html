@@ -610,7 +610,9 @@ function renderCard(c) {
   box.innerHTML = (P && P.ok
     ? `<div class="k">YOUR PLAN <i>${P.upto ? "at " + esc(P.upto) : ""}${P.state ? " · " + esc(P.state) : ""}</i></div>`
       + `<div class="big" style="font-size:19px;line-height:1.25;color:${pmut ? COL.mut : "var(--ink)"}" title="${qa([P.line].concat(P.ticket || [], zinfo).filter(Boolean).join("\n"))}">${esc(P.line || "no line")}</div>`
-      + (P.ticket || []).filter(x => x !== P.line).map(x => `<div class="s clip" style="font-family:var(--mono)" title="${qa(x)}">${esc(x)}</div>`).join("")
+      + (P.ticket || P.last || []).filter(x => x !== P.line).map(x => `<div class="s clip${P.ticket ? "" : " q"}" style="font-family:var(--mono)" title="${qa((P.ticket ? "" : "the last signal, greyed until the next: ") + x)}">${esc(x)}</div>`).join("")
+      + (LIVE && (P.ticket || P.last) ? `<div class="rc"><button class="chip ok" onclick="postCmd('took')" title="log it: you took the plan's last signal">TOOK</button> `   // Fable A337 #7: her call, one tap
+        + `<button class="chip q" onclick="postCmd('skip')" title="log it: you skipped the plan's last signal">SKIPPED</button></div>` : "")
     : `<div class="k">YOUR PLAN</div><div class="s clip q" title="${qa(zinfo.join("\n"))}">${esc(P ? "plan: " + (P.why || "could not check — no reason given")
       : "plan: could not check — the server sends no plan yet (restart TapeMap after the close)")}</div>`)
     + `<div class="k" style="margin-top:8px">THE CALL <i>${c.at ? "at " + esc(c.at) : NC} · market read, information</i></div>`

@@ -27,7 +27,7 @@ REFUSE = "I read, I don't place."
 MAX_WATCH = 10                                   # watches a day, every index (the plan's number) [I]
 MAX_NOTES, NOTE_CHARS = 10, 200                  # her notes a day and their length on the card (the review's cap) [I]
 IDXS = ("NIFTY", "SENSEX", "BANKNIFTY")
-PERSIST = ("line", "zone", "watch", "remove", "clear", "note", "mark", "flat", "refused")
+PERSIST = ("line", "zone", "watch", "remove", "clear", "note", "mark", "flat", "refused", "call")
 ORDER_RE = re.compile(r"\b(?:buy(?:s|ing)?|sell(?:s|ing)?|orders?|plac(?:e|es|ing)|squar(?:e|ing)\w*|shorting)\b"
                       r"|\bexit\s+now\b|\bgo(?:ing)?\s+(?:short|long)\b|\b(?:short|long)\s+it\b|\b\d+\s*lots?\b")
 # short / long only as a verb's form (go long, going short, shorting, short it): "short covering", "long unwinding" and
@@ -38,6 +38,7 @@ HELP = ["line 22750f · zone 22680-22720f · watch 22800s (s spot, f futures)",
         "remove 22750 · clear · list",
         "mark NIFTY 23000 PE buy 325 [qty 150] · flat [NIFTY]",
         "note <text> · why · next · status · wrong when",
+        "took [why] · skip [why]  (your call on the plan's last signal: logged beside the plan)",
         "what if 22800 breaks · ask <question> · replay <day> <HH:MM> (terminal)"]
 _N = r"(\d[\d,]*(?:\.\d+)?)"
 _LV = _N + r"\s*([sf])?"
@@ -60,6 +61,9 @@ def parse(text):
     """One line of her text -> the command (the contract's table). Pure."""
     raw = " ".join(str(text or "").split())
     t = raw.lower().rstrip("?").strip()
+    m = re.fullmatch(r"(took|taken|skip|skipped)\b\s*(.*)", t)
+    if m:                     # EXECUTE THE EDGE (Fable A337 #7): her call on the plan's last signal, and why: data, never an order
+        return {"kind": "call", "word": "TOOK" if m[1].startswith("t") else "SKIPPED", "why": raw[len(m[1]):].strip()}
     m = _RX["mark"].fullmatch(t)
     if m:
         return {"kind": "mark", "idx": m[1].upper(), "k": _f(m[2]), "side": m[3].upper(),
@@ -219,6 +223,13 @@ class Day:
             return False, REFUSE, [], {}
         if k == "help":
             return True, "commands:", list(HELP), {}
+        if k == "call":                                    # her call on the plan's last signal (the frame's exec.marks)
+            mk = (((frame or {}).get("exec") or {}).get("marks") or [])
+            if not mk:
+                return False, "could not check — no signal of the plan yet today", [], {}
+            sg = mk[-1]
+            return (True, f"noted: you {p['word']} {sg.get('side')} {sg.get('t')} · the plan said {sg.get('label')}", [],
+                    {"word": p["word"], "why": p["why"], "signal": {x: sg.get(x) for x in ("t", "side", "label")}})
         if k in ("line", "watch"):
             lv = f"{px(p['level'])}{p['frame']}"
             have = s["lines"] if k == "line" else [w for w in s["watches"] if not w["hit"]]

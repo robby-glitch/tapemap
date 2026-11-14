@@ -4754,10 +4754,10 @@ def _exec_attach(fr, live):
         return {"ok": False, "why": f"could not check — the plan failed ({type(e).__name__})"}
     if live and ex.get("ok"):
         try:
-            execute.append_log(os.path.join(EXEC_DIR, f"{fr['day']}.jsonl"), execute.log_rows(ex))
+            execute.append_log(os.path.join(EXEC_DIR, f"{fr['day']}.jsonl"), execute.log_rows(ex, _ist().strftime("%H:%M:%S")))
         except Exception:
             log.exception("execute log")
-    c = execute.card(ex)
+    c = execute.card(ex, execute.her_dirs(_hold_list()) if live else None)   # a plan trade she has not marked says PAPER
     if ex.get("ok"):
         c["marks"] = ex.get("marks") or []          # the plan's word on every signal: the Jarvis page's zone marks (the card drops it)
     if live and c.get("state") == "DAY END":       # her marked trades are options (strike, side, role): a count, not points

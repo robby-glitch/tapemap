@@ -17,7 +17,8 @@ import ruler
 
 OPEN, LAST = 9 * 60 + 15, 15 * 60   # flat by 15:00 (her practice)
 LOCK_R = 2.0                         # LEG PAID: a close at 2x its own stop (hold2.LOCK_R, §1m)
-TREND_MIN = 120                      # TREND: VWAP untouched this many minutes (A313; held on 37 unseen sessions, A320)
+TREND_MIN = 120                      # TREND: VWAP untouched this many minutes (A313 / A320; alone it moves few trades: Fable A337)
+LIVE_LAG = 5                         # a log row first written within 5 min of its own minute is "live", later "backfill" (one pass a minute)
 ROOM_S = 1.0                         # PLAN C: room from VWAP in her sigma (her ROOM read, A315 / A329)
 NEAR = 2                             # OI: the other side's writers at ATM +- 2 strikes (A332)
 
@@ -328,25 +329,62 @@ def day_state(day, ones, delta=None, prev_ones=None, changed=False, upto=None, l
              "live": _live_leg(now, ix, sig, e),
              **{k.lower(): (walks[k]["acts"].get((e["t"], e["side"])) or ("—", None))[0] for k in "ABC"}} for e in sig]
     B = walks["B"]
-    marks = [_mark(e, gp, B["acts"].get((e["t"], e["side"])),
-                   next((x for x in B["trades"] if x["why"] == "FLIP" and x["x"] == HM(M(e["t"]) + 2)), None)) for e in sig]
-    return {"ok": True, "day": day, "upto": HM(upto_m), "state": state, "line": line, "ticket": ticket, "signals": rows,
-            "marks": marks, "plan_a": _summary(walks["A"]), "plan_b": _summary(B), "plan_c": _summary(walks["C"]), "gap": gp, "why": []}
+    closed = lambda e: next((x for x in B["trades"] if x["why"] == "FLIP" and x["x"] == HM(M(e["t"]) + 2)), None)   # noqa: E731
+    marks = [_mark(e, gp, B["acts"].get((e["t"], e["side"])), closed(e)) for e in sig]
+    out = {"ok": True, "day": day, "upto": HM(upto_m), "state": state, "line": line, "ticket": ticket, "signals": rows,
+           "marks": marks, "plan_a": _summary(walks["A"]), "plan_b": _summary(B), "plan_c": _summary(walks["C"]), "gap": gp, "why": []}
+    if sig and state != "TRIGGER":                   # Fable A337 #9: the last ticket stays on screen (the faces grey it) until the next one
+        e = sig[-1]
+        out["last"] = _ticket(e, gp, B["acts"].get((e["t"], e["side"])), _live_leg(now, ix, sig, e),
+                              "SELL" if e["side"] == "BUY" else "BUY", closed(e))
+    if upto_m >= LAST:                               # Fable A337 #3: after the close, every signal scored alone (a SKIP too)
+        out["results"] = [dict({"t": e["t"], "side": e["side"], "b": (B["acts"].get((e["t"], e["side"])) or ("—",))[0]}, **_alone(now, e))
+                          for e in sig]
+    return out
 
 
-def card(ex):
-    """The card's compact block (the ≤10 KB contract): the line and, at a trigger, the ticket."""
+def _alone(ones, e):
+    """One signal taken alone with her stop, held to 15:00: its points, its best move her way, the minute it was stopped (None = held)."""
+    ie = next((i for i, b in enumerate(ones) if b["t"] == HM(M(e["t"]) + 2)), None)
+    if ie is None:
+        return {"pts": None, "best": None, "stop": None}
+    S, best, last = e["S"], 0.0, None
+    for b in ones[ie + 1:]:
+        if M(b["t"]) > LAST:
+            break
+        if (S < 0 and b["h"] > e["ext"]) or (S > 0 and b["l"] < e["ext"]):
+            return {"pts": round(-abs(e["ext"] - e["px"]), 1), "best": round(best, 1), "stop": b["t"]}
+        best, last = max(best, (e["px"] - b["l"]) if S < 0 else (b["h"] - e["px"])), b["c"]
+    return {"pts": None if last is None else round(S * (last - e["px"]), 1), "best": round(best, 1), "stop": None}
+
+
+def her_dirs(trades, idx="NIFTY"):
+    """Her open marked trades on idx -> their directions: a CE bought or a PE sold is a BUY view; a PE bought or a CE sold a SELL view."""
+    return ["BUY" if (str(t.get("side")).upper() == "CE") == (str(t.get("role")).lower() in ("buy", "long")) else "SELL"
+            for t in trades or () if t.get("idx") == idx and not t.get("exit_t")]
+
+
+def card(ex, her=None):
+    """The card's compact block (the ≤10 KB contract): the line, at a trigger the ticket, after it the last ticket (the faces grey
+    it). her = the directions of her open marked trades (None = not known, as in a replay): a plan trade she is not in says PAPER."""
     if not ex.get("ok"):
         return {"ok": False, "why": ex.get("why")}
-    return {k: ex.get(k) for k in ("ok", "day", "upto", "state", "line", "ticket")}
+    c = {k: ex.get(k) for k in ("ok", "day", "upto", "state", "line", "ticket", "last")}
+    op = (ex.get("plan_b") or {}).get("open")
+    if her is not None and ex.get("state") == "IN TRADE" and op and op.get("side") not in her:   # Fable A337 #5
+        c["line"] = "PAPER · " + (c["line"] or "")
+    return c
 
 
-def log_rows(ex):
-    """The forward log's rows: one per signal, one per closed plan trade, each with a key that never repeats."""
-    rows = [dict(s, kind="signal", key=f"S|{s['t']}|{s['side']}") for s in ex.get("signals") or ()]
+def log_rows(ex, at=None):
+    """The forward log's rows: one per signal, one per closed plan trade, and after the close one result per signal (her stop or
+    15:00, taken alone); each with a key that never repeats, the clock time it was first written (`at`) and live / backfill."""
+    src = lambda minute: None if at is None else ("live" if M(at) - minute <= LIVE_LAG else "backfill")   # noqa: E731
+    rows = [dict(s, kind="signal", key=f"S|{s['t']}|{s['side']}", at=at, src=src(M(s["t"]) + 2)) for s in ex.get("signals") or ()]
     for p in "abc":
-        rows += [dict(x, kind="close", plan=p.upper(), key=f"C|{p.upper()}|{x['t']}|{x['side']}")
+        rows += [dict(x, kind="close", plan=p.upper(), key=f"C|{p.upper()}|{x['t']}|{x['side']}", at=at, src=src(M(x["x"])))
                  for x in (ex.get("plan_" + p) or {}).get("trades") or ()]
+    rows += [dict(r, kind="result", key=f"R|{r['t']}|{r['side']}", at=at, src="final") for r in ex.get("results") or ()]
     return rows
 
 
@@ -370,15 +408,26 @@ def append_log(path, rows):
     return len(new)
 
 
+def last_session(day, back=10):
+    """GAP's yesterday (Fable A337 #6): the last weekday before `day` with candles, at most `back` weekdays back (a holiday has
+    none) -> (that day, its candles); (the previous weekday, None) when none is found."""
+    d = day
+    for _ in range(back):
+        d = prev_weekday(d)
+        c = [b for b in ruler.ones_of(d) if b.get("c") is not None]
+        if len(c) >= 300:
+            return d, c
+    return prev_weekday(day), None
+
+
 def for_frame(fr):
     """A Jarvis frame (live or replay) -> day_state: the saved exchange tape (ruler.ones_of) up to the frame's last minute,
     the frame's Dext delta (no fallback: all order flow from Dext), its ladder and spot for the OI line."""
     day, mins = fr.get("day"), fr.get("mins") or []
     if not day or not mins:
         return {"ok": False, "why": "could not check — the frame has no minutes"}
-    pday = prev_weekday(day)
-    prev = [b for b in ruler.ones_of(pday) if b.get("c") is not None]
+    pday, prev = last_session(day)
     return day_state(day, ruler.ones_of(day), {t: v for t, v in zip(mins, fr.get("delta") or ()) if v is not None},
-                     prev if len(prev) >= 300 else None, contract_changed(day, pday), upto=mins[-1], ladder=fr.get("ladder"),
+                     prev, contract_changed(day, pday), upto=mins[-1], ladder=fr.get("ladder"),
                      spot={t: v for t, v in zip(mins, fr.get("spot") or ()) if v is not None}, step=fr.get("step") or 50,
                      peers={i: ruler.ones_of(day, i) for i in ("BANKNIFTY", "SENSEX")})

@@ -136,7 +136,7 @@ def test_screen_day_end_and_the_card():
     st, line, _ = X._screen(ones, s, w, {"ok": True, "text": ""}, {}, X.M("15:10"), None, None, 50)
     assert st == "DAY END" and line == "PLAN B +5 (1) · PLAN A +5 (1) · PLAN C +5 (1)"
     c = X.card({"ok": True, "day": "d", "upto": "15:10", "state": st, "line": line, "ticket": None, "signals": [1]})
-    assert c == {"ok": True, "day": "d", "upto": "15:10", "state": st, "line": line, "ticket": None}
+    assert c == {"ok": True, "day": "d", "upto": "15:10", "state": st, "line": line, "ticket": None, "last": None}
     assert X.card({"ok": False, "why": "x"}) == {"ok": False, "why": "x"}
 
 
@@ -179,6 +179,63 @@ def test_the_jarvis_card_carries_the_block():
     c = jarvis_log.card({"ok": True, "call": {}, "fut": [100.0], "exec": {"ok": True, "line": "WAIT · no zone armed", "marks": [{"t": "10:00"}]}})
     assert c["exec"] == {"ok": True, "line": "WAIT · no zone armed"}          # the per-signal marks ride the frame, not the card
     assert jarvis_log.card({"ok": True, "call": {}, "fut": [100.0]})["exec"] is None
+
+
+def test_log_rows_stamp_time_and_live_or_backfill():
+    ex = {"signals": [{"t": "10:00", "side": "SELL", "b": "TAKEN"}, {"t": "09:30", "side": "BUY", "b": "SKIP"}],
+          "plan_b": {"trades": [{"t": "09:30", "side": "BUY", "x": "09:50", "why": "STOP", "pts": -10.0}]},
+          "results": [{"t": "10:00", "side": "SELL", "pts": 30.0}]}
+    rows = {r["key"]: r for r in X.log_rows(ex, "10:04:10")}
+    assert rows["S|10:00|SELL"]["at"] == "10:04:10" and rows["S|10:00|SELL"]["src"] == "live"      # entry 10:02, seen 2 min later
+    assert rows["S|09:30|BUY"]["src"] == "backfill"                                                # entry 09:32, first seen 10:04
+    assert rows["C|B|09:30|BUY"]["src"] == "backfill" and rows["R|10:00|SELL"]["kind"] == "result"
+
+
+def test_alone_scores_one_signal_with_her_stop_to_15_00():
+    ones = day_ones({"09:15": 100, "10:20": 95, "10:40": 108, "11:00": 111})
+    assert X._alone(ones, sig("10:00", "SELL", 100, 110)) == {"pts": -10, "best": 5, "stop": "11:00"}
+    assert X._alone(ones, sig("10:30", "BUY", 95, 90)) == {"pts": 16, "best": 16, "stop": None}
+
+
+def test_card_says_paper_when_the_plan_holds_a_trade_she_has_not_marked():
+    ex = {"ok": True, "state": "IN TRADE", "line": "HOLD SELL 100f · wrong only at 110f", "ticket": None, "plan_b": {"open": {"side": "SELL"}}}
+    assert X.card(ex, her=[])["line"].startswith("PAPER · HOLD SELL")
+    assert X.card(ex, her=["SELL"])["line"].startswith("HOLD SELL")
+    assert X.card(ex)["line"].startswith("HOLD SELL")                       # her trades not known (a replay): unchanged
+    assert X.her_dirs([{"idx": "NIFTY", "side": "PE", "role": "buy"}, {"idx": "NIFTY", "side": "CE", "role": "sell", "exit_t": "10:00"},
+                       {"idx": "SENSEX", "side": "CE", "role": "buy"}, {"idx": "NIFTY", "side": "CE", "role": "short"}]) == ["SELL", "SELL"]
+    assert X.card({"ok": True, "state": "IN TRADE", "line": "x", "ticket": None, "last": ["a", "b"]})["last"] == ["a", "b"]
+
+
+def test_for_frame_reads_gap_from_the_last_session_with_candles(monkeypatch):
+    monkeypatch.setattr(X.ruler, "ones_of", lambda day, idx="NIFTY": day_ones({"09:15": 100}) if day in ("2026-11-11", "2026-11-09") else [])
+    ex = X.for_frame({"day": "2026-11-11", "mins": ["09:15", "10:00"], "delta": [None, None]})
+    assert ex["gap"]["ok"] is True                                           # 10 Nov has no candles (holiday): 9 Nov is read
+
+
+def test_her_call_is_logged_against_the_last_signal(tmp_path, monkeypatch):
+    import json
+    import jarvis_cmd
+    monkeypatch.setattr(jarvis_cmd, "DIR", str(tmp_path))
+    d = jarvis_cmd.Day("2026-11-13")
+    r = d.apply("NIFTY", "took entered at the band", frame={"exec": {"marks": [{"t": "10:54", "side": "SELL", "label": "TAKE"}]}})
+    assert r["ok"] and "TOOK SELL 10:54" in r["reply"]
+    row = json.loads((tmp_path / "cmd_2026-11-13.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert row["kind"] == "call" and row["word"] == "TOOK" and row["signal"]["t"] == "10:54" and row["why"] == "entered at the band"
+    assert d.apply("NIFTY", "skip", frame={"exec": {"marks": []}})["ok"] is False
+
+
+def test_the_trigger_path_on_a_saved_day():
+    import json
+    import os
+    ones = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "execute_fut_NIFTY_2026-11-13.json"),
+                          encoding="utf-8"))["bars"]
+    ex = X.day_state("2026-11-13", ones)
+    assert [(s["t"], s["side"]) for s in ex["signals"]] == [("10:18", "SELL"), ("10:54", "SELL")]
+    assert [round(x["pts"]) for x in ex["plan_a"]["trades"]] == [-58, 107]
+    assert [r["t"] for r in ex["results"]] == ["10:18", "10:54"]
+    mid = X.day_state("2026-11-13", ones, upto="11:30")
+    assert mid["state"] == "IN TRADE" and mid["last"][0].startswith("SELL 10:54") and "results" not in mid
 
 
 def test_marks_carry_the_plans_word_for_every_signal():
