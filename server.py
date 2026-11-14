@@ -1221,8 +1221,14 @@ def _ux_meta(idx):
     ladder.py then infers and the row says `lot_src: "gcd"`."""
     st = _SENSES["ux"].get(idx)
     if st is None:
+        import reader
         try:
             lot, tick = upstox_instruments.lot_tick(idx)
+            # A273 (11 Nov): the dump's tick is in PAISE (NIFTY 10.0 = 0.10 rupees). Until now it went in raw: the
+            # ladder's reach past the last print was 5.5 points, not 0.055, so quotes pulled and re-posted were booked as
+            # opposite-side volume (17 of 97 big bars against Dext's sign; 6 with the rupee tick), and the gauge's "lots
+            # per tick" was per 10 rupees. Every ux row carries its own `tick`, so the two eras stay apart.
+            tick = reader.rupee_tick(tick)
         except Exception:                      # noqa: BLE001 -- no dump is not a reason to stop recording
             lot, tick = None, None
         st = _SENSES["ux"][idx] = {"lot": lot, "tick": tick, "day": None, "rebuild_why": None,
@@ -1311,6 +1317,33 @@ def _ux_bars(idx, day):
     return ux_log.read_bars(day, idx)
 
 
+UX_ULTA = 0.5    # (h) A263: an Upstox bar whose delta runs against a print by >= half the print's lots is "sources disagree"
+
+
+def _ux_check_prints(doc, idx, day):
+    """A263 (9 Nov): THE SECOND SOURCE ON EVERY DEXT BADA PRINT. Dext sided a 4,800-lot block opposite to Upstox and
+    GoCharting on 6 Nov 15:05 (+5,320 vs -3,607 / -3,799 lots), and its decoder named it BADA BUYER. Each E1 from a Dext
+    page gets `ux` = "ok" / "ulta" / "none" against the Upstox bar of the same 5 minutes, before story, decoder_log and every
+    face read it; an "ulta" print's chip says UPSTOX ULTA. It never says which source is right, and nothing decides on it."""
+    evs = (doc.get("decoder") or {}).get("events") if doc.get("src") == "dext" and isinstance(doc.get("decoder"), dict) else None
+    prints = [e for e in evs or () if isinstance(e, dict) and e.get("kind") == "E1"]
+    if not prints:
+        return
+    ux = {int(b["t"]): b for b in _ux_bars(idx, day) or () if isinstance(b.get("t"), (int, float))}
+    for e in prints:
+        b, lots, side = ux.get(e.get("t")), e.get("lots"), e.get("side") or 0
+        if not b or not isinstance(b.get("delta"), (int, float)) or not lots:
+            e["ux"] = "none"
+            continue
+        e["ux"] = "ulta" if b["delta"] * side < 0 and abs(b["delta"]) >= UX_ULTA * lots else "ok"
+        if e["ux"] == "ulta":
+            note = f"UPSTOX ULTA (Δ {b['delta']:+,.0f} lots)"
+            e["chip"] = f"{e.get('chip') or ''} · {note}"
+            if isinstance(e.get("chips"), list) and e["chips"]:
+                e["chips"] = [f"{e['chips'][0]} · {note}"] + e["chips"][1:]
+            e["en"] = f"{e.get('en') or ''}; Upstox's bar runs the other way ({b['delta']:+,.0f} lots): the two sources disagree"
+
+
 def _feed_read(idx, day):
     """The GoCharting tape's health (feed_health.py) with Upstox lots per closed bin for the volume check.
     Fail-soft: a failure anywhere here is a why on the wire, never a 500 and never at the frame's expense."""
@@ -1385,11 +1418,11 @@ def _ux_reply(idx, day, row, anchor, ofd_raw):
     out["impact"] = im.read() if im else {"lambda": None, "lots_per_tick": None, "pct": None, "n": 0,
                                           "why": "no frame has reached the impact gauge yet this process", "tag": "I"}
     if not ofd_raw:
-        out["agree_why"] = "GoCharting record absent for this day — ux stands alone, flags on the default grid"
+        out["agree_why"] = "footprint record (Dext; GoCharting before 9 Nov) absent for this day — ux stands alone, flags on the default grid"
     else:
         ag = gate_mod.session(ofd_raw, bars_raw, row, anchor)
         if ag["bars_joined"] == 0:
-            out["agree_why"] = "no GoCharting bar shares a t with any ux bar — nothing to compare"
+            out["agree_why"] = "no footprint bar shares a t with any ux bar — nothing to compare"
         else:
             out["agree"] = ag
     return out
@@ -1416,7 +1449,7 @@ def _tape_reply(idx: str, day: str) -> dict:
         if not raw and not _ux_bars(idx, day) and not daylog.exists(book_log.day_path(day, idx)) \
                 and idx not in _SENSES["book"].book_from:
             return {"ok": False, "idx": idx, "day": day, "src": None,
-                    "why": f"no prints record for {idx} on {day} — GoCharting was on another index, or the extension never posted"}
+                    "why": f"no prints record for {idx} on {day} — the footprint feed (Dext) never posted"}
         forming, ofd = None, tape_log.read_marks(day, idx)
         # no GoCharting record but a ux one: the extension's defaults (rowSize 5,
         # anchor 0), and levels.why says the grid was assumed (spec 2 §E)
@@ -1469,7 +1502,7 @@ def _tape_reply(idx: str, day: str) -> dict:
         "levels": {"session": ({"poc": prof["poc"], "vah": prof["vah"], "val": prof["val"]} if prof else None),
                    "prior": prior, "prior_why": None if prior else cut_why or "no earlier day in the record yet",
                    "naked": prints.naked(prior_days, raw), "nodes": prints.nodes(prof), "tag": "M",
-                   "why": (f"no GoCharting record for {idx} on {day} — ux stands alone" if not raw
+                   "why": (f"no footprint record (Dext) for {idx} on {day} — ux stands alone" if not raw
                            else None if prof else "no bar with a ladder yet")},
         "marks": {"ofd": ofd, "ofd_why": ofd_why, "tm": tm, "tm_why": tm_why},
         "ux": _ux_reply(idx, day, row, anchor, raw),
@@ -4500,7 +4533,7 @@ def _validate_press(doc):
 
 # F13 (25 Oct review, A76; TRADER F07): intake had stalled -- 4 of her last 10 sessions recorded in full, no tradebook import
 # since 3 Oct -- and nothing said so. Two display-only checks ride /api/health for 5173, the Float and Validate.
-REC_DUE = (("book", "09:20"), ("chain", "09:20"), ("calls", "09:20"), ("read", "09:25"), ("GoCharting", "09:20"))   # read: its 09:20 mark lands after its grace
+REC_DUE = (("book", "09:20"), ("chain", "09:20"), ("calls", "09:20"), ("read", "09:25"), ("Dext", "09:20"))   # read: its 09:20 mark lands after its grace; Dext = the frame POSTs (dext_face.mjs; GoCharting's until 6 Nov, A263)
 REC_END = "15:30"
 FRAME_QUIET_S = 120                                # no frame POST for 2 min: the panel's record is not being written
 START_GRACE_S = 300                                # A103: a fresh start's first rows (26 Oct 09:32: book +8 s, chain +68 s, read +133 s)
@@ -4517,7 +4550,7 @@ def _ist(now=None):
 
 def _recording(now=None):
     """F13b: which of today's logs is not being written, 09:20-15:30 IST on a weekday; None outside it. {ok, missing, text}:
-    `missing` names each log with no row today (book, chain, calls; read from 09:25) and GoCharting when no frame POST came in
+    `missing` names each log with no row today (book, chain, calls; read from 09:25) and Dext when no frame POST came in
     FRAME_QUIET_S. Each change of `text` within a day is ONE row in data/feed_log.jsonl through feed_health's writer (the
     day's first look only when something is missing). Display only: nothing reads it but the faces."""
     from chain_live import CHAIN_DIR
@@ -4539,7 +4572,7 @@ def _recording(now=None):
              "calls": [calls_log.path(day)], "read": [os.path.join(READ_DIR, f"read_{day}.jsonl")]}
     last = feed_health.last_post(day)
     missing = [k for k, due in REC_DUE if hm >= due and (
-        (last is None or d.timestamp() - last > FRAME_QUIET_S) if k == "GoCharting" else not wrote(files[k]))]
+        (last is None or d.timestamp() - last > FRAME_QUIET_S) if k == "Dext" else not wrote(files[k]))]
     text = "RECORDING NAHI: " + ", ".join(missing) if missing else None
     with _REC_LOCK:
         if (_REC["day"], _REC["text"]) != (day, text) and (_REC["day"] == day or text):
@@ -5478,6 +5511,10 @@ class Handler(SimpleHTTPRequestHandler):
                 # and marks stamped 15:30 or later never reach the build, the
                 # record, the ladder file or the scorer (_session_only)
                 doc = _session_only(doc)
+                try:                                     # A263: Upstox checks every Dext BADA PRINT before anything reads it
+                    _ux_check_prints(doc, idx, day)
+                except Exception:
+                    log.exception("ux check of the prints")
                 # FEED HEALTH (P3): every accepted post is a data point (arrival time, heartbeat, newest bar). Never raises.
                 feed_health.on_post(idx, day, doc)
                 if "push" in doc:                        # READ-2's JAGAH: optional; absent or malformed keeps the last
